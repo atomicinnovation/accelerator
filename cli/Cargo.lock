@@ -839,7 +839,6 @@ dependencies = [
  "tempfile",
  "time",
  "vcs-adapters",
- "vcs-test-support",
 ]
 
 [[package]]

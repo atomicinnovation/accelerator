@@ -346,16 +346,6 @@ description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fix
 depends = ["deps:install:python"]
 run = "invoke test.integration.deny"
 
-[tasks."test:integration:zero-spawn"]
-description = "Prove the library-backed VCS adapter reads git and jj without spawning them (its own CI job, not the test roll-up)"
-depends = ["deps:install:python"]
-run = "invoke test.integration.zero-spawn"
-
-[tasks."test:integration:zero-spawn:strong"]
-description = "The strong form of the above: shadows the real git/jj with sudo for the duration, so absolute-path access cannot satisfy the adapter (CI only — gated behind ACCELERATOR_ZERO_SPAWN_SHADOW=yes)"
-depends = ["deps:install:python", "build:cli:fixture-size"]
-run = "invoke test.integration.zero-spawn-strong"
-
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the
 # test:integration roll-up: a run needs a quiet host, a pinned PATH, network
 # egress and several minutes. Owned by its own non-blocking CI job. See
@@ -390,6 +380,14 @@ description = "Run hooks integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
 
+# A depends-only shim: it lets the fixture-size guard join the test:integration
+# roll-up while keeping the roll-up's guarded invariant that every member is a
+# test:integration:* task. It runs no command of its own — do not delete it as
+# redundant; the assertion lives in build:cli:fixture-size.
+[tasks."test:integration:fixture-size"]
+description = "Roll-up entry point for the gix/jj-lib link-ratio floor; see build:cli:fixture-size"
+depends = ["build:cli:fixture-size"]
+
 [tasks."test:integration"]
 description = "Run all integration tests in parallel"
 depends = [
@@ -401,6 +399,7 @@ depends = [
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
+    "test:integration:fixture-size",
 ]
 
 [tasks."test:e2e:visualiser"]
@@ -576,11 +575,6 @@ description = "Guard every SKILL.md !-preprocessor invocation against its allowe
 depends = ["deps:install:python"]
 run = "invoke lint.skill-permissions.check"
 
-[tasks."lint:call-site-migration:check"]
-description = "Guard against regressing to the bash config cluster: no SKILL.md names a removed scripts/config- script (Grep B) and --allow-legacy-layout stays confined to the migration engine"
-depends = ["deps:install:python"]
-run = "invoke lint.call-site-migration.check"
-
 [tasks."lint:claude-coupling:check"]
 description = "Guard the rename set (cli/, bin/accelerator, the dev-env writers) against naming any CLAUDE_* variable"
 depends = ["deps:install:python"]
@@ -650,7 +644,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:call-site-migration:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

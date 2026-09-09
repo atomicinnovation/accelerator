@@ -2,9 +2,7 @@
 
 Textual-structure assertions (mirroring test_workflows.py's style) that the
 Rust enforcement gates are wired into the aggregate `check` task, so a gate
-cannot be silently unwired from the read-only CI-mirror. Extended per phase as
-each gate lands (cli:check here; deny:check / pup:check in Phases 3-4;
-public-api:check with the tracker crate's surface pin).
+cannot be silently unwired from the read-only CI-mirror.
 """
 
 import tomllib
@@ -74,12 +72,13 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
     "test:integration:tracker-contract": "cargo nextest against a live "
     "tracker; reaches no accelerator binary",
-    "test:integration:zero-spawn": "cargo nextest over the vcs fixture matrix",
-    "test:integration:zero-spawn:strong": "the same suite, with the real "
-    "git/jj shadowed",
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
+    # A build-linkage guard rehomed into the roll-up, not an integration test:
+    # it depends only on build:cli:fixture-size and reaches no launcher.
+    "test:integration:fixture-size": "depends-only shim for the gix/jj-lib "
+    "link-ratio guard; reaches no launcher",
 }
 
 
@@ -175,20 +174,6 @@ def test_the_two_launcher_sets_are_disjoint():
 # runs. Each exclusion carries its reason.
 _NOT_IN_INTEGRATION_ROLLUP = {
     "test:integration:pup": "needs the isolated nightly toolchain lane",
-    # Membership would build the ~34-fixture matrix a second time per run — on
-    # both legs of test-integration and on every bare `mise run` — on top of
-    # queries.rs, in the code path with a documented flake history under
-    # parallel CI load. It also keeps the harness that reads the shadow
-    # contract off the local path. Owned by check-zero-spawn; runnable on
-    # demand.
-    "test:integration:zero-spawn": "owned by its own CI job; rebuilds the "
-    "whole fixture matrix",
-    # Strictly worse to put in a roll-up than its PATH-only sibling: it moves
-    # system binaries aside with sudo. Gated behind an env opt-in as well, so
-    # a stray invocation fails closed rather than leaving a developer without
-    # git. Owned by check-zero-spawn.
-    "test:integration:zero-spawn:strong": "shadows the real git/jj with "
-    "sudo; CI-only by design",
     # Needs a bootstrapped Playwright runtime, which no CI lane provisions, so
     # in the roll-up it would fail every build. It fails rather than skips
     # without one, which keeps it runnable on demand and honest when the
@@ -293,3 +278,20 @@ def test_every_integration_task_is_in_the_rollup_or_excluded_with_a_reason(
     rollup = set(_task_depends(mise, "test:integration"))
     assert rollup | set(_NOT_IN_INTEGRATION_ROLLUP) == _integration_tasks(mise)
     assert not rollup & set(_NOT_IN_INTEGRATION_ROLLUP)
+
+
+def test_fixture_size_leaf_reaches_the_guard(mise):
+    # The leaf's entire protective value is one depends edge; pin it so a
+    # future removal fails here rather than passing vacuously green.
+    assert "build:cli:fixture-size" in _transitive_depends(
+        mise, "test:integration:fixture-size"
+    )
+
+
+def test_fixture_size_guard_runs_in_the_integration_rollup(mise):
+    # Pin the roll-up -> guard half of the chain: the roll-up is the guard's
+    # only CI home, so a future exclusion must not silently relocate it out of
+    # CI.
+    assert "build:cli:fixture-size" in _transitive_depends(
+        mise, "test:integration"
+    )

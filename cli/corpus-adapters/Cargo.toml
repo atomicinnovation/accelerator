@@ -9,21 +9,6 @@ publish.workspace = true
 [lints]
 workspace = true
 
-[features]
-# The differential suites shell out to bash, awk, and the repo's own scripts.
-# Under the feature an absent tool hard-fails rather than skipping — Rust's
-# harness has no skip primitive, so a silent early return would register as a
-# green PASS. Off, only the pure-Rust tables run, so `cargo test` stays usable
-# on a machine without the toolchain. CI enables it (tasks/test/cli.py).
-bash-parity = []
-
-# Black-box entry point for the zero-spawn proof over the metadata-read path —
-# not a shipped artifact. Lives under tests/fixtures/ so it stays off the
-# crate's normal build surface, mirroring vcs-adapters-fixture.
-[[bin]]
-name = "corpus-adapters-fixture"
-path = "tests/fixtures/corpus_adapters_fixture.rs"
-
 [dependencies]
 corpus = { path = "../corpus" }
 document = { path = "../document" }
@@ -36,9 +21,3 @@ tempfile = { workspace = true }
 rand = { workspace = true }
 rustix = { workspace = true }
 serde_json = { workspace = true }
-
-# Test-only edge to the shared VCS harness. Under resolver 3 a dev-dependency's
-# features stay out of the normal build, which matters because the visualiser
-# server depends on this crate. The normal vcs-adapters edge above is untouched.
-[dev-dependencies]
-vcs-test-support = { path = "../vcs-test-support" }

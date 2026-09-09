@@ -215,75 +215,23 @@ What enforces the port's invariants continuously is each provider client's
 against a mock server in the default profile. This lane is the live-tenant
 assurance beside it, and what proves it ran is the committed evidence file.
 
-### Zero-spawn strong form
+### The gix/jj-lib link-ratio guard
 
-The library-backed VCS adapter reads git and jj **in-process**. Two mechanisms
-prove it, and they prove different things.
+`build:cli:fixture-size` catches a linker-drop regression. The host-native VCS
+reference artefact links its `gix`/`jj-lib` trees, so it must be at least 3× the
+size of a stubbed twin that links neither. A future edit that stops printing a
+query result — letting the linker drop `gix`/`jj-lib` — is caught on the PR path
+rather than first firing during a release.
 
-`test:integration:zero-spawn` puts marker-writing `git`/`jj` stubs first on a
-synthetic `PATH`, drops every directory that could resolve a real one, runs the
-whole fixture matrix, and asserts **both** that no stub recorded a spawn **and**
-that every value matches an unrestricted run — an adapter degrading to absence
-also writes no marker. It is scoped to `git`/`jj` specifically, not "no
-subprocess at all": the clock spawns `date` unconditionally.
+It plays two roles. The **host-native ratio floor** runs in the
+`test:integration` roll-up through the `test:integration:fixture-size` leaf, a
+depends-only shim that keeps the roll-up's every-member-is-`test:integration:*`
+invariant intact while giving the guard a home the local CI mirror reaches. The
+**cross-compile** applies the same ratio on every triple plus an absolute byte
+floor on **musl only**; the darwin stripped delta clears that floor by ~9%, and
+every triple is stripped, so gating darwin would put a 9%-margin heuristic on
+`prerelease:prepare`'s critical path.
 
-That is the **weak** form: a caller reaching `/usr/bin/git` by absolute path
-never consults `PATH`. The **strong** form additionally shadows those absolute
-paths. It is `test:integration:zero-spawn:strong`, and it owns the whole
-sequence: compile the artefacts and build the fixture matrix while the real
-binaries are still reachable, shadow them, run the prebuilt suite, restore in a
-`finally`. Only the `check-zero-spawn` CI job invokes it, and that job is in
-`prerelease.needs`.
-
-Targets are resolved at run time from **three** sources: every `PATH` hit (macOS
-ships `git` in two directories), `mise which git`/`mise which jj`, and the known
-system paths. `mise which` is the load-bearing one on CI — there is no system
-`jj` on the runner, the real binary lives under the mise install tree, and what
-sits on `PATH` may be a shim pointing at it. Shadowing only a shim would leave
-the real binary reachable by absolute path while the harness agreed the run was
-strong, because it is only told about the paths we shadowed.
-
-The harness and the task have an explicit contract —
-`ACCELERATOR_ZERO_SPAWN_MODE` and `ACCELERATOR_ZERO_SPAWN_SHADOWED` — and the
-harness **fails closed** on a malformed mode or a path that is still executable,
-so a runner image that relocates `git` cannot turn the `sudo mv` into a silent
-no-op.
-
-`test:integration:zero-spawn` is deliberately **out of the `test:integration`
-roll-up**: membership would rebuild the ~34-fixture matrix a second time per
-run, on both OS legs and on every bare `mise run`, in a code path with a
-documented flake history under parallel CI load. It stays runnable on demand.
-
-**The Rust harness never writes outside its own temp directories.** It resolves
-and *reports* absolute paths; it never moves, chmods or `sudo`s anything. All
-privileged mutation lives in the strong-form task, which is **gated behind
-`ACCELERATOR_ZERO_SPAWN_SHADOW=yes`** and refuses to start without it.
-`/opt/homebrew/bin` is user-writable, so an ungated task would succeed there and
-could leave a developer's machine without `git` or `jj`. The gate is an
-environment variable rather than a flag precisely because a task name can be
-tab-completed by accident and an `env:` block cannot.
-
-**Containment assumes ephemeral runners.** Shadow, run and restore live in one
-task, with the restore in a `finally` and a step-level `timeout-minutes` shorter
-than the job's, so the process rather than the scheduler guarantees the restore.
-A trailing `if: always()` step then asserts `git --version` and `jj --version`
-both succeed — deliberately as bare commands, not `mise run`, because mise would
-reinstall the missing tool and turn the one check that catches a failed restore
-into one that quietly repairs it. For the same reason the task invokes cargo
-directly inside the window: mise is entered before it and never within. The job
-sets `cache: false` on `mise-action` because the jj shadow target sits inside
-the tree the action saves on its post step, so a failed restore would otherwise
-persist a `jj`-less tool tree into the cache that every later run restores. A
-move to self-hosted, containerised or reusable runners turns a contained hazard
-into a persistently broken runner.
-
-`build:cli:fixture-size` is the third guard: the linked reference artefact must
-be at least 3× the stubbed twin, so a future edit that stops printing a query
-result — letting the linker drop `gix`/`jj-lib` — is caught on the PR path
-rather than first firing during a release. The cross-compile applies the same
-ratio on every triple plus an absolute byte floor on **musl only**; the darwin
-stripped delta clears that floor by ~9%, and every triple is stripped, so gating
-darwin would put a 9%-margin heuristic on `prerelease:prepare`'s critical path.
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
@@ -721,5 +669,4 @@ locally with the mapped command:
 | `check-supply-chain`                  | `mise run deny:check`                                                                                                                                                                |
 | `check-architecture`                  | `mise run pup:check` (+ `test:integration:pup`, `public-api:check`)                                                                                                                  |
 | `check-attribution`                   | `mise run notices:check` (regenerate with `mise run notices:update`; the job also warms the cli registry with `cargo fetch --locked`)                                                |
-| `check-zero-spawn`                    | `mise run test:integration:zero-spawn` (PATH-only; the CI job runs `test:integration:zero-spawn:strong`, which shadows absolute paths and needs `ACCELERATOR_ZERO_SPAWN_SHADOW=yes`) |
 | `check-docs`                          | `mise run docs:check` (absent from the aggregate `check` — needs network + Chromium — but reached by a bare `mise run`)                                                              |
