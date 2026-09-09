@@ -189,13 +189,16 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
         DiscoveryStatus::SkippedTargeted => {
             "#\tdiscovery\tskipped\ttargeted".to_owned()
         }
+        DiscoveryStatus::TargetedPull { attempted } => {
+            format!("#\tdiscovery\ttargeted-pull\t{attempted}")
+        }
         DiscoveryStatus::Failed { detail } => {
             format!("#\tdiscovery\tfailed\t{}", single_line(detail))
         }
     }
 }
 
-fn render_report(report: &RunReport, suppressed: &[Suppressed]) -> String {
+fn render_report(report: &RunReport) -> String {
     let mut lines = Vec::new();
     let mut synced_count = 0usize;
     for item in &report.reported {
@@ -228,9 +231,6 @@ fn render_report(report: &RunReport, suppressed: &[Suppressed]) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
-    for note in suppressed {
-        lines.push(suppression_line(note));
-    }
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
@@ -363,44 +363,48 @@ fn persist_conflict_dossiers(
     }
 }
 
-/// A dual-shape target: a token that resolved locally but also keys some
-/// item's `external_id`. The local interpretation wins; the remote match is
-/// reported as suppressed rather than treated as ambiguity.
-#[derive(Debug)]
-struct Suppressed {
-    token: String,
-    local_id: String,
-    remote_id: String,
-}
-
 #[derive(Debug)]
 struct ResolvedTargets {
     items: Vec<LocalItem>,
-    suppressed: Vec<Suppressed>,
+    /// Tokens with no local match, de-duplicated by canonical key. Each is a
+    /// candidate for a remote-only pull, confirmed later by one `fetch_all`.
+    remote_candidates: Vec<ExternalId>,
 }
 
 /// Why one `--target` token could not be resolved. Each carries a
 /// user-facing message naming the offender; [`TargetResolutionFailure::exit_code`]
 /// is the single source of the code mapping.
+///
+/// The variants span two sequenced moments. The local and push-only variants
+/// are decided before the tracker is contacted, so a run carrying one aborts
+/// credential-free; [`Self::Absent`] and [`Self::Indeterminate`] are the
+/// outcomes of the post-credential `fetch_all` gate. Both fold into the same
+/// [`Self::exit_code`] and rank, so precedence is single-sourced across both.
 #[derive(Debug)]
 enum TargetResolutionFailure {
     Malformed(String),
-    NoMatch(String),
     Unmanaged(String),
     OutsideWorkDir(String),
     AmbiguousLocal(String),
     AmbiguousExternal(String),
+    LocalCollision(String),
+    PushOnlyRemoteOnly(String),
+    Absent(String),
+    Indeterminate(String),
 }
 
 impl TargetResolutionFailure {
     fn message(&self) -> &str {
         match self {
             Self::Malformed(message)
-            | Self::NoMatch(message)
             | Self::Unmanaged(message)
             | Self::OutsideWorkDir(message)
             | Self::AmbiguousLocal(message)
-            | Self::AmbiguousExternal(message) => message,
+            | Self::AmbiguousExternal(message)
+            | Self::LocalCollision(message)
+            | Self::PushOnlyRemoteOnly(message)
+            | Self::Absent(message)
+            | Self::Indeterminate(message) => message,
         }
     }
 
@@ -408,11 +412,14 @@ impl TargetResolutionFailure {
         match self {
             Self::Malformed(_)
             | Self::AmbiguousLocal(_)
-            | Self::AmbiguousExternal(_) => exit_codes::USAGE,
-            Self::NoMatch(_) | Self::Unmanaged(_) => {
+            | Self::AmbiguousExternal(_)
+            | Self::LocalCollision(_)
+            | Self::PushOnlyRemoteOnly(_) => exit_codes::USAGE,
+            Self::Unmanaged(_) | Self::Absent(_) => {
                 exit_codes::RESOLVE_NOT_FOUND
             }
             Self::OutsideWorkDir(_) => exit_codes::RESOLVE_OUTSIDE_WORKDIR,
+            Self::Indeterminate(_) => exit_codes::RETRYABLE,
         }
     }
 }
@@ -432,27 +439,29 @@ fn external_id_index(
     index
 }
 
-/// The remote match a dual-shape token names, if the token keys a *different*
-/// item than the local match — the local one wins and this is reported
-/// suppressed.
-fn suppressed_remote(
-    index: &BTreeMap<String, Vec<&LocalItem>>,
+/// The other local file a dual-shape token collides with: the token is
+/// `local_match`'s local id and simultaneously a *different* file's
+/// `external_id`. A genuine local/local collision, decidable entirely from the
+/// corpus, so the caller can name both files without any remote call.
+fn colliding_file<'a>(
+    index: &BTreeMap<String, Vec<&'a LocalItem>>,
     token: &str,
     local_match: &LocalItem,
-) -> Option<String> {
+) -> Option<&'a LocalItem> {
     let key = canonical_external_key(&ExternalId::new(token.to_owned()));
-    let other = index
+    index
         .get(&key)?
         .iter()
-        .find(|item| item.id != local_match.id)?;
-    other.external_id.as_ref().map(|id| id.as_str().to_owned())
+        .find(|item| item.id != local_match.id)
+        .copied()
 }
 
-/// Resolves each `--target` token to a local item, accumulating every failure
-/// so one run names all offenders. Local resolution wins over a remote match;
-/// a token that resolves locally to `NotFound`/`Invalid` cascades to the
-/// `external_id` index, while an ambiguous or out-of-directory local outcome
-/// does not.
+/// Resolves each `--target` token to a local item or a remote candidate,
+/// accumulating every failure so one run names all offenders. Local resolution
+/// wins; a token that resolves locally to `NotFound`/`Invalid` cascades to the
+/// `external_id` index, and a token that matches nothing locally becomes a
+/// remote candidate rather than an abort. An ambiguous or out-of-directory
+/// local outcome still fails.
 fn resolve_targets(
     corpus: &[LocalItem],
     targets: &[String],
@@ -460,7 +469,8 @@ fn resolve_targets(
 ) -> Result<ResolvedTargets, Vec<TargetResolutionFailure>> {
     let index = external_id_index(corpus);
     let mut matched: Vec<&LocalItem> = Vec::new();
-    let mut suppressed: Vec<Suppressed> = Vec::new();
+    let mut remote_candidates: Vec<ExternalId> = Vec::new();
+    let mut candidate_keys = std::collections::BTreeSet::new();
     let mut failures: Vec<TargetResolutionFailure> = Vec::new();
 
     for token in targets {
@@ -480,18 +490,18 @@ fn resolve_targets(
                         .unwrap_or(false)
                 });
                 match local_match {
-                    Some(item) => {
-                        if let Some(remote) =
-                            suppressed_remote(&index, token, item)
-                        {
-                            suppressed.push(Suppressed {
-                                token: token.clone(),
-                                local_id: item.id.clone(),
-                                remote_id: remote,
-                            });
-                        }
-                        matched.push(item);
-                    }
+                    Some(item) => match colliding_file(&index, token, item) {
+                        Some(other) => failures.push(
+                            TargetResolutionFailure::LocalCollision(format!(
+                                "'{token}' is the local id of {} and also \
+                                 the external_id recorded by {}; re-run with \
+                                 the path of the file you intended",
+                                item.path.display(),
+                                other.path.display()
+                            )),
+                        ),
+                        None => matched.push(item),
+                    },
                     None => failures.push(TargetResolutionFailure::Unmanaged(
                         format!(
                             "'{token}' resolves to a file that is not a \
@@ -517,13 +527,10 @@ fn resolve_targets(
                 match index.get(&key).map(Vec::as_slice) {
                     Some([one]) => matched.push(one),
                     None | Some([]) => {
-                        failures.push(TargetResolutionFailure::NoMatch(
-                            format!(
-                                "no local item and no remote-tracked match \
-                                 for '{token}'; untracked remote issues are \
-                                 imported only by a full (untargeted) sync"
-                            ),
-                        ));
+                        if candidate_keys.insert(key) {
+                            remote_candidates
+                                .push(ExternalId::new(token.clone()));
+                        }
                     }
                     Some(_) => failures.push(
                         TargetResolutionFailure::AmbiguousExternal(format!(
@@ -546,7 +553,10 @@ fn resolve_targets(
         .filter(|item| seen.insert(item.id.clone()))
         .cloned()
         .collect();
-    Ok(ResolvedTargets { items, suppressed })
+    Ok(ResolvedTargets {
+        items,
+        remote_candidates,
+    })
 }
 
 enum Scope {
@@ -557,16 +567,20 @@ enum Scope {
 struct SelectedTargets {
     scope: Scope,
     items: Vec<LocalItem>,
-    suppressed: Vec<Suppressed>,
+    remote_candidates: Vec<ExternalId>,
 }
 
 /// A usage or ambiguity error is the most fundamental thing to fix, so it
-/// dominates the summary code: `USAGE` (2) > `RESOLVE_OUTSIDE_WORKDIR` (6) >
-/// `RESOLVE_NOT_FOUND` (3). Every offender is still named on stderr.
+/// dominates the summary code, with each successive class the next-most
+/// actionable: `USAGE` (2) > `RESOLVE_OUTSIDE_WORKDIR` (6) > `RESOLVE_NOT_FOUND`
+/// (3) > `RETRYABLE` (70). A batch carrying both an absent and an indeterminate
+/// token exits 3 by this rank, not by iteration order. Every offender is still
+/// named on stderr.
 fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
     let rank = |code: u8| match code {
-        exit_codes::USAGE => 3,
-        exit_codes::RESOLVE_OUTSIDE_WORKDIR => 2,
+        exit_codes::USAGE => 4,
+        exit_codes::RESOLVE_OUTSIDE_WORKDIR => 3,
+        exit_codes::RESOLVE_NOT_FOUND => 2,
         _ => 1,
     };
     failures
@@ -577,26 +591,39 @@ fn highest_precedence_code(failures: &[TargetResolutionFailure]) -> u8 {
 }
 
 /// Builds the reconciliation scope: `All` when no `--target` is given, else the
-/// resolved `Targeted` slice. On failure prints every offender and returns the
-/// highest-precedence exit code.
+/// resolved `Targeted` slice plus its remote candidates. On failure prints
+/// every offender and returns the highest-precedence exit code. A remote-only
+/// candidate under `--push-only` is contradictory and fails here, before any
+/// tracker contact, so the abort stays credential-free.
 fn build_selection(
     corpus: &[LocalItem],
     targets: &[String],
+    direction: SyncDirection,
     resolver: &dyn Fn(&str) -> RunOutcome,
 ) -> Result<SelectedTargets, ExitCode> {
     if targets.is_empty() {
         return Ok(SelectedTargets {
             scope: Scope::All,
             items: Vec::new(),
-            suppressed: Vec::new(),
+            remote_candidates: Vec::new(),
         });
     }
     match resolve_targets(corpus, targets, resolver) {
-        Ok(found) => Ok(SelectedTargets {
-            scope: Scope::Targeted,
-            items: found.items,
-            suppressed: found.suppressed,
-        }),
+        Ok(found) => {
+            if matches!(direction, SyncDirection::PushOnly)
+                && !found.remote_candidates.is_empty()
+            {
+                for candidate in &found.remote_candidates {
+                    eprintln!("{}", push_only_remote_only(candidate).message());
+                }
+                return Err(ExitCode::from(exit_codes::USAGE));
+            }
+            Ok(SelectedTargets {
+                scope: Scope::Targeted,
+                items: found.items,
+                remote_candidates: found.remote_candidates,
+            })
+        }
         Err(failures) => {
             for failure in &failures {
                 eprintln!("{}", failure.message());
@@ -606,13 +633,62 @@ fn build_selection(
     }
 }
 
-fn suppression_line(suppressed: &Suppressed) -> String {
-    format!(
-        "#\ttarget\tsuppressed\t{}\tlocal={}\tremote={}",
-        single_line(&suppressed.token),
-        single_line(&suppressed.local_id),
-        single_line(&suppressed.remote_id),
-    )
+fn push_only_remote_only(candidate: &ExternalId) -> TargetResolutionFailure {
+    TargetResolutionFailure::PushOnlyRemoteOnly(format!(
+        "'{}' has no local file and --push-only cannot pull a remote-only \
+         item; drop --push-only to import it",
+        candidate.as_str()
+    ))
+}
+
+/// Partitions a bulk read of the remote candidates: `found` become the
+/// confirmed pull ids (their stamps discarded — `create_from_remote` re-reads
+/// each body via `show`), while `absent` and `indeterminate` fold into the
+/// failure accumulator so the run aborts before any write. Any failure wins
+/// over the confirmed ids, holding the all-or-nothing zero-write property.
+fn partition_candidates(
+    outcome: tracker::FetchOutcome,
+) -> Result<Vec<ExternalId>, Vec<TargetResolutionFailure>> {
+    let absent = outcome.absent.into_iter().map(|id| {
+        TargetResolutionFailure::Absent(format!(
+            "no local file nor remote issue for '{}'",
+            id.as_str()
+        ))
+    });
+    let indeterminate = outcome.indeterminate.into_iter().map(|id| {
+        TargetResolutionFailure::Indeterminate(format!(
+            "remote read for '{}' was indeterminate; re-run when the tracker \
+             is reachable",
+            id.as_str()
+        ))
+    });
+    let failures: Vec<_> = absent.chain(indeterminate).collect();
+    if failures.is_empty() {
+        Ok(outcome.found.into_iter().map(|(id, _)| id).collect())
+    } else {
+        Err(failures)
+    }
+}
+
+/// Confirms the remote candidates through one `fetch_all`. A whole-call `Err`
+/// is a pre-flight fault the port cannot classify further — a credential fault
+/// is already caught upstream at `registry.resolve` (exit 74), so the remaining
+/// pre-flight fault is retryable — and maps to a single `Indeterminate` (exit
+/// 70), never a silent success.
+fn confirm_remote_candidates(
+    tracker: &dyn tracker::RemoteTracker,
+    candidates: &[ExternalId],
+) -> Result<Vec<ExternalId>, Vec<TargetResolutionFailure>> {
+    match tracker.fetch_all(candidates) {
+        Ok(outcome) => partition_candidates(outcome),
+        Err(error) => {
+            Err(vec![TargetResolutionFailure::Indeterminate(format!(
+                "the remote lookup for the named target(s) could not be \
+                 completed ({}); re-run when the tracker is reachable",
+                error.into_detail()
+            ))])
+        }
+    }
 }
 
 /// # Errors
@@ -691,10 +767,11 @@ pub fn run_sync(
     let resolver = |token: &str| {
         crate::resolve::resolve_with(&scheme, &canonical_work_dir, start, token)
     };
-    let selected = match build_selection(&items, &args.targets, &resolver) {
-        Ok(selected) => selected,
-        Err(code) => return code,
-    };
+    let selected =
+        match build_selection(&items, &args.targets, direction, &resolver) {
+            Ok(selected) => selected,
+            Err(code) => return code,
+        };
 
     let tracker = match registry.resolve(&integration) {
         Ok(tracker) => tracker,
@@ -715,11 +792,40 @@ pub fn run_sync(
         }
     };
 
+    let pull_ids = if selected.remote_candidates.is_empty() {
+        Vec::new()
+    } else {
+        match confirm_remote_candidates(
+            tracker.as_ref(),
+            &selected.remote_candidates,
+        ) {
+            Ok(found) => found,
+            Err(failures) => {
+                for failure in &failures {
+                    eprintln!("{}", failure.message());
+                }
+                return ExitCode::from(highest_precedence_code(&failures));
+            }
+        }
+    };
+
     let baseline_path = baseline::path(&integrations_root, &integration);
+    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
+    // The integration's state directory holds the baseline, the conflict
+    // dossiers, and the pending-push markers. On a never-synced integration it
+    // does not exist yet, and the atomic-write containment check canonicalises
+    // this directory as its trusted root, so the first baseline write fails
+    // unless it is present. Create it up-front rather than relying on a later
+    // write to author it.
+    if let Err(error) = std::fs::create_dir_all(baseline_dir) {
+        eprintln!(
+            "could not create the integration state directory {}: {error}",
+            baseline_dir.display()
+        );
+        return ExitCode::from(exit_codes::ERROR);
+    }
     let file_reader = RealFs;
-    let corpus_store = FileCorpusStore::new(
-        baseline_path.parent().unwrap_or(&integrations_root),
-    );
+    let corpus_store = FileCorpusStore::new(baseline_dir);
     let mut baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
     let status = VcsWorkingCopyStatus::probed_from(&root);
@@ -754,7 +860,10 @@ pub fn run_sync(
     };
     let selection = match selected.scope {
         Scope::All => ItemSelection::All,
-        Scope::Targeted => ItemSelection::Targeted(&selected.items),
+        Scope::Targeted => ItemSelection::Targeted {
+            items: &selected.items,
+            pull_ids: &pull_ids,
+        },
     };
     let request = SyncRequest {
         corpus: &items,
@@ -805,7 +914,7 @@ pub fn run_sync(
                      resolve the work-item id scheme ({error})"
                 ),
             }
-            println!("{}", render_report(&report, &selected.suppressed));
+            println!("{}", render_report(&report));
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
@@ -852,7 +961,12 @@ pub fn run_sync(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used, clippy::unnecessary_wraps)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unnecessary_wraps,
+    clippy::unimplemented
+)]
 mod tests {
     use corpus::WorkItemIdScheme;
     use tracker::RemoteTimestamp;
@@ -875,11 +989,13 @@ mod tests {
     use tracker::ExternalId;
     use work_adapters::sync::fetch::LocalItem;
 
+    use work::sync::SyncDirection;
+
     use super::build_selection;
     use super::highest_precedence_code;
+    use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
-    use super::suppression_line;
     use super::Scope;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
@@ -904,7 +1020,7 @@ mod tests {
     }
 
     #[test]
-    fn a_local_id_wins_and_records_the_remote_match_as_suppressed() {
+    fn a_local_local_collision_is_a_usage_error_naming_both_files() {
         let dir = tempfile::tempdir().expect("tempdir");
         let local = target_item(dir.path(), "0001", None);
         let remote_holder = target_item(dir.path(), "0002", Some("0001"));
@@ -912,14 +1028,33 @@ mod tests {
         let local_path = canonical(&corpus[0]);
         let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
 
-        let matched = resolve_targets(&corpus, &["0001".to_owned()], &resolver)
-            .expect("the local id resolves");
+        let failures =
+            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
+                .expect_err("a local/local collision must abort");
+
+        assert_eq!(failures.len(), 1);
+        assert!(matches!(
+            failures[0],
+            TargetResolutionFailure::LocalCollision(_)
+        ));
+        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
+        let message = failures[0].message();
+        assert!(message.contains("0001.md"), "names file A: {message}");
+        assert!(message.contains("0002.md"), "names file B: {message}");
+    }
+
+    #[test]
+    fn an_own_external_id_token_reconciles_with_no_collision() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("0002"))];
+        let local_path = canonical(&corpus[0]);
+        let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
+
+        let matched = resolve_targets(&corpus, &["0002".to_owned()], &resolver)
+            .expect("a token equal to its own file's external_id resolves");
 
         assert_eq!(matched.items.len(), 1);
-        assert_eq!(matched.items[0].id, "0001");
-        assert_eq!(matched.suppressed.len(), 1);
-        assert_eq!(matched.suppressed[0].local_id, "0001");
-        assert_eq!(matched.suppressed[0].remote_id, "0001");
+        assert_eq!(matched.items[0].id, "0002");
     }
 
     #[test]
@@ -967,21 +1102,42 @@ mod tests {
 
         assert_eq!(matched.items.len(), 1);
         assert_eq!(matched.items[0].id, "0002");
-        assert!(matched.suppressed.is_empty());
     }
 
     #[test]
-    fn a_no_match_token_fails_with_a_not_found_code() {
+    fn a_no_local_match_token_becomes_a_remote_candidate() {
         let dir = tempfile::tempdir().expect("tempdir");
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
         let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
 
-        let failures =
-            resolve_targets(&corpus, &["9999".to_owned()], &resolver)
-                .expect_err("an unmatched token must fail");
+        let outcome = resolve_targets(&corpus, &["9999".to_owned()], &resolver)
+            .expect(
+                "a no-local-match token is a remote candidate, not a failure",
+            );
 
-        assert_eq!(failures.len(), 1);
-        assert_eq!(failures[0].exit_code(), exit_codes::RESOLVE_NOT_FOUND);
+        assert!(outcome.items.is_empty());
+        assert_eq!(outcome.remote_candidates.len(), 1);
+        assert_eq!(outcome.remote_candidates[0].as_str(), "9999");
+    }
+
+    #[test]
+    fn two_spellings_of_one_remote_only_token_collapse_to_one_candidate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
+
+        let outcome = resolve_targets(
+            &corpus,
+            &["PP-999".to_owned(), "pp-999".to_owned()],
+            &resolver,
+        )
+        .expect("both spellings are remote candidates");
+
+        assert_eq!(
+            outcome.remote_candidates.len(),
+            1,
+            "two spellings of one issue fold to a single candidate"
+        );
     }
 
     #[test]
@@ -1016,11 +1172,12 @@ mod tests {
     fn every_failure_is_accumulated_with_usage_dominating_the_code() {
         let dir = tempfile::tempdir().expect("tempdir");
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
-        let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
+        let resolver =
+            |_token: &str| RunOutcome::OutsideWorkDir("outside".to_owned());
 
         let failures = resolve_targets(
             &corpus,
-            &["   ".to_owned(), "9999".to_owned()],
+            &["   ".to_owned(), "meta/outside.md".to_owned()],
             &resolver,
         )
         .expect_err("both tokens fail");
@@ -1029,7 +1186,132 @@ mod tests {
         assert_eq!(
             highest_precedence_code(&failures),
             exit_codes::USAGE,
-            "a malformed token dominates a no-match"
+            "a malformed token dominates an out-of-directory path"
+        );
+    }
+
+    #[test]
+    fn precedence_orders_usage_over_outside_over_not_found_over_retryable() {
+        let failures = vec![
+            TargetResolutionFailure::Indeterminate("retry".to_owned()),
+            TargetResolutionFailure::Absent("gone".to_owned()),
+        ];
+        assert_eq!(
+            highest_precedence_code(&failures),
+            exit_codes::RESOLVE_NOT_FOUND,
+            "an absent token dominates an indeterminate one by rank"
+        );
+
+        let with_outside = vec![
+            TargetResolutionFailure::Absent("gone".to_owned()),
+            TargetResolutionFailure::OutsideWorkDir("outside".to_owned()),
+            TargetResolutionFailure::Malformed("blank".to_owned()),
+        ];
+        assert_eq!(
+            highest_precedence_code(&with_outside),
+            exit_codes::USAGE,
+            "usage dominates outside-work-dir and not-found"
+        );
+    }
+
+    fn found_pair(id: &str) -> (ExternalId, tracker::RemoteTimestamp) {
+        (
+            ExternalId::new(id.to_owned()),
+            tracker::RemoteTimestamp::NotReported,
+        )
+    }
+
+    #[test]
+    fn partition_candidates_projects_found_ids_when_all_resolve() {
+        let outcome = tracker::FetchOutcome {
+            found: vec![found_pair("PP-1"), found_pair("PP-2")],
+            absent: Vec::new(),
+            indeterminate: Vec::new(),
+        };
+
+        let found = partition_candidates(outcome).expect("an all-found batch");
+
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].as_str(), "PP-1");
+    }
+
+    #[test]
+    fn partition_candidates_folds_absent_to_exit_three() {
+        let outcome = tracker::FetchOutcome {
+            found: vec![found_pair("PP-1")],
+            absent: vec![ExternalId::new("PP-9".to_owned())],
+            indeterminate: Vec::new(),
+        };
+
+        let failures =
+            partition_candidates(outcome).expect_err("an absent token fails");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::RESOLVE_NOT_FOUND);
+        assert!(failures[0].message().contains("PP-9"));
+    }
+
+    #[test]
+    fn partition_candidates_folds_indeterminate_to_exit_seventy() {
+        let outcome = tracker::FetchOutcome {
+            found: Vec::new(),
+            absent: Vec::new(),
+            indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+        };
+
+        let failures = partition_candidates(outcome)
+            .expect_err("an indeterminate token fails");
+
+        assert_eq!(failures[0].exit_code(), exit_codes::RETRYABLE);
+    }
+
+    #[test]
+    fn a_mixed_absent_and_indeterminate_batch_exits_three_by_rank() {
+        let outcome = tracker::FetchOutcome {
+            found: Vec::new(),
+            absent: vec![ExternalId::new("PP-9".to_owned())],
+            indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+        };
+
+        let failures =
+            partition_candidates(outcome).expect_err("the mixed batch fails");
+
+        assert_eq!(
+            highest_precedence_code(&failures),
+            exit_codes::RESOLVE_NOT_FOUND,
+            "absent (3) dominates indeterminate (70) by rank, not order"
+        );
+    }
+
+    #[test]
+    fn a_whole_call_fetch_all_error_folds_to_indeterminate_exit_seventy() {
+        let failures = super::confirm_remote_candidates(
+            &FetchFailingTracker,
+            &[ExternalId::new("PP-9".to_owned())],
+        )
+        .expect_err("a pre-flight fetch_all failure aborts");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::RETRYABLE);
+    }
+
+    #[test]
+    fn a_push_only_remote_only_candidate_aborts_before_the_tracker() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver = |_token: &str| RunOutcome::NotFound("nope".to_owned());
+
+        let outcome = build_selection(
+            &corpus,
+            &["PP-999".to_owned()],
+            SyncDirection::PushOnly,
+            &resolver,
+        );
+
+        assert!(
+            outcome.is_err(),
+            "a remote-only target under --push-only aborts before any tracker \
+             contact"
         );
     }
 
@@ -1052,24 +1334,16 @@ mod tests {
         let corpus = vec![target_item(dir.path(), "0002", None)];
         let resolver = |_token: &str| RunOutcome::Invalid("unused".to_owned());
 
-        let selected = build_selection(&corpus, &[], &resolver)
-            .expect("no targets is a whole-corpus run");
+        let selected = build_selection(
+            &corpus,
+            &[],
+            SyncDirection::Bidirectional,
+            &resolver,
+        )
+        .expect("no targets is a whole-corpus run");
 
         assert!(matches!(selected.scope, Scope::All));
         assert!(selected.items.is_empty());
-    }
-
-    #[test]
-    fn the_suppression_line_collapses_record_breaking_whitespace() {
-        let note = super::Suppressed {
-            token: "00\t01".to_owned(),
-            local_id: "00\n01".to_owned(),
-            remote_id: "PP-787".to_owned(),
-        };
-        assert_eq!(
-            suppression_line(&note),
-            "#\ttarget\tsuppressed\t00 01\tlocal=00 01\tremote=PP-787"
-        );
     }
 
     fn ok_render(section: &SectionDiff) -> String {
@@ -1165,7 +1439,7 @@ mod tests {
         ))
         .expect("golden readable");
 
-        assert_eq!(render_report(&report, &[]), golden);
+        assert_eq!(render_report(&report), golden);
     }
 
     #[test]
@@ -1180,7 +1454,7 @@ mod tests {
         };
 
         assert_eq!(
-            render_report(&report, &[]),
+            render_report(&report),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
     }
@@ -1198,27 +1472,25 @@ mod tests {
 
     #[test]
     fn render_report_emits_each_discovery_status_line() {
-        assert!(render_report(
-            &report_with(DiscoveryStatus::Ran { found: 3 }),
-            &[]
-        )
-        .contains("#\tdiscovery\tran\tfound=3"));
-        assert!(render_report(
-            &report_with(DiscoveryStatus::SkippedPushOnly),
-            &[]
-        )
-        .contains("#\tdiscovery\tskipped\tpush-only"));
-        assert!(render_report(
-            &report_with(DiscoveryStatus::SkippedTargeted),
-            &[]
-        )
-        .contains("#\tdiscovery\tskipped\ttargeted"));
-        let failed = render_report(
-            &report_with(DiscoveryStatus::Failed {
-                detail: "connection refused".to_owned(),
-            }),
-            &[],
+        assert!(
+            render_report(&report_with(DiscoveryStatus::Ran { found: 3 }))
+                .contains("#\tdiscovery\tran\tfound=3")
         );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedPushOnly))
+                .contains("#\tdiscovery\tskipped\tpush-only")
+        );
+        assert!(
+            render_report(&report_with(DiscoveryStatus::SkippedTargeted))
+                .contains("#\tdiscovery\tskipped\ttargeted")
+        );
+        assert!(render_report(&report_with(DiscoveryStatus::TargetedPull {
+            attempted: 2
+        }))
+        .contains("#\tdiscovery\ttargeted-pull\t2"));
+        let failed = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "connection refused".to_owned(),
+        }));
         assert!(
             failed.contains("#\tdiscovery\tfailed\tconnection refused"),
             "{failed}"
@@ -1227,12 +1499,9 @@ mod tests {
 
     #[test]
     fn a_failed_discovery_detail_is_flattened_to_one_record() {
-        let rendered = render_report(
-            &report_with(DiscoveryStatus::Failed {
-                detail: "line one\tsplit\nline two\r".to_owned(),
-            }),
-            &[],
-        );
+        let rendered = render_report(&report_with(DiscoveryStatus::Failed {
+            detail: "line one\tsplit\nline two\r".to_owned(),
+        }));
         let discovery = rendered
             .lines()
             .find(|line| line.starts_with("#\tdiscovery\tfailed"))
@@ -1412,6 +1681,417 @@ mod tests {
         assert!(
             !conflicts.join("0002.md").exists(),
             "no dossier is written when the ignore cannot be guaranteed"
+        );
+    }
+
+    // --- run_sync end-to-end over a stub tracker registry -------------------
+    //
+    // `accelerator-work` is bin-only, so these in-crate tests are the only seam
+    // that can exercise the post-credential `fetch_all` gate without live
+    // Linear/Jira. `run_sync` returns an opaque `ExitCode`, so they assert the
+    // observable effects — files written or not, the fetch_all call made or not
+    // — while the exit-code chain is proven by the pure-logic tests above.
+
+    use std::rc::Rc;
+
+    use tracker::RemoteIssue;
+    use tracker::RemoteTracker;
+    use tracker_test_support::Call;
+    use tracker_test_support::RecordingTracker;
+
+    use crate::cli::SyncArgs;
+    use crate::tracker_registry::SelectionError;
+    use crate::tracker_registry::TrackerRegistry;
+
+    /// A tracker whose `fetch_all` fails pre-flight — the whole-call `Err` path
+    /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
+    struct FetchFailingTracker;
+
+    impl RemoteTracker for FetchFailingTracker {
+        fn fetch_all(
+            &self,
+            _ids: &[ExternalId],
+        ) -> Result<tracker::FetchOutcome, TrackerError> {
+            Err(TrackerError::Retryable {
+                detail: "unresolvable pre-flight".to_owned(),
+            })
+        }
+
+        fn create(
+            &self,
+            _title: &str,
+            _body: &str,
+            _kind: &str,
+        ) -> Result<ExternalId, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn update(
+            &self,
+            _id: &ExternalId,
+            _title: &str,
+            _body: &str,
+        ) -> Result<(), TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn show(&self, _id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn search(
+            &self,
+            _scope: &tracker::SearchScope,
+        ) -> Result<tracker::Discovery, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn resolve_scope(
+            &self,
+            _scope: &tracker::SearchScope,
+        ) -> Result<tracker::SearchScope, tracker::ScopeError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn preview_create(
+            &self,
+            _kind: &str,
+        ) -> Result<tracker::CreatePreview, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn validate_update(
+            &self,
+            _id: &ExternalId,
+            _title: &str,
+            _body: &str,
+        ) -> tracker::ValidationOutcome {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+    }
+
+    /// Shares one `RecordingTracker` between the registry (which hands the
+    /// engine a `Box<dyn RemoteTracker>`) and the test (which inspects the call
+    /// log afterwards), since the box is moved into `run_sync`.
+    struct SharedTracker(Rc<RecordingTracker>);
+
+    impl RemoteTracker for SharedTracker {
+        fn create(
+            &self,
+            title: &str,
+            body: &str,
+            kind: &str,
+        ) -> Result<ExternalId, TrackerError> {
+            self.0.create(title, body, kind)
+        }
+
+        fn update(
+            &self,
+            id: &ExternalId,
+            title: &str,
+            body: &str,
+        ) -> Result<(), TrackerError> {
+            self.0.update(id, title, body)
+        }
+
+        fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
+            self.0.show(id)
+        }
+
+        fn fetch_all(
+            &self,
+            ids: &[ExternalId],
+        ) -> Result<tracker::FetchOutcome, TrackerError> {
+            self.0.fetch_all(ids)
+        }
+
+        fn search(
+            &self,
+            scope: &tracker::SearchScope,
+        ) -> Result<tracker::Discovery, TrackerError> {
+            self.0.search(scope)
+        }
+
+        fn resolve_scope(
+            &self,
+            scope: &tracker::SearchScope,
+        ) -> Result<tracker::SearchScope, tracker::ScopeError> {
+            self.0.resolve_scope(scope)
+        }
+
+        fn preview_create(
+            &self,
+            kind: &str,
+        ) -> Result<tracker::CreatePreview, TrackerError> {
+            self.0.preview_create(kind)
+        }
+
+        fn validate_update(
+            &self,
+            id: &ExternalId,
+            title: &str,
+            body: &str,
+        ) -> tracker::ValidationOutcome {
+            self.0.validate_update(id, title, body)
+        }
+    }
+
+    struct StubRegistry(Rc<RecordingTracker>);
+
+    impl TrackerRegistry for StubRegistry {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
+            Ok(Box::new(SharedTracker(Rc::clone(&self.0))))
+        }
+    }
+
+    fn sync_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(dir.path())
+                .status()
+                .expect("git invocation");
+        };
+        git(&["init", "-q"]);
+        git(&["config", "user.name", "Test User"]);
+        git(&["config", "user.email", "test@example.com"]);
+        std::fs::create_dir_all(dir.path().join("meta/work")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join(".accelerator"))
+            .expect("mkdir");
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\n---\n",
+        )
+        .expect("write config");
+        dir
+    }
+
+    /// Whether the run persisted a baseline for the integration — proof the
+    /// create-from-remote sequence completed through its final baseline write,
+    /// not just that a file was authored.
+    fn baseline_written(dir: &Path) -> bool {
+        std::fs::read_to_string(
+            dir.join(".accelerator/state/integrations/jira/last-sync.json"),
+        )
+        .is_ok()
+    }
+
+    fn work_file(dir: &Path, id: &str, external: Option<&str>) {
+        let external_line = external
+            .map(|value| format!("external_id: \"{value}\"\n"))
+            .unwrap_or_default();
+        std::fs::write(
+            dir.join(format!("meta/work/{id}-title.md")),
+            format!("---\nid: \"{id}\"\n{external_line}---\n\nBody\n"),
+        )
+        .expect("write work item");
+    }
+
+    fn sync_args(targets: Vec<String>) -> SyncArgs {
+        SyncArgs {
+            push_only: false,
+            pull_only: false,
+            preview: false,
+            resolutions: Vec::new(),
+            per_item_reads: false,
+            max_pulls: 25,
+            max_pushes: 25,
+            targets,
+        }
+    }
+
+    fn drive_sync(dir: &Path, tracker: &Rc<RecordingTracker>, args: &SyncArgs) {
+        let composed = config_adapters::compose(
+            dir,
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+        let registry = StubRegistry(Rc::clone(tracker));
+        let _ = super::run_sync(dir, &composed.service, args, &registry);
+    }
+
+    fn issue(body: &str) -> RemoteIssue {
+        RemoteIssue {
+            updated: tracker::RemoteTimestamp::Reported(
+                "2026-01-01T00:00:00Z".to_owned(),
+            ),
+            body: body.to_owned(),
+        }
+    }
+
+    fn new_work_files(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir.join("meta/work"))
+            .expect("read work dir")
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension().and_then(std::ffi::OsStr::to_str) == Some("md")
+            })
+            .map(|path| {
+                path.file_name().unwrap().to_string_lossy().into_owned()
+            })
+            .collect();
+        names.sort();
+        names
+    }
+
+    fn only_created_author(dir: &Path) -> String {
+        let files = new_work_files(dir);
+        let name = files.first().expect("one created file");
+        let content = std::fs::read_to_string(dir.join("meta/work").join(name))
+            .expect("read created file");
+        content
+            .lines()
+            .find_map(|line| line.strip_prefix("author: "))
+            .map(|value| value.trim_matches('"').to_owned())
+            .expect("author frontmatter")
+    }
+
+    /// Whether any `fetch_all` the run made named `id`. The candidate-
+    /// confirmation gate reads the raw `--target` token, so a bare local id
+    /// appearing here means the gate ran; the engine's reconcile read only ever
+    /// names an item's `external_id`, never its local id.
+    fn fetch_all_contains(tracker: &RecordingTracker, id: &str) -> bool {
+        tracker.calls().iter().any(|call| {
+            matches!(call, Call::FetchAll { ids }
+                if ids.iter().any(|candidate| candidate.as_str() == id))
+        })
+    }
+
+    #[test]
+    fn a_remote_only_target_is_pulled_into_a_new_local_file() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-999".to_owned()),
+            issue("Imported\nRemote body"),
+        )]));
+
+        drive_sync(dir.path(), &tracker, &sync_args(vec!["PP-999".to_owned()]));
+
+        assert_eq!(
+            new_work_files(dir.path()).len(),
+            1,
+            "a remote-only target creates one new local file"
+        );
+        assert!(
+            baseline_written(dir.path()),
+            "the create-from-remote completes through its baseline write, even \
+             on a never-synced integration whose state dir does not yet exist"
+        );
+        assert_eq!(
+            only_created_author(dir.path()),
+            "Test User",
+            "the imported file is authored with the synced repository's own \
+             identity, not the ambient process identity"
+        );
+        assert!(
+            fetch_all_contains(&tracker, "PP-999"),
+            "the candidate is confirmed through fetch_all"
+        );
+    }
+
+    #[test]
+    fn a_locally_resolvable_target_makes_no_fetch_all_call() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", Some("PP-1"));
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-1".to_owned()),
+            issue("Local\nRemote body"),
+        )]));
+
+        drive_sync(dir.path(), &tracker, &sync_args(vec!["0001".to_owned()]));
+
+        assert!(
+            !fetch_all_contains(&tracker, "0001"),
+            "a locally-resolvable target names no remote candidate, so the \
+             confirmation gate issues no fetch_all for its token"
+        );
+    }
+
+    #[test]
+    fn a_mixed_found_and_absent_batch_writes_no_local_file() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-999".to_owned()),
+            issue("Found\nRemote body"),
+        )]));
+
+        drive_sync(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["PP-999".to_owned(), "PP-404".to_owned()]),
+        );
+
+        assert!(
+            new_work_files(dir.path()).is_empty(),
+            "an absent token aborts the whole run before any write, so the \
+             found target is not pulled either"
+        );
+    }
+
+    #[test]
+    fn a_previewed_remote_only_target_writes_nothing_yet_confirms_it() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(vec![(
+            ExternalId::new("PP-999".to_owned()),
+            issue("Preview\nRemote body"),
+        )]));
+        let mut args = sync_args(vec!["PP-999".to_owned()]);
+        args.preview = true;
+
+        drive_sync(dir.path(), &tracker, &args);
+
+        assert!(
+            new_work_files(dir.path()).is_empty(),
+            "a previewed pull writes no file"
+        );
+        assert!(
+            fetch_all_contains(&tracker, "PP-999"),
+            "preview still confirms the candidate through fetch_all"
+        );
+    }
+
+    #[test]
+    fn a_mixed_local_and_remote_only_run_excludes_the_non_targeted_item() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0001", Some("PP-1"));
+        work_file(dir.path(), "0002", Some("PP-2"));
+        let non_targeted = dir.path().join("meta/work/0002-title.md");
+        let before = std::fs::read_to_string(&non_targeted).expect("read 0002");
+        let tracker = Rc::new(RecordingTracker::holding(vec![
+            (
+                ExternalId::new("PP-1".to_owned()),
+                issue("One\nRemote body"),
+            ),
+            (
+                ExternalId::new("PP-999".to_owned()),
+                issue("New\nRemote body"),
+            ),
+        ]));
+
+        drive_sync(
+            dir.path(),
+            &tracker,
+            &sync_args(vec!["0001".to_owned(), "PP-999".to_owned()]),
+        );
+
+        assert_eq!(
+            new_work_files(dir.path()).len(),
+            3,
+            "the two seeded files plus one pulled file for PP-999"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&non_targeted).expect("read 0002"),
+            before,
+            "the non-targeted item is left byte-identical"
+        );
+        assert!(
+            !fetch_all_contains(&tracker, "PP-2"),
+            "the non-targeted item's remote is never read"
         );
     }
 }

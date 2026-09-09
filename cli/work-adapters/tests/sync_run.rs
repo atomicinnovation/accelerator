@@ -339,7 +339,10 @@ fn execute_targeted(
     let resolutions = BTreeMap::new();
     let mut req = request(
         &scenario.items,
-        ItemSelection::Targeted(targeted),
+        ItemSelection::Targeted {
+            items: targeted,
+            pull_ids: &[],
+        },
         &resolutions,
         scenario.dir.path(),
         max_pulls,
@@ -477,7 +480,10 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
         &tracker,
         dir.path(),
         &corpus,
-        ItemSelection::Targeted(std::slice::from_ref(&corpus[1])),
+        ItemSelection::Targeted {
+            items: std::slice::from_ref(&corpus[1]),
+            pull_ids: &[],
+        },
         m1 + 100,
     )
     .map_err(|_| "the targeted sync must proceed")?;

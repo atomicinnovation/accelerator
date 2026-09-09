@@ -83,21 +83,23 @@ fn baseline_exists(dir: &Path) -> bool {
 }
 
 #[test]
-fn a_no_match_target_exits_three_before_the_credential_check(
+fn a_bare_remote_only_target_reaches_the_credential_phase(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
     work_item(repo.path(), "0001", Some("PP-1"))?;
+    // A token with no local match is a remote candidate, not an exit-3
+    // resolution abort, so it reaches the tracker phase, where the unconfigured
+    // jira credentials abort with 74 before any fetch_all.
     let output = run(repo.path(), &["--target", "9999"])?;
     assert_eq!(
         output.status.code(),
-        Some(3),
-        "a no-match target aborts before the tracker credential check (74)"
+        Some(74),
+        "a remote-only target passes resolution and reaches the credential \
+         check, rather than aborting with a resolution code"
     );
-    let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("9999"), "{stderr}");
     assert!(
         !baseline_exists(repo.path()),
-        "the abort writes no baseline"
+        "the credential abort writes no baseline"
     );
     Ok(())
 }
@@ -139,24 +141,77 @@ fn an_empty_target_token_is_a_usage_error() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_no_match_and_an_out_of_dir_path_exit_six_naming_both(
+fn an_unmanaged_and_an_out_of_dir_path_exit_six_naming_both(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
     work_item(repo.path(), "0001", Some("PP-1"))?;
     fs::write(repo.path().join("meta/outside.md"), "---\nid: \"x\"\n---\n")?;
+    fs::write(repo.path().join("meta/work/notes.md"), "not a work item\n")?;
     let output = run(
         repo.path(),
-        &["--target", "9999", "--target", "meta/outside.md"],
+        &[
+            "--target",
+            "meta/work/notes.md",
+            "--target",
+            "meta/outside.md",
+        ],
     )?;
     assert_eq!(
         output.status.code(),
         Some(6),
-        "the out-of-directory code outranks the no-match code"
+        "the out-of-directory code outranks the unmanaged not-found code"
     );
     let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("9999"), "{stderr}");
+    assert!(stderr.contains("notes.md"), "{stderr}");
     assert!(stderr.contains("meta/outside.md"), "{stderr}");
     assert!(!baseline_exists(repo.path()));
+    Ok(())
+}
+
+#[test]
+fn a_push_only_remote_only_target_exits_two_naming_the_token(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    work_item(repo.path(), "0001", Some("PP-1"))?;
+    // A remote-only target under --push-only is contradictory: it aborts as a
+    // usage error before any tracker contact, so no fetch_all is issued.
+    let output = run(repo.path(), &["--push-only", "--target", "PP-999"])?;
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "a remote-only target cannot be pulled under --push-only"
+    );
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("PP-999"), "{stderr}");
+    assert!(
+        !baseline_exists(repo.path()),
+        "the usage abort writes no baseline"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_local_local_collision_exits_two_naming_both_files() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    // File A carries local id 0001 and no external_id; file B records 0001 as
+    // its external_id, so targeting "0001" is a genuine local/local collision.
+    work_item(repo.path(), "0001", None)?;
+    work_item(repo.path(), "0002", Some("0001"))?;
+    let output = run(repo.path(), &["--target", "0001"])?;
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "a local/local collision is a usage error, decided from the corpus \
+         with no remote call"
+    );
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("0001-title.md"), "names file A: {stderr}");
+    assert!(stderr.contains("0002-title.md"), "names file B: {stderr}");
+    assert!(
+        !baseline_exists(repo.path()),
+        "the abort writes no baseline"
+    );
     Ok(())
 }
 

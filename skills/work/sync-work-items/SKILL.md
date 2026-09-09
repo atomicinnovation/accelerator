@@ -68,7 +68,8 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   **mutually exclusive**; passing both makes `work sync` exit **2** (usage) —
   surface that and stop. Omitting both means **bidirectional** (the default).
 - `--preview` — report the full set of intended changes (push, pull, conflict,
-  create-from-local, untracked-pull) **without** any local write or remote
+  create-from-local, untracked-pull, targeted-pull) **without** any local write
+  or remote
   mutation, and **without** touching the baseline. Combinable with a directional
   flag.
 - `--max-pulls N` / `--max-pushes N` — the blast-radius bounds (default **25**
@@ -78,27 +79,41 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   reported conflict; repeatable. Used by the conflict loop below.
 - `--target <id|external-id|path>` — reconcile only the named work item(s);
   repeatable. A target may be a local id (`0257`), a remote tracker key /
-  `external_id` (`PP-787`), or a file path. On a token that is both a valid
-  local-id shape and a match for some `external_id`, the **local-id
-  interpretation wins** and the remote match is reported as suppressed. Naming
-  any target **suppresses untracked-remote discovery**, so a targeted pull
-  reaches only items already tracked locally. Per-item behaviour is otherwise
-  identical to a full sync.
+  `external_id` (`PP-787`), or a file path. A token that resolves to a single
+  local file — by path, by that file's local id, or by that file's own
+  `external_id` (the `id == external_id` case) — reconciles it silently, with
+  **no note**. A token that is one file's local id **and** a *different* file's
+  `external_id` is a genuine local/local collision and is an **exit-2** usage
+  error naming both files, not a silent win. A token with **no** local match is
+  looked up on the remote tracker by id: present, it is **pulled** into a new
+  local file and reconciled; provably absent, it is an exit-3 abort. Naming a
+  target still **suppresses the untracked-remote *search*** — a targeted pull
+  reaches a remote-only item by its named id, never by discovery. Per-item
+  behaviour is otherwise identical to a full sync.
 
   A target that fails to resolve aborts the run before any side effect, naming
   every offender, with zero writes. The abort exit codes and their recovery:
 
-  - **3** (`RESOLVE_NOT_FOUND`) — a token matched no local id, path, or
-    `external_id`. Offer `/list-work-items` to find the right value.
+  - **3** (`RESOLVE_NOT_FOUND`) — a token matched no local file *nor* a remote
+    issue. Note this now needs a reachable tracker to classify: a typo run
+    offline surfaces as exit 70 (unreachable) or 74 (unconfigured), not 3.
+    Offer `/list-work-items` to find the right value.
   - **6** (`RESOLVE_OUTSIDE_WORKDIR`) — a path outside the work directory. Offer
     `/list-work-items`.
-  - **2** (`USAGE`) — a malformed token (empty or blank) **or an ambiguous
-    match**. For an ambiguous match, mirror the sibling resolve callers: list
-    the candidates and ask the user to re-run with a full id or a path, rather
-    than treating it as a flat "malformed invocation".
+  - **2** (`USAGE`) — a malformed token (empty or blank), an **ambiguous
+    match**, a **local/local collision** (the token is one file's local id and a
+    *different* file's `external_id`), or a **remote-only target under
+    `--push-only`** (which cannot pull it; drop `--push-only` to import it). For
+    an ambiguous match, mirror the sibling resolve callers: list the candidates
+    and ask the user to re-run with a full id or a path. For a collision, the
+    error names both files; re-run with the path of the file you intended.
+  - **70** (`RETRYABLE`) — the remote lookup for a named target was
+    indeterminate (the tracker was unreachable). Re-run once the tracker is
+    reachable; a *targeted* exit-70 aborts before any write, so the re-run is a
+    clean retry, not a resume.
 
   When several classes coexist the run returns the highest-precedence code (2 >
-  6 > 3), but every offender is still named on stderr.
+  6 > 3 > 70), but every offender is still named on stderr.
 
 Example: `/sync-work-items --push-only --preview` previews only the
 local→remote pushes. `/sync-work-items --target 0257` reconciles only item
@@ -135,25 +150,32 @@ over-budget discovery is a refusal with guidance (exit 5), and an unset or
 unresolvable key is a pre-flight refusal (exit 74), neither a silent flood nor a
 silent skip. The report carries a `#\tdiscovery\t…` line saying whether the
 search **ran** (`found=N`), was **skipped** because the run was push-only, was
-**skipped** because the run named explicit `--target`s
-(`#\tdiscovery\tskipped\ttargeted`), or **failed** transiently — so a completed
-search that found nothing is never mistaken for a skip.
+**skipped** because the run named explicit `--target`s with nothing to pull by
+id (`#\tdiscovery\tskipped\ttargeted`), pulled **N** remote-only targets by id
+(`#\tdiscovery\ttargeted-pull\tN`, where N is the *requested* count), or
+**failed** transiently — so a completed search that found nothing is never
+mistaken for a skip.
 
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent or indeterminate items); `5` refused (would exceed
 `--max-pulls`/`--max-pushes`, zero writes); `70` a read failed, a discovery
-search failed transiently, or every per-item failure was retryable; `71` a
-per-item failure was terminal (a whole-item update is idempotent, so the hazard
-is response uncertainty — never auto-retried); `72` tracker recognised but no
-client built; `73` `work.integration` unset or unrecognised; `74` wired but a
-run cannot proceed on its config — missing/refused credentials, or a
-non-push-only run whose discovery scope names no valid target (nothing sent;
-set the key or run `--push-only`). A `--target` that fails to resolve aborts
-before any side effect with `3` (no match), `6` (path outside the work
-directory), or `2` (malformed or ambiguous token) — see the target-abort codes
-under Step 1. Under `--preview` no baseline mutation occurs and every planned
+search failed transiently, a named target's remote lookup was indeterminate, or
+every per-item failure was retryable; `71` a per-item failure was terminal (a
+whole-item update is idempotent, so the hazard is response uncertainty — never
+auto-retried); `72` tracker recognised but no client built; `73`
+`work.integration` unset or unrecognised; `74` wired but a run cannot proceed on
+its config — missing/refused credentials, or a non-push-only run whose discovery
+scope names no valid target (nothing sent; set the key or run `--push-only`). A
+`--target` that fails to resolve aborts before any side effect with `3` (no
+local file *nor* remote issue), `6` (path outside the work directory), `2`
+(malformed, ambiguous, collision, or a remote-only target under `--push-only`),
+or `70` (a named target's remote lookup was indeterminate) — see the
+target-abort codes under Step 1. A *targeted* exit-70 aborts before any write,
+distinguishing it from an engine-level exit-70 that can follow partial writes,
+so the operator knows whether a re-run is a clean retry or a resume. Under
+`--preview` no baseline mutation occurs and every planned
 push carries a locally-validated payload check.
 
 ## Step 3: Conflict resolution (bidirectional only)
@@ -270,7 +292,8 @@ the engine's report:
 pushed:                <ids>
 pulled:                <ids>
 pushed-unsynced:       <ids>   (new external_id written back)
-pulled-untracked:      <ids>   (remote key → new local id)
+pulled-untracked:      <ids>   (remote key → new local id; includes a
+                                 targeted create-from-remote)
 conflicts-skipped:     <ids>
 overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
 needs-retry:           <ids>
@@ -278,15 +301,19 @@ remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
 
-When the report carries the targeted discovery line or a suppressed-remote note,
-render them with exact human phrasing so the machine TSV tokens never leak
-verbatim, passing both through unchanged — do not reinterpret:
+When the report carries the targeted discovery line, render it with exact human
+phrasing so the machine TSV token never leaks verbatim, passing it through
+unchanged — do not reinterpret:
 
 - Targeted discovery (`#\tdiscovery\tskipped\ttargeted`): "Discovery skipped:
   targeted run over N item(s)".
-- Suppressed remote match (`#\ttarget\tsuppressed\t<token>\tlocal=<id>\tremote=<key>`):
-  "Suppressed remote match: <token> resolved to local <id>; remote <key>
-  ignored".
+- Targeted pull (`#\tdiscovery\ttargeted-pull\tN`): "Targeted pull: requested N
+  remote-only item(s)" on apply, or "Targeted pull: would import N remote-only
+  item(s)" under `--preview`. N is the *requested* count — never "imported N".
+  The actual imports are the `pulled-untracked:` rows (one per created item), so
+  a partial-failure run shows "requested N" above a `pulled-untracked:` list of
+  the M ≤ N that succeeded, with the failures in their own item rows: two honest
+  numbers for two distinct concepts, never one overstated count.
 
 Under `--preview`, present the same plan (every push carrying its
 locally-validated payload check) and report every pull instead of writing it;

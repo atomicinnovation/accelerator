@@ -62,6 +62,13 @@ impl Spy {
     fn write_count(&self) -> usize {
         self.writes.borrow().len()
     }
+
+    fn content(&self, path: &str) -> Option<String> {
+        self.files
+            .borrow()
+            .get(Path::new(path))
+            .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+    }
 }
 
 impl FileReader for Spy {
@@ -272,7 +279,10 @@ fn run_sync_targeted(
     let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
     let request = SyncRequest {
         corpus,
-        selection: ItemSelection::Targeted(targeted),
+        selection: ItemSelection::Targeted {
+            items: targeted,
+            pull_ids: &[],
+        },
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
@@ -282,6 +292,98 @@ fn run_sync_targeted(
         integrations_root,
         integration: "jira",
         scope,
+    };
+    run(&sync_ports, &mut store, &request)
+}
+
+/// A targeted run carrying confirmed remote-only `pull_ids`, reconciling
+/// `targeted` and importing `pull_ids` by id. The seam the CLI drives.
+#[allow(clippy::too_many_arguments)]
+fn run_sync_targeted_pull(
+    ports: &Ports<'_>,
+    corpus: &[LocalItem],
+    targeted: &[LocalItem],
+    pull_ids: &[ExternalId],
+    integrations_root: &Path,
+    direction: SyncDirection,
+    max_pulls: usize,
+    max_pushes: usize,
+    mode: RunMode,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker: ports.tracker,
+        status: &status,
+        writer: ports.spy,
+        clock: &clock,
+        author: ports.author,
+    };
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), ports.spy, ports.spy);
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus,
+        selection: ItemSelection::Targeted {
+            items: targeted,
+            pull_ids,
+        },
+        direction,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls,
+        max_pushes,
+        mode,
+        integrations_root,
+        integration: "jira",
+        scope: SearchScope::default(),
+    };
+    run(&sync_ports, &mut store, &request)
+}
+
+/// A targeted-pull run at a chosen `epoch` over the fixture's persistent spy,
+/// so a sequence of runs shares one baseline document — the recovery and
+/// watermark scenarios need "run at E1, then E2, against one baseline".
+#[allow(clippy::too_many_arguments)]
+fn run_at(
+    fixture: &Fixture,
+    tracker: &RecordingTracker,
+    author: &RecordingAuthor,
+    corpus: &[LocalItem],
+    targeted: &[LocalItem],
+    pull_ids: &[ExternalId],
+    epoch: u64,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(epoch);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker,
+        status: &status,
+        writer: &fixture.spy,
+        clock: &clock,
+        author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &fixture.spy,
+        &fixture.spy,
+    );
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus,
+        selection: ItemSelection::Targeted {
+            items: targeted,
+            pull_ids,
+        },
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls: 25,
+        max_pushes: 25,
+        mode: RunMode::Apply,
+        integrations_root: fixture.dir.path(),
+        integration: "jira",
+        scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request)
 }
@@ -927,6 +1029,651 @@ fn planned_writes_over_bound_refuse_before_any_create_from_remote(
     Ok(())
 }
 
+// --- targeted pull of remote-only ids ---------------------------------------
+
+#[test]
+fn a_targeted_pull_id_creates_the_file_and_counts_as_a_pull(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-7".to_owned()),
+        issue("Seven\nremote body"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[ExternalId::new("ENG-7".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a single remote-only pull within bounds must proceed")?;
+
+    assert_eq!(
+        *author.authored.borrow(),
+        vec![ExternalId::new("ENG-7".to_owned())],
+        "the remote-only id is imported through create-from-remote"
+    );
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::TargetedPull { attempted: 1 }
+    );
+    let create = report
+        .reported
+        .iter()
+        .find(|item| item.planned.action == Action::CreateFromRemote)
+        .expect("one create-from-remote row");
+    assert!(matches!(create.outcome, ItemOutcome::Applied));
+    Ok(())
+}
+
+#[test]
+fn an_empty_confirmed_set_still_reports_skipped_targeted(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a reconcile-only targeted run must proceed")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::SkippedTargeted,
+        "an empty pull set leaves the discovery line unchanged"
+    );
+    assert!(author.authored.borrow().is_empty());
+    Ok(())
+}
+
+#[test]
+fn targeted_pulls_over_max_pulls_refuse_with_no_creation(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(vec![
+        (ExternalId::new("ENG-1".to_owned()), issue("One\nbody")),
+        (ExternalId::new("ENG-2".to_owned()), issue("Two\nbody")),
+    ]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let error = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[
+            ExternalId::new("ENG-1".to_owned()),
+            ExternalId::new("ENG-2".to_owned()),
+        ],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        1,
+        25,
+        RunMode::Apply,
+    )
+    .err()
+    .expect("two remote-only pulls against a bound of one must refuse");
+
+    match error {
+        RunError::Refused {
+            pulls,
+            new_local_files,
+            ..
+        } => {
+            assert_eq!(pulls, 2);
+            assert_eq!(new_local_files, 2);
+        }
+        other => panic!("expected Refused, got {other:?}"),
+    }
+    assert!(
+        author.authored.borrow().is_empty(),
+        "the gate must refuse before any create-from-remote write"
+    );
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Show { .. })),
+        "no per-issue show fan-out before the gate"
+    );
+    assert_eq!(fixture.spy.write_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_previewed_targeted_pull_reports_a_create_without_writing(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-5".to_owned()),
+        issue("Five\nbody"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[ExternalId::new("ENG-5".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Preview,
+    )
+    .map_err(|_| "a previewed pull within bounds must not refuse")?;
+
+    assert!(
+        author.authored.borrow().is_empty(),
+        "preview authors nothing"
+    );
+    assert_eq!(fixture.spy.write_count(), 0, "preview writes nothing");
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::TargetedPull { attempted: 1 }
+    );
+    let create = report
+        .reported
+        .iter()
+        .find(|item| item.planned.action == Action::CreateFromRemote)
+        .expect("one create-from-remote row");
+    assert!(matches!(create.outcome, ItemOutcome::NotApplied));
+    Ok(())
+}
+
+#[test]
+fn a_pull_id_already_bound_in_the_corpus_is_filtered_out(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    // A corpus file already carries ENG-1 (in a cosmetically different
+    // spelling), so a pull_id naming it must fold equal and be dropped.
+    let bound_path = fixture.dir.path().join("0001.md");
+    std::fs::write(
+        &bound_path,
+        "---\nid: \"0001\"\nexternal_id: \"eng-1\"\n---\n\nBody\n",
+    )?;
+    let corpus = vec![LocalItem {
+        id: "0001".to_owned(),
+        path: bound_path,
+        external_id: Some(ExternalId::new("eng-1".to_owned())),
+    }];
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-1".to_owned()),
+        issue("One\nbody"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &corpus,
+        &[],
+        &[ExternalId::new("ENG-1".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a fully-filtered pull set is a reconcile-only run")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::SkippedTargeted,
+        "a pull_id already bound locally leaves nothing to pull"
+    );
+    assert!(
+        author.authored.borrow().is_empty(),
+        "no second author for an already-bound id"
+    );
+    Ok(())
+}
+
+#[test]
+fn of_two_pull_ids_one_show_failure_reports_one_success(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let tracker = RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-1".to_owned()),
+        issue("One\nbody"),
+    )])
+    .failing_show(
+        ExternalId::new("ENG-2".to_owned()),
+        TrackerError::Retryable {
+            detail: "connection reset".to_owned(),
+        },
+    );
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &[],
+        &[],
+        &[
+            ExternalId::new("ENG-1".to_owned()),
+            ExternalId::new("ENG-2".to_owned()),
+        ],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a per-id show failure must not abort the batch")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::TargetedPull { attempted: 2 },
+        "attempted counts the ids gated in, not the ids applied"
+    );
+    let applied = report
+        .reported
+        .iter()
+        .filter(|item| {
+            item.planned.action == Action::CreateFromRemote
+                && matches!(item.outcome, ItemOutcome::Applied)
+        })
+        .count();
+    let failed = report
+        .reported
+        .iter()
+        .filter(|item| {
+            item.planned.action == Action::CreateFromRemote
+                && matches!(item.outcome, ItemOutcome::Failed(_))
+        })
+        .count();
+    assert_eq!((applied, failed), (1, 1), "one success, one failure");
+    assert_eq!(
+        *author.authored.borrow(),
+        vec![ExternalId::new("ENG-1".to_owned())],
+        "only the readable id is authored"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_mixed_run_writes_the_targeted_union_and_no_non_targeted_item(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let stamp_moved =
+        RemoteTimestamp::Reported("2026-07-01T00:00:00Z".to_owned());
+
+    // Item A: remotely modified, local unchanged → decides Pull, writes A.
+    let a_external = ExternalId::new("ENG-1".to_owned());
+    let a_path = fixture.dir.path().join("0001.md");
+    let a_content =
+        "---\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n\nBody text\n";
+    std::fs::write(&a_path, a_content)?;
+    let a_local_hash = work_adapters::sync::digest::local(a_content)?;
+
+    // Item B: non-targeted, present in the corpus only.
+    let b_external = ExternalId::new("ENG-2".to_owned());
+    let b_path = fixture.dir.path().join("0002.md");
+    std::fs::write(
+        &b_path,
+        "---\nstatus: ready\nexternal_id: \"ENG-2\"\n---\n\nUntouched\n",
+    )?;
+
+    fixture.spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&[format!(
+            "\"0001\":{{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\
+             \"remote_hash\":\"stale\",\"local_hash\":\"{a_local_hash}\"}}"
+        )]),
+    );
+
+    let tracker = RecordingTracker::holding(vec![
+        (
+            a_external.clone(),
+            RemoteIssue {
+                updated: stamp_moved,
+                body: "Title\nRemote body\n".to_owned(),
+            },
+        ),
+        (ExternalId::new("ENG-9".to_owned()), issue("Nine\nbody")),
+    ]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let corpus = vec![
+        LocalItem {
+            id: "0001".to_owned(),
+            path: a_path.clone(),
+            external_id: Some(a_external),
+        },
+        LocalItem {
+            id: "0002".to_owned(),
+            path: b_path.clone(),
+            external_id: Some(b_external),
+        },
+    ];
+
+    let report = run_sync_targeted_pull(
+        &ports,
+        &corpus,
+        std::slice::from_ref(&corpus[0]),
+        &[ExternalId::new("ENG-9".to_owned())],
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a mixed targeted run within bounds must proceed")?;
+
+    assert_eq!(
+        *author.authored.borrow(),
+        vec![ExternalId::new("ENG-9".to_owned())],
+        "only the remote-only id is created"
+    );
+    assert!(
+        fixture.spy.content(&a_path.display().to_string()).is_some(),
+        "the reconciled targeted item A is written"
+    );
+    assert!(
+        fixture.spy.content(&b_path.display().to_string()).is_none(),
+        "the non-targeted item B must not be written"
+    );
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::TargetedPull { attempted: 1 }
+    );
+    Ok(())
+}
+
+#[test]
+fn a_discovery_import_and_a_targeted_pull_author_identically(
+) -> Result<(), TestError> {
+    let via_discovery = {
+        let fixture = Fixture::new()?;
+        let tracker = RecordingTracker::holding(vec![(
+            ExternalId::new("ENG-7".to_owned()),
+            issue("Seven\nremote body"),
+        )])
+        .discovering(
+            vec![(
+                ExternalId::new("ENG-7".to_owned()),
+                RemoteTimestamp::NotReported,
+            )],
+            true,
+        );
+        let author = RecordingAuthor::new(fixture.dir.path());
+        let ports = Ports {
+            tracker: &tracker,
+            author: &author,
+            spy: &fixture.spy,
+        };
+        run_sync(
+            &ports,
+            &[],
+            fixture.dir.path(),
+            SyncDirection::PullOnly,
+            scoped(),
+            25,
+            25,
+            RunMode::Apply,
+        )
+        .map_err(|_| "the discovery import must proceed")?;
+        let authored = author.authored.borrow().clone();
+        let path = fixture.dir.path().join("9000.md");
+        let file = std::fs::read_to_string(&path)?;
+        let baseline = fixture.spy.content(BASELINE_PATH);
+        (authored, file, baseline)
+    };
+
+    let via_pull = {
+        let fixture = Fixture::new()?;
+        let tracker = RecordingTracker::holding(vec![(
+            ExternalId::new("ENG-7".to_owned()),
+            issue("Seven\nremote body"),
+        )]);
+        let author = RecordingAuthor::new(fixture.dir.path());
+        let ports = Ports {
+            tracker: &tracker,
+            author: &author,
+            spy: &fixture.spy,
+        };
+        run_sync_targeted_pull(
+            &ports,
+            &[],
+            &[],
+            &[ExternalId::new("ENG-7".to_owned())],
+            fixture.dir.path(),
+            SyncDirection::Bidirectional,
+            25,
+            25,
+            RunMode::Apply,
+        )
+        .map_err(|_| "the targeted pull must proceed")?;
+        let authored = author.authored.borrow().clone();
+        let path = fixture.dir.path().join("9000.md");
+        let file = std::fs::read_to_string(&path)?;
+        let baseline = fixture.spy.content(BASELINE_PATH);
+        (authored, file, baseline)
+    };
+
+    assert_eq!(via_discovery.0, via_pull.0, "identical id allocation");
+    assert_eq!(via_discovery.1, via_pull.1, "identical authored file");
+    // The document-level watermark legitimately differs — a full sync advances
+    // it, a targeted run does not — so compare the per-item baseline entry.
+    let (discovery_baseline, _) = work_adapters::sync::baseline::Baseline::read(
+        via_discovery.2.as_deref(),
+    );
+    let (pull_baseline, _) =
+        work_adapters::sync::baseline::Baseline::read(via_pull.2.as_deref());
+    assert_eq!(
+        discovery_baseline.get("9000"),
+        pull_baseline.get("9000"),
+        "identical baseline entry"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_re_run_reconciles_the_pulled_id_and_advances_its_watermark(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let external = ExternalId::new("ENG-7".to_owned());
+    let tracker = RecordingTracker::holding(vec![(
+        external.clone(),
+        issue("Seven\nremote body"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    run_at(
+        &fixture,
+        &tracker,
+        &author,
+        &[],
+        &[],
+        std::slice::from_ref(&external),
+        1_000,
+    )
+    .map_err(|_| "the initial pull must proceed")?;
+    let created = fixture.dir.path().join("9000.md");
+    assert!(created.exists(), "the pull authored a local file");
+
+    let corpus = vec![LocalItem {
+        id: "9000".to_owned(),
+        path: created,
+        external_id: Some(external.clone()),
+    }];
+    let report = run_at(
+        &fixture,
+        &tracker,
+        &author,
+        &corpus,
+        &corpus,
+        std::slice::from_ref(&external),
+        2_000,
+    )
+    .map_err(|_| "the re-run must proceed")?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::SkippedTargeted,
+        "the now-local id is reconciled, not re-pulled"
+    );
+    assert_eq!(
+        author.authored.borrow().len(),
+        1,
+        "no duplicate author on the re-run"
+    );
+    let written = fixture
+        .spy
+        .content(BASELINE_PATH)
+        .expect("the re-run writes the baseline");
+    let (baseline, _) =
+        work_adapters::sync::baseline::Baseline::read(Some(&written));
+    assert_eq!(
+        baseline
+            .get("9000")
+            .expect("the pulled item has a baseline entry")
+            .local_synced_at,
+        2_000,
+        "the watermark advanced to the re-run epoch"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let external = ExternalId::new("ENG-7".to_owned());
+    let tracker = RecordingTracker::holding(vec![(
+        external.clone(),
+        issue("Seven\nremote body"),
+    )]);
+    let author = RecordingAuthor::new(fixture.dir.path());
+
+    // Run 1: the file is authored, then the baseline write fails.
+    {
+        let clock = FixedClock(1_000);
+        let status = AlwaysClean;
+        let failing = FailingWrite;
+        let sync_ports = SyncPorts {
+            tracker: &tracker,
+            status: &status,
+            writer: &failing,
+            clock: &clock,
+            author: &author,
+        };
+        let mut store = BaselineStore::new(
+            PathBuf::from(BASELINE_PATH),
+            &fixture.spy,
+            &failing,
+        );
+        let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+        let request = SyncRequest {
+            corpus: &[],
+            selection: ItemSelection::Targeted {
+                items: &[],
+                pull_ids: std::slice::from_ref(&external),
+            },
+            direction: SyncDirection::Bidirectional,
+            strategy: RetrievalStrategy::Bulk,
+            resolutions: &resolutions,
+            max_pulls: 25,
+            max_pushes: 25,
+            mode: RunMode::Apply,
+            integrations_root: fixture.dir.path(),
+            integration: "jira",
+            scope: SearchScope::default(),
+        };
+        let report = run(&sync_ports, &mut store, &request).map_err(|_| {
+            "the run yields a report; the per-item create fails"
+        })?;
+        let create = report
+            .reported
+            .iter()
+            .find(|item| item.planned.action == Action::CreateFromRemote)
+            .expect("a create-from-remote row");
+        assert!(
+            matches!(create.outcome, ItemOutcome::Failed(_)),
+            "a failed baseline write fails the create"
+        );
+    }
+    let created = fixture.dir.path().join("9000.md");
+    assert!(
+        created.exists(),
+        "the file was authored before the baseline write failed"
+    );
+
+    // Run 2: the authored file is now in the corpus, so the pull_id folds equal
+    // and no duplicate is created.
+    let corpus = vec![LocalItem {
+        id: "9000".to_owned(),
+        path: created,
+        external_id: Some(external.clone()),
+    }];
+    let report = run_at(
+        &fixture,
+        &tracker,
+        &author,
+        &corpus,
+        &corpus,
+        std::slice::from_ref(&external),
+        2_000,
+    )
+    .map_err(|_| "the recovery re-run must proceed")?;
+
+    assert_eq!(report.discovery, DiscoveryStatus::SkippedTargeted);
+    assert_eq!(
+        author.authored.borrow().len(),
+        1,
+        "the id is authored once across both runs — no duplicate pull"
+    );
+    Ok(())
+}
+
 // --- Gap B: unsynced-local create -------------------------------------------
 
 #[test]
@@ -1236,6 +1983,19 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
 }
 
 // --- Small real-fs doubles for the marker-ordering test ---------------------
+
+/// A writer that fails every write, so a create can author its file (through
+/// the author's own `std::fs` write) and then fail at the baseline write.
+struct FailingWrite;
+
+impl AtomicWrite for FailingWrite {
+    fn write(&self, path: &Path, _bytes: &[u8]) -> Result<(), StoreError> {
+        Err(StoreError::Io {
+            path: path.display().to_string(),
+            detail: "injected write failure".to_owned(),
+        })
+    }
+}
 
 struct RealWrite;
 
