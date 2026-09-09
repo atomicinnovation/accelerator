@@ -445,17 +445,17 @@ fn a_root_without_a_templates_directory_refuses_to_list() -> TestResult {
 
 #### Automated Verification
 
-- [ ] Error-variant unit tests pass: `cargo test -p config`
-- [ ] Store unit tests pass: `cargo test -p config-adapters`
-- [ ] Launcher integration tests pass: `cargo test -p accelerator --test config_read`
-- [ ] Format + lint clean: `mise run cli:check`
+- [x] Error-variant unit tests pass: `cargo test -p config`
+- [x] Store unit tests pass: `cargo test -p config-adapters`
+- [x] Launcher integration tests pass: `cargo test -p accelerator --test config_read`
+- [x] Format + lint clean: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_PLUGIN_ROOT=$(mktemp -d) accelerator config templates list`
+- [x] `ACCELERATOR_PLUGIN_ROOT=$(mktemp -d) accelerator config templates list`
       exits non-zero and prints a diagnostic naming the root path, stating it is
       not an Accelerator installation, and naming `ACCELERATOR_PLUGIN_ROOT`.
-- [ ] The same against `config templates eject --all` refuses and writes nothing.
+- [x] The same against `config templates eject --all` refuses and writes nothing.
 
 ---
 

@@ -410,10 +410,9 @@ impl ReadTemplate for FileConfigStore {
     }
 
     fn template_names(&self) -> Result<Vec<String>, ConfigError> {
-        let plugin = self.require_plugin_root()?;
-        let Ok(entries) = fs::read_dir(plugin.join("templates")) else {
-            return Ok(Vec::new());
-        };
+        let templates = self.require_templates_dir()?;
+        let entries =
+            fs::read_dir(&templates).map_err(|e| io_error(&templates, &e))?;
         let mut files: Vec<String> = entries
             .filter_map(Result::ok)
             .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -461,6 +460,32 @@ impl FileConfigStore {
             content,
             warning,
         })
+    }
+
+    /// The installation's `templates/` directory. A root whose `templates/`
+    /// is absent or not a directory — or a root that is itself a file — is not
+    /// an installation and refuses with `PluginRootNotAnInstallation`, resting
+    /// on the invariant that every installation ships `templates/`. A genuine
+    /// unreadable fault surfaces as the degradable `Io`.
+    fn require_templates_dir(&self) -> Result<PathBuf, ConfigError> {
+        let root = self.require_plugin_root()?;
+        let templates = root.join("templates");
+        let not_an_installation = || ConfigError::PluginRootNotAnInstallation {
+            path: display(root),
+        };
+        match fs::metadata(&templates) {
+            Ok(metadata) if metadata.is_dir() => Ok(templates),
+            Ok(_) => Err(not_an_installation()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    ErrorKind::NotFound | ErrorKind::NotADirectory
+                ) =>
+            {
+                Err(not_an_installation())
+            }
+            Err(error) => Err(io_error(&templates, &error)),
+        }
     }
 
     fn plugin_template_path(&self, name: &str) -> Result<PathBuf, ConfigError> {
@@ -800,7 +825,7 @@ mod tests {
 
     use config::{
         ConfigAccess, ConfigError, ConfigService, Key, Level, Node,
-        ReadConfigLevel, ReadContent, Scalar, WriteConfigLevel,
+        ReadConfigLevel, ReadContent, ReadTemplate, Scalar, WriteConfigLevel,
     };
     use tempfile::TempDir;
 
@@ -1395,6 +1420,68 @@ mod tests {
         let store = FileConfigStore::at(&root);
         assert!(matches!(
             store.skill_context("demo"),
+            Err(ConfigError::Io { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn template_names_refuses_a_root_without_a_templates_dir(
+    ) -> Result<(), TestError> {
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.template_names(),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn template_names_refuses_when_templates_is_a_file() -> Result<(), TestError>
+    {
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        fs::write(plugin.path().join("templates"), "not a dir")?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.template_names(),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn template_names_refuses_when_the_root_is_a_file() -> Result<(), TestError>
+    {
+        let root = tempdir()?;
+        let holder = tempdir()?;
+        let plugin_file = holder.path().join("not-a-dir");
+        fs::write(&plugin_file, "")?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin_file));
+        assert!(matches!(
+            store.template_names(),
+            Err(ConfigError::PluginRootNotAnInstallation { .. })
+        ));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn template_names_reports_io_on_an_unreadable_templates(
+    ) -> Result<(), TestError> {
+        use std::os::unix::fs::symlink;
+        let root = tempdir()?;
+        let plugin = tempdir()?;
+        symlink("templates", plugin.path().join("templates"))?;
+        let store = FileConfigStore::at(root.path())
+            .with_plugin_root(Some(plugin.path().to_path_buf()));
+        assert!(matches!(
+            store.template_names(),
             Err(ConfigError::Io { .. })
         ));
         Ok(())

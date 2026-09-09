@@ -1287,6 +1287,30 @@ fn assert_refuses_without_a_plugin_root(output: &Output) {
     assert_names_the_plugin_root(output);
 }
 
+/// The wrong-root refusal signature: non-zero, empty stdout, and a diagnostic
+/// naming the offending root, its not-an-installation cause, and the variable.
+fn assert_refuses_as_not_an_installation(output: &Output, root: &Path) {
+    assert_ne!(code(output), 0);
+    assert!(
+        output.stdout.is_empty(),
+        "stdout was not empty: {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "stderr does not name the variable: {stderr}"
+    );
+    assert!(
+        stderr.contains(&root.display().to_string()),
+        "stderr does not name the offending root: {stderr}"
+    );
+    assert!(
+        stderr.contains("not an Accelerator installation"),
+        "stderr does not name the not-an-installation cause: {stderr}"
+    );
+}
+
 #[test]
 fn templates_list_with_no_plugin_root_is_a_named_refusal_not_an_empty_table(
 ) -> TestResult {
@@ -1367,12 +1391,10 @@ fn a_user_override_still_resolves_with_no_plugin_root() -> TestResult {
     Ok(())
 }
 
-/// A root that is set but is not an installation still succeeds-with-nothing:
-/// `template_names` swallows the failed `read_dir`. Deliberate residue, tracked
-/// as its own work item rather than folded in here.
+/// AC9, the inverse of AC1: a root that is set but ships no `templates/` is not
+/// an installation, so enumeration refuses rather than rendering an empty table.
 #[test]
-fn a_root_without_a_templates_directory_still_renders_an_empty_table(
-) -> TestResult {
+fn a_root_without_a_templates_directory_refuses_to_list() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
     let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
     let output = run_with_plugin_root(
@@ -1380,11 +1402,133 @@ fn a_root_without_a_templates_directory_still_renders_an_empty_table(
         bare.path().as_os_str(),
         &["config", "templates", "list"],
     )?;
-    assert_eq!(
-        output.stdout,
-        b"| Template | Source | Path |\n|----------|--------|------|\n"
+    assert_refuses_as_not_an_installation(&output, bare.path());
+    Ok(())
+}
+
+/// The dedicated variant's payoff: the wrong-root diagnostic names the offending
+/// path and differs from the absent-root diagnostic, which names neither.
+#[test]
+fn a_wrong_root_diagnostic_differs_from_the_absent_root_diagnostic(
+) -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let wrong = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "list"],
+    )?;
+    let absent = run_in(&fixture.root, &["config", "templates", "list"])?;
+
+    assert_ne!(code(&wrong), 0);
+    assert_ne!(code(&absent), 0);
+    let wrong_stderr = String::from_utf8_lossy(&wrong.stderr);
+    let absent_stderr = String::from_utf8_lossy(&absent.stderr);
+    assert_ne!(wrong_stderr, absent_stderr);
+    let root_path = bare.path().display().to_string();
+    assert!(
+        wrong_stderr.contains(&root_path),
+        "the wrong-root diagnostic does not name the root: {wrong_stderr}"
     );
+    assert!(
+        !absent_stderr.contains(&root_path),
+        "the absent-root diagnostic named the root: {absent_stderr}"
+    );
+    Ok(())
+}
+
+/// AC4: `eject --all` against a wrong root refuses and writes no override tree.
+#[test]
+fn templates_eject_all_against_a_wrong_root_refuses() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "eject", "--all"],
+    )?;
+    assert_refuses_as_not_an_installation(&output, bare.path());
+    assert!(
+        !fixture.root.join(".accelerator/templates").exists(),
+        "eject --all created the override directory against a wrong root"
+    );
+    Ok(())
+}
+
+/// AC8-revised: a `templates` that is a file is a structural wrong-root shape and
+/// fails closed as not-an-installation, not as a genuine I/O fault.
+#[test]
+fn a_wrong_root_with_a_templates_file_refuses() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    fs::write(bare.path().join("templates"), "not a dir")?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "list"],
+    )?;
+    assert_refuses_as_not_an_installation(&output, bare.path());
+    Ok(())
+}
+
+/// A plugin root that is itself a regular file refuses naming the root.
+#[test]
+fn a_root_that_is_a_file_refuses() -> TestResult {
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let holder = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root_file = holder.path().join("not-a-dir");
+    fs::write(&root_file, "")?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        root_file.as_os_str(),
+        &["config", "templates", "list"],
+    )?;
+    assert_refuses_as_not_an_installation(&output, &root_file);
+    Ok(())
+}
+
+/// AC8-revised, the `Io` arm: a genuine unreadable fault stays a degradable
+/// `Io` diagnostic distinct from the structural refusal — it does not name the
+/// variable.
+#[cfg(unix)]
+#[test]
+fn a_genuine_io_fault_is_not_the_refusal() -> TestResult {
+    use std::os::unix::fs::symlink;
+    let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    symlink("templates", bare.path().join("templates"))?;
+    let output = run_with_plugin_root(
+        &fixture.root,
+        bare.path().as_os_str(),
+        &["config", "templates", "list"],
+    )?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("I/O error"),
+        "stderr does not name the I/O fault: {stderr}"
+    );
+    assert!(
+        !stderr.contains("ACCELERATOR_PLUGIN_ROOT"),
+        "a genuine I/O fault named the variable: {stderr}"
+    );
+    Ok(())
+}
+
+/// AC11: a root-independent family succeeds under a wrong root, and `--fail-safe`
+/// forces the proof that it genuinely succeeded rather than degraded to empty.
+#[test]
+fn a_root_independent_family_still_succeeds_against_a_wrong_root() -> TestResult
+{
+    let workspace = workspace("summary")?;
+    let bare = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let output = run_with_plugin_root(
+        &workspace,
+        bare.path().as_os_str(),
+        &["config", "paths", "--fail-safe"],
+    )?;
     assert_eq!(code(&output), 0);
+    assert!(!output.stdout.is_empty(), "config paths printed nothing");
     Ok(())
 }
 
