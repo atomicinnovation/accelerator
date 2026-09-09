@@ -87,9 +87,9 @@ fn a_bare_remote_only_target_reaches_the_credential_phase(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
     work_item(repo.path(), "0001", Some("PP-1"))?;
-    // A token with no local match is now a remote candidate, so it is no longer
-    // an exit-3 resolution abort: it reaches the tracker phase, where the
-    // (unconfigured) jira credentials abort with 74 before any fetch_all.
+    // A token with no local match is a remote candidate, not an exit-3
+    // resolution abort, so it reaches the tracker phase, where the unconfigured
+    // jira credentials abort with 74 before any fetch_all.
     let output = run(repo.path(), &["--target", "9999"])?;
     assert_eq!(
         output.status.code(),

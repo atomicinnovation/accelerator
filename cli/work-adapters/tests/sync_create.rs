@@ -297,7 +297,7 @@ fn run_sync_targeted(
 }
 
 /// A targeted run carrying confirmed remote-only `pull_ids`, reconciling
-/// `targeted` and importing `pull_ids` by id. The seam Phase 3's CLI drives.
+/// `targeted` and importing `pull_ids` by id. The seam the CLI drives.
 #[allow(clippy::too_many_arguments)]
 fn run_sync_targeted_pull(
     ports: &Ports<'_>,
@@ -1029,7 +1029,7 @@ fn planned_writes_over_bound_refuse_before_any_create_from_remote(
     Ok(())
 }
 
-// --- 0285: targeted pull of remote-only ids ---------------------------------
+// --- targeted pull of remote-only ids ---------------------------------------
 
 #[test]
 fn a_targeted_pull_id_creates_the_file_and_counts_as_a_pull(
@@ -1337,9 +1337,6 @@ fn of_two_pull_ids_one_show_failure_reports_one_success(
 #[test]
 fn a_mixed_run_writes_the_targeted_union_and_no_non_targeted_item(
 ) -> Result<(), TestError> {
-    // AC7: a run mixing a resolved reconcile item and a remote-only pull_id,
-    // over a corpus that also holds a non-targeted item, writes exactly the
-    // two targeted items and nothing else.
     let fixture = Fixture::new()?;
     let stamp_moved =
         RemoteTimestamp::Reported("2026-07-01T00:00:00Z".to_owned());
@@ -1434,8 +1431,6 @@ fn a_mixed_run_writes_the_targeted_union_and_no_non_targeted_item(
 #[test]
 fn a_discovery_import_and_a_targeted_pull_author_identically(
 ) -> Result<(), TestError> {
-    // AC2 parity: the same stub issue imported via discovery and via a
-    // targeted pull_id allocates an identical id, filename, and baseline entry.
     let via_discovery = {
         let fixture = Fixture::new()?;
         let tracker = RecordingTracker::holding(vec![(
@@ -1507,8 +1502,7 @@ fn a_discovery_import_and_a_targeted_pull_author_identically(
     assert_eq!(via_discovery.0, via_pull.0, "identical id allocation");
     assert_eq!(via_discovery.1, via_pull.1, "identical authored file");
     // The document-level watermark legitimately differs — a full sync advances
-    // it, a targeted run does not — so compare the per-item baseline entry, the
-    // subject of the allocation-parity criterion.
+    // it, a targeted run does not — so compare the per-item baseline entry.
     let (discovery_baseline, _) = work_adapters::sync::baseline::Baseline::read(
         via_discovery.2.as_deref(),
     );
