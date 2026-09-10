@@ -1484,7 +1484,6 @@ mod tests {
         Ok(())
     }
 
-    /// A plugin root carrying a `templates/` directory with the named default.
     fn plugin_with_templates(names: &[&str]) -> Result<TempDir, TestError> {
         let plugin = tempdir()?;
         let templates = plugin.path().join("templates");

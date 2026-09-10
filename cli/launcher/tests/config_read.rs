@@ -1391,8 +1391,6 @@ fn a_user_override_still_resolves_with_no_plugin_root() -> TestResult {
     Ok(())
 }
 
-/// AC9, the inverse of AC1: a root that is set but ships no `templates/` is not
-/// an installation, so enumeration refuses rather than rendering an empty table.
 #[test]
 fn a_root_without_a_templates_directory_refuses_to_list() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1406,8 +1404,6 @@ fn a_root_without_a_templates_directory_refuses_to_list() -> TestResult {
     Ok(())
 }
 
-/// The dedicated variant's payoff: the wrong-root diagnostic names the offending
-/// path and differs from the absent-root diagnostic, which names neither.
 #[test]
 fn a_wrong_root_diagnostic_differs_from_the_absent_root_diagnostic(
 ) -> TestResult {
@@ -1437,7 +1433,6 @@ fn a_wrong_root_diagnostic_differs_from_the_absent_root_diagnostic(
     Ok(())
 }
 
-/// AC4: `eject --all` against a wrong root refuses and writes no override tree.
 #[test]
 fn templates_eject_all_against_a_wrong_root_refuses() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1455,8 +1450,6 @@ fn templates_eject_all_against_a_wrong_root_refuses() -> TestResult {
     Ok(())
 }
 
-/// AC8-revised: a `templates` that is a file is a structural wrong-root shape and
-/// fails closed as not-an-installation, not as a genuine I/O fault.
 #[test]
 fn a_wrong_root_with_a_templates_file_refuses() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1471,7 +1464,6 @@ fn a_wrong_root_with_a_templates_file_refuses() -> TestResult {
     Ok(())
 }
 
-/// A plugin root that is itself a regular file refuses naming the root.
 #[test]
 fn a_root_that_is_a_file_refuses() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1487,9 +1479,6 @@ fn a_root_that_is_a_file_refuses() -> TestResult {
     Ok(())
 }
 
-/// AC8-revised, the `Io` arm: a genuine unreadable fault stays a degradable
-/// `Io` diagnostic distinct from the structural refusal — it does not name the
-/// variable.
 #[cfg(unix)]
 #[test]
 fn a_genuine_io_fault_is_not_the_refusal() -> TestResult {
@@ -1515,8 +1504,8 @@ fn a_genuine_io_fault_is_not_the_refusal() -> TestResult {
     Ok(())
 }
 
-/// AC11: a root-independent family succeeds under a wrong root, and `--fail-safe`
-/// forces the proof that it genuinely succeeded rather than degraded to empty.
+/// `--fail-safe` is deliberate: it forces the proof that the family genuinely
+/// succeeded rather than degraded to exit-0 empty output.
 #[test]
 fn a_root_independent_family_still_succeeds_against_a_wrong_root() -> TestResult
 {
@@ -1532,7 +1521,6 @@ fn a_root_independent_family_still_succeeds_against_a_wrong_root() -> TestResult
     Ok(())
 }
 
-/// AC2: `template <name>` against a wrong root with no override refuses.
 #[test]
 fn template_against_a_wrong_root_refuses() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1546,8 +1534,6 @@ fn template_against_a_wrong_root_refuses() -> TestResult {
     Ok(())
 }
 
-/// AC7: a valid installation missing one template reports a template-not-found
-/// naming the template, not the plugin root.
 #[test]
 fn template_not_found_names_the_template_not_the_plugin_root() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1564,8 +1550,6 @@ fn template_not_found_names_the_template_not_the_plugin_root() -> TestResult {
     Ok(())
 }
 
-/// AC3: `templates eject <name>` against a wrong root refuses as
-/// not-an-installation rather than degrading to a `NoDefault` outcome.
 #[test]
 fn eject_against_a_wrong_root_refuses() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1579,8 +1563,6 @@ fn eject_against_a_wrong_root_refuses() -> TestResult {
     Ok(())
 }
 
-/// AC5: `templates diff` and `reset` against a wrong root each refuse as
-/// not-an-installation.
 #[test]
 fn diff_and_reset_against_a_wrong_root_refuse() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;
@@ -1599,8 +1581,8 @@ fn diff_and_reset_against_a_wrong_root_refuse() -> TestResult {
     Ok(())
 }
 
-/// AC10: a resolving user override renders at exit 0 under a wrong root, since
-/// the override tiers precede the plugin-default check.
+/// A resolving user override renders under a wrong root because the override
+/// tiers are checked before the plugin-default tier reaches the root.
 #[test]
 fn a_user_override_resolves_against_a_wrong_root() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: x\n---\n")?;

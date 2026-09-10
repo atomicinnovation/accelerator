@@ -202,9 +202,8 @@ fn an_empty_plugin_root_refuses_to_compose() {
     );
 }
 
-/// A present-but-wrong plugin root — a real directory carrying no `templates/` —
-/// refuses to compose rather than resolving an empty template set, naming the
-/// offending root and its not-an-installation cause.
+/// A present-but-wrong plugin root — a real directory with no `templates/` —
+/// refuses at the compose boundary rather than resolving an empty template set.
 #[test]
 fn a_wrong_plugin_root_refuses_to_compose() {
     let tmp = tempfile::tempdir().unwrap();
