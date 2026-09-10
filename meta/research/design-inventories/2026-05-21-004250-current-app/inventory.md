@@ -7,7 +7,7 @@ source_location: "http://127.0.0.1:52339/"
 revision: "07413d3a13c37ff94b38c36b020a902e58cdb77f"
 crawler: "hybrid"
 author: "Toby Clemson"
-status: "draft"
+status: "superseded"
 sequence: 2
 screenshots_incomplete: false
 tags: ["design", "inventory", "current-app"]
