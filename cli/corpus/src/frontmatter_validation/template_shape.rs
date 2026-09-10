@@ -48,7 +48,7 @@ const FORBIDDEN_PROVENANCE_FIELDS: [&str; 2] = ["git_commit", "branch"];
 
 /// The typed-linkage source-type vocabulary; `pr` is the external-entity
 /// prefix.
-const SOURCE_TYPES: [&str; 14] = [
+const SOURCE_TYPES: [&str; 15] = [
     "work-item",
     "plan",
     "adr",
@@ -63,6 +63,7 @@ const SOURCE_TYPES: [&str; 14] = [
     "plan-review",
     "work-item-review",
     "pr-review",
+    "topic-research",
 ];
 
 /// Every typed-linkage key name. `superseded_by` is a guard: no template

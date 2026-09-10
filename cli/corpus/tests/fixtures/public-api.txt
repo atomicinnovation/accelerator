@@ -120,7 +120,7 @@ pub corpus::frontmatter_validation::schema::SchemaRow::status_vocab: &'static [&
 pub corpus::frontmatter_validation::schema::SchemaRow::typed_linkage_keys: &'static [&'static str]
 pub const corpus::frontmatter_validation::schema::BASE_FIELDS: [&str; 9]
 pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [&str; 2]
-pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 14]
+pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 15]
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
@@ -375,7 +375,7 @@ impl core::fmt::Debug for corpus::linkage::LinkageRecord
 pub fn corpus::linkage::LinkageRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::linkage::LinkageRecord
 pub const corpus::linkage::SECTIONS: [&str; 5]
-pub const corpus::linkage::TYPE_PAIRS: [(&str, &str, &str); 16]
+pub const corpus::linkage::TYPE_PAIRS: [(&str, &str, &str); 20]
 pub fn corpus::linkage::classify_band(source: &str, key: &str, target_type: &str, explicit: bool) -> (corpus::linkage::Band, &'static str)
 pub fn corpus::linkage::has_blocked_by_keyword(line: &str) -> bool
 pub fn corpus::linkage::has_blocks_keyword(line: &str) -> bool

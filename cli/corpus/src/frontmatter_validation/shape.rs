@@ -38,6 +38,11 @@ mod tests {
     }
 
     #[test]
+    fn a_topic_research_slug_reference_is_well_formed() {
+        assert!(is_well_formed("topic-research:some-subject"));
+    }
+
+    #[test]
     fn a_dotted_version_numbered_id_is_well_formed() {
         assert!(is_well_formed("plan:2026-01-01-changelog-1.21.0-cleanup"));
     }

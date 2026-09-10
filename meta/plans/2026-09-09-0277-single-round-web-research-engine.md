@@ -473,14 +473,14 @@ encoded in its type, so it also moves the snapshot (section 4).
 
 #### Automated Verification
 
-- [ ] A `topic-research:<slug>` reference passes the shape check: `cargo test -p corpus shape`
-- [ ] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
-- [ ] Full test suite passes: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] A `topic-research:<slug>` reference passes the shape check: `cargo test -p corpus shape`
+- [x] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
+- [x] Full test suite passes: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] A document carrying `relates_to: ["topic-research:some-subject"]` passes `accelerator corpus frontmatter validate --file <path>`.
+- [x] A document carrying `relates_to: ["topic-research:some-subject"]` passes `accelerator corpus frontmatter validate --file <path>` (shape check clean; whole-corpus dangling-ref integrity co-lands with 0278).
 
 ---
 
