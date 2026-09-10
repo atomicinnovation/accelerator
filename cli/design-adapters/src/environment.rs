@@ -7,6 +7,7 @@ use design::leaked_credentials::NamedSecret;
 use design::Credentials;
 
 const AUTH_HEADER: &str = "ACCELERATOR_BROWSER_AUTH_HEADER";
+const LOCATION: &str = "ACCELERATOR_BROWSER_LOCATION";
 const USERNAME: &str = "ACCELERATOR_BROWSER_USERNAME";
 const PASSWORD: &str = "ACCELERATOR_BROWSER_PASSWORD";
 const LOGIN_URL: &str = "ACCELERATOR_BROWSER_LOGIN_URL";
@@ -24,6 +25,7 @@ fn non_empty(name: &str) -> Option<String> {
 pub fn credentials_from_env() -> Credentials {
     Credentials {
         auth_header: non_empty(AUTH_HEADER),
+        location: non_empty(LOCATION),
         username: non_empty(USERNAME),
         password: non_empty(PASSWORD),
         login_url: non_empty(LOGIN_URL),

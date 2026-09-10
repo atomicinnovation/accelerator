@@ -120,8 +120,10 @@ You may only invoke `accelerator design executor evaluate` with **read-only** pa
 - `eval`, `Function(...)`, dynamic `import(...)`, `new Worker(...)` —
   dynamic code execution
 - `window.open`, `location =`, `history.pushState` — navigation must go
-  through `accelerator design executor navigate` so the origin allowlist for the auth header
-  applies
+  through `accelerator design executor navigate` so the daemon classifies each
+  hop; in `header` mode the daemon also keys the auth header to the declared
+  `[location]` origin and strips it cross-origin, in code, so you rely on that
+  boundary rather than injecting or policing the header yourself
 
 Treat `accelerator design executor evaluate` as a query language for the rendered page, not a
 programming environment. If you cannot express what you need to know as a

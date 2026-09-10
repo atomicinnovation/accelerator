@@ -90,14 +90,21 @@ async function waitForInfo(stateDir, ms = 10000) {
   throw new Error(`server-info.json did not appear within ${ms}ms in ${stateDir}`);
 }
 
-// Runs `body` against a started daemon, stopping it afterwards.
+// Runs `body` against a started daemon, stopping it afterwards. The third
+// argument exposes the daemon's accumulated stderr — where its warnings land in
+// production via the bootstrap log — so a test can assert a warning without a
+// header value in it.
 async function withDaemon(body) {
   const nsRoot = requireRuntime();
   return withTmpDir(async dir => {
     const child = forkDaemon(dir, { ACCELERATOR_PLAYWRIGHT_NS_ROOT: nsRoot });
+    let stderr = '';
+    child.stderr?.on('data', chunk => {
+      stderr += chunk.toString('utf8');
+    });
     try {
       const info = await waitForInfo(dir);
-      await body(info, dir);
+      await body(info, dir, { stderr: () => stderr });
     } finally {
       child.kill('SIGTERM');
     }
@@ -344,5 +351,269 @@ test('a scripted redirect to an internal host after load is aborted', { timeout:
         JSON.stringify(location)
       );
     });
+  });
+});
+
+// The auth-header path, end to end over a real browser: the header is attached
+// on the crawl's declared location origin and stripped on every other. The tests
+// play the client's role, putting location_url and auth_header in the request
+// body directly; the daemon reads no environment for auth.
+
+const BEARER = 'design-crawl-bearer-value';
+const AUTH_HEADER = `Authorization: Bearer ${BEARER}`;
+
+function authFor(locationUrl) {
+  return { location_url: locationUrl, auth_header: AUTH_HEADER };
+}
+
+function gated(secret) {
+  return (req, res) => {
+    if (req.headers.authorization === `Bearer ${BEARER}`) {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(`<!doctype html><meta charset=utf8><body>${secret}</body>`);
+    } else {
+      res.writeHead(401, { 'content-type': 'text/html' });
+      res.end('<!doctype html><meta charset=utf8><body>denied</body>');
+    }
+  };
+}
+
+function recorder(seen, html = '<!doctype html><meta charset=utf8><body>ok</body>') {
+  return (req, res) => {
+    seen.push({ path: req.url, authorization: req.headers.authorization });
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(html);
+  };
+}
+
+// Answers the CORS preflight for a cross-origin fetch that carries Authorization,
+// so the actual GET fires and a deleted header is observable as a real absence
+// on the target rather than a request that never left.
+function corsRecorder(seen) {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'authorization',
+  };
+  return (req, res) => {
+    seen.push({ method: req.method, authorization: req.headers.authorization });
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, cors);
+      res.end();
+    } else {
+      res.writeHead(200, { ...cors, 'content-type': 'text/plain' });
+      res.end('asset');
+    }
+  };
+}
+
+function callsB(bUrl) {
+  return serveHtml(
+    `<!doctype html><meta charset=utf8><body>A<script>` +
+      `window.fetchB=function(){return fetch(${JSON.stringify(bUrl)},` +
+      `{headers:{Authorization:'Bearer ${BEARER}'}}).then(function(r){return r.status;});};` +
+      `</script></body>`
+  );
+}
+
+function firesLate(seen, latePath) {
+  return recorder(
+    seen,
+    `<!doctype html><meta charset=utf8><body>ready<script>` +
+      `window.fireLate=function(){return fetch(${JSON.stringify(latePath)})` +
+      `.then(function(r){return r.status;});};` +
+      `</script></body>`
+  );
+}
+
+test('a gated page loads with the bearer attached on the location origin', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    await withServer(gated('SECRET-CONTENT'), async aUrl => {
+      const nav = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: aUrl,
+        ...authFor(aUrl),
+      });
+      assert.equal(nav.ok, true, JSON.stringify(nav));
+      const body = await send(info.url, {
+        protocol: 1,
+        command: 'evaluate',
+        expression: 'document.body.textContent',
+        ...authFor(aUrl),
+      });
+      assert.ok(String(body.result).includes('SECRET-CONTENT'), JSON.stringify(body));
+    });
+  });
+});
+
+test('a cross-origin fetch is stripped of the bearer yet completes', { timeout: 30000 }, async () => {
+  // Mutation-resistant: the page sets Authorization itself and fixture B answers
+  // the CORS preflight, so a deleted strip branch would let the bearer reach B.
+  await withDaemon(async info => {
+    const bSeen = [];
+    await withServer(corsRecorder(bSeen), async bUrl => {
+      await withServer(callsB(bUrl), async aUrl => {
+        await send(info.url, {
+          protocol: 1,
+          command: 'navigate',
+          url: aUrl,
+          ...authFor(aUrl),
+        });
+        const res = await send(info.url, {
+          protocol: 1,
+          command: 'evaluate',
+          expression: 'window.fetchB()',
+          ...authFor(aUrl),
+        });
+        assert.equal(res.result, 200, JSON.stringify(res));
+        const gets = bSeen.filter(entry => entry.method === 'GET');
+        assert.ok(gets.length > 0, `B saw no GET: ${JSON.stringify(bSeen)}`);
+        assert.ok(
+          gets.every(entry => entry.authorization !== `Bearer ${BEARER}`),
+          JSON.stringify(bSeen)
+        );
+      });
+    });
+  });
+});
+
+test('a cross-origin navigate carries no bearer to the off-site origin', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const bSeen = [];
+    await withServer(recorder(bSeen), async bUrl => {
+      // The location is declared as a different origin; navigating straight to B
+      // plays a followed external link. The header keys to the declared location,
+      // not the navigate target, so B is reached without it.
+      const declaredLocation = 'http://127.0.0.1:1/';
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: bUrl,
+        ...authFor(declaredLocation),
+      });
+      assert.equal(res.ok, true, JSON.stringify(res));
+      assert.ok(
+        bSeen.every(entry => entry.authorization !== `Bearer ${BEARER}`),
+        JSON.stringify(bSeen)
+      );
+    });
+  });
+});
+
+test('a cross-origin redirect does not leak the header to the target', { timeout: 30000 }, async () => {
+  // A boundary assertion, not mutation-resistant: the browser does not forward
+  // Authorization across origins on a redirect, so no bearer is present on the B
+  // hop to strip. It still catches an origin-blind injection mutant.
+  await withDaemon(async info => {
+    const bSeen = [];
+    await withServer(recorder(bSeen), async bUrl => {
+      await withServer(redirectTo(bUrl), async aUrl => {
+        const res = await send(info.url, {
+          protocol: 1,
+          command: 'navigate',
+          url: aUrl,
+          ...authFor(aUrl),
+        });
+        assert.equal(res.ok, true, JSON.stringify(res));
+        assert.ok(
+          bSeen.every(entry => entry.authorization !== `Bearer ${BEARER}`),
+          JSON.stringify(bSeen)
+        );
+      });
+    });
+  });
+});
+
+test('a same-origin subresource fired during a following command stays authenticated', { timeout: 30000 }, async () => {
+  // The subresource is dispatched inside a following `evaluate` that carries the
+  // auth fields, so it fires deterministically while the daemon's per-request
+  // auth state is set. Because that state is cleared at request end, a mutant
+  // that authenticated `navigate` only would strip this fetch.
+  await withDaemon(async info => {
+    const aSeen = [];
+    await withServer(firesLate(aSeen, '/late'), async aUrl => {
+      await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: aUrl,
+        ...authFor(aUrl),
+      });
+      const res = await send(info.url, {
+        protocol: 1,
+        command: 'evaluate',
+        expression: 'window.fireLate()',
+        ...authFor(aUrl),
+      });
+      assert.equal(res.result, 200, JSON.stringify(res));
+      const late = aSeen.filter(entry => entry.path === '/late');
+      assert.ok(late.length > 0, `no /late request recorded: ${JSON.stringify(aSeen)}`);
+      assert.ok(
+        late.every(entry => entry.authorization === `Bearer ${BEARER}`),
+        JSON.stringify(aSeen)
+      );
+    });
+  });
+});
+
+test('a header declared without a location warns and strips', { timeout: 30000 }, async () => {
+  await withDaemon(async (info, _dir, ctx) => {
+    const aSeen = [];
+    await withServer(recorder(aSeen), async aUrl => {
+      await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: aUrl,
+        auth_header: AUTH_HEADER,
+      });
+      assert.ok(
+        aSeen.every(entry => entry.authorization !== `Bearer ${BEARER}`),
+        JSON.stringify(aSeen)
+      );
+      await new Promise(r => setTimeout(r, 150));
+      const log = ctx.stderr();
+      assert.ok(log.includes('no location origin resolved'), log);
+      assert.ok(!log.includes(BEARER), 'the warning must not carry the header value');
+    });
+  });
+});
+
+test('a warm daemon does not bleed a prior crawl auth onto an unconfigured re-crawl', { timeout: 30000 }, async () => {
+  // Same origin both times: a design that pinned origin and header across
+  // requests would still attach on the second, unconfigured crawl.
+  await withDaemon(async info => {
+    const aSeen = [];
+    await withServer(recorder(aSeen), async aUrl => {
+      await send(info.url, {
+        protocol: 1,
+        command: 'navigate',
+        url: aUrl,
+        ...authFor(aUrl),
+      });
+      const afterFirst = aSeen.length;
+      assert.ok(
+        aSeen.slice(0, afterFirst).some(entry => entry.authorization === `Bearer ${BEARER}`),
+        `first crawl should attach: ${JSON.stringify(aSeen)}`
+      );
+      await send(info.url, { protocol: 1, command: 'navigate', url: aUrl });
+      const second = aSeen.slice(afterFirst);
+      assert.ok(second.length > 0, 'second navigate recorded nothing');
+      assert.ok(
+        second.every(entry => entry.authorization !== `Bearer ${BEARER}`),
+        JSON.stringify(second)
+      );
+    });
+  });
+});
+
+test('a refused origin is still blocked with the auth-header route installed', { timeout: 30000 }, async () => {
+  await withDaemon(async info => {
+    const res = await send(info.url, {
+      protocol: 1,
+      command: 'navigate',
+      url: INTERNAL_URL,
+      ...authFor(INTERNAL_URL),
+    });
+    assert.equal(res.error, 'navigation-refused', JSON.stringify(res));
+    assert.equal(res.details.classification, 'link-local');
   });
 });

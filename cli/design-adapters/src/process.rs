@@ -16,6 +16,7 @@
 //! it, while a double fork loses it, because the launcher never learns the
 //! grandchild's.
 
+use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -42,6 +43,34 @@ use design::executor::ports::Spawner;
 
 /// The mode every file the launcher and the daemon create inherits.
 const OWNER_ONLY_UMASK: libc::mode_t = 0o077;
+
+/// The only inherited variables the long-lived daemon spawn carries through.
+///
+/// The spawn `env_clear`s and re-adds exactly these plus the explicit runtime
+/// vars, so `ACCELERATOR_BROWSER_AUTH_HEADER` and `ACCELERATOR_BROWSER_LOCATION`
+/// never reach the daemon's `/proc/<pid>/environ`. The daemon reads no
+/// environment for auth — the client injects both per request into the loopback
+/// body — so this asymmetry is deliberate: `ExecClient` keeps the full
+/// environment (it must read both to inject them), the daemon does not.
+const DAEMON_ENV_ALLOWLIST: &[&str] = &["PATH", "HOME", "TMPDIR"];
+
+/// The daemon's complete environment: the allowlisted base vars resolved from
+/// this process, then the explicit runtime vars. Applied after `env_clear`, so
+/// what this returns is exactly what the child inherits.
+fn daemon_environment(
+    runtime: &[(String, String)],
+) -> Vec<(OsString, OsString)> {
+    let mut environment: Vec<(OsString, OsString)> = DAEMON_ENV_ALLOWLIST
+        .iter()
+        .filter_map(|name| {
+            std::env::var_os(name).map(|value| (OsString::from(name), value))
+        })
+        .collect();
+    for (name, value) in runtime {
+        environment.push((OsString::from(name), OsString::from(value)));
+    }
+    environment
+}
 
 /// The descriptor the identity pipe's read end is placed on in the child.
 ///
@@ -118,7 +147,10 @@ impl Spawner for DaemonSpawner {
         command
             .stdout(log.try_clone().map_err(failed("clone the log handle"))?);
         command.stderr(log);
-        for (name, value) in &self.environment {
+        // Cleared then rebuilt from an allowlist, so the auth env the client
+        // reads never rests in the long-lived daemon's environment.
+        command.env_clear();
+        for (name, value) in daemon_environment(&self.environment) {
             command.env(name, value);
         }
         command.env(IDENTITY_FD_VAR, IDENTITY_FD.to_string());
@@ -320,6 +352,7 @@ impl BootstrapDiagnostics for BootstrapLog {
 mod tests {
     use design::executor::ports::ProcessProbe as _;
 
+    use super::daemon_environment;
     use super::generate_token;
     use super::is_alive;
     use super::HostProbe;
@@ -371,5 +404,31 @@ mod tests {
     #[test]
     fn two_tokens_differ() {
         assert_ne!(generate_token(), generate_token());
+    }
+
+    /// The daemon's whole environment is this list (applied after `env_clear`),
+    /// so proving no `ACCELERATOR_BROWSER_*` name appears in it proves neither
+    /// the header nor the location can reach the daemon — whatever this process
+    /// inherited.
+    #[test]
+    fn the_daemon_environment_carries_no_browser_auth_variable() {
+        let runtime = vec![(
+            "ACCELERATOR_PLAYWRIGHT_STATE_DIR".to_owned(),
+            "/tmp/state".to_owned(),
+        )];
+        let environment = daemon_environment(&runtime);
+        let names: Vec<String> = environment
+            .iter()
+            .map(|(name, _)| name.to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            !names
+                .iter()
+                .any(|name| name.starts_with("ACCELERATOR_BROWSER_")),
+            "{names:?}"
+        );
+        assert!(names
+            .iter()
+            .any(|name| name == "ACCELERATOR_PLAYWRIGHT_STATE_DIR"));
     }
 }

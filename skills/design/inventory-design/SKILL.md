@@ -87,27 +87,35 @@ accelerator design resolve-auth
 Capture the output (`header`, `form`, or `none`). If it exits non-zero, report
 the error to the user and stop.
 
-> [!WARNING]
-> **The header-auth path is currently inert.** The daemon imports its
-> auth-header handler and never calls it, and the origin allowlist that handler
-> requires (`ACCELERATOR_BROWSER_LOCATION_ORIGIN`) is set nowhere. An
-> authenticated crawl therefore produces an *unauthenticated* inventory, and the
-> allowlist described below is not enforced by anything. Do not put a live
-> credential in `ACCELERATOR_BROWSER_AUTH_HEADER` until that is wired up.
+**Header mode requires two env vars.** `header` mode needs **both**
+`ACCELERATOR_BROWSER_AUTH_HEADER` (the bearer pair, e.g.
+`Authorization: Bearer <token>`) and `ACCELERATOR_BROWSER_LOCATION` (the crawl's
+`[location]`, which keys the allowlist). `resolve-auth` refuses a header set
+without a location loudly, so this cannot be missed silently.
 
-**Auth-header origin allowlist (security-critical, once wired up)**: if auth mode is `header`,
-the `ACCELERATOR_BROWSER_AUTH_HEADER` value is injected **only** on navigations
-whose origin (scheme+host+port) matches the resolved `[location]` origin or the
-`ACCELERATOR_BROWSER_LOGIN_URL` origin. On any cross-origin navigation (off-site
-link, OAuth redirect, or any attacker-controlled target reached during the crawl),
-strip the header before the request is issued. Instruct the `{browser analyser agent}`
-to enforce this explicitly.
+**Auth-header origin allowlist (security-critical)**: in `header` mode the
+daemon injects `ACCELERATOR_BROWSER_AUTH_HEADER` **only** on requests whose
+origin (scheme+host+port) matches the declared `ACCELERATOR_BROWSER_LOCATION`
+origin, and strips it on every cross-origin request. The strip is enforced in
+the daemon's `route()` handler in code, not by the crawler's link discipline, so
+a followed off-site link, an OAuth redirect, or a cross-origin subresource is
+reached without the header.
+
+> [!WARNING]
+> **Redirect caveat.** The header keys to the declared `[location]` origin, so a
+> `[location]` that redirects to a *different* origin (e.g.
+> `http://app.example.com` → `https://app.example.com`, an apex→www hop, or an
+> SSO bounce) loads the redirected page **unauthenticated** — its gated content
+> is captured as if logged out and silently missing from the inventory. Set
+> `ACCELERATOR_BROWSER_LOCATION` to the canonical post-redirect URL
+> (`https://app.example.com`), not the pre-redirect one.
 
 **Auth-walled route handling**: when auth mode is `none` and a route appears to
 require authentication, skip it and record it in `Crawl Notes` with the message:
 
-> `inventory-design: skipped <url> (appears auth-walled). Set
-> ACCELERATOR_BROWSER_AUTH_HEADER, or
+> `inventory-design: skipped <url> (appears auth-walled). Set both
+> ACCELERATOR_BROWSER_AUTH_HEADER and ACCELERATOR_BROWSER_LOCATION (a header
+> without a location is refused), or
 > ACCELERATOR_BROWSER_USERNAME / _PASSWORD / _LOGIN_URL, to crawl
 > authenticated routes.`
 
@@ -218,12 +226,12 @@ attempt to read or expose the values of masked fields.
 **URL scrubbing**: strip query strings from any URL written into the inventory
 body (screen routes, references). Document this reduction in `Crawl Notes`.
 
-**Auth-header origin allowlist (security-critical)**: if auth mode is `header`,
-the executor's `route()` handler enforces that `ACCELERATOR_BROWSER_AUTH_HEADER`
-is injected only on navigations whose origin matches the resolved `[location]`
-origin or the `ACCELERATOR_BROWSER_LOGIN_URL` origin. Instruct the
-`{browser analyser agent}` to enforce this explicitly for any manual header
-injection it performs.
+**Auth-header origin allowlist (security-critical)**: in `header` mode the
+daemon's `route()` handler injects `ACCELERATOR_BROWSER_AUTH_HEADER` only on
+requests whose origin matches the declared `ACCELERATOR_BROWSER_LOCATION` origin
+and strips it on every cross-origin request. This boundary is enforced in the
+daemon in code, so the browser agents rely on it rather than performing or
+policing manual header injection themselves.
 
 ### 9. Synthesise
 

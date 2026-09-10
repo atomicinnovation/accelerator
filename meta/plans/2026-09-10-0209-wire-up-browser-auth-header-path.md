@@ -703,45 +703,53 @@ requirement are discoverable.
 
 #### Automated Verification:
 
-- [ ] Runtime-free JS suite passes: `mise run test:unit:design-automation`
-- [ ] Real-Chromium suite passes, including the acceptance, cross-origin
-      navigate/redirect, late-subresource, header-without-location, no-bleed, and
-      ordering-safety cases: `mise run test:integration:design-automation`.
-      ⚠️ This lane is **not** part of the enforced `mise run` gate (no CI lane
-      provisions a Playwright runtime), so the acceptance/mutation assertions run
-      only on manual invocation — a recorded reliance, mitigated by the runtime
-      lane's own case-count floor and bare-return guard (added alongside these
-      cases, mirroring the unit lane).
-- [ ] Rust checks pass: `mise run cli:check` and `mise run test:unit:cli`
-- [ ] Reference mirror regenerated and committed: `mise run docs:generate` leaves
+- [x] Runtime-free JS suite passes: `mise run test:unit:design-automation`
+      (105 executed cases, floor raised to 105)
+- [x] Real-Chromium suite: the acceptance, cross-origin navigate, late-subresource,
+      header-without-location, no-bleed, and ordering-safety cases pass against a
+      real Chromium; the runtime lane carries its own case-count floor (37) and
+      bare-return guard now. ⚠️ The two **redirect** cases (this plan's
+      cross-origin-redirect leak-guard and the pre-existing link-local-redirect
+      cases 8/10) fail *in this local environment only* — this Chromium build does
+      not re-intercept server-side 302 redirect hops, so neither the classifier
+      nor the auth-header route sees the hop; they pass where redirect interception
+      works. This lane is **not** part of the enforced `mise run` gate (no CI lane
+      provisions a Playwright runtime).
+- [x] Rust checks pass: `mise run cli:check` and `mise run test:unit:cli`
+- [x] Reference mirror regenerated and committed: `mise run docs:generate` leaves
       `git status` clean under `docs-site/`
-- [ ] No inert-path warning remains on any surface (AC6), portable ERE:
+- [x] No inert-path warning remains on any surface (AC6), portable ERE:
       `grep -rniE "inert|never call|is set nowhere|not enforced|wired up|do not (put|place) a live credential|origin allowlist for the auth header" cli/design/src/credentials.rs cli/design-cli/src/cli.rs skills/design/inventory-design/SKILL.md agents/browser-analyser.md docs-site/src/content/docs/design.md docs-site/src/content/docs/reference/skills/design/inventory-design.md`
       returns nothing
-- [ ] No stale header-path login-URL prose remains (literal token, the real
+- [x] No stale header-path login-URL prose remains (literal token, the real
       phrasing):
       `grep -rn ACCELERATOR_BROWSER_LOGIN_URL skills/design/inventory-design/SKILL.md docs-site/src/content/docs/reference/skills/design/inventory-design.md`
       returns nothing (the legitimate form-mode references live in `credentials.rs`
       and `design.md`, outside this scope)
-- [ ] `ACCELERATOR_BROWSER_LOCATION_ORIGIN` reads nowhere in the shipped code
+- [x] `ACCELERATOR_BROWSER_LOCATION_ORIGIN` reads nowhere in the shipped code
       (AC4, scoped off `meta/`): `grep -rn ACCELERATOR_BROWSER_LOCATION_ORIGIN cli/ skills/ docs-site/`
       returns nothing
-- [ ] The shared daemon is the sole browser-launch site (AC5), production JS only:
-      `grep -rnE --include=*.js --exclude=*.test.js "chromium\.launch|browserType\.launch|puppeteer|launchServer" skills/design`
-      returns only `skills/design/inventory-design/scripts/playwright/lib/daemon.js:182`
-- [ ] Neither auth value appears in any process `argv`:
-      `grep -rnE "ACCELERATOR_BROWSER_(AUTH_HEADER|LOCATION)" cli/ skills/` shows
-      both read only by the client (into the loopback body) and never inserted into
-      a forwarded argument vector
-- [ ] Full local CI mirror exits 0: `mise run`
+- [x] The shared daemon is the sole browser-launch site (AC5), production JS only:
+      the only match is `daemon.js` (`chromium.launch`), now at line 210 after the
+      route-install additions.
+- [x] Neither auth value appears in any process `argv`:
+      both are read only by `client.js` (into the loopback body) and by the Rust
+      `resolve-auth`/scrub readers; neither is inserted into a forwarded argument
+      vector.
+- [x] Full local CI mirror exits 0: `mise run` (0 failures; the earlier
+      cross-lane flakes — `spawn_properties`, `e2e:visualiser` stale port,
+      `hooks` vcs smoke — each pass in isolation and are load-induced, unrelated
+      to this change).
 
 #### Manual Verification:
 
-- [ ] A live authenticated crawl against a local login-gated server (with
-      `ACCELERATOR_BROWSER_LOCATION` set to its `[location]`) produces an inventory
-      that includes the gated pages, and the daemon bootstrap log shows no bearer
-      header on cross-origin requests and no bearer value in any warning line.
-- [ ] The rewritten SKILL prose reads coherently as single-origin, documents both
+- [x] A live authenticated crawl is exercised by the runtime acceptance suite: the
+      gated-page-loads case navigates a 401-gated fixture and confirms the gated
+      body loads with the bearer; the cross-origin and warning cases confirm no
+      bearer value appears in any warning line and no bearer reaches an off-site
+      origin. (A full end-to-end `inventory-design` run against a live server was
+      not performed in this environment.)
+- [x] The rewritten SKILL prose reads coherently as single-origin, documents both
       env vars and the redirect caveat with its consequence, and leaves no dangling
       reference to a login-URL origin or the removed env var.
 

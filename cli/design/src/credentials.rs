@@ -1,9 +1,11 @@
 //! Which authentication mode the configured environment selects.
 //!
-//! The `header` mode is inert downstream: the daemon imports its handler and
-//! never calls it, and the origin allowlist that handler needs is set nowhere.
-//! The mode still resolves, and the command's help text warns callers, because
-//! it remains a documented capability.
+//! `header` mode injects `ACCELERATOR_BROWSER_AUTH_HEADER` on requests whose
+//! origin matches the crawl's declared `ACCELERATOR_BROWSER_LOCATION` origin and
+//! strips it on every cross-origin request; the daemon enforces the strip in
+//! code. The two variables are a pair: the header keys to the location origin,
+//! so a header set without a location is refused loudly rather than proceeding
+//! into a stripped, unauthenticated crawl.
 
 use std::fmt;
 
@@ -11,6 +13,7 @@ use std::fmt;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Credentials {
     pub auth_header: Option<String>,
+    pub location: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
     pub login_url: Option<String>,
@@ -44,24 +47,38 @@ pub struct Resolution {
     pub warning: Option<String>,
 }
 
-/// The variables a partial form-login configuration is missing.
+/// Why the configured environment names no actionable auth mode.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PartialConfiguration {
-    pub missing: Vec<&'static str>,
+pub enum AuthConfigurationError {
+    /// Some but not all of the form-login trio are set, and no header is
+    /// configured.
+    PartialForm { missing: Vec<&'static str> },
+    /// A header is set without the location that keys it.
+    HeaderWithoutLocation,
 }
 
-impl std::error::Error for PartialConfiguration {}
+impl std::error::Error for AuthConfigurationError {}
 
-impl fmt::Display for PartialConfiguration {
+impl fmt::Display for AuthConfigurationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "partial form-login configuration — missing: {}. Set all three of \
-             ACCELERATOR_BROWSER_USERNAME, ACCELERATOR_BROWSER_PASSWORD, and \
-             ACCELERATOR_BROWSER_LOGIN_URL together, or use \
-             ACCELERATOR_BROWSER_AUTH_HEADER instead.",
-            self.missing.join(", ")
-        )
+        match self {
+            Self::PartialForm { missing } => write!(
+                formatter,
+                "partial form-login configuration — missing: {}. Set all three \
+                 of ACCELERATOR_BROWSER_USERNAME, ACCELERATOR_BROWSER_PASSWORD, \
+                 and ACCELERATOR_BROWSER_LOGIN_URL together, or use \
+                 ACCELERATOR_BROWSER_AUTH_HEADER with ACCELERATOR_BROWSER_LOCATION \
+                 instead.",
+                missing.join(", ")
+            ),
+            Self::HeaderWithoutLocation => write!(
+                formatter,
+                "ACCELERATOR_BROWSER_AUTH_HEADER is set without \
+                 ACCELERATOR_BROWSER_LOCATION. Header mode keys the auth header \
+                 to the crawl's location origin, so both must be set together; \
+                 set ACCELERATOR_BROWSER_LOCATION to the crawl's [location] URL."
+            ),
+        }
     }
 }
 
@@ -73,11 +90,13 @@ const LOGIN_URL: &str = "ACCELERATOR_BROWSER_LOGIN_URL";
 ///
 /// # Errors
 ///
-/// A [`PartialConfiguration`] naming the missing variables when some but not
-/// all of the form-login trio are set and no header is configured.
+/// [`AuthConfigurationError::HeaderWithoutLocation`] when a header is set
+/// without the location that keys it, or
+/// [`AuthConfigurationError::PartialForm`] naming the missing variables when
+/// some but not all of the form-login trio are set and no header is configured.
 pub fn resolve(
     credentials: &Credentials,
-) -> Result<Resolution, PartialConfiguration> {
+) -> Result<Resolution, AuthConfigurationError> {
     let form = [
         (USERNAME, &credentials.username),
         (PASSWORD, &credentials.password),
@@ -85,6 +104,9 @@ pub fn resolve(
     ];
 
     if credentials.auth_header.is_some() {
+        if credentials.location.is_none() {
+            return Err(AuthConfigurationError::HeaderWithoutLocation);
+        }
         let ignored: Vec<&str> = form
             .iter()
             .filter(|(_, value)| value.is_some())
@@ -118,13 +140,14 @@ pub fn resolve(
             mode: AuthMode::None,
             warning: None,
         }),
-        _ => Err(PartialConfiguration { missing }),
+        _ => Err(AuthConfigurationError::PartialForm { missing }),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::resolve;
+    use super::AuthConfigurationError;
     use super::AuthMode;
     use super::Credentials;
 
@@ -156,10 +179,11 @@ mod tests {
     }
 
     #[test]
-    fn a_header_wins_over_a_complete_form_configuration() -> Result<(), String>
-    {
+    fn a_header_with_a_location_wins_over_a_complete_form_configuration(
+    ) -> Result<(), String> {
         let credentials = Credentials {
             auth_header: Some(set("Authorization: Bearer abc123")),
+            location: Some(set("https://example.com")),
             username: Some(set("alice")),
             password: Some(set("hunter2")),
             login_url: Some(set("https://example.com/login")),
@@ -175,9 +199,11 @@ mod tests {
     }
 
     #[test]
-    fn a_header_alone_warns_about_nothing() -> Result<(), String> {
+    fn a_header_with_a_location_and_nothing_else_warns_about_nothing(
+    ) -> Result<(), String> {
         let credentials = Credentials {
             auth_header: Some(set("Authorization: Bearer abc123")),
+            location: Some(set("https://example.com")),
             ..Credentials::default()
         };
         let resolution =
@@ -188,25 +214,38 @@ mod tests {
     }
 
     #[test]
+    fn a_header_without_a_location_is_refused_loudly() -> Result<(), String> {
+        let credentials = Credentials {
+            auth_header: Some(set("Authorization: Bearer abc123")),
+            ..Credentials::default()
+        };
+        let Err(error) = resolve(&credentials) else {
+            return Err("expected a refusal".to_owned());
+        };
+        assert_eq!(error, AuthConfigurationError::HeaderWithoutLocation);
+        assert!(error.to_string().contains("ACCELERATOR_BROWSER_LOCATION"));
+        Ok(())
+    }
+
+    #[test]
     fn a_partial_form_configuration_names_every_missing_variable(
     ) -> Result<(), String> {
         let credentials = Credentials {
             username: Some(set("alice")),
             ..Credentials::default()
         };
-        let Err(error) = resolve(&credentials) else {
-            return Err("expected a refusal".to_owned());
+        let Err(AuthConfigurationError::PartialForm { missing }) =
+            resolve(&credentials)
+        else {
+            return Err("expected a partial-form refusal".to_owned());
         };
         assert_eq!(
-            error.missing,
+            missing,
             vec![
                 "ACCELERATOR_BROWSER_PASSWORD",
                 "ACCELERATOR_BROWSER_LOGIN_URL"
             ]
         );
-        assert!(error
-            .to_string()
-            .contains("partial form-login configuration"));
         Ok(())
     }
 

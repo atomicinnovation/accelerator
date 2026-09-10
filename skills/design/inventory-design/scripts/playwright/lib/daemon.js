@@ -10,7 +10,8 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { writeServerInfo, writeServerStopped, removeServerFiles, ensureStateDir } from './state.js';
 import { readIdentity } from './identity-handoff.js';
-import { makeAuthHeaderHandler } from './auth-header.js';
+import { makeAuthHeaderHandler, parseAuthHeader } from './auth-header.js';
+import { LOCATION_URL_FIELD, AUTH_HEADER_FIELD } from './request-fields.js';
 import { mergeMaskSelectors } from './mask.js';
 import { guardScreenshotPath } from './path-guard.js';
 import { makeError, protocolMismatch, PROTOCOL, TOKEN_HEADER } from './errors.js';
@@ -60,6 +61,24 @@ function hostAndPath(rawUrl) {
   }
 }
 
+// The crawl's declared location URL, reduced to the origin the auth-header
+// route compares each request against. The same WHATWG parser normalises both
+// sides, so `https://h:443` and `https://h` compare equal. An absent value is
+// the ordinary unauthenticated crawl and passes silently; a present-but-
+// unparseable value warns (bound to the parse error, never the body) rather
+// than being swallowed, since daemon stderr persists to the bootstrap log.
+export function originOf(value) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch (error) {
+    console.error(
+      `auth-header location did not parse: ${error?.message ?? String(error)}`
+    );
+    return null;
+  }
+}
+
 function navigationRefusedEnvelope(refusal) {
   return makeError({
     error: 'navigation-refused',
@@ -91,6 +110,15 @@ export async function startDaemon({ stateDir }) {
   // handler depends on.
   let currentAllowances = { allowInternal: false, allowInsecureScheme: false };
   let lastRefusal = null;
+
+  // Auth-header state, keyed to the crawl's declared location origin and reset
+  // per request exactly as `currentAllowances` is, so a warm daemon reused
+  // across crawls governs each by its own configuration. Read live through
+  // getters by the page-lifetime auth-header route; cleared at request end so
+  // the inter-command gap is fail-closed. Safe against interleaving only under
+  // the same single-flight invariant `currentAllowances` depends on.
+  let currentExpectedOrigin = null;
+  let currentAuthHeader = null;
 
   // ------ Shutdown --------------------------------------------------------
 
@@ -183,14 +211,28 @@ export async function startDaemon({ stateDir }) {
     const ctx = await browser.newContext();
     page = await ctx.newPage();
 
+    // Two page-lifetime route handlers, co-located so their ordering is visible
+    // at the one point it matters. Playwright dispatches last-registered-first,
+    // so the classifier (registered second) runs first and the auth-header
+    // route (registered first) runs last. The classifier's allow path calls
+    // `fallback()`, which hands the request down to the earlier-registered
+    // auth-header route — the seam that lets navigation policy gate the request
+    // before the header is attached or stripped. Registering the auth-header
+    // route after the classifier would invert this: it would `continue()` first
+    // and the classifier would never run.
+    const installAuthHeader = makeAuthHeaderHandler(page, {
+      getExpectedOrigin: () => currentExpectedOrigin,
+      getAuthHeader: () => currentAuthHeader,
+    });
+    await installAuthHeader();
+
     // One handler for the page's whole life, so a redirect hop and a
     // page-initiated navigation (a <meta refresh>, a scripted location change)
     // are classified under the current request's allowances too, not only the
     // initial URL. A refusal is recorded only for the main frame, so a sub-frame
-    // abort never masks the top-level result. `fallback()` on the allow path
-    // leaves any later-registered route handler able to act on the request.
-    // The body fails closed: a thrown classifier error aborts as `malformed`
-    // rather than leaving the request unhandled to hang until the wall-clock.
+    // abort never masks the top-level result. The body fails closed: a thrown
+    // classifier error aborts as `malformed` rather than leaving the request
+    // unhandled to hang until the wall-clock.
     await page.route('**/*', async route => {
       let decision;
       try {
@@ -222,9 +264,20 @@ export async function startDaemon({ stateDir }) {
 
     // Every command is judged under its own allowances, and no prior request's
     // refusal bleeds through — so a warm daemon never judges one invocation's
-    // navigation under another's allowances.
+    // navigation under another's allowances. The auth-header state rides every
+    // command the same way (Section: request end clears it), so a same-origin
+    // subresource that loads lazily during a following snapshot/links still
+    // carries the header, while a warm daemon reused across crawls never
+    // inherits a prior crawl's auth.
     currentAllowances = allowancesOf(req);
     lastRefusal = null;
+    currentExpectedOrigin = originOf(req[LOCATION_URL_FIELD]);
+    currentAuthHeader = parseAuthHeader(req[AUTH_HEADER_FIELD]);
+    if (currentAuthHeader && !currentExpectedOrigin) {
+      console.error(
+        'auth-header configured but no location origin resolved; header stripped'
+      );
+    }
 
     if (cmd === 'ping') {
       const nsRoot = process.env.ACCELERATOR_PLAYWRIGHT_NS_ROOT;
@@ -530,6 +583,12 @@ export async function startDaemon({ stateDir }) {
         });
       } catch (e) {
         result = makeError({ error: 'internal-error', message: e.message || String(e), category: 'browser', retryable: false });
+      } finally {
+        // Fail-closed between commands: a subresource that fires in the gap
+        // before the next command re-declares auth is stripped, never riding
+        // stale prior-command state.
+        currentExpectedOrigin = null;
+        currentAuthHeader = null;
       }
 
       if (isBlocking) disarmWallClock();
