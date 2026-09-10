@@ -120,14 +120,14 @@ impl WorkItemIdScheme {
         if raw.is_empty() {
             return None;
         }
-        let has_project = self.id_pattern.contains("{project}");
+        let has_key = references_key(&self.id_pattern);
         let width = number_width(&self.id_pattern);
         if raw.chars().all(|c| c.is_ascii_digit()) {
             let n_str = raw
                 .parse::<u64>()
                 .map_or_else(|_| raw.to_owned(), |n| n.to_string());
             let padded = format!("{n_str:0>width$}");
-            return Some(if has_project {
+            return Some(if has_key {
                 match &self.default_project_code {
                     Some(code) => format!("{code}-{padded}"),
                     None => padded,
@@ -188,6 +188,59 @@ impl WorkItemIdScheme {
     }
 }
 
+/// The pattern-DSL spellings that denote the local ID prefix token.
+///
+/// `key` is the domain spelling; `project` is the deprecated synonym carried
+/// through the migration window so legacy `{project}` patterns keep resolving.
+/// This is the single source of truth for the accepted spellings, shared across
+/// the ID pipelines; each pipeline walks its own tokeniser but agrees on this
+/// set.
+const KEY_TOKEN_SPELLINGS: &[&str] = &["key", "project"];
+
+/// True iff `token` (the inner text of a `{...}` token) spells the local ID
+/// prefix in any recognised spelling.
+#[must_use]
+pub fn is_key_token(token: &str) -> bool {
+    KEY_TOKEN_SPELLINGS.contains(&token)
+}
+
+/// True iff `pattern` references the local ID prefix token in any recognised
+/// spelling.
+///
+/// Brace-aware: an escaped `{{key}}` / `{{project}}` literal does not count, so
+/// a false positive cannot spuriously reject a valid config.
+#[must_use]
+pub fn references_key(pattern: &str) -> bool {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let next = chars.get(i + 1).copied();
+        if (chars[i] == '{' && next == Some('{'))
+            || (chars[i] == '}' && next == Some('}'))
+        {
+            i += 2;
+            continue;
+        }
+        if chars[i] == '{' {
+            if let Some(offset) =
+                chars[i + 1..].iter().position(|&c| c == '}' || c == '{')
+            {
+                let close = i + 1 + offset;
+                if chars[close] == '}' {
+                    let token: String = chars[i + 1..close].iter().collect();
+                    if is_key_token(&token) {
+                        return true;
+                    }
+                    i = close + 1;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// The zero-pad width the canonical form uses: the `{number:0Nd}` segment's
 /// `N`, or `4` when the pattern carries no explicit width. Matches the width
 /// the retired scan-regex canonicaliser applied.
@@ -225,7 +278,28 @@ fn is_project_prefixed(token: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{IdScan, IdScanner, WorkItemIdScheme};
+    use super::{
+        is_key_token, references_key, IdScan, IdScanner, WorkItemIdScheme,
+    };
+
+    #[test]
+    fn is_key_token_accepts_both_spellings() {
+        assert!(is_key_token("key"));
+        assert!(is_key_token("project"));
+        assert!(!is_key_token("number"));
+        assert!(!is_key_token("bogus"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn references_key_is_brace_aware() {
+        assert!(references_key("{key}-{number:04d}"));
+        assert!(references_key("{project}-{number:04d}"));
+        assert!(!references_key("{number:04d}"));
+        assert!(!references_key("{{key}}-{number:04d}"));
+        assert!(!references_key("{{project}}-{number:04d}"));
+        assert!(references_key("x{{key}}-{key}"));
+    }
 
     struct DigitRunScanner;
 
@@ -318,6 +392,20 @@ mod tests {
         let proj = project("PROJ", 4);
         assert_eq!(proj.canonicalise_id("40").as_deref(), Some("PROJ-0040"));
         assert_eq!(proj.canonicalise_id("OTHER-9").as_deref(), Some("OTHER-9"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn canonicalise_id_treats_key_pattern_as_prefixed() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: "{key}-{number:04d}".to_owned(),
+            default_project_code: Some("PP".to_owned()),
+        };
+        assert_eq!(scheme.canonicalise_id("40").as_deref(), Some("PP-0040"));
+        assert_eq!(
+            scheme.canonicalise_id("OTHER-9").as_deref(),
+            Some("OTHER-9")
+        );
     }
 
     #[test]

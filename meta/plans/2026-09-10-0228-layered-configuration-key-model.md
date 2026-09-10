@@ -296,21 +296,21 @@ and `{number:}` unknown while `{key}` is now recognised.
 
 #### Automated Verification:
 
-- [ ] Every `{project}` test in `work_item_pattern.rs` (scan escape, format
+- [x] Every `{project}` test in `work_item_pattern.rs` (scan escape, format
       string, `parse_full_id`, `canonicalise_id` golden, error arms) has a
       `{key}` twin asserting identical output: `cargo test -p corpus-adapters`
-- [ ] A test asserts `{key}` and `{project}` yield byte-identical scan regex,
+- [x] A test asserts `{key}` and `{project}` yield byte-identical scan regex,
       format string, and parse for the same value.
-- [ ] Scheme-side tests mirror `{key}` in `work_item_id.rs` `mod tests`:
+- [x] Scheme-side tests mirror `{key}` in `work_item_id.rs` `mod tests`:
       `cargo test -p corpus`
-- [ ] Parity test still green: `cargo test -p corpus-adapters --test parity`
-- [ ] `references_key` returns `false` for an escaped `{{key}}` / `{{project}}`
+- [x] Parity test still green: `cargo test -p corpus-adapters --test parity`
+- [x] `references_key` returns `false` for an escaped `{{key}}` / `{{project}}`
       literal and `true` for a live `{key}` / `{project}` token.
-- [ ] Any pinned-crate public-api snapshot touched by the renamed `PatternError`
+- [x] Any pinned-crate public-api snapshot touched by the renamed `PatternError`
       variants / `ParsedId.key` field is regenerated (`mise run public-api:update`,
       diff reviewed per `tasks/README.md`) and `public-api:check` passes — this gate
       is outside `cli:check`.
-- [ ] Component check passes: `mise run cli:check`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 

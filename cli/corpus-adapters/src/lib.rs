@@ -30,5 +30,5 @@ pub use crate::scanner::RegexScanner;
 pub use crate::store::FileCorpusStore;
 pub use crate::work_item_pattern::{
     canonicalise_id, compile_format_string, compile_scan_regex, parse_full_id,
-    pattern_max_number, ParsedId, PatternError,
+    pattern_max_number, references_key, ParsedId, PatternError,
 };

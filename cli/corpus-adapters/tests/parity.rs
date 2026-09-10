@@ -64,3 +64,32 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
     );
     Ok(())
 }
+
+#[test]
+#[allow(clippy::literal_string_with_formatting_args)]
+fn the_two_references_key_predicates_agree() {
+    let corpus_edge_cases = [
+        "{key}-{number:04d}",
+        "{project}-{number:04d}",
+        "{number:04d}",
+        "{number}",
+        "{{key}}-{number}",
+        "{{project}}-{number}",
+        "x{{key}}-{key}",
+        "{ke{y}",
+        "{key",
+        "{project",
+        "{bogus}-{number}",
+        "{{",
+        "}}",
+        "",
+        "v{number:03d}",
+    ];
+    for pattern in corpus_edge_cases {
+        assert_eq!(
+            corpus::references_key(pattern),
+            corpus_adapters::references_key(pattern),
+            "references_key disagreed on {pattern:?}"
+        );
+    }
+}
