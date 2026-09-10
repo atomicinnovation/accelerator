@@ -883,16 +883,16 @@ one.
 
 #### Automated Verification
 
-- [ ] Catalogue count test passes: `cargo test -p config the_catalogue_holds`
-- [ ] Dump golden passes: `cargo test -p launcher config_read`
-- [ ] The `researcher` agent's `tools:` are pinned and `Bash` is absent, and the finding outputter's declared frontmatter fields equal the `(topic-research, finding)` schema row's required set.
-- [ ] Full test suite passes: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Catalogue count test passes: `cargo test -p config the_catalogue_holds`
+- [x] Dump golden passes: `cargo test -p launcher config_read`
+- [x] The `researcher` agent's `tools:` are pinned and `Bash` is absent, and the finding outputter's declared frontmatter fields equal the `(topic-research, finding)` schema row's required set.
+- [x] Full test suite passes: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] `accelerator config agent researcher` prints `accelerator:researcher`.
-- [ ] The profile and outputter skills are read-only (`user-invocable: false`); they do not appear as user-invocable in `/` skill listings.
+- [x] `accelerator config agent researcher` prints `accelerator:researcher`.
+- [x] The profile and outputter skills are read-only (`user-invocable: false`); they do not appear as user-invocable in `/` skill listings.
 
 ---
 

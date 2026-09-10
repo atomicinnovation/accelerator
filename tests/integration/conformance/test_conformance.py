@@ -48,8 +48,12 @@ EMITTERS = (
     "skills/notes/create-note/SKILL.md",
 )
 # Surfaced by discovery but out of scope: migrate is a corpus transformer with
-# no full-block emission.
-EXCLUDED = ("skills/config/migrate/SKILL.md",)
+# no full-block emission; the finding outputter is an injected output contract
+# whose example scaffold carries schema_version, not a skill that emits.
+EXCLUDED = (
+    "skills/config/migrate/SKILL.md",
+    "skills/research/outputters/finding-outputter/SKILL.md",
+)
 # Status-transition mutators: not surfaced by discovery; asserted on the status
 # axis only.
 STATUS_AXIS = (
@@ -272,9 +276,9 @@ def _assert_rejects(code: str, files: list[Path]) -> None:
 
 def test_producer_set_reconciliation() -> None:
     discovered = _discovered()
-    assert len(discovered) == 17, (
+    assert len(discovered) == 18, (
         f"discovery returned {len(discovered)} producing SKILL.md files, "
-        f"expected 17: {discovered}"
+        f"expected 18: {discovered}"
     )
     assert len(EMITTERS) == 16
     allowlist = set(EMITTERS) | set(EXCLUDED)
