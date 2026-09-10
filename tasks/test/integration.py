@@ -6,6 +6,7 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import CARGO_TOML
 from tasks.test.cli import _MANIFEST
+from tasks.test.unit import _bare_returns_in_tests, _tap_counts
 
 from .helpers import accelerator_env, repo_root
 
@@ -118,6 +119,12 @@ _PLAYWRIGHT_DIR = "skills/design/inventory-design/scripts/playwright"
 # when present rather than paying a second materialisation.
 _DRIVER_TREE_ENV = "ACCELERATOR_TREE_DRIVER"
 
+# Today's executed total across the two runtime suites. An at-least floor,
+# mirroring the unit lane: this lane sits outside the enforced gate, so a
+# case-count floor and a bare-return guard are its only defence against a suite
+# quietly evaporating or a test body silently asserting nothing.
+_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES = 37
+
 
 def _resolve_driver_tree(context: Context) -> Path:
     """Resolve the materialised driver tree, or refuse the lane.
@@ -177,12 +184,39 @@ def design_automation(context: Context) -> None:
             f"named runtime suite(s) missing: {', '.join(missing)}", code=1
         )
 
+    for suite in suites:
+        offenders = _bare_returns_in_tests(suite.read_text())
+        if offenders:
+            listed = "\n  ".join(offenders)
+            raise Exit(
+                f"{suite.name} returns early inside a test body, which "
+                f"`node --test` reports as passed rather than skipped:\n  "
+                f"{listed}",
+                code=1,
+            )
+
     discovered = " ".join(str(path) for path in suites)
     result = context.run(
-        f"node --test {discovered}",
+        f"node --test --test-reporter=tap {discovered}",
         warn=True,
         pty=False,
         env={_DRIVER_TREE_ENV: str(driver_tree)},
     )
-    if result.exited != 0:
-        raise Exit("design-automation runtime tests failed", code=1)
+    counts = _tap_counts(result.stdout)
+    if counts["fail"]:
+        raise Exit(
+            f"{counts['fail']} design-automation runtime test(s) failed", code=1
+        )
+    if counts["skipped"]:
+        raise Exit(
+            f"{counts['skipped']} design-automation runtime test(s) skipped; "
+            "this lane's preflight guarantees a runtime, so a skip means a "
+            "suite is gating itself on something it should not need",
+            code=1,
+        )
+    if counts["pass"] < _EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES:
+        raise Exit(
+            f"expected at least {_EXPECTED_DESIGN_AUTOMATION_RUNTIME_CASES} "
+            f"executed runtime cases, got {counts['pass']}",
+            code=1,
+        )

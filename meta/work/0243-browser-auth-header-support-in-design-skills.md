@@ -5,7 +5,7 @@ title: "Browser Auth Header Support In Design Skills"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "abandoned"
 kind: "story"
 priority: "medium"
 tags: ["design", "browser"]
@@ -18,7 +18,7 @@ external_id: "PP-773"
 # 0243: Browser Auth Header Support In Design Skills
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Abandoned
 **Priority**: Medium
 **Author**: Toby Clemson
 

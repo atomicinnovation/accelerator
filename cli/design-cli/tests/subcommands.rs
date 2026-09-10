@@ -270,14 +270,17 @@ fn a_missing_location_is_a_usage_error() {
 }
 
 const HEADER: &str = "ACCELERATOR_BROWSER_AUTH_HEADER";
+const LOCATION: &str = "ACCELERATOR_BROWSER_LOCATION";
 const USERNAME: &str = "ACCELERATOR_BROWSER_USERNAME";
 const PASSWORD: &str = "ACCELERATOR_BROWSER_PASSWORD";
 const LOGIN_URL: &str = "ACCELERATOR_BROWSER_LOGIN_URL";
 
 #[test]
-fn a_header_takes_precedence_and_warns_about_the_ignored_form_variables() {
+fn a_header_with_a_location_takes_precedence_and_warns_about_ignored_form_vars()
+{
     let environment = [
-        (HEADER, "Bearer-x"),
+        (HEADER, "Authorization: Bearer x"),
+        (LOCATION, "https://x"),
         (USERNAME, "u"),
         (PASSWORD, "p"),
         (LOGIN_URL, "https://x/login"),
@@ -286,6 +289,17 @@ fn a_header_takes_precedence_and_warns_about_the_ignored_form_variables() {
     let output = run(&["resolve-auth"], &environment);
     assert!(String::from_utf8_lossy(&output.stderr).contains("ignored"));
     assert_eq!(output.status.code(), Some(0));
+}
+
+/// The header keys to the location origin, so a header without a location is a
+/// usage error that names the missing variable rather than proceeding into a
+/// stripped, unauthenticated crawl.
+#[test]
+fn a_header_without_a_location_is_a_usage_error_naming_the_location() {
+    let environment = [(HEADER, "Authorization: Bearer x")];
+    let output = run(&["resolve-auth"], &environment);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(LOCATION));
 }
 
 #[test]

@@ -32,10 +32,12 @@ pub enum Command {
     /// The authentication mode the `ACCELERATOR_BROWSER_*` environment
     /// selects.
     ///
-    /// The `header` mode is currently inert downstream: the daemon imports
-    /// its handler and never calls it, and the origin allowlist that handler
-    /// requires is set nowhere. Do not place a live credential in
-    /// `ACCELERATOR_BROWSER_AUTH_HEADER` until that is wired up.
+    /// In `header` mode the daemon injects `ACCELERATOR_BROWSER_AUTH_HEADER` on
+    /// requests whose origin matches the crawl's declared location origin and
+    /// strips it on every cross-origin request. Header mode requires **both**
+    /// `ACCELERATOR_BROWSER_AUTH_HEADER` and `ACCELERATOR_BROWSER_LOCATION` (the
+    /// latter keys the allowlist); a header without a location is refused
+    /// loudly.
     ResolveAuth,
     /// Whether a produced artefact repeats a configured credential.
     ScrubSecrets {

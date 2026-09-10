@@ -11,6 +11,7 @@ import { realpathSync } from 'node:fs';
 import { request } from 'node:http';
 import { resolve as pathResolve } from 'node:path';
 import { readServerInfo, SERVER_STOPPED_FILE } from './state.js';
+import { originOf } from './daemon.js';
 
 function withTmpDir(fn) {
   const dir = realpathSync(mkdtempSync(resolve(tmpdir(), 'daemon-test-')));
@@ -394,6 +395,52 @@ test('the launcher forwards exactly the commands the daemon dispatches', () => {
     forwardable.slice().sort(),
     [...dispatchedCommands(daemonSource)].sort()
   );
+});
+
+// originOf is the daemon's side of the auth-header origin comparison: it turns
+// the crawl's declared location URL into the origin string the handler compares
+// each request against, using the same WHATWG parser so both sides normalise
+// identically.
+
+test('originOf returns the origin of a valid URL', () => {
+  assert.equal(
+    originOf('https://app.example.com/dashboard?q=1#top'),
+    'https://app.example.com'
+  );
+});
+
+test('originOf normalises the default port', () => {
+  assert.equal(originOf('https://h:443/p'), 'https://h');
+  assert.equal(originOf('http://h:80/p'), 'http://h');
+});
+
+test('originOf case-folds the host', () => {
+  assert.equal(originOf('https://APP.Example.COM/'), 'https://app.example.com');
+});
+
+test('originOf returns null for an absent value without warning', () => {
+  const calls = [];
+  const original = console.error;
+  console.error = (message) => calls.push(message);
+  try {
+    assert.equal(originOf(undefined), null);
+    assert.equal(originOf(''), null);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('originOf returns null and warns for a malformed value', () => {
+  const calls = [];
+  const original = console.error;
+  console.error = (message) => calls.push(message);
+  try {
+    assert.equal(originOf('not a url'), null);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(calls.length, 1);
 });
 
 test('links is wall-clock bounded like every other browser operation', () => {

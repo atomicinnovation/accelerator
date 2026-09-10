@@ -122,12 +122,19 @@ three of `ACCELERATOR_BROWSER_USERNAME`, `ACCELERATOR_BROWSER_PASSWORD` and
 `ACCELERATOR_BROWSER_LOGIN_URL` give `form`; none of them gives `none`. Some
 but not all is exit 2, naming the missing variables.
 
+`header` mode requires **both** `ACCELERATOR_BROWSER_AUTH_HEADER` (the bearer
+pair) and `ACCELERATOR_BROWSER_LOCATION` (the crawl's `[location]`, which keys
+the allowlist); a header set without a location is refused at exit 2. The daemon
+injects the header on requests whose origin matches the declared
+`ACCELERATOR_BROWSER_LOCATION` origin and strips it on every cross-origin
+request, enforced in code.
+
 :::caution
-The `header` mode is currently **inert downstream**. The executor daemon
-imports its auth-header handler and never calls it, and the origin allowlist
-that handler requires is set nowhere — so an authenticated crawl silently
-produces an unauthenticated inventory. Do not put a live credential in
-`ACCELERATOR_BROWSER_AUTH_HEADER` until that is wired up.
+The header keys to the declared `[location]` origin, so a `[location]` that
+redirects to a different origin (an `http`→`https` upgrade, an apex→www hop, an
+SSO bounce) loads the redirected page **unauthenticated** — its gated content is
+captured as if logged out. Set `ACCELERATOR_BROWSER_LOCATION` to the canonical
+post-redirect URL.
 :::
 
 ## `scrub-secrets`

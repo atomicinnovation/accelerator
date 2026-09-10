@@ -16,6 +16,21 @@ impl core::marker::Copy for design::access_policy::Allowances
 impl core::marker::StructuralPartialEq for design::access_policy::Allowances
 pub fn design::access_policy::evaluate(location: &design::source_location::SourceLocation, allowances: design::access_policy::Allowances) -> design::verdict::Verdict<alloc::string::String>
 pub mod design::credentials
+pub enum design::credentials::AuthConfigurationError
+pub design::credentials::AuthConfigurationError::HeaderWithoutLocation
+pub design::credentials::AuthConfigurationError::PartialForm
+pub design::credentials::AuthConfigurationError::PartialForm::missing: alloc::vec::Vec<&'static str>
+impl core::clone::Clone for design::credentials::AuthConfigurationError
+pub fn design::credentials::AuthConfigurationError::clone(&self) -> design::credentials::AuthConfigurationError
+impl core::cmp::Eq for design::credentials::AuthConfigurationError
+impl core::cmp::PartialEq for design::credentials::AuthConfigurationError
+pub fn design::credentials::AuthConfigurationError::eq(&self, other: &design::credentials::AuthConfigurationError) -> bool
+impl core::error::Error for design::credentials::AuthConfigurationError
+impl core::fmt::Debug for design::credentials::AuthConfigurationError
+pub fn design::credentials::AuthConfigurationError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for design::credentials::AuthConfigurationError
+pub fn design::credentials::AuthConfigurationError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for design::credentials::AuthConfigurationError
 pub enum design::credentials::AuthMode
 pub design::credentials::AuthMode::Form
 pub design::credentials::AuthMode::Header
@@ -33,6 +48,7 @@ impl core::marker::Copy for design::credentials::AuthMode
 impl core::marker::StructuralPartialEq for design::credentials::AuthMode
 pub struct design::credentials::Credentials
 pub design::credentials::Credentials::auth_header: core::option::Option<alloc::string::String>
+pub design::credentials::Credentials::location: core::option::Option<alloc::string::String>
 pub design::credentials::Credentials::login_url: core::option::Option<alloc::string::String>
 pub design::credentials::Credentials::password: core::option::Option<alloc::string::String>
 pub design::credentials::Credentials::username: core::option::Option<alloc::string::String>
@@ -46,19 +62,6 @@ pub fn design::credentials::Credentials::default() -> design::credentials::Crede
 impl core::fmt::Debug for design::credentials::Credentials
 pub fn design::credentials::Credentials::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::credentials::Credentials
-pub struct design::credentials::PartialConfiguration
-pub design::credentials::PartialConfiguration::missing: alloc::vec::Vec<&'static str>
-impl core::clone::Clone for design::credentials::PartialConfiguration
-pub fn design::credentials::PartialConfiguration::clone(&self) -> design::credentials::PartialConfiguration
-impl core::cmp::Eq for design::credentials::PartialConfiguration
-impl core::cmp::PartialEq for design::credentials::PartialConfiguration
-pub fn design::credentials::PartialConfiguration::eq(&self, other: &design::credentials::PartialConfiguration) -> bool
-impl core::error::Error for design::credentials::PartialConfiguration
-impl core::fmt::Debug for design::credentials::PartialConfiguration
-pub fn design::credentials::PartialConfiguration::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for design::credentials::PartialConfiguration
-pub fn design::credentials::PartialConfiguration::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for design::credentials::PartialConfiguration
 pub struct design::credentials::Resolution
 pub design::credentials::Resolution::mode: design::credentials::AuthMode
 pub design::credentials::Resolution::warning: core::option::Option<alloc::string::String>
@@ -70,7 +73,7 @@ pub fn design::credentials::Resolution::eq(&self, other: &design::credentials::R
 impl core::fmt::Debug for design::credentials::Resolution
 pub fn design::credentials::Resolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::credentials::Resolution
-pub fn design::credentials::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::PartialConfiguration>
+pub fn design::credentials::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::AuthConfigurationError>
 pub mod design::cue_phrase_audit
 pub struct design::cue_phrase_audit::UncuedSection
 pub design::cue_phrase_audit::UncuedSection::name: alloc::string::String
@@ -873,6 +876,7 @@ impl core::marker::Copy for design::access_policy::Allowances
 impl core::marker::StructuralPartialEq for design::access_policy::Allowances
 pub struct design::Credentials
 pub design::Credentials::auth_header: core::option::Option<alloc::string::String>
+pub design::Credentials::location: core::option::Option<alloc::string::String>
 pub design::Credentials::login_url: core::option::Option<alloc::string::String>
 pub design::Credentials::password: core::option::Option<alloc::string::String>
 pub design::Credentials::username: core::option::Option<alloc::string::String>
@@ -916,5 +920,5 @@ pub trait design::CuePhraseMatcher
 pub fn design::CuePhraseMatcher::matches(&self, text: &str) -> bool
 pub fn design::audit(document: &str, matcher: &dyn design::cue_phrase_audit::CuePhraseMatcher) -> alloc::vec::Vec<design::cue_phrase_audit::UncuedSection>
 pub fn design::evaluate(location: &design::source_location::SourceLocation, allowances: design::access_policy::Allowances) -> design::verdict::Verdict<alloc::string::String>
-pub fn design::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::PartialConfiguration>
+pub fn design::resolve(credentials: &design::credentials::Credentials) -> core::result::Result<design::credentials::Resolution, design::credentials::AuthConfigurationError>
 pub fn design::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>

@@ -4,6 +4,18 @@
 
 ### Added
 
+- **The browser auth-header path is live: authenticated design crawls now
+  produce a login-gated inventory.** In `header` mode the daemon injects
+  `ACCELERATOR_BROWSER_AUTH_HEADER` on requests whose origin matches the crawl's
+  declared location and strips it on every cross-origin request, enforced in
+  code. Header mode now requires **both** `ACCELERATOR_BROWSER_AUTH_HEADER` and
+  the new `ACCELERATOR_BROWSER_LOCATION` (the crawl's `[location]`, which keys
+  the allowlist); `design resolve-auth` refuses a header set without a location.
+  A live credential may now be set. The client reads both from its own
+  environment and injects them into the loopback request body, never onto a
+  process argument vector, and the long-lived daemon's environment carries
+  neither.
+
 - **A new `accelerator design` command family replaces the bash helpers behind
   the two design skills.** `design validate-source`, `resolve-auth`,
   `scrub-secrets`, `notify-downgrade` and `audit-cue-phrases` cover what five
