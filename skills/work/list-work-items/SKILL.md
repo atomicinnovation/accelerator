@@ -22,7 +22,7 @@ accelerator:web-search-researcher.
 
 **Work items directory**: !`accelerator config path work --fail-safe`
 **Work item ID pattern**: !`accelerator config work id_pattern --fail-safe`
-**Default project code**: !`accelerator config work default_project_code --fail-safe`
+**Local ID prefix**: !`accelerator config work key --fail-safe`
 **Active integration**: !`accelerator config work integration --fail-safe`
 
 The reads above inform how you parse the filter argument. `accelerator work

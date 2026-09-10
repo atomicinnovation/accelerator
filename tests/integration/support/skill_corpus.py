@@ -50,7 +50,7 @@ agents:
   reviewer: fixture-reviewer
 work:
   integration: linear
-  default_project_code: FIX
+  key: FIX
   id_pattern: 'FIX-[0-9]+'
 ---
 

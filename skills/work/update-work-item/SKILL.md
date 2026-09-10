@@ -165,7 +165,7 @@ before writing. The canonicaliser produces the full ID under the
 configured pattern, quoted as a string. Examples:
 
 - Default `{number:04d}`: `1` → `"0001"`, `42` → `"0042"`.
-- `{project}-{number:04d}` with `default_project_code: PROJ`:
+- `{key}-{number:04d}` with `key: PROJ`:
   `1` → `"PROJ-0001"`, `PROJ-0042` → `"PROJ-0042"`,
   `0042` (legacy) → `"PROJ-0042"` (canonical form).
 
