@@ -210,6 +210,7 @@ pub const AGENT_KEYS: &[&str] = &[
     "documents-locator",
     "documents-analyser",
     "web-search-researcher",
+    "researcher",
 ];
 
 /// Visualiser keys that carry a catalogue default.
@@ -266,14 +267,14 @@ mod tests {
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_sixty_one_keys_across_six_groups() {
+    fn the_catalogue_holds_sixty_three_keys_across_six_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
             + AGENT_KEYS.len()
             + VISUALISER_KEYS.len();
-        assert_eq!(count, 61);
+        assert_eq!(count, 63);
         assert_eq!(DOC_TYPES.len(), 13);
     }
 
