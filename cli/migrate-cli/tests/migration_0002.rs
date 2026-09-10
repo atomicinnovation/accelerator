@@ -105,7 +105,8 @@ fn setup_repo() -> Result<TempDir, TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
     Ok(dir)
 }
@@ -217,7 +218,8 @@ fn a_second_run_against_the_now_migrated_tree_is_byte_identical(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -258,7 +260,8 @@ fn an_already_prefixed_tree_forced_pending_again_does_not_double_prefix(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -283,7 +286,8 @@ fn no_project_token_in_pattern_is_a_no_op_pending() -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -318,7 +322,8 @@ fn missing_default_project_code_is_a_fatal_error() -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;
@@ -360,7 +365,8 @@ fn a_rename_collision_refuses_without_mutating() -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;

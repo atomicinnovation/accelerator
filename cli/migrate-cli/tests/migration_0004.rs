@@ -33,7 +33,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )
 }
 
@@ -228,7 +229,8 @@ fn a_second_run_against_an_already_migrated_tree_makes_zero_further_changes(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -442,6 +444,7 @@ fn is_a_true_no_op_when_no_legacy_directories_exist() -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          0004-restructure-meta-research-into-subject-subcategories\n"
     );
     Ok(())

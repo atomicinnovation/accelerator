@@ -110,6 +110,25 @@ impl MigrationContext for FileMigrationContext {
         Ok(())
     }
 
+    fn write_private(
+        &self,
+        path: &Path,
+        content: &str,
+    ) -> Result<(), MigrationError> {
+        store::atomic_write(
+            path,
+            content.as_bytes(),
+            &self.bounds(),
+            NewFileMode::Set(0o600),
+        )
+        .map_err(|error| MigrationError::new(error.to_string()))?;
+        if let Ok(relative) = path.strip_prefix(&self.root) {
+            self.manifest
+                .append_manifest_path(&relative.to_string_lossy())?;
+        }
+        Ok(())
+    }
+
     fn root(&self) -> &Path {
         &self.root
     }

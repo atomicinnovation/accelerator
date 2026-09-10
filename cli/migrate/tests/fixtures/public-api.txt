@@ -154,6 +154,13 @@ pub fn migrate::migrations::m0008::Migration0008::apply(&self, ctx: &dyn migrate
 impl migrate::registry::MigrationMeta for migrate::migrations::m0008::Migration0008
 pub fn migrate::migrations::m0008::Migration0008::description(&self) -> &'static str
 pub fn migrate::migrations::m0008::Migration0008::id(&self) -> &'static str
+pub mod migrate::migrations::m0009
+pub struct migrate::migrations::m0009::Migration0009
+impl migrate::registry::Migration for migrate::migrations::m0009::Migration0009
+pub fn migrate::migrations::m0009::Migration0009::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::MigrationMeta for migrate::migrations::m0009::Migration0009
+pub fn migrate::migrations::m0009::Migration0009::description(&self) -> &'static str
+pub fn migrate::migrations::m0009::Migration0009::id(&self) -> &'static str
 pub mod migrate::migrations::text
 pub fn migrate::migrations::text::filter_lines(content: &str, keep: impl core::ops::function::Fn(&str) -> bool) -> alloc::string::String
 pub fn migrate::migrations::text::flat_rename(line: &str, old_key: &str, new_key: &str) -> core::option::Option<alloc::string::String>
@@ -250,6 +257,7 @@ pub fn migrate::ports::MigrationContext::revision(&self) -> core::option::Option
 pub fn migrate::ports::MigrationContext::root(&self) -> &std::path::Path
 pub fn migrate::ports::MigrationContext::validate_frontmatter(&self, _files: &[std::path::PathBuf]) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::write(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::write_private(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub trait migrate::ports::Reporter
 pub fn migrate::ports::Reporter::applied_and_skipped(&self, id: &str)
 pub fn migrate::ports::Reporter::interactive_fail(&self, id: &str, message: &str)
@@ -330,6 +338,8 @@ impl migrate::registry::Migration for migrate::migrations::m0006::Migration0006
 pub fn migrate::migrations::m0006::Migration0006::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 impl migrate::registry::Migration for migrate::migrations::m0008::Migration0008
 pub fn migrate::migrations::m0008::Migration0008::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
+impl migrate::registry::Migration for migrate::migrations::m0009::Migration0009
+pub fn migrate::migrations::m0009::Migration0009::apply(&self, ctx: &dyn migrate::ports::MigrationContext) -> core::result::Result<migrate::registry::ApplyOutcome, migrate::ports::MigrationError>
 pub trait migrate::registry::MigrationMeta
 pub fn migrate::registry::MigrationMeta::description(&self) -> &'static str
 pub fn migrate::registry::MigrationMeta::id(&self) -> &'static str
@@ -357,4 +367,7 @@ pub fn migrate::migrations::m0007::Migration0007::id(&self) -> &'static str
 impl migrate::registry::MigrationMeta for migrate::migrations::m0008::Migration0008
 pub fn migrate::migrations::m0008::Migration0008::description(&self) -> &'static str
 pub fn migrate::migrations::m0008::Migration0008::id(&self) -> &'static str
+impl migrate::registry::MigrationMeta for migrate::migrations::m0009::Migration0009
+pub fn migrate::migrations::m0009::Migration0009::description(&self) -> &'static str
+pub fn migrate::migrations::m0009::Migration0009::id(&self) -> &'static str
 pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>

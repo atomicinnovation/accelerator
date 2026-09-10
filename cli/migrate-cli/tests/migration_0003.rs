@@ -35,7 +35,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )
 }
 
@@ -170,6 +171,7 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          a\nb\n\
          0003-relocate-accelerator-state\n"
     );
@@ -255,7 +257,8 @@ fn a_second_run_reports_no_pending_and_does_not_duplicate_the_gitignore_rule(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -471,6 +474,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          x\ny\n",
     )?;
     write(root, "meta/.migrations-applied", "y\nz\n")?;
@@ -487,6 +491,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          x\ny\nz\n\
          0003-relocate-accelerator-state\n"
     );

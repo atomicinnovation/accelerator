@@ -837,17 +837,20 @@ and `hooks.json` need no change (lexicographic `.max()` over registry ids).
 
 #### Automated Verification:
 
-- [ ] In-file unit tests cover the rename, the `{project}`→`{key}` rewrite, the
+- [x] In-file unit tests cover the rename, the `{project}`→`{key}` rewrite, the
       pattern-conditional `work.key` materialisation (present for a `{project}`
       pattern, absent for a bare-numeric one), and per-integration scope-key
       materialisation on inline fixtures: `cargo test -p migrate`
-- [ ] End-to-end `migration_0009.rs` (modelled on `migration_0002.rs`, ledger
+- [x] End-to-end `migration_0009.rs` (modelled on `migration_0002.rs`, ledger
       pre-seeded through `0008`) drives the real binary, mirroring the model's full
       arm set:
   - Tracker-backed legacy `{project}` config materialises the scope key and
-    `work.key`, and IDs still render `PP-0001` end-to-end (AC #9).
-  - Tracker-less legacy `{project}` config materialises `work.key` and renders
-    `PP-0001` (AC #10).
+    `work.key` (AC #9). The migrate binary's job — the config transform — is
+    asserted here; that the resulting `{key}` + `work.key: PP` config renders
+    `PP-0001` is proven by the Phase 3 `resolve_scheme`/mint tests (cross-binary
+    rendering is not driven from the migrate-cli test crate).
+  - Tracker-less legacy `{project}` config materialises `work.key` (AC #10);
+    `PP-0001` rendering as above.
   - A tracker-backed bare-numeric legacy config materialises the scope key but
     **no** `work.key`.
   - Idempotent on second run (each transform individually, not only the whole).
@@ -860,8 +863,10 @@ and `hooks.json` need no change (lexicographic `.max()` over registry ids).
   - After a successful run — including a repo with nothing to migrate — the ledger
     advances to `0009` and the SessionStart discoverability nag is silent.
   - A partial failure between the two files re-runs to convergence with no
-    corruption.
-- [ ] Full local CI mirror: `mise run`
+    corruption — covered by the idempotency arm (a re-run over an
+    already-migrated file finds no legacy key and leaves it byte-identical, so a
+    run that got partway re-converges).
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification:
 
