@@ -56,7 +56,7 @@ pub const SECTIONS: [&str; 5] = [
 /// The valid `(source_type, key, target_type)` pairings.
 ///
 /// The single source of truth for the linkage-type table.
-pub const TYPE_PAIRS: [(&str, &str, &str); 16] = [
+pub const TYPE_PAIRS: [(&str, &str, &str); 20] = [
     ("work-item", "parent", "work-item"),
     ("plan", "parent", "work-item"),
     ("adr", "supersedes", "adr"),
@@ -73,6 +73,10 @@ pub const TYPE_PAIRS: [(&str, &str, &str); 16] = [
     ("work-item", "source", "note"),
     ("work-item", "relates_to", "pr-description"),
     ("plan", "relates_to", "pr-description"),
+    ("topic-research", "parent", "work-item"),
+    ("topic-research", "relates_to", "topic-research"),
+    ("work-item", "relates_to", "topic-research"),
+    ("plan", "relates_to", "topic-research"),
 ];
 
 /// True when a token is a documentation placeholder rather than a real link.
