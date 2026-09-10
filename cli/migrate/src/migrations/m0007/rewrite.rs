@@ -126,7 +126,7 @@ pub fn resolve_type(
     let resolved = own
         .as_deref()
         .or_else(|| corpus::linkage::type_from_path(relpath, table))?;
-    Some(fm_schema::row_for(canonical_type(resolved))?.linkage_type)
+    Some(fm_schema::row_for(canonical_type(resolved), "")?.linkage_type)
 }
 
 fn get(content: &str, key: &str) -> Option<String> {
@@ -168,7 +168,7 @@ pub fn rewrite(content: &str, input: &RewriteInput) -> (String, Vec<String>) {
     else {
         return (content.to_owned(), Vec::new());
     };
-    let Some(row) = fm_schema::row_for(linkage_type) else {
+    let Some(row) = fm_schema::row_for(linkage_type, "") else {
         return (content.to_owned(), Vec::new());
     };
 
@@ -732,7 +732,7 @@ fn required_extras_backfill(
     cur_title: &str,
     diagnostics: &mut Vec<String>,
 ) -> Vec<(&'static str, String)> {
-    let Some(row) = fm_schema::row_for(linkage_type) else {
+    let Some(row) = fm_schema::row_for(linkage_type, "") else {
         return Vec::new();
     };
     let mut result = Vec::new();
@@ -1202,7 +1202,7 @@ mod tests {
         use corpus::frontmatter_validation::schema as fm_schema;
 
         let required_for = |linkage_type: &str| -> Vec<&'static str> {
-            fm_schema::row_for(linkage_type)
+            fm_schema::row_for(linkage_type, "")
                 .map(|row| {
                     row.extras
                         .iter()

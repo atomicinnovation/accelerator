@@ -358,17 +358,17 @@ change).
 
 #### Automated Verification
 
-- [ ] Composite lookup and fallback unit tests pass: `cargo test -p corpus row_for`
-- [ ] TSV/SCHEMA parity holds: `cargo test -p corpus every_row_matches_templates_schema_tsv`
-- [ ] Template resolver kind-fallback test passes: `cargo test -p launcher template::resolve`
-- [ ] Public-API snapshot regenerated and clean: `mise run public-api:update && mise run public-api:check`
-- [ ] Full corpus + launcher tests pass: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Composite lookup and fallback unit tests pass: `cargo test -p corpus row_for`
+- [x] TSV/SCHEMA parity holds: `cargo test -p corpus every_row_matches_templates_schema_tsv`
+- [x] Template resolver kind-fallback test passes: `cargo test -p launcher template::resolve`
+- [x] Public-API snapshot regenerated and clean: `mise run public-api:update && mise run public-api:check`
+- [x] Full corpus + launcher tests pass: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] `accelerator corpus frontmatter validate --file <existing codebase-research doc>` still passes unchanged (a document with no `kind` resolves via `(type, "")`).
-- [ ] `accelerator config template codebase-research` (no `--kind`) resolves the same file as before.
+- [x] `accelerator corpus frontmatter validate --file <existing codebase-research doc>` still passes unchanged (a document with no `kind` resolves via `(type, "")`).
+- [x] `accelerator config template codebase-research` (no `--kind`) resolves the same file as before.
 
 ---
 
