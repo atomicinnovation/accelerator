@@ -228,7 +228,7 @@ pub const FORBIDDEN_PROVENANCE_FIELDS: [&str; 2] = ["git_commit", "branch"];
 
 /// Mirrors `FM_SOURCE_TYPE_RE`'s vocabulary — the source types a typed-linkage
 /// reference's `<type>:` prefix may name.
-pub const LINKAGE_SOURCE_TYPES: [&str; 14] = [
+pub const LINKAGE_SOURCE_TYPES: [&str; 15] = [
     "work-item",
     "plan",
     "adr",
@@ -243,6 +243,7 @@ pub const LINKAGE_SOURCE_TYPES: [&str; 14] = [
     "plan-review",
     "work-item-review",
     "pr-review",
+    "topic-research",
 ];
 
 /// Mirrors `FM_OPTIONAL_EXTRAS`.
