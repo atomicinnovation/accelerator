@@ -114,6 +114,7 @@ pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
 pub corpus::frontmatter_validation::schema::SchemaRow::extras: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::forbidden_own_id_keys: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::kind: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::linkage_type: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::status_vocab: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::typed_linkage_keys: &'static [&'static str]
@@ -124,7 +125,7 @@ pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 2
 pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 13]
-pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
+pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
 pub mod corpus::frontmatter_validation::template_shape
@@ -174,6 +175,9 @@ pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedI
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString::key: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnquotedString::template: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongKind
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongKind::expected: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongKind::template: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType::expected: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::WrongType::template: alloc::string::String
@@ -194,6 +198,7 @@ pub corpus::frontmatter_validation::template_shape::TemplateRow::code_state_anch
 pub corpus::frontmatter_validation::template_shape::TemplateRow::doc_type: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateRow::extras: alloc::vec::Vec<alloc::string::String>
 pub corpus::frontmatter_validation::template_shape::TemplateRow::forbidden_own_id_keys: alloc::vec::Vec<alloc::string::String>
+pub corpus::frontmatter_validation::template_shape::TemplateRow::kind: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateRow::status_vocab: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateRow::template: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateRow::typed_linkage_keys: alloc::vec::Vec<alloc::string::String>
@@ -248,6 +253,9 @@ pub corpus::frontmatter_validation::violation::Violation::ObsoleteLegacyKey
 pub corpus::frontmatter_validation::violation::Violation::ObsoleteLegacyKey::key: &'static str
 pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored
 pub corpus::frontmatter_validation::violation::Violation::ProvenanceOnNonAnchored::field: &'static str
+pub corpus::frontmatter_validation::violation::Violation::UnknownKind
+pub corpus::frontmatter_validation::violation::Violation::UnknownKind::kind: alloc::string::String
+pub corpus::frontmatter_validation::violation::Violation::UnknownKind::type_name: alloc::string::String
 pub corpus::frontmatter_validation::violation::Violation::UnquotedId
 pub corpus::frontmatter_validation::violation::Violation::UnquotedString
 pub corpus::frontmatter_validation::violation::Violation::UnquotedString::key: alloc::string::String
@@ -299,6 +307,9 @@ pub corpus::frontmatter_validation::Violation::ObsoleteLegacyKey
 pub corpus::frontmatter_validation::Violation::ObsoleteLegacyKey::key: &'static str
 pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored
 pub corpus::frontmatter_validation::Violation::ProvenanceOnNonAnchored::field: &'static str
+pub corpus::frontmatter_validation::Violation::UnknownKind
+pub corpus::frontmatter_validation::Violation::UnknownKind::kind: alloc::string::String
+pub corpus::frontmatter_validation::Violation::UnknownKind::type_name: alloc::string::String
 pub corpus::frontmatter_validation::Violation::UnquotedId
 pub corpus::frontmatter_validation::Violation::UnquotedString
 pub corpus::frontmatter_validation::Violation::UnquotedString::key: alloc::string::String
