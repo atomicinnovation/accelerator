@@ -464,6 +464,60 @@ pub fn corpus::record::Record::eq(&self, other: &corpus::record::Record) -> bool
 impl core::fmt::Debug for corpus::record::Record
 pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::record::Record
+pub mod corpus::resolve
+pub enum corpus::resolve::InputClass
+pub corpus::resolve::InputClass::Invalid
+pub corpus::resolve::InputClass::Path
+pub corpus::resolve::InputClass::Slug
+impl core::clone::Clone for corpus::resolve::InputClass
+pub fn corpus::resolve::InputClass::clone(&self) -> corpus::resolve::InputClass
+impl core::cmp::Eq for corpus::resolve::InputClass
+impl core::cmp::PartialEq for corpus::resolve::InputClass
+pub fn corpus::resolve::InputClass::eq(&self, other: &corpus::resolve::InputClass) -> bool
+impl core::fmt::Debug for corpus::resolve::InputClass
+pub fn corpus::resolve::InputClass::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::resolve::InputClass
+impl core::marker::StructuralPartialEq for corpus::resolve::InputClass
+pub enum corpus::resolve::ResolveOutcome
+pub corpus::resolve::ResolveOutcome::Ambiguous(alloc::vec::Vec<corpus::resolve::TaggedCandidate>)
+pub corpus::resolve::ResolveOutcome::NotFound
+pub corpus::resolve::ResolveOutcome::Single(alloc::string::String)
+impl core::clone::Clone for corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::ResolveOutcome::clone(&self) -> corpus::resolve::ResolveOutcome
+impl core::cmp::Eq for corpus::resolve::ResolveOutcome
+impl core::cmp::PartialEq for corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::ResolveOutcome::eq(&self, other: &corpus::resolve::ResolveOutcome) -> bool
+impl core::fmt::Debug for corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::ResolveOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::resolve::ResolveOutcome
+pub enum corpus::resolve::TypeShape
+pub corpus::resolve::TypeShape::Flat
+pub corpus::resolve::TypeShape::NestedManifest
+impl core::clone::Clone for corpus::resolve::TypeShape
+pub fn corpus::resolve::TypeShape::clone(&self) -> corpus::resolve::TypeShape
+impl core::cmp::Eq for corpus::resolve::TypeShape
+impl core::cmp::PartialEq for corpus::resolve::TypeShape
+pub fn corpus::resolve::TypeShape::eq(&self, other: &corpus::resolve::TypeShape) -> bool
+impl core::fmt::Debug for corpus::resolve::TypeShape
+pub fn corpus::resolve::TypeShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::resolve::TypeShape
+impl core::marker::StructuralPartialEq for corpus::resolve::TypeShape
+pub struct corpus::resolve::TaggedCandidate
+pub corpus::resolve::TaggedCandidate::path: alloc::string::String
+pub corpus::resolve::TaggedCandidate::tag: alloc::string::String
+impl core::clone::Clone for corpus::resolve::TaggedCandidate
+pub fn corpus::resolve::TaggedCandidate::clone(&self) -> corpus::resolve::TaggedCandidate
+impl core::cmp::Eq for corpus::resolve::TaggedCandidate
+impl core::cmp::PartialEq for corpus::resolve::TaggedCandidate
+pub fn corpus::resolve::TaggedCandidate::eq(&self, other: &corpus::resolve::TaggedCandidate) -> bool
+impl core::fmt::Debug for corpus::resolve::TaggedCandidate
+pub fn corpus::resolve::TaggedCandidate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::resolve::TaggedCandidate
+pub trait corpus::resolve::DirectoryLister
+pub fn corpus::resolve::DirectoryLister::entries(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn corpus::resolve::classify_input(input: &str) -> corpus::resolve::InputClass
+pub fn corpus::resolve::resolve(slug: &str, shape: corpus::resolve::TypeShape, lister: &dyn corpus::resolve::DirectoryLister) -> corpus::resolve::ResolveOutcome
+pub fn corpus::resolve::slug_from_set_dir(dir_name: &str) -> alloc::string::String
 pub mod corpus::scan
 pub trait corpus::scan::CorpusWalker
 pub fn corpus::scan::CorpusWalker::walk_markdown(&self, roots: &[std::path::PathBuf]) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>

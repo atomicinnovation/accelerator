@@ -4,10 +4,12 @@
 mod adr;
 mod cli;
 mod config;
+mod exit_codes;
 mod frontmatter;
 mod linkage;
 mod metadata;
 mod outcome;
+mod resolve;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -132,8 +134,55 @@ fn report(error: &kernel::Error) -> ExitCode {
         eprintln!("{message}");
     }
     match error {
-        kernel::Error::Refusal(_) => ExitCode::from(2),
-        _ => ExitCode::FAILURE,
+        kernel::Error::Refusal(_) => ExitCode::from(exit_codes::REFUSAL),
+        _ => ExitCode::from(exit_codes::INVALID),
+    }
+}
+
+fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
+    let cwd = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => return report(&error),
+    };
+    let composed = match config::compose(&cwd) {
+        Ok(composed) => composed,
+        Err(error) => return report(&error),
+    };
+    match resolve::run(&cwd, &composed, doc_type, slug) {
+        resolve::RunOutcome::Resolved(path) => {
+            println!("{}", path.display());
+            ExitCode::from(exit_codes::RESOLVED)
+        }
+        resolve::RunOutcome::Ambiguous(candidates) => {
+            eprintln!(
+                "E_RESOLVE_AMBIGUOUS: multiple '{doc_type}' documents match \
+                 '{slug}':"
+            );
+            for candidate in candidates {
+                if candidate.tag.is_empty() {
+                    eprintln!("  {}", candidate.path);
+                } else {
+                    eprintln!("  {} [{}]", candidate.path, candidate.tag);
+                }
+            }
+            ExitCode::from(exit_codes::AMBIGUOUS)
+        }
+        resolve::RunOutcome::NotFound(message) => {
+            eprintln!("E_RESOLVE_NOT_FOUND: {message}");
+            ExitCode::from(exit_codes::NOT_FOUND)
+        }
+        resolve::RunOutcome::Invalid(message) => {
+            eprintln!("E_RESOLVE_INVALID: {message}");
+            ExitCode::from(exit_codes::INVALID)
+        }
+        resolve::RunOutcome::UnknownType(message) => {
+            eprintln!("E_RESOLVE_UNKNOWN_TYPE: {message}");
+            ExitCode::from(exit_codes::UNKNOWN_TYPE)
+        }
+        resolve::RunOutcome::OutsideRoot(message) => {
+            eprintln!("E_RESOLVE_OUTSIDE_ROOT: {message}");
+            ExitCode::from(exit_codes::OUTSIDE_ROOT)
+        }
     }
 }
 
@@ -144,6 +193,9 @@ fn main() -> ExitCode {
         Command::Metadata { action } => run_metadata(&action),
         Command::Linkage { action } => run_linkage(action),
         Command::Frontmatter { action } => run_frontmatter(action),
+        Command::Resolve { doc_type, slug } => {
+            return run_resolve(&doc_type, &slug)
+        }
     };
     match result {
         Ok(outcome) => {
