@@ -5,14 +5,14 @@ title: "Decide whether git log/diff belong in vcs guard's blocked subcommand set
 date: "2026-08-06T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "spike"
 priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0169", "work-item:0198"]
 derived_from: ["plan:2026-08-05-0169-vcs-subdomain-and-hooks-migration"]
 tags: ["vcs", "hooks", "guard", "cli"]
-last_updated: "2026-09-10T09:11:22+00:00"
+last_updated: "2026-09-10T11:44:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-730"
@@ -21,7 +21,7 @@ external_id: "PP-730"
 # 0200: Decide whether git log/diff belong in vcs guard's blocked subcommand set
 
 **Kind**: Spike
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
@@ -120,6 +120,116 @@ illustrate how far git's default output diverges from `jj diff`.
       leaning and the specific blocker are recorded on this item, per the
       time-box requirement.
 
+## Spike Outcome
+
+**2026-09-10 — one `/conduct-spike` run, within the time-box. Verdict: keep
+both `log` and `diff` in the guard's blocked set; close without a code change
+(Acceptance Criterion 3).**
+
+`log` and `diff` stay in `BLOCKED_SUBCOMMANDS` (`cli/vcs/src/guard.rs:19-22`).
+No behaviour changes, so nothing is appended to 0169's "Declared behavioural
+changes" ledger, no informational-suggestion tier is built, the decision-table
+fixture and `guard_decision_table.rs` are untouched, and `mise run` is not
+re-run because no code moved. `validate-plan`'s pure-jj brokenness is real but
+is neither caused by nor fixed by this blocklist; a VCS-agnostic follow-up
+(0286) owns it — see Dependencies.
+
+## Findings
+
+The brief's "read-only, therefore demotable" framing inverts once the two repo
+modes the guard actually sees are separated. The operative axis is repository
+mode, not read-only-ness — `git status` is read-only too, yet nobody proposes
+dropping it.
+
+The guard's warn-vs-deny outcome is keyed on mode, not on subcommand
+(`cli/vcs-cli/src/guard.rs:71-73`): `Mode::Jj` denies, `Mode::JjColocated`
+warns, `Mode::Git` never evaluates the command. `GuardDecision` itself is
+binary — `Allow` / `Block` (`cli/vcs/src/guard.rs:9-17`); the deny-vs-warn
+choice is made afterwards, per mode. This is the finding that splits the
+picture:
+
+| Mode | mise default? | Guard today | Can raw `git log`/`diff` run? |
+|---|---|---|---|
+| Pure-jj (`--no-colocate`) | No | deny | No — no `.git`; `fatal: not a git repository` |
+| Colocated (`--colocate`) | Yes | warn (non-blocking) | Yes, but diverges from jj |
+
+The mise-pinned jj defaults to `colocate=true`, so real repos are
+predominantly colocated (`jj git init --help`; `CLAUDE.md`).
+
+Empirical evidence, from throwaway probe repos (jj 0.43.0, git 2.55.0):
+
+- Pure-jj (`jj git init --no-colocate`): no `.git` directory exists; the git
+  backing store is a bare repo hidden at `.jj/repo/store/git`, unreachable from
+  the working tree. `git log` exits 128 (`fatal: not a git repository`);
+  `git diff` exits 129. Git cannot serve either command, guard or no guard.
+- Colocated (`jj git init --colocate`): `git log --oneline` shows a *different
+  commit set* than `jj log` — it omits the working-copy commit jj models as a
+  real commit (one commit vs two in the probe). `git diff` is index-relative
+  (unstaged changes); `jj diff` is parent-relative (the whole working-copy
+  commit). The `--stat` summary lines nearly coincide, but the patch bodies
+  differ entirely (git unified vs jj's `Modified regular file` line-numbered
+  form).
+
+Per-subcommand rationale — both land the same way:
+
+- `log` — In pure-jj the deny replaces a cryptic `fatal: not a git repository`
+  with `Use jj instead of git log. Equivalent: jj log`, which is strictly
+  better. In colocated the git-shaped read is genuinely misleading (a different
+  commit set), and the guard's response there is a non-blocking warn, the right
+  severity. Keep.
+- `diff` — Same pure-jj argument. In colocated the index-vs-parent semantics
+  diverge more sharply than `log` does (the staging model git carries and jj
+  does not), which strengthens the case for keeping `diff` blocked rather than
+  weakening it. The `--stat` shape looking similar is incidental; the base of
+  comparison is what differs. Keep.
+
+The `validate-plan` cost is illusory. `validate-plan/SKILL.md:58-59` runs raw
+`git log --oneline -n 20` and `git diff HEAD~N..HEAD` in a Bash block (not the
+`accelerator vcs` abstraction — and there is no `vcs diff` subcommand). It is
+denied only in pure-jj repos. Dropping `log`/`diff` from the blocklist would
+not fix it there: the command would then run and hit `fatal: not a git
+repository`, a worse failure than today's redirect. In colocated repos the warn
+is non-blocking, so validate-plan already works. The blocklist is therefore not
+what breaks validate-plan, and changing it fixes nothing.
+`research-issue/SKILL.md:63,66` shares the same raw-git dependency and the same
+consequence.
+
+Two corrections to the brief, neither of which changes the decision:
+
+- The "threat-model note" the brief cites in `cli/vcs/src/guard.rs` (Assumptions
+  and References) does not exist in the code — a grep for steering, security, or
+  boundary language finds nothing there. The guard's steering-not-security
+  character is real, evidenced by the mode-keyed warn/deny design, but the
+  `file:line` citation is stale.
+- The decision-table fixture has moved to
+  `cli/vcs-test-support/fixtures/vcs-guard/decision-table.json` (138 rows); the
+  brief's `hooks/test-fixtures/…` path is stale. Moot here, since keep-both
+  touches no fixture.
+
+## Recommendation
+
+Keep both `log` and `diff` in `BLOCKED_SUBCOMMANDS`, unchanged. Close this item
+under Acceptance Criterion 3: shell parity retained, no code change.
+
+The real remedy for `validate-plan` (and `research-issue`) is orthogonal — make
+them VCS-agnostic by adding an `accelerator vcs diff` subcommand and repointing
+the skills onto `vcs log`/`vcs diff`, exactly as `skills/vcs/commit/SKILL.md`
+already uses `vcs status`/`vcs log`. That is spun out as work item 0286
+(recorded under Dependencies as a Blocks entry), not built here.
+
+## Residual Risks & Open Questions
+
+- `validate-plan` and `research-issue` stay broken in pure-jj repos until 0286
+  lands. This is not a regression — it is the pre-existing state 0169 declined
+  to change — and dropping the blocklist would make it worse, not better.
+- Revisit the blocklist only if a future `vcs diff` implementation still needed
+  a raw `git` invocation to reach jj's backing store. It will not:
+  `vcs status`/`vcs log` already shell the real binaries under a controlled
+  environment (0198), and `vcs diff` would do the same.
+- The colocated warn on `log`/`diff` is a deliberate nudge, not a bug: the
+  commit-set and index-vs-parent divergences above are exactly the git-shaped
+  read it steers away from.
+
 ## Open Questions
 
 - Does `git log` stay blocked, move to an informational-suggestion tier, or
@@ -148,6 +258,11 @@ illustrate how far git's default output diverges from `jj diff`.
   so validate-plan's pure-jj status is a consequence of whichever way the
   decision lands, and is resolved when this spike closes.
 - Parent: epic 0136.
+- Blocks: work-item:0286 (make `validate-plan`/`research-issue` VCS-agnostic
+  via a new `accelerator vcs diff` subcommand and a repoint of the skills) —
+  spawned by this spike's outcome; it is the real remedy for the pure-jj
+  brokenness that keeping `log`/`diff` blocked leaves in place. Back-linked
+  from 0286.
 - If the decision spawns a downstream item — an "allowed, informational
   suggestion only" tier, or a separate chore for a non-trivial blocklist
   change — that item is gated by this spike; record it here as a Blocks entry
