@@ -1,6 +1,8 @@
 //! CLI-boundary tests for `work next-number`: a display-only allocation
 //! preview.
 
+#![allow(clippy::literal_string_with_formatting_args)]
+
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -13,6 +15,18 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
         .tempdir()?;
     fs::create_dir_all(dir.path().join(".git"))?;
     fs::create_dir_all(dir.path().join("meta/work"))?;
+    Ok(dir)
+}
+
+fn scratch_repo_with_work_config(
+    work_body: &str,
+) -> Result<tempfile::TempDir, TestError> {
+    let dir = scratch_repo()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        format!("---\nwork:\n{work_body}---\n"),
+    )?;
     Ok(dir)
 }
 
@@ -56,6 +70,49 @@ fn allocates_after_the_highest_existing_number() -> Result<(), TestError> {
     let output = run(repo.path(), &["--count", "1"])?;
     assert!(output.status.success());
     assert_eq!(String::from_utf8(output.stdout)?, "0008\n");
+    Ok(())
+}
+
+#[test]
+fn a_key_pattern_mints_from_work_key() -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n  key: \"PP\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert!(output.status.success(), "{:?}", output.status);
+    assert_eq!(String::from_utf8(output.stdout)?, "PP-0001\n");
+    Ok(())
+}
+
+#[test]
+fn a_legacy_tracker_less_config_mints_and_warns_once() -> Result<(), TestError>
+{
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: \"PP\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert!(output.status.success(), "{:?}", output.status);
+    assert_eq!(String::from_utf8(output.stdout)?, "PP-0001\n");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(
+        stderr.matches("1.25.0").count(),
+        1,
+        "expected exactly one deprecation warning, got: {stderr}"
+    );
+    assert!(stderr.contains("work.default_project_code"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_key_pattern_without_work_key_is_a_config_error() -> Result<(), TestError> {
+    let repo = scratch_repo_with_work_config(
+        "  id_pattern: \"{key}-{number:04d}\"\n",
+    )?;
+    let output = run(repo.path(), &["--count", "1"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("work.key"), "{stderr}");
     Ok(())
 }
 

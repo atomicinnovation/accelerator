@@ -38,7 +38,7 @@ fn the_compiled_scan_regex_drives_slug_and_id_extraction(
     )?)?;
     let scheme = WorkItemIdScheme {
         id_pattern: "{project}-{number:04d}".to_owned(),
-        default_project_code: Some("PROJ".to_owned()),
+        key: Some("PROJ".to_owned()),
     };
     assert_eq!(
         corpus::slug::derive(

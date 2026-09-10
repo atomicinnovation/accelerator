@@ -20,7 +20,7 @@ pub trait IdScanner {
 #[derive(Debug, Clone)]
 pub struct WorkItemIdScheme {
     pub id_pattern: String,
-    pub default_project_code: Option<String>,
+    pub key: Option<String>,
 }
 
 impl Default for WorkItemIdScheme {
@@ -34,7 +34,7 @@ impl WorkItemIdScheme {
     pub fn numeric() -> Self {
         Self {
             id_pattern: "{number:04d}".to_owned(),
-            default_project_code: None,
+            key: None,
         }
     }
 
@@ -44,7 +44,7 @@ impl WorkItemIdScheme {
     #[must_use]
     pub fn is_canonical_id_token(&self, token: &str) -> bool {
         let width = self.canonical_digit_width();
-        let digits = match &self.default_project_code {
+        let digits = match &self.key {
             Some(code) => match token.strip_prefix(&format!("{code}-")) {
                 Some(rest) => rest,
                 None => return false,
@@ -102,7 +102,7 @@ impl WorkItemIdScheme {
         if !trimmed.chars().all(|c| c.is_ascii_digit()) {
             return None;
         }
-        Some(self.default_project_code.as_ref().map_or_else(
+        Some(self.key.as_ref().map_or_else(
             || trimmed.to_owned(),
             |code| format!("{code}-{trimmed}"),
         ))
@@ -128,7 +128,7 @@ impl WorkItemIdScheme {
                 .map_or_else(|_| raw.to_owned(), |n| n.to_string());
             let padded = format!("{n_str:0>width$}");
             return Some(if has_key {
-                match &self.default_project_code {
+                match &self.key {
                     Some(code) => format!("{code}-{padded}"),
                     None => padded,
                 }
@@ -173,12 +173,12 @@ impl WorkItemIdScheme {
     ) -> Option<String> {
         if let Some(scan) = scanner.scan(filename) {
             let digits = scan.digits;
-            return Some(match &self.default_project_code {
+            return Some(match &self.key {
                 Some(code) => format!("{code}-{digits}"),
                 None => digits,
             });
         }
-        let code = self.default_project_code.as_deref()?;
+        let code = self.key.as_deref()?;
         let dash = filename.find('-')?;
         let prefix = &filename[..dash];
         if prefix.is_empty() || !prefix.chars().all(|c| c.is_ascii_digit()) {
@@ -318,7 +318,7 @@ mod tests {
     fn project(code: &str, width: usize) -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-            default_project_code: Some(code.to_owned()),
+            key: Some(code.to_owned()),
         }
     }
 
@@ -327,12 +327,12 @@ mod tests {
         assert_eq!(WorkItemIdScheme::numeric().canonical_digit_width(), 4);
         let any = WorkItemIdScheme {
             id_pattern: "{number}".to_owned(),
-            default_project_code: None,
+            key: None,
         };
         assert_eq!(any.canonical_digit_width(), 0);
         let admit_any = WorkItemIdScheme {
             id_pattern: "{number:0d}".to_owned(),
-            default_project_code: None,
+            key: None,
         };
         assert_eq!(admit_any.canonical_digit_width(), 0);
     }
@@ -399,7 +399,7 @@ mod tests {
     fn canonicalise_id_treats_key_pattern_as_prefixed() {
         let scheme = WorkItemIdScheme {
             id_pattern: "{key}-{number:04d}".to_owned(),
-            default_project_code: Some("PP".to_owned()),
+            key: Some("PP".to_owned()),
         };
         assert_eq!(scheme.canonicalise_id("40").as_deref(), Some("PP-0040"));
         assert_eq!(

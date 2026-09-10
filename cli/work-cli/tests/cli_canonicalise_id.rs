@@ -80,6 +80,23 @@ fn bare_number_under_a_project_pattern_with_project_configured(
 }
 
 #[test]
+fn bare_number_under_a_key_pattern_honours_work_key() -> Result<(), TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("work-cli-canonicalise-id-key-")
+        .tempdir()?;
+    fs::create_dir_all(dir.path().join(".accelerator"))?;
+    fs::write(
+        dir.path().join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  \
+         key: \"PP\"\n---\n",
+    )?;
+    let output = run(dir.path(), "42")?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "PP-0042");
+    Ok(())
+}
+
+#[test]
 fn bare_number_under_a_project_pattern_with_no_project_configured(
 ) -> Result<(), TestError> {
     let repo = scratch_repo("{project}-{number:04d}", "")?;

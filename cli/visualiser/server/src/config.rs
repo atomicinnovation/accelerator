@@ -100,7 +100,7 @@ impl WorkItemConfig {
         Ok(Self {
             scheme: corpus::WorkItemIdScheme {
                 id_pattern: raw.id_pattern,
-                default_project_code: raw.default_project_code,
+                key: raw.default_project_code,
             },
             scanner,
         })
@@ -164,7 +164,7 @@ impl WorkItemConfig {
                 // Use the literal `{project}` placeholder so `id_pattern`
                 // lookups behave like production configs.
                 id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-                default_project_code: Some(prefix.to_string()),
+                key: Some(prefix.to_string()),
             },
         }
     }
@@ -504,10 +504,7 @@ mod tests {
         let a: WorkItemConfig = WorkItemConfig::default();
         let b = WorkItemConfig::default_numeric();
         assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
-        assert_eq!(
-            a.scheme().default_project_code,
-            b.scheme().default_project_code
-        );
+        assert_eq!(a.scheme().key, b.scheme().key);
         assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
     }
 

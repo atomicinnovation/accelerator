@@ -63,7 +63,7 @@ fn is_md_filename(name: &str) -> bool {
 ///
 /// `project` is the already-resolved `--project`-flag-or-config-default
 /// value (`None`/empty when unused), not necessarily
-/// `scheme.default_project_code` — a caller-supplied `--project` overrides
+/// `scheme.key` — a caller-supplied `--project` overrides
 /// the scheme's own configured default for this one call.
 ///
 /// # Errors
@@ -81,19 +81,19 @@ pub fn allocate(
     filenames: &[String],
     scanner: &dyn IdScanner,
 ) -> Result<Vec<String>, AllocationError> {
-    let pattern_has_project = scheme.id_pattern.contains("{project}");
+    let pattern_has_key = corpus::references_key(&scheme.id_pattern);
     let project_given = project.is_some_and(|p| !p.is_empty());
 
-    if pattern_has_project && !project_given {
+    if pattern_has_key && !project_given {
         return Err(AllocationError::MissingProject);
     }
-    if !pattern_has_project && project_given {
+    if !pattern_has_key && project_given {
         return Err(AllocationError::ProjectUnused);
     }
 
     let format_scheme = WorkItemIdScheme {
         id_pattern: scheme.id_pattern.clone(),
-        default_project_code: project.map(str::to_owned),
+        key: project.map(str::to_owned),
     };
     let cap = pattern_cap(&scheme.id_pattern);
 
@@ -163,7 +163,7 @@ mod tests {
     fn numeric() -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: "{number:04d}".to_owned(),
-            default_project_code: None,
+            key: None,
         }
     }
 
@@ -200,7 +200,7 @@ mod tests {
     fn missing_project_is_rejected() {
         let scheme = WorkItemIdScheme {
             id_pattern: "{project}-{number:04d}".to_owned(),
-            default_project_code: None,
+            key: None,
         };
         assert_eq!(
             allocate(&scheme, None, 1, &[], &DigitPrefixScanner),

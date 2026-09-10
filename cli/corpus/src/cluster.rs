@@ -820,7 +820,7 @@ mod tests {
         #[allow(clippy::literal_string_with_formatting_args)]
         let scheme = WorkItemIdScheme {
             id_pattern: "{project}-{number:04d}".into(),
-            default_project_code: Some("PROJ".into()),
+            key: Some("PROJ".into()),
         };
         let mut plan = TestEntry::new(DocTypeKey::Plans, "p");
         plan.parent = Some("42".into());

@@ -438,29 +438,52 @@ add inline comments to config values.
 
 ### work
 
-Configure work-item identifiers and the active remote tracker. Three keys are recognised:
+Configure work-item identifiers and the active remote tracker. Four keys are recognised:
 
 | Key                          | Default          | Description                                |
 |------------------------------|------------------|--------------------------------------------|
-| `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `trello`, `github-issues`. When set, integration skills auto-scope to `default_project_code`. Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
+| `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `trello`, `github-issues`. When set, integration skills auto-scope to the tracker scope key (`jira.project_key` / `linear.team_key`). Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
 | `id_pattern`                 | `{number:04d}`   | DSL controlling work-item ID shape         |
-| `default_project_code`       | (empty)          | Project code substituted into `{project}`  |
+| `key`                        | (empty)          | Local ID prefix substituted into `{key}`. Required when `id_pattern` references `{key}`. Work-owned and fully independent of the tracker scope key — it never derives from it. |
+| `default_project_code`       | (empty)          | **Deprecated** (removed in 1.25.0). A read-time alias resolving into `work.key` (tracker-less) or the tracker scope key (tracker-backed). Run `/accelerator:migrate` to materialise the replacement keys. |
 
-Example configuration for a project tracking issues with project-coded
+Example configuration for a project tracking issues with prefixed
 IDs (matching Jira/Linear conventions):
 
 \```yaml
 ---
 work:
   integration: jira
-  id_pattern: "{project}-{number:04d}"
-  default_project_code: "PROJ"
+  id_pattern: "{key}-{number:04d}"
+  key: "PROJ"
+jira:
+  project_key: "PROJ"
 ---
 \```
 
 This produces work-item filenames such as `meta/work/PROJ-0042-add-foo.md`,
 H1 headings like `# PROJ-0042: add foo`, and an `id: "PROJ-0042"`
 frontmatter field.
+
+`work.key` (the local ID prefix) and the tracker scope key
+(`jira.project_key` / `linear.team_key`) are independent values with
+separate owners. They may match — a deliberate choice to mirror the tracker
+prefix — or diverge:
+
+\```yaml
+---
+work:
+  integration: jira
+  id_pattern: "{key}-{number:04d}"
+  key: "PP"
+jira:
+  project_key: "PROJ"
+---
+\```
+
+Here local IDs carry the `PP-` prefix while creation and discovery scope to
+the `PROJ` Jira project. A divergent `work.key` is a supported configuration,
+not a smell — no warning is raised.
 
 #### Local-first storage
 
@@ -487,9 +510,13 @@ The `id_pattern` value is a small DSL with two tokens:
   omitted, defaults to `04d`. The width is enforced when generating
   new IDs; scanning is width-agnostic, so legacy 4-digit files remain
   visible after a width change.
-- `{project}` — optional, at most one occurrence. Substituted with a
-  project value at use time, taken from `--project` flags or
-  `default_project_code`.
+- `{key}` — optional, at most one occurrence. The local ID prefix,
+  substituted at use time from `work.key` (or a `--project` flag). When a
+  pattern references `{key}`, `work.key` is required — it never silently falls
+  back to the tracker scope key.
+- `{project}` — **deprecated** synonym for `{key}`, removed in 1.25.0.
+  Existing `{project}` patterns keep working through the deprecation window and
+  are rewritten to `{key}` by `/accelerator:migrate`.
 - `{{` and `}}` — escaped literals for a literal `{` or `}`.
 
 **Validation rules** (enforced when the pattern is consumed):
@@ -498,13 +525,12 @@ The `id_pattern` value is a small DSL with two tokens:
 2. No filesystem-hostile chars (`/`, `\`, `:`, `*`, `?`, `<`, `>`,
    `|`, `"`) outside token format specs.
 3. Adjacent dynamic tokens must have at least one literal char between
-   them (`{project}{number}` is rejected; `{project}-{number}` is
-   accepted).
+   them (`{key}{number}` is rejected; `{key}-{number}` is accepted).
 4. The `{number}` format spec must be `0Nd`. Non-padded specs (`%d`)
    are rejected so the overflow guard cap is well-defined.
-5. Project values must match `[A-Za-z][A-Za-z0-9]*`. This covers
-   Jira/Linear-style alphanumeric project keys (`PROJ`, `ENG`, `ENG2`).
-   Project keys with internal hyphens or underscores (`PROJ-FE`,
+5. Key values must match `[A-Za-z][A-Za-z0-9]*`. This covers
+   Jira/Linear-style alphanumeric keys (`PROJ`, `ENG`, `ENG2`).
+   Keys with internal hyphens or underscores (`PROJ-FE`,
    `proj_alpha`) are rejected — this is a known limitation of the
    initial scope.
 
@@ -517,7 +543,7 @@ A work item carries two distinct identity fields:
   the configured `id_pattern`. It is **always a quoted YAML string**,
   regardless of the pattern: new work items write `id: "0001"` under
   the default pattern and `id: "PROJ-0001"` under
-  `{project}-{number:04d}`. Consumers must treat it as a string; do not
+  `{key}-{number:04d}`. Consumers must treat it as a string; do not
   coerce to integer. (Legacy work items carry the same own-identity
   value under `work_item_id:`; `accelerator work show` bridges the two
   names transparently, so a consumer asking for `id` against a legacy file
@@ -530,8 +556,9 @@ A work item carries two distinct identity fields:
   item without one is *unsynced* (never pushed) — see `/list-work-items`.
 
 `id` and `external_id` **may coincide** when the local and remote ID schemes
-align (Jira/Linear, under `{project}-{number:04d}`) or be **independent**
-when they do not (Trello, whose card IDs are opaque). `external_id` is always
+align (Jira/Linear, under `{key}-{number:04d}` with `work.key` mirroring the
+scope key) or be **independent** when they do not (Trello, whose card IDs are
+opaque). `external_id` is always
 written on a successful push, even when it equals `id`, because presence —
 not value — is what marks an item synced.
 
@@ -539,7 +566,7 @@ not value — is what marks an item synced.
 
 Pick the default `{number:04d}` if your project tracks work items
 internally and does not link out to an external tracker. Pick
-`{project}-{number:04d}` when:
+`{key}-{number:04d}` (with an explicit `work.key`) when:
 
 - You mirror tickets from Jira, Linear, or another external tracker
   and want filenames to align with the tracker's IDs.
@@ -564,7 +591,7 @@ neither applies, you can opt out via `accelerator migrate --skip
 
 #### Recognised keys
 
-Only `work.integration`, `work.id_pattern`, and
+Only `work.integration`, `work.id_pattern`, `work.key`, and the deprecated
 `work.default_project_code` are recognised. Other `work.*` keys are not
 consumed by any plugin script.
 

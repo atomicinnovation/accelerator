@@ -100,7 +100,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         issue: &DiscoveredIssue,
     ) -> Result<AuthoredLocal, kernel::Error> {
         let scheme = resolve_scheme(self.config)?;
-        let project = scheme.default_project_code.clone();
+        let project = scheme.key.clone();
         let (title, description) = split_projected(&issue.issue.body);
 
         std::fs::create_dir_all(&self.work_dir).map_err(failed)?;

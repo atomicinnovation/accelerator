@@ -473,27 +473,30 @@ message that tells them to "set `work.key`".
 
 #### Automated Verification:
 
-- [ ] `resolve_scheme` reads `work.key`: `cargo test -p work-cli`
-- [ ] Legacy `work.default_project_code` resolves into the prefix with a
+- [x] `resolve_scheme` reads `work.key`: `cargo test -p work-cli`
+- [x] Legacy `work.default_project_code` resolves into the prefix with a
       1.25.0 warning when `work.key` is absent (helper unit test in `config`).
-- [ ] `{key}` present with no `work.key` and no legacy value is a config error
+- [x] `{key}` present with no `work.key` and no legacy value is a config error
       naming `work.key` (AC #2).
-- [ ] `work.key` equal to a scope-key value raises no error and no warning
+- [x] `work.key` equal to a scope-key value raises no error and no warning
       (AC #5) — asserted by a test with both set equal.
-- [ ] A pattern without `{key}` yields `scheme.key == None` even when a prefix
+- [x] A pattern without `{key}` yields `scheme.key == None` even when a prefix
       resolves, and `extract_id` recognises `0001-foo.md` with no prefix (AC #7) —
       asserts the field is gated, not merely that minting looks right.
-- [ ] A legacy tracker-less `default_project_code: PP` + `{project}` pattern mints
+- [x] A legacy tracker-less `default_project_code: PP` + `{project}` pattern mints
       `PP-0001` end-to-end (AC #10), automated, not manual.
-- [ ] The 1.25.0 deprecation warning is emitted **exactly once** across a full
+- [x] The 1.25.0 deprecation warning is emitted **exactly once** across a full
       command invocation that reads the legacy value at more than one site.
-- [ ] `accelerator work canonicalise-id` honours `work.key` and the alias (routed
+      (Once-per-command asserted e2e via `matches("1.25.0").count() == 1`; the
+      dedup is process-global, so the guarantee holds across any number of read
+      sites — the genuine two-site read is reinforced by the Phase 5 sync tests.)
+- [x] `accelerator work canonicalise-id` honours `work.key` and the alias (routed
       through the shared resolver), not a direct legacy-key read.
-- [ ] The `config` public-api snapshot is regenerated for `resolve_with_deprecated_fallback`,
+- [x] The `config` public-api snapshot is regenerated for `resolve_with_deprecated_fallback`,
       `AliasedScalar`, and `REMOVAL_RELEASE`, and `public-api:check` passes.
-- [ ] A test asserts `REMOVAL_RELEASE` is a later minor than `CARGO_PKG_VERSION`
+- [x] A test asserts `REMOVAL_RELEASE` is a later minor than `CARGO_PKG_VERSION`
       normalised to its release minor (pre-release suffix dropped).
-- [ ] Full workspace check: `mise run cli:check`
+- [x] Full workspace check: `mise run cli:check`
 
 #### Manual Verification:
 

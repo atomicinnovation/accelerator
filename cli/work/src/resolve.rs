@@ -263,7 +263,7 @@ fn resolve_bare_number(
     let pattern_has_key = corpus::references_key(&scheme.id_pattern);
     let mut candidates: Vec<TaggedCandidate> = Vec::new();
 
-    if pattern_has_key && scheme.default_project_code.is_some() {
+    if pattern_has_key && scheme.key.is_some() {
         if let Some(full_id) = scheme.canonicalise_id(input) {
             let prefix = format!("{full_id}-");
             for f in &filenames {
@@ -376,14 +376,14 @@ mod tests {
     fn numeric() -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: "{number:04d}".to_owned(),
-            default_project_code: None,
+            key: None,
         }
     }
 
     fn project_scheme(default_project: Option<&str>) -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: "{project}-{number:04d}".to_owned(),
-            default_project_code: default_project.map(str::to_owned),
+            key: default_project.map(str::to_owned),
         }
     }
 
@@ -417,7 +417,7 @@ mod tests {
     fn classify_full_id_and_bare_number_under_key_pattern() {
         let scheme = WorkItemIdScheme {
             id_pattern: "{key}-{number:04d}".to_owned(),
-            default_project_code: Some("PP".to_owned()),
+            key: Some("PP".to_owned()),
         };
         assert_eq!(classify_input("PP-0042", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
