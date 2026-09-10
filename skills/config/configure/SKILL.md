@@ -772,9 +772,11 @@ keychains: 1Password CLI (`op read ...`), `pass`, macOS Keychain (`security
 find-generic-password ...`), Freedesktop Secret Service (`secret-tool ...`),
 and AWS Secrets Manager all work without plugin-side knowledge.
 
-The default Jira project key is **`work.default_project_code`** — the same key
-used by the work-item ID pattern. No separate `jira.default_project_key`
-exists.
+The Jira scope key is **`jira.project_key`** — the integration-owned project
+key that resolves the creation-home project and discovery scope. It is
+independent of `work.key` (the local ID prefix) and needs no `work.*` present.
+The deprecated `work.default_project_code` still resolves into it through the
+1.25.0 removal window when `work.integration: jira`.
 
 #### Skill registration order
 
@@ -791,10 +793,10 @@ alphabetically.
 
 #### Recognised keys
 
-Only `jira.site`, `jira.allowed_sites`, `jira.email`, `jira.token`, and
-`jira.token_cmd` are recognised. Other `jira.*` keys are not consumed by any
-plugin script. `jira.allowed_sites` has no bash consumer — it is read by the
-Rust client only.
+Only `jira.site`, `jira.allowed_sites`, `jira.email`, `jira.token`,
+`jira.token_cmd`, and `jira.project_key` are recognised. Other `jira.*` keys
+are not consumed by any plugin script. `jira.allowed_sites` has no bash
+consumer — it is read by the Rust client only.
 
 ### linear
 

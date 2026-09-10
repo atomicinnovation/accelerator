@@ -767,7 +767,7 @@ fn run_init(action: Option<&InitAction>) -> ExitCode {
     {
         eprintln!(
             "E_INIT_NEEDS_CONFIG: no default project and no TTY to prompt on — \
-             set work.default_project_code or run a specific init subcommand"
+             set jira.project_key or run a specific init subcommand"
         );
         return ExitCode::from(exit_codes::INIT_NEEDS_CONFIG);
     }
@@ -866,8 +866,7 @@ fn init_prompt_default() -> ExitCode {
         ExitCode::SUCCESS
     } else {
         eprintln!(
-            "E_INIT_NEEDS_CONFIG: no default project — set \
-             work.default_project_code"
+            "E_INIT_NEEDS_CONFIG: no default project — set jira.project_key"
         );
         ExitCode::from(exit_codes::INIT_NEEDS_CONFIG)
     }
@@ -970,7 +969,7 @@ fn run_resolve_fields(args: &cli::ResolveFieldsArgs) -> ExitCode {
         Err(ResolveError::NoProject) => {
             eprintln!(
                 "E_RESOLVE_NO_PROJECT: cannot resolve a Jira project — pass \
-                 --project, set work.default_project_code, or use a \
+                 --project, set jira.project_key, or use a \
                  project-coded id"
             );
             ExitCode::from(exit_codes::RESOLVE_NO_PROJECT)

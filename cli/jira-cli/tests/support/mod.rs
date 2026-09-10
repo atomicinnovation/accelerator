@@ -10,10 +10,9 @@ use std::process::{Command, Output, Stdio};
 use http_test_support::MockServer;
 
 /// The default config: jira integration, a site and email so credentials
-/// resolve from an env token, and a default project code the resolver reads.
-pub const CONFIG: &str = "---\nwork:\n  integration: jira\n  \
-    default_project_code: ENG\njira:\n  site: acme\n  \
-    email: toby@example.com\n---\n";
+/// resolve from an env token, and a Jira project key the resolver reads.
+pub const CONFIG: &str = "---\nwork:\n  integration: jira\njira:\n  \
+    site: acme\n  email: toby@example.com\n  project_key: ENG\n---\n";
 
 pub const TOKEN_SENTINEL: &str = "jira_api_sentinel_do_not_leak";
 

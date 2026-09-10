@@ -19,7 +19,7 @@ allowed-tools:
 !`accelerator config context --skill init-jira --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
-> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> `jira.project_key: <KEY>` in `.accelerator/config.md` to
 > enable auto-scoping. See the
 > [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
 > for the full reference.
@@ -129,7 +129,7 @@ accelerator jira init prompt-default
 ```
 
 On `default-prompted` the subcommand reports the resolved default project. If
-`work.default_project_code` is already set this is a no-op; otherwise offer to
+`jira.project_key` is already set this is a no-op; otherwise offer to
 write the chosen key to `config.md`.
 
 ## Step 6: Confirm completion
@@ -141,7 +141,7 @@ Jira integration initialised:
   Site:     <site>.atlassian.net
   Fields:   <N> fields cached (.accelerator/state/integrations/jira/fields.json)
   Projects: <M> projects cached (.accelerator/state/integrations/jira/projects.json)
-  Default:  <KEY> (work.default_project_code)
+  Default:  <KEY> (jira.project_key)
 ```
 
 Remind the user to commit `.accelerator/state/integrations/jira/{fields,projects}.json`

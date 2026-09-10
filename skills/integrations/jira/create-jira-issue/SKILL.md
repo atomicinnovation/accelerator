@@ -21,7 +21,7 @@ allowed-tools:
 !`accelerator config context --skill create-jira-issue --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
-> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> `jira.project_key: <KEY>` in `.accelerator/config.md` to
 > enable auto-scoping. See the
 > [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
 > for the full reference.
@@ -72,7 +72,7 @@ never disagree. Handle a non-zero exit **before** any preview or create:
   `external_id`. STOP; tell the user it is already synced and name the existing
   identifier. Make no API call.
 - `E_RESOLVE_NO_PROJECT` — the project is unresolvable. STOP and tell the user
-  to pass `--project KEY` or set `work.default_project_code`. This is a
+  to pass `--project KEY` or set `jira.project_key`. This is a
   pre-create failure — do not proceed to the confirm gate.
 
 On success, capture the four resolved values and continue.
@@ -144,7 +144,7 @@ Read the argument string and note each flag:
 
 ## Step 2: Resolve --project
 
-If `--project` was not supplied, the subcommand reads `work.default_project_code`
+If `--project` was not supplied, the subcommand reads `jira.project_key`
 from config. If neither is set the create refuses before any call; warn the user
 to supply `--project KEY` or run `/init-jira` and set a default project.
 

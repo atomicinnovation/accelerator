@@ -554,13 +554,14 @@ any `skills/work/*` prose that invokes `accelerator config work default_project_
 
 #### Automated Verification:
 
-- [ ] Jira resolves its scope key from `jira.project_key` with no `work.*`
+- [x] Jira resolves its scope key from `jira.project_key` with no `work.*`
       present (AC #1, Jira): `cargo test -p jira-client -p jira-cli`
-- [ ] A legacy `work.default_project_code` (with `work.integration: jira`)
-      resolves into the scope key with a 1.25.0 warning (AC #8).
-- [ ] A legacy value with `work.integration: linear` does *not* resolve into
+- [x] A legacy `work.default_project_code` (with `work.integration: jira`)
+      resolves into the scope key with a 1.25.0 warning (AC #8). (Value
+      resolution asserted in `jira-client`; warning content at the helper level.)
+- [x] A legacy value with `work.integration: linear` does *not* resolve into
       `jira.project_key` (gate test).
-- [ ] Full workspace check: `mise run cli:check`
+- [x] Full workspace check: `mise run cli:check`
 
 #### Manual Verification:
 

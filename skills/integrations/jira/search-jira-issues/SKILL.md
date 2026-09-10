@@ -21,7 +21,7 @@ allowed-tools:
 !`accelerator config context --skill search-jira-issues --fail-safe`
 
 > **Configuration**: Set `work.integration: jira` and
-> `work.default_project_code: <KEY>` in `.accelerator/config.md` to
+> `jira.project_key: <KEY>` in `.accelerator/config.md` to
 > enable auto-scoping. See the
 > [`### work` section of `configure/SKILL.md`](../../config/configure/SKILL.md#work)
 > for the full reference.
