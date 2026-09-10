@@ -71,6 +71,21 @@ Reconciliation against the Context's twelve types: twelve artifact types plus `n
 
 **Per-type `status` vocabularies** (for the status-comment requirement): the existing per-type sets are unchanged by this story. The implementer reads each type's current valid-status set from its existing template/skill and reproduces it verbatim in the comment — vocabulary unification is explicitly out of scope (0057).
 
+### Topic-research set templates (registered by work item 0277)
+
+Not part of this story's nine templates. The single-round web research engine
+(0277) adds the `topic-research` set type, whose five `(type, kind)`-keyed
+templates are pinned here only so the schema-TSV cross-check sees one
+authoritative template set. Their field contracts live with 0277 and ADR-0067.
+
+| Template file | Artifact `type` | `kind` | `schema_version` | Provenance bundle? | Per-kind extras (beyond base) |
+|---|---|---|---|---|---|
+| `topic-research-manifest.md` | `topic-research` | `manifest` | 1 | no | `slug`, `research_status`, `round_count`, `finding_count`, `primary` |
+| `topic-research-brief.md` | `topic-research` | `brief` | 1 | no | `source_profiles` |
+| `topic-research-outline.md` | `topic-research` | `outline` | 1 | no | (none) |
+| `topic-research-finding.md` | `topic-research` | `finding` | 1 | no | `round`, `question`, `source_profile` |
+| `topic-research-synthesis.md` | `topic-research` | `synthesis` | 1 | no | `rounds_covered` |
+
 ## Acceptance Criteria
 
 - [ ] All nine in-scope templates listed in the Schema Reference table (`work-item.md`, `plan.md`, `validation.md`, `pr-description.md`, `adr.md`, `codebase-research.md`, `rca.md`, `design-inventory.md`, `design-gap.md`) emit the unified base fields, including `producer`. (`validation.md`, previously body-only, gains a frontmatter block in this story; rewiring `validate-plan` to read it is 0066's scope.)

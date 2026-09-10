@@ -16,7 +16,7 @@ pub struct SchemaRow {
 
 /// Mirrors `templates-schema.tsv` row for row. A `corpus` test
 /// asserts the two agree.
-pub const SCHEMA: [SchemaRow; 13] = [
+pub const SCHEMA: [SchemaRow; 18] = [
     SchemaRow {
         linkage_type: "work-item",
         kind: "",
@@ -186,6 +186,57 @@ pub const SCHEMA: [SchemaRow; 13] = [
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
+    SchemaRow {
+        linkage_type: "topic-research",
+        kind: "manifest",
+        code_state_anchored: false,
+        extras: &[
+            "slug",
+            "research_status",
+            "round_count",
+            "finding_count",
+            "primary",
+        ],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        linkage_type: "topic-research",
+        kind: "brief",
+        code_state_anchored: false,
+        extras: &["source_profiles"],
+        status_vocab: &["draft", "complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        linkage_type: "topic-research",
+        kind: "outline",
+        code_state_anchored: false,
+        extras: &[],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        linkage_type: "topic-research",
+        kind: "finding",
+        code_state_anchored: false,
+        extras: &["round", "question", "source_profile"],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        linkage_type: "topic-research",
+        kind: "synthesis",
+        code_state_anchored: false,
+        extras: &["rounds_covered"],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
 ];
 
 /// The row for a resolved `(type, kind)` pair, preferring an exact
@@ -301,8 +352,44 @@ mod tests {
     }
 
     #[test]
-    fn thirteen_rows_are_present() {
-        assert_eq!(SCHEMA.len(), 13);
+    fn eighteen_rows_are_present() {
+        assert_eq!(SCHEMA.len(), 18);
+    }
+
+    #[test]
+    fn topic_research_kinds_each_resolve_to_a_distinct_row() {
+        for kind in ["manifest", "brief", "outline", "finding", "synthesis"] {
+            let resolved = row_for("topic-research", kind).map(|row| row.kind);
+            assert_eq!(resolved, Some(kind), "topic-research/{kind}");
+        }
+        // No (topic-research, "") default row exists, so an unmatched kind
+        // must not silently fall back.
+        assert!(row_for("topic-research", "").is_none());
+        assert!(row_for("topic-research", "bogus").is_none());
+    }
+
+    #[test]
+    fn no_kind_discriminated_row_shadows_a_same_named_extra() {
+        // Guards the `kind` overload (ADR-0067): introducing a (type, kind)
+        // row whose `kind` also appears in that type's own `extras` silently
+        // re-routes every existing `kind: <that>` document from the type
+        // default row to the new one. Such a row is a migration, not an
+        // addition — this fails until it is made explicit here.
+        for row in &SCHEMA {
+            if row.kind.is_empty() {
+                continue;
+            }
+            let default = row_for(row.linkage_type, "");
+            let clashes = default.is_some_and(|type_default| {
+                type_default.extras.contains(&row.kind)
+            });
+            assert!(
+                !clashes,
+                "(type={}, kind={}) shadows a same-named extra on the type \
+                 default row — treat it as an explicit migration",
+                row.linkage_type, row.kind
+            );
+        }
     }
 
     #[test]

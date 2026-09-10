@@ -53,6 +53,11 @@
 | `templates.work-item-review` | *(not set)* | default |
 | `templates.pr-review` | *(not set)* | default |
 | `templates.note` | *(not set)* | default |
+| `templates.topic-research-manifest` | *(not set)* | default |
+| `templates.topic-research-brief` | *(not set)* | default |
+| `templates.topic-research-outline` | *(not set)* | default |
+| `templates.topic-research-finding` | *(not set)* | default |
+| `templates.topic-research-synthesis` | *(not set)* | default |
 | `work.integration` | `linear` | team (.accelerator/config.md) |
 | `work.id_pattern` | `{number:04d}` | default |
 | `work.default_project_code` | *(not set)* | default |
