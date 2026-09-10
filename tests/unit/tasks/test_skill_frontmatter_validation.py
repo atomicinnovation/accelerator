@@ -49,6 +49,7 @@ IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/notes/create-note/SKILL.md",
     "skills/design/inventory-design/SKILL.md",
     "skills/design/analyse-design-gaps/SKILL.md",
+    "skills/research/research-topic/SKILL.md",
 )
 
 # Frontmatter-emitting skills that are deliberately out of scope: the PR skills
