@@ -145,5 +145,9 @@ pub enum InitAction {
     Discover {
         #[arg(long)]
         team_id: String,
+        /// Overwrite an existing, differing `linear.team_key` without a
+        /// prompt — for unattended re-init.
+        #[arg(long)]
+        force: bool,
     },
 }

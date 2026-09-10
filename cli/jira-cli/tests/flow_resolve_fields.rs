@@ -39,6 +39,18 @@ fn the_configured_default_project_is_the_config_source() {
 }
 
 #[test]
+fn init_prompt_default_reports_the_configured_jira_project_key() {
+    let dir = support::scratch(support::CONFIG);
+    let output = run(dir.path(), &["init", "prompt-default"]);
+    assert!(output.status.success(), "exited {:?}", output.status.code());
+    assert!(
+        stdout_of(&output).contains("ENG"),
+        "the reported default is the jira.project_key value: {}",
+        stdout_of(&output)
+    );
+}
+
+#[test]
 fn the_project_derives_from_the_shared_config_source() {
     // `jira resolve-fields` and `work create --push --dry-run` do
     // NOT agree field-for-field — the work form emits the raw kind with a

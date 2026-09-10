@@ -745,15 +745,15 @@ deterministically testable in `cargo test`.
 
 #### Automated Verification:
 
-- [ ] `init-linear` discover writes `linear.team_key` into a section with no key
+- [x] `init-linear` discover writes `linear.team_key` into a section with no key
       (AC #11): `cargo test -p linear-cli`
-- [ ] `init-linear` overwrites an existing `linear.team_key` only via the confirmed
+- [x] `init-linear` overwrites an existing `linear.team_key` only via the confirmed
       path, and an unconfirmed re-init leaves the existing value intact (AC #12).
-- [ ] `init_prompt_default` reports `jira.project_key` (not `work.default_project_code`):
+- [x] `init_prompt_default` reports `jira.project_key` (not `work.default_project_code`):
       `cargo test -p jira-cli`. The Jira section *write* itself is skill-driven
       (`init-jira/SKILL.md` Step 5) and verified manually, unlike Linear's
       binary-level writeback — recorded here as a deliberate asymmetry, not a gap.
-- [ ] Full workspace check: `mise run cli:check`
+- [x] Full workspace check: `mise run cli:check`
 
 #### Manual Verification:
 
