@@ -265,10 +265,10 @@ export async function startDaemon({ stateDir }) {
     // Every command is judged under its own allowances, and no prior request's
     // refusal bleeds through — so a warm daemon never judges one invocation's
     // navigation under another's allowances. The auth-header state rides every
-    // command the same way (Section: request end clears it), so a same-origin
-    // subresource that loads lazily during a following snapshot/links still
-    // carries the header, while a warm daemon reused across crawls never
-    // inherits a prior crawl's auth.
+    // command the same way and is cleared once the command completes, so a
+    // same-origin subresource that loads lazily during a following
+    // snapshot/links still carries the header, while a warm daemon reused
+    // across crawls never inherits a prior crawl's auth.
     currentAllowances = allowancesOf(req);
     lastRefusal = null;
     currentExpectedOrigin = originOf(req[LOCATION_URL_FIELD]);

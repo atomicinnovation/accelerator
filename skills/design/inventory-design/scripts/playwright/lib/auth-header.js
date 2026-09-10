@@ -1,9 +1,5 @@
-// Auth header injection handler factory.
-// Installs a Playwright route() handler that attaches an auth header only for
-// requests whose origin matches the daemon's live expected origin exactly, and
-// strips it on every other origin. Both the expected origin and the header are
-// read per request through getters supplied by the daemon; this module reads no
-// environment of its own.
+// Auth-header route factory. The expected origin and the header are read per
+// request through daemon-supplied getters, never from the environment.
 
 export function makeAuthHeaderHandler(
   page,

@@ -400,8 +400,7 @@ test('the launcher forwards exactly the commands the daemon dispatches', () => {
 // originOf is the daemon's side of the auth-header origin comparison: it turns
 // the crawl's declared location URL into the origin string the handler compares
 // each request against, using the same WHATWG parser so both sides normalise
-// identically. These are the port/normalisation edges shed from
-// auth-header.test.js in phase 1.
+// identically.
 
 test('originOf returns the origin of a valid URL', () => {
   assert.equal(
