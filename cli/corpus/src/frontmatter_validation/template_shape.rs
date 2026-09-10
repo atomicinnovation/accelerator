@@ -285,7 +285,11 @@ pub fn parse_schema_tsv(
                     fields[2].to_owned()
                 },
                 code_state_anchored: fields[3] == "yes",
-                extras: split_ws(fields[4]),
+                extras: if fields[4] == "-" {
+                    Vec::new()
+                } else {
+                    split_ws(fields[4])
+                },
                 status_vocab: fields[5].to_owned(),
                 forbidden_own_id_keys: if fields[6] == "-" {
                     Vec::new()

@@ -124,7 +124,7 @@ pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 1
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
-pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 13]
+pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 18]
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
