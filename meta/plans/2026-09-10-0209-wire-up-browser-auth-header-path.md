@@ -5,7 +5,7 @@ title: "Wire Up The Browser Auth-Header Path In Design Skills Implementation Pla
 date: "2026-09-10T00:43:40+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0209"
 parent: "work-item:0209"
 derived_from: ["codebase-research:2026-09-10-0209-wire-up-browser-auth-header-path"]
