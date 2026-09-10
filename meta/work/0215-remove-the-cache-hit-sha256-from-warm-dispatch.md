@@ -10,9 +10,9 @@ kind: "task"
 priority: "medium"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-relates_to: ["work-item:0189", "work-item:0191"]
+relates_to: ["work-item:0189", "work-item:0191", "work-item:0216"]
 tags: ["cli", "launcher", "performance", "bootstrap"]
-last_updated: "2026-08-17T20:36:49+00:00"
+last_updated: "2026-09-10T18:18:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-744"
@@ -86,12 +86,17 @@ rather than a clean `Cache` error.
 
 ## Dependencies
 
+- **Gated by** 0216 (the `sha2` hardware-intrinsics task). 0216 ships and is
+  measured first, and its result decides whether this item still proceeds: if the
+  digest becomes cheap the removal may be dropped, and if not it proceeds on its
+  architectural merit of cutting a hash off the warm path. Both touch the same
+  `reverify`/`verifier::sha256_hex` call site, so they must not be scheduled in
+  parallel.
 - **Relates to** 0189, which measured the term and declined this route while its
   criterion was being settled, on the ground that verification posture should not
-  be set by an arithmetic target. That objection was to the sequencing; this item
-  stands on its own merits.
-- **Relates to** 0191, the other warm-path lever, and the `sha2`
-  hardware-intrinsics spike, which may reduce the cost instead of removing it.
+  be set by an arithmetic target. That objection was to the sequencing, not to
+  the architectural merit; the sequencing is now settled by the 0216 gate above.
+- **Relates to** 0191, the other warm-path lever.
 - **Parent**: epic 0136.
 
 ## Assumptions
