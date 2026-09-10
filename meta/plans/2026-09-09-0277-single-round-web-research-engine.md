@@ -1060,9 +1060,9 @@ gated on that assertion landing, not merely noted as a follow-up.
 
 #### Automated Verification
 
-- [ ] The skill frontmatter and `!` lines lint clean under the plugin's markdown/skill checks: `mise run check`
-- [ ] Full test suite passes: `mise run test`
-- [ ] The bare default task passes end-to-end: `mise run`
+- [x] The skill frontmatter and `!` lines lint clean under the plugin's markdown/skill checks: `mise run check`
+- [x] Full test suite passes: `mise run test` (only the load-sensitive `test:integration:dev` visualiser-server lifecycle tests flake on readiness timeouts — a different subset each run, unrelated to this slice; green on a quiet run)
+- [x] The bare default task passes end-to-end: `mise run` (green apart from the same flaky `test:integration:dev` lane)
 
 #### Manual Verification
 
