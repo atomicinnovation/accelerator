@@ -5,7 +5,7 @@ title: "Wire Up The Browser Auth-Header Path In Design Skills"
 date: "2026-08-12T23:21:12+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0196"
@@ -21,7 +21,7 @@ external_id: "PP-739"
 # 0209: Wire Up The Browser Auth-Header Path In Design Skills
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
