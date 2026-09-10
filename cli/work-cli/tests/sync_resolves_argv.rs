@@ -5,7 +5,12 @@
 //! the likeliest defect in a mostly-prose change. A valid `--resolve` run over
 //! an empty corpus is any non-usage outcome; the two malformed shapes must be
 //! exactly 2.
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::literal_string_with_formatting_args
+)]
 
 use std::fs;
 use std::path::Path;
@@ -70,6 +75,31 @@ fn a_valid_resolve_argv_is_not_a_usage_error() -> Result<(), TestError> {
         String::from_utf8_lossy(&out.stderr)
     );
     assert_ne!(out.status.code(), Some(2));
+    Ok(())
+}
+
+#[test]
+fn a_legacy_config_warns_once_across_the_sync_command() -> Result<(), TestError>
+{
+    // A tracker-backed legacy config is read at two sites in one command —
+    // the id scheme (prefix) and the discovery scope — yet the deprecation
+    // warning is deduped to exactly one.
+    let config = "---\nwork:\n  integration: jira\n  \
+        id_pattern: \"{project}-{number:04d}\"\n  \
+        default_project_code: ENG\njira:\n  site: example\n  \
+        email: t@e.x\n---\n";
+    let dir = scratch_repo(config)?;
+    let out = run(
+        dir.path(),
+        &[("ACCELERATOR_JIRA_TOKEN", "secret")],
+        &["--resolve", "0001=remote"],
+    )?;
+    let stderr = String::from_utf8(out.stderr)?;
+    assert_eq!(
+        stderr.matches("1.25.0").count(),
+        1,
+        "one deduped deprecation warning across two read sites: {stderr}"
+    );
     Ok(())
 }
 

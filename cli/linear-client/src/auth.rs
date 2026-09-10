@@ -90,12 +90,40 @@ pub fn resolve_team(
         .ok_or(ClientError::NoTeam)
 }
 
-/// The team **key** — the `ENG` in `ENG-42` — which is what decides whether a
-/// requested identifier was ever in this client's scope. Only the catalogue
-/// carries it; `linear.team_id` is the UUID alone.
-#[must_use]
-pub fn catalogue_team_key(integrations_root: &Path) -> Option<String> {
-    catalogue_field(integrations_root, "/team/key")
+/// The team **key** — the `ENG` in `ENG-42` — which decides whether a requested
+/// identifier was ever in this client's scope.
+///
+/// Precedence is `linear.team_key` → the deprecated `work.default_project_code`
+/// (gated on `work.integration: linear`, so a legacy Linear repo keeps
+/// resolving and earns the removal warning) → the catalogue `/team/key`. The
+/// legacy field outranks the catalogue during the window; a re-init that
+/// refreshes the catalogue without migrating still resolves the stale legacy
+/// value until `m0009` runs.
+///
+/// # Errors
+///
+/// [`ClientError::ConfigUnreadable`] when a config level cannot be read.
+pub fn team_key(
+    config: &dyn ConfigAccess,
+    integrations_root: &Path,
+) -> Result<Option<String>, ClientError> {
+    let resolved = config::resolve_with_deprecated_fallback(
+        config,
+        "linear.team_key",
+        "work.default_project_code",
+        Some("linear"),
+    )
+    .map_err(|error| ClientError::ConfigUnreadable {
+        key: "linear.team_key".to_owned(),
+        detail: error.to_string(),
+    })?;
+    config::emit_deprecation_once(
+        "work.default_project_code",
+        resolved.deprecation.as_deref(),
+    );
+    Ok(resolved
+        .value
+        .or_else(|| catalogue_field(integrations_root, "/team/key")))
 }
 
 fn catalogue_team(integrations_root: &Path) -> Option<String> {

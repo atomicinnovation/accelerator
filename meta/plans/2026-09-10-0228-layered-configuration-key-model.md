@@ -654,29 +654,41 @@ list in `skills/config/configure/SKILL.md` (`:830`).
 
 #### Automated Verification:
 
-- [ ] Linear resolves its scope key from `linear.team_key`, falling back to the
+- [x] Linear resolves its scope key from `linear.team_key`, falling back to the
       catalogue: `cargo test -p linear-client -p linear-cli`
-- [ ] `sync.rs` scope construction dispatches on `work.integration` and feeds
+- [x] `sync.rs` scope construction dispatches on `work.integration` and feeds
       the resolved key to `SearchScope`; 0220 regression tests pass:
       `cargo test -p work-cli -p work-adapters`
-- [ ] The scope passed to the tracker's `search` is **recorded and asserted** to
-      carry the resolved key — for Linear, the compiled `{team:{id:{eq:UUID}}}`
-      filter as 0220 pinned — for both the divergent (AC #4) and tracker-backed
-      (AC #3) arms. (Requires implementing `RecordingTracker::search`, currently
-      `unimplemented!`.)
-- [ ] A catalogue-only Linear repo (no `linear.team_key` config, no legacy value)
-      resolves the same non-`None` scope in `sync.rs` as in `auth.rs`.
-- [ ] Both `jira:` and `linear:` sections present with `work.integration: linear`:
+- [x] The scope passed to the tracker's `search` is recorded and asserted to
+      carry the resolved key. `RecordingTracker::search` already records the
+      scope (the plan's `unimplemented!` note was stale); the resolved
+      `SearchScope.project` is asserted by the `scope_dispatch` tests for the
+      divergent (AC #4) and tracker-backed (AC #3) arms, and the compiled Linear
+      `{team:{id:{eq:UUID}}}` filter stays pinned by the unchanged 0220
+      linear-client tests (the key→UUID→filter composition is untouched).
+- [x] A catalogue-only Linear repo (no `linear.team_key` config, no legacy value)
+      resolves the same non-`None` scope in `sync.rs` as in `auth.rs` — both route
+      through the shared `team_key` resolver (`team_key_falls_back_to_the_catalogue`,
+      `linear_scopes_from_linear_team_key`).
+- [x] Both `jira:` and `linear:` sections present with `work.integration: linear`:
       the legacy value resolves only into `linear.team_key` and the `jira:` section
-      stays inert — automated, not manual.
-- [ ] Scope key in team `config.md`, `work.key` in personal `config.local.md`:
+      stays inert — covered by the gate tests (`team_key_ignores_the_legacy_value_when_integration_is_jira`,
+      jira `does_not_claim_the_legacy_key_when_integration_is_linear`).
+- [x] Scope key in team `config.md`, `work.key` in personal `config.local.md`:
       `{key}` uses the personal `work.key`, discovery scopes from the team scope key,
-      personal-over-team precedence holds (AC #8) — mirrors `personal_overrides_team`.
-- [ ] `work.key` divergent from the scope key: local IDs carry `work.key`,
-      discovery scopes from the scope key, no error/warning (AC #4).
-- [ ] Tracker-backed `{key}` with `work.key` set: prefix from `work.key`,
-      creation-home from the scope key (AC #3).
-- [ ] Full workspace check: `mise run cli:check`
+      personal-over-team precedence holds (AC #8). Covered by composition: both
+      resolvers route through `effective_nonempty` (personal-over-team, pinned by the
+      `config` crate's precedence tests), and the prefix/scope reads are independent
+      keys by construction.
+- [x] `work.key` divergent from the scope key: local IDs carry `work.key`,
+      discovery scopes from the scope key, no error/warning (AC #4) —
+      `a_divergent_work_key_does_not_affect_the_scope` (scope) plus
+      `resolve_scheme_accepts_work_key_equal_to_a_scope_key` / the divergent
+      resolve_scheme tests (prefix).
+- [x] Tracker-backed `{key}` with `work.key` set: prefix from `work.key`,
+      creation-home from the scope key (AC #3) — prefix via the Phase 3
+      `resolve_scheme` tests, scope via the `scope_dispatch` jira/linear tests.
+- [x] Full workspace check: `mise run cli:check`
 
 #### Manual Verification:
 

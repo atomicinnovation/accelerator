@@ -159,7 +159,8 @@ impl LinearClient {
         integrations_root: &Path,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context, integrations_root)?;
-        let team_key = crate::auth::catalogue_team_key(integrations_root);
+        let team_key =
+            crate::auth::team_key(context.config, integrations_root)?;
         let transport = Transport::to_linear(
             credentials,
             TransportConfig::default(),
@@ -677,8 +678,8 @@ impl RemoteTracker for LinearClient {
         let Some(key) = scope.project.as_deref() else {
             return Err(ScopeError {
                 detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
-                         work.default_project_code, or run --push-only to push \
-                         without discovery"
+                         linear.team_key, or run --push-only to push without \
+                         discovery"
                     .to_owned(),
             });
         };
@@ -686,9 +687,8 @@ impl RemoteTracker for LinearClient {
             return Err(ScopeError {
                 detail: format!(
                     "E_SEARCH_UNKNOWN_TEAM: team key {key:?} resolves to no \
-                     team in the catalogue; check work.default_project_code \
-                     matches the catalogue team key, or refresh \
-                     linear/catalogue.json"
+                     team in the catalogue; check linear.team_key matches the \
+                     catalogue team key, or refresh linear/catalogue.json"
                 ),
             });
         };

@@ -803,16 +803,22 @@ consumer — it is read by the Rust client only.
 Configure access to Linear. Linear is single-tenant SaaS, so there is no
 site/subdomain key — authentication is a personal API token only.
 
-One key belongs in team-shared `config.md`:
+Two keys belong in team-shared `config.md`:
 
-| Key       | Default | Description                                              |
-|-----------|---------|----------------------------------------------------------|
-| `team_id` | (empty) | The Linear team the client creates and searches issues in |
+| Key        | Default | Description                                              |
+|------------|---------|----------------------------------------------------------|
+| `team_id`  | (empty) | The Linear team UUID the client creates and searches issues in |
+| `team_key` | (empty) | The Linear scope key (the `ENG` in `ENG-42`) that resolves the creation-home team and discovery scope, independent of `work.key`. |
 
 `team_id` has no bash consumer: the shell path reads `.team.id` from the
 `catalogue.json` that `/init-linear` writes, and the Rust client falls back to
 that same file when the key is unset, so an already-onboarded repository needs
 no new configuration.
+
+`team_key` resolves in the order `linear.team_key` → the deprecated
+`work.default_project_code` (gated on `work.integration: linear`, through the
+1.25.0 removal window) → the catalogue `/team/key`, so an already-onboarded
+repository resolves its scope from the catalogue with no configuration.
 
 #### Personal settings (do not commit)
 
@@ -856,7 +862,8 @@ for Jira.
 
 #### Recognised keys
 
-Only `linear.team_id`, `linear.token` and `linear.token_cmd` are recognised.
+Only `linear.team_id`, `linear.team_key`, `linear.token` and
+`linear.token_cmd` are recognised.
 Other `linear.*` keys are not consumed by any plugin script.
 
 ### templates

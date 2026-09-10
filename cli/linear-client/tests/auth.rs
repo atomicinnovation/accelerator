@@ -9,7 +9,8 @@ mod support;
 use std::path::Path;
 
 use linear_client::auth::{
-    resolve_credentials, resolve_team, token_keys, validate_token, TeamSource,
+    resolve_credentials, resolve_team, team_key, token_keys, validate_token,
+    TeamSource,
 };
 use linear_client::ClientError;
 use support::{context, FixedConfig, FixedEnvironment, FixedProvenance};
@@ -52,6 +53,57 @@ fn the_token_and_team_resolve_together() {
     assert_eq!(credentials.token.expose(), "lin_api_x");
     assert_eq!(credentials.team_id, TEAM);
     assert_eq!(credentials.source, TokenSource::Env);
+}
+
+#[test]
+fn team_key_config_outranks_the_catalogue() {
+    let root = workspace();
+    let integrations = with_catalogue(root.path(), TEAM);
+    let config = FixedConfig::new().with_team("linear.team_key", "FROMCONFIG");
+
+    let resolved = team_key(&config, &integrations).expect("resolves");
+
+    assert_eq!(resolved.as_deref(), Some("FROMCONFIG"));
+}
+
+#[test]
+fn team_key_falls_back_to_the_catalogue() {
+    let root = workspace();
+    let integrations = with_catalogue(root.path(), TEAM);
+    let config = FixedConfig::new();
+
+    let resolved = team_key(&config, &integrations).expect("resolves");
+
+    assert_eq!(resolved.as_deref(), Some("ENG"));
+}
+
+#[test]
+fn team_key_resolves_the_legacy_value_when_integration_is_linear() {
+    let root = workspace();
+    let config = FixedConfig::new()
+        .with_team("work.default_project_code", "LEG")
+        .with_team("work.integration", "linear");
+
+    let resolved = team_key(&config, root.path()).expect("resolves");
+
+    assert_eq!(resolved.as_deref(), Some("LEG"));
+}
+
+#[test]
+fn team_key_ignores_the_legacy_value_when_integration_is_jira() {
+    let root = workspace();
+    let integrations = with_catalogue(root.path(), TEAM);
+    let config = FixedConfig::new()
+        .with_team("work.default_project_code", "LEG")
+        .with_team("work.integration", "jira");
+
+    let resolved = team_key(&config, &integrations).expect("resolves");
+
+    assert_eq!(
+        resolved.as_deref(),
+        Some("ENG"),
+        "the legacy value is not linear's to claim; the catalogue wins"
+    );
 }
 
 #[test]
