@@ -415,14 +415,14 @@ in `PATH_KEYS` order.
 
 #### Automated Verification
 
-- [ ] Catalogue count test passes: `cargo test -p config the_catalogue_holds`
-- [ ] Golden tests pass: `cargo test -p launcher config_read`
-- [ ] Full test suite passes: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Catalogue count test passes: `cargo test -p config the_catalogue_holds`
+- [x] Golden tests pass: `cargo test -p launcher config_read`
+- [x] Full test suite passes: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] `accelerator config path research_topics` prints `meta/research/topics` with no config override present.
+- [x] `accelerator config path research_topics` prints `meta/research/topics` with no config override present.
 
 ---
 

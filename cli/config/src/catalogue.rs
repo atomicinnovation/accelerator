@@ -61,6 +61,10 @@ pub const PATH_KEYS: &[(&str, Default)] = &[
         "paths.research_issues",
         Default::Scalar("meta/research/issues"),
     ),
+    (
+        "paths.research_topics",
+        Default::Scalar("meta/research/topics"),
+    ),
 ];
 
 pub const DOC_TYPES: &[(&str, &str)] = &[
