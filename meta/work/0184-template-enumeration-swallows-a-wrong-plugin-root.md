@@ -5,7 +5,7 @@ title: "Template resolution succeeds silently on a plugin root that is not an in
 date: "2026-07-29T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "low"
 parent: "work-item:0136"
@@ -21,7 +21,7 @@ external_id: "PP-714"
 # 0184: Template resolution succeeds silently on a plugin root that is not an installation
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
