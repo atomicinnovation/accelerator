@@ -103,9 +103,12 @@ def _schema() -> dict[str, dict[str, str]]:
         if not line.strip():
             continue
         fields = line.split("\t")
-        tmpl, type_, anchored, extras, vocab, forbidden, linkkeys = fields[:7]
+        tmpl, type_, kind, anchored, extras, vocab, forbidden, linkkeys = (
+            fields[:8]
+        )
         table[type_] = {
             "template": tmpl,
+            "kind": kind,
             "anchored": anchored,
             "extras": extras,
             "vocab": vocab,

@@ -58,6 +58,36 @@ pub fn resolve_decisions_dir(
     })
 }
 
+/// Resolves a doc type's configured directory: its `paths.<config_path_key>`
+/// value (falling back to the catalogue default), absolute paths used as-is and
+/// relative paths resolved against the discovered project root — the
+/// [`resolve_decisions_dir`] rule generalised to any registered type.
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when the type carries no config path key (a virtual
+/// type) or the key cannot be resolved.
+pub fn resolve_type_dir(
+    composed: &Composed,
+    key: DocTypeKey,
+) -> Result<PathBuf, kernel::Error> {
+    let path_key = key.config_path_key().ok_or_else(|| {
+        kernel::Error::Failed(format!(
+            "document type '{}' has no configured directory",
+            key.wire_str()
+        ))
+    })?;
+    let raw =
+        config::paths::resolve_with_fallback(&composed.service, path_key, None)
+            .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+    let path = PathBuf::from(raw);
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        composed.project_root.join(path)
+    })
+}
+
 /// Resolves the `(DocTypeKey, dir)` table from configured doc-type paths,
 /// reusing `corpus_adapters::doc_type::table_from_paths` for the final keyed
 /// lookup rather than reimplementing it against `linkage_type_name()`.
