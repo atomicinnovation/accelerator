@@ -83,6 +83,7 @@ IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/github/review-pr/SKILL.md",
     "skills/planning/validate-plan/SKILL.md",
     "skills/notes/create-note/SKILL.md",
+    "skills/research/research-topic/SKILL.md",
 )
 NON_EMITTER_TEMPLATE_CONSUMERS: tuple[str, ...] = (
     "skills/work/update-work-item/SKILL.md",
