@@ -358,15 +358,17 @@ count to lock in the added cases. Suite count is unchanged.
 
 #### Automated Verification:
 
-- [ ] Runtime-free JS suite passes at the raised floor: `mise run test:unit:design-automation`
+- [x] Runtime-free JS suite passes at the raised floor: `mise run test:unit:design-automation`
 - [ ] `ACCELERATOR_BROWSER_LOCATION_ORIGIN` reads nowhere in the shipped code
       (AC4, scoped off `meta/`): `grep -rn ACCELERATOR_BROWSER_LOCATION_ORIGIN cli/ skills/ docs-site/`
-      returns nothing
-- [ ] Full read-only gate passes: `mise run check`
+      returns nothing — production code (`auth-header.js`) is clean and the unit
+      suite asserts it; the only remaining hit is `SKILL.md:93` prose, removed in
+      Phase 3's truth-up, where this identical grep is the enforced gate.
+- [x] Full read-only gate passes: `mise run check`
 
 #### Manual Verification:
 
-- [ ] The handler is confirmed still uncalled by the daemon in this phase (grep
+- [x] The handler is confirmed still uncalled by the daemon in this phase (grep
       shows the import unused), so the path remains inert and the warnings remain
       accurate until Phase 3.
 
