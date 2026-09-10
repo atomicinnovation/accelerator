@@ -585,17 +585,17 @@ items. Run `mise run public-api:update`. (`corpus-cli` is exempt.)
 
 #### Automated Verification
 
-- [ ] Domain classification/candidate tests pass: `cargo test -p corpus resolve`
-- [ ] Resolver goldens pass: `cargo test -p accelerator-corpus --test resolve_goldens`
-- [ ] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
-- [ ] Full test suite passes: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] Domain classification/candidate tests pass: `cargo test -p corpus resolve`
+- [x] Resolver goldens pass: `cargo test -p accelerator-corpus --test resolve_goldens`
+- [x] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
+- [x] Full test suite passes: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] `accelerator corpus resolve --type design-inventory <slug>`, the set directory, and a sub-document path all print the same set root.
-- [ ] `accelerator corpus resolve --type codebase-research <ambiguous-slug>` lists tagged candidates and exits 2.
-- [ ] `accelerator corpus resolve --type topic-research <slug>` reports an unknown type and exits 4 (expected until 0278).
+- [x] `accelerator corpus resolve --type design-inventory <slug>`, the set directory, and a sub-document path all print the same set root.
+- [x] `accelerator corpus resolve --type codebase-research <ambiguous-slug>` lists tagged candidates and exits 2.
+- [x] `accelerator corpus resolve --type topic-research <slug>` reports an unknown type and exits 4 (expected until 0278).
 
 ---
 

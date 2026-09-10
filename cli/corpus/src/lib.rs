@@ -13,6 +13,7 @@ pub mod frontmatter_validation;
 pub mod linkage;
 pub mod metadata;
 pub mod record;
+pub mod resolve;
 pub mod scan;
 pub mod slug;
 pub mod store;
