@@ -6,7 +6,7 @@ source_kind: "prototype"
 source_location: "http://localhost:54844/Accelerator%20Visualiser.html"
 crawler: "hybrid"
 author: "Toby Clemson"
-status: "draft"
+status: "superseded"
 sequence: 2
 screenshots_incomplete: false
 tags: ["design", "inventory", "claude-design-prototype"]
