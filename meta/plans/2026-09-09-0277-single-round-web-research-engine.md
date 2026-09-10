@@ -747,20 +747,20 @@ not a silent pass against a wrong row) — the committed test for the Phase 1
 
 #### Automated Verification
 
-- [ ] TSV/SCHEMA parity and length pin pass: `cargo test -p corpus`
-- [ ] Per-kind validation is enforced by committed tests (not manual): a `kind: finding` document with `status: draft` is rejected and one with `status: complete` passes; a brief missing `source_profiles` yields a `MissingExtra`; a `manifest` missing `primary` yields `MissingExtra`; a topic-research document with a missing/bogus `kind` yields `UnknownKind`; and `row_for("topic-research", "finding")` resolves a row distinct from any `(topic-research, "")` fallback: `cargo test -p corpus`
-- [ ] The committed full-set fixture validates clean via explicit `--file`: `cargo test -p accelerator-corpus --test frontmatter_goldens`
-- [ ] The shipped templates tree is clean: `cargo test -p accelerator-corpus-adapters --test template_shape_tree`
-- [ ] Catalogue count and config-read goldens pass: `cargo test -p config the_catalogue_holds && cargo test -p launcher config_read`
-- [ ] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
-- [ ] Full test suite passes: `mise run test`
-- [ ] Read-only CI mirror passes: `mise run check`
+- [x] TSV/SCHEMA parity and length pin pass: `cargo test -p corpus`
+- [x] Per-kind validation is enforced by committed tests (not manual): a `kind: finding` document with `status: draft` is rejected and one with `status: complete` passes; a brief missing `source_profiles` yields a `MissingExtra`; a `manifest` missing `primary` yields `MissingExtra`; a topic-research document with a missing/bogus `kind` yields `UnknownKind`; and `row_for("topic-research", "finding")` resolves a row distinct from any `(topic-research, "")` fallback: `cargo test -p corpus`
+- [x] The committed full-set fixture validates clean via explicit `--file`: `cargo test -p accelerator-corpus --test frontmatter_goldens`
+- [x] The shipped templates tree is clean: `cargo test -p accelerator-corpus-adapters --test template_shape_tree`
+- [x] Catalogue count and config-read goldens pass: `cargo test -p config the_catalogue_holds && cargo test -p launcher config_read`
+- [x] Public-API snapshot clean: `mise run public-api:update && mise run public-api:check`
+- [x] Full test suite passes: `mise run test`
+- [x] Read-only CI mirror passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] A hand-authored finding with `status: draft` fails validation (finding vocab is `complete` only); with `status: complete` it passes.
-- [ ] A brief missing `source_profiles` fails with a `MissingExtra` violation.
-- [ ] `accelerator config template topic-research --kind synthesis` resolves `topic-research-synthesis.md`; `--kind report` (no such file) falls back to a general `topic-research` template if present, else reports not-found.
+- [x] A hand-authored finding with `status: draft` fails validation (finding vocab is `complete` only); with `status: complete` it passes.
+- [x] A brief missing `source_profiles` fails with a `MissingExtra` violation.
+- [x] `accelerator config template topic-research --kind synthesis` resolves `topic-research-synthesis.md`; `--kind report` (no such file) falls back to a general `topic-research` template if present, else reports not-found.
 
 ---
 
