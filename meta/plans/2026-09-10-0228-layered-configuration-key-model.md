@@ -207,10 +207,10 @@ assertion to `56` and rename the test `fifty_six`.
 
 #### Automated Verification:
 
-- [ ] `work.key` resolves to an empty scalar default: covered by a new test
+- [x] `work.key` resolves to an empty scalar default: covered by a new test
       asserting `default_for("work.key")` is `Some(Value::Scalar(String("")))`.
-- [ ] Config crate tests pass: `cargo test -p config`
-- [ ] Component check passes: `mise run cli:check`
+- [x] Config crate tests pass: `cargo test -p config`
+- [x] Component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
