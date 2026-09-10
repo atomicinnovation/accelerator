@@ -1,9 +1,12 @@
 //! The per-type schema table (mirrors `templates-schema.tsv`) and the
 //! cross-cutting emission rules. Pure data — no filesystem, no regex.
 
-/// One `templates-schema.tsv` row, keyed by [`crate::DocTypeKey::linkage_type_name`].
+/// One `templates-schema.tsv` row, keyed by the `(type, kind)` pair
+/// [`crate::DocTypeKey::linkage_type_name`] plus the artifact `kind`
+/// discriminator (empty for a type-level default row).
 pub struct SchemaRow {
     pub linkage_type: &'static str,
+    pub kind: &'static str,
     pub code_state_anchored: bool,
     pub extras: &'static [&'static str],
     pub status_vocab: &'static [&'static str],
@@ -16,6 +19,7 @@ pub struct SchemaRow {
 pub const SCHEMA: [SchemaRow; 13] = [
     SchemaRow {
         linkage_type: "work-item",
+        kind: "",
         code_state_anchored: false,
         extras: &["kind", "priority", "external_id"],
         status_vocab: &[
@@ -39,6 +43,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "plan",
+        kind: "",
         code_state_anchored: true,
         extras: &["reviewer"],
         status_vocab: &["draft", "ready", "in-progress", "done", "superseded"],
@@ -53,6 +58,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "plan-validation",
+        kind: "",
         code_state_anchored: false,
         extras: &["result"],
         status_vocab: &["complete"],
@@ -61,6 +67,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "pr-description",
+        kind: "",
         code_state_anchored: true,
         extras: &["pr_url", "pr_number", "merge_commit"],
         status_vocab: &["complete"],
@@ -69,6 +76,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "adr",
+        kind: "",
         code_state_anchored: false,
         extras: &["decision_makers"],
         status_vocab: &[
@@ -83,6 +91,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "codebase-research",
+        kind: "",
         code_state_anchored: true,
         extras: &["topic"],
         status_vocab: &["complete"],
@@ -91,6 +100,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "issue-research",
+        kind: "",
         code_state_anchored: true,
         extras: &["topic"],
         status_vocab: &["complete"],
@@ -99,6 +109,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "design-inventory",
+        kind: "",
         code_state_anchored: true,
         extras: &[
             "source",
@@ -114,6 +125,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "design-gap",
+        kind: "",
         code_state_anchored: false,
         extras: &["current_inventory", "target_inventory"],
         status_vocab: &["draft", "accepted"],
@@ -122,6 +134,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "plan-review",
+        kind: "",
         code_state_anchored: false,
         extras: &[
             "reviewer",
@@ -136,6 +149,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "work-item-review",
+        kind: "",
         code_state_anchored: false,
         extras: &[
             "reviewer",
@@ -150,6 +164,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "pr-review",
+        kind: "",
         code_state_anchored: false,
         extras: &[
             "reviewer",
@@ -164,6 +179,7 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
     SchemaRow {
         linkage_type: "note",
+        kind: "",
         code_state_anchored: true,
         extras: &["topic"],
         status_vocab: &["captured"],
@@ -172,10 +188,19 @@ pub const SCHEMA: [SchemaRow; 13] = [
     },
 ];
 
-/// The row for a resolved type, or `None` when the type is unknown.
+/// The row for a resolved `(type, kind)` pair, preferring an exact
+/// kind-specific row and falling back to the type-level default row
+/// `(type, "")`. `None` when no row shares the `linkage_type`.
 #[must_use]
-pub fn row_for(linkage_type: &str) -> Option<&'static SchemaRow> {
-    SCHEMA.iter().find(|row| row.linkage_type == linkage_type)
+pub fn row_for(linkage_type: &str, kind: &str) -> Option<&'static SchemaRow> {
+    SCHEMA
+        .iter()
+        .find(|row| row.linkage_type == linkage_type && row.kind == kind)
+        .or_else(|| {
+            SCHEMA.iter().find(|row| {
+                row.linkage_type == linkage_type && row.kind.is_empty()
+            })
+        })
 }
 
 /// The base fields every conforming artifact MUST carry.
@@ -243,10 +268,10 @@ mod tests {
     use super::{row_for, SCHEMA};
 
     #[test]
-    fn every_row_resolves_by_its_own_linkage_type() {
+    fn every_row_resolves_by_its_own_linkage_type_and_kind() {
         for row in &SCHEMA {
             assert!(
-                row_for(row.linkage_type).is_some(),
+                row_for(row.linkage_type, row.kind).is_some(),
                 "row {} does not resolve",
                 row.linkage_type
             );
@@ -255,7 +280,23 @@ mod tests {
 
     #[test]
     fn an_unknown_type_resolves_to_none() {
-        assert!(row_for("not-a-type").is_none());
+        assert!(row_for("not-a-type", "").is_none());
+    }
+
+    #[test]
+    fn a_kind_on_a_type_lacking_that_kind_falls_back_to_the_type_default() {
+        let fallback = row_for("work-item", "no-such-kind");
+        assert!(fallback.is_some_and(
+            |row| row.linkage_type == "work-item" && row.kind.is_empty()
+        ));
+    }
+
+    #[test]
+    fn a_kind_on_a_type_with_no_default_row_does_not_fall_back() {
+        // A hypothetical multi-kind type carrying no `(type, "")` row must not
+        // resolve an unmatched kind — guarding the UnknownKind split.
+        assert!(row_for("work-item", "").is_some());
+        assert!(row_for("not-a-type", "anything").is_none());
     }
 
     #[test]
@@ -266,7 +307,7 @@ mod tests {
     #[test]
     fn pr_review_carries_two_forbidden_own_id_keys(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let row = row_for("pr-review").ok_or("pr-review row")?;
+        let row = row_for("pr-review", "").ok_or("pr-review row")?;
         assert_eq!(row.forbidden_own_id_keys, &["pr_title", "review_pass"]);
         Ok(())
     }
@@ -282,14 +323,17 @@ mod tests {
         let mut seen = 0;
         for line in lines {
             let columns: Vec<&str> = line.split('\t').collect();
-            let [_template, type_name, anchored, extras, status_vocab, forbidden, linkkeys] =
+            let [_template, type_name, kind, anchored, extras, status_vocab, forbidden, linkkeys] =
                 columns.as_slice()
             else {
                 return Err(format!("unexpected column count: {line}").into());
             };
-            let row = row_for(type_name)
-                .ok_or_else(|| format!("no SCHEMA row for {type_name}"))?;
+            let kind = if *kind == "-" { "" } else { *kind };
+            let row = row_for(type_name, kind).ok_or_else(|| {
+                format!("no SCHEMA row for ({type_name}, {kind})")
+            })?;
 
+            assert_eq!(row.kind, kind, "{type_name}");
             assert_eq!(
                 row.code_state_anchored,
                 *anchored == "yes",

@@ -288,6 +288,9 @@ pub enum ConfigAction {
     Template {
         /// The template name (e.g. `plan`).
         name: String,
+        /// The artifact kind, resolving `<name>-<kind>` before `<name>`.
+        #[arg(long)]
+        kind: Option<String>,
         /// Suppress the uniform legacy-layout refusal and read the legacy
         /// `.claude/accelerator.md` pair when the current one is absent.
         #[arg(long)]

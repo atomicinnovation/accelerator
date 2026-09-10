@@ -176,7 +176,9 @@ fn structural_gate_failed(violations: &[Violation]) -> bool {
     violations.iter().any(|violation| {
         matches!(
             violation,
-            Violation::NoFence | Violation::InvalidType { .. }
+            Violation::NoFence
+                | Violation::InvalidType { .. }
+                | Violation::UnknownKind { .. }
         )
     })
 }

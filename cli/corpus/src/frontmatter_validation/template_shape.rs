@@ -94,14 +94,15 @@ const LIST_CARDINALITY: [&str; 5] = [
 const INVERSE_GUIDANCE_LINE: &str = "# inverse of blocks — producers SHOULD \
      prefer writing blocks: on the canonical side";
 
-/// The schema-TSV's tab-field count (its 7 columns).
-const SCHEMA_TAB_FIELDS: usize = 7;
+/// The schema-TSV's tab-field count (its 8 columns).
+const SCHEMA_TAB_FIELDS: usize = 8;
 
 /// One `templates-schema.tsv` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TemplateRow {
     pub template: String,
     pub doc_type: String,
+    pub kind: String,
     pub code_state_anchored: bool,
     pub extras: Vec<String>,
     pub status_vocab: String,
@@ -120,6 +121,7 @@ pub enum TemplateViolation {
     EmptyFrontmatter { template: String },
     MissingBaseField { template: String, field: String },
     WrongType { template: String, expected: String },
+    WrongKind { template: String, expected: String },
     BadSchemaVersion { template: String },
     UnquotedId { template: String },
     ForbiddenOwnId { template: String, key: String },
@@ -145,6 +147,7 @@ impl TemplateViolation {
             Self::EmptyFrontmatter { .. } => "TEMPLATE-EMPTY-FRONTMATTER",
             Self::MissingBaseField { .. } => "TEMPLATE-MISSING-BASE-FIELD",
             Self::WrongType { .. } => "TEMPLATE-WRONG-TYPE",
+            Self::WrongKind { .. } => "TEMPLATE-WRONG-KIND",
             Self::BadSchemaVersion { .. } => "TEMPLATE-BAD-SCHEMA-VERSION",
             Self::UnquotedId { .. } => "TEMPLATE-UNQUOTED-ID",
             Self::ForbiddenOwnId { .. } => "TEMPLATE-FORBIDDEN-OWN-ID",
@@ -175,6 +178,9 @@ impl TemplateViolation {
             }
             Self::WrongType { template, expected } => {
                 format!("{template}: type is not '{expected}'")
+            }
+            Self::WrongKind { template, expected } => {
+                format!("{template}: kind is not '{expected}'")
             }
             Self::BadSchemaVersion { template } => {
                 format!("{template}: schema_version is not bare integer 1")
@@ -272,15 +278,20 @@ pub fn parse_schema_tsv(
             TemplateRow {
                 template: fields[0].to_owned(),
                 doc_type: fields[1].to_owned(),
-                code_state_anchored: fields[2] == "yes",
-                extras: split_ws(fields[3]),
-                status_vocab: fields[4].to_owned(),
-                forbidden_own_id_keys: if fields[5] == "-" {
+                kind: if fields[2] == "-" {
+                    String::new()
+                } else {
+                    fields[2].to_owned()
+                },
+                code_state_anchored: fields[3] == "yes",
+                extras: split_ws(fields[4]),
+                status_vocab: fields[5].to_owned(),
+                forbidden_own_id_keys: if fields[6] == "-" {
                     Vec::new()
                 } else {
-                    split_ws(fields[5])
+                    split_ws(fields[6])
                 },
-                typed_linkage_keys: split_ws(fields[6]),
+                typed_linkage_keys: split_ws(fields[7]),
             }
         })
         .collect();
@@ -329,6 +340,7 @@ pub fn validate_template(
     let mut found = Vec::new();
 
     check_presence(row, &entries, &mut found);
+    check_kind(row, &entries, &mut found);
     check_own_id(row, &entries, &mut found);
     check_provenance(row, &entries, &mut found);
     check_extras(row, &entries, &mut found);
@@ -369,6 +381,30 @@ fn check_presence(
     if raw_value(entries, "id").is_none_or(|value| !is_quoted_scalar(value)) {
         found.push(TemplateViolation::UnquotedId {
             template: row.template.clone(),
+        });
+    }
+}
+
+/// Enforces the template's declared `kind:` against a kind-discriminated row.
+///
+/// Only fires for a row carrying a non-empty `kind`: a type-level default row
+/// (`kind` empty) makes no demand, so the `kind` field a work-item template
+/// legitimately carries as an extra is never mistaken for the discriminator.
+fn check_kind(
+    row: &TemplateRow,
+    entries: &[(String, String)],
+    found: &mut Vec<TemplateViolation>,
+) {
+    if row.kind.is_empty() {
+        return;
+    }
+    let matches = raw_value(entries, "kind")
+        .map(strip_surrounding_quote)
+        .is_some_and(|declared| declared == row.kind.as_str());
+    if !matches {
+        found.push(TemplateViolation::WrongKind {
+            template: row.template.clone(),
+            expected: row.kind.clone(),
         });
     }
 }
@@ -651,7 +687,7 @@ mod tests {
         TemplateRow, TemplateViolation,
     };
 
-    const HEADER: &str = "template\ttype\tcode_state_anchored\textras\t\
+    const HEADER: &str = "template\ttype\tkind\tcode_state_anchored\textras\t\
          status_vocab\tforbidden_own_id_key\ttyped_linkage_keys";
 
     /// A conforming, canonically-quoted template body.
@@ -681,6 +717,7 @@ mod tests {
         TemplateRow {
             template: "demo.md".to_owned(),
             doc_type: "demo-type".to_owned(),
+            kind: String::new(),
             code_state_anchored: false,
             extras: Vec::new(),
             status_vocab: "captured | archived".to_owned(),
@@ -716,6 +753,29 @@ mod tests {
         let body =
             conforming().replace("type: \"demo-type\"", "type: \"wrong\"");
         assert!(any_code(&check(&demo_row(), &body), "TEMPLATE-WRONG-TYPE"));
+    }
+
+    #[test]
+    fn a_kind_discriminated_row_requires_the_matching_kind() {
+        let mut row = demo_row();
+        row.kind = "finding".to_owned();
+        assert!(any_code(&check(&row, &conforming()), "TEMPLATE-WRONG-KIND"));
+    }
+
+    #[test]
+    fn a_kind_discriminated_row_with_the_matching_kind_passes() {
+        let mut row = demo_row();
+        row.kind = "finding".to_owned();
+        let body = conforming()
+            .replace("id: \"NNNN\"", "id: \"NNNN\"\nkind: \"finding\"");
+        assert!(!any_code(&check(&row, &body), "TEMPLATE-WRONG-KIND"));
+    }
+
+    #[test]
+    fn a_type_default_row_makes_no_kind_demand() {
+        let body = conforming()
+            .replace("id: \"NNNN\"", "id: \"NNNN\"\nkind: \"story\"");
+        assert!(!any_code(&check(&demo_row(), &body), "TEMPLATE-WRONG-KIND"));
     }
 
     #[test]
@@ -902,12 +962,13 @@ mod tests {
     #[test]
     fn parse_schema_tsv_reads_a_well_formed_row() {
         let tsv = format!(
-            "{HEADER}\nwork-item.md\twork-item\tno\tkind priority\t\
+            "{HEADER}\nwork-item.md\twork-item\t-\tno\tkind priority\t\
              draft | ready\twork_item_id\tparent blocks"
         );
         let rows = parse_schema_tsv(&tsv).expect("well-formed");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].doc_type, "work-item");
+        assert_eq!(rows[0].kind, "");
         assert_eq!(rows[0].extras, vec!["kind", "priority"]);
         assert_eq!(rows[0].forbidden_own_id_keys, vec!["work_item_id"]);
         assert_eq!(rows[0].typed_linkage_keys, vec!["parent", "blocks"]);
@@ -915,7 +976,8 @@ mod tests {
 
     #[test]
     fn a_dash_forbidden_own_id_column_reads_as_empty() {
-        let tsv = format!("{HEADER}\ndemo.md\tdemo-type\tno\t\tx\t-\tparent");
+        let tsv =
+            format!("{HEADER}\ndemo.md\tdemo-type\t-\tno\t\tx\t-\tparent");
         let rows = parse_schema_tsv(&tsv).expect("well-formed");
         assert!(rows[0].forbidden_own_id_keys.is_empty());
     }

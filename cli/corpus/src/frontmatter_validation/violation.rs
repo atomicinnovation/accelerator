@@ -19,6 +19,14 @@ pub enum Violation {
     InvalidType {
         found: String,
     },
+    /// A known type carrying a `kind` that matches no `(type, kind)` row and
+    /// for which no `(type, "")` default exists. Distinct from
+    /// [`InvalidType`](Violation::InvalidType) so a typo'd `kind` on a valid
+    /// type is not misreported as an unknown type.
+    UnknownKind {
+        type_name: String,
+        kind: String,
+    },
     MissingBaseField {
         field: &'static str,
     },
@@ -83,6 +91,7 @@ impl Violation {
         match self {
             Self::NoFence => "NO-FENCE",
             Self::InvalidType { .. } => "INVALID-TYPE",
+            Self::UnknownKind { .. } => "UNKNOWN-KIND",
             Self::MissingBaseField { .. } => "MISSING-BASE-FIELD",
             Self::UnquotedId => "UNQUOTED-ID",
             Self::BadSchemaVersion => "BAD-SCHEMA-VERSION",
@@ -108,6 +117,13 @@ impl Violation {
             Self::InvalidType { found } => {
                 let shown = if found.is_empty() { "<absent>" } else { found };
                 format!("type: '{shown}' is not a schema type")
+            }
+            Self::UnknownKind { type_name, kind } => {
+                let shown = if kind.is_empty() { "<absent>" } else { kind };
+                format!(
+                    "kind: '{shown}' is not a known kind for type \
+                     '{type_name}'"
+                )
             }
             Self::MissingBaseField { field } => {
                 format!("required base field '{field}' absent")
