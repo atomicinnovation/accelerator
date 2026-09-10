@@ -444,10 +444,10 @@ mod tests {
     }
 
     #[test]
-    fn normalise_id_preserves_foreign_prefix_when_default_code_is_set() {
-        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"`
-        // in a workspace whose `key` is "ENG" passes
-        // through verbatim — the workspace's code is NOT re-applied.
+    fn normalise_id_preserves_foreign_prefix_when_a_key_is_set() {
+        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"` in a
+        // workspace whose local ID prefix is "ENG" passes through verbatim —
+        // the workspace's prefix is NOT re-applied.
         let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
             scan_regex: "^ENG-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),

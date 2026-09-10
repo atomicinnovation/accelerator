@@ -492,8 +492,8 @@ fn run_search(args: &SearchArgs) -> ExitCode {
         Err(code) => return code,
     };
     let mut search = search_from(args);
-    // Default the project from config when neither --project nor --all-projects
-    // is given, reproducing the bash search flow.
+    // Default the project from config when the caller scoped neither --project
+    // nor --all-projects.
     if search.project.is_none() && !search.all_projects {
         search.project = resolve_fields::configured_default_project();
     }
@@ -743,7 +743,7 @@ fn run_attach(args: &AttachArgs) -> ExitCode {
     {
         // The attachments response is a bare JSON array, which cannot carry a
         // top-level `outcome` field; attach is exit-code driven (a write flow),
-        // so the array is emitted verbatim as the bash flow did.
+        // so the array is emitted verbatim.
         Ok(response) => {
             print_json(&response);
             ExitCode::SUCCESS
@@ -758,9 +758,9 @@ fn surface_failure(error: &jira_client::SurfaceError) -> ExitCode {
 }
 
 fn run_init(action: Option<&InitAction>) -> ExitCode {
-    // Bare `jira init` with no configured default project would, in bash, block
-    // on an interactive `read`. The binary never prompts: with no TTY to read
-    // from it refuses explicitly rather than hanging (TTY policy).
+    // Bare `jira init` with no configured default project must not block on an
+    // interactive prompt. The binary never prompts: with no TTY to read from it
+    // refuses explicitly rather than hanging (TTY policy).
     if action.is_none()
         && resolve_fields::configured_default_project().is_none()
         && !std::io::stdin().is_terminal()

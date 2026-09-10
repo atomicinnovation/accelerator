@@ -143,7 +143,7 @@ impl WorkItemIdScheme {
     }
 
     /// True iff `id` is a legacy bare-number ID: 1 to 4 ASCII digits with at
-    /// least one non-zero digit. Dependency-free port of `wip_is_legacy_id`.
+    /// least one non-zero digit.
     #[must_use]
     pub fn is_legacy_id(id: &str) -> bool {
         (1..=4).contains(&id.len())
@@ -152,7 +152,7 @@ impl WorkItemIdScheme {
     }
 
     /// Zero-pads `input` to 4 digits. `None` when `input` is not all-ASCII-digit
-    /// (including empty). Dependency-free port of `wip_pad_legacy_number`.
+    /// (including empty).
     #[must_use]
     pub fn pad_legacy_number(input: &str) -> Option<String> {
         if input.is_empty() || !input.chars().all(|c| c.is_ascii_digit()) {
@@ -242,8 +242,7 @@ pub fn references_key(pattern: &str) -> bool {
 }
 
 /// The zero-pad width the canonical form uses: the `{number:0Nd}` segment's
-/// `N`, or `4` when the pattern carries no explicit width. Matches the width
-/// the retired scan-regex canonicaliser applied.
+/// `N`, or `4` when the pattern carries no explicit width.
 fn number_width(pattern: &str) -> usize {
     let Some(start) = pattern.find("{number:") else {
         return 4;

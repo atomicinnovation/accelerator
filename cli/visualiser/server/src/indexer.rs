@@ -3401,8 +3401,8 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        // Workspace's key is ENG, but the file declares
-        // a foreign prefix — must passthrough verbatim.
+        // The workspace's local ID prefix is ENG, but the file declares a
+        // foreign prefix — must passthrough verbatim.
         std::fs::write(
             work_dir.join("0001-foo.md"),
             "---\ntitle: F\nid: \"OPS-7\"\n---\n",

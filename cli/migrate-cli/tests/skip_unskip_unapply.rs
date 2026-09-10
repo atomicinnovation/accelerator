@@ -203,8 +203,7 @@ fn an_unknown_applied_or_skipped_id_is_warned_about_during_a_real_run(
 }
 
 #[test]
-fn no_id_validation_against_the_registry_matches_bash() -> Result<(), TestError>
-{
+fn no_id_validation_against_the_registry() -> Result<(), TestError> {
     let dir = project()?;
 
     let (_stdout, _stderr, code) =

@@ -1,8 +1,6 @@
 //! Migration 0001 (`rename-tickets-to-work`) driven end to end against the
-//! compiled binary, asserted against the bash golden captured at
-//! `tests/fixtures/0001/` (after the invocation-path normalisation
-//! `masks.toml` documents: `bash .../run-migrations.sh` → `accelerator
-//! migrate`).
+//! compiled binary, asserted against the golden captured at
+//! `tests/fixtures/0001/`.
 
 use std::fs;
 use std::process::Command;
@@ -13,12 +11,11 @@ type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
 
-/// Mirrors `regenerate.sh`'s `setup_old_repo`: the pre-0001 legacy ticket
-/// structure, no VCS directory. The compiled binary always runs the full
-/// registry and has no way to isolate a subset of migrations for a test, so
-/// every other real migration is pre-marked applied here to keep this
-/// fixture scoped to 0001's own observable behaviour — update this list as
-/// later migrations are registered.
+/// The pre-0001 legacy ticket structure, no VCS directory. The compiled binary
+/// always runs the full registry and has no way to isolate a subset of
+/// migrations for a test, so every other real migration is pre-marked applied
+/// here to keep this fixture scoped to 0001's own observable behaviour — update
+/// this list as later migrations are registered.
 fn setup_old_repo() -> Result<TempDir, TestError> {
     let dir = TempDir::new()?;
     fs::create_dir_all(dir.path().join("meta/tickets"))?;
@@ -52,7 +49,7 @@ fn setup_old_repo() -> Result<TempDir, TestError> {
 }
 
 #[test]
-fn matches_the_bash_golden_byte_for_byte() -> Result<(), TestError> {
+fn matches_the_golden_byte_for_byte() -> Result<(), TestError> {
     let dir = setup_old_repo()?;
 
     let output = Command::new(BIN).current_dir(dir.path()).output()?;

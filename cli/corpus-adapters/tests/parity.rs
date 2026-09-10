@@ -1,6 +1,5 @@
-//! The scan-regex case has no bash oracle left — the shell implementation it
-//! was measured against is gone — so it pins the compiled regex's own
-//! behaviour end to end.
+//! Pins the compiled scan regex's own behaviour end to end, and that the two
+//! `references_key` predicates agree across an edge-case corpus.
 
 mod common;
 

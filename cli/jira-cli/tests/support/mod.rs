@@ -29,9 +29,8 @@ pub fn scratch(config: &str) -> tempfile::TempDir {
     dir
 }
 
-/// Seeds a markerless (bash-era) cache file under the Jira state dir, the shape
-/// `init` writes and `create`/`update` read for `@me` and custom-field
-/// resolution.
+/// Seeds a markerless cache file under the Jira state dir, the shape `init`
+/// writes and `create`/`update` read for `@me` and custom-field resolution.
 pub fn seed_cache(dir: &Path, name: &str, content: &str) {
     let state = dir.join(".accelerator/state/integrations/jira");
     std::fs::create_dir_all(&state).expect("mkdir state dir");

@@ -1,6 +1,5 @@
 //! Credential resolution: the shared ladder through Linear's keys, the
-//! malformed-token check the bash carries, and the two sources a team id can
-//! come from.
+//! malformed-token check, and the two sources a team id can come from.
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 

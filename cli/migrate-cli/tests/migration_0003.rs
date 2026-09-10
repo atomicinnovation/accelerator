@@ -1,6 +1,5 @@
 //! Migration 0003 (`relocate-accelerator-state`) driven end to end against
-//! the compiled binary, asserted against a bash golden captured in
-//! isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to just 0003's script)
+//! the compiled binary, asserted against a golden captured in isolation
 //! against a from-scratch fixture exercising every move pair, the
 //! pinned-override warning, the root/inner `.gitignore` rewrites, and the
 //! legacy state-file merge.
@@ -42,7 +41,7 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
 
 #[test]
 #[allow(clippy::too_many_lines)]
-fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
+fn matches_the_isolated_golden() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
 

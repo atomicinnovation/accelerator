@@ -698,8 +698,7 @@ fn confirm_remote_candidates(
 /// key (config, deprecated alias, then catalogue) so a catalogue-only repo
 /// resolves the same scope here as in the client. A tracker with no scope-key
 /// dependency (`trello`, `github-issues`, or an unset integration) preserves
-/// the legacy `work.default_project_code` read unchanged. This is the seam
-/// 0229's pull-scope layer extends.
+/// the legacy `work.default_project_code` read unchanged.
 fn resolve_active_scope_key(
     config: &dyn ConfigAccess,
     integration: &str,

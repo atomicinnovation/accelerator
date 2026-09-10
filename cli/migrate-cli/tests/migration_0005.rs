@@ -1,6 +1,6 @@
 //! Migration 0005 (`rename-work-item-type-to-kind`) driven end to end
-//! against the compiled binary, asserted against a bash golden captured in
-//! isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to just 0005's script).
+//! against the compiled binary, asserted against a golden captured in
+//! isolation.
 
 use std::fs;
 use std::process::Command;
@@ -38,7 +38,7 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
 }
 
 #[test]
-fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
+fn matches_the_isolated_golden() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
 

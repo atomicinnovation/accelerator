@@ -1,8 +1,8 @@
-//! Composes the server's runtime [`Config`] directly from `.accelerator/*.md`,
-//! the Model-1 replacement for the retired `config.json` writer. Each concern —
-//! doc-path resolution, template-tier resolution, work-item-scheme assembly,
-//! kanban/idle resolution, and the `ACCELERATOR_VISUALISER_*` env overlay — is a
-//! focused function so it can be reasoned about and tested on its own.
+//! Composes the server's runtime [`Config`] directly from `.accelerator/*.md`.
+//! Each concern — doc-path resolution, template-tier resolution,
+//! work-item-scheme assembly, kanban/idle resolution, and the
+//! `ACCELERATOR_VISUALISER_*` env overlay — is a focused function so it can be
+//! reasoned about and tested on its own.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

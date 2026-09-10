@@ -1,5 +1,4 @@
-//! Adapter/binary wiring for `work canonicalise-id`. Exact behavioural
-//! match for `wip_canonicalise_id`.
+//! Adapter/binary wiring for `work canonicalise-id`.
 
 use ::config::resolve_with_deprecated_fallback;
 use ::config::ConfigAccess;
