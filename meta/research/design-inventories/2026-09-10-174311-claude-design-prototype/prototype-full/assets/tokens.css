@@ -1,0 +1,233 @@
+/* ────────────────────────────────────────────────────────────────
+   Atomic Innovation — colors & type tokens
+   Derived from the Atomic Brand & Website Figma file and brand book.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Brand typefaces — self-hosted variable fonts.
+   Sora (display) and Inter (body + italic) are the two primary families.
+   Fira Code is the monospace face used for IDs, metadata and eyebrows. */
+@font-face {
+  font-family: "Sora";
+  src: url("./fonts/Sora-VariableFont_wght.ttf") format("truetype-variations"),
+       url("./fonts/Sora-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype-variations"),
+       url("./fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype-variations"),
+       url("./fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ── Base palette ────────────────────────────── */
+  /* Primary night — dominant brand surface */
+  --atomic-night: rgb(14, 15, 25);          /* #0E0F19 — hero / hero-dark sections */
+  --atomic-night-2: rgb(10, 17, 27);        /* #0A111B — alternate deep surface */
+  --atomic-night-3: rgb(23, 25, 37);        /* #171925 — raised surface on night */
+  --atomic-night-4: rgb(29, 33, 49);        /* #1D2131 — elevated surface */
+  --atomic-ink: rgb(32, 34, 49);            /* #202231 — most-used brand neutral */
+  --atomic-ink-2: rgb(44, 46, 65);          /* #2C2E41 — raised ink surface */
+
+  /* Red — primary accent (CTAs, logo mark) */
+  --atomic-red: rgb(203, 70, 71);           /* #CB4647 — button, logo */
+  --atomic-red-2: rgb(223, 87, 88);         /* #DF5758 — hover/alt red */
+  --atomic-red-3: rgb(226, 78, 83);         /* #E24E53 — deck/ poster tint */
+
+  /* Indigo — product accent (LogicBlocks / hero icon halos) */
+  --atomic-indigo: rgb(89, 95, 200);        /* #595FC8 — secondary accent */
+  --atomic-indigo-2: rgb(50, 48, 98);       /* #323062 — deep indigo */
+  --atomic-indigo-tint: rgb(193, 197, 255); /* #C1C5FF — light tint */
+
+  /* Brand-book secondaries — use sparingly (from Atomic Brand Guidelines v1.0 p.13) */
+  --atomic-medium-purple: #965DD9;          /* Medium Purple — BlockchainBlocks */
+  --atomic-cream-can: #F5C25F;              /* Cream Can */
+  --atomic-steel-blue: #4295A5;             /* Steel Blue */
+  --atomic-pastel-green: #6BE58B;           /* Pastel Green */
+  --atomic-river-bed: #4A545F;              /* River Bed */
+  --atomic-aquamarine: #73E4E2;             /* Aquamarine Blue */
+  --atomic-tradewind: #52B0AA;              /* Tradewind */
+  --atomic-geyser: #D3DBE0;                 /* Geyser */
+  --atomic-malibu: #72CBF5;                 /* Malibu — InfraBlocks */
+  --atomic-link-water: #DDECF4;             /* Link Water */
+  --atomic-marigold: #F9DE6F;               /* Marigold Yellow */
+
+  /* Legacy aliases (kept for older markup) */
+  --atomic-violet: var(--atomic-medium-purple);
+  --atomic-teal: var(--atomic-tradewind);
+  --atomic-sky: var(--atomic-malibu);
+  --atomic-sky-2: var(--atomic-malibu);
+
+  /* Light neutrals */
+  --atomic-white: rgb(255, 255, 255);       /* #FFFFFF */
+  --atomic-bone: rgb(251, 252, 254);        /* #FBFCFE — page neutral */
+  --atomic-mist: rgb(217, 217, 217);        /* #D9D9D9 — image placeholder */
+  --atomic-ash: rgb(211, 219, 224);         /* #D3DBE0 — subtle stroke */
+  --atomic-smoke: rgb(199, 201, 216);       /* #C7C9D8 — disabled */
+  --atomic-slate: rgb(95, 99, 120);         /* #5F6378 — secondary text */
+  --atomic-slate-2: rgb(74, 84, 95);        /* #4A545F — tertiary text/stroke */
+
+  /* Overlays & strokes */
+  --atomic-overlay-ink: rgba(23, 25, 37, 0.56);
+  --atomic-stroke-light: rgba(255, 255, 255, 0.35);
+  --atomic-shadow-soft: rgba(0, 0, 0, 0.08);
+
+  /* ── Semantic foreground / background ─────────── */
+  --fg-1: var(--atomic-night);              /* primary on light */
+  --fg-2: var(--atomic-slate);              /* secondary on light */
+  --fg-3: var(--atomic-slate-2);            /* tertiary on light */
+  --fg-on-dark-1: var(--atomic-white);      /* primary on night */
+  --fg-on-dark-2: rgb(224, 224, 224);       /* secondary on night */
+  --fg-on-dark-3: rgba(255, 255, 255, 0.6); /* tertiary on night */
+
+  --bg-1: var(--atomic-white);              /* page */
+  --bg-2: var(--atomic-bone);               /* alt page */
+  --bg-dark-1: var(--atomic-night);         /* hero */
+  --bg-dark-2: var(--atomic-night-2);       /* alt hero */
+  --bg-dark-3: var(--atomic-night-3);       /* raised on night */
+
+  --accent: var(--atomic-red);              /* primary CTA */
+  --accent-2: var(--atomic-indigo);         /* product/icon halo */
+  --stroke: var(--atomic-ash);
+  --stroke-dark: var(--atomic-stroke-light);
+
+  /* ── Typography ─────────────────────────────── */
+  --font-display: "Sora", system-ui, sans-serif;        /* brand display */
+  --font-body: "Inter", system-ui, sans-serif;          /* body, UI */
+  --font-mono: "Fira Code", ui-monospace, monospace;
+
+  /* Type sizes (px) — lifted from Figma */
+  --size-hero: 68px;        /* H1 hero (Sora 68/72) */
+  --size-h1: 48px;          /* Page title */
+  --size-h2: 36px;          /* Section head */
+  --size-h3: 28px;          /* Sub-section */
+  --size-h4: 26px;          /* Card title (Sora 26/40) */
+  --size-lg: 22px;          /* Lead paragraph */
+  --size-body: 20px;        /* Body (Inter Light 20/32) */
+  --size-md: 18px;
+  --size-sm: 16px;          /* UI label */
+  --size-xs: 14px;          /* Caption */
+  --size-xxs: 12px;
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.2;
+  --lh-normal: 1.5;
+  --lh-loose: 1.6;
+
+  --tracking-caps: 0.12em;
+
+  /* ── Layout ─────────────────────────────────── */
+  --radius-sm: 4px;         /* default: nearly all rects use 4px */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --shadow-card: 6px 12px 85px 0px rgba(0, 0, 0, 0.08);
+  --shadow-card-lg: 12px 24px 120px 0px rgba(0, 0, 0, 0.12);
+  --shadow-crisp: 0 1px 2px rgba(10, 17, 27, 0.06), 0 4px 12px rgba(10, 17, 27, 0.04);
+
+  /* Spacing scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 40px;
+  --sp-8: 48px;
+  --sp-9: 64px;
+  --sp-10: 80px;
+  --sp-11: 124px;           /* Figma marketing gutter */
+}
+
+/* ── Semantic element defaults ────────────────── */
+html, body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: var(--size-body);
+  line-height: var(--lh-normal);
+  color: var(--fg-1);
+  background: var(--bg-1);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-hero);
+  line-height: 72px;
+  letter-spacing: -0.01em;
+  color: inherit;
+  margin: 0;
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-h2);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--size-h3);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+
+h4, .h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--size-h4);
+  line-height: 40px;
+  margin: 0;
+}
+
+p, .body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: var(--size-body);
+  line-height: 32px;
+  margin: 0;
+}
+
+.lead {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: var(--size-lg);
+  line-height: 1.55;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--size-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--atomic-slate);
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
