@@ -37,6 +37,8 @@ pub config::error::ConfigError::PathConflict
 pub config::error::ConfigError::PathConflict::at: alloc::string::String
 pub config::error::ConfigError::PathConflict::existing: config::error::Existing
 pub config::error::ConfigError::PathConflict::key: config::key::Key
+pub config::error::ConfigError::PluginRootNotAnInstallation
+pub config::error::ConfigError::PluginRootNotAnInstallation::path: alloc::string::String
 pub config::error::ConfigError::PluginRootUnavailable
 pub config::error::ConfigError::UnsafePath
 pub config::error::ConfigError::UnsafePath::path: alloc::string::String
@@ -317,6 +319,8 @@ pub config::ConfigError::PathConflict
 pub config::ConfigError::PathConflict::at: alloc::string::String
 pub config::ConfigError::PathConflict::existing: config::error::Existing
 pub config::ConfigError::PathConflict::key: config::key::Key
+pub config::ConfigError::PluginRootNotAnInstallation
+pub config::ConfigError::PluginRootNotAnInstallation::path: alloc::string::String
 pub config::ConfigError::PluginRootUnavailable
 pub config::ConfigError::UnsafePath
 pub config::ConfigError::UnsafePath::path: alloc::string::String

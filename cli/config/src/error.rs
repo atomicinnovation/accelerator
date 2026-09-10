@@ -64,6 +64,9 @@ pub enum ConfigError {
     },
     LegacyLayout,
     PluginRootUnavailable,
+    PluginRootNotAnInstallation {
+        path: String,
+    },
 }
 
 impl ConfigError {
@@ -75,7 +78,9 @@ impl ConfigError {
     #[must_use]
     pub const fn is_refusal(&self) -> bool {
         match self {
-            Self::Invalid { .. } | Self::PluginRootUnavailable => true,
+            Self::Invalid { .. }
+            | Self::PluginRootUnavailable
+            | Self::PluginRootNotAnInstallation { .. } => true,
             Self::NotFound { .. }
             | Self::PathConflict { .. }
             | Self::MalformedFrontmatter { .. }
@@ -133,6 +138,12 @@ impl Display for ConfigError {
                 "the plugin installation root is unknown: set \
                  ACCELERATOR_PLUGIN_ROOT, or invoke accelerator through \
                  bin/accelerator, which derives it"
+            ),
+            Self::PluginRootNotAnInstallation { path } => write!(
+                formatter,
+                "the plugin root '{path}' is not an Accelerator \
+                 installation (no templates/ directory); check \
+                 ACCELERATOR_PLUGIN_ROOT"
             ),
         }
     }
@@ -253,8 +264,23 @@ mod tests {
     }
 
     #[test]
+    fn plugin_root_not_an_installation_names_the_path_and_variable() {
+        let rendered = ConfigError::PluginRootNotAnInstallation {
+            path: "/tmp/not-a-plugin".to_owned(),
+        }
+        .to_string();
+        assert!(rendered.contains("/tmp/not-a-plugin"));
+        assert!(rendered.contains("ACCELERATOR_PLUGIN_ROOT"));
+        assert!(!rendered.contains("unknown"));
+    }
+
+    #[test]
     fn a_missing_plugin_root_is_a_refusal_and_a_read_failure_is_not() {
         assert!(ConfigError::PluginRootUnavailable.is_refusal());
+        assert!(ConfigError::PluginRootNotAnInstallation {
+            path: "/tmp/not-a-plugin".to_owned(),
+        }
+        .is_refusal());
         assert!(!ConfigError::LegacyLayout.is_refusal());
         assert!(!ConfigError::Io {
             path: ".accelerator/config.md".to_owned(),
