@@ -432,15 +432,15 @@ either the Rust or the JS side.
 
 #### Automated Verification:
 
-- [ ] Runtime-free JS suite passes at the raised floor (client cases):
+- [x] Runtime-free JS suite passes at the raised floor (client cases):
       `mise run test:unit:design-automation`
-- [ ] Full read-only gate passes: `mise run check`
+- [x] Full read-only gate passes: `mise run check`
 
 #### Manual Verification:
 
-- [ ] The forwarded fields are confirmed inert without Phase 3: a daemon on this
+- [x] The forwarded fields are confirmed inert without Phase 3: a daemon on this
       revision ignores `location_url` and `auth_header`, so behaviour is unchanged.
-- [ ] Neither the header nor the location value appears in any spawned process's
+- [x] Neither the header nor the location value appears in any spawned process's
       `argv` (checked in the client test), only in the loopback request body.
 
 ---

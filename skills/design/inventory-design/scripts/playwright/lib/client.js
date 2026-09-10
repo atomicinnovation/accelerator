@@ -5,6 +5,20 @@ import { request } from 'node:http';
 import { isIP } from 'node:net';
 import { readServerInfo } from './state.js';
 import { makeError, PROTOCOL, TOKEN_HEADER } from './errors.js';
+import { LOCATION_URL_FIELD, AUTH_HEADER_FIELD } from './request-fields.js';
+
+// The crawl's declared location and bearer, read from the client's own
+// inherited environment and injected into the loopback body — never onto argv,
+// where /proc/<pid>/cmdline and `ps` would expose a live token. An
+// exported-but-blank value configures nothing, matching the Rust reader.
+function authFields() {
+  const fields = {};
+  const location = process.env.ACCELERATOR_BROWSER_LOCATION;
+  const header = process.env.ACCELERATOR_BROWSER_AUTH_HEADER;
+  if (location) fields[LOCATION_URL_FIELD] = location;
+  if (header) fields[AUTH_HEADER_FIELD] = header;
+  return fields;
+}
 
 // Anything able to write the state dir could otherwise redirect a
 // token-bearing request to a host of its choosing, so the recorded URL is
@@ -49,7 +63,14 @@ export async function callRemote(stateDir, command, args = {}) {
     return err;
   }
 
-  const body = JSON.stringify({ ...args, protocol: PROTOCOL, command });
+  // The client owns these two fields off the environment; a page-influenced
+  // payload pre-setting either would forge or suppress the crawl's auth, so it
+  // is refused outright rather than overwritten.
+  if (Object.hasOwn(args, LOCATION_URL_FIELD) || Object.hasOwn(args, AUTH_HEADER_FIELD)) {
+    throw new Error(`The command payload must not carry its own \`${LOCATION_URL_FIELD}\` or \`${AUTH_HEADER_FIELD}\` key.`);
+  }
+
+  const body = JSON.stringify({ ...args, ...authFields(), protocol: PROTOCOL, command });
   return new Promise((resolve, reject) => {
     const u = new URL(info.url);
     const req = request({

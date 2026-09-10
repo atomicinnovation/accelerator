@@ -160,3 +160,125 @@ test('the validated command wins over anything the payload carries', async () =>
     );
   });
 });
+
+// Header-mode auth is declared by the client off its own inherited environment,
+// into the loopback body, on every command — never onto argv.
+
+function withEnv(vars, fn) {
+  const saved = {};
+  for (const [name, value] of Object.entries(vars)) {
+    saved[name] = process.env[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  return Promise.resolve(fn()).finally(() => {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+}
+
+async function capturedBody(dir, command, args) {
+  let body;
+  await withMockHttpServer(
+    (req, res) => {
+      const chunks = [];
+      req.on('data', c => chunks.push(c));
+      req.on('end', () => {
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    },
+    async url => {
+      writeServerInfo(dir, { protocol: 1, pid: 1, url, token: 'tok' });
+      await callRemote(dir, command, args);
+    }
+  );
+  return body;
+}
+
+test('the client injects location_url and auth_header from its environment', async () => {
+  await withTmpDir(async dir => {
+    await withEnv(
+      {
+        ACCELERATOR_BROWSER_LOCATION: 'https://app.example.com',
+        ACCELERATOR_BROWSER_AUTH_HEADER: 'Authorization: Bearer abc123',
+      },
+      async () => {
+        const body = await capturedBody(dir, 'navigate', {
+          url: 'https://app.example.com/dashboard',
+        });
+        assert.equal(body.location_url, 'https://app.example.com');
+        assert.equal(body.auth_header, 'Authorization: Bearer abc123');
+        assert.equal(body.url, 'https://app.example.com/dashboard');
+        assert.equal(body.command, 'navigate');
+      }
+    );
+  });
+});
+
+test('the client rides both fields on a command that carries no auth-shaped args', async () => {
+  await withTmpDir(async dir => {
+    await withEnv(
+      {
+        ACCELERATOR_BROWSER_LOCATION: 'https://app.example.com',
+        ACCELERATOR_BROWSER_AUTH_HEADER: 'Authorization: Bearer abc123',
+      },
+      async () => {
+        const body = await capturedBody(dir, 'snapshot', {});
+        assert.equal(body.location_url, 'https://app.example.com');
+        assert.equal(body.auth_header, 'Authorization: Bearer abc123');
+      }
+    );
+  });
+});
+
+test('each field is omitted when its environment variable is unset or empty', async () => {
+  await withTmpDir(async dir => {
+    await withEnv(
+      {
+        ACCELERATOR_BROWSER_LOCATION: undefined,
+        ACCELERATOR_BROWSER_AUTH_HEADER: '',
+      },
+      async () => {
+        const body = await capturedBody(dir, 'snapshot', {});
+        assert.ok(!('location_url' in body));
+        assert.ok(!('auth_header' in body));
+      }
+    );
+  });
+});
+
+test('a payload pre-setting location_url or auth_header is refused', async () => {
+  await withTmpDir(async dir => {
+    writeServerInfo(dir, { protocol: 1, pid: 1, url: 'http://127.0.0.1:1/', token: 'tok' });
+    await assert.rejects(() =>
+      callRemote(dir, 'navigate', { location_url: 'https://evil.example.com' })
+    );
+    await assert.rejects(() =>
+      callRemote(dir, 'navigate', { auth_header: 'Authorization: Bearer x' })
+    );
+  });
+});
+
+test('neither auth value rides the arguments the caller passes', async () => {
+  await withTmpDir(async dir => {
+    const token = 'Bearer sekrit-value';
+    await withEnv(
+      {
+        ACCELERATOR_BROWSER_LOCATION: 'https://app.example.com',
+        ACCELERATOR_BROWSER_AUTH_HEADER: `Authorization: ${token}`,
+      },
+      async () => {
+        const args = { url: 'https://app.example.com/x' };
+        const body = await capturedBody(dir, 'navigate', args);
+        // The values reach the loopback body only; the arguments object the
+        // caller handed the client never carried them.
+        assert.ok(!JSON.stringify(args).includes(token));
+        assert.ok(body.auth_header.includes(token));
+      }
+    );
+  });
+});
