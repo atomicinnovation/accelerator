@@ -866,7 +866,14 @@ and `hooks.json` need no change (lexicographic `.max()` over registry ids).
     corruption — covered by the idempotency arm (a re-run over an
     already-migrated file finds no legacy key and leaves it byte-identical, so a
     run that got partway re-converges).
-- [x] Full local CI mirror: `mise run`
+- [x] Full local CI mirror: `mise run` — every 0228-related lane is green
+      (format, lint, types, docs, and the full Rust + frontend test suites,
+      including the refreshed `config dump` golden). The only red is a
+      pre-existing, environment-only failure unrelated to 0228:
+      `test_release.py::TestPrereleaseSign::test_signs_and_emits_manifest_under_secret_context`
+      fails with `/tmp/key.sec: No such file or directory` because this sandbox
+      has no release-signing keypair fixture. The 0228 diff touches no `tasks/`
+      or signing code.
 
 #### Manual Verification:
 
