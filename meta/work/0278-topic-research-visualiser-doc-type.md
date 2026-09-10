@@ -13,7 +13,7 @@ blocks: ["work-item:0279", "work-item:0284"]
 relates_to: ["work-item:0277"]
 external_id: "PP-862"
 tags: ["research", "visualiser", "infrastructure"]
-last_updated: "2026-09-10T11:33:49+00:00"
+last_updated: "2026-09-10T13:10:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -101,6 +101,11 @@ Library placement and rendering:
 - Clicking a card opens the set's `manifest.md` through the shared
   `LibraryDocView` — no `primary`-pointer resolution and no set-level
   navigation (both 0284).
+- Relabel the existing `research` doc type's display name from "Research" to
+  "Codebase research" (its `DOC_TYPE_LABELS`/`_SINGULAR` entries, and any
+  sidebar/menu copy, in `frontend/src/api/types.ts`) to disambiguate it from the
+  new "Topic research" type. Only the display label changes — the `research`
+  wire name, glyph, colour, routing, and the doc-type count are untouched.
 
 The 0277-delta — collapse `research_status` → base `status`:
 
@@ -145,6 +150,11 @@ Fixtures, prototype, and gates:
 - [ ] Given the checked-in topic-research fixture set, when the library loads,
       then the `topic-research` doc type appears under the Discover phase with
       its glyph and framed background, and the Docker/Linux VR baselines pass.
+- [ ] Given the library sidebar/menu, when it lists the Discover-phase types,
+      then the existing `research` type is labelled "Codebase research" (not
+      "Research") and the new type is labelled "Topic research", leaving the two
+      unambiguous; the `research` type's wire name, glyph, colour, and routing
+      are unchanged.
 - [ ] Given a `meta/research/topics/<slug>/` directory, when the indexer runs,
       then it emits exactly one library entry keyed on `manifest.md`; individual
       findings and reports are not separately indexed, and dot-prefixed
@@ -259,6 +269,18 @@ Fixtures, prototype, and gates:
   `meta/research/design-inventories/2026-05-21-015231-claude-design-prototype/prototype-full`):
 
 ```text
+Context — the problem this solves. Accelerator's topic-research skillset (the
+parent epic) adds an iterative, citation-backed deep-research loop that builds a
+durable knowledgebase on an arbitrary external subject. Each subject is a *set*
+of documents — a brief, an outline, many findings, and a synthesis — accreted
+under meta/research/topics/<slug>/, so research done once is citable and reused
+rather than dying in a chat session. The research engine already writes these
+sets to disk, but they are invisible in the visualiser: no document type
+represents them, so there is nothing to browse. This story closes that gap — it
+registers the umbrella `topic-research` document type so each set surfaces as one
+library card that opens to its manifest, making the loop's output observable end
+to end.
+
 Update the Accelerator visualiser design prototype to add a new document type,
 `topic-research`, modelled on the existing Discover-phase types (`research`,
 `design-inventories`, `design-gaps`). Add it consistently across the prototype:
@@ -284,6 +306,11 @@ Update the Accelerator visualiser design prototype to add a new document type,
 7. Manifest detail view: opening the card shows the manifest (set contents:
    brief, outline, findings, synthesis) through the shared doc view, with no
    bespoke set-level navigation (that is a later story).
+8. Rename the existing `research` document type's display label from "Research"
+   to "Codebase research" wherever the sidebar / library menu and type headings
+   render it (its DOC_TYPES label and any menu/label maps), to disambiguate it
+   from the new "Topic research" type. Only the display label changes — the
+   `research` type's wire name, glyph, colour, and routing stay as they are.
 
 Keep tokens, typography, and interaction patterns consistent with the existing
 prototype. Output the updated prototype.
