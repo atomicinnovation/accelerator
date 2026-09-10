@@ -9,20 +9,14 @@ use crate::server::AppState;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WorkItemConfigBody {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default_project_code: Option<String>,
+    pub key: Option<String>,
 }
 
 pub(crate) async fn get_work_item_config(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let default_project_code = state
-        .cfg
-        .work_item
-        .as_ref()
-        .and_then(|w| w.default_project_code.clone());
-    Json(WorkItemConfigBody {
-        default_project_code,
-    })
+    let key = state.cfg.work_item.as_ref().and_then(|w| w.key.clone());
+    Json(WorkItemConfigBody { key })
 }
 
 #[cfg(test)]
@@ -79,20 +73,19 @@ mod tests {
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert!(
-            v["defaultProjectCode"].is_null()
-                || !v.as_object().unwrap().contains_key("defaultProjectCode"),
-            "defaultProjectCode should be absent or null when unconfigured"
+            v["key"].is_null() || !v.as_object().unwrap().contains_key("key"),
+            "key should be absent or null when unconfigured"
         );
     }
 
     #[tokio::test]
-    async fn returns_default_project_code_when_configured() {
+    async fn returns_the_key_when_configured() {
         let tmp = tempfile::tempdir().unwrap();
         let mut cfg = minimal_config(tmp.path());
         cfg.work_item = Some(crate::config::RawWorkItemConfig {
             scan_regex: "^PROJ-([0-9]+)-".into(),
             id_pattern: "{project}-{number:04d}".into(),
-            default_project_code: Some("PROJ".into()),
+            key: Some("PROJ".into()),
         });
         let activity = Arc::new(Activity::new());
         let state =
@@ -112,6 +105,6 @@ mod tests {
         assert_eq!(resp.status(), 200);
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(v["defaultProjectCode"], "PROJ");
+        assert_eq!(v["key"], "PROJ");
     }
 }

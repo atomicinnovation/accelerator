@@ -159,7 +159,7 @@ fn resolves_kanban_idle_and_work_item_scheme() {
 
     let work_item = cfg.work_item.as_ref().expect("work_item resolved");
     assert_eq!(work_item.scan_regex, "^ENG-([0-9]+)-");
-    assert_eq!(work_item.default_project_code.as_deref(), Some("ENG"));
+    assert_eq!(work_item.key.as_deref(), Some("ENG"));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn unconfigured_project_uses_catalogue_defaults() {
     // Absent work scheme → numeric default.
     let work_item = cfg.work_item.as_ref().unwrap();
     assert_eq!(work_item.scan_regex, "^([0-9]+)-");
-    assert!(work_item.default_project_code.is_none());
+    assert!(work_item.key.is_none());
 }
 
 /// The emptiness rule lives in `with_plugin_root`, so the server inherits it:
