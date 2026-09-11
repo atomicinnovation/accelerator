@@ -15,7 +15,7 @@ import {
 } from "./wiki-links";
 
 interface WorkItemConfig {
-  defaultProjectCode?: string | null;
+  key?: string | null;
 }
 
 async function fetchWorkItemConfig(): Promise<WorkItemConfig> {
@@ -61,13 +61,13 @@ export function useWikiLinkResolver(): UseWikiLinkResolverResult {
   const isWarming = adrs.isPending || workItems.isPending;
 
   const pattern = useMemo<RegExp>(
-    () => buildWikiLinkPattern(workItemConfig.data?.defaultProjectCode ?? null),
-    [workItemConfig.data?.defaultProjectCode],
+    () => buildWikiLinkPattern(workItemConfig.data?.key ?? null),
+    [workItemConfig.data?.key],
   );
 
   const bareIdPattern = useMemo<RegExp>(
-    () => buildBareIdPattern(workItemConfig.data?.defaultProjectCode ?? null),
-    [workItemConfig.data?.defaultProjectCode],
+    () => buildBareIdPattern(workItemConfig.data?.key ?? null),
+    [workItemConfig.data?.key],
   );
 
   const wikiIndex = useMemo<WikiLinkIndex>(

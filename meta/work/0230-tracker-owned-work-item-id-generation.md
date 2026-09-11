@@ -9,8 +9,9 @@ status: "draft"
 kind: "story"
 priority: "low"
 parent: "work-item:0146"
+blocked_by: ["work-item:0228"]
 tags: ["sync", "tracker", "id-generation"]
-last_updated: "2026-08-30T14:35:09+00:00"
+last_updated: "2026-09-10T01:44:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-760"
@@ -64,7 +65,8 @@ tension for the online path. The mechanism reuses the existing atomic
 
 ## Dependencies
 
-- Blocked by: the layered configuration key model (sibling under 0146).
+- Blocked by: 0228 (Layered Configuration Key Model) — 0230 builds on the scope-key
+  / `work.key` separation it establishes.
 - Blocks: none.
 
 ## Technical Notes
@@ -82,3 +84,4 @@ tension for the online path. The mechanism reuses the existing atomic
 ## References
 
 - Parent: 0146
+- Blocked by: 0228 — Layered Configuration Key Model

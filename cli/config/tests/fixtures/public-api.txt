@@ -89,6 +89,13 @@ pub fn config::key::Key::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) ->
 impl core::marker::StructuralPartialEq for config::key::Key
 pub mod config::legacy
 pub const fn config::legacy::is_blocked(team_present: bool, legacy_present: bool) -> bool
+pub mod config::legacy_alias
+pub struct config::legacy_alias::AliasedScalar
+pub config::legacy_alias::AliasedScalar::deprecation: core::option::Option<alloc::string::String>
+pub config::legacy_alias::AliasedScalar::value: core::option::Option<alloc::string::String>
+pub const config::legacy_alias::REMOVAL_RELEASE: &str
+pub fn config::legacy_alias::emit_deprecation_once(deprecated_key: &str, deprecation: core::option::Option<&str>)
+pub fn config::legacy_alias::resolve_with_deprecated_fallback(config: &dyn config::service::ConfigAccess, canonical: &str, deprecated: &str, expected_integration: core::option::Option<&str>) -> core::result::Result<config::legacy_alias::AliasedScalar, config::error::ConfigError>
 pub mod config::level
 pub enum config::level::Level
 pub config::level::Level::Personal
@@ -457,6 +464,9 @@ pub fn config::service::Value::eq(&self, other: &config::service::Value) -> bool
 impl core::fmt::Debug for config::service::Value
 pub fn config::service::Value::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::service::Value
+pub struct config::AliasedScalar
+pub config::AliasedScalar::deprecation: core::option::Option<alloc::string::String>
+pub config::AliasedScalar::value: core::option::Option<alloc::string::String>
 pub struct config::ConfigService<R, W>
 impl<R, W> config::service::ConfigService<R, W>
 pub const fn config::service::ConfigService<R, W>::new(reader: R, writer: W) -> Self
@@ -525,6 +535,7 @@ pub config::ResolvedTemplate::content: alloc::string::String
 pub config::ResolvedTemplate::display_path: alloc::string::String
 pub config::ResolvedTemplate::source: config::service::TemplateSource
 pub config::ResolvedTemplate::warning: core::option::Option<alloc::string::String>
+pub const config::REMOVAL_RELEASE: &str
 pub trait config::ConfigAccess
 pub fn config::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
@@ -558,7 +569,9 @@ pub fn config::TemplateOverride::eject(&self, name: &str, templates_dir: &str, f
 pub fn config::TemplateOverride::within_project(&self, abs_path: &str) -> bool
 pub trait config::WriteConfigLevel
 pub fn config::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
+pub fn config::emit_deprecation_once(deprecated_key: &str, deprecation: core::option::Option<&str>)
 pub fn config::env_beats_config(from_env: core::option::Option<&str>, from_config: core::option::Option<&str>) -> core::option::Option<alloc::string::String>
 pub fn config::project(node: &config::node::Node) -> config::service::Value
 pub fn config::render_value(value: &config::service::Value) -> alloc::string::String
+pub fn config::resolve_with_deprecated_fallback(config: &dyn config::service::ConfigAccess, canonical: &str, deprecated: &str, expected_integration: core::option::Option<&str>) -> core::result::Result<config::legacy_alias::AliasedScalar, config::error::ConfigError>
 pub fn config::validate_identifier(kind: &str, name: &str) -> core::result::Result<(), config::error::ConfigError>

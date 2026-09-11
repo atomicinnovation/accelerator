@@ -142,7 +142,7 @@ fn linear_bidirectional_without_a_key_refuses_discovery_and_exits_74(
         "the refusal names the discovery fault: {stderr}"
     );
     assert!(
-        stderr.contains("work.default_project_code"),
+        stderr.contains("linear.team_key"),
         "the refusal names the missing key: {stderr}"
     );
     Ok(())

@@ -350,17 +350,17 @@ in Step 4 after all approvals — enriched and thin — are collected.
 
       - Run `accelerator config work id_pattern` and use its
         stdout as `PATTERN`.
-      - Run `accelerator config work default_project_code` and
-        use its stdout as `DEFAULT_PROJECT`.
+      - Run `accelerator config work key` and use its stdout as
+        `KEY_PREFIX` (the local ID prefix).
 
       Run the bare path **directly** as an executable;
       never prefix it with `bash`/`sh`/`env` (a wrapper prefix escapes the skill's
       `allowed-tools` permission and forces an unnecessary prompt).
 
-   c. **Suggest projected IDs**: if `PATTERN` contains `{project}`, the
-      default project for each row is `DEFAULT_PROJECT` (warn and require
-      user amendment if `DEFAULT_PROJECT` is empty). If `PATTERN` lacks
-      `{project}`, no project column is shown.
+   c. **Suggest projected IDs**: if `PATTERN` references the `{key}` prefix
+      token (or the deprecated `{project}` synonym), the default prefix for each
+      row is `KEY_PREFIX` (warn and require user amendment if `KEY_PREFIX` is
+      empty). If `PATTERN` has no prefix token, no project column is shown.
 
       Compute *display-only* projected IDs by calling, per distinct
       project code:
@@ -382,7 +382,7 @@ in Step 4 after all approvals — enriched and thin — are collected.
       default, `?` for help, `q` to cancel, blank to confirm.)
       ```
 
-      When `PATTERN` lacks `{project}`, omit the `Project` column and
+      When `PATTERN` has no prefix token, omit the `Project` column and
       render only `| # | Slug | Projected ID |`. The amendment prompt is
       not shown in that case — proceed directly to confirmation.
 

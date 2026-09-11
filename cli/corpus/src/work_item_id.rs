@@ -20,7 +20,7 @@ pub trait IdScanner {
 #[derive(Debug, Clone)]
 pub struct WorkItemIdScheme {
     pub id_pattern: String,
-    pub default_project_code: Option<String>,
+    pub key: Option<String>,
 }
 
 impl Default for WorkItemIdScheme {
@@ -34,7 +34,7 @@ impl WorkItemIdScheme {
     pub fn numeric() -> Self {
         Self {
             id_pattern: "{number:04d}".to_owned(),
-            default_project_code: None,
+            key: None,
         }
     }
 
@@ -44,7 +44,7 @@ impl WorkItemIdScheme {
     #[must_use]
     pub fn is_canonical_id_token(&self, token: &str) -> bool {
         let width = self.canonical_digit_width();
-        let digits = match &self.default_project_code {
+        let digits = match &self.key {
             Some(code) => match token.strip_prefix(&format!("{code}-")) {
                 Some(rest) => rest,
                 None => return false,
@@ -102,7 +102,7 @@ impl WorkItemIdScheme {
         if !trimmed.chars().all(|c| c.is_ascii_digit()) {
             return None;
         }
-        Some(self.default_project_code.as_ref().map_or_else(
+        Some(self.key.as_ref().map_or_else(
             || trimmed.to_owned(),
             |code| format!("{code}-{trimmed}"),
         ))
@@ -120,15 +120,15 @@ impl WorkItemIdScheme {
         if raw.is_empty() {
             return None;
         }
-        let has_project = self.id_pattern.contains("{project}");
+        let has_key = references_key(&self.id_pattern);
         let width = number_width(&self.id_pattern);
         if raw.chars().all(|c| c.is_ascii_digit()) {
             let n_str = raw
                 .parse::<u64>()
                 .map_or_else(|_| raw.to_owned(), |n| n.to_string());
             let padded = format!("{n_str:0>width$}");
-            return Some(if has_project {
-                match &self.default_project_code {
+            return Some(if has_key {
+                match &self.key {
                     Some(code) => format!("{code}-{padded}"),
                     None => padded,
                 }
@@ -143,7 +143,7 @@ impl WorkItemIdScheme {
     }
 
     /// True iff `id` is a legacy bare-number ID: 1 to 4 ASCII digits with at
-    /// least one non-zero digit. Dependency-free port of `wip_is_legacy_id`.
+    /// least one non-zero digit.
     #[must_use]
     pub fn is_legacy_id(id: &str) -> bool {
         (1..=4).contains(&id.len())
@@ -152,7 +152,7 @@ impl WorkItemIdScheme {
     }
 
     /// Zero-pads `input` to 4 digits. `None` when `input` is not all-ASCII-digit
-    /// (including empty). Dependency-free port of `wip_pad_legacy_number`.
+    /// (including empty).
     #[must_use]
     pub fn pad_legacy_number(input: &str) -> Option<String> {
         if input.is_empty() || !input.chars().all(|c| c.is_ascii_digit()) {
@@ -173,12 +173,12 @@ impl WorkItemIdScheme {
     ) -> Option<String> {
         if let Some(scan) = scanner.scan(filename) {
             let digits = scan.digits;
-            return Some(match &self.default_project_code {
+            return Some(match &self.key {
                 Some(code) => format!("{code}-{digits}"),
                 None => digits,
             });
         }
-        let code = self.default_project_code.as_deref()?;
+        let code = self.key.as_deref()?;
         let dash = filename.find('-')?;
         let prefix = &filename[..dash];
         if prefix.is_empty() || !prefix.chars().all(|c| c.is_ascii_digit()) {
@@ -188,9 +188,60 @@ impl WorkItemIdScheme {
     }
 }
 
+/// The pattern-DSL spellings that denote the local ID prefix token.
+///
+/// `key` is the domain spelling; `project` is the deprecated synonym carried
+/// through the migration window so legacy `{project}` patterns keep resolving.
+/// The single source of truth for the accepted spellings, shared across the ID
+/// pipelines' tokenisers.
+const KEY_TOKEN_SPELLINGS: &[&str] = &["key", "project"];
+
+/// True iff `token` (the inner text of a `{...}` token) spells the local ID
+/// prefix in any recognised spelling.
+#[must_use]
+pub fn is_key_token(token: &str) -> bool {
+    KEY_TOKEN_SPELLINGS.contains(&token)
+}
+
+/// True iff `pattern` references the local ID prefix token in any recognised
+/// spelling.
+///
+/// Brace-aware: an escaped `{{key}}` / `{{project}}` literal does not count, so
+/// a false positive cannot spuriously reject a valid config.
+#[must_use]
+pub fn references_key(pattern: &str) -> bool {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let next = chars.get(i + 1).copied();
+        if (chars[i] == '{' && next == Some('{'))
+            || (chars[i] == '}' && next == Some('}'))
+        {
+            i += 2;
+            continue;
+        }
+        if chars[i] == '{' {
+            if let Some(offset) =
+                chars[i + 1..].iter().position(|&c| c == '}' || c == '{')
+            {
+                let close = i + 1 + offset;
+                if chars[close] == '}' {
+                    let token: String = chars[i + 1..close].iter().collect();
+                    if is_key_token(&token) {
+                        return true;
+                    }
+                    i = close + 1;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// The zero-pad width the canonical form uses: the `{number:0Nd}` segment's
-/// `N`, or `4` when the pattern carries no explicit width. Matches the width
-/// the retired scan-regex canonicaliser applied.
+/// `N`, or `4` when the pattern carries no explicit width.
 fn number_width(pattern: &str) -> usize {
     let Some(start) = pattern.find("{number:") else {
         return 4;
@@ -225,7 +276,42 @@ fn is_project_prefixed(token: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{IdScan, IdScanner, WorkItemIdScheme};
+    use super::{
+        is_key_token, references_key, IdScan, IdScanner, WorkItemIdScheme,
+    };
+
+    #[test]
+    fn is_key_token_accepts_both_spellings() {
+        assert!(is_key_token("key"));
+        assert!(is_key_token("project"));
+        assert!(!is_key_token("number"));
+        assert!(!is_key_token("bogus"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn references_key_is_brace_aware() {
+        assert!(references_key("{key}-{number:04d}"));
+        assert!(references_key("{project}-{number:04d}"));
+        assert!(!references_key("{number:04d}"));
+        assert!(!references_key("{number}"));
+        assert!(!references_key("{{key}}-{number:04d}"));
+        assert!(!references_key("{{project}}-{number:04d}"));
+        assert!(references_key("x{{key}}-{key}"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn references_key_rejects_malformed_patterns() {
+        assert!(!references_key("{ke{y}"));
+        assert!(!references_key("{key"));
+        assert!(!references_key("{project"));
+        assert!(!references_key("{bogus}-{number}"));
+        assert!(!references_key("{{"));
+        assert!(!references_key("}}"));
+        assert!(!references_key(""));
+        assert!(!references_key("v{number:03d}"));
+    }
 
     struct DigitRunScanner;
 
@@ -244,7 +330,7 @@ mod tests {
     fn project(code: &str, width: usize) -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-            default_project_code: Some(code.to_owned()),
+            key: Some(code.to_owned()),
         }
     }
 
@@ -253,12 +339,12 @@ mod tests {
         assert_eq!(WorkItemIdScheme::numeric().canonical_digit_width(), 4);
         let any = WorkItemIdScheme {
             id_pattern: "{number}".to_owned(),
-            default_project_code: None,
+            key: None,
         };
         assert_eq!(any.canonical_digit_width(), 0);
         let admit_any = WorkItemIdScheme {
             id_pattern: "{number:0d}".to_owned(),
-            default_project_code: None,
+            key: None,
         };
         assert_eq!(admit_any.canonical_digit_width(), 0);
     }
@@ -318,6 +404,20 @@ mod tests {
         let proj = project("PROJ", 4);
         assert_eq!(proj.canonicalise_id("40").as_deref(), Some("PROJ-0040"));
         assert_eq!(proj.canonicalise_id("OTHER-9").as_deref(), Some("OTHER-9"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn canonicalise_id_treats_key_pattern_as_prefixed() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: "{key}-{number:04d}".to_owned(),
+            key: Some("PP".to_owned()),
+        };
+        assert_eq!(scheme.canonicalise_id("40").as_deref(), Some("PP-0040"));
+        assert_eq!(
+            scheme.canonicalise_id("OTHER-9").as_deref(),
+            Some("OTHER-9")
+        );
     }
 
     #[test]

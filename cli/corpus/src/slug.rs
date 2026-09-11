@@ -241,7 +241,7 @@ mod tests {
     fn project() -> WorkItemIdScheme {
         WorkItemIdScheme {
             id_pattern: "{project}-{number:04d}".to_owned(),
-            default_project_code: Some("PROJ".to_owned()),
+            key: Some("PROJ".to_owned()),
         }
     }
 

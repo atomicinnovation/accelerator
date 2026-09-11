@@ -75,6 +75,24 @@ pub trait MigrationContext {
     /// [`MigrationError`] when the write is refused or fails.
     fn write(&self, path: &Path, content: &str) -> Result<(), MigrationError>;
 
+    /// Like [`Self::write`], but forces owner-only (`0600`) permissions on the
+    /// written file.
+    ///
+    /// For the personal `config.local.md` and its backup sidecar, which carry
+    /// secrets and must not be world-readable at rest — the default
+    /// temp-file-plus-rename fresh mode is not owner-only. Defaults to
+    /// [`Self::write`] for contexts with no permission concern.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the write is refused or fails.
+    fn write_private(
+        &self,
+        path: &Path,
+        content: &str,
+    ) -> Result<(), MigrationError> {
+        self.write(path, content)
+    }
+
     /// The project root every migration-relative path is joined against.
     fn root(&self) -> &Path {
         Path::new(".")

@@ -14,10 +14,11 @@ use std::time::Duration;
 use config::ConfigAccess;
 use config::Key;
 use config_adapters::compose;
+use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
-use linear_client::auth::catalogue_team_key;
 use linear_client::auth::resolve_credentials;
+use linear_client::auth::team_key;
 use linear_client::catalogue::CatalogueStates;
 use linear_client::catalogue::CatalogueTeam;
 use linear_client::transport::Transport;
@@ -110,6 +111,9 @@ fn integrations_dir(
 /// A built client and the paths its init caches are written under.
 pub struct Built {
     pub client: LinearClient,
+    /// The composed config, retained so init can write the discovered scope
+    /// key back into `linear.team_key`.
+    pub config: Composed,
     /// `paths.integrations` — the Linear state dir is `<root>/linear/`.
     pub integrations_root: PathBuf,
     /// The discovered project root, the write-bounds ceiling for the caches.
@@ -157,6 +161,7 @@ pub fn build_client() -> Result<Built, ContextError> {
     };
     Ok(Built {
         client,
+        config: composed,
         integrations_root,
         project_root: root,
     })
@@ -179,7 +184,7 @@ fn build_with_override(
     )?;
     let allow_loopback = cfg!(feature = "test-loopback");
     let upload = UploadTransport::new(allow_loopback, Duration::from_secs(1))?;
-    let team_key = catalogue_team_key(integrations_root);
+    let team_key = team_key(context.config, integrations_root)?;
     let teams = CatalogueTeam::load(integrations_root);
     let states = CatalogueStates::load(integrations_root);
     Ok(LinearClient::new(

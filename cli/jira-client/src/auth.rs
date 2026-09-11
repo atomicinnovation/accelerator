@@ -180,16 +180,33 @@ fn allowed_sites(
         .collect())
 }
 
-/// The Jira project a `create` targets, from `work.default_project_code` —
-/// the same key the work-item id pattern uses. There is no separate
-/// `jira.default_project_key`.
+/// The Jira project a `create` targets, from the integration-owned
+/// `jira.project_key` scope key.
+///
+/// The deprecated `work.default_project_code` still resolves through the alias
+/// during the removal window, gated on `work.integration: jira`, emitting a
+/// deprecation warning.
 ///
 /// # Errors
 ///
-/// [`ClientError::NoProject`] when the key is unset.
+/// [`ClientError::NoProject`] when the scope key is unset;
+/// [`ClientError::ConfigUnreadable`] when a config level cannot be read.
 pub fn project_code(config: &dyn ConfigAccess) -> Result<String, ClientError> {
-    configured(config, "work.default_project_code")?
-        .ok_or(ClientError::NoProject)
+    let resolved = config::resolve_with_deprecated_fallback(
+        config,
+        "jira.project_key",
+        "work.default_project_code",
+        Some("jira"),
+    )
+    .map_err(|error| ClientError::ConfigUnreadable {
+        key: "jira.project_key".to_owned(),
+        detail: error.to_string(),
+    })?;
+    config::emit_deprecation_once(
+        "work.default_project_code",
+        resolved.deprecation.as_deref(),
+    );
+    resolved.value.ok_or(ClientError::NoProject)
 }
 
 fn configured(
@@ -235,4 +252,82 @@ fn key(name: &str) -> Result<Key, ClientError> {
         key: name.to_owned(),
         detail: error.to_string(),
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod project_code_tests {
+    use std::collections::HashMap;
+
+    use config::{
+        ConfigAccess, ConfigError, Key, Level, Resolved, Scalar, Value,
+    };
+
+    use super::project_code;
+    use crate::error::ClientError;
+
+    struct FakeConfig(HashMap<String, String>);
+
+    impl FakeConfig {
+        fn with(pairs: &[(&str, &str)]) -> Self {
+            Self(
+                pairs
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                    .collect(),
+            )
+        }
+    }
+
+    impl ConfigAccess for FakeConfig {
+        fn get(
+            &self,
+            key: &Key,
+            _level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Ok(self
+                .0
+                .get(&key.to_string())
+                .map_or(Resolved::Absent, |value| {
+                    Resolved::Found(Value::Scalar(Scalar::String(
+                        value.clone(),
+                    )))
+                }))
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            Err(ConfigError::Invalid {
+                detail: "set unsupported in the fake config".to_owned(),
+            })
+        }
+    }
+
+    #[test]
+    fn resolves_from_jira_project_key_with_no_work_config() {
+        let config = FakeConfig::with(&[("jira.project_key", "OPS")]);
+        assert_eq!(project_code(&config).unwrap(), "OPS");
+    }
+
+    #[test]
+    fn falls_back_to_the_legacy_key_when_integration_is_jira() {
+        let config = FakeConfig::with(&[
+            ("work.default_project_code", "PP"),
+            ("work.integration", "jira"),
+        ]);
+        assert_eq!(project_code(&config).unwrap(), "PP");
+    }
+
+    #[test]
+    fn does_not_claim_the_legacy_key_when_integration_is_linear() {
+        let config = FakeConfig::with(&[
+            ("work.default_project_code", "PP"),
+            ("work.integration", "linear"),
+        ]);
+        assert!(matches!(project_code(&config), Err(ClientError::NoProject)));
+    }
 }

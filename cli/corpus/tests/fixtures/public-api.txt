@@ -562,8 +562,8 @@ pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
 pub struct corpus::work_item_id::WorkItemIdScheme
-pub corpus::work_item_id::WorkItemIdScheme::default_project_code: core::option::Option<alloc::string::String>
 pub corpus::work_item_id::WorkItemIdScheme::id_pattern: alloc::string::String
+pub corpus::work_item_id::WorkItemIdScheme::key: core::option::Option<alloc::string::String>
 impl corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::canonical_digit_width(&self) -> usize
 pub fn corpus::work_item_id::WorkItemIdScheme::canonicalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
@@ -581,6 +581,8 @@ impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub trait corpus::work_item_id::IdScanner
 pub fn corpus::work_item_id::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
+pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
+pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
 pub enum corpus::Band
 pub corpus::Band::Ambiguous
 pub corpus::Band::Resolved
@@ -803,8 +805,8 @@ impl core::fmt::Debug for corpus::metadata::RepositoryFacts
 pub fn corpus::metadata::RepositoryFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::metadata::RepositoryFacts
 pub struct corpus::WorkItemIdScheme
-pub corpus::WorkItemIdScheme::default_project_code: core::option::Option<alloc::string::String>
 pub corpus::WorkItemIdScheme::id_pattern: alloc::string::String
+pub corpus::WorkItemIdScheme::key: core::option::Option<alloc::string::String>
 impl corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::canonical_digit_width(&self) -> usize
 pub fn corpus::work_item_id::WorkItemIdScheme::canonicalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
@@ -832,4 +834,6 @@ pub fn corpus::RecordStore::append_record(&self, path: &std::path::Path, record:
 pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
+pub fn corpus::is_key_token(token: &str) -> bool
 pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
+pub fn corpus::references_key(pattern: &str) -> bool

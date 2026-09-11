@@ -6,8 +6,8 @@
 //! `work.id_pattern` → scanner pipeline sits in the corpus adapter layer,
 //! shared by every Rust consumer.
 
-// DSL pattern strings such as "{project}" are literal token markers, not
-// format args.
+// DSL pattern strings such as "{key}" are literal token markers, not format
+// args.
 #![allow(clippy::literal_string_with_formatting_args)]
 
 use std::fmt::{self, Display, Formatter, Write as _};
@@ -21,8 +21,8 @@ pub enum PatternError {
     NestedBrace(usize),
     UnclosedToken(usize),
     AdjacentTokens,
-    MissingProject,
-    BadProjectValue(String),
+    MissingKey,
+    BadKeyValue(String),
     BadFormatSpec(String),
     UnknownToken(String),
     HostileChar(char),
@@ -51,13 +51,13 @@ impl Display for PatternError {
                 formatter,
                 "dynamic tokens must be separated by literal text (rule 3)"
             ),
-            Self::MissingProject => write!(
+            Self::MissingKey => write!(
                 formatter,
-                "pattern contains {{project}} but no value supplied"
+                "pattern references the {{key}} prefix but no value supplied"
             ),
-            Self::BadProjectValue(value) => write!(
+            Self::BadKeyValue(value) => write!(
                 formatter,
-                "project value '{value}' must match [A-Za-z][A-Za-z0-9]* \
+                "key value '{value}' must match [A-Za-z][A-Za-z0-9]* \
                  (rule 5)"
             ),
             Self::BadFormatSpec(spec) => write!(
@@ -116,7 +116,7 @@ fn push_escaped(c: char, out: &mut String) {
     out.push(c);
 }
 
-fn is_valid_project(value: &str) -> bool {
+fn is_valid_key(value: &str) -> bool {
     let mut chars = value.chars();
     match chars.next() {
         Some(first) if first.is_ascii_alphabetic() => {
@@ -161,31 +161,29 @@ fn find_token(
     Ok((token, j - open + 1))
 }
 
-/// Compiles one `{project}` or `{number...}` token into `out`, mode-driven.
-/// Returns whether the token was a `{number}` token (for the caller's
-/// `saw_number` tracking).
+/// Compiles one `{key}` (or the deprecated `{project}` synonym) or
+/// `{number...}` token into `out`, mode-driven. Returns whether the token was a
+/// `{number}` token (for the caller's `saw_number` tracking).
 fn compile_token(
     token: &str,
-    project_value: &str,
+    key_value: &str,
     mode: Mode,
     out: &mut String,
 ) -> Result<bool, PatternError> {
-    if token == "project" {
-        if project_value.is_empty() {
-            return Err(PatternError::MissingProject);
+    if corpus::is_key_token(token) {
+        if key_value.is_empty() {
+            return Err(PatternError::MissingKey);
         }
-        if !is_valid_project(project_value) {
-            return Err(PatternError::BadProjectValue(
-                project_value.to_string(),
-            ));
+        if !is_valid_key(key_value) {
+            return Err(PatternError::BadKeyValue(key_value.to_string()));
         }
         match mode {
             Mode::Scan => {
-                for c in project_value.chars() {
+                for c in key_value.chars() {
                     push_escaped(c, out);
                 }
             }
-            Mode::Format => out.push_str(&project_value.replace('%', "%%")),
+            Mode::Format => out.push_str(&key_value.replace('%', "%%")),
         }
         return Ok(false);
     }
@@ -219,7 +217,7 @@ fn compile_token(
 /// token-walking loop per mode.
 fn compile(
     pattern: &str,
-    project_value: &str,
+    key_value: &str,
     mode: Mode,
 ) -> Result<String, PatternError> {
     if pattern.is_empty() {
@@ -264,7 +262,7 @@ fn compile(
             if last_was_dynamic {
                 return Err(PatternError::AdjacentTokens);
             }
-            if compile_token(&token, project_value, mode, &mut out)? {
+            if compile_token(&token, key_value, mode, &mut out)? {
                 saw_number = true;
             }
             last_was_dynamic = true;
@@ -298,19 +296,19 @@ fn compile(
     }
 }
 
-/// Compile `pattern` into its ERE scan regex. `project_value` supplies the
-/// substitution for a `{project}` token (empty when the pattern has none).
+/// Compile `pattern` into its ERE scan regex. `key_value` supplies the
+/// substitution for a `{key}` token (empty when the pattern has none).
 ///
 /// # Errors
 ///
 /// A [`PatternError`] when the pattern is empty, malformed, uses an unknown or
 /// adjacent token, carries a hostile literal, lacks a `{number}` token, or the
-/// project value is required but absent or invalid.
+/// key value is required but absent or invalid.
 pub fn compile_scan_regex(
     pattern: &str,
-    project_value: &str,
+    key_value: &str,
 ) -> Result<String, PatternError> {
-    compile(pattern, project_value, Mode::Scan)
+    compile(pattern, key_value, Mode::Scan)
 }
 
 /// Compile `pattern` into its `printf`-style format string.
@@ -320,9 +318,9 @@ pub fn compile_scan_regex(
 /// The same [`PatternError`] cases as [`compile_scan_regex`].
 pub fn compile_format_string(
     pattern: &str,
-    project_value: &str,
+    key_value: &str,
 ) -> Result<String, PatternError> {
-    compile(pattern, project_value, Mode::Format)
+    compile(pattern, key_value, Mode::Format)
 }
 
 /// The configured `{number}` width's cap: `10^N - 1`.
@@ -371,12 +369,12 @@ fn explicit_number_width(pattern: &str) -> Option<usize> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TokenKind {
-    Project,
+    Key,
     Number,
 }
 
 /// Builds a capturing regex for `pattern` plus the ordered list of which
-/// capture group is `{project}` vs `{number...}`.
+/// capture group is `{key}` vs `{number...}`.
 fn build_full_id_regex(
     pattern: &str,
 ) -> Result<(String, Vec<TokenKind>), PatternError> {
@@ -400,9 +398,9 @@ fn build_full_id_regex(
             }
             let close = close.ok_or(PatternError::UnclosedToken(i))?;
             let token: String = chars[i + 1..close].iter().collect();
-            if token == "project" {
+            if corpus::is_key_token(&token) {
                 out.push_str("([A-Za-z][A-Za-z0-9]*)");
-                order.push(TokenKind::Project);
+                order.push(TokenKind::Key);
             } else if token == "number" || token.starts_with("number:") {
                 out.push_str("([0-9]+)");
                 order.push(TokenKind::Number);
@@ -419,11 +417,11 @@ fn build_full_id_regex(
     Ok((out, order))
 }
 
-/// A full ID parsed against an `id_pattern`: the project code (when the
-/// pattern carries `{project}`) and the number run, unpadded.
+/// A full ID parsed against an `id_pattern`: the local ID prefix (when the
+/// pattern carries `{key}`) and the number run, unpadded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedId {
-    pub project: Option<String>,
+    pub key: Option<String>,
     pub number: String,
 }
 
@@ -437,26 +435,26 @@ pub fn parse_full_id(
     id: &str,
     pattern: &str,
 ) -> Result<ParsedId, PatternError> {
-    if pattern.contains("{project}") {
+    if corpus::references_key(pattern) {
         let (regex_str, order) = build_full_id_regex(pattern)?;
         let re = Regex::new(&regex_str).map_err(|_| PatternError::NoMatch)?;
         let captures = re.captures(id).ok_or(PatternError::NoMatch)?;
-        let mut project = None;
+        let mut key = None;
         let mut number = None;
         for (index, kind) in order.iter().enumerate() {
             let value = captures.get(index + 1).map(|m| m.as_str().to_owned());
             match kind {
-                TokenKind::Project => project = value,
+                TokenKind::Key => key = value,
                 TokenKind::Number => number = value,
             }
         }
         let number = number.ok_or(PatternError::NoMatch)?;
-        Ok(ParsedId { project, number })
+        Ok(ParsedId { key, number })
     } else {
         compile_format_string(pattern, "")?;
         if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
             Ok(ParsedId {
-                project: None,
+                key: None,
                 number: id.to_owned(),
             })
         } else {
@@ -515,39 +513,39 @@ fn apply_number_format(format: &str, number: u64) -> String {
 /// # Errors
 ///
 /// [`PatternError::EmptyInput`] for an empty (or empty-after-quote-stripping)
-/// input, [`PatternError::MissingProject`] for a bare number under a
-/// `{project}` pattern with no `project_value` supplied,
+/// input, [`PatternError::MissingKey`] for a bare number under a `{key}`
+/// pattern with no `key_value` supplied,
 /// [`PatternError::UnrecognisedIdShape`] when `input` is neither a full ID nor
 /// a bare number, or other [`PatternError`] variants when `pattern` itself is
 /// malformed.
 pub fn canonicalise_id(
     input: &str,
     pattern: &str,
-    project_value: &str,
+    key_value: &str,
 ) -> Result<String, PatternError> {
     let input = strip_surrounding_quotes(input);
     if input.is_empty() {
         return Err(PatternError::EmptyInput);
     }
 
-    let has_project = pattern.contains("{project}");
+    let has_key = corpus::references_key(pattern);
 
     if let Ok(parsed) = parse_full_id(input, pattern) {
-        let project = parsed.project.unwrap_or_default();
+        let key = parsed.key.unwrap_or_default();
         let number: u64 =
             parsed.number.parse().map_err(|_| PatternError::NoMatch)?;
-        let format = compile_format_string(pattern, &project)
+        let format = compile_format_string(pattern, &key)
             .or_else(|_| compile_format_string(pattern, ""))?;
         return Ok(apply_number_format(&format, number));
     }
 
     if input.chars().all(|c| c.is_ascii_digit()) {
         let number: u64 = input.parse().map_err(|_| PatternError::NoMatch)?;
-        if has_project {
-            if project_value.is_empty() {
-                return Err(PatternError::MissingProject);
+        if has_key {
+            if key_value.is_empty() {
+                return Err(PatternError::MissingKey);
             }
-            let format = compile_format_string(pattern, project_value)?;
+            let format = compile_format_string(pattern, key_value)?;
             return Ok(apply_number_format(&format, number));
         }
         let format = compile_format_string(pattern, "")?;
@@ -650,7 +648,7 @@ mod tests {
     fn project_token_without_value_is_rejected() {
         assert!(matches!(
             compile_scan_regex("{project}-{number}", ""),
-            Err(PatternError::MissingProject)
+            Err(PatternError::MissingKey)
         ));
     }
 
@@ -658,7 +656,7 @@ mod tests {
     fn bad_project_value_is_rejected() {
         assert!(matches!(
             compile_scan_regex("{project}-{number}", "1PROJ"),
-            Err(PatternError::BadProjectValue(_))
+            Err(PatternError::BadKeyValue(_))
         ));
     }
 
@@ -693,7 +691,7 @@ mod tests {
     fn compile_format_string_shares_validation_with_scan() {
         assert!(matches!(
             compile_format_string("{project}-{number}", ""),
-            Err(PatternError::MissingProject)
+            Err(PatternError::MissingKey)
         ));
         assert!(matches!(
             compile_format_string("", ""),
@@ -730,7 +728,7 @@ mod tests {
     #[test]
     fn parse_full_id_with_project() -> Result<(), PatternError> {
         let parsed = parse_full_id("PROJ-0042", "{project}-{number:04d}")?;
-        assert_eq!(parsed.project.as_deref(), Some("PROJ"));
+        assert_eq!(parsed.key.as_deref(), Some("PROJ"));
         assert_eq!(parsed.number, "0042");
         Ok(())
     }
@@ -738,7 +736,7 @@ mod tests {
     #[test]
     fn parse_full_id_without_project() -> Result<(), PatternError> {
         let parsed = parse_full_id("0042", "{number:04d}")?;
-        assert_eq!(parsed.project, None);
+        assert_eq!(parsed.key, None);
         assert_eq!(parsed.number, "0042");
         Ok(())
     }
@@ -781,7 +779,7 @@ mod tests {
     fn canonicalise_id_matches_the_phase_1_golden_error_arms() {
         assert!(matches!(
             canonicalise_id("42", "{project}-{number:04d}", ""),
-            Err(PatternError::MissingProject)
+            Err(PatternError::MissingKey)
         ));
         assert!(matches!(
             canonicalise_id("", "{number:04d}", ""),
@@ -797,6 +795,91 @@ mod tests {
     fn canonicalise_id_parent_equality() -> Result<(), PatternError> {
         assert_eq!(
             canonicalise_id("PROJ-0042", "{project}-{number:04d}", "PROJ")?,
+            canonicalise_id("42", "{project}-{number:04d}", "PROJ")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn key_prefixed_pattern_escapes_and_substitutes() -> Result<(), PatternError>
+    {
+        assert_eq!(
+            compile_scan_regex("{key}-{number:04d}", "PROJ")?,
+            "^PROJ-([0-9]+)-"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn key_token_without_value_is_rejected() {
+        assert!(matches!(
+            compile_scan_regex("{key}-{number}", ""),
+            Err(PatternError::MissingKey)
+        ));
+    }
+
+    #[test]
+    fn bad_key_value_is_rejected() {
+        assert!(matches!(
+            compile_scan_regex("{key}-{number}", "1PROJ"),
+            Err(PatternError::BadKeyValue(_))
+        ));
+    }
+
+    #[test]
+    fn compile_format_string_key_twin() -> Result<(), PatternError> {
+        assert_eq!(
+            compile_format_string("{key}-{number:04d}", "PROJ")?,
+            "PROJ-%04d"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_full_id_with_key() -> Result<(), PatternError> {
+        let parsed = parse_full_id("PROJ-0042", "{key}-{number:04d}")?;
+        assert_eq!(parsed.key.as_deref(), Some("PROJ"));
+        assert_eq!(parsed.number, "0042");
+        Ok(())
+    }
+
+    #[test]
+    fn canonicalise_id_key_golden() -> Result<(), PatternError> {
+        assert_eq!(
+            canonicalise_id("42", "{key}-{number:04d}", "PROJ")?,
+            "PROJ-0042"
+        );
+        assert_eq!(
+            canonicalise_id("PROJ-42", "{key}-{number:04d}", "PROJ")?,
+            "PROJ-0042"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn canonicalise_id_key_error_arm() {
+        assert!(matches!(
+            canonicalise_id("42", "{key}-{number:04d}", ""),
+            Err(PatternError::MissingKey)
+        ));
+    }
+
+    #[test]
+    fn key_and_project_are_byte_identical() -> Result<(), PatternError> {
+        assert_eq!(
+            compile_scan_regex("{key}-{number:04d}", "PROJ")?,
+            compile_scan_regex("{project}-{number:04d}", "PROJ")?
+        );
+        assert_eq!(
+            compile_format_string("{key}-{number:04d}", "PROJ")?,
+            compile_format_string("{project}-{number:04d}", "PROJ")?
+        );
+        assert_eq!(
+            parse_full_id("PROJ-0042", "{key}-{number:04d}")?,
+            parse_full_id("PROJ-0042", "{project}-{number:04d}")?
+        );
+        assert_eq!(
+            canonicalise_id("42", "{key}-{number:04d}", "PROJ")?,
             canonicalise_id("42", "{project}-{number:04d}", "PROJ")?
         );
         Ok(())

@@ -39,13 +39,25 @@ fn the_configured_default_project_is_the_config_source() {
 }
 
 #[test]
+fn init_prompt_default_reports_the_configured_jira_project_key() {
+    let dir = support::scratch(support::CONFIG);
+    let output = run(dir.path(), &["init", "prompt-default"]);
+    assert!(output.status.success(), "exited {:?}", output.status.code());
+    assert!(
+        stdout_of(&output).contains("ENG"),
+        "the reported default is the jira.project_key value: {}",
+        stdout_of(&output)
+    );
+}
+
+#[test]
 fn the_project_derives_from_the_shared_config_source() {
     // `jira resolve-fields` and `work create --push --dry-run` do
     // NOT agree field-for-field — the work form emits the raw kind with a
     // network-preview `configured`/`unresolvable` source vocabulary, while this
     // config-only form emits the mapped Jira issue-type with a `mapped`/`config`
-    // vocabulary. The one field they genuinely share is the project value, both
-    // read from `work.default_project_code`; this pins that shared derivation.
+    // vocabulary. The one field they genuinely share is the project value,
+    // read from `jira.project_key`; this pins that shared derivation.
     let dir = support::scratch(support::CONFIG);
     let output = run(dir.path(), &["resolve-fields", "--kind", "bug"]);
     assert!(output.status.success(), "exited {:?}", output.status.code());
@@ -54,7 +66,7 @@ fn the_project_derives_from_the_shared_config_source() {
         .split('\t')
         .map(str::to_owned)
         .collect();
-    // project value == work.default_project_code, from the config source.
+    // project value == jira.project_key, from the config source.
     assert_eq!(fields[2], "ENG", "the project is the configured default");
     assert_eq!(fields[3], "config", "read from the shared config source");
     // The type is the mapped Jira issue-type name, not the raw kind the work

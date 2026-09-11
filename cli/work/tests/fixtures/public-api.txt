@@ -82,7 +82,7 @@ pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_i
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
 pub mod work::next_number
 pub enum work::next_number::AllocationError
-pub work::next_number::AllocationError::MissingProject
+pub work::next_number::AllocationError::MissingKey
 pub work::next_number::AllocationError::Overflow
 pub work::next_number::AllocationError::Overflow::cap: u64
 pub work::next_number::AllocationError::Overflow::highest: u64

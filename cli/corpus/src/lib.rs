@@ -38,6 +38,8 @@ pub use crate::typed_ref::TypedRef;
 pub use crate::value::FrontmatterValue;
 pub use crate::value::Mapping;
 pub use crate::value::Scalar;
+pub use crate::work_item_id::is_key_token;
+pub use crate::work_item_id::references_key;
 pub use crate::work_item_id::IdScan;
 pub use crate::work_item_id::IdScanner;
 pub use crate::work_item_id::WorkItemIdScheme;

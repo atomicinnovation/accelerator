@@ -83,7 +83,7 @@ When this command is invoked:
 
    The resolver respects `work.id_pattern` and accepts paths, full IDs
    (`PROJ-0042`), legacy bare numbers (`0042`), and short numbers (`42`,
-   resolved against `work.default_project_code` when set).
+   resolved against `work.key` when set).
 
    - **Exit 0** (single match): the resolver echoes the absolute path on
      stdout. Continue to frontmatter validation below.
@@ -425,10 +425,10 @@ accelerator work next-number
 ```
 
 The output is the full ID (`0001` under default `{number:04d}`,
-`PROJ-0001` under `{project}-{number:04d}` with
-`work.default_project_code: "PROJ"`). The allocator reads the pattern
-and default project code from configuration; pass `--project CODE` if
-the user explicitly wants a non-default project.
+`PROJ-0001` under `{key}-{number:04d}` with
+`work.key: "PROJ"`). The allocator reads the pattern and local ID prefix
+from configuration; pass `--project CODE` if the user explicitly wants a
+non-default prefix for this one call.
 
 If the command exits non-zero (e.g., overflow, missing project value),
 abort immediately and surface the error message verbatim — do not
@@ -510,9 +510,9 @@ concurrently. Please re-run /create-work-item.
 
       - **Exit 0, jira** → `jira\t<issue type>\t<type source>\t<project>\t<project source>`.
         Render the type and project with their sources. A `<project source>` of
-        `unresolvable` means the configured `work.default_project_code` names a
+        `unresolvable` means the configured `jira.project_key` names a
         project the tracker does not hold — surface that as a pre-create
-        failure **before** the gate (name `work.default_project_code`) and do
+        failure **before** the gate (name `jira.project_key`) and do
         **not** offer the push; save locally instead. A `default` source is a
         benign fallback, not a failure.
       - **Exit 0, linear** → `linear\t(no user-resolvable type/project fields)`

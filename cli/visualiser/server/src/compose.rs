@@ -1,14 +1,15 @@
-//! Composes the server's runtime [`Config`] directly from `.accelerator/*.md`,
-//! the Model-1 replacement for the retired `config.json` writer. Each concern —
-//! doc-path resolution, template-tier resolution, work-item-scheme assembly,
-//! kanban/idle resolution, and the `ACCELERATOR_VISUALISER_*` env overlay — is a
-//! focused function so it can be reasoned about and tested on its own.
+//! Composes the server's runtime [`Config`] directly from `.accelerator/*.md`.
+//! Each concern — doc-path resolution, template-tier resolution,
+//! work-item-scheme assembly, kanban/idle resolution, and the
+//! `ACCELERATOR_VISUALISER_*` env overlay — is a focused function so it can be
+//! reasoned about and tested on its own.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use config::{
-    ConfigAccess, ConfigError, Key, Level, ReadTemplate, Resolved, Source,
+    resolve_with_deprecated_fallback, ConfigAccess, ConfigError, Key, Level,
+    ReadTemplate, Resolved, Source,
 };
 use config_adapters::{FileConfigStore, LegacyPolicy};
 
@@ -184,18 +185,23 @@ fn resolve_work_item(
     let id_pattern = service
         .effective_nonempty(&Key::parse("work.id_pattern")?, None)?
         .rendered();
-    let code = service
-        .effective(&Key::parse("work.default_project_code")?, None)?
-        .rendered();
-    let default_project_code = (!code.trim().is_empty()).then(|| code.clone());
+    let prefix = resolve_with_deprecated_fallback(
+        service,
+        "work.key",
+        "work.default_project_code",
+        None,
+    )?;
+    let key = corpus::references_key(&id_pattern)
+        .then_some(prefix.value)
+        .flatten();
     let scan_regex = work_item_pattern::compile_scan_regex(
         &id_pattern,
-        default_project_code.as_deref().unwrap_or(""),
+        key.as_deref().unwrap_or(""),
     )?;
     Ok(RawWorkItemConfig {
         scan_regex,
         id_pattern,
-        default_project_code,
+        key,
     })
 }
 

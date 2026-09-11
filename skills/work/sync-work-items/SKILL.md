@@ -14,7 +14,7 @@ allowed-tools:
 # Sync Work Items
 
 **Active integration**: !`accelerator config work integration --fail-safe`
-**Default project code**: !`accelerator config work default_project_code --fail-safe`
+**Local ID prefix**: !`accelerator config work key --fail-safe`
 **Work items directory**: !`accelerator config path work --fail-safe`
 
 `/sync-work-items` reconciles the local work items under the work directory with
@@ -54,7 +54,7 @@ configured.
 tracker (`jira`, `linear`) exits **74** ("unconfigured") when a run cannot
 proceed on its configuration — its credentials are missing or refused, or a
 non-push-only run's discovery scope names no valid target (an unset or
-unresolvable key, e.g. Linear with no `work.default_project_code`). Surface it
+unresolvable key, e.g. Linear with no `linear.team_key`). Surface it
 as a "fix your config" message (nothing was sent), never as a reconciliation
 prompt; the escape hatch for the scope case is `--push-only`, which skips
 discovery. `work sync` resolves its own tracker binary, credentials, and

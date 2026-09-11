@@ -74,7 +74,7 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
             // Captures only the digit run; project code literal is outside group 1.
             scan_regex: "^PROJ-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some("PROJ".to_string()),
+            key: Some("PROJ".to_string()),
         }),
         kanban_columns: None,
         idle_timeout: None,

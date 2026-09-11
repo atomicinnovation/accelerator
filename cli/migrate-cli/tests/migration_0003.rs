@@ -1,6 +1,5 @@
 //! Migration 0003 (`relocate-accelerator-state`) driven end to end against
-//! the compiled binary, asserted against a bash golden captured in
-//! isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to just 0003's script)
+//! the compiled binary, asserted against a golden captured in isolation
 //! against a from-scratch fixture exercising every move pair, the
 //! pinned-override warning, the root/inner `.gitignore` rewrites, and the
 //! legacy state-file merge.
@@ -35,13 +34,14 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )
 }
 
 #[test]
 #[allow(clippy::too_many_lines)]
-fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
+fn matches_the_isolated_golden() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
 
@@ -170,6 +170,7 @@ fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          a\nb\n\
          0003-relocate-accelerator-state\n"
     );
@@ -255,7 +256,8 @@ fn a_second_run_reports_no_pending_and_does_not_duplicate_the_gitignore_rule(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -471,6 +473,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          x\ny\n",
     )?;
     write(root, "meta/.migrations-applied", "y\nz\n")?;
@@ -487,6 +490,7 @@ fn merges_legacy_and_existing_state_files_deduplicating_first_seen(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          x\ny\nz\n\
          0003-relocate-accelerator-state\n"
     );

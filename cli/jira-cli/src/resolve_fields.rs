@@ -6,8 +6,6 @@
 //! Output: `<issue_type>\t<issue_type_source>\t<project>\t<project_source>` with
 //! a trailing newline the caller's `read` depends on.
 
-use config::ConfigAccess;
-use config::Key;
 use config_adapters::compose;
 use config_adapters::LegacyPolicy;
 
@@ -165,17 +163,25 @@ const fn is_quote_or_space(c: char) -> bool {
     c.is_whitespace() || c == '"' || c == '\''
 }
 
-/// `work.default_project_code` from the composed config, or `None` when unset or
+/// `jira.project_key` from the composed config, or `None` when unset or
 /// unreadable — an unresolvable project is the resolver's own reportable state.
+///
+/// The deprecated `work.default_project_code` still resolves through the alias
+/// during the removal window, gated on `work.integration: jira`.
 #[must_use]
 pub fn configured_default_project() -> Option<String> {
     let start = std::env::current_dir().ok()?;
     let composed = compose(&start, LegacyPolicy::Reject).ok()?;
-    let key = Key::parse("work.default_project_code").ok()?;
-    let value = composed
-        .service
-        .effective_nonempty(&key, None)
-        .ok()?
-        .rendered();
-    (!value.is_empty()).then_some(value)
+    let resolved = config::resolve_with_deprecated_fallback(
+        &composed.service,
+        "jira.project_key",
+        "work.default_project_code",
+        Some("jira"),
+    )
+    .ok()?;
+    config::emit_deprecation_once(
+        "work.default_project_code",
+        resolved.deprecation.as_deref(),
+    );
+    resolved.value
 }

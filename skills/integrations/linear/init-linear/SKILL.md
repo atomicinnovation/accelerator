@@ -93,6 +93,18 @@ atomically, containing the chosen team's `{id, key, name}` and its WorkflowState
 (`{id, name, type, position}`). Only the selected team's states are persisted
 (single-team scoping).
 
+The subcommand also writes the discovered team key into `linear.team_key` in
+team config (`.accelerator/config.md`), the integration-owned scope key. An
+absent key is written automatically. If `linear.team_key` is already set to a
+**different** value, the subcommand leaves it intact (it prints
+`linear.team_key left intact …`) rather than clobbering a hand-set value. To
+adopt the discovered key over an existing one, confirm the change with the user,
+then re-run with `--force`:
+
+```
+accelerator linear init discover --team-id <uuid> --force
+```
+
 ## Step 4: Confirm completion
 
 Print a summary:

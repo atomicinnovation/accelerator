@@ -116,17 +116,17 @@ pub fn slugify(title: &str) -> String {
 
 fn allocation_message(error: &AllocationError, pattern: &str) -> String {
     match error {
-        AllocationError::MissingProject => {
+        AllocationError::MissingKey => {
             format!(
-                "E_PATTERN_MISSING_PROJECT: pattern '{pattern}' contains \
-                 {{project}} but no value supplied — pass --project or set \
-                 work.default_project_code"
+                "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
+                 {{key}} prefix but no value supplied — pass --project or \
+                 set work.key"
             )
         }
         AllocationError::ProjectUnused => {
             format!(
-                "E_PATTERN_PROJECT_UNUSED: --project is meaningless for \
-                 pattern '{pattern}' (no {{project}} token)"
+                "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
+                 '{pattern}' (no {{key}} token)"
             )
         }
         AllocationError::Overflow {
@@ -634,10 +634,7 @@ fn try_run(
             format!("could not acquire the work-item creation lock: {error}")
         })?;
 
-    let project = args
-        .project
-        .clone()
-        .or_else(|| scheme.default_project_code.clone());
+    let project = args.project.clone().or_else(|| scheme.key.clone());
     let id = allocate_id(&scheme, &work_dir, project.as_deref())?;
 
     let metadata = derive_at(

@@ -95,9 +95,7 @@ pub fn extract_facet_value(
                     Some(prefix.to_string())
                 }
             } else {
-                cfg.work_item
-                    .as_ref()
-                    .and_then(|w| w.default_project_code.clone())
+                cfg.work_item.as_ref().and_then(|w| w.key.clone())
             }
         }
         _ => None,
@@ -1169,7 +1167,7 @@ pub fn canonicalise_one_id(
 ///
 /// Four cases (applied in order):
 /// 1. Bare numeric (`^\d+$`) under a non-project pattern: zero-pad to width.
-/// 2. Bare numeric under a project pattern with `default_project_code`: prefix + zero-pad.
+/// 2. Bare numeric under a project pattern with `key`: prefix + zero-pad.
 /// 3. Project-prefixed (`^[A-Za-z][A-Za-z0-9]*-\d+$`): pass through verbatim.
 /// 4. Anything else: skip (silent drop; never panics).
 ///
@@ -1422,7 +1420,7 @@ mod canonicalise_tests {
         let raw = crate::config::RawWorkItemConfig {
             scan_regex: format!("^{code}-(\\d+)-"),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some(code.to_string()),
+            key: Some(code.to_string()),
         };
         WorkItemConfig::from_raw(raw).unwrap()
     }
@@ -1835,7 +1833,7 @@ mod tests {
     #[test]
     fn extract_facet_value_project_falls_back_to_default_for_prefixless_ids() {
         let entry = sample_entry_with_work_item("0042");
-        let cfg = make_cfg_with_default_project_code("FALLBACK");
+        let cfg = make_cfg_with_key("FALLBACK");
         assert_eq!(
             extract_facet_value(&entry, &cfg, "project"),
             Some("FALLBACK".to_string())
@@ -1852,7 +1850,7 @@ mod tests {
     #[test]
     fn extract_facet_value_project_returns_none_when_work_item_id_is_none() {
         let entry = sample_entry_without_work_item();
-        let cfg = make_cfg_with_default_project_code("FALLBACK");
+        let cfg = make_cfg_with_key("FALLBACK");
         assert_eq!(extract_facet_value(&entry, &cfg, "project"), None);
     }
 
@@ -1886,7 +1884,7 @@ mod tests {
         assert!(entry_matches_all_except(&entry, &cfg, Some(&sel), "status"));
     }
 
-    fn make_cfg_with_default_project_code(code: &str) -> crate::config::Config {
+    fn make_cfg_with_key(code: &str) -> crate::config::Config {
         crate::config::Config {
             plugin_root: "/p".into(),
             plugin_version: "test".into(),
@@ -1901,7 +1899,7 @@ mod tests {
             work_item: Some(crate::config::RawWorkItemConfig {
                 scan_regex: r"^(?<id>\d+)".to_string(),
                 id_pattern: "{number:04d}".to_string(),
-                default_project_code: Some(code.to_string()),
+                key: Some(code.to_string()),
             }),
             kanban_columns: None,
             idle_timeout: None,
@@ -3384,7 +3382,7 @@ mod reverse_index_tests {
             WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
                 scan_regex: "^ENG-([0-9]+)-".to_string(),
                 id_pattern: "{project}-{number:04d}".to_string(),
-                default_project_code: Some("ENG".to_string()),
+                key: Some("ENG".to_string()),
             })
             .unwrap(),
         );
@@ -3403,8 +3401,8 @@ mod reverse_index_tests {
         let tmp = tempfile::tempdir().unwrap();
         let work_dir = tmp.path().join("meta/work");
         std::fs::create_dir_all(&work_dir).unwrap();
-        // Workspace's default_project_code is ENG, but the file declares
-        // a foreign prefix — must passthrough verbatim.
+        // The workspace's local ID prefix is ENG, but the file declares a
+        // foreign prefix — must passthrough verbatim.
         std::fs::write(
             work_dir.join("0001-foo.md"),
             "---\ntitle: F\nid: \"OPS-7\"\n---\n",
@@ -3418,7 +3416,7 @@ mod reverse_index_tests {
             WorkItemConfig::from_raw(crate::config::RawWorkItemConfig {
                 scan_regex: "^ENG-([0-9]+)-".to_string(),
                 id_pattern: "{project}-{number:04d}".to_string(),
-                default_project_code: Some("ENG".to_string()),
+                key: Some("ENG".to_string()),
             })
             .unwrap(),
         );

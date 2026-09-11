@@ -691,6 +691,35 @@ fn confirm_remote_candidates(
     }
 }
 
+/// Resolves the active tracker's scope key — the base creation and discovery
+/// scope — dispatching on `work.integration`.
+///
+/// Jira resolves by identity via `jira.project_key`; Linear resolves the team
+/// key (config, deprecated alias, then catalogue) so a catalogue-only repo
+/// resolves the same scope here as in the client. A tracker with no scope-key
+/// dependency (`trello`, `github-issues`, or an unset integration) preserves
+/// the legacy `work.default_project_code` read unchanged.
+fn resolve_active_scope_key(
+    config: &dyn ConfigAccess,
+    integration: &str,
+    integrations_root: &Path,
+) -> Option<String> {
+    match integration {
+        "jira" => jira_client::auth::project_code(config).ok(),
+        "linear" => linear_client::auth::team_key(config, integrations_root)
+            .ok()
+            .flatten(),
+        _ => {
+            let legacy = crate::config::effective_nonempty(
+                config,
+                "work.default_project_code",
+            )
+            .unwrap_or_default();
+            (!legacy.is_empty()).then_some(legacy)
+        }
+    }
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -850,11 +879,12 @@ pub fn run_sync(
     } else {
         RetrievalStrategy::Bulk
     };
-    let default_project =
-        crate::config::effective_nonempty(config, "work.default_project_code")
-            .unwrap_or_default();
     let scope = tracker::SearchScope {
-        project: (!default_project.is_empty()).then_some(default_project),
+        project: resolve_active_scope_key(
+            config,
+            &integration,
+            &integrations_root,
+        ),
         all_projects: false,
         filters: Vec::new(),
     };
@@ -2093,5 +2123,108 @@ mod tests {
             !fetch_all_contains(&tracker, "PP-2"),
             "the non-targeted item's remote is never read"
         );
+    }
+
+    mod scope_dispatch {
+        use std::collections::HashMap;
+
+        use ::config::{
+            ConfigAccess, ConfigError, Key, Level, Resolved, Scalar, Value,
+        };
+
+        use super::super::resolve_active_scope_key;
+
+        struct FakeConfig(HashMap<String, String>);
+
+        impl FakeConfig {
+            fn with(pairs: &[(&str, &str)]) -> Self {
+                Self(
+                    pairs
+                        .iter()
+                        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                        .collect(),
+                )
+            }
+        }
+
+        impl ConfigAccess for FakeConfig {
+            fn get(
+                &self,
+                key: &Key,
+                _level: Option<Level>,
+            ) -> Result<Resolved, ConfigError> {
+                Ok(self.0.get(&key.to_string()).map_or(
+                    Resolved::Absent,
+                    |value| {
+                        Resolved::Found(Value::Scalar(Scalar::String(
+                            value.clone(),
+                        )))
+                    },
+                ))
+            }
+
+            fn set(
+                &self,
+                _key: &Key,
+                _value: &str,
+                _level: Level,
+            ) -> Result<(), ConfigError> {
+                unreachable!("the scope resolver never writes config")
+            }
+        }
+
+        fn no_integrations() -> std::path::PathBuf {
+            std::path::PathBuf::from("/nonexistent-integrations-root")
+        }
+
+        #[test]
+        fn jira_scopes_from_jira_project_key() {
+            let config = FakeConfig::with(&[("jira.project_key", "OPS")]);
+            assert_eq!(
+                resolve_active_scope_key(&config, "jira", &no_integrations()),
+                Some("OPS".to_owned())
+            );
+        }
+
+        #[test]
+        fn linear_scopes_from_linear_team_key() {
+            let config = FakeConfig::with(&[("linear.team_key", "ENG")]);
+            assert_eq!(
+                resolve_active_scope_key(&config, "linear", &no_integrations()),
+                Some("ENG".to_owned())
+            );
+        }
+
+        #[test]
+        fn a_scope_key_less_integration_reads_the_legacy_key_unchanged() {
+            let config =
+                FakeConfig::with(&[("work.default_project_code", "TR")]);
+            assert_eq!(
+                resolve_active_scope_key(&config, "trello", &no_integrations()),
+                Some("TR".to_owned())
+            );
+        }
+
+        #[test]
+        fn an_unset_scope_yields_none() {
+            let config = FakeConfig::with(&[]);
+            assert_eq!(
+                resolve_active_scope_key(&config, "jira", &no_integrations()),
+                None
+            );
+        }
+
+        #[test]
+        fn a_divergent_work_key_does_not_affect_the_scope() {
+            let config = FakeConfig::with(&[
+                ("jira.project_key", "PROJ"),
+                ("work.key", "PP"),
+            ]);
+            assert_eq!(
+                resolve_active_scope_key(&config, "jira", &no_integrations()),
+                Some("PROJ".to_owned()),
+                "discovery scopes from the scope key, not work.key"
+            );
+        }
     }
 }

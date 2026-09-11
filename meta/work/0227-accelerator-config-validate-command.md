@@ -154,6 +154,10 @@ repository — no CI lane runs it.
   predicate and enforces the standard it ratifies.
 - Relates to: 0226 (audit repo-settable config keys for executable-path
   injection) — a security constraint validate should eventually honour.
+- Relates to: 0229 (Per-Tracker Pull Scope Configuration) — bidirectional. 0229
+  delegates remote-existence validation of named entities to this command; in turn
+  this command's pull-block validation portion is blocked by 0229 defining the
+  `pull`-block config surface.
 - Blocks: none.
 
 ## Assumptions

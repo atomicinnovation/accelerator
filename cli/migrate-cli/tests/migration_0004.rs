@@ -1,7 +1,6 @@
 //! Migration 0004 (`restructure-meta-research-into-subject-subcategories`)
-//! driven end to end against the compiled binary, asserted against bash
-//! goldens captured in isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to
-//! just 0004's script).
+//! driven end to end against the compiled binary, asserted against goldens
+//! captured in isolation.
 
 use std::fs;
 use std::process::Command;
@@ -33,14 +32,14 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )
 }
 
 #[test]
 #[allow(clippy::too_many_lines)]
-fn matches_the_isolated_bash_golden_for_default_layout() -> Result<(), TestError>
-{
+fn matches_the_isolated_golden_for_default_layout() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
 
@@ -228,7 +227,8 @@ fn a_second_run_against_an_already_migrated_tree_makes_zero_further_changes(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;
@@ -284,8 +284,8 @@ fn a_local_config_only_override_is_honoured_independently_of_config_md(
     );
     // Both existing config files are unconditionally backed up once a
     // research override is in play anywhere, regardless of whether each
-    // individual file actually contains the overridden key — preserving a
-    // historical bash quirk rather than tightening the condition.
+    // individual file actually contains the overridden key — a deliberate
+    // quirk preserved rather than tightened.
     assert!(root.join(".accelerator/config.local.md.0004.bak").exists());
     assert!(root.join(".accelerator/config.md.0004.bak").exists());
     let rewritten_local =
@@ -442,6 +442,7 @@ fn is_a_true_no_op_when_no_legacy_directories_exist() -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
          0004-restructure-meta-research-into-subject-subcategories\n"
     );
     Ok(())

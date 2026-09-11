@@ -58,15 +58,16 @@ pub struct KanbanColumn {
     pub label: String,
 }
 
-/// Deserializable form of the work-item ID configuration. The launcher
-/// emits this under the `work_item` key in config.json.
+/// Deserializable form of the work-item ID configuration, built in-process by
+/// the composer. `key` is the local ID prefix (`work.key`), populated only when
+/// `id_pattern` references the prefix token.
 #[derive(Debug, Clone, Deserialize)]
 pub struct RawWorkItemConfig {
     pub scan_regex: String,
     #[serde(default = "default_id_pattern")]
     pub id_pattern: String,
     #[serde(default)]
-    pub default_project_code: Option<String>,
+    pub key: Option<String>,
 }
 
 fn default_id_pattern() -> String {
@@ -100,7 +101,7 @@ impl WorkItemConfig {
         Ok(Self {
             scheme: corpus::WorkItemIdScheme {
                 id_pattern: raw.id_pattern,
-                default_project_code: raw.default_project_code,
+                key: raw.key,
             },
             scanner,
         })
@@ -164,7 +165,7 @@ impl WorkItemConfig {
                 // Use the literal `{project}` placeholder so `id_pattern`
                 // lookups behave like production configs.
                 id_pattern: format!("{{project}}-{{number:0{width}d}}"),
-                default_project_code: Some(prefix.to_string()),
+                key: Some(prefix.to_string()),
             },
         }
     }
@@ -355,7 +356,7 @@ mod tests {
         let raw = RawWorkItemConfig {
             scan_regex: "^([0-9]+)-".to_string(),
             id_pattern: "{number:04d}".to_string(),
-            default_project_code: None,
+            key: None,
         };
         assert!(WorkItemConfig::from_raw(raw).is_ok());
     }
@@ -365,7 +366,7 @@ mod tests {
         let raw = RawWorkItemConfig {
             scan_regex: "([unclosed".to_string(),
             id_pattern: "{number:04d}".to_string(),
-            default_project_code: None,
+            key: None,
         };
         let err =
             WorkItemConfig::from_raw(raw).expect_err("invalid regex must fail");
@@ -386,7 +387,7 @@ mod tests {
         let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
             scan_regex: "^PROJ-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some("PROJ".to_string()),
+            key: Some("PROJ".to_string()),
         })
         .unwrap();
         assert_eq!(
@@ -406,7 +407,7 @@ mod tests {
         let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
             scan_regex: "^PROJ-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some("PROJ".to_string()),
+            key: Some("PROJ".to_string()),
         })
         .unwrap();
         // Bare-numeric file that doesn't match the project pattern:
@@ -435,7 +436,7 @@ mod tests {
         let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
             scan_regex: "^ENG-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some("ENG".to_string()),
+            key: Some("ENG".to_string()),
         })
         .unwrap();
         assert_eq!(cfg.normalise_id("42").as_deref(), Some("ENG-42"));
@@ -443,14 +444,14 @@ mod tests {
     }
 
     #[test]
-    fn normalise_id_preserves_foreign_prefix_when_default_code_is_set() {
-        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"`
-        // in a workspace whose `default_project_code` is "ENG" passes
-        // through verbatim — the workspace's code is NOT re-applied.
+    fn normalise_id_preserves_foreign_prefix_when_a_key_is_set() {
+        // Multi-prefix coexistence: a frontmatter `work_item_id: "OPS-7"` in a
+        // workspace whose local ID prefix is "ENG" passes through verbatim —
+        // the workspace's prefix is NOT re-applied.
         let cfg = WorkItemConfig::from_raw(RawWorkItemConfig {
             scan_regex: "^ENG-([0-9]+)-".to_string(),
             id_pattern: "{project}-{number:04d}".to_string(),
-            default_project_code: Some("ENG".to_string()),
+            key: Some("ENG".to_string()),
         })
         .unwrap();
         assert_eq!(cfg.normalise_id("OPS-7").as_deref(), Some("OPS-7"));
@@ -504,10 +505,7 @@ mod tests {
         let a: WorkItemConfig = WorkItemConfig::default();
         let b = WorkItemConfig::default_numeric();
         assert_eq!(a.scheme().id_pattern, b.scheme().id_pattern);
-        assert_eq!(
-            a.scheme().default_project_code,
-            b.scheme().default_project_code
-        );
+        assert_eq!(a.scheme().key, b.scheme().key);
         assert_eq!(a.extract_id("0042-x.md"), b.extract_id("0042-x.md"));
     }
 

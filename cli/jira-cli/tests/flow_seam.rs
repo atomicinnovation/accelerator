@@ -56,7 +56,7 @@ fn the_from_config_branch_resolves_config_without_an_override() {
 
 #[test]
 fn bare_init_without_a_default_project_refuses_rather_than_blocking() {
-    // A config with no `work.default_project_code`, and the harness runs with
+    // A config with no `jira.project_key`, and the harness runs with
     // stdin closed (never a TTY), so bare `jira init` must refuse with the
     // needs-config code instead of blocking on an interactive prompt.
     let config = "---\nwork:\n  integration: jira\njira:\n  site: acme\n  \

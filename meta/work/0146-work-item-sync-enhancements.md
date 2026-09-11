@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-08-30T14:24:46+00:00"
+last_updated: "2026-09-10T01:19:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -56,11 +56,11 @@ Three structural findings frame the scoping work:
   "project", and its second, accidental role as the sync scope is what let the bug
   hide.
 - **The key concept and the integration concept live at different layers.** The
-  tracker-native key (`linear.team_key` / `jira.project_key`) is meaningful to the
-  standalone integration skills with no work-management framework present; the
-  work-item prefix (`work.key`) is the work layer's view of that same key. The
-  dependency must run work → integration, never the reverse, so integration skills
-  can be packaged independently in future.
+  tracker-native key (`linear.team_key` / `jira.project_key`) is the integration-owned
+  *scope key*, meaningful to the standalone integration skills with no work-management
+  framework present; the work-item prefix (`work.key`) is a distinct, independently-set
+  value that never derives from it. The dependency must run work → integration,
+  never the reverse, so integration skills can be packaged independently in future.
 
 ## Requirements
 
@@ -82,17 +82,22 @@ Three structural findings frame the scoping work:
   error replaces the silent zero-pulls. This is the fix for **0220** and the first
   child to ship.
 - **Configuration key model** — rename `work.default_project_code` → `work.key`
-  and the `id_pattern` placeholder `{project}` → `{key}`. Introduce the layered
-  ownership: `linear.team_key` / `jira.project_key` is the canonical,
-  integration-owned key; `work.key` derives from it when a tracker is configured,
-  and is set directly only in tracker-less repos. Setting both is a
-  config-validation error. Provide a migration / read-time alias. `init-linear` /
-  `init-jira` write the key they discover.
+  and the `id_pattern` placeholder `{project}` → `{key}`. Separate the two concepts
+  the old field conflated: `linear.team_key` / `jira.project_key` is the canonical,
+  integration-owned *scope key*; `work.key` is the *local ID prefix*, set explicitly
+  and independent of the scope key — it never derives from it, and `{key}` in
+  `id_pattern` requires an explicit `work.key` (local IDs stay independent of remote,
+  joined on `external_id`). Provide a tracker-aware migration / read-time alias.
+  `init-linear` / `init-jira` write the key they discover.
 - **Per-tracker pull scope** — a per-tracker `pull` block: `additional_teams` /
   `additional_projects` (broaden beyond the creation entity), `all_teams` /
   `all_projects` (whole accessible workspace, mutually exclusive with the
-  `additional_*` list), and a generic `filters` bag. Each tracker declares a
-  filter schema so required keys fail at config time rather than at sync time.
+  `additional_*` list), and a generic `filters` bag (with the config-catalogue
+  extension to structured values it requires). Each tracker declares a filter
+  schema validated at config time. The block also carries configurable
+  `max_items` / `max_pages` ceilings (promoting today's silent truncation to a
+  hard error), and the broadened discovery deduplicates and reconciles in stable
+  order. See 0229.
 - **Tracker-owned ID generation** — optionally let a configured tracker mint the
   work-item ID (stub-create remote, adopt its identifier locally so `id ==
   external_id`), and codify the `id`-immutability boundary: immutable once synced,
@@ -108,11 +113,12 @@ items are minted into (one Jira project / one Linear team); it also sets those
 items' key. The *pull scope* is the set of entities discovery enumerates; it always
 includes the creation home and may be broader. The old field conflated them.
 
-**The key is primary; the tracker entity is resolved from it.** `work.key` (or the
-integration-owned key it derives from) is the fundamental value — it exists even
-with no tracker, as the local ID prefix. When a tracker is configured, its entity
-is resolved from the key: Jira by identity (the key *is* the project key), Linear
-by catalogue lookup (team key → team UUID).
+**The scope key resolves the tracker entity; the prefix is set independently.** The
+integration-owned scope key resolves the creation home: Jira by identity (the key
+*is* the project key), Linear by catalogue lookup (team key → team UUID). `work.key`
+is the local ID prefix — it exists even with no tracker and never derives from the
+scope key; `{key}` in `id_pattern` requires an explicit `work.key`. A divergent prefix
+cannot mis-scope discovery, since scope reads only the integration key.
 
 **Scope comes from the key; the credential is access control.** Linear discovery is
 bounded to the keyed team and requires the key, exactly as Jira requires a project.
@@ -171,9 +177,10 @@ surface uses each tracker's vocabulary.
       reports a config error rather than an unbounded or silently-empty search.
 - [ ] A whole-workspace search happens only when `all_projects` / `all_teams` is
       explicitly set; the default is bounded.
-- [ ] The tracker-native key (`linear.team_key` / `jira.project_key`) is usable by
-      the integration skills with no `work.*` present; `work.key` derives from it
-      when a tracker is configured, and setting both is a config-validation error.
+- [ ] The tracker-native scope key (`linear.team_key` / `jira.project_key`) is usable
+      by the integration skills with no `work.*` present; `work.key`, the local ID
+      prefix, is set independently and never derives from it (`{key}` in `id_pattern`
+      requires an explicit `work.key`).
 - [ ] Pulls can be broadened by configured `additional_*` entities, `filters`, or a
       whole-workspace flag, each validated per tracker at config time.
 
@@ -222,14 +229,34 @@ Resolved during refinement (2026-08-30):
 
 - 0220 — Tracker-aware discovery gate (fixes silent Linear untracked pulls);
   reparented here.
-- 0228 — Configuration key model (`work.key` rename + layered
-  `<tracker>.<entity>_key` ownership + migration).
-- 0229 — Per-tracker pull scope (`additional_*`, `all_*`, `filters`, config-time
-  schema).
+- 0228 — Configuration key model (`work.key` rename + scope-key / local-prefix
+  separation + tracker-aware migration).
+- 0229 — Per-tracker pull scope (`additional_*`, `all_*`, `filters` + catalogue
+  structured-value extension, config-time schema, `max_items` / `max_pages`
+  ceilings with truncation-to-hard-error, dedup + stable ordering).
 - 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
   boundary).
 - TBD (existing candidates) — status / kind / priority mapping; parent-child
   relationships on sync.
+
+### Future candidates (deferred from 0229 refinement)
+
+Out of scope for the shipping children above; captured here to track potential
+follow-on work.
+
+- **Nested AND/OR filters** — promote the reserved `all` / `any` grouping keys in
+  0229's flat filter model to full boolean nesting (`(A AND B) OR (C AND D)`). 0229
+  reserves the keys so this lands with no config migration.
+- **Raw filter escape hatch** — a per-tracker raw query fragment (JQL / Linear
+  `IssueFilter`) for tracker-specific operators the normalised bag cannot express
+  (Jira `WAS` / `CHANGED`, custom fields; Linear `every`). Deferred to preserve
+  0229's config-time validation guarantee.
+- **Named pull scopes** — multiple named `pull` blocks per tracker selectable at
+  sync time (a narrow daily scope vs a wide release-time sweep), rather than the
+  single block per tracker 0229 ships.
+- **Remote-existence scope validation** — verify configured `additional_*` entities
+  and filter values against the remote, surfacing typos at validation time. 0229
+  validates structure only; this coordinates with 0227's `config validate` command.
 
 ## Drafting Notes
 
@@ -240,11 +267,18 @@ Resolved during refinement (2026-08-30):
   the value identifies the tracker entity, of which the ID prefix is one
   consequence.
 - Ownership inverted relative to the first proposal: the integration section owns
-  the canonical key and `work.key` derives from it, so integration skills never
-  depend on `work.*` and can be packaged independently.
+  the canonical scope key and `work.key` (the local ID prefix) is a separate,
+  independently-set value, so integration skills never depend on `work.*` and can be
+  packaged independently. `work.key` never derives from the scope key — the two were
+  the pair `default_project_code` wrongly conflated; `{key}` in `id_pattern` requires
+  an explicit `work.key`, and a silent default to the scope key was rejected because it
+  would give local IDs the tracker prefix over an independent number sequence, falsely
+  implying they correspond to remote issues (2026-09-10).
 - Linear scope required and taken from the key, with the credential reframed as
   access control — a deliberate departure from defaulting scope to the credentialed
   team.
+- 2026-09-09: captured four future candidates (nested filters, raw escape hatch,
+  named scopes, remote-existence validation) deferred during 0229's refinement.
 
 ## References
 

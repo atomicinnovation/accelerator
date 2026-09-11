@@ -1,6 +1,6 @@
 //! Migration 0005 (`rename-work-item-type-to-kind`) driven end to end
-//! against the compiled binary, asserted against a bash golden captured in
-//! isolation (`ACCELERATOR_MIGRATIONS_DIR` scoped to just 0005's script).
+//! against the compiled binary, asserted against a golden captured in
+//! isolation.
 
 use std::fs;
 use std::process::Command;
@@ -32,12 +32,13 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0004-restructure-meta-research-into-subject-subcategories\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )
 }
 
 #[test]
-fn matches_the_isolated_bash_golden() -> Result<(), TestError> {
+fn matches_the_isolated_golden() -> Result<(), TestError> {
     let dir = TempDir::new()?;
     let root = dir.path();
 
@@ -245,7 +246,8 @@ fn a_second_run_against_the_now_migrated_tree_is_byte_identical(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;

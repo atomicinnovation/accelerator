@@ -48,14 +48,14 @@ fn overflow_message(
 
 fn allocation_message(error: &AllocationError, pattern: &str) -> String {
     match error {
-        AllocationError::MissingProject => format!(
-            "E_PATTERN_MISSING_PROJECT: pattern '{pattern}' contains \
-             {{project}} but no value supplied — pass --project or set \
-             work.default_project_code"
+        AllocationError::MissingKey => format!(
+            "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
+             {{key}} prefix but no value supplied — pass --project or set \
+             work.key"
         ),
         AllocationError::ProjectUnused => format!(
-            "E_PATTERN_PROJECT_UNUSED: --project is meaningless for \
-             pattern '{pattern}' (no {{project}} token)"
+            "E_PATTERN_KEY_UNUSED: --project is meaningless for pattern \
+             '{pattern}' (no {{key}} token)"
         ),
         AllocationError::Overflow { .. } => {
             unreachable!("Overflow is handled by the caller separately")
@@ -82,9 +82,7 @@ pub fn run(
         Ok(dir) => dir,
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
-    let project = project
-        .map(str::to_owned)
-        .or_else(|| scheme.default_project_code.clone());
+    let project = project.map(str::to_owned).or_else(|| scheme.key.clone());
 
     let filenames = FilesystemLister::new(&work_dir).filenames();
     let scan_regex = match compile_scan_regex(

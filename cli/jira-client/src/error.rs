@@ -17,8 +17,8 @@ pub enum ClientError {
     #[error("E_BAD_SITE: jira.site {site:?} is refused — {reason}")]
     BadSite { site: String, reason: String },
     #[error(
-        "E_NO_PROJECT: work.default_project_code is not configured — a Jira \
-         create needs a project key"
+        "E_NO_PROJECT: jira.project_key is not configured — a Jira create \
+         needs a project key"
     )]
     NoProject,
     #[error("E_AUTH_NO_EMAIL: jira.email is not configured")]

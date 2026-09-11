@@ -134,7 +134,8 @@ fn unskipping_a_real_migration_lets_a_subsequent_run_actually_apply_it(
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n",
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n",
     )?;
     run(&dir, &["--skip", "0001-rename-tickets-to-work"])?;
 
@@ -202,8 +203,7 @@ fn an_unknown_applied_or_skipped_id_is_warned_about_during_a_real_run(
 }
 
 #[test]
-fn no_id_validation_against_the_registry_matches_bash() -> Result<(), TestError>
-{
+fn no_id_validation_against_the_registry() -> Result<(), TestError> {
     let dir = project()?;
 
     let (_stdout, _stderr, code) =

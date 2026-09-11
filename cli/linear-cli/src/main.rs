@@ -4,6 +4,7 @@
 mod cli;
 mod context;
 mod exit_codes;
+mod init_writeback;
 mod keywords;
 mod work_item;
 
@@ -401,13 +402,18 @@ fn run_init(action: InitAction) -> ExitCode {
                 ExitCode::from(exit_codes::for_surface(&error))
             }
         },
-        InitAction::Discover { team_id } => {
+        InitAction::Discover { team_id, force } => {
             match built.client.discover_team(&team_id) {
                 Ok(catalogue) => {
                     if let Err(error) = cache.write_catalogue(&catalogue) {
                         eprintln!("{error}");
                         return ExitCode::from(exit_codes::for_cache(&error));
                     }
+                    report_team_key_writeback(
+                        &built.config.service,
+                        &catalogue,
+                        force,
+                    );
                     print_json(&keywords::with_outcome(
                         catalogue,
                         keywords::Init::Discovered.keyword(),
@@ -419,6 +425,39 @@ fn run_init(action: InitAction) -> ExitCode {
                     ExitCode::from(exit_codes::for_surface(&error))
                 }
             }
+        }
+    }
+}
+
+fn report_team_key_writeback(
+    config: &dyn config::ConfigAccess,
+    catalogue: &Value,
+    force: bool,
+) {
+    use init_writeback::WritebackOutcome;
+    let Some(discovered) =
+        catalogue.pointer("/team/key").and_then(Value::as_str)
+    else {
+        return;
+    };
+    match init_writeback::write_team_key(
+        config,
+        discovered,
+        force,
+        &init_writeback::TtyConfirmer,
+    ) {
+        Ok(WritebackOutcome::Written | WritebackOutcome::Overwritten) => {
+            eprintln!("linear.team_key set to {discovered:?}");
+        }
+        Ok(WritebackOutcome::Preserved) => {
+            eprintln!(
+                "linear.team_key left intact; re-run with --force to \
+                 overwrite it with {discovered:?}"
+            );
+        }
+        Ok(WritebackOutcome::Unchanged) => {}
+        Err(error) => {
+            eprintln!("warning: could not write linear.team_key: {error}");
         }
     }
 }
