@@ -401,11 +401,11 @@ mod tests {
 
     #[test]
     fn no_kind_discriminated_row_shadows_a_same_named_extra() {
-        // Guards the `kind` overload (ADR-0067): introducing a (type, kind)
-        // row whose `kind` also appears in that type's own `extras` silently
-        // re-routes every existing `kind: <that>` document from the type
-        // default row to the new one. Such a row is a migration, not an
-        // addition — this fails until it is made explicit here.
+        // Guards the `kind` overload: introducing a (type, kind) row whose
+        // `kind` also appears in that type's own `extras` silently re-routes
+        // every existing `kind: <that>` document from the type default row to
+        // the new one. Such a row is a migration, not an addition — this fails
+        // until it is made explicit here.
         for row in &SCHEMA {
             if row.kind.is_empty() {
                 continue;
