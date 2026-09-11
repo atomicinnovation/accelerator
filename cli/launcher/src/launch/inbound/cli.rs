@@ -214,7 +214,7 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
-    /// Print the `## Configured Paths` block, or — with `--doc-types` — the 13
+    /// Print the `## Configured Paths` block, or — with `--doc-types` — the 14
     /// doc-type → directory mappings as `type<TAB>dir` lines.
     Paths {
         /// Emit the doc-type → directory mappings instead of the configured

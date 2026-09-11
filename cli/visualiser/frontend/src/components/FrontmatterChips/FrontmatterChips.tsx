@@ -1,12 +1,19 @@
 import { formatChipDate } from "../../api/format";
+import type { ChipVariant } from "../Chip/Chip";
 import { FrontmatterChip } from "../FrontmatterChip/FrontmatterChip";
 import { StatusBadge } from "../StatusBadge/StatusBadge";
 import styles from "./FrontmatterChips.module.css";
 
-type FrontmatterChipsProps =
+type FrontmatterChipsProps = (
   | { state: "absent" }
   | { state: "malformed" }
-  | { state: "parsed"; frontmatter: Record<string, unknown> };
+  | { state: "parsed"; frontmatter: Record<string, unknown> }
+) & {
+  /** Resolved status-chip variant override, forwarded to `StatusBadge`.
+   *  Supplied by the route-level, type-aware parent so this presenter never
+   *  handles a `DocTypeKey` itself. */
+  statusVariant?: ChipVariant;
+};
 
 // The chip whitelist. Drawn from ADR-0033's unified base frontmatter
 // schema (status / date / author are base fields shared across all
@@ -62,7 +69,7 @@ export function FrontmatterChips(props: FrontmatterChipsProps) {
     >
       {entries.map(([key, value]) =>
         key === "status" ? (
-          <StatusBadge key={key} value={value} />
+          <StatusBadge key={key} value={value} variant={props.statusVariant} />
         ) : key === "date" ? (
           <FrontmatterChip key={key} name={key} value={formatChipDate(value)} />
         ) : (

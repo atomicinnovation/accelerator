@@ -5,7 +5,7 @@ import { fetchDocs, fetchLibraryStructure } from "../../api/fetch";
 import { formatDate, formatMtime } from "../../api/format";
 import { fileSlugFromRelPath } from "../../api/path-utils";
 import { queryKeys } from "../../api/query-keys";
-import { statusToVariant } from "../../api/status-variant";
+import { chipVariantFor, statusToVariant } from "../../api/status-variant";
 import type {
   DocTypeKey,
   IndexEntry,
@@ -116,6 +116,11 @@ export function LibraryTypeView({ type: propType }: Props) {
   const rawType = propType ?? params.type;
   const type: DocTypeKey | undefined =
     rawType && isDocTypeKey(rawType) ? rawType : undefined;
+  // Route-level, type-aware resolver: lifecycle-classified types (topic
+  // research) get the ordinal chip ramp, every other type the shared semantic
+  // lexicon. The generic Chip/FilterPill presenters stay doc-type-agnostic.
+  const statusChipVariant = (value: unknown) =>
+    type ? chipVariantFor(type, value) : statusToVariant(value);
   const hasFileSlug = Boolean(params.fileSlug);
 
   useMarkDocTypeSeen(hasFileSlug ? undefined : type);
@@ -227,6 +232,7 @@ export function LibraryTypeView({ type: propType }: Props) {
             selection={selection}
             onChange={setSelection}
             isFetching={structureQuery.isFetching}
+            statusVariantFor={statusChipVariant}
           />
         </>
       }
@@ -283,7 +289,7 @@ export function LibraryTypeView({ type: propType }: Props) {
                 {/* biome-ignore lint/a11y/useSemanticElements: ARIA grid cell — div/span layout preserved */}
                 <span role="cell">
                   {statusValue(entry) ? (
-                    <Chip variant={statusToVariant(statusValue(entry))}>
+                    <Chip variant={statusChipVariant(statusValue(entry))}>
                       {statusValue(entry)}
                     </Chip>
                   ) : (

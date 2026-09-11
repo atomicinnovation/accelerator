@@ -135,4 +135,28 @@ describe("StatusBadge", () => {
       ).not.toBeNull();
     });
   });
+
+  describe("variant override", () => {
+    it("renders the supplied variant instead of the semantic default", () => {
+      // `synthesised` is not in the shared lexicon (would be neutral); the
+      // override routes it to the topic-research lifecycle ramp.
+      const { container } = render(
+        <StatusBadge value="synthesised" variant="lifecycle-synthesised" />,
+      );
+      expect(
+        container
+          .querySelector('[data-testid="status-badge"]')
+          ?.getAttribute("data-variant"),
+      ).toBe("lifecycle-synthesised");
+    });
+
+    it("falls back to statusToVariant when no override is given", () => {
+      const { container } = render(<StatusBadge value="accepted" />);
+      expect(
+        container
+          .querySelector('[data-testid="status-badge"]')
+          ?.getAttribute("data-variant"),
+      ).toBe("green");
+    });
+  });
 });

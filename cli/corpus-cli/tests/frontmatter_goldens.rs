@@ -58,6 +58,59 @@ fn write_work_item(path: &Path, id: &str) -> Result<(), TestError> {
     Ok(())
 }
 
+/// A topic-research manifest at `<root>/meta/research/topics/<slug>/manifest.md`,
+/// with an explicit `id` so a constant-id collision can be constructed
+/// separately from the slug-keyed happy path.
+fn write_topic_manifest(
+    root: &Path,
+    slug: &str,
+    id: &str,
+) -> Result<(), TestError> {
+    let path = root
+        .join("meta/research/topics")
+        .join(slug)
+        .join("manifest.md");
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        &path,
+        format!(
+            "---\ntype: \"topic-research\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\n\
+             producer: \"research-topic\"\nstatus: \"synthesised\"\n\
+             kind: \"manifest\"\nslug: \"{slug}\"\nround_count: 1\n\
+             finding_count: 1\nprimary: \"synthesis.md\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\n---\nbody\n"
+        ),
+    )?;
+    Ok(())
+}
+
+/// A work item whose `relates_to` targets a topic-research set by slug.
+fn write_referencing_work_item(
+    path: &Path,
+    id: &str,
+    target_slug: &str,
+) -> Result<(), TestError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        path,
+        format!(
+            "---\ntype: \"work-item\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\n\
+             relates_to: [\"topic-research:{target_slug}\"]\n---\nbody\n"
+        ),
+    )?;
+    Ok(())
+}
+
 #[test]
 fn a_clean_whole_corpus_default_run_exits_0() -> Result<(), TestError> {
     let dir = tempdir("default-clean")?;
@@ -541,6 +594,91 @@ fn a_manifest_with_an_out_of_vocab_base_status_is_bad_status(
     assert_eq!(output.status.code(), Some(1));
     assert!(
         stderr(&output).contains("BAD-STATUS"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_reference_resolves_under_the_whole_corpus_check(
+) -> Result<(), TestError> {
+    // The `--file` golden cannot exercise this: its reference index is built
+    // from an empty invocation root. Staging both documents under one root and
+    // running a whole-corpus validate (no `--file`) makes `build_index` index
+    // the manifest so the `id: <slug>`-keyed reference resolves.
+    let dir = tempdir("topic-ref-resolves")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(
+        &root,
+        "prompt-caching-economics",
+        "prompt-caching-economics",
+    )?;
+    write_referencing_work_item(
+        &root.join("meta/work/0001.md"),
+        "0001",
+        "prompt-caching-economics",
+    )?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_reference_without_its_set_is_dangling(
+) -> Result<(), TestError> {
+    // Negative control: without the target set indexed, resolution genuinely
+    // fails rather than passing vacuously.
+    let dir = tempdir("topic-ref-dangling")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_referencing_work_item(
+        &root.join("meta/work/0001.md"),
+        "0001",
+        "prompt-caching-economics",
+    )?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("DANGLING-REF"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn two_topic_sets_with_slug_keyed_ids_validate_clean() -> Result<(), TestError>
+{
+    let dir = tempdir("topic-two-sets")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(&root, "alpha-subject", "alpha-subject")?;
+    write_topic_manifest(&root, "beta-subject", "beta-subject")?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn two_topic_sets_sharing_a_constant_manifest_id_collide(
+) -> Result<(), TestError> {
+    // The regression the `id: <slug>` manifest scheme prevents: two sets both
+    // keying their manifest as the pre-collapse constant `id: "manifest"`.
+    let dir = tempdir("topic-dup-id")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(&root, "alpha-subject", "manifest")?;
+    write_topic_manifest(&root, "beta-subject", "manifest")?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("DUPLICATE-ID"),
         "{}",
         stderr(&output)
     );

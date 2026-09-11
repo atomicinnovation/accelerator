@@ -975,31 +975,40 @@ the specs capture.
 
 #### Automated Verification
 
-- [ ] Rust registry compiles with count/parity bumped:
+- [x] Rust registry compiles with count/parity bumped:
       `cargo test -p corpus doc_type` and `cargo test -p config catalogue`
-- [ ] The regenerated `cargo-public-api` golden (`all()` → `[Self; 15]`, new
+- [x] The regenerated `cargo-public-api` golden (`all()` → `[Self; 15]`, new
       `TopicResearch` variant) shows no unexpected diff: `mise run cli:check`
-- [ ] The identity slug arm is pinned: `cargo test -p corpus slug`
-- [ ] The indexer emits exactly one entry per set, skips the dot-dir, and omits
+- [x] The identity slug arm is pinned: `cargo test -p corpus slug`
+- [x] The indexer emits exactly one entry per set, skips the dot-dir, and omits
       sub-documents: `cargo test -p accelerator-visualiser indexer`
-- [ ] `api_types` reports 15: `cargo test -p accelerator-visualiser --test api_types`
-- [ ] The frontend `Record<DocTypeKey, …>` maps are complete (compile) and the
+- [x] `api_types` reports 15: `cargo test -p accelerator-visualiser --test api_types`
+- [x] The frontend `Record<DocTypeKey, …>` maps are complete (compile) and the
       status-chip tests pass — the `chipVariantFor`/`lifecycleToVariant`
       distinctness test, the render-level tests at all three dispatch sites (card
       `LibraryTypeView`, detail `FrontmatterChips`/`StatusBadge`, facet
       `FilterPill`), the CSS-resolution accessibility test with its sRGB→HSL helper
       golden tests, and the lifecycle-vocab drift check: `mise run frontend:check`
-- [ ] `TYPE_COPY` strings match the pinned values (test): green under
+- [x] `TYPE_COPY` strings match the pinned values (test): green under
       `mise run frontend:check`
 - [ ] `fixture-coverage.spec.ts` passes for `/library/topic-research` and its
       detail route: `mise run test:frontend:visualiser` (or the resolved-styles
-      spec via the native Playwright config)
-- [ ] The `relates_to: ["topic-research:<slug>"]` reference resolves under the
+      spec via the native Playwright config) — native Playwright lane (needs a
+      browser); not run in this environment. The server fixture set and its
+      `DETAIL_ROUTE_SLUGS` entry are in place.
+- [x] The `relates_to: ["topic-research:<slug>"]` reference resolves under the
       whole-corpus dangling-reference check
-- [ ] Full read-only mirror passes: `mise run check`
-- [ ] Full suite passes: `mise run test`
+- [x] Full read-only mirror passes: `mise run check`
+- [ ] Full suite passes: `mise run test` (blocked only by the same pre-existing,
+      unrelated `work-item:0286` `DUPLICATE-ID` in the repo's own `meta/work/`;
+      every 0278 test — registry, indexer, chips, dangling/DuplicateId,
+      set-scoped ids — passes)
 - [ ] Docker VR compare passes with the 10 new baselines committed:
-      `mise run test:e2e:visualiser:docker`
+      `mise run test:e2e:visualiser:docker` — the pinned Docker/Linux harness is
+      unavailable in this environment (colima not running), so the 10 baselines
+      are not yet generated. The in-loop `vr-baseline-coverage` guard tracks
+      `topic-research` as pending (self-clearing once the Docker lane commits
+      them). Environment-gated deliverable per the work item's completion gates.
 
 #### Manual Verification
 

@@ -49,7 +49,7 @@ fn slug_and_id_conventions_are_pinned() {
 }
 
 /// The doc-type wire token and config-path key are the load-bearing SPA/config
-/// contract. Pin all 14 variants to the exact tokens the retired serde-derived
+/// contract. Pin all 15 variants to the exact tokens the retired serde-derived
 /// enum produced, so the swap onto `corpus::DocTypeKey` is provably
 /// wire-stable.
 #[test]
@@ -86,6 +86,11 @@ fn doc_type_wire_and_config_keys_are_pinned() {
             DocTypeKey::DesignInventories,
             "design-inventories",
             Some("research_design_inventories"),
+        ),
+        (
+            DocTypeKey::TopicResearch,
+            "topic-research",
+            Some("research_topics"),
         ),
         (
             DocTypeKey::RootCauseAnalyses,

@@ -1,5 +1,6 @@
 import type { ChipVariant } from "../components/Chip/Chip";
 import { normaliseValue } from "./normalise-value";
+import type { DocTypeKey } from "./types";
 
 // These sets are a shared, doc-type-agnostic status lexicon (matching the
 // prototype's StatusBadge) — they colour the status column of EVERY doc type,
@@ -48,4 +49,52 @@ export function statusToVariant(value: unknown): ChipVariant {
   if (AMBER.has(key)) return "amber";
   if (RED.has(key)) return "red";
   return "neutral";
+}
+
+// The topic-research lifecycle states, in order. Mapped to a dedicated ordinal
+// `lifecycle-*` chip ramp rather than the shared ok/warn/err lexicon, because
+// `complete` already belongs to the shared GREEN set — a value-only map could
+// not route these without recolouring every type's `complete` chip. Kept in
+// step with the Rust manifest `status_vocab` by the drift fixture that
+// `status-variant.test.ts` reads.
+const LIFECYCLE_TO_VARIANT: Record<string, ChipVariant> = {
+  briefed: "lifecycle-briefed",
+  outlined: "lifecycle-outlined",
+  researching: "lifecycle-researching",
+  synthesised: "lifecycle-synthesised",
+  complete: "lifecycle-complete",
+};
+
+export function lifecycleToVariant(value: unknown): ChipVariant {
+  return LIFECYCLE_TO_VARIANT[normaliseValue(value)] ?? "neutral";
+}
+
+// Which chip scale each doc type uses. Centralised so the "lifecycle types"
+// decision lives in one map — a future lifecycle-classified type (0280/0281)
+// onboards by one entry rather than a per-site `type === …` conditional.
+const CHIP_SCALE: Record<DocTypeKey, "lifecycle" | "semantic"> = {
+  decisions: "semantic",
+  "work-items": "semantic",
+  plans: "semantic",
+  "codebase-research": "semantic",
+  "plan-reviews": "semantic",
+  "pr-reviews": "semantic",
+  "work-item-reviews": "semantic",
+  validations: "semantic",
+  notes: "semantic",
+  "pr-descriptions": "semantic",
+  "design-gaps": "semantic",
+  "design-inventories": "semantic",
+  "topic-research": "lifecycle",
+  "root-cause-analyses": "semantic",
+  templates: "semantic",
+};
+
+/** Resolve a status chip variant for a doc type: lifecycle-classified types
+ *  use the ordinal `lifecycle-*` ramp; every other type keeps the shared
+ *  semantic lexicon. */
+export function chipVariantFor(type: DocTypeKey, status: unknown): ChipVariant {
+  return CHIP_SCALE[type] === "lifecycle"
+    ? lifecycleToVariant(status)
+    : statusToVariant(status);
 }

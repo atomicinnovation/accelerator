@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { chipVariantFor } from "../../api/status-variant";
 import type { LibraryFacet, LibrarySelectionPerType } from "../../api/types";
 import { FilterPill } from "./FilterPill";
 
@@ -143,5 +144,25 @@ describe("FilterPill", () => {
   it("omits the fetching indicator when isFetching is false", () => {
     render(<Controlled facets={[STATUS_FACET]} isFetching={false} />);
     expect(screen.queryByTestId("filter-pill-fetching")).toBeNull();
+  });
+
+  it("routes status-facet chips through statusVariantFor when supplied", async () => {
+    const user = userEvent.setup();
+    const facet: LibraryFacet = {
+      id: "status",
+      label: "Status",
+      options: [{ id: "synthesised", label: "Synthesised", count: 2 }],
+    };
+    render(
+      <FilterPill
+        facets={[facet]}
+        selection={{}}
+        onChange={() => {}}
+        statusVariantFor={(value) => chipVariantFor("topic-research", value)}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /filter/i }));
+    const chip = screen.getByText("Synthesised").closest("[data-variant]");
+    expect(chip?.getAttribute("data-variant")).toBe("lifecycle-synthesised");
   });
 });

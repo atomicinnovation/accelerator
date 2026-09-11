@@ -13,6 +13,7 @@ export const DOC_TYPE_HUE: Record<DocTypeKey, number> = {
   "work-item-reviews": 340,
   "design-inventories": 185,
   "design-gaps": 95,
+  "topic-research": 132,
   "codebase-research": 28,
   plans: 220,
   "plan-reviews": 260,
@@ -71,6 +72,7 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-doc-pr-descriptions": "#4588b8",
   "ac-doc-design-gaps": "#5c9132",
   "ac-doc-design-inventories": "#2e7e8a",
+  "ac-doc-topic-research": "#1c9233",
   // Root cause analyses (the `issue-research` doc type, 0110). Hue ~310 (the
   // prototype's RCA hue), darkened within that family to clear 3:1 contrast vs
   // --ac-bg (#fbfcfe).
@@ -90,6 +92,7 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-doc-bg-pr-descriptions": "#e2eff7",
   "ac-doc-bg-design-gaps": "#e7f1d8",
   "ac-doc-bg-design-inventories": "#dceaec",
+  "ac-doc-bg-topic-research": "#dcf1e0",
   "ac-doc-bg-root-cause-analyses": "#f6e2f1",
   // Per-stage lifecycle pipeline accents (light). Distinct family from
   // --ac-doc-* — see global.css inline comment. Long-tail stages
@@ -103,6 +106,17 @@ export const LIGHT_COLOR_TOKENS = {
   "ac-stage-pr-descriptions": "#2796c5",
   "ac-stage-pr-reviews": "#952cc5",
   "ac-stage-decisions": "#c5273f",
+  // Topic-research lifecycle chips (light). A dedicated ordinal ramp on a
+  // non-green teal hue (190), off the semantic ok/warn/err tones — lightness
+  // carries the five-state progression, so it stays legible under colour-vision
+  // deficiency. Each fill clears >=15% HSL saturation and >=3:1 text contrast
+  // against `--ac-lifecycle-fg`.
+  "ac-lifecycle-fg": "#0d3d47",
+  "ac-lifecycle-briefed": "#d9eef2",
+  "ac-lifecycle-outlined": "#bae0e8",
+  "ac-lifecycle-researching": "#96d2de",
+  "ac-lifecycle-synthesised": "#72c4d5",
+  "ac-lifecycle-complete": "#4cb7cd",
 } as const;
 
 // Dark-theme overrides — same resolved-hex invariant as LIGHT_COLOR_TOKENS
@@ -147,6 +161,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-doc-pr-descriptions": "#ffffff",
   "ac-doc-design-gaps": "#ffffff",
   "ac-doc-design-inventories": "#ffffff",
+  "ac-doc-topic-research": "#ffffff",
   "ac-doc-root-cause-analyses": "#ffffff",
   // Glyph BACKGROUND tints (dark theme). Design intent: uniform monochrome
   // background regardless of doc type — every key collapses to a single
@@ -163,6 +178,7 @@ export const DARK_COLOR_TOKENS = {
   "ac-doc-bg-pr-descriptions": "#1d2030",
   "ac-doc-bg-design-gaps": "#1d2030",
   "ac-doc-bg-design-inventories": "#1d2030",
+  "ac-doc-bg-topic-research": "#1d2030",
   "ac-doc-bg-root-cause-analyses": "#1d2030",
   // Per-stage lifecycle pipeline accents (dark). Stay coloured (unlike
   // --ac-doc-* which collapses to white in dark) — the stage chain's
@@ -175,6 +191,14 @@ export const DARK_COLOR_TOKENS = {
   "ac-stage-pr-descriptions": "#60c2e2",
   "ac-stage-pr-reviews": "#c060e2",
   "ac-stage-decisions": "#e26077",
+  // Topic-research lifecycle chips (dark). Light teal text on five deepening
+  // teal fills; every fill clears >=15% HSL saturation and >=3:1 text contrast.
+  "ac-lifecycle-fg": "#d5eff4",
+  "ac-lifecycle-briefed": "#183035",
+  "ac-lifecycle-outlined": "#20444b",
+  "ac-lifecycle-researching": "#285862",
+  "ac-lifecycle-synthesised": "#2f6d79",
+  "ac-lifecycle-complete": "#368291",
 } as const;
 
 export const TYPOGRAPHY_TOKENS = {

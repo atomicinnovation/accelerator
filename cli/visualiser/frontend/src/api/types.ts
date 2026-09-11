@@ -14,6 +14,7 @@ export type DocTypeKey =
   | "pr-descriptions"
   | "design-gaps"
   | "design-inventories"
+  | "topic-research"
   | "root-cause-analyses"
   | "templates";
 
@@ -34,6 +35,7 @@ export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   "pr-descriptions",
   "design-gaps",
   "design-inventories",
+  "topic-research",
   "root-cause-analyses",
   "templates",
 ] as const;
@@ -80,6 +82,7 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR descriptions",
   "design-gaps": "Design gaps",
   "design-inventories": "Design inventories",
+  "topic-research": "Topic research",
   "root-cause-analyses": "Root cause analyses",
   templates: "Templates",
 };
@@ -101,6 +104,7 @@ export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR description",
   "design-gaps": "Design gap",
   "design-inventories": "Design inventory",
+  "topic-research": "Topic research",
   "root-cause-analyses": "Root cause analysis",
   templates: "Template",
 };

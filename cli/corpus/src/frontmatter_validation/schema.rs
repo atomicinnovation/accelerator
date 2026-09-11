@@ -320,6 +320,36 @@ pub const OBSOLETE_LEGACY_KEYS: [&str; 3] =
 mod tests {
     use super::{row_for, SCHEMA};
 
+    /// The committed `topic-research-status-vocab.json` fixture is the
+    /// cross-language contract the frontend chip ramp reads. Regenerate it from
+    /// this test's rendering when the manifest `status_vocab` changes, so the
+    /// TS `lifecycle-*` map cannot silently drift from the Rust vocabulary.
+    #[test]
+    fn topic_research_status_vocab_fixture_matches_the_schema_row(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let vocab = row_for("topic-research", "manifest")
+            .ok_or("topic-research manifest row")?
+            .status_vocab;
+        let rendered = format!(
+            "[{}]",
+            vocab
+                .iter()
+                .map(|s| format!("\"{s}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let fixture = include_str!(
+            "../../tests/fixtures/topic-research-status-vocab.json"
+        );
+        assert_eq!(
+            rendered,
+            fixture.trim(),
+            "the committed status-vocab fixture has drifted from schema.rs; \
+             regenerate cli/corpus/tests/fixtures/topic-research-status-vocab.json"
+        );
+        Ok(())
+    }
+
     #[test]
     fn every_row_resolves_by_its_own_linkage_type_and_kind() {
         for row in &SCHEMA {

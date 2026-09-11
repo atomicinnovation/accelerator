@@ -314,6 +314,50 @@ describe("LibraryTypeView", () => {
     ).not.toBeNull();
   });
 
+  it("renders topic-research status through the lifecycle chip ramp", async () => {
+    const topicStructure: LibraryStructureResponse = {
+      phases: [
+        {
+          id: "discover",
+          label: "Discover",
+          docTypes: [
+            {
+              id: "topic-research",
+              label: "Topic research",
+              count: 1,
+              filteredCount: 1,
+              latest: null,
+              filterFacets: [],
+            },
+          ],
+        },
+      ],
+      templates: baseStructure.templates,
+    };
+    const topicEntries: IndexEntry[] = [
+      {
+        ...mockEntries[0],
+        type: "topic-research",
+        path: "/p/meta/research/topics/prompt-caching-economics/manifest.md",
+        relPath: "meta/research/topics/prompt-caching-economics/manifest.md",
+        slug: "prompt-caching-economics",
+        title: "Prompt caching economics",
+        frontmatter: { status: "synthesised", date: "2026-09-10" },
+      },
+    ];
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue(topicEntries);
+    spyOnStructure(topicStructure);
+    const { container } = render(<LibraryTypeView type="topic-research" />, {
+      wrapper: Wrapper,
+    });
+    await screen.findByText("Prompt caching economics");
+    // `synthesised` is off the shared semantic lexicon (would be neutral grey);
+    // the type-aware card routes it to the lifecycle ramp.
+    expect(
+      container.querySelector('[data-variant="lifecycle-synthesised"]'),
+    ).not.toBeNull();
+  });
+
   it("renders an error branch for an unknown doc type", async () => {
     spyOnStructure();
     render(<LibraryTypeView type={"bogus" as never} />, { wrapper: Wrapper });
