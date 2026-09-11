@@ -377,26 +377,29 @@ run check` rather than only by the out-of-loop Docker VR lane.
 
 #### Automated Verification
 
-- [ ] Rust workspace check passes: `mise run cli:check`
-- [ ] Server check passes: `mise run server:check`
-- [ ] Frontend check passes: `mise run frontend:check`
-- [ ] The wire round-trip and parity tests pass: `cargo test -p corpus doc_type`
+- [x] Rust workspace check passes: `mise run cli:check`
+- [x] Server check passes: `mise run server:check`
+- [x] Frontend check passes: `mise run frontend:check`
+- [x] The wire round-trip and parity tests pass: `cargo test -p corpus doc_type`
       and `cargo test -p accelerator-visualiser --test parity`
-- [ ] The cross-language pipeline parity test passes (its `research` token moved
+- [x] The cross-language pipeline parity test passes (its `research` token moved
       in lockstep): the `pipeline-step-parity` vitest spec is green under
       `mise run frontend:check`
-- [ ] Every `research`-token consumer moved — the registry maps,
+- [x] Every `research`-token consumer moved — the registry maps,
       `cluster-via-label.ts`, the `template-tier.ts` glyph value, and the swept
       test fixtures — compiles and passes: `mise run frontend:check`
-- [ ] The `localStorage` `parseStored migration` and idempotency/no-clobber tests
+- [x] The `localStorage` `parseStored migration` and idempotency/no-clobber tests
       pass: `mise run frontend:check`
-- [ ] The baseline-filename↔`DOC_TYPE_KEYS.filter(isPhysicalDocTypeKey)` in-loop
-      assertion passes: `mise run check`
-- [ ] `cargo public-api` shows no diff (variant identifier unchanged): covered by
+- [x] The baseline-filename↔`DOC_TYPE_KEYS` in-loop assertion passes:
+      `mise run check` (pinned to the full `DOC_TYPE_KEYS`, not the physical
+      subset — the glyph/big-glyph VR specs iterate every key, `templates`
+      included)
+- [x] `cargo public-api` shows no diff (variant identifier unchanged): covered by
       `mise run cli:check`
-- [ ] Full read-only mirror passes: `mise run check`
+- [x] Full read-only mirror passes: `mise run check`
 - [ ] Docker VR compare passes with the renamed baselines:
-      `mise run test:e2e:visualiser:docker`
+      `mise run test:e2e:visualiser:docker` (out-of-loop Docker/Linux lane, not
+      run locally; baselines renamed with identical pixels)
 
 #### Manual Verification
 

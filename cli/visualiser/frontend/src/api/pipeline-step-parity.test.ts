@@ -12,7 +12,7 @@ import {
  *  stage on any surface. Any reordering must update both sides. */
 const CANONICAL_PRESENT_ORDER = [
   "work-items",
-  "research",
+  "codebase-research",
   "plans",
   "plan-reviews",
   "validations",

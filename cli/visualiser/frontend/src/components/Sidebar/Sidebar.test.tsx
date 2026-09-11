@@ -76,8 +76,8 @@ const allDocTypes: DocType[] = [
     virtual: false,
   },
   {
-    key: "research",
-    label: "Research",
+    key: "codebase-research",
+    label: "Codebase research",
     dirPath: "/p",
     inLifecycle: true,
     inKanban: false,
@@ -179,7 +179,7 @@ function defaultPhases(docTypes: DocType[]): LibraryPhase[] {
     {
       id: "discover",
       label: "Discover",
-      ids: ["design-inventories", "design-gaps", "research"],
+      ids: ["design-inventories", "design-gaps", "codebase-research"],
     },
     {
       id: "build",
@@ -262,12 +262,12 @@ describe("Sidebar", () => {
     expect(links.findIndex((t) => t.includes("Work items"))).toBeLessThan(
       links.findIndex((t) => t.includes("Work item reviews")),
     );
-    // Discover: design-inventories, design-gaps, research
+    // Discover: design-inventories, design-gaps, codebase-research
     expect(
       links.findIndex((t) => t.includes("Design inventories")),
     ).toBeLessThan(links.findIndex((t) => t.includes("Design gaps")));
     expect(links.findIndex((t) => t.includes("Design gaps"))).toBeLessThan(
-      links.findIndex((t) => t.includes("Research")),
+      links.findIndex((t) => t.includes("Codebase research")),
     );
     // Remember: decisions, notes
     expect(links.findIndex((t) => t.includes("Decisions"))).toBeLessThan(
@@ -334,10 +334,12 @@ describe("Sidebar", () => {
   });
 
   it("unseen dot present when context flags the type", async () => {
-    const handle = makeUnseenHandle(new Set(["research"]));
+    const handle = makeUnseenHandle(new Set(["codebase-research"]));
     renderSidebar(allDocTypes, handle);
     await screen.findByText("LIBRARY");
-    const researchLink = screen.getByLabelText("Research (unseen changes)");
+    const researchLink = screen.getByLabelText(
+      "Codebase research (unseen changes)",
+    );
     // The dot is a <span aria-hidden="true">. Glyph renders an <svg>, so
     // a <span aria-hidden> uniquely identifies the dot inside this link.
     expect(
@@ -353,11 +355,11 @@ describe("Sidebar", () => {
   });
 
   it("link aria-label reflects unseen state", async () => {
-    const handle = makeUnseenHandle(new Set(["research"]));
+    const handle = makeUnseenHandle(new Set(["codebase-research"]));
     renderSidebar(allDocTypes, handle);
     await screen.findByText("LIBRARY");
     expect(
-      screen.getByLabelText("Research (unseen changes)"),
+      screen.getByLabelText("Codebase research (unseen changes)"),
     ).toBeInTheDocument();
     // Decisions: bare label, no title
     const decisionsLink = screen.getByLabelText("Decisions");

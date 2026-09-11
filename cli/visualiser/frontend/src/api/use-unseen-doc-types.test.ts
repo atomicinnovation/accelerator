@@ -97,7 +97,7 @@ describe("useUnseenDocTypes", () => {
     act(() => result.current.markSeen("work-items"));
     setItemSpy.mockClear();
     for (let i = 0; i < 50; i++) {
-      const types = ["decisions", "plans", "research", "work-items"];
+      const types = ["decisions", "plans", "codebase-research", "work-items"];
       act(() => result.current.onEvent(changed(types[i % types.length])));
     }
     expect(setItemSpy).not.toHaveBeenCalled();
@@ -242,7 +242,7 @@ describe("useUnseenDocTypes", () => {
       return React.createElement(
         "span",
         null,
-        unseenSet.has("research") ? "yes" : "no",
+        unseenSet.has("codebase-research") ? "yes" : "no",
       );
     }
     let handle: UnseenDocTypesHandle | null = null;
@@ -258,11 +258,11 @@ describe("useUnseenDocTypes", () => {
       React.createElement(Host),
     );
     expect(container.textContent).toBe("no");
-    act(() => handle!.markSeen("research"));
+    act(() => handle!.markSeen("codebase-research"));
     act(() => {
       vi.setSystemTime(new Date(2000));
     });
-    act(() => handle!.onEvent(changed("research")));
+    act(() => handle!.onEvent(changed("codebase-research")));
     expect(container.textContent).toBe("yes");
   });
 
@@ -305,5 +305,33 @@ describe("parseStored migration", () => {
     );
     expect(stored["pr-descriptions"]).toBe(12345);
     expect(stored.prs).toBeUndefined();
+  });
+
+  it('renames legacy "research" key to "codebase-research" on read', () => {
+    localStorage.setItem(
+      SEEN_DOC_TYPES_STORAGE_KEY,
+      JSON.stringify({ research: 12345, decisions: 67890 }),
+    );
+    const { result } = renderHook(() => useUnseenDocTypes());
+    act(() => result.current.markSeen("decisions"));
+    const stored = JSON.parse(
+      localStorage.getItem(SEEN_DOC_TYPES_STORAGE_KEY) || "{}",
+    );
+    expect(stored["codebase-research"]).toBe(12345);
+    expect(stored.research).toBeUndefined();
+  });
+
+  it('leaves an existing "codebase-research" key untouched when a stale "research" key is also present', () => {
+    localStorage.setItem(
+      SEEN_DOC_TYPES_STORAGE_KEY,
+      JSON.stringify({ research: 111, "codebase-research": 999 }),
+    );
+    const { result } = renderHook(() => useUnseenDocTypes());
+    act(() => result.current.markSeen("decisions"));
+    const stored = JSON.parse(
+      localStorage.getItem(SEEN_DOC_TYPES_STORAGE_KEY) || "{}",
+    );
+    expect(stored["codebase-research"]).toBe(999);
+    expect(stored.research).toBeUndefined();
   });
 });

@@ -438,7 +438,7 @@ describe("per-doc-kind corpus verification", () => {
     decisions: ["adr", "0033"],
     "work-items": ["priority", "medium"],
     plans: ["type", "plan"],
-    research: ["git_commit", "abc123def456"],
+    "codebase-research": ["git_commit", "abc123def456"],
     "plan-reviews": ["verdict", "APPROVE"],
     "pr-reviews": ["verdict", "APPROVE"],
     "work-item-reviews": ["verdict", "APPROVE"],
