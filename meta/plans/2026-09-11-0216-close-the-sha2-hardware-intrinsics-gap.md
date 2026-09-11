@@ -277,10 +277,10 @@ Then implement the minimum to pass, then refactor.
 
 #### Automated Verification:
 
-- [ ] New unit tests pass: `uv run pytest tests/unit/tasks/test_measure.py -k
+- [x] New unit tests pass: `uv run pytest tests/unit/tasks/test_measure.py -k
       asset_bytes`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Full test suite passes: `mise run test`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Full test suite passes: `mise run test`
 
 #### Manual Verification:
 
