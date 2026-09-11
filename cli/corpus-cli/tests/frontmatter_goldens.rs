@@ -403,9 +403,8 @@ fn this_repositorys_own_corpus_is_clean() -> Result<(), TestError> {
     Ok(())
 }
 
-/// The committed hand-authored topic-research set — the shared artifact the
-/// 0278 indexer keys on, validated here independent of live web and the
-/// co-land.
+/// The committed hand-authored topic-research set — the shared fixture the
+/// visualiser indexer keys on, validated here independent of live web.
 fn topic_research_set() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/topic-research-set")

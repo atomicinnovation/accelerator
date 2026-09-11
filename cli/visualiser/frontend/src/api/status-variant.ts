@@ -70,8 +70,8 @@ export function lifecycleToVariant(value: unknown): ChipVariant {
 }
 
 // Which chip scale each doc type uses. Centralised so the "lifecycle types"
-// decision lives in one map — a future lifecycle-classified type (0280/0281)
-// onboards by one entry rather than a per-site `type === …` conditional.
+// decision lives in one map — a future lifecycle-classified type onboards by
+// one entry rather than a per-site `type === …` conditional.
 const CHIP_SCALE: Record<DocTypeKey, "lifecycle" | "semantic"> = {
   decisions: "semantic",
   "work-items": "semantic",
