@@ -656,9 +656,9 @@ fails CI rather than only a manual check.
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
-- [ ] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
-- [ ] Rust format + clippy clean: `mise run cli:check`
+- [x] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
+- [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
+- [x] Rust format + clippy clean: `mise run cli:check`
 - [ ] Full local CI mirror green: `mise run`
 
 #### Manual Verification

@@ -152,8 +152,11 @@ value half is checked separately — an artefact rendering only the bearer token
 is caught, which the shell implementation missed.
 
 A configured value is caught not only verbatim but base64-encoded (standard or
-URL-safe, padded or not) and percent-encoded (either hex casing). Case folding,
-hex, partial percent-encoding, HTML/JSON escapes and nested encodings are not
+URL-safe, padded or not) and percent-encoded (either hex casing); any of those
+reflowed across a line wrap; and, for a colon-free value, the leading
+characters of a form long enough to survive head truncation. Case folding, hex,
+partial percent-encoding, HTML/JSON escapes, nested encodings and head
+truncation of a colon-bearing value (`AUTH_HEADER`, `LOGIN_URL`) are not
 detected.
 
 ## `notify-downgrade`
