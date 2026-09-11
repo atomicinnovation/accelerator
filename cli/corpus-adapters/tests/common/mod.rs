@@ -86,7 +86,7 @@ pub fn launcher_binary() -> Result<PathBuf, TestError> {
 
 /// The doc-type table, resolved through the compiled launcher and keyed back to
 /// `DocTypeKey`. Every emitted type name must map to a variant, so the linkage
-/// vocabulary is single-sourced in the crate rather than re-encoded in bash.
+/// vocabulary is single-sourced in the crate rather than duplicated elsewhere.
 pub fn doc_type_table() -> Result<Vec<(DocTypeKey, PathBuf)>, TestError> {
     let bin = launcher_binary()?;
     let output = Command::new(&bin)

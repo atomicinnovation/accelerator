@@ -1,11 +1,10 @@
-//! Reads the frozen bash-ADF oracle corpus and compares it with this crate's.
+//! Reads the frozen ADF oracle corpus and compares it with this crate's.
 //!
-//! Each case directory carries the bash pipeline's captured `oracle.out`,
-//! `oracle.err` and `oracle-status.txt`, frozen by
-//! `tests/support/capture-adf-oracle.sh` while the drivers still existed. The
-//! comparison reads the corpus rather than running `jira-adf-to-md.sh` /
-//! `jira-md-to-adf.sh`, so it survives their deletion; the corpus is never
-//! regenerated from this crate's output.
+//! Each case directory carries the captured `oracle.out`, `oracle.err` and
+//! `oracle-status.txt`, frozen by `tests/support/capture-adf-oracle.sh` while
+//! the drivers still existed. The comparison reads the corpus rather than
+//! re-running the retired ADF conversion drivers, so it survives their
+//! deletion; the corpus is never regenerated from this crate's output.
 //!
 //! Shared by `adf_differential.rs` and by `adf_differential_self_test.rs`,
 //! which proves the comparison can fail.

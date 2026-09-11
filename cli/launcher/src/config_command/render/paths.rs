@@ -1,5 +1,5 @@
 //! The `## Configured Paths` block, the doc-type TSV, and the `--fail-safe`
-//! notice. The block ends in a trailing newline, matching the bash reader.
+//! notice. The block ends in a trailing newline.
 
 use crate::config_command::core::paths::{ConfiguredPath, DocTypes};
 use crate::config_command::render::Rendered;

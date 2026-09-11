@@ -2,7 +2,7 @@
 //! binary, exercised through migration 0007's own ambiguous-band prompt —
 //! the only interactive migration the compiled registry ever contains, so
 //! it is the sole real exerciser of this surface. The fixture migrations
-//! used to capture the bash-golden matrix have no Rust equivalent in the
+//! used to capture the golden matrix have no Rust equivalent in the
 //! compiled registry, so no literal fixture replay applies here.
 
 use std::fs;

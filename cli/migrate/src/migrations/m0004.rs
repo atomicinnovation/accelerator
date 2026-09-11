@@ -6,7 +6,7 @@
 //! this implies, renames a user-overridden `research.md` template, and
 //! rewrites every inbound corpus reference to the moved paths.
 //!
-//! The bash original's jj-op-id rollback breadcrumb (an informational
+//! The original's jj-op-id rollback breadcrumb (an informational
 //! stderr notice printed only when a real jj-managed working copy is
 //! present) is not reproduced — it mutates no state and this port has no
 //! other reason to depend on `vcs`/`jj-lib` from a mechanical migration.
@@ -850,7 +850,7 @@ mod tests {
 
     #[test]
     fn inserts_research_issues_after_the_blocks_last_sibling_line() {
-        // Bash's own scan tracks the *last* sibling seen in the whole
+        // The reference scan tracks the *last* sibling seen in the whole
         // `paths:` block (not specifically the `research:` line) and
         // inserts right after it — replicated here, not "improved" into
         // inserting immediately after `research:` specifically.

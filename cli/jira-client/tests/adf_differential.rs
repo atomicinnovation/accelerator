@@ -1,5 +1,5 @@
 //! Compares both directions of this crate's ADF pipeline against the frozen
-//! bash oracle corpus (`tests/support/capture-adf-oracle.sh` captured it while
+//! ADF oracle corpus (`tests/support/capture-adf-oracle.sh` captured it while
 //! the drivers still existed).
 //!
 //! The inventory and the fixtures were transcribed from the oracle by hand and

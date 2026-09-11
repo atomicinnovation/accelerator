@@ -923,7 +923,7 @@ fn a_custom_lens_row_uses_a_single_slash_path_and_the_right_source(
     let workspace = workspace("custom-lenses")?;
     let output = run_in(&workspace, &["config", "review", "pr"])?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Divergence 2: the bash double slash is fixed here.
+    // Divergence 2: the double-slash path bug is fixed here.
     assert!(stdout.contains("/lenses/perf-lens/SKILL.md | custom |"));
     assert!(!stdout.contains("/lenses/perf-lens//SKILL.md"));
     // auto_detect present → "custom"; wi-custom has none → "always include".

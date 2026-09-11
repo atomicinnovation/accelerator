@@ -6,9 +6,8 @@
 pub use config::render_value;
 use config::Resolved;
 
-/// The string a resolution miss projects to. The parity oracle passes it to the
-/// bash reader as the default argument so a genuine miss compares equal on both
-/// sides.
+/// The string a resolution miss projects to, so a genuine miss is a concrete
+/// comparable value rather than an absent one.
 pub const ABSENT_SENTINEL: &str = "__accelerator_config_absent__";
 
 /// Projects a [`Resolved`] outcome, mapping a miss to [`ABSENT_SENTINEL`].

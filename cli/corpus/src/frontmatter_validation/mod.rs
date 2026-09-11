@@ -3,23 +3,21 @@
 //! filesystem), mirroring `corpus::linkage`'s dependency discipline.
 //!
 //! **Deliberately operates on the raw frontmatter text, not a parsed YAML
-//! value tree.** Several bash checks (`UNQUOTED-ID`, `BAD-LINKAGE-SHAPE`)
-//! depend on literal quote characters in the source — `id: "0042"` and
-//! `id: 0042` parse to the identical string value once run through a real
-//! YAML parser (the quoting is pure syntax, not semantics, for any value
-//! that would resolve to a string either way), so a parsed
-//! [`crate::Mapping`] cannot recover the distinction a byte-for-byte port
-//! needs. [`parse_entries`] instead replicates the retired bash
-//! implementation's own naive line scanner exactly, including its quirks:
-//! first-occurrence-wins on a duplicate key, and no awareness of
-//! block-style (multi-line) YAML lists — only flow-style (`[a, b]`) lists
-//! are ever correctly scanned, matching every template's actual emission
-//! convention and the retired implementation's own limitation.
+//! value tree.** Several checks (`UNQUOTED-ID`, `BAD-LINKAGE-SHAPE`) depend
+//! on literal quote characters in the source — `id: "0042"` and `id: 0042`
+//! parse to the identical string value once run through a real YAML parser
+//! (the quoting is pure syntax, not semantics, for any value that would
+//! resolve to a string either way), so a parsed [`crate::Mapping`] cannot
+//! recover the distinction these checks need. [`parse_entries`] instead uses
+//! a naive line scanner with two deliberate quirks: first-occurrence-wins on
+//! a duplicate key, and no awareness of block-style (multi-line) YAML lists —
+//! only flow-style (`[a, b]`) lists are ever correctly scanned, matching
+//! every template's actual emission convention.
 //!
 //! Whether the frontmatter is well-formed YAML at all (a tagged node, or a
 //! non-mapping root) is a separate, stricter concern the adapter layer
 //! decides via `corpus_adapters::document::parse` before ever calling into
-//! this module — bash's naive scanner has no equivalent concept, so this
+//! this module — the naive scanner here has no equivalent concept, so this
 //! module never needs one either.
 
 mod canonical_quoting;
@@ -35,12 +33,11 @@ pub use crate::frontmatter_validation::violation::Violation;
 
 /// One `key: value` line per entry, value whitespace-trimmed.
 ///
-/// Mirrors the retired bash implementation's own line scanner: a line
-/// qualifies iff it starts with a letter or underscore and carries a `:`
-/// later on the same line, with everything before that colon a valid
-/// `[A-Za-z0-9_]+` key. Indented lines (block-list items, nested mapping
-/// keys) never qualify — this is a flat, single-line-per-key scan, not a
-/// YAML parser.
+/// A naive line scanner: a line qualifies iff it starts with a letter or
+/// underscore and carries a `:` later on the same line, with everything
+/// before that colon a valid `[A-Za-z0-9_]+` key. Indented lines (block-list
+/// items, nested mapping keys) never qualify — this is a flat,
+/// single-line-per-key scan, not a YAML parser.
 #[must_use]
 pub fn parse_entries(raw_frontmatter: &str) -> Vec<(String, String)> {
     let mut entries = Vec::new();
@@ -66,8 +63,8 @@ pub fn parse_entries(raw_frontmatter: &str) -> Vec<(String, String)> {
     entries
 }
 
-/// The first value for `key`, or `None` if absent — first-occurrence-wins,
-/// matching the retired bash implementation's own lookup.
+/// The first value for `key`, or `None` if absent — first-occurrence-wins on
+/// a duplicate key.
 #[must_use]
 pub fn raw_value<'a>(
     entries: &'a [(String, String)],
@@ -79,8 +76,7 @@ pub fn raw_value<'a>(
         .map(|(_, value)| value.as_str())
 }
 
-/// Whether `key` is present (regardless of value) — matches the retired
-/// bash implementation's own check.
+/// Whether `key` is present, regardless of value.
 #[must_use]
 pub fn is_present(entries: &[(String, String)], key: &str) -> bool {
     entries.iter().any(|(existing, _)| existing == key)
@@ -89,8 +85,7 @@ pub fn is_present(entries: &[(String, String)], key: &str) -> bool {
 /// Strips exactly one layer of surrounding double or single quotes.
 ///
 /// Leaves any trailing content (inline comment, stray characters)
-/// untouched. Mirrors the retired bash implementation's own unwrapper
-/// exactly — deliberately not a general-purpose unquoter.
+/// untouched — deliberately not a general-purpose unquoter.
 #[must_use]
 pub fn strip_surrounding_quote(raw: &str) -> &str {
     if let Some(rest) = raw.strip_prefix('"') {
@@ -167,7 +162,7 @@ fn linkage_elements(raw: &str) -> Vec<&str> {
 }
 
 /// A double-quoted element's stripped inner text, or `None` when the
-/// element isn't double-quoted (bash's own asymmetry: a single-quoted
+/// element isn't double-quoted (a deliberate asymmetry: a single-quoted
 /// element is treated as unquoted).
 fn quoted_inner(element: &str) -> Option<&str> {
     if element.len() >= 2 && element.starts_with('"') && element.ends_with('"')
@@ -204,8 +199,7 @@ fn unresolved_row_violation(declared: &str, kind: &str) -> Violation {
 /// `(type, kind)`.
 ///
 /// Returns only a single type/kind-resolution violation when the pair
-/// resolves to no schema row — matching bash's early return, no further check
-/// is even attempted.
+/// resolves to no schema row; no further check is even attempted.
 #[must_use]
 pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     let entries = parse_entries(raw_frontmatter);
@@ -455,7 +449,7 @@ fn is_trailing_comment(tail: &str) -> bool {
 /// Every `(type, id)` key a `Parsed` file resolves to, mapped to every file
 /// that resolves to it — appending rather than overwriting, so a genuine
 /// collision (feeding [`duplicate_check`]) is visible instead of silently
-/// losing an entry, as bash's associative-array-free `build_index` did.
+/// losing an entry.
 #[derive(Debug, Default, Clone)]
 pub struct Index(HashMap<String, Vec<PathBuf>>);
 
@@ -527,8 +521,7 @@ pub fn dangling_refs(raw_frontmatter: &str, index: &Index) -> Vec<Violation> {
 }
 
 /// Whether `type_id` (the file's own resolved `(type, id)` key) is claimed
-/// by more than one file in `index` — the referential-integrity check
-/// bash's own index had no way to express.
+/// by more than one file in `index`: the whole-corpus duplicate-id check.
 #[must_use]
 pub fn duplicate_check(type_id: &str, index: &Index) -> Option<Violation> {
     (index.count(type_id) > 1).then(|| Violation::DuplicateId {
@@ -622,8 +615,8 @@ mod tests {
 
     #[test]
     fn a_quoted_empty_id_does_not_trigger_unquoted_id() {
-        // The bash quirk: an explicitly-quoted empty string still counts as
-        // "quoted" — UNQUOTED-ID is about quote *syntax*, not content.
+        // A deliberate quirk: an explicitly-quoted empty string still counts
+        // as "quoted" — UNQUOTED-ID is about quote *syntax*, not content.
         let mut source = minimal_valid_work_item();
         source = source.replace("id: \"0042\"", "id: \"\"");
         assert!(!validate_file(&source).contains(&Violation::UnquotedId));
@@ -632,10 +625,10 @@ mod tests {
     #[test]
     fn a_truly_empty_id_value_triggers_neither_unquoted_id_nor_empty_placeholder(
     ) {
-        // bash's own gap, preserved rather than fixed: `id:` with nothing
-        // after the colon short-circuits both checks (`-n "$BK_VAL"` guards
-        // UNQUOTED-ID; the value isn't literally `""` so EMPTY-PLACEHOLDER
-        // doesn't fire either).
+        // A deliberate gap: `id:` with nothing after the colon short-circuits
+        // both checks — an empty value is skipped by UNQUOTED-ID (which only
+        // inspects non-empty values), and it isn't literally `""` so
+        // EMPTY-PLACEHOLDER doesn't fire either.
         let mut source = minimal_valid_work_item();
         source = source.replace("id: \"0042\"", "id:");
         let violations = validate_file(&source);
@@ -790,7 +783,7 @@ mod tests {
         source.push_str("\nrelates_to: []\n");
         // relates_to is a typed-linkage key; an empty list is a legitimate
         // absence for linkage purposes but still an EMPTY-PLACEHOLDER
-        // literal-text hit, matching bash.
+        // literal-text hit.
         let violations = validate_file(&source);
         assert!(violations
             .iter()

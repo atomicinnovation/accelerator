@@ -160,8 +160,8 @@ fn required_str(
 /// lexicographic by key, not necessarily the writer's original declaration
 /// order. `compose_record` re-canonicalises deterministically regardless, so a
 /// cutover through parse-then-compose is still idempotent and byte-stable; it
-/// just does not reproduce a non-alphabetical extras order a hand-written or
-/// bash-written record happened to use.
+/// just does not reproduce a non-alphabetical extras order a hand-written
+/// record happened to use.
 ///
 /// # Errors
 /// [`StoreError::Validation`] when the line is not valid JSON, is not an

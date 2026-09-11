@@ -61,8 +61,7 @@ pub fn skill_body(
         .filter(|trimmed| !trimmed.is_empty()))
 }
 
-/// Strips leading and trailing blank lines, preserving interior blanks, matching
-/// bash `config_trim_body`.
+/// Strips leading and trailing blank lines, preserving interior blanks.
 #[must_use]
 pub fn trim_body(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();

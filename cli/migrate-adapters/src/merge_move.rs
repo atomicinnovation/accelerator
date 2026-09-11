@@ -67,8 +67,8 @@ pub fn merge_move(
         merge_move(&entry.path(), &dst.join(&name), root)?;
     }
     // A non-empty source after merge (`Err(_)`, not-found aside) signals a
-    // non-converging merge — left in place, matching bash's own
-    // diagnostic-and-continue behaviour rather than failing the migration.
+    // non-converging merge — left in place, a diagnostic-and-continue
+    // behaviour rather than failing the migration.
     let _ = fs::remove_dir(src);
     Ok(())
 }

@@ -45,7 +45,7 @@ fn render_numbers(numbers: impl IntoIterator<Item = String>) -> String {
 /// A [`kernel::Error`] when `count` is not a positive integer — including a
 /// value that matches `^[1-9][0-9]*$` but overflows `u32` — or when
 /// `dir_reader` fails. A missing decisions directory is a success path
-/// carrying a warning, matching bash's `exit 0`.
+/// carrying a warning, exiting `0`.
 pub fn run_next_number<D: DirReader>(
     count: &str,
     decisions_dir: &Path,
@@ -83,8 +83,8 @@ pub fn run_next_number<D: DirReader>(
 /// # Errors
 ///
 /// A [`kernel::Error`] when no file was given, the file cannot be read, or
-/// its frontmatter carries no closed fence with a `status:` line — matching
-/// bash's exit code 1 in each case.
+/// its frontmatter carries no closed fence with a `status:` line — exit
+/// code 1 in each case.
 pub fn run_read_status<F: FileReader>(
     file: Option<&Path>,
     file_reader: &F,
