@@ -143,7 +143,7 @@ post-redirect URL.
 accelerator design scrub-secrets path/to/inventory.md
 ```
 
-Refuses to let an artefact through when it repeats the literal value of a set
+Refuses to let an artefact through when it repeats the value of a set
 `ACCELERATOR_BROWSER_*` variable. The report names the *variable* and never
 its value, so it is safe to print, log and commit.
 
@@ -151,8 +151,10 @@ its value, so it is safe to print, log and commit.
 value half is checked separately — an artefact rendering only the bearer token
 is caught, which the shell implementation missed.
 
-Matching is literal-substring only. A credential that appears base64-encoded,
-percent-encoded or truncated is not detected.
+A configured value is caught not only verbatim but base64-encoded (standard or
+URL-safe, padded or not) and percent-encoded (either hex casing). Case folding,
+hex, partial percent-encoding, HTML/JSON escapes and nested encodings are not
+detected.
 
 ## `notify-downgrade`
 

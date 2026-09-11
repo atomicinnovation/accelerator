@@ -11,6 +11,8 @@ workspace = true
 
 [dependencies]
 kernel = { path = "../kernel" }
+base64 = { workspace = true }
+percent-encoding = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

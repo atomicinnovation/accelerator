@@ -435,10 +435,10 @@ the doc-comment; do not claim head-truncation coverage for the colon-bearing
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
-- [ ] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
-- [ ] Rust format + clippy clean: `mise run cli:check`
-- [ ] cargo-deny admits the new direct deps: `mise run deny:check`
+- [x] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
+- [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
+- [x] Rust format + clippy clean: `mise run cli:check`
+- [x] cargo-deny admits the new direct deps: `mise run deny:check`
 - [ ] Docs build clean (outside the aggregate `check`): `mise run docs:check`
 - [ ] Full local CI mirror green: `mise run`
 
