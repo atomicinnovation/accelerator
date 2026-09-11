@@ -350,7 +350,9 @@ cargo deny check advisories licenses sources
 
 #### Automated Verification:
 
-- [ ] `mise run build:cli-cross-compile` exits 0 on the soft-backend tree.
+- [x] `mise run build:cli-cross-compile` exits 0 on the soft-backend tree.
+      (Real task name `build:cli:cross-compile`; exit 0, four `Finished release`
+      builds, zero warnings across the whole log.)
 - [ ] The baseline JSON contains both `asset_bytes` and a `verifier::sha256_hex`
       term (Phase 1 landed).
 
@@ -358,7 +360,7 @@ cargo deny check advisories licenses sources
 
 - [ ] The recorded `verifier::sha256_hex` median is in the soft-backend band
       (~4.3 ms), confirming a valid "before".
-- [ ] The warning baseline file records the per-target warning set for all four
+- [x] The warning baseline file records the per-target warning set for all four
       shipped triples.
 
 ---
