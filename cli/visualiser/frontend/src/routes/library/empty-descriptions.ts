@@ -36,10 +36,10 @@ export const TYPE_COPY: Record<DocTypeKey, TypeCopy> = {
     path: "meta/research/design-gaps/",
     hue: DOC_TYPE_HUE["design-gaps"],
   },
-  research: {
+  "codebase-research": {
     purpose: "Prior-art write-ups and exploration notes before planning.",
     path: "meta/research/codebase/",
-    hue: DOC_TYPE_HUE.research,
+    hue: DOC_TYPE_HUE["codebase-research"],
   },
   plans: {
     purpose: "Design proposals for a work item, ready for review.",
@@ -95,7 +95,7 @@ export const EMPTY_TYPE_PLURALS: Record<DocTypeKey, string> = {
   decisions: "decisions",
   "work-items": "work items",
   plans: "plans",
-  research: "research notes",
+  "codebase-research": "research notes",
   "plan-reviews": "plan reviews",
   "pr-reviews": "pr reviews",
   "work-item-reviews": "work-item reviews",

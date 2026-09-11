@@ -134,7 +134,7 @@ const MAX_DEPTH: u8 = 8;
 #[allow(clippy::type_complexity)]
 const STAGE_PUSH_ORDER: &[(fn(&Completeness) -> bool, &str)] = &[
     (|c| c.has_work_item, "work-items"),
-    (|c| c.has_research, "research"),
+    (|c| c.has_research, "codebase-research"),
     (|c| c.has_plan, "plans"),
     (|c| c.has_plan_review, "plan-reviews"),
     (|c| c.has_validation, "validations"),

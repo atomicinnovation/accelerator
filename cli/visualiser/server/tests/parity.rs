@@ -58,7 +58,11 @@ fn doc_type_wire_and_config_keys_are_pinned() {
         (DocTypeKey::Decisions, "decisions", Some("decisions")),
         (DocTypeKey::WorkItems, "work-items", Some("work")),
         (DocTypeKey::Plans, "plans", Some("plans")),
-        (DocTypeKey::Research, "research", Some("research_codebase")),
+        (
+            DocTypeKey::Research,
+            "codebase-research",
+            Some("research_codebase"),
+        ),
         (
             DocTypeKey::PlanReviews,
             "plan-reviews",

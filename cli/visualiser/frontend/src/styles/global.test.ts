@@ -402,7 +402,7 @@ describe("--ac-stage-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg", () =
   // Workflow-only — long-tail stages do not get tokens.
   const stageKeys = [
     "work-items",
-    "research",
+    "codebase-research",
     "plans",
     "plan-reviews",
     "validations",

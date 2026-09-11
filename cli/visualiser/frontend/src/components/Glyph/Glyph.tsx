@@ -26,7 +26,7 @@ const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
   decisions: DecisionsIcon,
   "work-items": WorkItemsIcon,
   plans: PlansIcon,
-  research: ResearchIcon,
+  "codebase-research": ResearchIcon,
   "plan-reviews": PlanReviewsIcon,
   "pr-reviews": PrReviewsIcon,
   "work-item-reviews": WorkItemReviewsIcon,

@@ -29,7 +29,7 @@ const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
   decisions: DecisionsBigGlyph,
   "work-items": WorkItemsBigGlyph,
   plans: PlansBigGlyph,
-  research: ResearchBigGlyph,
+  "codebase-research": ResearchBigGlyph,
   "plan-reviews": PlanReviewsBigGlyph,
   "pr-reviews": PrReviewsBigGlyph,
   "work-item-reviews": WorkItemReviewsBigGlyph,

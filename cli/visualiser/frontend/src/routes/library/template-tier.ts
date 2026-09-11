@@ -23,7 +23,7 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
 
 /** Stem → glyph doc-type lookup. Matches both whole template names
  *  (e.g. `adr` ⇒ `decisions`) and any dash-separated token within a
- *  template name (e.g. `codebase-research` ⇒ `research`, because
+ *  template name (e.g. `codebase-research` ⇒ `codebase-research`, because
  *  `research` is a known stem). Looked up first-to-last in token order,
  *  so the rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
@@ -37,7 +37,7 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   // Exact-template-name shortcuts.
   adr: "decisions",
   plan: "plans",
-  research: "research",
+  research: "codebase-research",
   validation: "validations",
   "pr-description": "pr-descriptions",
   "work-item": "work-items",

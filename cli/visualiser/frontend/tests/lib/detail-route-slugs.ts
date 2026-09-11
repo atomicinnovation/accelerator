@@ -21,7 +21,7 @@ export const DETAIL_ROUTE_SLUGS: Record<DocTypeKey, string> = {
   decisions: "ADR-0001-example-decision",
   "work-items": "0001-first-work-item",
   plans: "2026-01-01-first-plan",
-  research: "2026-01-01-first-research",
+  "codebase-research": "2026-01-01-first-research",
   "plan-reviews": "2026-01-01-first-plan-review-1",
   "pr-reviews": "2026-01-15-add-config-layer-review-1",
   "work-item-reviews": "example", // Phase 3 fixture 2026-05-26-example-review-1.md → slug 'example'
@@ -44,7 +44,7 @@ export const DETAIL_ROUTE_RENDERS_ARTICLE: Record<DocTypeKey, boolean> = {
   decisions: true,
   "work-items": true,
   plans: true,
-  research: true,
+  "codebase-research": true,
   "plan-reviews": true,
   "pr-reviews": true,
   "work-item-reviews": true,
