@@ -5,7 +5,7 @@ title: "Layered Configuration Key Model Implementation Plan"
 date: "2026-09-10T09:26:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0228"
 parent: "work-item:0228"
 derived_from: ["codebase-research:2026-09-10-0228-layered-configuration-key-model"]
