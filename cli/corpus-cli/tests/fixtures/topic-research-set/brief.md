@@ -1,6 +1,6 @@
 ---
 type: "topic-research"
-id: "brief"
+id: "example-subject-brief"
 title: "Brief: Example Subject"
 date: "2026-09-10T00:00:00+00:00"
 author: "Fixture Author"

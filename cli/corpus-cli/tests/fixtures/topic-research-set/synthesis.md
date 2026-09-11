@@ -1,6 +1,6 @@
 ---
 type: "topic-research"
-id: "synthesis"
+id: "example-subject-synthesis"
 title: "Synthesis: Example Subject"
 date: "2026-09-10T00:00:00+00:00"
 author: "Fixture Author"

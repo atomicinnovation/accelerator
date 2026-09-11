@@ -121,7 +121,7 @@ pub corpus::frontmatter_validation::schema::SchemaRow::typed_linkage_keys: &'sta
 pub const corpus::frontmatter_validation::schema::BASE_FIELDS: [&str; 9]
 pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 15]
-pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 2]
+pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 3]
 pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 18]

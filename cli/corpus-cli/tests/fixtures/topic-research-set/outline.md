@@ -1,6 +1,6 @@
 ---
 type: "topic-research"
-id: "outline"
+id: "example-subject-outline"
 title: "Outline: Example Subject"
 date: "2026-09-10T00:00:00+00:00"
 author: "Fixture Author"

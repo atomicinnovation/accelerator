@@ -498,6 +498,56 @@ fn a_finding_with_a_draft_status_is_rejected_but_complete_passes(
 }
 
 #[test]
+fn a_manifest_at_the_briefed_lifecycle_start_validates() -> Result<(), TestError>
+{
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let briefed =
+        content.replace("status: \"synthesised\"", "status: \"briefed\"");
+    let output = validate_content("topic-status-briefed", &briefed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_carrying_the_retired_research_status_is_obsolete_legacy_key(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated = content.replace(
+        "status: \"synthesised\"\n",
+        "status: \"synthesised\"\nresearch_status: \"synthesised\"\n",
+    );
+    let output = validate_content("topic-research-status-retired", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("OBSOLETE-LEGACY-KEY"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        stderr(&output).contains("research_status"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manifest_with_an_out_of_vocab_base_status_is_bad_status(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated =
+        content.replace("status: \"synthesised\"", "status: \"bogus\"");
+    let output = validate_content("topic-status-out-of-vocab", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("BAD-STATUS"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
 fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
     let dir = tempdir("print-schema")?;
     let root = canonical_root(&dir)?;

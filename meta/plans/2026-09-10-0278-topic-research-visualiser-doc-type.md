@@ -549,18 +549,22 @@ two-set fixture validates clean, and a constant-id regression (two sets both usi
 
 #### Automated Verification
 
-- [ ] Schema/TSV parity holds: `cargo test -p corpus frontmatter_validation`
-- [ ] Rust workspace check passes: `mise run cli:check`
-- [ ] A manifest with base `status: briefed` validates:
+- [x] Schema/TSV parity holds: `cargo test -p corpus frontmatter_validation`
+- [x] Rust workspace check passes: `mise run cli:check`
+- [x] A manifest with base `status: briefed` validates:
       `accelerator corpus frontmatter validate --file <manifest>`
-- [ ] A manifest with base `status: synthesised` validates (same command)
-- [ ] A manifest still carrying a `research_status` key is **rejected** with
+- [x] A manifest with base `status: synthesised` validates (same command)
+- [x] A manifest still carrying a `research_status` key is **rejected** with
       `OBSOLETE-LEGACY-KEY` (via the `OBSOLETE_LEGACY_KEYS` addition), and an
       out-of-vocab base `status` is rejected with `BAD-STATUS`, confirming the
       field was retired rather than silently ignored:
       `accelerator corpus frontmatter validate --file <manifest>`
-- [ ] Full read-only mirror passes: `mise run check`
-- [ ] Full suite passes: `mise run test`
+- [x] Full read-only mirror passes: `mise run check`
+- [ ] Full suite passes: `mise run test` (blocked by a pre-existing corpus
+      defect unrelated to 0278 — two `meta/work/` items both claim
+      `work-item:0286`, tripping `DUPLICATE-ID` in
+      `this_repositorys_own_corpus_is_clean`; the Phase 2 goldens themselves all
+      pass)
 
 #### Manual Verification
 
