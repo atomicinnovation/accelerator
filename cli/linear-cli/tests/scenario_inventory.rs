@@ -1,6 +1,6 @@
 //! Every scenario fixture under `tests/fixtures/scenarios/` must be referenced
 //! by at least one test, so "ported" provably means "consumed":
-//! a scenario carried over from the retiring bash cluster but driven by nothing
+//! a scenario carried over from the retired cluster but driven by nothing
 //! would re-create the dead surface the migration bar exists to prevent.
 //!
 //! "Referenced" is asserted structurally — the fixture stem appears in a test

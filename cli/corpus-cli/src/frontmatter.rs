@@ -18,11 +18,9 @@ use corpus_adapters::frontmatter_validation::TargetOutcome;
 use crate::outcome::Outcome;
 
 /// Files under `dirs` are filtered to those resolving to a configured
-/// doc-type, matching bash's own `out_of_scope` gate on its whole-corpus
-/// walk — a `--dir meta` call must skip `meta/docs/` the same way bash's
-/// validator did, not report every `*.md` under the given directory. Files
-/// named directly via `--file` are never filtered, matching bash's file-list
-/// mode (which never scope-checked its arguments either).
+/// doc-type: a `--dir meta` call must skip `meta/docs/`, not report every
+/// `*.md` under the given directory. Files named directly via `--file` are
+/// never filtered — a file list is taken as given, not scope-checked.
 fn target_files<W: CorpusWalker>(
     dirs: &[PathBuf],
     files: &[PathBuf],

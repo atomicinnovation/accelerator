@@ -20,9 +20,8 @@ const SKILL_MD: &str = concat!(
     "/../../skills/config/migrate/SKILL.md"
 );
 
-/// Mirrors bash's `extract_block()`: the exact text between a
-/// `<!-- @{name}-start -->`/`<!-- @{name}-end -->` marker pair, minus the
-/// fenced-code-block delimiters immediately inside it.
+/// The exact text between a `<!-- @{name}-start -->`/`<!-- @{name}-end -->`
+/// marker pair, minus the fenced-code-block delimiters immediately inside it.
 fn extract_block(doc: &str, name: &str) -> Result<String, TestError> {
     let start_marker = format!("<!-- @{name}-start -->");
     let end_marker = format!("<!-- @{name}-end -->");

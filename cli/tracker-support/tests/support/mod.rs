@@ -101,8 +101,8 @@ pub fn classify(
         .map_or(Class::Terminal, |row| row.class)
 }
 
-/// Compares one transcribed classification against the status the bash mapper
-/// actually returned, naming the code and both classifications on a
+/// Compares one transcribed classification against the status the reference
+/// mapper returned, naming the code and both classifications on a
 /// disagreement.
 pub fn disagreement(
     provider: &str,

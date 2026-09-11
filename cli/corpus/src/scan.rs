@@ -29,9 +29,8 @@ pub trait FileReader {
 /// Recursively walks a set of directory roots for markdown files.
 pub trait CorpusWalker {
     /// Every `*.md` file found under any of `roots`, recursively. A root
-    /// that doesn't exist contributes no files (not an error) — mirrors
-    /// bash's own `find "$root" -type f -name '*.md'`, which is silent
-    /// over an absent directory.
+    /// that doesn't exist contributes no files (not an error) — an absent
+    /// directory is silently skipped rather than reported.
     ///
     /// # Errors
     ///

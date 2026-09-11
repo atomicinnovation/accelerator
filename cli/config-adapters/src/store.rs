@@ -17,10 +17,10 @@ use crate::document;
 
 /// Whether the reader honours the legacy `.claude/accelerator.md` layout.
 ///
-/// `Allow` carries both halves the bash `ACCELERATOR_MIGRATION_MODE=1` did: it
-/// suppresses the uniform legacy-layout refusal, and — when the current-layout
-/// pair is absent — falls back to reading the legacy `.claude/accelerator.md`
-/// and `.claude/accelerator.local.md` pair.
+/// `Allow` carries two behaviours: it suppresses the uniform legacy-layout
+/// refusal, and — when the current-layout pair is absent — falls back to
+/// reading the legacy `.claude/accelerator.md` and
+/// `.claude/accelerator.local.md` pair.
 ///
 /// The policy is a caller-supplied flag, never an environment read. The shell
 /// migration runner still exports `ACCELERATOR_MIGRATION_MODE` into every
@@ -106,9 +106,9 @@ impl FileConfigStore {
     }
 
     /// Roots at the nearest ancestor of `start` holding a `.accelerator/`
-    /// directory, a `.git` entry, or a `.jj` entry, else at `start`. `.jj`
-    /// matches bash `find_repo_root` so a jj-only workspace checkout roots the
-    /// same way; `.accelerator/` is an additional Rust-only stop marker.
+    /// directory, a `.git` entry, or a `.jj` entry, else at `start`. The `.jj`
+    /// entry lets a jj-only workspace checkout root correctly; `.accelerator/`
+    /// is an additional stop marker.
     #[must_use]
     pub fn discover_root(start: &Path) -> PathBuf {
         let mut ancestor = Some(start);
@@ -133,7 +133,7 @@ impl FileConfigStore {
     }
 
     /// Whether the legacy source fallback is engaged: the policy allows it and
-    /// neither current-layout file exists, matching bash `config_find_files`.
+    /// neither current-layout file exists.
     fn legacy_fallback_active(&self) -> bool {
         self.policy == LegacyPolicy::Allow
             && !self.config_dir().join("config.md").exists()
@@ -628,8 +628,8 @@ fn ensure_line(file: &Path, rule: &str) -> Result<(), ConfigError> {
     fs::write(file, content).map_err(|e| io_error(file, &e))
 }
 
-/// The `SKILL.md` paths one and two levels under a plugin `skills/` directory,
-/// matching the bash `skills/*/SKILL.md` and `skills/*/*/SKILL.md` globs.
+/// The `SKILL.md` paths one and two levels under a plugin `skills/` directory
+/// — the `skills/*/SKILL.md` and `skills/*/*/SKILL.md` globs.
 fn skill_manifest_paths(skills: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     let Ok(top) = fs::read_dir(skills) else {
@@ -657,8 +657,7 @@ fn skill_manifest_paths(skills: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// The first whitespace-delimited value of the first `name:` line, matching the
-/// bash `awk '/^name:/{print $2; exit}'`.
+/// The first whitespace-delimited value of the first `name:` line.
 fn frontmatter_name(content: &str) -> Option<String> {
     content.lines().find_map(|line| {
         line.strip_prefix("name:")
@@ -712,8 +711,7 @@ fn read_within(
 }
 
 /// The markdown body: everything after a leading `---`-fenced frontmatter, or
-/// the whole file when there is none. An unterminated fence yields no body,
-/// matching bash `config_extract_body`.
+/// the whole file when there is none. An unterminated fence yields no body.
 fn extract_body(content: &str) -> String {
     let mut lines = content.lines();
     match lines.next() {

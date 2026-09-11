@@ -1,9 +1,9 @@
 //! The violation taxonomy.
 //!
-//! The 16 bash-mirrored codes plus two genuine additions — `DuplicateId`
-//! (bash's associative-array-free index has no way to detect a collision) and
-//! `UnquotedString` (the canonical-quoting standard that postdates the bash
-//! implementation).
+//! Sixteen short codes carried by the frontmatter wire contract, plus two
+//! later additions — `DuplicateId` (a whole-corpus collision the appending
+//! index detects) and `UnquotedString` (added with the canonical-quoting
+//! standard).
 
 use std::fmt;
 
@@ -12,7 +12,7 @@ use std::fmt;
 pub enum Violation {
     /// No frontmatter fence at the file head — or, for an already-parsed
     /// file, an unparseable frontmatter body (a tagged node, or a
-    /// sequence/scalar root). Bash's naive line scanner has no equivalent
+    /// sequence/scalar root). The naive line scanner has no equivalent
     /// "fence found but unparseable" concept, so both fold onto this one
     /// code.
     NoFence,
@@ -71,8 +71,8 @@ pub enum Violation {
         value: String,
     },
     /// A file's own resolved `(type, id)` key names more than one document in
-    /// the corpus. No bash predecessor — bash's associative-array-free index
-    /// silently overwrote on collision.
+    /// the corpus. A later addition to the taxonomy — visible only because the
+    /// index appends rather than overwriting on collision.
     DuplicateId {
         type_id: String,
     },
@@ -85,7 +85,7 @@ pub enum Violation {
 }
 
 impl Violation {
-    /// The bash-mirrored short code, e.g. `NO-FENCE`.
+    /// The short wire code, e.g. `NO-FENCE`.
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
@@ -187,8 +187,8 @@ impl Violation {
 }
 
 impl fmt::Display for Violation {
-    /// `<CODE> — <message>`, with a literal em dash (U+2014), matching the
-    /// retired bash implementation's own formatter byte for byte.
+    /// `<CODE> — <message>`. The separator is a literal em dash (U+2014), not
+    /// a hyphen — the output format is a fixed wire contract.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} — {}", self.code(), self.message())
     }
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn no_fence_renders_the_bash_message() {
+    fn no_fence_renders_the_expected_message() {
         assert_eq!(
             Violation::NoFence.to_string(),
             "NO-FENCE — no frontmatter fence at file head"

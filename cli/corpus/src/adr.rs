@@ -29,9 +29,8 @@ fn leading_number(rest: &str) -> Option<u32> {
 /// when the fence is missing or unclosed, or the fence carries no `status:`
 /// line.
 ///
-/// Replicates the bash reference's line-by-line state machine: the first
-/// bare `---` opens the fence, the second closes it and the scan stops
-/// immediately.
+/// A line-by-line state machine: the first bare `---` opens the fence, the
+/// second closes it and the scan stops immediately.
 #[must_use]
 pub fn read_status(content: &str) -> Option<String> {
     let mut in_fence = false;

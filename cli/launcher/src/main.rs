@@ -181,9 +181,9 @@ fn classify(kind: ErrorKind, args: &[OsString]) -> HelpRoute {
     }
 }
 
-/// Maps a clap parse outcome to an exit code. clap's own convention exits 2 on a
-/// usage error; the bash config cluster exits 1, and this launcher reserves exit
-/// 2 for a subcommand refusal, so usage errors are re-mapped to 1 here.
+/// Maps a clap parse outcome to an exit code. clap's own convention exits 2 on
+/// a usage error, but this launcher reserves exit 2 for a subcommand refusal,
+/// so usage errors are re-mapped to 1 here.
 fn handle_parse_error(error: &clap::Error, args: &[OsString]) -> ExitCode {
     match classify(error.kind(), args) {
         HelpRoute::FullListing(cause) => {
