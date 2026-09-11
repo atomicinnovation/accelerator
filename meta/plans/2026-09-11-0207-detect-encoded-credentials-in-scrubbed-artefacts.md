@@ -751,10 +751,10 @@ transcribed message, the literal case also asserts the message does *not* contai
 
 #### Automated Verification
 
-- [ ] Domain + command tests pass: `cargo test --manifest-path cli/Cargo.toml -p design -p design-cli`
-- [ ] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
-- [ ] Rust format + clippy clean: `mise run cli:check`
-- [ ] `scan`'s public signature is unchanged; `leak_is_literal` is a new public item — accept the addition by refreshing the `design` crate baseline (`cli/design/tests/fixtures/public-api.txt`) with `mise run public-api:update`, then confirm the one-line additive diff. `public-api:check` runs on the nightly lane, so a stable-only `mise run` may not flag a stale baseline — run the update explicitly.
+- [x] Domain + command tests pass: `cargo test --manifest-path cli/Cargo.toml -p design -p design-cli`
+- [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
+- [x] Rust format + clippy clean: `mise run cli:check`
+- [x] `scan`'s public signature is unchanged; `leak_is_literal` is a new public item — accept the addition by refreshing the `design` crate baseline (`cli/design/tests/fixtures/public-api.txt`) with `mise run public-api:update`, then confirm the one-line additive diff. `public-api:check` runs on the nightly lane, so a stable-only `mise run` may not flag a stale baseline — run the update explicitly.
 - [ ] Full local CI mirror green: `mise run`
 
 #### Manual Verification
