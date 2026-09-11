@@ -415,6 +415,41 @@ fn a_reflowed_value_is_caught_end_to_end() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn a_truncated_head_is_caught_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the token began hunter2-pass here\n",
+    )?;
+    let output = run(
+        &["scrub-secrets", &file],
+        &[(PASSWORD, "hunter2-password-x")],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2-password-x"));
+    Ok(())
+}
+
+#[test]
+fn a_colon_bearing_head_is_accepted_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "clean.md",
+        "the header field Authorizatio was set\n",
+    )?;
+    let output = run(
+        &["scrub-secrets", &file],
+        &[(HEADER, "Authorization: Bearer secrettoken")],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    Ok(())
+}
+
 /// The argument cannot be interpreted as a file to scan, so exit 2 rather than
 /// the 1 a scanned-and-rejected body earns.
 #[test]
