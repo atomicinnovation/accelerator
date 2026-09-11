@@ -192,9 +192,8 @@ impl WorkItemIdScheme {
 ///
 /// `key` is the domain spelling; `project` is the deprecated synonym carried
 /// through the migration window so legacy `{project}` patterns keep resolving.
-/// This is the single source of truth for the accepted spellings, shared across
-/// the ID pipelines; each pipeline walks its own tokeniser but agrees on this
-/// set.
+/// The single source of truth for the accepted spellings, shared across the ID
+/// pipelines' tokenisers.
 const KEY_TOKEN_SPELLINGS: &[&str] = &["key", "project"];
 
 /// True iff `token` (the inner text of a `{...}` token) spells the local ID
@@ -295,9 +294,23 @@ mod tests {
         assert!(references_key("{key}-{number:04d}"));
         assert!(references_key("{project}-{number:04d}"));
         assert!(!references_key("{number:04d}"));
+        assert!(!references_key("{number}"));
         assert!(!references_key("{{key}}-{number:04d}"));
         assert!(!references_key("{{project}}-{number:04d}"));
         assert!(references_key("x{{key}}-{key}"));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn references_key_rejects_malformed_patterns() {
+        assert!(!references_key("{ke{y}"));
+        assert!(!references_key("{key"));
+        assert!(!references_key("{project"));
+        assert!(!references_key("{bogus}-{number}"));
+        assert!(!references_key("{{"));
+        assert!(!references_key("}}"));
+        assert!(!references_key(""));
+        assert!(!references_key("v{number:03d}"));
     }
 
     struct DigitRunScanner;

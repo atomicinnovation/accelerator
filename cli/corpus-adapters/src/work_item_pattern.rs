@@ -373,40 +373,6 @@ enum TokenKind {
     Number,
 }
 
-/// True iff `pattern` references the local ID prefix token in any recognised
-/// spelling.
-///
-/// Walks this crate's own tokeniser, sharing only the recognised-spelling set
-/// with the regex-free pipeline. Brace-aware: an escaped `{{key}}` /
-/// `{{project}}` literal does not count.
-#[must_use]
-pub fn references_key(pattern: &str) -> bool {
-    let chars: Vec<char> = pattern.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let next = chars.get(i + 1).copied();
-        if (chars[i] == '{' && next == Some('{'))
-            || (chars[i] == '}' && next == Some('}'))
-        {
-            i += 2;
-            continue;
-        }
-        if chars[i] == '{' {
-            if let Ok((token, width)) = find_token(&chars, i) {
-                if corpus::is_key_token(&token) {
-                    return true;
-                }
-                i += width;
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        i += 1;
-    }
-    false
-}
-
 /// Builds a capturing regex for `pattern` plus the ordered list of which
 /// capture group is `{key}` vs `{number...}`.
 fn build_full_id_regex(
@@ -469,7 +435,7 @@ pub fn parse_full_id(
     id: &str,
     pattern: &str,
 ) -> Result<ParsedId, PatternError> {
-    if references_key(pattern) {
+    if corpus::references_key(pattern) {
         let (regex_str, order) = build_full_id_regex(pattern)?;
         let re = Regex::new(&regex_str).map_err(|_| PatternError::NoMatch)?;
         let captures = re.captures(id).ok_or(PatternError::NoMatch)?;
@@ -562,7 +528,7 @@ pub fn canonicalise_id(
         return Err(PatternError::EmptyInput);
     }
 
-    let has_key = references_key(pattern);
+    let has_key = corpus::references_key(pattern);
 
     if let Ok(parsed) = parse_full_id(input, pattern) {
         let key = parsed.key.unwrap_or_default();
@@ -917,15 +883,5 @@ mod tests {
             canonicalise_id("42", "{project}-{number:04d}", "PROJ")?
         );
         Ok(())
-    }
-
-    #[test]
-    fn references_key_walks_its_own_tokeniser() {
-        assert!(references_key("{key}-{number:04d}"));
-        assert!(references_key("{project}-{number:04d}"));
-        assert!(!references_key("{number:04d}"));
-        assert!(!references_key("{{key}}-{number:04d}"));
-        assert!(!references_key("{{project}}-{number:04d}"));
-        assert!(references_key("x{{key}}-{key}"));
     }
 }
