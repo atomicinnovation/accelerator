@@ -1,4 +1,4 @@
-//! The `paths` view assembly: the configured path keys, and the 13 doc-type →
+//! The `paths` view assembly: the configured path keys, and the 14 doc-type →
 //! directory mappings with their fail-closed value hardening.
 
 use config::{catalogue, ConfigAccess, ConfigError, Key, Level, Resolved};

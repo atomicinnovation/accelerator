@@ -116,6 +116,7 @@ body {
   --ac-doc-pr-descriptions:                 #4588b8;
   --ac-doc-design-gaps:         #5c9132;
   --ac-doc-design-inventories:  #2e7e8a;
+  --ac-doc-topic-research:      #1c9233;
   /* Root cause analyses (the issue-research doc type) — hue ~310, cleared
      3:1 vs --ac-bg. */
   --ac-doc-root-cause-analyses: #ab2c96;
@@ -134,6 +135,7 @@ body {
   --ac-doc-bg-pr-descriptions:     #e2eff7;
   --ac-doc-bg-design-gaps:         #e7f1d8;
   --ac-doc-bg-design-inventories:  #dceaec;
+  --ac-doc-bg-topic-research:      #dcf1e0;
   --ac-doc-bg-root-cause-analyses: #f6e2f1;
 
   /* Per-stage lifecycle pipeline accents (light).
@@ -152,6 +154,16 @@ body {
   --ac-stage-pr-descriptions:   #2796c5;
   --ac-stage-pr-reviews:        #952cc5;
   --ac-stage-decisions:         #c5273f;
+
+  /* Topic-research lifecycle chips (light). Ordinal teal ramp (hue 190) —
+     lightness carries the five-state progression; each fill clears >=15% HSL
+     saturation and >=3:1 contrast against --ac-lifecycle-fg. */
+  --ac-lifecycle-fg:            #0d3d47;
+  --ac-lifecycle-briefed:       #d9eef2;
+  --ac-lifecycle-outlined:      #bae0e8;
+  --ac-lifecycle-researching:   #96d2de;
+  --ac-lifecycle-synthesised:   #72c4d5;
+  --ac-lifecycle-complete:      #4cb7cd;
 
   /* Typography fonts */
   --ac-font-display:  "Sora", system-ui, sans-serif;
@@ -388,6 +400,7 @@ body {
   --ac-doc-pr-descriptions:     var(--atomic-white);
   --ac-doc-design-gaps:         var(--atomic-white);
   --ac-doc-design-inventories:  var(--atomic-white);
+  --ac-doc-topic-research:      var(--atomic-white);
   --ac-doc-root-cause-analyses: var(--atomic-white);
   /* Glyph BACKGROUND tints (dark theme). Uniform monochrome grey across
      every doc type — slightly lighter than --ac-bg-sunken. */
@@ -403,6 +416,7 @@ body {
   --ac-doc-bg-pr-descriptions:     #1d2030;
   --ac-doc-bg-design-gaps:         #1d2030;
   --ac-doc-bg-design-inventories:  #1d2030;
+  --ac-doc-bg-topic-research:      #1d2030;
   --ac-doc-bg-root-cause-analyses: #1d2030;
   /* Per-stage lifecycle pipeline accents (dark). Stay coloured (unlike
      --ac-doc-* which collapses to white in dark) — the stage chain's
@@ -415,6 +429,14 @@ body {
   --ac-stage-pr-descriptions:   #60c2e2;
   --ac-stage-pr-reviews:        #c060e2;
   --ac-stage-decisions:         #e26077;
+  /* Topic-research lifecycle chips (dark). Light teal text on deepening teal
+     fills; each fill clears >=15% HSL saturation and >=3:1 text contrast. */
+  --ac-lifecycle-fg:            #d5eff4;
+  --ac-lifecycle-briefed:       #183035;
+  --ac-lifecycle-outlined:      #20444b;
+  --ac-lifecycle-researching:   #285862;
+  --ac-lifecycle-synthesised:   #2f6d79;
+  --ac-lifecycle-complete:      #368291;
   --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
   --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
   color-scheme: dark;
@@ -461,6 +483,7 @@ body {
     --ac-doc-pr-descriptions:     var(--atomic-white);
     --ac-doc-design-gaps:         var(--atomic-white);
     --ac-doc-design-inventories:  var(--atomic-white);
+    --ac-doc-topic-research:      var(--atomic-white);
     --ac-doc-root-cause-analyses: var(--atomic-white);
     --ac-doc-bg-decisions:           #1d2030;
     --ac-doc-bg-work-items:          #1d2030;
@@ -474,6 +497,7 @@ body {
     --ac-doc-bg-pr-descriptions:     #1d2030;
     --ac-doc-bg-design-gaps:         #1d2030;
     --ac-doc-bg-design-inventories:  #1d2030;
+    --ac-doc-bg-topic-research:      #1d2030;
     --ac-doc-bg-root-cause-analyses: #1d2030;
     --ac-stage-work-items:        #e26060;
     --ac-stage-codebase-research: #e29560;
@@ -483,6 +507,12 @@ body {
     --ac-stage-pr-descriptions:   #60c2e2;
     --ac-stage-pr-reviews:        #c060e2;
     --ac-stage-decisions:         #e26077;
+    --ac-lifecycle-fg:            #d5eff4;
+    --ac-lifecycle-briefed:       #183035;
+    --ac-lifecycle-outlined:      #20444b;
+    --ac-lifecycle-researching:   #285862;
+    --ac-lifecycle-synthesised:   #2f6d79;
+    --ac-lifecycle-complete:      #368291;
     --ac-shadow-soft:    0 1px 2px rgba(0,0,0,0.3), 0 8px 28px rgba(0,0,0,0.4);
     --ac-shadow-lift:    0 2px 4px rgba(0,0,0,0.4), 0 20px 60px rgba(0,0,0,0.55);
     color-scheme: dark;

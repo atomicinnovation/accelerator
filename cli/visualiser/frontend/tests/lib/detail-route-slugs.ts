@@ -30,6 +30,7 @@ export const DETAIL_ROUTE_SLUGS: Record<DocTypeKey, string> = {
   "pr-descriptions": "42-add-config-layer",
   "design-gaps": "example-gap", // Phase 3 fixture 2026-05-26-example-gap.md → slug 'example-gap'
   "design-inventories": "example", // Phase 3 nested manifest dir 2026-05-26-example/ → slug 'example'
+  "topic-research": "prompt-caching-economics", // nested manifest dir prompt-caching-economics/ → slug verbatim
   "root-cause-analyses": "example-rca", // fixture 2026-06-10-example-rca.md → slug 'example-rca' (dated stem, date stripped)
   templates: "plan", // template NAME (must exist in e2e fixture template set), not a fixture file slug
 };
@@ -53,6 +54,7 @@ export const DETAIL_ROUTE_RENDERS_ARTICLE: Record<DocTypeKey, boolean> = {
   "pr-descriptions": true,
   "design-gaps": true,
   "design-inventories": true,
+  "topic-research": true,
   "root-cause-analyses": true,
   templates: false,
 };

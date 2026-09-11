@@ -2009,6 +2009,67 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn topic_research_indexes_one_entry_per_set_from_its_manifest() {
+        // Point at the committed topic-research fixtures: three real sets, one
+        // manifest-less directory, and one dot-prefixed in-flight directory,
+        // plus sub-documents (findings/, reports/) under the first set.
+        let topics_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/meta/research/topics");
+        let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/meta");
+
+        let mut map = HashMap::new();
+        map.insert("research_topics".to_string(), topics_root);
+        let driver: Arc<dyn FileDriver> =
+            Arc::new(LocalFileDriver::new(&map, vec![], vec![]));
+        let idx = Indexer::build(driver, project_root, default_work_item_cfg())
+            .await
+            .unwrap();
+
+        let entries = idx.all_by_type(DocTypeKey::TopicResearch).await;
+
+        // One entry per real set — not per sub-document, and not the skipped
+        // directories.
+        assert_eq!(entries.len(), 3, "one entry per set");
+
+        let titles: Vec<&str> =
+            entries.iter().map(|e| e.title.as_str()).collect();
+        // Title cascade: frontmatter title → first body H1 → humanise_slug.
+        assert!(titles.contains(&"Prompt caching economics"), "{titles:?}");
+        assert!(titles.contains(&"MCP Transport Layer"), "{titles:?}");
+        assert!(titles.contains(&"Model Context Protocol"), "{titles:?}");
+
+        // Sub-documents are never separately indexed.
+        assert!(
+            !titles.contains(&"Cost model"),
+            "finding leaked: {titles:?}"
+        );
+        assert!(
+            !titles.contains(&"Summary report"),
+            "report leaked: {titles:?}"
+        );
+        // The dot-prefixed in-flight set is skipped.
+        assert!(
+            !titles.contains(&"Draft Subject"),
+            "dot-dir leaked: {titles:?}"
+        );
+
+        // Every entry keys on manifest.md, and its slug is the directory name.
+        let slugs: Vec<String> =
+            entries.iter().filter_map(|e| e.slug.clone()).collect();
+        assert!(slugs.iter().any(|s| s == "prompt-caching-economics"));
+        assert!(slugs.iter().any(|s| s == "mcp-transport-layer"));
+        assert!(slugs.iter().any(|s| s == "model-context-protocol"));
+        for entry in &entries {
+            assert!(
+                entry.rel_path.ends_with("manifest.md"),
+                "entry not keyed on manifest.md: {}",
+                entry.rel_path.display()
+            );
+        }
+    }
+
     // A tripwire for an algorithmic blowup in the scan, not a latency budget.
     // The build measures 713ms on an idle machine; the ceiling sits ~40x above
     // that because the suite runs alongside every other `mise run` task and a

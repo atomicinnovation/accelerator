@@ -43,6 +43,14 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   "work-item": "work-items",
   "design-gap": "design-gaps",
   "design-inventory": "design-inventories",
+  // Topic-research templates are per-kind full names (no bare `topic-research`
+  // template), and `glyphKeyForTemplate` matches end-anchored suffixes, so each
+  // full name is registered exactly rather than via a shared prefix stem.
+  "topic-research-manifest": "topic-research",
+  "topic-research-brief": "topic-research",
+  "topic-research-outline": "topic-research",
+  "topic-research-finding": "topic-research",
+  "topic-research-synthesis": "topic-research",
 
   // Stem tokens that may appear as a part of compound template names.
   decision: "decisions",
