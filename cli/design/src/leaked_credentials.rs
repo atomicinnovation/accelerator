@@ -148,10 +148,24 @@ fn strip_whitespace(body: &str) -> String {
     body.chars().filter(|c| !c.is_ascii_whitespace()).collect()
 }
 
+/// Whether the leak is the raw value verbatim, rather than a transcribed form.
+///
+/// A transcribed leak is an encoding, a head-prefix, or a value reflowed
+/// across a line wrap — every match that is not the raw value or its raw
+/// value-half occurring in the unstripped body.
+#[must_use]
+pub fn leak_is_literal(body: &str, secret: &NamedSecret) -> bool {
+    body.contains(&secret.value)
+        || secret
+            .header_value_half()
+            .is_some_and(|half| body.contains(half))
+}
+
 #[cfg(test)]
 mod tests {
     use base64::Engine as _;
 
+    use super::leak_is_literal;
     use super::scan;
     use super::NamedSecret;
 
@@ -549,5 +563,40 @@ mod tests {
             super::head_prefix("1234567890123456"),
             Some("123456789012".to_owned())
         );
+    }
+
+    #[test]
+    fn a_verbatim_value_is_classified_literal() {
+        let secret = secret("ACCELERATOR_BROWSER_PASSWORD", "hunter2");
+        assert!(leak_is_literal("the password is hunter2", &secret));
+    }
+
+    #[test]
+    fn a_verbatim_header_value_half_is_classified_literal() {
+        let secret = secret(
+            "ACCELERATOR_BROWSER_AUTH_HEADER",
+            "Authorization: Bearer abc123",
+        );
+        assert!(leak_is_literal(
+            "the request carried Bearer abc123",
+            &secret
+        ));
+    }
+
+    #[test]
+    fn an_encoded_value_is_classified_transcribed() {
+        let secret = secret("ACCELERATOR_BROWSER_PASSWORD", "hunter2");
+        let encoded =
+            base64::engine::general_purpose::STANDARD.encode("hunter2");
+        assert!(!leak_is_literal(
+            &format!("the header read {encoded}"),
+            &secret
+        ));
+    }
+
+    #[test]
+    fn a_reflowed_value_is_classified_transcribed() {
+        let secret = secret("ACCELERATOR_BROWSER_PASSWORD", "hunter2");
+        assert!(!leak_is_literal("the token was hun\nter2 here", &secret));
     }
 }
