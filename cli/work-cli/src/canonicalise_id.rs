@@ -51,8 +51,8 @@ pub fn run(config: &dyn ConfigAccess, input: &str) -> RunOutcome {
     match canonicalise_id(input, &pattern, &project) {
         Ok(id) => RunOutcome::Canonicalised(id),
         Err(PatternError::MissingKey) => RunOutcome::Failed(format!(
-            "E_PATTERN_MISSING_PROJECT: bare number '{input}' under \
-             pattern '{pattern}' requires a project value"
+            "E_PATTERN_MISSING_KEY: bare number '{input}' under \
+             pattern '{pattern}' requires a key value"
         )),
         Err(error) => {
             RunOutcome::Failed(format!("{}: {error}", error_code(&error)))

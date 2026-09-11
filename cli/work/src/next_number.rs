@@ -17,7 +17,7 @@ use corpus::WorkItemIdScheme;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AllocationError {
-    MissingProject,
+    MissingKey,
     ProjectUnused,
     Overflow {
         partial: Vec<String>,
@@ -68,7 +68,7 @@ fn is_md_filename(name: &str) -> bool {
 ///
 /// # Errors
 ///
-/// [`AllocationError::MissingProject`] when the pattern needs `{project}`
+/// [`AllocationError::MissingKey`] when the pattern needs `{key}`
 /// but none was supplied; [`AllocationError::ProjectUnused`] when a project
 /// was supplied but the pattern has no `{project}` token;
 /// [`AllocationError::Overflow`] when `highest + count` would exceed the
@@ -85,7 +85,7 @@ pub fn allocate(
     let project_given = project.is_some_and(|p| !p.is_empty());
 
     if pattern_has_key && !project_given {
-        return Err(AllocationError::MissingProject);
+        return Err(AllocationError::MissingKey);
     }
     if !pattern_has_key && project_given {
         return Err(AllocationError::ProjectUnused);
@@ -197,14 +197,14 @@ mod tests {
     }
 
     #[test]
-    fn missing_project_is_rejected() {
+    fn missing_key_is_rejected() {
         let scheme = WorkItemIdScheme {
             id_pattern: "{project}-{number:04d}".to_owned(),
             key: None,
         };
         assert_eq!(
             allocate(&scheme, None, 1, &[], &DigitPrefixScanner),
-            Err(AllocationError::MissingProject)
+            Err(AllocationError::MissingKey)
         );
     }
 

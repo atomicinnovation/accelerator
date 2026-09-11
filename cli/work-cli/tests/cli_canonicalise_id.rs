@@ -105,8 +105,8 @@ fn bare_number_under_a_project_pattern_with_no_project_configured(
     let stderr = String::from_utf8(output.stderr)?;
     assert_eq!(
         stderr.trim(),
-        "E_PATTERN_MISSING_PROJECT: bare number '42' under pattern \
-         '{project}-{number:04d}' requires a project value"
+        "E_PATTERN_MISSING_KEY: bare number '42' under pattern \
+         '{project}-{number:04d}' requires a key value"
     );
     Ok(())
 }

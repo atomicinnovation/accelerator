@@ -48,7 +48,7 @@ fn overflow_message(
 
 fn allocation_message(error: &AllocationError, pattern: &str) -> String {
     match error {
-        AllocationError::MissingProject => format!(
+        AllocationError::MissingKey => format!(
             "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
              {{key}} prefix but no value supplied — pass --project or set \
              work.key"

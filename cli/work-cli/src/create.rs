@@ -116,7 +116,7 @@ pub fn slugify(title: &str) -> String {
 
 fn allocation_message(error: &AllocationError, pattern: &str) -> String {
     match error {
-        AllocationError::MissingProject => {
+        AllocationError::MissingKey => {
             format!(
                 "E_PATTERN_MISSING_KEY: pattern '{pattern}' references the \
                  {{key}} prefix but no value supplied — pass --project or \
