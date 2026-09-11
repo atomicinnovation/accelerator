@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { statusToVariant } from "../../api/status-variant";
 import type { LibraryFacet, LibrarySelectionPerType } from "../../api/types";
-import { Chip } from "../Chip/Chip";
+import { Chip, type ChipVariant } from "../Chip/Chip";
 import { Icon } from "../Icon/Icon";
 import { Popover } from "../Popover/Popover";
 import styles from "./FilterPill.module.css";
@@ -11,6 +11,10 @@ export interface FilterPillProps {
   selection: LibrarySelectionPerType;
   onChange: (next: LibrarySelectionPerType) => void;
   isFetching?: boolean;
+  /** Resolve the status-facet chip variant for a status value. The caller
+   *  (a single-type view) supplies its type-aware resolver; absent, the
+   *  shared semantic lexicon applies. Keeps this presenter doc-type-agnostic. */
+  statusVariantFor?: (value: unknown) => ChipVariant;
 }
 
 const SEARCH_THRESHOLD = 8;
@@ -20,6 +24,7 @@ export function FilterPill({
   selection,
   onChange,
   isFetching,
+  statusVariantFor,
 }: FilterPillProps) {
   const [open, setOpen] = useState(false);
   const activeCount = Object.values(selection).reduce(
@@ -83,6 +88,7 @@ export function FilterPill({
             facet={facet}
             selected={selection[facet.id] ?? []}
             onToggle={(optionId) => toggleOption(facet.id, optionId)}
+            statusVariantFor={statusVariantFor}
           />
         ))}
       </div>
@@ -94,10 +100,12 @@ function FacetSection({
   facet,
   selected,
   onToggle,
+  statusVariantFor,
 }: {
   facet: LibraryFacet;
   selected: string[];
   onToggle: (optionId: string) => void;
+  statusVariantFor?: (value: unknown) => ChipVariant;
 }) {
   const [query, setQuery] = useState("");
   const showSearch = facet.options.length > SEARCH_THRESHOLD;
@@ -157,7 +165,12 @@ function FacetSection({
               />
               <span className={styles.optionLabel}>
                 {facet.id === "status" ? (
-                  <Chip variant={statusToVariant(option.id)}>
+                  <Chip
+                    variant={
+                      statusVariantFor?.(option.id) ??
+                      statusToVariant(option.id)
+                    }
+                  >
                     {option.label}
                   </Chip>
                 ) : (

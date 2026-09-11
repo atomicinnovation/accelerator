@@ -79,11 +79,12 @@ pub corpus::doc_type::DocTypeKey::PrReviews
 pub corpus::doc_type::DocTypeKey::Research
 pub corpus::doc_type::DocTypeKey::RootCauseAnalyses
 pub corpus::doc_type::DocTypeKey::Templates
+pub corpus::doc_type::DocTypeKey::TopicResearch
 pub corpus::doc_type::DocTypeKey::Validations
 pub corpus::doc_type::DocTypeKey::WorkItemReviews
 pub corpus::doc_type::DocTypeKey::WorkItems
 impl corpus::doc_type::DocTypeKey
-pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 14]
+pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 15]
 pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
 pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
 pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>
@@ -674,11 +675,12 @@ pub corpus::DocTypeKey::PrReviews
 pub corpus::DocTypeKey::Research
 pub corpus::DocTypeKey::RootCauseAnalyses
 pub corpus::DocTypeKey::Templates
+pub corpus::DocTypeKey::TopicResearch
 pub corpus::DocTypeKey::Validations
 pub corpus::DocTypeKey::WorkItemReviews
 pub corpus::DocTypeKey::WorkItems
 impl corpus::doc_type::DocTypeKey
-pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 14]
+pub const fn corpus::doc_type::DocTypeKey::all() -> [Self; 15]
 pub const fn corpus::doc_type::DocTypeKey::carries_target_frontmatter(self) -> bool
 pub const fn corpus::doc_type::DocTypeKey::config_path_key(self) -> core::option::Option<&'static str>
 pub fn corpus::doc_type::DocTypeKey::from_linkage_type_name(name: &str) -> core::option::Option<Self>

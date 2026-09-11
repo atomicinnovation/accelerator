@@ -77,6 +77,7 @@ pub const DOC_TYPES: &[(&str, &str)] = &[
     ("issue-research", "research_issues"),
     ("design-inventory", "research_design_inventories"),
     ("design-gap", "research_design_gaps"),
+    ("topic-research", "research_topics"),
     ("plan-review", "review_plans"),
     ("work-item-review", "review_work"),
     ("pr-review", "review_prs"),
@@ -275,7 +276,7 @@ mod tests {
             + AGENT_KEYS.len()
             + VISUALISER_KEYS.len();
         assert_eq!(count, 63);
-        assert_eq!(DOC_TYPES.len(), 13);
+        assert_eq!(DOC_TYPES.len(), 14);
     }
 
     #[test]

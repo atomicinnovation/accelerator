@@ -5,6 +5,7 @@ import { fetchDocs } from "../../api/fetch";
 import { formatBytes, formatEtagShort } from "../../api/format";
 import { fileSlugFromRelPath } from "../../api/path-utils";
 import { queryKeys } from "../../api/query-keys";
+import { chipVariantFor } from "../../api/status-variant";
 import type { DocTypeKey } from "../../api/types";
 import { isDocTypeKey } from "../../api/types";
 import { useDeferredFetchingHint } from "../../api/use-deferred-fetching-hint";
@@ -34,6 +35,15 @@ import { NotFoundSurface } from "./recovery/NotFoundSurface";
 const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 function stripFrontmatter(content: string): string {
   return content.replace(FRONTMATTER_RE, "");
+}
+
+/** Case-insensitive `status` lookup, matching `FrontmatterChips`' folding, so
+ *  the chip-variant override keys off the same value the badge renders. */
+function statusFromFrontmatter(frontmatter: Record<string, unknown>): unknown {
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (key.trim().toLowerCase() === "status") return value;
+  }
+  return undefined;
 }
 
 interface Props {
@@ -123,6 +133,16 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
       <FrontmatterChips
         frontmatter={entry.frontmatter as Record<string, unknown>}
         state={entry.frontmatterState}
+        statusVariant={
+          type
+            ? chipVariantFor(
+                type,
+                statusFromFrontmatter(
+                  entry.frontmatter as Record<string, unknown>,
+                ),
+              )
+            : undefined
+        }
       />
     );
     body = (

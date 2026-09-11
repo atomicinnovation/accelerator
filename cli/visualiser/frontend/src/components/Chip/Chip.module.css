@@ -50,3 +50,34 @@
   background: color-mix(in srgb, var(--ac-violet) 8%, var(--ac-bg));
   border-color: color-mix(in srgb, var(--ac-violet) 30%, var(--ac-bg));
 }
+
+/* Topic-research lifecycle ordinal ramp. Filled teal steps (hue 190) whose
+   lightness carries the five-state progression — distinct from the semantic
+   ok/warn/err tones and the indigo/violet variants. Fills and their matching
+   borders are plain tokens (no color-mix) so the accessibility gate resolves
+   them directly and the locked-in color-mix conventions stay untouched. */
+.chip[data-variant='lifecycle-briefed'] {
+  color: var(--ac-lifecycle-fg);
+  background: var(--ac-lifecycle-briefed);
+  border-color: var(--ac-lifecycle-briefed);
+}
+.chip[data-variant='lifecycle-outlined'] {
+  color: var(--ac-lifecycle-fg);
+  background: var(--ac-lifecycle-outlined);
+  border-color: var(--ac-lifecycle-outlined);
+}
+.chip[data-variant='lifecycle-researching'] {
+  color: var(--ac-lifecycle-fg);
+  background: var(--ac-lifecycle-researching);
+  border-color: var(--ac-lifecycle-researching);
+}
+.chip[data-variant='lifecycle-synthesised'] {
+  color: var(--ac-lifecycle-fg);
+  background: var(--ac-lifecycle-synthesised);
+  border-color: var(--ac-lifecycle-synthesised);
+}
+.chip[data-variant='lifecycle-complete'] {
+  color: var(--ac-lifecycle-fg);
+  background: var(--ac-lifecycle-complete);
+  border-color: var(--ac-lifecycle-complete);
+}
