@@ -215,7 +215,7 @@ pub enum TemplateSource {
 }
 
 impl TemplateSource {
-    /// The bash label for the source.
+    /// The label for the source.
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {

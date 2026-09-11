@@ -57,7 +57,7 @@ pub enum AdrAction {
         /// How many sequential numbers to output.
         ///
         /// A raw string, hand-validated in the command layer rather than
-        /// clap-parsed, so an invalid value reproduces bash's exact error
+        /// clap-parsed, so an invalid value yields this tool's own error
         /// text and exit code 1 instead of clap's own usage-error exit
         /// code 2.
         #[arg(long, default_value = "1")]
@@ -75,8 +75,8 @@ pub enum AdrAction {
         ///
         /// A bare optional positional rather than a clap-required argument,
         /// so a missing argument reaches the handler as `None` and is
-        /// hand-validated there — reproducing bash's exit code 1 instead of
-        /// clap's own required-argument exit code 2.
+        /// hand-validated there — yielding exit code 1 instead of clap's own
+        /// required-argument exit code 2.
         file: Option<PathBuf>,
     },
 }
@@ -125,10 +125,8 @@ pub enum LinkageAction {
         file: PathBuf,
         /// The source document's own type, overriding path-based inference.
         ///
-        /// A named flag rather than a second bare positional (the retired
-        /// bash implementation's own shape) — this CLI's argument shape is
-        /// not held to bash parity, and a named flag is more discoverable
-        /// in `--help` and harder to invoke by mistake.
+        /// A named flag rather than a second bare positional — more
+        /// discoverable in `--help` and harder to invoke by mistake.
         #[arg(long)]
         source_type: Option<String>,
     },

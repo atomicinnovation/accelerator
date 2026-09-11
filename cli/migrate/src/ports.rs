@@ -362,7 +362,7 @@ pub trait ManifestStore {
     fn clear(&self) -> Result<(), MigrationError>;
 }
 
-/// The bash-session-log-to-canonical-format cutover's one whole-file rewrite.
+/// The session-log-to-canonical-format cutover's one whole-file rewrite.
 ///
 /// Distinct from `corpus::RecordStore` (which the session log itself is —
 /// migrations append/remove through it directly): this is the one-time,
@@ -469,9 +469,9 @@ pub struct PreviewEntry<'a> {
 /// Reports lifecycle events for the caller to render.
 ///
 /// Every user-facing string this engine emits is rendered by the caller
-/// (`migrate-cli`'s `render` module owns the exact bash-parity literals) —
+/// (`migrate-cli`'s `render` module owns the exact output literals) —
 /// `migrate` itself only reports *which* event happened and in what order,
-/// preserving bash's interleaved stdout/stderr sequencing without the domain
+/// preserving the interleaved stdout/stderr sequencing without the domain
 /// crate depending on `migrate-cli`.
 pub trait Reporter {
     fn preview(&self, pending: &[PreviewEntry<'_>]);

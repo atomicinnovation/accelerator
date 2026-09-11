@@ -1,6 +1,6 @@
 //! Digest-pins the frozen ADF oracle corpus.
 //!
-//! With the bash drivers retired, byte-identity of `oracle.out`, `oracle.err`
+//! With the prior drivers retired, byte-identity of `oracle.out`, `oracle.err`
 //! and `oracle-status.txt` rests on this manifest plus the rule that the
 //! corpus is regenerated only by re-running
 //! `tests/support/capture-adf-oracle.sh` against the drivers at the recorded

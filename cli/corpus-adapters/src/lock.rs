@@ -3,8 +3,7 @@
 //! `mkdir` is the exclusive-acquisition mutex (POSIX, unlike `flock`), the
 //! lockdir carries an `owner.<nonce>` PID sentinel, a dead holder is
 //! reclaimed single-winner, and contention backs off with jitter up to an
-//! injectable ceiling. POSIX-only, matching the bash source and the darwin +
-//! musl target set.
+//! injectable ceiling. POSIX-only, matching the darwin + musl target set.
 //!
 //! The lockdir format also recognises a legacy nonce-less `owner` sentinel:
 //! nothing writes it any more, but a holder that died before the nonce upgrade

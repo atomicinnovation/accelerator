@@ -1,8 +1,8 @@
 //! Direct declared-value assertions for depth >=3, for inline and block arrays
 //! and typed sequences, for the value-encoding divergences, and for the
 //! fail-loud malformed and characterised adversarial cases. The
-//! differential shell-out oracle retired with the bash reader itself; these
-//! are the declared-value tests the divergence records (10-12) name.
+//! differential shell-out oracle has been retired; these are the
+//! declared-value tests the divergence records (10-12) name.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 

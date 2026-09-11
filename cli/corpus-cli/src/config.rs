@@ -18,9 +18,9 @@ pub struct Composed {
 }
 
 /// Wires the configuration ports at `cwd`'s project root, failing closed on
-/// the legacy `.claude/accelerator.md` layout — matching bash's uniform
-/// treatment of config/schema-resolution failures as ordinary (exit 1)
-/// failures, not usage errors.
+/// the legacy `.claude/accelerator.md` layout — treating config and
+/// schema-resolution failures as ordinary (exit 1) failures, not usage
+/// errors.
 ///
 /// # Errors
 ///

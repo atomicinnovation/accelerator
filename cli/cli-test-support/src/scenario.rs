@@ -1,4 +1,4 @@
-//! Loads a retired bash mock's scenario JSON and installs it on a
+//! Loads a retired mock's scenario JSON and installs it on a
 //! [`MockServer`].
 //!
 //! A scenario is `{expectations: [{method, path, consume?, response: {status,

@@ -342,7 +342,7 @@ fn filter_by_mode<'a>(
 }
 
 /// Parses an `applies_to` value into its recognised modes, warning on empty or
-/// unrecognised entries, matching bash `validate_applies_to`.
+/// unrecognised entries.
 fn applies_to_modes(
     lens_name: &str,
     raw: &str,
