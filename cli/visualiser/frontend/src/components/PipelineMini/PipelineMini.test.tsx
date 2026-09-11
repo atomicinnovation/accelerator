@@ -39,7 +39,7 @@ describe("PipelineMini", () => {
     ).toBe("true");
     expect(
       container
-        .querySelector('[data-stage="research"]')!
+        .querySelector('[data-stage="codebase-research"]')!
         .getAttribute("data-active"),
     ).toBe("false");
   });

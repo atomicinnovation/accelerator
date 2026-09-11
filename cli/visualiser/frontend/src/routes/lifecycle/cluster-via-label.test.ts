@@ -11,7 +11,7 @@ const cases: Array<
     "clustered via: parent → work-item:0040",
   ],
   [
-    "research",
+    "codebase-research",
     { entryKey: "0040", clusterKey: "0040" },
     "clustered via: parent → work-item:0040",
   ],

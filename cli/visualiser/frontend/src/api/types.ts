@@ -5,7 +5,7 @@ export type DocTypeKey =
   | "decisions"
   | "work-items"
   | "plans"
-  | "research"
+  | "codebase-research"
   | "plan-reviews"
   | "pr-reviews"
   | "work-item-reviews"
@@ -25,7 +25,7 @@ export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   "decisions",
   "work-items",
   "plans",
-  "research",
+  "codebase-research",
   "plan-reviews",
   "pr-reviews",
   "work-item-reviews",
@@ -71,7 +71,7 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   decisions: "Decisions",
   "work-items": "Work items",
   plans: "Plans",
-  research: "Research",
+  "codebase-research": "Codebase research",
   "plan-reviews": "Plan reviews",
   "pr-reviews": "PR reviews",
   "work-item-reviews": "Work item reviews",
@@ -86,12 +86,13 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
 
 /** Singular human-friendly label for each `DocTypeKey` — for surfaces that
  *  name a single document (search-result and related-artifact rows) rather
- *  than a collection. `research` is a mass noun (no singular/plural split). */
+ *  than a collection. `codebase-research` is a mass noun (no singular/plural
+ *  split). */
 export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
   decisions: "Decision",
   "work-items": "Work item",
   plans: "Plan",
-  research: "Research",
+  "codebase-research": "Codebase research",
   "plan-reviews": "Plan review",
   "pr-reviews": "PR review",
   "work-item-reviews": "Work item review",
@@ -304,7 +305,7 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   },
   {
     key: "hasResearch",
-    docType: "research",
+    docType: "codebase-research",
     label: "Research",
     placeholder: "no research yet",
   },

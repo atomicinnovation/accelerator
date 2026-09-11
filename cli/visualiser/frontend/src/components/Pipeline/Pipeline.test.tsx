@@ -47,7 +47,9 @@ describe("Pipeline", () => {
     );
     const workItems = container.querySelector('[data-stage="work-items"]')!;
     const plans = container.querySelector('[data-stage="plans"]')!;
-    const research = container.querySelector('[data-stage="research"]')!;
+    const research = container.querySelector(
+      '[data-stage="codebase-research"]',
+    )!;
     expect(workItems).toHaveAttribute("data-active", "true");
     expect(plans).toHaveAttribute("data-active", "true");
     expect(research).toHaveAttribute("data-active", "false");
@@ -125,7 +127,7 @@ describe("Pipeline", () => {
         completeness={makeCompleteness({
           hasWorkItem: true,
           hasResearch: true,
-          present: ["work-items", "research"],
+          present: ["work-items", "codebase-research"],
         })}
       />,
     );
@@ -137,7 +139,9 @@ describe("Pipeline", () => {
     );
     expect(workItemsConnector?.getAttribute("data-active")).toBe("true");
 
-    const research = container.querySelector('[data-stage="research"]')!;
+    const research = container.querySelector(
+      '[data-stage="codebase-research"]',
+    )!;
     const researchConnector = research.querySelector(
       ":scope > span[data-active]",
     );
@@ -168,7 +172,7 @@ describe("Pipeline", () => {
         completeness={makeCompleteness({
           hasWorkItem: true,
           hasResearch: true,
-          present: ["work-items", "research"],
+          present: ["work-items", "codebase-research"],
         })}
       />,
     );
