@@ -190,14 +190,14 @@ pub const SCHEMA: [SchemaRow; 18] = [
         linkage_type: "topic-research",
         kind: "manifest",
         code_state_anchored: false,
-        extras: &[
-            "slug",
-            "research_status",
-            "round_count",
-            "finding_count",
-            "primary",
+        extras: &["slug", "round_count", "finding_count", "primary"],
+        status_vocab: &[
+            "briefed",
+            "outlined",
+            "researching",
+            "synthesised",
+            "complete",
         ],
-        status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
@@ -313,7 +313,8 @@ pub const OPTIONAL_EXTRAS: [&str; 6] = [
 
 /// Fully-obsolete legacy linkage keys, forbidden on every
 /// typed/type-inferable document.
-pub const OBSOLETE_LEGACY_KEYS: [&str; 2] = ["ticket", "ticket_id"];
+pub const OBSOLETE_LEGACY_KEYS: [&str; 3] =
+    ["ticket", "ticket_id", "research_status"];
 
 #[cfg(test)]
 mod tests {
