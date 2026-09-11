@@ -382,6 +382,23 @@ fn the_value_half_of_a_header_pair_is_caught() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn a_base64_encoded_value_is_caught_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the header carried aHVudGVyMl91bmlx somewhere.\n",
+    )?;
+    let output = run(&["scrub-secrets", &file], &[(PASSWORD, "hunter2_uniq")]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2_uniq"));
+    assert!(!message.contains("aHVudGVyMl91bmlx"));
+    Ok(())
+}
+
 /// The argument cannot be interpreted as a file to scan, so exit 2 rather than
 /// the 1 a scanned-and-rejected body earns.
 #[test]

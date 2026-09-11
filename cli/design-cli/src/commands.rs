@@ -90,7 +90,7 @@ pub fn scrub_secrets(
         return Ok(Report::silent());
     };
     Ok(Report::rejected(&format!(
-        "the literal value of {name} appears in the generated inventory body. \
+        "the value of {name} appears in the generated inventory body. \
          The artifact was not written. Check your content for accidental \
          secret leakage."
     )))
