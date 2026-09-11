@@ -5,9 +5,9 @@
 //!
 //! A credential is matched not only verbatim but in the encoded shapes a model
 //! is likely to transcribe it into: base64 (standard and URL-safe, padded or
-//! not) and maximal percent-encoding (unreserved set, either hex casing). Case
-//! folding, hex, partial percent-encoding, HTML/JSON escapes and nested
-//! encodings are out of scope.
+//! not) and maximal percent-encoding (unreserved set, either hex casing); any
+//! of those reflowed across a line wrap. Case folding, hex, partial
+//! percent-encoding, HTML/JSON escapes and nested encodings are out of scope.
 
 use base64::engine::general_purpose::STANDARD;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
@@ -103,17 +103,22 @@ fn lowercase_percent_triplets(encoded: &str) -> String {
 /// secrets were given.
 #[must_use]
 pub fn scan(body: &str, secrets: &[NamedSecret]) -> Vec<String> {
+    let stripped = strip_whitespace(body);
     secrets
         .iter()
         .filter(|secret| !secret.value.is_empty())
         .filter(|secret| {
-            secret
-                .needles()
-                .iter()
-                .any(|needle| body.contains(needle.as_str()))
+            secret.needles().iter().any(|needle| {
+                body.contains(needle.as_str())
+                    || stripped.contains(needle.as_str())
+            })
         })
         .map(|secret| secret.name.clone())
         .collect()
+}
+
+fn strip_whitespace(body: &str) -> String {
+    body.chars().filter(|c| !c.is_ascii_whitespace()).collect()
 }
 
 #[cfg(test)]
@@ -304,6 +309,43 @@ mod tests {
         assert_eq!(
             scan("the path was a%20b", &secrets),
             vec!["ACCELERATOR_BROWSER_PASSWORD"]
+        );
+    }
+
+    #[test]
+    fn a_value_reflowed_across_a_line_wrap_names_its_variable() {
+        let secrets = [secret("ACCELERATOR_BROWSER_PASSWORD", "hunter2")];
+        assert_eq!(
+            scan("the token was hun\nter2 in the log", &secrets),
+            vec!["ACCELERATOR_BROWSER_PASSWORD"]
+        );
+    }
+
+    #[test]
+    fn a_reflowed_base64_form_is_still_caught() {
+        let secrets = [secret("ACCELERATOR_BROWSER_PASSWORD", "s3cr3t-token")];
+        let encoded =
+            base64::engine::general_purpose::STANDARD.encode("s3cr3t-token");
+        let (head, tail) = encoded.split_at(8);
+        assert_eq!(
+            scan(&format!("body {head}\n{tail} end"), &secrets),
+            vec!["ACCELERATOR_BROWSER_PASSWORD"]
+        );
+    }
+
+    #[test]
+    fn a_reflowed_interior_whitespace_needle_is_not_reconstituted() {
+        let secrets = [secret(
+            "ACCELERATOR_BROWSER_AUTH_HEADER",
+            "Authorization: Bearer abc123",
+        )];
+        assert!(scan("the token was Bearerabc123 here", &secrets).is_empty());
+        let encoded =
+            base64::engine::general_purpose::STANDARD.encode("Bearer abc123");
+        let (head, tail) = encoded.split_at(6);
+        assert_eq!(
+            scan(&format!("the token was {head}\n{tail} here"), &secrets),
+            vec!["ACCELERATOR_BROWSER_AUTH_HEADER"]
         );
     }
 }
