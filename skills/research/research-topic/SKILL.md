@@ -92,7 +92,7 @@ dossier looks like). Derive the slug from the subject.
 
 **Refuse if `meta/research/topics/<slug>/` already exists.** Name the exact
 directory and point to the safe recovery — delete it or choose a different slug
-(a committed set is recoverable with `git checkout`) — so a re-`brief` never
+(a committed set is recoverable through the VCS) — so a re-`brief` never
 silently overwrites a prior set.
 
 Build the set under a dot-prefixed sibling temp directory
@@ -221,8 +221,8 @@ actually present after any quarantine.
 A `conduct`-side write-scope assertion (snapshot the set before spawning and
 reject a round if any path other than the assigned finding changed) is deferred
 to a later slice. Until it lands, the compensating control is **human commit
-review of a git-tracked tree**: a stray write lands in the diff and is reverted
-with `git checkout`. Do not run this loop against live web in an
+review of a VCS-tracked tree**: a stray write lands in the diff and is reverted
+through the VCS. Do not run this loop against live web in an
 unattended or hosted context until that assertion is in place.
 
 !`accelerator config instructions research-topic --fail-safe`

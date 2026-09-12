@@ -173,8 +173,8 @@ completing.
 
 ### Step 7: Add GitHub permalinks (if applicable)
 
-- Check if on main branch or if commit is pushed: `git branch --show-current`
-  and `git status`
+- Check whether you are on the main branch and whether the commit is pushed
+  (use the branch and status commands from the session's VCS context)
 - If on main/master or pushed, generate GitHub permalinks:
   - Get repo info: `gh repo view --json owner,name`
   - Create permalinks:
