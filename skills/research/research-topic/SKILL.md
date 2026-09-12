@@ -135,6 +135,7 @@ into each agent's prompt:
 
 - the profile path: `${CLAUDE_PLUGIN_ROOT}/skills/research/profiles/web-profile/SKILL.md`
 - the outputter path: `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/finding-outputter/SKILL.md`
+- the finding template loaded in the **Finding template** section above
 - the focus question, the round number (`1`), the derived timestamp and author
 - the output path `findings/<nn>-<slug>.md`
 
