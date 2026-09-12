@@ -693,21 +693,28 @@ express.
 
 #### Automated Verification:
 
-- [ ] cargo-deny passes under the stricter config: `mise run deny:check`
-- [ ] The deny integration suite passes: `mise run test:integration:deny`
-- [ ] No un-skipped duplicate remains: `cargo deny check bans` (from `cli/`)
-      exits 0.
-- [ ] The new substack surfaces no advisory/license/source break: `cargo deny
-      check advisories licenses sources` (from `cli/`) exits 0.
+- [x] cargo-deny passes under the stricter config: `mise run deny:check`
+      (`advisories ok, bans ok, licenses ok, sources ok`).
+- [x] The deny integration suite passes: `mise run test:integration:deny`
+      (111 passed, including the updated `deny`-posture rationale).
+- [x] No un-skipped duplicate remains: `cargo deny check bans` (from `cli/`)
+      exits 0 (`bans ok`; 23 version-pinned skips over 21 straddled crates).
+- [x] The new substack surfaces no advisory/license/source break: `cargo deny
+      check advisories licenses sources` (from `cli/`) exits 0
+      (`advisories ok, licenses ok, sources ok`).
 
 #### Manual Verification:
 
-- [ ] Every skip's `reason` records the transitive-straddle justification.
-- [ ] No first-party-collapsible duplicate was skipped rather than resolved
+- [x] Every skip's `reason` records the transitive-straddle justification.
+- [x] No first-party-collapsible duplicate was skipped rather than resolved
       (`sha2` is collapsed by Phase 3, never skipped).
-- [ ] Each `skip-tree` is depth-bounded and version-pinned, not unbounded.
-- [ ] The before/after advisories/licenses/sources diff is recorded, showing no
+- [x] Each `skip-tree` is depth-bounded and version-pinned, not unbounded.
+      (N/A — no `skip-tree` was needed; every straddle is masked by an exact
+      version-pinned `skip`, which is strictly narrower.)
+- [x] The before/after advisories/licenses/sources diff is recorded, showing no
       new advisory and no license outside the allow-list from the 0.11 substack.
+      (Before and after both `advisories ok, licenses ok, sources ok`; the
+      before referent is `2026-09-11-0216-deny-surface-before.txt`.)
 
 ---
 
