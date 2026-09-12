@@ -7,12 +7,12 @@ use std::path::PathBuf;
 
 use corpus::resolve::classify_input;
 use corpus::resolve::resolve as domain_resolve;
-use corpus::resolve::DirectoryLister;
 use corpus::resolve::InputClass;
 use corpus::resolve::ResolveOutcome;
 use corpus::resolve::TaggedCandidate;
 use corpus::resolve::TypeShape;
 use corpus::DocTypeKey;
+use corpus_adapters::TypeDirectoryLister;
 
 use crate::config::resolve_type_dir;
 use crate::config::Composed;
@@ -27,41 +27,6 @@ pub enum RunOutcome {
     Invalid(String),
     UnknownType(String),
     OutsideRoot(String),
-}
-
-/// Lists the type directory's entries for the domain: `.md` files for a flat
-/// type, immediate subdirectories for a nested-manifest type.
-struct TypeDirectoryLister {
-    dir: PathBuf,
-    shape: TypeShape,
-}
-
-impl DirectoryLister for TypeDirectoryLister {
-    fn entries(&self) -> Vec<String> {
-        let Ok(reader) = std::fs::read_dir(&self.dir) else {
-            return Vec::new();
-        };
-        reader
-            .filter_map(Result::ok)
-            .filter_map(|entry| {
-                let file_type = entry.file_type().ok()?;
-                let name = entry.file_name().to_str()?.to_owned();
-                let keep = match self.shape {
-                    TypeShape::Flat => {
-                        file_type.is_file() && is_markdown(&name)
-                    }
-                    TypeShape::NestedManifest => file_type.is_dir(),
-                };
-                keep.then_some(name)
-            })
-            .collect()
-    }
-}
-
-fn is_markdown(name: &str) -> bool {
-    Path::new(name)
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
 /// Resolves `slug` for `doc_type` against `start`'s project, returning the
@@ -102,10 +67,7 @@ pub fn run(
                 Ok(root) => root,
                 Err(outcome) => return outcome,
             };
-            let lister = TypeDirectoryLister {
-                dir: root.clone(),
-                shape,
-            };
+            let lister = TypeDirectoryLister::new(root.clone(), shape);
             match domain_resolve(slug, shape, &lister) {
                 ResolveOutcome::Single(name) => {
                     RunOutcome::Resolved(root.join(name))
