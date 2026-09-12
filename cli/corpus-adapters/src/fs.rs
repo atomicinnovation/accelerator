@@ -1,10 +1,13 @@
-//! The real-filesystem implementation of `corpus::scan`'s ports.
+//! The real-filesystem implementations of `corpus`'s `scan` and `resolve`
+//! ports.
 
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::resolve::DirectoryLister;
+use corpus::resolve::TypeShape;
 use corpus::scan::CorpusWalker;
 use corpus::scan::DirReader;
 use corpus::scan::FileReader;
@@ -109,16 +112,62 @@ fn walk_markdown_into(
     Ok(())
 }
 
+/// The real-filesystem adapter for [`DirectoryLister`]: lists a type
+/// directory's resolvable entries — `.md` files for a flat type, immediate
+/// subdirectories for a nested-manifest type.
+pub struct TypeDirectoryLister {
+    dir: PathBuf,
+    shape: TypeShape,
+}
+
+impl TypeDirectoryLister {
+    #[must_use]
+    pub const fn new(dir: PathBuf, shape: TypeShape) -> Self {
+        Self { dir, shape }
+    }
+}
+
+impl DirectoryLister for TypeDirectoryLister {
+    fn entries(&self) -> Vec<String> {
+        let Ok(reader) = fs::read_dir(&self.dir) else {
+            return Vec::new();
+        };
+        reader
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let file_type = entry.file_type().ok()?;
+                let name = entry.file_name().to_str()?.to_owned();
+                let keep = match self.shape {
+                    TypeShape::Flat => {
+                        file_type.is_file() && is_markdown(&name)
+                    }
+                    TypeShape::NestedManifest => file_type.is_dir(),
+                };
+                keep.then_some(name)
+            })
+            .collect()
+    }
+}
+
+fn is_markdown(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
+    use corpus::resolve::DirectoryLister;
+    use corpus::resolve::TypeShape;
     use corpus::scan::CorpusWalker;
     use corpus::scan::DirReader;
     use corpus::scan::FileReader;
 
     use super::RealFs;
+    use super::TypeDirectoryLister;
 
     #[test]
     fn list_is_none_for_a_missing_directory() -> Result<(), kernel::Error> {
@@ -173,5 +222,64 @@ mod tests {
         let missing = PathBuf::from("/does/not/exist/at/all");
         assert_eq!(RealFs.walk_markdown(&[missing])?, Vec::<PathBuf>::new());
         Ok(())
+    }
+
+    #[test]
+    fn a_flat_type_lists_markdown_files_only(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("a.md"), "")?;
+        std::fs::write(dir.path().join("b.txt"), "")?;
+        std::fs::create_dir(dir.path().join("sub"))?;
+
+        let lister =
+            TypeDirectoryLister::new(dir.path().to_path_buf(), TypeShape::Flat);
+        let mut entries = lister.entries();
+        entries.sort();
+
+        assert_eq!(entries, vec!["a.md".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn a_flat_type_matches_the_markdown_extension_case_insensitively(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::write(dir.path().join("shouty.MD"), "")?;
+
+        let lister =
+            TypeDirectoryLister::new(dir.path().to_path_buf(), TypeShape::Flat);
+
+        assert_eq!(lister.entries(), vec!["shouty.MD".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn a_nested_manifest_type_lists_subdirectories_only(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        std::fs::create_dir(dir.path().join("set-one"))?;
+        std::fs::create_dir(dir.path().join("set-two"))?;
+        std::fs::write(dir.path().join("stray.md"), "")?;
+
+        let lister = TypeDirectoryLister::new(
+            dir.path().to_path_buf(),
+            TypeShape::NestedManifest,
+        );
+        let mut entries = lister.entries();
+        entries.sort();
+
+        assert_eq!(entries, vec!["set-one".to_owned(), "set-two".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn a_missing_directory_lists_no_entries() {
+        let lister = TypeDirectoryLister::new(
+            PathBuf::from("/does/not/exist"),
+            TypeShape::Flat,
+        );
+
+        assert!(lister.entries().is_empty());
     }
 }
