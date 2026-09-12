@@ -13,3 +13,4 @@ spawning agents via the Agent/Task tool.
 - **documents locator agent**: accelerator:documents-locator
 - **documents analyser agent**: accelerator:documents-analyser
 - **web search researcher agent**: accelerator:web-search-researcher
+- **researcher agent**: accelerator:researcher

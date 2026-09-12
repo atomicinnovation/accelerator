@@ -22,6 +22,7 @@
 | `agents.documents-locator` | `accelerator:documents-locator` | default |
 | `agents.documents-analyser` | `accelerator:documents-analyser` | default |
 | `agents.web-search-researcher` | `accelerator:web-search-researcher` | default |
+| `agents.researcher` | `accelerator:researcher` | default |
 | `paths.plans` | `meta/plans` | default |
 | `paths.research_codebase` | `meta/research/codebase` | default |
 | `paths.decisions` | `meta/decisions` | default |
@@ -39,6 +40,7 @@
 | `paths.research_design_gaps` | `meta/research/design-gaps` | default |
 | `paths.global` | `meta/global` | default |
 | `paths.research_issues` | `meta/research/issues` | default |
+| `paths.research_topics` | `meta/research/topics` | default |
 | `templates.plan` | `my/plan.md` | team (.accelerator/config.md) |
 | `templates.codebase-research` | *(not set)* | default |
 | `templates.adr` | *(not set)* | default |
@@ -52,6 +54,11 @@
 | `templates.work-item-review` | *(not set)* | default |
 | `templates.pr-review` | *(not set)* | default |
 | `templates.note` | *(not set)* | default |
+| `templates.topic-research-manifest` | *(not set)* | default |
+| `templates.topic-research-brief` | *(not set)* | default |
+| `templates.topic-research-outline` | *(not set)* | default |
+| `templates.topic-research-finding` | *(not set)* | default |
+| `templates.topic-research-synthesis` | *(not set)* | default |
 | `work.integration` | `linear` | team (.accelerator/config.md) |
 | `work.id_pattern` | `{number:04d}` | default |
 | `work.default_project_code` | *(not set)* | default |

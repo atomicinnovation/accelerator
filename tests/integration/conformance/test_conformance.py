@@ -48,8 +48,15 @@ EMITTERS = (
     "skills/notes/create-note/SKILL.md",
 )
 # Surfaced by discovery but out of scope: migrate is a corpus transformer with
-# no full-block emission.
-EXCLUDED = ("skills/config/migrate/SKILL.md",)
+# no full-block emission; the finding outputter is an injected output contract
+# whose example scaffold carries schema_version, not a skill that emits; and
+# research-topic is a multi-kind set producer the single-type full-block model
+# cannot check (its per-kind contracts are pinned by the committed set fixture).
+EXCLUDED = (
+    "skills/config/migrate/SKILL.md",
+    "skills/research/outputters/finding-outputter/SKILL.md",
+    "skills/research/research-topic/SKILL.md",
+)
 # Status-transition mutators: not surfaced by discovery; asserted on the status
 # axis only.
 STATUS_AXIS = (
@@ -103,9 +110,12 @@ def _schema() -> dict[str, dict[str, str]]:
         if not line.strip():
             continue
         fields = line.split("\t")
-        tmpl, type_, anchored, extras, vocab, forbidden, linkkeys = fields[:7]
+        tmpl, type_, kind, anchored, extras, vocab, forbidden, linkkeys = (
+            fields[:8]
+        )
         table[type_] = {
             "template": tmpl,
+            "kind": kind,
             "anchored": anchored,
             "extras": extras,
             "vocab": vocab,
@@ -269,9 +279,9 @@ def _assert_rejects(code: str, files: list[Path]) -> None:
 
 def test_producer_set_reconciliation() -> None:
     discovered = _discovered()
-    assert len(discovered) == 17, (
+    assert len(discovered) == 19, (
         f"discovery returned {len(discovered)} producing SKILL.md files, "
-        f"expected 17: {discovered}"
+        f"expected 19: {discovered}"
     )
     assert len(EMITTERS) == 16
     allowlist = set(EMITTERS) | set(EXCLUDED)

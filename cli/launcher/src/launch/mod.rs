@@ -117,9 +117,13 @@ fn to_action(action: &ConfigAction) -> config_cli::Action {
             on_failure: on_failure(*fail_safe),
         },
         ConfigAction::Template {
-            name, fail_safe, ..
+            name,
+            kind,
+            fail_safe,
+            ..
         } => config_cli::Action::Template {
             name: name.clone(),
+            kind: kind.clone(),
             on_failure: on_failure(*fail_safe),
         },
         ConfigAction::Templates { action } => to_templates_action(action),

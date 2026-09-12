@@ -15,3 +15,4 @@ skills/github/review-pr/SKILL.md	review-pr	producer schema_version last_updated 
 skills/planning/validate-plan/SKILL.md	validate-plan	producer schema_version last_updated last_updated_by target result	parent target relates_to
 skills/work/refine-work-item/SKILL.md	refine-work-item	producer schema_version last_updated last_updated_by	parent blocks blocked_by derived_from relates_to source external_id
 skills/notes/create-note/SKILL.md	create-note	producer schema_version last_updated last_updated_by revision repository	parent relates_to
+skills/research/research-topic/SKILL.md	research-topic	producer schema_version last_updated last_updated_by	parent relates_to

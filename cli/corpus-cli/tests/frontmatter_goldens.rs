@@ -350,6 +350,153 @@ fn this_repositorys_own_corpus_is_clean() -> Result<(), TestError> {
     Ok(())
 }
 
+/// The committed hand-authored topic-research set — the shared artifact the
+/// 0278 indexer keys on, validated here independent of live web and the
+/// co-land.
+fn topic_research_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-set")
+}
+
+fn validate_content(tag: &str, content: &str) -> Result<Output, TestError> {
+    let dir = tempdir(tag)?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let file = root.join("doc.md");
+    fs::write(&file, content)?;
+    run(
+        &root,
+        &[
+            "frontmatter",
+            "validate",
+            "--file",
+            file.to_str().ok_or("non-utf8")?,
+        ],
+    )
+}
+
+#[test]
+fn the_committed_topic_research_set_validates_clean() -> Result<(), TestError> {
+    let set = topic_research_set();
+    let files = [
+        set.join("manifest.md"),
+        set.join("brief.md"),
+        set.join("outline.md"),
+        set.join("findings/01-example-focus.md"),
+        set.join("synthesis.md"),
+    ];
+    let dir = tempdir("topic-set-clean")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let mut args = vec!["frontmatter".to_owned(), "validate".to_owned()];
+    for file in &files {
+        args.push("--file".to_owned());
+        args.push(file.to_str().ok_or("non-utf8")?.to_owned());
+    }
+    let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = run(&root, &borrowed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_missing_primary_is_a_missing_extra() -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("primary:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-primary", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("MISSING-EXTRA"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stderr(&output).contains("primary"), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_brief_missing_source_profiles_is_a_missing_extra() -> Result<(), TestError>
+{
+    let content = fs::read_to_string(topic_research_set().join("brief.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("source_profiles:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-profiles", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("MISSING-EXTRA"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_document_with_a_bogus_kind_is_unknown_kind(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated = content.replace("kind: \"manifest\"", "kind: \"bogus\"");
+    let output = validate_content("topic-bogus-kind", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNKNOWN-KIND"),
+        "a valid type carrying an unmatched kind must be UNKNOWN-KIND, not \
+         INVALID-TYPE: {}",
+        stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("INVALID-TYPE"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_document_missing_its_kind_is_unknown_kind(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("kind:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-kind", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNKNOWN-KIND"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_finding_with_a_draft_status_is_rejected_but_complete_passes(
+) -> Result<(), TestError> {
+    let complete = fs::read_to_string(
+        topic_research_set().join("findings/01-example-focus.md"),
+    )?;
+    let pass = validate_content("topic-finding-complete", &complete)?;
+    assert!(pass.status.success(), "{}", stderr(&pass));
+
+    let draft = complete.replace("status: \"complete\"", "status: \"draft\"");
+    let output = validate_content("topic-finding-draft", &draft)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("BAD-STATUS"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
 #[test]
 fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
     let dir = tempdir("print-schema")?;
