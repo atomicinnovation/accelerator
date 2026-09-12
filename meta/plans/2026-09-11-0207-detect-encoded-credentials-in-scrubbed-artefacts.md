@@ -439,12 +439,12 @@ the doc-comment; do not claim head-truncation coverage for the colon-bearing
 - [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
 - [x] Rust format + clippy clean: `mise run cli:check`
 - [x] cargo-deny admits the new direct deps: `mise run deny:check`
-- [ ] Docs build clean (outside the aggregate `check`): `mise run docs:check`
-- [ ] Full local CI mirror green: `mise run`
+- [x] Docs build clean (outside the aggregate `check`): `mise run docs:check`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_BROWSER_PASSWORD=s3cr3t-token accelerator design scrub-secrets <file>` where `<file>` contains only `base64("s3cr3t-token")` exits 1 and prints the variable name, not the value.
+- [x] `ACCELERATOR_BROWSER_PASSWORD=s3cr3t-token accelerator design scrub-secrets <file>` where `<file>` contains only `base64("s3cr3t-token")` exits 1 and prints the variable name, not the value.
 
 ---
 
@@ -519,11 +519,11 @@ whitespace-free encoded form still is.
 - [x] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
 - [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
 - [x] Rust format + clippy clean: `mise run cli:check`
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification
 
-- [ ] A file rendering a configured value with a newline inserted mid-token is rejected (exit 1), while the same file with the token intact and no configured value present is accepted (exit 0).
+- [x] A file rendering a configured value with a newline inserted mid-token is rejected (exit 1), while the same file with the token intact and no configured value present is accepted (exit 0).
 
 ---
 
@@ -659,11 +659,11 @@ fails CI rather than only a manual check.
 - [x] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p design leaked_credentials`
 - [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
 - [x] Rust format + clippy clean: `mise run cli:check`
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification
 
-- [ ] A file holding only the leading 12 characters of a colon-free configured value (≥16 characters, e.g. `PASSWORD`) is rejected (exit 1); a file holding only the leading 12 characters of a colon-bearing value (`AUTH_HEADER`, `LOGIN_URL`) is accepted (exit 0).
+- [x] A file holding only the leading 12 characters of a colon-free configured value (≥16 characters, e.g. `PASSWORD`) is rejected (exit 1); a file holding only the leading 12 characters of a colon-bearing value (`AUTH_HEADER`, `LOGIN_URL`) is accepted (exit 0).
 
 ---
 
@@ -755,11 +755,11 @@ transcribed message, the literal case also asserts the message does *not* contai
 - [x] Integration tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-cli --test subcommands`
 - [x] Rust format + clippy clean: `mise run cli:check`
 - [x] `scan`'s public signature is unchanged; `leak_is_literal` is a new public item — accept the addition by refreshing the `design` crate baseline (`cli/design/tests/fixtures/public-api.txt`) with `mise run public-api:update`, then confirm the one-line additive diff. `public-api:check` runs on the nightly lane, so a stable-only `mise run` may not flag a stale baseline — run the update explicitly.
-- [ ] Full local CI mirror green: `mise run`
+- [x] Full local CI mirror green: `mise run`
 
 #### Manual Verification
 
-- [ ] A file containing a configured value verbatim is rejected with "the value of {name}…"; a file containing only its base64 form is rejected with "a transcribed form (encoded, reflowed, or truncated) of the value of {name}…"; neither prints the value.
+- [x] A file containing a configured value verbatim is rejected with "the value of {name}…"; a file containing only its base64 form is rejected with "a transcribed form (encoded, reflowed, or truncated) of the value of {name}…"; neither prints the value.
 
 ---
 
