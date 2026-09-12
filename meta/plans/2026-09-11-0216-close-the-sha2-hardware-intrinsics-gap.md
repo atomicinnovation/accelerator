@@ -284,9 +284,14 @@ Then implement the minimum to pass, then refactor.
 
 #### Manual Verification:
 
-- [ ] A warm-dispatch record JSON produced by `mise run measure:warm-dispatch`
+- [~] A warm-dispatch record JSON produced by `mise run measure:warm-dispatch`
       now carries `asset_bytes` under `record["terms"]` (alongside
-      `cache_root_bytes`) with the `vcs` sub-binary size.
+      `cache_root_bytes`) with the `vcs` sub-binary size. (End-to-end
+      `measure:warm-dispatch` is blocked: it refuses on a cold cache for the
+      unreleased tree version 1.24.0-pre.66. The `assemble_terms_report`
+      persistence path is instead covered directly by unit tests
+      (`TestTermsReport`), and the `warm_terms` engine's `asset_bytes` line is
+      pinned by the committed golden.)
 
 ---
 
@@ -353,13 +358,19 @@ cargo deny check advisories licenses sources
 - [x] `mise run build:cli-cross-compile` exits 0 on the soft-backend tree.
       (Real task name `build:cli:cross-compile`; exit 0, four `Finished release`
       builds, zero warnings across the whole log.)
-- [ ] The baseline JSON contains both `asset_bytes` and a `verifier::sha256_hex`
-      term (Phase 1 landed).
+- [x] The baseline JSON contains both `asset_bytes` and a `verifier::sha256_hex`
+      term (Phase 1 landed). (Captured via the `warm_terms` harness, not the full
+      `measure:warm-dispatch`: that flow requires a published signed release for
+      the unreleased tree version 1.24.0-pre.66 and fetches published binaries,
+      so it cannot observe a local unreleased backend change. `warm_terms` is the
+      same engine `decompose_terms` invokes for the term, compiled from the local
+      tree.)
 
 #### Manual Verification:
 
-- [ ] The recorded `verifier::sha256_hex` median is in the soft-backend band
-      (~4.3 ms), confirming a valid "before".
+- [x] The recorded `verifier::sha256_hex` median is in the soft-backend band
+      (~4.3 ms), confirming a valid "before". (4.0791 ms median, p97.5 4.2179 ms;
+      611 MB/s over 2,493,392 B; BLAKE2b 2.6x faster, the recorded inversion.)
 - [x] The warning baseline file records the per-target warning set for all four
       shipped triples.
 
