@@ -5,7 +5,7 @@ title: "Close the sha2 hardware-intrinsics gap Implementation Plan"
 date: "2026-09-10T23:48:29+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0216"
 parent: "work-item:0216"
 derived_from: ["codebase-research:2026-09-10-0216-close-the-sha2-hardware-intrinsics-gap"]
