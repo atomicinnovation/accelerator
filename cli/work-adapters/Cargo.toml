@@ -40,3 +40,4 @@ linear-client = { path = "../linear-client" }
 tracker-support = { path = "../tracker-support" }
 http-test-support = { path = "../http-test-support" }
 reqwest = { workspace = true }
+hex = { workspace = true }

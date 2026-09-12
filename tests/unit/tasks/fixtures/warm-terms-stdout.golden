@@ -1,0 +1,10 @@
+
+running 1 test
+{"term":"cache::find","n":200,"median_ms":0.0780,"p2_5_ms":0.0508,"p97_5_ms":0.1588}
+{"term":"reverify","n":200,"median_ms":6.5776,"p2_5_ms":6.3363,"p97_5_ms":7.7686}
+{"term":"verifier::sha256_hex","n":200,"median_ms":4.5963,"p2_5_ms":4.4426,"p97_5_ms":31.7055}
+{"term":"TrustedKeys::verifies","n":200,"median_ms":2.0874,"p2_5_ms":1.7092,"p97_5_ms":29.6032}
+{"asset_bytes":2493392}
+test warm_terms_are_reported ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.77s

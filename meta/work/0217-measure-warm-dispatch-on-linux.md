@@ -10,9 +10,9 @@ kind: "task"
 priority: "medium"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-relates_to: ["work-item:0189"]
+relates_to: ["work-item:0189", "work-item:0216"]
 tags: ["cli", "launcher", "performance", "measurement"]
-last_updated: "2026-08-17T20:36:49+00:00"
+last_updated: "2026-09-10T21:30:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-746"
@@ -77,6 +77,11 @@ the correct behaviour and is what this item resolves.
   than importing darwin's.
 - `reverify` ms-per-MB must be recorded against **(architecture, SHA-extension
   support, libc)** rather than the OS name.
+- Capture the `aarch64-unknown-linux-musl` `verifier::sha256_hex` throughput under
+  the `sha2` 0.11 hardware backend 0216 ships — the linux/musl evidence 0216
+  defers here — keyed on SHA-extension support. There is no soft-backend "before"
+  on linux to pair against, so record it as an absolute under the runtime-detected
+  backend.
 
 ## Acceptance Criteria
 
@@ -90,9 +95,17 @@ the correct behaviour and is what this item resolves.
 - [ ] Whether the darwin result transferred is stated explicitly, with the
       direction of any difference attributed to spawn cost or digest backend.
 - [ ] If Perl is absent, C3/C4/C6 are recorded not applicable with that reason.
+- [ ] The `aarch64-unknown-linux-musl` `verifier::sha256_hex` throughput is
+      recorded under the `sha2` 0.11 hardware backend 0216 ships, keyed on
+      SHA-extension support, from the persisted `asset_bytes` as
+      `asset_bytes ÷ median_ms` — the linux/musl figure 0216 defers here.
 
 ## Dependencies
 
+- **Runs after** 0216, which ships the `sha2` 0.11 hardware backend across all
+  four targets and measures the darwin-arm64 before/after; this item captures the
+  `aarch64-unknown-linux-musl` throughput under that backend — the linux/musl
+  evidence 0216 defers here. Sequence after 0216 lands.
 - **Relates to** 0189, which committed the harness and measured darwin-arm64,
   and 0205, which established that its findings do not transfer.
 - **Parent**: epic 0136.

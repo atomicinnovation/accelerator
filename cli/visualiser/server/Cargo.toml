@@ -46,8 +46,8 @@ anyhow = "1"
 thiserror = { workspace = true }
 libc = { workspace = true }
 process-probe = { path = "../../process-probe" }
-sha2 = "0.10"
-hex = "0.4"
+sha2 = { workspace = true }
+hex = { workspace = true }
 notify = "6"
 arc-swap = "1"
 tokio-stream = { version = "0.1", features = ["sync"] }

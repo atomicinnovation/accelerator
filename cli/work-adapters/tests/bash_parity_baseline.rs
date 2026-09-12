@@ -95,7 +95,7 @@ fn present_cases(
 fn sha256_of(path: &Path) -> Result<String, TestError> {
     let mut hasher = Sha256::new();
     hasher.update(std::fs::read(path)?);
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn is_golden(name: &str) -> bool {

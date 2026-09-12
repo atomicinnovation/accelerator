@@ -107,10 +107,49 @@ crate = "uluru"
 allow = ["MPL-2.0"]
 
 [bans]
-multiple-versions = "warn"
+multiple-versions = "deny"
 wildcards = "deny"
 # Exempt local path deps; registry wildcards stay denied.
 allow-wildcard-paths = true
+# One narrow, version-pinned skip per transitive major-version straddle that no
+# first-party change can collapse — the crate has no single version its
+# dependents agree on. Each masks the older side, pinned to the exact version
+# rather than a bare name or skip-tree, so a genuinely new duplicate still trips
+# the gate. No review-by dates: unlike the advisory ignores these have no
+# upstream fix ETA; the narrow pins are what keep the carve-out set honest. The
+# authoritative list is `cargo deny check bans` across deny.toml's five targets.
+skip = [
+    # RustCrypto 0.10 substack (sha1, sha1-checked, hmac, blake2, jj-lib); the
+    # sha2 0.11 bump rides the parallel 0.11 substack alongside it.
+    { crate = "digest@0.10.7", reason = "RustCrypto 0.10/0.11 straddle" },
+    { crate = "crypto-common@0.1.7", reason = "RustCrypto 0.10/0.11 straddle" },
+    { crate = "block-buffer@0.10.4", reason = "RustCrypto 0.10/0.11 straddle" },
+    { crate = "cpufeatures@0.2.17", reason = "RustCrypto 0.10/0.11 straddle" },
+    # rand 0.9/0.10 plus getrandom 0.2/0.3/0.4 spanning both and older consumers.
+    { crate = "rand@0.9.5", reason = "rand 0.9/0.10 ecosystem straddle" },
+    { crate = "rand_chacha@0.9.0", reason = "rand 0.9/0.10 ecosystem straddle" },
+    { crate = "rand_core@0.9.5", reason = "rand 0.9/0.10 ecosystem straddle" },
+    { crate = "getrandom@0.2.17", reason = "getrandom 0.2/0.3/0.4 straddle" },
+    { crate = "getrandom@0.3.4", reason = "getrandom 0.2/0.3/0.4 straddle" },
+    # toml 0.8 (toml_edit 0.22) vs toml 1.0 (toml_edit 0.25); winnow 0.7/1.0.
+    { crate = "toml_edit@0.22.27", reason = "toml 0.8/1.0 ecosystem straddle" },
+    { crate = "toml_datetime@0.6.11", reason = "toml 0.8/1.0 ecosystem straddle" },
+    { crate = "serde_spanned@0.6.9", reason = "toml 0.8/1.0 ecosystem straddle" },
+    { crate = "winnow@0.7.15", reason = "toml/winnow 0.7/1.0 straddle" },
+    # syn 2 vs 3 proc-macro split.
+    { crate = "syn@2.0.119", reason = "syn 2/3 ecosystem straddle" },
+    # cargo_metadata 0.19/0.23 build-dependency tree.
+    { crate = "cargo_metadata@0.19.2", reason = "cargo_metadata 0.19/0.23 straddle" },
+    { crate = "cargo-platform@0.1.9", reason = "cargo_metadata 0.19/0.23 straddle" },
+    # Individually straddled transitive crates.
+    { crate = "bitflags@1.3.2", reason = "bitflags 1/2 straddle (notify vs gix)" },
+    { crate = "hashbrown@0.14.5", reason = "hashbrown 0.14/0.16/0.17 straddle" },
+    { crate = "hashbrown@0.16.1", reason = "hashbrown 0.14/0.16/0.17 straddle" },
+    { crate = "itertools@0.14.0", reason = "itertools 0.14/0.15 straddle" },
+    { crate = "mio@0.8.11", reason = "mio 0.8/1.0 straddle" },
+    { crate = "tower-http@0.5.2", reason = "tower-http 0.5/0.6 straddle" },
+    { crate = "untrusted@0.7.1", reason = "untrusted 0.7/0.9 straddle (ring)" },
+]
 # rustls only — no transitive dep may re-enable default-tls and break the
 # musl-static build. This covers the TLS vector only. serde-saphyr is the
 # infra-out-of-domain ban: the YAML crate is reachable only through the

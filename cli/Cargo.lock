@@ -19,7 +19,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "store",
  "tar",
  "tempfile",
@@ -148,7 +148,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "store",
  "tempfile",
  "thiserror",
@@ -1075,7 +1075,7 @@ dependencies = [
  "rand 0.9.5",
  "regex",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "tempfile",
 ]
 
@@ -2831,13 +2831,14 @@ dependencies = [
  "config",
  "corpus",
  "corpus-adapters",
+ "hex",
  "http-test-support",
  "rand 0.9.5",
  "remote-projection",
  "reqwest",
  "rustls",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "store",
  "tempfile",
  "thiserror",
@@ -3937,7 +3938,7 @@ name = "remote-projection"
 version = "1.24.0-pre.67"
 dependencies = [
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "work",
 ]
 
@@ -4042,7 +4043,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ffa149f6aa81b58a5b3011d01a857c4ed12c7a732d2c51947a4c7c692185f0"
 dependencies = [
  "include-flate",
- "sha2 0.11.0",
+ "sha2",
  "walkdir",
 ]
 
@@ -4322,17 +4323,6 @@ checksum = "89f599ac0c323ebb1c6082821a54962b839832b03984598375bff3975b804423"
 dependencies = [
  "digest 0.10.7",
  "sha1",
-]
-
-[[package]]
-name = "sha2"
-version = "0.10.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.2.17",
- "digest 0.10.7",
 ]
 
 [[package]]
@@ -5585,6 +5575,7 @@ name = "work-adapters"
 version = "1.24.0-pre.67"
 dependencies = [
  "corpus",
+ "hex",
  "http-test-support",
  "jira-client",
  "kernel",
@@ -5592,7 +5583,7 @@ dependencies = [
  "remote-projection",
  "reqwest",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "similar",
  "tempfile",
  "time",
