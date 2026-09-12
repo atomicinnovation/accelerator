@@ -438,7 +438,7 @@ describe("per-doc-kind corpus verification", () => {
     decisions: ["adr", "0033"],
     "work-items": ["priority", "medium"],
     plans: ["type", "plan"],
-    research: ["git_commit", "abc123def456"],
+    "codebase-research": ["git_commit", "abc123def456"],
     "plan-reviews": ["verdict", "APPROVE"],
     "pr-reviews": ["verdict", "APPROVE"],
     "work-item-reviews": ["verdict", "APPROVE"],
@@ -447,6 +447,7 @@ describe("per-doc-kind corpus verification", () => {
     "pr-descriptions": ["pr_number", 123],
     "design-gaps": ["file_path", "some/path.md"],
     "design-inventories": ["last_updated_by", "Someone"],
+    "topic-research": ["round_count", 3],
     "root-cause-analyses": ["resolution", "root cause found"],
     templates: ["template_for", "work-items"],
   };

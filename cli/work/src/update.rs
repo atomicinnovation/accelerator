@@ -1,6 +1,6 @@
-//! Set-key validation and list-field mutation for `work update`. No bash
-//! original to port for either half — `update-work-item`'s current write
-//! step does this via ad-hoc `Edit` calls, not a script.
+//! Set-key validation and list-field mutation for `work update`. No prior
+//! implementation to port for either half — `update-work-item`'s current
+//! write step does this via ad-hoc `Edit` calls, not a script.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateError {
@@ -47,7 +47,7 @@ pub enum ListMutation {
 }
 
 /// Adds or removes `value` from `current` — add-if-absent,
-/// remove-if-present, no bash quirk to preserve (these fields were only
+/// remove-if-present, no legacy quirk to preserve (these fields were only
 /// ever edited via the skill's generic `Edit` flow).
 #[must_use]
 pub fn mutate_list(

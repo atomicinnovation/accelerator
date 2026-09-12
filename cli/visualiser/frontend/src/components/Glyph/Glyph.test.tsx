@@ -61,7 +61,9 @@ describe("Glyph: runtime DOM shape", () => {
   });
 
   it("renders at the added 48 size (the Doc-type-glyphs four-size ramp)", () => {
-    const { container } = render(<Glyph docType="research" size={48} />);
+    const { container } = render(
+      <Glyph docType="codebase-research" size={48} />,
+    );
     const svg = container.querySelector("svg")!;
     expect(svg.getAttribute("width")).toBe("48");
     expect(svg.getAttribute("height")).toBe("48");
@@ -69,9 +71,11 @@ describe("Glyph: runtime DOM shape", () => {
   });
 
   it("inline style.color resolves to var(--ac-doc-<key>)", () => {
-    const { container } = render(<Glyph docType="research" size={24} />);
+    const { container } = render(
+      <Glyph docType="codebase-research" size={24} />,
+    );
     const svg = container.querySelector("svg") as SVGElement;
-    expect(svg.style.color).toBe("var(--ac-doc-research)");
+    expect(svg.style.color).toBe("var(--ac-doc-codebase-research)");
   });
 
   it("carries data-doc-type attribute matching docType", () => {

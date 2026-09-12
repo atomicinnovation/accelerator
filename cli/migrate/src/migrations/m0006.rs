@@ -337,10 +337,10 @@ fn extract_value<'a>(line: &'a str, prefix: &str) -> &'a str {
     line[prefix.len()..].trim_matches([' ', '\t'])
 }
 
-/// `_rb`/`_ab`/`_r`/`_wi` etc. deliberately mirror the original bash state
+/// `_rb`/`_ab`/`_r`/`_wi` etc. deliberately mirror the original state
 /// machine's variable names one-for-one rather than being renamed for
 /// `similar_names`, and the function is not split apart for cognitive
-/// complexity: this is a direct line-by-line port of a single bash state
+/// complexity: this is a direct line-by-line port of a single state
 /// machine, and splitting it would fragment one coherent transformation
 /// across several functions.
 #[allow(clippy::too_many_lines)]

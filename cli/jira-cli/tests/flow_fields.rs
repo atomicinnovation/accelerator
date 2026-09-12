@@ -1,5 +1,5 @@
 //! The `fields` cache reads through the marker-checked cache path:
-//! a markerless bash-era cache reads, and a cache carrying an unrecognised
+//! a markerless legacy cache reads, and a cache carrying an unrecognised
 //! version marker fails closed rather than feeding stale values onward. These
 //! reads are offline — the client builds from config without a network call.
 

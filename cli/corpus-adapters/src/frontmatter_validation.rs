@@ -97,8 +97,7 @@ fn resolve_own_type_id(
 /// Every file under a configured doc-type directory whose frontmatter is
 /// `Parsed`, keyed by its own resolved `(type, id)`. A `Malformed` or
 /// `Absent` file is excluded — its type/id cannot be trusted, so it must
-/// not be usable as a reference target (a deliberate improvement on bash's
-/// own less careful index).
+/// not be usable as a reference target.
 ///
 /// # Errors
 ///
@@ -127,9 +126,8 @@ pub fn build_index<W: CorpusWalker + FileReader>(
 /// Validates one file's structural conformance.
 ///
 /// `Ok(None)` for the missing/unreadable-file case degrading to
-/// [`Violation::NoFence`] — matching the retired bash implementation's own
-/// fence check, which treats a nonexistent file identically to one with no
-/// fence, never surfacing a distinct "file not found" message.
+/// [`Violation::NoFence`] — a nonexistent file is treated identically to one
+/// with no fence, never surfacing a distinct "file not found" message.
 ///
 /// # Errors
 ///

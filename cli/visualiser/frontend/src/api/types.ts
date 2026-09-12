@@ -5,7 +5,7 @@ export type DocTypeKey =
   | "decisions"
   | "work-items"
   | "plans"
-  | "research"
+  | "codebase-research"
   | "plan-reviews"
   | "pr-reviews"
   | "work-item-reviews"
@@ -14,6 +14,7 @@ export type DocTypeKey =
   | "pr-descriptions"
   | "design-gaps"
   | "design-inventories"
+  | "topic-research"
   | "root-cause-analyses"
   | "templates";
 
@@ -25,7 +26,7 @@ export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   "decisions",
   "work-items",
   "plans",
-  "research",
+  "codebase-research",
   "plan-reviews",
   "pr-reviews",
   "work-item-reviews",
@@ -34,6 +35,7 @@ export const DOC_TYPE_KEYS: readonly DocTypeKey[] = [
   "pr-descriptions",
   "design-gaps",
   "design-inventories",
+  "topic-research",
   "root-cause-analyses",
   "templates",
 ] as const;
@@ -71,7 +73,7 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   decisions: "Decisions",
   "work-items": "Work items",
   plans: "Plans",
-  research: "Research",
+  "codebase-research": "Codebase research",
   "plan-reviews": "Plan reviews",
   "pr-reviews": "PR reviews",
   "work-item-reviews": "Work item reviews",
@@ -80,18 +82,20 @@ export const DOC_TYPE_LABELS: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR descriptions",
   "design-gaps": "Design gaps",
   "design-inventories": "Design inventories",
+  "topic-research": "Topic research",
   "root-cause-analyses": "Root cause analyses",
   templates: "Templates",
 };
 
 /** Singular human-friendly label for each `DocTypeKey` — for surfaces that
  *  name a single document (search-result and related-artifact rows) rather
- *  than a collection. `research` is a mass noun (no singular/plural split). */
+ *  than a collection. `codebase-research` is a mass noun (no singular/plural
+ *  split). */
 export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
   decisions: "Decision",
   "work-items": "Work item",
   plans: "Plan",
-  research: "Research",
+  "codebase-research": "Codebase research",
   "plan-reviews": "Plan review",
   "pr-reviews": "PR review",
   "work-item-reviews": "Work item review",
@@ -100,6 +104,7 @@ export const DOC_TYPE_LABELS_SINGULAR: Readonly<Record<DocTypeKey, string>> = {
   "pr-descriptions": "PR description",
   "design-gaps": "Design gap",
   "design-inventories": "Design inventory",
+  "topic-research": "Topic research",
   "root-cause-analyses": "Root cause analysis",
   templates: "Template",
 };
@@ -304,7 +309,7 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   },
   {
     key: "hasResearch",
-    docType: "research",
+    docType: "codebase-research",
     label: "Research",
     placeholder: "no research yet",
   },

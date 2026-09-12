@@ -740,7 +740,7 @@ fn paths_doc_types_matches_the_tsv_golden() -> TestResult {
         &["config", "paths", "--doc-types", "--format", "tsv"],
     )?;
     assert_eq!(output.stdout, golden("baseline", "doctypes.golden")?);
-    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 13);
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 14);
     assert_eq!(code(&output), 0);
     Ok(())
 }
@@ -767,10 +767,10 @@ fn paths_doc_types_resolves_against_the_root_positional() -> TestResult {
 }
 
 #[test]
-fn paths_doc_types_coerces_a_blank_key_to_thirteen_rows() -> TestResult {
+fn paths_doc_types_coerces_a_blank_key_to_fourteen_rows() -> TestResult {
     let fixture = Fixture::new()?.team("---\npaths:\n  work: \"\"\n---\n")?;
     let output = fixture.run(&["config", "paths", "--doc-types"])?;
-    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 13);
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 14);
     assert!(String::from_utf8_lossy(&output.stderr).contains("is blank"));
     assert_eq!(code(&output), 0);
     Ok(())
@@ -923,7 +923,7 @@ fn a_custom_lens_row_uses_a_single_slash_path_and_the_right_source(
     let workspace = workspace("custom-lenses")?;
     let output = run_in(&workspace, &["config", "review", "pr"])?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Divergence 2: the bash double slash is fixed here.
+    // Divergence 2: the double-slash path bug is fixed here.
     assert!(stdout.contains("/lenses/perf-lens/SKILL.md | custom |"));
     assert!(!stdout.contains("/lenses/perf-lens//SKILL.md"));
     // auto_detect present → "custom"; wi-custom has none → "always include".

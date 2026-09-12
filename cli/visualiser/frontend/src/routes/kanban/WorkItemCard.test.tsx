@@ -114,7 +114,9 @@ describe("WorkItemCard", () => {
       top.querySelector('[data-stage="plans"]')!.getAttribute("data-active"),
     ).toBe("true");
     expect(
-      top.querySelector('[data-stage="research"]')!.getAttribute("data-active"),
+      top
+        .querySelector('[data-stage="codebase-research"]')!
+        .getAttribute("data-active"),
     ).toBe("false");
   });
 

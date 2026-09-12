@@ -2,7 +2,7 @@
 //! the `search` subcommand renders, and the cursor round-trip across pages.
 //!
 //! The port `search` returns stamps only; this op keeps the title and adds the
-//! state and assignee names the bash search table shows, over a query distinct
+//! state and assignee names the search table shows, over a query distinct
 //! from the one the sync bulk read spends its complexity budget on.
 
 #![allow(clippy::expect_used, clippy::panic)]

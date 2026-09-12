@@ -214,7 +214,7 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
-    /// Print the `## Configured Paths` block, or — with `--doc-types` — the 13
+    /// Print the `## Configured Paths` block, or — with `--doc-types` — the 14
     /// doc-type → directory mappings as `type<TAB>dir` lines.
     Paths {
         /// Emit the doc-type → directory mappings instead of the configured
@@ -489,7 +489,7 @@ impl ConfigAction {
     /// The directory config resolution should start from: the `--doc-types`
     /// `[root]` positional, else `None` for the current directory. This is how
     /// `config paths --doc-types <root>` resolves against `<root>` rather than
-    /// the caller's CWD, matching the bash resolver's `( cd "$root" && … )`.
+    /// the caller's CWD.
     #[must_use]
     pub fn resolution_root(&self) -> Option<&str> {
         match self {

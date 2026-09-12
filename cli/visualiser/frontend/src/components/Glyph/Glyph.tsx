@@ -14,6 +14,7 @@ import { PrReviewsIcon } from "./icons/PrReviewsIcon";
 import { ResearchIcon } from "./icons/ResearchIcon";
 import { RootCauseAnalysesIcon } from "./icons/RootCauseAnalysesIcon";
 import { TemplatesIcon } from "./icons/TemplatesIcon";
+import { TopicResearchIcon } from "./icons/TopicResearchIcon";
 import { ValidationsIcon } from "./icons/ValidationsIcon";
 import { WorkItemReviewsIcon } from "./icons/WorkItemReviewsIcon";
 import { WorkItemsIcon } from "./icons/WorkItemsIcon";
@@ -26,7 +27,7 @@ const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
   decisions: DecisionsIcon,
   "work-items": WorkItemsIcon,
   plans: PlansIcon,
-  research: ResearchIcon,
+  "codebase-research": ResearchIcon,
   "plan-reviews": PlanReviewsIcon,
   "pr-reviews": PrReviewsIcon,
   "work-item-reviews": WorkItemReviewsIcon,
@@ -35,6 +36,7 @@ const ICON_COMPONENTS: Record<GlyphDocType, ComponentType> = {
   "pr-descriptions": PrDescriptionsIcon,
   "design-gaps": DesignGapsIcon,
   "design-inventories": DesignInventoriesIcon,
+  "topic-research": TopicResearchIcon,
   "root-cause-analyses": RootCauseAnalysesIcon,
   templates: TemplatesIcon,
 };

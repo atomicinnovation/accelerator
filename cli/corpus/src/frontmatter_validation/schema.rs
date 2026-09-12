@@ -190,14 +190,14 @@ pub const SCHEMA: [SchemaRow; 18] = [
         linkage_type: "topic-research",
         kind: "manifest",
         code_state_anchored: false,
-        extras: &[
-            "slug",
-            "research_status",
-            "round_count",
-            "finding_count",
-            "primary",
+        extras: &["slug", "round_count", "finding_count", "primary"],
+        status_vocab: &[
+            "briefed",
+            "outlined",
+            "researching",
+            "synthesised",
+            "complete",
         ],
-        status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
@@ -313,11 +313,42 @@ pub const OPTIONAL_EXTRAS: [&str; 6] = [
 
 /// Fully-obsolete legacy linkage keys, forbidden on every
 /// typed/type-inferable document.
-pub const OBSOLETE_LEGACY_KEYS: [&str; 2] = ["ticket", "ticket_id"];
+pub const OBSOLETE_LEGACY_KEYS: [&str; 3] =
+    ["ticket", "ticket_id", "research_status"];
 
 #[cfg(test)]
 mod tests {
     use super::{row_for, SCHEMA};
+
+    /// The committed `topic-research-status-vocab.json` fixture is the
+    /// cross-language contract the frontend chip ramp reads. Regenerate it from
+    /// this test's rendering when the manifest `status_vocab` changes, so the
+    /// TS `lifecycle-*` map cannot silently drift from the Rust vocabulary.
+    #[test]
+    fn topic_research_status_vocab_fixture_matches_the_schema_row(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let vocab = row_for("topic-research", "manifest")
+            .ok_or("topic-research manifest row")?
+            .status_vocab;
+        let rendered = format!(
+            "[{}]",
+            vocab
+                .iter()
+                .map(|s| format!("\"{s}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let fixture = include_str!(
+            "../../tests/fixtures/topic-research-status-vocab.json"
+        );
+        assert_eq!(
+            rendered,
+            fixture.trim(),
+            "the committed status-vocab fixture has drifted from schema.rs; \
+             regenerate cli/corpus/tests/fixtures/topic-research-status-vocab.json"
+        );
+        Ok(())
+    }
 
     #[test]
     fn every_row_resolves_by_its_own_linkage_type_and_kind() {
@@ -370,11 +401,11 @@ mod tests {
 
     #[test]
     fn no_kind_discriminated_row_shadows_a_same_named_extra() {
-        // Guards the `kind` overload (ADR-0067): introducing a (type, kind)
-        // row whose `kind` also appears in that type's own `extras` silently
-        // re-routes every existing `kind: <that>` document from the type
-        // default row to the new one. Such a row is a migration, not an
-        // addition — this fails until it is made explicit here.
+        // Guards the `kind` overload: introducing a (type, kind) row whose
+        // `kind` also appears in that type's own `extras` silently re-routes
+        // every existing `kind: <that>` document from the type default row to
+        // the new one. Such a row is a migration, not an addition — this fails
+        // until it is made explicit here.
         for row in &SCHEMA {
             if row.kind.is_empty() {
                 continue;

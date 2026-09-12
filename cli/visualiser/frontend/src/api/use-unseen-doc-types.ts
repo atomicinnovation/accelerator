@@ -46,6 +46,13 @@ export function parseStored(): SeenMap {
     parsedObj["pr-descriptions"] = parsedObj.prs;
     delete parsedObj.prs;
   }
+  // One-shot migration: the wire token `research` was renamed to
+  // `codebase-research`. Rewrite any pre-upgrade key in place so existing
+  // users do not lose their last-seen timestamp.
+  if ("research" in parsedObj && !("codebase-research" in parsedObj)) {
+    parsedObj["codebase-research"] = parsedObj.research;
+    delete parsedObj.research;
+  }
   const out: SeenMap = {};
   for (const [key, value] of Object.entries(
     parsed as Record<string, unknown>,

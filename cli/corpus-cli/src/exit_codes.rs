@@ -18,7 +18,7 @@
 //!   documents; or an `Outcome`-based subcommand refused.
 //! - `3` [`NOT_FOUND`] — a `resolve` slug or path matched no document.
 //! - `4` [`UNKNOWN_TYPE`] — `resolve --type` named a type not registered as a
-//!   `DocTypeKey` (the `topic-research`-until-0278 case).
+//!   `DocTypeKey`.
 //! - `6` [`OUTSIDE_ROOT`] — a `resolve` path target exists but lies outside the
 //!   configured type directory.
 

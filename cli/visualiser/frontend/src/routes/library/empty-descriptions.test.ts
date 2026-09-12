@@ -12,3 +12,15 @@ describe("empty-descriptions hue single-sourcing", () => {
     expect(TYPE_COPY[key].hue).toBe(DOC_TYPE_HUE[key]);
   });
 });
+
+describe("topic-research TYPE_COPY", () => {
+  it("uses the prototype-pinned purpose string", () => {
+    expect(TYPE_COPY["topic-research"].purpose).toBe(
+      "Subject dossiers — brief, outline, findings and synthesis accreted into one citable set.",
+    );
+  });
+
+  it("points at the topic-research set directory", () => {
+    expect(TYPE_COPY["topic-research"].path).toBe("meta/research/topics/");
+  });
+});

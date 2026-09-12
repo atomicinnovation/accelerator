@@ -23,7 +23,7 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
 
 /** Stem → glyph doc-type lookup. Matches both whole template names
  *  (e.g. `adr` ⇒ `decisions`) and any dash-separated token within a
- *  template name (e.g. `codebase-research` ⇒ `research`, because
+ *  template name (e.g. `codebase-research` ⇒ `codebase-research`, because
  *  `research` is a known stem). Looked up first-to-last in token order,
  *  so the rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
@@ -37,12 +37,20 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   // Exact-template-name shortcuts.
   adr: "decisions",
   plan: "plans",
-  research: "research",
+  research: "codebase-research",
   validation: "validations",
   "pr-description": "pr-descriptions",
   "work-item": "work-items",
   "design-gap": "design-gaps",
   "design-inventory": "design-inventories",
+  // Topic-research templates are per-kind full names (no bare `topic-research`
+  // template), and `glyphKeyForTemplate` matches end-anchored suffixes, so each
+  // full name is registered exactly rather than via a shared prefix stem.
+  "topic-research-manifest": "topic-research",
+  "topic-research-brief": "topic-research",
+  "topic-research-outline": "topic-research",
+  "topic-research-finding": "topic-research",
+  "topic-research-synthesis": "topic-research",
 
   // Stem tokens that may appear as a part of compound template names.
   decision: "decisions",

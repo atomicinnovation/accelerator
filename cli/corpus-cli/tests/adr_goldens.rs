@@ -1,11 +1,11 @@
 //! `accelerator-corpus adr` against pre-captured expected values,
-//! transliterated from the retired bash implementation's own golden suite.
+//! transliterated from the reference implementation's own golden suite.
 //!
 //! Unconditional: unlike this codebase's other binary-spawning golden suites
-//! (which compare against a live bash process under the `bash-parity`
-//! feature), these compare against values captured once, during development,
-//! from a bash implementation that no longer exists — there is no bash left
-//! to compare against, so this suite runs in the default `cargo test`
+//! (which compare against a live process under the `bash-parity` feature),
+//! these compare against values captured once, during development, from a
+//! reference implementation that no longer exists — there is nothing left to
+//! compare against live, so this suite runs in the default `cargo test`
 //! invocation with no feature gate.
 
 use std::fs;

@@ -729,7 +729,7 @@ function completenessFromPresent(present: string[]): Completeness {
   const has = (k: string) => present.includes(k);
   return {
     hasWorkItem: has("work-items"),
-    hasResearch: has("research"),
+    hasResearch: has("codebase-research"),
     hasPlan: has("plans"),
     hasPlanReview: has("plan-reviews"),
     hasValidation: has("validations"),
@@ -754,7 +754,7 @@ function StageDotsSection() {
   return (
     <div data-testid="ds-stagedots">
       {dotRow(allPresent, "all present")}
-      {dotRow(["work-items", "research", "plans"], "partial")}
+      {dotRow(["work-items", "codebase-research", "plans"], "partial")}
       {dotRow([], "none")}
     </div>
   );
@@ -961,7 +961,7 @@ const KANBAN_ENTRY: IndexEntry = {
     hasNotes: false,
     hasDesignInventory: false,
     hasDesignGap: false,
-    present: ["work-items", "research", "plans"],
+    present: ["work-items", "codebase-research", "plans"],
   },
   linkedCount: 3,
   clusterKey: "0086",
@@ -993,7 +993,7 @@ function CardsSection() {
           <PipelineMini
             completeness={completenessFromPresent([
               "work-items",
-              "research",
+              "codebase-research",
               "plans",
               "plan-reviews",
               "validations",

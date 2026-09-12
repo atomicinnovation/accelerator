@@ -134,7 +134,7 @@ const MAX_DEPTH: u8 = 8;
 #[allow(clippy::type_complexity)]
 const STAGE_PUSH_ORDER: &[(fn(&Completeness) -> bool, &str)] = &[
     (|c| c.has_work_item, "work-items"),
-    (|c| c.has_research, "research"),
+    (|c| c.has_research, "codebase-research"),
     (|c| c.has_plan, "plans"),
     (|c| c.has_plan_review, "plan-reviews"),
     (|c| c.has_validation, "validations"),
@@ -225,6 +225,7 @@ fn walk<E: ClusterEntry>(
         | DocTypeKey::Notes
         | DocTypeKey::DesignGaps
         | DocTypeKey::DesignInventories
+        | DocTypeKey::TopicResearch
         | DocTypeKey::RootCauseAnalyses
         | DocTypeKey::Templates => None,
     }
@@ -526,7 +527,9 @@ const fn canonical_rank(kind: DocTypeKey) -> u8 {
         DocTypeKey::Notes => 8,
         DocTypeKey::DesignInventories => 9,
         DocTypeKey::DesignGaps => 10,
-        DocTypeKey::RootCauseAnalyses | DocTypeKey::Templates => u8::MAX,
+        DocTypeKey::TopicResearch
+        | DocTypeKey::RootCauseAnalyses
+        | DocTypeKey::Templates => u8::MAX,
     }
 }
 
@@ -566,6 +569,7 @@ fn derive_completeness<E: ClusterEntry>(entries: &[&E]) -> Completeness {
             DocTypeKey::Plans => c.has_plan = true,
             DocTypeKey::PlanReviews => c.has_plan_review = true,
             DocTypeKey::WorkItemReviews
+            | DocTypeKey::TopicResearch
             | DocTypeKey::RootCauseAnalyses
             | DocTypeKey::Templates => {}
             DocTypeKey::Validations => c.has_validation = true,

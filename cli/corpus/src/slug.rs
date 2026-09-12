@@ -33,6 +33,9 @@ pub fn derive(
                 .and_then(|slug| strip_suffix_review_n(&slug))
         }
         DocTypeKey::WorkItemReviews => derive_work_item_review(stem, scheme),
+        DocTypeKey::TopicResearch => {
+            Some(stem.to_owned()).filter(|slug| !slug.is_empty())
+        }
         DocTypeKey::Templates => None,
     }
 }
@@ -405,6 +408,30 @@ mod tests {
         let scheme = numeric();
         assert_eq!(
             derive(DocTypeKey::Templates, "plan.md", &scheme, &NumericScanner),
+            None
+        );
+    }
+
+    #[test]
+    fn topic_research_takes_the_subject_directory_name_verbatim() {
+        let scheme = numeric();
+        assert_eq!(
+            derive(
+                DocTypeKey::TopicResearch,
+                "model-context-protocol.md",
+                &scheme,
+                &NumericScanner
+            )
+            .as_deref(),
+            Some("model-context-protocol")
+        );
+    }
+
+    #[test]
+    fn topic_research_guards_the_empty_stem() {
+        let scheme = numeric();
+        assert_eq!(
+            derive(DocTypeKey::TopicResearch, ".md", &scheme, &NumericScanner),
             None
         );
     }

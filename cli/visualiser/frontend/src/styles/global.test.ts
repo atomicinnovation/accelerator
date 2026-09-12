@@ -323,8 +323,8 @@ describe("AC2 invariant: --ac-* hex literals must reference brand when possible"
 
   it.each([
     ["root", 9],
-    ["data-dark", 17],
-    ["media-dark", 17],
+    ["data-dark", 18],
+    ["media-dark", 18],
   ] as const)("block %s contains exactly %d var(--atomic-X) refs", (block, expected) => {
     const refs = extractAllAcDeclarations(globalCss).filter(
       (d) => d.block === block && d.value.startsWith("var(--atomic-"),
@@ -402,7 +402,7 @@ describe("--ac-stage-* tokens meet WCAG 1.4.11 ≥3:1 contrast vs --ac-bg", () =
   // Workflow-only — long-tail stages do not get tokens.
   const stageKeys = [
     "work-items",
-    "research",
+    "codebase-research",
     "plans",
     "plan-reviews",
     "validations",

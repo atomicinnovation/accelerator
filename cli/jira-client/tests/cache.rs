@@ -136,9 +136,9 @@ fn the_scaffold_is_idempotent_across_two_runs() {
 }
 
 #[test]
-fn a_markerless_bash_era_cache_reads_unchanged() {
-    // The migration population: a cache written by the retiring bash carries no
-    // version marker, so it is the implicit bash-era version and reads as-is.
+fn a_markerless_legacy_cache_reads_unchanged() {
+    // The migration population: a legacy cache carries no version marker, so it
+    // is the implicit legacy version and reads as-is.
     let fs = FakeFs::default();
     fs.files.borrow_mut().insert(
         cache_root().join("fields.json"),
@@ -146,7 +146,7 @@ fn a_markerless_bash_era_cache_reads_unchanged() {
     );
     let cache = JiraCache::new(&fs, cache_root());
 
-    let read = cache.read_cache("fields.json").expect("bash-era reads");
+    let read = cache.read_cache("fields.json").expect("legacy reads");
     assert_eq!(
         read.pointer("/fields/0/id").and_then(|v| v.as_str()),
         Some("cf-1")
@@ -269,14 +269,14 @@ fn the_real_lock_creates_the_shared_lock_dir_with_the_owner_sentinel() {
 }
 
 #[test]
-fn the_real_lock_times_out_rather_than_stealing_a_bash_held_lock() {
+fn the_real_lock_times_out_rather_than_stealing_a_foreign_held_lock() {
     let dir = TempDir::new().expect("a temp dir");
     let lockdir = dir.path().join(".lock");
     std::fs::create_dir(&lockdir).expect("a pre-held lock");
     // A foreign holder writes holder.pid, which the owner.<nonce> reclaim
     // never matches — so the lock is waited on, not stolen.
     std::fs::write(lockdir.join("holder.pid"), "999999\n")
-        .expect("the bash sentinel is written");
+        .expect("the holder sentinel is written");
 
     let fs = SystemFilesystem::new(dir.path().to_path_buf()).with_lock_options(
         LockOptions {

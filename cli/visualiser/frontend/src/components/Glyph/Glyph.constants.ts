@@ -27,7 +27,7 @@ export const DOC_TYPE_TOKEN_KEY: Record<GlyphDocType, ColorTokenKey> = {
   decisions: "ac-doc-decisions",
   "work-items": "ac-doc-work-items",
   plans: "ac-doc-plans",
-  research: "ac-doc-research",
+  "codebase-research": "ac-doc-codebase-research",
   "plan-reviews": "ac-doc-plan-reviews",
   "pr-reviews": "ac-doc-pr-reviews",
   "work-item-reviews": "ac-doc-work-item-reviews",
@@ -36,6 +36,7 @@ export const DOC_TYPE_TOKEN_KEY: Record<GlyphDocType, ColorTokenKey> = {
   "pr-descriptions": "ac-doc-pr-descriptions",
   "design-gaps": "ac-doc-design-gaps",
   "design-inventories": "ac-doc-design-inventories",
+  "topic-research": "ac-doc-topic-research",
   "root-cause-analyses": "ac-doc-root-cause-analyses",
   templates: "ac-fg-muted",
 };
@@ -46,7 +47,7 @@ export const DOC_TYPE_COLOR_VAR: Record<GlyphDocType, string> = {
   decisions: `var(--${DOC_TYPE_TOKEN_KEY.decisions})`,
   "work-items": `var(--${DOC_TYPE_TOKEN_KEY["work-items"]})`,
   plans: `var(--${DOC_TYPE_TOKEN_KEY.plans})`,
-  research: `var(--${DOC_TYPE_TOKEN_KEY.research})`,
+  "codebase-research": `var(--${DOC_TYPE_TOKEN_KEY["codebase-research"]})`,
   "plan-reviews": `var(--${DOC_TYPE_TOKEN_KEY["plan-reviews"]})`,
   "pr-reviews": `var(--${DOC_TYPE_TOKEN_KEY["pr-reviews"]})`,
   "work-item-reviews": `var(--${DOC_TYPE_TOKEN_KEY["work-item-reviews"]})`,
@@ -55,6 +56,7 @@ export const DOC_TYPE_COLOR_VAR: Record<GlyphDocType, string> = {
   "pr-descriptions": `var(--${DOC_TYPE_TOKEN_KEY["pr-descriptions"]})`,
   "design-gaps": `var(--${DOC_TYPE_TOKEN_KEY["design-gaps"]})`,
   "design-inventories": `var(--${DOC_TYPE_TOKEN_KEY["design-inventories"]})`,
+  "topic-research": `var(--${DOC_TYPE_TOKEN_KEY["topic-research"]})`,
   "root-cause-analyses": `var(--${DOC_TYPE_TOKEN_KEY["root-cause-analyses"]})`,
   templates: `var(--${DOC_TYPE_TOKEN_KEY.templates})`,
 };
