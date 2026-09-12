@@ -35,33 +35,9 @@ pub fn compose(cwd: &Path) -> Result<Composed, kernel::Error> {
     })
 }
 
-/// Resolves `paths.decisions`, absolute paths used as-is and relative paths
-/// resolved against the discovered project root — matching the retired bash
-/// implementation's own resolution rule.
-///
-/// # Errors
-///
-/// A [`kernel::Error`] when the key cannot be resolved.
-pub fn resolve_decisions_dir(
-    composed: &Composed,
-) -> Result<PathBuf, kernel::Error> {
-    let raw = config::paths::resolve_with_fallback(
-        &composed.service,
-        "decisions",
-        None,
-    )?;
-    let path = PathBuf::from(raw);
-    Ok(if path.is_absolute() {
-        path
-    } else {
-        composed.project_root.join(path)
-    })
-}
-
 /// Resolves a doc type's configured directory: its `paths.<config_path_key>`
 /// value (falling back to the catalogue default), absolute paths used as-is and
-/// relative paths resolved against the discovered project root — the
-/// [`resolve_decisions_dir`] rule generalised to any registered type.
+/// relative paths resolved against the discovered project root.
 ///
 /// # Errors
 ///

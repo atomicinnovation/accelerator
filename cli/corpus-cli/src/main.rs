@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::frontmatter_validation::Checks;
 use corpus_adapters::RealFs;
@@ -38,7 +39,8 @@ fn current_dir() -> Result<PathBuf, kernel::Error> {
 
 fn next_number(count: &str) -> Result<Outcome, kernel::Error> {
     let composed = config::compose(&current_dir()?)?;
-    let decisions_dir = config::resolve_decisions_dir(&composed)?;
+    let decisions_dir =
+        config::resolve_type_dir(&composed, DocTypeKey::Decisions)?;
     adr::run_next_number(count, &decisions_dir, &RealFs)
 }
 
