@@ -5,7 +5,7 @@ title: "Close the sha2 hardware-intrinsics gap"
 date: "2026-08-17T20:36:49+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
@@ -21,7 +21,7 @@ external_id: "PP-745"
 # 0216: Close the sha2 hardware-intrinsics gap
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
