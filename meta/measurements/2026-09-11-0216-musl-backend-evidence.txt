@@ -1,0 +1,65 @@
+# sha2 0.11 backend + duplication evidence (0216 Phase 3)
+#
+# Post-bump evidence for AC 3 (musl hardware backend), AC 4 (duplication effect),
+# and the reproducibility marker. Captured on darwin-arm64 after the bump.
+
+## AC 3a — nothing forces the hardware feature (by inspection)
+
+- No `-C target-feature=+sha2` / `target-cpu` / `RUSTFLAGS` anywhere in the tree.
+- No `.cargo/config.toml`, no `rust-toolchain.toml`.
+- So the runtime-detected backend is what compiles; nothing can fault an aarch64
+  CPU lacking the extension.
+- The musl statics link zig's bundled musl (ziglang >= 0.16.0 in pyproject.toml,
+  musl 1.2.x), well above the getauxval floor (musl >= 1.1.21) that cpufeatures'
+  aarch64-linux runtime detection needs.
+
+## AC 3b — the aarch64-sha2 backend is compiled into the musl static
+
+[profile.release] sets lto = "thin", so the sha2 .rlib members are LLVM IR
+bitcode (verified: `llvm-ar x` members report "LLVM IR bitcode"); native codegen
+is deferred to the final LTO link. Symbol/instruction evidence therefore comes
+from the final statically-linked binary, not the .rlib. Stripping removes symbols
+but not instructions, so the disassembly is valid on the stripped release binary.
+
+Target: cli/target/aarch64-unknown-linux-musl/release/accelerator
+  file: ELF 64-bit LSB executable, ARM aarch64, statically linked, stripped
+
+ARMv8 SHA-256 crypto instructions present (llvm-objdump -d, opcode counts):
+  sha256h    32
+  sha256h2   32
+  sha256su0  24
+  sha256su1  24
+
+These opcodes exist only if the aarch64 hardware backend is compiled in. The soft
+backend is also compiled into the same binary (runtime dispatch), so this proves
+the hardware backend is *available*, not which is *selected* at runtime — AC 3c
+and the AC 7 failure condition carry selection; conclusive musl selection is 0217.
+
+## AC 3c — runtime selection (corroborating, darwin only)
+
+An out-of-tree throwaway querying cpufeatures 0.3.0 (the selector sha2 0.11 ships)
+reported on darwin-arm64:
+  cpufeatures 0.3.0 aarch64 sha2 detected: true
+Corroborating only: darwin resolves the feature via sysctlbyname, not the Linux
+getauxval/HWCAP path a crt-static musl binary uses. The decisive corroboration is
+the measured throughput delta: 611 MB/s (soft) -> 2,944 MB/s (0.11), 4.8x, which a
+soft-only build could not reach. The scratch crate was deleted after recording.
+
+## AC 4 — duplication effect and marker
+
+- `cargo update --package sha2@0.10.9 --precise 0.11.0` reported "Removing sha2
+  v0.10.9"; the lock now carries a single sha2 0.11.0.
+- `cargo tree -d` lists no sha2 (and no hex) duplicate; `cargo tree -i sha2` shows
+  the single 0.11.0 feeding launcher, server, design-adapters, work-adapters,
+  jira-client (dev), and transitively rust-embed-utils.
+- hex was hoisted to [workspace.dependencies]; it was already resolved in the lock
+  (the server's prior literal), so the hoist adds no crate and no new version.
+- The vendor-shim marker is unmoved: `mise run lint:vendor-shims:check` passes
+  unchanged (the marker hashes cli/verify + minisign-verify, never sha2).
+
+## Newly-shifted RustCrypto substack (for Phase 4 disposition)
+
+First-party consumers now resolve onto the 0.11 substack (digest 0.11,
+crypto-common 0.2, cpufeatures 0.3, hybrid-array), alongside the pre-existing 0.10
+substack (digest 0.10, cpufeatures 0.2, ...) still pulled by sha1/hmac/blake2/etc.
+The authoritative straddle list for Phase 4 is `cargo deny check bans` output.

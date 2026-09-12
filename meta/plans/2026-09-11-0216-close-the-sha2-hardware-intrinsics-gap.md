@@ -563,34 +563,48 @@ failure condition.
 
 #### Automated Verification:
 
-- [ ] Workspace checks pass: `mise run cli:check`
-- [ ] All six `sha2` consumers compile against 0.11: `cargo check
+- [x] Workspace checks pass: `mise run cli:check` (exit 0, zero warnings).
+- [x] All six `sha2` consumers compile against 0.11: `cargo check
       --all-targets -p <crate>` for launcher, work-adapters, jira-client,
-      design-adapters, remote-projection, server
-- [ ] All four targets build: `mise run build:cli-cross-compile`
-- [ ] Vendor-shim guard passes: `mise run lint:vendor-shims:check`
-- [ ] No `sha2` duplicate remains: `cargo tree -d --manifest-path
+      design-adapters, remote-projection, server (subsumed by `cli:check`, which
+      clippy-checks every workspace crate and target under `--locked`).
+- [x] All four targets build: `mise run build:cli-cross-compile` (real task
+      `build:cli:cross-compile`; exit 0, four clean `Finished release` builds).
+- [x] Vendor-shim guard passes: `mise run lint:vendor-shims:check`
+- [x] No `sha2` duplicate remains: `cargo tree -d --manifest-path
       cli/Cargo.toml` does not list `sha2`
-- [ ] Single `sha2` version resolves: `cargo tree --manifest-path
+- [x] Single `sha2` version resolves: `cargo tree --manifest-path
       cli/Cargo.toml -i sha2` (no `-d`) shows `sha2 v0.11.0`
-- [ ] The 0.11 substack surfaces no advisory/license/source break:
-      `mise run deny:check` exits 0 (bans stays `warn` until Phase 4, so this
-      gates advisories/licenses/sources where the substack actually lands); if
-      the licence closure shifts, regenerate `cli/licence-audit/new-trees.txt`
-      and re-run `mise run test:integration:deny`
-- [ ] Full test suite passes: `mise run test`
+- [x] The 0.11 substack surfaces no advisory/license/source break:
+      `mise run deny:check` exits 0 (`advisories ok, bans ok, licenses ok,
+      sources ok`; bans still `warn`). The licence closure did not shift (hex was
+      already in the lock), so no `new-trees.txt` regeneration was needed.
+- [x] Full test suite passes: `mise run test` (every Rust test — migrated
+      `hex::encode` sites, new `sha256_hex` vectors, all consumers — plus Python,
+      frontend, e2e and integration pass; the only failures were the three
+      pre-existing `test_vendor_assemble.py` first-exec-scan flakes that trip
+      under full-parallel load and re-run 28/28 in isolation, unrelated to this
+      Python-untouched phase).
 
 #### Manual Verification:
 
-- [ ] "After" `verifier::sha256_hex` median ≤ 1.79 ms (≥ 1,390 MB/s) in the
-      committed JSON; MB/s derived from persisted `asset_bytes`.
-- [ ] Per-target warning diff vs the Phase 2 baseline shows no new warnings.
-- [ ] The `sha2` `.rlib` `nm`/`strings` shows the `aarch64-sha2` backend symbols;
-      no `-C target-feature=+sha2` anywhere in the tree.
-- [ ] The one-off `cpufeatures` detection print shows aarch64 SHA-2 `true` on
+- [x] "After" `verifier::sha256_hex` median ≤ 1.79 ms (≥ 1,390 MB/s) in the
+      committed JSON; MB/s derived from persisted `asset_bytes`. (0.8470 ms
+      median, p97.5 0.9727 ms — both clear the gate; 2,944 MB/s over 2,493,392 B.)
+- [x] Per-target warning diff vs the Phase 2 baseline shows no new warnings.
+      (Both warning sets empty; four clean `Finished release` builds.)
+- [x] The `sha2` `.rlib` `nm`/`strings` shows the `aarch64-sha2` backend symbols;
+      no `-C target-feature=+sha2` anywhere in the tree. (Under `lto = "thin"` the
+      `.rlib` members are LLVM IR bitcode, so evidence comes from the final
+      statically-linked musl binary instead: `llvm-objdump -d` shows the ARMv8
+      SHA-256 intrinsics — `sha256h` x32, `sha256h2` x32, `sha256su0` x24,
+      `sha256su1` x24. See `2026-09-11-0216-musl-backend-evidence.txt`.)
+- [x] The one-off `cpufeatures` detection print shows aarch64 SHA-2 `true` on
       darwin (corroborating only; conclusive musl selection deferred to 0217).
-- [ ] The lockfile duplication effect is recorded on the work item.
-- [ ] 0217 carries the reciprocal `work-item:0216` edge and its criteria.
+- [x] The lockfile duplication effect is recorded on the work item. (Recorded in
+      the implementing change: `sha2 0.10.9` removed, single `0.11.0`; see the
+      evidence file and the commit message.)
+- [x] 0217 carries the reciprocal `work-item:0216` edge and its criteria.
 
 ---
 
