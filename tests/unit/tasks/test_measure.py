@@ -36,11 +36,13 @@ from tasks.measure import (
     RECOVERED_FILES,
     WALL_CLOCK_BUDGET_S,
     ArtefactKind,
+    LauncherTerms,
     Manifest,
     MeasurementSession,
     PreconditionFailureError,
     RunResult,
     StaleManifestError,
+    assemble_terms_report,
     assert_backends,
     backend_delta_check,
     build_farm,
@@ -57,6 +59,7 @@ from tasks.measure import (
     measure_digest_bracket,
     measure_floors,
     next_record_paths,
+    parse_asset_bytes,
     parse_term_report,
     plugin_version,
     prime_cache,
@@ -123,6 +126,10 @@ from tasks.shared.measurement import (
 REPO = Path(__file__).resolve().parents[3]
 README = REPO / "tasks/README.md"
 CONSTANTS_HEADING = "### Criterion constants"
+# The `asset_bytes` the committed warm-terms golden carries: the size of the
+# cached sub-binary the capture ran against, pinning the Rust-emits,
+# Python-parses contract at warm_terms.rs's trailing line.
+GOLDEN_ASSET_BYTES = 2493392
 
 
 def rng() -> random.Random:
@@ -1900,6 +1907,72 @@ class TestTermReportParsing:
         verdict = residual_verdict(list(terms.values()), 6.0, attempts_used=0)
         assert verdict.band == pytest.approx(1.5)
         assert verdict.total == pytest.approx(6.4196)
+
+
+class TestAssetBytesParsing:
+    def test_asset_bytes_reads_the_trailing_line(self):
+        assert parse_asset_bytes(TestTermReportParsing.REPORT) == 2493376
+
+    def test_asset_bytes_is_none_when_the_line_is_absent(self):
+        assert parse_asset_bytes("running 1 test\ntest result: ok.\n") is None
+
+    def test_asset_bytes_raises_on_a_non_json_line(self):
+        with pytest.raises(json.JSONDecodeError):
+            parse_asset_bytes('{"asset_bytes": not valid}\n')
+
+    def test_asset_bytes_raises_on_a_non_numeric_value(self):
+        with pytest.raises(ValueError):
+            parse_asset_bytes('{"asset_bytes":"two"}\n')
+
+    def test_asset_bytes_takes_the_first_of_several_lines(self):
+        stdout = '{"asset_bytes":11}\n{"asset_bytes":22}\n'
+        assert parse_asset_bytes(stdout) == 11
+
+    def test_asset_bytes_parses_a_real_captured_harness_golden(self):
+        golden = (
+            Path(__file__).resolve().parent
+            / "fixtures/warm-terms-stdout.golden"
+        ).read_text()
+        assert parse_asset_bytes(golden) == GOLDEN_ASSET_BYTES
+
+
+class TestTermsReport:
+    def interval(self, point):
+        return Interval(point=point, lower=point, upper=point)
+
+    def launcher_terms(self, asset_bytes):
+        return LauncherTerms(
+            terms={"cache::find": self.interval(0.02)},
+            asset_bytes=asset_bytes,
+        )
+
+    def test_the_asset_size_rides_alongside_the_cache_root_size(self):
+        report = assemble_terms_report(
+            self.launcher_terms(2493376),
+            {"bash startup": self.interval(1.1)},
+            cache_root_entries=7,
+            cache_root_bytes=999,
+        )
+        assert report["asset_bytes"] == 2493376
+        assert report["cache_root_bytes"] == 999
+
+    def test_an_absent_asset_size_is_persisted_as_none(self):
+        report = assemble_terms_report(
+            self.launcher_terms(None),
+            {},
+            cache_root_entries=0,
+            cache_root_bytes=0,
+        )
+        assert report["asset_bytes"] is None
+
+    def test_it_carries_both_launcher_and_shell_terms(self):
+        report = assemble_terms_report(
+            self.launcher_terms(1),
+            {"bash startup": self.interval(1.1)},
+            cache_root_entries=1,
+            cache_root_bytes=1,
+        )
+        assert set(report["terms"]) == {"cache::find", "bash startup"}
 
 
 class TestLastFloors:

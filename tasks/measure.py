@@ -1855,6 +1855,32 @@ SUMMED_TERMS = (
 )
 
 
+def assemble_terms_report(
+    launcher_terms: LauncherTerms,
+    shell_terms: Mapping[str, Interval],
+    *,
+    cache_root_entries: int,
+    cache_root_bytes: int,
+) -> dict[str, object]:
+    """Assemble the term report's cache-independent core, pure over its inputs.
+
+    Persists `asset_bytes` beside `cache_root_bytes` so the throughput is a
+    recorded quantity; the residual fields the caller adds need the session's
+    samples and so cannot live here.
+    """
+    terms = {**launcher_terms.terms, **shell_terms}
+    return {
+        "terms": {name: asdict(term) for name, term in terms.items()},
+        "summed": [name for name in SUMMED_TERMS if name in terms],
+        "sub_operations_not_summed": [
+            name for name in terms if name not in SUMMED_TERMS
+        ],
+        "cache_root_entries": cache_root_entries,
+        "cache_root_bytes": cache_root_bytes,
+        "asset_bytes": launcher_terms.asset_bytes,
+    }
+
+
 def close_the_budget(
     plugin_root: Path,
     rig: Rig,
@@ -1881,24 +1907,21 @@ def close_the_budget(
         bash_floor=bash_floor,
         true_floor=true_floor,
     )
-    terms = {**launcher_terms, **shell_terms}
-    summed = [terms[name] for name in SUMMED_TERMS if name in terms]
-    fast = list(samples[Variant.FAST])
-    report: dict[str, object] = {
-        "terms": {name: asdict(term) for name, term in terms.items()},
-        "summed": [name for name in SUMMED_TERMS if name in terms],
-        "sub_operations_not_summed": [
-            name for name in terms if name not in SUMMED_TERMS
-        ],
-        "cache_root_entries": len(
+    report = assemble_terms_report(
+        launcher_terms,
+        shell_terms,
+        cache_root_entries=len(
             rig.session.witness.entries(plugin_root / "bin")
         ),
-        "cache_root_bytes": sum(
+        cache_root_bytes=sum(
             path.stat().st_size
             for path in (plugin_root / "bin").iterdir()
             if path.is_file()
         ),
-    }
+    )
+    terms = {**launcher_terms.terms, **shell_terms}
+    summed = [terms[name] for name in SUMMED_TERMS if name in terms]
+    fast = list(samples[Variant.FAST])
     if not fast or not summed:
         return report
     observed = summarise(fast).median
@@ -2603,9 +2626,17 @@ def measure_floors(
     )
 
 
+@dataclass(frozen=True)
+class LauncherTerms:
+    """The launcher-side warm-path terms plus the size they were timed over."""
+
+    terms: dict[str, Interval]
+    asset_bytes: int | None
+
+
 def decompose_terms(
     plugin_root: Path, *, version: str, subbinary: str = "vcs"
-) -> dict[str, Interval]:
+) -> LauncherTerms:
     """Re-measure the launcher-side warm-path terms in this same session.
 
     One term is measured by a replica of a private method; the caveat is on the
@@ -2639,7 +2670,23 @@ def decompose_terms(
         raise PreconditionFailureError(
             f"the term harness failed:\n{completed.stderr[-2000:]}"
         )
-    return parse_term_report(completed.stdout)
+    return LauncherTerms(
+        terms=parse_term_report(completed.stdout),
+        asset_bytes=parse_asset_bytes(completed.stdout),
+    )
+
+
+def parse_asset_bytes(stdout: str) -> int | None:
+    """Read the sub-binary's size from the harness's trailing line.
+
+    The `verifier::sha256_hex` throughput is `asset_bytes / (median_ms * 1000)`
+    in decimal MB/s, so the size is persisted rather than divided by hand.
+    """
+    for line in stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("{") and '"asset_bytes"' in stripped:
+            return int(json.loads(stripped)["asset_bytes"])
+    return None
 
 
 def parse_term_report(stdout: str) -> dict[str, Interval]:

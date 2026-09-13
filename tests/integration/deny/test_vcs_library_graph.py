@@ -11,8 +11,9 @@ Four invariants, each guarding a distinct failure:
 * Versions and single-graph. gix at 0.85.x specifically, not merely at one
   version: gix is optional in jj-lib, so a bare single-version assertion would
   hold vacuously if that feature were ever off. Duplicate detection reads
-  Cargo.lock directly because the repo's multiple-versions policy is warn-level
-  and would not fail on its own.
+  Cargo.lock directly because the multiple-versions ban only asserts that no
+  second version exists, not that gix is pinned to 0.85.x specifically — the
+  version constraint the whole-graph ban cannot express.
 * Features. The six the adapter's calls need must be on; the network client and
   credentials families must be off. Feature absence — not crate absence — is
   what keeps gix-transport and gix-protocol inert: both ARE in the graph via

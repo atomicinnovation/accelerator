@@ -1,0 +1,24 @@
+{
+  "purpose": "Pre-bump soft-backend verifier::sha256_hex throughput baseline (AC 1 context, AC 6 before).",
+  "method_note": "Captured via the committed warm_terms harness (cli/launcher/tests/warm_terms.rs), the same engine tasks/measure.py's decompose_terms invokes for the sha256_hex term. The full mise run measure:warm-dispatch flow cannot be used here: it dispatches through the real bootstrap and requires a published signed release for the tree's version (1.24.0-pre.66, unreleased), and it fetches published binaries rather than the local build, so it cannot observe an unreleased backend change. warm_terms compiles the local launcher, so its sha256_hex term reflects the local backend (soft here, hardware after the Phase 3 bump).",
+  "backend": "soft (sha2 0.10; portable)",
+  "tree": "plan 0216 Phase 2 (parent 849c68f0); sha2 = \"0.10\" (cli/Cargo.toml:76)",
+  "host": "darwin-arm64; battery power; 1-min load ~1.4 at capture",
+  "asset": {
+    "name": "vcs-1.24.0-pre.41",
+    "asset_bytes": 2493392,
+    "note": "The AC's canonical asset is 2,493,792 B; this cached asset is 2,493,392 B (0.016% smaller). MB/s is derived from the actual asset_bytes so the ms<->MB/s conversion stays exact; the 1.79 ms gate is unchanged within rounding."
+  },
+  "samples": 200,
+  "terms": {
+    "cache::find": { "median_ms": 0.0439, "p2_5_ms": 0.0195, "p97_5_ms": 0.0538 },
+    "reverify": { "median_ms": 5.6746, "p2_5_ms": 5.4895, "p97_5_ms": 5.8246 },
+    "verifier::sha256_hex": { "median_ms": 4.0791, "p2_5_ms": 3.8694, "p97_5_ms": 4.2179 },
+    "TrustedKeys::verifies": { "median_ms": 1.5515, "p2_5_ms": 1.5003, "p97_5_ms": 1.5803 }
+  },
+  "derived": {
+    "sha256_hex_throughput_mb_s": 611.3,
+    "formula": "asset_bytes / (median_ms * 1000)",
+    "blake2b_over_sha256_speedup": 2.63
+  }
+}

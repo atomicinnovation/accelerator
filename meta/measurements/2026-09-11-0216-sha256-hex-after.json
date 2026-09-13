@@ -1,0 +1,28 @@
+{
+  "purpose": "Post-bump hardware-backend verifier::sha256_hex throughput (AC 1 gate, AC 6 after).",
+  "method_note": "Captured via the committed warm_terms harness over the identical asset the before-baseline used, so before/after share method and asset. warm_terms compiles the local launcher, so its sha256_hex term reflects the local sha2 0.11 runtime-detected aarch64-sha2 backend. See the before record for why measure:warm-dispatch cannot observe an unreleased local backend change.",
+  "backend": "sha2 0.11 runtime-detected (aarch64-sha2 on this darwin-arm64 host)",
+  "tree": "plan 0216 Phase 3; sha2 = \"0.11\" (cli/Cargo.toml), single sha2 0.11.0 in the lock",
+  "host": "darwin-arm64; battery power; 1-min load ~2-5 (no competing work during sampling; p97.5 tight)",
+  "asset": {
+    "name": "vcs-1.24.0-pre.41",
+    "asset_bytes": 2493392
+  },
+  "samples": 200,
+  "terms": {
+    "cache::find": { "median_ms": 0.0501, "p2_5_ms": 0.0191, "p97_5_ms": 0.0992 },
+    "reverify": { "median_ms": 2.5055, "p2_5_ms": 2.3973, "p97_5_ms": 3.7577 },
+    "verifier::sha256_hex": { "median_ms": 0.8470, "p2_5_ms": 0.8394, "p97_5_ms": 0.9727 },
+    "TrustedKeys::verifies": { "median_ms": 1.5990, "p2_5_ms": 1.4966, "p97_5_ms": 1.6625 }
+  },
+  "derived": {
+    "sha256_hex_throughput_mb_s": 2944.4,
+    "formula": "asset_bytes / (median_ms * 1000)",
+    "speedup_over_soft": 4.82,
+    "gate_median_ms": 1.79,
+    "gate_mb_s": 1390,
+    "median_passes": true,
+    "p97_5_passes": true,
+    "sha256_now_faster_than_blake2b_by": 1.89
+  }
+}

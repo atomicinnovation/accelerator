@@ -24,7 +24,7 @@ fn remote_hash(projected: &str) -> String {
     let trimmed = work::normalise::trim_lines(projected);
     let mut hasher = Sha256::new();
     hasher.update(trimmed.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 fn case(name: &str) -> Result<(String, serde_json::Value), TestError> {

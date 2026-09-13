@@ -288,6 +288,17 @@ it shows up as an unattributed share rather than being hidden inside a derived
 term. That share is reported as `uncross_checked_fraction`, which is the honest
 form of the limitation.
 
+**`verifier::sha256_hex` throughput.** The harness reports the term's latency,
+not its rate. It also emits the size it timed over — the dispatched sub-binary's
+byte length — which `tasks/measure.py` persists as `asset_bytes` under
+`record["terms"]`, beside `cache_root_bytes`. The throughput is then a recorded
+derivation, not a hand-division:
+
+```text
+verifier::sha256_hex throughput (decimal MB/s) =
+    asset_bytes / (median_ms * 1000)
+```
+
 ### Criterion constants
 
 The pre-registered numbers a run is judged by, held in lockstep with

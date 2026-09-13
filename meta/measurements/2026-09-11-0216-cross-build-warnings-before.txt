@@ -1,0 +1,25 @@
+# Four-target cross-build warning baseline — pre-bump (soft sha2 0.10)
+#
+# AC 2 gates on each shipped target building with no new warnings beyond a
+# pre-change baseline. This is that baseline. Phase 3 re-runs the identical
+# cross-build after the sha2 0.11 bump and diffs each target's warning set
+# against this file — no new warnings.
+#
+# The first-party warning set is empty by construction: cli/Cargo.toml's
+# [workspace.lints.rust] sets warnings = "deny", so any rustc warning is a hard
+# error and a clean exit is itself proof of a zero-warning first-party surface.
+# Dependency warnings are capped (--cap-lints allow) and never surface. The
+# per-target evidence is therefore "built clean, zero warnings, zero errors".
+#
+# Tree:    plan 0216 Phase 1 (b9758e76a1af); sha2 = "0.10" (cli/Cargo.toml:76)
+# Host:    darwin-arm64
+# Command: mise run build:cli:cross-compile
+#          (per target: cargo zigbuild --release --target <triple>
+#           --manifest-path cli/Cargo.toml)
+# Result:  exit 0; four `Finished release` builds; no `warning:`/`error` lines
+#          anywhere in the 1644-line build log.
+
+aarch64-apple-darwin          built clean, 0 warnings, 0 errors   (Finished in 3m 01s)
+x86_64-apple-darwin           built clean, 0 warnings, 0 errors   (Finished in 2m 55s)
+aarch64-unknown-linux-musl    built clean, 0 warnings, 0 errors   (Finished in 5m 43s)
+x86_64-unknown-linux-musl     built clean, 0 warnings, 0 errors   (Finished in 3m 03s)

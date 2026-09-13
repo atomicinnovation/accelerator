@@ -10,9 +10,9 @@ kind: "task"
 priority: "medium"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-relates_to: ["work-item:0189", "work-item:0191"]
+relates_to: ["work-item:0189", "work-item:0191", "work-item:0216"]
 tags: ["cli", "launcher", "performance", "bootstrap"]
-last_updated: "2026-08-17T20:36:49+00:00"
+last_updated: "2026-09-12T19:33:17+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-744"
@@ -86,12 +86,17 @@ rather than a clean `Cache` error.
 
 ## Dependencies
 
+- **Gated by** 0216 (the `sha2` hardware-intrinsics task). 0216 ships and is
+  measured first, and its result decides whether this item still proceeds: if the
+  digest becomes cheap the removal may be dropped, and if not it proceeds on its
+  architectural merit of cutting a hash off the warm path. Both touch the same
+  `reverify`/`verifier::sha256_hex` call site, so they must not be scheduled in
+  parallel.
 - **Relates to** 0189, which measured the term and declined this route while its
   criterion was being settled, on the ground that verification posture should not
-  be set by an arithmetic target. That objection was to the sequencing; this item
-  stands on its own merits.
-- **Relates to** 0191, the other warm-path lever, and the `sha2`
-  hardware-intrinsics spike, which may reduce the cost instead of removing it.
+  be set by an arithmetic target. That objection was to the sequencing, not to
+  the architectural merit; the sequencing is now settled by the 0216 gate above.
+- **Relates to** 0191, the other warm-path lever.
 - **Parent**: epic 0136.
 
 ## Assumptions
@@ -107,3 +112,22 @@ rather than a clean `Cache` error.
 - `cli/launcher/src/launch/outbound/resolve/cache.rs:51-73`
 - `cli/launcher/src/launch/outbound/resolve/mod.rs:90-109` — `reverify`
 - `meta/measurements/warm-dispatch-3.json` — the measured term set
+
+## Notes
+
+- **2026-09-12 — 0216 shipped and validated (result: pass).** The `sha2` 0.11
+  hardware backend is live on darwin-arm64: the cache-hit `verifier::sha256_hex`
+  term fell from 4.08 ms (soft) to 0.847 ms over the same 2.49 MB asset, so the
+  recompute that dominated the 6.05 ms `reverify` is now sub-millisecond. Per the
+  "Gated by 0216" clause, this collapses 0215's latency case on darwin: the
+  removal may be dropped there and stands only on its architectural merit — one
+  fewer hash on the warm path — not on a measured saving. The name/version
+  integrity criterion under Acceptance Criteria is unchanged and untouched by
+  0216. Detail in
+  `meta/validations/2026-09-11-0216-close-the-sha2-hardware-intrinsics-gap-validation.md`.
+- **Still contingent on 0217.** 0216's musl scope was inspection-only, so the
+  AC 7 soft-backend-selection trigger it defined is unresolved. If 0217 measures
+  aarch64-musl `sha256_hex` in the ~555 MB/s soft band, the digest stays
+  expensive on that target and 0215 becomes the load-bearing fallback there.
+  Hold 0215 until 0217 reports; the parallel-scheduling bar against 0216 is
+  cleared now that 0216 is done.

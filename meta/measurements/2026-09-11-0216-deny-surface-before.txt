@@ -1,0 +1,15 @@
+# cargo deny check advisories licenses sources — pre-bump baseline
+#
+# The advisories/licenses/sources surface before the sha2 0.11 bump, so Phase 4
+# can diff the post-bump surface against a committed referent rather than a
+# checkout of the pre-Phase-3 tree. Bans is excluded here: it stays "warn" until
+# Phase 4 flips it, and this baseline is only the surface the new RustCrypto
+# 0.11 substack lands on.
+#
+# Tree:        plan 0216 Phase 1 (b9758e76a1af); sha2 = "0.10" (cli/Cargo.toml:76)
+# Host:        darwin-arm64
+# Tool:        cargo-deny 0.19.8
+# Graph:       cli/deny.toml five targets (four shipped + x86_64-unknown-linux-gnu)
+# Command:     cargo deny check advisories licenses sources   (run from cli/)
+
+advisories ok, licenses ok, sources ok

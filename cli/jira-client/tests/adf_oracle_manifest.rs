@@ -30,7 +30,7 @@ fn digest(path: &Path) -> String {
     });
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// The `<hex>  <relpath>` rows of the manifest, comments and blanks skipped.
