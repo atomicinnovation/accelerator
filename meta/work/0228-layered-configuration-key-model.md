@@ -5,7 +5,7 @@ title: "Layered Configuration Key Model"
 date: "2026-08-30T14:35:09+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0228: Layered Configuration Key Model
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
