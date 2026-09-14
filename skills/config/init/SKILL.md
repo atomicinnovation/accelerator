@@ -19,7 +19,7 @@ what was created versus what already existed.
 Resolve each output directory using the plugin's path configuration:
 
 **Plans directory**: !`accelerator config path plans --fail-safe`
-**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Decisions directory**: !`accelerator config path decisions --fail-safe`
 **PRs directory**: !`accelerator config path prs --fail-safe`
 **Validations directory**: !`accelerator config path validations --fail-safe`

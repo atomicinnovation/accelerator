@@ -24,7 +24,7 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Decisions directory**: !`accelerator config path decisions --fail-safe`
-**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Plans directory**: !`accelerator config path plans --fail-safe`
 
 You are tasked with identifying architectural decisions within existing meta

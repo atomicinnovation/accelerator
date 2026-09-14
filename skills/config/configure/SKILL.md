@@ -97,7 +97,7 @@ for the markdown body — this is the highest-value feature.
 5. Mention that additional customisation is available: "You can also
    customise review behaviour (lens selection, verdict thresholds, inline
    comment limits), output paths (where skills write documents), document
-   templates (plan, ADR, research, validation formats), and per-skill
+   templates (plan, ADR, codebase-research, validation formats), and per-skill
    context and instructions (`.accelerator/skills/<skill-name>/`).
    Run `/accelerator:configure help` for the full key reference."
 6. Write the config file with a markdown body containing the gathered context
@@ -881,7 +881,7 @@ templates directory (`paths.templates`, defaults to `.accelerator/templates/`):
   work-item.md           # Custom work-item template
 \```
 
-All templates — both skill structure templates (plan, ADR, research,
+All templates — both skill structure templates (plan, ADR, codebase-research,
 validation) and user content templates (PR description) — live in the same
 directory. Override `paths.templates` to move them all:
 

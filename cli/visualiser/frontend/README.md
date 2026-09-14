@@ -1,6 +1,6 @@
 # Visualiser Frontend
 
-The visualiser frontend is the React app served by the [`visualisation/visualise`](../) accelerator skill. It renders a meta-directory inspector (research, plans, decisions, work items, etc.) backed by a Rust server. This README is enough to develop, test, and build the frontend without consulting other docs.
+The visualiser frontend is the React app served by the [`visualisation/visualise`](../) accelerator skill. It renders a meta-directory inspector (codebase research, plans, decisions, work items, etc.) backed by a Rust server. This README is enough to develop, test, and build the frontend without consulting other docs.
 
 ## Prerequisites
 

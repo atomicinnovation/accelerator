@@ -681,9 +681,9 @@ are committed source, gated by `docs:check`.
 
 #### Automated Verification
 
-- [ ] Skill guards (bare-invocation, permissions): `mise run check`
-- [ ] Docs generation succeeds: `mise run docs:generate`
-- [ ] Docs gate (when touching `docs-site/`): `mise run docs:check`
+- [x] Skill guards (bare-invocation, permissions): `mise run check`
+- [x] Docs generation succeeds: `mise run docs:generate`
+- [x] Docs gate (when touching `docs-site/`): `mise run docs:check`
 
 #### Manual Verification
 

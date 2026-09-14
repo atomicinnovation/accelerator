@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Plans directory**: !`accelerator config path plans --fail-safe`
 **Decisions directory**: !`accelerator config path decisions --fail-safe`
 

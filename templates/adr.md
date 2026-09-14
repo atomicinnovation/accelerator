@@ -59,5 +59,5 @@ Value-neutral language describing facts, not advocating.]
 
 ## References
 
-- `meta/research/codebase/YYYY-MM-DD-topic.md` — Related research
+- `meta/research/codebase/YYYY-MM-DD-topic.md` — Related codebase research
 - `meta/decisions/ADR-NNNN.md` — Related/superseded ADR
