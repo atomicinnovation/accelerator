@@ -36,7 +36,8 @@ fn mark_all_migrations_applied(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )?;
     Ok(())
 }
@@ -284,7 +285,8 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )?;
     fs::write(
         root.join(".accelerator/state/migrations-skipped"),

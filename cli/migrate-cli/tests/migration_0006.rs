@@ -33,7 +33,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )
 }
 
@@ -463,7 +464,8 @@ fn a_clean_rewrite_is_byte_stable_across_three_consecutive_runs(
              0006-canonicalise-work-item-id-and-author\n\
              0007-unify-meta-corpus-frontmatter\n\
              0008-canonical-frontmatter-quoting\n\
-             0009-split-work-key-from-tracker-scope-key\n",
+             0009-split-work-key-from-tracker-scope-key\n\
+             0010-strip-research-title-prefix\n",
         )?;
         let output = Command::new(BIN).current_dir(root).output()?;
         assert_eq!(output.status.code(), Some(0), "{output:?}");
@@ -507,7 +509,8 @@ fn a_refused_line_is_stable_across_repeated_runs() -> Result<(), TestError> {
              0006-canonicalise-work-item-id-and-author\n\
              0007-unify-meta-corpus-frontmatter\n\
              0008-canonical-frontmatter-quoting\n\
-             0009-split-work-key-from-tracker-scope-key\n",
+             0009-split-work-key-from-tracker-scope-key\n\
+             0010-strip-research-title-prefix\n",
         )?;
         let output = Command::new(BIN).current_dir(root).output()?;
         assert_eq!(output.status.code(), Some(0), "{output:?}");

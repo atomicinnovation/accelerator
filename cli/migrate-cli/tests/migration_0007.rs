@@ -90,7 +90,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0005-rename-work-item-type-to-kind\n\
          0006-canonicalise-work-item-id-and-author\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )
 }
 
@@ -129,6 +130,7 @@ fn a_resolved_band_reference_applies_mechanically_and_an_unresolvable_one_is_dro
          0006-canonicalise-work-item-id-and-author\n\
          0008-canonical-frontmatter-quoting\n\
          0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n\
          0007-unify-meta-corpus-frontmatter\n"
     );
 
