@@ -310,8 +310,8 @@ export const LIFECYCLE_PIPELINE_STEPS: ReadonlyArray<{
   {
     key: "hasResearch",
     docType: "codebase-research",
-    label: "Research",
-    placeholder: "no research yet",
+    label: "Codebase research",
+    placeholder: "no codebase research yet",
   },
   {
     key: "hasPlan",
