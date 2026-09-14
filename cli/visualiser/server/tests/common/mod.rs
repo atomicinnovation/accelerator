@@ -53,7 +53,7 @@ pub fn seeded_cfg(tmp: &Path) -> Config {
     for name in [
         "adr",
         "plan",
-        "research",
+        "codebase-research",
         "validation",
         "pr-description",
         "work-item",

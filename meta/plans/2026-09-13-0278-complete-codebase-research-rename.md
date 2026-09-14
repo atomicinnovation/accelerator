@@ -229,12 +229,12 @@ update. Name-level coverage of the rename lives in items 3 and 5, not here.
 
 #### Automated Verification
 
-- [ ] Rust workspace lint/format/types: `mise run cli:check`
-- [ ] Server checks and tests: `mise run server:check`
-- [ ] Frontend checks and tests: `mise run frontend:check`
-- [ ] Server smoke test still green after fixture rename (count-based, not name-level): `cargo test -p accelerator-visualiser-server --test api_smoke` (from `cli/`)
-- [ ] Docs generation succeeds after the `configure/SKILL.md` edit: `mise run docs:generate`
-- [ ] Aggregate read-only set: `mise run check`
+- [x] Rust workspace lint/format/types: `mise run cli:check`
+- [x] Server checks and tests: `mise run server:check`
+- [x] Frontend checks and tests: `mise run frontend:check`
+- [x] Server smoke test still green after fixture rename (count-based, not name-level): `cargo test -p accelerator-visualiser-server --test api_smoke` (from `cli/`)
+- [x] Docs generation succeeds after the `configure/SKILL.md` edit: `mise run docs:generate`
+- [x] Aggregate read-only set: `mise run check`
 
 #### Manual Verification
 
