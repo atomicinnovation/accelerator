@@ -121,5 +121,5 @@ schema_version: 1
 ## References
 
 - Original work item: `meta/work/NNNN-title.md`
-- Related research: `meta/research/codebase/[relevant].md`
+- Related codebase research: `meta/research/codebase/[relevant].md`
 - Similar implementation: `[file:line]`
