@@ -351,9 +351,9 @@ cannot silently reintroduce the prefix — the most visible leak this plan remov
 
 #### Automated Verification
 
-- [ ] Skill invocation and permission guards: `mise run check`
-- [ ] Regression guard: the template-prefix assertion is red before the edit, green after
-- [ ] Docs generation succeeds: `mise run docs:generate`
+- [x] Skill invocation and permission guards: `mise run check`
+- [x] Regression guard: the template-prefix assertion is red before the edit, green after
+- [x] Docs generation succeeds: `mise run docs:generate`
 
 #### Manual Verification
 
