@@ -525,11 +525,11 @@ prefix).
 
 #### Automated Verification
 
-- [ ] New migration test passes: `cargo test -p migrate-cli --test migration_0010` (from `cli/`)
-- [ ] Full migrate suite passes: `cargo test -p migrate-cli` (from `cli/`)
-- [ ] Public-API snapshot matches: `mise run public-api:check`
-- [ ] Rust workspace checks: `mise run cli:check`
-- [ ] Aggregate read-only set: `mise run check`
+- [x] New migration test passes: `cargo test -p migrate-cli --test migration_0010` (from `cli/`)
+- [x] Full migrate suite passes: `cargo test -p migrate-cli` (from `cli/`)
+- [x] Public-API snapshot matches: `mise run public-api:check`
+- [x] Rust workspace checks: `mise run cli:check`
+- [x] Aggregate read-only set: `mise run check`
 
 #### Manual Verification
 

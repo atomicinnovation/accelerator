@@ -1,5 +1,6 @@
-//! The six mechanical migrations (0001-0006), each an ordinary
-//! `Migration` implementation, plus 0007's `InteractiveMigration`.
+//! The registered migration modules: mechanical `Migration`
+//! implementations plus 0007's `InteractiveMigration`, each declared here and
+//! wired into the registry in application order.
 
 pub mod m0001;
 pub mod m0002;
@@ -10,4 +11,5 @@ pub mod m0006;
 pub mod m0007;
 pub mod m0008;
 pub mod m0009;
+pub mod m0010;
 pub mod text;
