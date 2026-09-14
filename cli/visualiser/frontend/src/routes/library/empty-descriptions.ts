@@ -101,7 +101,7 @@ export const EMPTY_TYPE_PLURALS: Record<DocTypeKey, string> = {
   decisions: "decisions",
   "work-items": "work items",
   plans: "plans",
-  "codebase-research": "research notes",
+  "codebase-research": "codebase research notes",
   "plan-reviews": "plan reviews",
   "pr-reviews": "pr reviews",
   "work-item-reviews": "work-item reviews",

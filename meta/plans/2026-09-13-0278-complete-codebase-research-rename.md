@@ -291,8 +291,8 @@ unpinned and could silently regress.
 
 #### Automated Verification
 
-- [ ] Frontend checks and tests: `mise run frontend:check`
-- [ ] Aggregate read-only set: `mise run check`
+- [x] Frontend checks and tests: `mise run frontend:check`
+- [x] Aggregate read-only set: `mise run check`
 
 #### Manual Verification
 
