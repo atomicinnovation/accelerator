@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"                    # artifact-type discriminator
 id: "{filename-stem}"                        # filename without .md
-title: "Research: {User's Question/Topic}"
+title: "{User's Question/Topic}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_by: "{Researcher name}"
 schema_version: 1
 ---
 
-# Research: [User's Question/Topic]
+# [User's Question/Topic]
 
 **Date**: [Current date and time with timezone from step 4]
 **Author**: [Author name from VCS]
