@@ -439,11 +439,14 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("plan".to_string(), tiers_all_three(tmp.path()));
         map.insert("adr".to_string(), tiers_all_three(tmp.path()));
-        map.insert("research".to_string(), tiers_all_three(tmp.path()));
+        map.insert(
+            "codebase-research".to_string(),
+            tiers_all_three(tmp.path()),
+        );
         let r = TemplateResolver::build(&map, &driver, tmp.path(), tmp.path())
             .await;
         let names: Vec<String> = r.list().into_iter().map(|s| s.name).collect();
-        assert_eq!(names, vec!["adr", "plan", "research"]);
+        assert_eq!(names, vec!["adr", "codebase-research", "plan"]);
     }
 
     #[tokio::test]

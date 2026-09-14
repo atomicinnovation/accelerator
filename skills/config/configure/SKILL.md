@@ -873,12 +873,12 @@ templates directory (`paths.templates`, defaults to `.accelerator/templates/`):
 
 \```
 .accelerator/templates/
-  plan.md            # Custom plan template
-  research.md        # Custom research template
-  adr.md             # Custom ADR template
-  validation.md      # Custom validation template
-  pr-description.md  # PR description template (used by describe-pr)
-  work-item.md       # Custom work-item template
+  plan.md                # Custom plan template
+  codebase-research.md   # Custom codebase-research template
+  adr.md                 # Custom ADR template
+  validation.md          # Custom validation template
+  pr-description.md      # PR description template (used by describe-pr)
+  work-item.md           # Custom work-item template
 \```
 
 All templates — both skill structure templates (plan, ADR, research,
@@ -927,7 +927,7 @@ Use `/accelerator:configure templates <action>` to manage templates:
 | `templates diff <key>`  | Show differences between your template and the default |
 | `templates reset <key>` | Remove your customisation, revert to plugin default    |
 
-Available template keys: `plan`, `research`, `adr`, `validation`, `pr-description`, `work-item`.
+Available template keys: `plan`, `codebase-research`, `adr`, `validation`, `pr-description`, `work-item`.
 
 ### Project Context
 
