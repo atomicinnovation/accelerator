@@ -499,7 +499,7 @@ mod tests {
             foo.completeness.present,
             vec![
                 "work-items".to_string(),
-                "research".to_string(),
+                "codebase-research".to_string(),
                 "plans".to_string(),
                 "plan-reviews".to_string(),
                 "validations".to_string(),

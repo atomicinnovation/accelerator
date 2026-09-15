@@ -82,7 +82,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
             }
         }
     };
-    assert_eq!(t["types"].as_array().unwrap().len(), 14);
+    assert_eq!(t["types"].as_array().unwrap().len(), 15);
 
     // /api/docs?type=decisions -> 3 entries.
     let d: serde_json::Value = client

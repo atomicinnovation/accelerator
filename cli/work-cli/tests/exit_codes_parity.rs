@@ -2,7 +2,7 @@
 //!
 //! The integers are a live contract the work skills branch on, so the guard
 //! holds them against literals committed here — an independent frozen oracle,
-//! not the deleted bash bridge it replaced — rather than re-deriving them from
+//! not the bridge it replaced — rather than re-deriving them from
 //! the `exit_codes.rs` constants it guards, which would be a tautology no
 //! accidental renumbering could red.
 //!

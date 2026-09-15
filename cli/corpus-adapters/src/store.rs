@@ -67,8 +67,8 @@ impl FileCorpusStore {
 
     /// Replaces `path`'s whole content under the same lock
     /// `append_record`/`remove_by_key` take, so a whole-file rewrite (a
-    /// bash-to-canonical-format cutover, say) participates in the same
-    /// critical section as every other writer of that path.
+    /// format cutover, say) participates in the same critical section as
+    /// every other writer of that path.
     ///
     /// # Errors
     /// [`StoreError`] on containment failure, lock-acquisition timeout, or

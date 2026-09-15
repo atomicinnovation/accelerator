@@ -74,14 +74,26 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 describe("glyphKeyForTemplate", () => {
   it("maps exact template names to their doc-type glyph", () => {
     expect(glyphKeyForTemplate("adr")).toBe("decisions");
-    expect(glyphKeyForTemplate("research")).toBe("research");
+    expect(glyphKeyForTemplate("research")).toBe("codebase-research");
     expect(glyphKeyForTemplate("plan")).toBe("plans");
     expect(glyphKeyForTemplate("validation")).toBe("validations");
     expect(glyphKeyForTemplate("pr-description")).toBe("pr-descriptions");
   });
 
+  it("maps the per-kind topic-research templates to the topic-research glyph", () => {
+    // `glyphKeyForTemplate` matches end-anchored suffixes, so a bare
+    // `topic-research` prefix never matches `topic-research-manifest`; each
+    // full template name is registered exactly.
+    expect(glyphKeyForTemplate("topic-research-manifest")).toBe(
+      "topic-research",
+    );
+    expect(glyphKeyForTemplate("topic-research-synthesis")).toBe(
+      "topic-research",
+    );
+  });
+
   it("falls back to a matching stem inside compound template names", () => {
-    expect(glyphKeyForTemplate("codebase-research")).toBe("research");
+    expect(glyphKeyForTemplate("codebase-research")).toBe("codebase-research");
     expect(glyphKeyForTemplate("feature-plan")).toBe("plans");
     expect(glyphKeyForTemplate("something-decision")).toBe("decisions");
   });

@@ -65,8 +65,8 @@ describe("PR_REVIEW_DIFF_TINTS", () => {
 });
 
 describe("BIG_GLYPHS dispatch", () => {
-  it("has exactly 14 entries, one per DocTypeKey", () => {
-    expect(Object.keys(BIG_GLYPHS).length).toBe(14);
+  it("has exactly 15 entries, one per DocTypeKey", () => {
+    expect(Object.keys(BIG_GLYPHS).length).toBe(15);
     for (const key of DOC_TYPE_KEYS) {
       expect(BIG_GLYPHS[key], `missing dispatch entry for ${key}`).toBeTypeOf(
         "function",
@@ -78,7 +78,7 @@ describe("BIG_GLYPHS dispatch", () => {
     // Catches a dispatch copy-paste error (two keys pointing at the same
     // illustration) deterministically — a per-cell baseline could not, since
     // distinct hues render distinct bytes even for a shared function.
-    expect(new Set(Object.values(BIG_GLYPHS)).size).toBe(14);
+    expect(new Set(Object.values(BIG_GLYPHS)).size).toBe(15);
   });
 });
 

@@ -19,13 +19,14 @@ pub enum DocTypeKey {
     PrDescriptions,
     DesignGaps,
     DesignInventories,
+    TopicResearch,
     RootCauseAnalyses,
     Templates,
 }
 
 impl DocTypeKey {
     #[must_use]
-    pub const fn all() -> [Self; 14] {
+    pub const fn all() -> [Self; 15] {
         [
             Self::Decisions,
             Self::WorkItems,
@@ -39,6 +40,7 @@ impl DocTypeKey {
             Self::PrDescriptions,
             Self::DesignGaps,
             Self::DesignInventories,
+            Self::TopicResearch,
             Self::RootCauseAnalyses,
             Self::Templates,
         ]
@@ -59,6 +61,7 @@ impl DocTypeKey {
             Self::PrDescriptions => Some("prs"),
             Self::DesignGaps => Some("research_design_gaps"),
             Self::DesignInventories => Some("research_design_inventories"),
+            Self::TopicResearch => Some("research_topics"),
             Self::RootCauseAnalyses => Some("research_issues"),
             Self::Templates => None,
         }
@@ -78,6 +81,7 @@ impl DocTypeKey {
             Self::Research => Some("codebase-research"),
             Self::RootCauseAnalyses => Some("issue-research"),
             Self::DesignInventories => Some("design-inventory"),
+            Self::TopicResearch => Some("topic-research"),
             Self::DesignGaps => Some("design-gap"),
             Self::PlanReviews => Some("plan-review"),
             Self::WorkItemReviews => Some("work-item-review"),
@@ -101,7 +105,7 @@ impl DocTypeKey {
             Self::Decisions => "Decisions",
             Self::WorkItems => "Work items",
             Self::Plans => "Plans",
-            Self::Research => "Research",
+            Self::Research => "Codebase research",
             Self::PlanReviews => "Plan reviews",
             Self::PrReviews => "PR reviews",
             Self::WorkItemReviews => "Work item reviews",
@@ -110,6 +114,7 @@ impl DocTypeKey {
             Self::PrDescriptions => "PR descriptions",
             Self::DesignGaps => "Design gaps",
             Self::DesignInventories => "Design inventories",
+            Self::TopicResearch => "Topic research",
             Self::RootCauseAnalyses => "Root cause analyses",
             Self::Templates => "Templates",
         }
@@ -160,6 +165,7 @@ impl DocTypeKey {
     pub const fn nested_manifest_filename(self) -> Option<&'static str> {
         match self {
             Self::DesignInventories => Some("inventory.md"),
+            Self::TopicResearch => Some("manifest.md"),
             _ => None,
         }
     }
@@ -170,7 +176,7 @@ impl DocTypeKey {
             Self::Decisions => "decisions",
             Self::WorkItems => "work-items",
             Self::Plans => "plans",
-            Self::Research => "research",
+            Self::Research => "codebase-research",
             Self::PlanReviews => "plan-reviews",
             Self::PrReviews => "pr-reviews",
             Self::WorkItemReviews => "work-item-reviews",
@@ -179,6 +185,7 @@ impl DocTypeKey {
             Self::PrDescriptions => "pr-descriptions",
             Self::DesignGaps => "design-gaps",
             Self::DesignInventories => "design-inventories",
+            Self::TopicResearch => "topic-research",
             Self::RootCauseAnalyses => "root-cause-analyses",
             Self::Templates => "templates",
         }
@@ -237,11 +244,33 @@ mod tests {
     use super::{infer, DocTypeKey};
 
     #[test]
-    fn all_returns_fourteen_distinct_variants() {
+    fn all_returns_every_variant_exactly_once() {
         let mut variants = DocTypeKey::all().to_vec();
         variants.sort_by_key(|kind| kind.wire_str());
         variants.dedup();
-        assert_eq!(variants.len(), 14);
+        assert_eq!(variants.len(), 15);
+    }
+
+    #[test]
+    fn topic_research_mirrors_the_design_inventories_predicate_profile() {
+        // Both are nested-manifest Discover types; the only intended divergence
+        // is nested_manifest_filename. Pin the full boolean profile so the
+        // shared shape is asserted rather than inferred.
+        let topic = DocTypeKey::TopicResearch;
+        let inventory = DocTypeKey::DesignInventories;
+        assert_eq!(topic.in_lifecycle(), inventory.in_lifecycle());
+        assert_eq!(
+            topic.carries_target_frontmatter(),
+            inventory.carries_target_frontmatter()
+        );
+        assert_eq!(
+            topic.participates_in_lifecycle(),
+            inventory.participates_in_lifecycle()
+        );
+        assert_eq!(topic.in_kanban(), inventory.in_kanban());
+        assert_eq!(topic.is_virtual(), inventory.is_virtual());
+
+        assert_eq!(topic.nested_manifest_filename(), Some("manifest.md"));
     }
 
     #[test]

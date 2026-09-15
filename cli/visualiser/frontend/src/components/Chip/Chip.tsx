@@ -7,7 +7,12 @@ export type ChipVariant =
   | "green"
   | "amber"
   | "red"
-  | "violet";
+  | "violet"
+  | "lifecycle-briefed"
+  | "lifecycle-outlined"
+  | "lifecycle-researching"
+  | "lifecycle-synthesised"
+  | "lifecycle-complete";
 
 export type ChipSize = "sm" | "md";
 

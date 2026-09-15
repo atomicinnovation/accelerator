@@ -15,7 +15,7 @@ export function clusterViaLabel(
   switch (entry.type) {
     case "work-items":
     case "plans":
-    case "research":
+    case "codebase-research":
     case "pr-descriptions":
       return `clustered via: parent → ${wid}`;
     case "work-item-reviews":

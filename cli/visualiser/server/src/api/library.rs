@@ -87,6 +87,7 @@ const PHASES: &[(&str, &str, &[DocTypeKey])] = &[
         &[
             DocTypeKey::DesignInventories,
             DocTypeKey::DesignGaps,
+            DocTypeKey::TopicResearch,
             DocTypeKey::Research,
         ],
     ),

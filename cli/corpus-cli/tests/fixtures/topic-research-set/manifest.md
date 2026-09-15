@@ -1,14 +1,13 @@
 ---
 type: "topic-research"
-id: "manifest"
+id: "example-subject"
 title: "Research Topic: Example Subject"
 date: "2026-09-10T00:00:00+00:00"
 author: "Fixture Author"
 producer: "research-topic"
-status: "complete"
+status: "synthesised"
 kind: "manifest"
 slug: "example-subject"
-research_status: "synthesised"
 round_count: 1
 finding_count: 1
 primary: "synthesis.md"
