@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-06-0257-sync-specific-work-items"
-title: "Research: Targeted sync of specific work items (0257)"
+title: "Targeted sync of specific work items (0257)"
 date: "2026-09-06T15:00:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_note: "Resolved all four open questions (D1-D4) and verified D3's b
 schema_version: 1
 ---
 
-# Research: Targeted sync of specific work items (0257)
+# Targeted sync of specific work items (0257)
 
 **Date**: 2026-09-06 15:00 UTC
 **Author**: Toby Clemson

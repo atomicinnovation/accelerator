@@ -11,12 +11,12 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Added follow-up research for agents/ directory"
 type: "codebase-research"
 id: "2026-04-26-remaining-ticket-references-post-migration"
-title: "Research: Remaining 'ticket' References After Rename Migration"
+title: "Remaining 'ticket' References After Rename Migration"
 schema_version: 1
 relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0022", "adr:ADR-0023"]
 ---
 
-# Research: Remaining 'ticket' References After Rename Migration
+# Remaining 'ticket' References After Rename Migration
 
 **Date**: 2026-04-26T19:01:48+01:00
 **Author**: Toby Clemson

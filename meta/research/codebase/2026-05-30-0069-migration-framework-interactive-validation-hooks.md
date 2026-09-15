@@ -10,14 +10,14 @@ last_updated: "2026-05-30T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-30-0069-migration-framework-interactive-validation-hooks"
-title: "Research: Migration framework interactive validation hooks — implementation surface for story 0069"
+title: "Migration framework interactive validation hooks — implementation surface for story 0069"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0037", "adr:ADR-0033", "adr:ADR-0035", "adr:ADR-0028", "adr:ADR-0026", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "work-item:0069"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "adr:ADR-0037", "codebase-research:2026-05-26-0062-adr-interactive-validation-for-corpus-migration", "adr:ADR-0038", "codebase-research:2026-05-05-0031-consolidate-accelerator-owned-files"]
 ---
 
-# Research: Migration framework interactive validation hooks — implementation surface for story 0069
+# Migration framework interactive validation hooks — implementation surface for story 0069
 
 **Date**: 2026-05-30 11:01:43 BST
 **Researcher**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-06-0269-remove-bash-vocabulary-and-redesign-exit-code-classification"
-title: "Research: Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira And Linear Clients (0269)"
+title: "Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira And Linear Clients (0269)"
 date: "2026-09-06T12:16:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_note: "Added follow-up research on oracle re-keying and the semanti
 schema_version: 1
 ---
 
-# Research: Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira And Linear Clients (0269)
+# Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira And Linear Clients (0269)
 
 **Date**: 2026-09-06T12:16:36+00:00
 **Author**: Toby Clemson

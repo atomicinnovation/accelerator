@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 extends: "meta/research/codebase/2026-05-15-0041-library-page-wrapper-and-overview-hub.md"
 type: "codebase-research"
 id: "2026-05-16-0041-library-page-wrapper-supplementary"
-title: "Research: Work Item 0041 — Supplementary Findings"
+title: "Work Item 0041 — Supplementary Findings"
 schema_version: 1
 relates_to: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "work-item:0041", "adr:ADR-0024", "adr:ADR-0026"]
 derived_from: ["codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-05-14-0038-generic-chip-component"]
 ---
 
-# Research: Work Item 0041 — Supplementary Findings
+# Work Item 0041 — Supplementary Findings
 
 **Date**: 2026-05-16T08:44:14+01:00
 **Author**: Toby Clemson

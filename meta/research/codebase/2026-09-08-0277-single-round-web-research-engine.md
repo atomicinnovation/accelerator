@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-08-0277-single-round-web-research-engine"
-title: "Research: Single-Round Web Research Engine (0277) implementation seams"
+title: "Single-Round Web Research Engine (0277) implementation seams"
 date: "2026-09-08T22:01:02+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Resolved open questions Q1 (validator depth: (type, kind) lo
 schema_version: 1
 ---
 
-# Research: Single-Round Web Research Engine (0277) implementation seams
+# Single-Round Web Research Engine (0277) implementation seams
 
 **Date**: 2026-09-08T22:01:02+00:00
 **Author**: Toby Clemson

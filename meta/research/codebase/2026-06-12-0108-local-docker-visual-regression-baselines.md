@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-12-0108-local-docker-visual-regression-baselines"
-title: "Research: Local Docker-Based Visual Regression Baseline Generation (0108)"
+title: "Local Docker-Based Visual Regression Baseline Generation (0108)"
 date: "2026-06-12T16:10:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_note: "Added follow-up resolving open question #1 — run the Rust 
 schema_version: 1
 ---
 
-# Research: Local Docker-Based Visual Regression Baseline Generation (0108)
+# Local Docker-Based Visual Regression Baseline Generation (0108)
 
 **Date**: 2026-06-12T16:10:19+00:00 (UTC)
 **Author**: Toby Clemson

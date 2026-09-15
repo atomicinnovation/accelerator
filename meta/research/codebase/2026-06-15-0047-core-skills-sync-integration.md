@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-15-0047-core-skills-sync-integration"
-title: "Research: Core Skills Sync Integration (story 0047)"
+title: "Core Skills Sync Integration (story 0047)"
 date: "2026-06-15T21:25:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Core Skills Sync Integration (story 0047)
+# Core Skills Sync Integration (story 0047)
 
 **Date**: 2026-06-15T21:25:19+00:00
 **Author**: Toby Clemson

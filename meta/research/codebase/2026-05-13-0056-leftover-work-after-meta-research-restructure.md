@@ -10,13 +10,13 @@ last_updated: "2026-05-13T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-13-0056-leftover-work-after-meta-research-restructure"
-title: "Research: Leftover work / issues after meta directory restructure (0056)"
+title: "Leftover work / issues after meta directory restructure (0056)"
 schema_version: 1
 relates_to: ["plan:2026-05-12-0056-restructure-meta-research-into-subject-subcategories", "work-item:0056", "codebase-research:2026-05-11-0056-restructure-meta-research-into-subject-subcategories"]
 derived_from: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths"]
 ---
 
-# Research: Leftover work / issues after meta directory restructure (0056)
+# Leftover work / issues after meta directory restructure (0056)
 
 **Date**: 2026-05-13 09:29:26 BST
 **Author**: Toby Clemson

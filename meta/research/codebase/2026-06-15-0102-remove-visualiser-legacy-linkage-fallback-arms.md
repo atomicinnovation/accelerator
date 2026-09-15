@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-15-0102-remove-visualiser-legacy-linkage-fallback-arms"
-title: "Research: Removing Visualiser-Server Legacy Linkage Fallback Arms (Story 0102)"
+title: "Removing Visualiser-Server Legacy Linkage Fallback Arms (Story 0102)"
 date: "2026-06-15T22:02:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Removing Visualiser-Server Legacy Linkage Fallback Arms (Story 0102)
+# Removing Visualiser-Server Legacy Linkage Fallback Arms (Story 0102)
 
 **Date**: 2026-06-15T22:02:48+00:00 (UTC)
 **Author**: Toby Clemson

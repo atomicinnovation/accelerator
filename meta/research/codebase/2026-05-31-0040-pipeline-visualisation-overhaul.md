@@ -10,13 +10,13 @@ last_updated: "2026-05-31T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-31-0040-pipeline-visualisation-overhaul"
-title: "Research: Pipeline Visualisation Overhaul (0040)"
+title: "Pipeline Visualisation Overhaul (0040)"
 schema_version: 1
 relates_to: ["adr:ADR-0025", "adr:ADR-0034", "adr:ADR-0033", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "work-item:0040", "work-item:0044", "work-item:0063", "plan:2026-04-26-meta-visualiser-phase-7-kanban-read-only"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-14-0038-generic-chip-component", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-20-0063-rename-work-item-type-to-kind", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
-# Research: Pipeline Visualisation Overhaul (0040)
+# Pipeline Visualisation Overhaul (0040)
 
 **Date**: 2026-05-31T23:08:12+01:00
 **Author**: Toby Clemson

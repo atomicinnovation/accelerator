@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-29-0176-workflows-rename-and-skill-catalogue"
-title: "Research: Renaming skill-family pages to \"workflows\", a master skill catalogue, and per-skill pages"
+title: "Renaming skill-family pages to \"workflows\", a master skill catalogue, and per-skill pages"
 date: "2026-06-29T15:01:34+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# Research: Renaming skill-family pages to "workflows", a master skill catalogue, and per-skill pages
+# Renaming skill-family pages to "workflows", a master skill catalogue, and per-skill pages
 
 **Date**: 2026-06-29T15:01:34+00:00
 **Author**: Phil Helm

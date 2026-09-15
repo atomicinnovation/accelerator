@@ -10,11 +10,11 @@ last_updated: "2026-03-14T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-14-plugin-extraction"
-title: "Research: Extracting Skills and Agents into a Claude Code Plugin"
+title: "Extracting Skills and Agents into a Claude Code Plugin"
 schema_version: 1
 ---
 
-# Research: Extracting Skills and Agents into a Claude Code Plugin
+# Extracting Skills and Agents into a Claude Code Plugin
 
 **Date**: 2026-03-14T22:18:33+0000
 **Author**: Toby Clemson

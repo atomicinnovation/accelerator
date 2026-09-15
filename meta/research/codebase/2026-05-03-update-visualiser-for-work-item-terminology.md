@@ -10,13 +10,13 @@ last_updated: "2026-05-03T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-03-update-visualiser-for-work-item-terminology"
-title: "Research: Updating the visualiser to support work-item terminology"
+title: "Updating the visualiser to support work-item terminology"
 schema_version: 1
 relates_to: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "adr:ADR-0022", "adr:ADR-0023", "plan:2026-04-30-meta-visualiser-phase-12-packaging-docs-and-release"]
 derived_from: ["codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-04-28-configurable-work-item-id-pattern"]
 ---
 
-# Research: Updating the visualiser to support work-item terminology
+# Updating the visualiser to support work-item terminology
 
 **Date**: 2026-05-03 14:44 BST
 **Author**: Toby Clemson

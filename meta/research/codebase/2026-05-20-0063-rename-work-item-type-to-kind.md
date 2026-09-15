@@ -10,14 +10,14 @@ last_updated: "2026-05-20T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-20-0063-rename-work-item-type-to-kind"
-title: "Research: Rename work-item `type:` Field to `kind:` (story 0063)"
+title: "Rename work-item `type:` Field to `kind:` (story 0063)"
 schema_version: 1
 relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0028", "adr:ADR-0023", "adr:ADR-0022", "work-item:0057", "codebase-research:2026-04-25-rename-tickets-to-work-items"]
 blocked_by: ["work-item:0065", "work-item:0070"]
 derived_from: ["codebase-research:2026-04-25-rename-tickets-to-work-items", "codebase-research:2026-04-26-remaining-ticket-references-post-migration", "codebase-research:2026-05-03-update-visualiser-for-work-item-terminology"]
 ---
 
-# Research: Rename work-item `type:` Field to `kind:` (story 0063)
+# Rename work-item `type:` Field to `kind:` (story 0063)
 
 **Date**: 2026-05-20T22:23:30+01:00
 **Author**: Toby Clemson

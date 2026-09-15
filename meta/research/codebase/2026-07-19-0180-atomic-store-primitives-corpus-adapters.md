@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-19-0180-atomic-store-primitives-corpus-adapters"
-title: "Research: Porting the atomic-store primitives into corpus-adapters (0180)"
+title: "Porting the atomic-store primitives into corpus-adapters (0180)"
 date: "2026-07-18T23:21:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added follow-up resolving the libc/musl concern and open que
 schema_version: 1
 ---
 
-# Research: Porting the atomic-store primitives into corpus-adapters (0180)
+# Porting the atomic-store primitives into corpus-adapters (0180)
 
 **Date**: 2026-07-18T23:21:31+00:00 (UTC)
 **Author**: Toby Clemson

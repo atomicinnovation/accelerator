@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-10-0228-layered-configuration-key-model"
-title: "Research: Layered Configuration Key Model (0228)"
+title: "Layered Configuration Key Model (0228)"
 date: "2026-09-10T07:50:25+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Recorded the resolving-alias-vs-ignore-and-warn decision (ch
 schema_version: 1
 ---
 
-# Research: Layered Configuration Key Model (0228)
+# Layered Configuration Key Model (0228)
 
 **Date**: 2026-09-10 07:50 UTC
 **Author**: Toby Clemson

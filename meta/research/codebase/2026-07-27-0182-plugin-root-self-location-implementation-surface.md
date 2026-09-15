@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-27-0182-plugin-root-self-location-implementation-surface"
-title: "Research: Implementation surface for 0182 — bootstrap self-location and the ACCELERATOR_PLUGIN_ROOT rename"
+title: "Implementation surface for 0182 — bootstrap self-location and the ACCELERATOR_PLUGIN_ROOT rename"
 date: "2026-07-26T23:35:47+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation surface for 0182 — bootstrap self-location and the `ACCELERATOR_PLUGIN_ROOT` rename
+# Implementation surface for 0182 — bootstrap self-location and the `ACCELERATOR_PLUGIN_ROOT` rename
 
 **Date**: 2026-07-26 23:35 UTC
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-10-0185-converge-corpus-adapters-library-backed-vcs"
-title: "Research: Converge corpus-adapters on the Library-Backed VCS Adapter (0185)"
+title: "Converge corpus-adapters on the Library-Backed VCS Adapter (0185)"
 date: "2026-08-10T14:55:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Converge corpus-adapters on the Library-Backed VCS Adapter (0185)
+# Converge corpus-adapters on the Library-Backed VCS Adapter (0185)
 
 **Date**: 2026-08-10T14:55:36+00:00
 **Author**: Toby Clemson

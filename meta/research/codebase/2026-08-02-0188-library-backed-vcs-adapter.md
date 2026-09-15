@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-02-0188-library-backed-vcs-adapter"
-title: "Research: Library-Backed VCS Adapter over gix and jj-lib (0188)"
+title: "Library-Backed VCS Adapter over gix and jj-lib (0188)"
 date: "2026-08-02T21:19:48+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added the gix 0.85 API spike (2026-08-03) closing the three 
 schema_version: 1
 ---
 
-# Research: Library-Backed VCS Adapter over gix and jj-lib (0188)
+# Library-Backed VCS Adapter over gix and jj-lib (0188)
 
 **Date**: 2026-08-02 21:19 UTC
 **Author**: Toby Clemson

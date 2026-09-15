@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-12-0083-dev-design-system-reference-page"
-title: "Research: DevDesignSystem Reference Page (0083)"
+title: "DevDesignSystem Reference Page (0083)"
 date: "2026-06-12T22:17:22+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: DevDesignSystem Reference Page (0083)
+# DevDesignSystem Reference Page (0083)
 
 **Date**: 2026-06-12 22:17 UTC
 **Author**: Toby Clemson

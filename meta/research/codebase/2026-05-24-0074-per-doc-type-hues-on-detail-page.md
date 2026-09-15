@@ -11,7 +11,7 @@ last_updated_by: "Toby Clemson"
 work_item: "0074"
 type: "codebase-research"
 id: "2026-05-24-0074-per-doc-type-hues-on-detail-page"
-title: "Research: Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page"
+title: "Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:0037", "work-item:0041", "work-item:0073", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype"]
@@ -19,7 +19,7 @@ blocked_by: ["work-item:0079", "work-item:0082"]
 derived_from: ["codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-16-0041-library-page-wrapper-supplementary", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "codebase-research:2026-05-22-0081-status-badge-component", "codebase-research:2026-05-23-0073-atomic-brand-layer-palette", "codebase-research:2026-05-23-0075-typography-size-scale-consumption"]
 ---
 
-# Research: Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page
+# Pre-implementation Context for 0074 — Per-Doc-Type Hues on Detail Page
 
 **Date**: 2026-05-24T23:16:46+01:00
 **Researcher**: Toby Clemson

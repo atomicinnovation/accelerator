@@ -11,13 +11,13 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-21-0064-canonicalise-work-item-id-and-author-fields"
-title: "Research: Canonicalise `work_item_id` and `author` Frontmatter Field Names"
+title: "Canonicalise `work_item_id` and `author` Frontmatter Field Names"
 schema_version: 1
 relates_to: ["work-item:0063", "plan:2026-05-20-0063-rename-work-item-type-to-kind", "work-item:0057", "work-item:0060", "adr:ADR-0033", "adr:ADR-0034", "work-item:0065", "work-item:0070", "adr:ADR-0023", "work-item:0064"]
 derived_from: ["codebase-research:2026-05-03-update-visualiser-for-work-item-terminology", "codebase-research:2026-04-26-remaining-ticket-references-post-migration"]
 ---
 
-# Research: Canonicalise `work_item_id` and `author` Frontmatter Field Names
+# Canonicalise `work_item_id` and `author` Frontmatter Field Names
 
 **Date**: 2026-05-21T18:47:09+01:00
 **Author**: Toby Clemson

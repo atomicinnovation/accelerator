@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-17-0114-migration-0007-incomplete-mechanical-normalisation"
-title: "Research: Migration 0007 incomplete mechanical normalisation (work item 0114)"
+title: "Migration 0007 incomplete mechanical normalisation (work item 0114)"
 date: "2026-06-17T21:52:32+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Migration 0007 incomplete mechanical normalisation (work item 0114)
+# Migration 0007 incomplete mechanical normalisation (work item 0114)
 
 **Date**: 2026-06-17 21:52 UTC
 **Author**: Toby Clemson

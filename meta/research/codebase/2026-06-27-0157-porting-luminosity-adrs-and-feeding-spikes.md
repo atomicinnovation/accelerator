@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-27-0157-porting-luminosity-adrs-and-feeding-spikes"
-title: "Research: Porting luminosity ADRs and feeding spikes into Accelerator"
+title: "Porting luminosity ADRs and feeding spikes into Accelerator"
 date: "2026-06-27T12:00:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Porting luminosity ADRs and feeding spikes into Accelerator
+# Porting luminosity ADRs and feeding spikes into Accelerator
 
 **Date**: 2026-06-27T12:00:42+00:00 (UTC)
 **Author**: Toby Clemson

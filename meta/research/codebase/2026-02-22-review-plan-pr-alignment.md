@@ -10,11 +10,11 @@ last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-02-22-review-plan-pr-alignment"
-title: "Research: Differences Between review-pr and review-plan for Alignment Upgrade"
+title: "Differences Between review-pr and review-plan for Alignment Upgrade"
 schema_version: 1
 ---
 
-# Research: Differences Between review-pr and review-plan for Alignment Upgrade
+# Differences Between review-pr and review-plan for Alignment Upgrade
 
 **Date**: 2026-02-22T17:06:11+00:00
 **Author**: Toby Clemson

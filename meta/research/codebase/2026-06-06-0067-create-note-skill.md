@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-06-0067-create-note-skill"
-title: "Research: Implementing the create-note Skill (0067)"
+title: "Implementing the create-note Skill (0067)"
 date: "2026-06-06T09:33:34+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ schema_version: 1
 derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-06-02-0093-extend-templates-with-typed-linkage-slots"]
 ---
 
-# Research: Implementing the create-note Skill (0067)
+# Implementing the create-note Skill (0067)
 
 **Date**: 2026-06-06T09:33:34+00:00
 **Author**: Toby Clemson

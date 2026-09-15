@@ -10,11 +10,11 @@ last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: "Toby Clemson (via Claude)"
 type: "codebase-research"
 id: "2026-03-18-meta-management-strategy"
-title: "Research: Meta Directory Management Strategy"
+title: "Meta Directory Management Strategy"
 schema_version: 1
 ---
 
-# Research: Meta Directory Management Strategy
+# Meta Directory Management Strategy
 
 **Date**: 2026-03-18T02:46:16+00:00
 **Author**: Toby Clemson (via Claude)

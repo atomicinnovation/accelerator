@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-10-0196-accelerator-design-inventory-gap-tooling-cli"
-title: "Research: accelerator-design — Design Inventory and Gap Tooling CLI"
+title: "accelerator-design — Design Inventory and Gap Tooling CLI"
 date: "2026-08-10T00:43:47+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: accelerator-design — Design Inventory and Gap Tooling CLI
+# accelerator-design — Design Inventory and Gap Tooling CLI
 
 **Date**: 2026-08-10T00:43:47+00:00
 **Author**: Toby Clemson

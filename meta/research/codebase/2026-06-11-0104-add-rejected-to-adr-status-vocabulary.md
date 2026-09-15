@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-11-0104-add-rejected-to-adr-status-vocabulary"
-title: "Research: Add rejected to the ADR Status Vocabulary in the Unified Schema"
+title: "Add rejected to the ADR Status Vocabulary in the Unified Schema"
 date: "2026-06-11T13:10:20+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Add rejected to the ADR Status Vocabulary in the Unified Schema
+# Add rejected to the ADR Status Vocabulary in the Unified Schema
 
 **Date**: 2026-06-11T13:10:20+00:00 (UTC)
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-30-0201-in-process-section-diff"
-title: "Research: In-Process Section Diff (0201)"
+title: "In-Process Section Diff (0201)"
 date: "2026-08-30T13:02:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: In-Process Section Diff (0201)
+# In-Process Section Diff (0201)
 
 **Date**: 2026-08-30T13:02:27+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-13-0110-surface-rcas-in-visualiser-operate-category"
-title: "Research: Surfacing Root Cause Analyses in the Visualiser under a new Operate category"
+title: "Surfacing Root Cause Analyses in the Visualiser under a new Operate category"
 date: "2026-06-13T20:42:18+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Surfacing Root Cause Analyses in the Visualiser under a new Operate category
+# Surfacing Root Cause Analyses in the Visualiser under a new Operate category
 
 **Date**: 2026-06-13T20:42:18+00:00
 **Author**: Toby Clemson

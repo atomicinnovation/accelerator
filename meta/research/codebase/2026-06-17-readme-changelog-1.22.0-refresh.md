@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-17-readme-changelog-1.22.0-refresh"
-title: "Research: README and CHANGELOG refresh for the 1.22.0 release"
+title: "README and CHANGELOG refresh for the 1.22.0 release"
 date: "2026-06-17T11:10:41+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -15,7 +15,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: README and CHANGELOG refresh for the 1.22.0 release
+# README and CHANGELOG refresh for the 1.22.0 release
 
 **Date**: 2026-06-17 11:10 UTC
 **Author**: Toby Clemson

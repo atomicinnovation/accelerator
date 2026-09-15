@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-28-0174-empty-scripts-and-retire-shell-tooling"
-title: "Research: Empty scripts/ and retire shell tooling and CI guards (0174)"
+title: "Empty scripts/ and retire shell tooling and CI guards (0174)"
 date: "2026-08-28T00:37:08+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Empty scripts/ and retire shell tooling and CI guards (0174)
+# Empty scripts/ and retire shell tooling and CI guards (0174)
 
 **Date**: 2026-08-28T00:37:08+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-27-ask-user-question-opportunities"
-title: "Research: AskUserQuestion Upgrade Opportunities Across All Skills"
+title: "AskUserQuestion Upgrade Opportunities Across All Skills"
 date: "2026-06-27T13:32:04+00:00"
 author: "John Cowie Del Corral"
 producer: "research-codebase"
@@ -15,7 +15,7 @@ last_updated_by: "John Cowie Del Corral"
 schema_version: 1
 ---
 
-# Research: AskUserQuestion Upgrade Opportunities Across All Skills
+# AskUserQuestion Upgrade Opportunities Across All Skills
 
 **Date**: 2026-06-27T13:32:04+00:00
 **Author**: John Cowie Del Corral

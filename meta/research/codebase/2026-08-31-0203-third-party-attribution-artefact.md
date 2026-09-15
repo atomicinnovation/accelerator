@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-31-0203-third-party-attribution-artefact"
-title: "Research: Ship a Third-Party Attribution Artefact with the Release Uploads"
+title: "Ship a Third-Party Attribution Artefact with the Release Uploads"
 date: "2026-08-31T20:26:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Ship a Third-Party Attribution Artefact with the Release Uploads
+# Ship a Third-Party Attribution Artefact with the Release Uploads
 
 **Date**: 2026-08-31T20:26:46+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-07-0178-config-crates-native-yaml-reader"
-title: "Research: config and config-adapters Crates with Native YAML Reader"
+title: "config and config-adapters Crates with Native YAML Reader"
 date: "2026-07-07T00:49:01+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: config and config-adapters Crates with Native YAML Reader
+# config and config-adapters Crates with Native YAML Reader
 
 **Date**: 2026-07-07 00:49 UTC
 **Author**: Toby Clemson

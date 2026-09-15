@@ -10,13 +10,13 @@ last_updated: "2026-04-25T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-04-25-rename-tickets-to-work-items"
-title: "Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`"
+title: "Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`"
 schema_version: 1
 relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-18-meta-management-strategy", "adr:ADR-0016", "adr:ADR-0018"]
 derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
-# Research: Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`
+# Rename `tickets` → `work`, `ticket` → `work-item`, and consider `/accelerator:migrate`
 
 **Date**: 2026-04-25T21:03:16+01:00
 **Author**: Toby Clemson

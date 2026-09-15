@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-02-0186-remove-exec-probe-from-bootstrap-warm-path"
-title: "Research: Remove the Exec Probe from the Bootstrap Warm Path"
+title: "Remove the Exec Probe from the Bootstrap Warm Path"
 date: "2026-08-02T21:21:52+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Remove the Exec Probe from the Bootstrap Warm Path
+# Remove the Exec Probe from the Bootstrap Warm Path
 
 **Date**: 2026-08-02T21:21:52+00:00
 **Author**: Toby Clemson

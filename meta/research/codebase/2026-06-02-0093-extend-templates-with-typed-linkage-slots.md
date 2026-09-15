@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-02-0093-extend-templates-with-typed-linkage-slots"
-title: "Research: Extend Templates With Typed-Linkage Slots (0093)"
+title: "Extend Templates With Typed-Linkage Slots (0093)"
 date: "2026-06-02T11:23:51+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0038", "plan:2026-05-30-00
 derived_from: ["codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-31-0066-update-review-skills-inline-frontmatter"]
 ---
 
-# Research: Extend Templates With Typed-Linkage Slots (0093)
+# Extend Templates With Typed-Linkage Slots (0093)
 
 **Date**: 2026-06-02T11:23:51+00:00
 **Author**: Toby Clemson

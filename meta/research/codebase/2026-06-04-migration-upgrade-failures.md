@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-04-migration-upgrade-failures"
-title: "Research: Migration framework failures on consumer upgrade (0003 tmp conflict, dirty-tree re-check, 0006 bash 3.2)"
+title: "Migration framework failures on consumer upgrade (0003 tmp conflict, dirty-tree re-check, 0006 bash 3.2)"
 date: "2026-06-04T13:51:06+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -16,7 +16,7 @@ schema_version: 1
 relates_to: ["adr:ADR-0023", "adr:ADR-0016", "adr:ADR-0037"]
 ---
 
-# Research: Migration framework failures on consumer upgrade
+# Migration framework failures on consumer upgrade
 
 **Date**: 2026-06-04T13:51:06+00:00
 **Author**: Toby Clemson

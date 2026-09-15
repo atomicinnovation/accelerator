@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-11-0096-templates-view-auto-discovery"
-title: "Research: Templates View Auto-Discovers Available Templates (0096)"
+title: "Templates View Auto-Discovers Available Templates (0096)"
 date: "2026-06-11T13:38:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Templates View Auto-Discovers Available Templates (0096)
+# Templates View Auto-Discovers Available Templates (0096)
 
 **Date**: 2026-06-11T13:38:46+00:00 (UTC)
 **Author**: Toby Clemson

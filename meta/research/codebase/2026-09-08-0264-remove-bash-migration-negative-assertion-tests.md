@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-08-0264-remove-bash-migration-negative-assertion-tests"
-title: "Research: Remove Bash-Migration Negative-Assertion Tests (0264)"
+title: "Remove Bash-Migration Negative-Assertion Tests (0264)"
 date: "2026-09-08T21:27:06+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Remove Bash-Migration Negative-Assertion Tests (0264)
+# Remove Bash-Migration Negative-Assertion Tests (0264)
 
 **Date**: 2026-09-08T21:27:06+00:00
 **Author**: Toby Clemson

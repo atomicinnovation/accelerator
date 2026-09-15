@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-10-0193-make-the-docs-amazing"
-title: "Research: Make the Docs Amazing (0193) — docs site overhaul groundwork"
+title: "Make the Docs Amazing (0193) — docs site overhaul groundwork"
 date: "2026-07-10T19:55:16+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# Research: Make the Docs Amazing (0193) — docs site overhaul groundwork
+# Make the Docs Amazing (0193) — docs site overhaul groundwork
 
 **Date**: 2026-07-10T19:55:16+00:00 (UTC)
 **Author**: Phil Helm

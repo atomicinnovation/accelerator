@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-23-0168-fold-visualiser-into-cli-workspace"
-title: "Research: Folding the Visualiser into the cli/ Workspace (0168)"
+title: "Folding the Visualiser into the cli/ Workspace (0168)"
 date: "2026-07-23T01:40:15+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Folding the Visualiser into the cli/ Workspace (0168)
+# Folding the Visualiser into the cli/ Workspace (0168)
 
 **Date**: 2026-07-23T01:40:15+00:00
 **Author**: Toby Clemson

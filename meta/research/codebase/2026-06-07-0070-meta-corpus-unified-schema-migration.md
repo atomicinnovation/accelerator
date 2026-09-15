@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-07-0070-meta-corpus-unified-schema-migration"
-title: "Research: Implementing the meta/ corpus unified-schema migration (story 0070)"
+title: "Implementing the meta/ corpus unified-schema migration (story 0070)"
 date: "2026-06-07T08:36:10+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ schema_version: 1
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 ---
 
-# Research: Implementing the meta/ corpus unified-schema migration (story 0070)
+# Implementing the meta/ corpus unified-schema migration (story 0070)
 
 **Date**: 2026-06-07T08:36:10+00:00
 **Author**: Toby Clemson
