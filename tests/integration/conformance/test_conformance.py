@@ -279,9 +279,9 @@ def _assert_rejects(code: str, files: list[Path]) -> None:
 
 def test_producer_set_reconciliation() -> None:
     discovered = _discovered()
-    assert len(discovered) == 19, (
+    assert len(discovered) == 18, (
         f"discovery returned {len(discovered)} producing SKILL.md files, "
-        f"expected 19: {discovered}"
+        f"expected 18: {discovered}"
     )
     assert len(EMITTERS) == 16
     allowlist = set(EMITTERS) | set(EXCLUDED)
