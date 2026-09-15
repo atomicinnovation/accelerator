@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-22-0191-batch-shim-hashes"
-title: "Research: Batch the bootstrap's two shim hashes into one sha256 invocation (0191)"
+title: "Batch the bootstrap's two shim hashes into one sha256 invocation (0191)"
 date: "2026-08-22T22:37:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Batch the bootstrap's two shim hashes into one sha256 invocation (0191)
+# Batch the bootstrap's two shim hashes into one sha256 invocation (0191)
 
 **Date**: 2026-08-22T22:37:37+00:00
 **Author**: Toby Clemson

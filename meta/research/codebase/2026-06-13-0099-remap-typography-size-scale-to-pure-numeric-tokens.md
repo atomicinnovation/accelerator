@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-13-0099-remap-typography-size-scale-to-pure-numeric-tokens"
-title: "Research: Remap Typography Size Scale To Pure-Numeric Tokens (0099)"
+title: "Remap Typography Size Scale To Pure-Numeric Tokens (0099)"
 date: "2026-06-13T09:39:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Remap Typography Size Scale To Pure-Numeric Tokens (0099)
+# Remap Typography Size Scale To Pure-Numeric Tokens (0099)
 
 **Date**: 2026-06-13T09:39:37+00:00 (UTC)
 **Author**: Toby Clemson

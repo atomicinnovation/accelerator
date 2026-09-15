@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-10-0209-wire-up-browser-auth-header-path"
-title: "Research: Wiring up the browser auth-header path in design skills"
+title: "Wiring up the browser auth-header path in design skills"
 date: "2026-09-10T00:17:50+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Wiring up the browser auth-header path in design skills
+# Wiring up the browser auth-header path in design skills
 
 **Date**: 2026-09-10T00:17:50+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-30-0221-canonical-frontmatter-quoting-standard"
-title: "Research: Canonical Quoting Standard for All Frontmatter"
+title: "Canonical Quoting Standard for All Frontmatter"
 date: "2026-08-30T13:56:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Resolved Python-lint scope (retire) and the sixth-write-path
 schema_version: 1
 ---
 
-# Research: Canonical Quoting Standard for All Frontmatter
+# Canonical Quoting Standard for All Frontmatter
 
 **Date**: 2026-08-30T13:56:26+00:00
 **Author**: Toby Clemson

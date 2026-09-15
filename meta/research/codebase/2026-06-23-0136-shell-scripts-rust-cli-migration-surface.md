@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-23-0136-shell-scripts-rust-cli-migration-surface"
-title: "Research: Shell-script feature & test-suite surface for the Rust CLI migration"
+title: "Shell-script feature & test-suite surface for the Rust CLI migration"
 date: "2026-06-23T19:27:07+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Shell-script feature & test-suite surface for the Rust CLI migration
+# Shell-script feature & test-suite surface for the Rust CLI migration
 
 **Date**: 2026-06-23T19:27:07+00:00 (UTC)
 **Author**: Toby Clemson

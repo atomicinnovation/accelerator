@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-11-0085-humanise-detail-page-h1"
-title: "Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)"
+title: "Humanise Detail-Page H1 Across All Doc Kinds (0085)"
 date: "2026-06-11T13:00:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Humanise Detail-Page H1 Across All Doc Kinds (0085)
+# Humanise Detail-Page H1 Across All Doc Kinds (0085)
 
 **Date**: 2026-06-11T13:00:27+00:00
 **Author**: Toby Clemson

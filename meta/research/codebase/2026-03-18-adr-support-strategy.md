@@ -10,12 +10,12 @@ last_updated: "2026-03-18T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-18-adr-support-strategy"
-title: "Research: ADR Support Strategy"
+title: "ADR Support Strategy"
 schema_version: 1
 relates_to: ["adr:ADR-0001", "adr:ADR-0002", "adr:ADR-0003", "adr:ADR-0005"]
 ---
 
-# Research: ADR Support Strategy
+# ADR Support Strategy
 
 **Date**: 2026-03-18T02:43:24+00:00
 **Author**: Toby Clemson

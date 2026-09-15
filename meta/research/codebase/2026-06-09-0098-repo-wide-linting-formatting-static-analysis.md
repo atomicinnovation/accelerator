@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-09-0098-repo-wide-linting-formatting-static-analysis"
-title: "Research: Codebase context for repo-wide linting, formatting, and static analysis guardrails (0098)"
+title: "Codebase context for repo-wide linting, formatting, and static analysis guardrails (0098)"
 date: "2026-06-09T21:17:04+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Codebase context for repo-wide linting, formatting, and static analysis guardrails (0098)
+# Codebase context for repo-wide linting, formatting, and static analysis guardrails (0098)
 
 **Date**: 2026-06-09T21:17:04+00:00 (UTC)
 **Author**: Toby Clemson

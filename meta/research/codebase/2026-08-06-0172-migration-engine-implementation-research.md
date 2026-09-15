@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-06-0172-migration-engine-implementation-research"
-title: "Research: Migration Engine Subdomain (0172) implementation groundwork"
+title: "Migration Engine Subdomain (0172) implementation groundwork"
 date: "2026-08-06T08:16:17+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Migration Engine Subdomain (0172) implementation groundwork
+# Migration Engine Subdomain (0172) implementation groundwork
 
 **Date**: 2026-08-06T08:16:17+00:00
 **Author**: Toby Clemson

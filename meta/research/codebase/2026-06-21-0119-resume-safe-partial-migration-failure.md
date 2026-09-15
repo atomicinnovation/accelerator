@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-21-0119-resume-safe-partial-migration-failure"
-title: "Research: Resume-Safe Partial Migration Failure (work item 0119)"
+title: "Resume-Safe Partial Migration Failure (work item 0119)"
 date: "2026-06-21T00:17:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Resume-Safe Partial Migration Failure (work item 0119)
+# Resume-Safe Partial Migration Failure (work item 0119)
 
 **Date**: 2026-06-21T00:17:27+00:00 (UTC)
 **Author**: Toby Clemson

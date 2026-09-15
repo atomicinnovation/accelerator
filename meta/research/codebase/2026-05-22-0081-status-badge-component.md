@@ -10,14 +10,14 @@ last_updated: "2026-05-22T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-22-0081-status-badge-component"
-title: "Research: Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`"
+title: "Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:0038", "work-item:0005", "adr:ADR-0007", "work-item:0066", "work-item:0084", "work-item:0078", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "work-item:0081", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 derived_from: ["codebase-research:2026-05-21-0078-detail-page-frontmatter-table", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-inventory:2026-05-21-004250-current-app"]
 ---
 
-# Research: Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`
+# Decomposing `FrontmatterChips` into chip-list renderer + `FrontmatterChip` + `StatusBadge`
 
 **Date**: 2026-05-22T22:55:08+01:00
 **Researcher**: Toby Clemson

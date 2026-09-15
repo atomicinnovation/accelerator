@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-22-0124-find-repo-root-fails-in-git-worktrees"
-title: "Research: find_repo_root fails in git worktrees (-d test on .git)"
+title: "find_repo_root fails in git worktrees (-d test on .git)"
 date: "2026-06-22T14:01:39+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# Research: find_repo_root fails in git worktrees (-d test on .git)
+# find_repo_root fails in git worktrees (-d test on .git)
 
 **Date**: 2026-06-22T14:01:39+00:00 (UTC)
 **Author**: Phil Helm

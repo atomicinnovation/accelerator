@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-15-0111-visualiser-frontend-closeout-fixes"
-title: "Research: Visualiser Frontend Closeout Fixes (work item 0111)"
+title: "Visualiser Frontend Closeout Fixes (work item 0111)"
 date: "2026-06-15T19:23:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Visualiser Frontend Closeout Fixes (work item 0111)
+# Visualiser Frontend Closeout Fixes (work item 0111)
 
 **Date**: 2026-06-15T19:23:00+00:00 (UTC)
 **Author**: Toby Clemson

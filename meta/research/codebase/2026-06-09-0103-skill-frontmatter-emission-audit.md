@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-09-0103-skill-frontmatter-emission-audit"
-title: "Research: Skill Frontmatter Emission Audit Against the Unified Schema (work item 0103)"
+title: "Skill Frontmatter Emission Audit Against the Unified Schema (work item 0103)"
 date: "2026-06-09T18:44:38+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Skill Frontmatter Emission Audit Against the Unified Schema (work item 0103)
+# Skill Frontmatter Emission Audit Against the Unified Schema (work item 0103)
 
 **Date**: 2026-06-09T18:44:38+00:00
 **Author**: Toby Clemson

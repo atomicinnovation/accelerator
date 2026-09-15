@@ -10,13 +10,13 @@ last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-26-0062-adr-interactive-validation-for-corpus-migration"
-title: "Research: Codebase grounding for ADR-0062 (Interactive Validation for Corpus Migration)"
+title: "Codebase grounding for ADR-0062 (Interactive Validation for Corpus Migration)"
 schema_version: 1
 relates_to: ["adr:ADR-0023", "adr:ADR-0031", "adr:ADR-0037", "adr:ADR-0033", "adr:ADR-0035", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework", "codebase-research:2026-04-26-remaining-ticket-references-post-migration"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"]
 ---
 
-# Research: Codebase grounding for ADR-0062 (Interactive Validation for Corpus Migration)
+# Codebase grounding for ADR-0062 (Interactive Validation for Corpus Migration)
 
 **Date**: 2026-05-26T16:58:27+01:00
 **Author**: Toby Clemson

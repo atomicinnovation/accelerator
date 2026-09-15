@@ -5,3 +5,5 @@
 0006-canonicalise-work-item-id-and-author
 0007-unify-meta-corpus-frontmatter
 0008-canonical-frontmatter-quoting
+0009-split-work-key-from-tracker-scope-key
+0010-strip-research-title-prefix

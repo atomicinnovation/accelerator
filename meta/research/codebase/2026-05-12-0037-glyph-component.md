@@ -10,13 +10,13 @@ last_updated: "2026-05-12T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-12-0037-glyph-component"
-title: "Research: Glyph Component (work item 0037)"
+title: "Glyph Component (work item 0037)"
 schema_version: 1
 relates_to: ["codebase-research:2026-05-07-0035-topbar-component", "adr:ADR-0026", "plan:2026-05-06-0033-design-token-system", "codebase-research:2026-05-06-0033-design-token-system", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-05-02-design-convergence-workflow"]
 ---
 
-# Research: Glyph Component (work item 0037)
+# Glyph Component (work item 0037)
 
 **Date**: 2026-05-12 10:40:16 BST
 **Author**: Toby Clemson

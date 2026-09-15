@@ -10,13 +10,13 @@ last_updated: "2026-05-27T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-27-0039-toaster-and-external-edit-notifications"
-title: "Research: Toaster and External-Edit Notifications (work item 0039)"
+title: "Toaster and External-Edit Notifications (work item 0039)"
 schema_version: 1
 relates_to: ["adr:ADR-0026", "adr:ADR-0035", "note:2026-05-26-toast-correlation-should-use-document-id", "work-item:0039", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "plan:2026-04-22-meta-visualiser-phase-4-sse-hub-and-notify-watcher"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
-# Research: Toaster and External-Edit Notifications (work item 0039)
+# Toaster and External-Edit Notifications (work item 0039)
 
 **Date**: 2026-05-27T01:25:11+01:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-31-0206-classify-navigation-urls"
-title: "Research: Classify Navigation URLs, Not Only The Initial Location (0206)"
+title: "Classify Navigation URLs, Not Only The Initial Location (0206)"
 date: "2026-08-31T20:24:19+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Classify Navigation URLs, Not Only The Initial Location (0206)
+# Classify Navigation URLs, Not Only The Initial Location (0206)
 
 **Date**: 2026-08-31T20:24:19+00:00
 **Author**: Toby Clemson

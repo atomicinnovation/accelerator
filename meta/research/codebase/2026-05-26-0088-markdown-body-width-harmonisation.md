@@ -10,13 +10,13 @@ last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-26-0088-markdown-body-width-harmonisation"
-title: "Research: 0088 Markdown Body Width Harmonisation"
+title: "0088 Markdown Body Width Harmonisation"
 schema_version: 1
 relates_to: ["work-item:0033", "work-item:0075", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 derived_from: ["design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
-# Research: 0088 Markdown Body Width Harmonisation
+# 0088 Markdown Body Width Harmonisation
 
 **Date**: 2026-05-26T14:59:05+01:00
 **Author**: Toby Clemson

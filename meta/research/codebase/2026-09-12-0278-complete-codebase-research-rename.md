@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-12-0278-complete-codebase-research-rename"
-title: "Research: Completing the bare-research to codebase-research rename"
+title: "Completing the bare-research to codebase-research rename"
 date: "2026-09-12T21:24:50+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added follow-up research: scope decision (Tier 0-3 + Tier 4 
 schema_version: 1
 ---
 
-# Research: Completing the bare-research to codebase-research rename
+# Completing the bare-research to codebase-research rename
 
 **Date**: 2026-09-12 21:24 UTC
 **Author**: Toby Clemson

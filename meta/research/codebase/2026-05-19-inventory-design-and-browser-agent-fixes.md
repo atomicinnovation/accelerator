@@ -10,13 +10,13 @@ last_updated: "2026-05-19T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-19-inventory-design-and-browser-agent-fixes"
-title: "Research: Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
+title: "Fixes for the inventory-design skill and the browser-locator / browser-analyser agents"
 schema_version: 1
 relates_to: ["work-item:0052", "work-item:0030", "plan:2026-05-08-0030-remove-inline-path-defaults-from-consumers", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator", "work-item:0056", "codebase-research:2026-05-06-design-skill-localhost-and-mcp-issues", "design-inventory:2026-05-06-135214-current-app"]
 derived_from: ["codebase-research:2026-05-08-0052-documents-locator-config-driven-paths", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "codebase-research:2026-05-02-design-convergence-workflow"]
 ---
 
-# Research: Fixes for the inventory-design skill and the browser-locator / browser-analyser agents
+# Fixes for the inventory-design skill and the browser-locator / browser-analyser agents
 
 **Date**: 2026-05-19T08:56:33+01:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-12-0194-tracker-crate-and-remote-sync-engine"
-title: "Research: Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"
+title: "Educating a plan for 0194 — Tracker Crate and Remote Sync Engine"
 date: "2026-08-12T21:29:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Educating a plan for 0194 — Tracker Crate and Remote Sync Engine
+# Educating a plan for 0194 — Tracker Crate and Remote Sync Engine
 
 **Date**: 2026-08-12T21:29:42+00:00
 **Author**: Toby Clemson

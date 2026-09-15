@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-29-0162-rust-toolchain-guard-rails-wiring"
-title: "Research: Rust Toolchain Guard Rails in mise + CI (work item 0162)"
+title: "Rust Toolchain Guard Rails in mise + CI (work item 0162)"
 date: "2026-06-29T00:20:02+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Recorded the three implementation decisions (clippy lint set
 schema_version: 1
 ---
 
-# Research: Rust Toolchain Guard Rails in mise + CI (work item 0162)
+# Rust Toolchain Guard Rails in mise + CI (work item 0162)
 
 **Date**: 2026-06-29T00:20:02+00:00 (UTC)
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-17-0211-integration-binaries-and-bash-cluster-retirement"
-title: "Research: Integration Binaries and Bash Cluster Retirement (0211)"
+title: "Integration Binaries and Bash Cluster Retirement (0211)"
 date: "2026-08-17T13:16:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added follow-up research re-grounding every finding against 
 schema_version: 1
 ---
 
-# Research: Integration Binaries and Bash Cluster Retirement (0211)
+# Integration Binaries and Bash Cluster Retirement (0211)
 
 **Date**: 2026-08-17 13:16 UTC
 **Author**: Toby Clemson

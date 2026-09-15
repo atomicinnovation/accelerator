@@ -10,13 +10,13 @@ last_updated: "2026-04-27T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-04-27-create-work-item-open-from-existing"
-title: "Research: Extending `create-work-item` to Accept an Existing Work Item"
+title: "Extending `create-work-item` to Accept an Existing Work Item"
 schema_version: 1
 relates_to: ["plan:2026-04-19-ticket-creation-skills", "codebase-research:2026-04-08-ticket-management-skills"]
 derived_from: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-25-rename-tickets-to-work-items"]
 ---
 
-# Research: Extending `create-work-item` to Accept an Existing Work Item
+# Extending `create-work-item` to Accept an Existing Work Item
 
 **Date**: 2026-04-27T09:44:53+01:00
 **Author**: Toby Clemson

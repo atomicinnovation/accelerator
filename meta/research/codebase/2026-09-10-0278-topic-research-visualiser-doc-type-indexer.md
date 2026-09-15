@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-10-0278-topic-research-visualiser-doc-type-indexer"
-title: "Research: Topic-Research Visualiser Doc Type and Indexer (0278)"
+title: "Topic-Research Visualiser Doc Type and Indexer (0278)"
 date: "2026-09-10T21:47:20+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Topic-Research Visualiser Doc Type and Indexer (0278)
+# Topic-Research Visualiser Doc Type and Indexer (0278)
 
 **Date**: 2026-09-10T21:47:20+00:00
 **Author**: Toby Clemson

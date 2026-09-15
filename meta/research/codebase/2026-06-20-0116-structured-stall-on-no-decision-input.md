@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-20-0116-structured-stall-on-no-decision-input"
-title: "Research: Structured Stall on No Decision Input (work item 0116)"
+title: "Structured Stall on No Decision Input (work item 0116)"
 date: "2026-06-20T15:40:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_note: "Added 'Interaction Model — how 0116 and 0117 couple' secti
 schema_version: 1
 ---
 
-# Research: Structured Stall on No Decision Input (work item 0116)
+# Structured Stall on No Decision Input (work item 0116)
 
 **Date**: 2026-06-20 15:40 UTC
 **Author**: Toby Clemson

@@ -10,14 +10,14 @@ last_updated: "2026-05-31T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-31-0066-update-review-skills-inline-frontmatter"
-title: "Research: 0066 — Move review/validation skills' frontmatter into templates on the unified schema"
+title: "0066 — Move review/validation skills' frontmatter into templates on the unified schema"
 schema_version: 1
 relates_to: ["work-item:0093", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "work-item:0057", "work-item:0060", "adr:ADR-0033", "work-item:0061", "adr:ADR-0034", "work-item:0064", "plan:2026-05-30-0065-update-artifact-templates-to-unified-schema", "work-item:0065", "work-item:0066"]
 blocks: ["work-item:0065"]
 blocked_by: ["work-item:0070"]
 ---
 
-# Research: 0066 — Move review/validation skills' frontmatter into templates on the unified schema
+# 0066 — Move review/validation skills' frontmatter into templates on the unified schema
 
 **Date**: 2026-05-31T22:49:35+01:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-12-0087-error-screen-affordances"
-title: "Research: 404 / Error Screen with Affordances (work item 0087)"
+title: "404 / Error Screen with Affordances (work item 0087)"
 date: "2026-06-12T20:20:18+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: 404 / Error Screen with Affordances (work item 0087)
+# 404 / Error Screen with Affordances (work item 0087)
 
 **Date**: 2026-06-12T20:20:18+00:00
 **Author**: Toby Clemson

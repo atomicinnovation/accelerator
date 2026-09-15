@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-18-0051-sync-work-items-skill"
-title: "Research: Sync Work Items Skill (0051)"
+title: "Sync Work Items Skill (0051)"
 date: "2026-06-18T12:48:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Sync Work Items Skill (0051)
+# Sync Work Items Skill (0051)
 
 **Date**: 2026-06-18T12:48:49+00:00 (UTC)
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-06-0165-multi-binary-distribution-release-pipeline"
-title: "Research: Producer-side multi-binary distribution and release pipeline with minisign (0165)"
+title: "Producer-side multi-binary distribution and release pipeline with minisign (0165)"
 date: "2026-07-05T23:35:11+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Producer-side multi-binary distribution and release pipeline with minisign (0165)
+# Producer-side multi-binary distribution and release pipeline with minisign (0165)
 
 **Date**: 2026-07-06 (UTC 2026-07-05T23:35:11+00:00)
 **Author**: Toby Clemson

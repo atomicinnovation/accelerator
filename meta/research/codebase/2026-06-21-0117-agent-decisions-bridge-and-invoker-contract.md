@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-21-0117-agent-decisions-bridge-and-invoker-contract"
-title: "Research: Agent-Decisions Bridge and Documented Invoker Contract (0117)"
+title: "Agent-Decisions Bridge and Documented Invoker Contract (0117)"
 date: "2026-06-21T00:14:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Agent-Decisions Bridge and Documented Invoker Contract (0117)
+# Agent-Decisions Bridge and Documented Invoker Contract (0117)
 
 **Date**: 2026-06-21T00:14:37+00:00 (UTC)
 **Author**: Toby Clemson

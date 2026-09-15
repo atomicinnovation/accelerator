@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-11-0204-remote-tracker-port"
-title: "Research: Implementation ground for the RemoteTracker port crate"
+title: "Implementation ground for the RemoteTracker port crate"
 date: "2026-08-11T11:37:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation ground for the RemoteTracker port crate
+# Implementation ground for the RemoteTracker port crate
 
 **Date**: 2026-08-11 11:37 UTC
 **Author**: Toby Clemson

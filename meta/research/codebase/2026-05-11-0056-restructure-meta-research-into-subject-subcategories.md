@@ -10,13 +10,13 @@ last_updated: "2026-05-11T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-11-0056-restructure-meta-research-into-subject-subcategories"
-title: "Research: Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056"
+title: "Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056"
 schema_version: 1
 relates_to: ["note:2026-05-02-research-directory-subcategory-restructure", "codebase-research:2026-05-02-design-convergence-workflow", "work-item:0030", "work-item:0052", "work-item:0027", "adr:ADR-0023", "note:2026-04-26-agents-hardcode-default-directory-locations", "note:2026-05-09-design-paths-missing-from-documents-locator"]
 derived_from: ["codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-05-08-0030-centralise-path-defaults-implementation", "codebase-research:2026-05-08-0052-documents-locator-config-driven-paths"]
 ---
 
-# Research: Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056
+# Restructure `meta/research/codebase/` into Subject Subcategories — Work Item 0056
 
 **Date**: 2026-05-11T23:54:00+01:00
 **Author**: Toby Clemson

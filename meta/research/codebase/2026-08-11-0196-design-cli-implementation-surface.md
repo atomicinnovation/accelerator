@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-11-0196-design-cli-implementation-surface"
-title: "Research: accelerator-design implementation surface for planning 0196"
+title: "accelerator-design implementation surface for planning 0196"
 date: "2026-08-11T11:39:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: accelerator-design implementation surface for planning 0196
+# accelerator-design implementation surface for planning 0196
 
 **Date**: 2026-08-11 11:39 UTC
 **Author**: Toby Clemson

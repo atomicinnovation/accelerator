@@ -10,14 +10,14 @@ last_updated: "2026-05-21T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-21-0076-code-block-syntax-highlight-palette"
-title: "Research: Code-block syntax-highlight tokens and renderer adoption (story 0076)"
+title: "Code-block syntax-highlight tokens and renderer adoption (story 0076)"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:0033", "adr:ADR-0026", "design-gap:2026-05-21-current-app-vs-claude-design-prototype", "codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-18-0042-templates-view-redesign", "work-item:0076", "work-item:0037"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-18-0042-templates-view-redesign", "codebase-research:2026-05-15-0041-library-page-wrapper-and-overview-hub", "codebase-research:2026-05-21-0078-detail-page-frontmatter-table"]
 ---
 
-# Research: Code-block syntax-highlight tokens and renderer adoption (story 0076)
+# Code-block syntax-highlight tokens and renderer adoption (story 0076)
 
 **Date**: 2026-05-21 22:51:56 BST
 **Researcher**: Toby Clemson

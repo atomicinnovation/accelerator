@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-05-0079-aside-region-redesign"
-title: "Research: Detail-Page Aside Region Redesign (0079)"
+title: "Detail-Page Aside Region Redesign (0079)"
 date: "2026-06-05T21:43:50+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ relates_to: ["work-item:0079", "design-gap:2026-05-21-current-app-vs-claude-desi
 derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-06-01-lifecycle-clustering-slug-mismatch", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "codebase-research:2026-05-24-0074-per-doc-type-hues-on-detail-page"]
 ---
 
-# Research: Detail-Page Aside Region Redesign (0079)
+# Detail-Page Aside Region Redesign (0079)
 
 **Date**: 2026-06-05T21:43:50+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-30-0220-untracked-remote-discovery-never-runs-on-linear"
-title: "Research: Untracked-Remote Discovery Never Runs on Linear (0220)"
+title: "Untracked-Remote Discovery Never Runs on Linear (0220)"
 date: "2026-08-30T17:00:35+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Untracked-Remote Discovery Never Runs on Linear (0220)
+# Untracked-Remote Discovery Never Runs on Linear (0220)
 
 **Date**: 2026-08-30T17:00:35+00:00
 **Author**: Toby Clemson
