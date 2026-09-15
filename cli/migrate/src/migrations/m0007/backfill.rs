@@ -67,7 +67,7 @@ pub fn backfill(
         .replace('"', "");
     let iso = filename_date_prefix(&stem);
     let author = "Unknown";
-    let anchored = fm_schema::row_for(linkage_type)
+    let anchored = fm_schema::row_for(linkage_type, "")
         .is_some_and(|row| row.code_state_anchored);
 
     let mut diagnostics = Vec::new();

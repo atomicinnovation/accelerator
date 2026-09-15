@@ -178,20 +178,43 @@ fn quoted_inner(element: &str) -> Option<&str> {
     }
 }
 
-/// Validates one file's structural conformance against its own declared
-/// `type:`.
+/// Classifies a `(type, kind)` pair that resolves to no schema row.
 ///
-/// Returns only `[Violation::InvalidType]` when the type is missing or
-/// unrecognised — matching bash's early return, no further check is even
-/// attempted.
+/// An unknown type (no row shares the `linkage_type`) is
+/// [`Violation::InvalidType`]; a known type carrying an unmatched `kind` with
+/// no `(type, "")` default is [`Violation::UnknownKind`], so a typo'd `kind`
+/// on a valid type is not misreported as an unknown type.
+fn unresolved_row_violation(declared: &str, kind: &str) -> Violation {
+    if schema::SCHEMA
+        .iter()
+        .any(|row| row.linkage_type == declared)
+    {
+        Violation::UnknownKind {
+            type_name: declared.to_owned(),
+            kind: kind.to_owned(),
+        }
+    } else {
+        Violation::InvalidType {
+            found: declared.to_owned(),
+        }
+    }
+}
+
+/// Validates one file's structural conformance against its own declared
+/// `(type, kind)`.
+///
+/// Returns only a single type/kind-resolution violation when the pair
+/// resolves to no schema row — matching bash's early return, no further check
+/// is even attempted.
 #[must_use]
 pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     let entries = parse_entries(raw_frontmatter);
     let declared = declared_type(&entries).unwrap_or_default();
-    let Some(row) = schema::row_for(declared) else {
-        return vec![Violation::InvalidType {
-            found: declared.to_owned(),
-        }];
+    let kind = raw_value(&entries, "kind")
+        .map(strip_surrounding_quote)
+        .unwrap_or_default();
+    let Some(row) = schema::row_for(declared, kind) else {
+        return vec![unresolved_row_violation(declared, kind)];
     };
 
     let mut violations = Vec::new();
@@ -470,7 +493,10 @@ pub fn dangling_refs(raw_frontmatter: &str, index: &Index) -> Vec<Violation> {
     let Some(declared) = declared_type(&entries) else {
         return Vec::new();
     };
-    let Some(row) = schema::row_for(declared) else {
+    let kind = raw_value(&entries, "kind")
+        .map(strip_surrounding_quote)
+        .unwrap_or_default();
+    let Some(row) = schema::row_for(declared, kind) else {
         return Vec::new();
     };
 

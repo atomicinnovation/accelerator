@@ -83,10 +83,19 @@ IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/github/review-pr/SKILL.md",
     "skills/planning/validate-plan/SKILL.md",
     "skills/notes/create-note/SKILL.md",
+    "skills/research/research-topic/SKILL.md",
 )
 NON_EMITTER_TEMPLATE_CONSUMERS: tuple[str, ...] = (
     "skills/work/update-work-item/SKILL.md",
     "skills/work/list-work-items/SKILL.md",
+)
+
+# Injected output contracts: static skills whose example scaffold carries an
+# emission marker (schema_version:), yet which never run to emit — an agent
+# reads them as an authoring contract. Surfaced by discovery, deliberately
+# excused.
+INJECTED_OUTPUT_CONTRACTS: tuple[str, ...] = (
+    "skills/research/outputters/finding-outputter/SKILL.md",
 )
 
 _DISCOVERY_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -316,7 +325,11 @@ def _discovered_skills(root: Path) -> set[str]:
 
 
 def _discovery_violations(root: Path) -> list[str]:
-    allowlist = set(IN_SCOPE_PRODUCERS) | set(NON_EMITTER_TEMPLATE_CONSUMERS)
+    allowlist = (
+        set(IN_SCOPE_PRODUCERS)
+        | set(NON_EMITTER_TEMPLATE_CONSUMERS)
+        | set(INJECTED_OUTPUT_CONTRACTS)
+    )
     unexpected = _discovered_skills(root) - allowlist
     return [
         f"{skill}: SKILL.md surfaced by discovery pass but not allowlisted"

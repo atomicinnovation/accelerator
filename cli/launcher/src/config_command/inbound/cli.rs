@@ -86,6 +86,7 @@ pub enum Action {
     },
     Template {
         name: String,
+        kind: Option<String>,
         on_failure: OnFailure,
     },
     TemplatesList {
@@ -214,8 +215,12 @@ fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             *on_failure,
             Degrade::Suppress,
         ),
-        Action::Template { name, on_failure } => finish(
-            resolve_template(stack, name),
+        Action::Template {
+            name,
+            kind,
+            on_failure,
+        } => finish(
+            resolve_template(stack, name, kind.as_deref()),
             *on_failure,
             Degrade::Notice(template_render::render_unavailable),
         ),
@@ -238,8 +243,9 @@ fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
 fn resolve_template(
     stack: &ConfigStack,
     name: &str,
+    kind: Option<&str>,
 ) -> Result<Rendered, Failure> {
-    template_view::resolve(stack.config(), stack.templates(), name)?
+    template_view::resolve(stack.config(), stack.templates(), name, kind)?
         .map_or_else(
             || Err(Failure::Refusal(not_found(stack, name))),
             |resolved| Ok(template_render::fenced(&resolved)),
@@ -250,7 +256,7 @@ fn resolve_templates_show(
     stack: &ConfigStack,
     name: &str,
 ) -> Result<Rendered, Failure> {
-    template_view::resolve(stack.config(), stack.templates(), name)?
+    template_view::resolve(stack.config(), stack.templates(), name, None)?
         .map_or_else(
             || Err(Failure::Refusal(not_found(stack, name))),
             |resolved| Ok(template_render::show(&resolved)),
@@ -579,8 +585,11 @@ fn run_diff(stack: &ConfigStack, name: &str) -> Result<(), kernel::Error> {
     let Some(default) = stack.templates().plugin_default(name)? else {
         return Err(kernel::Error::Failed(unknown_template(stack, name)));
     };
-    let user = template_view::resolve(stack.config(), stack.templates(), name)?
-        .filter(|resolved| resolved.source != TemplateSource::PluginDefault);
+    let user =
+        template_view::resolve(stack.config(), stack.templates(), name, None)?
+            .filter(|resolved| {
+                resolved.source != TemplateSource::PluginDefault
+            });
     let Some(user) = user else {
         return Err(kernel::Error::Refusal(format!(
             "No customised template found for '{name}' — using plugin default."
@@ -603,7 +612,7 @@ fn run_reset(
         return Err(kernel::Error::Failed(unknown_template(stack, name)));
     }
     let resolved =
-        template_view::resolve(stack.config(), stack.templates(), name)?
+        template_view::resolve(stack.config(), stack.templates(), name, None)?
             .filter(|resolved| {
                 resolved.source != TemplateSource::PluginDefault
             });

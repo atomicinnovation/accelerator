@@ -49,14 +49,18 @@ IN_SCOPE_PRODUCERS: tuple[str, ...] = (
     "skills/notes/create-note/SKILL.md",
     "skills/design/inventory-design/SKILL.md",
     "skills/design/analyse-design-gaps/SKILL.md",
+    "skills/research/research-topic/SKILL.md",
 )
 
 # Frontmatter-emitting skills that are deliberately out of scope: the PR skills
-# write no meta/ artefact, and list-work-items is read-only.
+# write no meta/ artefact, list-work-items is read-only, and the finding
+# outputter is an injected output contract whose scaffold carries an emission
+# marker but which never runs to emit.
 OUT_OF_SCOPE_EMITTERS: tuple[str, ...] = (
     "skills/github/describe-pr/SKILL.md",
     "skills/github/review-pr/SKILL.md",
     "skills/work/list-work-items/SKILL.md",
+    "skills/research/outputters/finding-outputter/SKILL.md",
 )
 
 _BASH_FENCE = re.compile(r"^[ \t]*```\s*(bash|sh|console)\b")

@@ -9939,7 +9939,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ------------------------------------------------------------------------------
-rustls-webpki 0.103.13
+rustls-webpki 0.103.15
 ------------------------------------------------------------------------------
 License: ISC
 Source: https://github.com/rustls/webpki
@@ -9965,7 +9965,7 @@ The files under third-party/chromium are licensed as described in
 third-party/chromium/LICENSE.
 
 ------------------------------------------------------------------------------
-rustls 0.23.41
+rustls 0.23.45
 ------------------------------------------------------------------------------
 License: MIT
 Source: https://github.com/rustls/rustls
