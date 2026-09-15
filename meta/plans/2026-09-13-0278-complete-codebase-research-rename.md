@@ -533,16 +533,21 @@ prefix).
 
 #### Manual Verification
 
-- [ ] `mise run migrate` applies `0010-strip-research-title-prefix`; a second run
-      reports no pending migrations.
-- [ ] ⚠️ After applying on the live repo the working tree is dirty (real corpus
+- [x] Applies `0010-strip-research-title-prefix`; a second run reports no
+      pending migrations. Run via the locally-built
+      `cli/target/debug/accelerator-migrate` (with `ACCELERATOR_PLUGIN_ROOT`
+      set as the launcher would) — there is no `mise run migrate` task, and the
+      released `accelerator migrate` binary predates m0010.
+- [x] ⚠️ After applying on the live repo the working tree is dirty (177 corpus
       files rewritten, including this plan's source research doc) — that is the
       migration working, not a preflight fault.
-- [ ] Review the full `jj diff meta/research/codebase/` before committing and
-      confirm only intended `Research: ` prefixes were stripped — the run is a
-      de-facto dry-run only because it is idempotent and VCS-reversible; do not
-      use `ACCELERATOR_MIGRATE_FORCE` for m0010.
-- [ ] `grep -rn 'title: "Research: ' meta/research/codebase/` returns nothing.
+- [x] Reviewed the full `jj diff meta/research/codebase/` before committing and
+      confirmed only intended `Research: ` prefixes were stripped (frontmatter
+      title + pre-first-`## ` H1); no `ACCELERATOR_MIGRATE_FORCE` used.
+- [x] `grep -rn 'title: "Research: ' meta/research/codebase/` matches only two
+      deliberate in-body template examples (0067 line 162; this plan's driving
+      doc); every frontmatter title is stripped, and `^# Research: ` returns
+      nothing.
 
 ---
 
@@ -687,8 +692,8 @@ are committed source, gated by `docs:check`.
 
 #### Manual Verification
 
-- [ ] Each affected skill's context block reads "Codebase research directory".
-- [ ] The visualiser and configuration docs list "codebase research" among doc
+- [x] Each affected skill's context block reads "Codebase research directory".
+- [x] The visualiser and configuration docs list "codebase research" among doc
       types; no bare "research" doc-type label remains in the touched lines.
 
 ---
