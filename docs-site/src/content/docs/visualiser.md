@@ -8,18 +8,18 @@ file with structured frontmatter (see [Internals](internals.md)), the
 directory is effectively a small database of your project's history —
 the visualiser is its reader. Three views cover the breadth of it:
 
-| View          | What it shows                                                              |
-|---------------|----------------------------------------------------------------------------|
-| **Library**   | Markdown reader for every doc type (plans, research, ADRs, work items …)   |
-| **Lifecycle** | Typed-linkage-clustered timelines grouping related documents across phases |
-| **Kanban**    | Work-item board driven by `status:` frontmatter; drag-and-drop to update   |
+| View          | What it shows                                                                     |
+|---------------|-----------------------------------------------------------------------------------|
+| **Library**   | Markdown reader for every doc type (plans, codebase research, ADRs, work items …) |
+| **Lifecycle** | Typed-linkage-clustered timelines grouping related documents across phases        |
+| **Kanban**    | Work-item board driven by `status:` frontmatter; drag-and-drop to update          |
 
 ## The three views
 
 ### Library
 
 The Library is a rendered-Markdown reader over every document type in
-`meta/` — plans, research, ADRs, work items, reviews, validations, PR
+`meta/` — plans, codebase research, ADRs, work items, reviews, validations, PR
 descriptions, and notes — organised in a sidebar by category. Each
 document's frontmatter is rendered as a structured header (status,
 dates, authorship, links to related documents), and code blocks,

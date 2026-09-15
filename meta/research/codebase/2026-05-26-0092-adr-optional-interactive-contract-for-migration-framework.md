@@ -10,14 +10,14 @@ last_updated: "2026-05-26T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-26-0092-adr-optional-interactive-contract-for-migration-framework"
-title: "Research: ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
+title: "ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework"
 schema_version: 1
 relates_to: ["work-item:0062", "adr:ADR-0023", "adr:ADR-0030", "adr:ADR-0031", "adr:ADR-0035", "adr:ADR-0033", "adr:ADR-0028", "adr:ADR-0034", "work-item:0057", "work-item:0068", "work-item:0069", "work-item:0070", "work-item:0092", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy"]
 supersedes: ["adr:ADR-0036", "adr:ADR-0026", "adr:ADR-0023"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
-# Research: ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework
+# ADR drafting context for 0092 — optional interactive contract amending ADR-0023's mechanical-by-default migration framework
 
 **Date**: 2026-05-26 14:58:00 BST
 **Author**: Toby Clemson

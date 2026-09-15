@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-23-0120-prevention-tests-agent-invocation-path"
-title: "Research: Prevention Tests for the Agent-Invocation Path (0120)"
+title: "Prevention Tests for the Agent-Invocation Path (0120)"
 date: "2026-06-23T00:15:59+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Prevention Tests for the Agent-Invocation Path (0120)
+# Prevention Tests for the Agent-Invocation Path (0120)
 
 **Date**: 2026-06-23 00:15 UTC
 **Author**: Toby Clemson

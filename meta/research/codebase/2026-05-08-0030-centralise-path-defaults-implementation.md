@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Corrected: workspaces/ is jj workspace checkouts, not source duplicates. There is only one config-dump.sh."
 type: "codebase-research"
 id: "2026-05-08-0030-centralise-path-defaults-implementation"
-title: "Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays"
+title: "Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays"
 schema_version: 1
 relates_to: ["plan:2026-04-25-rename-tickets-to-work-items", "adr:ADR-0023", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-template-and-path-customisation", "plan:2026-03-29-template-management-subcommands", "work-item:0024", "work-item:0025", "work-item:0027", "work-item:0029", "work-item:0031", "note:2026-04-26-agents-hardcode-default-directory-locations"]
 derived_from: ["plan:2026-04-25-rename-tickets-to-work-items", "work-item:0030"]
 ---
 
-# Research: Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays
+# Implementation of work item 0030 — centralise PATH and TEMPLATE config arrays
 
 **Date**: 2026-05-08 01:08 BST
 **Author**: Toby Clemson

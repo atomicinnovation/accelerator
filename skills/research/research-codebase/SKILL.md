@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Plans directory**: !`accelerator config path plans --fail-safe`
 **Decisions directory**: !`accelerator config path decisions --fail-safe`
 
@@ -134,7 +134,7 @@ The key is to use these agents intelligently:
   - `type:` ← `codebase-research`
   - `id:` ← the filename stem (the file path computed above without
     `.md`), always quoted as a YAML string
-  - `title:` ← `Research: {User's Question/Topic}`
+  - `title:` ← `{User's Question/Topic}`
   - `date:` ← the `Current Date/Time (UTC):` value
   - `author:` ← the author resolved per the standard chain
     (config → VCS user → prompt)

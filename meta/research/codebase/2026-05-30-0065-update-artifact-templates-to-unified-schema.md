@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 work_item_id: "0065"
 type: "codebase-research"
 id: "2026-05-30-0065-update-artifact-templates-to-unified-schema"
-title: "Research: Update All Artifact Templates to Unified Schema (Work Item 0065)"
+title: "Update All Artifact Templates to Unified Schema (Work Item 0065)"
 schema_version: 1
 relates_to: ["adr:ADR-0028", "adr:ADR-0033", "work-item:0021", "work-item:0022", "work-item:0023", "work-item:0057", "work-item:0060", "work-item:0061", "adr:ADR-0034", "work-item:0063", "work-item:0064", "work-item:0066", "work-item:0070", "work-item:0065"]
 derived_from: ["codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation"]
 ---
 
-# Research: Update All Artifact Templates to Unified Schema (Work Item 0065)
+# Update All Artifact Templates to Unified Schema (Work Item 0065)
 
 **Date**: 2026-05-30 01:11 BST
 **Author**: Toby Clemson

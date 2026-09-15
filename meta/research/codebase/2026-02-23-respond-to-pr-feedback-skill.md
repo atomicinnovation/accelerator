@@ -10,11 +10,11 @@ last_updated: "2026-02-23T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-02-23-respond-to-pr-feedback-skill"
-title: "Research: New Skill for Responding to Pull Request Feedback"
+title: "New Skill for Responding to Pull Request Feedback"
 schema_version: 1
 ---
 
-# Research: New Skill for Responding to Pull Request Feedback
+# New Skill for Responding to Pull Request Feedback
 
 **Date**: 2026-02-23T01:30:00+00:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-09-0095-markdown-checkboxes-always-dark-mode-styled"
-title: "Research: Theme-Reactive Markdown Task-List Checkboxes (0095)"
+title: "Theme-Reactive Markdown Task-List Checkboxes (0095)"
 date: "2026-06-08T23:31:30+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Theme-Reactive Markdown Task-List Checkboxes (0095)
+# Theme-Reactive Markdown Task-List Checkboxes (0095)
 
 **Date**: 2026-06-08T23:31:30+00:00 (UTC)
 **Author**: Toby Clemson

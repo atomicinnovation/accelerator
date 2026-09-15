@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Resolved all seven open questions via Q1-Q7 review."
 type: "codebase-research"
 id: "2026-05-05-0031-consolidate-accelerator-owned-files"
-title: "Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)"
+title: "Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)"
 schema_version: 1
 relates_to: ["adr:ADR-0016", "adr:ADR-0017", "adr:ADR-0019", "adr:ADR-0020", "adr:ADR-0023", "note:2026-04-29-accelerator-config-state-reorg", "codebase-research:2026-04-29-jira-cloud-integration-skills", "adr:ADR-0018"]
 derived_from: ["codebase-research:2026-04-29-jira-cloud-integration-skills", "note:2026-04-29-accelerator-config-state-reorg"]
 ---
 
-# Research: Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)
+# Consolidating Accelerator-Owned Files Under `.accelerator/` (Work Item 0031)
 
 **Date**: 2026-05-05 00:46:40 BST
 **Author**: Toby Clemson

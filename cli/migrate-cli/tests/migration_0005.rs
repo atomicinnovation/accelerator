@@ -33,7 +33,8 @@ fn already_applied(dir: &std::path::Path) -> Result<(), TestError> {
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )
 }
 
@@ -247,7 +248,8 @@ fn a_second_run_against_the_now_migrated_tree_is_byte_identical(
          0006-canonicalise-work-item-id-and-author\n\
          0007-unify-meta-corpus-frontmatter\n\
          0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n",
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
     )?;
 
     let output = Command::new(BIN).current_dir(root).output()?;

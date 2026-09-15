@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-02-0090-radius-tokens-consumption"
-title: "Research: Radius Tokens Consumption (0090) — current-app radius inventory and migration context"
+title: "Radius Tokens Consumption (0090) — current-app radius inventory and migration context"
 date: "2026-06-02T15:45:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ relates_to: ["work-item:0075", "plan:2026-05-23-0075-typography-size-scale-consu
 derived_from: ["codebase-research:2026-05-23-0075-typography-size-scale-consumption"]
 ---
 
-# Research: Radius Tokens Consumption (0090)
+# Radius Tokens Consumption (0090)
 
 **Date**: 2026-06-02T15:45:49+00:00
 **Author**: Toby Clemson

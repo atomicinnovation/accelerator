@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-19-0167-config-command-and-invocation-contract-migration"
-title: "Research: Built-in config Command and Invocation-Contract Migration (0167)"
+title: "Built-in config Command and Invocation-Contract Migration (0167)"
 date: "2026-07-19T17:39:37+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Built-in config Command and Invocation-Contract Migration (0167)
+# Built-in config Command and Invocation-Contract Migration (0167)
 
 **Date**: 2026-07-19 17:39 UTC
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-06-0100-configurable-visualiser-auto-shutdown"
-title: "Research: Configurable Visualiser Auto-Shutdown"
+title: "Configurable Visualiser Auto-Shutdown"
 date: "2026-06-06T13:06:49+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ relates_to: ["work-item:0055", "codebase-research:2026-05-13-0055-sidebar-activi
 derived_from: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "codebase-research:2026-06-04-changelog-1.21.0-cleanup"]
 ---
 
-# Research: Configurable Visualiser Auto-Shutdown
+# Configurable Visualiser Auto-Shutdown
 
 **Date**: 2026-06-06T13:06:49+00:00
 **Author**: Toby Clemson

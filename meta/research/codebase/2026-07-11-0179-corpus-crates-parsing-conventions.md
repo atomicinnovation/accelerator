@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-11-0179-corpus-crates-parsing-conventions"
-title: "Research: corpus and corpus-adapters Crates for Parsing and Conventions"
+title: "corpus and corpus-adapters Crates for Parsing and Conventions"
 date: "2026-07-11T11:27:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: corpus and corpus-adapters Crates for Parsing and Conventions
+# corpus and corpus-adapters Crates for Parsing and Conventions
 
 **Date**: 2026-07-11 11:27 UTC
 **Author**: Toby Clemson

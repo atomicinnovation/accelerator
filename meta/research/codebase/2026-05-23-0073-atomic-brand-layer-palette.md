@@ -10,13 +10,13 @@ last_updated: "2026-05-23T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-23-0073-atomic-brand-layer-palette"
-title: "Research: 0073 Atomic Brand-Layer Palette — implementation surface"
+title: "0073 Atomic Brand-Layer Palette — implementation surface"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["adr:ADR-0026", "work-item:0033", "work-item:0076", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
-# Research: 0073 Atomic Brand-Layer Palette — implementation surface
+# 0073 Atomic Brand-Layer Palette — implementation surface
 
 **Date**: 2026-05-23T15:00:31+01:00
 **Researcher**: Toby Clemson

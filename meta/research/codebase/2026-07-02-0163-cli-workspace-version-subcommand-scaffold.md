@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-02-0163-cli-workspace-version-subcommand-scaffold"
-title: "Research: Scaffolding the cli/ Hexagonal Workspace with a version Subcommand (0163)"
+title: "Scaffolding the cli/ Hexagonal Workspace with a version Subcommand (0163)"
 date: "2026-07-02T22:44:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Scaffolding the cli/ Hexagonal Workspace with a version Subcommand (0163)
+# Scaffolding the cli/ Hexagonal Workspace with a version Subcommand (0163)
 
 **Date**: 2026-07-02T22:44:46+00:00
 **Author**: Toby Clemson

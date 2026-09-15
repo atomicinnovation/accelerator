@@ -10,11 +10,11 @@ last_updated: "2026-05-05T00:00:00+00:00"
 last_updated_by: "jonassvalin"
 type: "codebase-research"
 id: "2026-05-05-debug-issue-skill-design"
-title: "Research: Design for a Dedicated Debug-Issue Skill"
+title: "Design for a Dedicated Debug-Issue Skill"
 schema_version: 1
 ---
 
-# Research: Design for a Dedicated Debug-Issue Skill
+# Design for a Dedicated Debug-Issue Skill
 
 **Date**: 2026-05-05 16:16:48 CEST
 **Author**: jonassvalin

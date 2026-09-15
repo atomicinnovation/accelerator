@@ -10,11 +10,11 @@ last_updated: "2026-03-15T00:00:00+00:00"
 last_updated_by: "accelerator"
 type: "codebase-research"
 id: "2026-03-15-context-management-approaches"
-title: "Research: Context Management Approaches for Claude Code"
+title: "Context Management Approaches for Claude Code"
 schema_version: 1
 ---
 
-# Research: Context Management Approaches for Claude Code
+# Context Management Approaches for Claude Code
 
 **Date**: 2026-03-15 14:39:41 GMT
 **Author**: accelerator

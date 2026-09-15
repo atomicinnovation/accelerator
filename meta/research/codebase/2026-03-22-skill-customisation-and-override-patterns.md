@@ -10,12 +10,12 @@ last_updated: "2026-03-22T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-22-skill-customisation-and-override-patterns"
-title: "Research: Skill Customisation and Override Patterns for Claude Code Plugins"
+title: "Skill Customisation and Override Patterns for Claude Code Plugins"
 schema_version: 1
 derived_from: ["codebase-research:2026-03-14-plugin-extraction"]
 ---
 
-# Research: Skill Customisation and Override Patterns for Claude Code Plugins
+# Skill Customisation and Override Patterns for Claude Code Plugins
 
 **Date**: 2026-03-22T21:09:57+0000
 **Author**: Toby Clemson

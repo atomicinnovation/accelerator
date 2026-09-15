@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-28-0136-rust-cli-migration-scope-and-architecture"
-title: "Research: Full migration scope and CLI architecture for the shell-to-Rust migration (epic 0136)"
+title: "Full migration scope and CLI architecture for the shell-to-Rust migration (epic 0136)"
 date: "2026-06-28T13:21:27+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added Luminosity backlog mapping; resolved all eight open qu
 schema_version: 1
 ---
 
-# Research: Full migration scope and CLI architecture for the shell-to-Rust migration (epic 0136)
+# Full migration scope and CLI architecture for the shell-to-Rust migration (epic 0136)
 
 **Date**: 2026-06-28T13:21:27+00:00 (UTC)
 **Author**: Toby Clemson

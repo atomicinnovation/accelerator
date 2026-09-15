@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Added Decisions section recording approach for both issues and the Playwright runtime install mechanism."
 type: "codebase-research"
 id: "2026-05-06-design-skill-localhost-and-mcp-issues"
-title: "Research: inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination"
+title: "inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination"
 schema_version: 1
 relates_to: ["codebase-research:2026-05-02-design-convergence-workflow", "plan:2026-05-03-design-convergence-workflow"]
 derived_from: ["codebase-research:2026-05-02-design-convergence-workflow"]
 ---
 
-# Research: inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination
+# inventory-design UAT issues — http://localhost rejection and Playwright MCP sub-agent hallucination
 
 **Date**: 2026-05-06T14:41:55+01:00
 **Author**: Toby Clemson

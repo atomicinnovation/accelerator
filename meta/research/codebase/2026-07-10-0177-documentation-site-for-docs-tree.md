@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-10-0177-documentation-site-for-docs-tree"
-title: "Research: Documentation site for the docs/ tree (0177)"
+title: "Documentation site for the docs/ tree (0177)"
 date: "2026-07-10T13:16:28+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# Research: Documentation site for the docs/ tree (0177)
+# Documentation site for the docs/ tree (0177)
 
 **Date**: 2026-07-10T13:16:28+00:00
 **Author**: Phil Helm

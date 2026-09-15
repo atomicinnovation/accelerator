@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-31-0272-relocate-insecure-local-override-marker"
-title: "Research: Relocate insecure-local override marker to .accelerator"
+title: "Relocate insecure-local override marker to .accelerator"
 date: "2026-08-31T20:33:45+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Relocate insecure-local override marker to .accelerator
+# Relocate insecure-local override marker to .accelerator
 
 **Date**: 2026-08-31T20:33:45+00:00 (UTC)
 **Author**: Toby Clemson

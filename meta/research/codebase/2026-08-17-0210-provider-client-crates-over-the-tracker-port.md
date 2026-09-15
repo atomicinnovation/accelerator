@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-17-0210-provider-client-crates-over-the-tracker-port"
-title: "Research: Provider Client Crates over the RemoteTracker Port (0210), including build-vs-buy"
+title: "Provider Client Crates over the RemoteTracker Port (0210), including build-vs-buy"
 date: "2026-08-17T14:02:30+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Provider Client Crates over the RemoteTracker Port (0210)
+# Provider Client Crates over the RemoteTracker Port (0210)
 
 **Date**: 2026-08-17 14:02 UTC
 **Author**: Toby Clemson

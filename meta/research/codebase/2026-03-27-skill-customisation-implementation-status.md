@@ -10,13 +10,13 @@ last_updated: "2026-03-27T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-27-skill-customisation-implementation-status"
-title: "Research: Skill Customisation Implementation Status and Remaining Improvements"
+title: "Skill Customisation Implementation Status and Remaining Improvements"
 schema_version: 1
 relates_to: ["codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-15-context-management-approaches", "plan:2026-03-23-config-infrastructure", "plan:2026-03-23-context-and-agent-customisation", "plan:2026-03-23-review-system-customisation", "plan:2026-03-23-template-and-path-customisation", "plan:2026-03-14-plugin-extraction"]
 derived_from: ["codebase-research:2026-03-22-skill-customisation-and-override-patterns", "codebase-research:2026-03-14-plugin-extraction"]
 ---
 
-# Research: Skill Customisation Implementation Status and Remaining Improvements
+# Skill Customisation Implementation Status and Remaining Improvements
 
 **Date**: 2026-03-27T22:15:25+0000
 **Author**: Toby Clemson

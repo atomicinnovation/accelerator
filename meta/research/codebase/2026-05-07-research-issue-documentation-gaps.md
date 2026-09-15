@@ -10,12 +10,12 @@ last_updated: "2026-05-07T00:00:00+00:00"
 last_updated_by: "jonassvalin"
 type: "codebase-research"
 id: "2026-05-07-research-issue-documentation-gaps"
-title: "Research: Documentation and Registration Gaps for research-issue Skill"
+title: "Documentation and Registration Gaps for research-issue Skill"
 schema_version: 1
 derived_from: ["plan:2026-05-05-research-issue-skill", "codebase-research:2026-05-05-debug-issue-skill-design"]
 ---
 
-# Research: Documentation and Registration Gaps for research-issue Skill
+# Documentation and Registration Gaps for research-issue Skill
 
 **Date**: 2026-05-07T18:10:33+02:00
 **Author**: jonassvalin

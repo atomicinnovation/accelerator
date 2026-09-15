@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-02-0094-inline-code-styling-in-meta-artifact-markdown"
-title: "Research: Inline code styling in meta artifact markdown (0094)"
+title: "Inline code styling in meta artifact markdown (0094)"
 date: "2026-06-02T14:30:26+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ relates_to: ["work-item:0095", "work-item:0076", "work-item:0088", "work-item:00
 derived_from: ["codebase-research:2026-05-21-0076-code-block-syntax-highlight-palette", "codebase-research:2026-05-26-0088-markdown-body-width-harmonisation", "codebase-research:2026-05-23-0075-typography-size-scale-consumption", "design-gap:2026-05-21-current-app-vs-claude-design-prototype"]
 ---
 
-# Research: Inline code styling in meta artifact markdown (0094)
+# Inline code styling in meta artifact markdown (0094)
 
 **Date**: 2026-06-02T14:30:26+00:00 (UTC)
 **Author**: Toby Clemson

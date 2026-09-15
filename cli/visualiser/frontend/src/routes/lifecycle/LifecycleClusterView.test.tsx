@@ -152,7 +152,7 @@ describe("LifecycleClusterContent", () => {
     render(<LifecycleClusterContent slug="foo" />, { wrapper: Wrapper });
     expect(await screen.findByText("The Foo Plan")).toBeInTheDocument();
     expect(screen.getByText(/^No work item yet$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^No research yet$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^No codebase research yet$/i)).toBeInTheDocument();
     expect(screen.getByText(/^No plan review yet$/i)).toBeInTheDocument();
     expect(screen.getByText(/^No validation yet$/i)).toBeInTheDocument();
     expect(screen.getByText(/^No pr descriptions yet$/i)).toBeInTheDocument();

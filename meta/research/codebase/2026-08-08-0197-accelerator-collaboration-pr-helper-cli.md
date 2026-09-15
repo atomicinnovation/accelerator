@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-08-0197-accelerator-collaboration-pr-helper-cli"
-title: "Research: Implementation surface for work-item 0197 (accelerator-collaboration PR Helper CLI)"
+title: "Implementation surface for work-item 0197 (accelerator-collaboration PR Helper CLI)"
 date: "2026-08-08T15:50:29+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -16,7 +16,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation surface for work-item 0197 (accelerator-collaboration PR Helper CLI)
+# Implementation surface for work-item 0197 (accelerator-collaboration PR Helper CLI)
 
 **Date**: 2026-08-08T15:50:29+00:00
 **Author**: Toby Clemson

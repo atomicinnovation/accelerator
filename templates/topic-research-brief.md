@@ -1,7 +1,7 @@
 ---
 type: "topic-research"                       # artifact-type discriminator
 id: "{filename-stem}"                         # filename without .md
-title: "Brief: {Subject}"
+title: "{Subject}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: "research-topic"
@@ -17,7 +17,7 @@ last_updated_by: "{author from VCS}"
 schema_version: 1
 ---
 
-# Brief: [Subject]
+# [Subject]
 
 ## Subject
 [The subject under research, in one or two sentences.]

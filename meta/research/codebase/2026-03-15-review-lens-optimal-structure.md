@@ -10,13 +10,13 @@ last_updated: "2026-03-15T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-15-review-lens-optimal-structure"
-title: "Research: Optimal Structure for Review Lenses"
+title: "Optimal Structure for Review Lenses"
 schema_version: 1
 relates_to: ["codebase-research:2026-02-22-review-lens-gap-analysis", "plan:2026-02-23-performance-lens-and-resilience-extension"]
 derived_from: ["codebase-research:2026-02-22-pr-review-agents-design", "codebase-research:2026-02-22-review-plan-pr-alignment", "codebase-research:2026-02-22-review-lens-gap-analysis"]
 ---
 
-# Research: Optimal Structure for Review Lenses
+# Optimal Structure for Review Lenses
 
 **Date**: 2026-03-15T15:46:31+00:00
 **Author**: Toby Clemson

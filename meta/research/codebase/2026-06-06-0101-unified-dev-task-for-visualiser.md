@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-06-0101-unified-dev-task-for-visualiser"
-title: "Research: Unified Managed dev Task for Visualiser Server and Frontend (0101)"
+title: "Unified Managed dev Task for Visualiser Server and Frontend (0101)"
 date: "2026-06-06T17:34:38+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ schema_version: 1
 derived_from: ["codebase-research:2026-06-06-0100-configurable-visualiser-auto-shutdown", "codebase-research:2026-05-18-0072-playwright-daemon-cjs-import-bug", "codebase-research:2026-05-19-inventory-design-and-browser-agent-fixes"]
 ---
 
-# Research: Unified Managed dev Task for Visualiser Server and Frontend (0101)
+# Unified Managed dev Task for Visualiser Server and Frontend (0101)
 
 **Date**: 2026-06-06T17:34:38+00:00 (UTC)
 **Author**: Toby Clemson

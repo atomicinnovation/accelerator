@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-14-0048-linear-integration-apis"
-title: "Research: Linear Integration — Jira patterns to mirror and a deep understanding of the Linear GraphQL API"
+title: "Linear Integration — Jira patterns to mirror and a deep understanding of the Linear GraphQL API"
 date: "2026-06-14T21:19:22+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Linear Integration — Jira patterns to mirror and a deep understanding of the Linear GraphQL API
+# Linear Integration — Jira patterns to mirror and a deep understanding of the Linear GraphQL API
 
 **Date**: 2026-06-14T21:19:22+00:00 (UTC)
 **Author**: Toby Clemson

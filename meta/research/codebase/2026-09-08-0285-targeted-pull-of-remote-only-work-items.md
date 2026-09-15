@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-08-0285-targeted-pull-of-remote-only-work-items"
-title: "Research: Targeted Pull of Remote-Only Work Items and Resolution Normalisation"
+title: "Targeted Pull of Remote-Only Work Items and Resolution Normalisation"
 date: "2026-09-08T19:37:42+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Targeted Pull of Remote-Only Work Items and Resolution Normalisation
+# Targeted Pull of Remote-Only Work Items and Resolution Normalisation
 
 **Date**: 2026-09-08 19:37 UTC
 **Author**: Toby Clemson

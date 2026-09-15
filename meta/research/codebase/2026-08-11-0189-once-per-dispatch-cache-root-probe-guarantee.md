@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-11-0189-once-per-dispatch-cache-root-probe-guarantee"
-title: "Research: Implementation surface for 0189's at-most-once cache-root probe guarantee"
+title: "Implementation surface for 0189's at-most-once cache-root probe guarantee"
 date: "2026-08-11T15:44:00+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation surface for 0189's at-most-once cache-root probe guarantee
+# Implementation surface for 0189's at-most-once cache-root probe guarantee
 
 **Date**: 2026-08-11 15:44 UTC
 **Author**: Toby Clemson

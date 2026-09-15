@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-13-docs-site-visualiser-design-alignment"
-title: "Research: Can the docs website align with the visualiser design system?"
+title: "Can the docs website align with the visualiser design system?"
 date: "2026-07-13T08:32:46+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -16,7 +16,7 @@ last_updated_note: "Resolved all open questions with user decisions"
 schema_version: 1
 ---
 
-# Research: Can the docs website align with the visualiser design system?
+# Can the docs website align with the visualiser design system?
 
 **Date**: 2026-07-13T08:32:46+00:00
 **Author**: Phil Helm

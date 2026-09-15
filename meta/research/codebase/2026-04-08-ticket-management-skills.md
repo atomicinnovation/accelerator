@@ -10,12 +10,12 @@ last_updated: "2026-04-08T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-04-08-ticket-management-skills"
-title: "Research: Product Management and Requirements Gathering Skills"
+title: "Product Management and Requirements Gathering Skills"
 schema_version: 1
 relates_to: ["adr:ADR-0001"]
 ---
 
-# Research: Product Management and Requirements Gathering Skills
+# Product Management and Requirements Gathering Skills
 
 **Date**: 2026-04-08T01:21:36+01:00
 **Author**: Toby Clemson
