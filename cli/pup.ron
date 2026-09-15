@@ -418,7 +418,11 @@
         )),
         // The whole design crate is domain (no adapter modules live in it).
         // The compiled cue-phrase regex and every filesystem, environment and
-        // process read live in design-adapters, injected through ports.
+        // process read live in design-adapters, injected through ports. It
+        // additionally permits base64 and percent-encoding for the leaked-
+        // credential scanner's encoding derivation: both are zero-dependency,
+        // pure, no-I/O crates, so neither edge drags a transitive graph into
+        // the domain, the same widening work makes for corpus and tracker.
         Module((
             name: "design_domain_imports_only_permitted",
             matches: Module("^design($|::)"),
@@ -428,6 +432,8 @@
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
                         "^crate(::|$)",
+                        "^base64(::|$)",
+                        "^percent_encoding(::|$)",
                     ]),
                     denied: None,
                     severity: Error,

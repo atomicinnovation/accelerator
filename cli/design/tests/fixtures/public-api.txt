@@ -496,6 +496,7 @@ pub fn design::leaked_credentials::NamedSecret::eq(&self, other: &design::leaked
 impl core::fmt::Debug for design::leaked_credentials::NamedSecret
 pub fn design::leaked_credentials::NamedSecret::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::leaked_credentials::NamedSecret
+pub fn design::leaked_credentials::leak_is_literal(body: &str, secret: &design::leaked_credentials::NamedSecret) -> bool
 pub fn design::leaked_credentials::scan(body: &str, secrets: &[design::leaked_credentials::NamedSecret]) -> alloc::vec::Vec<alloc::string::String>
 pub mod design::runtime
 pub mod design::runtime::availability

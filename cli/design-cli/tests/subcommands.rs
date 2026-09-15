@@ -382,6 +382,92 @@ fn the_value_half_of_a_header_pair_is_caught() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn a_base64_encoded_value_is_caught_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the header carried aHVudGVyMl91bmlx somewhere.\n",
+    )?;
+    let output = run(&["scrub-secrets", &file], &[(PASSWORD, "hunter2_uniq")]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2_uniq"));
+    assert!(!message.contains("aHVudGVyMl91bmlx"));
+    Ok(())
+}
+
+#[test]
+fn a_reflowed_value_is_caught_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the token was hunter2\n_uniq in the log\n",
+    )?;
+    let output = run(&["scrub-secrets", &file], &[(PASSWORD, "hunter2_uniq")]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2_uniq"));
+    Ok(())
+}
+
+#[test]
+fn a_truncated_head_is_caught_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the token began hunter2-pass here\n",
+    )?;
+    let output = run(
+        &["scrub-secrets", &file],
+        &[(PASSWORD, "hunter2-password-x")],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2-password-x"));
+    Ok(())
+}
+
+#[test]
+fn a_colon_bearing_head_is_accepted_end_to_end() -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "clean.md",
+        "the header field Authorizatio was set\n",
+    )?;
+    let output = run(
+        &["scrub-secrets", &file],
+        &[(HEADER, "Authorization: Bearer secrettoken")],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    Ok(())
+}
+
+#[test]
+fn an_encoded_leak_reports_a_transcribed_shape_end_to_end(
+) -> Result<(), TestError> {
+    let work = tempfile::tempdir()?;
+    let file = write(
+        work.path(),
+        "leaky.md",
+        "the header carried aHVudGVyMl91bmlx here\n",
+    )?;
+    let output = run(&["scrub-secrets", &file], &[(PASSWORD, "hunter2_uniq")]);
+    assert_eq!(output.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(message.contains("transcribed"));
+    assert!(message.contains(PASSWORD));
+    assert!(!message.contains("hunter2_uniq"));
+    Ok(())
+}
+
 /// The argument cannot be interpreted as a file to scan, so exit 2 rather than
 /// the 1 a scanned-and-rejected body earns.
 #[test]
