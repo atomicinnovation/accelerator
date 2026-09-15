@@ -2011,7 +2011,7 @@ mod tests {
 
     #[tokio::test]
     async fn topic_research_indexes_one_entry_per_set_from_its_manifest() {
-        // Point at the committed topic-research fixtures: three real sets, one
+        // Point at the committed topic-research fixtures: four real sets, one
         // manifest-less directory, and one dot-prefixed in-flight directory,
         // plus sub-documents (findings/, reports/) under the first set.
         let topics_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -2031,7 +2031,7 @@ mod tests {
 
         // One entry per real set — not per sub-document, and not the skipped
         // directories.
-        assert_eq!(entries.len(), 3, "one entry per set");
+        assert_eq!(entries.len(), 4, "one entry per set");
 
         let titles: Vec<&str> =
             entries.iter().map(|e| e.title.as_str()).collect();
@@ -2039,6 +2039,10 @@ mod tests {
         assert!(titles.contains(&"Prompt caching economics"), "{titles:?}");
         assert!(titles.contains(&"MCP Transport Layer"), "{titles:?}");
         assert!(titles.contains(&"Model Context Protocol"), "{titles:?}");
+        assert!(
+            titles.contains(&"AC2 Coverage (topic research)"),
+            "{titles:?}"
+        );
 
         // Sub-documents are never separately indexed.
         assert!(
@@ -2061,6 +2065,7 @@ mod tests {
         assert!(slugs.iter().any(|s| s == "prompt-caching-economics"));
         assert!(slugs.iter().any(|s| s == "mcp-transport-layer"));
         assert!(slugs.iter().any(|s| s == "model-context-protocol"));
+        assert!(slugs.iter().any(|s| s == "ac2-coverage"));
         for entry in &entries {
             assert!(
                 entry.rel_path.ends_with("manifest.md"),

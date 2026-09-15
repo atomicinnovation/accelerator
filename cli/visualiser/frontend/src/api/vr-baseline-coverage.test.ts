@@ -18,12 +18,13 @@ const SIZES = [16, 24, 32, 48] as const;
 const THEMES = ["light", "dark"] as const;
 
 // Doc types whose baselines are not yet committed because they render only in
-// the pinned Docker/Linux VR harness. `topic-research` landed its glyph and
-// big-glyph showcases here; its 10 baselines are generated and committed by
-// `mise run test:e2e:visualiser:docker:update`. Once committed, the
-// exact-match assertions below fail (extra files) until the key is removed
-// from this set — a self-cleaning reminder.
-const PENDING_VR_BASELINES = new Set<string>(["topic-research"]);
+// the pinned Docker/Linux VR harness. Empty now that `topic-research`'s 10
+// glyph and big-glyph baselines are generated and committed via
+// `mise run test:e2e:visualiser:docker:update`. A future harness-only type is
+// listed here and removed once its baselines land — a self-cleaning reminder,
+// since the exact-match assertions below reject uncommitted-but-expected or
+// committed-but-pending files.
+const PENDING_VR_BASELINES = new Set<string>([]);
 const COVERED_KEYS = DOC_TYPE_KEYS.filter(
   (key) => !PENDING_VR_BASELINES.has(key),
 );

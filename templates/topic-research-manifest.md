@@ -13,7 +13,7 @@ finding_count: 0
 primary: "brief.md"                           # the set's current lead document
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                    # typed-linkage ref: "work-item:NNNN" or ""
-relates_to: []                                # typed-linkage list: ["topic-research:<slug>", ...] or []
+relates_to: []                                # typed-linkage list: ["topic-research:NNNN", ...] or []
 tags: ["research", "topic-research", "manifest"]
 last_updated: "{ISO timestamp}"
 last_updated_by: "{author from VCS}"
