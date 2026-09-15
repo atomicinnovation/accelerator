@@ -5,7 +5,7 @@ title: "Topic-Research Visualiser Doc Type and Indexer"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "in-progress"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
@@ -13,7 +13,7 @@ blocks: ["work-item:0279", "work-item:0280", "work-item:0281", "work-item:0284"]
 relates_to: ["work-item:0277"]
 external_id: "PP-862"
 tags: ["research", "visualiser", "infrastructure"]
-last_updated: "2026-09-10T20:48:55+00:00"
+last_updated: "2026-09-15T13:54:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -536,6 +536,26 @@ prototype. Output the updated prototype.
   key-derived CSS tokens, the pipeline `completeness.present` vocabulary (in
   lockstep across `cluster.rs`, `clusters.rs`, and `pipeline-step-parity.test.ts`),
   the 10 renamed VR baselines, and a `localStorage` last-seen rewrite.
+- Validated on 2026-09-15. Two plans deliver this story and were validated
+  together (both `partial`):
+  `meta/validations/2026-09-10-0278-topic-research-visualiser-doc-type-validation.md`
+  (doc-type registration, wire-key rename, status collapse) and
+  `meta/validations/2026-09-13-0278-complete-codebase-research-rename-validation.md`
+  (the display-copy/title-prefix/`m0010` rename completion). All three phases of
+  the first and all five of the second are implemented and merged; the Rust,
+  server, and frontend read-only checks pass, `m0010` is applied to the corpus,
+  and the 10 `research-*` VR baselines are renamed `codebase-research-*`. Status
+  moved `ready → in-progress`. Acceptance is not yet closed: the 10
+  `topic-research-*` Docker VR baselines are not generated (no Docker/colima
+  here), the native `fixture-coverage.spec.ts` is not run, and the design and
+  status-chip human sign-offs are outstanding — so the AC boxes are left
+  unticked. `mise run test` is red on the pre-existing `work-item:0286`
+  DUPLICATE-ID and the two 0277 co-land test regressions (one of which — the
+  stale `resolve_goldens` exit-4 case — is flipped by this story's registration
+  of `topic-research`); `mise run check` is red only on the orthogonal
+  `RUSTSEC-2026-0285` `rustls` advisory. The 0277 AC `research_status → status`
+  reconciliation this story mandated is done on 0277; the 0279 and epic-0121
+  reconciliations remain.
 
 ## References
 

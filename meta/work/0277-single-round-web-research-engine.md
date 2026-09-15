@@ -5,14 +5,14 @@ title: "Single-Round Web Research Engine"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "in-progress"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
 blocks: ["work-item:0278", "work-item:0279", "work-item:0280", "work-item:0281"]
 relates_to: ["work-item:0278"]
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-09T07:51:08+00:00"
+last_updated: "2026-09-15T13:54:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-861"
@@ -85,22 +85,24 @@ browsable. This engine is built on the reusable-infrastructure seam: a generic
 
 - [ ] Given a subject, `brief` interactively scopes it and produces
       `manifest.md` + `brief.md` conforming to the artifact contract, with
-      `research_status: briefed`, `primary` pointing at `brief.md`, and
-      `brief.md` declaring `source_profiles: ["web"]`.
+      the manifest's base `status: briefed`, `primary` pointing at `brief.md`,
+      and `brief.md` declaring `source_profiles: ["web"]`.
 - [ ] Given a slug, `outline` writes `outline.md` — a `## Round 1`
       checklist of focus areas whose count is at or beneath `breadth` (the
       effort-scaling rubric guides how far beneath, but the ceiling is the
-      pass/fail) — and sets `research_status: outlined`; the user may hand-edit it.
+      pass/fail) — and sets the manifest's base `status: outlined`; the user may
+      hand-edit it.
 - [ ] Given a slug, `conduct` runs one round over the outline's focus areas
       (in this single-round slice every focus area is outstanding, so no
       gap-detection is implied — that is 0279), writes one immutable finding per
       focus area into `findings/`, flips the corresponding checkboxes, and sets
-      `research_status: researching`, `round_count: 1`, and `finding_count` equal
-      to the number of focus areas researched. Each finding carries
+      the manifest's base `status: researching`, `round_count: 1`, and
+      `finding_count` equal to the number of focus areas researched. Each finding
+      carries
       `kind: finding`, `round`, `question` (its focus area's question),
       and `source_profile: web`.
 - [ ] Given a slug, `synthesise` writes `synthesis.md` from the findings,
-      sets `research_status: synthesised`, and flips `primary` to
+      sets the manifest's base `status: synthesised`, and flips `primary` to
       `synthesis.md`.
 - [ ] For a non-`brief` verb, `corpus resolve --type topic-research` accepts a
       slug (or the set directory, or a sub-document path) and resolves each to the
@@ -215,13 +217,16 @@ browsable. This engine is built on the reusable-infrastructure seam: a generic
   mirroring `skills/review/lenses/`.
 - The skill writes a set into a temp dir and renames it in, because the indexer's
   lister skips dot-prefixed dirs and must never see a half-written set.
-- Base `status` is per-document and distinct from the set-level
-  `research_status`; never infer set progress from `manifest.md`'s base
-  `status`. For the shapes this slice writes: findings are `complete` from first
-  write (immutable, never `draft`); `synthesis.md` is `complete` once written;
-  `outline.md` is `complete` once it exists (progress lives in its checkboxes);
-  `brief.md` is `draft` during interactive scoping and `complete` once authored;
-  `manifest.md` is `complete` once the file exists.
+- The manifest's base `status` carries the set-level lifecycle
+  (`briefed → outlined → researching → synthesised`; `complete` is added by
+  0279's `finalise`). The separate `research_status` field the epic originally
+  proposed was collapsed onto base `status` at the 0278 co-land, so a set's
+  progress is read from `manifest.md`'s base `status` — there is no distinct
+  `research_status`. For the other shapes this slice writes: findings are
+  `complete` from first write (immutable, never `draft`); `synthesis.md` is
+  `complete` once written; `outline.md` is `complete` once it exists (progress
+  lives in its checkboxes); `brief.md` is `draft` during interactive scoping and
+  `complete` once authored.
 - Finding immutability is asserted from first write in this slice but is first
   *exercised* by the re-invocation / gap-detection criteria in 0279 — no
   single-round criterion here re-runs a verb over an existing finding.
@@ -273,6 +278,21 @@ browsable. This engine is built on the reusable-infrastructure seam: a generic
   identifier rather than a new term (`--type`, not `--root`). Because type-driven
   topic-research resolution couples to the 0278 doc-type registration, the generic
   resolver ships in 0277 and topic-research resolution is verified at co-land.
+- Validated on 2026-09-15 (report:
+  `meta/validations/2026-09-09-0277-single-round-web-research-engine-validation.md`,
+  result `partial`). All seven phases are implemented and merged; the Rust,
+  server, and frontend read-only checks and the plan's behavioural tests
+  (frontmatter goldens, `migration_0010`, 8/9 resolver goldens) pass. Status
+  moved `ready → in-progress`. Two co-land items keep it from closing: `mise run
+  test` is red on two 0277-attributable regressions — the conformance
+  producing-skill count expects 19 but the finding-outputter refactor dropped it
+  to 18, and `resolve_goldens` still uses `topic-research` (now registered by
+  0278) as its exit-4 "unregistered type" example, so it returns exit 3. Both are
+  one-line fixes. The `research_status` references above were reconciled to base
+  `status` per the mandated 0278 co-land (the sibling reconciliations on 0279 and
+  epic 0121 remain). The full live-web `brief → outline → conduct → synthesise`
+  loop (AC 1–4, 5, 8, 9) and `mise run check` end-to-end (AC 14) remain
+  unverified — hence the boxes are left unticked.
 
 ## References
 
