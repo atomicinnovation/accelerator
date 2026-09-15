@@ -1,7 +1,7 @@
 ---
 type: "topic-research"                       # artifact-type discriminator
 id: "{filename-stem}"                         # filename without .md
-title: "Finding: {Focus Area Question}"
+title: "{Focus Area Question}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: "research-topic"
@@ -19,7 +19,7 @@ last_updated_by: "{author from VCS}"
 schema_version: 1
 ---
 
-# Finding: [Focus Area Question]
+# [Focus Area Question]
 
 ## Question
 [The focus area's question, restated.]
