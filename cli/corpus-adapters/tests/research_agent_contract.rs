@@ -1,8 +1,9 @@
 //! Repository-integrity guards on the research infrastructure's plugin
 //! markdown: the generic `researcher` agent must carry a bounded, shell-free
-//! tool grant, and the finding outputter's authoring scaffold must declare
-//! exactly the fields the `(topic-research, finding)` schema row requires — so
-//! the writer, the template, and the schema cannot drift silently.
+//! tool grant, and the `topic-research-finding` template the finding outputter
+//! delegates to must declare exactly the fields the `(topic-research, finding)`
+//! schema row requires, plus the omit-when-empty linkage slots — so the writer,
+//! the template, and the schema cannot drift silently.
 
 mod common;
 
@@ -23,25 +24,6 @@ fn field_names(frontmatter: &str) -> BTreeSet<String> {
         .into_iter()
         .map(|(key, _)| key)
         .collect()
-}
-
-/// The content of each ```` ``` ````-fenced block in `markdown`.
-fn fenced_blocks(markdown: &str) -> Vec<String> {
-    let mut blocks = Vec::new();
-    let mut current: Option<Vec<&str>> = None;
-    for line in markdown.lines() {
-        if line.trim_start().starts_with("```") {
-            match current.take() {
-                Some(lines) => blocks.push(lines.join("\n")),
-                None => current = Some(Vec::new()),
-            }
-            continue;
-        }
-        if let Some(lines) = current.as_mut() {
-            lines.push(line);
-        }
-    }
-    blocks
 }
 
 #[test]
@@ -73,16 +55,11 @@ fn the_researcher_agent_grants_a_bounded_shell_free_tool_set(
 }
 
 #[test]
-fn the_finding_outputters_scaffold_matches_the_finding_schema_row(
-) -> Result<(), TestError> {
-    let content =
-        read("skills/research/outputters/finding-outputter/SKILL.md")?;
-    let scaffold = fenced_blocks(&content)
-        .into_iter()
-        .map(|block| extract_frontmatter(&block))
-        .find(|frontmatter| !frontmatter.trim().is_empty())
-        .ok_or("the finding outputter carries no example frontmatter block")?;
-    let declared = field_names(&scaffold);
+fn the_finding_template_matches_the_finding_schema_row() -> Result<(), TestError>
+{
+    let content = read("templates/topic-research-finding.md")?;
+    let frontmatter = extract_frontmatter(&content);
+    let declared = field_names(&frontmatter);
 
     let row = schema::row_for("topic-research", "finding")
         .ok_or("no (topic-research, finding) schema row")?;
@@ -92,11 +69,14 @@ fn the_finding_outputters_scaffold_matches_the_finding_schema_row(
         .collect();
     expected.extend(["producer", "status", "kind"].map(str::to_owned));
     expected.extend(row.extras.iter().map(|extra| (*extra).to_owned()));
+    // The template also carries the omit-when-empty typed-linkage slots, which a
+    // written finding drops when they have no value.
+    expected.extend(["parent", "relates_to"].map(str::to_owned));
 
     assert_eq!(
         declared, expected,
-        "the finding outputter's scaffold fields must equal the \
-         (topic-research, finding) required set"
+        "the finding template's fields must equal the (topic-research, \
+         finding) required set plus the omit-when-empty linkage slots"
     );
     Ok(())
 }
