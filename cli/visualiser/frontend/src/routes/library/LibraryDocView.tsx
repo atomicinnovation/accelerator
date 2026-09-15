@@ -39,7 +39,13 @@ function stripFrontmatter(content: string): string {
 
 /** Case-insensitive `status` lookup, matching `FrontmatterChips`' folding, so
  *  the chip-variant override keys off the same value the badge renders. */
-function statusFromFrontmatter(frontmatter: Record<string, unknown>): unknown {
+function statusFromFrontmatter(frontmatter: unknown): unknown {
+  // A document with no frontmatter indexes as JSON null, not an empty object,
+  // so guard before Object.entries — otherwise a status-less doc (e.g. a bare
+  // note) crashes the detail view.
+  if (typeof frontmatter !== "object" || frontmatter === null) {
+    return undefined;
+  }
   for (const [key, value] of Object.entries(frontmatter)) {
     if (key.trim().toLowerCase() === "status") return value;
   }
@@ -135,12 +141,7 @@ export function LibraryDocView({ type: propType, fileSlug: propSlug }: Props) {
         state={entry.frontmatterState}
         statusVariant={
           type
-            ? chipVariantFor(
-                type,
-                statusFromFrontmatter(
-                  entry.frontmatter as Record<string, unknown>,
-                ),
-              )
+            ? chipVariantFor(type, statusFromFrontmatter(entry.frontmatter))
             : undefined
         }
       />

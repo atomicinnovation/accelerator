@@ -164,7 +164,7 @@ fn an_unregistered_type_is_a_distinct_unknown_type_code(
     repo(&root)?;
 
     let output =
-        run(&root, &["resolve", "--type", "topic-research", "any-slug"])?;
+        run(&root, &["resolve", "--type", "not-a-doc-type", "any-slug"])?;
     assert_eq!(output.status.code(), Some(4), "{}", stderr(&output));
     assert!(stderr(&output).contains("E_RESOLVE_UNKNOWN_TYPE"));
     Ok(())
