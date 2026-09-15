@@ -1,7 +1,7 @@
 ---
 type: "topic-research"                       # artifact-type discriminator
 id: "{subject-slug}"                          # the set directory slug
-title: "Research Topic: {Subject}"
+title: "{Subject}"
 date: "{ISO timestamp from accelerator corpus metadata derive}"
 author: "{author from VCS}"
 producer: "research-topic"
@@ -20,7 +20,7 @@ last_updated_by: "{author from VCS}"
 schema_version: 1
 ---
 
-# Research Topic: [Subject]
+# [Subject]
 
 ## Set
 
