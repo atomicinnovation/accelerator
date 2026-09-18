@@ -1060,7 +1060,9 @@ dependencies = [
 name = "design"
 version = "1.24.0-pre.68"
 dependencies = [
+ "base64",
  "kernel",
+ "percent-encoding",
  "serde_json",
 ]
 

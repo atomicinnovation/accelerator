@@ -89,8 +89,19 @@ pub fn scrub_secrets(
     let Some(name) = leaked.first() else {
         return Ok(Report::silent());
     };
+    let literal = secrets
+        .iter()
+        .find(|secret| &secret.name == name)
+        .is_some_and(|secret| {
+            leaked_credentials::leak_is_literal(&body, secret)
+        });
+    let subject = if literal {
+        "the value"
+    } else {
+        "a transcribed form (encoded, reflowed, or truncated) of the value"
+    };
     Ok(Report::rejected(&format!(
-        "the literal value of {name} appears in the generated inventory body. \
+        "{subject} of {name} appears in the generated inventory body. \
          The artifact was not written. Check your content for accidental \
          secret leakage."
     )))
@@ -280,6 +291,44 @@ mod tests {
         };
         assert!(stderr.contains("ACCELERATOR_BROWSER_PASSWORD"));
         assert!(!stderr.contains("hunter2"));
+        Ok(())
+    }
+
+    #[test]
+    fn a_literal_leak_names_the_value() -> Result<(), TestError> {
+        let work = tempfile::tempdir()?;
+        let file = work.path().join("inventory.md");
+        fs::write(&file, "the password is hunter2")?;
+        let secrets = [NamedSecret {
+            name: "ACCELERATOR_BROWSER_PASSWORD".to_owned(),
+            value: "hunter2".to_owned(),
+        }];
+        let Report::Rejected { stderr } = scrub_secrets(&file, &secrets)?
+        else {
+            return Err("expected a rejection".into());
+        };
+        assert!(stderr.contains("the value of ACCELERATOR_BROWSER_PASSWORD"));
+        assert!(!stderr.contains("transcribed"));
+        assert!(!stderr.contains("hunter2"));
+        Ok(())
+    }
+
+    #[test]
+    fn an_encoded_leak_names_a_transcribed_form() -> Result<(), TestError> {
+        let work = tempfile::tempdir()?;
+        let file = work.path().join("inventory.md");
+        fs::write(&file, "the path was a%2fc")?;
+        let secrets = [NamedSecret {
+            name: "ACCELERATOR_BROWSER_PASSWORD".to_owned(),
+            value: "a/c".to_owned(),
+        }];
+        let Report::Rejected { stderr } = scrub_secrets(&file, &secrets)?
+        else {
+            return Err("expected a rejection".into());
+        };
+        assert!(stderr.contains("transcribed"));
+        assert!(stderr.contains("ACCELERATOR_BROWSER_PASSWORD"));
+        assert!(!stderr.contains("a/c"));
         Ok(())
     }
 
