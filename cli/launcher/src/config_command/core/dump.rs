@@ -82,25 +82,23 @@ pub fn assemble(
 }
 
 /// The active tracker's accepted `pull`-block fields, in the tracker's own
-/// vocabulary. `None` for a tracker with no pull-scope surface (an unset or
-/// unsupported integration).
-fn pull_fields(integration: &str) -> Option<&'static [&'static str]> {
-    match integration {
-        "jira" => Some(&[
+/// vocabulary, for the unset placeholder.
+const fn pull_fields(tracker: work::pull::Tracker) -> &'static [&'static str] {
+    match tracker {
+        work::pull::Tracker::Jira => &[
             "additional_projects",
             "all_projects",
             "filters",
             "max_items",
             "max_pages",
-        ]),
-        "linear" => Some(&[
+        ],
+        work::pull::Tracker::Linear => &[
             "additional_teams",
             "all_teams",
             "filters",
             "max_items",
             "max_pages",
-        ]),
-        _ => None,
+        ],
     }
 }
 
@@ -108,41 +106,70 @@ fn pull_fields(integration: &str) -> Option<&'static [&'static str]> {
 /// block flattened to `<tracker>.pull.<field>` rows when present, else an
 /// unset-but-available placeholder listing the accepted fields. Whole-block
 /// replacement shows through the per-row source when a personal block wins.
+///
+/// A structurally-invalid block is a fail-closed [`ConfigError::Invalid`]
+/// refusal here, not a rendered row — the same fail-loud contract `configure`
+/// applies to `work.integration`.
 fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
     let integration = config
         .effective(&Key::parse("work.integration")?, None)?
         .rendered();
-    let Some(fields) = pull_fields(&integration) else {
+    let Some(tracker) = work::pull::Tracker::from_integration(&integration)
+    else {
         return Ok(Vec::new());
     };
     let prefix = format!("{integration}.pull");
-    if let Resolved::Found(Value::Mapping(entries)) =
-        config.get(&Key::parse(&prefix)?, None)?
-    {
-        if !entries.is_empty() {
-            let source = source_of(config, &prefix)?;
-            let mut leaves = Vec::new();
-            for (field, value) in &entries {
-                flatten_block(&format!("{prefix}.{field}"), value, &mut leaves);
-            }
-            return Ok(leaves
-                .into_iter()
-                .map(|(key, value)| Row {
-                    key,
-                    cell: Cell::Value(value),
-                    source,
-                })
-                .collect());
+    let key = Key::parse(&prefix)?;
+    let Resolved::Found(value) = config.get(&key, None)? else {
+        return Ok(placeholder_rows(&prefix, tracker));
+    };
+    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
+        return Ok(placeholder_rows(&prefix, tracker));
+    }
+    let level = block_level(config, &key)?;
+    let invalid = |error: work::pull::PullConfigError| ConfigError::Invalid {
+        detail: error.detail(level),
+    };
+    let parsed = work::pull::parse(&value).map_err(invalid)?;
+    work::pull::validate(&parsed, tracker).map_err(invalid)?;
+    let source = source_of(config, &prefix)?;
+    let mut leaves = Vec::new();
+    if let Value::Mapping(entries) = &value {
+        for (field, child) in entries {
+            flatten_block(&format!("{prefix}.{field}"), child, &mut leaves);
         }
     }
-    Ok(fields
+    Ok(leaves
+        .into_iter()
+        .map(|(key, value)| Row {
+            key,
+            cell: Cell::Value(value),
+            source,
+        })
+        .collect())
+}
+
+/// The unset-but-available placeholder rows for a tracker's accepted fields.
+fn placeholder_rows(prefix: &str, tracker: work::pull::Tracker) -> Vec<Row> {
+    pull_fields(tracker)
         .iter()
         .map(|field| Row {
             key: format!("{prefix}.{field}"),
             cell: Cell::NotSet,
             source: Source::Default,
         })
-        .collect())
+        .collect()
+}
+
+/// The config level a present block resolved from, for error attribution.
+fn block_level(
+    config: &dyn ConfigAccess,
+    key: &Key,
+) -> Result<Level, ConfigError> {
+    Ok(match config.effective(key, None)?.source() {
+        config::Source::Personal => Level::Personal,
+        _ => Level::Team,
+    })
 }
 
 /// Flattens a resolved block to leaf `(dotted-key, rendered-value)` pairs,

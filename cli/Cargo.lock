@@ -28,6 +28,7 @@ dependencies = [
  "tracing",
  "vergen",
  "vergen-gitcl",
+ "work",
 ]
 
 [[package]]

@@ -106,6 +106,17 @@ pub fn tracker::FetchOutcome::eq(&self, other: &tracker::FetchOutcome) -> bool
 impl core::fmt::Debug for tracker::FetchOutcome
 pub fn tracker::FetchOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::FetchOutcome
+pub struct tracker::FilterSchema
+pub tracker::FilterSchema::accepted: &'static [&'static str]
+impl core::clone::Clone for tracker::FilterSchema
+pub fn tracker::FilterSchema::clone(&self) -> tracker::FilterSchema
+impl core::cmp::Eq for tracker::FilterSchema
+impl core::cmp::PartialEq for tracker::FilterSchema
+pub fn tracker::FilterSchema::eq(&self, other: &tracker::FilterSchema) -> bool
+impl core::fmt::Debug for tracker::FilterSchema
+pub fn tracker::FilterSchema::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker::FilterSchema
+impl core::marker::StructuralPartialEq for tracker::FilterSchema
 pub struct tracker::RemoteIssue
 pub tracker::RemoteIssue::body: alloc::string::String
 pub tracker::RemoteIssue::updated: tracker::RemoteTimestamp

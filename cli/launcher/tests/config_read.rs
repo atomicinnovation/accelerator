@@ -946,6 +946,113 @@ fn dump_shows_a_personal_pull_block_replacing_the_team_block() -> TestResult {
     Ok(())
 }
 
+/// A team config with `work.integration: linear` and the given `linear.pull`
+/// block body (its lines already indented four spaces under `pull:`).
+fn linear_pull_team(pull_body: &str) -> String {
+    format!(
+        "---\nwork:\n  integration: linear\nlinear:\n  pull:\n{pull_body}---\n"
+    )
+}
+
+#[test]
+fn dump_refuses_an_unsupported_filter_key() -> TestResult {
+    let fixture = Fixture::new()?
+        .team(&linear_pull_team("    filters:\n      colour: [red]\n"))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("colour"), "{stderr}");
+    assert!(stderr.contains("label, state, assignee"), "{stderr}");
+    assert!(stderr.contains(".accelerator/config.md"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_a_reserved_grouping_key() -> TestResult {
+    let fixture = Fixture::new()?
+        .team(&linear_pull_team("    filters:\n      any: [a, b]\n"))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("nested filters not yet supported"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_a_zero_max_pages() -> TestResult {
+    let fixture =
+        Fixture::new()?.team(&linear_pull_team("    max_pages: 0\n"))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("max_pages"), "{stderr}");
+    assert!(stderr.contains("positive integer"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_all_together_with_additional() -> TestResult {
+    let fixture = Fixture::new()?.team(&linear_pull_team(
+        "    all_teams: true\n    additional_teams: [core]\n",
+    ))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("all_*"), "{stderr}");
+    assert!(stderr.contains("additional_*"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_an_unrecognised_top_level_key() -> TestResult {
+    let fixture = Fixture::new()?.team(&linear_pull_team("    bogus: x\n"))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("bogus"), "{stderr}");
+    assert!(stderr.contains("not recognised"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_a_wrong_tracker_noun_with_a_hint() -> TestResult {
+    let fixture = Fixture::new()?
+        .team(&linear_pull_team("    additional_projects: [PP]\n"))?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("additional_projects"), "{stderr}");
+    assert!(stderr.contains("Jira"), "{stderr}");
+    assert!(stderr.contains("additional_teams"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_a_non_mapping_pull_block() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: linear\nlinear:\n  pull: oops\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("must be a block"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_refusal_of_a_pull_block_never_degrades_under_fail_safe() -> TestResult {
+    let fixture = Fixture::new()?
+        .team(&linear_pull_team("    filters:\n      colour: [red]\n"))?;
+    let output = fixture.run(&["config", "dump", "--fail-safe"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("colour"), "{stderr}");
+    Ok(())
+}
+
 #[test]
 fn dump_hides_credential_values() -> TestResult {
     let workspace = workspace("dump")?;

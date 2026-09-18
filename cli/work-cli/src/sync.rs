@@ -720,6 +720,43 @@ fn resolve_active_scope_key(
     }
 }
 
+/// Validates the active tracker's `<tracker>.pull` block before discovery, so a
+/// malformed block fails loud rather than reaching lowering — the sync-path
+/// mirror of the `configure`-time refusal. A tracker with no pull surface, an
+/// absent block, or an empty block is a no-op. On failure returns the operator
+/// message (naming the resolving config file).
+fn validate_pull_config(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Result<(), String> {
+    let Some(tracker) = work::pull::Tracker::from_integration(integration)
+    else {
+        return Ok(());
+    };
+    let key = ::config::Key::parse(&format!("{integration}.pull"))
+        .map_err(|error| error.to_string())?;
+    let ::config::Resolved::Found(value) =
+        config.get(&key, None).map_err(|error| error.to_string())?
+    else {
+        return Ok(());
+    };
+    if matches!(&value, ::config::Value::Mapping(entries) if entries.is_empty())
+    {
+        return Ok(());
+    }
+    let level = match config
+        .effective(&key, None)
+        .map_err(|error| error.to_string())?
+        .source()
+    {
+        ::config::Source::Personal => ::config::Level::Personal,
+        _ => ::config::Level::Team,
+    };
+    let parsed =
+        work::pull::parse(&value).map_err(|error| error.detail(level))?;
+    work::pull::validate(&parsed, tracker).map_err(|error| error.detail(level))
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -755,6 +792,11 @@ pub fn run_sync(
                 return ExitCode::from(exit_codes::ERROR);
             }
         };
+
+    if let Err(message) = validate_pull_config(config, &integration) {
+        eprintln!("{message}");
+        return ExitCode::from(exit_codes::ERROR);
+    }
 
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.

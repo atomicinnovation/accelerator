@@ -25,6 +25,7 @@ kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 store = { path = "../store" }
+work = { path = "../work" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }

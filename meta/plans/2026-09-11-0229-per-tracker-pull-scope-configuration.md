@@ -435,29 +435,29 @@ Phase 1 `parse` never reaches lowering unvalidated.
 
 #### Automated Verification
 
-- [ ] Validator unit tests cover each rejection branch and the accepting case:
+- [x] Validator unit tests cover each rejection branch and the accepting case:
       `cargo test -p work pull`
-- [ ] Ceiling-token classes are enumerated as separate validator cases — accept `0` for
+- [x] Ceiling-token classes are enumerated as separate validator cases — accept `0` for
       `max_items` (refuse-all) but reject `0` for `max_pages`, accept `unlimited`, reject
       negative, reject float, reject non-numeric: new unit tests in `cli/work/src/pull.rs`
-- [ ] Black-box rejection tests pass (unsupported filter key, reserved `all`/`any`, bad
+- [x] Black-box rejection tests pass (unsupported filter key, reserved `all`/`any`, bad
       ceiling, `all_*` with `additional_*`, unrecognised top-level key, wrong-tracker
       noun, non-mapping block), each asserting non-zero exit and an actionable message
       (offending value, accepted set, config file) following the `bad_integration`
       precedent, plus a `--fail-safe` twin proving non-degradation: new cases in
       `cli/launcher/tests/config_read.rs`
-- [ ] A `work sync` with an invalid `pull` block fails loud before discovery (not only
+- [x] A `work sync` with an invalid `pull` block fails loud before discovery (not only
       `configure` rejects it): new test in `cli/work-cli/tests/`
-- [ ] `work` and `tracker` public-api snapshots regenerated and matching (the `validate`
+- [x] `work` and `tracker` public-api snapshots regenerated and matching (the `validate`
       function and the `FilterSchema` type):
       `mise run public-api:update && mise run public-api:check`
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] `accelerator config dump` with an unsupported filter key exits non-zero and
+- [x] `accelerator config dump` with an unsupported filter key exits non-zero and
       names the offending key.
-- [ ] A block with both `all_projects` and `additional_projects` is rejected at
+- [x] A block with both `all_projects` and `additional_projects` is rejected at
       `configure`, not deferred to sync.
 
 ---
