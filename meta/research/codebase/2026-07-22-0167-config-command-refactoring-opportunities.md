@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-22-0167-config-command-refactoring-opportunities"
-title: "Research: Duplication, layering, and shared-crate placement in the 0167 config-command migration"
+title: "Duplication, layering, and shared-crate placement in the 0167 config-command migration"
 date: "2026-07-22T16:24:52+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Duplication, layering, and shared-crate placement in the 0167 config-command migration
+# Duplication, layering, and shared-crate placement in the 0167 config-command migration
 
 **Date**: 2026-07-22 16:24 UTC
 **Author**: Toby Clemson

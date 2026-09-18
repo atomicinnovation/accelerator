@@ -15,6 +15,7 @@ import { PrReviewsBigGlyph } from "./icons/PrReviewsBigGlyph";
 import { ResearchBigGlyph } from "./icons/ResearchBigGlyph";
 import { RootCauseAnalysesBigGlyph } from "./icons/RootCauseAnalysesBigGlyph";
 import { TemplatesBigGlyph } from "./icons/TemplatesBigGlyph";
+import { TopicResearchBigGlyph } from "./icons/TopicResearchBigGlyph";
 import { ValidationsBigGlyph } from "./icons/ValidationsBigGlyph";
 import { WorkItemReviewsBigGlyph } from "./icons/WorkItemReviewsBigGlyph";
 import { WorkItemsBigGlyph } from "./icons/WorkItemsBigGlyph";
@@ -29,7 +30,7 @@ const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
   decisions: DecisionsBigGlyph,
   "work-items": WorkItemsBigGlyph,
   plans: PlansBigGlyph,
-  research: ResearchBigGlyph,
+  "codebase-research": ResearchBigGlyph,
   "plan-reviews": PlanReviewsBigGlyph,
   "pr-reviews": PrReviewsBigGlyph,
   "work-item-reviews": WorkItemReviewsBigGlyph,
@@ -38,6 +39,7 @@ const BIG_GLYPHS: Record<DocTypeKey, BigGlyphDraw> = {
   "pr-descriptions": PrDescriptionsBigGlyph,
   "design-gaps": DesignGapsBigGlyph,
   "design-inventories": DesignInventoriesBigGlyph,
+  "topic-research": TopicResearchBigGlyph,
   "root-cause-analyses": RootCauseAnalysesBigGlyph,
   templates: TemplatesBigGlyph,
 };

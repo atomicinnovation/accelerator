@@ -10,13 +10,13 @@ last_updated: "2026-05-15T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-15-0058-workspace-worktree-boundary-detection"
-title: "Research: Workspace and worktree boundary detection at session start (work item 0058)"
+title: "Workspace and worktree boundary detection at session start (work item 0058)"
 schema_version: 1
 relates_to: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "work-item:0020", "plan:2026-03-18-vcs-skill-improvements", "work-item:0058"]
 derived_from: ["codebase-research:2026-03-16-jujutsu-integration-and-vcs-autodetection", "codebase-research:2026-03-18-adr-support-strategy", "codebase-research:2026-03-28-initialise-skill-requirements"]
 ---
 
-# Research: Workspace and worktree boundary detection at session start (work item 0058)
+# Workspace and worktree boundary detection at session start (work item 0058)
 
 **Date**: 2026-05-15T12:35:58+01:00
 **Author**: Toby Clemson

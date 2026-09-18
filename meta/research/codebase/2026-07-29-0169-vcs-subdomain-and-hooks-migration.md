@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-29-0169-vcs-subdomain-and-hooks-migration"
-title: "Research: VCS Subdomain and Hooks Migration (0169)"
+title: "VCS Subdomain and Hooks Migration (0169)"
 date: "2026-07-29T16:20:46+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: VCS Subdomain and Hooks Migration (0169)
+# VCS Subdomain and Hooks Migration (0169)
 
 **Date**: 2026-07-29 16:20 UTC
 **Author**: Toby Clemson

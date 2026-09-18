@@ -10,11 +10,11 @@ last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-02-22-pr-review-agents-design"
-title: "Research: Designing PR Review Agents for Multi-Lens Pull Request Analysis"
+title: "Designing PR Review Agents for Multi-Lens Pull Request Analysis"
 schema_version: 1
 ---
 
-# Research: Designing PR Review Agents for Multi-Lens Pull Request Analysis
+# Designing PR Review Agents for Multi-Lens Pull Request Analysis
 
 **Date**: 2026-02-22T13:59:16+00:00
 **Author**: Toby Clemson

@@ -10,14 +10,14 @@ last_updated: "2026-06-01T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-06-01-lifecycle-clustering-slug-mismatch"
-title: "Research: lifecycle clustering breaks because slugs don't agree across doc types"
+title: "lifecycle clustering breaks because slugs don't agree across doc types"
 schema_version: 1
 relates_to: ["adr:ADR-0033", "adr:ADR-0034", "adr:ADR-0025", "adr:ADR-0028", "codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "work-item:0057", "work-item:0040"]
 supersedes: ["adr:ADR-0034", "adr:ADR-0033"]
 derived_from: ["codebase-research:2026-05-24-0068-related-documents-inference-accuracy", "codebase-research:2026-05-21-0064-canonicalise-work-item-id-and-author-fields", "codebase-research:2026-05-30-0065-update-artifact-templates-to-unified-schema", "adr:ADR-0033", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul"]
 ---
 
-# Research: lifecycle clustering breaks because slugs don't agree across doc types
+# lifecycle clustering breaks because slugs don't agree across doc types
 
 **Date**: 2026-06-01 22:18 BST
 **Author**: Toby Clemson

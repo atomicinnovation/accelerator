@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-23-0123-changelog-readme-1.23.0-update"
-title: "Research: User-facing CHANGELOG and README update for 1.23.0"
+title: "User-facing CHANGELOG and README update for 1.23.0"
 date: "2026-06-23T12:35:21+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: User-facing CHANGELOG and README update for 1.23.0
+# User-facing CHANGELOG and README update for 1.23.0
 
 **Date**: 2026-06-23 12:35 UTC
 **Author**: Toby Clemson

@@ -11,11 +11,11 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Incorporated formatting patterns from temp-review-gh.md reference command"
 type: "codebase-research"
 id: "2026-02-22-pr-review-inline-comments"
-title: "Research: Modifying review-pr to Suggest Inline PR Comments"
+title: "Modifying review-pr to Suggest Inline PR Comments"
 schema_version: 1
 ---
 
-# Research: Modifying review-pr to Suggest Inline PR Comments
+# Modifying review-pr to Suggest Inline PR Comments
 
 **Date**: 2026-02-22T15:04:46+00:00
 **Author**: Toby Clemson

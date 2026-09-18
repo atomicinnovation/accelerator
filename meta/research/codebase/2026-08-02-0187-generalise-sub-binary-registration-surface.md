@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-02-0187-generalise-sub-binary-registration-surface"
-title: "Research: Generalise the Sub-Binary Registration Surface (0187)"
+title: "Generalise the Sub-Binary Registration Surface (0187)"
 date: "2026-08-02T21:22:36+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Generalise the Sub-Binary Registration Surface (0187)
+# Generalise the Sub-Binary Registration Surface (0187)
 
 **Date**: 2026-08-02 21:22 UTC
 **Author**: Toby Clemson

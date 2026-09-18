@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-08-0184-template-resolution-wrong-plugin-root"
-title: "Research: Template resolution succeeds silently on a plugin root that is not an installation"
+title: "Template resolution succeeds silently on a plugin root that is not an installation"
 date: "2026-09-08T22:44:28+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_note: "Added follow-up research settling the templates.rs scope gap
 schema_version: 1
 ---
 
-# Research: Template resolution succeeds silently on a plugin root that is not an installation
+# Template resolution succeeds silently on a plugin root that is not an installation
 
 **Date**: 2026-09-08 22:44 UTC
 **Author**: Toby Clemson

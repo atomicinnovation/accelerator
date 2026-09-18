@@ -1,8 +1,8 @@
 //! The `agents` view: the nine agent names resolved to their override or
 //! `accelerator:<key>` default, plus any unrecognised keys the config carries.
 //!
-//! An empty configured value falls back to the default, matching the bash
-//! reader; unrecognised keys are collected for a stderr warning and skipped.
+//! An empty configured value falls back to the default; unrecognised keys are
+//! collected for a stderr warning and skipped.
 
 use config::{
     catalogue, ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel,

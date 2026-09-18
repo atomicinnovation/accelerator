@@ -10,13 +10,13 @@ last_updated: "2026-05-15T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-15-0059-gh-pr-edit-projects-classic-deprecation"
-title: "Research: `gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns"
+title: "`gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns"
 schema_version: 1
 relates_to: ["adr:ADR-0010", "plan:2026-04-07-fix-tmp-directory-usage-in-pr-skills", "plan:2026-02-22-pr-review-inline-comments", "plan:2026-02-23-respond-to-pr-skill", "codebase-research:2026-03-18-meta-management-strategy", "codebase-research:2026-04-07-pr-review-tmp-directory-usage", "work-item:0057"]
 derived_from: ["codebase-research:2026-04-07-pr-review-tmp-directory-usage", "codebase-research:2026-02-22-pr-review-inline-comments", "codebase-research:2026-02-23-respond-to-pr-feedback-skill"]
 ---
 
-# Research: `gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns
+# `gh pr edit` Fails Due to GitHub Projects Classic Deprecation — Fix Scope and Reference Patterns
 
 **Date**: 2026-05-15T15:29:17+01:00
 **Author**: Toby Clemson

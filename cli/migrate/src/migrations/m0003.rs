@@ -183,9 +183,10 @@ fn rewrite_root_gitignore(
     Ok(())
 }
 
-/// Bash's `log_warn` only ever prints its first argument — the migration
-/// calls it with four, so only the first is observable. Reproduced exactly,
-/// not "fixed" into the evidently-intended full sentence.
+/// The reference implementation's warning helper only ever printed its first
+/// argument — the migration calls it with four, so only the first is
+/// observable. Reproduced exactly, not "fixed" into the evidently-intended
+/// full sentence.
 fn warn_pinned_overrides(
     ctx: &dyn MigrationContext,
 ) -> Result<(), MigrationError> {

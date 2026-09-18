@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-06-0170-work-item-lifecycle-subdomain"
-title: "Research: Work-Item Lifecycle Subdomain (accelerator-work)"
+title: "Work-Item Lifecycle Subdomain (accelerator-work)"
 date: "2026-08-06T08:12:12+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Work-Item Lifecycle Subdomain (accelerator-work)
+# Work-Item Lifecycle Subdomain (accelerator-work)
 
 **Date**: 2026-08-06T08:12:12+00:00
 **Author**: Toby Clemson

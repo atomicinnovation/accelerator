@@ -21,7 +21,7 @@ accelerator:codebase-analyser, accelerator:codebase-pattern-finder,
 accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
-**Research directory**: !`accelerator config path research_codebase --fail-safe`
+**Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Plans directory**: !`accelerator config path plans --fail-safe`
 **Decisions directory**: !`accelerator config path decisions --fail-safe`
 
@@ -134,7 +134,7 @@ The key is to use these agents intelligently:
   - `type:` ← `codebase-research`
   - `id:` ← the filename stem (the file path computed above without
     `.md`), always quoted as a YAML string
-  - `title:` ← `Research: {User's Question/Topic}`
+  - `title:` ← `{User's Question/Topic}`
   - `date:` ← the `Current Date/Time (UTC):` value
   - `author:` ← the author resolved per the standard chain
     (config → VCS user → prompt)
@@ -173,8 +173,8 @@ completing.
 
 ### Step 7: Add GitHub permalinks (if applicable)
 
-- Check if on main branch or if commit is pushed: `git branch --show-current`
-  and `git status`
+- Check whether you are on the main branch and whether the commit is pushed
+  (use the branch and status commands from the session's VCS context)
 - If on main/master or pushed, generate GitHub permalinks:
   - Get repo info: `gh repo view --json owner,name`
   - Create permalinks:

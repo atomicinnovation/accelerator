@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-09-0082-big-glyph-hero-illustrations"
-title: "Research: Implementing the BigGlyph hero illustration set (0082)"
+title: "Implementing the BigGlyph hero illustration set (0082)"
 date: "2026-06-09T19:29:44+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Resolved the four open questions into settled decisions"
 schema_version: 1
 ---
 
-# Research: Implementing the BigGlyph hero illustration set (0082)
+# Implementing the BigGlyph hero illustration set (0082)
 
 **Date**: 2026-06-09T19:29:44+00:00
 **Author**: Toby Clemson

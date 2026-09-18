@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-06-0195-accelerator-corpus-cli-implementation-surface"
-title: "Research: Implementation surface for work-item 0195 (accelerator-corpus CLI)"
+title: "Implementation surface for work-item 0195 (accelerator-corpus CLI)"
 date: "2026-08-06T08:16:04+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation surface for work-item 0195 (accelerator-corpus CLI)
+# Implementation surface for work-item 0195 (accelerator-corpus CLI)
 
 **Date**: 2026-08-06T08:16:04+00:00
 **Author**: Toby Clemson

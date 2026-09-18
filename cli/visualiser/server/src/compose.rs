@@ -120,7 +120,7 @@ fn effective_path(
         .rendered())
 }
 
-/// Resolve the 13 doc-type directories through the shared config resolver and
+/// Resolve the 14 doc-type directories through the shared config resolver and
 /// key them by path-key against the project root.
 fn resolve_doc_paths(
     service: &impl ConfigAccess,

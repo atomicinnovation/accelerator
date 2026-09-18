@@ -50,7 +50,7 @@ const mockWithVariety: TemplateSummary[] = [
     ],
   },
   {
-    name: "research",
+    name: "codebase-research",
     activeTier: "config-override",
     tiers: [
       { source: "config-override", path: "/x", present: true, active: true },
@@ -74,14 +74,26 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 describe("glyphKeyForTemplate", () => {
   it("maps exact template names to their doc-type glyph", () => {
     expect(glyphKeyForTemplate("adr")).toBe("decisions");
-    expect(glyphKeyForTemplate("research")).toBe("research");
+    expect(glyphKeyForTemplate("codebase-research")).toBe("codebase-research");
     expect(glyphKeyForTemplate("plan")).toBe("plans");
     expect(glyphKeyForTemplate("validation")).toBe("validations");
     expect(glyphKeyForTemplate("pr-description")).toBe("pr-descriptions");
   });
 
+  it("maps the per-kind topic-research templates to the topic-research glyph", () => {
+    // `glyphKeyForTemplate` matches end-anchored suffixes, so a bare
+    // `topic-research` prefix never matches `topic-research-manifest`; each
+    // full template name is registered exactly.
+    expect(glyphKeyForTemplate("topic-research-manifest")).toBe(
+      "topic-research",
+    );
+    expect(glyphKeyForTemplate("topic-research-synthesis")).toBe(
+      "topic-research",
+    );
+  });
+
   it("falls back to a matching stem inside compound template names", () => {
-    expect(glyphKeyForTemplate("codebase-research")).toBe("research");
+    expect(glyphKeyForTemplate("codebase-research")).toBe("codebase-research");
     expect(glyphKeyForTemplate("feature-plan")).toBe("plans");
     expect(glyphKeyForTemplate("something-decision")).toBe("decisions");
   });
@@ -182,7 +194,7 @@ describe("LibraryTemplatesIndex", () => {
     });
     render(<LibraryTemplatesIndex />, { wrapper: Wrapper });
     await screen.findByRole("link", { name: /adr\.md/i });
-    for (const name of ["adr", "plan", "research"]) {
+    for (const name of ["adr", "plan", "codebase-research"]) {
       const row = screen.getByRole("link", {
         name: new RegExp(`${name}\\.md`),
       });
@@ -252,9 +264,9 @@ describe("LibraryTemplatesIndex", () => {
     expect(stateFor("plan", "default")).toBe("present");
     expect(stateFor("plan", "user")).toBe("active");
     expect(stateFor("plan", "config")).toBe("absent");
-    expect(stateFor("research", "default")).toBe("present");
-    expect(stateFor("research", "user")).toBe("present");
-    expect(stateFor("research", "config")).toBe("active");
+    expect(stateFor("codebase-research", "default")).toBe("present");
+    expect(stateFor("codebase-research", "user")).toBe("present");
+    expect(stateFor("codebase-research", "config")).toBe("active");
   });
 
   it("rows in the list share borders rather than gap-separated cards", () => {

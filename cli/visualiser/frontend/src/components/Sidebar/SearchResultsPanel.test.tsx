@@ -94,7 +94,12 @@ describe("SearchResultsPanel", () => {
     vi.spyOn(fetchModule, "fetchSearch").mockResolvedValue([
       { docType: "plans", title: "First", slug: "first", mtimeMs: 1 },
       { docType: "decisions", title: "Second", slug: "second", mtimeMs: 2 },
-      { docType: "research", title: "Third", slug: "third", mtimeMs: 3 },
+      {
+        docType: "codebase-research",
+        title: "Third",
+        slug: "third",
+        mtimeMs: 3,
+      },
     ]);
     render(
       <Wrap qc={qc}>
@@ -114,7 +119,9 @@ describe("SearchResultsPanel", () => {
     expect(rows[0].hasAttribute("href")).toBe(true);
     expect(rows[0].getAttribute("href")).toBe("/library/plans/first");
     expect(rows[1].getAttribute("href")).toBe("/library/decisions/second");
-    expect(rows[2].getAttribute("href")).toBe("/library/research/third");
+    expect(rows[2].getAttribute("href")).toBe(
+      "/library/codebase-research/third",
+    );
   });
 
   it("each result row renders title and sentence-case label", async () => {

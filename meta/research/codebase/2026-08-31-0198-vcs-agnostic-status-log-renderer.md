@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-31-0198-vcs-agnostic-status-log-renderer"
-title: "Research: VCS-agnostic status/log renderer (0198)"
+title: "VCS-agnostic status/log renderer (0198)"
 date: "2026-08-30T23:32:14+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: VCS-agnostic status/log renderer (0198)
+# VCS-agnostic status/log renderer (0198)
 
 **Date**: 2026-08-31 (00:32 local / 2026-08-30T23:32:14+00:00 UTC)
 **Author**: Toby Clemson

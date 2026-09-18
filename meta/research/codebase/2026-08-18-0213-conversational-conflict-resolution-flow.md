@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-18-0213-conversational-conflict-resolution-flow"
-title: "Research: Implementation ground for 0213's conversational conflict resolution flow"
+title: "Implementation ground for 0213's conversational conflict resolution flow"
 date: "2026-08-17T23:16:08+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Implementation ground for 0213's conversational conflict resolution flow
+# Implementation ground for 0213's conversational conflict resolution flow
 
 **Date**: 2026-08-18T00:16:08+01:00 (2026-08-17T23:16:08Z)
 **Author**: Toby Clemson

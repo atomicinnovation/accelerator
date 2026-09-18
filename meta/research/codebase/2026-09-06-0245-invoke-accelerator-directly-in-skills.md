@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-06-0245-invoke-accelerator-directly-in-skills"
-title: "Research: Invoke Accelerator Directly In Skills (0245)"
+title: "Invoke Accelerator Directly In Skills (0245)"
 date: "2026-09-06T10:02:32+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Corrected the PATH-precondition finding: plugin bin/ is auto
 schema_version: 1
 ---
 
-# Research: Invoke Accelerator Directly In Skills (0245)
+# Invoke Accelerator Directly In Skills (0245)
 
 **Date**: 2026-09-06T10:02:32+00:00
 **Author**: Toby Clemson

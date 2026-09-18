@@ -118,3 +118,34 @@ export function hexToRgbString(hex: string): string {
 export function formatRgba(r: number, g: number, b: number, a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
+
+/** sRGB hex → HSL. `h` in degrees [0, 360), `s`/`l` as percentages [0, 100].
+ *  Underpins the lifecycle-chip accessibility gate (saturation and lightness
+ *  bounds), so it carries golden-value tests of its own. */
+export function hslFromHex(hex: string): { h: number; s: number; l: number } {
+  const { r, g, b } = parseHex(hex);
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  const l = (max + min) / 2;
+  let s = 0;
+  if (delta !== 0) {
+    s = delta / (1 - Math.abs(2 * l - 1));
+  }
+  let h = 0;
+  if (delta !== 0) {
+    if (max === rn) {
+      h = ((gn - bn) / delta) % 6;
+    } else if (max === gn) {
+      h = (bn - rn) / delta + 2;
+    } else {
+      h = (rn - gn) / delta + 4;
+    }
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h, s: s * 100, l: l * 100 };
+}

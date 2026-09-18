@@ -10,11 +10,11 @@ last_updated: "2026-04-07T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-04-07-bare-agent-name-references"
-title: "Research: Bare Agent Name References Requiring Plugin Prefix"
+title: "Bare Agent Name References Requiring Plugin Prefix"
 schema_version: 1
 ---
 
-# Research: Bare Agent Name References Requiring Plugin Prefix
+# Bare Agent Name References Requiring Plugin Prefix
 
 **Date**: 2026-04-07T11:41:20+01:00
 **Author**: Toby Clemson

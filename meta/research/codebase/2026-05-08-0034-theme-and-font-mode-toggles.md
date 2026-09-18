@@ -10,13 +10,13 @@ last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-08-0034-theme-and-font-mode-toggles"
-title: "Research: Implementation of work item 0034 — Theme and Font-Mode Toggles"
+title: "Implementation of work item 0034 — Theme and Font-Mode Toggles"
 schema_version: 1
 relates_to: ["adr:ADR-0026", "codebase-research:2026-05-06-0033-design-token-system", "plan:2026-05-06-0033-design-token-system", "codebase-research:2026-05-07-0035-topbar-component", "plan:2026-05-08-0035-topbar-component"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-07-0035-topbar-component", "codebase-research:2026-05-02-design-convergence-workflow", "codebase-research:2026-04-17-meta-visualiser-implementation-context"]
 ---
 
-# Research: Implementation of work item 0034 — Theme and Font-Mode Toggles
+# Implementation of work item 0034 — Theme and Font-Mode Toggles
 
 **Date**: 2026-05-08T17:30:00+01:00
 **Author**: Toby Clemson

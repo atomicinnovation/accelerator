@@ -3,7 +3,7 @@
 //!
 //! Returns `None` when there is no config and the repo is already initialised —
 //! the state the hook injects nothing for. The init sentinel resolves against
-//! the project root, not the caller's CWD (a bash defect this fixes).
+//! the project root, not the caller's CWD.
 
 use config::{
     ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel, ReadContent,

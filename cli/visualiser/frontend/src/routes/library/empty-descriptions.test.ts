@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DOC_TYPE_KEYS } from "../../api/types";
 import { DOC_TYPE_HUE } from "../../styles/tokens";
-import { TYPE_COPY } from "./empty-descriptions";
+import { EMPTY_TYPE_PLURALS, TYPE_COPY } from "./empty-descriptions";
 
 describe("empty-descriptions hue single-sourcing", () => {
   // TYPE_COPY.hue is sourced from DOC_TYPE_HUE (styles/tokens). This pins the
@@ -10,5 +10,25 @@ describe("empty-descriptions hue single-sourcing", () => {
   // the empty-state gradient panel from the BigGlyph hero.
   it.each(DOC_TYPE_KEYS)("TYPE_COPY[%s].hue equals DOC_TYPE_HUE", (key) => {
     expect(TYPE_COPY[key].hue).toBe(DOC_TYPE_HUE[key]);
+  });
+});
+
+describe("topic-research TYPE_COPY", () => {
+  it("uses the prototype-pinned purpose string", () => {
+    expect(TYPE_COPY["topic-research"].purpose).toBe(
+      "Subject dossiers — brief, outline, findings and synthesis accreted into one citable set.",
+    );
+  });
+
+  it("points at the topic-research set directory", () => {
+    expect(TYPE_COPY["topic-research"].path).toBe("meta/research/topics/");
+  });
+});
+
+describe("codebase-research empty-state plural", () => {
+  it("names the plural 'codebase research notes'", () => {
+    expect(EMPTY_TYPE_PLURALS["codebase-research"]).toBe(
+      "codebase research notes",
+    );
   });
 });

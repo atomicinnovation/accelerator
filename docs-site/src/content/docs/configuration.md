@@ -67,8 +67,9 @@ See `/configure help` for the full key reference.
 ## Template Management
 
 Templates control the structure of documents produced by skills (plans, ADRs,
-research, validation reports, PR descriptions). The configure skill provides
-subcommands for managing templates without manually locating plugin internals:
+codebase research, validation reports, PR descriptions). The configure skill
+provides subcommands for managing templates without manually locating plugin
+internals:
 
 | Command                                        | Description                                            |
 |------------------------------------------------|--------------------------------------------------------|

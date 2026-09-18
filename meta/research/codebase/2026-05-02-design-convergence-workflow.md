@@ -11,12 +11,12 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Revised inventory storage to directory-per-inventory so screenshots are dated alongside the markdown they belong to (§3.1, §5.1, §5.2, §8, §9.9)."
 type: "codebase-research"
 id: "2026-05-02-design-convergence-workflow"
-title: "Research: Design Convergence Workflow — Inventory-and-Diff Approach"
+title: "Design Convergence Workflow — Inventory-and-Diff Approach"
 schema_version: 1
 relates_to: ["adr:ADR-0001"]
 ---
 
-# Research: Design Convergence Workflow — Inventory-and-Diff Approach
+# Design Convergence Workflow — Inventory-and-Diff Approach
 
 **Date**: 2026-05-02T23:37:50+01:00
 **Author**: Toby Clemson

@@ -11,13 +11,13 @@ last_updated_by: "Toby Clemson"
 work_item_id: "0068"
 type: "codebase-research"
 id: "2026-05-24-0068-related-documents-inference-accuracy"
-title: "Research: Accuracy of inferring typed linkages from body sections in `meta/`"
+title: "Accuracy of inferring typed linkages from body sections in `meta/`"
 author: "Toby Clemson"
 schema_version: 1
 relates_to: ["work-item:0057"]
 ---
 
-# Research: Accuracy of inferring typed linkages from body sections in `meta/`
+# Accuracy of inferring typed linkages from body sections in `meta/`
 
 **Date**: 2026-05-24T19:12:50+01:00
 **Researcher**: Toby Clemson

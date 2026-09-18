@@ -23,9 +23,8 @@ export const TIER_ORDER: readonly TemplateTierSource[] = [
 
 /** Stem → glyph doc-type lookup. Matches both whole template names
  *  (e.g. `adr` ⇒ `decisions`) and any dash-separated token within a
- *  template name (e.g. `codebase-research` ⇒ `research`, because
- *  `research` is a known stem). Looked up first-to-last in token order,
- *  so the rightmost matching stem wins for names like
+ *  template name. Looked up first-to-last in token order, so the
+ *  rightmost matching stem wins for names like
  *  `something-plan-review` → `plan-reviews`. */
 // Stems map to physical doc-type keys only — templates is the umbrella,
 // not a target. Values are `GlyphDocType` (the presentational superset of
@@ -37,12 +36,20 @@ const STEM_TO_GLYPH: Readonly<Record<string, GlyphDocType>> = {
   // Exact-template-name shortcuts.
   adr: "decisions",
   plan: "plans",
-  research: "research",
+  "codebase-research": "codebase-research",
   validation: "validations",
   "pr-description": "pr-descriptions",
   "work-item": "work-items",
   "design-gap": "design-gaps",
   "design-inventory": "design-inventories",
+  // Topic-research templates are per-kind full names (no bare `topic-research`
+  // template), and `glyphKeyForTemplate` matches end-anchored suffixes, so each
+  // full name is registered exactly rather than via a shared prefix stem.
+  "topic-research-manifest": "topic-research",
+  "topic-research-brief": "topic-research",
+  "topic-research-outline": "topic-research",
+  "topic-research-finding": "topic-research",
+  "topic-research-synthesis": "topic-research",
 
   // Stem tokens that may appear as a part of compound template names.
   decision: "decisions",
@@ -79,8 +86,8 @@ export function glyphKeyForTemplate(name: string): GlyphDocType | null {
   if (STEM_TO_GLYPH[name]) return STEM_TO_GLYPH[name];
   // Multi-token compound names: try the rightmost token first (the
   // semantically dominant suffix in the project's naming convention —
-  // e.g. `codebase-research` is a kind of research), falling back
-  // through earlier tokens.
+  // e.g. `something-plan-review` resolves through `plan-review`),
+  // falling back through earlier tokens.
   const parts = name.split("-");
   for (let i = parts.length; i > 0; i--) {
     const stem = parts.slice(parts.length - i).join("-");

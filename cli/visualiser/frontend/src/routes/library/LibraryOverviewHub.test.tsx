@@ -33,8 +33,8 @@ const baseStructure: LibraryStructureResponse = {
       label: "Discover",
       docTypes: [
         {
-          id: "research",
-          label: "Research",
+          id: "codebase-research",
+          label: "Codebase research",
           count: 0,
           filteredCount: 0,
           latest: null,
@@ -171,13 +171,13 @@ describe("LibraryOverviewHub", () => {
       baseStructure,
     );
     render(<LibraryOverviewHub />, { wrapper: makeWrapper() });
-    await screen.findByText("Research");
+    await screen.findByText("Codebase research");
     // Empty cards remain clickable (navigating to the list-view empty state)
     // but get a pinstripe pattern + altered hover via the `cardEmpty` class.
     const link = screen.getByRole("link", {
-      name: /research \(no documents yet\)/i,
+      name: /codebase research \(no documents yet\)/i,
     });
-    expect(link).toHaveAttribute("href", "/library/research");
+    expect(link).toHaveAttribute("href", "/library/codebase-research");
     expect(screen.getByText("no docs yet")).toBeInTheDocument();
   });
 

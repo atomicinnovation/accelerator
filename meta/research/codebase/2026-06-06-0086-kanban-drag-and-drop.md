@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-06-0086-kanban-drag-and-drop"
-title: "Research: Kanban Drag-and-Drop with Toast Confirmations (work item 0086)"
+title: "Kanban Drag-and-Drop with Toast Confirmations (work item 0086)"
 date: "2026-06-06T13:06:58+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ schema_version: 1
 derived_from: ["codebase-research:2026-05-31-0040-pipeline-visualisation-overhaul", "codebase-research:2026-05-27-0039-toaster-and-external-edit-notifications", "codebase-research:2026-04-17-meta-visualiser-implementation-context", "work-item:0086"]
 ---
 
-# Research: Kanban Drag-and-Drop with Toast Confirmations (work item 0086)
+# Kanban Drag-and-Drop with Toast Confirmations (work item 0086)
 
 **Date**: 2026-06-06T13:06:58+00:00
 **Author**: Toby Clemson

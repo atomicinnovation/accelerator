@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-01-0054-sidebar-search"
-title: "Research: Sidebar Search Input and API Search Endpoint (work item 0054)"
+title: "Sidebar Search Input and API Search Endpoint (work item 0054)"
 date: "2026-06-01T20:31:09+01:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ relates_to: ["codebase-research:2026-05-13-0055-sidebar-activity-feed", "codebas
 derived_from: ["codebase-research:2026-05-12-0053-sidebar-nav-and-unseen-tracker", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-07-0035-topbar-component", "design-inventory:2026-05-21-015231-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype"]
 ---
 
-# Research: Sidebar Search Input and API Search Endpoint (work item 0054)
+# Sidebar Search Input and API Search Endpoint (work item 0054)
 
 **Date**: 2026-06-01T20:31:09+01:00
 **Author**: Toby Clemson

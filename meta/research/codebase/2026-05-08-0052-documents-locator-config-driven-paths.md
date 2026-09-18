@@ -10,12 +10,12 @@ last_updated: "2026-05-08T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-08-0052-documents-locator-config-driven-paths"
-title: "Research: Implementation of 0052 — documents-locator Config-Driven Paths"
+title: "Implementation of 0052 — documents-locator Config-Driven Paths"
 schema_version: 1
 relates_to: ["note:2026-04-26-agents-hardcode-default-directory-locations", "codebase-research:2026-02-22-skills-agents-commands-refactoring", "work-item:0030"]
 ---
 
-# Research: Implementation of 0052 — documents-locator Config-Driven Paths
+# Implementation of 0052 — documents-locator Config-Driven Paths
 
 **Date**: 2026-05-08T21:53:59+01:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-07-03-0164-launcher-and-git-style-dispatch"
-title: "Research: Launcher and Git-Style Dispatch (0164)"
+title: "Launcher and Git-Style Dispatch (0164)"
 date: "2026-07-03T16:58:28+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Launcher and Git-Style Dispatch (0164)
+# Launcher and Git-Style Dispatch (0164)
 
 **Date**: 2026-07-03 16:58 UTC
 **Author**: Toby Clemson

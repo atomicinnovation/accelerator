@@ -10,12 +10,12 @@ last_updated: "2026-04-29T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-04-29-jira-cloud-integration-skills"
-title: "Research: Jira Cloud Integration Skills"
+title: "Jira Cloud Integration Skills"
 schema_version: 1
 relates_to: ["codebase-research:2026-04-08-ticket-management-skills", "codebase-research:2026-04-28-configurable-work-item-id-pattern", "adr:ADR-0017", "adr:ADR-0023"]
 ---
 
-# Research: Jira Cloud Integration Skills
+# Jira Cloud Integration Skills
 
 **Date**: 2026-04-29 22:31:35 BST
 **Author**: Toby Clemson

@@ -34,7 +34,13 @@ fn cfg_with_only(
     let tpl_dir = tmp.join("plugin-templates");
     std::fs::create_dir_all(&tpl_dir).unwrap();
     let mut templates = HashMap::new();
-    for name in ["adr", "plan", "research", "validation", "pr-description"] {
+    for name in [
+        "adr",
+        "plan",
+        "codebase-research",
+        "validation",
+        "pr-description",
+    ] {
         let pd = tpl_dir.join(format!("{name}.md"));
         std::fs::write(&pd, format!("# {name} default\n")).unwrap();
         templates.insert(

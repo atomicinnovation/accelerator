@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-08-19-0212-work-item-script-cutover"
-title: "Research: Work-Item Script Cutover (0212)"
+title: "Work-Item Script Cutover (0212)"
 date: "2026-08-19T10:55:44+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Added follow-up research scoping the extra work to make 0212
 schema_version: 1
 ---
 
-# Research: Work-Item Script Cutover (0212)
+# Work-Item Script Cutover (0212)
 
 **Date**: 2026-08-19T10:55:44+00:00
 **Author**: Toby Clemson

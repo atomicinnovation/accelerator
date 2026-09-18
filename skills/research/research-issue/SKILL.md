@@ -60,10 +60,11 @@ Then wait for the user's issue description.
 
 ### Step 3: Check recent changes
 
-- Run `git log --oneline -20 -- <affected-files>` on each affected file
+- Review each affected file's recent history (its last ~20 revisions) using the
+  session's VCS log command
 - Look for recent modifications that correlate with when the issue started
 - Check if any recent refactoring touched the affected code paths
-- Use `git diff` on suspicious commits if needed
+- Inspect suspicious commits using the session's VCS diff command if needed
 
 ### Step 4: Form hypotheses (2-3 theories)
 
@@ -168,7 +169,7 @@ completing.
 - **File reading**: Always read affected files FULLY (no limit/offset)
 - **Critical ordering**: Follow the numbered steps exactly
   - ALWAYS classify input before investigating (step 1)
-  - ALWAYS check git history on affected files (step 3)
+  - ALWAYS check VCS history on affected files (step 3)
   - ALWAYS form hypotheses before spawning agents (step 4)
   - ALWAYS wait for all sub-agents before synthesising (step 6)
   - ALWAYS write the RCA document to a file before presenting findings (step 6

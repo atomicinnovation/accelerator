@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-11-0106-bare-path-script-invocation-call-sites"
-title: "Research: Bare-path script-invocation call sites in SKILL.md bodies (work item 0106)"
+title: "Bare-path script-invocation call sites in SKILL.md bodies (work item 0106)"
 date: "2026-06-11T13:23:54+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Bare-path script-invocation call sites in SKILL.md bodies (work item 0106)
+# Bare-path script-invocation call sites in SKILL.md bodies (work item 0106)
 
 **Date**: 2026-06-11 13:23 UTC
 **Author**: Toby Clemson

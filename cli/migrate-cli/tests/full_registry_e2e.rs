@@ -1,4 +1,4 @@
-//! The real, full 7-migration registry chained through one invocation
+//! The real, full migration registry chained through one invocation
 //! against a pristine pre-0001 layout with an empty ledger — every other
 //! black-box test pre-marks all-but-one migration applied to isolate it;
 //! this is the one place the whole chain runs together.
@@ -51,12 +51,13 @@ fn a_pristine_legacy_repo_applies_every_real_migration_in_order(
         "0007-unify-meta-corpus-frontmatter",
         "0008-canonical-frontmatter-quoting",
         "0009-split-work-key-from-tracker-scope-key",
+        "0010-strip-research-title-prefix",
     ] {
         assert!(applied.contains(id), "missing {id} in {applied}");
     }
     let stdout = String::from_utf8(output.stdout)?;
     assert!(
-        stdout.contains("applied: 8; pending (no-op): 1."),
+        stdout.contains("applied: 9; pending (no-op): 1."),
         "{stdout}"
     );
 

@@ -3,7 +3,7 @@
 //! Ordinary appends/removes go straight through `corpus_adapters::FileCorpusStore`
 //! (already a `corpus::RecordStore`) at that path — no wrapper needed. What
 //! this module adds is the one capability that doesn't exist yet: the
-//! bash-session-log-to-canonical-format cutover.
+//! session-log-to-canonical-format cutover.
 
 use std::fs;
 use std::path::Path;

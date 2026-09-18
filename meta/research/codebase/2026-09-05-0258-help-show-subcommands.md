@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-05-0258-help-show-subcommands"
-title: "Research: Help Should Show Subcommands (0258)"
+title: "Help Should Show Subcommands (0258)"
 date: "2026-09-05T12:45:31+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Help Should Show Subcommands (0258)
+# Help Should Show Subcommands (0258)
 
 **Date**: 2026-09-05T12:45:31+00:00
 **Author**: Toby Clemson

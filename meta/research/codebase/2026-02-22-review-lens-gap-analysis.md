@@ -8,13 +8,13 @@ last_updated: "2026-02-22T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-02-22-review-lens-gap-analysis"
-title: "Research: Review Lens Gap Analysis"
+title: "Review Lens Gap Analysis"
 schema_version: 1
 revision: "4a4febd1f1ac"
 repository: "ticket-management"
 ---
 
-# Research: Review Lens Gap Analysis
+# Review Lens Gap Analysis
 
 **Date**: 2026-02-22T23:01:34+00:00
 **Author**: Toby Clemson

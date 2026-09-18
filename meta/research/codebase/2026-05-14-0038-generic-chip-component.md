@@ -10,13 +10,13 @@ last_updated: "2026-05-14T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-05-14-0038-generic-chip-component"
-title: "Research: Generic Chip Component (work item 0038)"
+title: "Generic Chip Component (work item 0038)"
 schema_version: 1
 relates_to: ["codebase-research:2026-05-12-0037-glyph-component", "plan:2026-05-12-0037-glyph-component", "adr:ADR-0026", "codebase-research:2026-05-06-0033-design-token-system", "design-inventory:2026-05-06-140608-claude-design-prototype", "design-gap:2026-05-06-current-app-vs-claude-design-prototype", "work-item:0036"]
 derived_from: ["codebase-research:2026-05-06-0033-design-token-system", "codebase-research:2026-05-12-0037-glyph-component", "codebase-research:2026-05-08-0034-theme-and-font-mode-toggles", "codebase-research:2026-05-07-0035-topbar-component"]
 ---
 
-# Research: Generic Chip Component (work item 0038)
+# Generic Chip Component (work item 0038)
 
 **Date**: 2026-05-14T20:08:27+01:00
 **Author**: Toby Clemson

@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-20-0118-reconcile-0007-backfill-sentinel-with-validator"
-title: "Research: Reconcile 0007 Backfill Sentinel With Its Validator"
+title: "Reconcile 0007 Backfill Sentinel With Its Validator"
 date: "2026-06-20T16:47:01+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Reconcile 0007 Backfill Sentinel With Its Validator
+# Reconcile 0007 Backfill Sentinel With Its Validator
 
 **Date**: 2026-06-20T16:47:01+00:00 (UTC)
 **Author**: Toby Clemson

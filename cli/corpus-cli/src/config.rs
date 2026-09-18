@@ -18,9 +18,9 @@ pub struct Composed {
 }
 
 /// Wires the configuration ports at `cwd`'s project root, failing closed on
-/// the legacy `.claude/accelerator.md` layout — matching bash's uniform
-/// treatment of config/schema-resolution failures as ordinary (exit 1)
-/// failures, not usage errors.
+/// the legacy `.claude/accelerator.md` layout — treating config and
+/// schema-resolution failures as ordinary (exit 1) failures, not usage
+/// errors.
 ///
 /// # Errors
 ///
@@ -35,21 +35,27 @@ pub fn compose(cwd: &Path) -> Result<Composed, kernel::Error> {
     })
 }
 
-/// Resolves `paths.decisions`, absolute paths used as-is and relative paths
-/// resolved against the discovered project root — matching the retired bash
-/// implementation's own resolution rule.
+/// Resolves a doc type's configured directory: its `paths.<config_path_key>`
+/// value (falling back to the catalogue default), absolute paths used as-is and
+/// relative paths resolved against the discovered project root.
 ///
 /// # Errors
 ///
-/// A [`kernel::Error`] when the key cannot be resolved.
-pub fn resolve_decisions_dir(
+/// A [`kernel::Error`] when the type carries no config path key (a virtual
+/// type) or the key cannot be resolved.
+pub fn resolve_type_dir(
     composed: &Composed,
+    key: DocTypeKey,
 ) -> Result<PathBuf, kernel::Error> {
-    let raw = config::paths::resolve_with_fallback(
-        &composed.service,
-        "decisions",
-        None,
-    )?;
+    let path_key = key.config_path_key().ok_or_else(|| {
+        kernel::Error::Failed(format!(
+            "document type '{}' has no configured directory",
+            key.wire_str()
+        ))
+    })?;
+    let raw =
+        config::paths::resolve_with_fallback(&composed.service, path_key, None)
+            .map_err(|error| kernel::Error::Failed(error.to_string()))?;
     let path = PathBuf::from(raw);
     Ok(if path.is_absolute() {
         path

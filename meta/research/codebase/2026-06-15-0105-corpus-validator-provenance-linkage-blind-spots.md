@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-15-0105-corpus-validator-provenance-linkage-blind-spots"
-title: "Research: Close the Corpus Validator Provenance and Linkage Blind Spots (0105)"
+title: "Close the Corpus Validator Provenance and Linkage Blind Spots (0105)"
 date: "2026-06-15T16:38:06+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -18,7 +18,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Research: Close the Corpus Validator Provenance and Linkage Blind Spots (0105)
+# Close the Corpus Validator Provenance and Linkage Blind Spots (0105)
 
 **Date**: 2026-06-15T16:38:06+00:00 (UTC)
 **Author**: Toby Clemson

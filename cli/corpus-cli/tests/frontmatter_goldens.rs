@@ -58,6 +58,59 @@ fn write_work_item(path: &Path, id: &str) -> Result<(), TestError> {
     Ok(())
 }
 
+/// A topic-research manifest at `<root>/meta/research/topics/<slug>/manifest.md`,
+/// with an explicit `id` so a constant-id collision can be constructed
+/// separately from the slug-keyed happy path.
+fn write_topic_manifest(
+    root: &Path,
+    slug: &str,
+    id: &str,
+) -> Result<(), TestError> {
+    let path = root
+        .join("meta/research/topics")
+        .join(slug)
+        .join("manifest.md");
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        &path,
+        format!(
+            "---\ntype: \"topic-research\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\n\
+             producer: \"research-topic\"\nstatus: \"synthesised\"\n\
+             kind: \"manifest\"\nslug: \"{slug}\"\nround_count: 1\n\
+             finding_count: 1\nprimary: \"synthesis.md\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\n---\nbody\n"
+        ),
+    )?;
+    Ok(())
+}
+
+/// A work item whose `relates_to` targets a topic-research set by slug.
+fn write_referencing_work_item(
+    path: &Path,
+    id: &str,
+    target_slug: &str,
+) -> Result<(), TestError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        path,
+        format!(
+            "---\ntype: \"work-item\"\nid: \"{id}\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"draft\"\nkind: \"task\"\n\
+             priority: \"normal\"\n\
+             relates_to: [\"topic-research:{target_slug}\"]\n---\nbody\n"
+        ),
+    )?;
+    Ok(())
+}
+
 #[test]
 fn a_clean_whole_corpus_default_run_exits_0() -> Result<(), TestError> {
     let dir = tempdir("default-clean")?;
@@ -345,6 +398,287 @@ fn this_repositorys_own_corpus_is_clean() -> Result<(), TestError> {
         output.status.success(),
         "this repository's own meta/ tree must carry zero frontmatter \
          violations: {}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+/// The committed hand-authored topic-research set — the shared fixture the
+/// visualiser indexer keys on, validated here independent of live web.
+fn topic_research_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-set")
+}
+
+fn validate_content(tag: &str, content: &str) -> Result<Output, TestError> {
+    let dir = tempdir(tag)?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let file = root.join("doc.md");
+    fs::write(&file, content)?;
+    run(
+        &root,
+        &[
+            "frontmatter",
+            "validate",
+            "--file",
+            file.to_str().ok_or("non-utf8")?,
+        ],
+    )
+}
+
+#[test]
+fn the_committed_topic_research_set_validates_clean() -> Result<(), TestError> {
+    let set = topic_research_set();
+    let files = [
+        set.join("manifest.md"),
+        set.join("brief.md"),
+        set.join("outline.md"),
+        set.join("findings/01-example-focus.md"),
+        set.join("synthesis.md"),
+    ];
+    let dir = tempdir("topic-set-clean")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let mut args = vec!["frontmatter".to_owned(), "validate".to_owned()];
+    for file in &files {
+        args.push("--file".to_owned());
+        args.push(file.to_str().ok_or("non-utf8")?.to_owned());
+    }
+    let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = run(&root, &borrowed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_missing_primary_is_a_missing_extra() -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("primary:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-primary", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("MISSING-EXTRA"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stderr(&output).contains("primary"), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_brief_missing_source_profiles_is_a_missing_extra() -> Result<(), TestError>
+{
+    let content = fs::read_to_string(topic_research_set().join("brief.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("source_profiles:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-profiles", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("MISSING-EXTRA"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_document_with_a_bogus_kind_is_unknown_kind(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated = content.replace("kind: \"manifest\"", "kind: \"bogus\"");
+    let output = validate_content("topic-bogus-kind", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNKNOWN-KIND"),
+        "a valid type carrying an unmatched kind must be UNKNOWN-KIND, not \
+         INVALID-TYPE: {}",
+        stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("INVALID-TYPE"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_document_missing_its_kind_is_unknown_kind(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated: String = content
+        .lines()
+        .filter(|line| !line.starts_with("kind:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = validate_content("topic-missing-kind", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("UNKNOWN-KIND"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_finding_with_a_draft_status_is_rejected_but_complete_passes(
+) -> Result<(), TestError> {
+    let complete = fs::read_to_string(
+        topic_research_set().join("findings/01-example-focus.md"),
+    )?;
+    let pass = validate_content("topic-finding-complete", &complete)?;
+    assert!(pass.status.success(), "{}", stderr(&pass));
+
+    let draft = complete.replace("status: \"complete\"", "status: \"draft\"");
+    let output = validate_content("topic-finding-draft", &draft)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("BAD-STATUS"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manifest_at_the_briefed_lifecycle_start_validates() -> Result<(), TestError>
+{
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let briefed =
+        content.replace("status: \"synthesised\"", "status: \"briefed\"");
+    let output = validate_content("topic-status-briefed", &briefed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_carrying_the_retired_research_status_is_obsolete_legacy_key(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated = content.replace(
+        "status: \"synthesised\"\n",
+        "status: \"synthesised\"\nresearch_status: \"synthesised\"\n",
+    );
+    let output = validate_content("topic-research-status-retired", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("OBSOLETE-LEGACY-KEY"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        stderr(&output).contains("research_status"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manifest_with_an_out_of_vocab_base_status_is_bad_status(
+) -> Result<(), TestError> {
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let mutated =
+        content.replace("status: \"synthesised\"", "status: \"bogus\"");
+    let output = validate_content("topic-status-out-of-vocab", &mutated)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("BAD-STATUS"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_reference_resolves_under_the_whole_corpus_check(
+) -> Result<(), TestError> {
+    // The `--file` golden cannot exercise this: its reference index is built
+    // from an empty invocation root. Staging both documents under one root and
+    // running a whole-corpus validate (no `--file`) makes `build_index` index
+    // the manifest so the `id: <slug>`-keyed reference resolves.
+    let dir = tempdir("topic-ref-resolves")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(
+        &root,
+        "prompt-caching-economics",
+        "prompt-caching-economics",
+    )?;
+    write_referencing_work_item(
+        &root.join("meta/work/0001.md"),
+        "0001",
+        "prompt-caching-economics",
+    )?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_topic_research_reference_without_its_set_is_dangling(
+) -> Result<(), TestError> {
+    // Negative control: without the target set indexed, resolution genuinely
+    // fails rather than passing vacuously.
+    let dir = tempdir("topic-ref-dangling")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_referencing_work_item(
+        &root.join("meta/work/0001.md"),
+        "0001",
+        "prompt-caching-economics",
+    )?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("DANGLING-REF"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn two_topic_sets_with_slug_keyed_ids_validate_clean() -> Result<(), TestError>
+{
+    let dir = tempdir("topic-two-sets")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(&root, "alpha-subject", "alpha-subject")?;
+    write_topic_manifest(&root, "beta-subject", "beta-subject")?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn two_topic_sets_sharing_a_constant_manifest_id_collide(
+) -> Result<(), TestError> {
+    // The regression the `id: <slug>` manifest scheme prevents: two sets both
+    // keying their manifest as the pre-collapse constant `id: "manifest"`.
+    let dir = tempdir("topic-dup-id")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_topic_manifest(&root, "alpha-subject", "manifest")?;
+    write_topic_manifest(&root, "beta-subject", "manifest")?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("DUPLICATE-ID"),
+        "{}",
         stderr(&output)
     );
     Ok(())

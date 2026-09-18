@@ -11,12 +11,12 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Revised to path-passing pattern; added skills vs agents capability boundaries"
 type: "codebase-research"
 id: "2026-02-22-skills-agents-commands-refactoring"
-title: "Research: Skills, Agents, and Commands Refactoring"
+title: "Skills, Agents, and Commands Refactoring"
 schema_version: 1
 relates_to: ["codebase-research:2026-02-22-review-plan-pr-alignment"]
 ---
 
-# Research: Skills, Agents, and Commands Refactoring
+# Skills, Agents, and Commands Refactoring
 
 **Date**: 2026-02-22T19:05:56+0000
 **Author**: Toby Clemson

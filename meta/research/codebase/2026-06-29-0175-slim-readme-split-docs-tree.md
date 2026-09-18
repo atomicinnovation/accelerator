@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-06-29-0175-slim-readme-split-docs-tree"
-title: "Research: Slim the README and split content into a docs/ tree (0175)"
+title: "Slim the README and split content into a docs/ tree (0175)"
 date: "2026-06-29T12:52:42+00:00"
 author: "Phil Helm"
 producer: "research-codebase"
@@ -17,7 +17,7 @@ last_updated_by: "Phil Helm"
 schema_version: 1
 ---
 
-# Research: Slim the README and split content into a docs/ tree (0175)
+# Slim the README and split content into a docs/ tree (0175)
 
 **Date**: 2026-06-29T12:52:42+00:00 (UTC)
 **Author**: Phil Helm

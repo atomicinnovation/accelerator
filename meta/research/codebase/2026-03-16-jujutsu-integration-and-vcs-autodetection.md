@@ -10,12 +10,12 @@ last_updated: "2026-03-16T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 type: "codebase-research"
 id: "2026-03-16-jujutsu-integration-and-vcs-autodetection"
-title: "Research: Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring"
+title: "Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring"
 schema_version: 1
 derived_from: ["codebase-research:2026-02-22-skills-agents-commands-refactoring", "codebase-research:2026-03-14-plugin-extraction", "codebase-research:2026-03-15-context-management-approaches"]
 ---
 
-# Research: Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring
+# Jujutsu Integration, VCS Auto-Detection, and Git/GitHub Skill Restructuring
 
 **Date**: 2026-03-16T12:24:27+00:00
 **Author**: Toby Clemson

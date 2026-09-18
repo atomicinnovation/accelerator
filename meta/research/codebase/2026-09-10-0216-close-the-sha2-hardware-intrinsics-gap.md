@@ -1,7 +1,7 @@
 ---
 type: "codebase-research"
 id: "2026-09-10-0216-close-the-sha2-hardware-intrinsics-gap"
-title: "Research: Close the sha2 hardware-intrinsics gap (0216)"
+title: "Close the sha2 hardware-intrinsics gap (0216)"
 date: "2026-09-10T21:30:58+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
@@ -19,7 +19,7 @@ last_updated_note: "Recorded resolutions for the five open questions after a dec
 schema_version: 1
 ---
 
-# Research: Close the sha2 hardware-intrinsics gap (0216)
+# Close the sha2 hardware-intrinsics gap (0216)
 
 **Date**: 2026-09-10T21:30:58+00:00
 **Author**: Toby Clemson

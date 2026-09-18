@@ -11,11 +11,11 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Added analysis of review-pr ephemeral file placement problem and proposed migration to meta/tmp/"
 type: "codebase-research"
 id: "2026-03-28-initialise-skill-requirements"
-title: "Research: Initialise Skill — Codebase Analysis and Requirements"
+title: "Initialise Skill — Codebase Analysis and Requirements"
 schema_version: 1
 ---
 
-# Research: Initialise Skill — Codebase Analysis and Requirements
+# Initialise Skill — Codebase Analysis and Requirements
 
 **Date**: 2026-03-28T21:49:56+0000
 **Author**: Toby Clemson

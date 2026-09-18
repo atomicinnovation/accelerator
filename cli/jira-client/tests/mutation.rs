@@ -1,5 +1,5 @@
 //! The rich `create` and `update` payloads: every field maps to the Jira REST
-//! shape the retiring bash flows sent, across the `fields` (set) and `update`
+//! shape the established flows sent, across the `fields` (set) and `update`
 //! (incremental) channels.
 
 #![allow(clippy::expect_used, clippy::panic)]

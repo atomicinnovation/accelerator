@@ -45,7 +45,7 @@ fn compose(dir: &Path) -> accelerator_visualiser::config::Config {
 }
 
 #[test]
-fn resolves_all_thirteen_doc_paths_with_overrides_and_defaults() {
+fn resolves_all_fourteen_doc_paths_with_overrides_and_defaults() {
     let tmp = tempfile::tempdir().unwrap();
     seed_project(tmp.path());
     let cfg = compose(tmp.path());
@@ -64,6 +64,7 @@ fn resolves_all_thirteen_doc_paths_with_overrides_and_defaults() {
             "research_design_gaps",
             "research_design_inventories",
             "research_issues",
+            "research_topics",
             "review_plans",
             "review_prs",
             "review_work",
