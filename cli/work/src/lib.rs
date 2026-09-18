@@ -8,6 +8,7 @@ pub mod filter;
 pub mod next_number;
 pub mod normalise;
 pub mod own_identity;
+pub mod pull;
 pub mod resolve;
 pub mod section_diff;
 pub mod show;

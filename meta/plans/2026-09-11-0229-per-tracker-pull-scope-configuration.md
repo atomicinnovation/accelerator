@@ -321,30 +321,30 @@ yet — a malformed block renders as-configured here and is rejected in Phase 2.
 
 #### Automated Verification
 
-- [ ] Config crate unit tests pass: `cargo test -p config`
-- [ ] `project` round-trips a nested mapping to `Value::Mapping`: new test in
+- [x] Config crate unit tests pass: `cargo test -p config`
+- [x] `project` round-trips a nested mapping to `Value::Mapping`: new test in
       `cli/config/src/service.rs`
-- [ ] The two behaviourally-changed match arms are pinned — `as_string_sequence`
+- [x] The two behaviourally-changed match arms are pinned — `as_string_sequence`
       renders a `Mapping` as the empty list and `render_value` renders it as the empty
       string: new tests in `cli/config/src/`
-- [ ] `parse` maps a Jira block (`additional_projects`) and a Linear block
+- [x] `parse` maps a Jira block (`additional_projects`) and a Linear block
       (`additional_teams`) both to `additional_entities`, and an absent block to the
       empty config: new tests in `cli/work/src/pull.rs`
-- [ ] Whole-block replacement drops team-only fields: team `additional_teams:[X]` +
+- [x] Whole-block replacement drops team-only fields: team `additional_teams:[X]` +
       `filters:{label:[a]}` with personal `additional_teams:[Y]` and no `filters` resolves
       to Y-only with team `X` *and* `filters` gone (a field-level merge must fail this):
       new test in `cli/work-cli/tests/` or `cli/config` service test
-- [ ] `parse` rejects a non-mapping block with the shape error, and an unrecognised
+- [x] `parse` rejects a non-mapping block with the shape error, and an unrecognised
       top-level key lands in the typed "unknown keys" field (not silently dropped): new
       unit tests in `cli/work/src/pull.rs`
-- [ ] `config` and `work` public-api snapshots regenerated and matching (the
+- [x] `config` and `work` public-api snapshots regenerated and matching (the
       `Value::Mapping` variant and the `PullConfig` value object):
       `mise run public-api:update && mise run public-api:check`
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 
-- [ ] `accelerator config dump` shows a configured `pull` block for the active
+- [x] `accelerator config dump` shows a configured `pull` block for the active
       tracker, and an unset-but-available placeholder listing the accepted fields when
       unconfigured.
 - [ ] A personal `<tracker>.pull` block visibly replaces the team block in `dump`, with

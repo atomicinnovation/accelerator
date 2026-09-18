@@ -6,7 +6,8 @@
 //! render as `*(set — hidden)*`.
 
 use config::{
-    catalogue, ConfigAccess, ConfigError, Key, Level, ReadConfigLevel, Resolved,
+    catalogue, ConfigAccess, ConfigError, Key, Level, ReadConfigLevel,
+    Resolved, Value,
 };
 
 /// The value cell of a dump row.
@@ -76,7 +77,86 @@ pub fn assemble(
     for key in catalogue::EXTRA_KEYS {
         rows.push(extra_row(config, key)?);
     }
+    rows.extend(pull_rows(config)?);
     Ok(Some(rows))
+}
+
+/// The active tracker's accepted `pull`-block fields, in the tracker's own
+/// vocabulary. `None` for a tracker with no pull-scope surface (an unset or
+/// unsupported integration).
+fn pull_fields(integration: &str) -> Option<&'static [&'static str]> {
+    match integration {
+        "jira" => Some(&[
+            "additional_projects",
+            "all_projects",
+            "filters",
+            "max_items",
+            "max_pages",
+        ]),
+        "linear" => Some(&[
+            "additional_teams",
+            "all_teams",
+            "filters",
+            "max_items",
+            "max_pages",
+        ]),
+        _ => None,
+    }
+}
+
+/// Read-only rows for the active tracker's `<tracker>.pull` block: the resolved
+/// block flattened to `<tracker>.pull.<field>` rows when present, else an
+/// unset-but-available placeholder listing the accepted fields. Whole-block
+/// replacement shows through the per-row source when a personal block wins.
+fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
+    let integration = config
+        .effective(&Key::parse("work.integration")?, None)?
+        .rendered();
+    let Some(fields) = pull_fields(&integration) else {
+        return Ok(Vec::new());
+    };
+    let prefix = format!("{integration}.pull");
+    if let Resolved::Found(Value::Mapping(entries)) =
+        config.get(&Key::parse(&prefix)?, None)?
+    {
+        if !entries.is_empty() {
+            let source = source_of(config, &prefix)?;
+            let mut leaves = Vec::new();
+            for (field, value) in &entries {
+                flatten_block(&format!("{prefix}.{field}"), value, &mut leaves);
+            }
+            return Ok(leaves
+                .into_iter()
+                .map(|(key, value)| Row {
+                    key,
+                    cell: Cell::Value(value),
+                    source,
+                })
+                .collect());
+        }
+    }
+    Ok(fields
+        .iter()
+        .map(|field| Row {
+            key: format!("{prefix}.{field}"),
+            cell: Cell::NotSet,
+            source: Source::Default,
+        })
+        .collect())
+}
+
+/// Flattens a resolved block to leaf `(dotted-key, rendered-value)` pairs,
+/// recursing into nested mappings (`filters`, a `max_pages` block) so each
+/// scalar or sequence surfaces as its own dotted row.
+fn flatten_block(prefix: &str, value: &Value, out: &mut Vec<(String, String)>) {
+    match value {
+        Value::Mapping(entries) if !entries.is_empty() => {
+            for (key, child) in entries {
+                flatten_block(&format!("{prefix}.{key}"), child, out);
+            }
+        }
+        leaf => out.push((prefix.to_owned(), config::render_value(leaf))),
+    }
 }
 
 fn config_get(

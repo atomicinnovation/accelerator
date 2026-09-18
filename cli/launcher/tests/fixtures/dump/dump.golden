@@ -83,3 +83,8 @@
 | `visualiser.editor_project` | *(not set)* | default |
 | `visualiser.binary` | *(not set)* | default |
 | `design.browser_path` | *(not set)* | default |
+| `linear.pull.additional_teams` | *(not set)* | default |
+| `linear.pull.all_teams` | *(not set)* | default |
+| `linear.pull.filters` | *(not set)* | default |
+| `linear.pull.max_items` | *(not set)* | default |
+| `linear.pull.max_pages` | *(not set)* | default |

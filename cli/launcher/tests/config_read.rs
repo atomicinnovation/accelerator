@@ -905,6 +905,48 @@ fn dump_matches_the_committed_golden() -> TestResult {
 }
 
 #[test]
+fn dump_surfaces_a_configured_pull_block_as_flat_rows() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: linear\nlinear:\n  pull:\n    \
+         additional_teams: [core, ops]\n    filters:\n      label: [bug]\n    \
+         max_items: 3\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(
+        "`linear.pull.additional_teams` | `[core, ops]` \
+         | team (.accelerator/config.md)"
+    ));
+    assert!(stdout.contains(
+        "`linear.pull.filters.label` | `[bug]` \
+         | team (.accelerator/config.md)"
+    ));
+    assert!(stdout.contains(
+        "`linear.pull.max_items` | `3` | team (.accelerator/config.md)"
+    ));
+    Ok(())
+}
+
+#[test]
+fn dump_shows_a_personal_pull_block_replacing_the_team_block() -> TestResult {
+    let fixture = Fixture::new()?
+        .team(
+            "---\nwork:\n  integration: linear\nlinear:\n  pull:\n    \
+             additional_teams: [core]\n    filters:\n      label: [bug]\n---\n",
+        )?
+        .local("---\nlinear:\n  pull:\n    additional_teams: [ops]\n---\n")?;
+    let output = fixture.run(&["config", "dump"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(
+        "`linear.pull.additional_teams` | `[ops]` \
+         | local (.accelerator/config.local.md)"
+    ));
+    // The team-only `filters` field is dropped wholesale, not merged.
+    assert!(!stdout.contains("linear.pull.filters"));
+    Ok(())
+}
+
+#[test]
 fn dump_hides_credential_values() -> TestResult {
     let workspace = workspace("dump")?;
     let output = run_in(&workspace, &["config", "dump"])?;

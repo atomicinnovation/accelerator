@@ -12,22 +12,25 @@ use crate::node::Scalar;
 use crate::render::render_scalar;
 use crate::render::render_value;
 
-/// A resolved configuration value: a scalar leaf or a sequence of scalars.
+/// A resolved configuration value: a scalar leaf, a sequence of scalars, or a
+/// structured mapping block.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Scalar(Scalar),
     Sequence(Vec<Scalar>),
+    Mapping(Vec<(String, Value)>),
 }
 
 impl Value {
     /// Project this value to a list of strings: a sequence to its rendered
     /// elements, a null scalar to the empty list, any other scalar to a single
     /// element. The one string projection consumers of list-valued keys share.
+    /// A mapping has no list projection and yields the empty list.
     #[must_use]
     pub fn as_string_sequence(&self) -> Vec<String> {
         match self {
-            Self::Scalar(Scalar::Null) => Vec::new(),
+            Self::Scalar(Scalar::Null) | Self::Mapping(_) => Vec::new(),
             Self::Scalar(scalar) => vec![render_scalar(scalar)],
             Self::Sequence(items) => items.iter().map(render_scalar).collect(),
         }
@@ -533,15 +536,21 @@ fn resolve(document: Option<&Node>, key: &Key) -> Resolved {
 /// Projects a raw [`Node`] to the [`Value`] shape resolution yields.
 ///
 /// A scalar leaf maps to itself, an all-scalar sequence to a
-/// [`Value::Sequence`], and any other node (a mapping, or a sequence with a
-/// non-scalar element) to a null scalar.
+/// [`Value::Sequence`], a mapping to a [`Value::Mapping`] projecting each child
+/// recursively, and a sequence with a non-scalar element to a null scalar.
 #[must_use]
 pub fn project(node: &Node) -> Value {
     match node {
         Node::Scalar(scalar) => Value::Scalar(scalar.clone()),
         Node::Sequence(items) => scalar_elements(items)
             .map_or(Value::Scalar(Scalar::Null), Value::Sequence),
-        Node::Mapping(_) => Value::Scalar(Scalar::Null),
+        Node::Mapping(mapping) => Value::Mapping(
+            mapping
+                .entries()
+                .iter()
+                .map(|(key, child)| (key.clone(), project(child)))
+                .collect(),
+        ),
     }
 }
 
@@ -907,7 +916,8 @@ mod tests {
     }
 
     #[test]
-    fn a_path_ending_on_a_mapping_is_found_empty() -> Result<(), ConfigError> {
+    fn a_path_ending_on_a_mapping_resolves_to_the_projected_block(
+    ) -> Result<(), ConfigError> {
         let reader = FakeReader::new(
             LevelState::Missing,
             LevelState::Present(mapping(vec![(
@@ -917,13 +927,16 @@ mod tests {
         );
         assert_eq!(
             service(reader).get(&Key::parse("core")?, None)?,
-            Resolved::Found(Value::Scalar(Scalar::Null))
+            Resolved::Found(Value::Mapping(vec![(
+                "example".to_owned(),
+                Value::Scalar(Scalar::String("leaf".to_owned())),
+            )]))
         );
         Ok(())
     }
 
     #[test]
-    fn a_personal_mapping_node_shadows_a_team_scalar_as_found_empty(
+    fn a_personal_mapping_node_shadows_a_team_scalar_as_a_block(
     ) -> Result<(), ConfigError> {
         let reader = FakeReader::new(
             LevelState::Present(mapping(vec![(
@@ -940,7 +953,98 @@ mod tests {
         );
         assert_eq!(
             service(reader).get(&Key::parse("core.example")?, None)?,
-            Resolved::Found(Value::Scalar(Scalar::Null))
+            Resolved::Found(Value::Mapping(vec![(
+                "nested".to_owned(),
+                Value::Scalar(Scalar::String("x".to_owned())),
+            )]))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn project_round_trips_a_nested_mapping_to_a_mapping_value(
+    ) -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Missing,
+            LevelState::Present(mapping(vec![(
+                "jira",
+                mapping(vec![(
+                    "pull",
+                    mapping(vec![
+                        ("additional_projects", sequence(&["PP", "XX"])),
+                        (
+                            "filters",
+                            mapping(vec![("label", sequence(&["a", "b"]))]),
+                        ),
+                        ("max_items", Node::Scalar(Scalar::Int(3))),
+                    ]),
+                )]),
+            )])),
+        );
+        assert_eq!(
+            service(reader).get(&Key::parse("jira.pull")?, None)?,
+            Resolved::Found(Value::Mapping(vec![
+                (
+                    "additional_projects".to_owned(),
+                    Value::Sequence(vec![
+                        Scalar::String("PP".to_owned()),
+                        Scalar::String("XX".to_owned()),
+                    ]),
+                ),
+                (
+                    "filters".to_owned(),
+                    Value::Mapping(vec![(
+                        "label".to_owned(),
+                        Value::Sequence(vec![
+                            Scalar::String("a".to_owned()),
+                            Scalar::String("b".to_owned()),
+                        ]),
+                    )]),
+                ),
+                ("max_items".to_owned(), Value::Scalar(Scalar::Int(3))),
+            ]))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn value_as_string_sequence_projects_a_mapping_to_the_empty_list() {
+        assert!(Value::Mapping(vec![(
+            "label".to_owned(),
+            Value::Scalar(Scalar::String("bug".to_owned())),
+        )])
+        .as_string_sequence()
+        .is_empty());
+    }
+
+    #[test]
+    fn a_personal_block_replaces_a_team_block_wholesale(
+    ) -> Result<(), ConfigError> {
+        let reader = FakeReader::new(
+            LevelState::Present(mapping(vec![(
+                "linear",
+                mapping(vec![(
+                    "pull",
+                    mapping(vec![
+                        ("additional_teams", sequence(&["X"])),
+                        ("filters", mapping(vec![("label", sequence(&["a"]))])),
+                    ]),
+                )]),
+            )])),
+            LevelState::Present(mapping(vec![(
+                "linear",
+                mapping(vec![(
+                    "pull",
+                    mapping(vec![("additional_teams", sequence(&["Y"]))]),
+                )]),
+            )])),
+        );
+        assert_eq!(
+            service(reader).get(&Key::parse("linear.pull")?, None)?,
+            Resolved::Found(Value::Mapping(vec![(
+                "additional_teams".to_owned(),
+                Value::Sequence(vec![Scalar::String("Y".to_owned())]),
+            )]))
         );
         Ok(())
     }
