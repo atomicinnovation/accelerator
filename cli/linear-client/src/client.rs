@@ -10,6 +10,7 @@ use remote_projection::Integration;
 use remote_projection::Op;
 use serde_json::json;
 use serde_json::Value;
+use tracker::Ceiling;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -157,13 +158,14 @@ impl LinearClient {
     pub fn from_config(
         context: &CredentialContext<'_>,
         integrations_root: &Path,
+        transport_config: TransportConfig,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context, integrations_root)?;
         let team_key =
             crate::auth::team_key(context.config, integrations_root)?;
         let transport = Transport::to_linear(
             credentials,
-            TransportConfig::default(),
+            transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
@@ -326,14 +328,16 @@ impl LinearClient {
     fn page_all(
         &self,
         search: &Search,
+        cap: Ceiling,
     ) -> (Vec<(String, RemoteTimestamp)>, Option<String>) {
         let deadline = self.transport.deadline();
-        let cap = self.transport.config().max_pages;
         let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
         let mut cursor: Option<String> = None;
         let mut truncated = None;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             match self.fetch_page(search, cursor.as_deref(), &deadline) {
                 Ok((mut found, next)) => {
                     index.append(&mut found);
@@ -341,9 +345,10 @@ impl LinearClient {
                     if cursor.is_none() {
                         break;
                     }
-                    if page == cap {
+                    if cap.reached(page) {
                         truncated =
-                            Some(format!("the {cap}-page cap was reached"));
+                            Some(format!("the {page}-page cap was reached"));
+                        break;
                     }
                 }
                 Err(reason) => {
@@ -376,13 +381,15 @@ impl LinearClient {
         search: &Search,
     ) -> Result<DetailedPage, SurfaceError> {
         let filter = compose(search, self.states.as_ref())?;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
         let mut nodes = Vec::new();
         let mut cursor: Option<String> = None;
         let mut truncated = false;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
                 truncated = true;
                 break;
@@ -415,8 +422,9 @@ impl LinearClient {
             if !has_next || cursor.is_none() {
                 break;
             }
-            if page == cap {
+            if cap.reached(page) {
                 truncated = true;
+                break;
             }
         }
         Ok(DetailedPage { nodes, truncated })
@@ -648,7 +656,10 @@ impl RemoteTracker for LinearClient {
             team_id: Some(self.credentials().team_id.clone()),
             ..Search::default()
         };
-        let (index, truncated) = self.page_all(&team_search);
+        let (index, truncated) = self.page_all(
+            &team_search,
+            self.transport.config().keyed_read_max_pages,
+        );
 
         for id in requested {
             let stamp = index
@@ -719,7 +730,8 @@ impl RemoteTracker for LinearClient {
                 _ => {}
             }
         }
-        let (index, truncated) = self.page_all(&search);
+        let (index, truncated) =
+            self.page_all(&search, self.transport.config().discovery_max_pages);
         Ok(Discovery {
             found: index
                 .into_iter()

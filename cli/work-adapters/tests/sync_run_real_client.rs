@@ -247,8 +247,8 @@ fn execute(
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode,
         integrations_root: &integrations_root,
         integration: "jira",
@@ -361,7 +361,8 @@ fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     let client = jira_client(
         &server.base_url(),
         TransportConfig {
-            max_pages: 1,
+            discovery_max_pages: tracker::Ceiling::Bounded(1),
+            keyed_read_max_pages: tracker::Ceiling::Bounded(1),
             ..TransportConfig::default()
         },
     );
@@ -480,7 +481,8 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     let client = linear_client(
         &server.base_url(),
         TransportConfig {
-            max_pages: 1,
+            discovery_max_pages: tracker::Ceiling::Bounded(1),
+            keyed_read_max_pages: tracker::Ceiling::Bounded(1),
             ..TransportConfig::default()
         },
     );

@@ -274,14 +274,17 @@ pub struct SyncArgs {
     /// Read each item with its own request instead of one bulk retrieval.
     #[arg(long)]
     pub per_item_reads: bool,
-    /// Refuse the run if it would overwrite more than this many local
-    /// files from the remote. 0 refuses every pull.
-    #[arg(long, default_value_t = 25)]
-    pub max_pulls: usize,
-    /// Refuse the run if it would replace more than this many remote
-    /// issues. 0 refuses every push.
-    #[arg(long, default_value_t = 25)]
-    pub max_pushes: usize,
+    /// Refuse the run if it would overwrite more than this many local files
+    /// from the remote. 0 refuses every pull. When present, overrides
+    /// `<tracker>.pull.max_items`; when unset, defers to that config key, else
+    /// the built-in 25.
+    #[arg(long)]
+    pub max_pulls: Option<usize>,
+    /// Refuse the run if it would replace more than this many remote issues.
+    /// 0 refuses every push. When unset, defaults to 25; push has no config
+    /// source.
+    #[arg(long)]
+    pub max_pushes: Option<usize>,
     /// Reconcile only this work item; repeatable. Accepts a local id
     /// (0042), a remote tracker key / `external_id` (PP-787), or a file
     /// path. Naming any target suppresses untracked-remote discovery.

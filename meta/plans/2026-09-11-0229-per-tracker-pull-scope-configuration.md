@@ -566,35 +566,35 @@ no config source.
 
 #### Automated Verification
 
-- [ ] `max_items: 3` refuses a 5-issue discovery whereas the default 25 completes:
+- [x] `max_items: 3` refuses a 5-issue discovery whereas the default 25 completes:
       new test in `cli/work-adapters/tests/sync_run.rs` (via `RecordingTracker`)
-- [ ] A config-sourced `<tracker>.pull.max_items: 0` refuses a 1-issue discovery with zero
+- [x] A config-sourced `<tracker>.pull.max_items: 0` refuses a 1-issue discovery with zero
       writes, distinct from `unlimited` completing and the default 25 completing: new test
       in `cli/work-adapters/tests/sync_run.rs`
-- [ ] `max_pages: 5` reaches the cap where the default 50 completes: new client/transport
+- [x] `max_pages: 5` reaches the cap where the default 50 completes: new client/transport
       paging test (not the page-less `RecordingTracker`, which models no pagination)
-- [ ] A `keyed_read` override sets the keyed-read cap independently of `discovery` (and
+- [x] A `keyed_read` override sets the keyed-read cap independently of `discovery` (and
       vice versa) — a low `keyed_read` cap-aborts the reconcile read while `discovery`
       completes, and the reverse: new client/transport paging tests
-- [ ] `Ceiling::Unlimited` never truncates a page set larger than the default cap: new
+- [x] `Ceiling::Unlimited` never truncates a page set larger than the default cap: new
       client/transport paging test
-- [ ] `max_items: unlimited` completes a discovery larger than the default 25: new test
+- [x] `max_items: unlimited` completes a discovery larger than the default 25: new test
       in `cli/work-adapters/tests/sync_run.rs` (the fake is adequate for `max_items`)
-- [ ] A general `<tracker>.pull.max_pages` plus a per-operation override each reach the
+- [x] A general `<tracker>.pull.max_pages` plus a per-operation override each reach the
       correct `TransportConfig` cap (discovery vs keyed-read), not `TransportConfig::default()`:
       new wiring test in `cli/jira-cli/` / `cli/linear-cli/`
-- [ ] `--max-pulls <n>` (present) overrides `<tracker>.pull.max_items`; `--max-pulls`
+- [x] `--max-pulls <n>` (present) overrides `<tracker>.pull.max_items`; `--max-pulls`
       unset (`None`) defers to the configured `<tracker>.pull.max_items`: new tests in
       `cli/work-cli/tests/`
-- [ ] `--max-pushes` unset resolves to the built-in `Bounded(25)` unchanged (the flag
+- [x] `--max-pushes` unset resolves to the built-in `Bounded(25)` unchanged (the flag
       becomes `Option<usize>` with no behavioural change to push): new test in
       `cli/work-cli/tests/`
-- [ ] The refusal message names the resolved `<tracker>.pull.max_items` key and the config
+- [x] The refusal message names the resolved `<tracker>.pull.max_items` key and the config
       level (team vs personal) it resolved from — the personal file when a personal block
       shadows: new test
-- [ ] `tracker` and `tracker-support` public-api snapshots regenerated (the `Ceiling`
+- [x] `tracker` and `tracker-support` public-api snapshots regenerated (the `Ceiling`
       type and the `max_pages` retype): `mise run public-api:update && mise run public-api:check`
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

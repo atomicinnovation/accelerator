@@ -90,12 +90,13 @@ impl JiraClient {
     /// refused.
     pub fn from_config(
         context: &CredentialContext<'_>,
+        transport_config: TransportConfig,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context)?;
         let project = crate::auth::project_code(context.config)?;
         let transport = Transport::new(
             credentials,
-            TransportConfig::default(),
+            transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
@@ -206,9 +207,11 @@ impl JiraClient {
         let clause = key_clause(&keys).map_err(|error| error.to_string())?;
         let mut found = Vec::new();
         let mut cursor: Option<String> = None;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().keyed_read_max_pages;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
                 return Err("the operation deadline expired".to_owned());
             }
@@ -249,11 +252,10 @@ impl JiraClient {
             if cursor.is_none() {
                 return Ok(found);
             }
-            if page == cap {
-                return Err(format!("the {cap}-page cap was reached"));
+            if cap.reached(page) {
+                return Err(format!("the {page}-page cap was reached"));
             }
         }
-        Ok(found)
     }
 
     /// Pages an unkeyed discovery, following the `nextPageToken` cursor.
@@ -287,9 +289,11 @@ impl JiraClient {
 
         let mut found = Vec::new();
         let mut cursor: Option<String> = None;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
                 return Ok(Discovery {
                     found,
@@ -312,17 +316,13 @@ impl JiraClient {
                     complete: true,
                 });
             }
-            if page == cap {
+            if cap.reached(page) {
                 return Ok(Discovery {
                     found,
                     complete: false,
                 });
             }
         }
-        Ok(Discovery {
-            found,
-            complete: true,
-        })
     }
 
     /// One discovery page: the issues it saw and the next cursor, or `None` on

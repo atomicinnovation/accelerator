@@ -167,12 +167,14 @@ pub fn build_client() -> Result<Built, ContextError> {
         command: CommandPolicy::rooted_at(root.clone()),
     };
 
+    let transport_config = pull_transport_config(service)?;
     let client = match api_base_uri()? {
-        Some(endpoint) => build_with_override(&context, endpoint)
-            .map_err(ContextError::Client)?,
-        None => {
-            JiraClient::from_config(&context).map_err(ContextError::Client)?
+        Some(endpoint) => {
+            build_with_override(&context, endpoint, transport_config)
+                .map_err(ContextError::Client)?
         }
+        None => JiraClient::from_config(&context, transport_config)
+            .map_err(ContextError::Client)?,
     };
     Ok(Built {
         client,
@@ -181,18 +183,33 @@ pub fn build_client() -> Result<Built, ContextError> {
     })
 }
 
+/// The transport bounds for a Jira client, with the page caps sourced from the
+/// `jira.pull.max_pages` block.
+fn pull_transport_config(
+    config: &dyn ConfigAccess,
+) -> Result<TransportConfig, ContextError> {
+    let ceilings = tracker_support::pull::resolve_ceilings(config, "jira")
+        .map_err(ContextError::Config)?;
+    Ok(TransportConfig {
+        discovery_max_pages: ceilings.discovery_pages,
+        keyed_read_max_pages: ceilings.keyed_read_pages,
+        ..TransportConfig::default()
+    })
+}
+
 /// The override branch: the whole client `from_config` builds, differing only
 /// in the base URL the resolved credentials point at.
 fn build_with_override(
     context: &CredentialContext<'_>,
     endpoint: Url,
+    transport_config: TransportConfig,
 ) -> Result<JiraClient, ClientError> {
     let mut credentials = resolve_credentials(context)?;
     credentials.base = endpoint;
     let project = project_code(context.config)?;
     let transport = Transport::new(
         credentials,
-        TransportConfig::default(),
+        transport_config,
         Box::new(SystemSleeper),
         Box::new(ClockJitter),
     )?;
@@ -202,4 +219,43 @@ fn build_with_override(
         Box::new(FixedResolver::new()),
         Box::new(FixedResolver::new()),
     ))
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::pull_transport_config;
+
+    fn transport(config_body: &str) -> tracker_support::TransportConfig {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join(".git")).expect("git");
+        std::fs::create_dir_all(dir.path().join(".accelerator"))
+            .expect("mkdir");
+        std::fs::write(dir.path().join(".accelerator/config.md"), config_body)
+            .expect("config");
+        let composed = config_adapters::compose(
+            dir.path(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose");
+        pull_transport_config(&composed.service)
+            .unwrap_or_else(|_| panic!("transport config resolves"))
+    }
+
+    #[test]
+    fn a_max_pages_block_reaches_the_discovery_and_keyed_read_caps() {
+        let config = transport(
+            "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+             max_pages:\n      default: 9\n      keyed_read: unlimited\n---\n",
+        );
+        assert_eq!(config.discovery_max_pages, tracker::Ceiling::Bounded(9));
+        assert_eq!(config.keyed_read_max_pages, tracker::Ceiling::Unlimited);
+    }
+
+    #[test]
+    fn an_unconfigured_block_keeps_the_default_caps() {
+        let config = transport("---\nwork:\n  integration: jira\n---\n");
+        assert_eq!(config.discovery_max_pages, tracker::Ceiling::Bounded(50));
+        assert_eq!(config.keyed_read_max_pages, tracker::Ceiling::Bounded(50));
+    }
 }

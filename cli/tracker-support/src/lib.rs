@@ -1,5 +1,6 @@
 //! The policy every provider client shares: credential resolution, the
-//! bounded-retry schedule, identifier safety, and the transport bounds.
+//! bounded-retry schedule, identifier safety, the transport bounds, and the
+//! `<tracker>.pull` discovery-scope config block.
 //!
 //! Admission is deliberately narrow — policy shared by two or more provider
 //! clients, with no transport and no provider specifics — so this does not
@@ -10,6 +11,7 @@
 pub mod credentials;
 pub mod identifier;
 pub mod mime;
+pub mod pull;
 pub mod retry;
 pub mod transport;
 

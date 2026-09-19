@@ -267,8 +267,8 @@ fn request<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
-        max_pulls,
-        max_pushes,
+        max_pulls: tracker::Ceiling::Bounded(max_pulls),
+        max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
         integrations_root,
         integration: "jira",
@@ -311,6 +311,44 @@ fn execute(
             mode,
         ),
     )
+}
+
+/// A run with the write bounds given as `Ceiling`s, so a test can exercise
+/// `Unlimited` and a raw `Bounded(0)` the `usize` helpers cannot express.
+fn execute_ceilings(
+    scenario: &Scenario,
+    max_pulls: tracker::Ceiling,
+    max_pushes: tracker::Ceiling,
+    mode: RunMode,
+) -> Result<work_adapters::sync::run::RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        0,
+        0,
+        mode,
+    );
+    req.max_pulls = max_pulls;
+    req.max_pushes = max_pushes;
+    run(&ports, &mut store, &req)
 }
 
 fn execute_targeted(
@@ -403,8 +441,8 @@ fn run_with<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,
         integrations_root: dir,
         integration: "jira",
@@ -823,8 +861,11 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
             max_pushes,
             ..
         } => {
-            assert_eq!((pulls, max_pulls), (3, 2));
-            assert_eq!((pushes, max_pushes), (0, 25));
+            assert_eq!((pulls, max_pulls), (3, tracker::Ceiling::Bounded(2)));
+            assert_eq!(
+                (pushes, max_pushes),
+                (0, tracker::Ceiling::Bounded(25))
+            );
         }
         RunError::Read(_)
         | RunError::Internal(_)
@@ -868,6 +909,77 @@ fn a_zero_pull_bound_refuses_every_pull() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_configured_max_items_refuses_where_the_default_admits(
+) -> Result<(), TestError> {
+    let refused = execute_ceilings(
+        &scenario(5, 0)?,
+        tracker::Ceiling::Bounded(3),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(matches!(refused, Err(RunError::Refused { pulls: 5, .. })));
+
+    let admitted = execute_ceilings(
+        &scenario(5, 0)?,
+        tracker::Ceiling::Bounded(25),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(admitted.is_ok(), "the default 25 admits five pulls");
+    Ok(())
+}
+
+#[test]
+fn max_items_zero_refuses_all_where_unlimited_and_the_default_admit(
+) -> Result<(), TestError> {
+    let refused = execute_ceilings(
+        &scenario(1, 0)?,
+        tracker::Ceiling::Bounded(0),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(matches!(refused, Err(RunError::Refused { pulls: 1, .. })));
+
+    for lift in [tracker::Ceiling::Unlimited, tracker::Ceiling::Bounded(25)] {
+        let admitted = execute_ceilings(
+            &scenario(1, 0)?,
+            lift,
+            tracker::Ceiling::Bounded(25),
+            RunMode::Apply,
+        );
+        assert!(admitted.is_ok(), "{lift:?} must admit one pull");
+    }
+    Ok(())
+}
+
+#[test]
+fn unlimited_max_items_admits_a_pull_larger_than_the_default(
+) -> Result<(), TestError> {
+    let over_default = scenario(30, 0)?;
+    assert!(matches!(
+        execute_ceilings(
+            &over_default,
+            tracker::Ceiling::Bounded(25),
+            tracker::Ceiling::Bounded(25),
+            RunMode::Apply,
+        ),
+        Err(RunError::Refused { pulls: 30, .. }),
+    ));
+
+    let admitted = execute_ceilings(
+        &scenario(30, 0)?,
+        tracker::Ceiling::Unlimited,
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(
+        admitted.is_ok(),
+        "unlimited lifts the bound past the default"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
     let scenario = scenario(0, 2)?;
 
@@ -878,7 +990,9 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
     match error {
         RunError::Refused {
             pushes, max_pushes, ..
-        } => assert_eq!((pushes, max_pushes), (2, 1)),
+        } => {
+            assert_eq!((pushes, max_pushes), (2, tracker::Ceiling::Bounded(1)));
+        }
         RunError::Read(_)
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }

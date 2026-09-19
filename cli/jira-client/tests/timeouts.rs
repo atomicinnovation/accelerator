@@ -169,7 +169,14 @@ fn the_default_timeout_is_thirty_seconds_and_the_cap_is_twenty_pages() {
         Duration::from_secs(30),
         "transcribed from jira-request.sh:298"
     );
-    assert_eq!(client.transport().config().max_pages, 20);
+    assert_eq!(
+        client.transport().config().discovery_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
+    assert_eq!(
+        client.transport().config().keyed_read_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
 }
 
 #[test]

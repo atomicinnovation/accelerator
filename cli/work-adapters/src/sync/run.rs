@@ -6,6 +6,7 @@ use std::path::Path;
 use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use tracker::Ceiling;
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -49,8 +50,8 @@ pub enum RunError {
     Refused {
         pulls: usize,
         pushes: usize,
-        max_pulls: usize,
-        max_pushes: usize,
+        max_pulls: Ceiling,
+        max_pushes: Ceiling,
         new_local_files: usize,
         new_remote_issues: usize,
     },
@@ -119,8 +120,8 @@ pub struct SyncRequest<'a> {
     pub direction: SyncDirection,
     pub strategy: RetrievalStrategy,
     pub resolutions: &'a BTreeMap<String, Resolution>,
-    pub max_pulls: usize,
-    pub max_pushes: usize,
+    pub max_pulls: Ceiling,
+    pub max_pushes: Ceiling,
     pub mode: RunMode,
     /// Where the pending-push markers for unsynced-local creates live.
     pub integrations_root: &'a Path,
@@ -879,7 +880,7 @@ fn prepare_run<'a>(
     // into the existing directional bound rather than a third knob.
     let pulls = plan.pull_count() + untracked.len();
     let pushes = plan.push_count() + creates_from_local.len();
-    if pulls > request.max_pulls || pushes > request.max_pushes {
+    if request.max_pulls.exceeds(pulls) || request.max_pushes.exceeds(pushes) {
         return Err(RunError::Refused {
             pulls,
             pushes,

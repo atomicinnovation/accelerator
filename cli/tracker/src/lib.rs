@@ -280,6 +280,69 @@ pub struct FilterSchema {
     pub accepted: &'static [&'static str],
 }
 
+/// A ceiling on a counted quantity: a finite bound, or none at all.
+///
+/// One value object for both pull ceilings — the pull-direction write bound and
+/// the transport page cap — so `unlimited` is representable rather than a
+/// magic number, and a bound is compared through [`Ceiling::exceeds`] /
+/// [`Ceiling::reached`] rather than open-coding the `Unlimited` case at each
+/// call. Carried on the request and the transport config; the sole authority on
+/// a valid ceiling string is the config-layer conversion, so a value here has
+/// already been accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ceiling {
+    /// At most this many.
+    Bounded(usize),
+    /// No bound.
+    Unlimited,
+}
+
+impl Ceiling {
+    /// Whether `count` is over the bound. `Unlimited` is never exceeded.
+    ///
+    /// The write-bound test: a plan of exactly `Bounded(n)` writes is allowed,
+    /// `n + 1` is refused.
+    #[must_use]
+    pub const fn exceeds(self, count: usize) -> bool {
+        match self {
+            Self::Bounded(cap) => count > cap,
+            Self::Unlimited => false,
+        }
+    }
+
+    /// Whether a paging loop at its `page`th page has hit the bound.
+    /// `Unlimited` never has, so a loop guarded by this pages to exhaustion.
+    #[must_use]
+    pub const fn reached(self, page: usize) -> bool {
+        match self {
+            Self::Bounded(cap) => page >= cap,
+            Self::Unlimited => false,
+        }
+    }
+}
+
+impl Display for Ceiling {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bounded(cap) => write!(formatter, "{cap}"),
+            Self::Unlimited => formatter.write_str("unlimited"),
+        }
+    }
+}
+
+/// The pull-direction write bound when `<tracker>.pull.max_items` is unset.
+///
+/// Preserved from the historical `--max-pulls` default so an unconfigured pull
+/// keeps today's ceiling.
+pub const DEFAULT_MAX_ITEMS: Ceiling = Ceiling::Bounded(25);
+
+/// The transport page cap when a `<tracker>.pull.max_pages` cap is unset.
+///
+/// Raised from the historical fixed 20 so the keyed reconcile read does not
+/// cap-abort on organic corpus growth; per-operation overrides tune either lane
+/// independently.
+pub const DEFAULT_MAX_PAGES: Ceiling = Ceiling::Bounded(50);
+
 /// What an unkeyed discovery established.
 ///
 /// Distinct from [`FetchOutcome`]: a discovery has no requested id set to
@@ -538,4 +601,36 @@ pub trait RemoteTracker {
         title: &str,
         body: &str,
     ) -> ValidationOutcome;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Ceiling;
+
+    #[test]
+    fn a_bounded_ceiling_is_exceeded_only_beyond_its_cap() {
+        assert!(!Ceiling::Bounded(3).exceeds(3));
+        assert!(Ceiling::Bounded(3).exceeds(4));
+        assert!(Ceiling::Bounded(0).exceeds(1));
+        assert!(!Ceiling::Bounded(0).exceeds(0));
+    }
+
+    #[test]
+    fn an_unlimited_ceiling_is_never_exceeded_or_reached() {
+        assert!(!Ceiling::Unlimited.exceeds(usize::MAX));
+        assert!(!Ceiling::Unlimited.reached(usize::MAX));
+    }
+
+    #[test]
+    fn a_bounded_ceiling_is_reached_at_its_cap() {
+        assert!(!Ceiling::Bounded(2).reached(1));
+        assert!(Ceiling::Bounded(2).reached(2));
+        assert!(Ceiling::Bounded(2).reached(3));
+    }
+
+    #[test]
+    fn a_ceiling_renders_its_bound_or_the_unlimited_sentinel() {
+        assert_eq!(Ceiling::Bounded(50).to_string(), "50");
+        assert_eq!(Ceiling::Unlimited.to_string(), "unlimited");
+    }
 }

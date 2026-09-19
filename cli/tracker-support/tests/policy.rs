@@ -190,7 +190,8 @@ fn the_transport_bounds_are_the_transcribed_ones() {
 
     assert_eq!(config.timeout, Duration::from_secs(30));
     assert_eq!(config.max_response_bytes, 8 * 1024 * 1024);
-    assert_eq!(config.max_pages, 20);
+    assert_eq!(config.discovery_max_pages, tracker::Ceiling::Bounded(50));
+    assert_eq!(config.keyed_read_max_pages, tracker::Ceiling::Bounded(50));
 }
 
 #[test]

@@ -7,9 +7,31 @@ mod support;
 use http_test_support::{MockServer, RequestKey, Route};
 use serde_json::Value;
 use support::client::{brief, client_for, client_with, TEAM_ID, TEAM_KEY};
-use tracker::{ExternalId, RemoteTimestamp, RemoteTracker as _, TrackerError};
+use tracker::{
+    Ceiling, ExternalId, RemoteTimestamp, RemoteTracker as _, TrackerError,
+};
+use tracker_support::TransportConfig;
 
 const GRAPHQL: &str = "/graphql";
+
+/// A `TransportConfig` with `brief`'s short timeout and the given page caps.
+fn caps(discovery: Ceiling, keyed_read: Ceiling) -> TransportConfig {
+    TransportConfig {
+        discovery_max_pages: discovery,
+        keyed_read_max_pages: keyed_read,
+        ..brief()
+    }
+}
+
+/// Three search pages, the first two cursored so only a page cap or the third
+/// (cursorless) page stops the walk.
+fn three_pages() -> Route {
+    Route::Sequence(vec![
+        json_route(search_body(&["ENG-1"], Some("p2"))),
+        json_route(search_body(&["ENG-2"], Some("p3"))),
+        json_route(search_body(&["ENG-3"], None)),
+    ])
+}
 
 fn id(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
@@ -422,4 +444,36 @@ fn a_404_shaped_read_failure_is_retryable_never_terminal() {
     let error = client.show(&id("ENG-404")).expect_err("the read fails");
 
     assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn the_keyed_read_uses_its_own_cap_not_the_discovery_cap() {
+    // The keyed read and discovery share `page_all`, so each must be handed its
+    // own cap. A low discovery cap must not truncate the keyed read: fetch_all
+    // pages the three-page walk to completion and finds the id.
+    let found = MockServer::start();
+    found.route(RequestKey::post(GRAPHQL), three_pages());
+    let outcome =
+        client_for(&found, caps(Ceiling::Bounded(1), Ceiling::Bounded(50)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("fetch_all succeeds");
+    assert_eq!(
+        outcome.found.len(),
+        1,
+        "the keyed read ignored the low discovery cap"
+    );
+
+    // A low keyed-read cap truncates it: the unseen id is indeterminate, never
+    // absent, even with a generous discovery cap.
+    let capped = MockServer::start();
+    capped.route(RequestKey::post(GRAPHQL), three_pages());
+    let outcome =
+        client_for(&capped, caps(Ceiling::Bounded(50), Ceiling::Bounded(2)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("a cut-short keyed read is an Ok with the partition");
+    assert!(
+        outcome.absent.is_empty(),
+        "a truncated read must not infer absence"
+    );
+    assert_eq!(outcome.indeterminate, vec![id("ENG-3")]);
 }

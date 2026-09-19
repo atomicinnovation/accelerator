@@ -729,7 +729,8 @@ fn validate_pull_config(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<(), String> {
-    let Some(tracker) = work::pull::Tracker::from_integration(integration)
+    let Some(tracker) =
+        tracker_support::pull::Tracker::from_integration(integration)
     else {
         return Ok(());
     };
@@ -752,9 +753,74 @@ fn validate_pull_config(
         ::config::Source::Personal => ::config::Level::Personal,
         _ => ::config::Level::Team,
     };
-    let parsed =
-        work::pull::parse(&value).map_err(|error| error.detail(level))?;
-    work::pull::validate(&parsed, tracker).map_err(|error| error.detail(level))
+    let parsed = tracker_support::pull::parse(&value)
+        .map_err(|error| error.detail(level))?;
+    tracker_support::pull::validate(&parsed, tracker)
+        .map_err(|error| error.detail(level))
+}
+
+/// The resolved pull-direction write bound and the config level it resolved
+/// from — the personal file when a personal block shadows, `None` for the
+/// built-in default. Read after [`validate_pull_config`] has passed, so a
+/// malformed block cannot reach here; a defensive fault falls back to the
+/// built-in default.
+fn resolve_max_items(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let max_items = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_ITEMS, |ceilings| {
+                    ceilings.max_items
+                });
+            (max_items, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_ITEMS, None),
+    }
+}
+
+/// The effective pull bound: a present `--max-pulls` flag overrides the
+/// configured `<tracker>.pull.max_items`; an unset flag defers to it.
+fn effective_max_pulls(
+    flag: Option<usize>,
+    configured: tracker::Ceiling,
+) -> tracker::Ceiling {
+    flag.map_or(configured, tracker::Ceiling::Bounded)
+}
+
+/// The effective push bound: a present `--max-pushes` flag overrides the
+/// built-in default; push has no config source.
+fn effective_max_pushes(flag: Option<usize>) -> tracker::Ceiling {
+    flag.map_or(tracker::DEFAULT_MAX_ITEMS, tracker::Ceiling::Bounded)
+}
+
+/// The write-bounds refusal message, naming the effective limits and the
+/// `<tracker>.pull.max_items` key with the config file it resolved from (the
+/// built-in default when no block set it).
+#[allow(clippy::too_many_arguments)]
+fn refusal_message(
+    integration: &str,
+    pulls: usize,
+    pushes: usize,
+    max_pulls: tracker::Ceiling,
+    max_pushes: tracker::Ceiling,
+    new_local_files: usize,
+    new_remote_issues: usize,
+    items_source: Option<::config::Level>,
+) -> String {
+    let items_source =
+        items_source.map_or("the built-in default", ::config::Level::filename);
+    format!(
+        "refused: this run would pull {pulls} item(s) ({new_local_files} of \
+         them new local files, limit {max_pulls}) and push {pushes} item(s) \
+         ({new_remote_issues} of them new remote issues, limit {max_pushes}). \
+         The pull limit resolves from {integration}.pull.max_items \
+         ({items_source}); raise it or set it to `unlimited` to lift the bound, \
+         override with --max-pulls/--max-pushes, or inspect the plan first with \
+         --preview."
+    )
 }
 
 /// # Errors
@@ -937,14 +1003,18 @@ pub fn run_sync(
             pull_ids: &pull_ids,
         },
     };
+    let (config_max_items, max_items_source) =
+        resolve_max_items(config, &integration);
+    let max_pulls = effective_max_pulls(args.max_pulls, config_max_items);
+    let max_pushes = effective_max_pushes(args.max_pushes);
     let request = SyncRequest {
         corpus: &items,
         selection,
         direction,
         strategy,
         resolutions: &resolutions,
-        max_pulls: args.max_pulls,
-        max_pushes: args.max_pushes,
+        max_pulls,
+        max_pushes,
         mode,
         integrations_root: &integrations_root,
         integration: &integration,
@@ -999,12 +1069,17 @@ pub fn run_sync(
             new_remote_issues,
         }) => {
             eprintln!(
-                "refused: this run would pull {pulls} item(s) ({new_local_files} \
-                 of them new local files, limit {max_pulls}) and push {pushes} \
-                 item(s) ({new_remote_issues} of them new remote issues, limit \
-                 {max_pushes}). Scope the search or raise the limit with \
-                 --max-pulls/--max-pushes, or inspect the plan first with \
-                 --preview."
+                "{}",
+                refusal_message(
+                    &integration,
+                    pulls,
+                    pushes,
+                    max_pulls,
+                    max_pushes,
+                    new_local_files,
+                    new_remote_issues,
+                    max_items_source,
+                )
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
@@ -1970,8 +2045,8 @@ mod tests {
             preview: false,
             resolutions: Vec::new(),
             per_item_reads: false,
-            max_pulls: 25,
-            max_pushes: 25,
+            max_pulls: None,
+            max_pushes: None,
             targets,
         }
     }
@@ -2267,6 +2342,116 @@ mod tests {
                 Some("PROJ".to_owned()),
                 "discovery scopes from the scope key, not work.key"
             );
+        }
+    }
+
+    mod pull_ceilings {
+        use super::super::{
+            effective_max_pulls, effective_max_pushes, refusal_message,
+            resolve_max_items,
+        };
+        use tracker::Ceiling;
+
+        #[test]
+        fn a_present_max_pulls_flag_overrides_the_configured_ceiling() {
+            assert_eq!(
+                effective_max_pulls(Some(3), Ceiling::Bounded(9)),
+                Ceiling::Bounded(3)
+            );
+        }
+
+        #[test]
+        fn an_unset_max_pulls_flag_defers_to_the_configured_ceiling() {
+            assert_eq!(
+                effective_max_pulls(None, Ceiling::Unlimited),
+                Ceiling::Unlimited
+            );
+        }
+
+        #[test]
+        fn max_pushes_defaults_to_the_built_in_when_the_flag_is_unset() {
+            assert_eq!(effective_max_pushes(None), Ceiling::Bounded(25));
+            assert_eq!(effective_max_pushes(Some(4)), Ceiling::Bounded(4));
+        }
+
+        #[test]
+        fn the_refusal_message_names_the_key_the_file_and_unlimited() {
+            let message = refusal_message(
+                "linear",
+                5,
+                0,
+                Ceiling::Bounded(3),
+                Ceiling::Bounded(25),
+                5,
+                0,
+                Some(::config::Level::Personal),
+            );
+            assert!(message.contains("linear.pull.max_items"), "{message}");
+            assert!(
+                message.contains(".accelerator/config.local.md"),
+                "{message}"
+            );
+            assert!(message.contains("unlimited"), "{message}");
+        }
+
+        fn max_items_from(
+            team: &str,
+            personal: Option<&str>,
+        ) -> (Ceiling, Option<::config::Level>) {
+            let dir = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir_all(dir.path().join(".git")).expect("git");
+            std::fs::create_dir_all(dir.path().join(".accelerator"))
+                .expect("mkdir");
+            std::fs::write(dir.path().join(".accelerator/config.md"), team)
+                .expect("team config");
+            if let Some(personal) = personal {
+                use std::os::unix::fs::PermissionsExt as _;
+                let path = dir.path().join(".accelerator/config.local.md");
+                std::fs::write(&path, personal).expect("personal config");
+                std::fs::set_permissions(
+                    &path,
+                    std::fs::Permissions::from_mode(0o600),
+                )
+                .expect("personal config must be private");
+            }
+            let composed = config_adapters::compose(
+                dir.path(),
+                config_adapters::LegacyPolicy::Reject,
+            )
+            .expect("compose");
+            resolve_max_items(&composed.service, "jira")
+        }
+
+        #[test]
+        fn an_unconfigured_max_items_is_the_built_in_default() {
+            assert_eq!(
+                max_items_from("---\nwork:\n  integration: jira\n---\n", None),
+                (Ceiling::Bounded(25), None)
+            );
+        }
+
+        #[test]
+        fn a_team_max_items_resolves_from_the_team_file() {
+            assert_eq!(
+                max_items_from(
+                    "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+                     max_items: 3\n---\n",
+                    None
+                ),
+                (Ceiling::Bounded(3), Some(::config::Level::Team))
+            );
+        }
+
+        #[test]
+        fn a_personal_block_shadows_the_team_block_and_names_the_personal_file()
+        {
+            let (ceiling, level) = max_items_from(
+                "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+                 max_items: 3\n---\n",
+                Some("---\njira:\n  pull:\n    max_items: unlimited\n---\n"),
+            );
+            assert_eq!(ceiling, Ceiling::Unlimited);
+            assert_eq!(level, Some(::config::Level::Personal));
         }
     }
 }

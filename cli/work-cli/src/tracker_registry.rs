@@ -12,6 +12,7 @@ use tracker_support::CredentialContext;
 use tracker_support::Environment;
 use tracker_support::Provenance;
 use tracker_support::SystemEnvironment;
+use tracker_support::TransportConfig;
 use tracker_support::INSECURE_MARKER_RELATIVE;
 use vcs::VcsKind;
 use vcs::VcsProbe as _;
@@ -150,7 +151,39 @@ impl<'a> ConfiguredTrackers<'a> {
             source: Box::new(error),
         }
     }
+
+    /// The transport bounds for `name`, with the page caps sourced from the
+    /// `<name>.pull.max_pages` block. The block is already validated on the sync
+    /// path before a client is resolved, so a fault here is defensive.
+    fn transport_config(
+        &self,
+        name: &str,
+    ) -> Result<TransportConfig, SelectionError> {
+        let ceilings =
+            tracker_support::pull::resolve_ceilings(self.config, name)
+                .map_err(|detail| {
+                    Self::unconfigured(name, PullError(detail))
+                })?;
+        Ok(TransportConfig {
+            discovery_max_pages: ceilings.discovery_pages,
+            keyed_read_max_pages: ceilings.keyed_read_pages,
+            ..TransportConfig::default()
+        })
+    }
 }
+
+/// A `<tracker>.pull` resolution fault, carrying its already-rendered message
+/// so it can route through [`SelectionError::Unconfigured`]'s error source.
+#[derive(Debug)]
+struct PullError(String);
+
+impl std::fmt::Display for PullError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for PullError {}
 
 impl TrackerRegistry for ConfiguredTrackers<'_> {
     fn resolve(
@@ -167,16 +200,24 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
         );
         match name {
             "" => Err(SelectionError::Unset),
-            "jira" => JiraClient::from_config(&context)
-                .map(|client| Box::new(client) as Box<dyn RemoteTracker>)
-                .map_err(|error| Self::unconfigured(name, error)),
+            "jira" => {
+                let transport_config = self.transport_config(name)?;
+                JiraClient::from_config(&context, transport_config)
+                    .map(|client| Box::new(client) as Box<dyn RemoteTracker>)
+                    .map_err(|error| Self::unconfigured(name, error))
+            }
             "linear" => {
                 let integrations_root =
                     crate::sync::integrations_dir(self.config, &self.root)
                         .map_err(|error| Self::unconfigured(name, error))?;
-                LinearClient::from_config(&context, &integrations_root)
-                    .map(|client| Box::new(client) as Box<dyn RemoteTracker>)
-                    .map_err(|error| Self::unconfigured(name, error))
+                let transport_config = self.transport_config(name)?;
+                LinearClient::from_config(
+                    &context,
+                    &integrations_root,
+                    transport_config,
+                )
+                .map(|client| Box::new(client) as Box<dyn RemoteTracker>)
+                .map_err(|error| Self::unconfigured(name, error))
             }
             "trello" | "github-issues" => Err(SelectionError::NotAvailable {
                 name: name.to_owned(),

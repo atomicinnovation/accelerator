@@ -139,6 +139,109 @@ pub fn tracker_support::identifier::identifier_is_safe(candidate: &str) -> core:
 pub mod tracker_support::mime
 pub const tracker_support::mime::OCTET_STREAM: &str
 pub fn tracker_support::mime::sniff(sample: &[u8]) -> &'static str
+pub mod tracker_support::pull
+pub enum tracker_support::pull::PullConfigError
+pub tracker_support::pull::PullConfigError::BadCeiling
+pub tracker_support::pull::PullConfigError::BadCeiling::allow_zero: bool
+pub tracker_support::pull::PullConfigError::BadCeiling::key: alloc::string::String
+pub tracker_support::pull::PullConfigError::BadCeiling::value: alloc::string::String
+pub tracker_support::pull::PullConfigError::MutuallyExclusiveScope
+pub tracker_support::pull::PullConfigError::NestedFiltersUnsupported
+pub tracker_support::pull::PullConfigError::NestedFiltersUnsupported::key: alloc::string::String
+pub tracker_support::pull::PullConfigError::NotAMapping
+pub tracker_support::pull::PullConfigError::SubBlockNotAMapping
+pub tracker_support::pull::PullConfigError::SubBlockNotAMapping::key: alloc::string::String
+pub tracker_support::pull::PullConfigError::UnrecognisedKey
+pub tracker_support::pull::PullConfigError::UnrecognisedKey::accepted: alloc::vec::Vec<alloc::string::String>
+pub tracker_support::pull::PullConfigError::UnrecognisedKey::hint: core::option::Option<alloc::string::String>
+pub tracker_support::pull::PullConfigError::UnrecognisedKey::key: alloc::string::String
+pub tracker_support::pull::PullConfigError::UnsupportedFilterKey
+pub tracker_support::pull::PullConfigError::UnsupportedFilterKey::accepted: alloc::vec::Vec<alloc::string::String>
+pub tracker_support::pull::PullConfigError::UnsupportedFilterKey::key: alloc::string::String
+impl tracker_support::pull::PullConfigError
+pub fn tracker_support::pull::PullConfigError::detail(&self, level: config::level::Level) -> alloc::string::String
+impl core::clone::Clone for tracker_support::pull::PullConfigError
+pub fn tracker_support::pull::PullConfigError::clone(&self) -> tracker_support::pull::PullConfigError
+impl core::cmp::Eq for tracker_support::pull::PullConfigError
+impl core::cmp::PartialEq for tracker_support::pull::PullConfigError
+pub fn tracker_support::pull::PullConfigError::eq(&self, other: &tracker_support::pull::PullConfigError) -> bool
+impl core::fmt::Debug for tracker_support::pull::PullConfigError
+pub fn tracker_support::pull::PullConfigError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::pull::PullConfigError
+pub enum tracker_support::pull::Tracker
+pub tracker_support::pull::Tracker::Jira
+pub tracker_support::pull::Tracker::Linear
+impl tracker_support::pull::Tracker
+pub fn tracker_support::pull::Tracker::from_integration(integration: &str) -> core::option::Option<Self>
+impl core::clone::Clone for tracker_support::pull::Tracker
+pub fn tracker_support::pull::Tracker::clone(&self) -> tracker_support::pull::Tracker
+impl core::cmp::Eq for tracker_support::pull::Tracker
+impl core::cmp::PartialEq for tracker_support::pull::Tracker
+pub fn tracker_support::pull::Tracker::eq(&self, other: &tracker_support::pull::Tracker) -> bool
+impl core::fmt::Debug for tracker_support::pull::Tracker
+pub fn tracker_support::pull::Tracker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::pull::Tracker
+impl core::marker::StructuralPartialEq for tracker_support::pull::Tracker
+pub struct tracker_support::pull::CeilingToken(pub alloc::string::String)
+impl core::clone::Clone for tracker_support::pull::CeilingToken
+pub fn tracker_support::pull::CeilingToken::clone(&self) -> tracker_support::pull::CeilingToken
+impl core::cmp::Eq for tracker_support::pull::CeilingToken
+impl core::cmp::PartialEq for tracker_support::pull::CeilingToken
+pub fn tracker_support::pull::CeilingToken::eq(&self, other: &tracker_support::pull::CeilingToken) -> bool
+impl core::fmt::Debug for tracker_support::pull::CeilingToken
+pub fn tracker_support::pull::CeilingToken::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::pull::CeilingToken
+pub struct tracker_support::pull::Ceilings
+pub tracker_support::pull::Ceilings::discovery_pages: tracker::Ceiling
+pub tracker_support::pull::Ceilings::keyed_read_pages: tracker::Ceiling
+pub tracker_support::pull::Ceilings::max_items: tracker::Ceiling
+impl core::clone::Clone for tracker_support::pull::Ceilings
+pub fn tracker_support::pull::Ceilings::clone(&self) -> tracker_support::pull::Ceilings
+impl core::cmp::Eq for tracker_support::pull::Ceilings
+impl core::cmp::PartialEq for tracker_support::pull::Ceilings
+pub fn tracker_support::pull::Ceilings::eq(&self, other: &tracker_support::pull::Ceilings) -> bool
+impl core::fmt::Debug for tracker_support::pull::Ceilings
+pub fn tracker_support::pull::Ceilings::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker_support::pull::Ceilings
+impl core::marker::StructuralPartialEq for tracker_support::pull::Ceilings
+pub struct tracker_support::pull::PageCaps
+pub tracker_support::pull::PageCaps::default: core::option::Option<tracker_support::pull::CeilingToken>
+pub tracker_support::pull::PageCaps::discovery: core::option::Option<tracker_support::pull::CeilingToken>
+pub tracker_support::pull::PageCaps::keyed_read: core::option::Option<tracker_support::pull::CeilingToken>
+impl core::clone::Clone for tracker_support::pull::PageCaps
+pub fn tracker_support::pull::PageCaps::clone(&self) -> tracker_support::pull::PageCaps
+impl core::cmp::Eq for tracker_support::pull::PageCaps
+impl core::cmp::PartialEq for tracker_support::pull::PageCaps
+pub fn tracker_support::pull::PageCaps::eq(&self, other: &tracker_support::pull::PageCaps) -> bool
+impl core::default::Default for tracker_support::pull::PageCaps
+pub fn tracker_support::pull::PageCaps::default() -> tracker_support::pull::PageCaps
+impl core::fmt::Debug for tracker_support::pull::PageCaps
+pub fn tracker_support::pull::PageCaps::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::pull::PageCaps
+pub struct tracker_support::pull::PullConfig
+pub tracker_support::pull::PullConfig::additional_entities: alloc::vec::Vec<alloc::string::String>
+pub tracker_support::pull::PullConfig::all_entities: bool
+pub tracker_support::pull::PullConfig::filters: alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<alloc::string::String>)>
+pub tracker_support::pull::PullConfig::max_items: core::option::Option<tracker_support::pull::CeilingToken>
+pub tracker_support::pull::PullConfig::max_pages: tracker_support::pull::PageCaps
+pub tracker_support::pull::PullConfig::scope_nouns: alloc::vec::Vec<alloc::string::String>
+pub tracker_support::pull::PullConfig::unknown_keys: alloc::vec::Vec<alloc::string::String>
+impl tracker_support::pull::PullConfig
+pub fn tracker_support::pull::PullConfig::ceilings(&self) -> core::result::Result<tracker_support::pull::Ceilings, tracker_support::pull::PullConfigError>
+impl core::clone::Clone for tracker_support::pull::PullConfig
+pub fn tracker_support::pull::PullConfig::clone(&self) -> tracker_support::pull::PullConfig
+impl core::cmp::Eq for tracker_support::pull::PullConfig
+impl core::cmp::PartialEq for tracker_support::pull::PullConfig
+pub fn tracker_support::pull::PullConfig::eq(&self, other: &tracker_support::pull::PullConfig) -> bool
+impl core::default::Default for tracker_support::pull::PullConfig
+pub fn tracker_support::pull::PullConfig::default() -> tracker_support::pull::PullConfig
+impl core::fmt::Debug for tracker_support::pull::PullConfig
+pub fn tracker_support::pull::PullConfig::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::pull::PullConfig
+pub fn tracker_support::pull::parse(block: &config::service::Value) -> core::result::Result<tracker_support::pull::PullConfig, tracker_support::pull::PullConfigError>
+pub fn tracker_support::pull::read(config: &dyn config::service::ConfigAccess, integration: &str) -> core::result::Result<core::option::Option<(tracker_support::pull::PullConfig, config::level::Level)>, alloc::string::String>
+pub fn tracker_support::pull::resolve_ceilings(config: &dyn config::service::ConfigAccess, integration: &str) -> core::result::Result<tracker_support::pull::Ceilings, alloc::string::String>
+pub fn tracker_support::pull::validate(config: &tracker_support::pull::PullConfig, tracker: tracker_support::pull::Tracker) -> core::result::Result<(), tracker_support::pull::PullConfigError>
 pub mod tracker_support::retry
 pub struct tracker_support::retry::ClockJitter
 impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter
@@ -172,7 +275,8 @@ pub fn tracker_support::retry::SystemSleeper::sleep(&mut self, duration: core::t
 pub mod tracker_support::transport
 pub struct tracker_support::transport::TransportConfig
 pub tracker_support::transport::TransportConfig::deadline: core::time::Duration
-pub tracker_support::transport::TransportConfig::max_pages: usize
+pub tracker_support::transport::TransportConfig::discovery_max_pages: tracker::Ceiling
+pub tracker_support::transport::TransportConfig::keyed_read_max_pages: tracker::Ceiling
 pub tracker_support::transport::TransportConfig::max_response_bytes: usize
 pub tracker_support::transport::TransportConfig::timeout: core::time::Duration
 impl core::clone::Clone for tracker_support::transport::TransportConfig
@@ -335,7 +439,8 @@ pub fn tracker_support::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Fo
 impl core::marker::StructuralPartialEq for tracker_support::credentials::TokenKeys
 pub struct tracker_support::TransportConfig
 pub tracker_support::TransportConfig::deadline: core::time::Duration
-pub tracker_support::TransportConfig::max_pages: usize
+pub tracker_support::TransportConfig::discovery_max_pages: tracker::Ceiling
+pub tracker_support::TransportConfig::keyed_read_max_pages: tracker::Ceiling
 pub tracker_support::TransportConfig::max_response_bytes: usize
 pub tracker_support::TransportConfig::timeout: core::time::Duration
 impl core::clone::Clone for tracker_support::transport::TransportConfig

@@ -11,9 +11,16 @@
 //! sync path.
 
 use config::render_value;
+use config::ConfigAccess;
+use config::Key;
 use config::Level;
+use config::Resolved;
+use config::Source;
 use config::Value;
+use tracker::Ceiling;
 use tracker::FilterSchema;
+use tracker::DEFAULT_MAX_ITEMS;
+use tracker::DEFAULT_MAX_PAGES;
 
 /// A configured discovery-scope block, normalised to the port's entity-neutral
 /// vocabulary.
@@ -406,27 +413,175 @@ fn page_cap_tokens(caps: &PageCaps) -> Vec<(&'static str, &CeilingToken)> {
     .collect()
 }
 
-/// Whether a ceiling token is a valid bound: `unlimited`, or an integer that is
-/// non-negative (`allow_zero`) or strictly positive. Rejects a float, a
-/// negative, or any non-numeric token.
+/// Whether a ceiling token is a valid bound, deferring to the one conversion
+/// [`to_ceiling`] so validation and interpretation can never disagree.
 fn ceiling_ok(token: &str, allow_zero: bool) -> bool {
+    to_ceiling(token, allow_zero).is_ok()
+}
+
+/// Interprets a ceiling token into a [`Ceiling`] — the sole authority on a valid
+/// ceiling string. Configure-time validation ([`validate`]) and sync-time
+/// resolution ([`PullConfig::ceilings`]) both route through it, so a token that
+/// validates always interprets, and a page cap can never smuggle a `Bounded(0)`
+/// past validation into a paging loop.
+///
+/// `allow_zero` admits `0` — `max_items`' refuse-all — which a page cap forbids,
+/// since a 0-page loop returns a silent complete-empty result. Rejects a float,
+/// a negative, or any non-numeric token.
+fn to_ceiling(token: &str, allow_zero: bool) -> Result<Ceiling, ()> {
     if token == UNLIMITED {
-        return true;
+        return Ok(Ceiling::Unlimited);
     }
-    match token.parse::<u64>() {
-        Ok(0) => allow_zero,
-        Ok(_) => true,
-        Err(_) => false,
+    match token.parse::<usize>() {
+        Ok(0) if !allow_zero => Err(()),
+        Ok(bound) => Ok(Ceiling::Bounded(bound)),
+        Err(_) => Err(()),
+    }
+}
+
+/// The bounds a pull runs under, resolved from a `<tracker>.pull` block with the
+/// built-in defaults applied to any unset key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ceilings {
+    /// The pull-direction write bound: tracked-item updates plus newly
+    /// discovered creates, counted after dedup and local subtraction.
+    pub max_items: Ceiling,
+    /// The page cap for unkeyed discovery searches.
+    pub discovery_pages: Ceiling,
+    /// The page cap for keyed reconcile reads.
+    pub keyed_read_pages: Ceiling,
+}
+
+impl PullConfig {
+    /// Resolves the ceilings, applying the built-in defaults for any unset key:
+    /// `max_items` defaults to [`DEFAULT_MAX_ITEMS`]; each page cap resolves as
+    /// its per-operation override, then the general `max_pages`, then
+    /// [`DEFAULT_MAX_PAGES`].
+    ///
+    /// # Errors
+    ///
+    /// [`PullConfigError::BadCeiling`] for a malformed token. [`validate`]
+    /// rejects the same tokens at configure time, so this only fires on a
+    /// hand-edited config that reaches interpretation unvalidated.
+    pub fn ceilings(&self) -> Result<Ceilings, PullConfigError> {
+        let max_items = match &self.max_items {
+            Some(token) => interpret(token, "max_items", true)?,
+            None => DEFAULT_MAX_ITEMS,
+        };
+        Ok(Ceilings {
+            max_items,
+            discovery_pages: self.page_cap(
+                self.max_pages.discovery.as_ref(),
+                "max_pages.discovery",
+            )?,
+            keyed_read_pages: self.page_cap(
+                self.max_pages.keyed_read.as_ref(),
+                "max_pages.keyed_read",
+            )?,
+        })
+    }
+
+    /// Resolves one page cap: its per-operation override, else the general
+    /// `max_pages` default, else the built-in default.
+    fn page_cap(
+        &self,
+        override_token: Option<&CeilingToken>,
+        override_key: &str,
+    ) -> Result<Ceiling, PullConfigError> {
+        if let Some(token) = override_token {
+            return interpret(token, override_key, false);
+        }
+        if let Some(token) = &self.max_pages.default {
+            return interpret(token, "max_pages", false);
+        }
+        Ok(DEFAULT_MAX_PAGES)
+    }
+}
+
+fn interpret(
+    token: &CeilingToken,
+    key: &str,
+    allow_zero: bool,
+) -> Result<Ceiling, PullConfigError> {
+    to_ceiling(&token.0, allow_zero)
+        .map_err(|()| bad_ceiling(key, token, allow_zero))
+}
+
+/// Reads and parses the active tracker's `<tracker>.pull` block from resolved
+/// config, paired with the config level it resolved from.
+///
+/// Returns `None` when the integration has no pull surface, no block is
+/// configured, or the block is empty — each meaning base-only discovery under
+/// the built-in ceilings. Reads the already-composed config representation, so
+/// it performs no filesystem or subprocess access.
+///
+/// # Errors
+///
+/// A config-access failure, or a structural parse fault ([`PullConfigError`])
+/// rendered against the resolving config file.
+pub fn read(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Result<Option<(PullConfig, Level)>, String> {
+    if Tracker::from_integration(integration).is_none() {
+        return Ok(None);
+    }
+    let key = Key::parse(&format!("{integration}.pull"))
+        .map_err(|error| error.to_string())?;
+    let Resolved::Found(value) =
+        config.get(&key, None).map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
+        return Ok(None);
+    }
+    let level = match config
+        .effective(&key, None)
+        .map_err(|error| error.to_string())?
+        .source()
+    {
+        Source::Personal => Level::Personal,
+        _ => Level::Team,
+    };
+    let parsed = parse(&value).map_err(|error| error.detail(level))?;
+    Ok(Some((parsed, level)))
+}
+
+/// Resolves the pull ceilings for the active tracker from config, applying the
+/// built-in defaults when no `<tracker>.pull` block is configured.
+///
+/// The single entry point every client-construction site and the sync path
+/// share, so the transport caps and the reconcile bound resolve from one place.
+///
+/// # Errors
+///
+/// A config-access failure or an invalid block, rendered against the resolving
+/// config file.
+pub fn resolve_ceilings(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Result<Ceilings, String> {
+    match read(config, integration)? {
+        Some((pull, level)) => {
+            pull.ceilings().map_err(|error| error.detail(level))
+        }
+        None => Ok(Ceilings {
+            max_items: DEFAULT_MAX_ITEMS,
+            discovery_pages: DEFAULT_MAX_PAGES,
+            keyed_read_pages: DEFAULT_MAX_PAGES,
+        }),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        parse, validate, CeilingToken, PageCaps, PullConfig, PullConfigError,
-        Tracker,
+        parse, validate, CeilingToken, Ceilings, PageCaps, PullConfig,
+        PullConfigError, Tracker,
     };
     use config::{Scalar, Value};
+    use tracker::Ceiling;
 
     fn scalar(text: &str) -> Value {
         Value::Scalar(Scalar::String(text.to_owned()))
@@ -830,6 +985,84 @@ mod tests {
             ),
             Err(PullConfigError::BadCeiling {
                 key: "max_pages.keyed_read".to_owned(),
+                value: "0".to_owned(),
+                allow_zero: false,
+            })
+        );
+    }
+
+    #[allow(clippy::expect_used)]
+    fn ceilings(entries: Vec<(&str, Value)>) -> Ceilings {
+        parse(&block(entries))
+            .expect("parse")
+            .ceilings()
+            .expect("ceilings")
+    }
+
+    #[test]
+    fn an_empty_block_resolves_to_the_built_in_ceilings() {
+        assert_eq!(
+            ceilings(Vec::new()),
+            Ceilings {
+                max_items: Ceiling::Bounded(25),
+                discovery_pages: Ceiling::Bounded(50),
+                keyed_read_pages: Ceiling::Bounded(50),
+            }
+        );
+    }
+
+    #[test]
+    fn max_items_resolves_its_configured_bound_zero_and_unlimited() {
+        assert_eq!(
+            ceilings(vec![("max_items", Value::Scalar(Scalar::Int(3)))])
+                .max_items,
+            Ceiling::Bounded(3)
+        );
+        assert_eq!(
+            ceilings(vec![("max_items", Value::Scalar(Scalar::Int(0)))])
+                .max_items,
+            Ceiling::Bounded(0)
+        );
+        assert_eq!(
+            ceilings(vec![("max_items", scalar("unlimited"))]).max_items,
+            Ceiling::Unlimited
+        );
+    }
+
+    #[test]
+    fn a_scalar_max_pages_sets_both_page_caps() {
+        let resolved =
+            ceilings(vec![("max_pages", Value::Scalar(Scalar::Int(7)))]);
+        assert_eq!(resolved.discovery_pages, Ceiling::Bounded(7));
+        assert_eq!(resolved.keyed_read_pages, Ceiling::Bounded(7));
+    }
+
+    #[test]
+    fn per_operation_overrides_resolve_independently_over_the_default() {
+        let resolved = ceilings(vec![(
+            "max_pages",
+            block(vec![
+                ("default", Value::Scalar(Scalar::Int(9))),
+                ("keyed_read", scalar("unlimited")),
+            ]),
+        )]);
+        assert_eq!(resolved.discovery_pages, Ceiling::Bounded(9));
+        assert_eq!(resolved.keyed_read_pages, Ceiling::Unlimited);
+    }
+
+    #[test]
+    fn a_hand_edited_bad_page_cap_is_rejected_at_interpretation() {
+        let config = PullConfig {
+            max_pages: PageCaps {
+                default: Some(CeilingToken("0".to_owned())),
+                ..PageCaps::default()
+            },
+            ..PullConfig::default()
+        };
+        assert_eq!(
+            config.ceilings(),
+            Err(PullConfigError::BadCeiling {
+                key: "max_pages".to_owned(),
                 value: "0".to_owned(),
                 allow_zero: false,
             })

@@ -1,4 +1,21 @@
 pub mod tracker
+pub enum tracker::Ceiling
+pub tracker::Ceiling::Bounded(usize)
+pub tracker::Ceiling::Unlimited
+impl tracker::Ceiling
+pub const fn tracker::Ceiling::exceeds(self, count: usize) -> bool
+pub const fn tracker::Ceiling::reached(self, page: usize) -> bool
+impl core::clone::Clone for tracker::Ceiling
+pub fn tracker::Ceiling::clone(&self) -> tracker::Ceiling
+impl core::cmp::Eq for tracker::Ceiling
+impl core::cmp::PartialEq for tracker::Ceiling
+pub fn tracker::Ceiling::eq(&self, other: &tracker::Ceiling) -> bool
+impl core::fmt::Debug for tracker::Ceiling
+pub fn tracker::Ceiling::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for tracker::Ceiling
+pub fn tracker::Ceiling::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker::Ceiling
+impl core::marker::StructuralPartialEq for tracker::Ceiling
 pub enum tracker::FieldResolution
 pub tracker::FieldResolution::Resolved(alloc::string::String)
 pub tracker::FieldResolution::Unresolvable(alloc::string::String)
@@ -155,6 +172,8 @@ pub fn tracker::SearchScope::default() -> tracker::SearchScope
 impl core::fmt::Debug for tracker::SearchScope
 pub fn tracker::SearchScope::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::SearchScope
+pub const tracker::DEFAULT_MAX_ITEMS: tracker::Ceiling
+pub const tracker::DEFAULT_MAX_PAGES: tracker::Ceiling
 pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>

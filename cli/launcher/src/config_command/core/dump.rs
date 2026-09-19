@@ -83,16 +83,18 @@ pub fn assemble(
 
 /// The active tracker's accepted `pull`-block fields, in the tracker's own
 /// vocabulary, for the unset placeholder.
-const fn pull_fields(tracker: work::pull::Tracker) -> &'static [&'static str] {
+const fn pull_fields(
+    tracker: tracker_support::pull::Tracker,
+) -> &'static [&'static str] {
     match tracker {
-        work::pull::Tracker::Jira => &[
+        tracker_support::pull::Tracker::Jira => &[
             "additional_projects",
             "all_projects",
             "filters",
             "max_items",
             "max_pages",
         ],
-        work::pull::Tracker::Linear => &[
+        tracker_support::pull::Tracker::Linear => &[
             "additional_teams",
             "all_teams",
             "filters",
@@ -114,7 +116,8 @@ fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
     let integration = config
         .effective(&Key::parse("work.integration")?, None)?
         .rendered();
-    let Some(tracker) = work::pull::Tracker::from_integration(&integration)
+    let Some(tracker) =
+        tracker_support::pull::Tracker::from_integration(&integration)
     else {
         return Ok(Vec::new());
     };
@@ -127,11 +130,12 @@ fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
         return Ok(placeholder_rows(&prefix, tracker));
     }
     let level = block_level(config, &key)?;
-    let invalid = |error: work::pull::PullConfigError| ConfigError::Invalid {
-        detail: error.detail(level),
-    };
-    let parsed = work::pull::parse(&value).map_err(invalid)?;
-    work::pull::validate(&parsed, tracker).map_err(invalid)?;
+    let invalid =
+        |error: tracker_support::pull::PullConfigError| ConfigError::Invalid {
+            detail: error.detail(level),
+        };
+    let parsed = tracker_support::pull::parse(&value).map_err(invalid)?;
+    tracker_support::pull::validate(&parsed, tracker).map_err(invalid)?;
     let source = source_of(config, &prefix)?;
     let mut leaves = Vec::new();
     if let Value::Mapping(entries) = &value {
@@ -150,7 +154,10 @@ fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
 }
 
 /// The unset-but-available placeholder rows for a tracker's accepted fields.
-fn placeholder_rows(prefix: &str, tracker: work::pull::Tracker) -> Vec<Row> {
+fn placeholder_rows(
+    prefix: &str,
+    tracker: tracker_support::pull::Tracker,
+) -> Vec<Row> {
     pull_fields(tracker)
         .iter()
         .map(|field| Row {

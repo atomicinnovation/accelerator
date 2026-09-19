@@ -186,14 +186,10 @@ Options:
           Read each item with its own request instead of one bulk retrieval
 
       --max-pulls <MAX_PULLS>
-          Refuse the run if it would overwrite more than this many local files from the remote. 0 refuses every pull
-          
-          [default: 25]
+          Refuse the run if it would overwrite more than this many local files from the remote. 0 refuses every pull. When present, overrides `<tracker>.pull.max_items`; when unset, defers to that config key, else the built-in 25
 
       --max-pushes <MAX_PUSHES>
-          Refuse the run if it would replace more than this many remote issues. 0 refuses every push
-          
-          [default: 25]
+          Refuse the run if it would replace more than this many remote issues. 0 refuses every push. When unset, defaults to 25; push has no config source
 
       --target <TARGETS>
           Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
