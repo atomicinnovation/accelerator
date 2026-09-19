@@ -153,6 +153,30 @@ fn an_empty_value_is_refused_and_a_control_byte_is_refused() {
 }
 
 #[test]
+fn an_interior_quote_and_a_trailing_backslash_are_backslash_escaped() {
+    assert_eq!(quote("it's").expect("quotes"), "'it\\'s'");
+    assert_eq!(quote("path\\").expect("quotes"), "'path\\\\'");
+}
+
+#[test]
+fn a_family_field_that_is_not_a_safe_identifier_is_refused() {
+    let resolvers = resolvers();
+    let search = Search {
+        all_projects: true,
+        families: vec![Family {
+            field: "labels) OR project = FOO --".to_owned(),
+            values: vec!["x".to_owned()],
+        }],
+        ..Search::default()
+    };
+
+    let error = compose(&search, &resolvers, &resolvers)
+        .expect_err("an unsafe field is refused at the sink");
+
+    assert!(error.to_string().contains("E_JQL_UNSAFE_FIELD"), "{error}");
+}
+
+#[test]
 fn the_key_clause_quotes_every_key() {
     assert_eq!(
         key_clause(&["ENG-1".to_owned(), "ENG-2".to_owned()])

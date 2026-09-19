@@ -354,8 +354,8 @@ fn a_hostile_identifier_leaves_one_bounded_clause() {
         serde_json::from_slice(&server.last_body(&key).expect("a body"))
             .expect("JSON");
     assert_eq!(
-        sent["jql"], "key IN ('X'') OR project = FOO --')",
-        "the quote is doubled, as jira-jql.sh does, so the clause stays one \
+        sent["jql"], "key IN ('X\\') OR project = FOO --')",
+        "the interior quote is backslash-escaped, so the clause stays one \
          bounded literal"
     );
 }
@@ -495,6 +495,79 @@ fn a_traversal_bearing_identifier_is_refused_before_any_request() {
         assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
     }
     assert_eq!(server.hits(&target), 0);
+}
+
+#[test]
+fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(SEARCH);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 200,
+            body: search_page(&[], None),
+        },
+    );
+    let scope = SearchScope {
+        project: Some(PROJECT.to_owned()),
+        filters: vec![
+            ("label".to_owned(), "a".to_owned()),
+            ("label".to_owned(), "b".to_owned()),
+            ("state".to_owned(), "open".to_owned()),
+        ],
+        ..SearchScope::default()
+    };
+
+    client_for(&server, brief())
+        .search(&scope)
+        .expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    let jql = sent["jql"].as_str().expect("a jql string");
+    assert!(
+        jql.contains("labels IN ('a', 'b')"),
+        "same-key values OR into one IN under the config->JQL field map: {jql}"
+    );
+    assert!(
+        jql.contains("status IN ('open')"),
+        "the config `state` key maps to the JQL `status` field: {jql}"
+    );
+}
+
+#[test]
+fn a_hostile_filter_value_stays_contained_in_its_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(SEARCH);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 200,
+            body: search_page(&[], None),
+        },
+    );
+    let scope = SearchScope {
+        project: Some(PROJECT.to_owned()),
+        filters: vec![(
+            "label".to_owned(),
+            "x') OR project = FOO --".to_owned(),
+        )],
+        ..SearchScope::default()
+    };
+
+    client_for(&server, brief())
+        .search(&scope)
+        .expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    assert_eq!(
+        sent["jql"],
+        "project = 'ENG' AND labels IN ('x\\') OR project = FOO --')",
+        "a break-out payload reaching the seam stays one contained literal"
+    );
 }
 
 #[test]

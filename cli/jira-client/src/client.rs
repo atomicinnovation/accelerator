@@ -294,14 +294,7 @@ impl JiraClient {
         let search = Search {
             project: scope.project.clone(),
             all_projects: scope.all_projects,
-            families: scope
-                .filters
-                .iter()
-                .map(|(field, value)| Family {
-                    field: field.clone(),
-                    values: vec![value.clone()],
-                })
-                .collect(),
+            families: families_from_filters(&scope.filters),
             ..Search::default()
         };
         let clause =
@@ -490,6 +483,41 @@ fn update_fields(
 ) -> Result<Value, crate::adf::AdfError> {
     let description = markdown_to_document(body, None)?;
     Ok(json!({"fields": {"summary": title, "description": description}}))
+}
+
+/// The JQL field a config filter key lowers to.
+///
+/// Config speaks the tracker's own vocabulary (`label`, `state`); JQL names the
+/// field (`labels`, `status`). An unmapped key passes through and is then guarded
+/// at the composer's field sink.
+fn jql_field(config_key: &str) -> &str {
+    match config_key {
+        "label" => "labels",
+        "state" => "status",
+        other => other,
+    }
+}
+
+/// Groups a flat `(key, value)` filter bag into one [`Family`] per JQL field,
+/// preserving first-seen key order, so same-key values compose to one multi-value
+/// `IN` (values OR'd) rather than repeated single-value clauses (values AND'd,
+/// an empty result).
+fn families_from_filters(filters: &[(String, String)]) -> Vec<Family> {
+    let mut families: Vec<Family> = Vec::new();
+    for (key, value) in filters {
+        let field = jql_field(key).to_owned();
+        if let Some(family) =
+            families.iter_mut().find(|family| family.field == field)
+        {
+            family.values.push(value.clone());
+        } else {
+            families.push(Family {
+                field,
+                values: vec![value.clone()],
+            });
+        }
+    }
+    families
 }
 
 impl RemoteTracker for JiraClient {

@@ -58,12 +58,17 @@ impl TeamResolver for FixedTeam {
 }
 
 /// Everything the search surface accepts, in its own shape.
+///
+/// `state`, `assignee` and `label` carry a value list so a filter key configured
+/// with several values lowers to the `in` operator (values OR'd); a single value
+/// keeps its `eq` form. An empty list is an unset filter. `team_id` and `text`
+/// stay single: the team is the base scope, and text is a contains-match.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub team_id: Option<String>,
-    pub state: Option<String>,
-    pub assignee: Option<String>,
-    pub label: Option<String>,
+    pub state: Vec<String>,
+    pub assignee: Vec<String>,
+    pub label: Vec<String>,
     pub text: Option<String>,
 }
 
@@ -87,26 +92,52 @@ pub fn compose(
     if let Some(team) = &search.team_id {
         filter.insert("team".to_owned(), json!({"id": {"eq": team}}));
     }
-    if let Some(state) = &search.state {
-        let id =
-            states
-                .resolve(state)
-                .ok_or_else(|| ClientError::UnknownState {
-                    name: state.clone(),
-                })?;
-        filter.insert("state".to_owned(), json!({"id": {"eq": id}}));
+    if !search.state.is_empty() {
+        let ids =
+            search
+                .state
+                .iter()
+                .map(|name| {
+                    states.resolve(name).ok_or_else(|| {
+                        ClientError::UnknownState { name: name.clone() }
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+        filter.insert("state".to_owned(), json!({"id": comparator(&ids)}));
     }
-    if let Some(assignee) = &search.assignee {
+    if !search.assignee.is_empty() {
         filter.insert(
             "assignee".to_owned(),
-            json!({"name": {"eqIgnoreCase": assignee}}),
+            json!({"name": ignore_case_comparator(&search.assignee)}),
         );
     }
-    if let Some(label) = &search.label {
-        filter.insert("labels".to_owned(), json!({"name": {"eq": label}}));
+    if !search.label.is_empty() {
+        filter.insert(
+            "labels".to_owned(),
+            json!({"name": comparator(&search.label)}),
+        );
     }
     if let Some(text) = &search.text {
         filter.insert("title".to_owned(), json!({"containsIgnoreCase": text}));
     }
     Ok(Value::Object(filter))
+}
+
+/// One value lowers to `eq`; several lower to `in` (OR'd). Empty is never passed
+/// here — the caller skips an unset filter.
+fn comparator(values: &[String]) -> Value {
+    match values {
+        [single] => json!({"eq": single}),
+        many => json!({"in": many}),
+    }
+}
+
+/// The case-insensitive counterpart for `assignee`: a single value keeps its
+/// `eqIgnoreCase` form; several fall back to a case-sensitive `in`, Linear's only
+/// multi-value operator on a name.
+fn ignore_case_comparator(values: &[String]) -> Value {
+    match values {
+        [single] => json!({"eqIgnoreCase": single}),
+        many => json!({"in": many}),
+    }
 }

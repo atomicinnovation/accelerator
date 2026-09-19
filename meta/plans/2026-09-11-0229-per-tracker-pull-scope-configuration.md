@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configu
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
 repository: "accelerator"
-last_updated: "2026-09-19T16:16:04+00:00"
+last_updated: "2026-09-19T18:06:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -808,27 +808,27 @@ construction site (`sync.rs:882-890`), replacing the hard-coded `Vec::new()`.
 
 #### Automated Verification
 
-- [ ] Jira fixture golden: config `{label:[a,b], state:[open]}` composes to the emitted
+- [x] Jira fixture golden: config `{label:[a,b], state:[open]}` composes to the emitted
       JQL under the config-key→field mapping (e.g. `status = 'open' AND labels IN ('a',
       'b')`), asserting the mapped field names, not the config keys: new rows in
       `cli/jira-client/tests/fixtures/jql-composition.txt`
-- [ ] Adversarial Jira filter-value goldens — a value with an interior `'`, `)`, ` OR `,
+- [x] Adversarial Jira filter-value goldens — a value with an interior `'`, `)`, ` OR `,
       and a trailing `\` composes without breaking out of its clause; confirm `quote()`
       handles backslash (extend it if not): new rows in
       `cli/jira-client/tests/fixtures/jql-composition.txt`
-- [ ] Linear fixture golden: the same filters compose to an `IssueFilter` with
+- [x] Linear fixture golden: the same filters compose to an `IssueFilter` with
       `state` `eq` and `labels` `in [a, b]`: new rows in
       `cli/linear-client/tests/fixtures/issue-filter.txt`
-- [ ] A configured `filters` bag reaches `SearchScope.filters`: new engine test
+- [x] A configured `filters` bag reaches `SearchScope.filters`: new engine test
       asserting the recorded `Call::Search` scope
-- [ ] A flat multi-value `SearchScope.filters` (`[(label,a),(label,b),(state,open)]`, as
+- [x] A flat multi-value `SearchScope.filters` (`[(label,a),(label,b),(state,open)]`, as
       production builds it) drives `client.search(&scope)` to a wire query grouping
       same-key values into one `IN` (`label IN ('a','b')` /
       `labels: { name: { in: [...] } }`): new client contract tests (MockServer harness)
       exercising the grouping-at-construction seam the goldens bypass
-- [ ] Linear's `IssueFilter` accepts `in` on `labels.name`/`state.id` (and `team.id` for
+- [x] Linear's `IssueFilter` accepts `in` on `labels.name`/`state.id` (and `team.id` for
       Phases 6–7): client contract/integration check against the live schema
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

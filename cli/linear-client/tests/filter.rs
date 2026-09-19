@@ -15,6 +15,7 @@ const FAMILIES: [&str; 5] = ["team", "state", "assignee", "label", "text"];
 fn states() -> FixedStates {
     let mut map = BTreeMap::new();
     map.insert("In Progress".to_owned(), "state-uuid".to_owned());
+    map.insert("Done".to_owned(), "done-uuid".to_owned());
     FixedStates(map)
 }
 
@@ -45,11 +46,12 @@ fn parse_spec(spec: &str) -> Search {
             .split_once('=')
             .unwrap_or_else(|| panic!("a spec token is name=value: {token}"));
         let value = value.to_owned();
+        let values = || value.split(',').map(str::to_owned).collect::<Vec<_>>();
         match name {
             "team" => search.team_id = Some(value),
-            "state" => search.state = Some(value),
-            "assignee" => search.assignee = Some(value),
-            "label" => search.label = Some(value),
+            "state" => search.state = values(),
+            "assignee" => search.assignee = values(),
+            "label" => search.label = values(),
             "text" => search.text = Some(value),
             other => panic!("unrecognised spec token {other}"),
         }
@@ -100,7 +102,7 @@ fn the_fixture_covers_every_family() {
 #[test]
 fn an_unknown_state_is_refused_rather_than_filtered_literally() {
     let search = Search {
-        state: Some("Nonexistent".to_owned()),
+        state: vec!["Nonexistent".to_owned()],
         ..Search::default()
     };
 

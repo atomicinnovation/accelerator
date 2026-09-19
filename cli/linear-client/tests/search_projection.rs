@@ -152,7 +152,7 @@ fn an_unknown_state_filter_is_refused_rather_than_queried() {
     let client = client_for(&server, brief());
     let search = Search {
         team_id: Some(TEAM_ID.to_owned()),
-        state: Some("Nonexistent".to_owned()),
+        state: vec!["Nonexistent".to_owned()],
         ..Search::default()
     };
 

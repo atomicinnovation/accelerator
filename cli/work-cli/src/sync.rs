@@ -836,6 +836,27 @@ fn resolve_keyed_read_pages(
     }
 }
 
+/// The configured discovery filters, flattened from `<tracker>.pull.filters`
+/// into the port's flat `(key, value)` bag — one entry per value, so an adapter
+/// groups same-key values into one `IN` (values OR'd). Read after
+/// [`validate_pull_config`] has passed; an absent block or a defensive fault is
+/// no filters.
+fn resolve_pull_filters(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Vec<(String, String)> {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, _))) => pull
+            .filters
+            .into_iter()
+            .flat_map(|(key, values)| {
+                values.into_iter().map(move |value| (key.clone(), value))
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// The keyed-read cap-hit abort message. Names the keyed-read
 /// `<tracker>.pull.max_pages` cap, the file it resolved from, the higher-value /
 /// `unlimited` valve, and that the abort is run-wide — `--push-only` shares the
@@ -1092,7 +1113,7 @@ pub fn run_sync(
             &integrations_root,
         ),
         all_projects: false,
-        filters: Vec::new(),
+        filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
         Scope::All => ItemSelection::All,
@@ -2230,6 +2251,41 @@ mod tests {
             matches!(call, Call::FetchAll { ids }
                 if ids.iter().any(|candidate| candidate.as_str() == id))
         })
+    }
+
+    fn recorded_search_scope(
+        tracker: &RecordingTracker,
+    ) -> Option<tracker::SearchScope> {
+        tracker.calls().iter().find_map(|call| match call {
+            Call::Search { scope } => Some(scope.clone()),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn a_configured_filters_bag_reaches_the_search_scope() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\njira:\n  pull:\n    filters:\n      \
+             label:\n        - a\n        - b\n      state:\n        - open\n---\n",
+        )
+        .expect("write config");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        let scope = recorded_search_scope(&tracker)
+            .expect("a whole-corpus run issues a discovery search");
+        assert_eq!(
+            scope.filters,
+            vec![
+                ("label".to_owned(), "a".to_owned()),
+                ("label".to_owned(), "b".to_owned()),
+                ("state".to_owned(), "open".to_owned()),
+            ],
+            "the configured filters flatten one-per-value into the search scope"
+        );
     }
 
     #[test]

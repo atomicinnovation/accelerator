@@ -732,9 +732,9 @@ impl RemoteTracker for LinearClient {
         };
         for (field, value) in &scope.filters {
             match field.as_str() {
-                "state" => search.state = Some(value.clone()),
-                "assignee" => search.assignee = Some(value.clone()),
-                "label" => search.label = Some(value.clone()),
+                "state" => search.state.push(value.clone()),
+                "assignee" => search.assignee.push(value.clone()),
+                "label" => search.label.push(value.clone()),
                 "text" => search.text = Some(value.clone()),
                 _ => {}
             }

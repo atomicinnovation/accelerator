@@ -4,11 +4,17 @@
 
 mod support;
 
+use std::collections::BTreeMap;
+
 use http_test_support::{MockServer, RequestKey, Route};
-use serde_json::Value;
-use support::client::{brief, client_for, client_with, TEAM_ID, TEAM_KEY};
+use linear_client::filter::FixedStates;
+use serde_json::{json, Value};
+use support::client::{
+    brief, client_for, client_with, client_with_states, TEAM_ID, TEAM_KEY,
+};
 use tracker::{
-    Ceiling, ExternalId, RemoteTimestamp, RemoteTracker as _, TrackerError,
+    Ceiling, ExternalId, RemoteTimestamp, RemoteTracker as _, SearchScope,
+    TrackerError,
 };
 use tracker_support::TransportConfig;
 
@@ -275,6 +281,41 @@ fn an_empty_request_makes_no_remote_call() {
     assert!(outcome.found.is_empty());
     assert!(outcome.absent.is_empty());
     assert!(outcome.indeterminate.is_empty());
+}
+
+#[test]
+fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(key.clone(), json_route(search_body(&[], None)));
+    let mut states = BTreeMap::new();
+    states.insert("open".to_owned(), "open-uuid".to_owned());
+    let client = client_with_states(&server, Box::new(FixedStates(states)));
+
+    let scope = SearchScope {
+        project: Some(TEAM_ID.to_owned()),
+        filters: vec![
+            ("label".to_owned(), "a".to_owned()),
+            ("label".to_owned(), "b".to_owned()),
+            ("state".to_owned(), "open".to_owned()),
+        ],
+        ..SearchScope::default()
+    };
+    client.search(&scope).expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    let filter = &sent["variables"]["filter"];
+    assert_eq!(
+        filter["labels"]["name"]["in"],
+        json!(["a", "b"]),
+        "same-key values OR into one `in`: {filter}"
+    );
+    assert_eq!(
+        filter["state"]["id"]["eq"], "open-uuid",
+        "a single state keeps its resolved `eq` form: {filter}"
+    );
 }
 
 #[test]

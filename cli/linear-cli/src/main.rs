@@ -102,9 +102,9 @@ fn run_search(args: SearchArgs) -> ExitCode {
     };
     let search = Search {
         team_id: None,
-        state: args.state,
-        assignee: args.assignee,
-        label: args.label,
+        state: args.state.into_iter().collect(),
+        assignee: args.assignee.into_iter().collect(),
+        label: args.label.into_iter().collect(),
         text: args.text,
     };
     if !args.quiet {
