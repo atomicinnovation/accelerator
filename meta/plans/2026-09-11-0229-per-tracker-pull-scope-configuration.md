@@ -716,19 +716,19 @@ changes abort-vs-proceed, not deletion safety.
 
 #### Automated Verification
 
-- [ ] A standalone `search` (Jira and Linear) that cap-hits the discovery `max_pages` exits
+- [x] A standalone `search` (Jira and Linear) that cap-hits the discovery `max_pages` exits
       non-zero with the cap-hit code; one completing within the cap exits zero: new tests in
       `cli/jira-cli/tests/` and `cli/linear-cli/tests/`
-- [ ] Both standalone searches honour `<tracker>.pull.max_pages` — Jira paginates internally
+- [x] Both standalone searches honour `<tracker>.pull.max_pages` — Jira paginates internally
       to the cap rather than issuing a single page: assertion in the Jira search test
-- [ ] Update `search_echoes_the_envelope_and_audits_the_jql` to expect a non-zero exit on a
+- [x] Update `search_echoes_the_envelope_and_audits_the_jql` to expect a non-zero exit on a
       cap-hit, keeping a within-cap (complete) control asserting exit-zero as a negative
       control against always-abort: `cli/jira-cli/tests/flow_search.rs`
-- [ ] A truncated standalone `search` still emits the `truncated` JSON field alongside the
+- [x] A truncated standalone `search` still emits the `truncated` JSON field alongside the
       non-zero exit: assertions in the Linear/Jira search tests
-- [ ] The cap-hit truncation and the keyed-read abort each use a dedicated exit code
+- [x] The cap-hit truncation and the keyed-read abort each use a dedicated exit code
       distinct from credential/transport/exit-4-indeterminate codes: exit-code unit tests
-- [ ] The updated `search-jira-issues`/`search-linear-issues`/`sync-work-items` skills
+- [x] The updated `search-jira-issues`/`search-linear-issues`/`sync-work-items` skills
       branch on the cap-hit code and surface the `max_pages`/`unlimited` remedy (not the
       credential path); `sync-work-items` documents the abort code and the no-`--push-only`
       note: skill-doc review / eval
@@ -744,7 +744,7 @@ changes abort-vs-proceed, not deletion safety.
       cap-hit abort test both pass
 - [x] Existing incomplete-discovery pull refusal still passes:
       `cargo test -p work-adapters an_incomplete_discovery_is_refused_with_guidance`
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

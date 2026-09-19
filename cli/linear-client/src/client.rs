@@ -114,13 +114,14 @@ type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
 
 /// The accumulated result of a detailed search.
 ///
-/// The raw projection nodes in arrival order, and whether the retrieval was cut
-/// short (a cap-hit or deadline, surfaced as the `.data.issues.truncated`
-/// flag).
+/// The raw projection nodes in arrival order, and whether the retrieval saw
+/// everything — [`Completeness::CapHit`] on a page-cap hit, distinct from a
+/// [`Completeness::Transient`] deadline cutoff, so the search subcommand can
+/// fail loud on the cap alone.
 #[derive(Debug)]
 pub struct DetailedPage {
     pub nodes: Vec<Value>,
-    pub truncated: bool,
+    pub completeness: Completeness,
 }
 
 pub struct LinearClient {
@@ -388,13 +389,13 @@ impl LinearClient {
         let deadline = self.transport.deadline();
         let mut nodes = Vec::new();
         let mut cursor: Option<String> = None;
-        let mut truncated = false;
+        let mut completeness = Completeness::Complete;
 
         let mut page = 0usize;
         loop {
             page += 1;
             if deadline.expired() {
-                truncated = true;
+                completeness = Completeness::Transient;
                 break;
             }
             let variables = json!({
@@ -426,11 +427,14 @@ impl LinearClient {
                 break;
             }
             if cap.reached(page) {
-                truncated = true;
+                completeness = Completeness::CapHit;
                 break;
             }
         }
-        Ok(DetailedPage { nodes, truncated })
+        Ok(DetailedPage {
+            nodes,
+            completeness,
+        })
     }
 
     /// Fetches one issue's full detail for the `show` subcommand, returning the

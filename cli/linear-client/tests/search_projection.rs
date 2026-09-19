@@ -68,7 +68,10 @@ fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
         .expect("the projection runs");
 
     assert_eq!(result.nodes.len(), 2, "both pages accumulate");
-    assert!(!result.truncated, "a clean finish is not truncated");
+    assert!(
+        result.completeness.is_complete(),
+        "a clean finish is not truncated"
+    );
     let name = |node: &Value, pointer: &str| {
         node.pointer(pointer)
             .and_then(Value::as_str)

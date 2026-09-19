@@ -15,6 +15,7 @@ use clap::Parser as _;
 use linear_client::cache::{LinearCache, SystemFilesystem};
 use linear_client::Search;
 use serde_json::{json, Value};
+use tracker::Completeness;
 use tracker::ExternalId;
 
 use crate::cli::{
@@ -115,21 +116,42 @@ fn run_search(args: SearchArgs) -> ExitCode {
     }
     match client.search_detailed(&search) {
         Ok(page) => {
-            let keyword = if page.nodes.is_empty() {
-                keywords::Search::Empty
-            } else if page.truncated {
+            let truncated = !page.completeness.is_complete();
+            let keyword = if truncated {
                 keywords::Search::Truncated
+            } else if page.nodes.is_empty() {
+                keywords::Search::Empty
             } else {
                 keywords::Search::Results
             };
             let envelope = json!({
                 "data": {"issues": {
                     "nodes": page.nodes,
-                    "truncated": page.truncated,
+                    "truncated": truncated,
                 }},
             });
             print_json(&keywords::with_outcome(envelope, keyword.keyword()));
-            ExitCode::SUCCESS
+            match page.completeness {
+                Completeness::CapHit => {
+                    eprintln!(
+                        "E_SEARCH_CAP_HIT: the discovery page cap was reached \
+                         before the result set was exhausted, so the results \
+                         are a lower bound. Raise linear.pull.max_pages (or its \
+                         discovery override), or set it to `unlimited`, then \
+                         re-run."
+                    );
+                    ExitCode::from(exit_codes::SEARCH_CAP_HIT)
+                }
+                Completeness::Transient => {
+                    eprintln!(
+                        "WARNING: the search was cut short transiently (a \
+                         deadline or wire cutoff), not by the page cap, so the \
+                         results are a lower bound. Retry."
+                    );
+                    ExitCode::SUCCESS
+                }
+                Completeness::Complete => ExitCode::SUCCESS,
+            }
         }
         Err(error) => {
             eprintln!("{error}");

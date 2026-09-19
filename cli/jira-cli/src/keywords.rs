@@ -53,7 +53,11 @@ macro_rules! keyword_enum {
 }
 
 keyword_enum!(Show { Found => "found", NotFound => "not-found" });
-keyword_enum!(Search { Results => "results", Empty => "empty" });
+keyword_enum!(Search {
+    Results => "results",
+    Empty => "empty",
+    Truncated => "truncated"
+});
 keyword_enum!(Create { Created => "created" });
 keyword_enum!(Update { Updated => "updated" });
 keyword_enum!(Comment {

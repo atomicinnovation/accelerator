@@ -84,6 +84,28 @@ fn every_captured_code_matches_or_is_an_allowlisted_divergence() {
 }
 
 #[test]
+fn the_search_cap_hit_code_is_79_and_uncontested() {
+    let rust = rust_codes();
+    assert_eq!(
+        rust.get("SEARCH_CAP_HIT").copied(),
+        Some(79),
+        "the standalone-search cap-hit code is 79"
+    );
+    let sharers: Vec<&String> = rust
+        .iter()
+        .filter(|(name, value)| {
+            name.as_str() != "SEARCH_CAP_HIT" && **value == 79
+        })
+        .map(|(name, _)| name)
+        .collect();
+    assert!(
+        sharers.is_empty(),
+        "a consumer branches on the cap-hit code, so no credential or \
+         transport code may share 79: {sharers:?}"
+    );
+}
+
+#[test]
 fn the_allowlist_is_count_pinned_and_moves_off_the_reserved_band() {
     assert_eq!(ALLOWLIST.len(), 4, "the search remap is exactly four codes");
     for (name, value) in ALLOWLIST {
