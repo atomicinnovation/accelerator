@@ -850,6 +850,39 @@ fn resolve_additional_entities(
     }
 }
 
+/// Whether `<tracker>.pull.all_projects` / `all_teams` is set, so discovery
+/// covers the whole visible workspace. Read after [`validate_pull_config`] has
+/// passed; an absent block or a defensive fault is base-scoped.
+fn resolve_all_entities(config: &dyn ConfigAccess, integration: &str) -> bool {
+    matches!(tracker_support::pull::read(config, integration), Ok(Some((pull, _))) if pull.all_entities)
+}
+
+/// Whether the unbounded-broadened-pull gate fires: an `unlimited` pull bound
+/// over a broadened scope, not acknowledged with `--allow-unbounded`. A bounded
+/// bound, a base-only scope, or the acknowledgement each keeps it closed.
+const fn unbounded_gate_fires(
+    max_pulls: tracker::Ceiling,
+    broadened: bool,
+    allow_unbounded: bool,
+) -> bool {
+    matches!(max_pulls, tracker::Ceiling::Unlimited)
+        && broadened
+        && !allow_unbounded
+}
+
+/// The unbounded-broadened-pull gate refusal. Names the hazard — `unlimited`
+/// `max_items` over a broadened scope — the `--allow-unbounded` acknowledgement,
+/// and the finite-`max_items` alternative.
+fn unbounded_gate_message(integration: &str) -> String {
+    format!(
+        "Refusing an unbounded broadened pull: {integration}.pull.max_items is \
+         `unlimited` and the pull scope is broadened (all_* or additional_*), \
+         so the whole discovered set would be created with no write bound. \
+         Re-run with --allow-unbounded to acknowledge this, or set a finite \
+         {integration}.pull.max_items."
+    )
+}
+
 /// The distinct team-key prefixes of every create-from-remote import this run
 /// applied — the teams a broadened Linear pull actually drew items from.
 fn imported_team_keys(
@@ -1231,15 +1264,20 @@ pub fn run_sync(
     } else {
         RetrievalStrategy::Bulk
     };
-    let scope = tracker::SearchScope {
-        entities: tracker::EntityScope::Keyed {
+    let entities = if resolve_all_entities(config, &integration) {
+        tracker::EntityScope::WholeWorkspace
+    } else {
+        tracker::EntityScope::Keyed {
             base: resolve_active_scope_key(
                 config,
                 &integration,
                 &integrations_root,
             ),
             additional: resolve_additional_entities(config, &integration),
-        },
+        }
+    };
+    let scope = tracker::SearchScope {
+        entities,
         filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
@@ -1253,6 +1291,14 @@ pub fn run_sync(
         resolve_max_items(config, &integration);
     let max_pulls = effective_max_pulls(args.max_pulls, config_max_items);
     let max_pushes = effective_max_pushes(args.max_pushes);
+    if unbounded_gate_fires(
+        max_pulls,
+        work_adapters::sync::scope::is_broadened(&scope),
+        args.allow_unbounded,
+    ) {
+        eprintln!("{}", unbounded_gate_message(&integration));
+        return ExitCode::from(exit_codes::REFUSED_UNBOUNDED);
+    }
     let request = SyncRequest {
         corpus: &items,
         selection,
@@ -1414,10 +1460,24 @@ mod tests {
     use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
+    use super::unbounded_gate_fires;
     use super::Scope;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
+
+    #[test]
+    fn the_unbounded_gate_fires_only_on_unlimited_over_a_broadened_scope() {
+        use tracker::Ceiling;
+        // The hazard: unlimited writes over a broadened scope, unacknowledged.
+        assert!(unbounded_gate_fires(Ceiling::Unlimited, true, false));
+        // Acknowledged, so it proceeds.
+        assert!(!unbounded_gate_fires(Ceiling::Unlimited, true, true));
+        // A finite bound protects even a broadened scope.
+        assert!(!unbounded_gate_fires(Ceiling::Bounded(25), true, false));
+        // An unbounded base-only pull is unaffected.
+        assert!(!unbounded_gate_fires(Ceiling::Unlimited, false, false));
+    }
 
     fn scheme() -> WorkItemIdScheme {
         WorkItemIdScheme::numeric()
@@ -2339,6 +2399,7 @@ mod tests {
             per_item_reads: false,
             max_pulls: None,
             max_pushes: None,
+            allow_unbounded: false,
             targets,
         }
     }

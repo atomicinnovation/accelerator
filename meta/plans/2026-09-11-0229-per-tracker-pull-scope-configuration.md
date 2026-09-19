@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configu
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
 repository: "accelerator"
-last_updated: "2026-09-19T19:52:58+00:00"
+last_updated: "2026-09-19T20:11:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1030,23 +1030,23 @@ path.
 
 #### Automated Verification
 
-- [ ] With `all_*` set, the emitted search enumerates the visible set and targets
+- [x] With `all_*` set, the emitted search enumerates the visible set and targets
       every entity (`project IN (...)` / `team in [...]`), never an empty/unbounded
       filter: Jira/Linear fixture goldens + client contract tests
-- [ ] `all_*` with an empty enumerated visible set refuses rather than emitting an
+- [x] `all_*` with an empty enumerated visible set refuses rather than emitting an
       empty/unbounded `IN` list (the 0220 flood boundary): new engine/client contract test
-- [ ] `all_*` discovery halts on whichever of `max_items` / `max_pages` binds first — a
+- [x] `all_*` discovery halts on whichever of `max_items` / `max_pages` binds first — a
       `max_pages` cap-hit pre-empts the `max_items` count, so reaching a `max_items` bound
       on a large `all_*` workspace presupposes `max_pages: unlimited`: engine test
-- [ ] An unkeyed scope with neither `all_*` nor a base key still refuses: existing
+- [x] An unkeyed scope with neither `all_*` nor a base key still refuses: existing
       guard tests remain green
-- [ ] `max_items: unlimited` over a broadened scope — `all_*` *or* a non-empty
+- [x] `max_items: unlimited` over a broadened scope — `all_*` *or* a non-empty
       `additional_*` — refuses unless `--allow-unbounded` is passed (binary-level,
       skill-driven confirmation); a bounded broadened pull, and an unbounded *base-only*
       pull, are unaffected: new tests
-- [ ] The `sync-work-items` skill surfaces the gate refusal and re-runs with
+- [x] The `sync-work-items` skill surfaces the gate refusal and re-runs with
       `--allow-unbounded` (mirroring the exit-5 pull-overwrite gate): skill-doc review / eval
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

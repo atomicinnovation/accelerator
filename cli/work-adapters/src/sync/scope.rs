@@ -53,26 +53,56 @@ pub fn resolve_entities(
     tracker: &dyn RemoteTracker,
     scope: &SearchScope,
 ) -> Result<SearchScope, EntityResolution> {
-    let EntityScope::Keyed { base, additional } = &scope.entities else {
-        // Whole-workspace resolution lands in a later phase; a base-only scope
-        // never reaches here.
-        return Ok(scope.clone());
-    };
     let visible = tracker
         .enumerate_visible_entities()
         .map_err(EntityResolution::Transient)?;
-    let base = base
-        .as_deref()
-        .map(|key| identifier_for(key, &visible))
-        .transpose()?;
-    let additional = additional
-        .iter()
-        .map(|key| identifier_for(key, &visible))
-        .collect::<Result<Vec<_>, _>>()?;
+    let entities = match &scope.entities {
+        EntityScope::WholeWorkspace => whole_workspace(&visible)?,
+        EntityScope::Keyed { base, additional } => {
+            keyed(base.as_deref(), additional, &visible)?
+        }
+    };
     Ok(SearchScope {
-        entities: EntityScope::Keyed { base, additional },
+        entities,
         filters: scope.filters.clone(),
     })
+}
+
+/// The whole visible workspace as an enumerated identifier list — never an
+/// unbounded, constraint-free query. An empty visible set is a refusal, not an
+/// empty filter that would flood the workspace (the 0220 flood boundary).
+fn whole_workspace(
+    visible: &[VisibleEntity],
+) -> Result<EntityScope, EntityResolution> {
+    if visible.is_empty() {
+        return Err(EntityResolution::Unconfigured(ScopeError {
+            detail: "all_projects/all_teams is set but the credential can see \
+                     no entities to search; check the credential's access"
+                .to_owned(),
+        }));
+    }
+    Ok(EntityScope::Keyed {
+        base: None,
+        additional: visible
+            .iter()
+            .map(|entity| entity.identifier.clone())
+            .collect(),
+    })
+}
+
+/// The base and each additional entity mapped to their search identifiers, each
+/// confirmed present in the visible set.
+fn keyed(
+    base: Option<&str>,
+    additional: &[String],
+    visible: &[VisibleEntity],
+) -> Result<EntityScope, EntityResolution> {
+    let base = base.map(|key| identifier_for(key, visible)).transpose()?;
+    let additional = additional
+        .iter()
+        .map(|key| identifier_for(key, visible))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(EntityScope::Keyed { base, additional })
 }
 
 /// The search identifier a visible entity with the given `key` carries, or an

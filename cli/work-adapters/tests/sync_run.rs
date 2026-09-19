@@ -1631,3 +1631,152 @@ fn a_broadened_pull_searches_the_resolved_additional_identifiers(
     );
     Ok(())
 }
+
+const fn whole_workspace_scope() -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::WholeWorkspace,
+        filters: Vec::new(),
+    }
+}
+
+/// `execute_with_scope` with an explicit pull bound, for the ceiling-under-a
+/// -broadened-scope cases.
+fn execute_with_scope_bounded(
+    scenario: &Scenario,
+    scope: tracker::SearchScope,
+    max_pulls: usize,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        max_pulls,
+        25,
+        RunMode::Preview,
+    );
+    req.scope = scope;
+    run(&ports, &mut store, &req)
+}
+
+#[test]
+fn a_whole_workspace_pull_searches_every_visible_entity(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")]),
+        spy,
+        dir,
+    };
+
+    execute_with_scope(&scenario, whole_workspace_scope()).map_err(
+        |error| format!("a whole-workspace pull resolves: {error:?}"),
+    )?;
+
+    let scope = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .find_map(|call| match call {
+            Call::Search { scope } => Some(scope),
+            _ => None,
+        })
+        .expect("the run issues a search");
+    assert_eq!(
+        scope.entities,
+        tracker::EntityScope::Keyed {
+            base: None,
+            additional: vec!["ENG-id".to_owned(), "OPS-id".to_owned()],
+        },
+        "all_* enumerates the visible set into an explicit identifier list"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_whole_workspace_pull_over_an_empty_visible_set_refuses(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).seeing(Vec::new()),
+        spy,
+        dir,
+    };
+
+    let result = execute_with_scope(&scenario, whole_workspace_scope());
+
+    assert!(
+        matches!(result, Err(RunError::DiscoveryUnconfigured { .. })),
+        "an empty visible set refuses rather than emitting an unbounded query"
+    );
+    assert!(
+        !scenario
+            .tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Search { .. })),
+        "no search is issued when there is nothing to enumerate"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_whole_workspace_pull_still_honours_max_items() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let found = vec![
+        (
+            ExternalId::new("ENG-1".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+        (
+            ExternalId::new("ENG-2".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+        (
+            ExternalId::new("OPS-1".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+    ];
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")])
+            .discovering(found, true),
+        spy,
+        dir,
+    };
+
+    let result =
+        execute_with_scope_bounded(&scenario, whole_workspace_scope(), 2);
+
+    assert!(
+        matches!(result, Err(RunError::Refused { .. })),
+        "all_* discovery is still bounded by max_items"
+    );
+    Ok(())
+}

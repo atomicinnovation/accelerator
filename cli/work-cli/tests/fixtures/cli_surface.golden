@@ -191,6 +191,9 @@ Options:
       --max-pushes <MAX_PUSHES>
           Refuse the run if it would replace more than this many remote issues. 0 refuses every push. When unset, defaults to 25; push has no config source
 
+      --allow-unbounded
+          Acknowledge an unbounded broadened pull. `<tracker>.pull.max_items: unlimited` combined with a broadened scope (`all_*`, or a non-empty `additional_*`) is refused fail-safe unless this is set, since the whole discovered set would be mass-created with no write bound. The work skill prompts and re-runs with this flag; set a finite `max_items` to avoid it
+
       --target <TARGETS>
           Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
 

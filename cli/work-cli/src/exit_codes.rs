@@ -24,6 +24,12 @@
 //!   not bypass it). Distinct from `4` `UNRESOLVED`: nothing was reconciled and
 //!   nothing awaits a human — raise the cap (or its `keyed_read` override, or
 //!   `unlimited`) and re-run.
+//! - `8` `REFUSED_UNBOUNDED` — `<tracker>.pull.max_items: unlimited` combines
+//!   with a broadened scope (`all_*`, or a non-empty `additional_*`), so the
+//!   discovered set could mass-create without a write bound. Refused fail-safe
+//!   before any read; the operator re-runs with `--allow-unbounded` to
+//!   acknowledge the blast radius, or sets a finite `max_items`. The work skill
+//!   drives that confirmation.
 //!
 //! Tracker-error codes (`70`/`71`), the two-class [`TrackerError`] split that
 //! [`for_tracker_error`] maps. This distinction is safety-critical — the work
@@ -70,6 +76,7 @@ pub const UNRESOLVED: u8 = 4;
 pub const REFUSED_BULK_OVERWRITE: u8 = 5;
 pub const RESOLVE_OUTSIDE_WORKDIR: u8 = 6;
 pub const KEYED_READ_CAPPED: u8 = 7;
+pub const REFUSED_UNBOUNDED: u8 = 8;
 
 pub const RETRYABLE: u8 = 70;
 pub const TERMINAL: u8 = 71;
