@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configu
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
 repository: "accelerator"
-last_updated: "2026-09-18T10:49:54+00:00"
+last_updated: "2026-09-19T16:16:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
