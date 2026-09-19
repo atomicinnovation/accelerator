@@ -836,6 +836,130 @@ fn resolve_keyed_read_pages(
     }
 }
 
+/// The configured additional discovery entities, normalised from
+/// `<tracker>.pull.additional_projects` / `additional_teams`. Read after
+/// [`validate_pull_config`] has passed; an absent block or a defensive fault is
+/// no broadening.
+fn resolve_additional_entities(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Vec<String> {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, _))) => pull.additional_entities,
+        _ => Vec::new(),
+    }
+}
+
+/// The distinct team-key prefixes of every create-from-remote import this run
+/// applied — the teams a broadened Linear pull actually drew items from.
+fn imported_team_keys(
+    report: &work_adapters::sync::run::RunReport,
+) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    for item in &report.reported {
+        if !matches!(item.planned.action, work::sync::Action::CreateFromRemote)
+        {
+            continue;
+        }
+        if !matches!(item.outcome, ItemOutcome::Applied) {
+            continue;
+        }
+        if let Some((prefix, _)) = item.planned.id.split_once('-') {
+            if !keys.iter().any(|seen| seen == prefix) {
+                keys.push(prefix.to_owned());
+            }
+        }
+    }
+    keys
+}
+
+/// Grows the committed Linear team catalogue with any team a broadened pull just
+/// imported from but the catalogue did not yet name, so those items reconcile
+/// offline on later runs. A no-op for Jira (its keyed reconcile read is
+/// project-agnostic) and for a pull that imported only base-team items.
+///
+/// Best-effort at finalisation: the imported files already landed, so a growth
+/// failure warns rather than failing the sync. The metadata is committed only
+/// for teams items were actually imported from — never the whole enumerated
+/// workspace — and a warning names each newly-committed team since the catalogue
+/// is version-controlled and repo-wide.
+fn grow_linear_catalogue(
+    report: &work_adapters::sync::run::RunReport,
+    tracker: &dyn tracker::RemoteTracker,
+    integration: &str,
+    integrations_root: &Path,
+    repo_root: &Path,
+) {
+    use linear_client::filter::TeamResolver;
+
+    if integration != "linear" {
+        return;
+    }
+    let imported = imported_team_keys(report);
+    if imported.is_empty() {
+        return;
+    }
+    let known: std::collections::BTreeSet<String> =
+        linear_client::catalogue::CatalogueTeam::load(integrations_root)
+            .catalogued()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect();
+    let new_keys: Vec<String> = imported
+        .into_iter()
+        .filter(|key| !known.contains(key))
+        .collect();
+    if new_keys.is_empty() {
+        return;
+    }
+    let visible = match tracker.enumerate_visible_entities() {
+        Ok(visible) => visible,
+        Err(error) => {
+            eprintln!(
+                "warning: the Linear team catalogue could not be grown for \
+                 newly-imported team(s) ({error}); they will be catalogued on \
+                 the next successful enumeration."
+            );
+            return;
+        }
+    };
+    let entries: Vec<(String, String, String)> = new_keys
+        .iter()
+        .filter_map(|key| {
+            visible
+                .iter()
+                .find(|entity| &entity.key == key)
+                .map(|entity| {
+                    (
+                        entity.key.clone(),
+                        entity.identifier.clone(),
+                        entity.name.clone(),
+                    )
+                })
+        })
+        .collect();
+    if entries.is_empty() {
+        return;
+    }
+    let filesystem =
+        linear_client::cache::SystemFilesystem::new(repo_root.to_path_buf());
+    let cache = linear_client::cache::LinearCache::new(
+        &filesystem,
+        integrations_root.join("linear"),
+    );
+    match cache.grow_catalogue(&entries) {
+        Ok(added) if !added.is_empty() => eprintln!(
+            "note: committed Linear team metadata for newly-imported team(s): \
+             {}. The catalogue is version-controlled and repo-wide.",
+            added.join(", ")
+        ),
+        Ok(_) => {}
+        Err(error) => eprintln!(
+            "warning: the Linear team catalogue could not be grown ({error})."
+        ),
+    }
+}
+
 /// The configured discovery filters, flattened from `<tracker>.pull.filters`
 /// into the port's flat `(key, value)` bag — one entry per value, so an adapter
 /// groups same-key values into one `IN` (values OR'd). Read after
@@ -986,6 +1110,7 @@ pub fn run_sync(
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let root = config_adapters::FileConfigStore::discover_root(start);
+    let repo_root = root.clone();
     let work_dir = match crate::config::resolve_work_dir(config, &root) {
         Ok(dir) => dir,
         Err(error) => {
@@ -1107,12 +1232,14 @@ pub fn run_sync(
         RetrievalStrategy::Bulk
     };
     let scope = tracker::SearchScope {
-        project: resolve_active_scope_key(
-            config,
-            &integration,
-            &integrations_root,
-        ),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: resolve_active_scope_key(
+                config,
+                &integration,
+                &integrations_root,
+            ),
+            additional: resolve_additional_entities(config, &integration),
+        },
         filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
@@ -1184,6 +1311,13 @@ pub fn run_sync(
                 ),
             }
             println!("{}", render_report(&report));
+            grow_linear_catalogue(
+                &report,
+                tracker.as_ref(),
+                &integration,
+                &integrations_root,
+                &repo_root,
+            );
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
@@ -2044,6 +2178,13 @@ mod tests {
             unimplemented!("not exercised by the fetch_all failure path")
         }
 
+        fn enumerate_visible_entities(
+            &self,
+        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
+        {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
         fn preview_create(
             &self,
             _kind: &str,
@@ -2108,6 +2249,13 @@ mod tests {
             scope: &tracker::SearchScope,
         ) -> Result<tracker::SearchScope, tracker::ScopeError> {
             self.0.resolve_scope(scope)
+        }
+
+        fn enumerate_visible_entities(
+            &self,
+        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
+        {
+            self.0.enumerate_visible_entities()
         }
 
         fn preview_create(

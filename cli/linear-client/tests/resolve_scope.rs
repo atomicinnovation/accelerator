@@ -12,9 +12,18 @@ use tracker::SearchScope;
 
 fn keyed(project: Option<&str>) -> SearchScope {
     SearchScope {
-        project: project.map(str::to_owned),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: project.map(str::to_owned),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
+    }
+}
+
+fn resolved_base(scope: &SearchScope) -> Option<String> {
+    match &scope.entities {
+        tracker::EntityScope::Keyed { base, .. } => base.clone(),
+        tracker::EntityScope::WholeWorkspace => None,
     }
 }
 
@@ -28,7 +37,7 @@ fn a_matching_team_key_resolves_to_the_uuid() {
         .expect("a known team key resolves");
 
     assert_eq!(
-        resolved.project.as_deref(),
+        resolved_base(&resolved).as_deref(),
         Some(TEAM_ID),
         "the resolved scope carries the UUID, not the raw key"
     );

@@ -118,6 +118,61 @@ impl<'a> LinearCache<'a> {
         })
     }
 
+    /// Adds any of `teams` — each `(key, id, name)` — not already catalogued to
+    /// the committed multi-entry `teams` array, preserving the base `/team` and
+    /// `workflowStates`. The whole read-merge-write runs under one lock, so two
+    /// concurrent broadened pulls cannot each read the pre-growth index and
+    /// clobber one another's entry. Returns the keys newly committed, for the
+    /// operator warning a broadened pull emits.
+    ///
+    /// # Errors
+    ///
+    /// [`CacheError`] for contention, a read/write failure, or a catalogue that
+    /// is not a JSON object.
+    pub fn grow_catalogue(
+        &self,
+        teams: &[(String, String, String)],
+    ) -> Result<Vec<String>, CacheError> {
+        let path = self.state_dir.join("catalogue.json");
+        let mut added: Vec<String> = Vec::new();
+        self.fs.with_lock(&self.state_dir.join(LOCK_DIR), &mut || {
+            added.clear();
+            let mut catalogue = self
+                .fs
+                .read(&path)
+                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                .unwrap_or_else(|| serde_json::json!({}));
+            let known = catalogued_keys(&catalogue);
+            let object = catalogue.as_object_mut().ok_or_else(|| {
+                CacheError::Serialise {
+                    detail: "catalogue.json is not a JSON object".to_owned(),
+                }
+            })?;
+            let array = object
+                .entry("teams")
+                .or_insert_with(|| Value::Array(Vec::new()));
+            let Some(array) = array.as_array_mut() else {
+                return Err(CacheError::Serialise {
+                    detail: "catalogue.json `teams` is not an array".to_owned(),
+                });
+            };
+            for (key, id, name) in teams {
+                if known.iter().any(|seen| seen == key)
+                    || added.iter().any(|seen| seen == key)
+                {
+                    continue;
+                }
+                array.push(
+                    serde_json::json!({ "key": key, "id": id, "name": name }),
+                );
+                added.push(key.clone());
+            }
+            self.write_json("catalogue.json", &catalogue)?;
+            self.ensure_scaffold()
+        })?;
+        Ok(added)
+    }
+
     fn write_json(&self, name: &str, value: &Value) -> Result<(), CacheError> {
         let mut text =
             serde_json::to_string_pretty(value).map_err(|error| {
@@ -144,6 +199,25 @@ impl<'a> LinearCache<'a> {
         }
         Ok(())
     }
+}
+
+/// Every team key a catalogue already names — the multi-entry `teams` array and
+/// the base `/team` — so growth adds only genuinely new teams.
+fn catalogued_keys(catalogue: &Value) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    if let Some(entries) = catalogue.get("teams").and_then(Value::as_array) {
+        for entry in entries {
+            if let Some(key) = entry.get("key").and_then(Value::as_str) {
+                keys.push(key.to_owned());
+            }
+        }
+    }
+    if let Some(key) = catalogue.pointer("/team/key").and_then(Value::as_str) {
+        if !keys.iter().any(|seen| seen == key) {
+            keys.push(key.to_owned());
+        }
+    }
+    keys
 }
 
 /// The real filesystem.

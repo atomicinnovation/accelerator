@@ -45,6 +45,14 @@ impl StateResolver for FixedStates {
 pub trait TeamResolver {
     /// The team UUID `key` resolves to, or `None` when it matches no team.
     fn resolve(&self, key: &str) -> Option<String>;
+
+    /// Every catalogued team as `(key, uuid)`, for the multi-team keyed
+    /// reconcile read: a corpus that spans additional teams must page each and
+    /// accept each team's identifier prefix as in-scope. Empty for a resolver
+    /// with no catalogue.
+    fn catalogued(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
 }
 
 /// A fixed map, used by the search suites and by any caller with no catalogue.
@@ -54,6 +62,13 @@ pub struct FixedTeam(pub std::collections::BTreeMap<String, String>);
 impl TeamResolver for FixedTeam {
     fn resolve(&self, key: &str) -> Option<String> {
         self.0.get(key.trim()).cloned()
+    }
+
+    fn catalogued(&self) -> Vec<(String, String)> {
+        self.0
+            .iter()
+            .map(|(key, id)| (key.clone(), id.clone()))
+            .collect()
     }
 }
 
@@ -66,6 +81,11 @@ impl TeamResolver for FixedTeam {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub team_id: Option<String>,
+    /// Further team UUIDs to broaden discovery onto. With `team_id` set and this
+    /// non-empty, the base and each additional team lower to one
+    /// `team: { id: { in: [...] } }` clause; empty, `team_id` alone lowers to
+    /// `team: { id: { eq } }`.
+    pub team_ids: Vec<String>,
     pub state: Vec<String>,
     pub assignee: Vec<String>,
     pub label: Vec<String>,
@@ -89,8 +109,19 @@ pub fn compose(
     states: &dyn StateResolver,
 ) -> Result<Value, ClientError> {
     let mut filter = Map::new();
-    if let Some(team) = &search.team_id {
-        filter.insert("team".to_owned(), json!({"id": {"eq": team}}));
+    let teams: Vec<&String> = search
+        .team_id
+        .iter()
+        .chain(search.team_ids.iter())
+        .collect();
+    match teams.as_slice() {
+        [] => {}
+        [single] => {
+            filter.insert("team".to_owned(), json!({"id": {"eq": single}}));
+        }
+        many => {
+            filter.insert("team".to_owned(), json!({"id": {"in": many}}));
+        }
     }
     if !search.state.is_empty() {
         let ids =

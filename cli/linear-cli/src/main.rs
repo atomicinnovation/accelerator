@@ -102,6 +102,7 @@ fn run_search(args: SearchArgs) -> ExitCode {
     };
     let search = Search {
         team_id: None,
+        team_ids: Vec::new(),
         state: args.state.into_iter().collect(),
         assignee: args.assignee.into_iter().collect(),
         label: args.label.into_iter().collect(),

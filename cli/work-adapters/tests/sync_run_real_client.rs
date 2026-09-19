@@ -620,8 +620,10 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         &items,
         SyncDirection::Bidirectional,
         tracker::SearchScope {
-            project: Some("ENG".to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some("ENG".to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         },
         RunMode::Preview,
@@ -693,8 +695,10 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
         &[],
         SyncDirection::Bidirectional,
         tracker::SearchScope {
-            project: Some(LINEAR_TEAM_KEY.to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some(LINEAR_TEAM_KEY.to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         },
         RunMode::Preview,

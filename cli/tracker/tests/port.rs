@@ -153,6 +153,12 @@ impl RemoteTracker for FixedTracker {
         Ok(scope.clone())
     }
 
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError> {
+        Ok(Vec::new())
+    }
+
     fn preview_create(
         &self,
         _kind: &str,

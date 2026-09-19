@@ -390,8 +390,10 @@ fn run_at(
 
 fn scoped() -> SearchScope {
     SearchScope {
-        project: Some("ENG".to_owned()),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: Some("ENG".to_owned()),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
     }
 }
@@ -2094,6 +2096,12 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
         scope: &SearchScope,
     ) -> Result<SearchScope, tracker::ScopeError> {
         Ok(scope.clone())
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError> {
+        Ok(Vec::new())
     }
 
     fn preview_create(

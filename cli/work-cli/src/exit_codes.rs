@@ -53,9 +53,12 @@
 //! - `74` `UNCONFIGURED` — the tracker is wired but a run cannot proceed on its
 //!   configuration: its credentials are missing or refused, or a non-push-only
 //!   run's discovery scope names no valid target (an unset or unresolvable
-//!   key). **Nothing was sent** — the discovery refusal is pre-flight, before
-//!   the apply/push phase — so save locally and fix the config; never reconcile
-//!   against a create that never happened.
+//!   key, or a configured `additional_*`/`all_*` entity the credential cannot
+//!   see). **No write was made** — the refusal is pre-flight, before the
+//!   apply/push phase. A broadened scope is confirmed against a live
+//!   entity-enumeration read, so a read may have gone out, but nothing was
+//!   mutated — so save locally and fix the config; never reconcile against a
+//!   create that never happened.
 
 use tracker::TrackerError;
 

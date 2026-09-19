@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configu
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
 repository: "accelerator"
-last_updated: "2026-09-19T18:06:30+00:00"
+last_updated: "2026-09-19T19:52:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -947,29 +947,29 @@ count against the same cap — see the keyed-read page-budget note in Phase 4 / 
 
 #### Automated Verification
 
-- [ ] With `additional_*` configured, the emitted search targets base plus each
+- [x] With `additional_*` configured, the emitted search targets base plus each
       additional entity: Jira/Linear fixture goldens for the `IN` list
-- [ ] An entity containing a quote/paren is safely escaped in the emitted
+- [x] An entity containing a quote/paren is safely escaped in the emitted
       `project IN (...)` list (no clause break-out): new row in
       `cli/jira-client/tests/fixtures/jql-composition.txt`
-- [ ] A named `additional_*` (or base) entity absent from the visible set aborts the
+- [x] A named `additional_*` (or base) entity absent from the visible set aborts the
       pull via the existing `RunError::DiscoveryUnconfigured` (exit-74), the same channel
       as a base-key miss (zero writes); a transient enumeration failure routes to the soft
       `Retryable` path instead: new tests via the shared resolver + an enumeration seam
-- [ ] `catalogue.json` gains a newly-imported team on pull: new test in
+- [x] `catalogue.json` gains a newly-imported team on pull: new test in
       `cli/linear-client/tests/`
-- [ ] A synced `additional_*`-team item reconciles on a later run (remote edits pulled)
+- [x] A synced `additional_*`-team item reconciles on a later run (remote edits pulled)
       rather than sticking at `indeterminate`: new `linear-client` contract test exercising
       per-team `page_all` + `in_scope` widening (not `RecordingTracker`, which models no
       per-team scope)
-- [ ] Linear enumeration paginates to exhaustion — a visible-team set exceeding one page is
+- [x] Linear enumeration paginates to exhaustion — a visible-team set exceeding one page is
       fully enumerated so `all_teams` does not under-scope and a first-page-beyond
       `additional_teams` is not falsely aborted; an incomplete enumeration fails loud: new
       `linear-client` contract test
-- [ ] `tracker` public-api snapshot regenerated (the `SearchScope` sum type and the new
+- [x] `tracker` public-api snapshot regenerated (the `SearchScope` sum type and the new
       `enumerate_visible_entities` port method):
       `mise run public-api:update && mise run public-api:check`
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

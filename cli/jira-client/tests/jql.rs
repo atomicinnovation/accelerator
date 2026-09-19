@@ -59,6 +59,10 @@ fn parse_spec(spec: &str) -> Search {
             "all" => search.all_projects = true,
             "watching" => search.watching = true,
             "project" => search.project = Some(value.to_owned()),
+            "additional" => {
+                search.additional_projects =
+                    value.split(',').map(str::to_owned).collect();
+            }
             "text" => search.text.push(value.to_owned()),
             "empty" => search.empty.push(value.to_owned()),
             "notempty" => search.not_empty.push(value.to_owned()),

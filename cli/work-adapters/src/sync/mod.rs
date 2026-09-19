@@ -10,4 +10,5 @@ pub mod digest;
 pub mod fetch;
 pub mod pending_push;
 pub mod run;
+pub mod scope;
 pub mod working_copy_status;

@@ -90,17 +90,20 @@ impl StateResolver for CatalogueStates {
     }
 }
 
-/// The single team a catalogue names, its key paired with its UUID — the
+/// The teams a catalogue names, each key paired with its UUID — the
 /// cache-backed [`TeamResolver`], resolving a configured team key to the UUID a
 /// search filter needs.
+///
+/// Reads the multi-entry `teams` array a broadened pull grows, always folding in
+/// the single `/team` object an older seed wrote, so a pre-upgrade catalogue
+/// resolves base-only and a grown one resolves every catalogued team.
 #[derive(Debug, Clone, Default)]
 pub struct CatalogueTeam {
-    key: Option<String>,
-    id: Option<String>,
+    teams: Vec<(String, String)>,
 }
 
 impl CatalogueTeam {
-    /// Loads the team from `<integrations_root>/linear/catalogue.json`, yielding
+    /// Loads the teams from `<integrations_root>/linear/catalogue.json`, yielding
     /// an empty resolver when the catalogue is absent or unreadable — so a
     /// missing catalogue resolves nothing rather than erroring.
     #[must_use]
@@ -113,25 +116,45 @@ impl CatalogueTeam {
             .unwrap_or_default()
     }
 
-    /// Builds a resolver directly from a parsed catalogue.
+    /// Builds a resolver directly from a parsed catalogue. The multi-entry
+    /// `teams` array is read first; the base `/team` is folded in when absent
+    /// from it, so a newer binary reading a pre-upgrade file (no `teams` key)
+    /// still resolves the base team.
     #[must_use]
     pub fn from_catalogue(catalogue: &Value) -> Self {
-        Self {
-            key: pointer_string(catalogue, "/team/key"),
-            id: pointer_string(catalogue, "/team/id"),
+        let mut teams: Vec<(String, String)> = Vec::new();
+        if let Some(entries) = catalogue.get("teams").and_then(Value::as_array)
+        {
+            for entry in entries {
+                if let (Some(key), Some(id)) = (
+                    pointer_string(entry, "/key"),
+                    pointer_string(entry, "/id"),
+                ) {
+                    teams.push((key, id));
+                }
+            }
         }
+        if let (Some(key), Some(id)) = (
+            pointer_string(catalogue, "/team/key"),
+            pointer_string(catalogue, "/team/id"),
+        ) {
+            if !teams.iter().any(|(known, _)| known.trim() == key.trim()) {
+                teams.push((key, id));
+            }
+        }
+        Self { teams }
     }
 }
 
 impl TeamResolver for CatalogueTeam {
     fn resolve(&self, key: &str) -> Option<String> {
-        match (&self.key, &self.id) {
-            (Some(team_key), Some(team_id))
-                if team_key.trim() == key.trim() =>
-            {
-                Some(team_id.clone())
-            }
-            _ => None,
-        }
+        self.teams
+            .iter()
+            .find(|(team_key, _)| team_key.trim() == key.trim())
+            .map(|(_, team_id)| team_id.clone())
+    }
+
+    fn catalogued(&self) -> Vec<(String, String)> {
+        self.teams.clone()
     }
 }

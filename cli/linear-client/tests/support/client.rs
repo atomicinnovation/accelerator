@@ -60,6 +60,37 @@ pub fn loopback_upload() -> UploadTransport {
         .expect("the upload transport builds")
 }
 
+/// A client whose catalogue names several teams (`key` → UUID), for the
+/// multi-team keyed reconcile read: the corpus spans additional teams, so
+/// `fetch_all` pages each and `in_scope` accepts each team's prefix.
+#[must_use]
+pub fn client_with_teams(
+    server: &MockServer,
+    config: TransportConfig,
+    teams: &[(&str, &str)],
+) -> LinearClient {
+    let transport = Transport::new(
+        Url::parse(&format!("{}/graphql", server.base_url()))
+            .expect("an endpoint"),
+        credentials(),
+        config,
+        Box::new(RecordingSleeper::new()),
+        Box::new(NoJitter),
+    )
+    .expect("the transport builds");
+    let mut map = std::collections::BTreeMap::new();
+    for (key, id) in teams {
+        map.insert((*key).to_owned(), (*id).to_owned());
+    }
+    LinearClient::new(
+        transport,
+        loopback_upload(),
+        Some(TEAM_KEY.to_owned()),
+        Box::new(FixedTeam(map)),
+        Box::new(FixedStates::default()),
+    )
+}
+
 /// A client whose catalogue-backed states are replaced by a fixed resolver, for
 /// the transition suites that assert name resolution.
 #[must_use]
@@ -86,7 +117,8 @@ pub fn client_with_states(
 }
 
 /// `team_key` is `None` for the case where only `linear.team_id` is
-/// configured, so nothing can be proved about an identifier's scope.
+/// configured — no team key and no catalogued team — so nothing can be proved
+/// about an identifier's scope.
 #[must_use]
 pub fn client_with(
     base: &str,
@@ -101,11 +133,19 @@ pub fn client_with(
         Box::new(NoJitter),
     )
     .expect("the transport builds");
+    // An unset team key models a client with no catalogue scope knowledge, so
+    // the team resolver is empty too — otherwise a catalogued team would prove
+    // scope the "nothing is provable" case is built to lack.
+    let teams: Box<dyn TeamResolver> = if team_key.is_some() {
+        fixed_team()
+    } else {
+        Box::new(FixedTeam::default())
+    };
     LinearClient::new(
         transport,
         loopback_upload(),
         team_key,
-        fixed_team(),
+        teams,
         Box::new(FixedStates::default()),
     )
 }

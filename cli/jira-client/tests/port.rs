@@ -19,7 +19,10 @@ const SEARCH: &str = "/rest/api/3/search/jql";
 /// A discovery scope naming a project, valid for the Jira composer.
 fn scope() -> SearchScope {
     SearchScope {
-        project: Some(PROJECT.to_owned()),
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
         ..SearchScope::default()
     }
 }
@@ -509,13 +512,15 @@ fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
         },
     );
     let scope = SearchScope {
-        project: Some(PROJECT.to_owned()),
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
         filters: vec![
             ("label".to_owned(), "a".to_owned()),
             ("label".to_owned(), "b".to_owned()),
             ("state".to_owned(), "open".to_owned()),
         ],
-        ..SearchScope::default()
     };
 
     client_for(&server, brief())
@@ -548,12 +553,14 @@ fn a_hostile_filter_value_stays_contained_in_its_clause() {
         },
     );
     let scope = SearchScope {
-        project: Some(PROJECT.to_owned()),
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
         filters: vec![(
             "label".to_owned(),
             "x') OR project = FOO --".to_owned(),
         )],
-        ..SearchScope::default()
     };
 
     client_for(&server, brief())

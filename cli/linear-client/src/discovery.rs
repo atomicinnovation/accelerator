@@ -16,7 +16,12 @@ use crate::surface::interpret;
 use crate::surface::SurfaceError;
 
 const VIEWER: &str = "query { viewer { id name } }";
-const TEAMS: &str = "query { teams { nodes { id name key } } }";
+const TEAMS: &str = "query($cursor: String) {
+    teams(first: 250, after: $cursor) {
+      nodes { id name key }
+      pageInfo { hasNextPage endCursor }
+    }
+  }";
 const TEAM_STATES: &str = "query($id: String!) {
     team(id: $id) {
       id name key
@@ -46,18 +51,54 @@ impl LinearClient {
     }
 
     /// Lists the teams the token can see, as the array the skill renders for
-    /// selection.
+    /// selection. Paginated to exhaustion so a workspace exceeding one page is
+    /// fully enumerated.
     ///
     /// # Errors
     ///
     /// [`SurfaceError`] for a transport failure or an `errors[]` response.
     pub fn list_teams(&self) -> Result<Value, SurfaceError> {
-        let received = self.transport().send(TEAMS, &json!({}))?;
-        let body = interpret(&received, "list teams")?;
-        Ok(body
-            .pointer("/data/teams/nodes")
-            .cloned()
-            .unwrap_or_else(|| json!([])))
+        Ok(Value::Array(self.paginate_teams()?))
+    }
+
+    /// Every visible team node, following the Relay cursor to exhaustion.
+    ///
+    /// Fails loud on any page failure rather than returning a subset: a
+    /// truncated enumeration that dropped a visible team would falsely abort a
+    /// valid `additional_teams` or under-scope `all_teams`.
+    ///
+    /// # Errors
+    ///
+    /// [`SurfaceError`] for a transport failure or an `errors[]` response on any
+    /// page.
+    pub(crate) fn paginate_teams(&self) -> Result<Vec<Value>, SurfaceError> {
+        let mut nodes = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let received =
+                self.transport().send(TEAMS, &json!({ "cursor": cursor }))?;
+            let body = interpret(&received, "list teams")?;
+            let teams = body.pointer("/data/teams");
+            if let Some(page_nodes) = teams
+                .and_then(|teams| teams.get("nodes"))
+                .and_then(Value::as_array)
+            {
+                nodes.extend(page_nodes.iter().cloned());
+            }
+            let page_info = teams.and_then(|teams| teams.get("pageInfo"));
+            let has_next = page_info
+                .and_then(|info| info.get("hasNextPage"))
+                .and_then(Value::as_bool)
+                == Some(true);
+            cursor = page_info
+                .and_then(|info| info.get("endCursor"))
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            if !has_next || cursor.is_none() {
+                break;
+            }
+        }
+        Ok(nodes)
     }
 
     /// Discovers a team's workflow states and returns the `catalogue.json`

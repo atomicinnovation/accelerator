@@ -1476,3 +1476,158 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
     assert_eq!(report.awaiting_human().count(), 1);
     Ok(())
 }
+
+/// A run over `scenario` with a custom discovery `scope`, so a broadened pull
+/// drives the pre-search entity resolver. Preview mode, ample bounds.
+fn execute_with_scope(
+    scenario: &Scenario,
+    scope: tracker::SearchScope,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        25,
+        25,
+        RunMode::Preview,
+    );
+    req.scope = scope;
+    run(&ports, &mut store, &req)
+}
+
+fn broadened_scope(base: &str, additional: &[&str]) -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(base.to_owned()),
+            additional: additional
+                .iter()
+                .map(|key| (*key).to_owned())
+                .collect(),
+        },
+        filters: Vec::new(),
+    }
+}
+
+fn visible(key: &str) -> tracker::VisibleEntity {
+    tracker::VisibleEntity {
+        key: key.to_owned(),
+        identifier: format!("{key}-id"),
+        name: format!("{key} team"),
+    }
+}
+
+#[test]
+fn an_additional_entity_absent_from_the_visible_set_aborts_the_pull(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        // The credential sees only the base team, not the configured OPS.
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG")]),
+        spy,
+        dir,
+    };
+
+    let result =
+        execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"]));
+
+    match result {
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            assert!(detail.contains("OPS"), "{detail}");
+        }
+        Err(other) => {
+            panic!("expected a DiscoveryUnconfigured abort, got {other:?}")
+        }
+        Ok(_) => panic!("expected a DiscoveryUnconfigured abort, not success"),
+    }
+    Ok(())
+}
+
+#[test]
+fn a_transient_enumeration_failure_degrades_rather_than_aborting(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).failing_enumeration(
+            tracker::TrackerError::Retryable {
+                detail: "enumeration timed out".to_owned(),
+            },
+        ),
+        spy,
+        dir,
+    };
+
+    let report =
+        execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"]))
+            .map_err(|error| {
+                format!("a transient enumeration must not abort: {error:?}")
+            })?;
+
+    assert!(
+        matches!(report.discovery, DiscoveryStatus::Failed { .. }),
+        "a transient enumeration degrades to a soft discovery failure"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_broadened_pull_searches_the_resolved_additional_identifiers(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")]),
+        spy,
+        dir,
+    };
+
+    execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"])).map_err(
+        |error| format!("a visible broadened pull resolves: {error:?}"),
+    )?;
+
+    let searched =
+        scenario
+            .tracker
+            .calls()
+            .into_iter()
+            .find_map(|call| match call {
+                Call::Search { scope } => Some(scope),
+                _ => None,
+            });
+    let scope = searched.expect("the run issues a search");
+    assert_eq!(
+        scope.entities,
+        tracker::EntityScope::Keyed {
+            base: Some("ENG-id".to_owned()),
+            additional: vec!["OPS-id".to_owned()],
+        },
+        "the search targets the resolved base and additional identifiers"
+    );
+    Ok(())
+}

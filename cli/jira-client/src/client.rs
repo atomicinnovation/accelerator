@@ -11,6 +11,7 @@ use serde_json::Value;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
+use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
@@ -21,6 +22,7 @@ use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -291,9 +293,12 @@ impl JiraClient {
     /// (no project and not `all_projects`, or an unquotable filter) is a
     /// pre-flight `Err`.
     fn discover(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        let (project, additional_projects, all_projects) =
+            project_fields(&scope.entities);
         let search = Search {
-            project: scope.project.clone(),
-            all_projects: scope.all_projects,
+            project,
+            additional_projects,
+            all_projects,
             families: families_from_filters(&scope.filters),
             ..Search::default()
         };
@@ -498,6 +503,50 @@ fn jql_field(config_key: &str) -> &str {
     }
 }
 
+/// Whether a scope names any search target at all — a base, an additional
+/// entity, or the whole workspace. An empty keyed scope names nothing.
+const fn names_target(entities: &EntityScope) -> bool {
+    match entities {
+        EntityScope::Keyed { base, additional } => {
+            base.is_some() || !additional.is_empty()
+        }
+        EntityScope::WholeWorkspace => true,
+    }
+}
+
+/// One `discover_projects` entry as a [`VisibleEntity`]: a Jira project's key is
+/// both its config-facing key and its search identifier. Drops an entry missing
+/// a key.
+fn visible_project(project: &Value) -> Option<VisibleEntity> {
+    let key = project.get("key").and_then(Value::as_str)?.to_owned();
+    let name = project
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    Some(VisibleEntity {
+        identifier: key.clone(),
+        key,
+        name,
+    })
+}
+
+/// Lowers an [`EntityScope`] to the [`Search`] project fields: the base project
+/// and the additional projects for a keyed scope, or `all_projects` for a
+/// whole-workspace scope. The engine's pre-search resolver has already mapped
+/// each entity key to its search identifier (a Jira project key is its own
+/// identifier), so this is a pure shape change.
+fn project_fields(
+    entities: &EntityScope,
+) -> (Option<String>, Vec<String>, bool) {
+    match entities {
+        EntityScope::Keyed { base, additional } => {
+            (base.clone(), additional.clone(), false)
+        }
+        EntityScope::WholeWorkspace => (None, Vec::new(), true),
+    }
+}
+
 /// Groups a flat `(key, value)` filter bag into one [`Family`] per JQL field,
 /// preserving first-seen key order, so same-key values compose to one multi-value
 /// `IN` (values OR'd) rather than repeated single-value clauses (values AND'd,
@@ -662,7 +711,9 @@ impl RemoteTracker for JiraClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        if scope.project.is_none() && !scope.all_projects {
+        // Jira project keys are their own search identifiers, so resolution is
+        // the structural target check alone — no key substitution.
+        if !names_target(&scope.entities) {
             return Err(ScopeError {
                 detail: "E_JQL_NO_PROJECT: specify a project or all_projects, \
                          or run --push-only to push without discovery"
@@ -674,6 +725,23 @@ impl RemoteTracker for JiraClient {
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
         self.discover(scope)
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        let discovered = self.discover_projects().map_err(|error| {
+            TrackerError::from(JiraFailure::ReadFailure {
+                detail: error.to_string(),
+            })
+        })?;
+        Ok(discovered
+            .get("projects")
+            .and_then(Value::as_array)
+            .map(|projects| {
+                projects.iter().filter_map(visible_project).collect()
+            })
+            .unwrap_or_default())
     }
 
     fn preview_create(

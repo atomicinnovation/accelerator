@@ -125,8 +125,10 @@ fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
 
     // A pre-resolved scope: `project` is the UUID `resolve_scope` produces.
     let scope = SearchScope {
-        project: Some(TEAM_ID.to_owned()),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: Some(TEAM_ID.to_owned()),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
     };
 

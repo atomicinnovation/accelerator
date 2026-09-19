@@ -49,6 +49,7 @@ fn parse_spec(spec: &str) -> Search {
         let values = || value.split(',').map(str::to_owned).collect::<Vec<_>>();
         match name {
             "team" => search.team_id = Some(value),
+            "teams" => search.team_ids = values(),
             "state" => search.state = values(),
             "assignee" => search.assignee = values(),
             "label" => search.label = values(),

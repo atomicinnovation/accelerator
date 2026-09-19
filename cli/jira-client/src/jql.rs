@@ -112,6 +112,30 @@ pub fn key_clause(keys: &[String]) -> Result<String, ClientError> {
     Ok(format!("key IN ({})", quoted.join(", ")))
 }
 
+/// The base-and-additional project clause: `project = 'X'` for a single
+/// entity, `project IN ('X', 'Y')` for several, and no clause for none.
+///
+/// Every entity is quoted through [`quote`], the same escaping the single-entity
+/// `project =` clause used, so a project key carrying a `'`, `)` or ` OR ` stays
+/// contained rather than breaking out into a workspace-wide query.
+///
+/// # Errors
+///
+/// [`ClientError::BadJql`] when a project cannot be safely quoted.
+fn project_clause(projects: &[&String]) -> Result<Option<String>, ClientError> {
+    match projects {
+        [] => Ok(None),
+        [single] => Ok(Some(format!("project = {}", quote(single)?))),
+        many => {
+            let mut quoted = Vec::with_capacity(many.len());
+            for project in many {
+                quoted.push(quote(project)?);
+            }
+            Ok(Some(format!("project IN ({})", quoted.join(", "))))
+        }
+    }
+}
+
 /// A contains-match clause, `<field> ~ "<escaped>"`.
 ///
 /// A different quoting from [`quote`]: Atlassian's double-quoted string rules,
@@ -147,6 +171,10 @@ pub struct Family {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub project: Option<String>,
+    /// Further projects to broaden discovery onto. With `project` set and this
+    /// non-empty, the base and each additional project lower to one enumerated
+    /// `project IN (...)` clause; empty, `project` alone lowers to `project =`.
+    pub additional_projects: Vec<String>,
     pub all_projects: bool,
     pub families: Vec<Family>,
     pub watching: bool,
@@ -170,7 +198,12 @@ pub fn compose(
     accounts: &dyn AccountResolver,
     fields: &dyn FieldResolver,
 ) -> Result<String, ClientError> {
-    if search.project.is_none() && !search.all_projects {
+    let projects: Vec<&String> = search
+        .project
+        .iter()
+        .chain(search.additional_projects.iter())
+        .collect();
+    if projects.is_empty() && !search.all_projects {
         return Err(ClientError::BadJql {
             reason: "E_JQL_NO_PROJECT: specify a project or all_projects"
                 .to_owned(),
@@ -178,8 +211,8 @@ pub fn compose(
     }
 
     let mut clauses = Vec::new();
-    if let Some(project) = &search.project {
-        clauses.push(format!("project = {}", quote(project)?));
+    if let Some(clause) = project_clause(&projects)? {
+        clauses.push(clause);
     }
     for field in &search.empty {
         clauses.push(format!(

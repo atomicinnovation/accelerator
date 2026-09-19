@@ -228,8 +228,10 @@ mod tests {
 
     fn scope() -> SearchScope {
         SearchScope {
-            project: Some("SCR".to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some("SCR".to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         }
     }

@@ -270,8 +270,10 @@ fn seeds_the_scratch_corpus_when_requested() {
 
     let subject = live_client();
     let scope = SearchScope {
-        project: Some(project),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: Some(project),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
     };
     let records = representative_records();

@@ -263,6 +263,55 @@ pub struct FetchOutcome {
     pub completeness: Completeness,
 }
 
+/// Which entities a discovery query looks across.
+///
+/// An exclusive sum type so the illegal combination a flat
+/// `project` + `all_projects` pair allowed — a named entity *and* the whole
+/// workspace — is unrepresentable. A named-entity scope broadens a base entity
+/// with zero or more additional entities; a whole-workspace scope subsumes the
+/// base entirely and carries no entities of its own.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EntityScope {
+    /// The keyed base entity, broadened by zero or more additional entities.
+    ///
+    /// `base` is the canonical scope key (a Jira project key, a Linear team
+    /// key), absent only on an unkeyed run. `additional` names further entities
+    /// to broaden discovery onto, never to narrow it. Before the engine's
+    /// pre-search resolver runs, both hold config-facing keys; after it, both
+    /// hold the identifiers a search lowers (Jira: the project key unchanged;
+    /// Linear: the team UUID).
+    Keyed {
+        base: Option<String>,
+        additional: Vec<String>,
+    },
+    /// Every entity the credential can see. Resolved to an enumerated identifier
+    /// list before a search lowers it — never an unbounded, constraint-free
+    /// query.
+    WholeWorkspace,
+}
+
+impl Default for EntityScope {
+    fn default() -> Self {
+        Self::Keyed {
+            base: None,
+            additional: Vec::new(),
+        }
+    }
+}
+
+/// One entity a credential can see, as a live enumeration reports it.
+///
+/// `key` is the config-facing name a scope block and an identifier prefix use;
+/// `identifier` is what a search lowers to — the same key for Jira, the team
+/// UUID for Linear. `name` is the display label the committed entity index and
+/// operator warnings carry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisibleEntity {
+    pub key: String,
+    pub identifier: String,
+    pub name: String,
+}
+
 /// Where an unkeyed discovery query looks.
 ///
 /// A discovery has no requested id set — it asks the tracker which issues exist
@@ -270,14 +319,8 @@ pub struct FetchOutcome {
 /// slice `fetch_all` takes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SearchScope {
-    /// The single project or team to scope discovery to.
-    ///
-    /// When both this and `all_projects` are set, `project` wins: a named
-    /// project always narrows. The precedence is stated here rather than left to
-    /// the composer so a caller reading the type knows which field decides.
-    pub project: Option<String>,
-    /// Discover across every project the credentials can see.
-    pub all_projects: bool,
+    /// The entities discovery searches, as an exclusive base-or-workspace scope.
+    pub entities: EntityScope,
     /// Extra provider-specific field filters, each a `(field, value)` pair.
     pub filters: Vec<(String, String)>,
 }
@@ -620,6 +663,28 @@ pub trait RemoteTracker {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError>;
+
+    /// Enumerates every entity the credential can see — a Jira project, a Linear
+    /// team — paginated to exhaustion.
+    ///
+    /// The live source the engine's pre-search resolver draws on to confirm a
+    /// configured `additional_*` or whole-workspace entity is visible and to map
+    /// its config key to the identifier a search lowers. A base-only pull does
+    /// not call it, so a plain keyed discovery issues no extra request.
+    ///
+    /// # Errors
+    ///
+    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
+    /// a read mutates nothing. A transient enumeration failure is retryable, so
+    /// the caller degrades around it rather than treating a requested entity as
+    /// not-visible; a genuinely absent entity is the resolver's concern, not an
+    /// error here. The enumeration must be complete — a truncated one that
+    /// dropped a visible entity would falsely abort a valid `additional_*` — so
+    /// an implementation that cannot page to exhaustion fails rather than
+    /// returning a subset.
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError>;
 
     /// Previews the fields a `create` of the given `kind` would resolve,
     /// without creating anything.

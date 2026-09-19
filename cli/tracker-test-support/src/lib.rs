@@ -25,6 +25,7 @@ use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 
 /// One call the fake observed, carrying enough of the request for a test to
 /// assert the whole-content contract rather than only the call count.
@@ -70,6 +71,12 @@ pub struct RecordingTracker {
     preview_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
     search_failure: Option<TrackerError>,
+    /// The entities `enumerate_visible_entities` reports, for driving the
+    /// broadened-scope resolver.
+    visible_entities: Vec<VisibleEntity>,
+    /// A transient failure `enumerate_visible_entities` reports instead of a
+    /// visible set, for the degrade-around-enumeration-failure path.
+    enumerate_failure: Option<TrackerError>,
     /// The completeness the bulk keyed read reports. `CapHit` drives the
     /// fail-loud abort path, distinct from `truncating`'s out-of-scope
     /// `indeterminate`.
@@ -92,6 +99,8 @@ impl RecordingTracker {
             preview_failure: None,
             scope_refusal: None,
             search_failure: None,
+            visible_entities: Vec::new(),
+            enumerate_failure: None,
             keyed_read_completeness: Completeness::Complete,
             search_result: RefCell::new(None),
             preview: RefCell::new(None),
@@ -187,6 +196,24 @@ impl RecordingTracker {
     #[must_use]
     pub fn failing_search(mut self, error: TrackerError) -> Self {
         self.search_failure = Some(error);
+        self
+    }
+
+    /// Seeds the visible entities `enumerate_visible_entities` reports, so the
+    /// broadened-scope resolver can confirm (or fail to confirm) a configured
+    /// `additional_*` entity against the credential's live set.
+    #[must_use]
+    pub fn seeing(mut self, entities: Vec<VisibleEntity>) -> Self {
+        self.visible_entities = entities;
+        self
+    }
+
+    /// A tracker whose `enumerate_visible_entities` fails transiently, so the
+    /// resolver's degrade-around-enumeration-failure path can be driven. The
+    /// error must be `Retryable` — a read never produces `Terminal`.
+    #[must_use]
+    pub fn failing_enumeration(mut self, error: TrackerError) -> Self {
+        self.enumerate_failure = Some(error);
         self
     }
 
@@ -406,6 +433,15 @@ impl RemoteTracker for RecordingTracker {
         self.scope_refusal
             .clone()
             .map_or_else(|| Ok(scope.clone()), Err)
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        if let Some(error) = &self.enumerate_failure {
+            return Err(error.clone());
+        }
+        Ok(self.visible_entities.clone())
     }
 
     fn preview_create(

@@ -40,6 +40,7 @@ use crate::sync::fetch::GatheredRemote;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::scope;
 
 #[derive(Debug)]
 pub enum RunError {
@@ -827,12 +828,30 @@ fn untracked_to_import(
             (Vec::new(), DiscoveryStatus::SkippedPushOnly)
         }
         ItemSelection::All => {
-            let resolved = ports
-                .tracker
-                .resolve_scope(&request.scope)
-                .map_err(|error| RunError::DiscoveryUnconfigured {
-                    detail: error.detail,
-                })?;
+            let resolved = if scope::is_broadened(&request.scope) {
+                match scope::resolve_entities(ports.tracker, &request.scope) {
+                    Ok(resolved) => resolved,
+                    Err(scope::EntityResolution::Unconfigured(error)) => {
+                        return Err(RunError::DiscoveryUnconfigured {
+                            detail: error.detail,
+                        });
+                    }
+                    Err(scope::EntityResolution::Transient(error)) => {
+                        return Ok((
+                            Vec::new(),
+                            DiscoveryStatus::Failed {
+                                detail: error.into_detail(),
+                            },
+                        ));
+                    }
+                }
+            } else {
+                ports.tracker.resolve_scope(&request.scope).map_err(
+                    |error| RunError::DiscoveryUnconfigured {
+                        detail: error.detail,
+                    },
+                )?
+            };
             match discover_untracked(ports.tracker, &resolved, request.corpus) {
                 Ok(discovered) if !discovered.completeness.is_complete() => {
                     return Err(RunError::DiscoveryIncomplete {

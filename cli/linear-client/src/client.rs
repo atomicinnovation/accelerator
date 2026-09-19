@@ -14,6 +14,7 @@ use tracker::Ceiling;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
+use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
@@ -24,6 +25,7 @@ use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -209,12 +211,20 @@ impl LinearClient {
     /// about scope, and the port's rule then applies: report every unseen id as
     /// indeterminate rather than inferring absence.
     fn in_scope(&self, id: &ExternalId) -> Option<bool> {
-        let key = self.team_key.as_ref()?;
-        Some(
-            id.as_str()
-                .split_once('-')
-                .is_some_and(|(prefix, _)| prefix == key.as_str()),
-        )
+        let mut known: Vec<String> = self
+            .teams
+            .catalogued()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect();
+        if let Some(key) = &self.team_key {
+            known.push(key.clone());
+        }
+        if known.is_empty() {
+            return None;
+        }
+        let prefix = id.as_str().split_once('-').map(|(prefix, _)| prefix);
+        Some(prefix.is_some_and(|prefix| known.iter().any(|key| key == prefix)))
     }
 
     /// A GraphQL call whose failure carries the structured discriminant. The
@@ -569,6 +579,24 @@ impl LinearClient {
     }
 }
 
+/// One `teams` node as a [`VisibleEntity`]: a Linear team's key is its
+/// config-facing name and identifier prefix, its UUID the search identifier.
+/// Drops a node missing a key or an id.
+fn visible_team(team: &Value) -> Option<VisibleEntity> {
+    let key = team.get("key").and_then(Value::as_str)?.to_owned();
+    let identifier = team.get("id").and_then(Value::as_str)?.to_owned();
+    let name = team
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    Some(VisibleEntity {
+        key,
+        identifier,
+        name,
+    })
+}
+
 /// A populated stamp is held verbatim. A blank, absent or `null` one is
 /// `NotReported`, never `Reported("")`.
 fn stamp(value: Option<&Value>) -> RemoteTimestamp {
@@ -660,14 +688,30 @@ impl RemoteTracker for LinearClient {
             })?;
         }
 
-        let team_search = Search {
-            team_id: Some(self.credentials().team_id.clone()),
-            ..Search::default()
-        };
-        let (index, completeness) = self.page_all(
-            &team_search,
-            self.transport.config().keyed_read_max_pages,
-        );
+        // Page every team the corpus can span — the base plus each catalogued
+        // additional team — so an item imported from an additional team
+        // reconciles rather than sticking at indeterminate on every later sync.
+        // The keyed-read cap bounds each team's paging.
+        let cap = self.transport.config().keyed_read_max_pages;
+        let mut team_ids: Vec<String> =
+            vec![self.credentials().team_id.clone()];
+        for (_, id) in self.teams.catalogued() {
+            if !team_ids.contains(&id) {
+                team_ids.push(id);
+            }
+        }
+        let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
+        let mut completeness = Completeness::Complete;
+        for team_id in &team_ids {
+            let team_search = Search {
+                team_id: Some(team_id.clone()),
+                ..Search::default()
+            };
+            let (mut found, team_completeness) =
+                self.page_all(&team_search, cap);
+            index.append(&mut found);
+            completeness = completeness.merge(team_completeness);
+        }
         outcome.completeness = completeness;
 
         for id in requested {
@@ -695,7 +739,13 @@ impl RemoteTracker for LinearClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        let Some(key) = scope.project.as_deref() else {
+        // The base-only path: substitute the base team key for its UUID from the
+        // catalogue. A broadened scope resolves its entities against the live
+        // enumeration instead and never reaches here.
+        let EntityScope::Keyed { base, additional } = &scope.entities else {
+            return Ok(scope.clone());
+        };
+        let Some(key) = base.as_deref() else {
             return Err(ScopeError {
                 detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
                          linear.team_key, or run --push-only to push without \
@@ -713,21 +763,31 @@ impl RemoteTracker for LinearClient {
             });
         };
         Ok(SearchScope {
-            project: Some(team_id),
-            ..scope.clone()
+            entities: EntityScope::Keyed {
+                base: Some(team_id),
+                additional: additional.clone(),
+            },
+            filters: scope.filters.clone(),
         })
     }
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
-        let Some(team_id) = scope.project.clone() else {
+        let (team_id, team_ids) = match &scope.entities {
+            EntityScope::Keyed { base, additional } => {
+                (base.clone(), additional.clone())
+            }
+            EntityScope::WholeWorkspace => (None, Vec::new()),
+        };
+        if team_id.is_none() && team_ids.is_empty() {
             return Err(TrackerError::Retryable {
                 detail: "E_SEARCH_UNRESOLVED_SCOPE: search needs a resolved \
                          team id; call resolve_scope first"
                     .to_owned(),
             });
-        };
+        }
         let mut search = Search {
-            team_id: Some(team_id),
+            team_id,
+            team_ids,
             ..Search::default()
         };
         for (field, value) in &scope.filters {
@@ -748,6 +808,17 @@ impl RemoteTracker for LinearClient {
                 .collect(),
             completeness,
         })
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        let teams =
+            self.paginate_teams()
+                .map_err(|error| TrackerError::Retryable {
+                    detail: error.to_string(),
+                })?;
+        Ok(teams.iter().filter_map(visible_team).collect())
     }
 
     fn preview_create(
