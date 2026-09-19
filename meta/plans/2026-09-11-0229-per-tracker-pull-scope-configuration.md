@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-11-0229-per-tracker-pull-scope-configu
 tags: ["sync", "scoping", "tracker", "configuration", "discovery", "jira", "linear"]
 revision: "60e8f0c5188d4219c128d2af9f6dcef934ae65b1"
 repository: "accelerator"
-last_updated: "2026-09-19T20:11:23+00:00"
+last_updated: "2026-09-19T20:30:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1108,22 +1108,22 @@ fn discovered_order(a: &ExternalId, b: &ExternalId) -> Ordering {
 
 #### Automated Verification
 
-- [ ] The same identifier reached via multiple scopes appears once; two distinct
+- [x] The same identifier reached via multiple scopes appears once; two distinct
       identifiers are both retained; and a cosmetic-variant pair (`ENG-12` vs `eng-12` /
       `" ENG-12 "`) folds to one via `canonical_external_key` (raw-string equality must
       fail this): new test in `cli/work-adapters/tests/sync_run.rs`
-- [ ] `XX-3, PP-10, PP-2` reconcile as `PP-2, PP-10, XX-3`: new comparator unit test
-- [ ] The comparator is a total order over degenerate ids — a no-digit id, a
+- [x] `XX-3, PP-10, PP-2` reconcile as `PP-2, PP-10, XX-3`: new comparator unit test
+- [x] The comparator is a total order over degenerate ids — a no-digit id, a
       zero-padded pair (`PP-02` vs `PP-2`), a large-sequence boundary, and a case-mixed
       pair each order deterministically with no `Equal` between distinct ids: new
       comparator unit tests
-- [ ] `max_items` counts the *post-dedup, post-local-subtraction* set: a discovery whose
+- [x] `max_items` counts the *post-dedup, post-local-subtraction* set: a discovery whose
       raw found count exceeds `max_items` but whose deduped count does not *proceeds*, and
       its mirror (deduped count still over) refuses with zero writes: new tests in
       `cli/work-adapters/tests/sync_run.rs`
-- [ ] Base-only discovery (no `pull` block) stays bounded to the base entity and
+- [x] Base-only discovery (no `pull` block) stays bounded to the base entity and
       unchanged in order: existing tests remain green
-- [ ] Workspace check passes: `mise run cli:check`
+- [x] Workspace check passes: `mise run cli:check`
 
 #### Manual Verification
 

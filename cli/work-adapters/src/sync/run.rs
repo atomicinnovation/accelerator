@@ -40,6 +40,7 @@ use crate::sync::fetch::GatheredRemote;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::ordering;
 use crate::sync::scope;
 
 #[derive(Debug)]
@@ -553,12 +554,18 @@ fn discover_untracked(
         .filter_map(|item| item.external_id.as_ref())
         .map(canonical_external_key)
         .collect();
-    let ids = discovery
+    // Dedup discovered-vs-discovered by canonical key — one issue reached via
+    // several scopes appears once — before dropping those already local, then
+    // reconcile in a total, deterministic order.
+    let mut seen = std::collections::BTreeSet::new();
+    let mut ids: Vec<ExternalId> = discovery
         .found
         .into_iter()
         .map(|(id, _)| id)
+        .filter(|id| seen.insert(canonical_external_key(id)))
         .filter(|id| !local.contains(&canonical_external_key(id)))
         .collect();
+    ids.sort_by(ordering::discovered_order);
     Ok(Discovered {
         ids,
         completeness: discovery.completeness,

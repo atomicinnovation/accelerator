@@ -1780,3 +1780,86 @@ fn a_whole_workspace_pull_still_honours_max_items() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+fn stamped(ids: &[&str]) -> Vec<(ExternalId, RemoteTimestamp)> {
+    ids.iter()
+        .map(|id| {
+            (
+                ExternalId::new((*id).to_owned()),
+                RemoteTimestamp::NotReported,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn duplicate_and_cosmetic_discovered_ids_dedup_by_canonical_key(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    // ENG-1 reached three cosmetic ways plus a distinct ENG-2: two survivors.
+    let found = stamped(&["ENG-1", "eng-1", " ENG-1 ", "ENG-2"]);
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).discovering(found, true),
+        spy,
+        dir,
+    };
+
+    let report = execute_with_scope(&scenario, broadened_scope("ENG", &[]))
+        .map_err(|error| format!("a deduped discovery proceeds: {error:?}"))?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::Ran { found: 2 },
+        "cosmetic variants of one id fold to one; two distinct ids remain"
+    );
+    Ok(())
+}
+
+#[test]
+fn max_items_counts_the_post_dedup_discovered_set() -> Result<(), TestError> {
+    // Four raw results folding to two survive a max_items of 3 …
+    let under = {
+        let dir = tempfile::tempdir()?;
+        let spy = Spy::default();
+        spy.seed(BASELINE_PATH, &baseline_document(&[]));
+        let scenario = Scenario {
+            items: Vec::new(),
+            tracker: RecordingTracker::holding(Vec::new()).discovering(
+                stamped(&["ENG-1", "eng-1", "ENG-2", " ENG-2 "]),
+                true,
+            ),
+            spy,
+            dir,
+        };
+        execute_with_scope_bounded(&scenario, broadened_scope("ENG", &[]), 3)
+    };
+    assert!(
+        under.is_ok(),
+        "a raw count over the bound whose deduped count is under proceeds"
+    );
+
+    // … but four distinct results (deduped count still four) refuse.
+    let over = {
+        let dir = tempfile::tempdir()?;
+        let spy = Spy::default();
+        spy.seed(BASELINE_PATH, &baseline_document(&[]));
+        let scenario = Scenario {
+            items: Vec::new(),
+            tracker: RecordingTracker::holding(Vec::new()).discovering(
+                stamped(&["ENG-1", "ENG-2", "ENG-3", "ENG-4"]),
+                true,
+            ),
+            spy,
+            dir,
+        };
+        execute_with_scope_bounded(&scenario, broadened_scope("ENG", &[]), 3)
+    };
+    assert!(
+        matches!(over, Err(RunError::Refused { .. })),
+        "the deduped count, not the raw count, is bounded by max_items"
+    );
+    Ok(())
+}
