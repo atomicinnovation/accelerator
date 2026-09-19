@@ -16,6 +16,22 @@ impl core::fmt::Display for tracker::Ceiling
 pub fn tracker::Ceiling::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for tracker::Ceiling
 impl core::marker::StructuralPartialEq for tracker::Ceiling
+pub enum tracker::Completeness
+pub tracker::Completeness::CapHit
+pub tracker::Completeness::Complete
+pub tracker::Completeness::Transient
+impl tracker::Completeness
+pub const fn tracker::Completeness::is_complete(self) -> bool
+pub const fn tracker::Completeness::merge(self, other: Self) -> Self
+impl core::clone::Clone for tracker::Completeness
+pub fn tracker::Completeness::clone(&self) -> tracker::Completeness
+impl core::cmp::Eq for tracker::Completeness
+impl core::cmp::PartialEq for tracker::Completeness
+pub fn tracker::Completeness::eq(&self, other: &tracker::Completeness) -> bool
+impl core::fmt::Debug for tracker::Completeness
+pub fn tracker::Completeness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for tracker::Completeness
+impl core::marker::StructuralPartialEq for tracker::Completeness
 pub enum tracker::FieldResolution
 pub tracker::FieldResolution::Resolved(alloc::string::String)
 pub tracker::FieldResolution::Unresolvable(alloc::string::String)
@@ -85,7 +101,7 @@ impl core::fmt::Debug for tracker::CreatePreview
 pub fn tracker::CreatePreview::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::CreatePreview
 pub struct tracker::Discovery
-pub tracker::Discovery::complete: bool
+pub tracker::Discovery::completeness: tracker::Completeness
 pub tracker::Discovery::found: alloc::vec::Vec<(tracker::ExternalId, tracker::RemoteTimestamp)>
 impl core::clone::Clone for tracker::Discovery
 pub fn tracker::Discovery::clone(&self) -> tracker::Discovery
@@ -113,6 +129,7 @@ pub fn tracker::ExternalId::hash<__H: core::hash::Hasher>(&self, state: &mut __H
 impl core::marker::StructuralPartialEq for tracker::ExternalId
 pub struct tracker::FetchOutcome
 pub tracker::FetchOutcome::absent: alloc::vec::Vec<tracker::ExternalId>
+pub tracker::FetchOutcome::completeness: tracker::Completeness
 pub tracker::FetchOutcome::found: alloc::vec::Vec<(tracker::ExternalId, tracker::RemoteTimestamp)>
 pub tracker::FetchOutcome::indeterminate: alloc::vec::Vec<tracker::ExternalId>
 impl core::clone::Clone for tracker::FetchOutcome

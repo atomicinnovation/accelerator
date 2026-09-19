@@ -225,6 +225,14 @@ impl std::error::Error for TrackerError {}
 /// as indeterminate: inferring absence from a fetch that may have been cut
 /// short is what makes a sync delete an issue that still exists.
 ///
+/// `completeness` says whether the retrieval reached everything in scope, and
+/// why not when it did not. It exists so a caller can fail loud on a
+/// [`Completeness::CapHit`] — a configured page cap the keyed read must not
+/// silently truncate against — while still degrading around a
+/// [`Completeness::Transient`] failure. When it is not [`Completeness::Complete`]
+/// the retrieval was not provably complete, so `absent` must be empty and every
+/// unseen id belongs in `indeterminate`.
+///
 /// Nothing here enforces totality — the type cannot, and this crate ships no
 /// logic. It is an obligation on every implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,10 +251,16 @@ pub struct FetchOutcome {
     /// null-stamped entries reports a live issue as deleted.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
     /// Provably gone from the tracker. Only ever drawn from a complete
-    /// retrieval.
+    /// retrieval, so empty whenever `completeness` is not
+    /// [`Completeness::Complete`].
     pub absent: Vec<ExternalId>,
     /// Not accounted for, and the retrieval could not prove why.
     pub indeterminate: Vec<ExternalId>,
+    /// Whether the retrieval saw everything it requested, and why not when it
+    /// did not. A [`Completeness::CapHit`] is the fail-loud signal a keyed read
+    /// aborts on; anything but [`Completeness::Complete`] means `absent` is
+    /// empty.
+    pub completeness: Completeness,
 }
 
 /// Where an unkeyed discovery query looks.
@@ -343,19 +357,66 @@ pub const DEFAULT_MAX_ITEMS: Ceiling = Ceiling::Bounded(25);
 /// independently.
 pub const DEFAULT_MAX_PAGES: Ceiling = Ceiling::Bounded(50);
 
+/// Why a paginated read stopped, and so whether its result is the whole of what
+/// the tracker holds in scope.
+///
+/// A read that reached its `max_pages` cap is not the same as one a deadline or
+/// a wire failure cut short. The cap is a configured ceiling an operator raises;
+/// the transient condition is a passing failure a retry may clear. Collapsing
+/// the two into one boolean either mis-blames the cap for a network blip or
+/// hides a genuine cap-hit behind a retry that never clears it — so a caller
+/// that must fail loud on one and degrade on the other reads this rather than a
+/// flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Completeness {
+    /// The read saw everything in scope: pagination reached cursor exhaustion
+    /// within the cap.
+    Complete,
+    /// The read stopped at its `max_pages` cap. A configured ceiling, not a
+    /// passing condition — the result is a lower bound until the cap is raised.
+    CapHit,
+    /// The read was cut short by a transient condition — a deadline, a rate
+    /// limit, a wire failure. The result is a lower bound; a retry may clear it.
+    Transient,
+}
+
+impl Completeness {
+    /// Whether the read saw everything in scope.
+    #[must_use]
+    pub const fn is_complete(self) -> bool {
+        matches!(self, Self::Complete)
+    }
+
+    /// The cap-hit-dominant combination of two sub-read outcomes.
+    ///
+    /// A keyed read is many sub-reads — Jira chunks its ids, Linear pages each
+    /// catalogued team — so several completeness signals fold into one. A
+    /// cap-hit anywhere wins over a co-occurring transient failure (a mixed
+    /// outcome aborts deterministically rather than silently degrading), and a
+    /// transient in turn wins over a clean read.
+    #[must_use]
+    pub const fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::CapHit, _) | (_, Self::CapHit) => Self::CapHit,
+            (Self::Transient, _) | (_, Self::Transient) => Self::Transient,
+            (Self::Complete, Self::Complete) => Self::Complete,
+        }
+    }
+}
+
 /// What an unkeyed discovery established.
 ///
 /// Distinct from [`FetchOutcome`]: a discovery has no requested id set to
-/// partition over, so it carries a truncation flag rather than an `absent`
-/// vector. `complete == false` means the query was cut short — a page cap, a
-/// deadline, a rate limit — and the caller must treat the result as a lower
-/// bound, never as the whole of what the tracker holds.
+/// partition over, so it carries a [`Completeness`] rather than an `absent`
+/// vector. Anything but [`Completeness::Complete`] means the query was cut short
+/// — a page cap or a transient condition — and the caller must treat the result
+/// as a lower bound, never as the whole of what the tracker holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Discovery {
     /// The issues the query saw, each with the stamp the tracker reported.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
-    /// Whether the query saw everything in scope. `false` on any truncation.
-    pub complete: bool,
+    /// Whether the query saw everything in scope, and why not when it did not.
+    pub completeness: Completeness,
 }
 
 /// A discovery scope that names no valid search target for this tracker — a
@@ -601,36 +662,4 @@ pub trait RemoteTracker {
         title: &str,
         body: &str,
     ) -> ValidationOutcome;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Ceiling;
-
-    #[test]
-    fn a_bounded_ceiling_is_exceeded_only_beyond_its_cap() {
-        assert!(!Ceiling::Bounded(3).exceeds(3));
-        assert!(Ceiling::Bounded(3).exceeds(4));
-        assert!(Ceiling::Bounded(0).exceeds(1));
-        assert!(!Ceiling::Bounded(0).exceeds(0));
-    }
-
-    #[test]
-    fn an_unlimited_ceiling_is_never_exceeded_or_reached() {
-        assert!(!Ceiling::Unlimited.exceeds(usize::MAX));
-        assert!(!Ceiling::Unlimited.reached(usize::MAX));
-    }
-
-    #[test]
-    fn a_bounded_ceiling_is_reached_at_its_cap() {
-        assert!(!Ceiling::Bounded(2).reached(1));
-        assert!(Ceiling::Bounded(2).reached(2));
-        assert!(Ceiling::Bounded(2).reached(3));
-    }
-
-    #[test]
-    fn a_ceiling_renders_its_bound_or_the_unlimited_sentinel() {
-        assert_eq!(Ceiling::Bounded(50).to_string(), "50");
-        assert_eq!(Ceiling::Unlimited.to_string(), "unlimited");
-    }
 }

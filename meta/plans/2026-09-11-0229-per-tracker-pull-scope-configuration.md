@@ -732,17 +732,17 @@ changes abort-vs-proceed, not deletion safety.
       branch on the cap-hit code and surface the `max_pages`/`unlimited` remedy (not the
       credential path); `sync-work-items` documents the abort code and the no-`--push-only`
       note: skill-doc review / eval
-- [ ] A cap-hit keyed reconcile read aborts the sync with zero writes: new test in
+- [x] A cap-hit keyed reconcile read aborts the sync with zero writes: new test in
       `cli/work-adapters/tests/sync_run.rs` via a new completeness/cap-hit seam that models
       `complete: false` on the keyed read and populates the new `FetchOutcome` completeness
       flag (distinct from the existing `RecordingTracker::truncating`→`indeterminate` path,
       whose inline `fetch_all` must also gain the flag)
-- [ ] A transient keyed-read failure still degrades to indeterminate and the sync
+- [x] A transient keyed-read failure still degrades to indeterminate and the sync
       proceeds (not aborted): new test in `cli/work-adapters/tests/sync_run.rs`
-- [ ] A genuine out-of-scope indeterminate still proceeds with the watermark held:
+- [x] A genuine out-of-scope indeterminate still proceeds with the watermark held:
       update `an_indeterminate_items_watermark_is_left_unadvanced` so it and the new
       cap-hit abort test both pass
-- [ ] Existing incomplete-discovery pull refusal still passes:
+- [x] Existing incomplete-discovery pull refusal still passes:
       `cargo test -p work-adapters an_incomplete_discovery_is_refused_with_guidance`
 - [ ] Workspace check passes: `mise run cli:check`
 

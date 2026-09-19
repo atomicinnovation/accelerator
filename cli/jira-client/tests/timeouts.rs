@@ -120,8 +120,8 @@ fn a_paginated_fixture_stops_at_the_page_cap_and_reports_indeterminate() {
 
     assert_eq!(
         server.hits(&RequestKey::post(SEARCH)),
-        20,
-        "the cap is 20 pages per chunk"
+        50,
+        "the cap is 50 pages per chunk"
     );
     assert_eq!(
         outcome.indeterminate.len(),
@@ -129,6 +129,7 @@ fn a_paginated_fixture_stops_at_the_page_cap_and_reports_indeterminate() {
         "the unseen ids are indeterminate, never absent"
     );
     assert!(outcome.absent.is_empty());
+    assert_eq!(outcome.completeness, tracker::Completeness::CapHit);
 }
 
 #[test]

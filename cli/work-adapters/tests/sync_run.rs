@@ -592,6 +592,79 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
 }
 
 #[test]
+fn a_cap_hit_keyed_read_aborts_the_sync_with_zero_writes(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-1".to_owned());
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, item_content(external.as_str()))?;
+
+    let entry = "\"0001\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"h\",\"local_hash\":\"stale\",\"local_synced_at\":500}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+    let issue = RemoteIssue {
+        updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
+        body: projected_body().to_owned(),
+    };
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0001".to_owned(),
+            path: path.clone(),
+            external_id: Some(external.clone()),
+        }],
+        tracker: RecordingTracker::capping_keyed_read(vec![(external, issue)]),
+        spy,
+        dir,
+    };
+
+    let result = execute(&scenario, 25, 25, RunMode::Apply);
+
+    assert!(
+        matches!(result, Err(RunError::KeyedReadCapped)),
+        "a capped keyed read aborts the whole run"
+    );
+    assert!(
+        scenario.spy.content_of(&path).is_none(),
+        "the abort happens before any write"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_transient_keyed_read_degrades_to_indeterminate_and_proceeds(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-1".to_owned());
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, item_content(external.as_str()))?;
+
+    let entry = "\"0001\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"h\",\"local_hash\":\"stale\",\"local_synced_at\":500}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0001".to_owned(),
+            path,
+            external_id: Some(external),
+        }],
+        tracker: RecordingTracker::transient_keyed_read(Vec::new()),
+        spy,
+        dir,
+    };
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply).map_err(|_| {
+        "a transient keyed read is not a write, so it must not abort the run"
+    })?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert!(
+        report.keyed_read_budget_limited,
+        "a transient keyed read surfaces a soft budget-limited signal"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_targeted_run_reconciles_only_the_named_item() -> Result<(), TestError> {
     let scenario = scenario(3, 0)?;
     let seed = scenario
@@ -870,7 +943,8 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
         RunError::Read(_)
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
-        | RunError::DiscoveryUnconfigured { .. } => {
+        | RunError::DiscoveryUnconfigured { .. }
+        | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -996,7 +1070,8 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
         RunError::Read(_)
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
-        | RunError::DiscoveryUnconfigured { .. } => {
+        | RunError::DiscoveryUnconfigured { .. }
+        | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
     }

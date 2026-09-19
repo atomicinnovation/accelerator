@@ -96,9 +96,10 @@ fn the_page_cap_stops_the_cursor_walk_and_reports_indeterminate() {
         .fetch_all(&[id("ENG-1")])
         .expect("a cap-hit is an Ok");
 
-    assert_eq!(server.hits(&key), 20, "MAX_PAGES is 20");
+    assert_eq!(server.hits(&key), 50, "the default page cap is 50");
     assert_eq!(outcome.indeterminate, vec![id("ENG-1")]);
     assert!(outcome.absent.is_empty());
+    assert_eq!(outcome.completeness, tracker::Completeness::CapHit);
 }
 
 #[test]

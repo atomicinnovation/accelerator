@@ -7,6 +7,7 @@ use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracker::Ceiling;
+use tracker::Completeness;
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -55,11 +56,13 @@ pub enum RunError {
         new_local_files: usize,
         new_remote_issues: usize,
     },
-    /// A discovery query was cut short (`complete == false`). Refused rather
-    /// than acted on: an incomplete untracked set is a lower bound, and the
-    /// remedy is to scope the search, not to raise a limit.
+    /// A discovery query was cut short. Refused rather than acted on: an
+    /// incomplete untracked set is a lower bound. `completeness` distinguishes a
+    /// `max_pages` cap-hit (raise the cap) from a transient cutoff (retry), so
+    /// the caller's guidance names the right remedy.
     DiscoveryIncomplete {
         found: usize,
+        completeness: Completeness,
     },
     /// The discovery scope names no valid search target — a missing or
     /// unresolvable key. Caught pre-flight, before the apply/push phase, so
@@ -67,6 +70,14 @@ pub enum RunError {
     DiscoveryUnconfigured {
         detail: String,
     },
+    /// The bulk keyed reconcile read hit its `max_pages` cap, so the remote
+    /// state of the un-read items is unknown. Aborted before any write,
+    /// all-or-nothing across both directions: the read feeds pull and push
+    /// planning alike, so proceeding could push against unknown remote state or
+    /// import a stale view. The remedy — raise `<tracker>.pull.max_pages` (its
+    /// `keyed_read` override), or set it to `unlimited` — is named by the caller,
+    /// which resolves the cap and the config file it came from.
+    KeyedReadCapped,
     Read(TrackerError),
     Internal(kernel::Error),
 }
@@ -203,6 +214,12 @@ pub struct RunReport {
     pub finalised: bool,
     pub dossiers: Vec<ConflictDossier>,
     pub discovery: DiscoveryStatus,
+    /// The bulk keyed read was cut short by a transient condition (a deadline,
+    /// rate limit, or wire failure), so the affected items degraded to
+    /// indeterminate and the run proceeded. A soft signal, not the fatal
+    /// [`RunError::KeyedReadCapped`]: the operator sees the read was
+    /// budget-limited rather than the incompleteness passing silently.
+    pub keyed_read_budget_limited: bool,
 }
 
 impl RunReport {
@@ -505,7 +522,7 @@ fn validate_push(
 
 struct Discovered {
     ids: Vec<ExternalId>,
-    complete: bool,
+    completeness: Completeness,
 }
 
 /// Whether any local item in `corpus` already carries `candidate` as its
@@ -543,7 +560,7 @@ fn discover_untracked(
         .collect();
     Ok(Discovered {
         ids,
-        complete: discovery.complete,
+        completeness: discovery.completeness,
     })
 }
 
@@ -747,6 +764,7 @@ struct PreparedRun<'a> {
     run_start_epoch: u64,
     degradation: Degradation,
     read_failure: Option<TrackerError>,
+    keyed_read_budget_limited: bool,
     facts: GatheredFacts,
     plan: SyncPlan,
     untracked: Vec<ExternalId>,
@@ -754,6 +772,21 @@ struct PreparedRun<'a> {
     creates_from_local: Vec<&'a LocalItem>,
     index: ItemIndex<'a>,
     dossiers: Vec<ConflictDossier>,
+}
+
+/// Maps the bulk keyed read's completeness to the run's fate. A cap-hit is the
+/// fail-loud, zero-write abort; a transient cutoff is a soft signal the run
+/// carries and proceeds; a complete read is silent. The one place the
+/// completeness signal is turned into a decision, so a new completeness cause
+/// routes here rather than at a scattered inline check.
+const fn classify_keyed_read(
+    completeness: Completeness,
+) -> Result<bool, RunError> {
+    match completeness {
+        Completeness::Complete => Ok(false),
+        Completeness::Transient => Ok(true),
+        Completeness::CapHit => Err(RunError::KeyedReadCapped),
+    }
 }
 
 /// The remote-side ids a run imports and the discovery line that describes how
@@ -801,9 +834,10 @@ fn untracked_to_import(
                     detail: error.detail,
                 })?;
             match discover_untracked(ports.tracker, &resolved, request.corpus) {
-                Ok(discovered) if !discovered.complete => {
+                Ok(discovered) if !discovered.completeness.is_complete() => {
                     return Err(RunError::DiscoveryIncomplete {
                         found: discovered.ids.len(),
+                        completeness: discovered.completeness,
                     });
                 }
                 Ok(discovered) => {
@@ -849,6 +883,10 @@ fn prepare_run<'a>(
         ports.status,
         request.strategy,
     );
+
+    // A capped keyed read leaves the un-read items' remote state unknown for
+    // both pull and push, so abort here — before any planning or write.
+    let keyed_read_budget_limited = classify_keyed_read(facts.keyed_read)?;
 
     let digests: Vec<LazyItemDigests<'_>> = request
         .reconciled()
@@ -898,6 +936,7 @@ fn prepare_run<'a>(
         run_start_epoch,
         degradation,
         read_failure,
+        keyed_read_budget_limited,
         facts,
         plan,
         untracked,
@@ -930,6 +969,7 @@ pub fn run<'a>(
         run_start_epoch,
         degradation,
         read_failure,
+        keyed_read_budget_limited,
         facts,
         plan,
         untracked,
@@ -963,6 +1003,7 @@ pub fn run<'a>(
             finalised: false,
             dossiers,
             discovery,
+            keyed_read_budget_limited,
         });
     }
 
@@ -1031,6 +1072,7 @@ pub fn run<'a>(
         finalised,
         dossiers,
         discovery,
+        keyed_read_budget_limited,
     })
 }
 
@@ -1074,6 +1116,30 @@ mod tests {
 
     fn ok_renderer(section: &SectionDiff) -> String {
         format!("=== {} (- LOCAL / + REMOTE) ===\nbody\n\n", section.name)
+    }
+
+    #[test]
+    fn classify_keyed_read_routes_each_completeness() {
+        use tracker::Completeness;
+
+        assert!(matches!(
+            super::classify_keyed_read(Completeness::Complete),
+            Ok(false)
+        ));
+        assert!(
+            matches!(
+                super::classify_keyed_read(Completeness::Transient),
+                Ok(true)
+            ),
+            "a transient cutoff is a soft signal, not an abort"
+        );
+        assert!(
+            matches!(
+                super::classify_keyed_read(Completeness::CapHit),
+                Err(super::RunError::KeyedReadCapped)
+            ),
+            "a cap-hit is the fail-loud abort"
+        );
     }
 
     #[test]

@@ -2075,6 +2075,7 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         })
     }
 
@@ -2084,7 +2085,7 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     ) -> Result<tracker::Discovery, TrackerError> {
         Ok(tracker::Discovery {
             found: Vec::new(),
-            complete: true,
+            completeness: tracker::Completeness::Complete,
         })
     }
 

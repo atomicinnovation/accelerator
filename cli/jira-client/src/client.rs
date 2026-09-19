@@ -8,6 +8,7 @@ use remote_projection::Op;
 use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -54,6 +55,17 @@ const ISSUE_PATH: &str = "/rest/api/3/issue";
 /// One discovery page: the issues it accounted for, and the cursor to the next
 /// page when there is one.
 type DiscoveryPage = (Vec<(ExternalId, RemoteTimestamp)>, Option<String>);
+
+/// Why a keyed-read chunk stopped short of accounting for its ids.
+///
+/// A page-cap hit is a configured ceiling the caller must fail loud on; every
+/// other stop — a deadline, a non-2xx, a non-JSON body, a transport failure — is
+/// a transient condition the caller degrades around. Collapsing the two, as the
+/// old bare-`String` error did, hides a cap-hit behind the transient path.
+enum ChunkStop {
+    CapHit(String),
+    Transient(String),
+}
 
 pub struct JiraClient {
     transport: Transport,
@@ -194,17 +206,19 @@ impl JiraClient {
     /// One 50-key chunk, following the `nextPageToken` cursor.
     ///
     /// The page cap is **per chunk**: a global cap would mark whole chunks
-    /// indeterminate for a large corpus. A cap-hit, a deadline expiry and a
-    /// failure all resolve the same way — the chunk's keys become
-    /// indeterminate, never absent.
+    /// indeterminate for a large corpus. Every stop leaves the chunk's keys
+    /// unaccounted for, but a page-cap hit ([`ChunkStop::CapHit`]) is reported
+    /// distinctly from a deadline or failure ([`ChunkStop::Transient`]) so the
+    /// caller can fail loud on the configured ceiling.
     fn fetch_chunk(
         &self,
         chunk: &[&ExternalId],
         deadline: &Deadline,
-    ) -> Result<Vec<(String, RemoteTimestamp)>, String> {
+    ) -> Result<Vec<(String, RemoteTimestamp)>, ChunkStop> {
         let keys: Vec<String> =
             chunk.iter().map(|id| id.as_str().to_owned()).collect();
-        let clause = key_clause(&keys).map_err(|error| error.to_string())?;
+        let clause = key_clause(&keys)
+            .map_err(|error| ChunkStop::Transient(error.to_string()))?;
         let mut found = Vec::new();
         let mut cursor: Option<String> = None;
         let cap = self.transport.config().keyed_read_max_pages;
@@ -213,7 +227,9 @@ impl JiraClient {
         loop {
             page += 1;
             if deadline.expired() {
-                return Err("the operation deadline expired".to_owned());
+                return Err(ChunkStop::Transient(
+                    "the operation deadline expired".to_owned(),
+                ));
             }
             let mut body = json!({
                 "jql": clause,
@@ -225,16 +241,23 @@ impl JiraClient {
                 body["nextPageToken"] = json!(token);
             }
             let payload = serde_json::to_string(&body)
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| ChunkStop::Transient(error.to_string()))?;
             let received = self
                 .transport
                 .send(&Method::POST, SEARCH_PATH, &[], Some(&payload))
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| ChunkStop::Transient(error.to_string()))?;
             if !(200..300).contains(&received.status) {
-                return Err(format!("status {}", received.status));
+                return Err(ChunkStop::Transient(format!(
+                    "status {}",
+                    received.status
+                )));
             }
             let page_body: Value = serde_json::from_str(&received.body)
-                .map_err(|_| "a non-JSON search response".to_owned())?;
+                .map_err(|_| {
+                    ChunkStop::Transient(
+                        "a non-JSON search response".to_owned(),
+                    )
+                })?;
             if let Some(issues) =
                 page_body.get("issues").and_then(Value::as_array)
             {
@@ -253,7 +276,9 @@ impl JiraClient {
                 return Ok(found);
             }
             if cap.reached(page) {
-                return Err(format!("the {page}-page cap was reached"));
+                return Err(ChunkStop::CapHit(format!(
+                    "the {page}-page cap was reached"
+                )));
             }
         }
     }
@@ -297,7 +322,7 @@ impl JiraClient {
             if deadline.expired() {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::Transient,
                 });
             }
             let Some((mut issues, next)) =
@@ -305,7 +330,7 @@ impl JiraClient {
             else {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::Transient,
                 });
             };
             found.append(&mut issues);
@@ -313,13 +338,13 @@ impl JiraClient {
             if cursor.is_none() {
                 return Ok(Discovery {
                     found,
-                    complete: true,
+                    completeness: Completeness::Complete,
                 });
             }
             if cap.reached(page) {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::CapHit,
                 });
             }
         }
@@ -534,6 +559,7 @@ impl RemoteTracker for JiraClient {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: Completeness::Complete,
         };
         // The request is a set: duplicates are ignored.
         let mut seen = BTreeSet::new();
@@ -574,7 +600,16 @@ impl RemoteTracker for JiraClient {
                         }
                     }
                 }
-                Err(reason) => {
+                Err(stop) => {
+                    let (reason, class) = match stop {
+                        ChunkStop::CapHit(reason) => {
+                            (reason, Completeness::CapHit)
+                        }
+                        ChunkStop::Transient(reason) => {
+                            (reason, Completeness::Transient)
+                        }
+                    };
+                    outcome.completeness = outcome.completeness.merge(class);
                     tracing::warn!(
                         reason = %reason,
                         keys = chunk.len(),
@@ -585,6 +620,12 @@ impl RemoteTracker for JiraClient {
                         .extend(chunk.iter().map(|id| (*id).clone()));
                 }
             }
+        }
+        // Absence is only provable from a complete retrieval: a cap-hit or a
+        // transient failure anywhere demotes every would-be-absent id to
+        // indeterminate.
+        if !outcome.completeness.is_complete() {
+            outcome.indeterminate.append(&mut outcome.absent);
         }
         Ok(outcome)
     }

@@ -13,6 +13,7 @@ pub mod seed;
 
 use std::cell::RefCell;
 
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -69,6 +70,10 @@ pub struct RecordingTracker {
     preview_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
     search_failure: Option<TrackerError>,
+    /// The completeness the bulk keyed read reports. `CapHit` drives the
+    /// fail-loud abort path, distinct from `truncating`'s out-of-scope
+    /// `indeterminate`.
+    keyed_read_completeness: Completeness,
     search_result: RefCell<Option<Discovery>>,
     preview: RefCell<Option<CreatePreview>>,
     next_id: RefCell<u32>,
@@ -87,6 +92,7 @@ impl RecordingTracker {
             preview_failure: None,
             scope_refusal: None,
             search_failure: None,
+            keyed_read_completeness: Completeness::Complete,
             search_result: RefCell::new(None),
             preview: RefCell::new(None),
             next_id: RefCell::new(1),
@@ -184,15 +190,54 @@ impl RecordingTracker {
         self
     }
 
-    /// Seeds the discovery `search` returns, with an explicit truncation flag.
+    /// Seeds the discovery `search` returns. `complete` maps to
+    /// [`Completeness::Complete`]; an incomplete discovery is seeded as
+    /// [`Completeness::Transient`] — enough to drive the engine's
+    /// incomplete-discovery refusal, whose cap-hit-vs-transient message wording
+    /// is exercised separately at its own unit.
     #[must_use]
     pub fn discovering(
         self,
         found: Vec<(ExternalId, RemoteTimestamp)>,
         complete: bool,
     ) -> Self {
-        *self.search_result.borrow_mut() = Some(Discovery { found, complete });
+        let completeness = if complete {
+            Completeness::Complete
+        } else {
+            Completeness::Transient
+        };
+        *self.search_result.borrow_mut() = Some(Discovery {
+            found,
+            completeness,
+        });
         self
+    }
+
+    /// A tracker whose bulk keyed read reports a `max_pages` cap-hit: every id
+    /// it accounts for stays `found`, but the outcome carries
+    /// [`Completeness::CapHit`] and no id is ever `absent`. Drives the fail-loud
+    /// keyed-read abort, distinct from `truncating`'s out-of-scope
+    /// `indeterminate`.
+    #[must_use]
+    pub fn capping_keyed_read(issues: Vec<(ExternalId, RemoteIssue)>) -> Self {
+        Self {
+            keyed_read_completeness: Completeness::CapHit,
+            ..Self::holding(issues)
+        }
+    }
+
+    /// A tracker whose bulk keyed read was cut short transiently: the outcome
+    /// carries [`Completeness::Transient`] and any unseen id is `indeterminate`,
+    /// never `absent`. Drives the degrade-and-proceed path, distinct from the
+    /// fail-loud `capping_keyed_read`.
+    #[must_use]
+    pub fn transient_keyed_read(
+        issues: Vec<(ExternalId, RemoteIssue)>,
+    ) -> Self {
+        Self {
+            keyed_read_completeness: Completeness::Transient,
+            ..Self::holding(issues)
+        }
     }
 
     /// Seeds the create preview.
@@ -317,6 +362,7 @@ impl RemoteTracker for RecordingTracker {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: self.keyed_read_completeness,
         };
         let mut requested: Vec<&ExternalId> = ids.iter().collect();
         requested.sort_by(|a, b| a.as_str().cmp(b.as_str()));
@@ -327,6 +373,11 @@ impl RemoteTracker for RecordingTracker {
                     outcome.found.push((id.clone(), issue.updated));
                 }
                 None if self.unprovable.contains(id) => {
+                    outcome.indeterminate.push(id.clone());
+                }
+                // A cap-hit read is not provably complete, so an unseen id is
+                // indeterminate, never absent.
+                None if !outcome.completeness.is_complete() => {
                     outcome.indeterminate.push(id.clone());
                 }
                 None => outcome.absent.push(id.clone()),
@@ -344,7 +395,7 @@ impl RemoteTracker for RecordingTracker {
         }
         Ok(self.search_result.borrow().clone().unwrap_or(Discovery {
             found: Vec::new(),
-            complete: true,
+            completeness: Completeness::Complete,
         }))
     }
 

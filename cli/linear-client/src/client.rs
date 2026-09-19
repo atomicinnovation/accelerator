@@ -11,6 +11,7 @@ use remote_projection::Op;
 use serde_json::json;
 use serde_json::Value;
 use tracker::Ceiling;
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -322,18 +323,19 @@ impl LinearClient {
         Ok((found, cursor))
     }
 
-    /// Pages a search to exhaustion, returning the accumulated index and, when
-    /// the retrieval was cut short, the reason. A cap-hit, a deadline or a
-    /// failed page all leave `Some(reason)`; a clean finish leaves `None`.
+    /// Pages a search to exhaustion, returning the accumulated index and its
+    /// [`Completeness`]. A page-cap hit is [`Completeness::CapHit`] — the
+    /// fail-loud ceiling; a deadline or a failed page is
+    /// [`Completeness::Transient`]; a clean finish is [`Completeness::Complete`].
     fn page_all(
         &self,
         search: &Search,
         cap: Ceiling,
-    ) -> (Vec<(String, RemoteTimestamp)>, Option<String>) {
+    ) -> (Vec<(String, RemoteTimestamp)>, Completeness) {
         let deadline = self.transport.deadline();
         let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
         let mut cursor: Option<String> = None;
-        let mut truncated = None;
+        let mut completeness = Completeness::Complete;
 
         let mut page = 0usize;
         loop {
@@ -346,24 +348,25 @@ impl LinearClient {
                         break;
                     }
                     if cap.reached(page) {
-                        truncated =
-                            Some(format!("the {page}-page cap was reached"));
+                        completeness = Completeness::CapHit;
+                        tracing::warn!(
+                            page,
+                            "linear: the keyed read hit its page cap"
+                        );
                         break;
                     }
                 }
                 Err(reason) => {
-                    truncated = Some(reason);
+                    completeness = Completeness::Transient;
+                    tracing::warn!(
+                        reason = %reason,
+                        "linear: the retrieval was cut short"
+                    );
                     break;
                 }
             }
         }
-        if let Some(reason) = &truncated {
-            tracing::warn!(
-                reason = %reason,
-                "linear: the retrieval was incomplete"
-            );
-        }
-        (index, truncated)
+        (index, completeness)
     }
 
     /// Pages a search over the richer [`SEARCH_PROJECTION`] to exhaustion,
@@ -635,6 +638,7 @@ impl RemoteTracker for LinearClient {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: Completeness::Complete,
         };
         let mut seen = BTreeSet::new();
         let requested: Vec<&ExternalId> = ids
@@ -656,10 +660,11 @@ impl RemoteTracker for LinearClient {
             team_id: Some(self.credentials().team_id.clone()),
             ..Search::default()
         };
-        let (index, truncated) = self.page_all(
+        let (index, completeness) = self.page_all(
             &team_search,
             self.transport.config().keyed_read_max_pages,
         );
+        outcome.completeness = completeness;
 
         for id in requested {
             let stamp = index
@@ -673,7 +678,7 @@ impl RemoteTracker for LinearClient {
             // An id the retrieval never had scope to see, or a retrieval that
             // was cut short, proves nothing about absence. Reporting either as
             // absent is what makes a sync unlink a live issue.
-            if truncated.is_some() || self.in_scope(id) != Some(true) {
+            if !completeness.is_complete() || self.in_scope(id) != Some(true) {
                 outcome.indeterminate.push(id.clone());
             } else {
                 outcome.absent.push(id.clone());
@@ -730,14 +735,14 @@ impl RemoteTracker for LinearClient {
                 _ => {}
             }
         }
-        let (index, truncated) =
+        let (index, completeness) =
             self.page_all(&search, self.transport.config().discovery_max_pages);
         Ok(Discovery {
             found: index
                 .into_iter()
                 .map(|(id, stamp)| (ExternalId::new(id), stamp))
                 .collect(),
-            complete: truncated.is_none(),
+            completeness,
         })
     }
 

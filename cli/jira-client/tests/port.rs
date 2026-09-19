@@ -9,8 +9,8 @@ use jira_client::JiraClient;
 use serde_json::Value;
 use support::client::{brief, client_for, PROJECT};
 use tracker::{
-    Ceiling, ExternalId, RemoteTimestamp, RemoteTracker as _, SearchScope,
-    TrackerError,
+    Ceiling, Completeness, ExternalId, RemoteTimestamp, RemoteTracker as _,
+    SearchScope, TrackerError,
 };
 
 const ISSUE: &str = "/rest/api/3/issue";
@@ -505,9 +505,10 @@ fn a_configured_discovery_cap_truncates_where_the_default_completes() {
         client_for(&capped, caps(Ceiling::Bounded(2), Ceiling::Bounded(50)))
             .search(&scope())
             .expect("search returns a degraded result, not an error");
-    assert!(
-        !discovery.complete,
-        "a two-page cap truncates a longer walk"
+    assert_eq!(
+        discovery.completeness,
+        Completeness::CapHit,
+        "a two-page cap truncates a longer walk as a cap-hit"
     );
     assert_eq!(capped.hits(&RequestKey::post(SEARCH)), 2);
 
@@ -517,7 +518,10 @@ fn a_configured_discovery_cap_truncates_where_the_default_completes() {
         client_for(&uncapped, caps(Ceiling::Bounded(50), Ceiling::Bounded(50)))
             .search(&scope())
             .expect("search succeeds");
-    assert!(discovery.complete, "the default cap completes three pages");
+    assert!(
+        discovery.completeness.is_complete(),
+        "the default cap completes three pages"
+    );
     assert_eq!(discovery.found.len(), 3);
 }
 
@@ -529,7 +533,10 @@ fn unlimited_discovery_never_truncates_a_walk_a_small_cap_would() {
         client_for(&server, caps(Ceiling::Unlimited, Ceiling::Bounded(50)))
             .search(&scope())
             .expect("search succeeds");
-    assert!(discovery.complete, "unlimited pages to cursor exhaustion");
+    assert!(
+        discovery.completeness.is_complete(),
+        "unlimited pages to cursor exhaustion"
+    );
     assert_eq!(discovery.found.len(), 3);
 }
 

@@ -160,7 +160,11 @@ mistaken for a skip.
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent or indeterminate items); `5` refused (would exceed
-`--max-pulls`/`--max-pushes`, zero writes); `70` a read failed, a discovery
+`--max-pulls`/`--max-pushes`, zero writes); `7` the keyed reconcile read hit its
+`<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
+un-read items' remote state is unknown and nothing was written — raise the cap
+or set it to `unlimited` and re-run; the read feeds both directions, so
+`--push-only` does **not** bypass it; `70` a read failed, a discovery
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never

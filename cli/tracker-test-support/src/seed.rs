@@ -186,7 +186,7 @@ pub fn run_seed(
     records: &[SeedRecord],
 ) -> Result<SeedSummary, SeedError> {
     let discovery = tracker.search(scope).map_err(SeedError::Discovery)?;
-    if !discovery.complete {
+    if !discovery.completeness.is_complete() {
         return Err(SeedError::Incomplete);
     }
 

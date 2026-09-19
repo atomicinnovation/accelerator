@@ -796,6 +796,104 @@ fn effective_max_pushes(flag: Option<usize>) -> tracker::Ceiling {
     flag.map_or(tracker::DEFAULT_MAX_ITEMS, tracker::Ceiling::Bounded)
 }
 
+/// The resolved discovery page cap and the config level it resolved from — the
+/// built-in default when no block set it. Read after [`validate_pull_config`]
+/// has passed; a defensive fault falls back to the built-in default.
+fn resolve_discovery_pages(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let cap = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_PAGES, |ceilings| {
+                    ceilings.discovery_pages
+                });
+            (cap, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_PAGES, None),
+    }
+}
+
+/// The resolved keyed-read page cap and the config level it resolved from — the
+/// built-in default when no block set it. Read after [`validate_pull_config`]
+/// has passed; a defensive fault falls back to the built-in default.
+fn resolve_keyed_read_pages(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let cap = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_PAGES, |ceilings| {
+                    ceilings.keyed_read_pages
+                });
+            (cap, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_PAGES, None),
+    }
+}
+
+/// The keyed-read cap-hit abort message. Names the keyed-read
+/// `<tracker>.pull.max_pages` cap, the file it resolved from, the higher-value /
+/// `unlimited` valve, and that the abort is run-wide — `--push-only` shares the
+/// same reconcile read, so it is no bypass.
+fn keyed_read_capped_message(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> String {
+    let (cap, source) = resolve_keyed_read_pages(config, integration);
+    let source =
+        source.map_or("the built-in default", ::config::Level::filename);
+    format!(
+        "refused: the keyed reconcile read hit its page cap {cap} before \
+         accounting for every tracked item, so the remote state of the un-read \
+         items is unknown. Nothing was written. The cap resolves from \
+         {integration}.pull.max_pages, or its keyed_read override ({source}); \
+         raise it or set it to `unlimited` to lift the cap, then re-run. The \
+         read feeds both pull and push planning, so --push-only does not bypass \
+         this."
+    )
+}
+
+/// The incomplete-discovery refusal message. A cap-hit names the discovery
+/// `<tracker>.pull.max_pages` cap, the file it resolved from, and the
+/// `unlimited` valve; a transient cutoff reports the read was budget-limited and
+/// steers to a retry rather than mis-blaming the cap.
+fn discovery_incomplete_message(
+    config: &dyn ConfigAccess,
+    integration: &str,
+    found: usize,
+    completeness: tracker::Completeness,
+) -> String {
+    let seen = format!(
+        "refused: untracked-remote discovery was cut short after seeing \
+         {found} issue(s) and cannot be trusted as complete."
+    );
+    match completeness {
+        tracker::Completeness::CapHit => {
+            let (cap, source) = resolve_discovery_pages(config, integration);
+            let source = source
+                .map_or("the built-in default", ::config::Level::filename);
+            format!(
+                "{seen} It hit the discovery page cap {cap}, which resolves \
+                 from {integration}.pull.max_pages ({source}); raise it or set \
+                 it to `unlimited` to lift the cap, or scope the search to a \
+                 single project or team."
+            )
+        }
+        tracker::Completeness::Complete | tracker::Completeness::Transient => {
+            format!(
+                "{seen} The read was cut short transiently (a deadline, rate \
+                 limit, or wire failure), not by a page cap; retry, and scope \
+                 the search to a single project or team if it recurs."
+            )
+        }
+    }
+}
+
 /// The write-bounds refusal message, naming the effective limits and the
 /// `<tracker>.pull.max_items` key with the config file it resolved from (the
 /// built-in default when no block set it).
@@ -1042,6 +1140,14 @@ pub fn run_sync(
                     ids.join(", ")
                 );
             }
+            if report.keyed_read_budget_limited {
+                eprintln!(
+                    "warning: the keyed reconcile read was cut short by a \
+                     transient budget limit (a deadline or wire failure); the \
+                     affected items are indeterminate this run and will \
+                     reconcile on a retry."
+                );
+            }
             let conflicts_dir =
                 integrations_root.join(&integration).join("conflicts");
             match crate::config::resolve_scheme(config) {
@@ -1083,18 +1189,28 @@ pub fn run_sync(
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
-        Err(RunError::DiscoveryIncomplete { found }) => {
+        Err(RunError::DiscoveryIncomplete {
+            found,
+            completeness,
+        }) => {
             eprintln!(
-                "refused: untracked-remote discovery was cut short after \
-                 seeing {found} issue(s) and cannot be trusted as complete. \
-                 Scope the search to a single project or team before pulling \
-                 untracked issues."
+                "{}",
+                discovery_incomplete_message(
+                    config,
+                    &integration,
+                    found,
+                    completeness,
+                )
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
         Err(RunError::DiscoveryUnconfigured { detail }) => {
             eprintln!("refused: discovery is unconfigured — {detail}");
             ExitCode::from(exit_codes::UNCONFIGURED)
+        }
+        Err(RunError::KeyedReadCapped) => {
+            eprintln!("{}", keyed_read_capped_message(config, &integration));
+            ExitCode::from(exit_codes::KEYED_READ_CAPPED)
         }
         Err(RunError::Read(error)) => {
             eprintln!("{error}");
@@ -1374,6 +1490,7 @@ mod tests {
             found: vec![found_pair("PP-1"), found_pair("PP-2")],
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         };
 
         let found = partition_candidates(outcome).expect("an all-found batch");
@@ -1388,6 +1505,7 @@ mod tests {
             found: vec![found_pair("PP-1")],
             absent: vec![ExternalId::new("PP-9".to_owned())],
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures =
@@ -1404,6 +1522,7 @@ mod tests {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures = partition_candidates(outcome)
@@ -1418,6 +1537,7 @@ mod tests {
             found: Vec::new(),
             absent: vec![ExternalId::new("PP-9".to_owned())],
             indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures =
@@ -1578,6 +1698,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery: DiscoveryStatus::Ran { found: 0 },
+            keyed_read_budget_limited: false,
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -1598,6 +1719,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery: DiscoveryStatus::SkippedPushOnly,
+            keyed_read_budget_limited: false,
         };
 
         assert_eq!(
@@ -1614,6 +1736,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery,
+            keyed_read_budget_limited: false,
         }
     }
 

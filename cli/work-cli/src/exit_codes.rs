@@ -17,6 +17,13 @@
 //!   `--max-pulls`/`--max-pushes`; zero writes occurred.
 //! - `6` `RESOLVE_OUTSIDE_WORKDIR` — a path target names a file that exists but
 //!   lies outside the managed work directory.
+//! - `7` `KEYED_READ_CAPPED` — the bulk keyed reconcile read hit its
+//!   `<tracker>.pull.max_pages` cap, so the un-read items' remote state is
+//!   unknown. The run aborted before any write, all-or-nothing across both
+//!   directions (the read feeds pull *and* push planning, so `--push-only` does
+//!   not bypass it). Distinct from `4` `UNRESOLVED`: nothing was reconciled and
+//!   nothing awaits a human — raise the cap (or its `keyed_read` override, or
+//!   `unlimited`) and re-run.
 //!
 //! Tracker-error codes (`70`/`71`), the two-class [`TrackerError`] split that
 //! [`for_tracker_error`] maps. This distinction is safety-critical — the work
@@ -59,6 +66,7 @@ pub const RESOLVE_NOT_FOUND: u8 = 3;
 pub const UNRESOLVED: u8 = 4;
 pub const REFUSED_BULK_OVERWRITE: u8 = 5;
 pub const RESOLVE_OUTSIDE_WORKDIR: u8 = 6;
+pub const KEYED_READ_CAPPED: u8 = 7;
 
 pub const RETRYABLE: u8 = 70;
 pub const TERMINAL: u8 = 71;
@@ -71,5 +79,34 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     match error {
         TrackerError::Retryable { .. } => RETRYABLE,
         TrackerError::Terminal { .. } => TERMINAL,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_keyed_read_abort_has_its_own_code_distinct_from_the_rest() {
+        let others = [
+            CLEAN,
+            ERROR,
+            USAGE,
+            RESOLVE_NOT_FOUND,
+            UNRESOLVED,
+            REFUSED_BULK_OVERWRITE,
+            RESOLVE_OUTSIDE_WORKDIR,
+            RETRYABLE,
+            TERMINAL,
+            NOT_AVAILABLE,
+            UNRECOGNISED,
+            UNCONFIGURED,
+        ];
+        assert!(
+            !others.contains(&KEYED_READ_CAPPED),
+            "the keyed-read abort must not collide with another code, \
+             especially the exit-4 indeterminate code"
+        );
+        assert_ne!(KEYED_READ_CAPPED, UNRESOLVED);
     }
 }
