@@ -1,11 +1,14 @@
 ---
 name: research-topic
 description: Research an external subject over web sources into a
-  contract-conforming set under meta/research/topics/, through four verbs —
+  contract-conforming set under meta/research/topics/, through five verbs —
   brief (scope the subject), outline (effort-scaled focus areas), conduct
-  (one researcher per focus area), synthesise (a standalone dossier). Use when
-  the user wants to research a topic on the web, not the codebase.
-argument-hint: "brief SUBJECT | outline SLUG | conduct SLUG | synthesise SLUG"
+  (one researcher per focus area), synthesise (a standalone dossier),
+  finalise (close the subject). outline and conduct repeat to grow a subject
+  across rounds; synthesise then finalise closes it; a later outline or conduct
+  reopens a closed subject. Use when the user wants to research a topic on the
+  web, not the codebase.
+argument-hint: "brief SUBJECT | outline SLUG | conduct SLUG | synthesise SLUG | finalise SLUG"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator corpus resolve *)
@@ -43,7 +46,7 @@ verb writes the documents they shape.
 
 You are the engine for iterative topic research. The user invokes you with
 one verb and an argument. Dispatch on the verb: `brief SUBJECT`, `outline
-SLUG`, `conduct SLUG`, or `synthesise SLUG`.
+SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
 The research is bounded: **breadth is 8** (at most eight focus areas per round)
 and **depth is 1** (one researcher per focus area, no recursion).
@@ -62,17 +65,26 @@ error and stop.
 
 Then assert the verb's precondition before mutating anything, so an
 out-of-order invocation cannot jump the `briefed → outlined → researching →
-synthesised` state machine:
+synthesised → complete` state machine, whose only regressions are the reopen
+edges from `synthesised` or `complete` back to `researching`:
 
-- `outline` requires the manifest's `status: briefed`, `outlined`, or
-  `researching`.
-- `conduct` requires the manifest's `status: outlined` or `researching`, and
-  an `outline.md` with at least one focus area.
-- `synthesise` requires the manifest's `status: researching` or `synthesised`
-  (an idempotent re-synthesise) and at least one finding under `findings/`.
+- `outline` requires `briefed`, `outlined`, `researching`, `synthesised`, or
+  `complete`. On a `synthesised` or `complete` set it appends or revises, and
+  regresses `status` to `researching` — the reopen — as part of its final
+  manifest edit, never a separate first step.
+- `conduct` requires `outlined`, `researching`, `synthesised`, or `complete`,
+  and an `outline.md` with at least one focus area. On a `synthesised` or
+  `complete` set it likewise lands `researching` on its final manifest edit.
+- `synthesise` requires `researching` or `synthesised`, and at least one
+  finding under `findings/`.
+- `finalise` requires `synthesised` **and** a manifest consistent with disk —
+  see the finalise section for the corroborating freshness gate that can refuse
+  even a `synthesised` set.
 
-If the precondition fails, refuse with a message naming the expected prior
-state, and stop.
+If the precondition fails, refuse with a message naming every accepted prior
+state for that verb, and stop. `finalise` is the exception: its refusal is
+owned by the `finalise` section below and names the set's current status, so
+the generic refusal does not apply to it.
 
 ## Derive Metadata
 
@@ -136,8 +148,9 @@ an accreting set may exceed eight focus areas across rounds.
 
 Write and validate `outline.md` first, then edit `manifest.md` as the final
 step. Status on the final manifest edit: `briefed → outlined` on the first
-outline; otherwise leave `status` unchanged (`outlined` stays `outlined`,
-`researching` stays `researching`). `outline` never advances `round_count`.
+outline; `outlined` and `researching` stay unchanged; a `synthesised` or
+`complete` set regresses to `researching` (the reopen). `outline` never advances
+`round_count`.
 
 ### conduct — one round, one researcher per focus area
 
@@ -211,6 +224,67 @@ the final step edit `manifest.md` to base `status: synthesised`, reconcile
 `synthesis.md` (already `synthesis.md` on a re-run), so a failure before the
 flip leaves the prior consistent state.
 
+### Reopening a closed set
+
+`outline` and `conduct` accept a `synthesised` or `complete` set and reopen it,
+regressing base `status` to `researching` on their final manifest edit while
+leaving `primary` on `synthesis.md`. The reopen is unconditional: even a
+`conduct` that spawns nothing — no outstanding areas, no new round — regresses
+the set, because the gate is the set's lifecycle position, not whether work was
+done.
+
+Report the reopen explicitly and name the verb-appropriate next step: after an
+`outline` that appended a round, point to `conduct SLUG` (the new round has no
+findings yet); after a `conduct`, point to `synthesise SLUG` to refresh the
+dossier. For example, an `outline` reopen prints "this set was complete;
+appending a round reopened it to researching — run conduct SLUG, then
+synthesise SLUG". The reopen is the sole staleness signal, so make it visible
+with an accurate recovery path at the moment it happens.
+
+Both reopen windows are self-healing. A mid-`conduct` crash that lands findings
+under a still-`synthesised` manifest is absorbed by `conduct`'s reconcile-first
+step, which repairs the stale manifest on its next run. A mid-`outline` crash
+that appends `## Round N+1` before its status edit leaves a pending round under
+a still-`synthesised` manifest; the next `outline` sees that round as the
+highest pending one and revises it in place rather than re-appending, and a
+following `conduct` conducts it, so no duplicate round is created. A `finalise`
+in that same window is acceptable, not harmful: the dossier is current with
+respect to every finding on disk, so the freshness gate passes, and the
+leftover `## Round N+1` is a planned round, not a conducted one — `finalise`
+asserts currency over findings, not exhaustion of planned outline rounds; a
+later `outline`/`conduct` reopens the `complete` set and conducts it.
+
+### finalise — close the subject
+
+Resolve the SLUG to the set root per the **Shared Preamble**. Read
+`manifest.md`'s base `status`. This section is the single authority for
+`finalise`'s refusal (the Shared Preamble defers to it).
+
+If it is not `synthesised`, refuse: exit non-zero with a message naming the
+current status and the recovery path — `finalise` requires `synthesised`,
+reached by running `synthesise SLUG` first — and mutate nothing. This gate
+covers both an absent synthesis (never reached `synthesised`) and a stale one
+(regressed to `researching`).
+
+Then apply a corroborating freshness gate before mutating — a read-only check
+that writes nothing (not the write-to-repair sense of "reconcile" used
+elsewhere in this file). Compute `finding_count` from the visible `<nn>-*.md`
+files on disk (excluding dot-prefixed `.invalid` markers) and `round_count` as
+the highest `round` stamped across those same files, and compare both against
+the manifest's stored values without repairing them. If either disagrees, or
+that highest `round` exceeds `synthesis.md`'s `rounds_covered`, the set is stale
+— the signature of a crash between a `conduct` that landed findings and its
+manifest edit — so refuse: exit non-zero naming the mismatch and the recovery
+path (reopen with `outline`/`conduct`, then `synthesise SLUG` to refresh the
+dossier), and mutate nothing. `finalise` never repairs a stale manifest; a
+stale set is reopened and re-synthesised, not finalised.
+
+Otherwise derive metadata per **Derive Metadata**, then edit `manifest.md` as
+the only mutation: set base `status: complete`, advance `last_updated` /
+`last_updated_by` to the derived values, and leave `primary` on `synthesis.md`
+and every other field untouched. Re-validate `manifest.md`. `finalise` writes no
+content and spawns nothing.
+
 ## Populate frontmatter
 
 Every document this skill writes fills its provenance from the derived metadata.
@@ -255,7 +329,8 @@ The manifest counts derive from disk, stated here once so every site agrees:
 dot-prefixed `.invalid` quarantine marker; `round_count` is the highest `round`
 stamped across those same files, or `0` when none are present. `conduct` and
 `synthesise` apply this rule to **write** both counts on their final manifest
-edit.
+edit; `finalise` applies it as a **read-only compare** before its edit — its
+freshness gate — and writes only `status` and `last_updated`, never the counts.
 
 ## Deferred hardening
 

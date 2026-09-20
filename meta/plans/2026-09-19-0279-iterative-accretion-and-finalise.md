@@ -727,11 +727,11 @@ entry — `finalise` reuses `corpus resolve`, `corpus metadata derive`, and
 
 #### Automated Verification
 
-- [ ] Skill-permission census passes (no new tool grant): `mise run lint:skill-permissions:check`
-- [ ] Dispatch-coherence passes: `mise run lint:dispatch-coherence:check`
-- [ ] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
-- [ ] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
-- [ ] Full default task passes end to end: `mise run`
+- [x] Skill-permission census passes (no new tool grant): `mise run lint:skill-permissions:check`
+- [x] Dispatch-coherence passes: `mise run lint:dispatch-coherence:check`
+- [x] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
+- [x] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
+- [x] Full default task passes end to end: `mise run`
 
 #### Manual Verification
 
