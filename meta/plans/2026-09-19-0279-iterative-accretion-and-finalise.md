@@ -367,10 +367,10 @@ rule once keeps these sites from drifting.
 
 #### Automated Verification
 
-- [ ] Skill-permission census passes (no new invocation added): `mise run lint:skill-permissions:check`
-- [ ] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
-- [ ] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
-- [ ] Full read-only check passes: `mise run check`
+- [x] Skill-permission census passes (no new invocation added): `mise run lint:skill-permissions:check`
+- [x] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
+- [x] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
+- [x] Full read-only check passes: `mise run check`
 
 #### Manual Verification
 

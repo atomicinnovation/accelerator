@@ -65,8 +65,8 @@ out-of-order invocation cannot jump the `briefed → outlined → researching �
 synthesised` state machine:
 
 - `outline` requires the manifest's `status: briefed`.
-- `conduct` requires the manifest's `status: outlined` and an `outline.md`
-  with at least one focus area.
+- `conduct` requires the manifest's `status: outlined` or `researching`, and
+  an `outline.md` with at least one focus area.
 - `synthesise` requires at least one finding under `findings/`.
 
 If the precondition fails, refuse with a message naming the expected prior
@@ -119,15 +119,16 @@ outlined` as the final step.
 
 ### conduct — one round, one researcher per focus area
 
-Reconcile against the set on disk first: flip the outline checkbox of any focus
-area whose finding already exists and validates, and repair a stale
-`manifest.md`, so a re-run after a partial round repairs it rather than
-duplicating findings.
+Reconcile against the set on disk first, sweeping the checkboxes and findings of
+every `## Round N` section, not one round: flip the outline checkbox of any
+focus area — in any round — whose finding already exists and validates, and
+repair a stale `manifest.md`, so a re-run after a partial round repairs it
+rather than duplicating findings.
 
-For each still-outstanding focus area, allocate `findings/<nn>-<slug>.md`
-(scan both `<nn>-*.md` and any quarantine marker so an index is never reused),
-and **refuse to write a finding path that already exists** — an immutable
-finding is never clobbered.
+For each still-outstanding focus area across all rounds, allocate
+`findings/<nn>-<slug>.md` (scan both `<nn>-*.md` and any quarantine marker so an
+index is never reused), and **refuse to write a finding path that already
+exists** — an immutable finding is never clobbered.
 
 Spawn `{researcher agent}` agents in parallel with the Task tool, using
 `subagent_type: "!`accelerator config agent researcher --fail-safe`"`. Inject
@@ -136,7 +137,8 @@ into each agent's prompt:
 - the profile path: `${CLAUDE_PLUGIN_ROOT}/skills/research/profiles/web-profile/SKILL.md`
 - the outputter path: `${CLAUDE_PLUGIN_ROOT}/skills/research/outputters/finding-outputter/SKILL.md`
 - the finding template loaded in the **Finding template** section above
-- the focus question, the round number (`1`), the derived timestamp and author
+- the focus question, the round number of the `## Round N` heading the focus
+  area sits under, the derived timestamp and author
 - the output path `findings/<nn>-<slug>.md`
 
 The researcher composes the finding per the outputter from those injected
@@ -157,11 +159,16 @@ After all return, handle each focus area's outcome:
   it inside the indexer's dot-skipping convention. Its checkbox stays unflipped.
 - A finding that **validates** has its checkbox flipped.
 
-Then edit `manifest.md` as the final step to base `status: researching`,
-`round_count: 1`, and `finding_count` set to the count of **retained,
-validated** findings — never the raw focus-area count. Each finding carries
-`kind: finding`, `round: 1`, its focus area's `question`, and `source_profile:
-web`.
+Then edit `manifest.md` as the final step to base `status: researching`;
+`round_count` set to the highest `round` stamped on any **retained, validated**
+finding on disk (the visible `<nn>-*.md` files, excluding any dot-prefixed
+`.invalid` quarantine marker, which still carries a `round:` stamp); and
+`finding_count` set to the count of those same retained, validated findings —
+never the raw focus-area count. When no finding is on disk, leave `round_count`
+at the brief-time default `0`. A gap-fill within an existing round leaves
+`round_count` unchanged; conducting a newly appended round raises it. Each
+finding carries `kind: finding`, its focus area's injected `round` (not a
+constant `1`), its focus area's `question`, and `source_profile: web`.
 
 ### synthesise — a standalone dossier from the findings
 
@@ -213,8 +220,13 @@ accelerator corpus frontmatter validate --file <path>
 ```
 
 If it exits non-zero, report the emitted violation and fix the frontmatter
-before continuing. `finding_count` is always reconciled to the findings
-actually present after any quarantine.
+before continuing.
+
+The manifest counts derive from disk, stated here once so every site agrees:
+`finding_count` is the count of visible `<nn>-*.md` finding files, excluding any
+dot-prefixed `.invalid` quarantine marker; `round_count` is the highest `round`
+stamped across those same files, or `0` when none are present. `conduct` applies
+this rule to **write** both counts on its final manifest edit.
 
 ## Deferred hardening
 
