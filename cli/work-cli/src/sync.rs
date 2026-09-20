@@ -871,8 +871,8 @@ const fn unbounded_gate_fires(
 }
 
 /// The unbounded-broadened-pull gate refusal. Names the hazard — `unlimited`
-/// `max_items` over a broadened scope — the `--allow-unbounded` acknowledgement,
-/// and the finite-`max_items` alternative.
+/// `max_items` over a broadened scope — the `--allow-unbounded`
+/// acknowledgement, and the finite-`max_items` alternative.
 fn unbounded_gate_message(integration: &str) -> String {
     format!(
         "Refusing an unbounded broadened pull: {integration}.pull.max_items is \
@@ -906,16 +906,16 @@ fn imported_team_keys(
     keys
 }
 
-/// Grows the committed Linear team catalogue with any team a broadened pull just
-/// imported from but the catalogue did not yet name, so those items reconcile
-/// offline on later runs. A no-op for Jira (its keyed reconcile read is
-/// project-agnostic) and for a pull that imported only base-team items.
+/// Grows the committed Linear team catalogue with any team a broadened pull
+/// just imported from but the catalogue did not yet name, so those items
+/// reconcile offline on later runs. A no-op for Jira (its keyed reconcile read
+/// is project-agnostic) and for a pull that imported only base-team items.
 ///
 /// Best-effort at finalisation: the imported files already landed, so a growth
 /// failure warns rather than failing the sync. The metadata is committed only
 /// for teams items were actually imported from — never the whole enumerated
-/// workspace — and a warning names each newly-committed team since the catalogue
-/// is version-controlled and repo-wide.
+/// workspace — and a warning names each newly-committed team since the
+/// catalogue is version-controlled and repo-wide.
 fn grow_linear_catalogue(
     report: &work_adapters::sync::run::RunReport,
     tracker: &dyn tracker::RemoteTracker,
@@ -1015,9 +1015,9 @@ fn resolve_pull_filters(
 }
 
 /// The keyed-read cap-hit abort message. Names the keyed-read
-/// `<tracker>.pull.max_pages` cap, the file it resolved from, the higher-value /
-/// `unlimited` valve, and that the abort is run-wide — `--push-only` shares the
-/// same reconcile read, so it is no bypass.
+/// `<tracker>.pull.max_pages` cap, the file it resolved from, the higher-value
+/// / `unlimited` valve, and that the abort is run-wide — `--push-only` shares
+/// the same reconcile read, so it is no bypass.
 fn keyed_read_capped_message(
     config: &dyn ConfigAccess,
     integration: &str,
@@ -1038,8 +1038,8 @@ fn keyed_read_capped_message(
 
 /// The incomplete-discovery refusal message. A cap-hit names the discovery
 /// `<tracker>.pull.max_pages` cap, the file it resolved from, and the
-/// `unlimited` valve; a transient cutoff reports the read was budget-limited and
-/// steers to a retry rather than mis-blaming the cap.
+/// `unlimited` valve; a transient cutoff reports the read was budget-limited
+/// and steers to a retry rather than mis-blaming the cap.
 fn discovery_incomplete_message(
     config: &dyn ConfigAccess,
     integration: &str,

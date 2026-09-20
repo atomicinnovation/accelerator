@@ -13,8 +13,8 @@ use tracker::ExternalId;
 
 /// Orders discovered ids by `(prefix, numeric sequence, raw id)`.
 ///
-/// The prefix is compared case- and whitespace-folded; the trailing digit run is
-/// parsed to an integer so `PP-2` precedes `PP-10` and every `PP-*` precedes
+/// The prefix is compared case- and whitespace-folded; the trailing digit run
+/// is parsed to an integer so `PP-2` precedes `PP-10` and every `PP-*` precedes
 /// every `XX-*`; the raw id is the final tie-break so the order is total over
 /// distinct ids — a zero-padded pair like `PP-02` vs `PP-2` never compares
 /// `Equal`.
@@ -29,12 +29,12 @@ pub fn discovered_order(a: &ExternalId, b: &ExternalId) -> Ordering {
 }
 
 /// Splits an id into its folded prefix and trailing numeric sequence, on the
-/// *final* `-`-delimited numeric segment: everything before it is the prefix, the
-/// trailing digits the sequence. A key with interior digits (`ABC2-5`) keeps
-/// `ABC2` as its prefix. An id with no trailing digit run sorts with sequence 0,
-/// disambiguated by the raw-id tie-break. The digit run parses saturating to
-/// `usize::MAX`, so a very long sequence cannot overflow and still orders after
-/// smaller numbers.
+/// *final* `-`-delimited numeric segment: everything before it is the prefix,
+/// the trailing digits the sequence. A key with interior digits (`ABC2-5`)
+/// keeps `ABC2` as its prefix. An id with no trailing digit run sorts with
+/// sequence 0, disambiguated by the raw-id tie-break. The digit run parses
+/// saturating to `usize::MAX`, so a very long sequence cannot overflow and
+/// still orders after smaller numbers.
 fn split_prefix_sequence(id: &str) -> (String, usize) {
     match id.rsplit_once('-') {
         Some((prefix, sequence))
@@ -47,9 +47,9 @@ fn split_prefix_sequence(id: &str) -> (String, usize) {
     }
 }
 
-/// Folds a prefix the way `canonical_external_key` folds a whole id — strip every
-/// whitespace character, upper-case the rest — so mixed-case survivors of one
-/// logical prefix order by sequence rather than by ASCII case.
+/// Folds a prefix the way `canonical_external_key` folds a whole id — strip
+/// every whitespace character, upper-case the rest — so mixed-case survivors of
+/// one logical prefix order by sequence rather than by ASCII case.
 fn fold(prefix: &str) -> String {
     prefix
         .chars()
@@ -93,8 +93,8 @@ mod tests {
 
     #[test]
     fn a_case_mixed_prefix_orders_by_sequence_not_ascii_case() {
-        // 'E' (0x45) < 'e' (0x65), so a raw-string sort would wrongly interleave;
-        // folding the prefix orders eng-2 after ENG-1 by sequence.
+        // 'E' (0x45) < 'e' (0x65), so a raw-string sort would wrongly
+        // interleave; folding the prefix orders eng-2 after ENG-1 by sequence.
         assert_eq!(sorted(&["eng-2", "ENG-1"]), vec!["ENG-1", "eng-2"]);
     }
 
@@ -121,7 +121,8 @@ mod tests {
                 }
             }
         }
-        // The zero-padded pair is broken by the raw-id tie-break, deterministically.
+        // The zero-padded pair is broken by the raw-id tie-break,
+        // deterministically.
         assert_eq!(discovered_order(&id("PP-02"), &id("PP-2")), Ordering::Less);
     }
 }

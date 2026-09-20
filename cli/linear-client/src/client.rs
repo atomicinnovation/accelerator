@@ -337,7 +337,8 @@ impl LinearClient {
     /// Pages a search to exhaustion, returning the accumulated index and its
     /// [`Completeness`]. A page-cap hit is [`Completeness::CapHit`] — the
     /// fail-loud ceiling; a deadline or a failed page is
-    /// [`Completeness::Transient`]; a clean finish is [`Completeness::Complete`].
+    /// [`Completeness::Transient`]; a clean finish is
+    /// [`Completeness::Complete`].
     fn page_all(
         &self,
         search: &Search,
@@ -380,7 +381,7 @@ impl LinearClient {
         (index, completeness)
     }
 
-    /// Pages a search over the richer [`SEARCH_PROJECTION`] to exhaustion,
+    /// Pages a search over the richer `SEARCH_PROJECTION` to exhaustion,
     /// returning the raw nodes the `search` subcommand renders. Unlike the port
     /// `search`, a wire failure is an error rather than a degraded page — the
     /// search flow propagates the transport failure — while a cap-hit or
@@ -739,9 +740,9 @@ impl RemoteTracker for LinearClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        // The base-only path: substitute the base team key for its UUID from the
-        // catalogue. A broadened scope resolves its entities against the live
-        // enumeration instead and never reaches here.
+        // The base-only path: substitute the base team key for its UUID from
+        // the catalogue. A broadened scope resolves its entities against the
+        // live enumeration instead and never reaches here.
         let EntityScope::Keyed { base, additional } = &scope.entities else {
             return Ok(scope.clone());
         };

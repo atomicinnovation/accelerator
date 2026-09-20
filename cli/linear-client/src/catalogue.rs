@@ -94,8 +94,8 @@ impl StateResolver for CatalogueStates {
 /// cache-backed [`TeamResolver`], resolving a configured team key to the UUID a
 /// search filter needs.
 ///
-/// Reads the multi-entry `teams` array a broadened pull grows, always folding in
-/// the single `/team` object an older seed wrote, so a pre-upgrade catalogue
+/// Reads the multi-entry `teams` array a broadened pull grows, always folding
+/// in the single `/team` object an older seed wrote, so a pre-upgrade catalogue
 /// resolves base-only and a grown one resolves every catalogued team.
 #[derive(Debug, Clone, Default)]
 pub struct CatalogueTeam {
@@ -103,9 +103,9 @@ pub struct CatalogueTeam {
 }
 
 impl CatalogueTeam {
-    /// Loads the teams from `<integrations_root>/linear/catalogue.json`, yielding
-    /// an empty resolver when the catalogue is absent or unreadable — so a
-    /// missing catalogue resolves nothing rather than erroring.
+    /// Loads the teams from `<integrations_root>/linear/catalogue.json`,
+    /// yielding an empty resolver when the catalogue is absent or unreadable —
+    /// so a missing catalogue resolves nothing rather than erroring.
     #[must_use]
     pub fn load(integrations_root: &Path) -> Self {
         let path = integrations_root.join("linear/catalogue.json");

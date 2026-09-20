@@ -229,9 +229,9 @@ impl std::error::Error for TrackerError {}
 /// why not when it did not. It exists so a caller can fail loud on a
 /// [`Completeness::CapHit`] — a configured page cap the keyed read must not
 /// silently truncate against — while still degrading around a
-/// [`Completeness::Transient`] failure. When it is not [`Completeness::Complete`]
-/// the retrieval was not provably complete, so `absent` must be empty and every
-/// unseen id belongs in `indeterminate`.
+/// [`Completeness::Transient`] failure. When it is not
+/// [`Completeness::Complete`] the retrieval was not provably complete, so
+/// `absent` must be empty and every unseen id belongs in `indeterminate`.
 ///
 /// Nothing here enforces totality — the type cannot, and this crate ships no
 /// logic. It is an obligation on every implementation.
@@ -284,9 +284,9 @@ pub enum EntityScope {
         base: Option<String>,
         additional: Vec<String>,
     },
-    /// Every entity the credential can see. Resolved to an enumerated identifier
-    /// list before a search lowers it — never an unbounded, constraint-free
-    /// query.
+    /// Every entity the credential can see. Resolved to an enumerated
+    /// identifier list before a search lowers it — never an unbounded,
+    /// constraint-free query.
     WholeWorkspace,
 }
 
@@ -319,7 +319,8 @@ pub struct VisibleEntity {
 /// slice `fetch_all` takes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SearchScope {
-    /// The entities discovery searches, as an exclusive base-or-workspace scope.
+    /// The entities discovery searches, as an exclusive base-or-workspace
+    /// scope.
     pub entities: EntityScope,
     /// Extra provider-specific field filters, each a `(field, value)` pair.
     pub filters: Vec<(String, String)>,
@@ -389,27 +390,26 @@ impl Display for Ceiling {
 
 /// The pull-direction write bound when `<tracker>.pull.max_items` is unset.
 ///
-/// Preserved from the historical `--max-pulls` default so an unconfigured pull
-/// keeps today's ceiling.
+/// Matches the `--max-pulls` flag default, so an unconfigured pull keeps the
+/// same write ceiling.
 pub const DEFAULT_MAX_ITEMS: Ceiling = Ceiling::Bounded(25);
 
 /// The transport page cap when a `<tracker>.pull.max_pages` cap is unset.
 ///
-/// Raised from the historical fixed 20 so the keyed reconcile read does not
-/// cap-abort on organic corpus growth; per-operation overrides tune either lane
-/// independently.
+/// Generous enough that the keyed reconcile read does not cap-abort on organic
+/// corpus growth; per-operation overrides tune either lane independently.
 pub const DEFAULT_MAX_PAGES: Ceiling = Ceiling::Bounded(50);
 
 /// Why a paginated read stopped, and so whether its result is the whole of what
 /// the tracker holds in scope.
 ///
 /// A read that reached its `max_pages` cap is not the same as one a deadline or
-/// a wire failure cut short. The cap is a configured ceiling an operator raises;
-/// the transient condition is a passing failure a retry may clear. Collapsing
-/// the two into one boolean either mis-blames the cap for a network blip or
-/// hides a genuine cap-hit behind a retry that never clears it — so a caller
-/// that must fail loud on one and degrade on the other reads this rather than a
-/// flag.
+/// a wire failure cut short. The cap is a configured ceiling an operator
+/// raises; the transient condition is a passing failure a retry may clear.
+/// Collapsing the two into one boolean either mis-blames the cap for a network
+/// blip or hides a genuine cap-hit behind a retry that never clears it — so a
+/// caller that must fail loud on one and degrade on the other reads this rather
+/// than a flag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Completeness {
     /// The read saw everything in scope: pagination reached cursor exhaustion
@@ -419,7 +419,8 @@ pub enum Completeness {
     /// passing condition — the result is a lower bound until the cap is raised.
     CapHit,
     /// The read was cut short by a transient condition — a deadline, a rate
-    /// limit, a wire failure. The result is a lower bound; a retry may clear it.
+    /// limit, a wire failure. The result is a lower bound; a retry may clear
+    /// it.
     Transient,
 }
 
@@ -451,9 +452,9 @@ impl Completeness {
 ///
 /// Distinct from [`FetchOutcome`]: a discovery has no requested id set to
 /// partition over, so it carries a [`Completeness`] rather than an `absent`
-/// vector. Anything but [`Completeness::Complete`] means the query was cut short
-/// — a page cap or a transient condition — and the caller must treat the result
-/// as a lower bound, never as the whole of what the tracker holds.
+/// vector. Anything but [`Completeness::Complete`] means the query was cut
+/// short — a page cap or a transient condition — and the caller must treat the
+/// result as a lower bound, never as the whole of what the tracker holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Discovery {
     /// The issues the query saw, each with the stamp the tracker reported.
@@ -664,13 +665,13 @@ pub trait RemoteTracker {
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError>;
 
-    /// Enumerates every entity the credential can see — a Jira project, a Linear
-    /// team — paginated to exhaustion.
+    /// Enumerates every entity the credential can see — a Jira project, a
+    /// Linear team — paginated to exhaustion.
     ///
     /// The live source the engine's pre-search resolver draws on to confirm a
-    /// configured `additional_*` or whole-workspace entity is visible and to map
-    /// its config key to the identifier a search lowers. A base-only pull does
-    /// not call it, so a plain keyed discovery issues no extra request.
+    /// configured `additional_*` or whole-workspace entity is visible and to
+    /// map its config key to the identifier a search lowers. A base-only pull
+    /// does not call it, so a plain keyed discovery issues no extra request.
     ///
     /// # Errors
     ///

@@ -545,7 +545,8 @@ fn teams_body(teams: &[(&str, &str, &str)], next: Option<&str>) -> String {
 fn an_additional_team_item_reconciles_rather_than_sticking_indeterminate() {
     let server = MockServer::start();
     // The base-team search returns ENG-1; the additional-team search returns
-    // OPS-7. A base-only reconcile read would leave OPS-7 indeterminate forever.
+    // OPS-7. A base-only reconcile read would leave OPS-7 indeterminate
+    // forever.
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![
@@ -580,7 +581,8 @@ fn an_additional_team_item_reconciles_rather_than_sticking_indeterminate() {
 fn an_additional_team_item_is_provably_absent_when_its_team_read_completes() {
     let server = MockServer::start();
     // Both team reads complete, and neither returns OPS-7, so — because OPS is
-    // catalogued and thus in scope — OPS-7 is provably absent, not indeterminate.
+    // catalogued and thus in scope — OPS-7 is provably absent, not
+    // indeterminate.
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![

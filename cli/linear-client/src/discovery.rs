@@ -69,8 +69,8 @@ impl LinearClient {
     ///
     /// # Errors
     ///
-    /// [`SurfaceError`] for a transport failure or an `errors[]` response on any
-    /// page.
+    /// [`SurfaceError`] for a transport failure or an `errors[]` response on
+    /// any page.
     pub(crate) fn paginate_teams(&self) -> Result<Vec<Value>, SurfaceError> {
         let mut nodes = Vec::new();
         let mut cursor: Option<String> = None;

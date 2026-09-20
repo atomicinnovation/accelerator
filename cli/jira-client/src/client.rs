@@ -61,9 +61,9 @@ type DiscoveryPage = (Vec<(ExternalId, RemoteTimestamp)>, Option<String>);
 /// Why a keyed-read chunk stopped short of accounting for its ids.
 ///
 /// A page-cap hit is a configured ceiling the caller must fail loud on; every
-/// other stop — a deadline, a non-2xx, a non-JSON body, a transport failure — is
-/// a transient condition the caller degrades around. Collapsing the two, as the
-/// old bare-`String` error did, hides a cap-hit behind the transient path.
+/// other stop — a deadline, a non-2xx, a non-JSON body, a transport failure —
+/// is a transient condition the caller degrades around. Collapsing the two
+/// would hide a cap-hit behind the transient path.
 enum ChunkStop {
     CapHit(String),
     Transient(String),
@@ -493,8 +493,8 @@ fn update_fields(
 /// The JQL field a config filter key lowers to.
 ///
 /// Config speaks the tracker's own vocabulary (`label`, `state`); JQL names the
-/// field (`labels`, `status`). An unmapped key passes through and is then guarded
-/// at the composer's field sink.
+/// field (`labels`, `status`). An unmapped key passes through and is then
+/// guarded at the composer's field sink.
 fn jql_field(config_key: &str) -> &str {
     match config_key {
         "label" => "labels",
@@ -514,9 +514,9 @@ const fn names_target(entities: &EntityScope) -> bool {
     }
 }
 
-/// One `discover_projects` entry as a [`VisibleEntity`]: a Jira project's key is
-/// both its config-facing key and its search identifier. Drops an entry missing
-/// a key.
+/// One `discover_projects` entry as a [`VisibleEntity`]: a Jira project's key
+/// is both its config-facing key and its search identifier. Drops an entry
+/// missing a key.
 fn visible_project(project: &Value) -> Option<VisibleEntity> {
     let key = project.get("key").and_then(Value::as_str)?.to_owned();
     let name = project
@@ -548,9 +548,9 @@ fn project_fields(
 }
 
 /// Groups a flat `(key, value)` filter bag into one [`Family`] per JQL field,
-/// preserving first-seen key order, so same-key values compose to one multi-value
-/// `IN` (values OR'd) rather than repeated single-value clauses (values AND'd,
-/// an empty result).
+/// preserving first-seen key order, so same-key values compose to one
+/// multi-value `IN` (values OR'd) rather than repeated single-value clauses
+/// (values AND'd, an empty result).
 fn families_from_filters(filters: &[(String, String)]) -> Vec<Family> {
     let mut families: Vec<Family> = Vec::new();
     for (key, value) in filters {

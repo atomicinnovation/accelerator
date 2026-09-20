@@ -61,10 +61,10 @@ pub struct GatheredFacts {
     pub read_failure: Option<TrackerError>,
     /// Whether the bulk keyed read saw everything in scope, and why not when it
     /// did not. A [`Completeness::CapHit`] is the fail-loud signal the run
-    /// aborts on before any write; a [`Completeness::Transient`] surfaces softly
-    /// and the run proceeds with the affected items indeterminate. The per-item
-    /// (`show`) strategy and a pre-flight `fetch_all` failure both leave this
-    /// [`Completeness::Complete`].
+    /// aborts on before any write; a [`Completeness::Transient`] surfaces
+    /// softly and the run proceeds with the affected items indeterminate. The
+    /// per-item (`show`) strategy and a pre-flight `fetch_all` failure both
+    /// leave this [`Completeness::Complete`].
     pub keyed_read: Completeness,
 }
 

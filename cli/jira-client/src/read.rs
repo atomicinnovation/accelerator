@@ -51,11 +51,11 @@ impl JiraClient {
     /// every page's issues into one envelope.
     ///
     /// `page_token` resumes a prior walk from its cursor; `max_results` is the
-    /// per-page size. A clean finish is [`Completeness::Complete`]; reaching the
-    /// cap is [`Completeness::CapHit`] and an expired deadline
+    /// per-page size. A clean finish is [`Completeness::Complete`]; reaching
+    /// the cap is [`Completeness::CapHit`] and an expired deadline
     /// [`Completeness::Transient`] — each carrying the resume cursor in the
-    /// envelope. A wire failure, non-2xx status or non-JSON body is an error the
-    /// search flow propagates, not a degraded page.
+    /// envelope. A wire failure, non-2xx status or non-JSON body is an error
+    /// the search flow propagates, not a degraded page.
     ///
     /// # Errors
     ///

@@ -2,15 +2,16 @@
 //!
 //! Values are **quoted, never concatenated**. Identifiers and filter values
 //! reach this composer from work-item files and config, having originally come
-//! from a remote tracker or an operator; one containing `'`, `)` or ` OR ` would
-//! otherwise break out of its clause and change which issues the query returns —
-//! turning a targeted fetch into a project dump, or hiding issues that exist.
+//! from a remote tracker or an operator; one containing `'`, `)` or ` OR `
+//! would otherwise break out of its clause and change which issues the query
+//! returns — turning a targeted fetch into a project dump, or hiding issues
+//! that exist.
 //!
 //! The quoting is JQL's own: a single-quoted literal with each backslash and
 //! single quote backslash-escaped (`\\`, `\'`), the backslash pass first so it
 //! never doubles the escape the quote pass introduces. JQL does not accept
-//! SQL-style quote doubling (`''`), so a trailing backslash left unescaped would
-//! swallow the closing quote and break out of the literal.
+//! SQL-style quote doubling (`''`), so a trailing backslash left unescaped
+//! would swallow the closing quote and break out of the literal.
 
 use std::collections::BTreeMap;
 
@@ -115,9 +116,10 @@ pub fn key_clause(keys: &[String]) -> Result<String, ClientError> {
 /// The base-and-additional project clause: `project = 'X'` for a single
 /// entity, `project IN ('X', 'Y')` for several, and no clause for none.
 ///
-/// Every entity is quoted through [`quote`], the same escaping the single-entity
-/// `project =` clause used, so a project key carrying a `'`, `)` or ` OR ` stays
-/// contained rather than breaking out into a workspace-wide query.
+/// Every entity is quoted through [`quote`], the same escaping the
+/// single-entity `project =` clause used, so a project key carrying a `'`, `)`
+/// or ` OR ` stays contained rather than breaking out into a workspace-wide
+/// query.
 ///
 /// # Errors
 ///

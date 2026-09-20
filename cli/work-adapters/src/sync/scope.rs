@@ -21,8 +21,8 @@ use tracker::VisibleEntity;
 /// a configuration fault the operator must fix (a fail-loud, zero-write abort),
 /// whereas a failed enumeration is a passing transport condition the caller
 /// degrades around exactly as it does a failed discovery search. Collapsing the
-/// two would either retry forever on a genuine misconfiguration or abort a whole
-/// sync on a network blip.
+/// two would either retry forever on a genuine misconfiguration or abort a
+/// whole sync on a network blip.
 #[derive(Debug)]
 pub enum EntityResolution {
     /// A named base or additional entity is not among the credential's visible
@@ -70,7 +70,7 @@ pub fn resolve_entities(
 
 /// The whole visible workspace as an enumerated identifier list — never an
 /// unbounded, constraint-free query. An empty visible set is a refusal, not an
-/// empty filter that would flood the workspace (the 0220 flood boundary).
+/// empty filter that would flood the workspace.
 fn whole_workspace(
     visible: &[VisibleEntity],
 ) -> Result<EntityScope, EntityResolution> {

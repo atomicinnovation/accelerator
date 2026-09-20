@@ -242,8 +242,8 @@ impl RecordingTracker {
 
     /// A tracker whose bulk keyed read reports a `max_pages` cap-hit: every id
     /// it accounts for stays `found`, but the outcome carries
-    /// [`Completeness::CapHit`] and no id is ever `absent`. Drives the fail-loud
-    /// keyed-read abort, distinct from `truncating`'s out-of-scope
+    /// [`Completeness::CapHit`] and no id is ever `absent`. Drives the
+    /// fail-loud keyed-read abort, distinct from `truncating`'s out-of-scope
     /// `indeterminate`.
     #[must_use]
     pub fn capping_keyed_read(issues: Vec<(ExternalId, RemoteIssue)>) -> Self {
@@ -254,9 +254,9 @@ impl RecordingTracker {
     }
 
     /// A tracker whose bulk keyed read was cut short transiently: the outcome
-    /// carries [`Completeness::Transient`] and any unseen id is `indeterminate`,
-    /// never `absent`. Drives the degrade-and-proceed path, distinct from the
-    /// fail-loud `capping_keyed_read`.
+    /// carries [`Completeness::Transient`] and any unseen id is
+    /// `indeterminate`, never `absent`. Drives the degrade-and-proceed path,
+    /// distinct from the fail-loud `capping_keyed_read`.
     #[must_use]
     pub fn transient_keyed_read(
         issues: Vec<(ExternalId, RemoteIssue)>,

@@ -74,15 +74,16 @@ impl TeamResolver for FixedTeam {
 
 /// Everything the search surface accepts, in its own shape.
 ///
-/// `state`, `assignee` and `label` carry a value list so a filter key configured
-/// with several values lowers to the `in` operator (values OR'd); a single value
-/// keeps its `eq` form. An empty list is an unset filter. `team_id` and `text`
-/// stay single: the team is the base scope, and text is a contains-match.
+/// `state`, `assignee` and `label` carry a value list so a filter key
+/// configured with several values lowers to the `in` operator (values OR'd); a
+/// single value keeps its `eq` form. An empty list is an unset filter.
+/// `team_id` and `text` stay single: the team is the base scope, and text is a
+/// contains-match.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub team_id: Option<String>,
-    /// Further team UUIDs to broaden discovery onto. With `team_id` set and this
-    /// non-empty, the base and each additional team lower to one
+    /// Further team UUIDs to broaden discovery onto. With `team_id` set and
+    /// this non-empty, the base and each additional team lower to one
     /// `team: { id: { in: [...] } }` clause; empty, `team_id` alone lowers to
     /// `team: { id: { eq } }`.
     pub team_ids: Vec<String>,
@@ -154,8 +155,8 @@ pub fn compose(
     Ok(Value::Object(filter))
 }
 
-/// One value lowers to `eq`; several lower to `in` (OR'd). Empty is never passed
-/// here — the caller skips an unset filter.
+/// One value lowers to `eq`; several lower to `in` (OR'd). Empty is never
+/// passed here — the caller skips an unset filter.
 fn comparator(values: &[String]) -> Value {
     match values {
         [single] => json!({"eq": single}),
@@ -164,8 +165,8 @@ fn comparator(values: &[String]) -> Value {
 }
 
 /// The case-insensitive counterpart for `assignee`: a single value keeps its
-/// `eqIgnoreCase` form; several fall back to a case-sensitive `in`, Linear's only
-/// multi-value operator on a name.
+/// `eqIgnoreCase` form; several fall back to a case-sensitive `in`, Linear's
+/// only multi-value operator on a name.
 fn ignore_case_comparator(values: &[String]) -> Value {
     match values {
         [single] => json!({"eqIgnoreCase": single}),

@@ -153,8 +153,8 @@ impl<'a> ConfiguredTrackers<'a> {
     }
 
     /// The transport bounds for `name`, with the page caps sourced from the
-    /// `<name>.pull.max_pages` block. The block is already validated on the sync
-    /// path before a client is resolved, so a fault here is defensive.
+    /// `<name>.pull.max_pages` block. The block is already validated on the
+    /// sync path before a client is resolved, so a fault here is defensive.
     fn transport_config(
         &self,
         name: &str,

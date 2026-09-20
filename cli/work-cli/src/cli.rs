@@ -285,11 +285,12 @@ pub struct SyncArgs {
     /// source.
     #[arg(long)]
     pub max_pushes: Option<usize>,
-    /// Acknowledge an unbounded broadened pull. `<tracker>.pull.max_items:
-    /// unlimited` combined with a broadened scope (`all_*`, or a non-empty
-    /// `additional_*`) is refused fail-safe unless this is set, since the whole
-    /// discovered set would be mass-created with no write bound. The work skill
-    /// prompts and re-runs with this flag; set a finite `max_items` to avoid it.
+    /// Acknowledge an unbounded broadened pull.
+    /// `<tracker>.pull.max_items: unlimited` combined with a broadened scope
+    /// (`all_*`, or a non-empty `additional_*`) is refused fail-safe unless
+    /// this is set, since the whole discovered set would be mass-created with
+    /// no write bound. The work skill prompts and re-runs with this flag; set a
+    /// finite `max_items` to avoid it.
     #[arg(long)]
     pub allow_unbounded: bool,
     /// Reconcile only this work item; repeatable. Accepts a local id

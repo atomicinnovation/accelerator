@@ -59,9 +59,9 @@ pub enum RunError {
         new_remote_issues: usize,
     },
     /// A discovery query was cut short. Refused rather than acted on: an
-    /// incomplete untracked set is a lower bound. `completeness` distinguishes a
-    /// `max_pages` cap-hit (raise the cap) from a transient cutoff (retry), so
-    /// the caller's guidance names the right remedy.
+    /// incomplete untracked set is a lower bound. `completeness` distinguishes
+    /// a `max_pages` cap-hit (raise the cap) from a transient cutoff (retry),
+    /// so the caller's guidance names the right remedy.
     DiscoveryIncomplete {
         found: usize,
         completeness: Completeness,
@@ -77,8 +77,8 @@ pub enum RunError {
     /// all-or-nothing across both directions: the read feeds pull and push
     /// planning alike, so proceeding could push against unknown remote state or
     /// import a stale view. The remedy — raise `<tracker>.pull.max_pages` (its
-    /// `keyed_read` override), or set it to `unlimited` — is named by the caller,
-    /// which resolves the cap and the config file it came from.
+    /// `keyed_read` override), or set it to `unlimited` — is named by the
+    /// caller, which resolves the cap and the config file it came from.
     KeyedReadCapped,
     Read(TrackerError),
     Internal(kernel::Error),

@@ -266,9 +266,9 @@ const NOUN_OWNERS: &[(&str, Tracker, NounKind)] = &[
     ("all_teams", Tracker::Linear, NounKind::All),
 ];
 
-/// The accepted filter-field keys. Shared across trackers today; the per-tracker
-/// divergence is in Phase-5 field lowering, not the accepted set, so a single
-/// schema is enough until a tracker's accepted keys actually differ.
+/// The accepted filter-field keys. Shared across trackers today; the
+/// per-tracker divergence is in field lowering, not the accepted set, so a
+/// single schema is enough until a tracker's accepted keys actually differ.
 const FILTER_SCHEMA: FilterSchema = FilterSchema {
     accepted: &["label", "state", "assignee"],
 };
@@ -419,15 +419,15 @@ fn ceiling_ok(token: &str, allow_zero: bool) -> bool {
     to_ceiling(token, allow_zero).is_ok()
 }
 
-/// Interprets a ceiling token into a [`Ceiling`] — the sole authority on a valid
-/// ceiling string. Configure-time validation ([`validate`]) and sync-time
+/// Interprets a ceiling token into a [`Ceiling`] — the sole authority on a
+/// valid ceiling string. Configure-time validation ([`validate`]) and sync-time
 /// resolution ([`PullConfig::ceilings`]) both route through it, so a token that
 /// validates always interprets, and a page cap can never smuggle a `Bounded(0)`
 /// past validation into a paging loop.
 ///
-/// `allow_zero` admits `0` — `max_items`' refuse-all — which a page cap forbids,
-/// since a 0-page loop returns a silent complete-empty result. Rejects a float,
-/// a negative, or any non-numeric token.
+/// `allow_zero` admits `0` — `max_items`' refuse-all — which a page cap
+/// forbids, since a 0-page loop returns a silent complete-empty result. Rejects
+/// a float, a negative, or any non-numeric token.
 fn to_ceiling(token: &str, allow_zero: bool) -> Result<Ceiling, ()> {
     if token == UNLIMITED {
         return Ok(Ceiling::Unlimited);
@@ -439,8 +439,8 @@ fn to_ceiling(token: &str, allow_zero: bool) -> Result<Ceiling, ()> {
     }
 }
 
-/// The bounds a pull runs under, resolved from a `<tracker>.pull` block with the
-/// built-in defaults applied to any unset key.
+/// The bounds a pull runs under, resolved from a `<tracker>.pull` block with
+/// the built-in defaults applied to any unset key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ceilings {
     /// The pull-direction write bound: tracked-item updates plus newly
