@@ -25,3 +25,4 @@ Accelerator plugin.
 * [Task] Move playwright sources under cli/ instead of skill directory
 * [Task] Add switches to all skills
 * [Bug] Get PR descriptions to generate unwrapped by /describe-pr
+* [Task] Add internal CLI wrapper skills
