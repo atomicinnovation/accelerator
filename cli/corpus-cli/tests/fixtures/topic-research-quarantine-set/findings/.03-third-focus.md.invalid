@@ -1,0 +1,29 @@
+---
+type: "topic-research"
+id: "03-third-focus"
+title: "Finding: What is the third focus area?"
+date: "2026-09-10T00:00:00+00:00"
+author: "Fixture Author"
+producer: "research-topic"
+status: "draft"
+kind: "finding"
+round: 3
+question: "What is the third focus area?"
+source_profile: "web"
+tags: ["research", "topic-research", "finding"]
+last_updated: "2026-09-10T00:00:00+00:00"
+last_updated_by: "Fixture Author"
+schema_version: 1
+---
+
+# Finding: What is the third focus area?
+
+## Question
+What is the third focus area?
+
+## Findings
+This finding failed validation with a non-terminal status and was quarantined
+aside; it still carries its round stamp but is excluded from the retained set.
+
+## Sources
+- [Example Standard](https://www.example.org/spec) — tier-1 — example.org

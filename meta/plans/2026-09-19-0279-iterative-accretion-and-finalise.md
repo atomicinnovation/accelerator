@@ -270,14 +270,14 @@ writes has a positive contract anchor on the validator side.
 
 #### Automated Verification
 
-- [ ] Whole golden suite green, including the new multi-round validation, the two count cross-checks (counts-agree-with-disk and quarantine-exclusion), and the `complete`-status test: `cargo test -p accelerator-corpus --test frontmatter_goldens` — confirm the reported test count rose by four, since a name-filtered `cargo test` exits 0 even when it matches nothing.
-- [ ] Existing single-round goldens unchanged and green (same run).
-- [ ] Rust workspace check passes: `mise run cli:check`
-- [ ] Full read-only check passes: `mise run check`
+- [x] Whole golden suite green, including the new multi-round validation, the two count cross-checks (counts-agree-with-disk and quarantine-exclusion), and the `complete`-status test: `cargo test -p accelerator-corpus --test frontmatter_goldens` — confirm the reported test count rose by four, since a name-filtered `cargo test` exits 0 even when it matches nothing.
+- [x] Existing single-round goldens unchanged and green (same run).
+- [x] Rust workspace check passes: `mise run cli:check`
+- [x] Full read-only check passes: `mise run check`
 
 #### Manual Verification
 
-- [ ] Reading `synthesis.md` and all three findings, no per-round headings or
+- [x] Reading `synthesis.md` and all three findings, no per-round headings or
       round-sequencing language appears (AC6) — including the cross-round
       `03-third-focus`, the one most tempted toward round-sequencing prose.
       (Count/round agreement with disk is now locked by the deterministic
