@@ -459,8 +459,6 @@ fn highest_round(
     Ok(highest)
 }
 
-/// The count of visible `<nn>-*.md` finding files, excluding dot-prefixed
-/// `.invalid` quarantine markers.
 fn visible_finding_count(findings: &Path) -> Result<usize, TestError> {
     let mut count = 0;
     for entry in fs::read_dir(findings)? {
