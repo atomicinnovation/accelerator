@@ -410,6 +410,72 @@ fn topic_research_set() -> PathBuf {
         .join("tests/fixtures/topic-research-set")
 }
 
+/// The committed two-round set — the multi-round exemplar whose terminal counts
+/// diverge (three findings, highest round two) so the derivation rule is
+/// distinguishable from a file count.
+fn topic_research_multiround_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-multiround-set")
+}
+
+/// The committed quarantine exemplar — highest retained finding `round: 2`
+/// alongside a dot-prefixed `.invalid` marker stamped `round: 3`.
+fn topic_research_quarantine_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-quarantine-set")
+}
+
+/// A bare-integer frontmatter field (e.g. `round_count: 2`), or `None` when the
+/// key is absent. Matches the key with its colon, so `round:` never captures
+/// `round_count:`.
+fn int_field(content: &str, key: &str) -> Option<u64> {
+    let prefix = format!("{key}:");
+    content
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix)?.trim().parse().ok())
+}
+
+/// The highest `round:` stamped across a `findings/` directory — the
+/// disk-derivation `conduct` and `finalise` apply. With `exclude_invalid` set,
+/// dot-prefixed `.invalid` quarantine markers are skipped.
+fn highest_round(
+    findings: &Path,
+    exclude_invalid: bool,
+) -> Result<u64, TestError> {
+    let mut highest = 0;
+    for entry in fs::read_dir(findings)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let name = name.to_str().ok_or("non-utf8")?;
+        if exclude_invalid && name.starts_with('.') {
+            continue;
+        }
+        if let Some(round) =
+            int_field(&fs::read_to_string(entry.path())?, "round")
+        {
+            highest = highest.max(round);
+        }
+    }
+    Ok(highest)
+}
+
+fn visible_finding_count(findings: &Path) -> Result<usize, TestError> {
+    let mut count = 0;
+    for entry in fs::read_dir(findings)? {
+        let entry = entry?;
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_str().ok_or("non-utf8")?;
+        let is_markdown = path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
+        if !name.starts_with('.') && is_markdown {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 fn validate_content(tag: &str, content: &str) -> Result<Output, TestError> {
     let dir = tempdir(tag)?;
     let root = canonical_root(&dir)?;
@@ -447,6 +513,97 @@ fn the_committed_topic_research_set_validates_clean() -> Result<(), TestError> {
     }
     let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
     let output = run(&root, &borrowed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_multiround_set_validates_clean(
+) -> Result<(), TestError> {
+    let set = topic_research_multiround_set();
+    let files = [
+        set.join("manifest.md"),
+        set.join("brief.md"),
+        set.join("outline.md"),
+        set.join("findings/01-first-focus.md"),
+        set.join("findings/02-second-focus.md"),
+        set.join("findings/03-third-focus.md"),
+        set.join("synthesis.md"),
+    ];
+    let dir = tempdir("topic-multiround-clean")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let mut args = vec!["frontmatter".to_owned(), "validate".to_owned()];
+    for file in &files {
+        args.push("--file".to_owned());
+        args.push(file.to_str().ok_or("non-utf8")?.to_owned());
+    }
+    let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = run(&root, &borrowed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_multiround_set_counts_agree_with_disk(
+) -> Result<(), TestError> {
+    let set = topic_research_multiround_set();
+    let findings = set.join("findings");
+    let manifest = fs::read_to_string(set.join("manifest.md"))?;
+    let synthesis = fs::read_to_string(set.join("synthesis.md"))?;
+
+    let round_count = int_field(&manifest, "round_count").ok_or("no count")?;
+    let finding_count =
+        int_field(&manifest, "finding_count").ok_or("no count")?;
+    let rounds_covered =
+        int_field(&synthesis, "rounds_covered").ok_or("no rounds_covered")?;
+
+    assert_eq!(
+        round_count,
+        highest_round(&findings, true)?,
+        "round_count must equal the highest round stamped on disk"
+    );
+    assert_eq!(
+        usize::try_from(finding_count)?,
+        visible_finding_count(&findings)?,
+        "finding_count must equal the visible finding files on disk"
+    );
+    assert_eq!(
+        rounds_covered, round_count,
+        "rounds_covered must equal round_count"
+    );
+    assert_ne!(
+        finding_count, round_count,
+        "the fixture must keep file count and highest round divergent so this \
+         guard distinguishes a max(round) derivation from a file count"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_quarantined_invalid_finding_is_excluded_from_round_count(
+) -> Result<(), TestError> {
+    let findings = topic_research_quarantine_set().join("findings");
+    assert_eq!(
+        highest_round(&findings, false)?,
+        3,
+        "the .invalid marker stamps round 3 and is visible when not excluded"
+    );
+    assert_eq!(
+        highest_round(&findings, true)?,
+        2,
+        "excluding the .invalid marker, the highest retained round is 2"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manifest_at_the_complete_lifecycle_end_validates() -> Result<(), TestError>
+{
+    let content = fs::read_to_string(topic_research_set().join("manifest.md"))?;
+    let complete =
+        content.replace("status: \"synthesised\"", "status: \"complete\"");
+    let output = validate_content("topic-status-complete", &complete)?;
     assert!(output.status.success(), "{}", stderr(&output));
     Ok(())
 }
