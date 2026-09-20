@@ -5,7 +5,7 @@ title: "Help Should Show Subcommands"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "medium"
 parent: "work-item:0276"
@@ -21,7 +21,7 @@ external_id: "PP-788"
 # 0258: Help Should Show Subcommands
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
