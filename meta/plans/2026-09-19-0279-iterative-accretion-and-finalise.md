@@ -552,9 +552,9 @@ manifest edit.
 
 #### Automated Verification
 
-- [ ] Multi-round fixture golden still passes: `cargo test -p accelerator-corpus --test frontmatter_goldens`
-- [ ] Skill-permission census passes: `mise run lint:skill-permissions:check`
-- [ ] Full read-only check passes: `mise run check`
+- [x] Multi-round fixture golden still passes: `cargo test -p accelerator-corpus --test frontmatter_goldens`
+- [x] Skill-permission census passes: `mise run lint:skill-permissions:check`
+- [x] Full read-only check passes: `mise run check`
 
 #### Manual Verification
 
