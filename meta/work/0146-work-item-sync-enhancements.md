@@ -236,9 +236,10 @@ Resolved during refinement (2026-08-30):
   ceilings with truncation-to-hard-error, dedup + stable ordering).
 - 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
   boundary).
-- 0292 — Linear `project` pull filter (splits 0229's shared filter schema
-  per-tracker; adds a Linear-only `project` filter lowering to `IssueFilter`
-  `project.name`).
+- 0292 — Linear pull filters via catalogue-resolved ids (splits 0229's shared
+  filter schema per-tracker; adds a Linear `project` filter and converts
+  `label` / `assignee` to catalogue-resolved ids, lowering to `project.id`,
+  `labels.id`, and `assignee.id` so every Linear filter is id-keyed).
 - 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
   promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
   lowering, bounded to set-membership negation as Linear has no top-level `not`).
