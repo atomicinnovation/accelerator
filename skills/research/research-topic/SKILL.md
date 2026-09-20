@@ -41,12 +41,12 @@ verb writes the documents they shape.
 ## Synthesis template
 !`accelerator config template topic-research --kind synthesis --fail-safe`
 
-You are the engine for single-round topic research. The user invokes you with
+You are the engine for iterative topic research. The user invokes you with
 one verb and an argument. Dispatch on the verb: `brief SUBJECT`, `outline
 SLUG`, `conduct SLUG`, or `synthesise SLUG`.
 
-The research is bounded: **breadth is 8** (at most eight focus areas, ever) and
-**depth is 1** (one researcher per focus area, no recursion).
+The research is bounded: **breadth is 8** (at most eight focus areas per round)
+and **depth is 1** (one researcher per focus area, no recursion).
 
 ## Shared Preamble
 
@@ -64,7 +64,8 @@ Then assert the verb's precondition before mutating anything, so an
 out-of-order invocation cannot jump the `briefed → outlined → researching →
 synthesised` state machine:
 
-- `outline` requires the manifest's `status: briefed`.
+- `outline` requires the manifest's `status: briefed`, `outlined`, or
+  `researching`.
 - `conduct` requires the manifest's `status: outlined` or `researching`, and
   an `outline.md` with at least one focus area.
 - `synthesise` requires at least one finding under `findings/`.
@@ -108,14 +109,34 @@ Validate both documents (see **Validate every write** below).
 
 ### outline — effort-scaled focus areas under the breadth ceiling
 
-Write `outline.md` with a `## Round 1` checklist of focus areas. Scale the
-effort to the subject: one focus area for a simple question, two to four for a
-comparison, more for a broad subject — but **emit at most 8 focus areas,
-regardless**. The breadth ceiling of 8 overrides the rubric; never write a
-ninth.
+Determine whether the highest `## Round N` has been conducted by reading the
+`round:` frontmatter stamp on each **retained, validated** finding —
+finding-existence is ground truth, never the outline checkbox (a checkbox can
+lie after a reopen or a hand edit), and a dot-prefixed `.invalid` quarantine
+marker does not count as a conducted finding:
 
-Write and validate `outline.md`, then edit `manifest.md` to base `status:
-outlined` as the final step.
+- On a `briefed` set there is no `outline.md` yet: write a fresh `## Round 1`
+  checklist. There is nothing to append to or revise.
+- If at least one retained, validated finding on disk is stamped `round: N` (a
+  conducted round), append a new `## Round N+1` checklist of outstanding focus
+  areas below it — even if Round N still has unresearched focus areas, since a
+  later gap-fill `conduct` sweeps stragglers across all rounds. Leave every
+  earlier round's heading and items unchanged.
+- If no finding is stamped `round: N` (a pending round not yet conducted),
+  revise that round's checklist in place. Append no new round — never append
+  past the highest pending round.
+
+Report the outcome taken — `wrote Round 1`, `appended Round N+1`, or `revised
+Round N in place` — so the branch that fired is observable from the invocation.
+
+Scale each round's focus areas to the subject under the breadth ceiling of 8 —
+never write a ninth focus area in a single round. The ceiling is per round, so
+an accreting set may exceed eight focus areas across rounds.
+
+Write and validate `outline.md` first, then edit `manifest.md` as the final
+step. Status on the final manifest edit: `briefed → outlined` on the first
+outline; otherwise leave `status` unchanged (`outlined` stays `outlined`,
+`researching` stays `researching`). `outline` never advances `round_count`.
 
 ### conduct — one round, one researcher per focus area
 

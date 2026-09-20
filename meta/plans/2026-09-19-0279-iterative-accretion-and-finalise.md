@@ -466,10 +466,10 @@ so the ceiling is unambiguous once rounds accrete. Leave depth 1 unchanged
 
 #### Automated Verification
 
-- [ ] Skill-permission census passes: `mise run lint:skill-permissions:check`
-- [ ] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
-- [ ] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
-- [ ] Full read-only check passes: `mise run check`
+- [x] Skill-permission census passes: `mise run lint:skill-permissions:check`
+- [x] Bare-invocation guard passes: `mise run lint:bare-invocation:check`
+- [x] Skill `!`-site commands still bootstrap: `mise run test:integration:skill-invocation`
+- [x] Full read-only check passes: `mise run check`
 
 #### Manual Verification
 
