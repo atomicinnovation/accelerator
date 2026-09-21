@@ -699,17 +699,21 @@ def power_state(
     diagnostic_runner: Callable[[Sequence[str]], str],
     probes: Sequence[Sequence[str]],
 ) -> dict[str, str]:
-    """Record each power probe's output, or `unknown` where it is absent.
+    """Record each power probe's reading, or name a source that returned none.
 
-    Additive so one harness runs on both OSes. Driven by the diagnostic runner,
-    never the measurement one, whose farm holds only the variants' own tools.
+    Additive so one harness runs on both OSes, and driven by the diagnostic
+    runner rather than the measurement one, whose farm holds only the variants'
+    own tools. A probe that is absent, denied, or silent records `no reading
+    from <argv>` rather than a bare `unknown`, so the record names what it
+    tried on a host that exposes no such source.
     """
     state = {}
     for probe in probes:
         try:
-            state[probe[0]] = diagnostic_runner(probe)
+            reading = diagnostic_runner(probe).strip()
         except FileNotFoundError, PermissionError:
-            state[probe[0]] = "unknown"
+            reading = ""
+        state[probe[0]] = reading or f"no reading from {' '.join(probe)}"
     return state
 
 
@@ -782,12 +786,17 @@ class Calibration:
     differ materially in shell startup and digest implementation, so without
     this one would be judged by the other's numbers while reporting as
     calibrated.
+
+    `libc` is pure provenance, not an exact-match field: `chip` and `shasum`
+    are compared against the host and would demote a verdict on any mismatch,
+    but the libc identity has no host-observed counterpart to compare against.
     """
 
     session: str
     chip: str
     bash: str | None
     shasum: str | None
+    libc: str | None = None
 
 
 @dataclass(frozen=True)

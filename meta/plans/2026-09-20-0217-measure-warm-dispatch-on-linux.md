@@ -407,9 +407,9 @@ that the keys exist.
 
 #### Automated Verification
 
-- [ ] The Python component is clean: `mise run build-system:check`
-- [ ] The unit suite passes: `mise run test:unit:tasks`
-- [ ] New unit tests pass (single-file runner):
+- [x] The Python component is clean: `mise run build-system:check`
+- [x] The unit suite passes: `mise run test:unit:tasks`
+- [x] New unit tests pass (single-file runner):
       `uv run pytest tests/unit/tasks/test_measure.py`
   - `classify_cell` with `interval=None` and an `accepted_by` reason returns a
     `NOT_APPLICABLE` outcome carrying that reason.
@@ -451,19 +451,19 @@ that the keys exist.
     returns its brand string verbatim (the `lscpu` parse is a separate branch).
   - `unconfirmed_calibration_fields` ignores `libc`: a recorded `libc` never
     marks an otherwise-matching entry uncalibrated.
-- [ ] Existing tests are migrated, not merely added to:
+- [x] Existing tests are migrated, not merely added to:
       `test_a_host_without_shasum_makes_the_fallback_cells_inapplicable` is
       inverted to the `fallback_available=False` no-raise semantics, the other
       `assert_backends` call sites rely on the `=True` default, and
       `test_an_absent_probe_yields_unknown_rather_than_propagating` moves to the
       source-naming string.
-- [ ] Darwin behaviour is unchanged: with both backends present, all six cells
+- [x] Darwin behaviour is unchanged: with both backends present, all six cells
       are still measured, `assert_backends` still asserts both directions, and
       C3/C4/C6 carry `accepted_by is None`.
 
 #### Manual Verification
 
-- [ ] The graceful-degradation path reads as a modelled host property
+- [x] The graceful-degradation path reads as a modelled host property
       (fallback-backend availability), not as scattered conditionals, and adds no
       explanatory comments.
 

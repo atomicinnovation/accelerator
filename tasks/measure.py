@@ -208,6 +208,7 @@ _CACHED_ENTRY_PREFIXES = (
 SHA256_HEX_LENGTH = 64
 FAST_BACKEND = "sha256sum"
 FALLBACK_BACKEND = "shasum"
+FALLBACK_ABSENT_REASON = "no fallback digest backend on this host"
 
 
 def criterion_constants() -> dict[str, float]:
@@ -873,11 +874,20 @@ def classify_cell(
     sizing_feasible: bool,
     applicable: bool,
     budget_spent: bool,
+    accepted_by: str | None = None,
 ) -> CellOutcome:
-    """Classify one cell, or mark it not applicable when it has no interval."""
+    """Classify one cell, or mark it not applicable when it has no interval.
+
+    A not-applicable cell carries `accepted_by` when its absence is an accepted
+    host property rather than an unexplained gap, so a gating cell can close on
+    it.
+    """
     if interval is None or not applicable:
         return CellOutcome(
-            cell.name, gates=cell.gates, branch=Branch.NOT_APPLICABLE
+            cell.name,
+            gates=cell.gates,
+            branch=Branch.NOT_APPLICABLE,
+            accepted_by=accepted_by,
         )
     branch = classify(
         cell_kind=cell.kind,
@@ -1275,6 +1285,17 @@ class Rig:
     variants: dict[Variant, list[str]]
     environments: dict[Variant, dict[str, str]]
     expected_reason: str
+    fallback_available: bool = True
+
+
+def fallback_backend_available() -> bool:
+    """Report whether the fallback digest backend resolves on PATH.
+
+    A host without it records C3, C4 and C6 as not applicable rather than
+    aborting session setup, so its availability is a property the rig carries
+    into every downstream stage.
+    """
+    return shutil.which(FALLBACK_BACKEND) is not None
 
 
 def build_rig(
@@ -1317,12 +1338,21 @@ def build_rig(
 
     guard = recover_baseline(scratch, runner=raw_diagnostic_runner)
     create_fixture(fixture, runner=session.diagnostics)
-    build_farm(fast_farm, tools, include_fast_backend=True)
-    build_farm(fallback_farm, tools, include_fast_backend=False)
+    fallback_available = fallback_backend_available()
+    farm_tools = (
+        tools
+        if fallback_available
+        else tuple(tool for tool in tools if tool != FALLBACK_BACKEND)
+    )
+    build_farm(fast_farm, farm_tools, include_fast_backend=True)
+    if fallback_available:
+        build_farm(fallback_farm, farm_tools, include_fast_backend=False)
     floor_script.write_text("#!/usr/bin/env bash\nexit 0\n")
     floor_script.chmod(0o755)
     marker.write_text(f"pid={os.getpid()}\n")
-    assert_backends(fast_farm, fallback_farm)
+    assert_backends(
+        fast_farm, fallback_farm, fallback_available=fallback_available
+    )
 
     dispatch = [
         str(plugin_root / "bin/accelerator"),
@@ -1366,6 +1396,7 @@ def build_rig(
         variants=variants,
         environments=environments,
         expected_reason=reason,
+        fallback_available=fallback_available,
     )
 
 
@@ -1695,13 +1726,21 @@ def run_session(
         record["floors_post"] = gate_floors(entry, rig, runner, when="post")
         record["dispersion"] = dispersion(samples)
         record["terms"] = close_the_budget(
-            plugin_root, rig, runner, samples=samples, floors=floors_pre
+            plugin_root,
+            rig,
+            runner,
+            samples=samples,
+            floors=floors_pre,
+            expected_libc=(
+                entry.calibration.libc if entry.calibration else None
+            ),
         )
         outcomes, analysis = analyse(
             entry,
             samples,
             floors=floors_pre,
             elapsed=time.perf_counter() - started,
+            fallback_available=rig.fallback_available,
         )
         record["analysis"] = analysis
         record["cells"] = [asdict(outcome) for outcome in outcomes]
@@ -1881,6 +1920,40 @@ def assemble_terms_report(
     }
 
 
+def assert_throughput_recorded(
+    asset_bytes: int | None,
+    terms: Mapping[str, object],
+    triple: str,
+    *,
+    expected_libc: str | None,
+) -> None:
+    """Refuse a session that would drop the sha256 throughput figure.
+
+    A cross-target build that compiles but runs no test exits 0 with neither
+    `asset_bytes` nor a `verifier::sha256_hex` term, and a forgotten
+    `CARGO_BUILD_TARGET` builds the guest's default libc while the entry labels
+    the figure `musl` — both persist a valid-looking record that discharges
+    nothing.
+    """
+    if asset_bytes is None:
+        raise PreconditionFailureError(
+            "the term harness recorded no asset_bytes, so the sha256 "
+            "throughput cannot be derived — the cross-target build compiled "
+            "but ran no test"
+        )
+    if "verifier::sha256_hex" not in terms:
+        raise PreconditionFailureError(
+            "the term harness recorded no verifier::sha256_hex term, so the "
+            "sha256 throughput cannot be derived"
+        )
+    if expected_libc == "musl" and not triple.endswith("-linux-musl"):
+        raise PreconditionFailureError(
+            f"the build target {triple!r} is not a musl triple, but the "
+            f"entry records libc=musl — set CARGO_BUILD_TARGET so the figure "
+            f"is not a mislabelled build"
+        )
+
+
 def close_the_budget(
     plugin_root: Path,
     rig: Rig,
@@ -1888,6 +1961,7 @@ def close_the_budget(
     *,
     samples: Mapping[Variant, Sequence[float]],
     floors: Mapping[str, object],
+    expected_libc: str | None = None,
 ) -> dict[str, object]:
     """Re-measure every warm-path term in-session and report the residual.
 
@@ -1898,6 +1972,14 @@ def close_the_budget(
     """
     version = plugin_version(plugin_root)
     launcher_terms = decompose_terms(plugin_root, version=version)
+    assert_throughput_recorded(
+        launcher_terms.asset_bytes,
+        launcher_terms.terms,
+        build_target_triple(
+            rig.session.diagnostics, env=rig.session.host.env()
+        ),
+        expected_libc=expected_libc,
+    )
     true_floor, bash_floor = last_floors(floors)
     shell_terms, backend_check = measure_shell_terms(
         plugin_root,
@@ -1942,11 +2024,13 @@ def measure_shell_terms(
     version: str,
     bash_floor: float,
     true_floor: float,
-) -> tuple[dict[str, Interval], dict[str, object]]:
+) -> tuple[dict[str, Interval], dict[str, object] | None]:
     """Measure the terms that live outside the launcher's library surface.
 
     Each process launch is a marginal over the fork floor, so the terms compose
-    against a dispatch that pays that floor once per exec.
+    against a dispatch that pays that floor once per exec. A fallback-absent
+    host never builds the fallback farm, so the fallback digest bracket and its
+    cross-check are omitted rather than measured.
     """
     cache_root = plugin_root / "bin"
     targets = staged_shim_targets(plugin_root)
@@ -2001,6 +2085,8 @@ def measure_shell_terms(
                 floor=true_floor,
             )
         )
+    if not rig.fallback_available:
+        return (terms, None)
     fallback_digest_ms = measure_digest_bracket(
         runner,
         farm=rig.fallback_farm,
@@ -2079,6 +2165,7 @@ def analyse(
     *,
     floors: Mapping[str, object],
     elapsed: float,
+    fallback_available: bool = True,
 ) -> tuple[list[CellOutcome], dict[str, object]]:
     """Compute every cell's interval, classify it, and record the diagnostics.
 
@@ -2086,11 +2173,16 @@ def analyse(
     `true`-floor-subtracted point estimate is the robustness check, and the
     bash-floor-subtracted ratio is diagnostic only because it over-subtracts —
     bash startup is real cost the dispatched variant pays.
+
+    A cell with no interval on a fallback-absent host with a populated fast arm
+    is an accepted degradation rather than an unexplained gap, so it carries an
+    acceptance reason that lets a gating cell close on it.
     """
     rng = random.Random(SEED)  # noqa: S311 — statistical resampling, not a security context
     baseline = list(samples[Variant.BASELINE])
     fast = list(samples[Variant.FAST])
     fallback = list(samples[Variant.FALLBACK])
+    fast_arm_populated = bool(fast)
     true_floor, bash_floor = last_floors(floors)
 
     intervals: dict[str, Interval | None] = {
@@ -2166,6 +2258,13 @@ def analyse(
             sizing_feasible=True,
             applicable=interval is not None,
             budget_spent=elapsed >= WALL_CLOCK_BUDGET_S,
+            accepted_by=(
+                FALLBACK_ABSENT_REASON
+                if interval is None
+                and not fallback_available
+                and fast_arm_populated
+                else None
+            ),
         )
         outcomes.append(outcome)
         _report_cell(cell, interval, outcome)
@@ -2211,17 +2310,23 @@ def _report_cell(
     )
 
 
-def assert_backends(fast_farm: Path, fallback_farm: Path) -> None:
+def assert_backends(
+    fast_farm: Path, fallback_farm: Path, *, fallback_available: bool = True
+) -> None:
     """Assert both farms in both directions before sampling either block.
 
     A fast farm missing its backend link would silently measure the fallback
-    one under the cells gated on the fast backend.
+    one under the cells gated on the fast backend. When no fallback backend is
+    expected, only the fast direction is asserted; the fallback farm is not
+    built, so its absence is the intended degradation, not a defect.
     """
     if not (fast_farm / FAST_BACKEND).exists():
         raise PreconditionFailureError(
             f"the fast farm resolves no {FAST_BACKEND} — C1, C2 and C5 would "
             f"be measured against the fallback backend"
         )
+    if not fallback_available:
+        return
     if (fallback_farm / FAST_BACKEND).exists():
         raise PreconditionFailureError(
             f"the fallback farm resolves {FAST_BACKEND} — it is not the "
@@ -2260,7 +2365,9 @@ def sample_blocks(
     schedule = [
         sample
         for sample in schedule
-        if sample.pilot == pilot and sample.block in blocks
+        if sample.pilot == pilot
+        and sample.block in blocks
+        and (rig.fallback_available or sample.variant is not Variant.FALLBACK)
     ]
     observed: dict[Variant, list[float]] = {variant: [] for variant in Variant}
     pending: dict[Variant, str] = {}
@@ -2490,21 +2597,124 @@ def budget_closes(
 def observed_chip(diagnostics: DiagnosticRunner) -> str:
     """Read the chip's brand string, not `platform.processor()`.
 
-    On darwin that returns `"arm"`, which no calibration provenance can
-    meaningfully agree or disagree with: floors are calibrated per chip
-    generation, and only the brand string carries that distinction.
+    On darwin `platform.processor()` returns `"arm"`, which no calibration
+    provenance can meaningfully agree or disagree with: floors are calibrated
+    per chip generation, and only the brand string carries that distinction. On
+    linux `lscpu -J` reports the brand under a "Model name" field, so its first
+    line is the literal `{`; the JSON is parsed rather than read line one, or no
+    recorded chip could ever match it.
     """
-    for argv in (
-        ["sysctl", "-n", "machdep.cpu.brand_string"],
-        ["lscpu", "-J"],
-    ):
+    try:
+        brand = diagnostics(
+            ["sysctl", "-n", "machdep.cpu.brand_string"]
+        ).strip()
+    except FileNotFoundError, PermissionError:
+        brand = ""
+    if brand:
+        return brand.splitlines()[0]
+    for argv in (["lscpu", "-J"], ["lscpu"]):
         try:
-            observed = diagnostics(argv).strip()
+            model = _lscpu_model_name(diagnostics(argv).strip())
         except FileNotFoundError, PermissionError:
             continue
-        if observed:
-            return observed.splitlines()[0]
+        if model:
+            return model
     return platform.processor() or platform.machine()
+
+
+def _lscpu_model_name(output: str) -> str:
+    """Pull the CPU brand from `lscpu -J` JSON or a plain `lscpu` listing."""
+    if output.startswith("{"):
+        try:
+            return _model_name_from_lscpu_json(json.loads(output))
+        except json.JSONDecodeError:
+            return ""
+    for line in output.splitlines():
+        field, separator, value = line.partition(":")
+        if separator and field.strip() == "Model name":
+            return value.strip()
+    return ""
+
+
+def _model_name_from_lscpu_json(payload: object) -> str:
+    """Find the "Model name" field's data anywhere in the `lscpu -J` tree.
+
+    `lscpu` nests the brand under the vendor's children on some releases and
+    reports it at the top level on others, so the whole tree is walked.
+    """
+    if isinstance(payload, dict):
+        field = payload.get("field")
+        if isinstance(field, str) and field.rstrip(":").strip() == "Model name":
+            data = payload.get("data")
+            return data.strip() if isinstance(data, str) else ""
+        candidates: list[object] = list(payload.values())
+    elif isinstance(payload, list):
+        candidates = list(payload)
+    else:
+        return ""
+    for child in candidates:
+        found = _model_name_from_lscpu_json(child)
+        if found:
+            return found
+    return ""
+
+
+CARGO_BUILD_TARGET_ENV = "CARGO_BUILD_TARGET"
+MUSL_LINKER_ENV = "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"
+MUSL_RUNNER_ENV = "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER"
+
+
+def build_target_triple(
+    diagnostics: DiagnosticRunner, *, env: Mapping[str, str]
+) -> str:
+    """Report the triple cargo builds for, honouring `CARGO_BUILD_TARGET`.
+
+    The same override `decompose_terms` inherits, so the recorded triple is the
+    one the throughput figure was actually built for.
+    """
+    override = env.get(CARGO_BUILD_TARGET_ENV)
+    if override:
+        return override
+    try:
+        report = diagnostics(["rustc", "-vV"])
+    except FileNotFoundError, PermissionError:
+        return "unknown"
+    for line in report.splitlines():
+        if line.startswith("host:"):
+            return line.split(":", 1)[1].strip()
+    return "unknown"
+
+
+def _tool_line(diagnostics: DiagnosticRunner, argv: Sequence[str]) -> str:
+    try:
+        output = diagnostics(argv)
+    except FileNotFoundError, PermissionError:
+        return "unknown"
+    return output.splitlines()[0] if output.strip() else "unknown"
+
+
+def build_provenance(
+    diagnostics: DiagnosticRunner, *, env: Mapping[str, str]
+) -> dict[str, str]:
+    """Record the build toolchain the cross-target throughput figure rests on.
+
+    Probed through the diagnostic runner and the ambient environment so a
+    committed record can reconstruct how the artefact was built. A tool absent
+    from this host records `unknown`, since most are provisioned only on the
+    linux guest.
+    """
+    linker = env.get(MUSL_LINKER_ENV) or "musl-gcc"
+    return {
+        "target_triple": build_target_triple(diagnostics, env=env),
+        "cargo": _tool_line(diagnostics, ["cargo", "--version"]),
+        "rustc": _tool_line(diagnostics, ["rustc", "--version"]),
+        "musl_linker": _tool_line(diagnostics, [linker, "--version"]),
+        "cross_target_runner": env.get(MUSL_RUNNER_ENV, ""),
+        "musl_tools": _tool_line(
+            diagnostics, ["dpkg-query", "-W", "-f=${Version}", "musl-tools"]
+        ),
+        "mise": _tool_line(diagnostics, ["mise", "--version"]),
+    }
 
 
 def record_provenance(
@@ -2520,6 +2730,7 @@ def record_provenance(
     provenance: dict[str, object] = {
         "quietness": quietness_record,
         "tools": tools,
+        "build": build_provenance(session.diagnostics, env=session.host.env()),
         "interpreter": {
             "executable": sys.executable,
             "version": sys.version,
@@ -2801,10 +3012,16 @@ def tool_provenance(
 
     Re-probed through the farm rather than trusted from the pre-build probe: a
     mise shim re-resolves its version from the config found at the cwd, and the
-    sampling cwd is outside every mise config.
+    sampling cwd is outside every mise config. A fallback-absent host never
+    builds the fallback farm, so an absent farm records an empty set rather than
+    aborting.
     """
-    record = {}
-    for link in sorted(farm.iterdir()):
+    record: dict[str, dict[str, str]] = {}
+    try:
+        links = sorted(farm.iterdir())
+    except FileNotFoundError:
+        return record
+    for link in links:
         try:
             version = diagnostics([str(link), "--version"])
         except FileNotFoundError, PermissionError, subprocess.SubprocessError:

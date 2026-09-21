@@ -14,6 +14,7 @@ import re
 import shutil
 import signal
 import subprocess
+import time
 from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
@@ -24,6 +25,7 @@ import pytest
 from tasks.measure import (
     BASELINE_COMMIT,
     CACHE_TEMP_PREFIX,
+    FALLBACK_ABSENT_REASON,
     FALLBACK_BACKEND,
     FAST_BACKEND,
     FLOOR_RETRY_CAP,
@@ -42,30 +44,39 @@ from tasks.measure import (
     PreconditionFailureError,
     RunResult,
     StaleManifestError,
+    analyse,
     assemble_terms_report,
     assert_backends,
+    assert_throughput_recorded,
     backend_delta_check,
     build_farm,
+    build_provenance,
+    build_target_triple,
     calibration_note,
     cells_for,
     classify_cell,
     create_fixture,
     criterion_constants,
     digest_backend_population,
+    fallback_backend_available,
     farm_environment,
     gate_floors,
     jj_pin,
     last_floors,
     measure_digest_bracket,
     measure_floors,
+    measure_shell_terms,
     next_record_paths,
+    observed_chip,
     parse_asset_bytes,
     parse_term_report,
     plugin_version,
     prime_cache,
     recover_baseline,
     recovery_argv,
+    sample_blocks,
     staged_shim_targets,
+    tool_provenance,
     unwind_signals,
     warm_cache_gaps,
 )
@@ -118,6 +129,7 @@ from tasks.shared.measurement import (
     thirds,
     tmp_containment,
     unchanged_artefacts,
+    unconfirmed_calibration_fields,
     unpaired_interval,
     unpaired_ratio_interval,
     validate_sample,
@@ -959,18 +971,95 @@ class TestResolveCpuCount:
 
 
 class TestPowerState:
-    def test_a_resolving_probe_is_recorded_verbatim(self):
+    def test_a_resolving_probe_is_recorded_stripped(self):
         probes = [["pmset", "-g", "ps"]]
-        state = power_state(lambda argv: f"output of {argv[0]}", probes)
+        state = power_state(lambda argv: f"  output of {argv[0]}\n", probes)
         assert state == {"pmset": "output of pmset"}
 
-    def test_an_absent_probe_yields_unknown_rather_than_propagating(self):
+    def test_an_absent_probe_names_the_source_rather_than_propagating(self):
         def runner(argv):
             raise FileNotFoundError(argv[0])
 
         assert power_state(runner, [["pmset", "-g", "ps"]]) == {
-            "pmset": "unknown"
+            "pmset": "no reading from pmset -g ps"
         }
+
+    def test_a_denied_probe_names_the_source_too(self):
+        def runner(argv):
+            raise PermissionError(argv[0])
+
+        assert power_state(runner, [["cat", "/sys/class/power_supply/AC"]]) == {
+            "cat": "no reading from cat /sys/class/power_supply/AC"
+        }
+
+    def test_a_silent_probe_names_the_source_it_probed(self):
+        assert power_state(lambda argv: "  \n", [["cat", "/sys/x"]]) == {
+            "cat": "no reading from cat /sys/x"
+        }
+
+
+class TestObservedChip:
+    """The brand string, parsed rather than read off line one.
+
+    `lscpu -J` reports the brand under a "Model name" field, so its first line
+    is the literal `{` — which no recorded chip could ever match, so the
+    `calibrated` note could never hold on linux.
+    """
+
+    LSCPU_JSON = json.dumps(
+        {
+            "lscpu": [
+                {"field": "Architecture:", "data": "aarch64"},
+                {
+                    "field": "Vendor ID:",
+                    "data": "ARM",
+                    "children": [
+                        {
+                            "field": "Model name:",
+                            "data": "Neoverse-N1",
+                            "children": [{"field": "Model:", "data": "1"}],
+                        }
+                    ],
+                },
+            ]
+        }
+    )
+    LSCPU_PLAIN = (
+        "Architecture:        aarch64\n"
+        "Model name:          Neoverse-N1\n"
+        "BogoMIPS:            50.00\n"
+    )
+
+    def diagnostics(self, *, sysctl="", lscpu_json="", lscpu_plain=""):
+        def runner(argv):
+            key = tuple(argv)
+            if key == ("sysctl", "-n", "machdep.cpu.brand_string"):
+                if sysctl is None:
+                    raise FileNotFoundError("sysctl")
+                return sysctl
+            if key == ("lscpu", "-J"):
+                return lscpu_json
+            if key == ("lscpu",):
+                return lscpu_plain
+            raise FileNotFoundError(argv[0])
+
+        return runner
+
+    def test_it_parses_the_brand_from_lscpu_json_not_its_first_line(self):
+        chip = observed_chip(
+            self.diagnostics(sysctl=None, lscpu_json=self.LSCPU_JSON)
+        )
+        assert chip == "Neoverse-N1"
+
+    def test_it_falls_back_to_the_plain_lscpu_model_name_line(self):
+        chip = observed_chip(
+            self.diagnostics(sysctl="", lscpu_plain=self.LSCPU_PLAIN)
+        )
+        assert chip == "Neoverse-N1"
+
+    def test_the_darwin_sysctl_branch_returns_its_brand_verbatim(self):
+        chip = observed_chip(self.diagnostics(sysctl="Apple M4 Max\n"))
+        assert chip == "Apple M4 Max"
 
 
 class TestPilotSizing:
@@ -1567,6 +1656,20 @@ class TestFarmConstruction:
         assert not accelerator_override_keys(env)
 
 
+class TestFallbackBackendAvailability:
+    def test_it_reports_true_when_the_backend_resolves(self, monkeypatch):
+        monkeypatch.setattr(shutil, "which", lambda tool: f"/usr/bin/{tool}")
+        assert fallback_backend_available()
+
+    def test_it_reports_false_when_the_backend_is_absent(self, monkeypatch):
+        monkeypatch.setattr(
+            shutil,
+            "which",
+            lambda tool: None if tool == FALLBACK_BACKEND else f"/bin/{tool}",
+        )
+        assert not fallback_backend_available()
+
+
 class TestBackendAssertions:
     def farms(
         self,
@@ -1610,7 +1713,7 @@ class TestBackendAssertions:
         with pytest.raises(PreconditionFailureError, match="not the"):
             assert_backends(fast, fallback)
 
-    def test_a_host_without_shasum_makes_the_fallback_cells_inapplicable(
+    def test_a_missing_shasum_is_refused_when_the_fallback_is_expected(
         self, tmp_path
     ):
         fast, fallback = self.farms(
@@ -1621,6 +1724,144 @@ class TestBackendAssertions:
         )
         with pytest.raises(PreconditionFailureError, match="branch 7"):
             assert_backends(fast, fallback)
+
+    def test_an_absent_fallback_backend_is_tolerated_not_refused(
+        self, tmp_path
+    ):
+        fast, fallback = self.farms(
+            tmp_path,
+            fast_has_backend=True,
+            fallback_has_backend=False,
+            fallback_has_shasum=False,
+        )
+        assert_backends(fast, fallback, fallback_available=False)
+
+    def test_the_fast_backend_is_still_asserted_when_the_fallback_is_absent(
+        self, tmp_path
+    ):
+        fast, fallback = self.farms(
+            tmp_path,
+            fast_has_backend=False,
+            fallback_has_backend=False,
+            fallback_has_shasum=False,
+        )
+        with pytest.raises(
+            PreconditionFailureError, match="fast farm resolves no"
+        ):
+            assert_backends(fast, fallback, fallback_available=False)
+
+
+class TestAnalyseFallbackDegradation:
+    """C3/C4/C6 are accepted, not merely absent, on a fallback-absent host.
+
+    The acceptance reason is bound to a cell with no interval on a host with no
+    fallback backend and a populated fast arm, so it reaches exactly the three
+    fallback cells and never relabels an unexpectedly empty fast arm.
+    """
+
+    def entry(self):
+        return PLATFORM_TABLE[("Darwin", "arm64")]
+
+    def floors(self):
+        return {"attempts": [{"bash_ms": 4.0, "true_ms": 1.3}]}
+
+    def samples(self, *, baseline, fast, fallback):
+        return {
+            Variant.BASELINE: list(baseline),
+            Variant.FAST: list(fast),
+            Variant.FALLBACK: list(fallback),
+        }
+
+    def run(self, *, fallback_available, baseline, fast, fallback):
+        return analyse(
+            self.entry(),
+            self.samples(baseline=baseline, fast=fast, fallback=fallback),
+            floors=self.floors(),
+            elapsed=1.0,
+            fallback_available=fallback_available,
+        )
+
+    def test_an_absent_fallback_accepts_c3_c4_c6_and_closes(self):
+        outcomes, _ = self.run(
+            fallback_available=False,
+            baseline=[33.0] * 40,
+            fast=[42.0] * 40,
+            fallback=[],
+        )
+        by_cell = {outcome.cell: outcome for outcome in outcomes}
+        for name in ("C3", "C4", "C6"):
+            assert by_cell[name].branch is Branch.NOT_APPLICABLE
+            assert by_cell[name].accepted_by == FALLBACK_ABSENT_REASON
+        for name in ("C1", "C2", "C5"):
+            assert by_cell[name].accepted_by is None
+        assert closure_verdict(outcomes)
+
+    def test_a_present_fallback_attaches_no_reason(self):
+        outcomes, _ = self.run(
+            fallback_available=True,
+            baseline=[33.0] * 40,
+            fast=[42.0] * 40,
+            fallback=[55.0] * 40,
+        )
+        assert all(outcome.accepted_by is None for outcome in outcomes)
+
+    def test_an_empty_fast_arm_is_not_relabelled_as_a_degradation(self):
+        outcomes, _ = self.run(
+            fallback_available=False, baseline=[], fast=[], fallback=[]
+        )
+        assert all(outcome.accepted_by is None for outcome in outcomes)
+        assert not closure_verdict(outcomes)
+
+
+class TestSampleBlocksFallbackArm:
+    """The fallback arm is dropped when the host has no fallback backend.
+
+    Driven through the injected runner and a fake rig, so the schedule filter
+    is exercised without a live dispatch.
+    """
+
+    def rig(self, *, fallback_available):
+        dispatch = ["dispatch"]
+        return SimpleNamespace(
+            fixture=Path("/dev/null"),
+            variants={
+                Variant.BASELINE: ["baseline"],
+                Variant.FAST: dispatch,
+                Variant.FALLBACK: dispatch,
+            },
+            environments={variant: {} for variant in Variant},
+            expected_reason=BLOCK_REASON,
+            fallback_available=fallback_available,
+        )
+
+    def runner(self, argv, *, cwd, env):
+        del cwd, env
+        return RunResult(
+            stdout=deny_envelope(BLOCK_REASON),
+            stderr="",
+            exit_code=0,
+            elapsed_ms=1.0,
+        )
+
+    def observed(self, *, fallback_available):
+        return sample_blocks(
+            self.rig(fallback_available=fallback_available),
+            self.runner,
+            block_a_pairs=2,
+            block_b_samples=2,
+            blocks="AB",
+            started=time.perf_counter(),
+        )
+
+    def test_an_absent_fallback_backend_empties_the_fallback_arm(self):
+        observed = self.observed(fallback_available=False)
+        assert observed[Variant.FALLBACK] == []
+        assert observed[Variant.FAST]
+
+    def test_a_present_fallback_backend_still_populates_it(self):
+        observed = self.observed(fallback_available=True)
+        assert observed[Variant.FALLBACK]
+        assert observed[Variant.FAST]
 
 
 class TestCellsAndClassification:
@@ -1681,6 +1922,22 @@ class TestCellsAndClassification:
             budget_spent=False,
         )
         assert outcome.branch is Branch.PASS
+
+    def test_a_not_applicable_cell_can_carry_an_acceptance_reason(self):
+        cell = cells_for(self.entry())[2]
+        outcome = classify_cell(
+            cell,
+            None,
+            robustness_ok=None,
+            escalations_used=0,
+            validity=Validity.VALID,
+            sizing_feasible=True,
+            applicable=False,
+            budget_spent=False,
+            accepted_by=FALLBACK_ABSENT_REASON,
+        )
+        assert outcome.branch is Branch.NOT_APPLICABLE
+        assert outcome.accepted_by == FALLBACK_ABSENT_REASON
 
 
 class TestRehearsals:
@@ -1975,6 +2232,106 @@ class TestTermsReport:
         assert set(report["terms"]) == {"cache::find", "bash startup"}
 
 
+class TestBuildProvenance:
+    """The build toolchain the musl throughput figure depends on, recorded.
+
+    Probed through the diagnostic runner and the ambient environment, so the
+    committed record can reconstruct how the cross-target artefact was built.
+    """
+
+    def diagnostics(self, table):
+        def runner(argv):
+            key = tuple(argv)
+            if key in table:
+                return table[key]
+            raise FileNotFoundError(argv[0])
+
+        return runner
+
+    def test_it_records_the_probed_build_toolchain(self):
+        table = {
+            ("rustc", "-vV"): "rustc 1.90.0\nhost: aarch64-apple-darwin\n",
+            ("cargo", "--version"): "cargo 1.90.0 (abcdef)\n",
+            ("rustc", "--version"): "rustc 1.90.0 (abcdef)\n",
+            ("musl-gcc", "--version"): "musl-gcc (GCC) 12.2.0\n",
+        }
+        provenance = build_provenance(self.diagnostics(table), env={})
+        assert provenance["target_triple"] == "aarch64-apple-darwin"
+        assert provenance["cargo"] == "cargo 1.90.0 (abcdef)"
+        assert provenance["rustc"] == "rustc 1.90.0 (abcdef)"
+        assert provenance["musl_linker"] == "musl-gcc (GCC) 12.2.0"
+
+    def test_cargo_build_target_overrides_the_host_triple(self):
+        table = {
+            ("cargo", "--version"): "cargo 1.90.0\n",
+            ("rustc", "--version"): "rustc 1.90.0\n",
+        }
+        triple = build_target_triple(
+            self.diagnostics(table),
+            env={"CARGO_BUILD_TARGET": "aarch64-unknown-linux-musl"},
+        )
+        assert triple == "aarch64-unknown-linux-musl"
+
+    def test_an_absent_tool_records_unknown_rather_than_aborting(self):
+        provenance = build_provenance(self.diagnostics({}), env={})
+        assert provenance["cargo"] == "unknown"
+        assert provenance["target_triple"] == "unknown"
+
+
+class TestThroughputGuard:
+    """The musl throughput figure fails loudly rather than dropping silently.
+
+    A cross-target build that compiles but runs no test persists a valid-
+    looking record with neither figure, and a forgotten `CARGO_BUILD_TARGET`
+    persists a glibc figure the entry labels `musl`.
+    """
+
+    def term(self):
+        return {"verifier::sha256_hex": Interval(1.0, 1.0, 1.0)}
+
+    def test_a_missing_asset_size_is_refused(self):
+        with pytest.raises(PreconditionFailureError, match="asset_bytes"):
+            assert_throughput_recorded(
+                None,
+                self.term(),
+                "aarch64-unknown-linux-musl",
+                expected_libc="musl",
+            )
+
+    def test_a_missing_throughput_term_is_refused(self):
+        with pytest.raises(
+            PreconditionFailureError, match="verifier::sha256_hex"
+        ):
+            assert_throughput_recorded(
+                100,
+                {"cache::find": Interval(1.0, 1.0, 1.0)},
+                "aarch64-unknown-linux-musl",
+                expected_libc="musl",
+            )
+
+    def test_a_non_musl_triple_is_refused_when_musl_is_expected(self):
+        with pytest.raises(PreconditionFailureError, match="musl"):
+            assert_throughput_recorded(
+                100,
+                self.term(),
+                "aarch64-unknown-linux-gnu",
+                expected_libc="musl",
+            )
+
+    def test_a_musl_triple_with_both_figures_passes(self):
+        assert_throughput_recorded(
+            100,
+            self.term(),
+            "aarch64-unknown-linux-musl",
+            expected_libc="musl",
+        )
+
+    def test_a_darwin_run_is_not_held_to_the_musl_triple(self):
+        assert_throughput_recorded(
+            100, self.term(), "aarch64-apple-darwin", expected_libc=None
+        )
+
+
 class TestLastFloors:
     def test_the_final_attempt_is_the_instrument_the_samples_used(self):
         floors = {
@@ -2055,6 +2412,97 @@ class TestFloorGate:
                 temp_root=rig.temp_parent,
                 samples=1,
             )
+
+
+class TestToolProvenanceMissingFarm:
+    """A fallback-absent host never builds the fallback farm.
+
+    Its directory is therefore absent when the provenance is gathered, which is
+    an accepted host property rather than a defect, so an empty tool set is
+    recorded rather than aborting the run.
+    """
+
+    def test_a_missing_farm_records_an_empty_tool_set(self, tmp_path):
+        assert tool_provenance(tmp_path / "absent", lambda argv: "") == {}
+
+    def test_a_built_farm_still_records_its_links(self, tmp_path):
+        farm = tmp_path / "farm"
+        farm.mkdir()
+        (farm / "bash").symlink_to(shutil.which("bash") or "/bin/bash")
+        record = tool_provenance(farm, lambda argv: "GNU bash 5\n")
+        assert set(record) == {"bash"}
+        assert record["bash"]["version"] == "GNU bash 5"
+
+
+class TestMeasureShellTermsFallback:
+    """The fallback digest bracket is omitted on a fallback-absent host.
+
+    Its farm is never built, so measuring it would abort; the cross-check it
+    produces is dropped rather than the run failing.
+    """
+
+    def plugin_root(self, root):
+        (root / "bin").mkdir(parents=True)
+        (root / "bin/accelerator-verify-darwin-arm64").write_text("")
+        return root
+
+    def rig(self, root, *, fallback_available):
+        fast = root / "fast"
+        fallback = root / "fallback"
+        fast.mkdir(parents=True)
+        fallback.mkdir(parents=True)
+        (fast / "bash").write_text("")
+        (fallback / "bash").write_text("")
+        return SimpleNamespace(
+            fast_farm=fast,
+            fallback_farm=fallback,
+            fixture=root,
+            temp_parent=root,
+            fallback_available=fallback_available,
+        )
+
+    def runner(self, seen):
+        def run(argv, *, cwd, env):
+            del cwd
+            seen.append(env["PATH"])
+            empty = argv[-1] == ":"
+            return RunResult(
+                stdout="" if empty else f"{'a' * 64}\n{'b' * 64}\n",
+                stderr="",
+                exit_code=0,
+                elapsed_ms=4.0 if empty else 11.0,
+            )
+
+        return run
+
+    def measure(self, tmp_path, *, fallback_available):
+        seen: list[str] = []
+        rig = self.rig(tmp_path / "rig", fallback_available=fallback_available)
+        terms, backend_check = measure_shell_terms(
+            self.plugin_root(tmp_path / "plugin"),
+            rig,
+            self.runner(seen),
+            version="testver",
+            bash_floor=1.0,
+            true_floor=0.5,
+        )
+        return rig, terms, backend_check, seen
+
+    def test_an_absent_fallback_omits_the_bracket_and_cross_check(
+        self, tmp_path
+    ):
+        rig, _, backend_check, seen = self.measure(
+            tmp_path, fallback_available=False
+        )
+        assert backend_check is None
+        assert str(rig.fallback_farm) not in seen
+
+    def test_a_present_fallback_measures_the_bracket(self, tmp_path):
+        rig, _, backend_check, seen = self.measure(
+            tmp_path, fallback_available=True
+        )
+        assert backend_check is not None
+        assert str(rig.fallback_farm) in seen
 
 
 class TestStagedShimTargets:
@@ -2505,6 +2953,20 @@ class TestUnrecordedCalibration:
         )
         assert "uncalibrated" in note
         assert "bash" in note or "shasum" in note
+
+    def test_a_recorded_libc_is_pure_provenance_and_never_demotes(self):
+        # The libc identity rides in provenance rather than in an exact-match
+        # field, so it cannot make an otherwise-matching host uncalibrated.
+        entry = self.entry(
+            bash="GNU bash, version 5.3.15", shasum="6.02", libc="musl"
+        )
+        observed = {
+            "observed_chip": "Apple M4 Max",
+            "observed_bash": "GNU bash, version 5.3.15",
+            "observed_shasum": "6.02",
+        }
+        assert unconfirmed_calibration_fields(entry, **observed) == []
+        assert calibration_holds(entry, **observed)
 
 
 def stationary_pairs(n: int, seed: int = 11):
