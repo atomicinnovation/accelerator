@@ -18,7 +18,12 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
         ),
         (
             "search",
-            vec![Search::Results.keyword(), Search::Empty.keyword()],
+            vec![
+                Search::Results.keyword(),
+                Search::Empty.keyword(),
+                Search::Truncated.keyword(),
+                Search::CapHit.keyword(),
+            ],
         ),
         ("create", vec![Create::Created.keyword()]),
         ("update", vec![Update::Updated.keyword()]),
@@ -61,7 +66,7 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
         rendered,
         vec![
             "show: found,not-found",
-            "search: results,empty",
+            "search: results,empty,truncated,cap-hit",
             "create: created",
             "update: updated",
             "comment: added,listed,edited,deleted",
@@ -80,6 +85,8 @@ fn every_keyword_is_lower_kebab() {
         Show::NotFound.keyword(),
         Search::Results.keyword(),
         Search::Empty.keyword(),
+        Search::Truncated.keyword(),
+        Search::CapHit.keyword(),
         Create::Created.keyword(),
         Update::Updated.keyword(),
         Comment::Added.keyword(),

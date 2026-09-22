@@ -534,7 +534,7 @@ fn emit_search(
         Completeness::CapHit => {
             print_json(&keywords::with_outcome(
                 envelope,
-                keywords::Search::Truncated.keyword(),
+                keywords::Search::CapHit.keyword(),
             ));
             eprintln!(
                 "E_SEARCH_CAP_HIT: the discovery page cap was reached before \

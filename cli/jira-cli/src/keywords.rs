@@ -56,7 +56,8 @@ keyword_enum!(Show { Found => "found", NotFound => "not-found" });
 keyword_enum!(Search {
     Results => "results",
     Empty => "empty",
-    Truncated => "truncated"
+    Truncated => "truncated",
+    CapHit => "cap-hit"
 });
 keyword_enum!(Create { Created => "created" });
 keyword_enum!(Update { Updated => "updated" });

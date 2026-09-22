@@ -95,7 +95,8 @@ fn search_cap_hit_exits_nonzero_with_the_truncated_envelope() {
         serde_json::from_slice(&output.stdout).expect("one JSON document");
     assert_eq!(
         stdout.get("outcome").and_then(Value::as_str),
-        Some("truncated")
+        Some("cap-hit"),
+        "a cap-hit is its own outcome, distinct from a transient cutoff"
     );
     assert_eq!(
         stdout

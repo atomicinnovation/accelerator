@@ -73,23 +73,24 @@ the skill's `allowed-tools` permission and forces an unnecessary prompt).
 The subcommand echoes the composed JQL to stderr (`INFO: composed JQL: …`) —
 surface this line to the user so they can audit what was sent. It paginates
 internally up to the discovery `max_pages` cap and merges the pages into one
-JSON document with a top-level `outcome` keyword: `results`, `empty`, or
-`truncated`. On `empty`, tell the user no issues matched and suggest broadening
-the filters.
+JSON document with a top-level `outcome` keyword. Branch on it:
 
-Branch on the exit code, not just the outcome:
+- **`results`** — render them (Step 4).
+- **`empty`** — tell the user no issues matched and suggest broadening the
+  filters.
+- **`cap-hit`** — the search reached the discovery `max_pages` cap before
+  exhausting the results, so they are a lower bound. The envelope carries
+  `truncated: true` plus a resume `nextPageToken`. Tell the user the results
+  are incomplete and that they can raise `jira.pull.max_pages` (or its
+  `discovery` override), set it to `unlimited`, or resume from the token with
+  `--page-token`. This is **not** a credential failure — do not suggest
+  `/init-jira`.
+- **`truncated`** — a transient cutoff (a deadline or wire cutoff), not a
+  cap-hit; the results are a lower bound, so suggest retrying.
 
-- **79** (`E_SEARCH_CAP_HIT`) — the search reached the discovery `max_pages` cap
-  before exhausting the results, so they are a lower bound. The `outcome` is
-  `truncated` and the envelope carries `truncated: true` plus a resume
-  `nextPageToken`. Tell the user the results are incomplete and that they can
-  raise `jira.pull.max_pages` (or its `discovery` override), set it to
-  `unlimited`, or resume from the token with `--page-token`. This is **not** a
-  credential failure — do not suggest `/init-jira`.
-- **Any other non-zero exit** — a credential or site failure names an `E_*`
-  cause on stderr; show it and suggest checking credentials with `/init-jira`.
-- **`truncated` at exit 0** — a transient cutoff (a deadline or wire cutoff),
-  not a cap-hit; the results are a lower bound, so suggest retrying.
+When stdout carries no JSON document, the search failed: a credential or site
+failure names an `E_*` cause on stderr; show it and suggest checking
+credentials with `/init-jira`.
 
 ## Step 4: Render the results
 
@@ -99,8 +100,8 @@ Parse the JSON response. Render a brief Markdown table with the columns:
 `.fields.assignee.displayName` (show `—` for an unassigned issue). Truncate
 summaries longer than 60 characters with `…`.
 
-A `nextPageToken` appears only on a cap-hit `truncated` result (exit 79), where
-it is the resume cursor. Note it prominently:
+On a `cap-hit` result the `nextPageToken` is the resume cursor. Note it
+prominently:
 
 > The results are incomplete — the page cap was reached. Raise
 > `jira.pull.max_pages` (or set it to `unlimited`) and re-run, or resume from
@@ -138,15 +139,15 @@ accelerator jira search --type Bug --reporter sarah
 ```
 
 **Example 3 — resuming after a cap-hit**
-User: "show me the rest" (after a prior search exited 79 with `nextPageToken:
-"abc-123"`)
+User: "show me the rest" (after a prior search returned `outcome: cap-hit` with
+`nextPageToken: "abc-123"`)
 Skill re-runs the previous flag set with `--page-token` added to resume from the
 cursor:
 ```
 accelerator jira search --project ENG --assignee @me --status '~Done' --limit 50 --page-token abc-123
 ```
-The response completes (`outcome: results`/`empty`, exit 0) or cap-hits again
-(`outcome: truncated`, exit 79, a further `nextPageToken`) — in which case
-raising `jira.pull.max_pages` is the durable fix.
+The response completes (`outcome: results`/`empty`) or cap-hits again
+(`outcome: cap-hit`, a further `nextPageToken`) — in which case raising
+`jira.pull.max_pages` is the durable fix.
 
 !`accelerator config instructions search-jira-issues --fail-safe`

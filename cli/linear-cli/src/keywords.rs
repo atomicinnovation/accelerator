@@ -51,6 +51,7 @@ pub enum Search {
     Results,
     Empty,
     Truncated,
+    CapHit,
 }
 
 impl Search {
@@ -60,6 +61,7 @@ impl Search {
             Self::Results => "results",
             Self::Empty => "empty",
             Self::Truncated => "truncated",
+            Self::CapHit => "cap-hit",
         }
     }
 }

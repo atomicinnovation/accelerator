@@ -118,7 +118,9 @@ fn run_search(args: SearchArgs) -> ExitCode {
     match client.search_detailed(&search) {
         Ok(page) => {
             let truncated = !page.completeness.is_complete();
-            let keyword = if truncated {
+            let keyword = if page.completeness == Completeness::CapHit {
+                keywords::Search::CapHit
+            } else if truncated {
                 keywords::Search::Truncated
             } else if page.nodes.is_empty() {
                 keywords::Search::Empty
