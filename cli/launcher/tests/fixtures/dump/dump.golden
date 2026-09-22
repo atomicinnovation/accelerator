@@ -13,6 +13,8 @@
 | `review.plan_revise_major_count` | `3` | default |
 | `review.work_item_revise_severity` | `critical` | default |
 | `review.work_item_revise_major_count` | `2` | default |
+| `research.topic.breadth` | `8` | default |
+| `research.topic.depth` | `1` | default |
 | `agents.reviewer` | `my-reviewer` | team (.accelerator/config.md) |
 | `agents.browser-analyser` | `accelerator:browser-analyser` | default |
 | `agents.browser-locator` | `accelerator:browser-locator` | default |

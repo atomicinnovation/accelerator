@@ -61,14 +61,14 @@ Both print the cached JSON array; render it as a readable list. If
 ## Step 1: Resolve site
 
 Use the site from `--site` if provided. Otherwise read it from config:
-`accelerator config get jira.site ""`. If still empty,
+`accelerator config get jira.site`. If still empty,
 prompt: *"Enter your Jira Cloud subdomain (the part before `.atlassian.net`,
 e.g. `mycompany`):"*
 
 ## Step 2: Resolve email
 
 Use `--email` if provided. Otherwise read it from config:
-`accelerator config get jira.email ""`. If still empty,
+`accelerator config get jira.email`. If still empty,
 prompt: *"Enter your Atlassian account email:"*
 
 ## Step 3: Verify and persist site.json

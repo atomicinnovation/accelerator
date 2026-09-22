@@ -100,8 +100,10 @@ pub trait MigrationContext {
 
     /// A full-stack (personal-over-team, catalogue-default-falling-back)
     /// config lookup, matching `accelerator config get --allow-legacy-layout
-    /// <key> ""` — including keys the catalogue no longer recognises, since
-    /// migrations read pre-rename legacy key names.
+    /// <key>` (a bare cross-level read folds the built-in default; an empty
+    /// `--default ""` falls through to it identically) — including keys the
+    /// catalogue no longer recognises, since migrations read pre-rename legacy
+    /// key names.
     ///
     /// `Ok(None)` never means "genuinely unreadable" — an unset key still
     /// resolves `Ok` (to its catalogue default, rendered, possibly empty).

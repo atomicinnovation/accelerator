@@ -50,6 +50,18 @@
 
 ### Changed
 
+- **`accelerator config get` now resolves the built-in default and takes its
+  override as a `--default` flag.** A key unset at both levels and resolved
+  across levels (no `--level`) returns its built-in catalogue default rather
+  than an empty line, and the caller override moves from a bare positional
+  (`config get <key> <default>`) to `config get <key> --default <value>`. A
+  non-empty `--default` still wins over the built-in default; an empty
+  `--default ""` falls through to it, matching `config path`. A single-level
+  read (`--level`) applies no built-in default, and `--fail-safe` is unchanged
+  (a read failure still suppresses to empty and exits 0). This is a breaking
+  change to the CLI grammar; the in-repo callers are updated in the same
+  release.
+
 - **`design validate-source` narrows what it accepts.** Host reachability is
   now decided by parsing the host as an address rather than by matching it with
   regular expressions, which closes several routes to an internal endpoint that

@@ -649,7 +649,7 @@ pub fn cross_check(
 }
 
 /// The template filenames named in a work item's `## Schema Reference` table
-/// — each `| `<name>.md` | … |` row inside the section between that heading
+/// — each ``| `<name>.md` | … |`` row inside the section between that heading
 /// and the next `## ` heading.
 #[must_use]
 pub fn schema_reference_templates(content: &str) -> Vec<String> {

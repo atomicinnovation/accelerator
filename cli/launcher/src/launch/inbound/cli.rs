@@ -84,12 +84,16 @@ pub enum CacheAction {
 #[derive(Subcommand)]
 pub enum ConfigAction {
     /// Print a configuration value. Without `--level` the value resolves
-    /// personal-over-team; with `--level` only that level is read. An unset
-    /// key prints the given default, or nothing when none is given.
+    /// personal-over-team, then the built-in default. `--default` overrides the
+    /// built-in default on a miss. With `--level`, only that level is read and
+    /// no built-in default is applied. A key that carries no built-in default
+    /// (those shown with a value under the `default` source in `config dump`)
+    /// and has no `--default` prints an empty line.
     Get {
         /// The dotted `section.key` to read (e.g. `agents.reviewer`).
         key: String,
-        /// The value to print when the key is unset.
+        /// Override the built-in default when the key is unset at both levels.
+        #[arg(long)]
         default: Option<String>,
         /// Read only this level instead of resolving across both.
         #[arg(long)]
@@ -122,11 +126,11 @@ pub enum ConfigAction {
         level: Level,
     },
     /// Print a configured `paths.<key>` value. An unset key falls back to the
-    /// given default, else the plugin-standard default, else an empty line.
+    /// given default, else the built-in default, else an empty line.
     Path {
         /// The bare path key to read (e.g. `plans`), resolved as `paths.<key>`.
         key: String,
-        /// The value to print when the key is unset; wins over the catalogue
+        /// The value to print when the key is unset; wins over the built-in
         /// default.
         default: Option<String>,
         /// Read only this level instead of resolving across both.
@@ -168,7 +172,7 @@ pub enum ConfigAction {
         #[arg(long)]
         fail_safe: bool,
     },
-    /// Print a `work.<key>` value with its catalogue default; a
+    /// Print a `work.<key>` value with its built-in default; a
     /// `work.integration` outside the allowed set is a fail-closed refusal.
     Work {
         /// The bare work key to read (e.g. `integration`), resolved as
