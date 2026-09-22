@@ -2581,6 +2581,27 @@ class TestSpawnedExecutables:
         assert "chmod" in spawned_executables(text)
         assert "chmod" in PLATFORM_TABLE[("Darwin", "arm64")].path_tools
 
+    def test_the_bootstrap_spawns_nothing_the_linux_farm_lacks(self):
+        text = (REPO / "bin/accelerator").read_text()
+        missing = spawned_executables(text) - set(
+            PLATFORM_TABLE[("Linux", "aarch64")].path_tools
+        )
+        assert not missing
+
+    def test_the_recovered_baseline_spawns_nothing_the_linux_farm_lacks(self):
+        tools = set(PLATFORM_TABLE[("Linux", "aarch64")].path_tools)
+        for source, _ in RECOVERED_FILES.values():
+            text = _recovered_text(source)
+            assert not spawned_executables(text) - tools, source
+
+    def test_the_linux_farm_carries_the_floor_binaries(self):
+        tools = set(PLATFORM_TABLE[("Linux", "aarch64")].path_tools)
+        assert {"bash", "true"} <= tools
+
+    def test_the_linux_power_probes_have_distinct_leaders(self):
+        probes = PLATFORM_TABLE[("Linux", "aarch64")].power_probes
+        assert len({probe[0] for probe in probes}) == len(probes)
+
 
 def _recovered_text(source: str) -> str:
     resolved = shutil.which("jj")

@@ -196,6 +196,67 @@ PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
         reference_bash="/bin/bash 3.2.57(1)-release",
         calibration=_DARWIN_CALIBRATION,
     ),
+    ("Linux", "aarch64"): PlatformEntry(
+        key="linux-arm64",
+        path_tools=(
+            "awk",
+            "bash",
+            "cat",
+            "chmod",
+            "cp",
+            "curl",
+            "date",
+            "dirname",
+            "git",
+            "grep",
+            "head",
+            "jj",
+            "jq",
+            "kill",
+            "mkdir",
+            "mv",
+            "readlink",
+            "realpath",
+            "rm",
+            "rmdir",
+            "sed",
+            "sha256sum",
+            "shasum",
+            "sleep",
+            "timeout",
+            "true",
+            "uname",
+            "wget",
+        ),
+        power_probes=(
+            ["cat", "/sys/class/power_supply/AC/online"],
+            [
+                "head",
+                "-n1",
+                "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+            ],
+            ["grep", "-h", "", "/sys/class/power_supply/BAT0/status"],
+        ),
+        median_ceiling_fast_ms=40.0,
+        p90_ceiling_fast_ms=50.0,
+        median_ceiling_fallback_ms=50.0,
+        p90_ceiling_fallback_ms=60.0,
+        bash_floor_ms=0.78,
+        true_floor_ms=0.45,
+        reference_bash=(
+            "GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)"
+        ),
+        calibration=Calibration(
+            session="0217",
+            chip="-",
+            bash=(
+                "GNU bash, version 5.2.21(1)-release "
+                "(aarch64-unknown-linux-gnu)"
+            ),
+            shasum="6.04",
+            libc="musl",
+        ),
+    ),
 }
 
 # The two farms differ solely in whether the fast backend's link is present.
