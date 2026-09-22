@@ -13,6 +13,7 @@ tags: ["design", "playwright", "executor"]
 last_updated: "2026-09-10T17:32:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-874"
 ---
 # 0288: Parallel Browser-Analyser Agents Share One Daemon and Tab Without State Isolation
 

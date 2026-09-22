@@ -14,6 +14,7 @@ tags: ["vcs", "skills", "cli"]
 last_updated: "2026-09-22T10:16:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-872"
 ---
 
 # 0286: Make Accelerator skills VCS-agnostic by eradicating direct git calls

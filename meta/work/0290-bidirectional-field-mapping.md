@@ -14,6 +14,7 @@ tags: ["sync", "tracker", "jira", "linear", "mapping", "status", "priority", "ki
 last_updated: "2026-09-20T19:15:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-876"
 ---
 
 # 0290: Bidirectional Field Mapping for Work Item Sync

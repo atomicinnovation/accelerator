@@ -13,6 +13,7 @@ tags: ["design", "playwright", "inventory-design"]
 last_updated: "2026-09-10T17:32:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-875"
 ---
 # 0289: inventory-design Does Not Set the Screenshot Output Root, Blocking Crawl Captures
 
