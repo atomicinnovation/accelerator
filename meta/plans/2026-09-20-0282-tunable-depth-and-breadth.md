@@ -566,23 +566,23 @@ this phase.
 
 #### Automated Verification:
 
-- [ ] `config get` behaviour tests pass (catalogue fallback, non-empty `--default` override, empty-`--default` fall-through, single-level no-fallback, `--level` + `--default` honoured, uncatalogued empty-default, precedence chain): `mise run test:unit:cli`
-- [ ] `a_scalar_with_fail_safe_suppresses_a_read_failure_and_exits_zero` (`:424`) still passes unchanged: `mise run test:unit:cli`
-- [ ] `config get --help` renders and its extended assertion passes: `mise run test:unit:cli`
-- [ ] Rust format and clippy clean: `mise run cli:check`
-- [ ] Full read-only lane green: `mise run check`
+- [x] `config get` behaviour tests pass (catalogue fallback, non-empty `--default` override, empty-`--default` fall-through, single-level no-fallback, `--level` + `--default` honoured, uncatalogued empty-default, precedence chain): `mise run test:unit:cli`
+- [x] `a_scalar_with_fail_safe_suppresses_a_read_failure_and_exits_zero` (`:424`) still passes unchanged: `mise run test:unit:cli`
+- [x] `config get --help` renders and its extended assertion passes: `mise run test:unit:cli`
+- [x] Rust format and clippy clean: `mise run cli:check`
+- [x] Full read-only lane green: `mise run check`
 
 #### Manual Verification:
 
-- [ ] `accelerator config get research.breadth` in a repo with neither level set
+- [x] `accelerator config get research.breadth` in a repo with neither level set
       returns `8`; with `research.breadth` in `config.md` (team) and a different
       value in `config.local.md` (personal), returns the personal value; with
       only the team value, the team value.
-- [ ] `accelerator config get research.breadth --default 3` returns `3` when the
+- [x] `accelerator config get research.breadth --default 3` returns `3` when the
       key is unset at both levels; `--default ""` falls through to `8`.
-- [ ] `accelerator config get research.breadth --level team` on an unset team
+- [x] `accelerator config get research.breadth --level team` on an unset team
       level returns an empty line (no built-in default under `--level`).
-- [ ] `accelerator config get jira.site` (no built-in default) returns an empty
+- [x] `accelerator config get jira.site` (no built-in default) returns an empty
       line on a miss.
 
 ---

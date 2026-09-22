@@ -186,20 +186,119 @@ fn get_of_an_unset_key_without_a_default_prints_empty_and_exits_zero(
 #[test]
 fn get_of_an_unset_key_prints_the_callers_default() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
-    let output = fixture.run(&["config", "get", "missing.key", "fallback"])?;
+    let output = fixture.run(&[
+        "config",
+        "get",
+        "missing.key",
+        "--default",
+        "fallback",
+    ])?;
     assert_eq!(output.stdout, b"fallback\n");
     assert_eq!(code(&output), 0);
     Ok(())
 }
 
-/// The presence probe `jira-auth.sh` depends on: an explicitly empty
-/// default yields empty on a miss, with no catalogue lookup for `get`.
+/// A non-empty `--default` wins over the built-in default on a miss; a bare
+/// read yields the built-in default; an empty `--default` falls through to it
+/// (matching `config path`).
 #[test]
-fn get_with_an_explicit_empty_default_yields_empty_on_a_miss() -> TestResult {
+fn get_prefers_a_non_empty_default_over_the_built_in() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
-    let output = fixture.run(&["config", "get", "review.min_lenses", ""])?;
+    let bare = fixture.run(&["config", "get", "review.min_lenses"])?;
+    assert_eq!(bare.stdout, b"4\n");
+    let overridden = fixture.run(&[
+        "config",
+        "get",
+        "review.min_lenses",
+        "--default",
+        "9",
+    ])?;
+    assert_eq!(overridden.stdout, b"9\n");
+    let empty = fixture.run(&[
+        "config",
+        "get",
+        "review.min_lenses",
+        "--default",
+        "",
+    ])?;
+    assert_eq!(empty.stdout, b"4\n");
+    assert_eq!(code(&bare), 0);
+    Ok(())
+}
+
+#[test]
+fn get_resolves_precedence_personal_over_team_over_built_in() -> TestResult {
+    let both = Fixture::new()?
+        .team("---\nreview:\n  min_lenses: 7\n---\n")?
+        .local("---\nreview:\n  min_lenses: 9\n---\n")?;
+    assert_eq!(
+        both.run(&["config", "get", "review.min_lenses"])?.stdout,
+        b"9\n"
+    );
+
+    let team_only =
+        Fixture::new()?.team("---\nreview:\n  min_lenses: 7\n---\n")?;
+    assert_eq!(
+        team_only
+            .run(&["config", "get", "review.min_lenses"])?
+            .stdout,
+        b"7\n"
+    );
+
+    let neither = Fixture::new()?.team(SEEDED)?;
+    assert_eq!(
+        neither.run(&["config", "get", "review.min_lenses"])?.stdout,
+        b"4\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn get_at_a_single_level_applies_no_built_in_default() -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let bare = fixture.run(&[
+        "config",
+        "get",
+        "review.min_lenses",
+        "--level",
+        "team",
+    ])?;
+    assert_eq!(bare.stdout, b"\n");
+    assert_eq!(code(&bare), 0);
+    let with_default = fixture.run(&[
+        "config",
+        "get",
+        "review.min_lenses",
+        "--level",
+        "team",
+        "--default",
+        "5",
+    ])?;
+    assert_eq!(with_default.stdout, b"5\n");
+    assert_eq!(code(&with_default), 0);
+    Ok(())
+}
+
+#[test]
+fn get_of_an_uncatalogued_key_with_an_empty_default_prints_empty() -> TestResult
+{
+    let fixture = Fixture::new()?.team(SEEDED)?;
+    let output =
+        fixture.run(&["config", "get", "jira.site", "--default", ""])?;
     assert_eq!(output.stdout, b"\n");
     assert_eq!(code(&output), 0);
+    Ok(())
+}
+
+#[test]
+fn get_help_documents_the_built_in_default_and_the_default_flag() -> TestResult
+{
+    let fixture = Fixture::new()?;
+    let output = fixture.run(&["config", "get", "--help"])?;
+    assert_eq!(code(&output), 0);
+    let help = String::from_utf8_lossy(&output.stdout);
+    assert!(help.contains("built-in default"), "get --help: {help}");
+    assert!(help.contains("--default"), "get --help: {help}");
     Ok(())
 }
 
@@ -303,11 +402,11 @@ fn path_of_a_config_set_unknown_key_is_still_refused() -> TestResult {
 }
 
 #[test]
-fn get_of_a_catalogue_backed_key_on_a_miss_does_not_inject_the_catalogue(
+fn get_of_a_catalogue_backed_key_on_a_miss_returns_the_catalogue_default(
 ) -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
     let output = fixture.run(&["config", "get", "paths.plans"])?;
-    assert_eq!(output.stdout, b"\n");
+    assert_eq!(output.stdout, b"meta/plans\n");
     assert_eq!(code(&output), 0);
     Ok(())
 }
@@ -317,8 +416,9 @@ fn path_with_an_empty_default_falls_through_to_the_catalogue() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
     let path = fixture.run(&["config", "path", "plans", ""])?;
     assert_eq!(path.stdout, b"meta/plans\n");
-    let get = fixture.run(&["config", "get", "paths.plans", ""])?;
-    assert_eq!(get.stdout, b"\n");
+    let get =
+        fixture.run(&["config", "get", "paths.plans", "--default", ""])?;
+    assert_eq!(get.stdout, b"meta/plans\n");
     Ok(())
 }
 
