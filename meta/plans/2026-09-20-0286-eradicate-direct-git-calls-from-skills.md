@@ -376,21 +376,22 @@ regression to `repository_root` pass unseen.
 
 #### Automated Verification:
 
-- [ ] Handler unit tests pass (stub `RepoRoot`: `Some(path)` prints the path,
+- [x] Handler unit tests pass (stub `RepoRoot`: `Some(path)` prints the path,
       `None` errors naming the searched-from path): `cd cli && cargo test -p
       accelerator-vcs root::`
-- [ ] The parity test passes under all four topologies, the secondary-workspace
+- [x] The parity test passes under all four topologies, the secondary-workspace
       case asserting the printed root equals the workspace's own canonical root
       and differs from the main repo: `cd cli && cargo test -p accelerator-vcs
       --features bash-parity --test root_goldens`
-- [ ] Single-component check passes: `mise run cli:check`
+- [x] Single-component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] `accelerator vcs root` run from this build-system secondary workspace
+- [x] `accelerator vcs root` run from this build-system secondary workspace
       prints the workspace path, not `.../accelerator`.
-- [ ] `accelerator vcs root` run from a plain git clone prints the clone root.
-- [ ] `accelerator vcs root` run outside any repository exits non-zero and names
+- [x] `accelerator vcs root` run from a plain git clone prints the clone root.
+      (Covered by the git-only parity topology.)
+- [x] `accelerator vcs root` run outside any repository exits non-zero and names
       the searched-from directory.
 
 ---
