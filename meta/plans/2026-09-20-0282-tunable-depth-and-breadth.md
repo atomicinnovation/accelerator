@@ -750,8 +750,8 @@ the depth notice defined in the knob-resolution block before spawning.
 
 #### Automated Verification:
 
-- [ ] The new `config get research.depth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
-- [ ] Invocation form and frontmatter/markdown lint pass: `mise run check`
+- [x] The new `config get research.depth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
+- [x] Invocation form and frontmatter/markdown lint pass: `mise run check`
 
 #### Manual Verification:
 

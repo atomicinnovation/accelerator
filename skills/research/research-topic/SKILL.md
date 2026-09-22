@@ -8,7 +8,7 @@ description: Research an external subject over web sources into a
   across rounds; synthesise then finalise closes it; a later outline or conduct
   reopens a closed subject. Use when the user wants to research a topic on the
   web, not the codebase.
-argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG | synthesise SLUG | finalise SLUG"
+argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG [--depth N] | synthesise SLUG | finalise SLUG"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator corpus resolve *)
@@ -50,11 +50,11 @@ SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
 Two knobs bound the research. **breadth** is the ceiling on focus areas an
 `outline` round may commission; **depth** is the recursion limit within a
-finding. breadth's configured value, resolved `personal > team > built-in
-default`, is below; depth stays a fixed 1 for now:
+finding. Each knob's configured value, resolved `personal > team > built-in
+default`, is below:
 
 - breadth: !`accelerator config get research.breadth --fail-safe`
-- depth: 1 (one researcher per focus area, no recursion)
+- depth: !`accelerator config get research.depth --fail-safe`
 
 A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
 flag on the invocation wins over the configured value. Then apply these rules
@@ -75,6 +75,12 @@ in order:
 - **Misplaced flag** — a flag belonging to the other verb (`--depth` on
   `outline`, `--breadth` on `conduct`) is ignored with a one-line note; it
   never clamps the verb's own knob.
+
+Depth is dormant: `conduct` always spawns exactly one researcher per focus area
+regardless of the resolved depth. When conduct's resolved depth exceeds 1, it
+prints this notice before spawning:
+
+> depth resolved to {value}, but recursive deepening is not yet available; conducting at depth 1 (one researcher per focus area)
 
 ## Shared Preamble
 
@@ -192,6 +198,12 @@ For each still-outstanding focus area across all rounds, allocate
 `findings/<nn>-<slug>.md` (scan both `<nn>-*.md` and any quarantine marker so an
 index is never reused), and **refuse to write a finding path that already
 exists** — an immutable finding is never clobbered.
+
+Resolve depth per the knob-resolution rule above, reading any `--depth N` flag
+on the invocation. Depth is dormant: spawn exactly one researcher per
+outstanding focus area whatever the resolved value. When the resolved depth
+exceeds 1, print the depth notice defined in the knob-resolution block before
+spawning.
 
 Spawn `{researcher agent}` agents in parallel with the Task tool, using
 `subagent_type: "!`accelerator config agent researcher --fail-safe`"`. Inject
