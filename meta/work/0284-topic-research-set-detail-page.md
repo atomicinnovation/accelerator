@@ -9,8 +9,9 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
+relates_to: ["work-item:0280"]
 tags: ["research", "visualiser"]
-last_updated: "2026-09-08T11:42:24+00:00"
+last_updated: "2026-09-22T21:39:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -50,6 +51,9 @@ umbrella doc type and nested indexing.
   `outline.md`, each finding, `synthesis.md`, and each report.
 - Prototype the set-level page in Claude Design and review it before
   implementation begins.
+- Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
+  recorded domain or venue as a distinct visual element wherever a finding,
+  synthesis, or report lists Sources, for web and academic profiles alike.
 
 ## Acceptance Criteria
 
@@ -58,6 +62,11 @@ umbrella doc type and nested indexing.
 - [ ] A topic-research library entry opens a set-level detail page linking to
       `brief.md`, `outline.md`, each finding, `synthesis.md`, and each report,
       defaulting to the sub-document named by `manifest.md`'s `primary`.
+- [ ] Given a finding, synthesis, or report whose Sources carry
+      `— tier-N — <venue>` entries, when it renders on the set-level page, then
+      each source shows its tier as a distinct element alongside its venue, and
+      the three tiers are visually distinguishable without relying on colour
+      alone.
 
 ## Open Questions
 
@@ -87,6 +96,9 @@ umbrella doc type and nested indexing.
 
 - This is the epic-level descope candidate — the only slice whose deferral leaves
   the others fully shippable.
+- Tier rendering moved here from 0280 (2026-09-22); until this page lands,
+  tiers remain readable as literal `— tier-N —` text in the shared
+  `LibraryDocView`, so a deferral still leaves them legible.
 - Extracted from source documents without interactive enrichment. Acceptance
   criteria, dependencies, and kind may need refinement before promoting from
   `draft` to `ready`.
