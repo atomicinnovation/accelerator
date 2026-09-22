@@ -763,9 +763,9 @@ the depth notice defined in the knob-resolution block before spawning.
       recursion) and emits the notice.
 - [ ] A resolved depth that is zero, negative, or non-integer clamps to 1 with the
       `Warning: research.depth …` message naming the value.
-- [ ] The notice contains no internal work-item id — only plain "not yet
+- [x] The notice contains no internal work-item id — only plain "not yet
       available" language.
-- [ ] The `conduct` edits introduce no breadth re-check.
+- [x] The `conduct` edits introduce no breadth re-check.
 
 ---
 
