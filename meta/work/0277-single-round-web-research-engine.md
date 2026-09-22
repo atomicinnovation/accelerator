@@ -5,7 +5,7 @@ title: "Single-Round Web Research Engine"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
@@ -21,7 +21,7 @@ external_id: "PP-861"
 # 0277: Single-Round Web Research Engine
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

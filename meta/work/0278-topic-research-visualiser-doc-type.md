@@ -5,7 +5,7 @@ title: "Topic-Research Visualiser Doc Type and Indexer"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
@@ -21,7 +21,7 @@ schema_version: 1
 # 0278: Topic-Research Visualiser Doc Type and Indexer
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
