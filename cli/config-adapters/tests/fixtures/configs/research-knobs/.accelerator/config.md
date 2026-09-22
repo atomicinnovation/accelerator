@@ -1,5 +1,6 @@
 ---
 research:
-  breadth: 5
-  depth: 3
+  topic:
+    breadth: 5
+    depth: 3
 ---

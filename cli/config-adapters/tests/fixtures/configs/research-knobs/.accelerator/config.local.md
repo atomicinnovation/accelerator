@@ -1,4 +1,5 @@
 ---
 research:
-  breadth: 2
+  topic:
+    breadth: 2
 ---

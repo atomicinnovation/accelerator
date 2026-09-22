@@ -21,7 +21,7 @@ schema_version: 1
 
 ## Overview
 
-Register `research.breadth` (default `8`) and `research.depth` (default `1`) as
+Register `research.topic.breadth` (default `8`) and `research.topic.depth` (default `1`) as
 catalogue config keys, make `config get` resolve unset keys from the catalogue,
 then thread the knobs into the `outline` and `conduct` verbs of
 `research-topic/SKILL.md` with `flag > personal > team > catalogue` resolution and
@@ -42,7 +42,7 @@ stay deliberately different on grammar, unknown-key handling, and single-level
 reads (Phase 2 documents the differences). **`--fail-safe` is unchanged** — its
 only job is to keep the skill loadable on a read failure; it does not manufacture
 a default. With the catalogue as the single source of truth, the SKILL reads a
-bare `config get research.breadth --fail-safe` and carries no default literal of
+bare `config get research.topic.breadth --fail-safe` and carries no default literal of
 its own; a read failure yields empty, which the SKILL surfaces as an error.
 
 The work is extend-not-invent on the Rust side (mirror `REVIEW_KEYS`, mirror the
@@ -140,8 +140,8 @@ Two open questions from the research are resolved:
 
 ## Desired End State
 
-`accelerator config dump` shows `research.breadth: 8` and `research.depth: 1`
-with source attribution. `config get research.breadth` (resolved across levels)
+`accelerator config dump` shows `research.topic.breadth: 8` and `research.topic.depth: 1`
+with source attribution. `config get research.topic.breadth` (resolved across levels)
 returns `personal > team > built-in default`, with a non-empty `--default`
 overriding the built-in default; an unset key returns `8`. `--fail-safe` is
 unchanged — a read failure suppresses to empty, which the SKILL surfaces as an
@@ -212,7 +212,7 @@ own.
   — a generic config-CLI change, unit- and golden-tested, with the two `init-jira`
   callers and the `cli/migrate` port doc updated; `--fail-safe` is untouched.
 - **Phase 3** makes `breadth` a live `outline` ceiling in SKILL prose, reading a
-  bare `config get research.breadth`.
+  bare `config get research.topic.breadth`.
 - **Phase 4** threads `depth` through `conduct` dormant, with the `>1` notice.
 - **Phase 5** documents both knobs in `configure help`.
 
@@ -243,8 +243,8 @@ machinery.
 
 ```rust
 pub const RESEARCH_KEYS: &[(&str, Default)] = &[
-    ("research.breadth", Default::Scalar("8")),
-    ("research.depth", Default::Scalar("1")),
+    ("research.topic.breadth", Default::Scalar("8")),
+    ("research.topic.depth", Default::Scalar("1")),
 ];
 ```
 
@@ -288,11 +288,11 @@ fn the_catalogue_holds_sixty_five_keys_across_seven_groups() {
 #[test]
 fn default_for_the_research_knobs_are_typed_scalars() {
     assert_eq!(
-        default_for("research.breadth"),
+        default_for("research.topic.breadth"),
         Some(Value::Scalar(Scalar::String("8".to_owned())))
     );
     assert_eq!(
-        default_for("research.depth"),
+        default_for("research.topic.depth"),
         Some(Value::Scalar(Scalar::String("1".to_owned())))
     );
 }
@@ -336,8 +336,8 @@ pub const config::catalogue::REVIEW_KEYS: &[(&str, config::catalogue::Default)]
 knob, so both attribute to `default`.
 
 ```text
-| `research.breadth` | `8` | default |
-| `research.depth` | `1` | default |
+| `research.topic.breadth` | `8` | default |
+| `research.topic.depth` | `1` | default |
 ```
 
 #### 6. Parity resolution test
@@ -363,8 +363,8 @@ black-box precedence test, not here.
 
 #### Manual Verification:
 
-- [x] `accelerator config dump` in a configured repo lists `research.breadth`
-      (`8`) and `research.depth` (`1`) with correct source attribution.
+- [x] `accelerator config dump` in a configured repo lists `research.topic.breadth`
+      (`8`) and `research.topic.depth` (`1`) with correct source attribution.
 
 ---
 
@@ -574,13 +574,13 @@ this phase.
 
 #### Manual Verification:
 
-- [x] `accelerator config get research.breadth` in a repo with neither level set
-      returns `8`; with `research.breadth` in `config.md` (team) and a different
+- [x] `accelerator config get research.topic.breadth` in a repo with neither level set
+      returns `8`; with `research.topic.breadth` in `config.md` (team) and a different
       value in `config.local.md` (personal), returns the personal value; with
       only the team value, the team value.
-- [x] `accelerator config get research.breadth --default 3` returns `3` when the
+- [x] `accelerator config get research.topic.breadth --default 3` returns `3` when the
       key is unset at both levels; `--default ""` falls through to `8`.
-- [x] `accelerator config get research.breadth --level team` on an unset team
+- [x] `accelerator config get research.topic.breadth --level team` on an unset team
       level returns an empty line (no built-in default under `--level`).
 - [x] `accelerator config get jira.site` (no built-in default) returns an empty
       line on a miss.
@@ -624,7 +624,7 @@ Two knobs bound the research. **breadth** is the ceiling on focus areas an
 finding. breadth's configured value, resolved `personal > team > built-in
 default`, is below; depth stays a fixed 1 until Phase 4 wires it to config:
 
-- breadth: !`accelerator config get research.breadth --fail-safe`
+- breadth: !`accelerator config get research.topic.breadth --fail-safe`
 - depth: 1 (one researcher per focus area, no recursion)
 
 A verb resolves its knob as **flag > resolved value above**: an `--<knob> N` flag
@@ -666,7 +666,7 @@ across rounds.
 
 #### Automated Verification:
 
-- [x] The new `config get research.breadth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
+- [x] The new `config get research.topic.breadth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
 - [x] Invocation form and frontmatter/markdown lint pass: `mise run check` (includes `lint:bare-invocation:check`)
 
 #### Manual Verification:
@@ -674,7 +674,7 @@ across rounds.
 - [ ] With no config set, `outline SLUG` sizes the round under a ceiling of 8 (the
       catalogue default), and `outline SLUG --breadth 3` sizes it to at most 3.
 - [ ] A resolved breadth of `0`, `-2`, or `2.5` clamps to 1 with the
-      `Warning: research.breadth …` message naming the value; an integer ≥ 1 passes
+      `Warning: research.topic.breadth …` message naming the value; an integer ≥ 1 passes
       unchanged.
 - [ ] `outline` never writes more focus areas than the resolved ceiling in one
       round; the effort-scaling judgement may size beneath it.
@@ -719,8 +719,8 @@ clause), replace the plain depth line with the catalogue-resolved read, and
 append the conduct-notice sentence to the rule.
 
 ```markdown
-- breadth: !`accelerator config get research.breadth --fail-safe`
-- depth: !`accelerator config get research.depth --fail-safe`
+- breadth: !`accelerator config get research.topic.breadth --fail-safe`
+- depth: !`accelerator config get research.topic.depth --fail-safe`
 ```
 
 ```markdown
@@ -750,7 +750,7 @@ the depth notice defined in the knob-resolution block before spawning.
 
 #### Automated Verification:
 
-- [x] The new `config get research.depth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
+- [x] The new `config get research.topic.depth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
 - [x] Invocation form and frontmatter/markdown lint pass: `mise run check`
 
 #### Manual Verification:
@@ -762,7 +762,7 @@ the depth notice defined in the knob-resolution block before spawning.
       notice; a resolved depth greater than 1 spawns one per focus area (no
       recursion) and emits the notice.
 - [ ] A resolved depth that is zero, negative, or non-integer clamps to 1 with the
-      `Warning: research.depth …` message naming the value.
+      `Warning: research.topic.depth …` message naming the value.
 - [x] The notice contains no internal work-item id — only plain "not yet
       available" language.
 - [x] The `conduct` edits introduce no breadth re-check.
@@ -819,8 +819,9 @@ Example configuration:
 \```yaml
 ---
 research:
-  breadth: 6
-  depth: 1
+  topic:
+    breadth: 6
+    depth: 1
 ---
 \```
 
@@ -848,7 +849,7 @@ add inline comments to config values.
 ### Unit Tests (Phase 1):
 
 - Catalogue key count (`65` across seven groups) and the declared-value
-  assertion for `research.breadth`/`research.depth` (`catalogue.rs` test module).
+  assertion for `research.topic.breadth`/`research.topic.depth` (`catalogue.rs` test module).
 - The parity resolution assertion against a team/personal fixture
   (`config-adapters/tests/parity.rs`), exercising `personal > team` (the built-in
   default leg is covered by the Phase 2 black-box chain test, since `parity.rs`'s
@@ -860,7 +861,7 @@ add inline comments to config values.
 
 - `config get` catalogue fallback (`:306` rewritten), non-empty `--default`
   override and empty-`--default` fall-through (`:198` rewritten), single-level
-  no-fallback, and the black-box `research.breadth` precedence chain
+  no-fallback, and the black-box `research.topic.breadth` precedence chain
   (`cli/launcher/tests/config_read.rs`).
 - The fail-safe suppression test (`:424`) stays green **unchanged** — fail-safe is
   not altered, so a catalogued key still suppresses to empty on a read failure.
@@ -878,10 +879,10 @@ add inline comments to config values.
 
 ### Manual / Eval-level Testing Steps:
 
-1. In a scratch repo, set `research.breadth`/`research.depth` at team and personal
+1. In a scratch repo, set `research.topic.breadth`/`research.topic.depth` at team and personal
    levels and confirm `config dump` and `config get` precedence, including the
    unset case resolving to the built-in default.
-2. Confirm `config get research.breadth --default 3` overrides on a miss,
+2. Confirm `config get research.topic.breadth --default 3` overrides on a miss,
    `--default ""` falls through to `8`, `--level team` on a miss prints empty, and
    `config get jira.site` (no built-in default) prints empty.
 3. Invoke `outline SLUG --breadth 3` and confirm the round is sized to ≤ 3.

@@ -82,8 +82,8 @@ fn depth_beyond_two_resolves_declared_scalar_values() {
 fn the_research_knobs_resolve_personal_over_team() {
     let dir = materialise("research-knobs");
     let dir = dir.path().to_path_buf();
-    assert_eq!(rendered(&dir, "research.breadth"), "2");
-    assert_eq!(rendered(&dir, "research.depth"), "3");
+    assert_eq!(rendered(&dir, "research.topic.breadth"), "2");
+    assert_eq!(rendered(&dir, "research.topic.depth"), "3");
 }
 
 #[test]

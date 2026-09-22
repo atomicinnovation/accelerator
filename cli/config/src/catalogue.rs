@@ -176,8 +176,8 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
 ];
 
 pub const RESEARCH_KEYS: &[(&str, Default)] = &[
-    ("research.breadth", Default::Scalar("8")),
-    ("research.depth", Default::Scalar("1")),
+    ("research.topic.breadth", Default::Scalar("8")),
+    ("research.topic.depth", Default::Scalar("1")),
 ];
 
 /// Built-in review lens names for code reviews (pr and plan modes).
@@ -294,11 +294,11 @@ mod tests {
     #[test]
     fn default_for_the_research_knobs_are_typed_scalars() {
         assert_eq!(
-            default_for("research.breadth"),
+            default_for("research.topic.breadth"),
             Some(Value::Scalar(Scalar::String("8".to_owned())))
         );
         assert_eq!(
-            default_for("research.depth"),
+            default_for("research.topic.depth"),
             Some(Value::Scalar(Scalar::String("1".to_owned())))
         );
     }

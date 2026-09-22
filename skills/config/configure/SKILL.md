@@ -310,8 +310,8 @@ partitioned via script arrays, not frontmatter.
 ### research
 
 Tune how wide and deep `/accelerator:research-topic` goes. Config keys live under
-the `research` namespace; both are positive integers. (These behavioural knobs are
-distinct from the `paths.research_*` output-directory keys under `### paths`.)
+the `research.topic` namespace; both are positive integers. (These behavioural knobs
+are distinct from the `paths.research_*` output-directory keys under `### paths`.)
 
 | Key       | Default | Description                            |
 |-----------|---------|----------------------------------------|
@@ -334,8 +334,9 @@ Example configuration:
 \```yaml
 ---
 research:
-  breadth: 6
-  depth: 1
+  topic:
+    breadth: 6
+    depth: 1
 ---
 \```
 

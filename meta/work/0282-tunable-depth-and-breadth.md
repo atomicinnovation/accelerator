@@ -57,7 +57,7 @@ output-quality gate; only 0283 carries the 0280 edge.
 
 ## Requirements
 
-- Register `research.breadth` (default `8`) and `research.depth` (default `1`) in
+- Register `research.topic.breadth` (default `8`) and `research.topic.depth` (default `1`) in
   `cli/config/src/catalogue.rs` as a new `RESEARCH_KEYS` group added to
   `default_for`'s scan list, stored as string scalars parsed by the consumer,
   mirroring the `review.*` numeric tunables. Update the exact key-count test,
@@ -90,17 +90,17 @@ output-quality gate; only 0283 carries the 0280 edge.
 ## Acceptance Criteria
 
 - [ ] Keys visible — given the config catalogue, when `accelerator config dump`
-      runs, then `research.breadth` and `research.depth` appear with defaults `8`
+      runs, then `research.topic.breadth` and `research.topic.depth` appear with defaults `8`
       and `1` and source attribution.
 - [ ] Default resolution — given neither knob is set at either level, when a knob
       is resolved, then `breadth` resolves to `8` and `depth` to `1`.
-- [ ] Config precedence — given `research.breadth` set in `config.md` (team) and
+- [ ] Config precedence — given `research.topic.breadth` set in `config.md` (team) and
       a different value in `config.local.md` (personal), when resolved with no
       flag, then the personal value wins; given only the team value, the team
       value wins; given neither, the default wins.
-- [ ] Flag override — given `research.breadth: 8` in config, when `outline` runs
+- [ ] Flag override — given `research.topic.breadth: 8` in config, when `outline` runs
       with `--breadth 3`, then the round is sized to at most 3 focus areas rather
-      than 8; likewise, given `research.depth: 1` in config, when `conduct` runs
+      than 8; likewise, given `research.topic.depth: 1` in config, when `conduct` runs
       with `--depth 2`, then the depth notice fires, proving the flag resolved to
       2 over the config value (verified at eval level — the SKILL.md carries the
       flag-over-config contract).

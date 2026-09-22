@@ -53,8 +53,8 @@ Two knobs bound the research. **breadth** is the ceiling on focus areas an
 finding. Each knob's configured value, resolved `personal > team > built-in
 default`, is below:
 
-- breadth: !`accelerator config get research.breadth --fail-safe`
-- depth: !`accelerator config get research.depth --fail-safe`
+- breadth: !`accelerator config get research.topic.breadth --fail-safe`
+- depth: !`accelerator config get research.topic.depth --fail-safe`
 
 A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
 flag on the invocation wins over the configured value. Then apply these rules
@@ -68,7 +68,7 @@ in order:
   non-integer clamps regardless of magnitude) clamps to 1, and the verb warns,
   substituting the knob name being validated:
 
-  > Warning: research.<knob> must be a positive integer, got '{value}' — clamping to 1
+  > Warning: research.topic.<knob> must be a positive integer, got '{value}' — clamping to 1
 
   single-quoting the offending value. There is no upper bound; breadth is the
   per-round cost guard.
