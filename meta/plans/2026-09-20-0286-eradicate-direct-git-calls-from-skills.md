@@ -5,7 +5,7 @@ title: "Eradicate Direct Git Calls From Skills Implementation Plan"
 date: "2026-09-20T22:38:07+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0286"
 parent: "work-item:0286"
 derived_from: ["codebase-research:2026-09-20-0286-eradicate-direct-git-calls-from-skills"]
