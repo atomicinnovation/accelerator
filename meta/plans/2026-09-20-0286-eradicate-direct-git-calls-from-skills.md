@@ -580,11 +580,13 @@ and codebase analysis"; "analyze the git history" → "analyze the VCS history".
 
 #### Automated Verification:
 
-- [ ] No git subcommand remains in the skill: `grep -EnC0 '\bgit
+- [x] No git subcommand remains in the skill: `grep -EnC0 '\bgit
       (status|diff|add|commit|log|branch|checkout|switch|merge|rebase|reset|stash|show|rev-parse|config)\b'
       skills/planning/validate-plan/SKILL.md` returns nothing.
-- [ ] `allowed-tools` includes `Bash(accelerator vcs root)`.
-- [ ] Bare-invocation lint and skill checks pass: `mise run check`.
+- [x] `allowed-tools` includes `Bash(accelerator vcs root)`.
+- [x] Bare-invocation lint and skill checks pass: `mise run check`.
+      (Skill lanes — bare-invocation, dispatch-coherence, skill-permissions,
+      integration-skills — pass; full `mise run` is the end-to-end gate.)
 
 #### Manual Verification (documented release gate):
 

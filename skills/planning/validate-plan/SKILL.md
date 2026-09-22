@@ -8,6 +8,8 @@ allowed-tools:
    - Bash(accelerator config *)
    - Bash(accelerator corpus metadata derive)
    - Bash(accelerator corpus frontmatter validate *)
+   - Bash(accelerator vcs root)
+   - Bash(accelerator vcs detect --descriptive)
 ---
 
 # Validate Plan
@@ -45,7 +47,8 @@ When invoked:
    fresh?
 
 - If existing: Review what was implemented in this session
-- If fresh: Need to discover what was done through git and codebase analysis
+- If fresh: Need to discover what was done through the session's VCS and
+  codebase analysis
 
 2. **Locate the plan**:
 
@@ -53,14 +56,24 @@ When invoked:
 - Otherwise, search recent commits for plan references or ask user
 
 3. **Gather implementation evidence**:
-   ```bash
-   # Check recent commits
-   git log --oneline -n 20
-   git diff HEAD~N..HEAD  # Where N covers implementation commits
 
-   # Run comprehensive checks
-   cd $(git rev-parse --show-toplevel) && make check test
-   ```
+If the SessionStart VCS Command Reference is not in context — validate-plan
+often runs late in a long session, after it may have been compacted out —
+re-derive it first with `accelerator vcs detect --descriptive` and read the
+idioms out of the emitted `additionalContext` string.
+
+- Recent commits: list the checkout's recent revisions using the session's
+  VCS log command (see the SessionStart VCS Command Reference).
+- Implementation diff: take the cumulative change since the trunk divergence
+  point using the session's VCS diff-range idiom (see the SessionStart VCS
+  Command Reference).
+- Run the repository's checks from its root, aborting if the root cannot be
+  resolved (out of a repository, `accelerator vcs root` exits non-zero, so the
+  assignment fails and the `&&` chain stops rather than running `make` in the
+  wrong tree):
+  ```bash
+  root="$(accelerator vcs root)" && cd "$root" && make check test
+  ```
 
 ## Validation Process
 
@@ -244,7 +257,7 @@ Recommended workflow:
    the configured validations directory)
 4. `/describe-pr` - Generate PR description
 
-The validation works best after commits are made, as it can analyze the git
+The validation works best after commits are made, as it can analyze the VCS
 history to understand what was implemented.
 
 Remember: Good validation catches issues before they reach production. Be
