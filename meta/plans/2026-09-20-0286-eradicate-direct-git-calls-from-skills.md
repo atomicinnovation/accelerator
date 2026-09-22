@@ -506,16 +506,16 @@ or dropped.
 
 #### Automated Verification:
 
-- [ ] Render unit tests pass, asserting both idioms per backend plus the jj
+- [x] Render unit tests pass, asserting both idioms per backend plus the jj
       identity fallback clause and the load-bearing semantic phrases: `cd cli &&
       cargo test -p accelerator-vcs detect::tests`
-- [ ] The three descriptive goldens match after the hand-edit: `cd cli && cargo
+- [x] The three descriptive goldens match after the hand-edit: `cd cli && cargo
       test -p accelerator-vcs --features bash-parity --test detect_goldens`
-- [ ] Single-component check passes: `mise run cli:check`
+- [x] Single-component check passes: `mise run cli:check`
 
 #### Manual Verification:
 
-- [ ] `accelerator vcs detect --descriptive` in a jj checkout shows both new jj
+- [x] `accelerator vcs detect --descriptive` in a jj checkout shows both new jj
       bullets (with the identity fallback clause); in a git checkout shows both
       new git bullets.
 
