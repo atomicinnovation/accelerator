@@ -198,9 +198,6 @@ fn get_of_an_unset_key_prints_the_callers_default() -> TestResult {
     Ok(())
 }
 
-/// A non-empty `--default` wins over the built-in default on a miss; a bare
-/// read yields the built-in default; an empty `--default` falls through to it
-/// (matching `config path`).
 #[test]
 fn get_prefers_a_non_empty_default_over_the_built_in() -> TestResult {
     let fixture = Fixture::new()?.team(SEEDED)?;
