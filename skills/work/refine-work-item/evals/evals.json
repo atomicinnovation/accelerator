@@ -130,7 +130,7 @@
       "id": 6,
       "name": "decompose-5a-approve-proceeds-to-warning",
       "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-5/work-item.md\n\nSimulate both agents returned results. Simulate the skill has just presented a proposal of 3 child stories titled:\n1. Redis Session Management\n2. Token Validator Consolidation\n3. Auth Audit Logging\n\nUser types: approve all\n\nDo NOT actually write files. Show the pre-write warning only.",
-      "expected_output": "Skill emits the pre-write warning: 'This will allocate 3 work item numbers and write 3 files; aborting mid-write leaves partial state — use `jj restore <file>` to discard any children written. Proceed? (y/n)'. Waits for explicit y/n. Does NOT write files.",
+      "expected_output": "Skill emits the pre-write warning: 'This will allocate 3 work item numbers and write 3 files; aborting mid-write leaves partial state — delete the newly-written child file(s) to recover. Proceed? (y/n)'. Waits for explicit y/n. Does NOT write files.",
       "files": [
         "skills/work/refine-work-item/evals/files/scenario-5/work-item.md"
       ],
@@ -142,10 +142,10 @@
           "value": "The skill emits a pre-write warning about allocating work item numbers and writing files before proceeding"
         },
         {
-          "name": "warning-mentions-jj-restore",
-          "description": "Warning mentions jj restore",
+          "name": "warning-mentions-file-deletion",
+          "description": "Warning mentions deleting the newly-written child files",
           "type": "contains",
-          "value": "jj restore"
+          "value": "delete the newly-written child file(s)"
         },
         {
           "name": "waits-for-confirmation",
@@ -827,7 +827,7 @@
       "id": 33,
       "name": "partial-write-cancel-consistent-ledger",
       "prompt": "/refine-work-item @skills/work/refine-work-item/evals/files/scenario-23/work-item.md\n\n[Step 1: user invokes /refine-work-item on epic 0042]\n[Step 2: both agents return results]\n[Step 3: skill proposes 3 children: 0043 Session Store, 0044 Token Signing, 0045 Auth Audit Logging]\n[Step 4: user types 'approve all']\n[Step 5: skill emits pre-write warning; user types 'y']\n[Step 6: skill writes child 0043 (Session Store) and child 0044 (Token Signing)]\n[Step 7: BEFORE writing child 0045, user types 'cancel']\n\nShow the ledger that would be emitted after cancellation.",
-      "expected_output": "Skill stops the write loop after 0043 and 0044. Does NOT write 0045. Does NOT update parent's Requirements. Prints ledger showing allocated 3 numbers (0043, 0044, 0045), wrote 2 files (0043, 0044), and instructs user how to restore via jj restore.",
+      "expected_output": "Skill stops the write loop after 0043 and 0044. Does NOT write 0045. Does NOT update parent's Requirements. Prints ledger showing allocated 3 numbers (0043, 0044, 0045), wrote 2 files (0043, 0044), and instructs the user to delete the newly-written child file(s).",
       "files": [
         "skills/work/refine-work-item/evals/files/scenario-23/work-item.md"
       ],
@@ -839,10 +839,10 @@
           "value": "The ledger shows that 3 numbers were allocated but only 2 files were written"
         },
         {
-          "name": "jj-restore-mentioned",
-          "description": "jj restore instructions given",
+          "name": "file-deletion-mentioned",
+          "description": "file-deletion recovery instructions given",
           "type": "contains",
-          "value": "jj restore"
+          "value": "delete the newly-written child file(s)"
         },
         {
           "name": "parent-not-updated",

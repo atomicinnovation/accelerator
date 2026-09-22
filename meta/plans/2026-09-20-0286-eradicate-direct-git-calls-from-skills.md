@@ -751,15 +751,17 @@ harness-driven, not CI-gated.
 
 #### Automated Verification:
 
-- [ ] No git subcommand remains: the Phase 3 sweep pattern over
+- [x] No git subcommand remains: the Phase 3 sweep pattern over
       `skills/work/refine-work-item/SKILL.md` returns nothing.
-- [ ] No restore command remains in the skill body: `grep -nE '(jj|git) restore'
+- [x] No restore command remains in the skill body: `grep -nE '(jj|git) restore'
       skills/work/refine-work-item/SKILL.md` returns nothing (the git-token sweep
       does not cover `restore`, so this is a separate check; recovery is plain
       deletion).
-- [ ] The eval spec no longer hardcodes `jj restore`: `grep -n 'jj restore'
+- [x] The eval spec no longer hardcodes `jj restore`: `grep -n 'jj restore'
       skills/work/refine-work-item/evals/evals.json` returns nothing.
-- [ ] Frontmatter validates and skill checks pass: `mise run check`.
+- [x] Frontmatter validates and skill checks pass: `mise run check`. (Skill
+      lanes pass; full `mise run` is the end-to-end gate. Benchmark regeneration
+      is a harness-driven release-time step, not hand-edited.)
 
 #### Manual Verification:
 
