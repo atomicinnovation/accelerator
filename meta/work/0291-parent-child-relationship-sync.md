@@ -14,6 +14,7 @@ tags: ["sync", "tracker", "jira", "linear", "hierarchy", "parent-child", "relati
 last_updated: "2026-09-20T19:15:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-877"
 ---
 
 # 0291: Parent-Child Relationship Synchronisation for Work Item Sync
