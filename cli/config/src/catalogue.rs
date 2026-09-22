@@ -175,6 +175,11 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.work_item_revise_major_count", Default::Scalar("2")),
 ];
 
+pub const RESEARCH_KEYS: &[(&str, Default)] = &[
+    ("research.breadth", Default::Scalar("8")),
+    ("research.depth", Default::Scalar("1")),
+];
+
 /// Built-in review lens names for code reviews (pr and plan modes).
 pub const BUILTIN_CODE_LENSES: &[&str] = &[
     "architecture",
@@ -242,7 +247,13 @@ pub const VISUALISER_KEYS: &[(&str, Default)] = &[
 /// (which carries no default).
 #[must_use]
 pub fn default_for(key: &str) -> Option<Value> {
-    for group in [PATH_KEYS, WORK_KEYS, REVIEW_KEYS, VISUALISER_KEYS] {
+    for group in [
+        PATH_KEYS,
+        WORK_KEYS,
+        REVIEW_KEYS,
+        RESEARCH_KEYS,
+        VISUALISER_KEYS,
+    ] {
         if let Some((_, default)) = group.iter().find(|(name, _)| *name == key)
         {
             return Some(default.to_value());
@@ -261,22 +272,35 @@ pub fn default_for(key: &str) -> Option<Value> {
 #[cfg(test)]
 mod tests {
     use super::{
-        default_for, AGENT_KEYS, DOC_TYPES, EXTRA_KEYS, PATH_KEYS, REVIEW_KEYS,
-        TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
+        default_for, AGENT_KEYS, DOC_TYPES, EXTRA_KEYS, PATH_KEYS,
+        RESEARCH_KEYS, REVIEW_KEYS, TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
     };
     use crate::node::Scalar;
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_sixty_three_keys_across_six_groups() {
+    fn the_catalogue_holds_sixty_five_keys_across_seven_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
             + REVIEW_KEYS.len()
+            + RESEARCH_KEYS.len()
             + AGENT_KEYS.len()
             + VISUALISER_KEYS.len();
-        assert_eq!(count, 63);
+        assert_eq!(count, 65);
         assert_eq!(DOC_TYPES.len(), 14);
+    }
+
+    #[test]
+    fn default_for_the_research_knobs_are_typed_scalars() {
+        assert_eq!(
+            default_for("research.breadth"),
+            Some(Value::Scalar(Scalar::String("8".to_owned())))
+        );
+        assert_eq!(
+            default_for("research.depth"),
+            Some(Value::Scalar(Scalar::String("1".to_owned())))
+        );
     }
 
     #[test]

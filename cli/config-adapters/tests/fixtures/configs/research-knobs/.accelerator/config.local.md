@@ -1,0 +1,4 @@
+---
+research:
+  breadth: 2
+---

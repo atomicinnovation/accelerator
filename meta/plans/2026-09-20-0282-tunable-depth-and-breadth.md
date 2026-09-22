@@ -354,16 +354,16 @@ black-box precedence test, not here.
 
 #### Automated Verification:
 
-- [ ] Catalogue unit tests pass (key count, declared values): `mise run test:unit:cli`
-- [ ] Dump golden matches: `mise run test:unit:cli` (drives `dump_matches_the_committed_golden`, `cli/launcher/tests/config_read.rs:802`)
-- [ ] Parity resolution test passes: `mise run test:unit:cli`
-- [ ] Public-API snapshot matches: `mise run public-api:check`
-- [ ] Rust format and clippy clean: `mise run cli:check`
-- [ ] Full read-only lane green: `mise run check`
+- [x] Catalogue unit tests pass (key count, declared values): `mise run test:unit:cli`
+- [x] Dump golden matches: `mise run test:unit:cli` (drives `dump_matches_the_committed_golden`, `cli/launcher/tests/config_read.rs:802`)
+- [x] Parity resolution test passes: `mise run test:unit:cli`
+- [x] Public-API snapshot matches: `mise run public-api:check`
+- [x] Rust format and clippy clean: `mise run cli:check`
+- [x] Full read-only lane green: `mise run check`
 
 #### Manual Verification:
 
-- [ ] `accelerator config dump` in a configured repo lists `research.breadth`
+- [x] `accelerator config dump` in a configured repo lists `research.breadth`
       (`8`) and `research.depth` (`1`) with correct source attribution.
 
 ---

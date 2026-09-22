@@ -55,6 +55,9 @@ pub fn assemble(
     for (key, _) in catalogue::REVIEW_KEYS {
         rows.push(defaulted_row(config, key)?);
     }
+    for (key, _) in catalogue::RESEARCH_KEYS {
+        rows.push(defaulted_row(config, key)?);
+    }
     for name in catalogue::AGENT_KEYS {
         rows.push(defaulted_row(config, &format!("agents.{name}"))?);
     }

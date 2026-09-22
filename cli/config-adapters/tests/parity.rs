@@ -79,6 +79,14 @@ fn depth_beyond_two_resolves_declared_scalar_values() {
 }
 
 #[test]
+fn the_research_knobs_resolve_personal_over_team() {
+    let dir = materialise("research-knobs");
+    let dir = dir.path().to_path_buf();
+    assert_eq!(rendered(&dir, "research.breadth"), "2");
+    assert_eq!(rendered(&dir, "research.depth"), "3");
+}
+
+#[test]
 fn inline_and_nested_arrays_resolve_to_typed_sequences() {
     let deep = materialise("deep");
     let deep = deep.path().to_path_buf();
