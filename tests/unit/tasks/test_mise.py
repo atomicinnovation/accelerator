@@ -42,6 +42,8 @@ _BUILD_SYSTEM_CHECK_GATES = [
     "lint:dispatch-coherence:check",
     "lint:integration-skills:check",
     "lint:bare-invocation:check",
+    "lint:git-tokens:check",
+    "lint:skill-cli-refs:check",
 ]
 
 _LAUNCHER = "build:cli:dev"

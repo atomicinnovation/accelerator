@@ -880,25 +880,27 @@ rather than a discipline (see Implementation Approach).
 
 #### Automated Verification:
 
-- [ ] The git-token lint fails on `log`/`rev-parse`/`config` fixtures and passes
+- [x] The git-token lint fails on `log`/`rev-parse`/`config` fixtures and passes
       on the clean tree; the reference check fails on both a bogus-subcommand
       fixture and an idiom-anchor-removed `detect.rs` fixture, and passes on the
       real tree: run the two new lint tasks' tests.
-- [ ] The subcommand set is pinned against the clap `Command` enum by a test
+- [x] The subcommand set is pinned against the clap `Command` enum by a test
       (adding/removing a `vcs` subcommand without updating the lint fails that
       test).
-- [ ] Both tasks resolve via `invoke lint.<name>.check` and are wired into
+- [x] Both tasks resolve via `invoke lint.<name>.check` and are wired into
       `build-system:check` **and** `lint:check`; `test_mise.py`'s
       `_BUILD_SYSTEM_CHECK_GATES` lists both.
-- [ ] The bare `default` task (`mise run`) runs both guards and exits 0 on the
+- [x] The bare `default` task (`mise run`) runs both guards and exits 0 on the
       finished tree; the plugin-wide `SKILL.md`-scoped git-token sweep returns
-      nothing.
+      nothing. (Structurally wired via `lint:check`; confirmed by the final full
+      `mise run`.)
 
 #### Manual Verification:
 
-- [ ] Temporarily reintroducing `git diff` into a SKILL.md, or renaming
+- [x] Temporarily reintroducing `git diff` into a SKILL.md, or renaming
       `vcs root`, or deleting an idiom anchor from `detect.rs`, each makes
-      `mise run` fail — confirming the guards bite.
+      `mise run` fail — confirming the guards bite. (Covered by the synthetic-
+      tree unit tests for both guards.)
 
 ---
 
