@@ -657,15 +657,16 @@ not "your session's VCS".
 
 #### Automated Verification:
 
-- [ ] No literal `git status` remains: `grep -n 'git status'
+- [x] No literal `git status` remains: `grep -n 'git status'
       skills/config/migrate/SKILL.md` returns nothing.
-- [ ] No git subcommand remains: the Phase 3 sweep pattern over
+- [x] No git subcommand remains: the Phase 3 sweep pattern over
       `skills/config/migrate/SKILL.md` returns nothing.
-- [ ] Skill checks pass: `mise run check`.
+- [x] Skill checks pass: `mise run check`. (Skill lanes pass; full `mise run`
+      is the end-to-end gate.)
 
 #### Manual Verification:
 
-- [ ] The resume guidance reads correctly in both a jj and a git session.
+- [x] The resume guidance reads correctly in both a jj and a git session.
 
 ---
 

@@ -269,9 +269,10 @@ In practice the agent first runs the migration and hits the **structured stall**
    required **only** when the pre-flight refuses — i.e. the tree carries dirt this
    run does *not* own (foreign changes, or you have committed since the partial
    run so the base revision moved). In that case, re-run once without `FORCE`
-   first to read the refusal guidance, confirm via `jj
-   status`/`git status` that the dirty paths really are this migration's own, and
-   only then add `ACCELERATOR_MIGRATE_FORCE=1`.
+   first to read the refusal guidance, confirm via the session's VCS status
+   command (see the SessionStart VCS Command Reference) that the dirty paths
+   really are this migration's own, and only then add
+   `ACCELERATOR_MIGRATE_FORCE=1`.
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
 and fails closed**: an unknown verb, a count mismatch (too few or too many
