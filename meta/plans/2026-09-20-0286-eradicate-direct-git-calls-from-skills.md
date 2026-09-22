@@ -911,12 +911,12 @@ because the work item is the source of truth for the acceptance gate, edit it so
 it does not disagree with the delivered design. Not gated by `mise run`; part of
 closing the item.
 
-- [ ] **Requirement + Acceptance Criterion 2**: reword to name the working-copy-
+- [x] **Requirement + Acceptance Criterion 2**: reword to name the working-copy-
       root (`discover`) capability the `vcs root` command surfaces, not
       `repository_root`; state the secondary-workspace behaviour (returns the
       workspace, not the shared main repo). Preserve the intent ("the checkout's
       repository root").
-- [ ] **Acceptance Criteria 3 and 5 (diff-range idioms)**: the plan deliberately
+- [x] **Acceptance Criteria 3 and 5 (diff-range idioms)**: the plan deliberately
       changed the idioms the work item hard-codes. Reword AC3 and AC5 to the
       delivered forms — jj `jj diff --from 'fork_point(trunk() | @)' --to @` (a
       merge-base fix over the buggy single-revision `fork_point(trunk())`, not
@@ -924,19 +924,19 @@ closing the item.
       resolved default branch (not literal `main...HEAD`) — and note the
       origin-trunk precondition (both backends). Without this, the acceptance gate
       still encodes the two defects the plan removed.
-- [ ] **Acceptance Criterion 6 (author resolution)**: AC6 tests only jj-only and
+- [x] **Acceptance Criterion 6 (author resolution)**: AC6 tests only jj-only and
       git-only identity. Add a colocated leg (jj identity unset, `git config
       user.name` set → the git value via the reference's model-driven fallback) —
       the plan calls this "the previously-regressing case", so the gate should
       require it. Verified at release time (the fallback is model-driven prose,
       not an adapter capability), not by CI.
-- [ ] **Technical Note — dispatched-sub-binary checklist**: correct to "a plain
+- [x] **Technical Note — dispatched-sub-binary checklist**: correct to "a plain
       second-level clap subcommand on the already-registered `vcs` token", not the
       thirteen-point per-token checklist.
-- [ ] **Technical Note — allowed-tools**: correct to "`validate-plan` lists
+- [x] **Technical Note — allowed-tools**: correct to "`validate-plan` lists
       scoped entries, not blanket `Bash(accelerator ...)`, so the rewrite adds
       `Bash(accelerator vcs root)`".
-- [ ] **Reference-as-steering contract**: the SessionStart VCS Command Reference
+- [x] **Reference-as-steering contract**: the SessionStart VCS Command Reference
       is now extended a second time and depended on by four skills
       (`validate-plan`, `config/migrate`, `refine-work-item`, `research-issue`);
       no ADR covers session-VCS injection. ADR-0066 owns the status/log **output

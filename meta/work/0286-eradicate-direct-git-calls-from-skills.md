@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0169", "work-item:0198", "work-item:0200"]
 tags: ["vcs", "skills", "cli"]
-last_updated: "2026-09-20T21:20:01+00:00"
+last_updated: "2026-09-22T10:16:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -88,11 +88,14 @@ A plugin-wide sweep found the full extent:
 
 ## Requirements
 
-- Expose the existing `vcs-adapters` `repository_root` capability as an
-  `accelerator vcs root` subcommand that prints the checkout's repository root
-  and resolves identically under git, colocated jj, and pure-jj. Route it
-  through the launcher like the existing `vcs status`/`vcs log` commands so it
-  is reachable under the general `Bash(accelerator ...)` permission.
+- Expose the existing `vcs-adapters` working-copy-root capability (`discover`)
+  as an `accelerator vcs root` subcommand that prints the checkout's
+  working-copy root and resolves under git, colocated jj, and pure-jj —
+  returning, in a jj secondary workspace, the workspace root rather than the
+  shared main repository. Route it through the launcher like the existing `vcs
+  status`/`vcs log` commands; because `validate-plan` lists scoped, not blanket,
+  `Bash(accelerator ...)` entries, the rewrite adds a `Bash(accelerator vcs
+  root)` entry.
 - Rewrite `validate-plan`'s evidence-gathering so it issues no raw `git log`,
   `git diff`, or `git rev-parse`: recent commits and the implementation diff
   resolve to the session's VCS commands, and the step that runs the local
@@ -127,15 +130,18 @@ A plugin-wide sweep found the full extent:
       `config` returns no command invocation, and a reviewer confirms every
       remaining VCS reference in the affected skills names the session's VCS
       command or the SessionStart VCS Command Reference rather than a backend.
-- [ ] `accelerator vcs root` prints the checkout's repository root and exits 0
-      under git-only, colocated jj, and pure-jj, each matching the checkout's
-      actual root.
+- [ ] `accelerator vcs root` prints the checkout's working-copy root and exits 0
+      under git-only, colocated jj, pure-jj, and a jj secondary workspace, each
+      matching the checkout's own root — the secondary workspace returning the
+      workspace root, not the shared main repository.
 - [ ] The SessionStart VCS Command Reference emitted by `accelerator vcs detect
       --descriptive` carries both new idioms: a diff-range idiom rendering the
-      trunk-divergence cumulative change as `main...HEAD` for git and the
-      `fork_point(trunk())`-anchored revset for jj, and a user-identity idiom
-      rendering `git config user.name` for git and `jj config get user.name`
-      for jj.
+      trunk-divergence cumulative change as `git diff <trunk>...HEAD` for git
+      (where `<trunk>` is the resolved default branch) and
+      `jj diff --from 'fork_point(trunk() | @)' --to @` for jj, and a
+      user-identity idiom rendering `git config user.name` for git and
+      `jj config get user.name` for jj (with a git-identity fallback when the jj
+      identity is unset). Both diff anchors need an origin trunk.
 - [ ] Given a fixture repository with at least one implementation commit ahead
       of trunk, `validate-plan` emits a non-empty recent-commit list and a
       non-empty implementation diff, with no `fatal: not a git repository`,
@@ -144,16 +150,21 @@ A plugin-wide sweep found the full extent:
 - [ ] `validate-plan`'s implementation diff equals the cumulative change
       between the trunk divergence point and the working-copy commit under
       git-only, colocated jj, and pure-jj, verified against a fixture carrying
-      three implementation commits — git-only via `git diff main...HEAD`;
-      colocated and pure-jj via `jj diff --from 'fork_point(trunk())' --to @`.
+      three implementation commits (with an origin trunk bookmark) — git-only
+      via `git diff <trunk>...HEAD` (`<trunk>` the resolved default branch);
+      colocated and pure-jj via `jj diff --from 'fork_point(trunk() | @)'
+      --to @`.
 - [ ] `config/migrate`'s dirty-path confirmation guidance names the session VCS
       status command and contains no literal `git status`.
 - [ ] `refine-work-item` resolves a child work item's author to the configured
       identity in a jj repository (fixture: `jj config user.name` set to a known
-      value, no git identity → that value) and in a git-only repository
-      (fixture: `git config user.name` set, no jj → that value), resolving the
-      git-only case via the session VCS user identity idiom with no hard-coded
-      `git config` call in the skill.
+      value, no git identity → that value), in a git-only repository (fixture:
+      `git config user.name` set, no jj → that value), and in a colocated
+      repository (fixture: jj identity unset, `git config user.name` set → the
+      git value via the reference's model-driven fallback — the
+      previously-regressing case), resolving the git-only and colocated cases
+      via the session VCS user identity idiom with no hard-coded `git config`
+      call in the skill.
 - [ ] `research-issue` gathers evidence successfully — a non-empty log and diff
       with no `fatal: not a git repository` — in a pure-jj repository
       (regression check; no code change expected).
@@ -185,13 +196,14 @@ A plugin-wide sweep found the full extent:
 - `validate-plan` raw VCS usage: `git log --oneline -n 20` (line 58),
   `git diff HEAD~N..HEAD` (line 59), `git rev-parse --show-toplevel`
   (line 62), plus soft prose "through git" (line 48).
-- `repository_root` already exists and is backend-neutral: `vcs-adapters`
-  exposes `repository_root`/`jj_workspace_root`, exercised by
+- The backend-neutral working-copy-root capability already exists:
+  `vcs-adapters` exposes `discover` (alongside
+  `repository_root`/`jj_workspace_root`), exercised by
   `cli/vcs-adapters/tests/library.rs` and consumed by `accelerator vcs detect`.
-  The `vcs root` command surfaces it — new argv parsing in
-  `cli/vcs-cli/src/cli.rs` and a handler, no new resolution logic. Registering
-  the subcommand follows the dispatched-sub-binary checklist in
-  `tasks/README.md`.
+  The `vcs root` command surfaces `discover` — a `Root` variant in
+  `cli/vcs-cli/src/cli.rs` and a handler, no new resolution logic. Because `vcs`
+  is already a dispatched token, `vcs root` is a plain second-level clap
+  subcommand on it, **not** the thirteen-point dispatched-sub-binary checklist.
 - Deterministic-CLI precedent: `accelerator vcs status`
   (`jj status` / `git diff --cached --stat`) and `accelerator vcs log`
   (`jj log --limit 5` / `git log --oneline -5`) already exist in
@@ -210,9 +222,11 @@ A plugin-wide sweep found the full extent:
   pure-jj denies. Suggested equivalents are raw jj (`jj diff`, `jj log`).
 - Pattern to mirror: `research-issue` — "the session's VCS log/diff command",
   no raw git.
-- allowed-tools: `validate-plan` and `research-issue` list only
-  `Bash(accelerator ...)`, which already covers `accelerator vcs root`; no
-  git/jj allowed-tools entry is required.
+- allowed-tools: `validate-plan` lists scoped entries (`Bash(accelerator config
+  *)`, `Bash(accelerator corpus ...)`), **not** a blanket `Bash(accelerator
+  ...)`, so the rewrite adds `Bash(accelerator vcs root)` (and `Bash(accelerator
+  vcs detect --descriptive)` for reference re-derivation). No git/jj
+  allowed-tools entry is required.
 - Backend equivalents for reference: `jj log`, `jj diff` / `jj diff --from
   --to` / `jj diff -r <revset>`, `jj workspace root`, `jj config get
   user.name`.
@@ -265,6 +279,22 @@ A plugin-wide sweep found the full extent:
 - Corrected stale metadata: `research-issue` no longer carries raw git at lines
   63/66 (the original References were stale); `blocked_by: work-item:0200`
   cleared because 0200 is done.
+- Reference-as-steering contract: the SessionStart VCS Command Reference is now
+  extended a second time and depended on by four skills (`validate-plan`,
+  `config/migrate`, `refine-work-item`, `research-issue`). ADR-0066 owns the
+  status/log output format only, not the reference-as-steering/injection
+  contract, which stays deliberately ADR-less. Decision: no new ADR — this note
+  plus the `detect.rs` reference consts record it. Promotion trigger: a fifth
+  dependent skill, or any idiom removal.
+- The `vcs root` command surfaces `discover` (the working-copy root), not
+  `repository_root`: they agree everywhere except a jj secondary workspace,
+  where `repository_root` returns the shared main repo — the wrong tree for
+  `validate-plan` to run its checks in. This narrows the Requirement and
+  Acceptance Criterion 2, and AC3/AC5 are reworded to the delivered diff-range
+  forms (`jj diff --from 'fork_point(trunk() | @)' --to @`;
+  `git diff <trunk>...HEAD` with a resolved default branch), a merge-base and
+  trunk-name fix over the buggy `fork_point(trunk())`/literal `main...HEAD` the
+  item first recorded.
 
 ## References
 
