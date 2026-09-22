@@ -666,8 +666,8 @@ across rounds.
 
 #### Automated Verification:
 
-- [ ] The new `config get research.breadth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
-- [ ] Invocation form and frontmatter/markdown lint pass: `mise run check` (includes `lint:bare-invocation:check`)
+- [x] The new `config get research.breadth` preprocessor site executes cleanly: `mise run test:integration:skill-invocation`
+- [x] Invocation form and frontmatter/markdown lint pass: `mise run check` (includes `lint:bare-invocation:check`)
 
 #### Manual Verification:
 

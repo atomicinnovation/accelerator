@@ -8,7 +8,7 @@ description: Research an external subject over web sources into a
   across rounds; synthesise then finalise closes it; a later outline or conduct
   reopens a closed subject. Use when the user wants to research a topic on the
   web, not the codebase.
-argument-hint: "brief SUBJECT | outline SLUG | conduct SLUG | synthesise SLUG | finalise SLUG"
+argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG | synthesise SLUG | finalise SLUG"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator corpus resolve *)
@@ -48,8 +48,33 @@ You are the engine for iterative topic research. The user invokes you with
 one verb and an argument. Dispatch on the verb: `brief SUBJECT`, `outline
 SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
-The research is bounded: **breadth is 8** (at most eight focus areas per round)
-and **depth is 1** (one researcher per focus area, no recursion).
+Two knobs bound the research. **breadth** is the ceiling on focus areas an
+`outline` round may commission; **depth** is the recursion limit within a
+finding. breadth's configured value, resolved `personal > team > built-in
+default`, is below; depth stays a fixed 1 for now:
+
+- breadth: !`accelerator config get research.breadth --fail-safe`
+- depth: 1 (one researcher per focus area, no recursion)
+
+A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
+flag on the invocation wins over the configured value. Then apply these rules
+in order:
+
+- **Empty value** — if the resolved value is empty (an unreadable config, or a
+  knob explicitly set to an empty value), do not proceed or guess a default:
+  tell the user the research configuration is missing or unreadable, and stop.
+- **Valid** — an integer of 1 or more passes unchanged.
+- **Out of range or malformed** — a zero, negative, or non-integer value (a
+  non-integer clamps regardless of magnitude) clamps to 1, and the verb warns,
+  substituting the knob name being validated:
+
+  > Warning: research.<knob> must be a positive integer, got '{value}' — clamping to 1
+
+  single-quoting the offending value. There is no upper bound; breadth is the
+  per-round cost guard.
+- **Misplaced flag** — a flag belonging to the other verb (`--depth` on
+  `outline`, `--breadth` on `conduct`) is ignored with a one-line note; it
+  never clamps the verb's own knob.
 
 ## Shared Preamble
 
@@ -142,9 +167,12 @@ marker does not count as a conducted finding:
 Report the outcome taken — `wrote Round 1`, `appended Round N+1`, or `revised
 Round N in place` — so the branch that fired is observable from the invocation.
 
-Scale each round's focus areas to the subject under the breadth ceiling of 8 —
-never write a ninth focus area in a single round. The ceiling is per round, so
-an accreting set may exceed eight focus areas across rounds.
+Resolve breadth per the knob-resolution rule above, reading any `--breadth N`
+flag on the invocation. Scale each round's focus areas to the subject under the
+resolved breadth ceiling — the effort-scaling judgement may size a round beneath
+the ceiling but never above it, and never write more focus areas than the
+ceiling in a single round. The ceiling is per round, so an accreting set may
+exceed it across rounds.
 
 Write and validate `outline.md` first, then edit `manifest.md` as the final
 step. Status on the final manifest edit: `briefed → outlined` on the first
