@@ -832,11 +832,11 @@ add inline comments to config values.
 
 #### Automated Verification:
 
-- [ ] Markdown lint on the help block passes: `mise run check`
+- [x] Markdown lint on the help block passes: `mise run check`
 
 #### Manual Verification:
 
-- [ ] `/accelerator:configure help` renders the `### research` section adjacent to
+- [x] `/accelerator:configure help` renders the `### research` section adjacent to
       `### review`, with both knobs, their defaults (`8`, `1`), the
       `flag > personal > team > default` order, and a plain-language dormancy
       caveat with no internal work-item id.
