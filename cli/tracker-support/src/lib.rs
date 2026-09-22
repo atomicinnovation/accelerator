@@ -1,6 +1,7 @@
 //! The policy every provider client shares: credential resolution, the
-//! bounded-retry schedule, identifier safety, the transport bounds, and the
-//! `<tracker>.pull` discovery-scope config block.
+//! bounded-retry schedule, identifier safety, the transport bounds, the
+//! ceiling-string conversion, and the `<tracker>.pull` discovery-scope and
+//! `<tracker>.push` write-bound config blocks.
 //!
 //! Admission is deliberately narrow — policy shared by two or more provider
 //! clients, with no transport and no provider specifics — so this does not
@@ -8,10 +9,13 @@
 //! not import each other; a common downward dependency is how they share a
 //! rule without doing so.
 
+pub mod block;
+pub mod ceiling;
 pub mod credentials;
 pub mod identifier;
 pub mod mime;
 pub mod pull;
+pub mod push;
 pub mod retry;
 pub mod transport;
 

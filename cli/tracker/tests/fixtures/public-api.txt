@@ -217,6 +217,7 @@ pub fn tracker::VisibleEntity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> c
 impl core::marker::StructuralPartialEq for tracker::VisibleEntity
 pub const tracker::DEFAULT_MAX_ITEMS: tracker::Ceiling
 pub const tracker::DEFAULT_MAX_PAGES: tracker::Ceiling
+pub const tracker::UNLIMITED_TOKEN: &str
 pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::enumerate_visible_entities(&self) -> core::result::Result<alloc::vec::Vec<tracker::VisibleEntity>, tracker::TrackerError>

@@ -946,6 +946,38 @@ fn dump_shows_a_personal_pull_block_replacing_the_team_block() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn dump_surfaces_a_configured_push_block_as_a_flat_row() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: linear\nlinear:\n  push:\n    \
+         max_items: unlimited\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump"])?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(
+            "`linear.push.max_items` | `unlimited` \
+             | team (.accelerator/config.md)"
+        ),
+        "{stdout}"
+    );
+    Ok(())
+}
+
+#[test]
+fn dump_refuses_an_invalid_push_ceiling() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: linear\nlinear:\n  push:\n    \
+         max_items: lots\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump"])?;
+    assert_ne!(code(&output), 0);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("push `max_items`"), "{stderr}");
+    assert!(stderr.contains(".accelerator/config.md"), "{stderr}");
+    Ok(())
+}
+
 /// A team config with `work.integration: linear` and the given `linear.pull`
 /// block body (its lines already indented four spaces under `pull:`).
 fn linear_pull_team(pull_body: &str) -> String {

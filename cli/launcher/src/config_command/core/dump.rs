@@ -78,6 +78,7 @@ pub fn assemble(
         rows.push(extra_row(config, key)?);
     }
     rows.extend(pull_rows(config)?);
+    rows.extend(push_rows(config)?);
     Ok(Some(rows))
 }
 
@@ -137,20 +138,64 @@ fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
     let parsed = tracker_support::pull::parse(&value).map_err(invalid)?;
     tracker_support::pull::validate(&parsed, tracker).map_err(invalid)?;
     let source = source_of(config, &prefix)?;
+    Ok(block_leaf_rows(&value, &prefix, source))
+}
+
+/// Read-only rows for the active tracker's `<tracker>.push` block: the resolved
+/// `max_items` when present, else an unset-but-available placeholder. The
+/// fail-closed contract matches [`pull_rows`]; push has one field, so there is
+/// no per-tracker vocabulary to list.
+fn push_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
+    let integration = config
+        .effective(&Key::parse("work.integration")?, None)?
+        .rendered();
+    if tracker_support::pull::Tracker::from_integration(&integration).is_none()
+    {
+        return Ok(Vec::new());
+    }
+    let prefix = format!("{integration}.push");
+    let key = Key::parse(&prefix)?;
+    let placeholder = || {
+        vec![Row {
+            key: format!("{prefix}.max_items"),
+            cell: Cell::NotSet,
+            source: Source::Default,
+        }]
+    };
+    let Resolved::Found(value) = config.get(&key, None)? else {
+        return Ok(placeholder());
+    };
+    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
+        return Ok(placeholder());
+    }
+    let level = block_level(config, &key)?;
+    let invalid =
+        |error: tracker_support::push::PushConfigError| ConfigError::Invalid {
+            detail: error.detail(level),
+        };
+    let parsed = tracker_support::push::parse(&value).map_err(invalid)?;
+    tracker_support::push::validate(&parsed).map_err(invalid)?;
+    let source = source_of(config, &prefix)?;
+    Ok(block_leaf_rows(&value, &prefix, source))
+}
+
+/// Flattens a resolved block to its `<prefix>.<field>` value rows, all
+/// attributed to the one source the block resolved from.
+fn block_leaf_rows(value: &Value, prefix: &str, source: Source) -> Vec<Row> {
     let mut leaves = Vec::new();
-    if let Value::Mapping(entries) = &value {
+    if let Value::Mapping(entries) = value {
         for (field, child) in entries {
             flatten_block(&format!("{prefix}.{field}"), child, &mut leaves);
         }
     }
-    Ok(leaves
+    leaves
         .into_iter()
         .map(|(key, value)| Row {
             key,
             cell: Cell::Value(value),
             source,
         })
-        .collect())
+        .collect()
 }
 
 /// The unset-but-available placeholder rows for a tracker's accepted fields.

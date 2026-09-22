@@ -4,7 +4,7 @@ description: Reconcile local work items in meta/work/ with the active remote
   tracker named by work.integration. Use when the user wants to sync, push, or
   pull work items to or from Jira or Linear, preview what a sync would change, or
   reconcile divergent local and remote state.
-argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pushes N] [--allow-unbounded] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
+argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] [--allow-unbounded] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator work *)
@@ -72,9 +72,12 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   or remote
   mutation, and **without** touching the baseline. Combinable with a directional
   flag.
-- `--max-pulls N` / `--max-pushes N` — the blast-radius bounds (default **25**
-  each). `0` refuses every pull / push. A run whose pulls or pushes would exceed
-  its bound refuses with **zero writes** (exit **5**).
+- `--max-pulls <N|unlimited>` / `--max-pushes <N|unlimited>` — the blast-radius
+  bounds (default **25** each). A non-negative integer (`0` refuses every pull /
+  push) or `unlimited`. Present overrides the matching
+  `<tracker>.pull.max_items` / `<tracker>.push.max_items` config key; unset
+  defers to it. A run whose pulls or pushes would exceed its bound refuses with
+  **zero writes** (exit **5**).
 - `--allow-unbounded` — acknowledge an unbounded broadened pull. When
   `<tracker>.pull.max_items` is `unlimited` **and** the scope is broadened
   (`all_*`, or a non-empty `additional_*`), the run refuses fail-safe (exit
@@ -129,7 +132,7 @@ local→remote pushes. `/sync-work-items --target 0257` reconciles only item
 ```
 accelerator work sync \
   [--push-only|--pull-only] [--preview] \
-  [--max-pulls N] [--max-pushes N] \
+  [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] \
   [--resolve <id>=<remote|local|skip>]…
 ```
 

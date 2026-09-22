@@ -1,4 +1,8 @@
 pub mod tracker_support
+pub mod tracker_support::block
+pub fn tracker_support::block::read_block(config: &dyn config::service::ConfigAccess, integration: &str, sub_key: &str) -> core::result::Result<core::option::Option<(config::service::Value, config::level::Level)>, alloc::string::String>
+pub mod tracker_support::ceiling
+pub fn tracker_support::ceiling::from_token(token: &str, allow_zero: bool) -> core::option::Option<tracker::Ceiling>
 pub mod tracker_support::credentials
 pub enum tracker_support::credentials::CredentialError
 pub tracker_support::credentials::CredentialError::ConfigUnreadable
@@ -242,6 +246,41 @@ pub fn tracker_support::pull::parse(block: &config::service::Value) -> core::res
 pub fn tracker_support::pull::read(config: &dyn config::service::ConfigAccess, integration: &str) -> core::result::Result<core::option::Option<(tracker_support::pull::PullConfig, config::level::Level)>, alloc::string::String>
 pub fn tracker_support::pull::resolve_ceilings(config: &dyn config::service::ConfigAccess, integration: &str) -> core::result::Result<tracker_support::pull::Ceilings, alloc::string::String>
 pub fn tracker_support::pull::validate(config: &tracker_support::pull::PullConfig, tracker: tracker_support::pull::Tracker) -> core::result::Result<(), tracker_support::pull::PullConfigError>
+pub mod tracker_support::push
+pub enum tracker_support::push::PushConfigError
+pub tracker_support::push::PushConfigError::BadCeiling
+pub tracker_support::push::PushConfigError::BadCeiling::value: alloc::string::String
+pub tracker_support::push::PushConfigError::NotAMapping
+pub tracker_support::push::PushConfigError::UnrecognisedKey
+pub tracker_support::push::PushConfigError::UnrecognisedKey::key: alloc::string::String
+impl tracker_support::push::PushConfigError
+pub fn tracker_support::push::PushConfigError::detail(&self, level: config::level::Level) -> alloc::string::String
+impl core::clone::Clone for tracker_support::push::PushConfigError
+pub fn tracker_support::push::PushConfigError::clone(&self) -> tracker_support::push::PushConfigError
+impl core::cmp::Eq for tracker_support::push::PushConfigError
+impl core::cmp::PartialEq for tracker_support::push::PushConfigError
+pub fn tracker_support::push::PushConfigError::eq(&self, other: &tracker_support::push::PushConfigError) -> bool
+impl core::fmt::Debug for tracker_support::push::PushConfigError
+pub fn tracker_support::push::PushConfigError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::push::PushConfigError
+pub struct tracker_support::push::PushConfig
+pub tracker_support::push::PushConfig::max_items: core::option::Option<alloc::string::String>
+pub tracker_support::push::PushConfig::unknown_keys: alloc::vec::Vec<alloc::string::String>
+impl tracker_support::push::PushConfig
+pub fn tracker_support::push::PushConfig::max_items(&self) -> core::result::Result<tracker::Ceiling, tracker_support::push::PushConfigError>
+impl core::clone::Clone for tracker_support::push::PushConfig
+pub fn tracker_support::push::PushConfig::clone(&self) -> tracker_support::push::PushConfig
+impl core::cmp::Eq for tracker_support::push::PushConfig
+impl core::cmp::PartialEq for tracker_support::push::PushConfig
+pub fn tracker_support::push::PushConfig::eq(&self, other: &tracker_support::push::PushConfig) -> bool
+impl core::default::Default for tracker_support::push::PushConfig
+pub fn tracker_support::push::PushConfig::default() -> tracker_support::push::PushConfig
+impl core::fmt::Debug for tracker_support::push::PushConfig
+pub fn tracker_support::push::PushConfig::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker_support::push::PushConfig
+pub fn tracker_support::push::parse(block: &config::service::Value) -> core::result::Result<tracker_support::push::PushConfig, tracker_support::push::PushConfigError>
+pub fn tracker_support::push::read(config: &dyn config::service::ConfigAccess, integration: &str) -> core::result::Result<core::option::Option<(tracker_support::push::PushConfig, config::level::Level)>, alloc::string::String>
+pub fn tracker_support::push::validate(config: &tracker_support::push::PushConfig) -> core::result::Result<(), tracker_support::push::PushConfigError>
 pub mod tracker_support::retry
 pub struct tracker_support::retry::ClockJitter
 impl tracker_support::retry::Jitter for tracker_support::retry::ClockJitter

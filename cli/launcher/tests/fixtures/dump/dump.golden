@@ -88,3 +88,4 @@
 | `linear.pull.filters` | *(not set)* | default |
 | `linear.pull.max_items` | *(not set)* | default |
 | `linear.pull.max_pages` | *(not set)* | default |
+| `linear.push.max_items` | *(not set)* | default |

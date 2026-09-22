@@ -345,7 +345,8 @@ pub struct FilterSchema {
 /// magic number, and a bound is compared through [`Ceiling::exceeds`] /
 /// [`Ceiling::reached`] rather than open-coding the `Unlimited` case at each
 /// call. Carried on the request and the transport config; the sole authority on
-/// a valid ceiling string is the config-layer conversion, so a value here has
+/// a valid ceiling string is one conversion in `tracker-support`, which both
+/// config validation and the CLI parse route through, so a value here has
 /// already been accepted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ceiling {
@@ -379,19 +380,24 @@ impl Ceiling {
     }
 }
 
+/// The word a `Ceiling::Unlimited` is written and read as, in config and at the
+/// CLI. The one spelling both [`Display`] and the ceiling-string conversion
+/// share, so a rendered ceiling always parses back.
+pub const UNLIMITED_TOKEN: &str = "unlimited";
+
 impl Display for Ceiling {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Bounded(cap) => write!(formatter, "{cap}"),
-            Self::Unlimited => formatter.write_str("unlimited"),
+            Self::Unlimited => formatter.write_str(UNLIMITED_TOKEN),
         }
     }
 }
 
-/// The pull-direction write bound when `<tracker>.pull.max_items` is unset.
+/// The write bound in either direction when its `max_items` key is unset.
 ///
-/// Matches the `--max-pulls` flag default, so an unconfigured pull keeps the
-/// same write ceiling.
+/// Matches the `--max-pulls` / `--max-pushes` flag default, so an unconfigured
+/// pull or push keeps the same write ceiling.
 pub const DEFAULT_MAX_ITEMS: Ceiling = Ceiling::Bounded(25);
 
 /// The transport page cap when a `<tracker>.pull.max_pages` cap is unset.

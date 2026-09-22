@@ -12,10 +12,7 @@
 
 use config::render_value;
 use config::ConfigAccess;
-use config::Key;
 use config::Level;
-use config::Resolved;
-use config::Source;
 use config::Value;
 use tracker::Ceiling;
 use tracker::FilterSchema;
@@ -241,8 +238,6 @@ fn is_truthy(value: &Value) -> bool {
     render_value(value) == "true"
 }
 
-const UNLIMITED: &str = "unlimited";
-
 /// A tracker whose `pull` block can be validated: its scope-noun vocabulary and
 /// its accepted filter keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -413,30 +408,11 @@ fn page_cap_tokens(caps: &PageCaps) -> Vec<(&'static str, &CeilingToken)> {
     .collect()
 }
 
-/// Whether a ceiling token is a valid bound, deferring to the one conversion
-/// [`to_ceiling`] so validation and interpretation can never disagree.
+/// Whether a ceiling token is a valid bound, deferring to
+/// [`crate::ceiling::from_token`] so validation and interpretation can never
+/// disagree.
 fn ceiling_ok(token: &str, allow_zero: bool) -> bool {
-    to_ceiling(token, allow_zero).is_ok()
-}
-
-/// Interprets a ceiling token into a [`Ceiling`] — the sole authority on a
-/// valid ceiling string. Configure-time validation ([`validate`]) and sync-time
-/// resolution ([`PullConfig::ceilings`]) both route through it, so a token that
-/// validates always interprets, and a page cap can never smuggle a `Bounded(0)`
-/// past validation into a paging loop.
-///
-/// `allow_zero` admits `0` — `max_items`' refuse-all — which a page cap
-/// forbids, since a 0-page loop returns a silent complete-empty result. Rejects
-/// a float, a negative, or any non-numeric token.
-fn to_ceiling(token: &str, allow_zero: bool) -> Result<Ceiling, ()> {
-    if token == UNLIMITED {
-        return Ok(Ceiling::Unlimited);
-    }
-    match token.parse::<usize>() {
-        Ok(0) if !allow_zero => Err(()),
-        Ok(bound) => Ok(Ceiling::Bounded(bound)),
-        Err(_) => Err(()),
-    }
+    crate::ceiling::from_token(token, allow_zero).is_some()
 }
 
 /// The bounds a pull runs under, resolved from a `<tracker>.pull` block with
@@ -503,8 +479,8 @@ fn interpret(
     key: &str,
     allow_zero: bool,
 ) -> Result<Ceiling, PullConfigError> {
-    to_ceiling(&token.0, allow_zero)
-        .map_err(|()| bad_ceiling(key, token, allow_zero))
+    crate::ceiling::from_token(&token.0, allow_zero)
+        .ok_or_else(|| bad_ceiling(key, token, allow_zero))
 }
 
 /// Reads and parses the active tracker's `<tracker>.pull` block from resolved
@@ -526,23 +502,10 @@ pub fn read(
     if Tracker::from_integration(integration).is_none() {
         return Ok(None);
     }
-    let key = Key::parse(&format!("{integration}.pull"))
-        .map_err(|error| error.to_string())?;
-    let Resolved::Found(value) =
-        config.get(&key, None).map_err(|error| error.to_string())?
+    let Some((value, level)) =
+        crate::block::read_block(config, integration, "pull")?
     else {
         return Ok(None);
-    };
-    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
-        return Ok(None);
-    }
-    let level = match config
-        .effective(&key, None)
-        .map_err(|error| error.to_string())?
-        .source()
-    {
-        Source::Personal => Level::Personal,
-        _ => Level::Team,
     };
     let parsed = parse(&value).map_err(|error| error.detail(level))?;
     Ok(Some((parsed, level)))
