@@ -1,4 +1,4 @@
-"""Tests for the git-token guard in ``tasks/lint/git_tokens.py`` (0286).
+"""Tests for the git-token guard in ``tasks/lint/git_tokens.py``.
 
 Synthetic ``tmp_path`` skill trees exercise the blocklisted subcommands and a
 clean skill; the real-tree assertion pins that ``skills/`` carries no direct git

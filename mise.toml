@@ -506,7 +506,7 @@ depends = ["deps:install:python"]
 run = "invoke lint.bare-invocation.check"
 
 [tasks."lint:git-tokens:check"]
-description = "Guard against a direct git subcommand in any skills/**/SKILL.md (0286): the no-raw-git invariant, scoped to SKILL.md"
+description = "Guard against a direct git subcommand in any skills/**/SKILL.md: the no-raw-git invariant, scoped to SKILL.md"
 depends = ["deps:install:python"]
 run = "invoke lint.git-tokens.check"
 

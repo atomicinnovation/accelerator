@@ -1,4 +1,4 @@
-"""Guard against a direct git token in any ``skills/**/SKILL.md`` (0286).
+"""Guard against a direct git token in any ``skills/**/SKILL.md``.
 
 Every skill expresses VCS operations in backend-neutral terms — the session's
 VCS command, or the SessionStart VCS Command Reference — never a raw ``git``

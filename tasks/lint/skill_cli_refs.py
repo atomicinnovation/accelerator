@@ -1,4 +1,4 @@
-"""Bind skill VCS references to real subcommands; render-lock the idioms (0286).
+"""Bind skill VCS references to real subcommands; render-lock the idioms.
 
 Two invariants, one guard:
 

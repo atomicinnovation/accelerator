@@ -1,5 +1,5 @@
-"""Tests for the SKILL<->CLI reference guard in ``tasks/lint/skill_cli_refs.py``
-(0286).
+"""Tests for the SKILL<->CLI reference guard in
+``tasks/lint/skill_cli_refs.py``.
 
 Two invariants: every ``accelerator vcs <sub>`` a skill names resolves to a real
 subcommand (the subcommand set pinned against the clap ``Command`` enum by a
