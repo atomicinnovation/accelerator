@@ -1,5 +1,9 @@
 //! `vcs detect`: the checkout's VCS mode and any workspace/worktree
 //! boundary.
+//!
+//! The command-reference consts below are a shared steering contract: skills
+//! defer to these idioms by name rather than restating backend commands, so an
+//! idiom removed here silently breaks them.
 
 use std::path::Path;
 
@@ -22,6 +26,12 @@ const JJ_COMMAND_REFERENCE: &str = concat!(
     "- Use `jj new` to start a new change after the current one\n",
     "- Use `jj bookmark list` or `jj status` instead of `git branch \
      --show-current`\n",
+    "- Use `jj diff --from 'fork_point(trunk() | @)' --to @` for the \
+     cumulative change since the trunk divergence point; `--to @` includes \
+     uncommitted working-copy edits. Needs an origin trunk bookmark; \
+     `trunk()` falls back to `root()` (whole history) without one\n",
+    "- Use `jj config get user.name` to read the configured user identity, \
+     falling back to `git config user.name` when the jj identity is unset\n",
     "\n",
     "Key conceptual differences from git:\n",
     "- No staging area: all tracked changes are automatically part of the \
@@ -51,6 +61,11 @@ const GIT_REFERENCE: &str = concat!(
     "- Use `git commit -m \"message\"` to commit staged changes\n",
     "- Use `git branch --show-current` to check the current branch\n",
     "- Use `git push` to push to remote\n",
+    "- Use `git diff <trunk>...HEAD` for the cumulative change since the \
+     trunk divergence point (three-dot = merge-base to HEAD; committed \
+     trees only), where <trunk> is the default branch, resolved via \
+     `git symbolic-ref --short refs/remotes/origin/HEAD`\n",
+    "- Use `git config user.name` to read the configured user identity\n",
     "\n",
     "Key conventions:\n",
     "- Always stage specific files by name, never bulk-add\n",
@@ -341,6 +356,11 @@ mod tests {
             .ok_or("expected output")?;
         assert!(output.contains("uses git as its version control system"));
         assert!(!output.contains("WORKSPACE BOUNDARY DETECTED"));
+        assert!(output.contains("git diff <trunk>...HEAD"));
+        assert!(output.contains("trunk divergence point"));
+        assert!(output.contains("default branch"));
+        assert!(output.contains("refs/remotes/origin/HEAD"));
+        assert!(output.contains("git config user.name"));
         Ok(())
     }
 
@@ -362,6 +382,11 @@ mod tests {
         assert!(output.contains("mode: jj"));
         assert!(output.contains("VCS Command Reference"));
         assert!(output.contains("WORKSPACE BOUNDARY DETECTED"));
+        assert!(output.contains("fork_point(trunk() | @)"));
+        assert!(output.contains("trunk divergence point"));
+        assert!(output.contains("falls back to `root()`"));
+        assert!(output.contains("jj config get user.name"));
+        assert!(output.contains("falling back to `git config user.name`"));
         Ok(())
     }
 

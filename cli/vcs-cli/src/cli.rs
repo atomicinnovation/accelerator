@@ -45,6 +45,11 @@ pub enum Command {
         #[arg(long)]
         fail_safe: bool,
     },
+    /// The working-copy root of the checkout containing the current
+    /// directory — the root `git rev-parse --show-toplevel` and
+    /// `jj workspace root` return. In a jj secondary workspace this is the
+    /// workspace root, not the shared main repository.
+    Root,
     /// Block or warn about a git VCS command with a jj equivalent, for the
     /// `PreToolUse` hook. Reads the tool call's command from stdin.
     Guard {

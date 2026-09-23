@@ -168,7 +168,8 @@ Process user input:
 options. State the allocation count and warn about partial state:
 
 1. **Yes, proceed** — allocate N numbers and write N files (partial state is
-   possible if aborted mid-write; use `jj restore <file>` to discard)
+   possible if aborted mid-write; delete the newly-written child file(s) to
+   recover)
 2. **No, cancel** — cancel without writing
 
 **On approval**:
@@ -184,7 +185,7 @@ options. State the allocation count and warn about partial state:
    ```
    Collision: <path> already exists (concurrent session?). Aborting.
    Allocated: NNNN, NNNN, …; Wrote: N-1 files (list them).
-   Use `jj restore <file>` to discard any children written.
+   Delete the newly-written child file(s).
    ```
 
    Child body includes: Summary (from proposal), Context (linking to
@@ -210,8 +211,8 @@ options. State the allocation count and warn about partial state:
      ```
      Could not locate a unique '## Acceptance Criteria' anchor in <path>
      (matches found: <N>). Parent not updated.
-     Children NNNN, NNNN, NNNN remain on disk; add their links manually
-     or run `jj restore <parent-path>` and re-run decompose.
+     Children NNNN, NNNN, NNNN remain on disk; add their links manually,
+     or delete the newly-written child file(s) and re-run decompose.
      ```
      Children already written remain on disk.
 
@@ -244,9 +245,12 @@ with the indicated value:
   (own-identity; legacy files use `work_item_id`)
 - `title:` ← per-child proposal title; body H1 matches exactly
 - `date:` ← current UTC timestamp via `date -u +%Y-%m-%dT%H:%M:%S+00:00`
-- `author:` ← first match in chain: parent work item's `author` field → configured
-  `author` value (from context config) → `jj config get user.name` →
-  `git config user.name` → ask the user once and apply to all children
+- `author:` ← first match in chain: parent work item's `author` field →
+  configured `author` value (from context config) → the session's VCS user
+  identity (the user-identity idiom in the SessionStart VCS Command Reference,
+  which falls back to the git identity when the jj identity is unset, so
+  git-only and colocated repositories both resolve) → ask the user once and
+  apply to all children
 - `producer:` ← `refine-work-item`
 - `kind:` ← derived: `epic → story`, `story → task`, `bug`/`spike` → ask
   user to confirm before proceeding (already done in the challenge step),

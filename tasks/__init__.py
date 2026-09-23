@@ -80,73 +80,33 @@ ns_vendor.add_task(vendor_commands.build_archive)
 ns.add_collection(ns_vendor)
 
 ns_format = Collection("format")
-ns_format.add_collection(
-    Collection.from_module(format_.scripts)
-)  # format.scripts.check / .fix
-ns_format.add_collection(
-    Collection.from_module(format_.build_system)
-)  # format.build-system.check / .fix
-ns_format.add_collection(
-    Collection.from_module(format_.server)
-)  # format.server.check / .fix
-ns_format.add_collection(
-    Collection.from_module(format_.frontend)
-)  # format.frontend.check / .fix
-ns_format.add_collection(
-    Collection.from_module(format_.cli)
-)  # format.cli.check / .fix
+ns_format.add_collection(Collection.from_module(format_.scripts))
+ns_format.add_collection(Collection.from_module(format_.build_system))
+ns_format.add_collection(Collection.from_module(format_.server))
+ns_format.add_collection(Collection.from_module(format_.frontend))
+ns_format.add_collection(Collection.from_module(format_.cli))
 ns.add_collection(ns_format)
 
 ns_lint = Collection("lint")
-ns_lint.add_collection(
-    Collection.from_module(lint.scripts)
-)  # lint.scripts.shellcheck / .bashisms
-ns_lint.add_collection(
-    Collection.from_module(lint.build_system)
-)  # lint.build-system.check / .fix
-ns_lint.add_collection(
-    Collection.from_module(lint.server)
-)  # lint.server.check / .fix
-ns_lint.add_collection(
-    Collection.from_module(lint.frontend)
-)  # lint.frontend.check / .fix
-ns_lint.add_collection(
-    Collection.from_module(lint.cli)
-)  # lint.cli.check / .fix
-ns_lint.add_collection(
-    Collection.from_module(lint.workflows)
-)  # lint.workflows.actionlint
-ns_lint.add_collection(
-    Collection.from_module(lint.vendor_shims)
-)  # lint.vendor-shims.check
-ns_lint.add_collection(
-    Collection.from_module(lint.store_duplication)
-)  # lint.store-duplication.check
-ns_lint.add_collection(
-    Collection.from_module(lint.skill_permissions)
-)  # lint.skill-permissions.check
-ns_lint.add_collection(
-    Collection.from_module(lint.bare_invocation)
-)  # lint.bare-invocation.check
-ns_lint.add_collection(
-    Collection.from_module(lint.claude_coupling)
-)  # lint.claude-coupling.check
-ns_lint.add_collection(
-    Collection.from_module(lint.dispatch_coherence)
-)  # lint.dispatch-coherence.check
-ns_lint.add_collection(
-    Collection.from_module(lint.integration_skills)
-)  # lint.integration-skills.check
-ns_lint.add_collection(
-    Collection.from_module(lint.vcs_settings)
-)  # lint.vcs-settings.check
+ns_lint.add_collection(Collection.from_module(lint.scripts))
+ns_lint.add_collection(Collection.from_module(lint.build_system))
+ns_lint.add_collection(Collection.from_module(lint.server))
+ns_lint.add_collection(Collection.from_module(lint.frontend))
+ns_lint.add_collection(Collection.from_module(lint.cli))
+ns_lint.add_collection(Collection.from_module(lint.workflows))
+ns_lint.add_collection(Collection.from_module(lint.vendor_shims))
+ns_lint.add_collection(Collection.from_module(lint.store_duplication))
+ns_lint.add_collection(Collection.from_module(lint.skill_permissions))
+ns_lint.add_collection(Collection.from_module(lint.bare_invocation))
+ns_lint.add_collection(Collection.from_module(lint.claude_coupling))
+ns_lint.add_collection(Collection.from_module(lint.dispatch_coherence))
+ns_lint.add_collection(Collection.from_module(lint.integration_skills))
+ns_lint.add_collection(Collection.from_module(lint.vcs_settings))
+ns_lint.add_collection(Collection.from_module(lint.git_tokens))
+ns_lint.add_collection(Collection.from_module(lint.skill_cli_refs))
 ns.add_collection(ns_lint)
 
 ns_types = Collection("types")
-ns_types.add_collection(
-    Collection.from_module(types.build_system)
-)  # types.build-system.check
-ns_types.add_collection(
-    Collection.from_module(types.frontend)
-)  # types.frontend.check
+ns_types.add_collection(Collection.from_module(types.build_system))
+ns_types.add_collection(Collection.from_module(types.frontend))
 ns.add_collection(ns_types)

@@ -1,4 +1,4 @@
-//! `accelerator-vcs` — the `vcs detect|status|log|guard` sub-binary,
+//! `accelerator-vcs` — the `vcs detect|status|log|root|guard` sub-binary,
 //! dispatched by the `accelerator` launcher.
 
 mod cli;
@@ -6,6 +6,7 @@ mod detect;
 mod guard;
 mod log;
 mod report;
+mod root;
 mod status;
 
 use std::io::Read as _;
@@ -43,6 +44,12 @@ fn run_status() -> Result<(), kernel::Error> {
 fn run_log() -> Result<(), kernel::Error> {
     let probe = InProcessProbe;
     println!("{}", log::run(&current_dir()?, &probe));
+    Ok(())
+}
+
+fn run_root() -> Result<(), kernel::Error> {
+    let probe = InProcessProbe;
+    println!("{}", root::run(&current_dir()?, &probe)?);
     Ok(())
 }
 
@@ -103,6 +110,7 @@ fn main() -> ExitCode {
         } => run_detect(descriptive, fail_safe),
         Command::Status { fail_safe: _ } => run_status(),
         Command::Log { fail_safe: _ } => run_log(),
+        Command::Root => run_root(),
         Command::Guard {
             format: _,
             fail_safe,

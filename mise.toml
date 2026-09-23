@@ -505,9 +505,19 @@ description = "Guard the bare accelerator invocation convention across skills/**
 depends = ["deps:install:python"]
 run = "invoke lint.bare-invocation.check"
 
+[tasks."lint:git-tokens:check"]
+description = "Guard against a direct git subcommand in any skills/**/SKILL.md: the no-raw-git invariant, scoped to SKILL.md"
+depends = ["deps:install:python"]
+run = "invoke lint.git-tokens.check"
+
+[tasks."lint:skill-cli-refs:check"]
+description = "Bind every accelerator vcs <sub> skill reference to a real subcommand (pinned against the clap Command enum) and render-lock the detect.rs idiom anchors"
+depends = ["deps:install:python"]
+run = "invoke lint.skill-cli-refs.check"
+
 [tasks."build-system:check"]
 description = "Run all Python format, lint, and type checks plus workflow lint and the dispatch-coherence guard (ruff + pyrefly + actionlint)"
-depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check", "lint:workflows:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check"]
+depends = ["format:build-system:check", "lint:build-system:check", "types:build-system:check", "lint:workflows:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:git-tokens:check", "lint:skill-cli-refs:check"]
 
 [tasks."format:server:check"]
 description = "Check Rust formatting with rustfmt (cargo fmt --check)"
@@ -644,7 +654,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"
