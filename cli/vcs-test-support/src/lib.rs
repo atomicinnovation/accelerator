@@ -7,6 +7,7 @@
 
 pub mod fixtures;
 pub mod hermetic;
+pub mod jj_status;
 pub mod masks;
 pub mod status_log;
 pub mod stubs;

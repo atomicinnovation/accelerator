@@ -178,6 +178,16 @@ fn report(query: &str, start: &Path) -> Result<(), String> {
             );
             print(query, &rendered);
         }
+        "dirty_paths" => {
+            let root = probe.discover(start).unwrap_or_else(|| start.into());
+            let kind = probe.kind(&root);
+            let paths = probe
+                .dirty_paths(&root, kind)
+                .map_err(|error| format!("error: {error}"))?;
+            for path in paths {
+                println!("{path}");
+            }
+        }
         other => return Err(format!("unknown query: {other}")),
     }
     Ok(())

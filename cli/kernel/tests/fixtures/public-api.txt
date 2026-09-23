@@ -6,6 +6,7 @@ pub fn kernel::hooks::pre_tool_use_warn(system_message: &str) -> alloc::string::
 pub fn kernel::hooks::session_start(context: &str, system_message: core::option::Option<&str>) -> alloc::string::String
 pub mod kernel::logging
 pub fn kernel::logging::init() -> core::result::Result<(), kernel::Error>
+pub fn kernel::logging::init_if_requested() -> core::result::Result<(), kernel::Error>
 pub enum kernel::Error
 pub kernel::Error::Failed(alloc::string::String)
 pub kernel::Error::LogFilter(alloc::string::String)

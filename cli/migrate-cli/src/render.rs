@@ -124,7 +124,7 @@ pub struct StdoutReporter {
 }
 
 fn decisions_path(root: &Path, id: &str) -> std::path::PathBuf {
-    root.join(format!(".accelerator/state/migrations-{id}-decisions.txt"))
+    root.join(migrate::manifest::decisions_file(id))
 }
 
 impl Reporter for StdoutReporter {

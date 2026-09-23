@@ -21,7 +21,6 @@ use migrate::ports::MigrationContext;
 use migrate::ports::MigrationError;
 use store::NewFileMode;
 use store::WriteBounds;
-use vcs_adapters::library::InProcessProbe;
 
 use crate::corpus_index::FileCorpusIndex;
 use crate::manifest_store::FileManifestStore;
@@ -83,11 +82,6 @@ impl MigrationContext for FileMigrationContext {
                     .collect()
             })
             .unwrap_or_default()
-    }
-
-    fn revision(&self) -> Option<String> {
-        let probe = InProcessProbe;
-        vcs::facts(&self.root, &probe, &probe).and_then(|facts| facts.revision)
     }
 
     fn corpus_index(&self) -> &dyn CorpusIndex {

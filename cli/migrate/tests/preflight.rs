@@ -4,15 +4,17 @@
 use std::cell::RefCell;
 
 use migrate::manifest::RunnerPaths;
-use migrate::ports::DirtyPathScanner;
 use migrate::ports::ManifestStore;
 use migrate::ports::MigrationError;
 use migrate::ports::RunLock;
 use migrate::ports::RunLockGuard;
+use migrate::ports::WorkingCopy;
+use migrate::ports::WorkingCopyObservation;
 use migrate::preflight::Preflight;
 use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
 use migrate::preflight::UnownedChanges;
+use migrate::run_base::RunBase;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -34,33 +36,52 @@ impl RunLock for NeverLock {
     }
 }
 
-struct StubScanner(Vec<String>);
+struct StubWorkingCopy {
+    run_base: Option<RunBase>,
+    dirty_paths: Vec<String>,
+}
 
-impl DirtyPathScanner for StubScanner {
-    fn dirty_paths(
+impl StubWorkingCopy {
+    fn based_on(run_base: Option<&str>, dirty_paths: Vec<String>) -> Self {
+        Self {
+            run_base: run_base.and_then(RunBase::recorded),
+            dirty_paths,
+        }
+    }
+}
+
+impl WorkingCopy for StubWorkingCopy {
+    fn observe(
         &self,
         roots: &[&str],
-    ) -> Result<Vec<String>, MigrationError> {
-        Ok(self
-            .0
-            .iter()
-            .filter(|path| roots.iter().any(|scope| path.starts_with(scope)))
-            .cloned()
-            .collect())
+    ) -> Result<WorkingCopyObservation, MigrationError> {
+        Ok(WorkingCopyObservation {
+            run_base: self.run_base.clone(),
+            dirty_paths: self
+                .dirty_paths
+                .iter()
+                .filter(|path| {
+                    roots.iter().any(|scope| path.starts_with(scope))
+                })
+                .cloned()
+                .collect(),
+        })
     }
 }
 
 #[derive(Default)]
 struct InMemoryManifestStore {
     manifest: RefCell<Option<Vec<String>>>,
-    run_id: RefCell<Option<String>>,
+    recorded_run_base: RefCell<Option<RunBase>>,
 }
 
 impl InMemoryManifestStore {
-    fn seeded(manifest: Vec<String>, run_id: Option<&str>) -> Self {
+    fn seeded(manifest: Vec<String>, run_base: Option<&str>) -> Self {
         Self {
             manifest: RefCell::new(Some(manifest)),
-            run_id: RefCell::new(run_id.map(str::to_owned)),
+            recorded_run_base: RefCell::new(
+                run_base.and_then(RunBase::recorded),
+            ),
         }
     }
 }
@@ -84,21 +105,21 @@ impl ManifestStore for InMemoryManifestStore {
         Ok(())
     }
 
-    fn run_id(&self) -> Result<Option<String>, MigrationError> {
-        Ok(self.run_id.borrow().clone())
+    fn recorded_run_base(&self) -> Result<Option<RunBase>, MigrationError> {
+        Ok(self.recorded_run_base.borrow().clone())
     }
 
-    fn write_run_id(
+    fn record_run_base(
         &self,
-        revision: Option<&str>,
+        run_base: Option<&RunBase>,
     ) -> Result<(), MigrationError> {
-        *self.run_id.borrow_mut() = revision.map(str::to_owned);
+        *self.recorded_run_base.borrow_mut() = run_base.cloned();
         Ok(())
     }
 
     fn clear(&self) -> Result<(), MigrationError> {
         *self.manifest.borrow_mut() = None;
-        *self.run_id.borrow_mut() = None;
+        *self.recorded_run_base.borrow_mut() = None;
         Ok(())
     }
 }
@@ -108,7 +129,7 @@ const fn runner() -> RunnerPaths<'static> {
         applied: ".accelerator/state/migrations-applied",
         skipped: ".accelerator/state/migrations-skipped",
         run_paths: ".accelerator/state/migrations-run-paths.txt",
-        run_id: ".accelerator/state/migrations-run.id",
+        recorded_run_base: ".accelerator/state/migrations-run.id",
         lock_dir: ".accelerator/state/migrate-run.lockdir",
     }
 }
@@ -119,16 +140,16 @@ fn refusal_over(
     revision: Option<&str>,
 ) -> Result<UnownedChanges, TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(
+    let working_copy = StubWorkingCopy::based_on(
+        revision,
         dirty_paths.iter().map(|path| (*path).to_owned()).collect(),
     );
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest,
         runner: runner(),
-        revision: revision.map(str::to_owned),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -152,18 +173,20 @@ fn unowned(paths: &[&str], stale_run: bool) -> UnownedChanges {
 #[test]
 fn the_held_run_locks_sentinel_is_never_dirt() -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(vec![
-        ".accelerator/state/migrate-run.lockdir/owner.e218f68e83638d9b"
-            .to_owned(),
-    ]);
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-1"),
+        vec![
+            ".accelerator/state/migrate-run.lockdir/owner.e218f68e83638d9b"
+                .to_owned(),
+        ],
+    );
     let manifest = InMemoryManifestStore::default();
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -177,15 +200,14 @@ fn the_held_run_locks_sentinel_is_never_dirt() -> Result<(), TestError> {
 #[test]
 fn a_clean_tree_mints_a_fresh_manifest_and_run_id() -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(Vec::new());
+    let working_copy = StubWorkingCopy::based_on(Some("rev-1"), Vec::new());
     let manifest = InMemoryManifestStore::default();
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -194,7 +216,7 @@ fn a_clean_tree_mints_a_fresh_manifest_and_run_id() -> Result<(), TestError> {
 
     assert!(matches!(outcome, PreflightOutcome::Clean));
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
-    assert_eq!(manifest.run_id()?, Some("rev-1".to_owned()));
+    assert_eq!(manifest.recorded_run_base()?, RunBase::recorded("rev-1"));
     Ok(())
 }
 
@@ -205,20 +227,22 @@ fn a_clean_tree_mints_a_fresh_manifest_and_run_id() -> Result<(), TestError> {
 fn a_tree_dirty_only_in_the_runners_own_bookkeeping_is_clean(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(vec![
-        ".accelerator/state/migrations-applied".to_owned(),
-        ".accelerator/state/migrations-skipped".to_owned(),
-        ".accelerator/state/migrations-run-paths.txt".to_owned(),
-        ".accelerator/state/migrations-run.id".to_owned(),
-    ]);
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-1"),
+        vec![
+            ".accelerator/state/migrations-applied".to_owned(),
+            ".accelerator/state/migrations-skipped".to_owned(),
+            ".accelerator/state/migrations-run-paths.txt".to_owned(),
+            ".accelerator/state/migrations-run.id".to_owned(),
+        ],
+    );
     let manifest = InMemoryManifestStore::default();
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -227,7 +251,7 @@ fn a_tree_dirty_only_in_the_runners_own_bookkeeping_is_clean(
 
     assert!(matches!(outcome, PreflightOutcome::Clean));
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
-    assert_eq!(manifest.run_id()?, Some("rev-1".to_owned()));
+    assert_eq!(manifest.recorded_run_base()?, RunBase::recorded("rev-1"));
     Ok(())
 }
 
@@ -257,10 +281,13 @@ fn unowned_changes_beside_the_runners_bookkeeping_still_refuse(
 fn the_runners_bookkeeping_is_absent_from_the_resume_affordance(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(vec![
-        ".accelerator/state/migrations-applied".to_owned(),
-        "meta/work/0001-foo.md".to_owned(),
-    ]);
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-1"),
+        vec![
+            ".accelerator/state/migrations-applied".to_owned(),
+            "meta/work/0001-foo.md".to_owned(),
+        ],
+    );
     let manifest = InMemoryManifestStore::seeded(
         vec!["meta/work/0001-foo.md".to_owned()],
         Some("rev-1"),
@@ -268,10 +295,9 @@ fn the_runners_bookkeeping_is_absent_from_the_resume_affordance(
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -290,7 +316,10 @@ fn the_runners_bookkeeping_is_absent_from_the_resume_affordance(
 fn every_dirty_path_manifested_at_a_matching_revision_resumes(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(vec!["meta/work/0001-foo.md".to_owned()]);
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-1"),
+        vec!["meta/work/0001-foo.md".to_owned()],
+    );
     let manifest = InMemoryManifestStore::seeded(
         vec!["meta/work/0001-foo.md".to_owned()],
         Some("rev-1"),
@@ -298,10 +327,9 @@ fn every_dirty_path_manifested_at_a_matching_revision_resumes(
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -322,15 +350,15 @@ fn a_session_log_in_the_affordance_reports_its_decision_count(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
     let session_log = ".accelerator/state/migrations-0099-session.jsonl";
-    let scanner = StubScanner(vec![session_log.to_owned()]);
+    let working_copy =
+        StubWorkingCopy::based_on(Some("rev-1"), vec![session_log.to_owned()]);
     let manifest = InMemoryManifestStore::seeded(Vec::new(), Some("rev-1"));
     let counter = |path: &str| if path == session_log { 3 } else { 0 };
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &counter,
     };
@@ -414,7 +442,7 @@ fn a_recorded_run_base_without_a_manifest_is_not_a_stale_run(
 ) -> Result<(), TestError> {
     let manifest = InMemoryManifestStore {
         manifest: RefCell::new(None),
-        run_id: RefCell::new(Some("rev-1".to_owned())),
+        recorded_run_base: RefCell::new(RunBase::recorded("rev-1")),
     };
 
     let refusal = refusal_over(&["meta/a.md"], &manifest, Some("rev-2"))?;
@@ -496,7 +524,7 @@ fn a_recorded_revision_of_none_never_matches_even_a_current_none(
 fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(Vec::new());
+    let working_copy = StubWorkingCopy::based_on(Some("rev-2"), Vec::new());
     let manifest = InMemoryManifestStore::seeded(
         vec!["stale/path.md".to_owned()],
         Some("old-rev"),
@@ -504,10 +532,9 @@ fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-2".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -516,7 +543,7 @@ fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
 
     assert!(matches!(outcome, PreflightOutcome::Clean));
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
-    assert_eq!(manifest.run_id()?, Some("rev-2".to_owned()));
+    assert_eq!(manifest.recorded_run_base()?, RunBase::recorded("rev-2"));
     Ok(())
 }
 
@@ -539,7 +566,10 @@ fn two_distinct_non_none_revisions_are_a_stale_base_and_refuse(
 fn force_bypasses_the_dirty_check_and_mints_a_fresh_manifest(
 ) -> Result<(), TestError> {
     let lock = AlwaysLock;
-    let scanner = StubScanner(vec!["meta/unrelated.md".to_owned()]);
+    let working_copy = StubWorkingCopy::based_on(
+        Some("rev-2"),
+        vec!["meta/unrelated.md".to_owned()],
+    );
     let manifest = InMemoryManifestStore::seeded(
         vec!["stale".to_owned()],
         Some("stale-rev"),
@@ -547,10 +577,9 @@ fn force_bypasses_the_dirty_check_and_mints_a_fresh_manifest(
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-2".to_owned()),
         force: true,
         session_log_decision_count: &no_op,
     };
@@ -559,22 +588,21 @@ fn force_bypasses_the_dirty_check_and_mints_a_fresh_manifest(
 
     assert!(matches!(outcome, PreflightOutcome::Clean));
     assert_eq!(manifest.manifest()?, Some(Vec::new()));
-    assert_eq!(manifest.run_id()?, Some("rev-2".to_owned()));
+    assert_eq!(manifest.recorded_run_base()?, RunBase::recorded("rev-2"));
     Ok(())
 }
 
 #[test]
 fn lock_contention_surfaces_as_a_failed_preflight() {
     let lock = NeverLock;
-    let scanner = StubScanner(Vec::new());
+    let working_copy = StubWorkingCopy::based_on(Some("rev-1"), Vec::new());
     let manifest = InMemoryManifestStore::default();
     let no_op = |_: &str| 0;
     let preflight = Preflight {
         lock: &lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest,
         runner: runner(),
-        revision: Some("rev-1".to_owned()),
         force: false,
         session_log_decision_count: &no_op,
     };
@@ -582,4 +610,79 @@ fn lock_contention_surfaces_as_a_failed_preflight() {
     let outcome = preflight.run();
 
     assert!(matches!(outcome, Err(PreflightError::Failed(_))));
+}
+
+#[test]
+fn force_over_an_unreadable_working_copy_records_no_run_base(
+) -> Result<(), TestError> {
+    let lock = AlwaysLock;
+    let working_copy = StubWorkingCopy::based_on(None, Vec::new());
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["stale".to_owned()],
+        Some("stale-rev"),
+    );
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        working_copy: &working_copy,
+        manifest: &manifest,
+        runner: runner(),
+        force: true,
+        session_log_decision_count: &no_op,
+    };
+
+    let (_guard, outcome) = preflight.run()?;
+
+    assert!(matches!(outcome, PreflightOutcome::Clean));
+    assert_eq!(manifest.recorded_run_base()?, None);
+    Ok(())
+}
+
+struct RecordingLock<'a>(&'a RefCell<Vec<&'static str>>);
+
+impl RunLock for RecordingLock<'_> {
+    fn acquire(&self) -> Result<RunLockGuard, MigrationError> {
+        self.0.borrow_mut().push("lock");
+        Ok(RunLockGuard::new(()))
+    }
+}
+
+struct RecordingWorkingCopy<'a>(&'a RefCell<Vec<&'static str>>);
+
+impl WorkingCopy for RecordingWorkingCopy<'_> {
+    fn observe(
+        &self,
+        _roots: &[&str],
+    ) -> Result<WorkingCopyObservation, MigrationError> {
+        self.0.borrow_mut().push("observe");
+        Ok(WorkingCopyObservation {
+            run_base: RunBase::recorded("rev-1"),
+            dirty_paths: Vec::new(),
+        })
+    }
+}
+
+#[test]
+fn the_working_copy_is_observed_once_the_run_lock_is_held(
+) -> Result<(), TestError> {
+    for force in [false, true] {
+        let calls = RefCell::new(Vec::new());
+        let lock = RecordingLock(&calls);
+        let working_copy = RecordingWorkingCopy(&calls);
+        let manifest = InMemoryManifestStore::default();
+        let no_op = |_: &str| 0;
+        let preflight = Preflight {
+            lock: &lock,
+            working_copy: &working_copy,
+            manifest: &manifest,
+            runner: runner(),
+            force,
+            session_log_decision_count: &no_op,
+        };
+
+        preflight.run()?;
+
+        assert_eq!(*calls.borrow(), vec!["lock", "observe"], "force: {force}");
+    }
+    Ok(())
 }

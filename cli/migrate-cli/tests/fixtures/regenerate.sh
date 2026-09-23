@@ -195,11 +195,13 @@ BRIDGE_DIR="$INTERACTIVE_FIXTURES/0006-decisions-bridge/migrations"
 PREDICATE_DIR="$INTERACTIVE_FIXTURES/0002-predicate/migrations"
 
 # gr_int_repo <vcs> — jj/git repo with an empty owned manifest seeded at the
-# current base revision.
+# current run base: HEAD on git, @'s sorted parent commit ids joined by + on
+# jj.
 gr_base_rev() {
   local repo="$1" vcs="$2"
   if [ "$vcs" = jj ]; then
-    (cd "$repo" && jj log -r @ --no-graph --no-pager -T change_id 2>/dev/null)
+    (cd "$repo" && jj log -r 'parents(@)' --no-graph --no-pager \
+      -T 'commit_id ++ "\n"' 2>/dev/null) | sort | paste -sd+ -
   else
     git -C "$repo" rev-parse HEAD
   fi

@@ -32,6 +32,7 @@ use jj_lib::matchers::NothingMatcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::TreeDiffIterator;
+use jj_lib::object_id::ObjectId;
 use jj_lib::ref_name::WorkspaceNameBuf;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo as _;
@@ -58,9 +59,11 @@ pub(super) struct DiffEntry {
 }
 
 /// The working-copy diff against the parent tree, the snapshot tree itself
-/// (status reads conflicts from the tree, which the diff cannot express), and
-/// the bookmarks on the working-copy commit (byte-sorted).
+/// (status reads conflicts from the tree, which the diff cannot express), the
+/// bookmarks on the working-copy commit (byte-sorted), and the ids of the
+/// parent commits the diff is taken against.
 pub(super) struct WorkingCopySnapshot {
+    pub base_commits: Vec<String>,
     pub branch: Vec<String>,
     pub changes: Vec<DiffEntry>,
     pub tree: MergedTree,
@@ -185,7 +188,11 @@ pub(super) fn working_copy_diff(
         }
     }
 
+    let base_commits =
+        wc_commit.parent_ids().iter().map(ObjectId::hex).collect();
+
     Ok(Some(WorkingCopySnapshot {
+        base_commits,
         branch,
         changes,
         tree: new_tree,

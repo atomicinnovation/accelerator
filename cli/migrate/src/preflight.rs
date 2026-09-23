@@ -7,11 +7,12 @@ use crate::manifest::is_runner_managed;
 use crate::manifest::is_session_log;
 use crate::manifest::Ownership;
 use crate::manifest::RunnerPaths;
-use crate::ports::DirtyPathScanner;
 use crate::ports::ManifestStore;
 use crate::ports::MigrationError;
 use crate::ports::RunLock;
 use crate::ports::RunLockGuard;
+use crate::ports::WorkingCopy;
+use crate::run_base::RunBase;
 
 pub const SCOPES: [&str; 3] = ["meta/", ".claude/accelerator", ".accelerator/"];
 
@@ -56,10 +57,9 @@ impl From<MigrationError> for PreflightError {
 
 pub struct Preflight<'a> {
     pub lock: &'a dyn RunLock,
-    pub scanner: &'a dyn DirtyPathScanner,
+    pub working_copy: &'a dyn WorkingCopy,
     pub manifest: &'a dyn ManifestStore,
     pub runner: RunnerPaths<'a>,
-    pub revision: Option<String>,
     pub force: bool,
     pub session_log_decision_count: &'a dyn Fn(&str) -> usize,
 }
@@ -73,26 +73,25 @@ impl Preflight<'_> {
         &self,
     ) -> Result<(RunLockGuard, PreflightOutcome), PreflightError> {
         let guard = self.lock.acquire()?;
+        let observation = self.working_copy.observe(&SCOPES)?;
+        let run_base = observation.run_base.as_ref();
 
         if self.force {
-            self.manifest.write_manifest(&[])?;
-            self.manifest.write_run_id(self.revision.as_deref())?;
+            self.start_fresh_run(run_base)?;
             return Ok((guard, PreflightOutcome::Clean));
         }
 
-        let dirty: Vec<String> = self
-            .scanner
-            .dirty_paths(&SCOPES)?
+        let dirty: Vec<String> = observation
+            .dirty_paths
             .into_iter()
             .filter(|path| !is_runner_managed(path, &self.runner))
             .collect();
         if dirty.is_empty() {
-            self.manifest.write_manifest(&[])?;
-            self.manifest.write_run_id(self.revision.as_deref())?;
+            self.start_fresh_run(run_base)?;
             return Ok((guard, PreflightOutcome::Clean));
         }
 
-        let unowned = self.unowned_changes(&dirty)?;
+        let unowned = self.unowned_changes(&dirty, run_base)?;
         if !unowned.paths.is_empty() {
             return Err(PreflightError::UnownedChanges(unowned));
         }
@@ -108,13 +107,23 @@ impl Preflight<'_> {
         Ok((guard, PreflightOutcome::Resumed { affordance }))
     }
 
+    fn start_fresh_run(
+        &self,
+        run_base: Option<&RunBase>,
+    ) -> Result<(), PreflightError> {
+        self.manifest.write_manifest(&[])?;
+        self.manifest.record_run_base(run_base)?;
+        Ok(())
+    }
+
     fn unowned_changes(
         &self,
         dirty: &[String],
+        run_base: Option<&RunBase>,
     ) -> Result<UnownedChanges, PreflightError> {
         let manifest = self.manifest.manifest()?;
-        let recorded = self.manifest.run_id()?;
-        let current_run = recorded.is_some() && recorded == self.revision;
+        let recorded = self.manifest.recorded_run_base()?;
+        let current_run = recorded.is_some() && recorded.as_ref() == run_base;
         let stale_run =
             manifest.is_some() && recorded.is_some() && !current_run;
         let mut paths: Vec<String> = match manifest {

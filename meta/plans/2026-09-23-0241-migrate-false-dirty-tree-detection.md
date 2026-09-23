@@ -259,11 +259,11 @@ tests cover the relative and `~` forms.
 - **The stall message**: its "base revision" wording is not reworded.
 - **Adopting dirt under force**: a forced run still starts with an empty
   manifest. Pre-upgrade stalls recover by committing the partial output.
-- **Content-aware ownership**: ownership stays path-based. Moving `@` onto
-  another change with the same parents (`jj edit` to a sibling, `jj new @-`,
-  `jj abandon @`) keeps the run base, so a manifested path changed there is
-  still owned and the resume engages over it. This matches the git
-  semantics, where the manifest owns paths rather than contents. A phase 2
+- **Content-aware ownership**: ownership stays path-based. On jj, though,
+  the run's manifest and recorded run base are uncommitted files in `@`, so
+  moving `@` onto another change with the same parents (`jj edit` to a
+  sibling, `jj new @-`) leaves them behind, and nothing there is owned: a
+  manifested path edited on the new change is refused as unowned. A phase 2
   test pins it.
 
 ## Implementation Approach
@@ -773,16 +773,25 @@ absence of `WARN` are never vacuous.
 | stale by rebase | `jj rebase -r @ -d <sibling>` / `jj describe @- -m y` | exit 1; stale line; `Unowned changes` lists the run's recorded paths |
 | fresh run | `jj new` / `jj commit -m z` / `jj edit <change with another parent>`, no scoped changes; re-run with no decisions input | no resume message; the run stalls again on the ambiguous reference; while stalled, `.accelerator/state/migrations-run.id` equals `run_base_oracle` |
 | sibling edit | `jj edit` to a sibling with the same parent whose `meta/` content the run did not write | exit 1; that content listed as unowned |
-| sibling edit, manifested path | `jj new @-`, then edit a path in the run's manifest | resume engages over it (path-based ownership, as on git) |
+| sibling edit, manifested path | `jj new @-`, then edit a path in the run's manifest | exit 1; that path listed as unowned, since the manifest stayed in the old `@` |
 | merge | stall on a merge `@`; edit an owned file + `jj status`; then `jj describe <one parent>` | resume engages; then refused |
-| clean-run base | clean jj repo holding an ambiguous reference, `accelerator migrate` with stdin null | the run stalls; while stalled, the run base file equals the oracle, for single, two- and three-parent merges and a root parent |
-| rename | `jj file track`ed `meta/a.md` renamed to `meta/b.md`, and `meta/x/c.md` to `meta/y/c.md` | both sides listed |
+| clean-run base | clean jj repo holding an ambiguous reference, `accelerator migrate` with stdin null | the run stalls; while stalled, the run base file equals the oracle, for single, two- and three-parent merges |
 | pre-upgrade stall | see below | see below |
 
-**Pre-upgrade stall**. The fixture is a corpus where 0007 rewrites
-`meta/one.md` and then stalls on an ambiguous reference in `meta/two.md`.
-After the stall, `migrations-run.id` is overwritten with `@`'s commit id, as
-the pre-upgrade binary wrote it. Only the run's changes are present.
+**Stall fixture**. 0007 collects every transformation, and prompts, before
+it writes anything, so a 0007 stall on its own leaves no migrated output.
+`stalled_0007` therefore starts with 0006 pending: 0006 rewrites a research
+note (`researcher:` becomes `author:`) and records it in the manifest, then
+0007 stalls on an ambiguous reference. The research note is the run's owned
+output throughout.
+
+A root-parent clean run cannot stall with a clean tree, since the corpus
+would be uncommitted in `@`. The root parent is covered by `base_commits.rs`
+and the `RunBase` unit tests instead.
+
+**Pre-upgrade stall**. After the stall, `migrations-run.id` is overwritten
+with `@`'s commit id, as the pre-upgrade binary wrote it. Only the run's
+changes are present.
 
 1. The `--decisions-file` run exits 1. It prints the refusal with the stale
    line, listing the run's changes including `meta/one.md`. Its stderr has
@@ -794,15 +803,18 @@ the pre-upgrade binary wrote it. Only the run's changes are present.
    `CHANGELOG.md` recovery,
    `jj commit -m "partial 0007" meta .accelerator .claude` leaves
    `src/unrelated.txt` in `@`. A run with `--decisions-file` and no force
-   then exits 0, 0007 is applied, `meta/one.md` is unchanged by this run,
-   and `meta/two.md` is migrated.
+   then exits 0, 0006 does not run again, and 0007 is applied.
 
 The decisions-file content follows the format `DecisionsFileDecisionSource`
 parses, with one line per prompt still pending.
 
-Every jj fixture above also asserts parity: the paths from
-`vcs-adapters-fixture only dirty_paths` (run under `env.apply`, before
-`jj status` snapshots) equal `jj_status::changed_paths`.
+Parity lives in vcs-adapters, because Cargo exposes a fixture binary's path
+only to its own package's tests. `cli/vcs-adapters/tests/dirty_paths_parity.rs`
+runs the same jj shapes (additions, edits, deletions, braced and top-level
+renames, a merge working copy, a sibling change) through
+`vcs-adapters-fixture only dirty_paths` under `env.apply`, and compares them
+with `jj_status::changed_paths`. The migrate tests assert migrate's own
+outcomes.
 
 #### 6. `CHANGELOG.md`
 
@@ -825,15 +837,16 @@ Add `### Fixed` under `## [Unreleased]`, in the `- **Headline.** Prose…` style
 
 #### Automated Verification
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support`
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-test-support`
   passes (oracle parsing).
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
-  --features bash-parity base_commits library` passes.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
+  --features bash-parity` passes, including `base_commits`, `library` and
+  `dirty_paths_parity`.
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate
   --features bash-parity guarded_resume dirty_tree_preflight` passes.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p migrate` passes.
-- [ ] `mise run public-api:check` and `mise run check` exit 0.
-- [ ] `mise run` exits 0.
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p migrate` passes.
+- [x] `mise run public-api:check` and `mise run check` exit 0.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 

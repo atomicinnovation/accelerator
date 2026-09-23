@@ -2,63 +2,22 @@
 //! over real git/jj repositories: unowned changes refuse, `FORCE` bypasses.
 #![cfg(feature = "bash-parity")]
 
+mod common;
+
 use std::fs;
-use std::process::Command;
 
-use tempfile::TempDir;
+use common::mark_all_migrations_applied;
+use common::tempdir;
+use common::Outcome;
+use common::TestError;
 use vcs_test_support::hermetic::Hermetic;
-
-type TestError = Box<dyn std::error::Error>;
-
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
-
-fn tempdir(tag: &str) -> Result<TempDir, TestError> {
-    Ok(tempfile::Builder::new()
-        .prefix(&format!("migrate-preflight-{tag}-"))
-        .tempdir()?)
-}
-
-/// The compiled binary always runs the full registry and has no way to
-/// isolate a subset of migrations for a test, so every real migration is
-/// pre-marked applied here to reach the same "nothing pending" state these
-/// tests were originally written against with an empty registry.
-fn mark_all_migrations_applied(
-    root: &std::path::Path,
-) -> Result<(), TestError> {
-    fs::create_dir_all(root.join(".accelerator/state"))?;
-    fs::write(
-        root.join(".accelerator/state/migrations-applied"),
-        "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n\
-         0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n",
-    )?;
-    Ok(())
-}
 
 fn run(
     env: &Hermetic,
     root: &std::path::Path,
     env_extra: &[(&str, &str)],
-) -> Result<(String, String, i32), TestError> {
-    let mut command = Command::new(BIN);
-    env.apply(&mut command);
-    command.current_dir(root);
-    for (key, value) in env_extra {
-        command.env(key, value);
-    }
-    let output = command.output()?;
-    Ok((
-        String::from_utf8(output.stdout)?,
-        String::from_utf8(output.stderr)?,
-        output.status.code().unwrap_or(-1),
-    ))
+) -> Result<Outcome, TestError> {
+    common::run(env, root, &[], env_extra)
 }
 
 #[test]
@@ -75,7 +34,11 @@ fn an_unowned_git_change_refuses() -> Result<(), TestError> {
 
     fs::write(root.join("meta/a.md"), "two\n")?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
@@ -105,8 +68,11 @@ fn force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel(
     fs::write(root.join("meta/a.md"), "two\n")?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, _stderr, code) =
-        run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    let Outcome {
+        stdout,
+        stderr: _stderr,
+        code,
+    } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
 
     assert_eq!(code, 0);
     assert_eq!(stdout, "No pending migrations.\n");
@@ -127,7 +93,11 @@ fn a_clean_git_tree_proceeds_to_the_empty_registry_sentinel(
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0);
     assert_eq!(stdout, "No pending migrations.\n");
@@ -175,7 +145,11 @@ fn a_guarded_resume_renders_the_affordance_with_the_decision_count(
          \"timestamp\":\"2026-01-01T00:00:00+00:00\"}\n",
     )?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(stdout, "No pending migrations.\n");
@@ -225,7 +199,11 @@ fn an_unowned_change_under_accelerator_refuses() -> Result<(), TestError> {
         "---\nchanged: yes\n---\n",
     )?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
@@ -247,7 +225,11 @@ fn a_successful_run_clears_the_manifest_and_run_id_sidecar(
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(stdout, "No pending migrations.\n");
@@ -295,8 +277,11 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
         "0001-rename-tickets-to-work\n",
     )?;
 
-    let (stdout, _stderr, code) =
-        run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    let Outcome {
+        stdout,
+        stderr: _stderr,
+        code,
+    } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
 
     assert_eq!(code, 0, "{stdout}");
     assert!(stdout.starts_with("No pending migrations.\n"), "{stdout}");
@@ -320,7 +305,11 @@ fn an_unowned_jj_change_refuses() -> Result<(), TestError> {
 
     fs::write(root.join("meta/b.md"), "two\n")?;
 
-    let (stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
@@ -387,7 +376,11 @@ fn a_git_refusal_lists_only_the_unowned_changes_of_the_current_run(
         fs::write(root.join(path), "two\n")?;
     }
 
-    let (_stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
@@ -408,7 +401,11 @@ fn a_git_refusal_without_a_manifest_lists_every_change() -> Result<(), TestError
         fs::write(root.join(path), "two\n")?;
     }
 
-    let (_stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
@@ -430,7 +427,11 @@ fn a_jj_refusal_without_a_manifest_lists_every_change(
     fs::write(root.join("meta/a.md"), "two\n")?;
     fs::write(root.join(".accelerator/b"), "two\n")?;
 
-    let (_stdout, stderr, code) = run(&env, &root, &[])?;
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");

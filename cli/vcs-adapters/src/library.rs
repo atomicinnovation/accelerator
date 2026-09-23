@@ -188,6 +188,14 @@ impl std::error::Error for Error {
     }
 }
 
+/// The commits a working copy is based on and the paths that differ from
+/// them, taken from a single read of the repository.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkingCopyState {
+    pub base_commits: Vec<String>,
+    pub dirty_paths: Vec<String>,
+}
+
 /// Reads a repository's root, idiom and revision in-process.
 ///
 /// Parses repository-controlled data in the caller's address space, with no
@@ -395,10 +403,26 @@ impl InProcessProbe {
         root: &Path,
         kind: VcsKind,
     ) -> Result<Vec<String>, Error> {
+        Ok(self.working_copy_state(root, kind)?.dirty_paths)
+    }
+
+    /// The commits the working copy is based on, and its dirty paths relative
+    /// to them, read in one pass over the repository so the two cannot
+    /// disagree: `HEAD` on git (none while it is unborn), the working-copy
+    /// commit's parents on jj.
+    ///
+    /// # Errors
+    ///
+    /// When `root` is present but its status/diff cannot be computed.
+    pub fn working_copy_state(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<WorkingCopyState, Error> {
         match kind {
-            VcsKind::Git => dirty_paths::git_dirty_paths(root),
-            VcsKind::Jj => dirty_paths::jj_dirty_paths(root),
-            VcsKind::None => Ok(Vec::new()),
+            VcsKind::Git => dirty_paths::git_working_copy_state(root),
+            VcsKind::Jj => dirty_paths::jj_working_copy_state(root),
+            VcsKind::None => Ok(WorkingCopyState::default()),
         }
     }
 

@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use crate::interactive::Decision;
 use crate::interactive::Transformation;
+use crate::run_base::RunBase;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrationError(pub String);
@@ -68,7 +69,6 @@ pub trait CorpusIndex {
 /// every time a migration's own needs grow this trait.
 pub trait MigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir>;
-    fn revision(&self) -> Option<String>;
     fn corpus_index(&self) -> &dyn CorpusIndex;
 
     /// # Errors
@@ -315,22 +315,30 @@ pub trait RunLock {
     fn acquire(&self) -> Result<RunLockGuard, MigrationError>;
 }
 
-/// Every repo-relative path with uncommitted changes under the given root
-/// prefixes.
-pub trait DirtyPathScanner {
-    /// # Errors
-    /// [`MigrationError`] when the scan itself fails (not: when it finds
-    /// dirt).
-    fn dirty_paths(
-        &self,
-        roots: &[&str],
-    ) -> Result<Vec<String>, MigrationError>;
+/// The run base the working copy is on, and every repo-relative path with
+/// uncommitted changes relative to it, read together so the two agree.
+pub struct WorkingCopyObservation {
+    pub run_base: Option<RunBase>,
+    pub dirty_paths: Vec<String>,
 }
 
-/// The per-run path manifest and its run-id sidecar.
+pub trait WorkingCopy {
+    /// Observes the working copy, keeping only dirty paths under the given
+    /// root prefixes.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the observation itself fails (not: when it
+    /// finds changes).
+    fn observe(
+        &self,
+        roots: &[&str],
+    ) -> Result<WorkingCopyObservation, MigrationError>;
+}
+
+/// The per-run path manifest and the run base recorded beside it.
 ///
 /// The usability gate is modelled directly in the return shape:
-/// `Ok(None)` is "absent, unreadable, or (run-id only) empty" — never
+/// `Ok(None)` is "absent, unreadable, or (run base only) empty" — never
 /// distinguished further, since every one of those states resolves toward
 /// the same fail-closed treatment.
 pub trait ManifestStore {
@@ -347,17 +355,17 @@ pub trait ManifestStore {
     fn append_manifest_path(&self, path: &str) -> Result<(), MigrationError>;
 
     /// # Errors
-    /// [`MigrationError`] when the sidecar is present but unreadable.
-    fn run_id(&self) -> Result<Option<String>, MigrationError>;
+    /// [`MigrationError`] when the record is present but unreadable.
+    fn recorded_run_base(&self) -> Result<Option<RunBase>, MigrationError>;
 
     /// # Errors
-    /// [`MigrationError`] when the sidecar cannot be written.
-    fn write_run_id(
+    /// [`MigrationError`] when the record cannot be written.
+    fn record_run_base(
         &self,
-        revision: Option<&str>,
+        run_base: Option<&RunBase>,
     ) -> Result<(), MigrationError>;
 
-    /// Deletes both the manifest and its run-id sidecar.
+    /// Deletes both the manifest and the recorded run base.
     ///
     /// # Errors
     /// [`MigrationError`] when either cannot be removed.

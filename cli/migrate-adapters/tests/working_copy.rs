@@ -1,12 +1,13 @@
-//! `VcsDirtyPathScanner` against a real repository: what the migrate
-//! preflight's unowned-changes gate actually sees.
+//! `VcsWorkingCopy` against a real repository: the run base and the changes
+//! the migrate pre-flight's unowned-changes gate actually sees.
 #![cfg(feature = "bash-parity")]
 
 use std::fs;
 
-use migrate::ports::DirtyPathScanner;
+use migrate::ports::WorkingCopy;
 use migrate::preflight::SCOPES;
-use migrate_adapters::dirty_path_scanner::VcsDirtyPathScanner;
+use migrate::run_base::RunBase;
+use migrate_adapters::working_copy::VcsWorkingCopy;
 use vcs::VcsKind;
 use vcs_test_support::hermetic::Hermetic;
 
@@ -29,8 +30,8 @@ fn committed_repo(
     Ok((work, env))
 }
 
-/// An uncommitted document under a scope is an unowned change: the migration would
-/// rewrite content no commit holds, and no revert could bring it back.
+/// An uncommitted document under a scope is an unowned change: the migration
+/// would rewrite content no commit holds, and no revert could bring it back.
 #[test]
 fn an_untracked_document_in_scope_is_reported() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
@@ -38,10 +39,10 @@ fn an_untracked_document_in_scope_is_reported() -> Result<(), TestError> {
     let root = work.path().join("repo");
     fs::write(root.join("meta/work/0002-new.md"), "new\n")?;
 
-    let scanner = VcsDirtyPathScanner::new(&root, VcsKind::Git);
+    let working_copy = VcsWorkingCopy::new(&root, VcsKind::Git);
 
     assert_eq!(
-        scanner.dirty_paths(&SCOPES)?,
+        working_copy.observe(&SCOPES)?.dirty_paths,
         vec!["meta/work/0002-new.md".to_owned()]
     );
     Ok(())
@@ -55,9 +56,9 @@ fn an_untracked_file_outside_every_scope_is_not_reported(
     let root = work.path().join("repo");
     fs::write(root.join("notes.md"), "loose\n")?;
 
-    let scanner = VcsDirtyPathScanner::new(&root, VcsKind::Git);
+    let working_copy = VcsWorkingCopy::new(&root, VcsKind::Git);
 
-    assert!(scanner.dirty_paths(&SCOPES)?.is_empty());
+    assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
     Ok(())
 }
 
@@ -73,9 +74,9 @@ fn an_ignored_file_in_scope_is_not_reported() -> Result<(), TestError> {
     env.git(&["add", ".gitignore"], &root)?;
     env.git(&["commit", "--quiet", "-m", "ignore"], &root)?;
 
-    let scanner = VcsDirtyPathScanner::new(&root, VcsKind::Git);
+    let working_copy = VcsWorkingCopy::new(&root, VcsKind::Git);
 
-    assert!(scanner.dirty_paths(&SCOPES)?.is_empty());
+    assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
     Ok(())
 }
 
@@ -85,8 +86,40 @@ fn a_clean_tree_reports_nothing() -> Result<(), TestError> {
     let (work, _env) = committed_repo("clean")?;
     let root = work.path().join("repo");
 
-    let scanner = VcsDirtyPathScanner::new(&root, VcsKind::Git);
+    let working_copy = VcsWorkingCopy::new(&root, VcsKind::Git);
 
-    assert!(scanner.dirty_paths(&SCOPES)?.is_empty());
+    assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
+    Ok(())
+}
+
+#[test]
+fn a_git_working_copy_is_on_the_run_base_of_its_head() -> Result<(), TestError>
+{
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let (work, env) = committed_repo("run-base")?;
+    let root = work.path().join("repo");
+    let head = env.git(&["rev-parse", "HEAD"], &root)?;
+
+    let observation =
+        VcsWorkingCopy::new(&root, VcsKind::Git).observe(&SCOPES)?;
+
+    assert_eq!(observation.run_base, RunBase::recorded(&head));
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_repository_has_no_run_base_and_no_changes(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let (work, _env) = committed_repo("unreadable")?;
+    let root = work.path().join("repo");
+    fs::write(root.join("meta/work/0002-new.md"), "new\n")?;
+    fs::write(root.join(".git/HEAD"), "not a reference\n")?;
+
+    let observation =
+        VcsWorkingCopy::new(&root, VcsKind::Git).observe(&SCOPES)?;
+
+    assert_eq!(observation.run_base, None);
+    assert!(observation.dirty_paths.is_empty());
     Ok(())
 }
