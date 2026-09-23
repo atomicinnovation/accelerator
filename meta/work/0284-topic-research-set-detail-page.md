@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:0121"
 relates_to: ["work-item:0280"]
 tags: ["research", "visualiser"]
-last_updated: "2026-09-22T21:39:36+00:00"
+last_updated: "2026-09-23T16:23:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -51,9 +51,16 @@ umbrella doc type and nested indexing.
   `outline.md`, each finding, `synthesis.md`, and each report.
 - Prototype the set-level page in Claude Design and review it before
   implementation begins.
+- Group a focus area's findings together: since 0280 a focus area has one
+  finding per source profile, named `findings/<nn>-<question-slug>-<profile>.md`
+  with a shared `<nn>`. Show each finding's profile, and read an outline item's
+  `— profiles: …` suffix (absent means `web`) as the focus area's assigned
+  profiles, including those not yet researched.
 - Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
   recorded domain or venue as a distinct visual element wherever a finding,
-  synthesis, or report lists Sources, for web and academic profiles alike.
+  synthesis, or report lists Sources, for web and academic profiles alike,
+  including the `(retracted)` and `(withdrawn)` suffixes 0280 appends to
+  `tier-3`, and a `None found.` Sources section.
 
 ## Acceptance Criteria
 
@@ -67,6 +74,13 @@ umbrella doc type and nested indexing.
       each source shows its tier as a distinct element alongside its venue, and
       the three tiers are visually distinguishable without relying on colour
       alone.
+- [ ] Given a focus area with `web` and `openalex` findings sharing `<nn>` and
+      an outline item `- [ ] <question> — profiles: web, openalex, arxiv`, then
+      the page shows one focus area with both findings labelled by profile and
+      `arxiv` as outstanding.
+- [ ] Given Sources entries reading `— tier-3 (retracted) —` and
+      `— tier-3 (withdrawn) —`, then each renders as `tier-3` with its
+      retraction or withdrawal marked as a distinct element.
 
 ## Open Questions
 
@@ -81,6 +95,9 @@ umbrella doc type and nested indexing.
 - Blocked by: 0278 (umbrella doc type + nested indexing — recorded on 0278's
   `blocks`), 0279 (round/focus-area structure the page shows — recorded on
   0279's `blocks`).
+- Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
+  the tier suffixes this page consumes. If this page is built before 0280 lands,
+  0280 owns updating it.
 
 ## Assumptions
 
@@ -96,6 +113,8 @@ umbrella doc type and nested indexing.
 
 - This is the epic-level descope candidate — the only slice whose deferral leaves
   the others fully shippable.
+- Multi-finding layout and tier suffixes added (2026-09-23) after 0280's review
+  made a finding one per (focus area, source profile).
 - Tier rendering moved here from 0280 (2026-09-22); until this page lands,
   tiers remain readable as literal `— tier-N —` text in the shared
   `LibraryDocView`, so a deferral still leaves them legible.
