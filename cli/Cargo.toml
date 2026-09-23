@@ -138,7 +138,9 @@ flate2 = { version = "1", default-features = false, features = [
 # calls. Widening this list is how a consumer adds a capability.
 #
 # A jj-lib bump moves all four of these plus the Rust toolchain and the mise jj
-# CLI pin, which writes the format jj-lib reads.
+# CLI pin, which writes the format jj-lib reads. It also means re-reading
+# jj-cli's config discovery against vcs-adapters' library/jj_config.rs, which
+# mirrors the per-id config layout and the scope-resolution context by hand.
 jj-lib = "=0.43.0"
 gix = { version = "~0.85.0", default-features = false }
 # prost and pollster are jj-lib's own, adopted as direct edges: both are already
@@ -156,6 +158,10 @@ pollster = "0.4"
 # read from.
 etcetera = "0.11.0"
 dunce = "1.0.5"
+# jj-cli's hostname source for `--when.hostnames` config scopes, at the version
+# jj-cli 0.43.0 declares, so a scoped setting resolves as `jj status` resolves
+# it.
+whoami = "2.1.2"
 # Exact-pinned since octocrab is a young, actively-evolving crate whose
 # builder API (base_uri, the mock-server test seam) and Error enum shape
 # (the error-mapping code in the github crate depends on

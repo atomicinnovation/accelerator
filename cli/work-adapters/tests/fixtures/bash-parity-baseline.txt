@@ -34,7 +34,7 @@ test  cli/work/tests/sync_decide.rs                       1   work-item-sync-dec
 test  cli/work/tests/sync_label_parity.rs                 2   work-item-sync-label.golden
 test  cli/work/tests/sync_push_decide.rs                  1   work-item-push-decide.golden
 test  cli/work-adapters/tests/sync_baseline_corpus.rs     1   work-item-sync-baseline
-test  cli/work-adapters/tests/sync_working_copy_status.rs 9   (no committed fixture)
+test  cli/work-adapters/tests/sync_working_copy_status.rs 12   (no committed fixture)
 test  cli/remote-projection/tests/parity.rs               4   work-item-project-remote
 
 case  work-item-normalise        case-file-mode

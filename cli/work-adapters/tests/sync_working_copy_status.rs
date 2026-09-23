@@ -311,4 +311,101 @@ mod against_a_real_repository {
         }
         Ok(())
     }
+
+    fn with_limit(
+        repo: &ExcludesRepo,
+        level: &str,
+        value: &str,
+    ) -> Result<Hermetic, TestError> {
+        if level == "--user" {
+            let config = repo.work.path().join("user.toml");
+            fs::write(
+                &config,
+                format!(
+                    "[user]\nname = \"Fixture\"\nemail = \"fixture@example.com\"\n\
+                     [snapshot]\nmax-new-file-size = {value}\n"
+                ),
+            )?;
+            return Ok(repo.env.clone().with_jj_config(config));
+        }
+        repo.env.jj(
+            &["config", "set", level, "snapshot.max-new-file-size", value],
+            &repo.root,
+        )?;
+        Ok(repo.env.clone())
+    }
+
+    #[test]
+    fn a_new_work_item_over_the_limit_is_clean() -> Result<(), TestError> {
+        for level in ["--repo", "--workspace", "--user"] {
+            let repo = ExcludesRepo::new("--no-colocate")?;
+            let env = with_limit(&repo, level, "\"1KiB\"")?;
+            fs::write(
+                repo.root.join("meta/work/0002-two.md"),
+                vec![b'x'; 2048],
+            )?;
+            fs::write(
+                repo.root.join("meta/work/0003-one.md"),
+                vec![b'x'; 1024],
+            )?;
+
+            assert_eq!(
+                repo.dirtiness(&env, "meta/work/0002-two.md")?,
+                "clean",
+                "{level}"
+            );
+            assert_eq!(
+                repo.dirtiness(&env, "meta/work/0003-one.md")?,
+                "dirty",
+                "{level}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_new_work_item_under_a_raised_or_absent_limit_is_dirty(
+    ) -> Result<(), TestError> {
+        for value in ["\"1MiB\"", "0"] {
+            let repo = ExcludesRepo::new("--no-colocate")?;
+            let env = with_limit(&repo, "--repo", value)?;
+            fs::write(
+                repo.root.join("meta/work/0002-two.md"),
+                vec![b'x'; 2048],
+            )?;
+
+            assert_eq!(
+                repo.dirtiness(&env, "meta/work/0002-two.md")?,
+                "dirty",
+                "{value}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn an_invalid_limit_is_warned_about_and_every_item_is_dirty(
+    ) -> Result<(), TestError> {
+        let repo = ExcludesRepo::new("--no-colocate")?;
+        let env = with_limit(&repo, "--repo", "\"abc\"")?;
+        fs::write(
+            repo.root.join("meta/work/0002-large.md"),
+            vec![b'x'; 2 * 1024 * 1024],
+        )?;
+
+        let mut command = std::process::Command::new(FIXTURE);
+        command
+            .arg(&repo.root)
+            .arg(repo.root.join("meta/work/0002-large.md"));
+        env.apply(&mut command);
+        let output = command.env("ACCELERATOR_LOG", "warn").output()?;
+
+        assert!(String::from_utf8(output.stdout)?
+            .trim_end()
+            .ends_with("\tdirty"));
+        let stderr = String::from_utf8(output.stderr)?;
+        assert!(stderr.contains("WARN"), "{stderr}");
+        assert!(stderr.contains("snapshot.max-new-file-size"), "{stderr}");
+        Ok(())
+    }
 }

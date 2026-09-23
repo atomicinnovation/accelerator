@@ -147,6 +147,14 @@
   protected by the migrate pre-flight, so track or back them up before
   migrating.
 
+- **jj dirty-path checks honour `snapshot.max-new-file-size`.**
+  `accelerator migrate`, `work sync` and `accelerator vcs status` now skip
+  new files over the limit, as `jj status` does, including jj's 1 MiB
+  default when the key is unset. Such files are no longer protected by the
+  migrate pre-flight. Conditional `[[--scope]]` settings apply as they do for
+  `jj status`. An invalid value checks every file and logs a warning, shown
+  with `ACCELERATOR_LOG=warn`.
+
 ### Security
 
 - **Per-request classification of navigations and followed links.** The

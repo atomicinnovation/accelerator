@@ -154,3 +154,91 @@ fn a_tracked_file_matching_an_exclude_is_still_a_change(
     }
     Ok(())
 }
+
+fn set_repo_limit(repo: &Repo, value: &str) -> Result<(), TestError> {
+    repo.env.jj(
+        &[
+            "config",
+            "set",
+            "--repo",
+            "snapshot.max-new-file-size",
+            value,
+        ],
+        &repo.root,
+    )?;
+    Ok(())
+}
+
+fn write_sized(
+    repo: &Repo,
+    relative: &str,
+    bytes: usize,
+) -> Result<(), TestError> {
+    fs::write(repo.root.join(relative), vec![b'x'; bytes])?;
+    Ok(())
+}
+
+#[test]
+fn a_new_file_over_the_limit_is_not_a_change() -> Result<(), TestError> {
+    for colocation in COLOCATIONS {
+        let repo = Repo::jj(colocation)?;
+        set_repo_limit(&repo, "1KiB")?;
+        write_sized(&repo, "meta/two", 2048)?;
+        write_sized(&repo, "meta/one", 1024)?;
+        write_sized(&repo, "meta/half", 512)?;
+
+        let refused = repo.migrate(&repo.env)?;
+
+        assert_eq!(refused.code, 1, "{}", refused.stderr);
+        assert!(
+            refused
+                .stderr
+                .ends_with("Unowned changes (2):\n  meta/half\n  meta/one\n"),
+            "{colocation}: {}",
+            refused.stderr
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_new_file_over_the_default_limit_is_not_a_change() -> Result<(), TestError>
+{
+    for colocation in COLOCATIONS {
+        let repo = Repo::jj(colocation)?;
+        write_sized(&repo, "meta/large", 2 * 1024 * 1024)?;
+
+        assert_proceeds(&repo.migrate(&repo.env)?);
+
+        write_sized(&repo, "meta/half", 512)?;
+        assert_refused_listing(&repo.migrate(&repo.env)?, "meta/half");
+    }
+    Ok(())
+}
+
+#[test]
+fn an_invalid_limit_is_warned_about_and_every_file_is_a_change(
+) -> Result<(), TestError> {
+    let repo = Repo::jj("--no-colocate")?;
+    set_repo_limit(&repo, "\"abc\"")?;
+    write(&repo.root.join("meta/a.md"), "a\n")?;
+    write_sized(&repo, "meta/two", 2 * 1024 * 1024)?;
+
+    let refused = repo.migrate(&repo.env)?;
+
+    assert_eq!(refused.code, 1, "{}", refused.stderr);
+    assert!(refused.stderr.contains("WARN"), "{}", refused.stderr);
+    assert!(
+        refused.stderr.contains("snapshot.max-new-file-size"),
+        "{}",
+        refused.stderr
+    );
+    assert!(
+        refused
+            .stderr
+            .ends_with("Unowned changes (2):\n  meta/a.md\n  meta/two\n"),
+        "{}",
+        refused.stderr
+    );
+    Ok(())
+}

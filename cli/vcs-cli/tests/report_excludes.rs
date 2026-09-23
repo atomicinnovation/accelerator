@@ -1,5 +1,6 @@
 //! `accelerator-vcs status` on jj lists the changes `jj status` does: files
-//! the git excludes hide are left out, everything else is listed.
+//! the git excludes hide, and new files over `snapshot.max-new-file-size`, are
+//! left out, and everything else is listed.
 #![cfg(feature = "bash-parity")]
 
 use std::fs;
@@ -116,5 +117,65 @@ fn a_file_the_git_excludes_do_not_hide_is_listed() -> Result<(), TestError> {
         assert!(rendered.contains("meta/ignored.md"), "{rendered}");
         assert!(rendered.contains("meta/tracked.md"), "{rendered}");
     }
+    Ok(())
+}
+
+#[test]
+fn a_new_file_over_the_limit_is_not_listed() -> Result<(), TestError> {
+    for colocation in COLOCATIONS {
+        let repo = Repo::new(colocation)?;
+        repo.env.jj(
+            &[
+                "config",
+                "set",
+                "--repo",
+                "snapshot.max-new-file-size",
+                "1KiB",
+            ],
+            &repo.root,
+        )?;
+        fs::write(repo.root.join("meta/two"), vec![b'x'; 2048])?;
+        fs::write(repo.root.join("meta/one"), vec![b'x'; 1024])?;
+
+        let rendered = repo.status(&repo.env)?;
+
+        assert!(!rendered.contains("meta/two"), "{rendered}");
+        assert!(rendered.contains("meta/one"), "{rendered}");
+    }
+    Ok(())
+}
+
+#[test]
+fn an_invalid_limit_is_warned_about_and_every_new_file_listed(
+) -> Result<(), TestError> {
+    let repo = Repo::new("--no-colocate")?;
+    repo.env.jj(
+        &[
+            "config",
+            "set",
+            "--repo",
+            "snapshot.max-new-file-size",
+            "\"abc\"",
+        ],
+        &repo.root,
+    )?;
+    fs::write(repo.root.join("meta/a.md"), "a")?;
+    fs::write(repo.root.join("meta/two"), vec![b'x'; 2 * 1024 * 1024])?;
+
+    let mut command = Command::new(BIN);
+    repo.env.apply(&mut command);
+    let output = command
+        .arg("status")
+        .env("ACCELERATOR_LOG", "warn")
+        .current_dir(&repo.root)
+        .output()?;
+
+    let rendered = String::from_utf8(output.stdout)?;
+    assert!(!rendered.contains("(status unavailable)"), "{rendered}");
+    assert!(rendered.contains("meta/a.md"), "{rendered}");
+    assert!(rendered.contains("meta/two"), "{rendered}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("WARN"), "{stderr}");
+    assert!(stderr.contains("snapshot.max-new-file-size"), "{stderr}");
     Ok(())
 }

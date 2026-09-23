@@ -1142,7 +1142,8 @@ fills the two fields that jj's `--when.hostnames` and `--when.environments`
 conditions match against, the same way jj-cli 0.43 fills them for
 `ConfigResolutionContext`:
 
-- **`hostname`**: from `whoami::fallible::hostname()`, empty on failure;
+- **`hostname`**: from `whoami::hostname()` (whoami 2.x, as jj-cli 0.43.0
+  declares it), empty on failure;
 - **`variables`**: a snapshot of `std::env::vars_os()`, keeping only pairs
   that are valid UTF-8.
 
@@ -1172,14 +1173,16 @@ reads only the system and user layers.
 
 `per_id_config_file` is a read-only resolver:
 
-- It reads the id file and requires exactly 20 lowercase hex characters.
+- It reads the id file and requires exactly 20 ASCII hex characters, the
+  check jj-lib's own `SecureConfig` applies.
 - It then joins `<user config dir>/jj/<repos|workspaces>/<id>/config.toml`.
 - With no id file, it falls back to the legacy file inside `.jj`.
 - It never creates, migrates or rewrites anything.
 
 `resolved` loads the layers in `System`, `User`, `Repo`, `Workspace` order
 with `load_jj_config_path`. It then passes the stack through
-`jj_lib::config_resolver::resolve`, with the context from
+`jj_lib::config::resolve` (jj-lib re-exports the resolver there; the
+`config_resolver` module itself is private), with the context from
 `status_resolution_context`. That context is populated as jj-cli populates
 it for `jj status`: `home_dir`, `repo_path`, `workspace_path`, `command`
 `"status"`, `hostname` and `environment` (jj-lib 0.43.0,
@@ -1355,13 +1358,11 @@ Consumer tests (requirement 4 across all three):
     `meta/two`.
   - Unset limit with only a 2 MiB file: exit 0 and no `WARN`. With a
     control `meta/half` added: refused, listing only `meta/half`.
-- **work sync** (`work-adapters-fixture`), for each 1 KiB-winning non-system
-  setup:
-  - only `meta/two` present: `clean`;
-  - only `meta/one` present: `dirty`.
-
-  For each 1 MiB-winning setup, only `meta/two` present gives `dirty`. With
-  `0`, 2 MiB gives `dirty`.
+- **work sync** (`work-adapters-fixture`), for a 1 KiB limit set at the
+  repo, workspace and user layers in turn: a 2 KiB item is `clean` and a
+  1 KiB item `dirty`. A repo `1MiB` or `0` makes the 2 KiB item `dirty`.
+  Layer precedence as such is covered once, by `dirty_paths_size.rs`, not
+  repeated per consumer.
 - **renderer** (`accelerator-vcs status`, `env.apply`): the same lists as
   migrate, and never `(status unavailable)`.
 - **invalid limit**: repo `"abc"` plus an unowned change at `meta/a.md` and
@@ -1392,16 +1393,18 @@ Add to `### Fixed`:
 
 #### Automated Verification
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
   --features bash-parity` passes, including `jj_config` unit tests and
   `dirty_paths_size`.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters -p
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters -p
   accelerator-vcs -p accelerator-migrate --features bash-parity` passes.
-- [ ] The cargo-deny lane passes with `whoami` added.
-- [ ] `mise run lint:vcs-settings:check` exits 0 with the exemption list
+- [x] The cargo-deny lane passes with `whoami` added, and `wit-bindgen`,
+  which it reaches through its wasi edge, is in the reviewed build-script
+  snapshot of `tests/integration/deny/test_vcs_library_graph.py`.
+- [x] `mise run lint:vcs-settings:check` exits 0 with the exemption list
   unchanged.
-- [ ] `mise run check` exits 0.
-- [ ] `mise run` exits 0.
+- [x] `mise run check` exits 0.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 
