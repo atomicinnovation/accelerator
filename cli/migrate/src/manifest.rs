@@ -9,7 +9,7 @@ pub enum Ownership {
     RunnerManaged,
     SessionArtefact,
     Manifested,
-    Foreign,
+    Unowned,
 }
 
 pub struct RunnerPaths<'a> {
@@ -44,7 +44,7 @@ pub fn classify(
     if manifest.iter().any(|manifested| manifested == path) {
         return Ownership::Manifested;
     }
-    Ownership::Foreign
+    Ownership::Unowned
 }
 
 /// The runner's own append-only bookkeeping, owned by pattern rather than by

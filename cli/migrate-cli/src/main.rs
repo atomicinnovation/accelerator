@@ -246,8 +246,8 @@ fn run_default(
             render::resume_affordance(root, &affordance);
             guard
         }
-        Err(PreflightError::ForeignDirt) => {
-            eprintln!("{}", render::DIRTY_TREE_REFUSAL);
+        Err(PreflightError::UnownedChanges(unowned)) => {
+            eprintln!("{}", render::unowned_changes_refusal(&unowned));
             return Err(kernel::Error::Failed(String::new()));
         }
         Err(PreflightError::Failed(error)) => return Err(error.into()),

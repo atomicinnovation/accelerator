@@ -25,16 +25,22 @@ pub enum PreflightOutcome {
     Resumed { affordance: Vec<AffordanceEntry> },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnownedChanges {
+    pub paths: Vec<String>,
+    pub stale_run: bool,
+}
+
 #[derive(Debug)]
 pub enum PreflightError {
-    ForeignDirt,
+    UnownedChanges(UnownedChanges),
     Failed(MigrationError),
 }
 
 impl std::fmt::Display for PreflightError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ForeignDirt => write!(f, "dirty working tree"),
+            Self::UnownedChanges(_) => write!(f, "dirty working tree"),
             Self::Failed(error) => write!(f, "{error}"),
         }
     }
@@ -60,7 +66,7 @@ pub struct Preflight<'a> {
 
 impl Preflight<'_> {
     /// # Errors
-    /// [`PreflightError::ForeignDirt`] when the tree is dirty outside this
+    /// [`PreflightError::UnownedChanges`] when the tree is dirty outside this
     /// run's own manifest/session artefacts; [`PreflightError::Failed`] when
     /// the lock, scan, or manifest I/O itself fails.
     pub fn run(
@@ -86,30 +92,9 @@ impl Preflight<'_> {
             return Ok((guard, PreflightOutcome::Clean));
         }
 
-        let manifest_paths = self.manifest.manifest()?;
-        let run_id = self.manifest.run_id()?;
-        let base_matches = matches!(
-            (&run_id, &self.revision),
-            (Some(recorded), Some(current)) if recorded == current
-        );
-        let usable = manifest_paths.is_some() && run_id.is_some();
-
-        let fully_owned = usable
-            && base_matches
-            && dirty.iter().all(|path| {
-                !matches!(
-                    classify(
-                        path,
-                        &self.runner,
-                        manifest_paths.as_deref().unwrap_or(&[]),
-                        true,
-                    ),
-                    Ownership::Foreign
-                )
-            });
-
-        if !fully_owned {
-            return Err(PreflightError::ForeignDirt);
+        let unowned = self.unowned_changes(&dirty)?;
+        if !unowned.paths.is_empty() {
+            return Err(PreflightError::UnownedChanges(unowned));
         }
 
         let affordance = dirty
@@ -121,5 +106,29 @@ impl Preflight<'_> {
             })
             .collect();
         Ok((guard, PreflightOutcome::Resumed { affordance }))
+    }
+
+    fn unowned_changes(
+        &self,
+        dirty: &[String],
+    ) -> Result<UnownedChanges, PreflightError> {
+        let manifest = self.manifest.manifest()?;
+        let recorded = self.manifest.run_id()?;
+        let current_run = recorded.is_some() && recorded == self.revision;
+        let stale_run =
+            manifest.is_some() && recorded.is_some() && !current_run;
+        let mut paths: Vec<String> = match manifest {
+            Some(manifest) if current_run => dirty
+                .iter()
+                .filter(|path| {
+                    classify(path, &self.runner, &manifest, current_run)
+                        == Ownership::Unowned
+                })
+                .cloned()
+                .collect(),
+            _ => dirty.to_vec(),
+        };
+        paths.sort_unstable();
+        Ok(UnownedChanges { paths, stale_run })
     }
 }

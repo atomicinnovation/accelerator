@@ -69,10 +69,10 @@ pub migrate::list::ListGroup::transformations: alloc::vec::Vec<migrate::interact
 pub fn migrate::list::list_pending(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String], ctx: &dyn migrate::ports::MigrationContext, session_logs: &dyn migrate::ports::SessionLogFactory, reporter: &dyn migrate::ports::Reporter) -> core::result::Result<alloc::vec::Vec<migrate::list::ListGroup>, migrate::ports::MigrationError>
 pub mod migrate::manifest
 pub enum migrate::manifest::Ownership
-pub migrate::manifest::Ownership::Foreign
 pub migrate::manifest::Ownership::Manifested
 pub migrate::manifest::Ownership::RunnerManaged
 pub migrate::manifest::Ownership::SessionArtefact
+pub migrate::manifest::Ownership::Unowned
 impl core::clone::Clone for migrate::manifest::Ownership
 pub fn migrate::manifest::Ownership::clone(&self) -> migrate::manifest::Ownership
 impl core::cmp::Eq for migrate::manifest::Ownership
@@ -293,7 +293,7 @@ pub fn migrate::ports::SessionLogRewriter::cutover(&self, path: &std::path::Path
 pub mod migrate::preflight
 pub enum migrate::preflight::PreflightError
 pub migrate::preflight::PreflightError::Failed(migrate::ports::MigrationError)
-pub migrate::preflight::PreflightError::ForeignDirt
+pub migrate::preflight::PreflightError::UnownedChanges(migrate::preflight::UnownedChanges)
 impl core::convert::From<migrate::ports::MigrationError> for migrate::preflight::PreflightError
 pub fn migrate::preflight::PreflightError::from(error: migrate::ports::MigrationError) -> Self
 impl core::error::Error for migrate::preflight::PreflightError
@@ -318,6 +318,17 @@ pub migrate::preflight::Preflight::scanner: &'a dyn migrate::ports::DirtyPathSca
 pub migrate::preflight::Preflight::session_log_decision_count: &'a dyn core::ops::function::Fn(&str) -> usize
 impl migrate::preflight::Preflight<'_>
 pub fn migrate::preflight::Preflight<'_>::run(&self) -> core::result::Result<(migrate::ports::RunLockGuard, migrate::preflight::PreflightOutcome), migrate::preflight::PreflightError>
+pub struct migrate::preflight::UnownedChanges
+pub migrate::preflight::UnownedChanges::paths: alloc::vec::Vec<alloc::string::String>
+pub migrate::preflight::UnownedChanges::stale_run: bool
+impl core::clone::Clone for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::clone(&self) -> migrate::preflight::UnownedChanges
+impl core::cmp::Eq for migrate::preflight::UnownedChanges
+impl core::cmp::PartialEq for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::eq(&self, other: &migrate::preflight::UnownedChanges) -> bool
+impl core::fmt::Debug for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::preflight::UnownedChanges
 pub const migrate::preflight::SCOPES: [&str; 3]
 pub mod migrate::registry
 pub enum migrate::registry::ApplyOutcome

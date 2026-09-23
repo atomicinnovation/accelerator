@@ -1,5 +1,5 @@
 //! `VcsDirtyPathScanner` against a real repository: what the migrate
-//! preflight's foreign-dirt gate actually sees.
+//! preflight's unowned-changes gate actually sees.
 #![cfg(feature = "bash-parity")]
 
 use std::fs;
@@ -29,7 +29,7 @@ fn committed_repo(
     Ok((work, env))
 }
 
-/// An uncommitted document under a scope is foreign dirt: the migration would
+/// An uncommitted document under a scope is an unowned change: the migration would
 /// rewrite content no commit holds, and no revert could bring it back.
 #[test]
 fn an_untracked_document_in_scope_is_reported() -> Result<(), TestError> {

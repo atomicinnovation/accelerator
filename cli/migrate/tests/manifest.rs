@@ -42,7 +42,7 @@ fn a_session_artefact_is_owned_by_pattern_only_when_the_base_revision_matches()
         classify(path, &runner, &[], true),
         Ownership::SessionArtefact
     );
-    assert_eq!(classify(path, &runner, &[], false), Ownership::Foreign);
+    assert_eq!(classify(path, &runner, &[], false), Ownership::Unowned);
 }
 
 #[test]
@@ -100,15 +100,15 @@ fn an_empty_manifest_with_a_matching_revision_still_refuses_an_unmanifested_path
 
     assert_eq!(
         classify("meta/work/0002-bar.md", &runner, &[], true),
-        Ownership::Foreign
+        Ownership::Unowned
     );
 }
 
 #[test]
-fn a_path_outside_every_class_is_foreign() {
+fn a_path_outside_every_class_is_unowned() {
     let runner = runner();
     assert_eq!(
         classify("meta/unrelated.md", &runner, &[], true),
-        Ownership::Foreign
+        Ownership::Unowned
     );
 }

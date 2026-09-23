@@ -402,9 +402,9 @@ echo "$?" >"$OUT/exit-code"
 snapshot_state "$OUT" "$SBX"
 capture_source "$OUT"
 
-echo "  interactive/foreign-dirty-path/ + interactive/two-owned-dirty-paths/ (git)"
+echo "  interactive/unowned-dirty-path/ + interactive/two-owned-dirty-paths/ (git)"
 # A manifest listing meta/work/mech.md plus an owned session log; one
-# variant dirties ALSO a path outside the manifest (foreign, refuses), the
+# variant dirties ALSO a path outside the manifest (unowned, refuses), the
 # other dirties only manifest-owned paths (resumes).
 build_dirty_repo() {
   local name="$1"
@@ -418,15 +418,15 @@ build_dirty_repo() {
   printf '%s\n' "$repo"
 }
 
-REPO=$(build_dirty_repo "foreign-dirty")
+REPO=$(build_dirty_repo "unowned-dirty")
 rev=$(git -C "$REPO" rev-parse HEAD)
 printf 'meta/work/mech.md\n' >"$REPO/.accelerator/state/migrations-run-paths.txt"
 printf '%s\n' "$rev" >"$REPO/.accelerator/state/migrations-run.id"
 printf 'x\n' >>"$REPO/meta/work/mech.md"
 git -C "$REPO" add meta/work/mech.md
-printf 'x\n' >"$REPO/meta/work/foreign.md"
-git -C "$REPO" add meta/work/foreign.md
-OUT="$SCRIPT_DIR/interactive/foreign-dirty-path"
+printf 'x\n' >"$REPO/meta/work/unowned.md"
+git -C "$REPO" add meta/work/unowned.md
+OUT="$SCRIPT_DIR/interactive/unowned-dirty-path"
 mkdir -p "$OUT"
 (cd "$REPO" &&
   bash "$DRIVER" >"$OUT/stdout" 2>"$OUT/stderr" </dev/null)

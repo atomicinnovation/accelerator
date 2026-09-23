@@ -9,10 +9,38 @@ use migrate::ports::MigrationError;
 use migrate::ports::PreviewEntry;
 use migrate::ports::Reporter;
 use migrate::preflight::AffordanceEntry;
+use migrate::preflight::UnownedChanges;
 
 const PREAMBLE: &str = "\nMigrations rewrite files and may make repo-wide changes; commit\nyour working tree before running so VCS revert is available as\nrollback. The pre-flight will refuse to run on a dirty tree\nunless ACCELERATOR_MIGRATE_FORCE=1 is set.\n\n";
 
 pub const DIRTY_TREE_REFUSAL: &str = "Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check.";
+
+const STALE_RUN_EXPLANATION: &str = "A previous migration run's recorded base no longer matches the working copy, so its output is listed too.\nIf the listed paths are only that run's output, commit them and re-run without ACCELERATOR_MIGRATE_FORCE to resume.";
+
+pub fn unowned_changes_refusal(unowned: &UnownedChanges) -> String {
+    let mut refusal = DIRTY_TREE_REFUSAL.to_owned();
+    if unowned.stale_run {
+        let _ = write!(refusal, "\n{STALE_RUN_EXPLANATION}");
+    }
+    let _ = write!(refusal, "\nUnowned changes ({}):", unowned.paths.len());
+    for path in &unowned.paths {
+        let _ =
+            write!(refusal, "\n  {}", with_control_characters_escaped(path));
+    }
+    refusal
+}
+
+fn with_control_characters_escaped(path: &str) -> String {
+    path.chars()
+        .map(|character| {
+            if character.is_control() {
+                character.escape_default().to_string()
+            } else {
+                character.to_string()
+            }
+        })
+        .collect()
+}
 
 pub fn resume_affordance(root: &Path, affordance: &[AffordanceEntry]) {
     eprintln!("Resuming over this run's own partial migration output:");
@@ -241,5 +269,72 @@ impl Reporter for StdoutReporter {
         }
         println!();
         println!("Migration complete. {summary}.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use migrate::preflight::UnownedChanges;
+
+    use super::unowned_changes_refusal;
+    use super::DIRTY_TREE_REFUSAL;
+
+    fn unowned(paths: &[&str], stale_run: bool) -> UnownedChanges {
+        UnownedChanges {
+            paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+            stale_run,
+        }
+    }
+
+    #[test]
+    fn a_refusal_counts_and_lists_each_unowned_change() {
+        let refusal = unowned_changes_refusal(&unowned(
+            &[".accelerator/b", "meta/a.md"],
+            false,
+        ));
+
+        assert_eq!(
+            refusal,
+            format!(
+                "{DIRTY_TREE_REFUSAL}\nUnowned changes (2):\n  .accelerator/b\n  meta/a.md"
+            )
+        );
+    }
+
+    #[test]
+    fn a_stale_run_refusal_explains_the_staleness_and_the_recovery() {
+        let refusal = unowned_changes_refusal(&unowned(&["meta/a.md"], true));
+
+        assert_eq!(
+            refusal,
+            format!(
+                "{DIRTY_TREE_REFUSAL}\n\
+                 A previous migration run's recorded base no longer matches \
+                 the working copy, so its output is listed too.\n\
+                 If the listed paths are only that run's output, commit them \
+                 and re-run without ACCELERATOR_MIGRATE_FORCE to resume.\n\
+                 Unowned changes (1):\n  meta/a.md"
+            )
+        );
+    }
+
+    #[test]
+    fn control_characters_in_a_path_are_escaped() {
+        let refusal = unowned_changes_refusal(&unowned(
+            &["meta/a\nb\u{1b}[31m.md"],
+            false,
+        ));
+
+        assert!(refusal.ends_with("  meta/a\\nb\\u{1b}[31m.md"));
+    }
+
+    #[test]
+    fn non_ascii_and_quotes_in_a_path_print_unchanged() {
+        let refusal = unowned_changes_refusal(&unowned(
+            &["meta/café.md", "meta/it's.md"],
+            false,
+        ));
+
+        assert!(refusal.ends_with("  meta/café.md\n  meta/it's.md"));
     }
 }

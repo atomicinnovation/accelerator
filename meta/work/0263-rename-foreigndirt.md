@@ -5,14 +5,14 @@ title: "Rename ForeignDirt"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0276"
 tags: ["naming", "refactor"]
-last_updated: "2026-09-05T00:00:00+00:00"
+last_updated: "2026-09-23T23:00:23+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+last_updated_note: "Done as part of 0241: `ForeignDirt` became `PreflightError::UnownedChanges`, carrying the unowned paths, and `Ownership::Foreign` became `Ownership::Unowned`."
 schema_version: 1
 external_id: "PP-793"
 ---
@@ -20,7 +20,7 @@ external_id: "PP-793"
 # 0263: Rename ForeignDirt
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -40,11 +40,13 @@ unhelpful negative framing.
 
 ## Acceptance Criteria
 
-- [ ] `ForeignDirt` is renamed and no references to the old name remain.
+- [x] `ForeignDirt` is renamed and no references to the old name remain.
 
 ## Open Questions
 
-- What is the intended replacement name?
+- What is the intended replacement name? Resolved: `UnownedChanges`
+  (`PreflightError::UnownedChanges`) and `Ownership::Unowned`; the domain
+  speaks of owned and unowned changes.
 
 ## Drafting Notes
 

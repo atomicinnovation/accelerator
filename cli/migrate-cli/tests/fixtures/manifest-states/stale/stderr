@@ -1,2 +1,6 @@
 Error: dirty working tree — uncommitted changes detected in meta/, .claude/accelerator*.md, or .accelerator/.
 Commit or discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 to skip this check.
+A previous migration run's recorded base no longer matches the working copy, so its output is listed too.
+If the listed paths are only that run's output, commit them and re-run without ACCELERATOR_MIGRATE_FORCE to resume.
+Unowned changes (1):
+  meta/work/dirty.md

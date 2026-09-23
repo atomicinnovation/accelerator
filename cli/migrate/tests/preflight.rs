@@ -1,5 +1,5 @@
 //! `Preflight::run` against in-memory test doubles: clean, resumed-owned,
-//! foreign-refused, `FORCE`, and staleness.
+//! unowned-refused, `FORCE`, and staleness.
 
 use std::cell::RefCell;
 
@@ -12,6 +12,7 @@ use migrate::ports::RunLockGuard;
 use migrate::preflight::Preflight;
 use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
+use migrate::preflight::UnownedChanges;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -112,6 +113,39 @@ const fn runner() -> RunnerPaths<'static> {
     }
 }
 
+fn refusal_over(
+    dirty_paths: &[&str],
+    manifest: &InMemoryManifestStore,
+    revision: Option<&str>,
+) -> Result<UnownedChanges, TestError> {
+    let lock = AlwaysLock;
+    let scanner = StubScanner(
+        dirty_paths.iter().map(|path| (*path).to_owned()).collect(),
+    );
+    let no_op = |_: &str| 0;
+    let preflight = Preflight {
+        lock: &lock,
+        scanner: &scanner,
+        manifest,
+        runner: runner(),
+        revision: revision.map(str::to_owned),
+        force: false,
+        session_log_decision_count: &no_op,
+    };
+    match preflight.run() {
+        Err(PreflightError::UnownedChanges(unowned)) => Ok(unowned),
+        Err(PreflightError::Failed(error)) => Err(error.into()),
+        Ok(_) => Err("expected a refusal".into()),
+    }
+}
+
+fn unowned(paths: &[&str], stale_run: bool) -> UnownedChanges {
+    UnownedChanges {
+        paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+        stale_run,
+    }
+}
+
 /// The run lock is acquired before the scan and released after it, so its
 /// sentinel is present for every scan a run ever performs. Its filename
 /// carries a fresh nonce, so ownership here is by prefix, not by equality.
@@ -197,28 +231,24 @@ fn a_tree_dirty_only_in_the_runners_own_bookkeeping_is_clean(
     Ok(())
 }
 
-/// Filtering the ledger out must not soften the gate around it: a foreign
+/// Filtering the ledger out must not soften the gate around it: an unowned
 /// document alongside the ledger still refuses.
 #[test]
-fn foreign_dirt_beside_the_runners_bookkeeping_still_refuses() {
-    let lock = AlwaysLock;
-    let scanner = StubScanner(vec![
-        ".accelerator/state/migrations-applied".to_owned(),
-        "meta/work/0001-foo.md".to_owned(),
-    ]);
+fn unowned_changes_beside_the_runners_bookkeeping_still_refuse(
+) -> Result<(), TestError> {
     let manifest = InMemoryManifestStore::default();
-    let no_op = |_: &str| 0;
-    let preflight = Preflight {
-        lock: &lock,
-        scanner: &scanner,
-        manifest: &manifest,
-        runner: runner(),
-        revision: Some("rev-1".to_owned()),
-        force: false,
-        session_log_decision_count: &no_op,
-    };
 
-    assert!(matches!(preflight.run(), Err(PreflightError::ForeignDirt)));
+    let refusal = refusal_over(
+        &[
+            ".accelerator/state/migrations-applied",
+            "meta/work/0001-foo.md",
+        ],
+        &manifest,
+        Some("rev-1"),
+    )?;
+
+    assert_eq!(refusal, unowned(&["meta/work/0001-foo.md"], false));
+    Ok(())
 }
 
 /// A resumed run's affordance lists what the user must review. The ledger is
@@ -315,24 +345,121 @@ fn a_session_log_in_the_affordance_reports_its_decision_count(
 }
 
 #[test]
-fn a_foreign_dirty_path_refuses() {
-    let lock = AlwaysLock;
-    let scanner = StubScanner(vec!["meta/unrelated.md".to_owned()]);
+fn an_unowned_change_refuses() -> Result<(), TestError> {
     let manifest = InMemoryManifestStore::seeded(Vec::new(), Some("rev-1"));
-    let no_op = |_: &str| 0;
-    let preflight = Preflight {
-        lock: &lock,
-        scanner: &scanner,
-        manifest: &manifest,
-        runner: runner(),
-        revision: Some("rev-1".to_owned()),
-        force: false,
-        session_log_decision_count: &no_op,
+
+    let refusal =
+        refusal_over(&["meta/unrelated.md"], &manifest, Some("rev-1"))?;
+
+    assert_eq!(refusal, unowned(&["meta/unrelated.md"], false));
+    Ok(())
+}
+
+#[test]
+fn a_current_run_lists_only_its_unowned_changes_byte_sorted(
+) -> Result<(), TestError> {
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["meta/work/owned.md".to_owned()],
+        Some("rev-1"),
+    );
+
+    let refusal = refusal_over(
+        &["meta/a.md", "meta/work/owned.md", ".accelerator/b"],
+        &manifest,
+        Some("rev-1"),
+    )?;
+
+    assert_eq!(refusal, unowned(&[".accelerator/b", "meta/a.md"], false));
+    Ok(())
+}
+
+#[test]
+fn without_a_manifest_every_change_is_listed() -> Result<(), TestError> {
+    let manifest = InMemoryManifestStore::default();
+
+    let refusal = refusal_over(
+        &["meta/a.md", ".accelerator/b"],
+        &manifest,
+        Some("rev-1"),
+    )?;
+
+    assert_eq!(refusal, unowned(&[".accelerator/b", "meta/a.md"], false));
+    Ok(())
+}
+
+#[test]
+fn a_stale_run_lists_its_own_output_and_says_it_is_stale(
+) -> Result<(), TestError> {
+    let session_log = ".accelerator/state/migrations-0099-session.jsonl";
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["meta/work/owned.md".to_owned()],
+        Some("rev-1"),
+    );
+
+    let refusal = refusal_over(
+        &["meta/work/owned.md", session_log, "meta/a.md"],
+        &manifest,
+        Some("rev-2"),
+    )?;
+
+    assert_eq!(
+        refusal,
+        unowned(&[session_log, "meta/a.md", "meta/work/owned.md"], true)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_recorded_run_base_without_a_manifest_is_not_a_stale_run(
+) -> Result<(), TestError> {
+    let manifest = InMemoryManifestStore {
+        manifest: RefCell::new(None),
+        run_id: RefCell::new(Some("rev-1".to_owned())),
     };
 
-    let outcome = preflight.run();
+    let refusal = refusal_over(&["meta/a.md"], &manifest, Some("rev-2"))?;
 
-    assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
+    assert_eq!(refusal, unowned(&["meta/a.md"], false));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_without_a_recorded_run_base_lists_every_change(
+) -> Result<(), TestError> {
+    let manifest = InMemoryManifestStore::seeded(
+        vec!["meta/work/owned.md".to_owned()],
+        None,
+    );
+
+    let refusal = refusal_over(
+        &["meta/work/owned.md", "meta/a.md"],
+        &manifest,
+        Some("rev-1"),
+    )?;
+
+    assert_eq!(
+        refusal,
+        unowned(&["meta/a.md", "meta/work/owned.md"], false)
+    );
+    Ok(())
+}
+
+#[test]
+fn runner_managed_paths_are_never_listed() -> Result<(), TestError> {
+    let manifest = InMemoryManifestStore::seeded(Vec::new(), Some("rev-1"));
+
+    let refusal = refusal_over(
+        &[
+            ".accelerator/state/migrations-run.id",
+            ".accelerator/state/migrate-run.lockdir/owner.1",
+            "meta/a.md",
+        ],
+        &manifest,
+        Some("rev-2"),
+    )?;
+
+    assert_eq!(refusal.paths, vec!["meta/a.md".to_owned()]);
+    Ok(())
 }
 
 /// The fail-closed usability gate, kept for every class ownership cannot
@@ -340,50 +467,29 @@ fn a_foreign_dirty_path_refuses() {
 /// matching revision; the runner's own bookkeeping does not, and is filtered
 /// out before this gate is reached.
 #[test]
-fn an_absent_manifest_or_run_id_refuses_even_a_session_artefact() {
-    let lock = AlwaysLock;
-    let scanner = StubScanner(vec![
-        ".accelerator/state/migrations-0099-session.jsonl".to_owned(),
-    ]);
+fn an_absent_manifest_or_run_id_refuses_even_a_session_artefact(
+) -> Result<(), TestError> {
+    let session_log = ".accelerator/state/migrations-0099-session.jsonl";
     let manifest = InMemoryManifestStore::default();
-    let no_op = |_: &str| 0;
-    let preflight = Preflight {
-        lock: &lock,
-        scanner: &scanner,
-        manifest: &manifest,
-        runner: runner(),
-        revision: Some("rev-1".to_owned()),
-        force: false,
-        session_log_decision_count: &no_op,
-    };
 
-    let outcome = preflight.run();
+    let refusal = refusal_over(&[session_log], &manifest, Some("rev-1"))?;
 
-    assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
+    assert_eq!(refusal, unowned(&[session_log], false));
+    Ok(())
 }
 
 #[test]
-fn a_recorded_revision_of_none_never_matches_even_a_current_none() {
-    let lock = AlwaysLock;
-    let scanner = StubScanner(vec!["meta/work/0001-foo.md".to_owned()]);
+fn a_recorded_revision_of_none_never_matches_even_a_current_none(
+) -> Result<(), TestError> {
     let manifest = InMemoryManifestStore::seeded(
         vec!["meta/work/0001-foo.md".to_owned()],
         None,
     );
-    let no_op = |_: &str| 0;
-    let preflight = Preflight {
-        lock: &lock,
-        scanner: &scanner,
-        manifest: &manifest,
-        runner: runner(),
-        revision: None,
-        force: false,
-        session_log_decision_count: &no_op,
-    };
 
-    let outcome = preflight.run();
+    let refusal = refusal_over(&["meta/work/0001-foo.md"], &manifest, None)?;
 
-    assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
+    assert_eq!(refusal, unowned(&["meta/work/0001-foo.md"], false));
+    Ok(())
 }
 
 #[test]
@@ -415,27 +521,18 @@ fn a_stale_leftover_manifest_on_a_clean_tree_is_truncated_and_reminted(
 }
 
 #[test]
-fn two_distinct_non_none_revisions_are_a_stale_base_and_refuse() {
-    let lock = AlwaysLock;
-    let scanner = StubScanner(vec!["meta/work/owned.md".to_owned()]);
+fn two_distinct_non_none_revisions_are_a_stale_base_and_refuse(
+) -> Result<(), TestError> {
     let manifest = InMemoryManifestStore::seeded(
         vec!["meta/work/owned.md".to_owned()],
         Some("rev-1"),
     );
-    let no_op = |_: &str| 0;
-    let preflight = Preflight {
-        lock: &lock,
-        scanner: &scanner,
-        manifest: &manifest,
-        runner: runner(),
-        revision: Some("rev-2".to_owned()),
-        force: false,
-        session_log_decision_count: &no_op,
-    };
 
-    let outcome = preflight.run();
+    let refusal =
+        refusal_over(&["meta/work/owned.md"], &manifest, Some("rev-2"))?;
 
-    assert!(matches!(outcome, Err(PreflightError::ForeignDirt)));
+    assert_eq!(refusal, unowned(&["meta/work/owned.md"], true));
+    Ok(())
 }
 
 #[test]

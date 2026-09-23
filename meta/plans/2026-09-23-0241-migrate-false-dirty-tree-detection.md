@@ -452,15 +452,15 @@ recording `UnownedChanges` / `Ownership::Unowned` as the chosen names.
 
 #### Automated Verification
 
-- [ ] `rg -n 'ForeignDirt|Ownership::Foreign|(?i)foreign[ _-]?dirt' cli skills`
+- [x] `rg -n 'ForeignDirt|Ownership::Foreign|(?i)foreign[ _-]?dirt' cli skills`
   returns nothing.
-- [ ] Domain tests pass:
+- [x] Domain tests pass:
   `cargo nextest run --manifest-path cli/Cargo.toml -p migrate`.
-- [ ] Binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p
+- [x] Binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p
   accelerator-migrate --features bash-parity dirty_tree_preflight`.
-- [ ] Public API fixture is current: `mise run public-api:check`.
-- [ ] `mise run check` exits 0.
-- [ ] `mise run` exits 0.
+- [x] Public API fixture is current: `mise run public-api:check`.
+- [x] `mise run check` exits 0.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 
