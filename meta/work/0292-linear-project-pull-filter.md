@@ -9,11 +9,11 @@ status: "ready"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-blocks: ["work-item:0227", "work-item:0293"]
+blocks: ["work-item:0227", "work-item:0293", "work-item:0294"]
 relates_to: ["work-item:0227", "work-item:0229", "work-item:0293"]
 external_id: "PP-869"
 tags: ["sync", "linear", "scoping", "filters", "pull", "catalogue", "assignee"]
-last_updated: "2026-09-22T08:19:01+00:00"
+last_updated: "2026-09-23T22:15:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -74,18 +74,23 @@ is; `team` scope has been id-keyed since 0220).
     a `CatalogueUsers` resolver that tries email, then full name, then display
     name, first tier with a unique match winning and any tier with two or more
     matches refusing.
-- Extend init discovery to fetch and persist the workspace's
-  `projects { id name }`, `issueLabels { id name }`, and
-  `users { id name displayName email }` into `catalogue.json` alongside
-  `workflowStates`, paginating each as `teams` already is. `CatalogueUsers`
-  indexes email, name, and display name; `CatalogueProjects` / `CatalogueLabels`
-  index name. All three mirror `CatalogueStates`.
+- Converge `catalogue.json` on one shape: a `baseTeam` pointer and a `teams`
+  array whose entries each carry that team's `states`, `labels`, `members`
+  (`id name displayName email active`) and `projects`, plus a top-level
+  `labels` array of workspace labels. Only synced teams are catalogued: the
+  base team and each team a sync has imported items from (0229's rule). The
+  legacy `team` and `workflowStates` keys are written as projections of the
+  base entry for one minor release.
+- Init and apply-mode sync write whole team entries through one fetch and one
+  write path. Init refreshes the base team and every synced team; an
+  apply-mode sync adds entries for teams it imported from and completes
+  incomplete ones. Teams in scope but not synced are fetched live for the run
+  and never written. A preview never writes.
 - The config surface stays human-readable (names, or a name / email for
-  `assignee`); ids are an internal resolution detail. A filter value the
-  catalogue cannot resolve refuses the pull, naming the missing entity and
-  directing the operator to re-run `init-linear` to repopulate the catalogue —
-  not a plain pull, which repopulates the new sections only when it adds a new
-  team.
+  `assignee`); ids are an internal resolution detail. Values resolve against
+  the teams in scope. A value no team in scope carries refuses the pull,
+  naming the value and directing the operator to refresh the catalogue with
+  `init-linear` if it was added in Linear.
 - Structural validation only — no config-time remote-existence check of named
   entities (consistent with 0229; remote validation stays 0227's concern).
 
@@ -124,10 +129,15 @@ Out of scope:
       pull runs, then it aborts with a non-zero exit and fetches no issues,
       naming the collision, rather than falling through to a later tier or
       picking one.
-- [ ] Given a filter naming an entity absent from or ambiguous in the catalogue,
-      when a pull runs, then it aborts with a non-zero exit and fetches no
-      issues — naming the entity and directing the operator to re-run
-      `init-linear` — not silently matching none or several.
+- [ ] Given a filter naming an entity that no team in scope carries, or that
+      is ambiguous among them, when a pull runs, then it aborts with a
+      non-zero exit and fetches no issues — naming the entity and directing
+      the operator to refresh the catalogue with `init-linear` — not silently
+      matching none or several.
+- [ ] Given a team in scope whose catalogue entry is missing or incomplete,
+      when a pull runs, then that team's needed sections are fetched live and
+      its ids are used; the fetched entry is written to `catalogue.json` only
+      by an apply-mode sync, and only when the team is synced.
 - [ ] Given `project` under an active Linear integration, when configuration is
       validated, then it is accepted (no `UnsupportedFilterKey` error).
 - [ ] Given `project` under an active Jira integration, when configuration is
@@ -136,13 +146,16 @@ Out of scope:
 - [ ] Given a `project` filter accepted at config validation, when a pull runs,
       then the Linear client applies it to the `IssueFilter` rather than silently
       dropping an unrecognised field.
-- [ ] Given an init discovery (or a pull that adds a new team), when it
-      completes, then `catalogue.json` holds the workspace's `projects`,
-      `issueLabels`, and `users` (with `displayName` and `email`) alongside
-      `workflowStates`.
-- [ ] Given a workspace whose projects, labels, or users span more than one
-      page, when init discovery completes, then `catalogue.json` holds an entity
-      drawn from a later page and a filter naming it resolves.
+- [ ] Given an init discovery, when it completes, then `catalogue.json` holds
+      a `baseTeam` and a complete entry (`states`, `labels`, `members` with
+      `displayName` and `email`, `projects`) for the base team and every synced
+      team, plus workspace `labels` — and no entry for any other visible team.
+- [ ] Given a team whose states, labels, members, or projects span more than
+      one page, when its entry is fetched, then the entry holds an entity drawn
+      from a later page and a filter naming it resolves.
+- [ ] Given a catalogue written before this story, when an apply-mode sync
+      completes, then every synced team's entry is complete, without a manual
+      `init-linear`.
 - [ ] Given no `project` / `label` / `assignee` filter, when a pull runs, then
       the constructed `IssueFilter` carries no project / label / assignee
       constraint and matches the no-filter `issue-filter.txt` golden fixture.
@@ -183,12 +196,9 @@ Out of scope:
   name (not email alone) keeps existing name-based configs working once the
   catalogue is repopulated, so this is not a config-syntax break.
 - The config surface stays human-readable; operators never write UUIDs.
-- Cold-start / migration: `projects` / `issueLabels` / `users` are written by
-  init discovery, so after this ships the existing catalogue lacks them and any
-  `project` / `label` / `assignee` filter refuses until `init-linear` (or a pull
-  that adds a new team) repopulates the catalogue — the established team/state
-  behaviour (0220), now extended to `label` and `assignee`, which previously
-  matched live. This one-time re-init is a documented migration step.
+- Cold-start / migration: an existing catalogue reads as incomplete entries.
+  Filtered pulls fetch the missing sections live, and the first apply-mode
+  sync completes every synced team's entry, so no manual re-init is needed.
 
 ## Technical Notes
 
@@ -220,12 +230,10 @@ Out of scope:
 - Catalogue: `cli/linear-client/src/catalogue.rs` gains `CatalogueProjects`,
   `CatalogueLabels`, and `CatalogueUsers`. Projects and labels index name;
   `CatalogueUsers` indexes email, full name, and display name (a generic index is
-  a candidate refactor). Discovery fetches and persists `projects`,
-  `issueLabels`, and `users { id name displayName email }`, paginated as `teams`
-  is; these are workspace-scoped, so the fetch is not per-team. The full write is
-  the init path (`discover_team` → `write_catalogue`, `cli/linear-cli`); a pull
-  only `grow_catalogue`s, so it repopulates these sections just when it adds a
-  new team.
+  a candidate refactor). Sections are fetched per team, for synced teams only;
+  whether members and projects can be fetched for many teams in one paginated
+  pass is settled by a spike before planning completes. Init and apply-mode
+  sync share one write path.
 - Rate limiting: the added catalogue fetches (and their pagination) raise
   per-refresh query complexity (Linear meters by complexity); the filter itself
   costs the same on name or id.
@@ -258,6 +266,13 @@ Out of scope:
   non-existent "client-contract check"; and fixed the catalogue-refresh remedy
   (init, not a plain pull). Parent 0146's Stories entry still describes 0292 as
   `project.name` lowering and is now stale.
+- Plan stress test 2026-09-23: replaced the workspace-wide catalogue with
+  per-team entries for synced teams only, keeping 0229's rule that the
+  committed catalogue never holds the whole visible workspace. Members include
+  disabled users, with active users winning within a tier. Incomplete entries
+  are fetched live and healed by an apply-mode sync instead of a forced
+  re-init. The legacy `team` / `workflowStates` keys survive one minor
+  release as projections.
 
 ## References
 
