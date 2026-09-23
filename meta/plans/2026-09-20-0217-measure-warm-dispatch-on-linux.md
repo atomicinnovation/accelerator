@@ -577,26 +577,26 @@ records and no untracked records remain, and the lockstep test
 
 #### Automated Verification
 
-- [ ] `mise` resolves and provisions the pinned toolchain: `command -v mise`.
-- [ ] The guest resolves both digest backends:
+- [x] `mise` resolves and provisions the pinned toolchain: `command -v mise`.
+- [x] The guest resolves both digest backends:
       `command -v sha256sum && command -v shasum`
-- [ ] The musl target and linker are present:
+- [x] The musl target and linker are present:
       `rustup target list --installed | grep aarch64-unknown-linux-musl`
-- [ ] The bootstrapping session completes and writes a `warm-dispatch-N.json`
+- [x] The bootstrapping session completes and writes a `warm-dispatch-N.json`
       whose `analysis.validity` is `valid`.
-- [ ] After teardown and revert, `jj diff tasks/measure.py` is empty,
+- [x] After teardown and revert, `jj diff tasks/measure.py` is empty,
       `jj status meta/measurements/` shows no tracked-record deletions or
       modifications and no untracked records remain, and the lockstep test passes.
 
 #### Manual Verification
 
-- [ ] The VM is genuinely aarch64 under native virtualisation (not emulated):
+- [x] The VM is genuinely aarch64 under native virtualisation (not emulated):
       `uname -m` reports `aarch64` and `lscpu` shows the host CPU brand.
-- [ ] `cargo test --target aarch64-unknown-linux-musl` actually **runs** the
+- [x] `cargo test --target aarch64-unknown-linux-musl` actually **runs** the
       `warm_terms` test on the guest (musl static binaries execute natively on
       aarch64 linux); if cargo declines to run the cross target, the built test
       binary is executed directly or a runner is configured.
-- [ ] The measured C1–C4 statistics and floor medians are recorded for use in
+- [x] The measured C1–C4 statistics and floor medians are recorded for use in
       Phase 3.
 
 ---
@@ -749,26 +749,26 @@ needs in the README, not just this soon-archived plan.
 
 #### Automated Verification
 
-- [ ] The lockstep test passes both directions:
+- [x] The lockstep test passes both directions:
       `uv run pytest tests/unit/tasks/test_measure.py -k CriterionConstantsLockstep`
-- [ ] Both linux farm-completeness tests, the floor-binary assertion, and the
+- [x] Both linux farm-completeness tests, the floor-binary assertion, and the
       power-probe distinctness guard pass:
       `uv run pytest tests/unit/tasks/test_measure.py -k linux`
-- [ ] The full Python unit suite passes: `mise run test:unit:tasks`
-- [ ] The read-only gate exits 0: `mise run check`
+- [x] The full Python unit suite passes: `mise run test:unit:tasks`
+- [x] The read-only gate exits 0: `mise run check`
 
 #### Manual Verification
 
-- [ ] The ≥ 18% headroom rule is applied to the linux measured statistics
+- [x] The ≥ 18% headroom rule is applied to the linux measured statistics
       directly; darwin's 50/60/70/80 are not used as a confirmation (they derive
       from 0205's base figures, not from this rule over 0189's figures).
-- [ ] Each derived ceiling leaves ≥ 18% headroom over its measured statistic,
+- [x] Each derived ceiling leaves ≥ 18% headroom over its measured statistic,
       and is the smallest multiple of 10 ms that does.
-- [ ] Each floor gate sits 40–80% above its measured floor median.
-- [ ] The README bullet values match the entry fields under the lockstep
+- [x] Each floor gate sits 40–80% above its measured floor median.
+- [x] The README bullet values match the entry fields under the lockstep
       integer-float rendering (the parser float-coerces both sides, so `50`
       renders for `50.0`); the floor gates keep their decimals (e.g. `7.8`).
-- [ ] The `### The measure namespace` "What a run requires" prose names
+- [x] The `### The measure namespace` "What a run requires" prose names
       linux-arm64 as a supported platform with its run path and the VM-scoped /
       provisional caveat (this free-text prose cannot be auto-pinned).
 
@@ -847,30 +847,30 @@ committed-darwin record is swept in or destroyed.
 
 #### Automated Verification
 
-- [ ] The committed record reports `analysis.validity == "valid"`,
+- [x] The committed record reports `analysis.validity == "valid"`,
       `provenance.calibration.note == "calibrated"`, and
       `closure_verdict == true`.
-- [ ] The record's C1–C4 are branch 1 and no cell carries an `accepted_by`
+- [x] The record's C1–C4 are branch 1 and no cell carries an `accepted_by`
       reason — a full six-cell calibration, not a degraded run.
-- [ ] `terms.asset_bytes` and `terms.terms["verifier::sha256_hex"]` are present
+- [x] `terms.asset_bytes` and `terms.terms["verifier::sha256_hex"]` are present
       (the Change 7 guard fails loudly if either is missing) and the derived
       throughput is ≥ 700 MB/s.
-- [ ] The recorded build triple ends in `-linux-musl` (matching the entry's
+- [x] The recorded build triple ends in `-linux-musl` (matching the entry's
       `libc`), so the figure cannot be a mislabelled glibc build.
-- [ ] `jj status meta/measurements/` immediately before the commit shows only the
+- [x] `jj status meta/measurements/` immediately before the commit shows only the
       single intended record + sidecar added, with no pre-existing tracked record
       deleted or modified.
-- [ ] Only the single final `warm-dispatch-N.json` and its sidecar are committed
+- [x] Only the single final `warm-dispatch-N.json` and its sidecar are committed
       under `meta/measurements/`; no intermediate or placeholder-gated records
       remain.
 
 #### Manual Verification
 
-- [ ] The power_state field carries a real linux reading, or names the source it
+- [x] The power_state field carries a real linux reading, or names the source it
       probed and that it returned no reading — never a bare `unknown`.
-- [ ] The transfer verdict is stated per cell against the darwin figures, with
+- [x] The transfer verdict is stated per cell against the darwin figures, with
       the dominant term attributed.
-- [ ] The throughput clearing the soft band confirms hardware SHA-2, not the
+- [x] The throughput clearing the soft band confirms hardware SHA-2, not the
       soft backend.
 
 ---
