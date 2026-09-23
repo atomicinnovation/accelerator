@@ -16,6 +16,14 @@ workspace = true
 # (tasks/test/cli.py). Mirrors vcs-adapters' own bash-parity convention.
 bash-parity = []
 
+# Black-box test entry point, not a shipped artifact. Lives under
+# tests/fixtures/ so it stays off the crate's normal build surface; tests
+# locate it via CARGO_BIN_EXE_work-adapters-fixture and run it under a
+# hermetic environment, which in-process calls cannot have.
+[[bin]]
+name = "work-adapters-fixture"
+path = "tests/fixtures/work_adapters_fixture.rs"
+
 [dependencies]
 work = { path = "../work" }
 kernel = { path = "../kernel" }

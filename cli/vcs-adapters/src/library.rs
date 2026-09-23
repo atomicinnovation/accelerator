@@ -65,6 +65,7 @@ use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
 mod dirty_paths;
+mod git_excludes;
 mod snapshot;
 mod status_log;
 mod tracked;

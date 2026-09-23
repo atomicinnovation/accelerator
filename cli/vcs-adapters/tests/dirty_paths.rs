@@ -2,6 +2,8 @@
 //! against the shape `git status --porcelain`/`jj diff --name-only` reports.
 #![cfg(feature = "bash-parity")]
 
+mod support;
+
 use std::fs;
 
 use vcs::VcsKind;
@@ -141,11 +143,12 @@ fn jj_reports_a_new_file_via_auto_track_and_never_writes_a_new_operation(
 
     fs::write(root.join("meta/b.md"), "two\n")?;
 
-    let probe = InProcessProbe;
-    let mut paths = probe.dirty_paths(&root, VcsKind::Jj)?;
-    paths.sort();
+    let paths = support::dirty_paths(&env, &root)?;
 
-    assert_eq!(paths, vec!["meta/b.md".to_owned()]);
+    assert_eq!(
+        paths.into_iter().collect::<Vec<_>>(),
+        vec!["meta/b.md".to_owned()]
+    );
     assert_eq!(
         op_heads(&root)?,
         heads_before,
@@ -165,9 +168,6 @@ fn jj_on_a_clean_tree_reports_nothing() -> Result<(), TestError> {
     fs::write(root.join("meta/a.md"), "one\n")?;
     env.jj(&["commit", "-m", "init"], &root)?;
 
-    let probe = InProcessProbe;
-    let paths = probe.dirty_paths(&root, VcsKind::Jj)?;
-
-    assert!(paths.is_empty());
+    assert!(support::dirty_paths(&env, &root)?.is_empty());
     Ok(())
 }

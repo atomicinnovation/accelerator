@@ -1,0 +1,120 @@
+//! `accelerator-vcs status` on jj lists the changes `jj status` does: files
+//! the git excludes hide are left out, everything else is listed.
+#![cfg(feature = "bash-parity")]
+
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+
+use vcs_test_support::hermetic::Hermetic;
+
+type TestError = Box<dyn std::error::Error>;
+
+const BIN: &str = env!("CARGO_BIN_EXE_accelerator-vcs");
+const COLOCATIONS: [&str; 2] = ["--no-colocate", "--colocate"];
+
+struct Repo {
+    work: tempfile::TempDir,
+    env: Hermetic,
+    root: PathBuf,
+    colocation: &'static str,
+}
+
+impl Repo {
+    fn new(colocation: &'static str) -> Result<Self, TestError> {
+        vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+        let work = tempfile::Builder::new()
+            .prefix("vcs-report-excludes-")
+            .tempdir()?;
+        let env = Hermetic::rooted_at(work.path())?;
+        let root = work.path().join("repo");
+        fs::create_dir_all(root.join("meta"))?;
+        env.jj(&["git", "init", colocation], &root)?;
+        fs::write(root.join("meta/base.md"), "base")?;
+        env.jj(&["commit", "-m", "base"], &root)?;
+        Ok(Self {
+            work,
+            env,
+            root,
+            colocation,
+        })
+    }
+
+    fn backing_exclude(&self) -> PathBuf {
+        if self.colocation == "--colocate" {
+            self.root.join(".git/info/exclude")
+        } else {
+            self.root.join(".jj/repo/store/git/info/exclude")
+        }
+    }
+
+    fn with_global_excludes(
+        &self,
+        patterns: &str,
+    ) -> Result<Hermetic, TestError> {
+        let excludes = self.work.path().join("global-ignore");
+        fs::write(&excludes, patterns)?;
+        let config = self.work.path().join("global.gitconfig");
+        fs::write(
+            &config,
+            format!("[core]\n\texcludesFile = {}\n", excludes.display()),
+        )?;
+        Ok(self.env.clone().with_git_global_config(config))
+    }
+
+    fn status(&self, env: &Hermetic) -> Result<String, TestError> {
+        let mut command = Command::new(BIN);
+        env.apply(&mut command);
+        let output = command.arg("status").current_dir(&self.root).output()?;
+        assert!(output.status.success());
+        let rendered = String::from_utf8(output.stdout)?;
+        assert!(!rendered.contains("(status unavailable)"), "{rendered}");
+        Ok(rendered)
+    }
+}
+
+fn write(path: &Path, content: &str) -> Result<(), TestError> {
+    fs::create_dir_all(path.parent().ok_or("no parent")?)?;
+    fs::write(path, content)?;
+    Ok(())
+}
+
+#[test]
+fn a_file_the_git_excludes_hide_is_not_listed() -> Result<(), TestError> {
+    for colocation in COLOCATIONS {
+        let repo = Repo::new(colocation)?;
+        write(&repo.root.join("meta/ignored.md"), "ignored")?;
+        write(&repo.root.join("meta/visible.md"), "visible")?;
+        let global = repo.with_global_excludes("ignored.md\n")?;
+        write(&repo.backing_exclude(), "ignored.md\n")?;
+
+        for env in [global, repo.env.clone()] {
+            let rendered = repo.status(&env)?;
+            assert!(!rendered.contains("meta/ignored.md"), "{rendered}");
+            assert!(rendered.contains("meta/visible.md"), "{rendered}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn a_file_the_git_excludes_do_not_hide_is_listed() -> Result<(), TestError> {
+    for colocation in COLOCATIONS {
+        let repo = Repo::new(colocation)?;
+        write(&repo.root.join("meta/tracked.md"), "one")?;
+        repo.env.jj(&["commit", "-m", "tracked"], &repo.root)?;
+        let env = repo.with_global_excludes("unrelated.md\n")?;
+        let xdg = repo.env.jj_user_config_dir()?;
+        write(&xdg.with_file_name("git").join("ignore"), "ignored.md\n")?;
+        write(&repo.backing_exclude(), "tracked.md\n")?;
+        write(&repo.root.join("meta/ignored.md"), "ignored")?;
+        write(&repo.root.join("meta/tracked.md"), "two")?;
+
+        let rendered = repo.status(&env)?;
+
+        assert!(rendered.contains("meta/ignored.md"), "{rendered}");
+        assert!(rendered.contains("meta/tracked.md"), "{rendered}");
+    }
+    Ok(())
+}

@@ -41,6 +41,26 @@ mod against_a_real_repository {
     use super::tempdir;
     use super::TestError;
 
+    const FIXTURE: &str = env!("CARGO_BIN_EXE_work-adapters-fixture");
+
+    fn dirtiness(
+        env: &Hermetic,
+        root: &std::path::Path,
+        path: &std::path::Path,
+    ) -> Result<String, TestError> {
+        let mut command = std::process::Command::new(FIXTURE);
+        command.arg(root).arg(path);
+        env.apply(&mut command);
+        let output = command.output()?;
+        let listing = String::from_utf8(output.stdout)?;
+        Ok(listing
+            .trim_end()
+            .rsplit_once('\t')
+            .ok_or_else(|| format!("no dirtiness in {listing:?}"))?
+            .1
+            .to_owned())
+    }
+
     #[test]
     fn git_reports_a_modified_tracked_file_as_dirty() -> Result<(), TestError> {
         vcs_test_support::hermetic::assert_git_is_recent_enough()?;
@@ -124,15 +144,13 @@ mod against_a_real_repository {
         env.jj(&["commit", "-m", "init"], &root)?;
         fs::write(root.join("meta/work/0002-b.md"), "two\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root);
-
         assert_eq!(
-            status.is_dirty(&root.join("meta/work/0002-b.md")),
-            Dirtiness::Dirty
+            dirtiness(&env, &root, &root.join("meta/work/0002-b.md"))?,
+            "dirty"
         );
         assert_eq!(
-            status.is_dirty(&root.join("meta/work/0001-a.md")),
-            Dirtiness::Clean
+            dirtiness(&env, &root, &root.join("meta/work/0001-a.md"))?,
+            "clean"
         );
         Ok(())
     }
@@ -153,11 +171,9 @@ mod against_a_real_repository {
         env.jj(&["commit", "-m", "init"], &root)?;
         fs::write(root.join("meta/work/0001-a.md"), "two\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root);
-
         assert_eq!(
-            status.is_dirty(&root.join("meta/work/0001-a.md")),
-            Dirtiness::Dirty
+            dirtiness(&env, &root, &root.join("meta/work/0001-a.md"))?,
+            "dirty"
         );
         Ok(())
     }
@@ -182,6 +198,117 @@ mod against_a_real_repository {
             status.is_dirty(&root.join("meta/work/0001-a.md")),
             Dirtiness::Dirty
         );
+        Ok(())
+    }
+
+    const COLOCATIONS: [&str; 2] = ["--no-colocate", "--colocate"];
+
+    struct ExcludesRepo {
+        work: tempfile::TempDir,
+        env: Hermetic,
+        root: std::path::PathBuf,
+        colocation: &'static str,
+    }
+
+    impl ExcludesRepo {
+        fn new(colocation: &'static str) -> Result<Self, TestError> {
+            vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+            let work = tempdir("jj-excludes")?;
+            let env = Hermetic::rooted_at(work.path())?;
+            let root = work.path().join("repo");
+            fs::create_dir_all(root.join("meta/work"))?;
+            env.jj(&["git", "init", colocation], &root)?;
+            fs::write(root.join("meta/work/0001-a.md"), "one\n")?;
+            env.jj(&["commit", "-m", "init"], &root)?;
+            Ok(Self {
+                work,
+                env,
+                root,
+                colocation,
+            })
+        }
+
+        fn backing_exclude(&self) -> std::path::PathBuf {
+            if self.colocation == "--colocate" {
+                self.root.join(".git/info/exclude")
+            } else {
+                self.root.join(".jj/repo/store/git/info/exclude")
+            }
+        }
+
+        fn with_global_excludes(
+            &self,
+            patterns: &str,
+        ) -> Result<Hermetic, TestError> {
+            let excludes = self.work.path().join("global-ignore");
+            fs::write(&excludes, patterns)?;
+            let config = self.work.path().join("global.gitconfig");
+            fs::write(
+                &config,
+                format!("[core]\n\texcludesFile = {}\n", excludes.display()),
+            )?;
+            Ok(self.env.clone().with_git_global_config(config))
+        }
+
+        fn dirtiness(
+            &self,
+            env: &Hermetic,
+            relative: &str,
+        ) -> Result<String, TestError> {
+            dirtiness(env, &self.root, &self.root.join(relative))
+        }
+    }
+
+    fn write(path: &std::path::Path, content: &str) -> Result<(), TestError> {
+        fs::create_dir_all(path.parent().ok_or("no parent")?)?;
+        fs::write(path, content)?;
+        Ok(())
+    }
+
+    #[test]
+    fn a_work_item_the_git_excludes_hide_is_clean() -> Result<(), TestError> {
+        for colocation in COLOCATIONS {
+            let repo = ExcludesRepo::new(colocation)?;
+            write(&repo.root.join("meta/work/0002-hidden.md"), "x\n")?;
+            write(&repo.root.join("meta/work/0003-shown.md"), "x\n")?;
+            let global = repo.with_global_excludes("0002-hidden.md\n")?;
+            write(&repo.backing_exclude(), "0002-hidden.md\n")?;
+
+            for env in [global, repo.env.clone()] {
+                assert_eq!(
+                    repo.dirtiness(&env, "meta/work/0002-hidden.md")?,
+                    "clean"
+                );
+                assert_eq!(
+                    repo.dirtiness(&env, "meta/work/0003-shown.md")?,
+                    "dirty"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_work_item_the_git_excludes_do_not_hide_is_dirty(
+    ) -> Result<(), TestError> {
+        for colocation in COLOCATIONS {
+            let repo = ExcludesRepo::new(colocation)?;
+            let env = repo.with_global_excludes("unrelated.md\n")?;
+            let xdg = repo.env.jj_user_config_dir()?;
+            write(
+                &xdg.with_file_name("git").join("ignore"),
+                "0002-hidden.md\n",
+            )?;
+            write(&repo.root.join("meta/work/0002-hidden.md"), "x\n")?;
+            write(&repo.backing_exclude(), "0001-a.md\n")?;
+            write(&repo.root.join("meta/work/0001-a.md"), "edited\n")?;
+
+            assert_eq!(
+                repo.dirtiness(&env, "meta/work/0002-hidden.md")?,
+                "dirty"
+            );
+            assert_eq!(repo.dirtiness(&env, "meta/work/0001-a.md")?, "dirty");
+        }
         Ok(())
     }
 }

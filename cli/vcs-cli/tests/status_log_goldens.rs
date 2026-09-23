@@ -38,8 +38,14 @@ fn golden(name: &str) -> Result<String, TestError> {
     )?)
 }
 
-fn run_vcs(subcommand: &str, dir: &Path) -> Result<String, TestError> {
-    let output = Command::new(BIN)
+fn run_vcs(
+    env: &Hermetic,
+    subcommand: &str,
+    dir: &Path,
+) -> Result<String, TestError> {
+    let mut command = Command::new(BIN);
+    env.apply(&mut command);
+    let output = command
         .arg(subcommand)
         .arg("--fail-safe")
         .current_dir(dir)
@@ -72,7 +78,7 @@ fn status_and_log_match_every_captured_state() -> Result<(), TestError> {
     for (name, directory) in &states {
         for subcommand in ["status", "log"] {
             let rendered =
-                masks::apply(&masks, &run_vcs(subcommand, directory)?)?;
+                masks::apply(&masks, &run_vcs(&env, subcommand, directory)?)?;
             let golden_name = format!("{name}-{subcommand}");
             if regenerating() {
                 fs::write(
@@ -112,7 +118,7 @@ fn a_conflict_status_carries_the_conflicted_marker_and_path(
 
     for name in ["conflict-git", "conflict-jj"] {
         let directory = states.get(name).ok_or("conflict state missing")?;
-        let rendered = run_vcs("status", directory)?;
+        let rendered = run_vcs(&env, "status", directory)?;
         assert!(
             rendered.contains("conflicted") && rendered.contains("f.txt"),
             "{name} must mark the unmerged path conflicted: {rendered:?}"
@@ -122,7 +128,7 @@ fn a_conflict_status_carries_the_conflicted_marker_and_path(
     // jj's conflict is absent from the change diff and unioned in from the
     // tree, so it lists exactly the one conflicted path and no other change.
     let conflict_jj = states.get("conflict-jj").ok_or("conflict-jj missing")?;
-    let rendered = run_vcs("status", conflict_jj)?;
+    let rendered = run_vcs(&env, "status", conflict_jj)?;
     assert!(
         rendered.contains("1 changed, 1 conflicted"),
         "conflict-jj must show a single conflicted change: {rendered:?}"
@@ -139,7 +145,7 @@ fn a_rename_renders_as_deleted_old_plus_added_new() -> Result<(), TestError> {
     let states = status_log::build_states(work.path(), &env)?;
     let rename_git = states.get("rename-git").ok_or("rename-git missing")?;
 
-    let rendered = run_vcs("status", rename_git)?;
+    let rendered = run_vcs(&env, "status", rename_git)?;
     let body: Vec<&str> = rendered.lines().skip(2).collect();
     assert_eq!(
         body,
@@ -158,7 +164,7 @@ fn the_log_is_capped_at_five_entries() -> Result<(), TestError> {
     let states = status_log::build_cap_states(work.path(), &env)?;
 
     for (name, directory) in &states {
-        let log = run_vcs("log", directory)?;
+        let log = run_vcs(&env, "log", directory)?;
         assert_eq!(
             log.lines().count(),
             5,
@@ -183,14 +189,14 @@ fn an_empty_history_renders_no_commits() -> Result<(), TestError> {
     for name in ["unborn-git", "empty-jj"] {
         let directory = states.get(name).ok_or("empty state missing")?;
         assert_eq!(
-            run_vcs("log", directory)?,
+            run_vcs(&env, "log", directory)?,
             "No commits",
             "{name} log must be No commits"
         );
     }
     let unborn = states.get("unborn-git").ok_or("unborn-git missing")?;
     assert!(
-        run_vcs("status", unborn)?.contains("No changes"),
+        run_vcs(&env, "status", unborn)?.contains("No changes"),
         "unborn-git status must be No changes"
     );
     Ok(())
@@ -207,12 +213,12 @@ fn a_jj_bookmark_header_lists_the_byte_sorted_bookmarks(
 
     let one = states.get("bookmark-one-jj").ok_or("one missing")?;
     assert!(
-        run_vcs("status", one)?.starts_with("Branch: solo"),
+        run_vcs(&env, "status", one)?.starts_with("Branch: solo"),
         "a single bookmark must head the status"
     );
     let two = states.get("bookmark-two-jj").ok_or("two missing")?;
     assert!(
-        run_vcs("status", two)?.starts_with("Branch: alpha, zed"),
+        run_vcs(&env, "status", two)?.starts_with("Branch: alpha, zed"),
         "two bookmarks must be byte-sorted and comma-joined"
     );
     Ok(())
@@ -230,7 +236,9 @@ fn a_malformed_accelerator_log_still_renders_and_exits_zero(
     let root = states.get("clean-git").ok_or("clean-git state missing")?;
 
     for subcommand in ["status", "log"] {
-        let output = Command::new(BIN)
+        let mut command = Command::new(BIN);
+        env.apply(&mut command);
+        let output = command
             .arg(subcommand)
             .env("ACCELERATOR_LOG", "bad=notalevel")
             .current_dir(root)
@@ -258,12 +266,15 @@ fn a_forced_adapter_failure_emits_the_gix_token_to_stderr(
     let work = tempfile::Builder::new()
         .prefix("vcs-status-log-token-")
         .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
     let repo = work.path().join("broken");
     fs::create_dir_all(&repo)?;
     fs::write(repo.join(".git"), "gitdir: /nonexistent/elsewhere\n")?;
 
     for subcommand in ["status", "log"] {
-        let output = Command::new(BIN)
+        let mut command = Command::new(BIN);
+        env.apply(&mut command);
+        let output = command
             .arg(subcommand)
             .env("ACCELERATOR_LOG", "warn")
             .current_dir(&repo)
@@ -297,17 +308,19 @@ fn fail_safe_has_no_effect_on_a_successful_status_or_log(
     let root = states.get("clean-git").ok_or("clean-git state missing")?;
 
     for subcommand in ["status", "log"] {
-        let with_flag = Command::new(BIN)
+        let mut with_flag = Command::new(BIN);
+        env.apply(&mut with_flag);
+        let with_flag = with_flag
             .arg(subcommand)
             .arg("--fail-safe")
             .current_dir(root)
             .output()?;
         assert!(with_flag.status.success());
 
-        let without_flag = Command::new(BIN)
-            .arg(subcommand)
-            .current_dir(root)
-            .output()?;
+        let mut without_flag = Command::new(BIN);
+        env.apply(&mut without_flag);
+        let without_flag =
+            without_flag.arg(subcommand).current_dir(root).output()?;
         assert!(without_flag.status.success());
 
         assert_eq!(

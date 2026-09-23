@@ -494,32 +494,3 @@ fn fingerprint(dir: &Path) -> Result<Vec<String>, TestError> {
     entries.sort();
     Ok(entries)
 }
-
-#[test]
-fn the_working_copy_commit_is_not_among_the_commits_it_is_based_on(
-) -> Result<(), TestError> {
-    require("jj")?;
-    let dir = tempdir("revision-versus-base")?;
-    let root = path_of(&dir)?;
-    run("jj", &["git", "init", "--no-colocate"], &root)?;
-    fs::write(root.join("file"), "content")?;
-    run("jj", &["commit", "-m", "one"], &root)?;
-    fs::write(root.join("file"), "edited")?;
-    run("jj", &["status"], &root)?;
-
-    let revision = InProcessProbe.revision(&root, VcsKind::Jj);
-    let base = InProcessProbe.working_copy_state(&root, VcsKind::Jj)?;
-
-    let working_copy = Command::new("jj")
-        .args(["log", "--ignore-working-copy", "-r", "@", "--no-graph"])
-        .args(["-T", "commit_id"])
-        .current_dir(&root)
-        .output()?;
-    let working_copy = String::from_utf8(working_copy.stdout)?;
-    assert_eq!(revision.as_deref(), Some(working_copy.trim()));
-    assert!(
-        !base.base_commits.contains(&working_copy.trim().to_owned()),
-        "{base:?}"
-    );
-    Ok(())
-}

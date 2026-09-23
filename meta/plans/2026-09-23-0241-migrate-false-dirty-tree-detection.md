@@ -888,8 +888,10 @@ methods, applied by `apply` after the defaults:
 - `cli/vcs-cli/tests/status_log_goldens.rs`, `status_log_parity.rs`: spawn the
   binary with `env.apply`, so a developer's own excludes or limit cannot leak
   into the goldens.
-- `cli/vcs-adapters/tests/dirty_paths.rs`, `base_commits.rs` and the jj case
-  in `library.rs`: move onto `vcs-adapters-fixture` under `env.apply`.
+- `cli/vcs-adapters/tests/dirty_paths.rs` and `base_commits.rs`: move onto
+  `vcs-adapters-fixture` under `env.apply`, through a shared
+  `tests/support/mod.rs`. The jj case from `library.rs` moves into
+  `base_commits.rs`, where the fixture helpers live.
 - `cli/work-adapters/tests/sync_working_copy_status.rs`: the jj cases
   (`jj_reports_an_uncommitted_file_as_dirty`,
   `a_colocated_checkout_is_read_through_jj`) move onto
@@ -899,9 +901,9 @@ After this step no test computes jj dirty paths or base commits in the test
 process.
 
 **File**: `cli/vcs-adapters/tests/fixtures/vcs_adapters_fixture.rs` gains
-`only base_commits <dir>` and `only revision <dir>`, shaped like phase 2's
-`only dirty_paths`. `only base_commits` prints
-`working_copy_state(..).base_commits`. Every subcommand now calls
+`only working_copy_state <dir>`, printing `base\t<commit>` and
+`dirty\t<path>` lines from one `working_copy_state` call. The revision comes
+from the existing `only kind_and_revision`. Every subcommand now calls
 `kernel::logging::init_if_requested()`.
 
 **Work fixture**: a test-only binary `work-adapters-fixture`
@@ -1005,14 +1007,15 @@ has no `WARN` under `ACCELERATOR_LOG=warn`, and the result equals
    pattern is only in the XDG default. The file is listed.
 8. Negative: a tracked `meta/tracked.md` matching an exclude is modified. It is
    listed.
-9. Unreadable: `core.excludesFile` names a directory. The file is listed and
-   stderr has a `WARN` naming the path. Parity is not asserted.
-10. No git backend: a repository created through jj-lib's simple-backend
-    initialisation in the test, with the pattern in the global
-    `core.excludesFile`. The file is not listed. The red step settles once,
-    against the pinned jj 0.43.0, whether `jj status` opens such a
-    repository. The test then either always asserts parity or never does,
-    and its name says which.
+9. Unreadable: `core.excludesFile` names a file with mode `000`. The file is
+   listed and stderr has a `WARN` naming the path. Parity is not asserted.
+   A directory would not do: `chain_with_file` skips anything that is not a
+   file without an error, as jj-cli does.
+10. No git backend: a repository created with `jj debug init-simple`, since
+    the settings lint forbids a `UserSettings` even in tests, with the
+    pattern in the global `core.excludesFile`. The file is not listed.
+    `jj status` opens such a repository on 0.43.0, so parity is always
+    asserted.
 
 Consumer tests, for cases 1, 2, 7 and 8, each with the control
 `meta/visible.md` present in a second run of the same setup:
@@ -1054,18 +1057,18 @@ Add to `### Fixed`:
 
 #### Automated Verification
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p vcs-adapters
   --features bash-parity` passes (unit and excludes tests).
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters
   --features bash-parity` passes.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-vcs
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-vcs
   --features bash-parity` passes, with goldens unchanged.
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-migrate
   --features bash-parity` passes.
-- [ ] `mise run lint:vcs-settings:check` exits 0 with the exemption list
+- [x] `mise run lint:vcs-settings:check` exits 0 with the exemption list
   unchanged.
-- [ ] `mise run check` exits 0.
-- [ ] `mise run` exits 0.
+- [x] `mise run check` exits 0.
+- [x] `mise run` exits 0.
 
 #### Manual Verification
 

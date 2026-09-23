@@ -140,6 +140,13 @@
   `accelerator migrate --decisions-file <path>` without
   `ACCELERATOR_MIGRATE_FORCE`. `jj undo` reverts the commit.
 
+- **jj dirty-path checks honour the git excludes.** `accelerator migrate`,
+  `work sync` and `accelerator vcs status` now skip untracked files that
+  `core.excludesFile`, the XDG `git/ignore` or the backing repo's
+  `info/exclude` ignore, as `jj status` does. Such files are no longer
+  protected by the migrate pre-flight, so track or back them up before
+  migrating.
+
 ### Security
 
 - **Per-request classification of navigations and followed links.** The

@@ -26,7 +26,6 @@ use std::sync::Arc;
 
 use jj_lib::commit::Commit;
 use jj_lib::config::StackedConfig;
-use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::NothingMatcher;
 use jj_lib::merge::MergedTreeValue;
@@ -44,6 +43,7 @@ use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
+use crate::library::git_excludes;
 use crate::library::Error;
 
 /// One path in the working-copy diff, with the before/after presence the status
@@ -159,7 +159,7 @@ pub(super) fn working_copy_diff(
         pollster::block_on(workspace.start_working_copy_mutation())
             .map_err(err_wc_diff(root))?;
     let options = SnapshotOptions {
-        base_ignores: GitIgnoreFile::empty(),
+        base_ignores: git_excludes::base_ignores(root, repo.store()),
         progress: None,
         start_tracking_matcher: &EverythingMatcher,
         force_tracking_matcher: &NothingMatcher,

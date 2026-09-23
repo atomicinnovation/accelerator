@@ -2,19 +2,16 @@
 //! environment, against the paths on `jj status`'s change lines.
 #![cfg(feature = "bash-parity")]
 
-use std::collections::BTreeSet;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
+mod support;
 
+use std::fs;
+use std::path::PathBuf;
+
+use support::dirty_paths;
+use support::TestError;
 use tempfile::TempDir;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::jj_status::changed_paths;
-
-type TestError = Box<dyn std::error::Error>;
-
-const FIXTURE: &str = env!("CARGO_BIN_EXE_vcs-adapters-fixture");
 
 const COLOCATIONS: [&str; 2] = ["--no-colocate", "--colocate"];
 
@@ -65,25 +62,6 @@ impl JjRepo {
         assert_eq!(reported, oracle);
         Ok(())
     }
-}
-
-fn dirty_paths(
-    env: &Hermetic,
-    root: &Path,
-) -> Result<BTreeSet<String>, TestError> {
-    let mut command = Command::new(FIXTURE);
-    command.arg("only").arg("dirty_paths").arg(root);
-    env.apply(&mut command);
-    let output = command.output()?;
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr)
-            .into_owned()
-            .into());
-    }
-    Ok(String::from_utf8(output.stdout)?
-        .lines()
-        .map(str::to_owned)
-        .collect())
 }
 
 #[test]

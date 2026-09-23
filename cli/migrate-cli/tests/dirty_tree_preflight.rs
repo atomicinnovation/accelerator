@@ -448,3 +448,57 @@ fn a_non_colocated_jj_refusal_lists_every_change() -> Result<(), TestError> {
 fn a_colocated_jj_refusal_lists_every_change() -> Result<(), TestError> {
     a_jj_refusal_without_a_manifest_lists_every_change("--colocate")
 }
+
+fn a_git_file_the_excludes_hide_is_not_a_change(
+    hide: impl Fn(&std::path::Path, &Hermetic) -> Result<Hermetic, TestError>,
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-excludes")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    committed_git_repo(&env, &root, &["meta/base.md"])?;
+    mark_all_migrations_applied(&root)?;
+    env.git(&["add", "-A"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "ledger"], &root)?;
+    let env = hide(&root, &env)?;
+    fs::write(root.join("meta/ignored.md"), "ignored\n")?;
+
+    let proceeded = run(&env, &root, &[])?;
+    assert_eq!(proceeded.code, 0, "{}", proceeded.stderr);
+
+    fs::write(root.join("meta/visible.md"), "visible\n")?;
+    let refused = run(&env, &root, &[])?;
+    assert_eq!(refused.code, 1, "{}", refused.stderr);
+    assert!(
+        refused
+            .stderr
+            .ends_with("Unowned changes (1):\n  meta/visible.md\n"),
+        "{}",
+        refused.stderr
+    );
+    Ok(())
+}
+
+#[test]
+fn a_git_file_the_core_excludes_file_ignores_is_not_a_change(
+) -> Result<(), TestError> {
+    a_git_file_the_excludes_hide_is_not_a_change(|root, env| {
+        let base = root.parent().ok_or("no parent")?;
+        let excludes = base.join("global-ignore");
+        fs::write(&excludes, "ignored.md\n")?;
+        let config = base.join("global.gitconfig");
+        fs::write(
+            &config,
+            format!("[core]\n\texcludesFile = {}\n", excludes.display()),
+        )?;
+        Ok(env.clone().with_git_global_config(config))
+    })
+}
+
+#[test]
+fn a_git_file_info_exclude_ignores_is_not_a_change() -> Result<(), TestError> {
+    a_git_file_the_excludes_hide_is_not_a_change(|root, env| {
+        fs::write(root.join(".git/info/exclude"), "ignored.md\n")?;
+        Ok(env.clone())
+    })
+}

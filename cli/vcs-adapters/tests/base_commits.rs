@@ -1,19 +1,19 @@
-//! `InProcessProbe::working_copy_state`'s base commits against the commits
-//! `jj log -r 'parents(@)'` names, across the jj operations that do and do not
-//! move them, and against `HEAD` on git.
+//! `InProcessProbe::working_copy_state`'s base commits, read through the
+//! fixture binary, against the commits `jj log -r 'parents(@)'` names, across
+//! the jj operations that do and do not move them, and against `HEAD` on git.
 #![cfg(feature = "bash-parity")]
+
+mod support;
 
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use support::working_copy_state;
+use support::TestError;
 use tempfile::TempDir;
-use vcs::VcsKind;
-use vcs_adapters::library::InProcessProbe;
 use vcs_test_support::hermetic::Hermetic;
 use vcs_test_support::jj_status::parent_commit_ids;
-
-type TestError = Box<dyn std::error::Error>;
 
 const COLOCATIONS: [&str; 2] = ["--no-colocate", "--colocate"];
 
@@ -62,11 +62,7 @@ impl JjRepo {
     }
 
     fn base_commits(&self) -> Result<Vec<String>, TestError> {
-        let mut commits = InProcessProbe
-            .working_copy_state(&self.root, VcsKind::Jj)?
-            .base_commits;
-        commits.sort_unstable();
-        Ok(commits)
+        Ok(working_copy_state(&self.env, &self.root)?.base_commits)
     }
 
     fn oracle(&self) -> Result<Vec<String>, TestError> {
@@ -245,15 +241,12 @@ fn a_jj_working_copy_state_lists_the_same_dirty_paths() -> Result<(), TestError>
         repo.write("meta/a.md", "edited")?;
         repo.write("meta/new.md", "new")?;
 
-        let state =
-            InProcessProbe.working_copy_state(&repo.root, VcsKind::Jj)?;
+        let state = working_copy_state(&repo.env, &repo.root)?;
 
-        let mut listed = state.dirty_paths;
-        listed.sort();
-        let mut expected =
-            InProcessProbe.dirty_paths(&repo.root, VcsKind::Jj)?;
-        expected.sort();
-        assert_eq!(listed, expected);
+        assert_eq!(
+            state.dirty_paths,
+            support::dirty_paths(&repo.env, &repo.root)?
+        );
         Ok(())
     })
 }
@@ -266,9 +259,9 @@ fn a_corrupt_operation_store_is_an_error() -> Result<(), TestError> {
     fs::remove_dir_all(&heads)?;
     fs::create_dir_all(&heads)?;
 
-    assert!(InProcessProbe
-        .working_copy_state(&repo.root, VcsKind::Jj)
-        .is_err());
+    let outcome = support::query(&repo.env, "working_copy_state", &repo.root)?;
+
+    assert!(!outcome.status.success());
     Ok(())
 }
 
@@ -293,23 +286,19 @@ fn a_git_working_copy_is_based_on_head_with_its_dirty_paths(
     fs::write(root.join("b.md"), "new\n")?;
     let head = env.git(&["rev-parse", "HEAD"], &root)?;
 
-    let state = InProcessProbe.working_copy_state(&root, VcsKind::Git)?;
+    let state = working_copy_state(&env, &root)?;
 
     assert_eq!(state.base_commits, vec![head]);
-    let mut listed = state.dirty_paths;
-    listed.sort();
-    let mut expected = InProcessProbe.dirty_paths(&root, VcsKind::Git)?;
-    expected.sort();
-    assert_eq!(listed, expected);
+    assert_eq!(state.dirty_paths, support::dirty_paths(&env, &root)?);
     Ok(())
 }
 
 #[test]
 fn an_unborn_git_head_has_no_base() -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
-    let (_env, root) = git_repo(work.path())?;
+    let (env, root) = git_repo(work.path())?;
 
-    let state = InProcessProbe.working_copy_state(&root, VcsKind::Git)?;
+    let state = working_copy_state(&env, &root)?;
 
     assert!(state.base_commits.is_empty());
     Ok(())
@@ -318,11 +307,39 @@ fn an_unborn_git_head_has_no_base() -> Result<(), TestError> {
 #[test]
 fn no_vcs_has_no_base_and_no_dirty_paths() -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let bare = work.path().join("bare");
+    fs::create_dir_all(&bare)?;
 
-    let state =
-        InProcessProbe.working_copy_state(work.path(), VcsKind::None)?;
+    let state = working_copy_state(&env, &bare)?;
 
     assert!(state.base_commits.is_empty());
     assert!(state.dirty_paths.is_empty());
     Ok(())
+}
+
+#[test]
+fn the_working_copy_commit_is_not_among_the_commits_it_is_based_on(
+) -> Result<(), TestError> {
+    for_each_colocation(|repo| {
+        repo.commit("file", "one")?;
+        repo.write("file", "edited")?;
+        repo.jj(&["status"])?;
+
+        let revision = support::revision(&repo.env, &repo.root)?;
+        let base = repo.base_commits()?;
+
+        let working_copy = repo.jj(&[
+            "log",
+            "--ignore-working-copy",
+            "-r",
+            "@",
+            "--no-graph",
+            "-T",
+            "commit_id",
+        ])?;
+        assert_eq!(revision, working_copy);
+        assert!(!base.contains(&working_copy), "{base:?}");
+        Ok(())
+    })
 }
