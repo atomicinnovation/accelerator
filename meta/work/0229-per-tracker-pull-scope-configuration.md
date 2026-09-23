@@ -13,7 +13,7 @@ blocked_by: ["work-item:0228"]
 relates_to: ["work-item:0227", "work-item:0220"]
 tags: ["sync", "scoping", "tracker", "configuration", "discovery"]
 external_id: "PP-759"
-last_updated: "2026-09-09T22:33:30+00:00"
+last_updated: "2026-09-15T15:34:28+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -48,11 +48,14 @@ detaches base-scope resolution from that tracker-specific key; this story layers
 `pull` block on top of the canonical key it introduces.
 
 `all_teams` / `all_projects` searches the whole accessible workspace — literally
-everything the configured credential can see, with no implicit active-only filter;
-Jira omits the JQL `project =` clause, Linear drops the team filter and suppresses
-the credentialed-team fallback (Linear's default of scoping an unfiltered search to
-the credential's own team, introduced in 0220) — bounded only by `max_items` /
-`max_pages`.
+everything the configured credential can see, with no implicit active-only
+filter. The set is resolved by enumerating the credential's visible entities at
+discovery time (Jira `GET /rest/api/3/project`, Linear `teams { nodes }`) and
+emitting them as an explicit scope — Jira `project IN (...)`, Linear
+`team in [...]` — not an unbounded, constraint-free query. This keeps 0220's
+flood-guards intact: an unresolved base key still refuses, and `all_*` never
+emits the empty filter that would enumerate the workspace unbounded. Discovery
+is bounded only by `max_items` / `max_pages`.
 
 The port already models arbitrary filters (`SearchScope.filters` in
 `cli/tracker/src/lib.rs`), and both clients already consume them, but production
@@ -70,7 +73,8 @@ that seam to the primary mechanism and gives it a validated config surface.
 - The config catalogue registers scalar defaults today; extending it to carry
   structured (map / array) values for the `filters` bag is in scope for this story.
 - The keyed base entity is always included in scope implicitly (from 0228's key
-  model).
+  model); under `all_*` it is subsumed by the enumerated whole-workspace set
+  rather than added separately.
 - The `pull` block may appear in both team and personal config. A personal block
   **wholly replaces** the team block — no field-level merge.
 
@@ -98,17 +102,29 @@ that seam to the primary mechanism and gives it a validated config surface.
   error, evaluated on the effective (post-override) block.
 - `max_items` bounds the count of discovered issues destined for reconciliation; it
   is the per-tracker config default for the existing `max_pulls` reconcile ceiling.
-  `max_pages` is the per-tracker config default for the transport pagination cap
-  (today fixed at 20).
-- Both `max_items` and `max_pages` accept the literal `unlimited` sentinel, meaning
-  the ceiling does not bound discovery. No other value denotes unrestricted.
+  `max_pages` is a per-tracker page cap for transport pagination — a general value with
+  independent `discovery` / `keyed_read` per-operation overrides, each defaulting to 50
+  (raised from today's fixed 20 so the keyed reconcile read does not cap-abort on organic
+  corpus growth; a scalar `max_pages` sets both, an override sets one).
+- Both `max_items` and `max_pages` (the general value and each override) accept the literal
+  `unlimited` sentinel, meaning the ceiling does not bound discovery. `max_items`
+  additionally accepts `0` (refuse all writes); `max_pages: 0` is rejected at `configure`
+  (a 0-page cap cannot represent a bound). No other value denotes unrestricted.
 - Crossing `max_items` (the discovered-issue count exceeds the ceiling) errors and
   reconciles nothing (all-or-nothing).
 - Reaching the `max_pages` cap (an incomplete discovery result) errors rather than
-  truncating silently.
-- A named `additional_*` or base entity that cannot be resolved on the remote at sync
-  time errors and aborts the pull. This sync-time resolution is distinct from 0227's
-  proactive config-time validation — the two checks fire at different times.
+  truncating silently. The untracked-pull path already refuses on an incomplete
+  discovery; this story additionally promotes the two surviving silent
+  truncations — the standalone `search` subcommands and the keyed reconcile
+  reads — to the same hard error. For the keyed reconcile read this replaces the
+  current degrade-to-indeterminate (which skips deletion and proceeds) with an
+  all-or-nothing abort, made tunable by the now-configurable `max_pages`.
+- A named `additional_*` or base entity that cannot be resolved on the remote at
+  sync time errors and aborts the pull. Resolution enumerates the credential's
+  visible entities at discovery time and checks the requested entities for
+  membership; a transient enumeration failure is distinct from a genuine
+  absence. This sync-time resolution is distinct from 0227's proactive
+  config-time validation — the two checks fire at different times.
 
 **Result handling**
 
@@ -137,10 +153,11 @@ that seam to the primary mechanism and gives it a validated config surface.
       emitted per-tracker query applies keys AND'd and values within a key OR'd: on
       Jira the JQL constrains `state = open AND label IN (a, b)`; on Linear the filter
       object constrains `state` to `open` AND `label` to any of `a`, `b`.
-- [ ] Given `all_teams` / `all_projects` is set, when a pull runs, then the emitted
-      search carries no project/team scope constraint (Jira omits the `project =`
-      clause; Linear drops the team filter and the credentialed-team fallback),
-      bounded only by `max_items` / `max_pages`.
+- [ ] Given `all_teams` / `all_projects` is set, when a pull runs, then the pull
+      enumerates the credential's visible entities and the emitted per-tracker
+      search targets every one of them (Jira `project IN (...)`, Linear
+      `team in [...]`), bounded only by `max_items` / `max_pages` — never an
+      unbounded, constraint-free query.
 - [ ] Given both `all_*` and `additional_*` are set in the effective block, when
       configuration is validated, then validation fails.
 - [ ] Given an unsupported filter key is present, then the failure is reported at
@@ -160,19 +177,26 @@ that seam to the primary mechanism and gives it a validated config surface.
       reconciles nothing.
 - [ ] Given discovery reaches the `max_pages` cap, when a pull runs, then the pull
       errors rather than truncating silently.
+- [ ] Given a standalone `search` subcommand or a keyed reconcile read reaches the
+      `max_pages` cap, then it errors rather than silently truncating or degrading
+      to indeterminate.
 - [ ] Given `max_items` is configured to `3` (distinct from the built-in default 25),
       when a pull discovers 5 issues, then the pull errors on crossing the configured
       ceiling (all-or-nothing, per above) — whereas the default 25 would have
       completed — proving the configured value, not the default, is in effect.
-- [ ] Given `max_pages` is configured to `5` (distinct from the built-in default 20),
+- [ ] Given `max_pages` is configured to `5` (distinct from the built-in default 50),
       when discovery spans 6 pages, then the pull errors on reaching the configured cap
-      rather than truncating (per above) — whereas the default 20 would have
+      rather than truncating (per above) — whereas the default 50 would have
       completed — proving the configured value, not the default, is in effect.
+- [ ] Given `max_pages` sets a `keyed_read` override distinct from `discovery` (or the
+      general value), when a pull runs, then the keyed reconcile read is bounded by the
+      `keyed_read` cap and discovery by its own, independently.
 - [ ] Given a discovery set larger than both default ceilings, when `max_items` and
       `max_pages` are both set to `unlimited`, then the pull completes and reconciles
       the full set without a ceiling error.
-- [ ] Given a named base or `additional_*` entity cannot be resolved on the remote,
-      when a pull runs, then the pull errors and aborts.
+- [ ] Given a named base or `additional_*` entity is not among the credential's
+      visible entities at pull time, when a pull runs, then the pull errors and
+      aborts.
 - [ ] Given the same remote issue is discovered via multiple scopes, when results
       merge, then it appears once (dedup by remote work-item identifier); two distinct
       issues under different identifiers are both retained.
@@ -188,6 +212,10 @@ that seam to the primary mechanism and gives it a validated config surface.
   `pull.filters` values require extending the config catalogue, and that work is in
   scope for this story (see Requirements: Config surface); no tracker declares a
   required filter key, so all filter keys are optional (see Assumptions).
+- Design decisions from the 2026-09-11 research walkthrough (`all_*` base handling,
+  live-enumeration scope resolution with a grow-on-pull entity index, and the
+  extended truncation scope) are recorded in
+  `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`.
 
 ## Dependencies
 
@@ -211,6 +239,9 @@ that seam to the primary mechanism and gives it a validated config surface.
 - All filter keys are optional (no required keys), since the base keyed entity already
   bounds discovery. The per-tracker schema still provides a home for required-key
   validation should a tracker ever need one.
+- The credential-visible entity enumeration used for `all_*` and named-entity
+  validation reuses endpoints already wired for init (Jira `/rest/api/3/project`,
+  Linear `teams { nodes }`); no new remote surface is required.
 
 ## Technical Notes
 
@@ -222,17 +253,34 @@ that seam to the primary mechanism and gives it a validated config surface.
 - Two distinct ceilings exist today: the global `max_pulls` / `max_pushes` reconcile
   refusal (`cli/work-adapters/src/sync/run.rs:882`, CLI default 25) and the
   fixed transport `max_pages` cap of 20 (`cli/tracker-support/src/transport.rs`).
-  `pull.max_items` supplies a per-tracker config default for the former;
-  `pull.max_pages` for the latter.
+  `pull.max_items` supplies a per-tracker config default for the former; `pull.max_pages`
+  for the latter, restructured as a general cap plus independent `discovery` / `keyed_read`
+  per-operation overrides (each defaulting to 50) — the keyed reconcile read is decoupled
+  from discovery so organic corpus growth cannot cap-abort it.
 - Linear entity resolution is catalogue-backed, not a remote call: a configured
   `additional_teams` key resolves to a UUID via `catalogue.json` (0220 prior art), so a
   key missing from the catalogue is a local mapping gap, not a remote-absence failure —
   the "cannot be resolved at sync time" abort covers both, but the Linear failure mode
   is catalogue population, which must cover every configured additional team.
-- Incomplete discovery today yields `Discovery { complete: false }` (silent
-  truncation); this story promotes it to a hard error.
-- The port stays entity-neutral (`all_projects` boolean); adapters interpret it
-  against their one scope-entity kind.
+- The untracked-pull path already promotes `Discovery { complete: false }` to a
+  hard error (`RunError::DiscoveryIncomplete`,
+  `cli/work-adapters/src/sync/run.rs`), so that portion is done; the remaining
+  work is making `max_pages` config-sourced (fixed at 20 today) and extending the
+  same hard error to the two paths that still truncate silently — the standalone
+  `search` subcommands and the keyed reconcile reads (today
+  degrade-to-indeterminate).
+- The port stays entity-neutral: `all_projects` is a boolean and the additional
+  entities are a resolved list on `SearchScope`, cleared to the base alone when no
+  `pull` block applies. `all_*` is constructed with the base `project` unset (the
+  enumerated set is a superset), leaving the documented `project`-wins precedence
+  intact. Adapters interpret the scope against their one scope-entity kind.
+- `all_*` and named-entity resolution enumerate the credential's visible entities
+  live at discovery (Jira `/rest/api/3/project`, Linear `teams { nodes }` —
+  endpoints already wired for init). Discovery is intrinsically online, so this
+  adds no offline guarantee to break; the committed entity index (`projects.json`
+  / `catalogue.json`) grows lazily as pulls import items from new entities and
+  backs offline validation of local work items. Jira `fields.json` stays an
+  instance-wide dictionary, outside this per-entity growth.
 
 ## Drafting Notes
 
@@ -244,11 +292,15 @@ that seam to the primary mechanism and gives it a validated config surface.
   grouping keys so full AND/OR nesting can be added later with no config migration and
   no change to existing filter semantics.
 - Standardised the ceiling config keys as `max_items` / `max_pages`, mapping onto the
-  existing internal `max_pulls` and transport page cap.
-- The configurable ceilings and the truncation-to-hard-error change ship in this
-  increment deliberately, not as a follow-on: broadening discovery without bounded,
-  fail-loud ceilings risks an unbounded flood or a silently truncated pull, so the two
-  are treated as one deliverable.
+  existing internal `max_pulls` and transport page cap. `max_pages` carries per-operation
+  `discovery` / `keyed_read` overrides (a general value plus overrides, default 50); a
+  per-operation `max_items` split remains deferred.
+- The configurable ceilings and completing the fail-loud truncation surface
+  ship in this increment deliberately, not as a follow-on: broadening discovery
+  without bounded, fail-loud ceilings risks an unbounded flood or a silently
+  truncated pull. The pull path already fails loud; this increment makes the
+  ceilings configurable and extends the hard error to the standalone `search`
+  subcommands and keyed reconcile reads.
 - The story deliberately keeps scope broadening, the `filters` bag (with its
   config-catalogue structured-value extension and per-tracker schema), the ceilings,
   and result dedup/ordering as one increment rather than splitting the filters
@@ -269,6 +321,10 @@ that seam to the primary mechanism and gives it a validated config surface.
 - Blocked by: 0228 — Layered Configuration Key Model
 - Related: 0227 — accelerator config validate Command; 0220 — Untracked-Remote
   Discovery Never Runs on Linear (prior art on Linear discovery scope)
+- Research:
+  `meta/research/codebase/2026-09-11-0229-per-tracker-pull-scope-configuration.md`
 - Code: `cli/tracker/src/lib.rs`, `cli/work-cli/src/sync.rs`,
   `cli/jira-client/src/jql.rs`, `cli/linear-client/src/filter.rs`,
-  `cli/work-adapters/src/sync/run.rs`, `cli/tracker-support/src/transport.rs`
+  `cli/work-adapters/src/sync/run.rs`, `cli/tracker-support/src/transport.rs`,
+  `cli/jira-client/src/discovery.rs`, `cli/linear-client/src/discovery.rs`,
+  `cli/linear-client/src/catalogue.rs`

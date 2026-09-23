@@ -720,6 +720,427 @@ fn resolve_active_scope_key(
     }
 }
 
+/// Validates the active tracker's `<tracker>.pull` block before discovery, so a
+/// malformed block fails loud rather than reaching lowering — the sync-path
+/// mirror of the `configure`-time refusal. A tracker with no pull surface, an
+/// absent block, or an empty block is a no-op. On failure returns the operator
+/// message (naming the resolving config file).
+fn validate_pull_config(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Result<(), String> {
+    let Some(tracker) =
+        tracker_support::pull::Tracker::from_integration(integration)
+    else {
+        return Ok(());
+    };
+    let key = ::config::Key::parse(&format!("{integration}.pull"))
+        .map_err(|error| error.to_string())?;
+    let ::config::Resolved::Found(value) =
+        config.get(&key, None).map_err(|error| error.to_string())?
+    else {
+        return Ok(());
+    };
+    if matches!(&value, ::config::Value::Mapping(entries) if entries.is_empty())
+    {
+        return Ok(());
+    }
+    let level = match config
+        .effective(&key, None)
+        .map_err(|error| error.to_string())?
+        .source()
+    {
+        ::config::Source::Personal => ::config::Level::Personal,
+        _ => ::config::Level::Team,
+    };
+    let parsed = tracker_support::pull::parse(&value)
+        .map_err(|error| error.detail(level))?;
+    tracker_support::pull::validate(&parsed, tracker)
+        .map_err(|error| error.detail(level))
+}
+
+/// Validates the active tracker's `<tracker>.push` block before the run, so a
+/// malformed block fails loud rather than silently defaulting — the sync-path
+/// mirror of the `configure`-time refusal. A tracker with no push surface, an
+/// absent block, or an empty block is a no-op. On failure returns the operator
+/// message (naming the resolving config file).
+fn validate_push_config(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Result<(), String> {
+    match tracker_support::push::read(config, integration)? {
+        Some((push, level)) => tracker_support::push::validate(&push)
+            .map_err(|error| error.detail(level)),
+        None => Ok(()),
+    }
+}
+
+/// The resolved pull-direction write bound and the config level it resolved
+/// from — the personal file when a personal block shadows, `None` for the
+/// built-in default. Read after [`validate_pull_config`] has passed, so a
+/// malformed block cannot reach here; a defensive fault falls back to the
+/// built-in default.
+fn resolve_max_items(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let max_items = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_ITEMS, |ceilings| {
+                    ceilings.max_items
+                });
+            (max_items, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_ITEMS, None),
+    }
+}
+
+/// The resolved push-direction write bound and the config level it resolved
+/// from — the personal file when a personal block shadows, `None` for the
+/// built-in default. Read after [`validate_push_config`] has passed, so a
+/// malformed block cannot reach here; a defensive fault falls back to the
+/// built-in default.
+fn resolve_push_max_items(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::push::read(config, integration) {
+        Ok(Some((push, level))) => {
+            let max_items =
+                push.max_items().unwrap_or(tracker::DEFAULT_MAX_ITEMS);
+            (max_items, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_ITEMS, None),
+    }
+}
+
+/// The effective pull bound: a present `--max-pulls` flag overrides the
+/// configured `<tracker>.pull.max_items`; an unset flag defers to it.
+fn effective_max_pulls(
+    flag: Option<tracker::Ceiling>,
+    configured: tracker::Ceiling,
+) -> tracker::Ceiling {
+    flag.unwrap_or(configured)
+}
+
+/// The effective push bound: a present `--max-pushes` flag overrides the
+/// configured `<tracker>.push.max_items`; an unset flag defers to it.
+fn effective_max_pushes(
+    flag: Option<tracker::Ceiling>,
+    configured: tracker::Ceiling,
+) -> tracker::Ceiling {
+    flag.unwrap_or(configured)
+}
+
+/// The resolved discovery page cap and the config level it resolved from — the
+/// built-in default when no block set it. Read after [`validate_pull_config`]
+/// has passed; a defensive fault falls back to the built-in default.
+fn resolve_discovery_pages(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let cap = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_PAGES, |ceilings| {
+                    ceilings.discovery_pages
+                });
+            (cap, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_PAGES, None),
+    }
+}
+
+/// The resolved keyed-read page cap and the config level it resolved from — the
+/// built-in default when no block set it. Read after [`validate_pull_config`]
+/// has passed; a defensive fault falls back to the built-in default.
+fn resolve_keyed_read_pages(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> (tracker::Ceiling, Option<::config::Level>) {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, level))) => {
+            let cap = pull
+                .ceilings()
+                .map_or(tracker::DEFAULT_MAX_PAGES, |ceilings| {
+                    ceilings.keyed_read_pages
+                });
+            (cap, Some(level))
+        }
+        _ => (tracker::DEFAULT_MAX_PAGES, None),
+    }
+}
+
+/// The configured additional discovery entities, normalised from
+/// `<tracker>.pull.additional_projects` / `additional_teams`. Read after
+/// [`validate_pull_config`] has passed; an absent block or a defensive fault is
+/// no broadening.
+fn resolve_additional_entities(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Vec<String> {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, _))) => pull.additional_entities,
+        _ => Vec::new(),
+    }
+}
+
+/// Whether `<tracker>.pull.all_projects` / `all_teams` is set, so discovery
+/// covers the whole visible workspace. Read after [`validate_pull_config`] has
+/// passed; an absent block or a defensive fault is base-scoped.
+fn resolve_all_entities(config: &dyn ConfigAccess, integration: &str) -> bool {
+    matches!(tracker_support::pull::read(config, integration), Ok(Some((pull, _))) if pull.all_entities)
+}
+
+/// Whether the unbounded-broadened-pull gate fires: an `unlimited` pull bound
+/// over a broadened scope, not acknowledged with `--allow-unbounded`. A bounded
+/// bound, a base-only scope, or the acknowledgement each keeps it closed.
+const fn unbounded_gate_fires(
+    max_pulls: tracker::Ceiling,
+    broadened: bool,
+    allow_unbounded: bool,
+) -> bool {
+    matches!(max_pulls, tracker::Ceiling::Unlimited)
+        && broadened
+        && !allow_unbounded
+}
+
+/// The unbounded-broadened-pull gate refusal. Names the hazard — `unlimited`
+/// `max_items` over a broadened scope — the `--allow-unbounded`
+/// acknowledgement, and the finite-`max_items` alternative.
+fn unbounded_gate_message(integration: &str) -> String {
+    format!(
+        "Refusing an unbounded broadened pull: {integration}.pull.max_items is \
+         `unlimited` and the pull scope is broadened (all_* or additional_*), \
+         so the whole discovered set would be created with no write bound. \
+         Re-run with --allow-unbounded to acknowledge this, or set a finite \
+         {integration}.pull.max_items."
+    )
+}
+
+/// The distinct team-key prefixes of every create-from-remote import this run
+/// applied — the teams a broadened Linear pull actually drew items from.
+fn imported_team_keys(
+    report: &work_adapters::sync::run::RunReport,
+) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    for item in &report.reported {
+        if !matches!(item.planned.action, work::sync::Action::CreateFromRemote)
+        {
+            continue;
+        }
+        if !matches!(item.outcome, ItemOutcome::Applied) {
+            continue;
+        }
+        if let Some((prefix, _)) = item.planned.id.split_once('-') {
+            if !keys.iter().any(|seen| seen == prefix) {
+                keys.push(prefix.to_owned());
+            }
+        }
+    }
+    keys
+}
+
+/// Grows the committed Linear team catalogue with any team a broadened pull
+/// just imported from but the catalogue did not yet name, so those items
+/// reconcile offline on later runs. A no-op for Jira (its keyed reconcile read
+/// is project-agnostic) and for a pull that imported only base-team items.
+///
+/// Best-effort at finalisation: the imported files already landed, so a growth
+/// failure warns rather than failing the sync. The metadata is committed only
+/// for teams items were actually imported from — never the whole enumerated
+/// workspace — and a warning names each newly-committed team since the
+/// catalogue is version-controlled and repo-wide.
+fn grow_linear_catalogue(
+    report: &work_adapters::sync::run::RunReport,
+    tracker: &dyn tracker::RemoteTracker,
+    integration: &str,
+    integrations_root: &Path,
+    repo_root: &Path,
+) {
+    use linear_client::filter::TeamResolver;
+
+    if integration != "linear" {
+        return;
+    }
+    let imported = imported_team_keys(report);
+    if imported.is_empty() {
+        return;
+    }
+    let known: std::collections::BTreeSet<String> =
+        linear_client::catalogue::CatalogueTeam::load(integrations_root)
+            .catalogued()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect();
+    let new_keys: Vec<String> = imported
+        .into_iter()
+        .filter(|key| !known.contains(key))
+        .collect();
+    if new_keys.is_empty() {
+        return;
+    }
+    let visible = match tracker.enumerate_visible_entities() {
+        Ok(visible) => visible,
+        Err(error) => {
+            eprintln!(
+                "warning: the Linear team catalogue could not be grown for \
+                 newly-imported team(s) ({error}); they will be catalogued on \
+                 the next successful enumeration."
+            );
+            return;
+        }
+    };
+    let entries: Vec<(String, String, String)> = new_keys
+        .iter()
+        .filter_map(|key| {
+            visible
+                .iter()
+                .find(|entity| &entity.key == key)
+                .map(|entity| {
+                    (
+                        entity.key.clone(),
+                        entity.identifier.clone(),
+                        entity.name.clone(),
+                    )
+                })
+        })
+        .collect();
+    if entries.is_empty() {
+        return;
+    }
+    let filesystem =
+        linear_client::cache::SystemFilesystem::new(repo_root.to_path_buf());
+    let cache = linear_client::cache::LinearCache::new(
+        &filesystem,
+        integrations_root.join("linear"),
+    );
+    match cache.grow_catalogue(&entries) {
+        Ok(added) if !added.is_empty() => eprintln!(
+            "note: committed Linear team metadata for newly-imported team(s): \
+             {}. The catalogue is version-controlled and repo-wide.",
+            added.join(", ")
+        ),
+        Ok(_) => {}
+        Err(error) => eprintln!(
+            "warning: the Linear team catalogue could not be grown ({error})."
+        ),
+    }
+}
+
+/// The configured discovery filters, flattened from `<tracker>.pull.filters`
+/// into the port's flat `(key, value)` bag — one entry per value, so an adapter
+/// groups same-key values into one `IN` (values OR'd). Read after
+/// [`validate_pull_config`] has passed; an absent block or a defensive fault is
+/// no filters.
+fn resolve_pull_filters(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> Vec<(String, String)> {
+    match tracker_support::pull::read(config, integration) {
+        Ok(Some((pull, _))) => pull
+            .filters
+            .into_iter()
+            .flat_map(|(key, values)| {
+                values.into_iter().map(move |value| (key.clone(), value))
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// The keyed-read cap-hit abort message. Names the keyed-read
+/// `<tracker>.pull.max_pages` cap, the file it resolved from, the higher-value
+/// / `unlimited` valve, and that the abort is run-wide — `--push-only` shares
+/// the same reconcile read, so it is no bypass.
+fn keyed_read_capped_message(
+    config: &dyn ConfigAccess,
+    integration: &str,
+) -> String {
+    let (cap, source) = resolve_keyed_read_pages(config, integration);
+    let source =
+        source.map_or("the built-in default", ::config::Level::filename);
+    format!(
+        "refused: the keyed reconcile read hit its page cap {cap} before \
+         accounting for every tracked item, so the remote state of the un-read \
+         items is unknown. Nothing was written. The cap resolves from \
+         {integration}.pull.max_pages, or its keyed_read override ({source}); \
+         raise it or set it to `unlimited` to lift the cap, then re-run. The \
+         read feeds both pull and push planning, so --push-only does not bypass \
+         this."
+    )
+}
+
+/// The incomplete-discovery refusal message. A cap-hit names the discovery
+/// `<tracker>.pull.max_pages` cap, the file it resolved from, and the
+/// `unlimited` valve; a transient cutoff reports the read was budget-limited
+/// and steers to a retry rather than mis-blaming the cap.
+fn discovery_incomplete_message(
+    config: &dyn ConfigAccess,
+    integration: &str,
+    found: usize,
+    completeness: tracker::Completeness,
+) -> String {
+    let seen = format!(
+        "refused: untracked-remote discovery was cut short after seeing \
+         {found} issue(s) and cannot be trusted as complete."
+    );
+    match completeness {
+        tracker::Completeness::CapHit => {
+            let (cap, source) = resolve_discovery_pages(config, integration);
+            let source = source
+                .map_or("the built-in default", ::config::Level::filename);
+            format!(
+                "{seen} It hit the discovery page cap {cap}, which resolves \
+                 from {integration}.pull.max_pages ({source}); raise it or set \
+                 it to `unlimited` to lift the cap, or scope the search to a \
+                 single project or team."
+            )
+        }
+        tracker::Completeness::Complete | tracker::Completeness::Transient => {
+            format!(
+                "{seen} The read was cut short transiently (a deadline, rate \
+                 limit, or wire failure), not by a page cap; retry, and scope \
+                 the search to a single project or team if it recurs."
+            )
+        }
+    }
+}
+
+/// The write-bounds refusal message, naming the effective limits and the
+/// `<tracker>.pull.max_items` / `<tracker>.push.max_items` keys with the config
+/// file each resolved from (the built-in default when no block set it).
+#[allow(clippy::too_many_arguments)]
+fn refusal_message(
+    integration: &str,
+    pulls: usize,
+    pushes: usize,
+    max_pulls: tracker::Ceiling,
+    max_pushes: tracker::Ceiling,
+    new_local_files: usize,
+    new_remote_issues: usize,
+    pulls_source: Option<::config::Level>,
+    pushes_source: Option<::config::Level>,
+) -> String {
+    let pulls_source =
+        pulls_source.map_or("the built-in default", ::config::Level::filename);
+    let pushes_source =
+        pushes_source.map_or("the built-in default", ::config::Level::filename);
+    format!(
+        "refused: this run would pull {pulls} item(s) ({new_local_files} of \
+         them new local files, limit {max_pulls}) and push {pushes} item(s) \
+         ({new_remote_issues} of them new remote issues, limit {max_pushes}). \
+         The pull limit resolves from {integration}.pull.max_items \
+         ({pulls_source}) and the push limit from {integration}.push.max_items \
+         ({pushes_source}); raise the binding limit or set it to `unlimited` to \
+         lift the bound, override with --max-pulls/--max-pushes, or inspect the \
+         plan first with --preview."
+    )
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -756,9 +1177,20 @@ pub fn run_sync(
             }
         };
 
+    if let Err(message) = validate_pull_config(config, &integration) {
+        eprintln!("{message}");
+        return ExitCode::from(exit_codes::ERROR);
+    }
+
+    if let Err(message) = validate_push_config(config, &integration) {
+        eprintln!("{message}");
+        return ExitCode::from(exit_codes::ERROR);
+    }
+
     // The directory resolution and target validation run before the tracker's
     // credential check, so a target-resolution abort is credential-independent.
     let root = config_adapters::FileConfigStore::discover_root(start);
+    let repo_root = root.clone();
     let work_dir = match crate::config::resolve_work_dir(config, &root) {
         Ok(dir) => dir,
         Err(error) => {
@@ -879,14 +1311,21 @@ pub fn run_sync(
     } else {
         RetrievalStrategy::Bulk
     };
+    let entities = if resolve_all_entities(config, &integration) {
+        tracker::EntityScope::WholeWorkspace
+    } else {
+        tracker::EntityScope::Keyed {
+            base: resolve_active_scope_key(
+                config,
+                &integration,
+                &integrations_root,
+            ),
+            additional: resolve_additional_entities(config, &integration),
+        }
+    };
     let scope = tracker::SearchScope {
-        project: resolve_active_scope_key(
-            config,
-            &integration,
-            &integrations_root,
-        ),
-        all_projects: false,
-        filters: Vec::new(),
+        entities,
+        filters: resolve_pull_filters(config, &integration),
     };
     let selection = match selected.scope {
         Scope::All => ItemSelection::All,
@@ -895,14 +1334,28 @@ pub fn run_sync(
             pull_ids: &pull_ids,
         },
     };
+    let (config_max_pulls, max_pulls_source) =
+        resolve_max_items(config, &integration);
+    let (config_max_pushes, max_pushes_source) =
+        resolve_push_max_items(config, &integration);
+    let max_pulls = effective_max_pulls(args.max_pulls, config_max_pulls);
+    let max_pushes = effective_max_pushes(args.max_pushes, config_max_pushes);
+    if unbounded_gate_fires(
+        max_pulls,
+        work_adapters::sync::scope::is_broadened(&scope),
+        args.allow_unbounded,
+    ) {
+        eprintln!("{}", unbounded_gate_message(&integration));
+        return ExitCode::from(exit_codes::REFUSED_UNBOUNDED);
+    }
     let request = SyncRequest {
         corpus: &items,
         selection,
         direction,
         strategy,
         resolutions: &resolutions,
-        max_pulls: args.max_pulls,
-        max_pushes: args.max_pushes,
+        max_pulls,
+        max_pushes,
         mode,
         integrations_root: &integrations_root,
         integration: &integration,
@@ -930,6 +1383,14 @@ pub fn run_sync(
                     ids.join(", ")
                 );
             }
+            if report.keyed_read_budget_limited {
+                eprintln!(
+                    "warning: the keyed reconcile read was cut short by a \
+                     transient budget limit (a deadline or wire failure); the \
+                     affected items are indeterminate this run and will \
+                     reconcile on a retry."
+                );
+            }
             let conflicts_dir =
                 integrations_root.join(&integration).join("conflicts");
             match crate::config::resolve_scheme(config) {
@@ -945,6 +1406,13 @@ pub fn run_sync(
                 ),
             }
             println!("{}", render_report(&report));
+            grow_linear_catalogue(
+                &report,
+                tracker.as_ref(),
+                &integration,
+                &integrations_root,
+                &repo_root,
+            );
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
         }
@@ -957,27 +1425,43 @@ pub fn run_sync(
             new_remote_issues,
         }) => {
             eprintln!(
-                "refused: this run would pull {pulls} item(s) ({new_local_files} \
-                 of them new local files, limit {max_pulls}) and push {pushes} \
-                 item(s) ({new_remote_issues} of them new remote issues, limit \
-                 {max_pushes}). Scope the search or raise the limit with \
-                 --max-pulls/--max-pushes, or inspect the plan first with \
-                 --preview."
+                "{}",
+                refusal_message(
+                    &integration,
+                    pulls,
+                    pushes,
+                    max_pulls,
+                    max_pushes,
+                    new_local_files,
+                    new_remote_issues,
+                    max_pulls_source,
+                    max_pushes_source,
+                )
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
-        Err(RunError::DiscoveryIncomplete { found }) => {
+        Err(RunError::DiscoveryIncomplete {
+            found,
+            completeness,
+        }) => {
             eprintln!(
-                "refused: untracked-remote discovery was cut short after \
-                 seeing {found} issue(s) and cannot be trusted as complete. \
-                 Scope the search to a single project or team before pulling \
-                 untracked issues."
+                "{}",
+                discovery_incomplete_message(
+                    config,
+                    &integration,
+                    found,
+                    completeness,
+                )
             );
             ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
         }
         Err(RunError::DiscoveryUnconfigured { detail }) => {
             eprintln!("refused: discovery is unconfigured — {detail}");
             ExitCode::from(exit_codes::UNCONFIGURED)
+        }
+        Err(RunError::KeyedReadCapped) => {
+            eprintln!("{}", keyed_read_capped_message(config, &integration));
+            ExitCode::from(exit_codes::KEYED_READ_CAPPED)
         }
         Err(RunError::Read(error)) => {
             eprintln!("{error}");
@@ -1026,10 +1510,24 @@ mod tests {
     use super::partition_candidates;
     use super::render_report;
     use super::resolve_targets;
+    use super::unbounded_gate_fires;
     use super::Scope;
     use super::TargetResolutionFailure;
     use crate::exit_codes;
     use crate::resolve::RunOutcome;
+
+    #[test]
+    fn the_unbounded_gate_fires_only_on_unlimited_over_a_broadened_scope() {
+        use tracker::Ceiling;
+        // The hazard: unlimited writes over a broadened scope, unacknowledged.
+        assert!(unbounded_gate_fires(Ceiling::Unlimited, true, false));
+        // Acknowledged, so it proceeds.
+        assert!(!unbounded_gate_fires(Ceiling::Unlimited, true, true));
+        // A finite bound protects even a broadened scope.
+        assert!(!unbounded_gate_fires(Ceiling::Bounded(25), true, false));
+        // An unbounded base-only pull is unaffected.
+        assert!(!unbounded_gate_fires(Ceiling::Unlimited, false, false));
+    }
 
     fn scheme() -> WorkItemIdScheme {
         WorkItemIdScheme::numeric()
@@ -1257,6 +1755,7 @@ mod tests {
             found: vec![found_pair("PP-1"), found_pair("PP-2")],
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         };
 
         let found = partition_candidates(outcome).expect("an all-found batch");
@@ -1271,6 +1770,7 @@ mod tests {
             found: vec![found_pair("PP-1")],
             absent: vec![ExternalId::new("PP-9".to_owned())],
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures =
@@ -1287,6 +1787,7 @@ mod tests {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures = partition_candidates(outcome)
@@ -1301,6 +1802,7 @@ mod tests {
             found: Vec::new(),
             absent: vec![ExternalId::new("PP-9".to_owned())],
             indeterminate: vec![ExternalId::new("PP-7".to_owned())],
+            completeness: tracker::Completeness::Complete,
         };
 
         let failures =
@@ -1461,6 +1963,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery: DiscoveryStatus::Ran { found: 0 },
+            keyed_read_budget_limited: false,
         };
 
         let golden = std::fs::read_to_string(concat!(
@@ -1481,6 +1984,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery: DiscoveryStatus::SkippedPushOnly,
+            keyed_read_budget_limited: false,
         };
 
         assert_eq!(
@@ -1497,6 +2001,7 @@ mod tests {
             finalised: true,
             dossiers: Vec::new(),
             discovery,
+            keyed_read_budget_limited: false,
         }
     }
 
@@ -1783,6 +2288,13 @@ mod tests {
             unimplemented!("not exercised by the fetch_all failure path")
         }
 
+        fn enumerate_visible_entities(
+            &self,
+        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
+        {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
         fn preview_create(
             &self,
             _kind: &str,
@@ -1847,6 +2359,13 @@ mod tests {
             scope: &tracker::SearchScope,
         ) -> Result<tracker::SearchScope, tracker::ScopeError> {
             self.0.resolve_scope(scope)
+        }
+
+        fn enumerate_visible_entities(
+            &self,
+        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
+        {
+            self.0.enumerate_visible_entities()
         }
 
         fn preview_create(
@@ -1928,8 +2447,9 @@ mod tests {
             preview: false,
             resolutions: Vec::new(),
             per_item_reads: false,
-            max_pulls: 25,
-            max_pushes: 25,
+            max_pulls: None,
+            max_pushes: None,
+            allow_unbounded: false,
             targets,
         }
     }
@@ -1990,6 +2510,41 @@ mod tests {
             matches!(call, Call::FetchAll { ids }
                 if ids.iter().any(|candidate| candidate.as_str() == id))
         })
+    }
+
+    fn recorded_search_scope(
+        tracker: &RecordingTracker,
+    ) -> Option<tracker::SearchScope> {
+        tracker.calls().iter().find_map(|call| match call {
+            Call::Search { scope } => Some(scope.clone()),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn a_configured_filters_bag_reaches_the_search_scope() {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\njira:\n  pull:\n    filters:\n      \
+             label:\n        - a\n        - b\n      state:\n        - open\n---\n",
+        )
+        .expect("write config");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        let scope = recorded_search_scope(&tracker)
+            .expect("a whole-corpus run issues a discovery search");
+        assert_eq!(
+            scope.filters,
+            vec![
+                ("label".to_owned(), "a".to_owned()),
+                ("label".to_owned(), "b".to_owned()),
+                ("state".to_owned(), "open".to_owned()),
+            ],
+            "the configured filters flatten one-per-value into the search scope"
+        );
     }
 
     #[test]
@@ -2225,6 +2780,180 @@ mod tests {
                 Some("PROJ".to_owned()),
                 "discovery scopes from the scope key, not work.key"
             );
+        }
+    }
+
+    mod write_bounds {
+        use super::super::{
+            effective_max_pulls, effective_max_pushes, refusal_message,
+            resolve_max_items, resolve_push_max_items,
+        };
+        use tracker::Ceiling;
+
+        #[test]
+        fn a_present_flag_overrides_the_configured_ceiling() {
+            assert_eq!(
+                effective_max_pulls(
+                    Some(Ceiling::Bounded(3)),
+                    Ceiling::Bounded(9)
+                ),
+                Ceiling::Bounded(3)
+            );
+            assert_eq!(
+                effective_max_pushes(
+                    Some(Ceiling::Bounded(4)),
+                    Ceiling::Bounded(25)
+                ),
+                Ceiling::Bounded(4)
+            );
+        }
+
+        #[test]
+        fn an_unset_flag_defers_to_the_configured_ceiling() {
+            assert_eq!(
+                effective_max_pulls(None, Ceiling::Unlimited),
+                Ceiling::Unlimited
+            );
+            assert_eq!(
+                effective_max_pushes(None, Ceiling::Bounded(25)),
+                Ceiling::Bounded(25)
+            );
+        }
+
+        #[test]
+        fn a_present_unlimited_flag_lifts_a_bounded_config() {
+            assert_eq!(
+                effective_max_pulls(
+                    Some(Ceiling::Unlimited),
+                    Ceiling::Bounded(9)
+                ),
+                Ceiling::Unlimited
+            );
+            assert_eq!(
+                effective_max_pushes(
+                    Some(Ceiling::Unlimited),
+                    Ceiling::Bounded(25)
+                ),
+                Ceiling::Unlimited
+            );
+        }
+
+        #[test]
+        fn the_refusal_message_names_both_keys_their_files_and_unlimited() {
+            let message = refusal_message(
+                "linear",
+                5,
+                0,
+                Ceiling::Bounded(3),
+                Ceiling::Bounded(25),
+                5,
+                0,
+                Some(::config::Level::Personal),
+                None,
+            );
+            assert!(message.contains("linear.pull.max_items"), "{message}");
+            assert!(message.contains("linear.push.max_items"), "{message}");
+            assert!(
+                message.contains(".accelerator/config.local.md"),
+                "{message}"
+            );
+            assert!(message.contains("the built-in default"), "{message}");
+            assert!(message.contains("unlimited"), "{message}");
+        }
+
+        fn resolve_from(
+            team: &str,
+            personal: Option<&str>,
+            resolve: impl Fn(
+                &dyn ::config::ConfigAccess,
+                &str,
+            ) -> (Ceiling, Option<::config::Level>),
+        ) -> (Ceiling, Option<::config::Level>) {
+            let dir = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir_all(dir.path().join(".git")).expect("git");
+            std::fs::create_dir_all(dir.path().join(".accelerator"))
+                .expect("mkdir");
+            std::fs::write(dir.path().join(".accelerator/config.md"), team)
+                .expect("team config");
+            if let Some(personal) = personal {
+                use std::os::unix::fs::PermissionsExt as _;
+                let path = dir.path().join(".accelerator/config.local.md");
+                std::fs::write(&path, personal).expect("personal config");
+                std::fs::set_permissions(
+                    &path,
+                    std::fs::Permissions::from_mode(0o600),
+                )
+                .expect("personal config must be private");
+            }
+            let composed = config_adapters::compose(
+                dir.path(),
+                config_adapters::LegacyPolicy::Reject,
+            )
+            .expect("compose");
+            resolve(&composed.service, "jira")
+        }
+
+        #[test]
+        fn an_unconfigured_max_items_is_the_built_in_default() {
+            let team = "---\nwork:\n  integration: jira\n---\n";
+            assert_eq!(
+                resolve_from(team, None, resolve_max_items),
+                (Ceiling::Bounded(25), None)
+            );
+            assert_eq!(
+                resolve_from(team, None, resolve_push_max_items),
+                (Ceiling::Bounded(25), None)
+            );
+        }
+
+        #[test]
+        fn a_team_pull_max_items_resolves_from_the_team_file() {
+            assert_eq!(
+                resolve_from(
+                    "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+                     max_items: 3\n---\n",
+                    None,
+                    resolve_max_items,
+                ),
+                (Ceiling::Bounded(3), Some(::config::Level::Team))
+            );
+        }
+
+        #[test]
+        fn a_team_push_max_items_resolves_from_the_team_file() {
+            assert_eq!(
+                resolve_from(
+                    "---\nwork:\n  integration: jira\njira:\n  push:\n    \
+                     max_items: 4\n---\n",
+                    None,
+                    resolve_push_max_items,
+                ),
+                (Ceiling::Bounded(4), Some(::config::Level::Team))
+            );
+        }
+
+        #[test]
+        fn a_personal_pull_block_shadows_the_team_block() {
+            let (ceiling, level) = resolve_from(
+                "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+                 max_items: 3\n---\n",
+                Some("---\njira:\n  pull:\n    max_items: unlimited\n---\n"),
+                resolve_max_items,
+            );
+            assert_eq!(ceiling, Ceiling::Unlimited);
+            assert_eq!(level, Some(::config::Level::Personal));
+        }
+
+        #[test]
+        fn a_personal_push_block_shadows_the_team_block() {
+            let (ceiling, level) = resolve_from(
+                "---\nwork:\n  integration: jira\njira:\n  push:\n    \
+                 max_items: 4\n---\n",
+                Some("---\njira:\n  push:\n    max_items: unlimited\n---\n"),
+                resolve_push_max_items,
+            );
+            assert_eq!(ceiling, Ceiling::Unlimited);
+            assert_eq!(level, Some(::config::Level::Personal));
         }
     }
 }

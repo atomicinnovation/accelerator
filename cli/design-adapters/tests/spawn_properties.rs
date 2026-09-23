@@ -69,8 +69,16 @@ fn spawner(stub: &Path, log: &Path) -> DaemonSpawner {
 
 /// Waits for a file to hold content, so a test never races the child's write
 /// without also hanging if the child never writes.
+///
+/// The ceiling is generous because the child is a `setsid`-detached process the
+/// test cannot `wait` on: under the full instrumented suite (`cargo llvm-cov`,
+/// every core already running a test that itself forks) its first scheduling
+/// slice can land many seconds after the handoff, where in isolation it returns
+/// in under a second. A ten-second bound turned that scheduling latency into
+/// intermittent "never received content" failures. The wait stays bounded so a
+/// child that genuinely never writes still fails rather than hanging forever.
 fn await_content(path: &Path) -> Result<String, TestError> {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while Instant::now() < deadline {
         if let Ok(body) = fs::read_to_string(path) {
             if !body.trim().is_empty() {

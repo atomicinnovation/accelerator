@@ -9,8 +9,11 @@
 # which is why `team` appears after `state` in the composed rows even though the
 # oracle merges it first. Order is not part of the contract; the fields are.
 #
-# Spec grammar, semicolon separated: team=, state=, assignee=, label=, text=.
-# The injected resolver maps `In Progress` -> state-uuid and nothing else.
+# Spec grammar, semicolon separated: team=, teams=, state=, assignee=, label=,
+# text=. A comma-separated value list on state/assignee/label lowers to `in`
+# (values OR'd); a single value keeps `eq`/`eqIgnoreCase`. `teams=` adds further
+# team UUIDs so the base and each additional team lower to one `id.in` list.
+# The injected resolver maps `In Progress` -> state-uuid, `Done` -> done-uuid.
 #
 # Columns: case <TAB> spec <TAB> expected filter
 empty		{}
@@ -21,3 +24,9 @@ label	label=infra	{"labels":{"name":{"eq":"infra"}}}
 text	text=needle	{"title":{"containsIgnoreCase":"needle"}}
 team-and-state	team=T1;state=In Progress	{"state":{"id":{"eq":"state-uuid"}},"team":{"id":{"eq":"T1"}}}
 every-family	team=T1;state=In Progress;assignee=alice;label=infra;text=needle	{"assignee":{"name":{"eqIgnoreCase":"alice"}},"labels":{"name":{"eq":"infra"}},"state":{"id":{"eq":"state-uuid"}},"team":{"id":{"eq":"T1"}},"title":{"containsIgnoreCase":"needle"}}
+label-in	label=a,b	{"labels":{"name":{"in":["a","b"]}}}
+state-in	state=In Progress,Done	{"state":{"id":{"in":["state-uuid","done-uuid"]}}}
+state-eq-and-label-in	state=In Progress;label=a,b	{"labels":{"name":{"in":["a","b"]}},"state":{"id":{"eq":"state-uuid"}}}
+assignee-in	assignee=alice,bob	{"assignee":{"name":{"in":["alice","bob"]}}}
+team-in	team=T1;teams=T2,T3	{"team":{"id":{"in":["T1","T2","T3"]}}}
+team-in-and-state	team=T1;teams=T2;state=In Progress	{"state":{"id":{"eq":"state-uuid"}},"team":{"id":{"in":["T1","T2"]}}}

@@ -240,8 +240,8 @@ fn run_sync(
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls,
-        max_pushes,
+        max_pulls: tracker::Ceiling::Bounded(max_pulls),
+        max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
         integrations_root,
         integration: "jira",
@@ -286,8 +286,8 @@ fn run_sync_targeted(
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls,
-        max_pushes,
+        max_pulls: tracker::Ceiling::Bounded(max_pulls),
+        max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
         integrations_root,
         integration: "jira",
@@ -331,8 +331,8 @@ fn run_sync_targeted_pull(
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls,
-        max_pushes,
+        max_pulls: tracker::Ceiling::Bounded(max_pulls),
+        max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
         integrations_root,
         integration: "jira",
@@ -378,8 +378,8 @@ fn run_at(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
@@ -390,8 +390,10 @@ fn run_at(
 
 fn scoped() -> SearchScope {
     SearchScope {
-        project: Some("ENG".to_owned()),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: Some("ENG".to_owned()),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
     }
 }
@@ -1621,8 +1623,8 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
             direction: SyncDirection::Bidirectional,
             strategy: RetrievalStrategy::Bulk,
             resolutions: &resolutions,
-            max_pulls: 25,
-            max_pushes: 25,
+            max_pulls: tracker::Ceiling::Bounded(25),
+            max_pushes: tracker::Ceiling::Bounded(25),
             mode: RunMode::Apply,
             integrations_root: fixture.dir.path(),
             integration: "jira",
@@ -1758,8 +1760,8 @@ fn create_from_local_writes_the_marker_before_the_create(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
@@ -2075,6 +2077,7 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: tracker::Completeness::Complete,
         })
     }
 
@@ -2084,7 +2087,7 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     ) -> Result<tracker::Discovery, TrackerError> {
         Ok(tracker::Discovery {
             found: Vec::new(),
-            complete: true,
+            completeness: tracker::Completeness::Complete,
         })
     }
 
@@ -2093,6 +2096,12 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
         scope: &SearchScope,
     ) -> Result<SearchScope, tracker::ScopeError> {
         Ok(scope.clone())
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError> {
+        Ok(Vec::new())
     }
 
     fn preview_create(

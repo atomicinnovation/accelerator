@@ -1,8 +1,8 @@
 //! The read-side projections the `search` and `show` subcommands render:
-//! the verbatim Jira envelope a `search` echoes, the composed
-//! JQL its audit line prints, and the raw issue a `show` renders ADF over. The
-//! port `search`/`show` reshape to the sync contract; these keep Jira's own
-//! wire shape the established flows emitted.
+//! the merged `issues` envelope a `search` builds from its internally-paginated
+//! pages, the composed JQL its audit line prints, and the raw issue a `show`
+//! renders ADF over. The port `search`/`show` reshape to the sync contract;
+//! these keep Jira's own wire shape the established flows emitted.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
@@ -12,6 +12,7 @@ use http_test_support::{MockServer, RequestKey, Route};
 use jira_client::jql::Search;
 use serde_json::Value;
 use support::client::{brief, client_for, PROJECT};
+use tracker::Completeness;
 
 const SEARCH: &str = "/rest/api/3/search/jql";
 const ISSUE: &str = "/rest/api/3/issue";
@@ -25,14 +26,14 @@ fn search_over(project: &str) -> Search {
 }
 
 #[test]
-fn search_detailed_returns_the_verbatim_envelope_and_posts_the_body() {
+fn search_detailed_merges_a_complete_walk_and_posts_the_body() {
     let server = MockServer::start();
-    let envelope = r#"{"issues":[{"key":"ENG-1"}],"nextPageToken":"tok-2"}"#;
+    // A page with no cursor completes the walk in one request.
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {
             status: 200,
-            body: envelope.to_owned(),
+            body: r#"{"issues":[{"key":"ENG-1"}]}"#.to_owned(),
         },
     );
 
@@ -41,9 +42,16 @@ fn search_detailed_returns_the_verbatim_envelope_and_posts_the_body() {
         .search_detailed(&search_over(PROJECT), &[], 50, None)
         .expect("search runs");
 
-    // The binary emits the envelope verbatim, so the parsed value round-trips.
-    let expected: Value = serde_json::from_str(envelope).expect("json");
-    assert_eq!(response, expected, "the Jira envelope passes through");
+    assert_eq!(response.completeness, Completeness::Complete);
+    assert_eq!(
+        response.envelope.pointer("/issues"),
+        Some(&serde_json::json!([{"key": "ENG-1"}])),
+        "the merged envelope carries the page's issues"
+    );
+    assert!(
+        response.envelope.get("truncated").is_none(),
+        "a complete walk is not marked truncated"
+    );
 
     let sent = String::from_utf8(
         server.last_body(&RequestKey::post(SEARCH)).expect("a body"),
@@ -63,6 +71,53 @@ fn search_detailed_returns_the_verbatim_envelope_and_posts_the_body() {
         body.get("nextPageToken").is_none(),
         "no page token by default"
     );
+}
+
+#[test]
+fn search_detailed_paginates_to_the_cap_and_reports_a_cap_hit() {
+    let server = MockServer::start();
+    // Every page offers another cursor, so only the discovery cap ends the
+    // walk: the merged envelope is marked truncated and carries the resume
+    // cursor.
+    server.route(
+        RequestKey::post(SEARCH),
+        Route::Json {
+            status: 200,
+            body: r#"{"issues":[{"key":"ENG-1"}],"nextPageToken":"more"}"#
+                .to_owned(),
+        },
+    );
+
+    let client = client_for(&server, brief());
+    let response = client
+        .search_detailed(&search_over(PROJECT), &[], 50, None)
+        .expect("a cap-hit is a successful, truncated result");
+
+    assert_eq!(response.completeness, Completeness::CapHit);
+    assert_eq!(
+        server.hits(&RequestKey::post(SEARCH)),
+        50,
+        "the walk paginates internally to the default 50-page cap"
+    );
+    assert_eq!(
+        response.envelope.pointer("/truncated"),
+        Some(&Value::Bool(true)),
+        "a cap-hit envelope is marked truncated"
+    );
+    assert_eq!(
+        response
+            .envelope
+            .pointer("/nextPageToken")
+            .and_then(Value::as_str),
+        Some("more"),
+        "the resume cursor rides the envelope for --page-token"
+    );
+    let merged = response
+        .envelope
+        .pointer("/issues")
+        .and_then(Value::as_array)
+        .expect("issues array");
+    assert_eq!(merged.len(), 50, "every page's issue is merged in");
 }
 
 #[test]

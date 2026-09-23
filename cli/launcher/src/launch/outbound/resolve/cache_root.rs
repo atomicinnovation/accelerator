@@ -13,10 +13,12 @@
 //! unreachable dead code, retained only as a marker.
 
 use std::cell::Cell;
+use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use crate::launch::core::ResolutionError;
 
@@ -132,13 +134,30 @@ fn probe_writable_and_executable(dir: &Path) -> bool {
     ));
     let written = std::fs::write(&probe, b"#!/bin/sh\nexit 0\n").is_ok()
         && make_executable(&probe);
-    let executable = written
-        && Command::new(&probe)
-            .status()
-            .map(|status| status.success())
-            .unwrap_or(false);
+    let executable = written && run_probe(|| Command::new(&probe).status());
     let _ = std::fs::remove_file(&probe);
     executable
+}
+
+const TEXT_FILE_BUSY_ATTEMPTS: u32 = 10;
+const TEXT_FILE_BUSY_BACKOFF: Duration = Duration::from_millis(5);
+
+/// Runs the written probe, retrying while the kernel reports it text-file-busy.
+///
+/// On Linux, a sibling thread forking between this thread's write and exec
+/// briefly inherits the probe's write descriptor, and exec refuses a file open
+/// for writing (`ETXTBSY`). That clears once the sibling's child execs, so the
+/// refusal is transient, not evidence of a `noexec` mount.
+fn run_probe(mut spawn: impl FnMut() -> io::Result<ExitStatus>) -> bool {
+    for _ in 0..TEXT_FILE_BUSY_ATTEMPTS {
+        match spawn() {
+            Err(error) if error.kind() == io::ErrorKind::ExecutableFileBusy => {
+                std::thread::sleep(TEXT_FILE_BUSY_BACKOFF);
+            }
+            outcome => return outcome.is_ok_and(|status| status.success()),
+        }
+    }
+    false
 }
 
 #[cfg(unix)]
@@ -160,7 +179,9 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::{candidate, probe_attempts, verify_writable, CacheRootConfig};
+    use super::{
+        candidate, probe_attempts, run_probe, verify_writable, CacheRootConfig,
+    };
 
     fn config() -> CacheRootConfig {
         CacheRootConfig {
@@ -279,6 +300,45 @@ mod tests {
         );
         assert_eq!(probe_attempts() - before, 1);
         Ok(())
+    }
+
+    fn exited(code: i32) -> std::process::ExitStatus {
+        use std::os::unix::process::ExitStatusExt as _;
+        std::process::ExitStatus::from_raw(code << 8)
+    }
+
+    fn text_file_busy() -> std::io::Result<std::process::ExitStatus> {
+        Err(std::io::Error::from(std::io::ErrorKind::ExecutableFileBusy))
+    }
+
+    #[test]
+    fn a_probe_that_is_briefly_text_file_busy_is_retried_until_it_runs() {
+        let mut outcomes =
+            vec![Ok(exited(0)), text_file_busy(), text_file_busy()];
+        assert!(run_probe(|| outcomes
+            .pop()
+            .unwrap_or_else(|| Ok(exited(1)))));
+    }
+
+    #[test]
+    fn a_probe_that_stays_text_file_busy_is_not_executable() {
+        assert!(!run_probe(text_file_busy));
+    }
+
+    #[test]
+    fn a_probe_that_cannot_be_executed_is_not_retried() {
+        let mut spawns = 0;
+        let executable = run_probe(|| {
+            spawns += 1;
+            Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+        });
+        assert!(!executable);
+        assert_eq!(spawns, 1);
+    }
+
+    #[test]
+    fn a_probe_that_exits_non_zero_is_not_executable() {
+        assert!(!run_probe(|| Ok(exited(1))));
     }
 
     #[test]

@@ -8,14 +8,24 @@ mod support;
 
 use http_test_support::MockServer;
 use support::client::client_for;
+use tracker::EntityScope;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker_support::TransportConfig;
 
-fn scope(project: Option<&str>, all_projects: bool) -> SearchScope {
+fn keyed(project: Option<&str>) -> SearchScope {
     SearchScope {
-        project: project.map(str::to_owned),
-        all_projects,
+        entities: EntityScope::Keyed {
+            base: project.map(str::to_owned),
+            additional: Vec::new(),
+        },
+        filters: Vec::new(),
+    }
+}
+
+const fn whole_workspace() -> SearchScope {
+    SearchScope {
+        entities: EntityScope::WholeWorkspace,
         filters: Vec::new(),
     }
 }
@@ -26,10 +36,16 @@ fn a_scoped_project_passes_through_unchanged() {
     let client = client_for(&server, TransportConfig::default());
 
     let resolved = client
-        .resolve_scope(&scope(Some("OPS"), false))
+        .resolve_scope(&keyed(Some("OPS")))
         .expect("a project-scoped run resolves");
 
-    assert_eq!(resolved.project.as_deref(), Some("OPS"));
+    assert_eq!(
+        resolved.entities,
+        EntityScope::Keyed {
+            base: Some("OPS".to_owned()),
+            additional: Vec::new(),
+        }
+    );
     assert_eq!(
         server.hits(&http_test_support::RequestKey::post(
             "/rest/api/3/search/jql"
@@ -40,15 +56,15 @@ fn a_scoped_project_passes_through_unchanged() {
 }
 
 #[test]
-fn all_projects_passes_through_unchanged() {
+fn a_whole_workspace_scope_passes_through_unchanged() {
     let server = MockServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let resolved = client
-        .resolve_scope(&scope(None, true))
-        .expect("an all-projects run resolves");
+        .resolve_scope(&whole_workspace())
+        .expect("a whole-workspace run resolves");
 
-    assert!(resolved.all_projects);
+    assert_eq!(resolved.entities, EntityScope::WholeWorkspace);
 }
 
 #[test]
@@ -57,7 +73,7 @@ fn an_unscoped_run_is_refused_with_e_jql_no_project() {
     let client = client_for(&server, TransportConfig::default());
 
     let error = client
-        .resolve_scope(&scope(None, false))
+        .resolve_scope(&keyed(None))
         .expect_err("an unscoped run is refused");
 
     assert!(

@@ -186,7 +186,7 @@ pub fn run_seed(
     records: &[SeedRecord],
 ) -> Result<SeedSummary, SeedError> {
     let discovery = tracker.search(scope).map_err(SeedError::Discovery)?;
-    if !discovery.complete {
+    if !discovery.completeness.is_complete() {
         return Err(SeedError::Incomplete);
     }
 
@@ -228,8 +228,10 @@ mod tests {
 
     fn scope() -> SearchScope {
         SearchScope {
-            project: Some("SCR".to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some("SCR".to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         }
     }

@@ -54,10 +54,22 @@ the skill's `allowed-tools` permission and forces an unnecessary prompt).
 
 The subcommand echoes the composed `IssueFilter` to stderr (`INFO:`) for
 auditability and emits a single merged JSON document with all pages under
-`.data.issues.nodes`, plus a top-level `outcome` keyword — `results`, `empty`,
-or `truncated`. When `outcome` is `truncated` (equivalently
-`.data.issues.truncated` is `true`), more pages remained than were fetched —
-say so.
+`.data.issues.nodes`, plus a top-level `outcome` keyword. Under `cap-hit` and
+`truncated`, `.data.issues.truncated` is `true`: more pages remained than were
+fetched. Branch on the keyword:
+
+- **`results`** — render them (Step 3).
+- **`empty`** — tell the user no issues matched.
+- **`cap-hit`** — the search reached the discovery `max_pages` cap before
+  exhausting the results, so they are a lower bound. Tell the user the results
+  are incomplete and that they can raise `linear.pull.max_pages` (or its
+  `discovery` override), or set it to `unlimited`, then re-run. This is **not**
+  a credential failure.
+- **`truncated`** — a transient cutoff (a deadline or wire cutoff), not a
+  cap-hit; the results are a lower bound, so suggest retrying.
+
+When stdout carries no JSON document, the search failed: a credential or
+transport failure names an `E_*` cause on stderr; show it.
 
 ## Step 3: Render the results
 

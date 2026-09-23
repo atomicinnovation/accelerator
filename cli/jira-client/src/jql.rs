@@ -1,13 +1,17 @@
 //! JQL composition.
 //!
-//! Values are **quoted, never concatenated**. Identifiers reach this composer
-//! from work-item files, having originally come from a remote tracker; one
-//! containing `'`, `)` or ` OR ` would otherwise break out of its clause and
-//! change which issues the query returns — turning a targeted fetch into a
-//! project dump, or hiding issues that exist.
+//! Values are **quoted, never concatenated**. Identifiers and filter values
+//! reach this composer from work-item files and config, having originally come
+//! from a remote tracker or an operator; one containing `'`, `)` or ` OR `
+//! would otherwise break out of its clause and change which issues the query
+//! returns — turning a targeted fetch into a project dump, or hiding issues
+//! that exist.
 //!
-//! The quoting uses single quotes with any interior single quote doubled, not
-//! double quotes with backslash escapes.
+//! The quoting is JQL's own: a single-quoted literal with each backslash and
+//! single quote backslash-escaped (`\\`, `\'`), the backslash pass first so it
+//! never doubles the escape the quote pass introduces. JQL does not accept
+//! SQL-style quote doubling (`''`), so a trailing backslash left unescaped
+//! would swallow the closing quote and break out of the literal.
 
 use std::collections::BTreeMap;
 
@@ -87,7 +91,8 @@ pub fn quote(value: &str) -> Result<String, ClientError> {
             ),
         });
     }
-    Ok(format!("'{}'", value.replace('\'', "''")))
+    let escaped = value.replace('\\', "\\\\").replace('\'', "\\'");
+    Ok(format!("'{escaped}'"))
 }
 
 /// The `key IN ('A-1', 'A-2')` clause `fetch_all` composes.
@@ -106,6 +111,31 @@ pub fn key_clause(keys: &[String]) -> Result<String, ClientError> {
         quoted.push(quote(key)?);
     }
     Ok(format!("key IN ({})", quoted.join(", ")))
+}
+
+/// The base-and-additional project clause: `project = 'X'` for a single
+/// entity, `project IN ('X', 'Y')` for several, and no clause for none.
+///
+/// Every entity is quoted through [`quote`], the same escaping the
+/// single-entity `project =` clause used, so a project key carrying a `'`, `)`
+/// or ` OR ` stays contained rather than breaking out into a workspace-wide
+/// query.
+///
+/// # Errors
+///
+/// [`ClientError::BadJql`] when a project cannot be safely quoted.
+fn project_clause(projects: &[&String]) -> Result<Option<String>, ClientError> {
+    match projects {
+        [] => Ok(None),
+        [single] => Ok(Some(format!("project = {}", quote(single)?))),
+        many => {
+            let mut quoted = Vec::with_capacity(many.len());
+            for project in many {
+                quoted.push(quote(project)?);
+            }
+            Ok(Some(format!("project IN ({})", quoted.join(", "))))
+        }
+    }
 }
 
 /// A contains-match clause, `<field> ~ "<escaped>"`.
@@ -143,6 +173,10 @@ pub struct Family {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Search {
     pub project: Option<String>,
+    /// Further projects to broaden discovery onto. With `project` set and this
+    /// non-empty, the base and each additional project lower to one enumerated
+    /// `project IN (...)` clause; empty, `project` alone lowers to `project =`.
+    pub additional_projects: Vec<String>,
     pub all_projects: bool,
     pub families: Vec<Family>,
     pub watching: bool,
@@ -166,7 +200,12 @@ pub fn compose(
     accounts: &dyn AccountResolver,
     fields: &dyn FieldResolver,
 ) -> Result<String, ClientError> {
-    if search.project.is_none() && !search.all_projects {
+    let projects: Vec<&String> = search
+        .project
+        .iter()
+        .chain(search.additional_projects.iter())
+        .collect();
+    if projects.is_empty() && !search.all_projects {
         return Err(ClientError::BadJql {
             reason: "E_JQL_NO_PROJECT: specify a project or all_projects"
                 .to_owned(),
@@ -174,8 +213,8 @@ pub fn compose(
     }
 
     let mut clauses = Vec::new();
-    if let Some(project) = &search.project {
-        clauses.push(format!("project = {}", quote(project)?));
+    if let Some(clause) = project_clause(&projects)? {
+        clauses.push(clause);
     }
     for field in &search.empty {
         clauses.push(format!(
@@ -205,6 +244,21 @@ pub fn compose(
     Ok(clauses.join(" AND "))
 }
 
+/// Whether a field name is safe to interpolate unquoted into a JQL clause: a
+/// bare alphanumeric field, or a `customfield_NNNNN` id.
+///
+/// Values are quoted, but the field of a value family sits in the `format!`
+/// field position unquoted, so a hostile field slipping past the upstream
+/// filter-key allow-list would break out of the clause. This guards the sink.
+fn is_safe_field(field: &str) -> bool {
+    let alphanumeric =
+        !field.is_empty() && field.chars().all(|c| c.is_ascii_alphanumeric());
+    let custom_field = field.strip_prefix("customfield_").is_some_and(|id| {
+        !id.is_empty() && id.bytes().all(|byte| byte.is_ascii_digit())
+    });
+    alphanumeric || custom_field
+}
+
 fn family_clauses(
     family: &Family,
     accounts: &dyn AccountResolver,
@@ -213,6 +267,14 @@ fn family_clauses(
     let field = fields
         .resolve(&family.field)
         .unwrap_or_else(|| family.field.clone());
+    if !is_safe_field(&field) {
+        return Err(ClientError::BadJql {
+            reason: format!(
+                "E_JQL_UNSAFE_FIELD: filter field {field:?} is not a safe \
+                 identifier (alphanumeric or customfield_NNNNN)"
+            ),
+        });
+    }
     let mut positives = Vec::new();
     let mut negatives = Vec::new();
     for value in &family.values {

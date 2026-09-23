@@ -4,12 +4,41 @@
 
 mod support;
 
+use std::collections::BTreeMap;
+
 use http_test_support::{MockServer, RequestKey, Route};
-use serde_json::Value;
-use support::client::{brief, client_for, client_with, TEAM_ID, TEAM_KEY};
-use tracker::{ExternalId, RemoteTimestamp, RemoteTracker as _, TrackerError};
+use linear_client::filter::FixedStates;
+use serde_json::{json, Value};
+use support::client::{
+    brief, client_for, client_with, client_with_states, client_with_teams,
+    TEAM_ID, TEAM_KEY,
+};
+use tracker::{
+    Ceiling, ExternalId, RemoteTimestamp, RemoteTracker as _, SearchScope,
+    TrackerError,
+};
+use tracker_support::TransportConfig;
 
 const GRAPHQL: &str = "/graphql";
+
+/// A `TransportConfig` with `brief`'s short timeout and the given page caps.
+fn caps(discovery: Ceiling, keyed_read: Ceiling) -> TransportConfig {
+    TransportConfig {
+        discovery_max_pages: discovery,
+        keyed_read_max_pages: keyed_read,
+        ..brief()
+    }
+}
+
+/// Three search pages, the first two cursored so only a page cap or the third
+/// (cursorless) page stops the walk.
+fn three_pages() -> Route {
+    Route::Sequence(vec![
+        json_route(search_body(&["ENG-1"], Some("p2"))),
+        json_route(search_body(&["ENG-2"], Some("p3"))),
+        json_route(search_body(&["ENG-3"], None)),
+    ])
+}
 
 fn id(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
@@ -256,6 +285,43 @@ fn an_empty_request_makes_no_remote_call() {
 }
 
 #[test]
+fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(key.clone(), json_route(search_body(&[], None)));
+    let mut states = BTreeMap::new();
+    states.insert("open".to_owned(), "open-uuid".to_owned());
+    let client = client_with_states(&server, Box::new(FixedStates(states)));
+
+    let scope = SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(TEAM_ID.to_owned()),
+            additional: Vec::new(),
+        },
+        filters: vec![
+            ("label".to_owned(), "a".to_owned()),
+            ("label".to_owned(), "b".to_owned()),
+            ("state".to_owned(), "open".to_owned()),
+        ],
+    };
+    client.search(&scope).expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    let filter = &sent["variables"]["filter"];
+    assert_eq!(
+        filter["labels"]["name"]["in"],
+        json!(["a", "b"]),
+        "same-key values OR into one `in`: {filter}"
+    );
+    assert_eq!(
+        filter["state"]["id"]["eq"], "open-uuid",
+        "a single state keeps its resolved `eq` form: {filter}"
+    );
+}
+
+#[test]
 fn duplicate_ids_are_deduplicated() {
     let server = MockServer::start();
     server.route(
@@ -422,4 +488,172 @@ fn a_404_shaped_read_failure_is_retryable_never_terminal() {
     let error = client.show(&id("ENG-404")).expect_err("the read fails");
 
     assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn the_keyed_read_uses_its_own_cap_not_the_discovery_cap() {
+    // The keyed read and discovery share `page_all`, so each must be handed its
+    // own cap. A low discovery cap must not truncate the keyed read: fetch_all
+    // pages the three-page walk to completion and finds the id.
+    let found = MockServer::start();
+    found.route(RequestKey::post(GRAPHQL), three_pages());
+    let outcome =
+        client_for(&found, caps(Ceiling::Bounded(1), Ceiling::Bounded(50)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("fetch_all succeeds");
+    assert_eq!(
+        outcome.found.len(),
+        1,
+        "the keyed read ignored the low discovery cap"
+    );
+
+    // A low keyed-read cap truncates it: the unseen id is indeterminate, never
+    // absent, even with a generous discovery cap.
+    let capped = MockServer::start();
+    capped.route(RequestKey::post(GRAPHQL), three_pages());
+    let outcome =
+        client_for(&capped, caps(Ceiling::Bounded(50), Ceiling::Bounded(2)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("a cut-short keyed read is an Ok with the partition");
+    assert!(
+        outcome.absent.is_empty(),
+        "a truncated read must not infer absence"
+    );
+    assert_eq!(outcome.indeterminate, vec![id("ENG-3")]);
+}
+
+/// One `teams` enumeration page: the given `(id, name, key)` nodes and, when
+/// `next` is set, a cursor to the following page.
+fn teams_body(teams: &[(&str, &str, &str)], next: Option<&str>) -> String {
+    let nodes: Vec<String> = teams
+        .iter()
+        .map(|(id, name, key)| {
+            format!("{{\"id\":\"{id}\",\"name\":\"{name}\",\"key\":\"{key}\"}}")
+        })
+        .collect();
+    let page = next.map_or_else(
+        || "{\"hasNextPage\":false,\"endCursor\":null}".to_owned(),
+        |cursor| format!("{{\"hasNextPage\":true,\"endCursor\":\"{cursor}\"}}"),
+    );
+    format!(
+        "{{\"data\":{{\"teams\":{{\"nodes\":[{}],\"pageInfo\":{page}}}}}}}",
+        nodes.join(",")
+    )
+}
+
+#[test]
+fn an_additional_team_item_reconciles_rather_than_sticking_indeterminate() {
+    let server = MockServer::start();
+    // The base-team search returns ENG-1; the additional-team search returns
+    // OPS-7. A base-only reconcile read would leave OPS-7 indeterminate
+    // forever.
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Sequence(vec![
+            json_route(search_body(&["ENG-1"], None)),
+            json_route(search_body(&["OPS-7"], None)),
+        ]),
+    );
+    let client = client_with_teams(
+        &server,
+        brief(),
+        &[(TEAM_KEY, TEAM_ID), ("OPS", "ops-uuid")],
+    );
+
+    let outcome = client
+        .fetch_all(&[id("ENG-1"), id("OPS-7")])
+        .expect("fetch_all succeeds");
+
+    let found: Vec<&str> =
+        outcome.found.iter().map(|(id, _)| id.as_str()).collect();
+    assert!(found.contains(&"ENG-1"), "the base-team item reconciles");
+    assert!(
+        found.contains(&"OPS-7"),
+        "the additional-team item reconciles from its own team's page"
+    );
+    assert!(
+        outcome.indeterminate.is_empty(),
+        "an item from a catalogued additional team is no longer indeterminate"
+    );
+}
+
+#[test]
+fn an_additional_team_item_is_provably_absent_when_its_team_read_completes() {
+    let server = MockServer::start();
+    // Both team reads complete, and neither returns OPS-7, so — because OPS is
+    // catalogued and thus in scope — OPS-7 is provably absent, not
+    // indeterminate.
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Sequence(vec![
+            json_route(search_body(&["ENG-1"], None)),
+            json_route(search_body(&[], None)),
+        ]),
+    );
+    let client = client_with_teams(
+        &server,
+        brief(),
+        &[(TEAM_KEY, TEAM_ID), ("OPS", "ops-uuid")],
+    );
+
+    let outcome = client
+        .fetch_all(&[id("ENG-1"), id("OPS-7")])
+        .expect("fetch_all succeeds");
+
+    assert_eq!(outcome.absent, vec![id("OPS-7")]);
+    assert!(outcome.indeterminate.is_empty());
+}
+
+#[test]
+fn enumerate_visible_entities_paginates_to_exhaustion() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Sequence(vec![
+            json_route(teams_body(
+                &[("eng-uuid", "Engineering", "ENG")],
+                Some("p2"),
+            )),
+            json_route(teams_body(&[("ops-uuid", "Operations", "OPS")], None)),
+        ]),
+    );
+    let client = client_for(&server, brief());
+
+    let visible = client
+        .enumerate_visible_entities()
+        .expect("enumeration succeeds");
+
+    let keys: Vec<&str> =
+        visible.iter().map(|entity| entity.key.as_str()).collect();
+    assert_eq!(
+        keys,
+        vec!["ENG", "OPS"],
+        "a visible-team set spanning two pages is fully enumerated"
+    );
+    assert_eq!(
+        visible[1].identifier, "ops-uuid",
+        "each entity carries its search identifier (the team UUID)"
+    );
+}
+
+#[test]
+fn a_failed_enumeration_page_fails_loud_rather_than_returning_a_subset() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Sequence(vec![
+            json_route(teams_body(
+                &[("eng-uuid", "Engineering", "ENG")],
+                Some("p2"),
+            )),
+            Route::Status(500),
+        ]),
+    );
+    let client = client_for(&server, brief());
+
+    let error = client
+        .enumerate_visible_entities()
+        .expect_err("a failed enumeration page is an error, not a subset");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }));
 }

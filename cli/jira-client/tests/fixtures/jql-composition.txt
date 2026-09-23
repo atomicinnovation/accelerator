@@ -5,11 +5,14 @@
 # silent-wrong-answer failure rather than a crash — so the test that reads this
 # file carries a row-coverage guard.
 #
-# Quoting is the oracle's: single quotes, with an interior single quote doubled.
+# Quoting is JQL's own: a single-quoted literal, backslash-escaping each
+# backslash then each single quote (\\, \'). JQL does not accept SQL-style quote
+# doubling, so a value's interior quote or trailing backslash stays contained.
 #
 # Spec grammar, semicolon separated:
 #   all                  all projects (no project clause)
 #   project=KEY          project clause
+#   additional=K1,K2     broaden onto more projects (base+additional -> IN)
 #   <field>=v1,v2        a value family; a leading ~ negates that value
 #   watching             watcher = currentUser()
 #   text=VALUE           text contains-match
@@ -42,4 +45,11 @@ custom-field-resolved	all;empty=Story Points	customfield_10016 IS EMPTY
 custom-field-unresolved	all;empty=Unknown Field	Unknown Field IS EMPTY
 raw	all;raw=updated >= -7d	updated >= -7d
 project-and-status	project=ENG;status=Open	project = 'ENG' AND status IN ('Open')
-quote-doubling	all;status=it's	status IN ('it''s')
+labels-multi	all;labels=a,b	labels IN ('a', 'b')
+filters-mapped	all;status=open;labels=a,b	status IN ('open') AND labels IN ('a', 'b')
+quote-escaping	all;status=it's	status IN ('it\'s')
+injection-breakout	all;status=x') OR labels IN ('y	status IN ('x\') OR labels IN (\'y')
+trailing-backslash	all;status=path\	status IN ('path\\')
+additional-projects	project=PP;additional=QQ,RR	project IN ('PP', 'QQ', 'RR')
+additional-single	project=PP;additional=QQ	project IN ('PP', 'QQ')
+additional-hostile	project=PP;additional=x') OR project = FOO --	project IN ('PP', 'x\') OR project = FOO --')

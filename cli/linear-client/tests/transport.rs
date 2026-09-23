@@ -69,7 +69,14 @@ fn the_production_endpoint_is_linears_single_graphql_url() {
     .expect("the transport builds");
 
     assert_eq!(transport.config().timeout, Duration::from_secs(30));
-    assert_eq!(transport.config().max_pages, 20);
+    assert_eq!(
+        transport.config().discovery_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
+    assert_eq!(
+        transport.config().keyed_read_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
     assert_eq!(transport.config().max_response_bytes, 8 * 1024 * 1024);
 }
 

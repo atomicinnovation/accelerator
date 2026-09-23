@@ -22,6 +22,7 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
                 Search::Results.keyword(),
                 Search::Empty.keyword(),
                 Search::Truncated.keyword(),
+                Search::CapHit.keyword(),
             ],
         ),
         (
@@ -51,7 +52,7 @@ fn the_keyword_set_is_exactly_the_committed_surface() {
         rendered,
         vec![
             "show: found,not-found",
-            "search: results,empty,truncated",
+            "search: results,empty,truncated,cap-hit",
             "create: created,writeback-failed",
             "update: updated",
             "comment: added",
@@ -70,6 +71,7 @@ fn every_keyword_is_lower_kebab_and_unique() {
         Search::Results.keyword(),
         Search::Empty.keyword(),
         Search::Truncated.keyword(),
+        Search::CapHit.keyword(),
         Create::Created.keyword(),
         Create::WritebackFailed.keyword(),
         Update::Updated.keyword(),

@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-09-10T01:19:35+00:00"
+last_updated: "2026-09-20T17:54:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -236,6 +236,12 @@ Resolved during refinement (2026-08-30):
   ceilings with truncation-to-hard-error, dedup + stable ordering).
 - 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
   boundary).
+- 0292 — Linear `project` pull filter (splits 0229's shared filter schema
+  per-tracker; adds a Linear-only `project` filter lowering to `IssueFilter`
+  `project.name`).
+- 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
+  promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
+  lowering, bounded to set-membership negation as Linear has no top-level `not`).
 - TBD (existing candidates) — status / kind / priority mapping; parent-child
   relationships on sync.
 

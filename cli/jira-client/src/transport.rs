@@ -145,8 +145,8 @@ impl Transport {
     /// where the body is neither JSON nor a `&str` and the request carries
     /// `X-Atlassian-Token: no-check`.
     ///
-    /// The path is validated as [`send`] validates it. Attachment paths carry
-    /// no query.
+    /// The path is validated as [`Transport::send`] validates it. Attachment
+    /// paths carry no query.
     ///
     /// # Errors
     ///

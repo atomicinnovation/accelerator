@@ -88,10 +88,13 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner and
-        // tracker for the sync engine's RemoteTracker vocabulary. Both are
-        // zero-dependency port crates, so neither edge can drag a transitive
-        // graph into the domain.
+        // additionally permits corpus for WorkItemIdScheme/IdScanner, tracker
+        // for the sync engine's RemoteTracker vocabulary, and config for the
+        // pull-scope block's value model. corpus and tracker are
+        // zero-dependency port crates; config is not, but its only edge is the
+        // shared kernel error taxonomy — already within work's permitted
+        // transitive set — so reading the config representation drags no
+        // infrastructure into the domain.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),
@@ -100,6 +103,7 @@
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
+                        "^config(::|$)",
                         "^corpus(::|$)",
                         "^tracker(::|$)",
                         "^crate(::|$)",

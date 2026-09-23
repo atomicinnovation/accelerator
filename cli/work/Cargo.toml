@@ -10,6 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+config = { path = "../config" }
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }

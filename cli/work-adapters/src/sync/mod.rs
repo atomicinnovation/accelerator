@@ -8,6 +8,8 @@ pub mod baseline_store;
 pub mod create;
 pub mod digest;
 pub mod fetch;
+mod ordering;
 pub mod pending_push;
 pub mod run;
+pub mod scope;
 pub mod working_copy_status;

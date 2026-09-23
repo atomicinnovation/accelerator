@@ -68,7 +68,10 @@ fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
         .expect("the projection runs");
 
     assert_eq!(result.nodes.len(), 2, "both pages accumulate");
-    assert!(!result.truncated, "a clean finish is not truncated");
+    assert!(
+        result.completeness.is_complete(),
+        "a clean finish is not truncated"
+    );
     let name = |node: &Value, pointer: &str| {
         node.pointer(pointer)
             .and_then(Value::as_str)
@@ -122,8 +125,10 @@ fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
 
     // A pre-resolved scope: `project` is the UUID `resolve_scope` produces.
     let scope = SearchScope {
-        project: Some(TEAM_ID.to_owned()),
-        all_projects: false,
+        entities: tracker::EntityScope::Keyed {
+            base: Some(TEAM_ID.to_owned()),
+            additional: Vec::new(),
+        },
         filters: Vec::new(),
     };
 
@@ -149,7 +154,7 @@ fn an_unknown_state_filter_is_refused_rather_than_queried() {
     let client = client_for(&server, brief());
     let search = Search {
         team_id: Some(TEAM_ID.to_owned()),
-        state: Some("Nonexistent".to_owned()),
+        state: vec!["Nonexistent".to_owned()],
         ..Search::default()
     };
 

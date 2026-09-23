@@ -267,8 +267,8 @@ fn request<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
-        max_pulls,
-        max_pushes,
+        max_pulls: tracker::Ceiling::Bounded(max_pulls),
+        max_pushes: tracker::Ceiling::Bounded(max_pushes),
         mode,
         integrations_root,
         integration: "jira",
@@ -311,6 +311,44 @@ fn execute(
             mode,
         ),
     )
+}
+
+/// A run with the write bounds given as `Ceiling`s, so a test can exercise
+/// `Unlimited` and a raw `Bounded(0)` the `usize` helpers cannot express.
+fn execute_ceilings(
+    scenario: &Scenario,
+    max_pulls: tracker::Ceiling,
+    max_pushes: tracker::Ceiling,
+    mode: RunMode,
+) -> Result<work_adapters::sync::run::RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        0,
+        0,
+        mode,
+    );
+    req.max_pulls = max_pulls;
+    req.max_pushes = max_pushes;
+    run(&ports, &mut store, &req)
 }
 
 fn execute_targeted(
@@ -403,8 +441,8 @@ fn run_with<'a>(
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode: RunMode::Apply,
         integrations_root: dir,
         integration: "jira",
@@ -549,6 +587,79 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
         500,
         "an indeterminate item keeps its watermark, so a later run still \
          detects a pre-existing local edit"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cap_hit_keyed_read_aborts_the_sync_with_zero_writes(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-1".to_owned());
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, item_content(external.as_str()))?;
+
+    let entry = "\"0001\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"h\",\"local_hash\":\"stale\",\"local_synced_at\":500}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+    let issue = RemoteIssue {
+        updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
+        body: projected_body().to_owned(),
+    };
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0001".to_owned(),
+            path: path.clone(),
+            external_id: Some(external.clone()),
+        }],
+        tracker: RecordingTracker::capping_keyed_read(vec![(external, issue)]),
+        spy,
+        dir,
+    };
+
+    let result = execute(&scenario, 25, 25, RunMode::Apply);
+
+    assert!(
+        matches!(result, Err(RunError::KeyedReadCapped)),
+        "a capped keyed read aborts the whole run"
+    );
+    assert!(
+        scenario.spy.content_of(&path).is_none(),
+        "the abort happens before any write"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_transient_keyed_read_degrades_to_indeterminate_and_proceeds(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let external = ExternalId::new("ENG-1".to_owned());
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, item_content(external.as_str()))?;
+
+    let entry = "\"0001\":{\"remote_updated_at\":\"2026-06-01T00:00:00Z\",\"remote_hash\":\"h\",\"local_hash\":\"stale\",\"local_synced_at\":500}";
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
+    let scenario = Scenario {
+        items: vec![LocalItem {
+            id: "0001".to_owned(),
+            path,
+            external_id: Some(external),
+        }],
+        tracker: RecordingTracker::transient_keyed_read(Vec::new()),
+        spy,
+        dir,
+    };
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply).map_err(|_| {
+        "a transient keyed read is not a write, so it must not abort the run"
+    })?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert!(
+        report.keyed_read_budget_limited,
+        "a transient keyed read surfaces a soft budget-limited signal"
     );
     Ok(())
 }
@@ -823,13 +934,17 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
             max_pushes,
             ..
         } => {
-            assert_eq!((pulls, max_pulls), (3, 2));
-            assert_eq!((pushes, max_pushes), (0, 25));
+            assert_eq!((pulls, max_pulls), (3, tracker::Ceiling::Bounded(2)));
+            assert_eq!(
+                (pushes, max_pushes),
+                (0, tracker::Ceiling::Bounded(25))
+            );
         }
         RunError::Read(_)
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
-        | RunError::DiscoveryUnconfigured { .. } => {
+        | RunError::DiscoveryUnconfigured { .. }
+        | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -868,6 +983,77 @@ fn a_zero_pull_bound_refuses_every_pull() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_configured_max_items_refuses_where_the_default_admits(
+) -> Result<(), TestError> {
+    let refused = execute_ceilings(
+        &scenario(5, 0)?,
+        tracker::Ceiling::Bounded(3),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(matches!(refused, Err(RunError::Refused { pulls: 5, .. })));
+
+    let admitted = execute_ceilings(
+        &scenario(5, 0)?,
+        tracker::Ceiling::Bounded(25),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(admitted.is_ok(), "the default 25 admits five pulls");
+    Ok(())
+}
+
+#[test]
+fn max_items_zero_refuses_all_where_unlimited_and_the_default_admit(
+) -> Result<(), TestError> {
+    let refused = execute_ceilings(
+        &scenario(1, 0)?,
+        tracker::Ceiling::Bounded(0),
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(matches!(refused, Err(RunError::Refused { pulls: 1, .. })));
+
+    for lift in [tracker::Ceiling::Unlimited, tracker::Ceiling::Bounded(25)] {
+        let admitted = execute_ceilings(
+            &scenario(1, 0)?,
+            lift,
+            tracker::Ceiling::Bounded(25),
+            RunMode::Apply,
+        );
+        assert!(admitted.is_ok(), "{lift:?} must admit one pull");
+    }
+    Ok(())
+}
+
+#[test]
+fn unlimited_max_items_admits_a_pull_larger_than_the_default(
+) -> Result<(), TestError> {
+    let over_default = scenario(30, 0)?;
+    assert!(matches!(
+        execute_ceilings(
+            &over_default,
+            tracker::Ceiling::Bounded(25),
+            tracker::Ceiling::Bounded(25),
+            RunMode::Apply,
+        ),
+        Err(RunError::Refused { pulls: 30, .. }),
+    ));
+
+    let admitted = execute_ceilings(
+        &scenario(30, 0)?,
+        tracker::Ceiling::Unlimited,
+        tracker::Ceiling::Bounded(25),
+        RunMode::Apply,
+    );
+    assert!(
+        admitted.is_ok(),
+        "unlimited lifts the bound past the default"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
     let scenario = scenario(0, 2)?;
 
@@ -878,11 +1064,14 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
     match error {
         RunError::Refused {
             pushes, max_pushes, ..
-        } => assert_eq!((pushes, max_pushes), (2, 1)),
+        } => {
+            assert_eq!((pushes, max_pushes), (2, tracker::Ceiling::Bounded(1)));
+        }
         RunError::Read(_)
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
-        | RunError::DiscoveryUnconfigured { .. } => {
+        | RunError::DiscoveryUnconfigured { .. }
+        | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
     }
@@ -1285,5 +1474,392 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
         "the dirty guard must leave the item's file unwritten"
     );
     assert_eq!(report.awaiting_human().count(), 1);
+    Ok(())
+}
+
+/// A run over `scenario` with a custom discovery `scope`, so a broadened pull
+/// drives the pre-search entity resolver. Preview mode, ample bounds.
+fn execute_with_scope(
+    scenario: &Scenario,
+    scope: tracker::SearchScope,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        25,
+        25,
+        RunMode::Preview,
+    );
+    req.scope = scope;
+    run(&ports, &mut store, &req)
+}
+
+fn broadened_scope(base: &str, additional: &[&str]) -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(base.to_owned()),
+            additional: additional
+                .iter()
+                .map(|key| (*key).to_owned())
+                .collect(),
+        },
+        filters: Vec::new(),
+    }
+}
+
+fn visible(key: &str) -> tracker::VisibleEntity {
+    tracker::VisibleEntity {
+        key: key.to_owned(),
+        identifier: format!("{key}-id"),
+        name: format!("{key} team"),
+    }
+}
+
+#[test]
+fn an_additional_entity_absent_from_the_visible_set_aborts_the_pull(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        // The credential sees only the base team, not the configured OPS.
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG")]),
+        spy,
+        dir,
+    };
+
+    let result =
+        execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"]));
+
+    match result {
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            assert!(detail.contains("OPS"), "{detail}");
+        }
+        Err(other) => {
+            panic!("expected a DiscoveryUnconfigured abort, got {other:?}")
+        }
+        Ok(_) => panic!("expected a DiscoveryUnconfigured abort, not success"),
+    }
+    Ok(())
+}
+
+#[test]
+fn a_transient_enumeration_failure_degrades_rather_than_aborting(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).failing_enumeration(
+            tracker::TrackerError::Retryable {
+                detail: "enumeration timed out".to_owned(),
+            },
+        ),
+        spy,
+        dir,
+    };
+
+    let report =
+        execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"]))
+            .map_err(|error| {
+                format!("a transient enumeration must not abort: {error:?}")
+            })?;
+
+    assert!(
+        matches!(report.discovery, DiscoveryStatus::Failed { .. }),
+        "a transient enumeration degrades to a soft discovery failure"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_broadened_pull_searches_the_resolved_additional_identifiers(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")]),
+        spy,
+        dir,
+    };
+
+    execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"])).map_err(
+        |error| format!("a visible broadened pull resolves: {error:?}"),
+    )?;
+
+    let searched =
+        scenario
+            .tracker
+            .calls()
+            .into_iter()
+            .find_map(|call| match call {
+                Call::Search { scope } => Some(scope),
+                _ => None,
+            });
+    let scope = searched.expect("the run issues a search");
+    assert_eq!(
+        scope.entities,
+        tracker::EntityScope::Keyed {
+            base: Some("ENG-id".to_owned()),
+            additional: vec!["OPS-id".to_owned()],
+        },
+        "the search targets the resolved base and additional identifiers"
+    );
+    Ok(())
+}
+
+const fn whole_workspace_scope() -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::WholeWorkspace,
+        filters: Vec::new(),
+    }
+}
+
+/// `execute_with_scope` with an explicit pull bound, for the ceiling-under-a
+/// -broadened-scope cases.
+fn execute_with_scope_bounded(
+    scenario: &Scenario,
+    scope: tracker::SearchScope,
+    max_pulls: usize,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    let resolutions = BTreeMap::new();
+    let mut req = request(
+        &scenario.items,
+        ItemSelection::All,
+        &resolutions,
+        scenario.dir.path(),
+        max_pulls,
+        25,
+        RunMode::Preview,
+    );
+    req.scope = scope;
+    run(&ports, &mut store, &req)
+}
+
+#[test]
+fn a_whole_workspace_pull_searches_every_visible_entity(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")]),
+        spy,
+        dir,
+    };
+
+    execute_with_scope(&scenario, whole_workspace_scope()).map_err(
+        |error| format!("a whole-workspace pull resolves: {error:?}"),
+    )?;
+
+    let scope = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .find_map(|call| match call {
+            Call::Search { scope } => Some(scope),
+            _ => None,
+        })
+        .expect("the run issues a search");
+    assert_eq!(
+        scope.entities,
+        tracker::EntityScope::Keyed {
+            base: None,
+            additional: vec!["ENG-id".to_owned(), "OPS-id".to_owned()],
+        },
+        "all_* enumerates the visible set into an explicit identifier list"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_whole_workspace_pull_over_an_empty_visible_set_refuses(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).seeing(Vec::new()),
+        spy,
+        dir,
+    };
+
+    let result = execute_with_scope(&scenario, whole_workspace_scope());
+
+    assert!(
+        matches!(result, Err(RunError::DiscoveryUnconfigured { .. })),
+        "an empty visible set refuses rather than emitting an unbounded query"
+    );
+    assert!(
+        !scenario
+            .tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Search { .. })),
+        "no search is issued when there is nothing to enumerate"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_whole_workspace_pull_still_honours_max_items() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    let found = vec![
+        (
+            ExternalId::new("ENG-1".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+        (
+            ExternalId::new("ENG-2".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+        (
+            ExternalId::new("OPS-1".to_owned()),
+            RemoteTimestamp::NotReported,
+        ),
+    ];
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")])
+            .discovering(found, true),
+        spy,
+        dir,
+    };
+
+    let result =
+        execute_with_scope_bounded(&scenario, whole_workspace_scope(), 2);
+
+    assert!(
+        matches!(result, Err(RunError::Refused { .. })),
+        "all_* discovery is still bounded by max_items"
+    );
+    Ok(())
+}
+
+fn stamped(ids: &[&str]) -> Vec<(ExternalId, RemoteTimestamp)> {
+    ids.iter()
+        .map(|id| {
+            (
+                ExternalId::new((*id).to_owned()),
+                RemoteTimestamp::NotReported,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn duplicate_and_cosmetic_discovered_ids_dedup_by_canonical_key(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    // ENG-1 reached three cosmetic ways plus a distinct ENG-2: two survivors.
+    let found = stamped(&["ENG-1", "eng-1", " ENG-1 ", "ENG-2"]);
+    let scenario = Scenario {
+        items: Vec::new(),
+        tracker: RecordingTracker::holding(Vec::new()).discovering(found, true),
+        spy,
+        dir,
+    };
+
+    let report = execute_with_scope(&scenario, broadened_scope("ENG", &[]))
+        .map_err(|error| format!("a deduped discovery proceeds: {error:?}"))?;
+
+    assert_eq!(
+        report.discovery,
+        DiscoveryStatus::Ran { found: 2 },
+        "cosmetic variants of one id fold to one; two distinct ids remain"
+    );
+    Ok(())
+}
+
+#[test]
+fn max_items_counts_the_post_dedup_discovered_set() -> Result<(), TestError> {
+    // Four raw results folding to two survive a max_items of 3 …
+    let under = {
+        let dir = tempfile::tempdir()?;
+        let spy = Spy::default();
+        spy.seed(BASELINE_PATH, &baseline_document(&[]));
+        let scenario = Scenario {
+            items: Vec::new(),
+            tracker: RecordingTracker::holding(Vec::new()).discovering(
+                stamped(&["ENG-1", "eng-1", "ENG-2", " ENG-2 "]),
+                true,
+            ),
+            spy,
+            dir,
+        };
+        execute_with_scope_bounded(&scenario, broadened_scope("ENG", &[]), 3)
+    };
+    assert!(
+        under.is_ok(),
+        "a raw count over the bound whose deduped count is under proceeds"
+    );
+
+    // … but four distinct results (deduped count still four) refuse.
+    let over = {
+        let dir = tempfile::tempdir()?;
+        let spy = Spy::default();
+        spy.seed(BASELINE_PATH, &baseline_document(&[]));
+        let scenario = Scenario {
+            items: Vec::new(),
+            tracker: RecordingTracker::holding(Vec::new()).discovering(
+                stamped(&["ENG-1", "ENG-2", "ENG-3", "ENG-4"]),
+                true,
+            ),
+            spy,
+            dir,
+        };
+        execute_with_scope_bounded(&scenario, broadened_scope("ENG", &[]), 3)
+    };
+    assert!(
+        matches!(over, Err(RunError::Refused { .. })),
+        "the deduped count, not the raw count, is bounded by max_items"
+    );
     Ok(())
 }

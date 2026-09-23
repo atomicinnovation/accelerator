@@ -16,15 +16,14 @@ use http_test_support::{MockServer, RequestKey, Route};
 fn search_stdout_matches_the_golden() {
     let server = MockServer::start();
     // The widened read-side projection: each issue's full `fields`
-    // map — Summary/Status/Assignee — plus the `nextPageToken` cursor, emitted
-    // verbatim with the outcome stamp.
+    // map — Summary/Status/Assignee — merged into the envelope with the outcome
+    // stamp. No cursor, so the walk completes in one page.
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
             status: 200,
             body: r#"{"issues":[{"key":"ENG-1","fields":{"summary":"a bug",
-                "status":{"name":"In Progress"},"assignee":{"displayName":"Ada"}}}],
-                "nextPageToken":"tok-2"}"#
+                "status":{"name":"In Progress"},"assignee":{"displayName":"Ada"}}}]}"#
                 .to_owned(),
         },
     );

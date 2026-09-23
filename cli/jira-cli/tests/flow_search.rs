@@ -1,6 +1,6 @@
-//! The `search` flow: the verbatim Jira envelope (`issues` + `nextPageToken`)
-//! with an `outcome` stamp, the composed-JQL audit line on stderr, and its
-//! `--quiet` suppression.
+//! The `search` flow: the merged `issues` envelope with an `outcome` stamp, the
+//! fail-loud cap-hit exit and its truncated envelope, the composed-JQL audit
+//! line on stderr, and its `--quiet` suppression.
 
 #![cfg(feature = "test-loopback")]
 #![allow(clippy::expect_used, clippy::unwrap_used)]
@@ -26,10 +26,10 @@ fn server_returning(body: &str) -> MockServer {
 }
 
 #[test]
-fn search_echoes_the_envelope_and_audits_the_jql() {
-    let server = server_returning(
-        r#"{"issues":[{"key":"ENG-1"}],"nextPageToken":"tok-2"}"#,
-    );
+fn search_within_the_cap_echoes_results_and_audits_the_jql() {
+    // A page with no cursor completes the walk, so the search exits zero — the
+    // negative control against an always-abort.
+    let server = server_returning(r#"{"issues":[{"key":"ENG-1"}]}"#);
     let dir = support::scratch(support::CONFIG);
 
     let output =
@@ -42,16 +42,54 @@ fn search_echoes_the_envelope_and_audits_the_jql() {
         envelope.pointer("/outcome").and_then(Value::as_str),
         Some("results")
     );
-    assert_eq!(
-        envelope.pointer("/nextPageToken").and_then(Value::as_str),
-        Some("tok-2"),
-        "the Jira envelope passes through verbatim"
-    );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("INFO: composed JQL:") && stderr.contains("text ~"),
         "the audit line names the composed JQL: {stderr}"
+    );
+}
+
+#[test]
+fn search_cap_hit_exits_nonzero_with_the_truncated_envelope() {
+    // Every page offers another cursor, so the walk cap-hits: the search fails
+    // loud with the dedicated code, still emitting the truncated envelope and
+    // the resume cursor.
+    let server = server_returning(
+        r#"{"issues":[{"key":"ENG-1"}],"nextPageToken":"tok-2"}"#,
+    );
+    let dir = support::scratch(support::CONFIG);
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--text", "bug"]);
+    assert_eq!(
+        output.status.code(),
+        Some(79),
+        "a cap-hit exits with the dedicated SEARCH_CAP_HIT code"
+    );
+
+    let envelope: Value =
+        serde_json::from_slice(&output.stdout).expect("json stdout");
+    assert_eq!(
+        envelope.pointer("/outcome").and_then(Value::as_str),
+        Some("cap-hit"),
+        "a cap-hit is its own outcome, distinct from a transient cutoff"
+    );
+    assert_eq!(
+        envelope.pointer("/truncated").and_then(Value::as_bool),
+        Some(true),
+        "the truncated field rides the envelope alongside the non-zero exit"
+    );
+    assert_eq!(
+        envelope.pointer("/nextPageToken").and_then(Value::as_str),
+        Some("tok-2"),
+        "the resume cursor rides the envelope"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("E_SEARCH_CAP_HIT") && stderr.contains("max_pages"),
+        "the cap-hit names the max_pages remedy: {stderr}"
     );
 }
 

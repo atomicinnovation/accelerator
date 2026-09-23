@@ -78,6 +78,11 @@ pub const SEARCH_BAD_PAGE_TOKEN: u8 = 75;
 pub const SEARCH_BAD_LIMIT: u8 = 76;
 pub const SEARCH_NO_SITE_CACHE: u8 = 77;
 pub const SEARCH_BAD_FLAG: u8 = 78;
+// A new code, not a captured remap: a standalone `search` that paginated to the
+// discovery `max_pages` cap without exhausting the cursor. Distinct from a
+// credential/transport failure so a consumer can branch on it and raise the
+// cap.
+pub const SEARCH_CAP_HIT: u8 = 79;
 
 pub const SHOW_NO_KEY: u8 = 80;
 pub const SHOW_BAD_COMMENTS_LIMIT: u8 = 81;

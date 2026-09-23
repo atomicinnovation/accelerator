@@ -4,7 +4,7 @@ description: Reconcile local work items in meta/work/ with the active remote
   tracker named by work.integration. Use when the user wants to sync, push, or
   pull work items to or from Jira or Linear, preview what a sync would change, or
   reconcile divergent local and remote state.
-argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls N] [--max-pushes N] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
+argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] [--allow-unbounded] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator work *)
@@ -72,9 +72,17 @@ Translate the user's arguments into `accelerator work sync`'s flags:
   or remote
   mutation, and **without** touching the baseline. Combinable with a directional
   flag.
-- `--max-pulls N` / `--max-pushes N` — the blast-radius bounds (default **25**
-  each). `0` refuses every pull / push. A run whose pulls or pushes would exceed
-  its bound refuses with **zero writes** (exit **5**).
+- `--max-pulls <N|unlimited>` / `--max-pushes <N|unlimited>` — the blast-radius
+  bounds (default **25** each). A non-negative integer (`0` refuses every pull /
+  push) or `unlimited`. Present overrides the matching
+  `<tracker>.pull.max_items` / `<tracker>.push.max_items` config key; unset
+  defers to it. A run whose pulls or pushes would exceed its bound refuses with
+  **zero writes** (exit **5**).
+- `--allow-unbounded` — acknowledge an unbounded broadened pull. When
+  `<tracker>.pull.max_items` is `unlimited` **and** the scope is broadened
+  (`all_*`, or a non-empty `additional_*`), the run refuses fail-safe (exit
+  **8**) unless this flag is set, since the whole discovered set would be created
+  with no write bound. See the unbounded-scope gate below.
 - `--resolve <id>=<remote|local|skip>` — a non-interactive resolution for a
   reported conflict; repeatable. Used by the conflict loop below.
 - `--target <id|external-id|path>` — reconcile only the named work item(s);
@@ -124,7 +132,7 @@ local→remote pushes. `/sync-work-items --target 0257` reconciles only item
 ```
 accelerator work sync \
   [--push-only|--pull-only] [--preview] \
-  [--max-pulls N] [--max-pushes N] \
+  [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] \
   [--resolve <id>=<remote|local|skip>]…
 ```
 
@@ -160,7 +168,14 @@ mistaken for a skip.
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent or indeterminate items); `5` refused (would exceed
-`--max-pulls`/`--max-pushes`, zero writes); `70` a read failed, a discovery
+`--max-pulls`/`--max-pushes`, zero writes); `7` the keyed reconcile read hit its
+`<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
+un-read items' remote state is unknown and nothing was written — raise the cap
+or set it to `unlimited` and re-run; the read feeds both directions, so
+`--push-only` does **not** bypass it; `8` refused an unbounded broadened pull
+(`<work.integration>.pull.max_items: unlimited` over an `all_*`/`additional_*`
+scope, zero writes) — re-run with `--allow-unbounded` to acknowledge it, or set
+a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a discovery
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
@@ -281,6 +296,26 @@ Use the `AskUserQuestion` tool with two options (stating the count N):
 
 It **fails safe**: if not running interactively, leave the refusal in place and
 do not raise the bound.
+
+## Step 4b: Unbounded-scope gate
+
+When `<work.integration>.pull.max_items` is `unlimited` **and** the pull scope
+is broadened (`all_*`, or a non-empty `additional_*`), `work sync` **refuses
+before any read** and exits **8** with zero writes: the whole discovered set
+would be created with no write bound. This mirrors the pull-overwrite gate — the
+binary refuses with a dedicated code, and this skill drives the confirmation.
+
+To proceed, re-run with `--allow-unbounded` after confirming with the user.
+
+Use the `AskUserQuestion` tool with two options (naming the broadened scope):
+
+1. **Yes, proceed** — re-run with `--allow-unbounded` to import the whole
+   discovered set with no write bound
+2. **No, abort** — leave the refusal in place; zero writes. Prefer setting a
+   finite `<work.integration>.pull.max_items` instead
+
+It **fails safe**: if not running interactively, leave the refusal in place and
+do not pass `--allow-unbounded`.
 
 ## Step 5: Summarise
 

@@ -119,6 +119,18 @@ fn parse_key_value(raw: &str) -> Result<(String, String), String> {
     )
 }
 
+/// A `--max-pulls` / `--max-pushes` value: the same grammar the `max_items`
+/// config key accepts, so a flag can express every configured bound. `0`
+/// refuses all; `unlimited` lifts the bound.
+fn parse_ceiling(raw: &str) -> Result<tracker::Ceiling, String> {
+    tracker_support::ceiling::from_token(raw, true).ok_or_else(|| {
+        format!(
+            "expected a non-negative integer (0 refuses all) or `unlimited`, \
+             got '{raw}'"
+        )
+    })
+}
+
 /// `work list`'s flags, boxed for the same reason as [`CreateArgs`]. Every
 /// filter is a conjunct: an item is listed only when it satisfies all of
 /// the ones supplied.
@@ -274,17 +286,53 @@ pub struct SyncArgs {
     /// Read each item with its own request instead of one bulk retrieval.
     #[arg(long)]
     pub per_item_reads: bool,
-    /// Refuse the run if it would overwrite more than this many local
-    /// files from the remote. 0 refuses every pull.
-    #[arg(long, default_value_t = 25)]
-    pub max_pulls: usize,
-    /// Refuse the run if it would replace more than this many remote
-    /// issues. 0 refuses every push.
-    #[arg(long, default_value_t = 25)]
-    pub max_pushes: usize,
+    /// Refuse the run if it would overwrite more than this many local files
+    /// from the remote. A non-negative integer (0 refuses every pull) or
+    /// `unlimited`. When present, overrides `<tracker>.pull.max_items`; when
+    /// unset, defers to that config key, else the built-in 25.
+    #[arg(long, value_parser = parse_ceiling)]
+    pub max_pulls: Option<tracker::Ceiling>,
+    /// Refuse the run if it would replace more than this many remote issues.
+    /// A non-negative integer (0 refuses every push) or `unlimited`. When
+    /// present, overrides `<tracker>.push.max_items`; when unset, defers to
+    /// that config key, else the built-in 25.
+    #[arg(long, value_parser = parse_ceiling)]
+    pub max_pushes: Option<tracker::Ceiling>,
+    /// Acknowledge an unbounded broadened pull.
+    /// `<tracker>.pull.max_items: unlimited` combined with a broadened scope
+    /// (`all_*`, or a non-empty `additional_*`) is refused fail-safe unless
+    /// this is set, since the whole discovered set would be mass-created with
+    /// no write bound. The work skill prompts and re-runs with this flag; set a
+    /// finite `max_items` to avoid it.
+    #[arg(long)]
+    pub allow_unbounded: bool,
     /// Reconcile only this work item; repeatable. Accepts a local id
     /// (0042), a remote tracker key / `external_id` (PP-787), or a file
     /// path. Naming any target suppresses untracked-remote discovery.
     #[arg(long = "target")]
     pub targets: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_ceiling;
+    use tracker::Ceiling;
+
+    #[test]
+    fn a_non_negative_integer_including_zero_parses_to_a_bound() {
+        assert_eq!(parse_ceiling("25"), Ok(Ceiling::Bounded(25)));
+        assert_eq!(parse_ceiling("0"), Ok(Ceiling::Bounded(0)));
+    }
+
+    #[test]
+    fn the_unlimited_token_parses_to_the_unbounded_ceiling() {
+        assert_eq!(parse_ceiling("unlimited"), Ok(Ceiling::Unlimited));
+    }
+
+    #[test]
+    fn a_non_numeric_non_unlimited_token_is_a_parse_error() {
+        assert!(parse_ceiling("lots").is_err());
+        assert!(parse_ceiling("-1").is_err());
+        assert!(parse_ceiling("2.5").is_err());
+    }
 }

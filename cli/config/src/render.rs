@@ -4,8 +4,11 @@
 use crate::node::Scalar;
 use crate::service::Value;
 
-/// Projects a resolved [`Value`] to its canonical string form: a scalar to its
-/// bare text, a sequence to the bracketed `[a, b]` form.
+/// Projects a resolved [`Value`] to its canonical string form.
+///
+/// A scalar renders to its bare text, a sequence to the bracketed `[a, b]`
+/// form, and a mapping to the empty string — a block has no single-line scalar
+/// rendering, and `dump` renders it through a separate row-group path.
 #[must_use]
 pub fn render_value(value: &Value) -> String {
     match value {
@@ -15,6 +18,7 @@ pub fn render_value(value: &Value) -> String {
                 items.iter().map(render_scalar).collect();
             format!("[{}]", rendered.join(", "))
         }
+        Value::Mapping(_) => String::new(),
     }
 }
 
@@ -56,5 +60,17 @@ mod tests {
             "[a, b]"
         );
         assert_eq!(render_value(&Value::Sequence(Vec::new())), "[]");
+    }
+
+    #[test]
+    fn renders_a_mapping_as_the_empty_string() {
+        assert_eq!(
+            render_value(&Value::Mapping(vec![(
+                "label".to_owned(),
+                Value::Scalar(Scalar::String("bug".to_owned())),
+            )])),
+            ""
+        );
+        assert_eq!(render_value(&Value::Mapping(Vec::new())), "");
     }
 }

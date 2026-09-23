@@ -186,14 +186,13 @@ Options:
           Read each item with its own request instead of one bulk retrieval
 
       --max-pulls <MAX_PULLS>
-          Refuse the run if it would overwrite more than this many local files from the remote. 0 refuses every pull
-          
-          [default: 25]
+          Refuse the run if it would overwrite more than this many local files from the remote. A non-negative integer (0 refuses every pull) or `unlimited`. When present, overrides `<tracker>.pull.max_items`; when unset, defers to that config key, else the built-in 25
 
       --max-pushes <MAX_PUSHES>
-          Refuse the run if it would replace more than this many remote issues. 0 refuses every push
-          
-          [default: 25]
+          Refuse the run if it would replace more than this many remote issues. A non-negative integer (0 refuses every push) or `unlimited`. When present, overrides `<tracker>.push.max_items`; when unset, defers to that config key, else the built-in 25
+
+      --allow-unbounded
+          Acknowledge an unbounded broadened pull. `<tracker>.pull.max_items: unlimited` combined with a broadened scope (`all_*`, or a non-empty `additional_*`) is refused fail-safe unless this is set, since the whole discovered set would be mass-created with no write bound. The work skill prompts and re-runs with this flag; set a finite `max_items` to avoid it
 
       --target <TARGETS>
           Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery

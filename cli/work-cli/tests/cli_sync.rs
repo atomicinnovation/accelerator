@@ -102,6 +102,25 @@ fn preview_does_not_bypass_provider_selection() -> Result<(), TestError> {
 }
 
 #[test]
+fn an_invalid_pull_block_fails_loud_before_discovery() -> Result<(), TestError>
+{
+    let repo = scratch_repo(Some("linear"))?;
+    fs::write(
+        repo.path().join(".accelerator/config.md"),
+        "---\nwork:\n  integration: linear\nlinear:\n  pull:\n    \
+         filters:\n      colour: [red]\n---\n",
+    )?;
+    let output = run(repo.path(), &["--preview"])?;
+    // Exit 1 (a config refusal), not 74 (the credential check that runs
+    // later) — proving the block is rejected before discovery.
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("colour"), "{stderr}");
+    assert!(stderr.contains("not supported"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn push_only_and_pull_only_together_is_a_usage_error() -> Result<(), TestError>
 {
     let repo = scratch_repo(Some("jira"))?;

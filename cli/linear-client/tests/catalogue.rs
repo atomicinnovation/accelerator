@@ -82,3 +82,56 @@ fn catalogue_team_with_a_blank_key_resolves_nothing() {
     assert_eq!(team.resolve(""), None, "a blank key must not resolve");
     assert_eq!(team.resolve("ENG"), None);
 }
+
+#[test]
+fn a_grown_catalogue_resolves_every_team_in_the_teams_array() {
+    let grown = json!({
+        "team": { "id": "team-1", "key": "ENG", "name": "Engineering" },
+        "teams": [
+            { "id": "team-1", "key": "ENG", "name": "Engineering" },
+            { "id": "team-2", "key": "OPS", "name": "Operations" }
+        ],
+        "workflowStates": []
+    });
+    let team = CatalogueTeam::from_catalogue(&grown);
+
+    assert_eq!(team.resolve("ENG"), Some("team-1".to_owned()));
+    assert_eq!(team.resolve("OPS"), Some("team-2".to_owned()));
+}
+
+#[test]
+fn catalogued_lists_every_team_for_the_multi_team_keyed_read() {
+    let grown = json!({
+        "team": { "id": "team-1", "key": "ENG", "name": "Engineering" },
+        "teams": [
+            { "id": "team-1", "key": "ENG", "name": "Engineering" },
+            { "id": "team-2", "key": "OPS", "name": "Operations" }
+        ]
+    });
+    let mut listed = CatalogueTeam::from_catalogue(&grown).catalogued();
+    listed.sort();
+
+    assert_eq!(
+        listed,
+        vec![
+            ("ENG".to_owned(), "team-1".to_owned()),
+            ("OPS".to_owned(), "team-2".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn a_pre_upgrade_catalogue_resolves_base_only_and_lists_the_base() {
+    // No `teams` array: a newer binary reading a pre-upgrade file still
+    // resolves and lists the base team.
+    let pre_upgrade = json!({
+        "team": { "id": "team-1", "key": "ENG", "name": "Engineering" }
+    });
+    let team = CatalogueTeam::from_catalogue(&pre_upgrade);
+
+    assert_eq!(team.resolve("ENG"), Some("team-1".to_owned()));
+    assert_eq!(
+        team.catalogued(),
+        vec![("ENG".to_owned(), "team-1".to_owned())]
+    );
+}

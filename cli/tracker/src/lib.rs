@@ -225,6 +225,14 @@ impl std::error::Error for TrackerError {}
 /// as indeterminate: inferring absence from a fetch that may have been cut
 /// short is what makes a sync delete an issue that still exists.
 ///
+/// `completeness` says whether the retrieval reached everything in scope, and
+/// why not when it did not. It exists so a caller can fail loud on a
+/// [`Completeness::CapHit`] — a configured page cap the keyed read must not
+/// silently truncate against — while still degrading around a
+/// [`Completeness::Transient`] failure. When it is not
+/// [`Completeness::Complete`] the retrieval was not provably complete, so
+/// `absent` must be empty and every unseen id belongs in `indeterminate`.
+///
 /// Nothing here enforces totality — the type cannot, and this crate ships no
 /// logic. It is an obligation on every implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,10 +251,65 @@ pub struct FetchOutcome {
     /// null-stamped entries reports a live issue as deleted.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
     /// Provably gone from the tracker. Only ever drawn from a complete
-    /// retrieval.
+    /// retrieval, so empty whenever `completeness` is not
+    /// [`Completeness::Complete`].
     pub absent: Vec<ExternalId>,
     /// Not accounted for, and the retrieval could not prove why.
     pub indeterminate: Vec<ExternalId>,
+    /// Whether the retrieval saw everything it requested, and why not when it
+    /// did not. A [`Completeness::CapHit`] is the fail-loud signal a keyed read
+    /// aborts on; anything but [`Completeness::Complete`] means `absent` is
+    /// empty.
+    pub completeness: Completeness,
+}
+
+/// Which entities a discovery query looks across.
+///
+/// An exclusive sum type so the illegal combination a flat
+/// `project` + `all_projects` pair allowed — a named entity *and* the whole
+/// workspace — is unrepresentable. A named-entity scope broadens a base entity
+/// with zero or more additional entities; a whole-workspace scope subsumes the
+/// base entirely and carries no entities of its own.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EntityScope {
+    /// The keyed base entity, broadened by zero or more additional entities.
+    ///
+    /// `base` is the canonical scope key (a Jira project key, a Linear team
+    /// key), absent only on an unkeyed run. `additional` names further entities
+    /// to broaden discovery onto, never to narrow it. Before the engine's
+    /// pre-search resolver runs, both hold config-facing keys; after it, both
+    /// hold the identifiers a search lowers (Jira: the project key unchanged;
+    /// Linear: the team UUID).
+    Keyed {
+        base: Option<String>,
+        additional: Vec<String>,
+    },
+    /// Every entity the credential can see. Resolved to an enumerated
+    /// identifier list before a search lowers it — never an unbounded,
+    /// constraint-free query.
+    WholeWorkspace,
+}
+
+impl Default for EntityScope {
+    fn default() -> Self {
+        Self::Keyed {
+            base: None,
+            additional: Vec::new(),
+        }
+    }
+}
+
+/// One entity a credential can see, as a live enumeration reports it.
+///
+/// `key` is the config-facing name a scope block and an identifier prefix use;
+/// `identifier` is what a search lowers to — the same key for Jira, the team
+/// UUID for Linear. `name` is the display label the committed entity index and
+/// operator warnings carry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisibleEntity {
+    pub key: String,
+    pub identifier: String,
+    pub name: String,
 }
 
 /// Where an unkeyed discovery query looks.
@@ -256,31 +319,154 @@ pub struct FetchOutcome {
 /// slice `fetch_all` takes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SearchScope {
-    /// The single project or team to scope discovery to.
-    ///
-    /// When both this and `all_projects` are set, `project` wins: a named
-    /// project always narrows. The precedence is stated here rather than left to
-    /// the composer so a caller reading the type knows which field decides.
-    pub project: Option<String>,
-    /// Discover across every project the credentials can see.
-    pub all_projects: bool,
+    /// The entities discovery searches, as an exclusive base-or-workspace
+    /// scope.
+    pub entities: EntityScope,
     /// Extra provider-specific field filters, each a `(field, value)` pair.
     pub filters: Vec<(String, String)>,
+}
+
+/// The filter-field keys a tracker accepts on a `pull` block.
+///
+/// A validation vocabulary, not part of the request port: the config-surface
+/// filter keys (`label`, `state`, `assignee`) a `pull` block may name, held so
+/// the structural validator can reject an unsupported key. Carries only
+/// `accepted` today; a required-key slot is deferred until a tracker needs one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilterSchema {
+    /// The accepted filter-field keys.
+    pub accepted: &'static [&'static str],
+}
+
+/// A ceiling on a counted quantity: a finite bound, or none at all.
+///
+/// One value object for both pull ceilings — the pull-direction write bound and
+/// the transport page cap — so `unlimited` is representable rather than a
+/// magic number, and a bound is compared through [`Ceiling::exceeds`] /
+/// [`Ceiling::reached`] rather than open-coding the `Unlimited` case at each
+/// call. Carried on the request and the transport config; the sole authority on
+/// a valid ceiling string is one conversion in `tracker-support`, which both
+/// config validation and the CLI parse route through, so a value here has
+/// already been accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ceiling {
+    /// At most this many.
+    Bounded(usize),
+    /// No bound.
+    Unlimited,
+}
+
+impl Ceiling {
+    /// Whether `count` is over the bound. `Unlimited` is never exceeded.
+    ///
+    /// The write-bound test: a plan of exactly `Bounded(n)` writes is allowed,
+    /// `n + 1` is refused.
+    #[must_use]
+    pub const fn exceeds(self, count: usize) -> bool {
+        match self {
+            Self::Bounded(cap) => count > cap,
+            Self::Unlimited => false,
+        }
+    }
+
+    /// Whether a paging loop at its `page`th page has hit the bound.
+    /// `Unlimited` never has, so a loop guarded by this pages to exhaustion.
+    #[must_use]
+    pub const fn reached(self, page: usize) -> bool {
+        match self {
+            Self::Bounded(cap) => page >= cap,
+            Self::Unlimited => false,
+        }
+    }
+}
+
+/// The word a `Ceiling::Unlimited` is written and read as, in config and at the
+/// CLI. The one spelling both [`Display`] and the ceiling-string conversion
+/// share, so a rendered ceiling always parses back.
+pub const UNLIMITED_TOKEN: &str = "unlimited";
+
+impl Display for Ceiling {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bounded(cap) => write!(formatter, "{cap}"),
+            Self::Unlimited => formatter.write_str(UNLIMITED_TOKEN),
+        }
+    }
+}
+
+/// The write bound in either direction when its `max_items` key is unset.
+///
+/// Matches the `--max-pulls` / `--max-pushes` flag default, so an unconfigured
+/// pull or push keeps the same write ceiling.
+pub const DEFAULT_MAX_ITEMS: Ceiling = Ceiling::Bounded(25);
+
+/// The transport page cap when a `<tracker>.pull.max_pages` cap is unset.
+///
+/// Generous enough that the keyed reconcile read does not cap-abort on organic
+/// corpus growth; per-operation overrides tune either lane independently.
+pub const DEFAULT_MAX_PAGES: Ceiling = Ceiling::Bounded(50);
+
+/// Why a paginated read stopped, and so whether its result is the whole of what
+/// the tracker holds in scope.
+///
+/// A read that reached its `max_pages` cap is not the same as one a deadline or
+/// a wire failure cut short. The cap is a configured ceiling an operator
+/// raises; the transient condition is a passing failure a retry may clear.
+/// Collapsing the two into one boolean either mis-blames the cap for a network
+/// blip or hides a genuine cap-hit behind a retry that never clears it — so a
+/// caller that must fail loud on one and degrade on the other reads this rather
+/// than a flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Completeness {
+    /// The read saw everything in scope: pagination reached cursor exhaustion
+    /// within the cap.
+    Complete,
+    /// The read stopped at its `max_pages` cap. A configured ceiling, not a
+    /// passing condition — the result is a lower bound until the cap is raised.
+    CapHit,
+    /// The read was cut short by a transient condition — a deadline, a rate
+    /// limit, a wire failure. The result is a lower bound; a retry may clear
+    /// it.
+    Transient,
+}
+
+impl Completeness {
+    /// Whether the read saw everything in scope.
+    #[must_use]
+    pub const fn is_complete(self) -> bool {
+        matches!(self, Self::Complete)
+    }
+
+    /// The cap-hit-dominant combination of two sub-read outcomes.
+    ///
+    /// A keyed read is many sub-reads — Jira chunks its ids, Linear pages each
+    /// catalogued team — so several completeness signals fold into one. A
+    /// cap-hit anywhere wins over a co-occurring transient failure (a mixed
+    /// outcome aborts deterministically rather than silently degrading), and a
+    /// transient in turn wins over a clean read.
+    #[must_use]
+    pub const fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::CapHit, _) | (_, Self::CapHit) => Self::CapHit,
+            (Self::Transient, _) | (_, Self::Transient) => Self::Transient,
+            (Self::Complete, Self::Complete) => Self::Complete,
+        }
+    }
 }
 
 /// What an unkeyed discovery established.
 ///
 /// Distinct from [`FetchOutcome`]: a discovery has no requested id set to
-/// partition over, so it carries a truncation flag rather than an `absent`
-/// vector. `complete == false` means the query was cut short — a page cap, a
-/// deadline, a rate limit — and the caller must treat the result as a lower
-/// bound, never as the whole of what the tracker holds.
+/// partition over, so it carries a [`Completeness`] rather than an `absent`
+/// vector. Anything but [`Completeness::Complete`] means the query was cut
+/// short — a page cap or a transient condition — and the caller must treat the
+/// result as a lower bound, never as the whole of what the tracker holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Discovery {
     /// The issues the query saw, each with the stamp the tracker reported.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
-    /// Whether the query saw everything in scope. `false` on any truncation.
-    pub complete: bool,
+    /// Whether the query saw everything in scope, and why not when it did not.
+    pub completeness: Completeness,
 }
 
 /// A discovery scope that names no valid search target for this tracker — a
@@ -484,6 +670,28 @@ pub trait RemoteTracker {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError>;
+
+    /// Enumerates every entity the credential can see — a Jira project, a
+    /// Linear team — paginated to exhaustion.
+    ///
+    /// The live source the engine's pre-search resolver draws on to confirm a
+    /// configured `additional_*` or whole-workspace entity is visible and to
+    /// map its config key to the identifier a search lowers. A base-only pull
+    /// does not call it, so a plain keyed discovery issues no extra request.
+    ///
+    /// # Errors
+    ///
+    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
+    /// a read mutates nothing. A transient enumeration failure is retryable, so
+    /// the caller degrades around it rather than treating a requested entity as
+    /// not-visible; a genuinely absent entity is the resolver's concern, not an
+    /// error here. The enumeration must be complete — a truncated one that
+    /// dropped a visible entity would falsely abort a valid `additional_*` — so
+    /// an implementation that cannot page to exhaustion fails rather than
+    /// returning a subset.
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError>;
 
     /// Previews the fields a `create` of the given `kind` would resolve,
     /// without creating anything.

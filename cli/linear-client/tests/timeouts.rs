@@ -96,9 +96,10 @@ fn the_page_cap_stops_the_cursor_walk_and_reports_indeterminate() {
         .fetch_all(&[id("ENG-1")])
         .expect("a cap-hit is an Ok");
 
-    assert_eq!(server.hits(&key), 20, "MAX_PAGES is 20");
+    assert_eq!(server.hits(&key), 50, "the default page cap is 50");
     assert_eq!(outcome.indeterminate, vec![id("ENG-1")]);
     assert!(outcome.absent.is_empty());
+    assert_eq!(outcome.completeness, tracker::Completeness::CapHit);
 }
 
 #[test]
@@ -140,5 +141,12 @@ fn the_default_timeout_is_thirty_seconds_and_the_cap_is_twenty_pages() {
         Duration::from_secs(30),
         "transcribed from linear-graphql.sh:519"
     );
-    assert_eq!(client.transport().config().max_pages, 20);
+    assert_eq!(
+        client.transport().config().discovery_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
+    assert_eq!(
+        client.transport().config().keyed_read_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
 }

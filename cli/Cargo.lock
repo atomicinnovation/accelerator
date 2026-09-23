@@ -26,6 +26,7 @@ dependencies = [
  "time",
  "toml",
  "tracing",
+ "tracker-support",
  "vergen",
  "vergen-gitcl",
 ]
@@ -4964,6 +4965,7 @@ version = "1.24.0-pre.70"
 dependencies = [
  "config",
  "tempfile",
+ "tracker",
 ]
 
 [[package]]
@@ -5566,6 +5568,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 name = "work"
 version = "1.24.0-pre.70"
 dependencies = [
+ "config",
  "corpus",
  "kernel",
  "serde_json",

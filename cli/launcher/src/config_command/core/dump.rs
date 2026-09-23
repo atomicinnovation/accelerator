@@ -6,7 +6,8 @@
 //! render as `*(set — hidden)*`.
 
 use config::{
-    catalogue, ConfigAccess, ConfigError, Key, Level, ReadConfigLevel, Resolved,
+    catalogue, ConfigAccess, ConfigError, Key, Level, ReadConfigLevel,
+    Resolved, Value,
 };
 
 /// The value cell of a dump row.
@@ -76,7 +77,165 @@ pub fn assemble(
     for key in catalogue::EXTRA_KEYS {
         rows.push(extra_row(config, key)?);
     }
+    rows.extend(pull_rows(config)?);
+    rows.extend(push_rows(config)?);
     Ok(Some(rows))
+}
+
+/// The active tracker's accepted `pull`-block fields, in the tracker's own
+/// vocabulary, for the unset placeholder.
+const fn pull_fields(
+    tracker: tracker_support::pull::Tracker,
+) -> &'static [&'static str] {
+    match tracker {
+        tracker_support::pull::Tracker::Jira => &[
+            "additional_projects",
+            "all_projects",
+            "filters",
+            "max_items",
+            "max_pages",
+        ],
+        tracker_support::pull::Tracker::Linear => &[
+            "additional_teams",
+            "all_teams",
+            "filters",
+            "max_items",
+            "max_pages",
+        ],
+    }
+}
+
+/// Read-only rows for the active tracker's `<tracker>.pull` block: the resolved
+/// block flattened to `<tracker>.pull.<field>` rows when present, else an
+/// unset-but-available placeholder listing the accepted fields. Whole-block
+/// replacement shows through the per-row source when a personal block wins.
+///
+/// A structurally-invalid block is a fail-closed [`ConfigError::Invalid`]
+/// refusal here, not a rendered row — the same fail-loud contract `configure`
+/// applies to `work.integration`.
+fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
+    let integration = config
+        .effective(&Key::parse("work.integration")?, None)?
+        .rendered();
+    let Some(tracker) =
+        tracker_support::pull::Tracker::from_integration(&integration)
+    else {
+        return Ok(Vec::new());
+    };
+    let prefix = format!("{integration}.pull");
+    let key = Key::parse(&prefix)?;
+    let Resolved::Found(value) = config.get(&key, None)? else {
+        return Ok(placeholder_rows(&prefix, tracker));
+    };
+    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
+        return Ok(placeholder_rows(&prefix, tracker));
+    }
+    let level = block_level(config, &key)?;
+    let invalid =
+        |error: tracker_support::pull::PullConfigError| ConfigError::Invalid {
+            detail: error.detail(level),
+        };
+    let parsed = tracker_support::pull::parse(&value).map_err(invalid)?;
+    tracker_support::pull::validate(&parsed, tracker).map_err(invalid)?;
+    let source = source_of(config, &prefix)?;
+    Ok(block_leaf_rows(&value, &prefix, source))
+}
+
+/// Read-only rows for the active tracker's `<tracker>.push` block: the resolved
+/// `max_items` when present, else an unset-but-available placeholder. The
+/// fail-closed contract matches [`pull_rows`]; push has one field, so there is
+/// no per-tracker vocabulary to list.
+fn push_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
+    let integration = config
+        .effective(&Key::parse("work.integration")?, None)?
+        .rendered();
+    if tracker_support::pull::Tracker::from_integration(&integration).is_none()
+    {
+        return Ok(Vec::new());
+    }
+    let prefix = format!("{integration}.push");
+    let key = Key::parse(&prefix)?;
+    let placeholder = || {
+        vec![Row {
+            key: format!("{prefix}.max_items"),
+            cell: Cell::NotSet,
+            source: Source::Default,
+        }]
+    };
+    let Resolved::Found(value) = config.get(&key, None)? else {
+        return Ok(placeholder());
+    };
+    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
+        return Ok(placeholder());
+    }
+    let level = block_level(config, &key)?;
+    let invalid =
+        |error: tracker_support::push::PushConfigError| ConfigError::Invalid {
+            detail: error.detail(level),
+        };
+    let parsed = tracker_support::push::parse(&value).map_err(invalid)?;
+    tracker_support::push::validate(&parsed).map_err(invalid)?;
+    let source = source_of(config, &prefix)?;
+    Ok(block_leaf_rows(&value, &prefix, source))
+}
+
+/// Flattens a resolved block to its `<prefix>.<field>` value rows, all
+/// attributed to the one source the block resolved from.
+fn block_leaf_rows(value: &Value, prefix: &str, source: Source) -> Vec<Row> {
+    let mut leaves = Vec::new();
+    if let Value::Mapping(entries) = value {
+        for (field, child) in entries {
+            flatten_block(&format!("{prefix}.{field}"), child, &mut leaves);
+        }
+    }
+    leaves
+        .into_iter()
+        .map(|(key, value)| Row {
+            key,
+            cell: Cell::Value(value),
+            source,
+        })
+        .collect()
+}
+
+/// The unset-but-available placeholder rows for a tracker's accepted fields.
+fn placeholder_rows(
+    prefix: &str,
+    tracker: tracker_support::pull::Tracker,
+) -> Vec<Row> {
+    pull_fields(tracker)
+        .iter()
+        .map(|field| Row {
+            key: format!("{prefix}.{field}"),
+            cell: Cell::NotSet,
+            source: Source::Default,
+        })
+        .collect()
+}
+
+/// The config level a present block resolved from, for error attribution.
+fn block_level(
+    config: &dyn ConfigAccess,
+    key: &Key,
+) -> Result<Level, ConfigError> {
+    Ok(match config.effective(key, None)?.source() {
+        config::Source::Personal => Level::Personal,
+        _ => Level::Team,
+    })
+}
+
+/// Flattens a resolved block to leaf `(dotted-key, rendered-value)` pairs,
+/// recursing into nested mappings (`filters`, a `max_pages` block) so each
+/// scalar or sequence surfaces as its own dotted row.
+fn flatten_block(prefix: &str, value: &Value, out: &mut Vec<(String, String)>) {
+    match value {
+        Value::Mapping(entries) if !entries.is_empty() => {
+            for (key, child) in entries {
+                flatten_block(&format!("{prefix}.{key}"), child, out);
+            }
+        }
+        leaf => out.push((prefix.to_owned(), config::render_value(leaf))),
+    }
 }
 
 fn config_get(

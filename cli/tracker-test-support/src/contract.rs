@@ -306,8 +306,8 @@ pub fn search_reports_truncation_property(subject: &dyn ContractSubject) {
         .search(&scope)
         .expect("search must succeed for a conformant implementation");
     assert!(
-        !discovery.complete,
-        "a truncated discovery must report complete == false"
+        !discovery.completeness.is_complete(),
+        "a truncated discovery must not report Completeness::Complete"
     );
 }
 

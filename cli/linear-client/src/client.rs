@@ -10,8 +10,11 @@ use remote_projection::Integration;
 use remote_projection::Op;
 use serde_json::json;
 use serde_json::Value;
+use tracker::Ceiling;
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
+use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
@@ -22,6 +25,7 @@ use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -112,13 +116,14 @@ type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
 
 /// The accumulated result of a detailed search.
 ///
-/// The raw projection nodes in arrival order, and whether the retrieval was cut
-/// short (a cap-hit or deadline, surfaced as the `.data.issues.truncated`
-/// flag).
+/// The raw projection nodes in arrival order, and whether the retrieval saw
+/// everything — [`Completeness::CapHit`] on a page-cap hit, distinct from a
+/// [`Completeness::Transient`] deadline cutoff, so the search subcommand can
+/// fail loud on the cap alone.
 #[derive(Debug)]
 pub struct DetailedPage {
     pub nodes: Vec<Value>,
-    pub truncated: bool,
+    pub completeness: Completeness,
 }
 
 pub struct LinearClient {
@@ -157,13 +162,14 @@ impl LinearClient {
     pub fn from_config(
         context: &CredentialContext<'_>,
         integrations_root: &Path,
+        transport_config: TransportConfig,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context, integrations_root)?;
         let team_key =
             crate::auth::team_key(context.config, integrations_root)?;
         let transport = Transport::to_linear(
             credentials,
-            TransportConfig::default(),
+            transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
@@ -205,12 +211,20 @@ impl LinearClient {
     /// about scope, and the port's rule then applies: report every unseen id as
     /// indeterminate rather than inferring absence.
     fn in_scope(&self, id: &ExternalId) -> Option<bool> {
-        let key = self.team_key.as_ref()?;
-        Some(
-            id.as_str()
-                .split_once('-')
-                .is_some_and(|(prefix, _)| prefix == key.as_str()),
-        )
+        let mut known: Vec<String> = self
+            .teams
+            .catalogued()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect();
+        if let Some(key) = &self.team_key {
+            known.push(key.clone());
+        }
+        if known.is_empty() {
+            return None;
+        }
+        let prefix = id.as_str().split_once('-').map(|(prefix, _)| prefix);
+        Some(prefix.is_some_and(|prefix| known.iter().any(|key| key == prefix)))
     }
 
     /// A GraphQL call whose failure carries the structured discriminant. The
@@ -320,20 +334,24 @@ impl LinearClient {
         Ok((found, cursor))
     }
 
-    /// Pages a search to exhaustion, returning the accumulated index and, when
-    /// the retrieval was cut short, the reason. A cap-hit, a deadline or a
-    /// failed page all leave `Some(reason)`; a clean finish leaves `None`.
+    /// Pages a search to exhaustion, returning the accumulated index and its
+    /// [`Completeness`]. A page-cap hit is [`Completeness::CapHit`] — the
+    /// fail-loud ceiling; a deadline or a failed page is
+    /// [`Completeness::Transient`]; a clean finish is
+    /// [`Completeness::Complete`].
     fn page_all(
         &self,
         search: &Search,
-    ) -> (Vec<(String, RemoteTimestamp)>, Option<String>) {
+        cap: Ceiling,
+    ) -> (Vec<(String, RemoteTimestamp)>, Completeness) {
         let deadline = self.transport.deadline();
-        let cap = self.transport.config().max_pages;
         let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
         let mut cursor: Option<String> = None;
-        let mut truncated = None;
+        let mut completeness = Completeness::Complete;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             match self.fetch_page(search, cursor.as_deref(), &deadline) {
                 Ok((mut found, next)) => {
                     index.append(&mut found);
@@ -341,27 +359,29 @@ impl LinearClient {
                     if cursor.is_none() {
                         break;
                     }
-                    if page == cap {
-                        truncated =
-                            Some(format!("the {cap}-page cap was reached"));
+                    if cap.reached(page) {
+                        completeness = Completeness::CapHit;
+                        tracing::warn!(
+                            page,
+                            "linear: the keyed read hit its page cap"
+                        );
+                        break;
                     }
                 }
                 Err(reason) => {
-                    truncated = Some(reason);
+                    completeness = Completeness::Transient;
+                    tracing::warn!(
+                        reason = %reason,
+                        "linear: the retrieval was cut short"
+                    );
                     break;
                 }
             }
         }
-        if let Some(reason) = &truncated {
-            tracing::warn!(
-                reason = %reason,
-                "linear: the retrieval was incomplete"
-            );
-        }
-        (index, truncated)
+        (index, completeness)
     }
 
-    /// Pages a search over the richer [`SEARCH_PROJECTION`] to exhaustion,
+    /// Pages a search over the richer `SEARCH_PROJECTION` to exhaustion,
     /// returning the raw nodes the `search` subcommand renders. Unlike the port
     /// `search`, a wire failure is an error rather than a degraded page — the
     /// search flow propagates the transport failure — while a cap-hit or
@@ -376,15 +396,17 @@ impl LinearClient {
         search: &Search,
     ) -> Result<DetailedPage, SurfaceError> {
         let filter = compose(search, self.states.as_ref())?;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
         let mut nodes = Vec::new();
         let mut cursor: Option<String> = None;
-        let mut truncated = false;
+        let mut completeness = Completeness::Complete;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
-                truncated = true;
+                completeness = Completeness::Transient;
                 break;
             }
             let variables = json!({
@@ -415,11 +437,15 @@ impl LinearClient {
             if !has_next || cursor.is_none() {
                 break;
             }
-            if page == cap {
-                truncated = true;
+            if cap.reached(page) {
+                completeness = Completeness::CapHit;
+                break;
             }
         }
-        Ok(DetailedPage { nodes, truncated })
+        Ok(DetailedPage {
+            nodes,
+            completeness,
+        })
     }
 
     /// Fetches one issue's full detail for the `show` subcommand, returning the
@@ -554,6 +580,24 @@ impl LinearClient {
     }
 }
 
+/// One `teams` node as a [`VisibleEntity`]: a Linear team's key is its
+/// config-facing name and identifier prefix, its UUID the search identifier.
+/// Drops a node missing a key or an id.
+fn visible_team(team: &Value) -> Option<VisibleEntity> {
+    let key = team.get("key").and_then(Value::as_str)?.to_owned();
+    let identifier = team.get("id").and_then(Value::as_str)?.to_owned();
+    let name = team
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    Some(VisibleEntity {
+        key,
+        identifier,
+        name,
+    })
+}
+
 /// A populated stamp is held verbatim. A blank, absent or `null` one is
 /// `NotReported`, never `Reported("")`.
 fn stamp(value: Option<&Value>) -> RemoteTimestamp {
@@ -627,6 +671,7 @@ impl RemoteTracker for LinearClient {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: Completeness::Complete,
         };
         let mut seen = BTreeSet::new();
         let requested: Vec<&ExternalId> = ids
@@ -644,11 +689,31 @@ impl RemoteTracker for LinearClient {
             })?;
         }
 
-        let team_search = Search {
-            team_id: Some(self.credentials().team_id.clone()),
-            ..Search::default()
-        };
-        let (index, truncated) = self.page_all(&team_search);
+        // Page every team the corpus can span — the base plus each catalogued
+        // additional team — so an item imported from an additional team
+        // reconciles rather than sticking at indeterminate on every later sync.
+        // The keyed-read cap bounds each team's paging.
+        let cap = self.transport.config().keyed_read_max_pages;
+        let mut team_ids: Vec<String> =
+            vec![self.credentials().team_id.clone()];
+        for (_, id) in self.teams.catalogued() {
+            if !team_ids.contains(&id) {
+                team_ids.push(id);
+            }
+        }
+        let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
+        let mut completeness = Completeness::Complete;
+        for team_id in &team_ids {
+            let team_search = Search {
+                team_id: Some(team_id.clone()),
+                ..Search::default()
+            };
+            let (mut found, team_completeness) =
+                self.page_all(&team_search, cap);
+            index.append(&mut found);
+            completeness = completeness.merge(team_completeness);
+        }
+        outcome.completeness = completeness;
 
         for id in requested {
             let stamp = index
@@ -662,7 +727,7 @@ impl RemoteTracker for LinearClient {
             // An id the retrieval never had scope to see, or a retrieval that
             // was cut short, proves nothing about absence. Reporting either as
             // absent is what makes a sync unlink a live issue.
-            if truncated.is_some() || self.in_scope(id) != Some(true) {
+            if !completeness.is_complete() || self.in_scope(id) != Some(true) {
                 outcome.indeterminate.push(id.clone());
             } else {
                 outcome.absent.push(id.clone());
@@ -675,7 +740,13 @@ impl RemoteTracker for LinearClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        let Some(key) = scope.project.as_deref() else {
+        // The base-only path: substitute the base team key for its UUID from
+        // the catalogue. A broadened scope resolves its entities against the
+        // live enumeration instead and never reaches here.
+        let EntityScope::Keyed { base, additional } = &scope.entities else {
+            return Ok(scope.clone());
+        };
+        let Some(key) = base.as_deref() else {
             return Err(ScopeError {
                 detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
                          linear.team_key, or run --push-only to push without \
@@ -693,40 +764,62 @@ impl RemoteTracker for LinearClient {
             });
         };
         Ok(SearchScope {
-            project: Some(team_id),
-            ..scope.clone()
+            entities: EntityScope::Keyed {
+                base: Some(team_id),
+                additional: additional.clone(),
+            },
+            filters: scope.filters.clone(),
         })
     }
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
-        let Some(team_id) = scope.project.clone() else {
+        let (team_id, team_ids) = match &scope.entities {
+            EntityScope::Keyed { base, additional } => {
+                (base.clone(), additional.clone())
+            }
+            EntityScope::WholeWorkspace => (None, Vec::new()),
+        };
+        if team_id.is_none() && team_ids.is_empty() {
             return Err(TrackerError::Retryable {
                 detail: "E_SEARCH_UNRESOLVED_SCOPE: search needs a resolved \
                          team id; call resolve_scope first"
                     .to_owned(),
             });
-        };
+        }
         let mut search = Search {
-            team_id: Some(team_id),
+            team_id,
+            team_ids,
             ..Search::default()
         };
         for (field, value) in &scope.filters {
             match field.as_str() {
-                "state" => search.state = Some(value.clone()),
-                "assignee" => search.assignee = Some(value.clone()),
-                "label" => search.label = Some(value.clone()),
+                "state" => search.state.push(value.clone()),
+                "assignee" => search.assignee.push(value.clone()),
+                "label" => search.label.push(value.clone()),
                 "text" => search.text = Some(value.clone()),
                 _ => {}
             }
         }
-        let (index, truncated) = self.page_all(&search);
+        let (index, completeness) =
+            self.page_all(&search, self.transport.config().discovery_max_pages);
         Ok(Discovery {
             found: index
                 .into_iter()
                 .map(|(id, stamp)| (ExternalId::new(id), stamp))
                 .collect(),
-            complete: truncated.is_none(),
+            completeness,
         })
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        let teams =
+            self.paginate_teams()
+                .map_err(|error| TrackerError::Retryable {
+                    detail: error.to_string(),
+                })?;
+        Ok(teams.iter().filter_map(visible_team).collect())
     }
 
     fn preview_create(

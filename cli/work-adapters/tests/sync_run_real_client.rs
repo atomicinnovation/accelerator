@@ -247,8 +247,8 @@ fn execute(
         direction,
         strategy: RetrievalStrategy::Bulk,
         resolutions: &resolutions,
-        max_pulls: 25,
-        max_pushes: 25,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
         mode,
         integrations_root: &integrations_root,
         integration: "jira",
@@ -337,8 +337,8 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
 }
 
 #[test]
-fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
-) -> Result<(), TestError> {
+fn jira_aborts_a_capped_keyed_read_and_deletes_nothing() -> Result<(), TestError>
+{
     let dir = tempfile::tempdir()?;
     let path = item_file(dir.path(), "0002", "ENG-2")?;
     let before = std::fs::read_to_string(&path)?;
@@ -349,8 +349,8 @@ fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     };
 
     let server = MockServer::start();
-    // Every page carries a cursor, so the one-page cap is hit and the chunk's
-    // keys are unaccounted for.
+    // Every page carries a cursor, so the one-page cap is hit: a fail-loud
+    // truncation the run aborts on rather than degrades around.
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
@@ -361,7 +361,8 @@ fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     let client = jira_client(
         &server.base_url(),
         TransportConfig {
-            max_pages: 1,
+            discovery_max_pages: tracker::Ceiling::Bounded(1),
+            keyed_read_max_pages: tracker::Ceiling::Bounded(1),
             ..TransportConfig::default()
         },
     );
@@ -372,17 +373,27 @@ fn jira_marks_a_truncated_read_indeterminate_and_deletes_nothing(
         &baseline_document(&entry("0002", STAMP, "stale", "stale")),
     );
 
-    let report = push_only_report(&client, &spy, &[item], RunMode::Apply);
-    assert_eq!(report.reported.len(), 1);
-    assert_eq!(
-        report.reported[0].planned.state,
-        SyncState::Indeterminate,
-        "a truncated read must be indeterminate, never remote-absent"
+    // Even push-only performs the shared keyed reconcile read, so a cap-hit
+    // aborts the whole run — `--push-only` is no bypass.
+    let result = execute(
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Apply,
+    );
+    assert!(
+        matches!(
+            result,
+            Err(work_adapters::sync::run::RunError::KeyedReadCapped)
+        ),
+        "a capped keyed read aborts the whole run"
     );
     assert_eq!(
         std::fs::read_to_string(&path)?,
         before,
-        "an indeterminate item must not be written or deleted"
+        "the abort must not write or delete the item"
     );
     Ok(())
 }
@@ -456,7 +467,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
 }
 
 #[test]
-fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
+fn linear_aborts_a_capped_keyed_read_and_deletes_nothing(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
     let path = item_file(dir.path(), "0002", "ENG-2")?;
@@ -468,6 +479,8 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     };
 
     let server = MockServer::start();
+    // Every page reports a next page, so the one-page cap is hit: a fail-loud
+    // truncation the run aborts on rather than degrades around.
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -480,7 +493,8 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
     let client = linear_client(
         &server.base_url(),
         TransportConfig {
-            max_pages: 1,
+            discovery_max_pages: tracker::Ceiling::Bounded(1),
+            keyed_read_max_pages: tracker::Ceiling::Bounded(1),
             ..TransportConfig::default()
         },
     );
@@ -491,13 +505,27 @@ fn linear_marks_a_truncated_read_indeterminate_and_deletes_nothing(
         &baseline_document(&entry("0002", LINEAR_STAMP, "stale", "stale")),
     );
 
-    let report = push_only_report(&client, &spy, &[item], RunMode::Apply);
-    assert_eq!(report.reported.len(), 1);
-    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    // Even push-only performs the shared keyed reconcile read, so a cap-hit
+    // aborts the whole run — `--push-only` is no bypass.
+    let result = execute(
+        &client,
+        &spy,
+        &[item],
+        SyncDirection::PushOnly,
+        tracker::SearchScope::default(),
+        RunMode::Apply,
+    );
+    assert!(
+        matches!(
+            result,
+            Err(work_adapters::sync::run::RunError::KeyedReadCapped)
+        ),
+        "a capped keyed read aborts the whole run"
+    );
     assert_eq!(
         std::fs::read_to_string(&path)?,
         before,
-        "an indeterminate item must not be written or deleted"
+        "the abort must not write or delete the item"
     );
     Ok(())
 }
@@ -592,8 +620,10 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         &items,
         SyncDirection::Bidirectional,
         tracker::SearchScope {
-            project: Some("ENG".to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some("ENG".to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         },
         RunMode::Preview,
@@ -665,8 +695,10 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
         &[],
         SyncDirection::Bidirectional,
         tracker::SearchScope {
-            project: Some(LINEAR_TEAM_KEY.to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some(LINEAR_TEAM_KEY.to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         },
         RunMode::Preview,

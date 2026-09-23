@@ -58,7 +58,10 @@ impl ContractSubject for MockBackedClient {
     /// comes back `complete == false`.
     fn truncating_scope(&self) -> SearchScope {
         SearchScope {
-            project: Some(support::client::PROJECT.to_owned()),
+            entities: tracker::EntityScope::Keyed {
+                base: Some(support::client::PROJECT.to_owned()),
+                additional: Vec::new(),
+            },
             ..SearchScope::default()
         }
     }

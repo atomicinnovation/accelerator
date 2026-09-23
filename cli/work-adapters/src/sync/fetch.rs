@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use tracker::Completeness;
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -58,6 +59,13 @@ pub struct GatheredFacts {
     /// it — discarding it turns a misconfigured token into a whole-corpus
     /// "nothing to do".
     pub read_failure: Option<TrackerError>,
+    /// Whether the bulk keyed read saw everything in scope, and why not when it
+    /// did not. A [`Completeness::CapHit`] is the fail-loud signal the run
+    /// aborts on before any write; a [`Completeness::Transient`] surfaces
+    /// softly and the run proceeds with the affected items indeterminate. The
+    /// per-item (`show`) strategy and a pre-flight `fetch_all` failure both
+    /// leave this [`Completeness::Complete`].
+    pub keyed_read: Completeness,
 }
 
 impl GatheredFacts {
@@ -151,6 +159,7 @@ pub fn gather(
 ) -> GatheredFacts {
     let mut per_id = BTreeMap::new();
     let mut read_failure = None;
+    let mut keyed_read = Completeness::Complete;
     let present = present_ids(items);
 
     match strategy {
@@ -189,6 +198,7 @@ pub fn gather(
                     }
                 }
                 Ok(outcome) => {
+                    keyed_read = outcome.completeness;
                     for (id, external_id) in &present {
                         if let Some((_, stamp)) = outcome
                             .found
@@ -255,5 +265,6 @@ pub fn gather(
     GatheredFacts {
         per_id: per_id_with_dirty,
         read_failure,
+        keyed_read,
     }
 }

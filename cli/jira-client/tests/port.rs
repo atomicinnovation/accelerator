@@ -8,10 +8,55 @@ use http_test_support::{MockServer, RequestKey, Route};
 use jira_client::JiraClient;
 use serde_json::Value;
 use support::client::{brief, client_for, PROJECT};
-use tracker::{ExternalId, RemoteTimestamp, RemoteTracker as _, TrackerError};
+use tracker::{
+    Ceiling, Completeness, ExternalId, RemoteTimestamp, RemoteTracker as _,
+    SearchScope, TrackerError,
+};
 
 const ISSUE: &str = "/rest/api/3/issue";
 const SEARCH: &str = "/rest/api/3/search/jql";
+
+/// A discovery scope naming a project, valid for the Jira composer.
+fn scope() -> SearchScope {
+    SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
+        ..SearchScope::default()
+    }
+}
+
+/// A `TransportConfig` with `brief`'s short timeout and the given page caps.
+fn caps(
+    discovery: Ceiling,
+    keyed_read: Ceiling,
+) -> tracker_support::TransportConfig {
+    tracker_support::TransportConfig {
+        discovery_max_pages: discovery,
+        keyed_read_max_pages: keyed_read,
+        ..brief()
+    }
+}
+
+/// Three search pages, the first two cursored so only a page cap or the third
+/// (cursorless) page stops the walk.
+fn three_pages() -> Route {
+    Route::Sequence(vec![
+        Route::Json {
+            status: 200,
+            body: search_page(&["ENG-1"], Some("p2")),
+        },
+        Route::Json {
+            status: 200,
+            body: search_page(&["ENG-2"], Some("p3")),
+        },
+        Route::Json {
+            status: 200,
+            body: search_page(&["ENG-3"], None),
+        },
+    ])
+}
 
 fn id(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
@@ -312,8 +357,8 @@ fn a_hostile_identifier_leaves_one_bounded_clause() {
         serde_json::from_slice(&server.last_body(&key).expect("a body"))
             .expect("JSON");
     assert_eq!(
-        sent["jql"], "key IN ('X'') OR project = FOO --')",
-        "the quote is doubled, as jira-jql.sh does, so the clause stays one \
+        sent["jql"], "key IN ('X\\') OR project = FOO --')",
+        "the interior quote is backslash-escaped, so the clause stays one \
          bounded literal"
     );
 }
@@ -456,9 +501,168 @@ fn a_traversal_bearing_identifier_is_refused_before_any_request() {
 }
 
 #[test]
+fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(SEARCH);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 200,
+            body: search_page(&[], None),
+        },
+    );
+    let scope = SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
+        filters: vec![
+            ("label".to_owned(), "a".to_owned()),
+            ("label".to_owned(), "b".to_owned()),
+            ("state".to_owned(), "open".to_owned()),
+        ],
+    };
+
+    client_for(&server, brief())
+        .search(&scope)
+        .expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    let jql = sent["jql"].as_str().expect("a jql string");
+    assert!(
+        jql.contains("labels IN ('a', 'b')"),
+        "same-key values OR into one IN under the config->JQL field map: {jql}"
+    );
+    assert!(
+        jql.contains("status IN ('open')"),
+        "the config `state` key maps to the JQL `status` field: {jql}"
+    );
+}
+
+#[test]
+fn a_hostile_filter_value_stays_contained_in_its_clause() {
+    let server = MockServer::start();
+    let key = RequestKey::post(SEARCH);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 200,
+            body: search_page(&[], None),
+        },
+    );
+    let scope = SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(PROJECT.to_owned()),
+            additional: Vec::new(),
+        },
+        filters: vec![(
+            "label".to_owned(),
+            "x') OR project = FOO --".to_owned(),
+        )],
+    };
+
+    client_for(&server, brief())
+        .search(&scope)
+        .expect("search succeeds");
+
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    assert_eq!(
+        sent["jql"],
+        "project = 'ENG' AND labels IN ('x\\') OR project = FOO --')",
+        "a break-out payload reaching the seam stays one contained literal"
+    );
+}
+
+#[test]
+fn a_configured_discovery_cap_truncates_where_the_default_completes() {
+    let capped = MockServer::start();
+    capped.route(RequestKey::post(SEARCH), three_pages());
+    let discovery =
+        client_for(&capped, caps(Ceiling::Bounded(2), Ceiling::Bounded(50)))
+            .search(&scope())
+            .expect("search returns a degraded result, not an error");
+    assert_eq!(
+        discovery.completeness,
+        Completeness::CapHit,
+        "a two-page cap truncates a longer walk as a cap-hit"
+    );
+    assert_eq!(capped.hits(&RequestKey::post(SEARCH)), 2);
+
+    let uncapped = MockServer::start();
+    uncapped.route(RequestKey::post(SEARCH), three_pages());
+    let discovery =
+        client_for(&uncapped, caps(Ceiling::Bounded(50), Ceiling::Bounded(50)))
+            .search(&scope())
+            .expect("search succeeds");
+    assert!(
+        discovery.completeness.is_complete(),
+        "the default cap completes three pages"
+    );
+    assert_eq!(discovery.found.len(), 3);
+}
+
+#[test]
+fn unlimited_discovery_never_truncates_a_walk_a_small_cap_would() {
+    let server = MockServer::start();
+    server.route(RequestKey::post(SEARCH), three_pages());
+    let discovery =
+        client_for(&server, caps(Ceiling::Unlimited, Ceiling::Bounded(50)))
+            .search(&scope())
+            .expect("search succeeds");
+    assert!(
+        discovery.completeness.is_complete(),
+        "unlimited pages to cursor exhaustion"
+    );
+    assert_eq!(discovery.found.len(), 3);
+}
+
+#[test]
+fn the_keyed_read_cap_is_independent_of_the_discovery_cap() {
+    // A low discovery cap must not truncate the keyed read: fetch_all uses the
+    // keyed-read cap, so a three-page walk completes and the id is found.
+    let found = MockServer::start();
+    found.route(RequestKey::post(SEARCH), three_pages());
+    let outcome =
+        client_for(&found, caps(Ceiling::Bounded(1), Ceiling::Bounded(50)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("fetch_all succeeds");
+    assert_eq!(
+        outcome.found.len(),
+        1,
+        "the keyed read ignored the low discovery cap"
+    );
+    assert!(outcome.indeterminate.is_empty());
+
+    // A low keyed-read cap truncates the keyed read: the unseen id is
+    // indeterminate, never absent, even with a generous discovery cap.
+    let capped = MockServer::start();
+    capped.route(RequestKey::post(SEARCH), three_pages());
+    let outcome =
+        client_for(&capped, caps(Ceiling::Bounded(50), Ceiling::Bounded(2)))
+            .fetch_all(&[id("ENG-3")])
+            .expect("a cut-short keyed read is an Ok with the partition");
+    assert!(
+        outcome.absent.is_empty(),
+        "a truncated read must not infer absence"
+    );
+    assert_eq!(outcome.indeterminate, vec![id("ENG-3")]);
+}
+
+#[test]
 fn the_page_cap_and_chunk_size_are_the_transcribed_ones() {
     let server = MockServer::start();
     let client: JiraClient = client_for(&server, brief());
 
-    assert_eq!(client.transport().config().max_pages, 20);
+    assert_eq!(
+        client.transport().config().discovery_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
+    assert_eq!(
+        client.transport().config().keyed_read_max_pages,
+        tracker::Ceiling::Bounded(50)
+    );
 }

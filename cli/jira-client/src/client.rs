@@ -8,8 +8,10 @@ use remote_projection::Op;
 use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
+use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
@@ -20,6 +22,7 @@ use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use tracker::ValidationOutcome;
+use tracker::VisibleEntity;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
 use tracker_support::CredentialContext;
@@ -54,6 +57,17 @@ const ISSUE_PATH: &str = "/rest/api/3/issue";
 /// One discovery page: the issues it accounted for, and the cursor to the next
 /// page when there is one.
 type DiscoveryPage = (Vec<(ExternalId, RemoteTimestamp)>, Option<String>);
+
+/// Why a keyed-read chunk stopped short of accounting for its ids.
+///
+/// A page-cap hit is a configured ceiling the caller must fail loud on; every
+/// other stop — a deadline, a non-2xx, a non-JSON body, a transport failure —
+/// is a transient condition the caller degrades around. Collapsing the two
+/// would hide a cap-hit behind the transient path.
+enum ChunkStop {
+    CapHit(String),
+    Transient(String),
+}
 
 pub struct JiraClient {
     transport: Transport,
@@ -90,12 +104,13 @@ impl JiraClient {
     /// refused.
     pub fn from_config(
         context: &CredentialContext<'_>,
+        transport_config: TransportConfig,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context)?;
         let project = crate::auth::project_code(context.config)?;
         let transport = Transport::new(
             credentials,
-            TransportConfig::default(),
+            transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
@@ -193,24 +208,30 @@ impl JiraClient {
     /// One 50-key chunk, following the `nextPageToken` cursor.
     ///
     /// The page cap is **per chunk**: a global cap would mark whole chunks
-    /// indeterminate for a large corpus. A cap-hit, a deadline expiry and a
-    /// failure all resolve the same way — the chunk's keys become
-    /// indeterminate, never absent.
+    /// indeterminate for a large corpus. Every stop leaves the chunk's keys
+    /// unaccounted for, but a page-cap hit ([`ChunkStop::CapHit`]) is reported
+    /// distinctly from a deadline or failure ([`ChunkStop::Transient`]) so the
+    /// caller can fail loud on the configured ceiling.
     fn fetch_chunk(
         &self,
         chunk: &[&ExternalId],
         deadline: &Deadline,
-    ) -> Result<Vec<(String, RemoteTimestamp)>, String> {
+    ) -> Result<Vec<(String, RemoteTimestamp)>, ChunkStop> {
         let keys: Vec<String> =
             chunk.iter().map(|id| id.as_str().to_owned()).collect();
-        let clause = key_clause(&keys).map_err(|error| error.to_string())?;
+        let clause = key_clause(&keys)
+            .map_err(|error| ChunkStop::Transient(error.to_string()))?;
         let mut found = Vec::new();
         let mut cursor: Option<String> = None;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().keyed_read_max_pages;
 
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
-                return Err("the operation deadline expired".to_owned());
+                return Err(ChunkStop::Transient(
+                    "the operation deadline expired".to_owned(),
+                ));
             }
             let mut body = json!({
                 "jql": clause,
@@ -222,16 +243,23 @@ impl JiraClient {
                 body["nextPageToken"] = json!(token);
             }
             let payload = serde_json::to_string(&body)
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| ChunkStop::Transient(error.to_string()))?;
             let received = self
                 .transport
                 .send(&Method::POST, SEARCH_PATH, &[], Some(&payload))
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| ChunkStop::Transient(error.to_string()))?;
             if !(200..300).contains(&received.status) {
-                return Err(format!("status {}", received.status));
+                return Err(ChunkStop::Transient(format!(
+                    "status {}",
+                    received.status
+                )));
             }
             let page_body: Value = serde_json::from_str(&received.body)
-                .map_err(|_| "a non-JSON search response".to_owned())?;
+                .map_err(|_| {
+                    ChunkStop::Transient(
+                        "a non-JSON search response".to_owned(),
+                    )
+                })?;
             if let Some(issues) =
                 page_body.get("issues").and_then(Value::as_array)
             {
@@ -249,11 +277,12 @@ impl JiraClient {
             if cursor.is_none() {
                 return Ok(found);
             }
-            if page == cap {
-                return Err(format!("the {cap}-page cap was reached"));
+            if cap.reached(page) {
+                return Err(ChunkStop::CapHit(format!(
+                    "the {page}-page cap was reached"
+                )));
             }
         }
-        Ok(found)
     }
 
     /// Pages an unkeyed discovery, following the `nextPageToken` cursor.
@@ -264,17 +293,13 @@ impl JiraClient {
     /// (no project and not `all_projects`, or an unquotable filter) is a
     /// pre-flight `Err`.
     fn discover(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
+        let (project, additional_projects, all_projects) =
+            project_fields(&scope.entities);
         let search = Search {
-            project: scope.project.clone(),
-            all_projects: scope.all_projects,
-            families: scope
-                .filters
-                .iter()
-                .map(|(field, value)| Family {
-                    field: field.clone(),
-                    values: vec![value.clone()],
-                })
-                .collect(),
+            project,
+            additional_projects,
+            all_projects,
+            families: families_from_filters(&scope.filters),
             ..Search::default()
         };
         let clause =
@@ -287,13 +312,15 @@ impl JiraClient {
 
         let mut found = Vec::new();
         let mut cursor: Option<String> = None;
-        let cap = self.transport.config().max_pages;
+        let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
-        for page in 1..=cap {
+        let mut page = 0usize;
+        loop {
+            page += 1;
             if deadline.expired() {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::Transient,
                 });
             }
             let Some((mut issues, next)) =
@@ -301,7 +328,7 @@ impl JiraClient {
             else {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::Transient,
                 });
             };
             found.append(&mut issues);
@@ -309,20 +336,16 @@ impl JiraClient {
             if cursor.is_none() {
                 return Ok(Discovery {
                     found,
-                    complete: true,
+                    completeness: Completeness::Complete,
                 });
             }
-            if page == cap {
+            if cap.reached(page) {
                 return Ok(Discovery {
                     found,
-                    complete: false,
+                    completeness: Completeness::CapHit,
                 });
             }
         }
-        Ok(Discovery {
-            found,
-            complete: true,
-        })
     }
 
     /// One discovery page: the issues it saw and the next cursor, or `None` on
@@ -467,6 +490,85 @@ fn update_fields(
     Ok(json!({"fields": {"summary": title, "description": description}}))
 }
 
+/// The JQL field a config filter key lowers to.
+///
+/// Config speaks the tracker's own vocabulary (`label`, `state`); JQL names the
+/// field (`labels`, `status`). An unmapped key passes through and is then
+/// guarded at the composer's field sink.
+fn jql_field(config_key: &str) -> &str {
+    match config_key {
+        "label" => "labels",
+        "state" => "status",
+        other => other,
+    }
+}
+
+/// Whether a scope names any search target at all — a base, an additional
+/// entity, or the whole workspace. An empty keyed scope names nothing.
+const fn names_target(entities: &EntityScope) -> bool {
+    match entities {
+        EntityScope::Keyed { base, additional } => {
+            base.is_some() || !additional.is_empty()
+        }
+        EntityScope::WholeWorkspace => true,
+    }
+}
+
+/// One `discover_projects` entry as a [`VisibleEntity`]: a Jira project's key
+/// is both its config-facing key and its search identifier. Drops an entry
+/// missing a key.
+fn visible_project(project: &Value) -> Option<VisibleEntity> {
+    let key = project.get("key").and_then(Value::as_str)?.to_owned();
+    let name = project
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    Some(VisibleEntity {
+        identifier: key.clone(),
+        key,
+        name,
+    })
+}
+
+/// Lowers an [`EntityScope`] to the [`Search`] project fields: the base project
+/// and the additional projects for a keyed scope, or `all_projects` for a
+/// whole-workspace scope. The engine's pre-search resolver has already mapped
+/// each entity key to its search identifier (a Jira project key is its own
+/// identifier), so this is a pure shape change.
+fn project_fields(
+    entities: &EntityScope,
+) -> (Option<String>, Vec<String>, bool) {
+    match entities {
+        EntityScope::Keyed { base, additional } => {
+            (base.clone(), additional.clone(), false)
+        }
+        EntityScope::WholeWorkspace => (None, Vec::new(), true),
+    }
+}
+
+/// Groups a flat `(key, value)` filter bag into one [`Family`] per JQL field,
+/// preserving first-seen key order, so same-key values compose to one
+/// multi-value `IN` (values OR'd) rather than repeated single-value clauses
+/// (values AND'd, an empty result).
+fn families_from_filters(filters: &[(String, String)]) -> Vec<Family> {
+    let mut families: Vec<Family> = Vec::new();
+    for (key, value) in filters {
+        let field = jql_field(key).to_owned();
+        if let Some(family) =
+            families.iter_mut().find(|family| family.field == field)
+        {
+            family.values.push(value.clone());
+        } else {
+            families.push(Family {
+                field,
+                values: vec![value.clone()],
+            });
+        }
+    }
+    families
+}
+
 impl RemoteTracker for JiraClient {
     fn create(
         &self,
@@ -534,6 +636,7 @@ impl RemoteTracker for JiraClient {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: Completeness::Complete,
         };
         // The request is a set: duplicates are ignored.
         let mut seen = BTreeSet::new();
@@ -574,7 +677,16 @@ impl RemoteTracker for JiraClient {
                         }
                     }
                 }
-                Err(reason) => {
+                Err(stop) => {
+                    let (reason, class) = match stop {
+                        ChunkStop::CapHit(reason) => {
+                            (reason, Completeness::CapHit)
+                        }
+                        ChunkStop::Transient(reason) => {
+                            (reason, Completeness::Transient)
+                        }
+                    };
+                    outcome.completeness = outcome.completeness.merge(class);
                     tracing::warn!(
                         reason = %reason,
                         keys = chunk.len(),
@@ -586,6 +698,12 @@ impl RemoteTracker for JiraClient {
                 }
             }
         }
+        // Absence is only provable from a complete retrieval: a cap-hit or a
+        // transient failure anywhere demotes every would-be-absent id to
+        // indeterminate.
+        if !outcome.completeness.is_complete() {
+            outcome.indeterminate.append(&mut outcome.absent);
+        }
         Ok(outcome)
     }
 
@@ -593,7 +711,9 @@ impl RemoteTracker for JiraClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        if scope.project.is_none() && !scope.all_projects {
+        // Jira project keys are their own search identifiers, so resolution is
+        // the structural target check alone — no key substitution.
+        if !names_target(&scope.entities) {
             return Err(ScopeError {
                 detail: "E_JQL_NO_PROJECT: specify a project or all_projects, \
                          or run --push-only to push without discovery"
@@ -605,6 +725,23 @@ impl RemoteTracker for JiraClient {
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
         self.discover(scope)
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        let discovered = self.discover_projects().map_err(|error| {
+            TrackerError::from(JiraFailure::ReadFailure {
+                detail: error.to_string(),
+            })
+        })?;
+        Ok(discovered
+            .get("projects")
+            .and_then(Value::as_array)
+            .map(|projects| {
+                projects.iter().filter_map(visible_project).collect()
+            })
+            .unwrap_or_default())
     }
 
     fn preview_create(

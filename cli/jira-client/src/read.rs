@@ -1,14 +1,16 @@
 //! The read-side projections the `search` and `show` subcommands render.
 //!
 //! The port `search`/`show` reshape a response into the sync contract — stamps
-//! and a projected body. These keep Jira's own wire envelope verbatim: `search`
-//! echoes `{issues, nextPageToken}`, `show` returns the raw issue the binary
-//! renders ADF fields over. The composed JQL is exposed separately so the
-//! binary can print the audit line before the request.
+//! and a projected body. These keep Jira's own wire envelope shape: `search`
+//! merges its pages into `{issues}` and marks the envelope `truncated` with a
+//! resume `nextPageToken` when the walk stops short; `show` returns the raw
+//! issue the binary renders ADF fields over. The composed JQL is exposed
+//! separately so the binary can print the audit line before the request.
 
 use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
+use tracker::Completeness;
 
 use crate::client::JiraClient;
 use crate::error::ClientError;
@@ -17,6 +19,18 @@ use crate::jql::Search;
 use crate::surface::SurfaceError;
 
 const SEARCH_PATH: &str = "/rest/api/3/search/jql";
+
+/// A search's merged pages and whether the walk saw everything within the cap.
+///
+/// The `envelope` is `{issues: [...]}`, plus `truncated: true` and the resume
+/// `nextPageToken` when `completeness` is not [`Completeness::Complete`] — so a
+/// consumer can detect the truncation and, on a cap-hit, resume with
+/// `--page-token`.
+#[derive(Debug)]
+pub struct SearchPage {
+    pub envelope: Value,
+    pub completeness: Completeness,
+}
 
 impl JiraClient {
     /// The JQL the search surface composes, for the `INFO: composed JQL` audit
@@ -33,11 +47,15 @@ impl JiraClient {
         compose(search, self.accounts(), self.fields())
     }
 
-    /// Runs one search page and returns Jira's verbatim response envelope
-    /// (`{issues, nextPageToken}`), the shape the search surface emits.
+    /// Pages a search internally up to the discovery `max_pages` cap, merging
+    /// every page's issues into one envelope.
     ///
-    /// A single page: `page_token` follows the cursor the caller carries, so
-    /// pagination stays the operator's, not the client's.
+    /// `page_token` resumes a prior walk from its cursor; `max_results` is the
+    /// per-page size. A clean finish is [`Completeness::Complete`]; reaching
+    /// the cap is [`Completeness::CapHit`] and an expired deadline
+    /// [`Completeness::Transient`] — each carrying the resume cursor in the
+    /// envelope. A wire failure, non-2xx status or non-JSON body is an error
+    /// the search flow propagates, not a degraded page.
     ///
     /// # Errors
     ///
@@ -49,26 +67,68 @@ impl JiraClient {
         fields: &[String],
         max_results: u32,
         page_token: Option<&str>,
-    ) -> Result<Value, SurfaceError> {
+    ) -> Result<SearchPage, SurfaceError> {
         let jql = compose(search, self.accounts(), self.fields())?;
-        let mut body = json!({
-            "jql": jql,
-            "fields": fields,
-            "fieldsByKeys": false,
-            "maxResults": max_results,
-        });
-        if let Some(token) = page_token {
-            body["nextPageToken"] = json!(token);
+        let cap = self.transport().config().discovery_max_pages;
+        let deadline = self.transport().deadline();
+        let mut issues: Vec<Value> = Vec::new();
+        let mut cursor: Option<String> = page_token.map(str::to_owned);
+        let mut completeness = Completeness::Complete;
+
+        let mut page = 0usize;
+        loop {
+            page += 1;
+            if deadline.expired() {
+                completeness = Completeness::Transient;
+                break;
+            }
+            let mut body = json!({
+                "jql": jql,
+                "fields": fields,
+                "fieldsByKeys": false,
+                "maxResults": max_results,
+            });
+            if let Some(token) = &cursor {
+                body["nextPageToken"] = json!(token);
+            }
+            let payload = serde_json::to_string(&body)
+                .unwrap_or_else(|_| "{}".to_owned());
+            let received = self.transport().send(
+                &Method::POST,
+                SEARCH_PATH,
+                &[],
+                Some(&payload),
+            )?;
+            let page_value = parse_ok(received, "search")?;
+            if let Some(array) =
+                page_value.get("issues").and_then(Value::as_array)
+            {
+                issues.extend(array.iter().cloned());
+            }
+            cursor = page_value
+                .get("nextPageToken")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            if cursor.is_none() {
+                break;
+            }
+            if cap.reached(page) {
+                completeness = Completeness::CapHit;
+                break;
+            }
         }
-        let payload =
-            serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_owned());
-        let received = self.transport().send(
-            &Method::POST,
-            SEARCH_PATH,
-            &[],
-            Some(&payload),
-        )?;
-        parse_ok(received, "search")
+
+        let mut envelope = json!({ "issues": issues });
+        if !completeness.is_complete() {
+            envelope["truncated"] = json!(true);
+            if let Some(token) = cursor {
+                envelope["nextPageToken"] = json!(token);
+            }
+        }
+        Ok(SearchPage {
+            envelope,
+            completeness,
+        })
     }
 
     /// Fetches one issue's full detail for `show`, returning Jira's raw issue

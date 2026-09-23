@@ -14,6 +14,8 @@ use corpus_adapters::LockOptions;
 use linear_client::cache::{
     CacheError, Filesystem, LinearCache, SystemFilesystem,
 };
+use linear_client::catalogue::CatalogueTeam;
+use linear_client::filter::TeamResolver;
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -224,4 +226,89 @@ fn the_real_lock_times_out_rather_than_stealing_a_bash_held_lock() {
 
     assert!(matches!(error, CacheError::LockContended { .. }));
     assert!(lockdir.exists(), "the pre-held lock is left intact");
+}
+
+#[test]
+fn grow_catalogue_adds_a_new_team_preserving_the_base_and_states() {
+    let fs = FakeFs::default();
+    fs.files.borrow_mut().insert(
+        cache_root().join("catalogue.json"),
+        json!({
+            "team": { "key": "ENG", "id": "eng-id", "name": "Engineering" },
+            "workflowStates": [ { "id": "s1", "name": "Todo" } ],
+        })
+        .to_string(),
+    );
+    let cache = LinearCache::new(&fs, cache_root());
+
+    let added = cache
+        .grow_catalogue(&[(
+            "OPS".to_owned(),
+            "ops-id".to_owned(),
+            "Operations".to_owned(),
+        )])
+        .expect("the catalogue grows");
+
+    assert_eq!(added, vec!["OPS".to_owned()]);
+    assert!(fs.lock_entered.get(), "growth runs under the lock");
+
+    let raw = fs
+        .get(&cache_root().join("catalogue.json"))
+        .expect("the catalogue is written");
+    let catalogue: serde_json::Value =
+        serde_json::from_str(&raw).expect("the catalogue stays valid JSON");
+    assert_eq!(
+        catalogue
+            .pointer("/team/key")
+            .and_then(|value| value.as_str()),
+        Some("ENG"),
+        "the base team is preserved"
+    );
+    assert!(
+        catalogue.get("workflowStates").is_some(),
+        "the workflow states are preserved"
+    );
+
+    let resolver = CatalogueTeam::from_catalogue(&catalogue);
+    assert_eq!(
+        resolver.resolve("OPS").as_deref(),
+        Some("ops-id"),
+        "the newly-imported team resolves from the grown catalogue"
+    );
+    assert_eq!(
+        resolver.resolve("ENG").as_deref(),
+        Some("eng-id"),
+        "the base team still resolves"
+    );
+}
+
+#[test]
+fn grow_catalogue_does_not_re_add_an_already_catalogued_team() {
+    let fs = FakeFs::default();
+    fs.files.borrow_mut().insert(
+        cache_root().join("catalogue.json"),
+        json!({ "team": { "key": "ENG", "id": "eng-id", "name": "Eng" } })
+            .to_string(),
+    );
+    let cache = LinearCache::new(&fs, cache_root());
+
+    let first = cache
+        .grow_catalogue(&[(
+            "OPS".to_owned(),
+            "ops-id".to_owned(),
+            "Ops".to_owned(),
+        )])
+        .expect("first growth");
+    assert_eq!(first, vec!["OPS".to_owned()]);
+
+    let second = cache
+        .grow_catalogue(&[
+            ("ENG".to_owned(), "eng-id".to_owned(), "Eng".to_owned()),
+            ("OPS".to_owned(), "ops-id".to_owned(), "Ops".to_owned()),
+        ])
+        .expect("second growth");
+    assert!(
+        second.is_empty(),
+        "a team already catalogued — base or grown — is not re-added"
+    );
 }

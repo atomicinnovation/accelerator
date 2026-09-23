@@ -3,6 +3,7 @@
 //! because the sync engine's composition root holds one.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
@@ -111,6 +112,7 @@ impl RemoteTracker for FixedTracker {
             found: Vec::new(),
             absent: Vec::new(),
             indeterminate: Vec::new(),
+            completeness: Completeness::Complete,
         };
         let mut requested: Vec<&ExternalId> = ids.iter().collect();
         requested.sort_by(|a, b| a.as_str().cmp(b.as_str()));
@@ -136,7 +138,11 @@ impl RemoteTracker for FixedTracker {
                 .iter()
                 .map(|(id, issue)| (id.clone(), issue.updated.clone()))
                 .collect(),
-            complete: self.unprovable.is_empty(),
+            completeness: if self.unprovable.is_empty() {
+                Completeness::Complete
+            } else {
+                Completeness::Transient
+            },
         })
     }
 
@@ -145,6 +151,12 @@ impl RemoteTracker for FixedTracker {
         scope: &SearchScope,
     ) -> Result<SearchScope, tracker::ScopeError> {
         Ok(scope.clone())
+    }
+
+    fn enumerate_visible_entities(
+        &self,
+    ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError> {
+        Ok(Vec::new())
     }
 
     fn preview_create(
@@ -231,12 +243,14 @@ fn every_public_field_is_accounted_for() {
         found,
         absent,
         indeterminate,
+        completeness,
     } = tracker.fetch_all(&[id]).expect("the fake fetches");
 
     assert_eq!(updated.reported(), Some(JIRA_STAMP));
     assert!(!body.is_empty());
     assert_eq!(found.len(), 1);
     assert!(absent.is_empty() && indeterminate.is_empty());
+    assert_eq!(completeness, Completeness::Complete);
 }
 
 #[test]

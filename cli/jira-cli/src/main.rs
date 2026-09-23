@@ -30,6 +30,7 @@ use jira_client::transition::Target;
 use serde_json::json;
 use serde_json::Map;
 use serde_json::Value;
+use tracker::Completeness;
 use tracker::ExternalId;
 
 use crate::cli::{
@@ -508,10 +509,56 @@ fn run_search(args: &SearchArgs) -> ExitCode {
         args.limit,
         args.page_token.as_deref(),
     ) {
-        Ok(mut envelope) => {
-            if args.render_adf {
-                render::render_search(&mut envelope);
-            }
+        Ok(page) => emit_search(page, args.render_adf),
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::from(exit_codes::for_surface(&error))
+        }
+    }
+}
+
+/// Emits the merged search envelope and picks the exit code from its
+/// completeness: a cap-hit fails loud with [`exit_codes::SEARCH_CAP_HIT`] and
+/// names the `max_pages` remedy; a transient cutoff is a warning at exit 0; a
+/// complete walk is a plain success. Truncated envelopes still carry the
+/// `truncated` flag and resume `nextPageToken`.
+fn emit_search(
+    page: jira_client::read::SearchPage,
+    render_adf: bool,
+) -> ExitCode {
+    let mut envelope = page.envelope;
+    if render_adf {
+        render::render_search(&mut envelope);
+    }
+    match page.completeness {
+        Completeness::CapHit => {
+            print_json(&keywords::with_outcome(
+                envelope,
+                keywords::Search::CapHit.keyword(),
+            ));
+            eprintln!(
+                "E_SEARCH_CAP_HIT: the discovery page cap was reached before \
+                 the result set was exhausted, so the results are a lower \
+                 bound. Raise jira.pull.max_pages (or its discovery override), \
+                 or set it to `unlimited`; resume from the emitted \
+                 nextPageToken with --page-token."
+            );
+            ExitCode::from(exit_codes::SEARCH_CAP_HIT)
+        }
+        Completeness::Transient => {
+            print_json(&keywords::with_outcome(
+                envelope,
+                keywords::Search::Truncated.keyword(),
+            ));
+            eprintln!(
+                "WARNING: the search was cut short transiently (a deadline or \
+                 wire cutoff), not by the page cap, so the results are a lower \
+                 bound. Retry, or resume from the emitted nextPageToken with \
+                 --page-token."
+            );
+            ExitCode::SUCCESS
+        }
+        Completeness::Complete => {
             let empty = envelope
                 .pointer("/issues")
                 .and_then(Value::as_array)
@@ -523,10 +570,6 @@ fn run_search(args: &SearchArgs) -> ExitCode {
             };
             print_json(&keywords::with_outcome(envelope, keyword.keyword()));
             ExitCode::SUCCESS
-        }
-        Err(error) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::for_surface(&error))
         }
     }
 }

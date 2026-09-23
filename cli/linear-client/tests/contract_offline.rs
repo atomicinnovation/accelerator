@@ -57,8 +57,10 @@ impl ContractSubject for MockBackedClient {
     /// already carry the resolved team UUID `resolve_scope` would have produced.
     fn truncating_scope(&self) -> SearchScope {
         SearchScope {
-            project: Some(TEAM_ID.to_owned()),
-            all_projects: false,
+            entities: tracker::EntityScope::Keyed {
+                base: Some(TEAM_ID.to_owned()),
+                additional: Vec::new(),
+            },
             filters: Vec::new(),
         }
     }

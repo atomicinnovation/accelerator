@@ -59,6 +59,10 @@ fn parse_spec(spec: &str) -> Search {
             "all" => search.all_projects = true,
             "watching" => search.watching = true,
             "project" => search.project = Some(value.to_owned()),
+            "additional" => {
+                search.additional_projects =
+                    value.split(',').map(str::to_owned).collect();
+            }
             "text" => search.text.push(value.to_owned()),
             "empty" => search.empty.push(value.to_owned()),
             "notempty" => search.not_empty.push(value.to_owned()),
@@ -150,6 +154,30 @@ fn an_empty_value_is_refused_and_a_control_byte_is_refused() {
     assert!(matches!(quote("a\nb"), Err(ClientError::BadJql { .. })));
     assert!(matches!(quote("a\u{7f}b"), Err(ClientError::BadJql { .. })));
     assert_eq!(quote("plain").expect("a plain value quotes"), "'plain'");
+}
+
+#[test]
+fn an_interior_quote_and_a_trailing_backslash_are_backslash_escaped() {
+    assert_eq!(quote("it's").expect("quotes"), "'it\\'s'");
+    assert_eq!(quote("path\\").expect("quotes"), "'path\\\\'");
+}
+
+#[test]
+fn a_family_field_that_is_not_a_safe_identifier_is_refused() {
+    let resolvers = resolvers();
+    let search = Search {
+        all_projects: true,
+        families: vec![Family {
+            field: "labels) OR project = FOO --".to_owned(),
+            values: vec!["x".to_owned()],
+        }],
+        ..Search::default()
+    };
+
+    let error = compose(&search, &resolvers, &resolvers)
+        .expect_err("an unsafe field is refused at the sink");
+
+    assert!(error.to_string().contains("E_JQL_UNSAFE_FIELD"), "{error}");
 }
 
 #[test]

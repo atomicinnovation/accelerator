@@ -227,6 +227,7 @@ pub fn config::service::TemplateSource::eq(&self, other: &config::service::Templ
 impl core::marker::Copy for config::service::TemplateSource
 impl core::marker::StructuralPartialEq for config::service::TemplateSource
 #[non_exhaustive] pub enum config::service::Value
+pub config::service::Value::Mapping(alloc::vec::Vec<(alloc::string::String, config::service::Value)>)
 pub config::service::Value::Scalar(config::node::Scalar)
 pub config::service::Value::Sequence(alloc::vec::Vec<config::node::Scalar>)
 impl config::service::Value
@@ -454,6 +455,7 @@ pub fn config::service::TemplateSource::eq(&self, other: &config::service::Templ
 impl core::marker::Copy for config::service::TemplateSource
 impl core::marker::StructuralPartialEq for config::service::TemplateSource
 #[non_exhaustive] pub enum config::Value
+pub config::Value::Mapping(alloc::vec::Vec<(alloc::string::String, config::service::Value)>)
 pub config::Value::Scalar(config::node::Scalar)
 pub config::Value::Sequence(alloc::vec::Vec<config::node::Scalar>)
 impl config::service::Value
