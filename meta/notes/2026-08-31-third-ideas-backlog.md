@@ -26,3 +26,4 @@ Accelerator plugin.
 * [Task] Add switches to all skills
 * [Bug] Get PR descriptions to generate unwrapped by /describe-pr
 * [Task] Add internal CLI wrapper skills
+* [Task] Remove references to `make` in skills and make more general
