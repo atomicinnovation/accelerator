@@ -738,6 +738,47 @@ fn an_expired_fetch_deadline_sends_no_request() {
 }
 
 #[test]
+fn one_deadline_spans_every_section_of_a_fetch() {
+    let server = MockServer::start();
+    let slow = |route: Route| Route::Delayed {
+        delay: std::time::Duration::from_millis(300),
+        route: Box::new(route),
+    };
+    server.route(
+        RequestKey::graphql(IDENTITIES),
+        slow(page("teams", &json!([identity("t-a")]), None)),
+    );
+    server.route(
+        RequestKey::graphql(STATES),
+        slow(page("workflowStates", &json!([state("s-1", "t-a")]), None)),
+    );
+    server.route(
+        RequestKey::graphql(LABELS),
+        page("issueLabels", &json!([]), None),
+    );
+    let client = client_for(
+        &server,
+        TransportConfig {
+            deadline: std::time::Duration::from_millis(450),
+            ..TransportConfig::default()
+        },
+    );
+
+    let error = client
+        .fetch_team_entries(
+            &["t-a".to_owned()],
+            &only(&[CatalogueSection::States, CatalogueSection::Labels]),
+        )
+        .expect_err("the passes together outlast the one deadline");
+
+    assert!(
+        matches!(error, SurfaceError::DeadlineExpired { .. }),
+        "{error}"
+    );
+    assert_eq!(server.hits(&RequestKey::graphql(LABELS)), 0);
+}
+
+#[test]
 fn a_team_returned_but_not_requested_gets_no_entry() {
     let server = MockServer::start();
     serve_identities(&server, &["t-a", "t-extra"]);

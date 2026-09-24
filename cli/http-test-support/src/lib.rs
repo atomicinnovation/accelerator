@@ -62,6 +62,9 @@ pub enum Route {
     /// promised length (exercises a broken-transfer retry). A `sent` past the
     /// body's length sends the whole body.
     Truncated { body: Vec<u8>, sent: usize },
+    /// Wait this long, then answer with `route` — a slow but successful
+    /// response, for a deadline that spans several requests.
+    Delayed { delay: Duration, route: Box<Route> },
 }
 
 /// The routing and recording key: a method and a path, with any query string
@@ -384,7 +387,8 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         record(shared, operation_key, received.clone());
     }
     record(shared, &key, received);
-    let route = serve_route(shared, &key, operation_key.as_ref());
+    let route =
+        serve_route(shared, &key, operation_key.as_ref()).map(after_any_delay);
     let response = match route {
         Some(Route::Json { status, body }) => http_response(
             status,
@@ -411,6 +415,9 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         }
         Some(Route::FlakyThenOk { .. } | Route::Sequence(_)) => {
             unreachable!("resolve flattens per-hit routes before dispatch")
+        }
+        Some(Route::Delayed { .. }) => {
+            unreachable!("after_any_delay unwraps delays before dispatch")
         }
         Some(Route::Stall(delay)) => {
             // Promise a body in the headers, flush them, then stall without
@@ -526,6 +533,20 @@ fn resolve(route: Route, index: usize) -> Route {
             } else {
                 Route::Bytes { status: 200, body }
             }
+        }
+        Route::Delayed { delay, route } => Route::Delayed {
+            delay,
+            route: Box::new(resolve(*route, index)),
+        },
+        other => other,
+    }
+}
+
+fn after_any_delay(route: Route) -> Route {
+    match route {
+        Route::Delayed { delay, route } => {
+            thread::sleep(delay);
+            after_any_delay(*route)
         }
         other => other,
     }

@@ -563,3 +563,25 @@ fn dropping_a_server_that_registered_no_operation_keys_never_panics() {
 
     drop(server);
 }
+
+#[test]
+fn a_delayed_route_answers_its_inner_route_after_the_delay() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::get("/later"),
+        Route::Delayed {
+            delay: Duration::from_millis(200),
+            route: Box::new(Route::Bytes {
+                status: 200,
+                body: b"payload".to_vec(),
+            }),
+        },
+    );
+
+    let started = std::time::Instant::now();
+    let answered = request(&server, "GET", "/later", &[], &[]);
+
+    assert!(started.elapsed() >= Duration::from_millis(200));
+    assert_eq!(answered.status, 200);
+    assert_eq!(answered.body, b"payload");
+}
