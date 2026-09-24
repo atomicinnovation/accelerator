@@ -5,7 +5,7 @@ title: "False Dirty-Tree Detection on jj Repositories Implementation Plan"
 date: "2026-09-23T16:53:40+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0241"
 parent: "work-item:0241"
 derived_from: ["codebase-research:2026-09-23-0241-migrate-false-dirty-tree-detection"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0263", "work-item:0119", "work-item:0198", "work-item:02
 tags: ["migration", "vcs", "jj", "preflight"]
 revision: "9556c9ac4137e3476e17d836d8b9a4ca8ae0ce52"
 repository: "accelerator"
-last_updated: "2026-09-23T22:51:08+00:00"
+last_updated: "2026-09-24T10:05:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
