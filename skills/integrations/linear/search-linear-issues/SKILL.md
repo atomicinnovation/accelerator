@@ -39,6 +39,8 @@ Read the argument string and note each flag:
   another's name.
 - `--label NAME` — a label of the init team, or a workspace label.
 - `--text STR` — free-text match on the issue title.
+- `--limit N` — page size (1..250, default 50). Pagination follows every page
+  regardless; `--limit` only sets the per-request page size.
 
 Every filter value is resolved, case-insensitively, to its id through the
 committed `catalogue.json`, and the search is scoped to the init team for
@@ -50,8 +52,6 @@ the catalogue.
 
 With no catalogued team, a `--text`-only search runs workspace-wide; any other
 flag refuses with `E_SEARCH_NO_TEAM`.
-- `--limit N` — page size (1..250, default 50). Pagination follows every page
-  regardless; `--limit` only sets the per-request page size.
 
 ## Step 2: Run the search
 
@@ -92,6 +92,15 @@ indented line per value, each naming its remedy:
 | `E_SEARCH_AMBIGUOUS_{STATE,LABEL,ASSIGNEE}` | the value matches more than one active record; use an email for an assignee |
 | `E_SEARCH_NO_TEAM` | there is no catalogued base team; run `/accelerator:init-linear` |
 | `E_SEARCH_CATALOGUE_DAMAGED` | `catalogue.json` cannot be read; restore it from version control |
+| `E_SEARCH_TEAM_UNFETCHED` | the init team was in scope but Linear returned no data for it; check the credential's access |
+
+The exit code classifies the whole refusal:
+
+| Exit | Meaning |
+|------|---------|
+| `77` | every line is a catalogue gap (`E_SEARCH_NO_TEAM`, `E_SEARCH_CATALOGUE_DAMAGED`, `E_SEARCH_TEAM_UNFETCHED`); fix the catalogue, not the values |
+| `78` | every line refuses a `--state` value |
+| `89` | any other mix of unknown or ambiguous values |
 
 ## Step 3: Render the results
 
