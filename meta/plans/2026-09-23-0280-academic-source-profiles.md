@@ -481,19 +481,19 @@ need no new arm.
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p config -p config-adapters -p tracker-support -p jira-client -p linear-client -p accelerator-jira -p accelerator-linear -p accelerator-work`
-- [ ] The relocated suites together hold at least as many cases as
+- [x] `cargo test --manifest-path cli/Cargo.toml -p config -p config-adapters -p tracker-support -p jira-client -p linear-client -p accelerator-jira -p accelerator-linear -p accelerator-work`
+- [x] The relocated suites together hold at least as many cases as
       `tracker-support/tests/credentials.rs` did, plus the new ones.
-- [ ] `mise run public-api:update && mise run public-api:check`, with the
+- [x] `mise run public-api:update && mise run public-api:check`, with the
       `tracker-support` diff showing only removed credential items and the
       `config` diff only the added `credentials` module
-- [ ] `mise run lint:cli:check` (cargo-pup) exits `0`, with `config` still
+- [x] `mise run lint:cli:check` (cargo-pup) exits `0`, with `config` still
       held to `std`, `kernel::Error`, and `crate`
-- [ ] `mise run check` and `mise run test` exit `0`
+- [x] `mise run check` and `mise run test` exit `0`
 
 #### Manual Verification
 
-- [ ] `ACCELERATOR_JIRA_TOKEN_CMD=false accelerator jira search` prints
+- [x] `ACCELERATOR_JIRA_TOKEN_CMD=false accelerator jira search` prints
       `jira.token_cmd`, not `jira.token_cmd_cmd`.
 
 ---

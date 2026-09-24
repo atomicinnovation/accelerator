@@ -18,10 +18,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
-use tracker_support::{
-    CommandPolicy, CredentialContext, Environment, Jitter, Provenance, Sleeper,
+use config::credentials::{
+    CommandPolicy, CredentialContext, Environment, Provenance,
 };
+use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+use config_adapters::credentials::{BashTokenCommandRunner, SystemFileFacts};
+use tracker_support::{Jitter, Sleeper};
 
 pub struct FixedConfig {
     personal: BTreeMap<String, String>,
@@ -136,6 +138,8 @@ pub fn context<'a>(
         environment,
         config,
         provenance,
+        files: &SystemFileFacts,
+        commands: &BashTokenCommandRunner,
         personal_config: root.join("config.local.md"),
         insecure_marker: root.join("allow-insecure-local"),
         command: CommandPolicy::rooted_at(root.to_path_buf()),

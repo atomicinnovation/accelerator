@@ -15,6 +15,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::credentials::{CommandPolicy, CredentialContext};
+use config_adapters::credentials::{
+    BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
+};
 use linear_client::filter::FixedStates;
 use linear_client::filter::FixedTeam;
 use linear_client::transport::Transport;
@@ -22,10 +26,7 @@ use linear_client::{LinearClient, UploadTransport};
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
-use tracker_support::{
-    ClockJitter, CommandPolicy, CredentialContext, SystemEnvironment,
-    SystemSleeper, TransportConfig,
-};
+use tracker_support::{ClockJitter, SystemSleeper, TransportConfig};
 use tracker_test_support::contract::{run_all, ContractSubject};
 use tracker_test_support::seed::{
     guard_target, representative_records, run_seed, ScratchAllowlist,
@@ -35,7 +36,7 @@ use tracker_test_support::seed::{
 /// question arises.
 struct NothingTracked;
 
-impl tracker_support::Provenance for NothingTracked {
+impl config::credentials::Provenance for NothingTracked {
     fn is_tracked(&self, _path: &Path) -> bool {
         false
     }
@@ -120,8 +121,11 @@ fn live_client() -> LiveClient {
         environment: &environment,
         config: &config,
         provenance: &provenance,
+        files: &SystemFileFacts,
+        commands: &BashTokenCommandRunner,
         personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(tracker_support::INSECURE_MARKER_RELATIVE),
+        insecure_marker: root
+            .join(config::credentials::INSECURE_MARKER_RELATIVE),
         command: CommandPolicy::rooted_at(root.clone()),
     };
     let credentials =

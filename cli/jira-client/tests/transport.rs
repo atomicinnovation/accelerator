@@ -7,12 +7,13 @@ mod support;
 
 use std::time::Duration;
 
+use config::credentials::{Secret, TokenSource};
 use http_test_support::{MockServer, RequestKey, Route};
 use jira_client::transport::Transport;
 use jira_client::{ClientError, Credentials};
 use reqwest::{Method, Url};
 use support::{NoJitter, RecordingSleeper};
-use tracker_support::{Secret, TokenSource, TransportConfig};
+use tracker_support::TransportConfig;
 
 const MYSELF: &str = "/rest/api/3/myself";
 

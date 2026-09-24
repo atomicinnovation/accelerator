@@ -1,7 +1,7 @@
 //! Jira needs three values, not one: a site, an account email and a token.
 //!
-//! The token climbs `tracker_support`'s five-rung ladder; this module supplies
-//! the keys and validates the other two. `jira.site` is where the token is
+//! The token climbs `config::credentials`'s five-rung ladder; this module
+//! supplies the keys and validates the other two. `jira.site` is where the token is
 //! *sent*, so it is validated as a credential destination: absolute `https`,
 //! no userinfo, no query, no fragment, default port, and a host matching
 //! `*.atlassian.net` at a label boundary or listed exactly in
@@ -17,16 +17,16 @@
 //! working — and the absolute-URL form exists for the self-hosted tenants
 //! `jira.allowed_sites` is for.
 
+use config::credentials::refuse_tracked_source;
+use config::credentials::CredentialContext;
+use config::credentials::Secret;
+use config::credentials::TokenKeys;
+use config::credentials::TokenSource;
 use config::ConfigAccess;
 use config::Key;
 use config::Level;
 use config::Resolved;
 use reqwest::Url;
-use tracker_support::credentials::refuse_tracked_source;
-use tracker_support::CredentialContext;
-use tracker_support::Secret;
-use tracker_support::TokenKeys;
-use tracker_support::TokenSource;
 
 use crate::error::ClientError;
 
@@ -69,7 +69,7 @@ pub fn resolve_credentials(
     let base = base_url(&site, &allowed)?;
     let email = configured(context.config, "jira.email")?
         .ok_or(ClientError::NoEmail)?;
-    let resolved = tracker_support::resolve_token(context, &token_keys()?)?;
+    let resolved = config::credentials::resolve_token(context, &token_keys()?)?;
 
     Ok(Credentials {
         base,

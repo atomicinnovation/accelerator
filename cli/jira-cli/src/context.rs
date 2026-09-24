@@ -13,9 +13,14 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::credentials::CommandPolicy;
+use config::credentials::CredentialContext;
+use config::credentials::Provenance;
 use config::ConfigAccess;
 use config::Key;
 use config_adapters::compose;
+use config_adapters::credentials::project_credential_context;
+use config_adapters::credentials::CredentialPorts;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use jira_client::auth::base_url;
@@ -27,13 +32,8 @@ use jira_client::transport::Url;
 use jira_client::ClientError;
 use jira_client::JiraClient;
 use tracker_support::ClockJitter;
-use tracker_support::CommandPolicy;
-use tracker_support::CredentialContext;
-use tracker_support::Provenance;
-use tracker_support::SystemEnvironment;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
-use tracker_support::INSECURE_MARKER_RELATIVE;
 use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs_adapters::library::InProcessProbe;
@@ -156,16 +156,15 @@ pub fn build_client() -> Result<Built, ContextError> {
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let environment = SystemEnvironment;
-    let provenance = VcsProvenance::discovered(root.clone());
-    let context = CredentialContext {
-        environment: &environment,
-        config: service,
-        provenance: &provenance,
-        personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(INSECURE_MARKER_RELATIVE),
-        command: CommandPolicy::rooted_at(root.clone()),
-    };
+    let ports = CredentialPorts::system(Box::new(VcsProvenance::discovered(
+        root.clone(),
+    )));
+    let context = project_credential_context(
+        &root,
+        &ports,
+        service,
+        CommandPolicy::DEFAULT_TIMEOUT,
+    );
 
     let transport_config = pull_transport_config(service)?;
     let client = match api_base_uri()? {

@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use config::credentials::CredentialContext;
 use remote_projection::Integration;
 use remote_projection::Op;
 use reqwest::Method;
@@ -25,7 +26,6 @@ use tracker::ValidationOutcome;
 use tracker::VisibleEntity;
 use tracker_support::port_body;
 use tracker_support::ClockJitter;
-use tracker_support::CredentialContext;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
 

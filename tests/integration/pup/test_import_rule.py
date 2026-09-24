@@ -322,6 +322,31 @@ def test_real_config_rule_passes_a_compliant_service(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# config::service reaching the filesystem, a process, or the process
+# environment directly — denied even though each sits inside the permitted
+# std, so the credential ladder stays behind its ports.
+_CONFIG_SERVICE_STD_IO_VIOLATIONS = (
+    "use std::fs;\n\npub fn make() -> bool {\n"
+    '    fs::metadata("x").is_ok()\n}\n',
+    "use std::process::Command;\n\npub fn make() -> Command {\n"
+    '    Command::new("bash")\n}\n',
+    'use std::env;\n\npub fn make() -> bool {\n    env::var("X").is_ok()\n}\n',
+)
+
+
+@pytest.mark.parametrize("service_body", _CONFIG_SERVICE_STD_IO_VIOLATIONS)
+def test_real_config_rule_rejects_direct_std_io(
+    tmp_path: Path, service_body: str
+) -> None:
+    _require_tools()
+    _write_config_probe(tmp_path, service_body)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "config_domain_imports_only_permitted" in output, output
+
+
 # --- The domain rule also denies the shared `store` crate ---
 #
 # store is infrastructure and carries no inward rule of its own, so the
@@ -809,9 +834,9 @@ def test_tracker_test_support_rule_permits_importing_tracker(
 #
 # Both are `denied`-only rules over a whole crate, driven against a workspace
 # whose crate is literally named for it. remote-projection must not spawn;
-# tracker-support may (it runs the credential helper) but must not grow a
-# transport. Each compliant control imports something real, so a matcher that
-# resolved nothing could not pass it silently.
+# tracker-support must neither spawn nor grow a transport. Each compliant
+# control imports something real, so a matcher that resolved nothing could not
+# pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
@@ -845,10 +870,6 @@ _PROJECTION_COMPLIANT = (
     "pub fn make() -> BTreeMap<String, String> {\n"
     "    BTreeMap::new()\n"
     "}\n"
-)
-_POLICY_COMPLIANT = (
-    "use std::process::Command;\n\n"
-    'pub fn helper() -> Command {\n    Command::new("bash")\n}\n'
 )
 
 
@@ -946,11 +967,21 @@ def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
     assert "tracker_support_carries_policy_not_transport" in output, output
 
 
-def test_tracker_support_rule_permits_running_the_credential_helper(
-    tmp_path: Path,
-) -> None:
+def test_tracker_support_rule_rejects_spawning(tmp_path: Path) -> None:
     _require_tools()
-    _write_shared_crate_probe(tmp_path, "tracker-support", _POLICY_COMPLIANT)
+    _write_shared_crate_probe(tmp_path, "tracker-support", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "tracker_support_carries_policy_not_transport" in output, output
+
+
+def test_tracker_support_rule_permits_std_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(
+        tmp_path, "tracker-support", _PROJECTION_COMPLIANT
+    )
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 

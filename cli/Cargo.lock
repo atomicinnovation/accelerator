@@ -2832,6 +2832,7 @@ name = "jira-client"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
+ "config-adapters",
  "corpus",
  "corpus-adapters",
  "hex",
@@ -3054,6 +3055,7 @@ name = "linear-client"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
+ "config-adapters",
  "corpus",
  "corpus-adapters",
  "http-test-support",
@@ -4991,7 +4993,6 @@ name = "tracker-support"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
- "tempfile",
  "tracker",
 ]
 
@@ -5638,6 +5639,7 @@ dependencies = [
 name = "work-adapters"
 version = "1.24.0-pre.73"
 dependencies = [
+ "config",
  "corpus",
  "hex",
  "http-test-support",
