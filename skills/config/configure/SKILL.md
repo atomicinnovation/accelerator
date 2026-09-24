@@ -858,9 +858,11 @@ repository resolves its scope from the catalogue with no configuration.
 
 #### Pull filters
 
-`linear.pull.filters` narrows discovery by `state`, `label` and `assignee`,
-each a list of values (values OR'd, keys AND'd). Every value resolves to a
-Linear id through `catalogue.json` before anything is paged:
+`linear.pull.filters` narrows discovery by `state`, `label`, `assignee` and
+`project`, each a list of values (values OR'd, keys AND'd). `project` is
+Linear-only: a Jira `pull` block accepts `state`, `label` and `assignee`, and
+refuses `project` at validation. Every value resolves to a Linear id through
+`catalogue.json` before anything is paged:
 
 - **Per team in scope.** A `state` or team `label` matches in each team the
   pull covers and contributes that team's id; a workspace label matches
@@ -871,6 +873,10 @@ Linear id through `catalogue.json` before anything is paged:
   name; the first tier with a match decides. A former member, or someone who
   assigns work without being a member, refuses — use a current member, or
   widen the scope.
+- **Projects are the scoped teams' projects.** A `project` matches by name
+  among the projects linked to a team in scope. An active project wins over
+  archived ones of the same name; two active projects of one name refuse as
+  ambiguous, listing the candidates — rename one in Linear.
 - **Refusals are loud.** A value no team in scope carries refuses the sync
   with exit 74, under `pull filters could not be resolved:`, even when its
   key's other values resolve. It is never silently dropped from the filter.

@@ -121,6 +121,23 @@ fn an_invalid_pull_block_fails_loud_before_discovery() -> Result<(), TestError>
 }
 
 #[test]
+fn a_jira_project_filter_fails_loud_before_discovery() -> Result<(), TestError>
+{
+    let repo = scratch_repo(Some("jira"))?;
+    fs::write(
+        repo.path().join(".accelerator/config.md"),
+        "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+         filters:\n      project: [Alpha]\n---\n",
+    )?;
+    let output = run(repo.path(), &["--preview"])?;
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("`project`"), "{stderr}");
+    assert!(stderr.contains("label, state, assignee"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn push_only_and_pull_only_together_is_a_usage_error() -> Result<(), TestError>
 {
     let repo = scratch_repo(Some("jira"))?;

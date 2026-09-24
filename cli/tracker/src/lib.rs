@@ -355,8 +355,8 @@ pub struct SearchScope {
 /// The filter-field keys a tracker accepts on a `pull` block.
 ///
 /// A validation vocabulary, not part of the request port: the config-surface
-/// filter keys (`label`, `state`, `assignee`) a `pull` block may name, held so
-/// the structural validator can reject an unsupported key. Carries only
+/// filter keys a `pull` block may name, held so the structural validator can
+/// reject an unsupported key. Carries only
 /// `accepted` today; a required-key slot is deferred until a tracker needs one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FilterSchema {
