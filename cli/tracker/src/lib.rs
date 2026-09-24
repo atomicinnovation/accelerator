@@ -162,8 +162,9 @@ pub enum TrackerError {
     /// single status-to-class table is therefore wrong — classify per
     /// operation, and when in doubt use `Terminal`.
     ///
-    /// For a read it is the only class, because there was nothing to mutate;
-    /// the caller degrades rather than repeating blindly.
+    /// A read that fails, other than a `search` refused on configuration,
+    /// is always this class, because there was nothing to mutate; the caller
+    /// degrades rather than repeating blindly.
     Retryable {
         /// What failed, for a human reading a sync report. State the
         /// provider, the operation, the external id where one is known, and

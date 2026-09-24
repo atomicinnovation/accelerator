@@ -61,11 +61,13 @@
 //!   configuration: its credentials are missing or refused, or a non-push-only
 //!   run's discovery scope names no valid target (an unset or unresolvable
 //!   key, or a configured `additional_*`/`all_*` entity the credential cannot
-//!   see). **No write was made** — the refusal is pre-flight, before the
-//!   apply/push phase. A broadened scope is confirmed against a live
+//!   see). A run-level refusal is pre-flight, before the apply/push phase, so
+//!   **no write was made**. A broadened scope is confirmed against a live
 //!   entity-enumeration read, so a read may have gone out, but nothing was
 //!   mutated — so save locally and fix the config; never reconcile against a
-//!   create that never happened.
+//!   create that never happened. A sync report whose worst outcome is a
+//!   per-item `unconfigured` failure also exits `74`: that item sent nothing,
+//!   but other items in the same run may already have applied.
 
 use tracker::TrackerError;
 
