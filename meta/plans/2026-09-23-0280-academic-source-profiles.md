@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T21:30:00+00:00"
+last_updated: "2026-09-24T20:29:44+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1783,26 +1783,35 @@ until phase 9, but a hand-edited brief already reaches the academic profiles.
 **Changes**:
 - `OutlineItem::parse(line)`: a checkbox, the question, and an optional
   profiles suffix introduced by `—`, `–`, or `--` before `profiles:`; an item
-  without one is `web`. A line containing `profiles:` with no recognised
-  separator is reported as a warning.
+  without one is `DEFAULT_PROFILE` (`web`). A line containing `profiles:`
+  with no recognised separator, or naming no profile after it, keeps the
+  whole text as its question, defaults to `web`, and is reported as a
+  warning. `Outline::parse(text)` numbers each item by its one-based line in
+  the whole file, frontmatter included, so `conduct` edits it in place.
 - `QuestionSlug::from(question)`: ASCII lowercase, runs outside `[a-z0-9]` to
   `-`, trimmed, at most 60 characters, `focus-area` when empty.
-- `Round::plan(RoundInputs { items, findings, markers, source_profiles,
-  available_profiles })`:
+- `Round::plan(&RoundInputs { outline, findings, markers, source_profiles,
+  available_profiles })`, where each `Finding` is `retained(name, question,
+  profile)` or `invalid(name)`, and each `QuarantineMarker` carries its name
+  and the question its frontmatter names, if any:
   - a pair is complete when a retained finding carries its `question` and
     `source_profile` (matched on frontmatter, so legacy `<nn>-<slug>.md`
     findings count). Questions compare after trimming and collapsing runs of
     whitespace. A finding whose question matches no outline item is reported
     as a warning;
   - a pair whose profile is not in `source_profiles` or not in
-    `available_profiles` is `Skipped(reason)`. An item is complete when it has
+    `available_profiles` is a `Skip` whose `SkipReason` is `NotInBrief` or
+    `NotInstalled`, explained as "'<p>' is not in the brief's
+    source_profiles" or "no '<p>-profile' skill is installed". An item is complete when it has
     at least one eligible pair and every eligible pair is complete, so an item
     whose pairs are all skipped is never ticked;
   - a focus area's `<nn>` is, in order: the lowest `<nn>` among its retained
     findings; the lowest among quarantine markers whose frontmatter names its
-    question; the next index unused across findings and markers. It is
-    allocated once per focus area and shared by all that area's outstanding
-    pairs;
+    question; one above the highest index any finding, retained or invalid,
+    or marker holds. It is allocated once per focus area and shared by all
+    that area's outstanding pairs. An invalid finding holds its index but
+    never lends it, and a question repeated across rounds is allocated, and
+    its pairs and skips listed, only at its first item;
   - each outstanding pair gets `findings/<nn>-<question-slug>-<profile>.md`.
 
 Tests cover:
@@ -1818,19 +1827,32 @@ Tests cover:
   (complete), and one with different wording (a warning);
 - two retained findings of one focus area with different `<nn>` (the lowest
   wins);
-- an item ticked but newly incomplete.
+- an item ticked but newly incomplete;
+- an invalid finding holding its index, and a marker without a question
+  holding its index;
+- a skipped pair beside a complete one (the item is complete);
+- a question repeated across rounds (allocated once);
+- the one-based line numbering.
 
 #### 2. Verb
 
-**Files**: `cli/corpus-cli/src/cli.rs`, `topic_research.rs` (new),
-`cli/corpus-adapters` (reading the set and validating findings with the
-existing validator)
+**Files**: `cli/corpus-cli/src/cli.rs`, `main.rs`, `topic_research.rs`
+(new; `corpus-cli` gains `serde_json`),
+`cli/corpus-adapters/src/topic_research.rs` (new)
 **Changes**: `accelerator corpus topic-research outstanding SLUG
 --profiles-dir DIR` prints JSON:
 `{"items":[{"line":N,"question":…,"complete":bool}],"pairs":[{"question":…,"profile":…,"path":…}],"skipped":[{"question":…,"profile":…,"reason":…}],"warnings":[…]}`.
 `available_profiles` are the `<name>` of each `DIR/<name>-profile/SKILL.md`,
 found by one `profile_skill_path(dir, name)` function that the contract tests
-also use, so a new profile needs no corpus change. The JSON is additive-only:
+also use, so a new profile needs no corpus change. The adapter's
+`read_round_inputs(set_root, profiles_dir, fs)` and
+`available_profiles(profiles_dir, fs)` run over the existing `DirReader` and
+`FileReader` ports, and a finding is retained when `validate_path` reports
+no violation and it names a `question` and `source_profile`. A missing brief
+or `source_profiles` gives `["web"]`, a missing outline gives no items, and
+a missing profiles directory fails the command with exit `1`. The slug
+resolves through `corpus resolve`'s own `topic-research` resolution. The
+JSON is additive-only:
 fields may be added, never renamed or removed, and consumers ignore unknown
 fields. `path` is absolute and canonical, so
 `conduct` injects it verbatim. The command is read-only. It exits `0` with the
@@ -1850,8 +1872,10 @@ unresolvable set.
 - small fixtures for a present but invalid, unquarantined finding (its pair
   stays outstanding), a `profiles:` line without a separator (a warning), and
   a profile missing from `--profiles-dir` (skipped with a reason);
-- a missing slug exits `1`;
-- every allocated path passes the guard's `is_finding_path`.
+- a missing slug exits `1` with only the `E_TOPIC_RESEARCH_UNRESOLVED` line
+  on stderr and nothing on stdout;
+- every allocated path, from the multi-profile fixture and a fresh set with
+  a non-Latin question, passes the guard's `is_finding_path`.
 
 #### 3. Fixture
 
@@ -1871,8 +1895,9 @@ validates and the manifest counts agree with disk through the existing
 
 **File**: `skills/research/research-topic/SKILL.md`
 **Changes**:
-- `description` and `argument-hint` say "web and scholarly sources" and
-  "one researcher per (focus area, profile)"; `allowed-tools` adds
+- `description` says "web and scholarly sources" and "one researcher per
+  (focus area, profile)"; `argument-hint` is unchanged, since it is a usage
+  synopsis with no room for either phrase. `allowed-tools` adds
   `Bash(accelerator corpus topic-research *)` and
   `Bash(accelerator research fetch *)`. The second is the grant the spawned
   researchers inherit (see phase 7's baseline).
@@ -1882,7 +1907,10 @@ validates and the manifest counts agree with disk through the existing
     + `*)`;
   - `every_skill_injecting_an_academic_profile_grants_its_fetch`, asserting
     that any SKILL.md referencing a profile that invokes
-    `accelerator research fetch` carries the same rule.
+    `accelerator research fetch` carries the same rule. A skill references a
+    profile when it holds that profile's `profile_skill_path`, by name or
+    through the `<profile>` placeholder `conduct` injects with; the test
+    fails if no skill references one, so it cannot pass vacuously.
 - **outline**: each focus area gets one or more profiles chosen from the
   nature of its question, always a subset of the brief's `source_profiles`,
   written as `- [ ] <question> — profiles: <p>, <p>`. `breadth` caps focus
@@ -1893,9 +1921,15 @@ validates and the manifest counts agree with disk through the existing
     step) and spawn one researcher per returned pair, injecting
     `${CLAUDE_PLUGIN_ROOT}/skills/research/profiles/<profile>-profile/SKILL.md`,
     the profile name, and the pair's path.
+  - Before spawning, quarantine any returned `path` that already exists. It
+    can only hold a finding that does not complete its pair, such as an
+    invalid `01-a-openalex.md` beside a retained `01-a-web.md`.
   - After the round, re-run the verb and set every checkbox to its `complete`
     value, in both directions.
   - Quarantine an invalid finding as `.<name>.invalid` beside it.
+  - The reopen section's crash recovery now credits `conduct`'s final,
+    disk-derived manifest edit rather than a reconcile-first step, which the
+    verb replaces.
   - The summary names each outstanding pair with its reason and next step.
     `conduct` never fails because a source is unavailable.
 
@@ -1929,7 +1963,10 @@ validates and the manifest counts agree with disk through the existing
 
 #### Automated Verification
 
-- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus-cli` (count up by the new cases)
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus`
+      (the binary's package is `accelerator-corpus`): 26 `round` cases, 8
+      `topic_research_outstanding` cases, 2 multi-profile goldens, and 2
+      contract cases added
 - [x] `mise run public-api:check` after `public-api:update` for `corpus`
 - [x] `mise run lint:skill-permissions:check`, `mise run lint:dispatch-coherence:check`, and `mise run test:integration:skill-invocation`
 - [x] `mise run check` and `mise run test` exit `0` — `test:e2e` run with
