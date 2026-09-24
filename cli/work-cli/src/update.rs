@@ -269,11 +269,7 @@ fn push_failure(
             path.display()
         )),
         TrackerError::Unconfigured { detail } => {
-            TryRunError::Unconfigured(format!(
-                "E_PUSH_UNCONFIGURED: pushing {} was refused on configuration \
-                 and nothing was sent: {detail}",
-                path.display()
-            ))
+            TryRunError::Unconfigured(detail)
         }
         TrackerError::Terminal { detail } => {
             baseline_store.remove(id).ok();
@@ -509,7 +505,7 @@ mod tests {
         let RunOutcome::PushUnconfigured(message) = outcome else {
             panic!("an unconfigured push exits 74");
         };
-        assert!(message.contains("no team in scope carries label"));
+        assert_eq!(message, "no team in scope carries label \"typo\"");
         assert_eq!(
             std::fs::read_to_string(&baseline).expect("baseline"),
             seeded,
