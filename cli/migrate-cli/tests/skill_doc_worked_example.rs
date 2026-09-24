@@ -9,6 +9,7 @@
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
 
 use tempfile::TempDir;
 
@@ -102,6 +103,35 @@ fn the_list_output_in_the_worked_example_matches_the_real_binary(
 
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     assert_eq!(String::from_utf8(output.stdout)?.trim_end(), expected);
+    Ok(())
+}
+
+#[test]
+fn the_stall_in_the_worked_example_matches_the_real_binary(
+) -> Result<(), TestError> {
+    let doc = fs::read_to_string(SKILL_MD)?;
+    let expected = extract_block(&doc, "stall")?;
+
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    seed_worked_example(root)?;
+
+    let output = Command::new(BIN)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()?;
+
+    let decisions_path = fs::canonicalize(root)?.join(
+        ".accelerator/state/\
+         migrations-0007-unify-meta-corpus-frontmatter-decisions.txt",
+    );
+    let stderr = String::from_utf8(output.stderr)?
+        .replace(&decisions_path.display().to_string(), "<path>");
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains(&expected),
+        "expected {stderr} to contain {expected}"
+    );
     Ok(())
 }
 

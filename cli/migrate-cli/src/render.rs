@@ -216,7 +216,7 @@ impl Reporter for StdoutReporter {
         );
         eprintln!("[{id}]   working tree. Re-running /accelerator:migrate resumes this");
         eprintln!(
-            "[{id}]   partial run when the base revision is unchanged (decided"
+            "[{id}]   partial run when the run base is unchanged (decided"
         );
         eprintln!("[{id}]   transformations are replayed, not re-applied).");
         eprintln!("[{id}]");

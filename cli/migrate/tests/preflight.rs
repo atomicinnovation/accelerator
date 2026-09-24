@@ -492,10 +492,10 @@ fn runner_managed_paths_are_never_listed() -> Result<(), TestError> {
 
 /// The fail-closed usability gate, kept for every class ownership cannot
 /// settle by pattern alone. A session artefact needs a usable manifest at a
-/// matching revision; the runner's own bookkeeping does not, and is filtered
+/// matching run base; the runner's own bookkeeping does not, and is filtered
 /// out before this gate is reached.
 #[test]
-fn an_absent_manifest_or_run_id_refuses_even_a_session_artefact(
+fn an_absent_manifest_or_run_base_refuses_even_a_session_artefact(
 ) -> Result<(), TestError> {
     let session_log = ".accelerator/state/migrations-0099-session.jsonl";
     let manifest = InMemoryManifestStore::default();
