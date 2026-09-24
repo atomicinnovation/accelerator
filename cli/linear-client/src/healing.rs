@@ -203,7 +203,6 @@ impl CatalogueHealing {
     }
 }
 
-/// One heal in progress.
 struct Heal<'a> {
     stored: &'a CatalogueDocument,
     held: CatalogueDocument,

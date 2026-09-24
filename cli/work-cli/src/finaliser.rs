@@ -19,7 +19,6 @@ use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 
-/// A finished run, as the finaliser sees it.
 pub struct FinishedRun<'a> {
     pub report: &'a RunReport,
     pub mode: RunMode,
@@ -284,7 +283,6 @@ mod tests {
             .expect("the catalogue")
         }
 
-        /// Finalises `report` against `linear`, returning the diagnostics.
         fn finalise(
             &self,
             linear: Result<Linear, FetchUnavailable>,

@@ -598,8 +598,8 @@ fn refuse_teams_without_states<'a>(
 /// # Errors
 ///
 /// [`SurfaceError::CatalogueTruncated`] when another page would pass the
-/// connection's ceiling, [`SurfaceError::DeadlineExpired`] when `deadline` has passed
-/// before a page is requested, or the error `fetch_page` returns.
+/// connection's ceiling, [`SurfaceError::DeadlineExpired`] when `deadline`
+/// has passed before a page is requested, or the error `fetch_page` returns.
 pub(crate) fn paginate(
     connection: &PagedConnection,
     deadline: &Deadline,
