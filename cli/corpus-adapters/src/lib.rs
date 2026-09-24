@@ -16,6 +16,7 @@ pub mod metadata;
 pub mod patcher;
 pub mod scanner;
 pub mod store;
+pub mod topic_research;
 pub mod work_item_pattern;
 
 pub use crate::assemble::{assemble, AssembledDocument};

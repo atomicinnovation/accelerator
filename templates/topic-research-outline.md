@@ -25,5 +25,5 @@ checkboxes track which focus areas have been researched.]
 
 ## Round 1
 
-- [ ] [Focus area question]
-- [ ] [Focus area question]
+- [ ] [Focus area question] — profiles: [profile, …]
+- [ ] [Focus area question] — profiles: [profile, …]

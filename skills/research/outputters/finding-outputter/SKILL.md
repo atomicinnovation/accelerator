@@ -26,6 +26,7 @@ derive it:
 - **output path** — where to write the finding.
 - **round** — the round number this finding belongs to.
 - **question** — the focus area's question.
+- **source profile** — the profile this finding was researched through.
 - **timestamp** — the ISO datetime for `date` and `last_updated`.
 - **author** — the value for `author` and `last_updated_by`.
 
@@ -40,7 +41,9 @@ Fill the template from the injected values, observing the deltas it cannot
 express on its own:
 
 - `status` is always `complete`.
-- `source_profile` is always `web`.
+- `source_profile` is always the injected source profile, and `question` the
+  injected question byte for byte, each overriding any value the template
+  carries.
 - Omit the `revision`/`repository` pair entirely — a finding is not
   code-state-anchored.
 - The typed-linkage slots (`parent`, `relates_to`) are **omit-when-empty**: emit
@@ -65,5 +68,9 @@ way, and use your judgement for any section the template shapes differently.
   - [Title](url) — tier-1 — {source domain/venue}
   ```
 
+  When the profile's sources held nothing relevant, Sources reads
+  `None found.` instead.
+
 Tier every source `tier-1`/`tier-2`/`tier-3` by the source profile's vocabulary,
-from venue identity alone.
+from venue identity alone. The tier text carries any suffix the profile
+prescribes, such as `tier-3 (retracted)`.

@@ -9,7 +9,7 @@ status: "complete"                            # complete
 kind: "finding"                               # (type, kind) discriminator
 round: 1
 question: "{focus area question}"
-source_profile: "web"
+source_profile: "{source profile}"
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                    # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                                # typed-linkage list: ["topic-research:NNNN", ...] or []

@@ -566,6 +566,176 @@ pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::topic_research
+pub mod corpus::topic_research::round
+pub enum corpus::topic_research::round::SkipReason
+pub corpus::topic_research::round::SkipReason::NotInBrief
+pub corpus::topic_research::round::SkipReason::NotInstalled
+impl core::clone::Clone for corpus::topic_research::round::SkipReason
+pub fn corpus::topic_research::round::SkipReason::clone(&self) -> corpus::topic_research::round::SkipReason
+impl core::cmp::Eq for corpus::topic_research::round::SkipReason
+impl core::cmp::PartialEq for corpus::topic_research::round::SkipReason
+pub fn corpus::topic_research::round::SkipReason::eq(&self, other: &corpus::topic_research::round::SkipReason) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::SkipReason
+pub fn corpus::topic_research::round::SkipReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::topic_research::round::SkipReason
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::SkipReason
+pub enum corpus::topic_research::round::Warning
+pub corpus::topic_research::round::Warning::UnmatchedFinding
+pub corpus::topic_research::round::Warning::UnmatchedFinding::name: alloc::string::String
+pub corpus::topic_research::round::Warning::UnmatchedFinding::question: alloc::string::String
+pub corpus::topic_research::round::Warning::UnseparatedProfiles
+pub corpus::topic_research::round::Warning::UnseparatedProfiles::line: usize
+impl core::clone::Clone for corpus::topic_research::round::Warning
+pub fn corpus::topic_research::round::Warning::clone(&self) -> corpus::topic_research::round::Warning
+impl core::cmp::Eq for corpus::topic_research::round::Warning
+impl core::cmp::PartialEq for corpus::topic_research::round::Warning
+pub fn corpus::topic_research::round::Warning::eq(&self, other: &corpus::topic_research::round::Warning) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::Warning
+pub fn corpus::topic_research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::topic_research::round::Warning
+pub fn corpus::topic_research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Warning
+pub struct corpus::topic_research::round::Finding
+impl corpus::topic_research::round::Finding
+pub fn corpus::topic_research::round::Finding::invalid(name: &str) -> Self
+pub fn corpus::topic_research::round::Finding::retained(name: &str, question: &str, profile: &str) -> Self
+impl core::clone::Clone for corpus::topic_research::round::Finding
+pub fn corpus::topic_research::round::Finding::clone(&self) -> corpus::topic_research::round::Finding
+impl core::cmp::Eq for corpus::topic_research::round::Finding
+impl core::cmp::PartialEq for corpus::topic_research::round::Finding
+pub fn corpus::topic_research::round::Finding::eq(&self, other: &corpus::topic_research::round::Finding) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::Finding
+pub fn corpus::topic_research::round::Finding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Finding
+pub struct corpus::topic_research::round::ItemStatus
+pub corpus::topic_research::round::ItemStatus::complete: bool
+pub corpus::topic_research::round::ItemStatus::line: usize
+pub corpus::topic_research::round::ItemStatus::question: alloc::string::String
+impl core::clone::Clone for corpus::topic_research::round::ItemStatus
+pub fn corpus::topic_research::round::ItemStatus::clone(&self) -> corpus::topic_research::round::ItemStatus
+impl core::cmp::Eq for corpus::topic_research::round::ItemStatus
+impl core::cmp::PartialEq for corpus::topic_research::round::ItemStatus
+pub fn corpus::topic_research::round::ItemStatus::eq(&self, other: &corpus::topic_research::round::ItemStatus) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::ItemStatus
+pub fn corpus::topic_research::round::ItemStatus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::ItemStatus
+pub struct corpus::topic_research::round::Outline
+pub corpus::topic_research::round::Outline::items: alloc::vec::Vec<corpus::topic_research::round::OutlineEntry>
+impl corpus::topic_research::round::Outline
+pub fn corpus::topic_research::round::Outline::parse(text: &str) -> Self
+impl core::clone::Clone for corpus::topic_research::round::Outline
+pub fn corpus::topic_research::round::Outline::clone(&self) -> corpus::topic_research::round::Outline
+impl core::cmp::Eq for corpus::topic_research::round::Outline
+impl core::cmp::PartialEq for corpus::topic_research::round::Outline
+pub fn corpus::topic_research::round::Outline::eq(&self, other: &corpus::topic_research::round::Outline) -> bool
+impl core::default::Default for corpus::topic_research::round::Outline
+pub fn corpus::topic_research::round::Outline::default() -> corpus::topic_research::round::Outline
+impl core::fmt::Debug for corpus::topic_research::round::Outline
+pub fn corpus::topic_research::round::Outline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Outline
+pub struct corpus::topic_research::round::OutlineEntry
+pub corpus::topic_research::round::OutlineEntry::item: corpus::topic_research::round::OutlineItem
+pub corpus::topic_research::round::OutlineEntry::line: usize
+impl core::clone::Clone for corpus::topic_research::round::OutlineEntry
+pub fn corpus::topic_research::round::OutlineEntry::clone(&self) -> corpus::topic_research::round::OutlineEntry
+impl core::cmp::Eq for corpus::topic_research::round::OutlineEntry
+impl core::cmp::PartialEq for corpus::topic_research::round::OutlineEntry
+pub fn corpus::topic_research::round::OutlineEntry::eq(&self, other: &corpus::topic_research::round::OutlineEntry) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::OutlineEntry
+pub fn corpus::topic_research::round::OutlineEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::OutlineEntry
+pub struct corpus::topic_research::round::OutlineItem
+pub corpus::topic_research::round::OutlineItem::question: alloc::string::String
+pub corpus::topic_research::round::OutlineItem::ticked: bool
+impl corpus::topic_research::round::OutlineItem
+pub fn corpus::topic_research::round::OutlineItem::parse(line: &str) -> core::option::Option<Self>
+pub fn corpus::topic_research::round::OutlineItem::profiles(&self) -> alloc::vec::Vec<&str>
+impl core::clone::Clone for corpus::topic_research::round::OutlineItem
+pub fn corpus::topic_research::round::OutlineItem::clone(&self) -> corpus::topic_research::round::OutlineItem
+impl core::cmp::Eq for corpus::topic_research::round::OutlineItem
+impl core::cmp::PartialEq for corpus::topic_research::round::OutlineItem
+pub fn corpus::topic_research::round::OutlineItem::eq(&self, other: &corpus::topic_research::round::OutlineItem) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::OutlineItem
+pub fn corpus::topic_research::round::OutlineItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::OutlineItem
+pub struct corpus::topic_research::round::Pair
+pub corpus::topic_research::round::Pair::path: alloc::string::String
+pub corpus::topic_research::round::Pair::profile: alloc::string::String
+pub corpus::topic_research::round::Pair::question: alloc::string::String
+impl core::clone::Clone for corpus::topic_research::round::Pair
+pub fn corpus::topic_research::round::Pair::clone(&self) -> corpus::topic_research::round::Pair
+impl core::cmp::Eq for corpus::topic_research::round::Pair
+impl core::cmp::PartialEq for corpus::topic_research::round::Pair
+pub fn corpus::topic_research::round::Pair::eq(&self, other: &corpus::topic_research::round::Pair) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::Pair
+pub fn corpus::topic_research::round::Pair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Pair
+pub struct corpus::topic_research::round::QuarantineMarker
+impl corpus::topic_research::round::QuarantineMarker
+pub fn corpus::topic_research::round::QuarantineMarker::new(name: &str, question: core::option::Option<alloc::string::String>) -> Self
+impl core::clone::Clone for corpus::topic_research::round::QuarantineMarker
+pub fn corpus::topic_research::round::QuarantineMarker::clone(&self) -> corpus::topic_research::round::QuarantineMarker
+impl core::cmp::Eq for corpus::topic_research::round::QuarantineMarker
+impl core::cmp::PartialEq for corpus::topic_research::round::QuarantineMarker
+pub fn corpus::topic_research::round::QuarantineMarker::eq(&self, other: &corpus::topic_research::round::QuarantineMarker) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::QuarantineMarker
+pub fn corpus::topic_research::round::QuarantineMarker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::QuarantineMarker
+pub struct corpus::topic_research::round::QuestionSlug(_)
+impl corpus::topic_research::round::QuestionSlug
+pub fn corpus::topic_research::round::QuestionSlug::as_str(&self) -> &str
+impl core::clone::Clone for corpus::topic_research::round::QuestionSlug
+pub fn corpus::topic_research::round::QuestionSlug::clone(&self) -> corpus::topic_research::round::QuestionSlug
+impl core::cmp::Eq for corpus::topic_research::round::QuestionSlug
+impl core::cmp::PartialEq for corpus::topic_research::round::QuestionSlug
+pub fn corpus::topic_research::round::QuestionSlug::eq(&self, other: &corpus::topic_research::round::QuestionSlug) -> bool
+impl core::convert::From<&str> for corpus::topic_research::round::QuestionSlug
+pub fn corpus::topic_research::round::QuestionSlug::from(question: &str) -> Self
+impl core::fmt::Debug for corpus::topic_research::round::QuestionSlug
+pub fn corpus::topic_research::round::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::QuestionSlug
+pub struct corpus::topic_research::round::Round
+pub corpus::topic_research::round::Round::items: alloc::vec::Vec<corpus::topic_research::round::ItemStatus>
+pub corpus::topic_research::round::Round::pairs: alloc::vec::Vec<corpus::topic_research::round::Pair>
+pub corpus::topic_research::round::Round::skipped: alloc::vec::Vec<corpus::topic_research::round::Skip>
+pub corpus::topic_research::round::Round::warnings: alloc::vec::Vec<corpus::topic_research::round::Warning>
+impl corpus::topic_research::round::Round
+pub fn corpus::topic_research::round::Round::plan(inputs: &corpus::topic_research::round::RoundInputs) -> Self
+impl core::clone::Clone for corpus::topic_research::round::Round
+pub fn corpus::topic_research::round::Round::clone(&self) -> corpus::topic_research::round::Round
+impl core::cmp::Eq for corpus::topic_research::round::Round
+impl core::cmp::PartialEq for corpus::topic_research::round::Round
+pub fn corpus::topic_research::round::Round::eq(&self, other: &corpus::topic_research::round::Round) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::Round
+pub fn corpus::topic_research::round::Round::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Round
+pub struct corpus::topic_research::round::RoundInputs
+pub corpus::topic_research::round::RoundInputs::available_profiles: alloc::vec::Vec<alloc::string::String>
+pub corpus::topic_research::round::RoundInputs::findings: alloc::vec::Vec<corpus::topic_research::round::Finding>
+pub corpus::topic_research::round::RoundInputs::markers: alloc::vec::Vec<corpus::topic_research::round::QuarantineMarker>
+pub corpus::topic_research::round::RoundInputs::outline: corpus::topic_research::round::Outline
+pub corpus::topic_research::round::RoundInputs::source_profiles: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for corpus::topic_research::round::RoundInputs
+pub fn corpus::topic_research::round::RoundInputs::clone(&self) -> corpus::topic_research::round::RoundInputs
+impl core::default::Default for corpus::topic_research::round::RoundInputs
+pub fn corpus::topic_research::round::RoundInputs::default() -> corpus::topic_research::round::RoundInputs
+impl core::fmt::Debug for corpus::topic_research::round::RoundInputs
+pub fn corpus::topic_research::round::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct corpus::topic_research::round::Skip
+pub corpus::topic_research::round::Skip::profile: alloc::string::String
+pub corpus::topic_research::round::Skip::question: alloc::string::String
+pub corpus::topic_research::round::Skip::reason: corpus::topic_research::round::SkipReason
+impl corpus::topic_research::round::Skip
+pub fn corpus::topic_research::round::Skip::explanation(&self) -> alloc::string::String
+impl core::clone::Clone for corpus::topic_research::round::Skip
+pub fn corpus::topic_research::round::Skip::clone(&self) -> corpus::topic_research::round::Skip
+impl core::cmp::Eq for corpus::topic_research::round::Skip
+impl core::cmp::PartialEq for corpus::topic_research::round::Skip
+pub fn corpus::topic_research::round::Skip::eq(&self, other: &corpus::topic_research::round::Skip) -> bool
+impl core::fmt::Debug for corpus::topic_research::round::Skip
+pub fn corpus::topic_research::round::Skip::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::topic_research::round::Skip
+pub const corpus::topic_research::round::DEFAULT_PROFILE: &str
 pub fn corpus::topic_research::is_finding_path(relative: &str) -> bool
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef

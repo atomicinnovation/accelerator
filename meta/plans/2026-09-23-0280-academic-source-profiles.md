@@ -1929,10 +1929,11 @@ validates and the manifest counts agree with disk through the existing
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus-cli` (count up by the new cases)
-- [ ] `mise run public-api:check` after `public-api:update` for `corpus`
-- [ ] `mise run lint:skill-permissions:check`, `mise run lint:dispatch-coherence:check`, and `mise run test:integration:skill-invocation`
-- [ ] `mise run check` and `mise run test` exit `0`
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus-cli` (count up by the new cases)
+- [x] `mise run public-api:check` after `public-api:update` for `corpus`
+- [x] `mise run lint:skill-permissions:check`, `mise run lint:dispatch-coherence:check`, and `mise run test:integration:skill-invocation`
+- [x] `mise run check` and `mise run test` exit `0` — `test:e2e` run with
+      `E2E_HEALTH_PORT=19187` past the same orphaned server (355 passed)
 
 #### Manual Verification
 
