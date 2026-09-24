@@ -30,7 +30,7 @@ use crate::surface::SurfaceError;
 use crate::transport::Deadline;
 
 const VIEWER: &str = "query { viewer { id name } }";
-const TEAMS: &str = "query($cursor: String) {
+const TEAM_ENUMERATION: &str = "query TeamEnumeration($cursor: String) {
     teams(first: 250, after: $cursor) {
       nodes { id name key }
       pageInfo { hasNextPage endCursor }
@@ -397,7 +397,7 @@ impl LinearClient {
             |cursor| {
                 let received = self
                     .transport()
-                    .send(TEAMS, &json!({ "cursor": cursor }))?;
+                    .send(TEAM_ENUMERATION, &json!({ "cursor": cursor }))?;
                 let body = interpret(&received, "list teams")?;
                 Ok(body.pointer("/data/teams").cloned().unwrap_or(Value::Null))
             },
