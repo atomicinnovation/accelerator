@@ -40,6 +40,8 @@ members = [
     "design-adapters",
     "design-cli",
     "research",
+    "research-adapters",
+    "research-cli",
     "process-probe"
 ]
 

@@ -439,6 +439,7 @@ pub enum research::request::Verb
 pub research::request::Verb::Lookup
 pub research::request::Verb::Search
 impl research::request::Verb
+pub const fn research::request::Verb::code(self) -> &'static str
 pub fn research::request::Verb::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
 impl core::clone::Clone for research::request::Verb
 pub fn research::request::Verb::clone(&self) -> research::request::Verb

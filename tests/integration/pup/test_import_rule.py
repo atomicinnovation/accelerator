@@ -986,6 +986,118 @@ def test_tracker_support_rule_permits_std_imports(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The research crates' rules ---
+#
+# research-adapters' decoding modules may not spawn, and no research crate may
+# reach tracker-support. Driven against crates named for the real ones, with a
+# stand-in `tracker-support` so the denied import resolves.
+
+_RESEARCH_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["{crate}", "tracker-support"]
+"""
+
+_RESEARCH_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tracker-support = {{ path = "../tracker-support" }}
+"""
+
+_TRACKER_SUPPORT_STUB_MANIFEST = """\
+[package]
+name = "tracker-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_TRACKER_SUPPORT_STUB_LIB = "pub struct Policy;\n"
+
+_TRACKER_SUPPORT_VIOLATION = (
+    "use tracker_support::Policy;\n\npub fn make() -> Policy {\n    Policy\n}\n"
+)
+
+
+def _write_research_probe(
+    root: Path, crate: str, lib_body: str, module: str | None = None
+) -> None:
+    (root / "Cargo.toml").write_text(_RESEARCH_WORKSPACE.format(crate=crate))
+
+    crate_src = root / crate / "src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / crate / "Cargo.toml").write_text(
+        _RESEARCH_MANIFEST.format(crate=crate)
+    )
+    if module is None:
+        (crate_src / "lib.rs").write_text(lib_body)
+    else:
+        (crate_src / "lib.rs").write_text(f"pub mod {module};\n")
+        (crate_src / f"{module}.rs").write_text(lib_body)
+
+    stub_src = root / "tracker-support/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker-support/Cargo.toml").write_text(
+        _TRACKER_SUPPORT_STUB_MANIFEST
+    )
+    (stub_src / "lib.rs").write_text(_TRACKER_SUPPORT_STUB_LIB)
+
+
+def test_research_decoder_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_research_probe(
+        tmp_path, "research-adapters", _SPAWN_VIOLATION, "openalex_json"
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "research_adapters_decoders_spawn_nothing" in output, output
+
+
+def test_research_decoder_rule_permits_std_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_research_probe(
+        tmp_path, "research-adapters", _PROJECTION_COMPLIANT, "openalex_json"
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+@pytest.mark.parametrize("crate", ["research-adapters", "accelerator-research"])
+def test_research_tracker_support_rule_rejects_the_import(
+    tmp_path: Path, crate: str
+) -> None:
+    _require_tools()
+    _write_research_probe(tmp_path, crate, _TRACKER_SUPPORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "research_never_reaches_tracker_support" in output, output
+
+
+@pytest.mark.parametrize("crate", ["research-adapters", "accelerator-research"])
+def test_research_tracker_support_rule_permits_std_imports(
+    tmp_path: Path, crate: str
+) -> None:
+    _require_tools()
+    _write_research_probe(tmp_path, crate, _PROJECTION_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The http-test-support std-only rule ---
 #
 # Driven against a workspace whose crates are literally named

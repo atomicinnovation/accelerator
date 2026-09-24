@@ -120,6 +120,13 @@ impl Verb {
             _ => Err(RequestError::UnknownVerb(raw.to_owned())),
         }
     }
+
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Search => "search",
+            Self::Lookup => "lookup",
+        }
+    }
 }
 
 /// How many records a search may return.

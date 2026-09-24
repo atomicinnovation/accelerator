@@ -1,0 +1,22 @@
+[package]
+name = "research-adapters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+research = { path = "../research" }
+# rustls-tls-webpki-roots-no-provider installs no crypto provider, so the
+# transport installs ring itself.
+reqwest = { workspace = true }
+rustls = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+http-test-support = { path = "../http-test-support" }

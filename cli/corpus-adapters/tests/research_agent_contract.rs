@@ -1,6 +1,7 @@
 //! Repository-integrity guards on the research infrastructure's plugin
 //! markdown: the generic `researcher` agent must carry a bounded, shell-free
-//! tool grant, and the `topic-research-finding` template the finding outputter
+//! tool grant; the OpenAlex profile must reach its source only through the
+//! fetch; and the `topic-research-finding` template the finding outputter
 //! delegates to must declare exactly the fields the `(topic-research, finding)`
 //! schema row requires, plus the omit-when-empty linkage slots — so the writer,
 //! the template, and the schema cannot drift silently.
@@ -50,6 +51,55 @@ fn the_researcher_agent_grants_a_bounded_shell_free_tool_set(
         !granted.contains("Bash"),
         "the researcher must never be granted Bash — it consumes \
          attacker-controlled web content"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_openalex_profile_never_instructs_web_fetching() -> Result<(), TestError>
+{
+    let content = read("skills/research/profiles/openalex-profile/SKILL.md")?;
+    let frontmatter = extract_frontmatter(&content);
+    assert!(
+        frontmatter.contains("Bash(accelerator research fetch *)"),
+        "the OpenAlex profile must grant the fetch"
+    );
+    assert!(
+        !frontmatter.contains("Web"),
+        "the OpenAlex profile must grant no web tool: {frontmatter}"
+    );
+
+    let body = content
+        .split_once("\n---\n")
+        .map_or(content.as_str(), |(_, body)| body);
+    for line in body.lines().filter(|line| line.contains("Web")) {
+        let text = line.trim_start().trim_start_matches("- ");
+        assert!(
+            text.starts_with("No ") || text.starts_with("Never "),
+            "the OpenAlex profile mentions a web tool other than to forbid \
+             it: {line}"
+        );
+    }
+
+    let mut in_fence = false;
+    let mut invocations = 0;
+    for line in body.lines().map(str::trim) {
+        if line.starts_with("```") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence && !line.is_empty() {
+            assert!(
+                line.starts_with("accelerator research fetch openalex "),
+                "the OpenAlex profile runs something other than the fetch: \
+                 {line}"
+            );
+            invocations += 1;
+        }
+    }
+    assert!(
+        invocations > 0,
+        "the OpenAlex profile shows no fetch to run"
     );
     Ok(())
 }

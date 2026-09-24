@@ -95,6 +95,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-research"
+version = "1.24.0-pre.73"
+dependencies = [
+ "clap",
+ "config",
+ "config-adapters",
+ "http-test-support",
+ "research",
+ "research-adapters",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "vcs",
+ "vcs-adapters",
+ "vcs-test-support",
+]
+
+[[package]]
 name = "accelerator-vcs"
 version = "1.24.0-pre.73"
 dependencies = [
@@ -4019,6 +4037,18 @@ dependencies = [
 [[package]]
 name = "research"
 version = "1.24.0-pre.73"
+
+[[package]]
+name = "research-adapters"
+version = "1.24.0-pre.73"
+dependencies = [
+ "http-test-support",
+ "reqwest",
+ "research",
+ "rustls",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "resolv-conf"

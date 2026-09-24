@@ -46,6 +46,7 @@ _CLI_RELEASE_BINARIES = (
     "accelerator-design",
     "accelerator-linear",
     "accelerator-jira",
+    "accelerator-research",
 )
 
 # The linked/stubbed pair whose size delta proves the VCS dependency trees are

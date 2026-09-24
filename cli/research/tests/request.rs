@@ -15,6 +15,7 @@ use research::request::OpenAlexQuery;
 use research::request::OpenAlexRequest;
 use research::request::RequestError;
 use research::request::UpstreamRequest;
+use research::request::Verb;
 
 fn terms(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
@@ -40,6 +41,12 @@ fn a_family_names_itself_for_callers_and_for_readers() {
     assert_eq!(Family::Arxiv.code(), "arxiv");
     assert_eq!(Family::OpenAlex.to_string(), "OpenAlex");
     assert_eq!(Family::Arxiv.to_string(), "arXiv");
+}
+
+#[test]
+fn a_verb_names_itself_as_callers_spell_it() {
+    assert_eq!(Verb::Search.code(), "search");
+    assert_eq!(Verb::Lookup.code(), "lookup");
 }
 
 #[test]

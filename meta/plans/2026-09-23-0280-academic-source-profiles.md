@@ -1027,16 +1027,16 @@ guard-parity test lands with the guard in phase 7.
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p research-adapters -p accelerator-research --all-features`
-- [ ] `mise run lint:dispatch-coherence:check` and `mise run lint:skill-permissions:check` exit `0`
-- [ ] `uv run pytest tests/integration/tasks/test_github.py tests/unit/tasks/test_rust.py`
-- [ ] `mise run deny:check`, `mise run check`, and `mise run test` exit `0`
+- [x] `cargo test --manifest-path cli/Cargo.toml -p research-adapters -p accelerator-research --all-features`
+- [x] `mise run lint:dispatch-coherence:check` and `mise run lint:skill-permissions:check` exit `0`
+- [x] `uv run pytest tests/integration/tasks/test_github.py tests/unit/tasks/test_rust.py`
+- [x] `mise run deny:check`, `mise run check`, and `mise run test` exit `0`
 
 #### Manual Verification
 
 - [ ] With a real key, `accelerator research fetch openalex search "graph neural networks" --limit 3`
       returns three tiered records.
-- [ ] Keyless, the same call succeeds and prints no `Authorization`-related
+- [x] Keyless, the same call succeeds and prints no `Authorization`-related
       output.
 
 ---

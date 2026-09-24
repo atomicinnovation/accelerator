@@ -110,6 +110,38 @@
                 ),
             ],
         )),
+        // research-adapters' decoders turn response bytes into the domain's
+        // typed inputs and nothing more, so none of them may spawn.
+        Module((
+            name: "research_adapters_decoders_spawn_nothing",
+            matches: Module("^research_adapters::openalex_json($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // Credential resolution lives in config; tracker-support is policy the
+        // tracker clients share, and research is not a tracker.
+        Module((
+            name: "research_never_reaches_tracker_support",
+            matches: Module(
+                "^(research|research_adapters|accelerator_research)($|::)"
+            ),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^tracker_support(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // The whole work crate is domain (no adapter modules live in it); it
         // additionally permits corpus for WorkItemIdScheme/IdScanner, tracker
         // for the sync engine's RemoteTracker vocabulary, and config for the
