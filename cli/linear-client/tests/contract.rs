@@ -153,6 +153,7 @@ fn live_client() -> LiveClient {
                 Box::new(FixedNames::default()),
                 TeamEntries::keyed(&[]),
             ),
+            std::sync::Arc::new(linear_client::healing::NoBackfill),
         ),
         unaccountable: ExternalId::new(
             std::env::var("ACCELERATOR_LINEAR_CONTRACT_UNACCOUNTABLE")

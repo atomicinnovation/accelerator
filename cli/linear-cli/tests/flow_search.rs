@@ -131,3 +131,186 @@ fn quiet_suppresses_the_composed_filter_audit() {
         "--quiet suppresses the audit line: {stderr}"
     );
 }
+
+fn serve_issues(server: &MockServer) {
+    server.route(
+        RequestKey::graphql("issues"),
+        Route::Json {
+            status: 200,
+            body: "{\"data\":{\"issues\":{\"nodes\":[],\"pageInfo\":\
+                   {\"hasNextPage\":false,\"endCursor\":null}}}}"
+                .to_owned(),
+        },
+    );
+}
+
+fn sent_filter(server: &MockServer) -> Value {
+    let body = server
+        .last_body(&RequestKey::graphql("issues"))
+        .expect("an issues request");
+    let sent: Value = serde_json::from_slice(&body).expect("JSON");
+    sent["variables"]["filter"].clone()
+}
+
+fn connection(root: &str, nodes: &str) -> Route {
+    Route::Json {
+        status: 200,
+        body: format!(
+            "{{\"data\":{{\"{root}\":{{\"nodes\":{nodes},\"pageInfo\":\
+             {{\"hasNextPage\":false,\"endCursor\":null}}}}}}}}"
+        ),
+    }
+}
+
+#[test]
+fn search_by_label_sends_label_ids() {
+    let server = MockServer::start();
+    serve_issues(&server);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--label", "infra"]);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let filter = sent_filter(&server);
+    assert_eq!(filter["labels"]["id"]["eq"], "label-infra-uuid");
+    assert_eq!(filter["team"]["id"]["eq"], "team-uuid");
+}
+
+#[test]
+fn search_by_state_stays_scoped_to_the_init_team() {
+    let server = MockServer::start();
+    serve_issues(&server);
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["search", "--state", "In Progress"],
+    );
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let filter = sent_filter(&server);
+    assert_eq!(filter["state"]["id"]["eq"], "state-ip-uuid");
+    assert_eq!(filter["team"]["id"]["eq"], "team-uuid");
+}
+
+#[test]
+fn search_by_unknown_assignee_refuses_without_a_request() {
+    let server = MockServer::start();
+    let dir = support::scratch(support::CONFIG);
+    support::seed_catalogue(dir.path());
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--assignee", "nobody"]);
+
+    assert_eq!(output.status.code(), Some(89));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("E_SEARCH_UNKNOWN_ASSIGNEE"), "{stderr}");
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 0);
+}
+
+#[test]
+fn search_against_a_legacy_catalogue_fetches_and_never_writes() {
+    let server = MockServer::start();
+    serve_issues(&server);
+    server.route(
+        RequestKey::graphql("TeamIdentities"),
+        connection(
+            "teams",
+            "[{\"id\":\"team-uuid\",\"key\":\"BLA\",\"name\":\"Bla\"}]",
+        ),
+    );
+    server.route(
+        RequestKey::graphql("TeamLabels"),
+        connection(
+            "issueLabels",
+            "[{\"id\":\"label-infra-uuid\",\"name\":\"infra\",\
+              \"team\":{\"id\":\"team-uuid\"}}]",
+        ),
+    );
+    server.route(
+        RequestKey::graphql("WorkspaceLabels"),
+        connection("issueLabels", "[]"),
+    );
+    let dir = support::scratch(support::CONFIG);
+    support::seed_legacy_catalogue(dir.path());
+    let before = std::fs::read(dir.path().join(support::CATALOGUE))
+        .expect("the seeded catalogue");
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--label", "infra"]);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        sent_filter(&server)["labels"]["id"]["eq"],
+        "label-infra-uuid"
+    );
+    assert_eq!(server.hits(&RequestKey::graphql("TeamLabels")), 1);
+    assert_eq!(
+        std::fs::read(dir.path().join(support::CATALOGUE)).expect("catalogue"),
+        before,
+        "search never writes the catalogue"
+    );
+}
+
+#[test]
+fn search_by_state_without_a_catalogued_team_refuses_as_no_team() {
+    let server = MockServer::start();
+    let dir = support::scratch(support::CONFIG);
+
+    let output = support::run(
+        dir.path(),
+        &server,
+        &["search", "--state", "In Progress"],
+    );
+
+    assert_eq!(output.status.code(), Some(77));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("E_SEARCH_NO_TEAM"), "{stderr}");
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 0);
+}
+
+#[test]
+fn a_text_only_search_without_a_catalogued_team_runs_workspace_wide() {
+    let server = MockServer::start();
+    serve_issues(&server);
+    let dir = support::scratch(support::CONFIG);
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--text", "bug"]);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let filter = sent_filter(&server);
+    assert!(filter.get("team").is_none(), "no team clause: {filter}");
+    assert_eq!(filter["title"]["containsIgnoreCase"], "bug");
+}
+
+#[test]
+fn search_without_any_team_exits_105() {
+    let server = MockServer::start();
+    let dir = support::scratch(support::TEAMLESS_CONFIG);
+
+    let output =
+        support::run(dir.path(), &server, &["search", "--text", "bug"]);
+
+    assert_eq!(output.status.code(), Some(105));
+}

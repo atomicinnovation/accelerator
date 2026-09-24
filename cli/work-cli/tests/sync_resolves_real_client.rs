@@ -155,3 +155,40 @@ fn linear_without_a_token_reports_unconfigured() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(74));
     Ok(())
 }
+
+const LINEAR_FILTERED_CONFIG: &str = "---\nwork:\n  integration: linear\n\
+    linear:\n  team_key: ENG\n  pull:\n    filters:\n      label:\n        \
+    - typo\n---\n";
+
+fn seed_complete_linear_catalogue(dir: &Path) -> Result<(), TestError> {
+    let state = dir.join(".accelerator/state/integrations/linear");
+    fs::create_dir_all(&state)?;
+    fs::write(
+        state.join("catalogue.json"),
+        r#"{"baseTeam": "t-eng", "labels": [],
+           "teams": [{"id": "t-eng", "key": "ENG", "name": "Eng",
+             "states": [{"id": "s-todo", "name": "Todo",
+                         "type": "unstarted", "position": 0}],
+             "labels": [{"id": "l-bug", "name": "Bug"}],
+             "members": [], "projects": []}]}"#,
+    )?;
+    Ok(())
+}
+
+#[test]
+fn a_linear_unknown_label_filter_refuses_with_exit_74() -> Result<(), TestError>
+{
+    let repo = scratch_repo(LINEAR_FILTERED_CONFIG)?;
+    seed_complete_linear_catalogue(repo.path())?;
+
+    let output = run(repo.path(), &[("ACCELERATOR_LINEAR_TOKEN", "dummy")])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(output.status.code(), Some(74), "{stderr}");
+    assert!(
+        stderr.contains("pull filters could not be resolved:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("E_SEARCH_UNKNOWN_LABEL"), "{stderr}");
+    Ok(())
+}

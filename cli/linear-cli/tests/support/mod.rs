@@ -14,6 +14,9 @@ use http_test_support::MockServer;
 pub const CONFIG: &str = "---\nwork:\n  integration: linear\nlinear:\n  \
     team_id: 5c9f2a1b-0000-4000-8000-000000000001\n---\n";
 
+/// Linear integration and nothing that names a team.
+pub const TEAMLESS_CONFIG: &str = "---\nwork:\n  integration: linear\n---\n";
+
 pub const TOKEN_SENTINEL: &str = "lin_api_sentinel_do_not_leak";
 
 /// A scratch repository with the given `.accelerator/config.md`.
@@ -29,20 +32,44 @@ pub fn scratch(config: &str) -> tempfile::TempDir {
     dir
 }
 
-/// Seeds the workflow-state catalogue `resolve_state` reads, at the default
-/// `paths.integrations` location, so a transition can resolve a name to a UUID.
-pub fn seed_catalogue(dir: &Path) {
-    let catalogue =
-        dir.join(".accelerator/state/integrations/linear/catalogue.json");
+pub const CATALOGUE: &str =
+    ".accelerator/state/integrations/linear/catalogue.json";
+
+fn write_catalogue(dir: &Path, text: &str) {
+    let catalogue = dir.join(CATALOGUE);
     std::fs::create_dir_all(catalogue.parent().expect("catalogue parent"))
         .expect("mkdir catalogue dir");
-    std::fs::write(
-        &catalogue,
+    std::fs::write(&catalogue, text).expect("write catalogue");
+}
+
+/// Seeds a catalogue whose base team `BLA` carries every section, with the
+/// legacy projections an older binary reads.
+pub fn seed_catalogue(dir: &Path) {
+    write_catalogue(
+        dir,
+        r#"{"baseTeam": "team-uuid", "labels": [],
+           "teams": [{"id": "team-uuid", "key": "BLA", "name": "Bla",
+             "states": [{"id": "state-ip-uuid", "name": "In Progress",
+                         "type": "started", "position": 1}],
+             "labels": [{"id": "label-infra-uuid", "name": "infra"}],
+             "members": [{"id": "user-alice-uuid", "name": "Alice",
+                          "displayName": "alice", "email": "alice@x.io",
+                          "active": true}],
+             "projects": [{"id": "project-alpha-uuid", "name": "Alpha"}]}],
+           "team": {"id": "team-uuid", "key": "BLA", "name": "Bla"},
+           "workflowStates": [{"id": "state-ip-uuid", "name": "In Progress",
+                               "type": "started", "position": 1}]}"#,
+    );
+}
+
+/// Seeds only the legacy `team` and `workflowStates` an older binary wrote.
+pub fn seed_legacy_catalogue(dir: &Path) {
+    write_catalogue(
+        dir,
         r#"{"team": {"key": "BLA", "id": "team-uuid"},
            "workflowStates": [{"name": "In Progress", "id": "state-ip-uuid",
                               "type": "started", "position": 1}]}"#,
-    )
-    .expect("write catalogue");
+    );
 }
 
 /// Whether the binary run carries a resolvable credential.

@@ -835,8 +835,14 @@ fn untracked_to_import(
             (Vec::new(), DiscoveryStatus::SkippedPushOnly)
         }
         ItemSelection::All => {
+            let prepared = ports
+                .tracker
+                .resolve_scope(&request.scope)
+                .map_err(|error| RunError::DiscoveryUnconfigured {
+                    detail: error.detail,
+                })?;
             let resolved = if scope::is_broadened(&request.scope) {
-                match scope::resolve_entities(ports.tracker, &request.scope) {
+                match scope::resolve_entities(ports.tracker, &prepared) {
                     Ok(resolved) => resolved,
                     Err(scope::EntityResolution::Unconfigured(error)) => {
                         return Err(RunError::DiscoveryUnconfigured {
@@ -853,11 +859,7 @@ fn untracked_to_import(
                     }
                 }
             } else {
-                ports.tracker.resolve_scope(&request.scope).map_err(
-                    |error| RunError::DiscoveryUnconfigured {
-                        detail: error.detail,
-                    },
-                )?
+                prepared
             };
             match discover_untracked(ports.tracker, &resolved, request.corpus) {
                 Ok(discovered) if !discovered.completeness.is_complete() => {
@@ -869,6 +871,9 @@ fn untracked_to_import(
                 Ok(discovered) => {
                     let found = discovered.ids.len();
                     (discovered.ids, DiscoveryStatus::Ran { found })
+                }
+                Err(TrackerError::Unconfigured { detail }) => {
+                    return Err(RunError::DiscoveryUnconfigured { detail });
                 }
                 Err(error) => (
                     Vec::new(),

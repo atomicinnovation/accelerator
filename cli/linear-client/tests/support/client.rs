@@ -2,10 +2,12 @@
 
 #![allow(dead_code, clippy::expect_used)]
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use http_test_support::MockServer;
 use linear_client::catalogue::TeamEntries;
+use linear_client::healing::{CatalogueBackfill, NoBackfill};
 use linear_client::resolution::{FixedNames, ResolverSet};
 use linear_client::transport::Transport;
 use linear_client::{Credentials, LinearClient, UploadTransport};
@@ -85,6 +87,7 @@ pub fn client_with_teams(
         loopback_upload(),
         Some(TEAM_KEY.to_owned()),
         keyed_resolvers(teams),
+        Arc::new(NoBackfill),
     )
 }
 
@@ -94,6 +97,17 @@ pub fn client_with_teams(
 pub fn client_with_resolvers(
     server: &MockServer,
     resolvers: ResolverSet,
+) -> LinearClient {
+    client_holding_into(server, resolvers, Arc::new(NoBackfill))
+}
+
+/// A client over the given resolvers whose live fetches are handed to
+/// `backfill`.
+#[must_use]
+pub fn client_holding_into(
+    server: &MockServer,
+    resolvers: ResolverSet,
+    backfill: Arc<dyn CatalogueBackfill>,
 ) -> LinearClient {
     let transport = Transport::new(
         Url::parse(&format!("{}/graphql", server.base_url()))
@@ -109,6 +123,7 @@ pub fn client_with_resolvers(
         loopback_upload(),
         Some(TEAM_KEY.to_owned()),
         resolvers,
+        backfill,
     )
 }
 
@@ -137,5 +152,11 @@ pub fn client_with(
     } else {
         keyed_resolvers(&[])
     };
-    LinearClient::new(transport, loopback_upload(), team_key, resolvers)
+    LinearClient::new(
+        transport,
+        loopback_upload(),
+        team_key,
+        resolvers,
+        Arc::new(NoBackfill),
+    )
 }

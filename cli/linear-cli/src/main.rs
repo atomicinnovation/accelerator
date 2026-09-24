@@ -15,7 +15,8 @@ use clap::Parser as _;
 use linear_client::cache::{LinearCache, SystemFilesystem};
 use linear_client::catalogue::{CatalogueUpdate, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
-use linear_client::Search;
+use linear_client::filter::ConfiguredSearch;
+use linear_client::{ClientError, LinearClient, SurfaceError};
 use serde_json::{json, Value};
 use tracker::Completeness;
 use tracker::ExternalId;
@@ -97,28 +98,23 @@ fn run_show(args: &ShowArgs) -> ExitCode {
     }
 }
 
-fn run_search(args: SearchArgs) -> ExitCode {
+fn run_search(args: &SearchArgs) -> ExitCode {
     let client = match client_or_report() {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    let search = Search {
-        team_id: None,
-        team_ids: Vec::new(),
-        state: args.state.into_iter().collect(),
-        assignee: args.assignee.into_iter().collect(),
-        label: args.label.into_iter().collect(),
-        text: args.text,
-    };
-    if !args.quiet {
-        if let Ok(filter) =
-            linear_client::filter::compose(&search, client.resolvers())
-        {
-            eprintln!("INFO: composed IssueFilter: {filter}");
+    let search = match scoped_search(&client, &args.filter_pairs()) {
+        Ok(search) => search,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::for_surface(&error));
         }
-    }
-    match client.search_detailed(&search) {
+    };
+    match client.search_detailed(search) {
         Ok(page) => {
+            if !args.quiet {
+                eprintln!("INFO: composed IssueFilter: {}", page.filter);
+            }
             let truncated = !page.completeness.is_complete();
             let keyword = if page.completeness == Completeness::CapHit {
                 keywords::Search::CapHit
@@ -162,6 +158,23 @@ fn run_search(args: SearchArgs) -> ExitCode {
             eprintln!("{error}");
             ExitCode::from(exit_codes::for_surface(&error))
         }
+    }
+}
+
+/// A search scoped to the catalogue's base team. Without one, only a
+/// text-only search can run, and it runs workspace-wide.
+fn scoped_search(
+    client: &LinearClient,
+    pairs: &[(String, String)],
+) -> Result<ConfiguredSearch, SurfaceError> {
+    let search = ConfiguredSearch::from_pairs(Vec::new(), pairs)
+        .map_err(ClientError::UnresolvedFilters)?;
+    match client.resolvers().base_team() {
+        Some(base) => Ok(search.for_teams(vec![base.id])),
+        None if search.has_filters() => {
+            Err(SurfaceError::SearchNeedsCatalogueTeam)
+        }
+        None => Ok(search),
     }
 }
 
@@ -567,7 +580,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Show(args) => run_show(&args),
-        Command::Search(args) => run_search(args),
+        Command::Search(args) => run_search(&args),
         Command::Comment { action } => run_comment(action),
         Command::Transition(args) => run_transition(args),
         Command::Attach(args) => run_attach(&args),

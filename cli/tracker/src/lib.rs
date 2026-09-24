@@ -133,14 +133,21 @@ pub struct RemoteIssue {
 
 /// A failure reported by a remote tracker.
 ///
-/// Two classes, and closed: `#[non_exhaustive]` is absent so that adding a
-/// third is a compile-breaking change for every consumer.
+/// Three classes, and closed: `#[non_exhaustive]` is absent so that adding a
+/// fourth is a compile-breaking change for every consumer.
 ///
-/// The classes divide on one question: **could a remote change have
-/// happened?** That makes classification operation-scoped, not a property of
-/// the wire condition — the same provider status falls either way depending on
-/// what was attempted, so a client must classify per call rather than from one
-/// status table. A read cannot mutate, so a read never produces `Terminal`.
+/// The classes divide on two questions. The first is **could a remote change
+/// have happened?** That makes classification operation-scoped, not a property
+/// of the wire condition — the same provider status falls either way depending
+/// on what was attempted, so a client must classify per call rather than from
+/// one status table. A read cannot mutate, so a read never produces
+/// `Terminal`. The second is what clears the fault:
+///
+/// | Class | Remote change possible | Cleared by |
+/// |---|---|---|
+/// | `Retryable` | no | a retry |
+/// | `Terminal` | yes | a human checking the remote |
+/// | `Unconfigured` | no | a configuration change |
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackerError {
     /// No remote change occurred, provably.
@@ -176,18 +183,32 @@ pub enum TrackerError {
         /// what the reader has to act on.
         detail: String,
     },
+    /// The call was refused on configuration before anything was sent, and
+    /// only a configuration change clears it.
+    ///
+    /// The read-side counterpart to [`ScopeError`]: a scope that, once its
+    /// entities are known, names no valid target. Only
+    /// [`RemoteTracker::search`] produces it. A write path that receives one
+    /// treats it like `Retryable` — nothing was sent — but reports it as a
+    /// configuration fault rather than inviting a retry.
+    Unconfigured {
+        /// What is misconfigured and how to fix it, for a human.
+        detail: String,
+    },
 }
 
 impl TrackerError {
-    /// The inner `detail`, unwrapped from either class.
+    /// The inner `detail`, unwrapped from any class.
     ///
-    /// The two variants carry the same field, so a caller wanting the message
+    /// Every variant carries the same field, so a caller wanting the message
     /// alone — a report line, not the `Display` wrapper's class prose — takes it
-    /// through one exhaustive match here rather than destructuring both arms.
+    /// through one exhaustive match here rather than destructuring each arm.
     #[must_use]
     pub fn into_detail(self) -> String {
         match self {
-            Self::Retryable { detail } | Self::Terminal { detail } => detail,
+            Self::Retryable { detail }
+            | Self::Terminal { detail }
+            | Self::Unconfigured { detail } => detail,
         }
     }
 }
@@ -203,6 +224,11 @@ impl Display for TrackerError {
                 formatter,
                 "tracker call failed and a remote change may have applied, so \
                  the remote state is unknown: {detail}"
+            ),
+            Self::Unconfigured { detail } => write!(
+                formatter,
+                "tracker call refused on configuration, and nothing was sent: \
+                 {detail}"
             ),
         }
     }
@@ -606,9 +632,9 @@ pub trait RemoteTracker {
     ///
     /// # Errors
     ///
-    /// Always [`TrackerError::Retryable`]. A read mutates nothing, so the
+    /// Only [`TrackerError::Retryable`]. A read mutates nothing, so the
     /// terminal class — which means "a mutation may have applied" — cannot
-    /// arise.
+    /// arise, and a keyed read has no scope to be unconfigured.
     ///
     /// Read the class as "nothing changed remotely", not as "call again". A
     /// deleted issue fails here indefinitely, so the caller degrades to
@@ -624,7 +650,7 @@ pub trait RemoteTracker {
     ///
     /// # Errors
     ///
-    /// Always [`TrackerError::Retryable`], and only on a **pre-flight** failure
+    /// Only [`TrackerError::Retryable`], and only on a **pre-flight** failure
     /// — one that stops any request being constructed, such as unresolvable
     /// credentials or a requested id the client cannot safely embed in its
     /// query.
@@ -648,9 +674,11 @@ pub trait RemoteTracker {
     ///
     /// # Errors
     ///
-    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
-    /// a read mutates nothing. A retrieval cut short reports
-    /// `complete == false` rather than erroring.
+    /// [`TrackerError::Retryable`] for a read that failed, and
+    /// [`TrackerError::Unconfigured`] when the scope, once its entities are
+    /// known, names no valid target — a filter value no entity in scope
+    /// carries. Never [`TrackerError::Terminal`]: a read mutates nothing. A
+    /// retrieval cut short reports `complete == false` rather than erroring.
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError>;
 
     /// Resolves and validates a discovery `scope` for this tracker, without any
@@ -661,6 +689,11 @@ pub trait RemoteTracker {
     /// *key* for its UUID — and validates that the scope names a target at all.
     /// A caller runs it before any mutation, so a scope fault refuses the run
     /// before a single request goes out.
+    ///
+    /// It runs for every scope shape. A broadened scope — additional entities,
+    /// or the whole workspace — reaches it before the caller resolves those
+    /// entities against the live enumeration, so it validates such a scope's
+    /// filters and leaves its entity keys as configured.
     ///
     /// # Errors
     ///
@@ -681,8 +714,9 @@ pub trait RemoteTracker {
     ///
     /// # Errors
     ///
-    /// Always [`TrackerError::Retryable`] and never [`TrackerError::Terminal`]:
-    /// a read mutates nothing. A transient enumeration failure is retryable, so
+    /// Only [`TrackerError::Retryable`], never [`TrackerError::Terminal`] or
+    /// [`TrackerError::Unconfigured`]: a read mutates nothing and takes no
+    /// scope. A transient enumeration failure is retryable, so
     /// the caller degrades around it rather than treating a requested entity as
     /// not-visible; a genuinely absent entity is the resolver's concern, not an
     /// error here. The enumeration must be complete — a truncated one that

@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-22-0292-linear-pull-filters-catalogue-
 tags: ["linear", "pull-filters", "catalogue", "discovery", "filter-lowering", "assignee", "project", "sync"]
 revision: "634e2aa521ccf1411e9327a64cf166fd543525ea"
 repository: "accelerator"
-last_updated: "2026-09-24T18:00:00+00:00"
+last_updated: "2026-09-24T21:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2129,13 +2129,13 @@ deliberate divergence, borrowed from the show flow's decade.
 
 #### Automated Verification
 
-- [ ] Format and lint clean: `mise run cli:check`
-- [ ] Port variant and snapshot: `cargo test -p tracker` and `mise run public-api:check`
-- [ ] Vocabulary, fixture, completion, fetch, pre-flight and healing: `cargo test -p linear-client`
-- [ ] Harness ordering: `cargo test -p tracker-test-support`
-- [ ] Engine wiring, real-client sync and no-refetch: `cargo test -p work-adapters`
-- [ ] Exit mappings, search scoping, finalisation and inventory: `cargo test -p linear-cli -p work-cli`
-- [ ] Read-only CI mirror green: `mise run check`
+- [x] Format and lint clean: `mise run cli:check`
+- [x] Port variant and snapshot: `cargo test -p tracker` and `mise run public-api:check`
+- [x] Vocabulary, fixture, completion, fetch, pre-flight and healing: `cargo test -p linear-client`
+- [x] Harness ordering: `cargo test -p tracker-test-support`
+- [x] Engine wiring, real-client sync and no-refetch: `cargo test -p work-adapters`
+- [x] Exit mappings, search scoping, finalisation and inventory: `cargo test -p linear-cli -p work-cli`
+- [x] Read-only CI mirror green: `mise run check`
 
 #### Manual Verification
 

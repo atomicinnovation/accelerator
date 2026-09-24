@@ -1632,6 +1632,128 @@ fn a_broadened_pull_searches_the_resolved_additional_identifiers(
     Ok(())
 }
 
+fn filtered(mut scope: tracker::SearchScope) -> tracker::SearchScope {
+    scope.filters = vec![("label".to_owned(), "bug".to_owned())];
+    scope
+}
+
+fn empty_scenario(tracker: RecordingTracker) -> Result<Scenario, TestError> {
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[]));
+    Ok(Scenario {
+        items: Vec::new(),
+        tracker,
+        spy,
+        dir: tempfile::tempdir()?,
+    })
+}
+
+#[test]
+fn a_broadened_pull_searches_with_the_resolved_scope() -> Result<(), TestError>
+{
+    let scenario = empty_scenario(
+        RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")])
+            .rewriting_scope_filters(),
+    )?;
+
+    execute_with_scope(
+        &scenario,
+        filtered(broadened_scope("ENG", &["OPS"])),
+    )
+    .map_err(|error| format!("a visible broadened pull resolves: {error:?}"))?;
+
+    let searched =
+        scenario
+            .tracker
+            .calls()
+            .into_iter()
+            .find_map(|call| match call {
+                Call::Search { scope } => Some(scope),
+                _ => None,
+            });
+    assert_eq!(
+        searched.expect("the run issues a search").filters,
+        vec![("label".to_owned(), "resolved:bug".to_owned())],
+        "the search carries the filters resolve_scope returned"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_broadened_pull_resolves_before_enumerating() -> Result<(), TestError> {
+    let scenario = empty_scenario(
+        RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")]),
+    )?;
+
+    execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"])).map_err(
+        |error| format!("a visible broadened pull resolves: {error:?}"),
+    )?;
+
+    let order: Vec<&str> = scenario
+        .tracker
+        .calls()
+        .iter()
+        .filter_map(|call| match call {
+            Call::ResolveScope { .. } => Some("resolve"),
+            Call::EnumerateVisibleEntities => Some("enumerate"),
+            Call::Search { .. } => Some("search"),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(order, vec!["resolve", "enumerate", "search"]);
+    Ok(())
+}
+
+#[test]
+fn a_broadened_scope_refusal_never_enumerates() -> Result<(), TestError> {
+    let scenario = empty_scenario(
+        RecordingTracker::holding(Vec::new())
+            .seeing(vec![visible("ENG"), visible("OPS")])
+            .refusing_scope(tracker::ScopeError {
+                detail: "E_SEARCH_UNKNOWN_LABEL: typo".to_owned(),
+            }),
+    )?;
+
+    let result =
+        execute_with_scope(&scenario, broadened_scope("ENG", &["OPS"]));
+
+    match result {
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            assert!(detail.contains("E_SEARCH_UNKNOWN_LABEL"), "{detail}");
+        }
+        Err(other) => panic!("expected DiscoveryUnconfigured, got {other:?}"),
+        Ok(_) => panic!("expected DiscoveryUnconfigured, not success"),
+    }
+    assert!(!scenario
+        .tracker
+        .calls()
+        .contains(&Call::EnumerateVisibleEntities));
+    Ok(())
+}
+
+#[test]
+fn an_unconfigured_search_refuses_the_run_as_discovery_unconfigured(
+) -> Result<(), TestError> {
+    let scenario = empty_scenario(
+        RecordingTracker::holding(Vec::new()).refusing_search_as_unconfigured(
+            "pull filters could not be resolved",
+        ),
+    )?;
+
+    let result = execute_with_scope(&scenario, broadened_scope("ENG", &[]));
+
+    match result {
+        Err(RunError::DiscoveryUnconfigured { detail }) => {
+            assert_eq!(detail, "pull filters could not be resolved");
+        }
+        Err(other) => panic!("expected DiscoveryUnconfigured, got {other:?}"),
+        Ok(_) => panic!("expected DiscoveryUnconfigured, not success"),
+    }
+    Ok(())
+}
+
 const fn whole_workspace_scope() -> tracker::SearchScope {
     tracker::SearchScope {
         entities: tracker::EntityScope::WholeWorkspace,

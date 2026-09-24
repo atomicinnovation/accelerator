@@ -9,6 +9,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use config::ConfigAccess;
@@ -20,6 +21,7 @@ use config_adapters::LegacyPolicy;
 use linear_client::auth::resolve_credentials;
 use linear_client::auth::team_key;
 use linear_client::catalogue::Catalogue;
+use linear_client::healing::NoBackfill;
 use linear_client::transport::Transport;
 use linear_client::transport::Url;
 use linear_client::upload::url_is_allowed;
@@ -163,6 +165,7 @@ pub fn build_client() -> Result<Built, ContextError> {
             &context,
             &integrations_root,
             transport_config,
+            Arc::new(NoBackfill),
         )
         .map_err(ContextError::Client)?,
     };
@@ -212,6 +215,7 @@ fn build_with_override(
         upload,
         team_key,
         Catalogue::load(integrations_root).resolver_set(),
+        Arc::new(NoBackfill),
     ))
 }
 

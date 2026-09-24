@@ -62,6 +62,23 @@
   entry), naming the recovery: restore it from version control first, and
   delete it only as a last resort.
 
+- **Linear pull filters resolve to ids over every team in scope.** A
+  `state`, `label` or `assignee` filter now matches per team in scope — a
+  workspace label everywhere — and lowers to ids, so a multi-team `state`
+  filter pulls every team's matching issues rather than only the init
+  team's. A value no team in scope carries refuses the sync (exit 74) under
+  `pull filters could not be resolved:` instead of being dropped or reported
+  as a transient failure. Teams whose catalogue entry lacks what the filters
+  need are fetched from Linear for the run, and an apply-mode sync may add or
+  complete entries in `catalogue.json` for the teams it syncs; a `note:`
+  names them.
+
+- **`accelerator linear search` scopes `--label` and `--assignee` to the init
+  team, as `--state` already was.** An unknown or ambiguous filter value now
+  exits 89 instead of returning an empty result, and `--state` with no
+  catalogued team exits 77 instead of 78. A `--text`-only search with no
+  catalogued team still runs workspace-wide.
+
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
   across levels (no `--level`) returns its built-in catalogue default rather
@@ -173,6 +190,13 @@
   member of a synced team, and the file is committed to the repository.**
   Anyone with read access to the repository can read them.
 
+- **An apply-mode sync may catalogue, and so commit the members of, any
+  Linear team that owns a tracked work item.** Each team is confirmed by
+  looking up one of its items in Linear first, but a leftover `external_id`
+  from another tracker whose identifier also exists in Linear is
+  indistinguishable from a Linear one. The `note:` names every team recorded,
+  so review it before committing `catalogue.json`.
+
 - **Per-request classification of navigations and followed links.** The
   reachability + scheme verdict that guards a crawl's initial location is now
   applied to every `navigate` (initial URL and every redirect hop) and every
@@ -183,6 +207,19 @@
   address through a subresource or a rebased hostname, so this is not end-to-end
   SSRF closure. A single language-neutral vector corpus holds the Rust and the
   new JavaScript classifier to identical cases.
+
+### Migrations
+
+- **No manual step for the Linear catalogue.** An existing `catalogue.json`
+  reads as incomplete entries, and filtered pulls fetch what they lack. The
+  first apply-mode sync whose pull runs completes every synced team's entry
+  and re-derives synced teams from tracked items; commit the result.
+- **A Linear pull filter that cannot be resolved now refuses the sync with
+  exit 74.** Before, an unknown `state` exited 5 with "cut short… retry", and
+  an unknown `label` or `assignee` was silently tolerated.
+- **A Linear `assignee` filter must name a member of a team in scope.** A
+  user who has left the team, or who assigns work without being a member, now
+  refuses the sync. Use a current member, or widen the scope.
 
 ## [1.23.0] - 2026-06-23
 

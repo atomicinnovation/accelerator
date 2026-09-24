@@ -79,7 +79,13 @@ const TEAM_PROJECTS: &str = "query TeamProjects($ids: [ID!], $after: String) {
     }
   }";
 
+const TEAM_OF_IDENTIFIER: &str = "query TeamOfIdentifier($id: String!) {
+    issue(id: $id) { team { id key name } }
+  }";
+
 const OPERATION: &str = "discover team entries";
+const IDENTIFIER_LOOKUP: &str = "look up an issue's team";
+const NOT_FOUND: &str = "Entity not found";
 
 /// The pages a section filtered by team is budgeted at 200 teams.
 const TEAM_SCALED_PAGE_BUDGET: usize = 20;
@@ -204,6 +210,19 @@ pub trait TeamEntryFetch {
         team_ids: &[String],
         sections: &SectionSet,
     ) -> Result<SectionFetch, SurfaceError>;
+
+    /// The team the issue `identifier` belongs to now, which may carry a key
+    /// other than the identifier's prefix once the team is renamed or the
+    /// issue moved. Only its identity is filled.
+    ///
+    /// # Errors
+    ///
+    /// [`SurfaceError`] for any failure other than Linear finding no such
+    /// issue, which is `Ok(None)`.
+    fn team_of_identifier(
+        &self,
+        identifier: &str,
+    ) -> Result<Option<TeamEntry>, SurfaceError>;
 }
 
 impl TeamEntryFetch for LinearClient {
@@ -274,6 +293,59 @@ impl TeamEntryFetch for LinearClient {
             unreturned,
         })
     }
+
+    fn team_of_identifier(
+        &self,
+        identifier: &str,
+    ) -> Result<Option<TeamEntry>, SurfaceError> {
+        let received = self
+            .transport()
+            .send(TEAM_OF_IDENTIFIER, &json!({ "id": identifier }))?;
+        if reports_no_such_issue(&received) {
+            return Ok(None);
+        }
+        let body = interpret(&received, IDENTIFIER_LOOKUP)?;
+        match body.pointer("/data/issue/team") {
+            None | Some(Value::Null) => Ok(None),
+            Some(team) => {
+                let field = |name: &str| {
+                    team.get(name).and_then(Value::as_str).unwrap_or_default()
+                };
+                if field("id").is_empty() {
+                    return Err(SurfaceError::BadResponse {
+                        operation: IDENTIFIER_LOOKUP,
+                        reason: "the issue's team carried no id".to_owned(),
+                    });
+                }
+                Ok(Some(TeamEntry::identified(
+                    field("id"),
+                    field("key"),
+                    field("name"),
+                )))
+            }
+        }
+    }
+}
+
+/// Linear answers an unknown identifier with an `Entity not found` error and
+/// no data, which says the issue does not exist rather than that the lookup
+/// failed.
+fn reports_no_such_issue(received: &crate::transport::Received) -> bool {
+    let Some(body) = received.json() else {
+        return false;
+    };
+    let not_found =
+        body.get("errors")
+            .and_then(Value::as_array)
+            .is_some_and(|errors| {
+                errors.iter().any(|error| {
+                    error
+                        .get("message")
+                        .and_then(Value::as_str)
+                        .is_some_and(|message| message.starts_with(NOT_FOUND))
+                })
+            });
+    not_found && body.get("data").is_none_or(Value::is_null)
 }
 
 impl LinearClient {

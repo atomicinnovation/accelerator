@@ -225,25 +225,9 @@ fn push_update(
         BaselineStore::new(baseline_path, &file_reader, &baseline_writer);
     let external_id = tracker::ExternalId::new(external_id);
 
-    match tracker.update(&external_id, &title, &body) {
-        Ok(()) => {}
-        Err(TrackerError::Retryable { detail }) => {
-            return Err(TryRunError::Retryable(format!(
-                "E_PUSH_RETRYABLE: pushing {} failed and can be retried: \
-                 {detail}",
-                path.display()
-            )));
-        }
-        Err(TrackerError::Terminal { detail }) => {
-            baseline_store.remove(&id).ok();
-            return Err(TryRunError::Terminal(format!(
-                "E_PUSH_TERMINAL: pushing {} failed and may have partially \
-                 applied: {detail}. The baseline entry has been cleared; \
-                 the next sync will classify this item as a conflict.",
-                path.display()
-            )));
-        }
-    }
+    tracker
+        .update(&external_id, &title, &body)
+        .map_err(|error| push_failure(error, path, &mut baseline_store, &id))?;
 
     let store =
         FileCorpusStore::new(path.parent().unwrap_or_else(|| Path::new(".")));
@@ -269,6 +253,38 @@ fn push_update(
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
     Ok(())
+}
+
+/// A terminal failure may have applied remotely, so it clears the baseline
+/// entry and the next sync reconciles the item as a conflict.
+fn push_failure(
+    error: TrackerError,
+    path: &Path,
+    baseline_store: &mut BaselineStore<'_>,
+    id: &str,
+) -> TryRunError {
+    match error {
+        TrackerError::Retryable { detail } => TryRunError::Retryable(format!(
+            "E_PUSH_RETRYABLE: pushing {} failed and can be retried: {detail}",
+            path.display()
+        )),
+        TrackerError::Unconfigured { detail } => {
+            TryRunError::Unconfigured(format!(
+                "E_PUSH_UNCONFIGURED: pushing {} was refused on configuration \
+                 and nothing was sent: {detail}",
+                path.display()
+            ))
+        }
+        TrackerError::Terminal { detail } => {
+            baseline_store.remove(id).ok();
+            TryRunError::Terminal(format!(
+                "E_PUSH_TERMINAL: pushing {} failed and may have partially \
+                 applied: {detail}. The baseline entry has been cleared; the \
+                 next sync will classify this item as a conflict.",
+                path.display()
+            ))
+        }
+    }
 }
 
 fn try_run(
@@ -383,5 +399,121 @@ pub fn run(
         Err(TryRunError::Terminal(message)) => {
             RunOutcome::PushTerminal(message)
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    use ::config::ConfigError;
+    use ::config::Key;
+    use ::config::Level;
+    use ::config::Resolved;
+    use ::config::Scalar as ConfigScalar;
+    use ::config::Value as ConfigValue;
+    use tracker::RemoteTracker;
+    use tracker_test_support::RecordingTracker;
+
+    use super::*;
+
+    struct FakeConfig(HashMap<String, String>);
+
+    impl ConfigAccess for FakeConfig {
+        fn get(
+            &self,
+            key: &Key,
+            _level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Ok(self
+                .0
+                .get(&key.to_string())
+                .map_or(Resolved::Absent, |value| {
+                    Resolved::Found(ConfigValue::Scalar(ConfigScalar::String(
+                        value.clone(),
+                    )))
+                }))
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            unreachable!("update never writes config")
+        }
+    }
+
+    struct FixedRegistry(RefCell<Option<Box<dyn RemoteTracker>>>);
+
+    impl TrackerRegistry for FixedRegistry {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
+            Ok(self.0.borrow_mut().take().expect("resolved more than once"))
+        }
+    }
+
+    #[test]
+    fn an_unconfigured_push_keeps_the_baseline_and_exits_74() {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        let item = root.path().join("0001.md");
+        std::fs::write(
+            &item,
+            "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"ENG-1\"\n\
+             ---\n\nBody\n",
+        )
+        .expect("seed the item");
+        let baseline = root.path().join("integrations/linear/last-sync.json");
+        std::fs::create_dir_all(baseline.parent().expect("parent"))
+            .expect("baseline dir");
+        let seeded = "{\"timestamp\":0,\"items\":{\"0001\":{\
+            \"remote_updated_at\":\"2026-06-01T00:00:00Z\",\
+            \"remote_hash\":\"r\",\"local_hash\":\"l\"}}}\n";
+        std::fs::write(&baseline, seeded).expect("seed the baseline");
+        let config = FakeConfig(
+            [
+                ("work.integration", "linear"),
+                ("paths.integrations", "integrations"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .collect(),
+        );
+        let registry = FixedRegistry(RefCell::new(Some(Box::new(
+            RecordingTracker::holding(Vec::new()).failing_update(
+                tracker::ExternalId::new("ENG-1".to_owned()),
+                TrackerError::Unconfigured {
+                    detail: "no team in scope carries label \"typo\""
+                        .to_owned(),
+                },
+            ),
+        ))));
+        let args = UpdateArgs {
+            path: item,
+            sets: Vec::new(),
+            add_tags: Vec::new(),
+            remove_tags: Vec::new(),
+            appends: Vec::new(),
+            removes: Vec::new(),
+            push: true,
+        };
+
+        let outcome = run(root.path(), &config, &args, &registry);
+
+        let RunOutcome::PushUnconfigured(message) = outcome else {
+            panic!("an unconfigured push exits 74");
+        };
+        assert!(message.contains("no team in scope carries label"));
+        assert_eq!(
+            std::fs::read_to_string(&baseline).expect("baseline"),
+            seeded,
+            "an unconfigured push sent nothing, so the baseline stands"
+        );
     }
 }

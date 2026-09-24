@@ -32,11 +32,24 @@ Linear `IssueFilter`. Work through the steps below in order.
 
 Read the argument string and note each flag:
 
-- `--state NAME` — WorkflowState name. Resolved (case-insensitively) to its
-  team-scoped UUID via the cached catalogue; an unknown state is an error.
-- `--assignee NAME` — assignee display name.
-- `--label NAME` — label name.
+- `--state NAME` — workflow state name.
+- `--assignee VALUE` — a member of the init team, matched on their email,
+  then their full name, then their display name. An earlier match wins
+  outright: a value that is one member's email is never weighed against
+  another's name.
+- `--label NAME` — a label of the init team, or a workspace label.
 - `--text STR` — free-text match on the issue title.
+
+Every filter value is resolved, case-insensitively, to its id through the
+committed `catalogue.json`, and the search is scoped to the init team for
+`--state`, `--label` and `--assignee` alike. Within the team, an active state,
+label, member or project wins over archived or disabled ones of the same name;
+two active ones are ambiguous. When the catalogue lacks the section a flag
+needs, the search fetches it from Linear for this run only — it never writes
+the catalogue.
+
+With no catalogued team, a `--text`-only search runs workspace-wide; any other
+flag refuses with `E_SEARCH_NO_TEAM`.
 - `--limit N` — page size (1..250, default 50). Pagination follows every page
   regardless; `--limit` only sets the per-request page size.
 
@@ -68,8 +81,17 @@ fetched. Branch on the keyword:
 - **`truncated`** — a transient cutoff (a deadline or wire cutoff), not a
   cap-hit; the results are a lower bound, so suggest retrying.
 
-When stdout carries no JSON document, the search failed: a credential or
-transport failure names an `E_*` cause on stderr; show it.
+When stdout carries no JSON document, the search failed: a credential,
+transport or filter failure names an `E_*` cause on stderr; show it verbatim.
+A filter refusal is printed under `pull filters could not be resolved:`, one
+indented line per value, each naming its remedy:
+
+| Code | Meaning |
+|------|---------|
+| `E_SEARCH_UNKNOWN_{STATE,LABEL,ASSIGNEE}` | the init team carries no such value; refresh the catalogue if it was added in Linear |
+| `E_SEARCH_AMBIGUOUS_{STATE,LABEL,ASSIGNEE}` | the value matches more than one active record; use an email for an assignee |
+| `E_SEARCH_NO_TEAM` | there is no catalogued base team; run `/accelerator:init-linear` |
+| `E_SEARCH_CATALOGUE_DAMAGED` | `catalogue.json` cannot be read; restore it from version control |
 
 ## Step 3: Render the results
 
