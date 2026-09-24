@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [features]
 # Admits a loopback API URL override and a non-sleeping clock so the
-# integration tests can drive the binary against a mock. NEVER enabled in a
+# integration tests can drive the binary against a mock. Never enabled in a
 # release build — a compile guard and a staged-binary byte scan both enforce
 # that.
 test-loopback = []

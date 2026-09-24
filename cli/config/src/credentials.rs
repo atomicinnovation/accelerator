@@ -20,8 +20,8 @@
 //!   about and skipped — a silently-ignored credential source is worse than
 //!   a loud one
 //! - a personal `token` or `token_cmd` whose provenance file is VCS-tracked
-//!   is refused: a repository-relative `config.local.md` can simply be
-//!   committed, and `.gitignore` does not apply to an already-tracked file, so
+//!   is refused: a repository-relative `config.local.md` can be committed,
+//!   and `.gitignore` does not apply to an already-tracked file, so
 //!   a hostile repository could otherwise supply a command a fresh clone
 //!   executes, and a committed value is a leaked credential
 //! - the helper runs under a wall-clock timeout, an output cap, a scrubbed

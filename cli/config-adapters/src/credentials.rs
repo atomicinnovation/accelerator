@@ -70,7 +70,6 @@ pub fn project_credential_context<'a>(
     }
 }
 
-/// The production environment.
 pub struct SystemEnvironment;
 
 impl Environment for SystemEnvironment {
@@ -79,7 +78,6 @@ impl Environment for SystemEnvironment {
     }
 }
 
-/// The production filesystem.
 pub struct SystemFileFacts;
 
 impl FileFacts for SystemFileFacts {

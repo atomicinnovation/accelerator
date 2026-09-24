@@ -1,5 +1,6 @@
 //! `accelerator-corpus` — the `corpus adr|metadata|linkage|frontmatter|
-//! resolve|topic-research` sub-binary, dispatched by the `accelerator` launcher.
+//! resolve|topic-research` sub-binary, dispatched by the `accelerator`
+//! launcher.
 
 mod adr;
 mod cli;

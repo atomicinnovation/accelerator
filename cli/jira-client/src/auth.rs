@@ -1,10 +1,10 @@
 //! Jira needs three values, not one: a site, an account email and a token.
 //!
 //! The token climbs `config::credentials`'s five-rung ladder; this module
-//! supplies the keys and validates the other two. `jira.site` is where the token is
-//! *sent*, so it is validated as a credential destination: absolute `https`,
-//! no userinfo, no query, no fragment, default port, and a host matching
-//! `*.atlassian.net` at a label boundary or listed exactly in
+//! supplies the keys and validates the other two. `jira.site` is where the
+//! token is *sent*, so it is validated as a credential destination: absolute
+//! `https`, no userinfo, no query, no fragment, default port, and a host
+//! matching `*.atlassian.net` at a label boundary or listed exactly in
 //! `jira.allowed_sites`.
 //!
 //! Suffix matching would accept `atlassian.net.evil.com` and
