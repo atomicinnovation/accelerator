@@ -60,6 +60,21 @@ prompt; the escape hatch for the scope case is `--push-only`, which skips
 discovery. `work sync` resolves its own tracker binary, credentials, and
 hashing; you do not pre-check `jq`, `sha256sum`, or the VCS binary.
 
+An exit **74** whose output carries `pull filters could not be resolved:` is a
+pull-filter refusal: a configured Linear filter value that no team in scope
+carries, or that matches more than one. Surface each indented line verbatim —
+each names its value and remedy — and **never** suggest `--push-only` for it;
+the fix is the filter or the catalogue. For a damaged catalogue
+(`E_SEARCH_CATALOGUE_DAMAGED`), restore the last good `catalogue.json` from
+version control, or resolve its merge conflict.
+
+An apply-mode Linear sync whose pull ran may add or complete entries in
+`catalogue.json` for the teams it syncs; a `note:` names them. Tell the user to
+commit the file together with the pulled items. A `--preview` or a
+`--push-only` run never writes it. A `warning:` that a team will be fetched
+again on each pull means the catalogue could not be completed for it; the run
+itself is unaffected.
+
 ## Step 1: Parse mode and flags
 
 Translate the user's arguments into `accelerator work sync`'s flags:
@@ -179,7 +194,10 @@ a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried); `72` tracker recognised but no client built; `73`
+auto-retried); a per-item `unconfigured` detail in the report is a write the
+tracker refused on configuration — other items may already have applied, so an
+exit 74 carrying that token is not a pre-flight refusal, and it ranks below
+`4`; `72` tracker recognised but no client built; `73`
 `work.integration` unset or unrecognised; `74` wired but a run cannot proceed on
 its config — missing/refused credentials, or a non-push-only run whose discovery
 scope names no valid target (nothing sent; set the key or run `--push-only`). A

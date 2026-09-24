@@ -87,6 +87,33 @@ impl TeamEntries {
     }
 
     #[must_use]
+    pub fn team_by_id(&self, team_id: &str) -> TeamRef {
+        self.entry(team_id).map_or_else(
+            || TeamRef {
+                id: team_id.to_owned(),
+                key: None,
+            },
+            team_ref,
+        )
+    }
+
+    #[must_use]
+    pub fn base_team(&self) -> Option<TeamRef> {
+        self.document.base_entry().map(team_ref)
+    }
+
+    /// # Errors
+    ///
+    /// [`CatalogueGap::Damaged`] when the workspace labels could not be
+    /// parsed.
+    pub fn has_workspace_labels(&self) -> Result<bool, CatalogueGap> {
+        if self.document.damage().workspace_labels_damaged() {
+            return Err(CatalogueGap::Damaged);
+        }
+        Ok(self.document.workspace_labels().is_some())
+    }
+
+    #[must_use]
     pub fn catalogued_teams(&self) -> Vec<(String, String)> {
         catalogued_teams(&self.document)
     }

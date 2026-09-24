@@ -403,20 +403,13 @@ fn preview_push(
             RunOutcome::Previewed(render_create_preview(integration, &preview))
         }
         Err(error) => RunOutcome::PreviewFailed {
+            code: exit_codes::for_tracker_error(&error),
             message: format!(
                 "could not resolve the create preview against '{integration}': \
                  {}",
-                tracker_error_detail(&error)
+                error.into_detail()
             ),
-            code: exit_codes::for_tracker_error(&error),
         },
-    }
-}
-
-fn tracker_error_detail(error: &TrackerError) -> &str {
-    match error {
-        TrackerError::Retryable { detail }
-        | TrackerError::Terminal { detail } => detail,
     }
 }
 
@@ -448,7 +441,7 @@ where
                     }
                     PushOutcome::LoudTerminal => {
                         return CreateRetryOutcome::Terminal(
-                            tracker_error_detail(&error).to_owned(),
+                            error.into_detail(),
                         )
                     }
                     PushOutcome::WriteOnce => {

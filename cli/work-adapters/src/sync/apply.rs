@@ -26,6 +26,7 @@ use crate::sync::pending_push;
 pub enum FailureClass {
     Retryable,
     Terminal,
+    Unconfigured,
 }
 
 #[derive(Debug)]
@@ -51,6 +52,7 @@ impl ApplyError {
             Self::Tracker { source, .. } => Some(match source {
                 TrackerError::Retryable { .. } => FailureClass::Retryable,
                 TrackerError::Terminal { .. } => FailureClass::Terminal,
+                TrackerError::Unconfigured { .. } => FailureClass::Unconfigured,
             }),
             Self::Io { .. } => None,
         }
@@ -384,9 +386,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             Ok(external_id) => {
                 self.record_created(request, &fingerprint, &external_id)
             }
-            Err(source @ TrackerError::Retryable { .. }) => {
-                Self::abandon_attempt(request, source)
-            }
+            Err(
+                source @ (TrackerError::Retryable { .. }
+                | TrackerError::Unconfigured { .. }),
+            ) => Self::abandon_attempt(request, source),
             Err(TrackerError::Terminal { detail }) => {
                 self.record_terminal_failure(request, fingerprint, detail)
             }

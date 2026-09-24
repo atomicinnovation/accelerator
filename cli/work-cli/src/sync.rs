@@ -35,6 +35,8 @@ use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::cli::SyncArgs;
 use crate::exit_codes;
+use crate::finaliser::FinishedRun;
+use crate::finaliser::RunFinaliser;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
@@ -216,6 +218,9 @@ fn render_report(report: &RunReport) -> String {
                     Some(
                         work_adapters::sync::apply::FailureClass::Terminal,
                     ) => "terminal",
+                    Some(
+                        work_adapters::sync::apply::FailureClass::Unconfigured,
+                    ) => "unconfigured",
                     None => "-",
                 },
             ),
@@ -252,12 +257,21 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
                 if error.class() == Some(work_adapters::sync::apply::FailureClass::Retryable)
         )
     });
+    let any_unconfigured = report.reported.iter().any(|item| {
+        matches!(
+            item.outcome,
+            ItemOutcome::Failed(ref error)
+                if error.class() == Some(work_adapters::sync::apply::FailureClass::Unconfigured)
+        )
+    });
     let awaiting_human = report.awaiting_human().next().is_some();
 
     if any_terminal {
         exit_codes::TERMINAL
     } else if awaiting_human {
         exit_codes::UNRESOLVED
+    } else if any_unconfigured {
+        exit_codes::UNCONFIGURED
     } else if any_retryable
         || report.read_failure.is_some()
         || matches!(report.discovery, DiscoveryStatus::Failed { .. })
@@ -921,127 +935,6 @@ fn unbounded_gate_message(integration: &str) -> String {
     )
 }
 
-/// The distinct team-key prefixes of every create-from-remote import this run
-/// applied — the teams a broadened Linear pull actually drew items from.
-fn imported_team_keys(
-    report: &work_adapters::sync::run::RunReport,
-) -> Vec<String> {
-    let mut keys: Vec<String> = Vec::new();
-    for item in &report.reported {
-        if !matches!(item.planned.action, work::sync::Action::CreateFromRemote)
-        {
-            continue;
-        }
-        if !matches!(item.outcome, ItemOutcome::Applied) {
-            continue;
-        }
-        if let Some((prefix, _)) = item.planned.id.split_once('-') {
-            if !keys.iter().any(|seen| seen == prefix) {
-                keys.push(prefix.to_owned());
-            }
-        }
-    }
-    keys
-}
-
-/// Grows the committed Linear team catalogue with any team a broadened pull
-/// just imported from but the catalogue did not yet name, so those items
-/// reconcile offline on later runs. A no-op for Jira (its keyed reconcile read
-/// is project-agnostic) and for a pull that imported only base-team items.
-///
-/// Best-effort at finalisation: the imported files already landed, so a growth
-/// failure warns rather than failing the sync. The metadata is committed only
-/// for teams items were actually imported from — never the whole enumerated
-/// workspace — and a note names each newly-committed team since the
-/// catalogue is version-controlled and repo-wide.
-fn grow_linear_catalogue(
-    report: &work_adapters::sync::run::RunReport,
-    tracker: &dyn tracker::RemoteTracker,
-    integration: &str,
-    integrations_root: &Path,
-    repo_root: &Path,
-    notes: &mut dyn std::io::Write,
-) {
-    if integration != "linear" {
-        return;
-    }
-    let imported = imported_team_keys(report);
-    if imported.is_empty() {
-        return;
-    }
-    let filesystem =
-        linear_client::cache::SystemFilesystem::new(repo_root.to_path_buf());
-    let cache = linear_client::cache::LinearCache::new(
-        &filesystem,
-        integrations_root.join("linear"),
-    );
-    let known: Vec<String> = match cache.load_for_update() {
-        Ok(catalogue) => catalogue
-            .teams()
-            .iter()
-            .map(|team| team.key.clone())
-            .collect(),
-        Err(error) => {
-            let _ = writeln!(
-                notes,
-                "warning: the Linear team catalogue could not be grown \
-                 ({error})."
-            );
-            return;
-        }
-    };
-    let new_keys: Vec<String> = imported
-        .into_iter()
-        .filter(|key| !known.contains(key))
-        .collect();
-    if new_keys.is_empty() {
-        return;
-    }
-    let visible = match tracker.enumerate_visible_entities() {
-        Ok(visible) => visible,
-        Err(error) => {
-            let _ = writeln!(
-                notes,
-                "warning: the Linear team catalogue could not be grown for \
-                 newly-imported team(s) ({error}); they will be catalogued on \
-                 the next successful enumeration."
-            );
-            return;
-        }
-    };
-    let entries: Vec<linear_client::catalogue::TeamEntry> = new_keys
-        .iter()
-        .filter_map(|key| visible.iter().find(|entity| &entity.key == key))
-        .map(|entity| {
-            linear_client::catalogue::TeamEntry::identified(
-                &entity.identifier,
-                &entity.key,
-                &entity.name,
-            )
-        })
-        .collect();
-    if entries.is_empty() {
-        return;
-    }
-    let update = linear_client::catalogue::CatalogueUpdate {
-        entries,
-        ..Default::default()
-    };
-    let _ = match cache.record_team_entries(&update) {
-        Ok(added) if !added.is_empty() => writeln!(
-            notes,
-            "note: committed Linear team metadata for newly-imported team(s): \
-             {}. The catalogue is version-controlled and repo-wide.",
-            added.join(", ")
-        ),
-        Ok(_) => Ok(()),
-        Err(error) => writeln!(
-            notes,
-            "warning: the Linear team catalogue could not be grown ({error})."
-        ),
-    };
-}
-
 /// The configured discovery filters, flattened from `<tracker>.pull.filters`
 /// into the port's flat `(key, value)` bag — one entry per value, so an adapter
 /// groups same-key values into one `IN` (values OR'd). Read after
@@ -1162,6 +1055,7 @@ pub fn run_sync(
     config: &dyn ConfigAccess,
     args: &SyncArgs,
     registry: &dyn TrackerRegistry,
+    finaliser: &dyn RunFinaliser,
 ) -> ExitCode {
     let direction = if args.push_only {
         SyncDirection::PushOnly
@@ -1417,12 +1311,17 @@ pub fn run_sync(
                 ),
             }
             println!("{}", render_report(&report));
-            grow_linear_catalogue(
-                &report,
-                tracker.as_ref(),
-                &integration,
-                &integrations_root,
-                &repo_root,
+            finaliser.finalise(
+                &FinishedRun {
+                    report: &report,
+                    mode,
+                    corpus_external_ids: items
+                        .iter()
+                        .filter_map(|item| item.external_id.clone())
+                        .collect(),
+                    integrations_root: &integrations_root,
+                    repo_root: &repo_root,
+                },
                 &mut std::io::stderr(),
             );
             warn_outstanding_pushes(&integrations_root, &integration);
@@ -2005,116 +1904,6 @@ mod tests {
         );
     }
 
-    fn imported(id: &str) -> ReportedItem {
-        ReportedItem {
-            planned: PlannedAction {
-                id: id.to_owned(),
-                state: SyncState::Unsynced,
-                action: Action::CreateFromRemote,
-            },
-            outcome: ItemOutcome::Applied,
-            validation: None,
-        }
-    }
-
-    fn report_importing(ids: &[&str]) -> RunReport {
-        RunReport {
-            reported: ids.iter().map(|id| imported(id)).collect(),
-            ..report_with(DiscoveryStatus::Ran { found: ids.len() })
-        }
-    }
-
-    fn seeded_integrations(catalogue: &serde_json::Value) -> tempfile::TempDir {
-        let root = tempfile::tempdir().expect("tempdir");
-        let linear = root.path().join("integrations/linear");
-        std::fs::create_dir_all(&linear).expect("linear state dir");
-        std::fs::write(linear.join("catalogue.json"), catalogue.to_string())
-            .expect("seed the catalogue");
-        root
-    }
-
-    fn grow(
-        root: &Path,
-        report: &RunReport,
-        visible: &[(&str, &str)],
-    ) -> String {
-        let tracker =
-            tracker_test_support::RecordingTracker::holding(Vec::new()).seeing(
-                visible
-                    .iter()
-                    .map(|(key, id)| tracker::VisibleEntity {
-                        key: (*key).to_owned(),
-                        identifier: (*id).to_owned(),
-                        name: format!("{key} team"),
-                    })
-                    .collect(),
-            );
-        let mut notes = Vec::new();
-        super::grow_linear_catalogue(
-            report,
-            &tracker,
-            "linear",
-            &root.join("integrations"),
-            root,
-            &mut notes,
-        );
-        String::from_utf8(notes).expect("utf-8 notes")
-    }
-
-    fn catalogue_at(root: &Path) -> serde_json::Value {
-        let raw = std::fs::read_to_string(
-            root.join("integrations/linear/catalogue.json"),
-        )
-        .expect("the catalogue");
-        serde_json::from_str(&raw).expect("valid JSON")
-    }
-
-    #[test]
-    fn growing_catalogues_a_team_imported_from_for_the_first_time() {
-        let root = seeded_integrations(&serde_json::json!({
-            "team": { "id": "t-base", "key": "BASE", "name": "Base" },
-        }));
-
-        let notes = grow(
-            root.path(),
-            &report_importing(&["OPS-7"]),
-            &[("BASE", "t-base"), ("OPS", "t-ops")],
-        );
-
-        let catalogue = catalogue_at(root.path());
-        let ops = catalogue["teams"]
-            .as_array()
-            .expect("teams")
-            .iter()
-            .find(|entry| entry["key"] == "OPS")
-            .expect("the imported team is catalogued")
-            .clone();
-        assert_eq!(
-            ops,
-            serde_json::json!({ "id": "t-ops", "key": "OPS", "name": "OPS team" })
-        );
-        assert!(notes.starts_with("note:"), "{notes}");
-        assert!(notes.contains("OPS"), "{notes}");
-    }
-
-    #[test]
-    fn growing_ignores_a_team_already_catalogued() {
-        let catalogue = serde_json::json!({
-            "team": { "id": "t-base", "key": "BASE", "name": "Base" },
-            "teams": [{ "id": "t-ops", "key": "OPS", "name": "Ops" }],
-        });
-        let root = seeded_integrations(&catalogue);
-
-        let notes = grow(
-            root.path(),
-            &report_importing(&["BASE-1", "OPS-7"]),
-            &[("BASE", "t-base"), ("OPS", "t-ops")],
-        );
-
-        assert_eq!(catalogue_at(root.path()), catalogue);
-        assert_eq!(notes, "");
-    }
-
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
             reported: Vec::new(),
@@ -2172,6 +1961,76 @@ mod tests {
     #[test]
     fn single_line_strips_record_breaking_whitespace() {
         assert_eq!(super::single_line("a\tb\nc\rd"), "a b c d");
+    }
+
+    fn unconfigured(detail: &str) -> TrackerError {
+        TrackerError::Unconfigured {
+            detail: detail.to_owned(),
+        }
+    }
+
+    #[test]
+    fn render_report_renders_an_unconfigured_failure() {
+        let report = RunReport {
+            reported: vec![failed(
+                "0001",
+                SyncState::LocallyModified,
+                unconfigured("no team in scope"),
+            )],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tlocally-modified\tunconfigured"));
+    }
+
+    #[test]
+    fn exit_code_for_report_ranks_outcomes() {
+        let terminal = || {
+            failed(
+                "0001",
+                SyncState::LocallyModified,
+                TrackerError::Terminal {
+                    detail: String::new(),
+                },
+            )
+        };
+        let awaiting = || reported("0002", SyncState::Conflict, Action::Prompt);
+        let refused =
+            || failed("0003", SyncState::LocallyModified, unconfigured(""));
+        let retryable = || {
+            failed(
+                "0004",
+                SyncState::LocallyModified,
+                TrackerError::Retryable {
+                    detail: String::new(),
+                },
+            )
+        };
+        let exit_for = |items: Vec<ReportedItem>| {
+            super::exit_code_for_report(&RunReport {
+                reported: items,
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            })
+        };
+
+        for (items, expected) in [
+            (
+                vec![terminal(), awaiting(), refused(), retryable()],
+                super::exit_codes::TERMINAL,
+            ),
+            (
+                vec![awaiting(), refused(), retryable()],
+                super::exit_codes::UNRESOLVED,
+            ),
+            (
+                vec![refused(), retryable()],
+                super::exit_codes::UNCONFIGURED,
+            ),
+            (vec![retryable()], super::exit_codes::RETRYABLE),
+        ] {
+            assert_eq!(exit_for(items), expected);
+        }
     }
 
     #[test]
@@ -2349,6 +2208,8 @@ mod tests {
     // observable effects — files written or not, the fetch_all call made or not
     // — while the exit-code chain is proven by the pure-logic tests above.
 
+    use std::cell::RefCell;
+    use std::process::ExitCode;
     use std::rc::Rc;
 
     use tracker::RemoteIssue;
@@ -2357,6 +2218,9 @@ mod tests {
     use tracker_test_support::RecordingTracker;
 
     use crate::cli::SyncArgs;
+    use crate::finaliser::FinishedRun;
+    use crate::finaliser::NoFinaliser;
+    use crate::finaliser::RunFinaliser;
     use crate::tracker_registry::SelectionError;
     use crate::tracker_registry::TrackerRegistry;
 
@@ -2576,14 +2440,160 @@ mod tests {
         }
     }
 
-    fn drive_sync(dir: &Path, tracker: &Rc<RecordingTracker>, args: &SyncArgs) {
+    fn drive_sync(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+    ) -> ExitCode {
+        drive_sync_finalising(dir, tracker, args, &NoFinaliser)
+    }
+
+    fn drive_sync_finalising(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+        args: &SyncArgs,
+        finaliser: &dyn RunFinaliser,
+    ) -> ExitCode {
         let composed = config_adapters::compose(
             dir,
             config_adapters::LegacyPolicy::Reject,
         )
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
-        let _ = super::run_sync(dir, &composed.service, args, &registry);
+        super::run_sync(dir, &composed.service, args, &registry, finaliser)
+    }
+
+    /// Keeps what the run handed it, and can report a failure of its own.
+    #[derive(Default)]
+    struct RecordingFinaliser {
+        corpus: RefCell<Vec<String>>,
+        imports: RefCell<Vec<String>>,
+        complains: bool,
+    }
+
+    impl RunFinaliser for RecordingFinaliser {
+        fn finalise(
+            &self,
+            run: &FinishedRun<'_>,
+            diagnostics: &mut dyn std::io::Write,
+        ) {
+            self.corpus.borrow_mut().extend(
+                run.corpus_external_ids
+                    .iter()
+                    .map(|id| id.as_str().to_owned()),
+            );
+            self.imports.borrow_mut().extend(
+                run.applied_imports()
+                    .iter()
+                    .map(|id| id.as_str().to_owned()),
+            );
+            if self.complains {
+                let _ = writeln!(diagnostics, "warning: finaliser failed");
+            }
+        }
+    }
+
+    #[test]
+    fn the_finaliser_receives_the_corpus_external_ids() {
+        let dir = sync_repo();
+        work_file(dir.path(), "0292", Some("PP-869"));
+        work_file(dir.path(), "PROJ-0042", Some("ENG-12"));
+        work_file(dir.path(), "0001", None);
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let finaliser = RecordingFinaliser::default();
+
+        drive_sync_finalising(
+            dir.path(),
+            &tracker,
+            &sync_args(Vec::new()),
+            &finaliser,
+        );
+
+        let mut corpus = finaliser.corpus.borrow().clone();
+        corpus.sort();
+        assert_eq!(corpus, vec!["ENG-12", "PP-869"], "no local id");
+    }
+
+    #[test]
+    fn an_applied_import_reaches_the_finaliser() {
+        let dir = sync_repo();
+        let tracker = Rc::new(
+            RecordingTracker::holding(vec![(
+                ExternalId::new("ENG-7".to_owned()),
+                issue("Imported\nRemote body"),
+            )])
+            .discovering(
+                vec![(
+                    ExternalId::new("ENG-7".to_owned()),
+                    tracker::RemoteTimestamp::Reported(
+                        "2026-01-01T00:00:00Z".to_owned(),
+                    ),
+                )],
+                true,
+            ),
+        );
+        let finaliser = RecordingFinaliser::default();
+
+        drive_sync_finalising(
+            dir.path(),
+            &tracker,
+            &sync_args(Vec::new()),
+            &finaliser,
+        );
+
+        assert_eq!(*finaliser.imports.borrow(), vec!["ENG-7"]);
+    }
+
+    #[test]
+    fn a_failed_import_adds_no_synced_team() {
+        let dir = sync_repo();
+        let tracker = Rc::new(
+            RecordingTracker::holding(Vec::new())
+                .failing_show(
+                    ExternalId::new("ENG-7".to_owned()),
+                    TrackerError::Retryable {
+                        detail: "boom".to_owned(),
+                    },
+                )
+                .discovering(
+                    vec![(
+                        ExternalId::new("ENG-7".to_owned()),
+                        tracker::RemoteTimestamp::NotReported,
+                    )],
+                    true,
+                ),
+        );
+        let finaliser = RecordingFinaliser::default();
+
+        drive_sync_finalising(
+            dir.path(),
+            &tracker,
+            &sync_args(Vec::new()),
+            &finaliser,
+        );
+
+        assert!(finaliser.imports.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_failing_finaliser_leaves_the_exit_code_unchanged() {
+        let quiet = sync_repo();
+        let complaining = sync_repo();
+        let tracker = || Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let expected =
+            drive_sync(quiet.path(), &tracker(), &sync_args(Vec::new()));
+        let observed = drive_sync_finalising(
+            complaining.path(),
+            &tracker(),
+            &sync_args(Vec::new()),
+            &RecordingFinaliser {
+                complains: true,
+                ..RecordingFinaliser::default()
+            },
+        );
+
+        assert_eq!(observed, expected);
     }
 
     fn issue(body: &str) -> RemoteIssue {

@@ -20,10 +20,16 @@ fn install(server: &MockServer) {
 
 #[test]
 fn transition_resolves_the_state_and_posts_the_stateid() {
+    for seed in [support::seed_catalogue, support::seed_legacy_catalogue] {
+        transitions_over(seed);
+    }
+}
+
+fn transitions_over(seed: fn(&Path)) {
     let server = MockServer::start();
     install(&server);
     let dir = support::scratch(support::CONFIG);
-    support::seed_catalogue(dir.path());
+    seed(dir.path());
 
     let output = support::run(
         dir.path(),

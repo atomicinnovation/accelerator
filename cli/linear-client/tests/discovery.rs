@@ -11,7 +11,7 @@ use linear_client::catalogue::{CatalogueSection, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
 use linear_client::SurfaceError;
 use serde_json::{json, Value};
-use support::client::client_for;
+use support::client::{brief, client_for, client_with};
 use tracker_support::TransportConfig;
 
 const GRAPHQL: &str = "/graphql";
@@ -752,4 +752,124 @@ fn a_team_returned_but_not_requested_gets_no_entry() {
         .map(|entry| entry.id.as_str())
         .collect();
     assert_eq!(ids, vec!["t-a"]);
+}
+
+#[test]
+fn fetching_several_teams_makes_one_pass_per_section() {
+    let server = MockServer::start();
+    serve_identities(&server, &["t-a", "t-b", "t-c"]);
+    server.route(
+        RequestKey::graphql(STATES),
+        page(
+            "workflowStates",
+            &json!([
+                state("s-a", "t-a"),
+                state("s-b", "t-b"),
+                state("s-c", "t-c")
+            ]),
+            None,
+        ),
+    );
+    server.route(
+        RequestKey::graphql(MEMBERS),
+        page("users", &json!([member("u-1", &["t-a", "t-c"])]), None),
+    );
+
+    let fetched = fetch(
+        &server,
+        &["t-a", "t-b", "t-c"],
+        &only(&[CatalogueSection::States, CatalogueSection::Members]),
+    )
+    .expect("the fetch succeeds");
+
+    assert_eq!(fetched.entries.len(), 3);
+    assert_eq!(server.hits(&RequestKey::graphql(IDENTITIES)), 1);
+    assert_eq!(server.hits(&RequestKey::graphql(STATES)), 1);
+    assert_eq!(server.hits(&RequestKey::graphql(MEMBERS)), 1);
+}
+
+const TEAM_OF_IDENTIFIER: &str = "TeamOfIdentifier";
+
+fn issue_team(id: &str, key: &str) -> Route {
+    json_route(
+        &json!({ "data": { "issue": {
+            "team": { "id": id, "key": key, "name": format!("Team {key}") }
+        } } })
+        .to_string(),
+    )
+}
+
+#[test]
+fn team_of_identifier_resolves_the_issues_current_team() {
+    for (identifier, id, key) in [
+        ("OLD-7", "t-renamed", "NEW"),
+        ("ARC-2", "t-archived", "ARC"),
+    ] {
+        let server = MockServer::start();
+        server.route(
+            RequestKey::graphql(TEAM_OF_IDENTIFIER),
+            issue_team(id, key),
+        );
+
+        let team = client_for(&server, TransportConfig::default())
+            .team_of_identifier(identifier)
+            .expect("the lookup succeeds")
+            .expect("the issue exists");
+
+        assert_eq!((team.id.as_str(), team.key.as_str()), (id, key));
+        let sent: Value = serde_json::from_slice(
+            &server
+                .last_body(&RequestKey::graphql(TEAM_OF_IDENTIFIER))
+                .expect("a lookup"),
+        )
+        .expect("JSON");
+        assert_eq!(sent["variables"]["id"], identifier);
+    }
+}
+
+#[test]
+fn an_identifier_linear_cannot_find_is_none() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::graphql(TEAM_OF_IDENTIFIER),
+        Route::Json {
+            status: 400,
+            body: json!({
+                "errors": [{
+                    "message": "Entity not found: Issue",
+                    "extensions": { "code": "INVALID_INPUT" }
+                }],
+                "data": null
+            })
+            .to_string(),
+        },
+    );
+
+    let team = client_for(&server, TransportConfig::default())
+        .team_of_identifier("PROJ-12")
+        .expect("a missing issue is not a failure");
+
+    assert!(team.is_none());
+}
+
+#[test]
+fn any_other_lookup_failure_is_an_error() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::graphql(TEAM_OF_IDENTIFIER),
+        Route::Json {
+            status: 400,
+            body: json!({
+                "errors": [{ "message": "Query too complex" }],
+                "data": null
+            })
+            .to_string(),
+        },
+    );
+    let unreachable = client_with("http://127.0.0.1:9", brief(), None);
+
+    assert!(client_for(&server, TransportConfig::default())
+        .team_of_identifier("PP-1")
+        .is_err());
+    assert!(unreachable.team_of_identifier("PP-1").is_err());
 }

@@ -7,6 +7,7 @@
 //! most.
 
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use crate::catalogue::CatalogueSection;
 use crate::catalogue::FamilyResolver;
@@ -209,7 +210,7 @@ impl NameResolver for FixedNames {
 /// transition, and the team entries every filter family and every question
 /// of team identity is answered from.
 pub struct ResolverSet {
-    team_states: Box<dyn NameResolver>,
+    team_states: Rc<dyn NameResolver>,
     entries: TeamEntries,
 }
 
@@ -220,7 +221,7 @@ impl ResolverSet {
         entries: TeamEntries,
     ) -> Self {
         Self {
-            team_states,
+            team_states: Rc::from(team_states),
             entries,
         }
     }
@@ -243,6 +244,26 @@ impl ResolverSet {
     #[must_use]
     pub fn team_by_key(&self, key: &str) -> Option<TeamRef> {
         self.entries.team_by_key(key)
+    }
+
+    /// The team `team_id` names, with its catalogued key when it has one.
+    #[must_use]
+    pub fn team_by_id(&self, team_id: &str) -> TeamRef {
+        self.entries.team_by_id(team_id)
+    }
+
+    #[must_use]
+    pub fn base_team(&self) -> Option<TeamRef> {
+        self.entries.base_team()
+    }
+
+    /// Whether the catalogue holds the workspace labels.
+    ///
+    /// # Errors
+    ///
+    /// [`CatalogueGap::Damaged`] when they could not be parsed.
+    pub fn has_workspace_labels(&self) -> Result<bool, CatalogueGap> {
+        self.entries.has_workspace_labels()
     }
 
     /// Every catalogued team as `(key, id)`, in id order.
@@ -273,9 +294,9 @@ impl ResolverSet {
     /// This set with the data a run fetched folded in: each fetched section
     /// replaces the stored one, so every team resolves through one path.
     #[must_use]
-    pub fn with_fetched(self, fetched: &LiveCatalogueData) -> Self {
+    pub fn with_fetched(&self, fetched: &LiveCatalogueData) -> Self {
         Self {
-            team_states: self.team_states,
+            team_states: Rc::clone(&self.team_states),
             entries: self.entries.with_fetched(fetched),
         }
     }
