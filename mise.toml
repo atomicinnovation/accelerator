@@ -88,7 +88,7 @@ description = "Provision the pinned cargo-about (built from source on stable; it
 run = "invoke deps.install-cargo-about"
 
 [tasks."deps:install:cargo-sources"]
-description = "Populate the cli/ cargo registry so offline cargo-about can read licence files"
+description = "Populate the cli/ cargo registry for offline cargo-about and cargo-deny runs"
 run = "invoke deps.install-cargo-sources"
 
 [tasks."deps:install:playwright"]
@@ -343,7 +343,7 @@ run = "invoke test.integration.conformance"
 
 [tasks."test:integration:deny"]
 description = "Run the cargo-deny native-tls/OpenSSL ban regression (offline fixtures)"
-depends = ["deps:install:python"]
+depends = ["deps:install:python", "deps:install:cargo-sources"]
 run = "invoke test.integration.deny"
 
 # Deliberately NOT in the aggregate `check`, the bare `default` task, or the

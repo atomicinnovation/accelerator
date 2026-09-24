@@ -83,8 +83,9 @@ jobs:
         with:
           # test:integration:visualiser compiles the server, now a cli/
           # workspace member; test:integration:deny only reads cli metadata (no
-          # build), and its crate downloads are covered by the always-cached
-          # cargo registry.
+          # build) and fetches its own locked closure through
+          # deps:install:cargo-sources, since a restored registry misses any
+          # crate the lockfile gained since the cache was saved.
           workspaces: cli
 
       - name: Run integration tests
