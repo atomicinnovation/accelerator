@@ -10,14 +10,38 @@
 
 use std::path::Path;
 
+use crate::library::is_unborn_head;
 use crate::library::snapshot;
 use crate::library::Error;
+use crate::library::WorkingCopyState;
 
-pub(super) fn git_dirty_paths(root: &Path) -> Result<Vec<String>, Error> {
+pub(super) fn git_working_copy_state(
+    root: &Path,
+) -> Result<WorkingCopyState, Error> {
     let repository = gix::open(root).map_err(|error| Error::Git {
         path: root.to_path_buf(),
         source: Box::new(error),
     })?;
+    let base_commits = match repository.head_commit() {
+        Ok(commit) => vec![commit.id().to_string()],
+        Err(error) if is_unborn_head(&error) => Vec::new(),
+        Err(error) => {
+            return Err(Error::Git {
+                path: root.to_path_buf(),
+                source: Box::new(error),
+            })
+        }
+    };
+    Ok(WorkingCopyState {
+        base_commits,
+        dirty_paths: git_dirty_paths(root, &repository)?,
+    })
+}
+
+fn git_dirty_paths(
+    root: &Path,
+    repository: &gix::Repository,
+) -> Result<Vec<String>, Error> {
     let status = repository
         .status(gix::progress::Discard)
         .map_err(|error| Error::Git {
@@ -45,14 +69,20 @@ pub(super) fn git_dirty_paths(root: &Path) -> Result<Vec<String>, Error> {
 
 /// The paths the jj working-copy snapshot reports as changed, tree-valued
 /// entries (gitlinks, submodules) already excluded by the snapshot's keep
-/// predicate. `Ok(Vec::new())` when the workspace has no working-copy commit.
-pub(super) fn jj_dirty_paths(root: &Path) -> Result<Vec<String>, Error> {
+/// predicate, and the parents they are diffed against. Empty when the
+/// workspace has no working-copy commit.
+pub(super) fn jj_working_copy_state(
+    root: &Path,
+) -> Result<WorkingCopyState, Error> {
     let Some(snapshot) = snapshot::working_copy_diff(root)? else {
-        return Ok(Vec::new());
+        return Ok(WorkingCopyState::default());
     };
-    Ok(snapshot
-        .changes
-        .into_iter()
-        .map(|entry| entry.path)
-        .collect())
+    Ok(WorkingCopyState {
+        base_commits: snapshot.base_commits,
+        dirty_paths: snapshot
+            .changes
+            .into_iter()
+            .map(|entry| entry.path)
+            .collect(),
+    })
 }

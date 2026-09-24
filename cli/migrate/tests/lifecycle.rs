@@ -59,10 +59,6 @@ impl MigrationContext for StubContext {
         Vec::new()
     }
 
-    fn revision(&self) -> Option<String> {
-        None
-    }
-
     fn corpus_index(&self) -> &dyn CorpusIndex {
         &NoIndex
     }

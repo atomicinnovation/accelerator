@@ -1,9 +1,9 @@
-//! The per-run path manifest and run-id sidecar.
+//! The per-run path manifest and the recorded run base.
 //!
 //! `.accelerator/state/migrations-run-paths.txt` (one repo-relative path per
-//! line, deduped) and `.accelerator/state/migrations-run.id` (the base
-//! revision the run started against; empty content records a `None`
-//! revision, distinct from the file being absent).
+//! line, deduped) and `.accelerator/state/migrations-run.id` (the run base
+//! the run started against; empty content records no run base, distinct
+//! from the file being absent).
 
 use std::fs;
 use std::path::Path;
@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 use migrate::ports::ManifestStore;
 use migrate::ports::MigrationError;
+use migrate::run_base::RunBase;
 use store::NewFileMode;
 use store::WriteBounds;
 
@@ -40,7 +41,7 @@ impl FileManifestStore {
             .join(".accelerator/state/migrations-run-paths.txt")
     }
 
-    fn run_id_path(&self) -> PathBuf {
+    fn run_base_path(&self) -> PathBuf {
         self.root.join(".accelerator/state/migrations-run.id")
     }
 
@@ -99,25 +100,22 @@ impl ManifestStore for FileManifestStore {
         self.write_manifest(&current)
     }
 
-    fn run_id(&self) -> Result<Option<String>, MigrationError> {
+    fn recorded_run_base(&self) -> Result<Option<RunBase>, MigrationError> {
         Ok(self
-            .read(&self.run_id_path())?
-            .map(|text| text.trim().to_owned())
-            .filter(|trimmed| !trimmed.is_empty()))
+            .read(&self.run_base_path())?
+            .and_then(|text| RunBase::recorded(&text)))
     }
 
-    fn write_run_id(
+    fn record_run_base(
         &self,
-        revision: Option<&str>,
+        run_base: Option<&RunBase>,
     ) -> Result<(), MigrationError> {
-        self.write(
-            &self.run_id_path(),
-            &format!("{}\n", revision.unwrap_or("")),
-        )
+        let recorded = run_base.map(ToString::to_string).unwrap_or_default();
+        self.write(&self.run_base_path(), &format!("{recorded}\n"))
     }
 
     fn clear(&self) -> Result<(), MigrationError> {
-        for path in [self.manifest_path(), self.run_id_path()] {
+        for path in [self.manifest_path(), self.run_base_path()] {
             if path.exists() {
                 fs::remove_file(&path)
                     .map_err(|error| MigrationError::new(error.to_string()))?;
@@ -133,11 +131,12 @@ mod tests {
 
     use super::FileManifestStore;
     use migrate::ports::ManifestStore;
+    use migrate::run_base::RunBase;
 
     type TestError = Box<dyn std::error::Error>;
 
     #[test]
-    fn an_empty_run_id_sidecar_parses_the_same_as_an_absent_one(
+    fn an_empty_run_base_record_parses_the_same_as_an_absent_one(
     ) -> Result<(), TestError> {
         let dir = TempDir::new()?;
         let store = FileManifestStore::new(dir.path());
@@ -147,7 +146,26 @@ mod tests {
             "",
         )?;
 
-        assert_eq!(store.run_id()?, None);
+        assert_eq!(store.recorded_run_base()?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_recorded_run_base_reads_back_unchanged() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let store = FileManifestStore::new(dir.path());
+        let run_base =
+            RunBase::from_base_commits(&["b".to_owned(), "a".to_owned()]);
+
+        store.record_run_base(run_base.as_ref())?;
+
+        assert_eq!(
+            std::fs::read_to_string(
+                dir.path().join(".accelerator/state/migrations-run.id")
+            )?,
+            "a+b\n"
+        );
+        assert_eq!(store.recorded_run_base()?, run_base);
         Ok(())
     }
 }

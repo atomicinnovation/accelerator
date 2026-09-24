@@ -128,6 +128,33 @@
   policy-refused destination, folded into the existing cross-origin skip; the
   `same_origin` field's definition is restated accordingly in `PROTOCOL.md`.
 
+### Fixed
+
+- **`accelerator migrate` resumes stalled runs on jj.** The run base is now
+  the parents of the working-copy commit, so `jj status`, edits and
+  `jj describe` no longer make a stalled run look stale, and the dirty-tree
+  refusal lists the unowned changes that blocked it. A jj run that stalled
+  before this upgrade is refused as stale. Check that the listed paths are
+  only that run's output, set aside anything else under them, then
+  `jj commit -m "partial migration" meta .accelerator .claude` and re-run
+  `accelerator migrate --decisions-file <path>` without
+  `ACCELERATOR_MIGRATE_FORCE`. `jj undo` reverts the commit.
+
+- **jj dirty-path checks honour the git excludes.** `accelerator migrate`,
+  `work sync` and `accelerator vcs status` now skip untracked files that
+  `core.excludesFile`, the XDG `git/ignore` or the backing repo's
+  `info/exclude` ignore, as `jj status` does. Such files are no longer
+  protected by the migrate pre-flight, so track or back them up before
+  migrating.
+
+- **jj dirty-path checks honour `snapshot.max-new-file-size`.**
+  `accelerator migrate`, `work sync` and `accelerator vcs status` now skip
+  new files over the limit, as `jj status` does, including jj's 1 MiB
+  default when the key is unset. Such files are no longer protected by the
+  migrate pre-flight. Conditional `[[--scope]]` settings apply as they do for
+  `jj status`. An invalid value checks every file and logs a warning, shown
+  with `ACCELERATOR_LOG=warn`.
+
 ### Security
 
 - **Per-request classification of navigations and followed links.** The

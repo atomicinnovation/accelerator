@@ -1,14 +1,15 @@
-//! `InProcessProbe::dirty_paths` against real jj/git repositories, compared
-//! against the shape `git status --porcelain`/`jj diff --name-only` reports.
+//! `InProcessProbe::dirty_paths`, through `vcs-adapters-fixture`, against real
+//! jj/git repositories, compared against the shape
+//! `git status --porcelain`/`jj diff --name-only` reports.
 #![cfg(feature = "bash-parity")]
+
+mod support;
 
 use std::fs;
 
-use vcs::VcsKind;
-use vcs_adapters::library::InProcessProbe;
 use vcs_test_support::hermetic::Hermetic;
 
-type TestError = Box<dyn std::error::Error>;
+use support::TestError;
 
 fn tempdir(tag: &str) -> Result<tempfile::TempDir, TestError> {
     Ok(tempfile::Builder::new()
@@ -35,12 +36,10 @@ fn git_reports_a_modified_tracked_file_and_an_untracked_one(
     fs::write(root.join("meta/a.md"), "two\n")?;
     fs::write(root.join("meta/untracked.md"), "x\n")?;
 
-    let probe = InProcessProbe;
-    let mut paths = probe.dirty_paths(&root, VcsKind::Git)?;
-    paths.sort();
+    let paths = support::dirty_paths(&env, &root)?;
 
     assert_eq!(
-        paths,
+        paths.into_iter().collect::<Vec<_>>(),
         vec!["meta/a.md".to_owned(), "meta/untracked.md".to_owned()]
     );
     Ok(())
@@ -63,8 +62,7 @@ fn git_excludes_an_ignored_file() -> Result<(), TestError> {
     fs::write(root.join("build/artifact.md"), "x\n")?;
     fs::write(root.join("noisy.log"), "x\n")?;
 
-    let probe = InProcessProbe;
-    let paths = probe.dirty_paths(&root, VcsKind::Git)?;
+    let paths = support::dirty_paths(&env, &root)?;
 
     assert!(paths.is_empty(), "{paths:?}");
     Ok(())
@@ -86,8 +84,7 @@ fn jj_excludes_an_ignored_file() -> Result<(), TestError> {
     fs::write(root.join("build/artifact.md"), "x\n")?;
     fs::write(root.join("noisy.log"), "x\n")?;
 
-    let probe = InProcessProbe;
-    let paths = probe.dirty_paths(&root, VcsKind::Jj)?;
+    let paths = support::dirty_paths(&env, &root)?;
 
     assert!(paths.is_empty(), "{paths:?}");
     Ok(())
@@ -105,8 +102,7 @@ fn git_on_a_clean_tree_reports_nothing() -> Result<(), TestError> {
     env.git(&["add", "meta/a.md"], &root)?;
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
 
-    let probe = InProcessProbe;
-    let paths = probe.dirty_paths(&root, VcsKind::Git)?;
+    let paths = support::dirty_paths(&env, &root)?;
 
     assert!(paths.is_empty());
     Ok(())
@@ -141,11 +137,12 @@ fn jj_reports_a_new_file_via_auto_track_and_never_writes_a_new_operation(
 
     fs::write(root.join("meta/b.md"), "two\n")?;
 
-    let probe = InProcessProbe;
-    let mut paths = probe.dirty_paths(&root, VcsKind::Jj)?;
-    paths.sort();
+    let paths = support::dirty_paths(&env, &root)?;
 
-    assert_eq!(paths, vec!["meta/b.md".to_owned()]);
+    assert_eq!(
+        paths.into_iter().collect::<Vec<_>>(),
+        vec!["meta/b.md".to_owned()]
+    );
     assert_eq!(
         op_heads(&root)?,
         heads_before,
@@ -165,9 +162,6 @@ fn jj_on_a_clean_tree_reports_nothing() -> Result<(), TestError> {
     fs::write(root.join("meta/a.md"), "one\n")?;
     env.jj(&["commit", "-m", "init"], &root)?;
 
-    let probe = InProcessProbe;
-    let paths = probe.dirty_paths(&root, VcsKind::Jj)?;
-
-    assert!(paths.is_empty());
+    assert!(support::dirty_paths(&env, &root)?.is_empty());
     Ok(())
 }

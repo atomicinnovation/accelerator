@@ -1,66 +1,27 @@
 //! The dirty-tree pre-flight driven end to end against the compiled binary
-//! over real git/jj repositories: foreign dirt refuses, `FORCE` bypasses.
+//! over real git/jj repositories: unowned changes refuse, `FORCE` bypasses.
 #![cfg(feature = "bash-parity")]
 
-use std::fs;
-use std::process::Command;
+mod common;
 
-use tempfile::TempDir;
+use std::fs;
+
+use common::mark_all_migrations_applied;
+use common::tempdir;
+use common::Outcome;
+use common::TestError;
 use vcs_test_support::hermetic::Hermetic;
 
-type TestError = Box<dyn std::error::Error>;
-
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-migrate");
-
-fn tempdir(tag: &str) -> Result<TempDir, TestError> {
-    Ok(tempfile::Builder::new()
-        .prefix(&format!("migrate-preflight-{tag}-"))
-        .tempdir()?)
-}
-
-/// The compiled binary always runs the full registry and has no way to
-/// isolate a subset of migrations for a test, so every real migration is
-/// pre-marked applied here to reach the same "nothing pending" state these
-/// tests were originally written against with an empty registry.
-fn mark_all_migrations_applied(
-    root: &std::path::Path,
-) -> Result<(), TestError> {
-    fs::create_dir_all(root.join(".accelerator/state"))?;
-    fs::write(
-        root.join(".accelerator/state/migrations-applied"),
-        "0001-rename-tickets-to-work\n\
-         0002-rename-work-items-with-project-prefix\n\
-         0003-relocate-accelerator-state\n\
-         0004-restructure-meta-research-into-subject-subcategories\n\
-         0005-rename-work-item-type-to-kind\n\
-         0006-canonicalise-work-item-id-and-author\n\
-         0007-unify-meta-corpus-frontmatter\n\
-         0008-canonical-frontmatter-quoting\n\
-         0009-split-work-key-from-tracker-scope-key\n\
-         0010-strip-research-title-prefix\n",
-    )?;
-    Ok(())
-}
-
 fn run(
+    env: &Hermetic,
     root: &std::path::Path,
     env_extra: &[(&str, &str)],
-) -> Result<(String, String, i32), TestError> {
-    let mut command = Command::new(BIN);
-    command.current_dir(root);
-    for (key, value) in env_extra {
-        command.env(key, value);
-    }
-    let output = command.output()?;
-    Ok((
-        String::from_utf8(output.stdout)?,
-        String::from_utf8(output.stderr)?,
-        output.status.code().unwrap_or(-1),
-    ))
+) -> Result<Outcome, TestError> {
+    common::run(env, root, &[], env_extra)
 }
 
 #[test]
-fn a_foreign_dirty_git_file_refuses() -> Result<(), TestError> {
+fn an_unowned_git_change_refuses() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
     let work = tempdir("git-refuse")?;
     let env = Hermetic::rooted_at(work.path())?;
@@ -73,7 +34,11 @@ fn a_foreign_dirty_git_file_refuses() -> Result<(), TestError> {
 
     fs::write(root.join("meta/a.md"), "two\n")?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
@@ -82,7 +47,7 @@ fn a_foreign_dirty_git_file_refuses() -> Result<(), TestError> {
         "Error: dirty working tree — uncommitted changes detected in \
          meta/, .claude/accelerator*.md, or .accelerator/.\nCommit or \
          discard those changes first, or set ACCELERATOR_MIGRATE_FORCE=1 \
-         to skip this check.\n"
+         to skip this check.\nUnowned changes (1):\n  meta/a.md\n"
     );
     Ok(())
 }
@@ -103,8 +68,11 @@ fn force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel(
     fs::write(root.join("meta/a.md"), "two\n")?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, _stderr, code) =
-        run(&root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    let Outcome {
+        stdout,
+        stderr: _stderr,
+        code,
+    } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
 
     assert_eq!(code, 0);
     assert_eq!(stdout, "No pending migrations.\n");
@@ -125,7 +93,11 @@ fn a_clean_git_tree_proceeds_to_the_empty_registry_sentinel(
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0);
     assert_eq!(stdout, "No pending migrations.\n");
@@ -173,7 +145,11 @@ fn a_guarded_resume_renders_the_affordance_with_the_decision_count(
          \"timestamp\":\"2026-01-01T00:00:00+00:00\"}\n",
     )?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(stdout, "No pending migrations.\n");
@@ -207,7 +183,7 @@ fn a_guarded_resume_renders_the_affordance_with_the_decision_count(
 }
 
 #[test]
-fn a_foreign_dirty_file_under_accelerator_refuses() -> Result<(), TestError> {
+fn an_unowned_change_under_accelerator_refuses() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_git_is_recent_enough()?;
     let work = tempdir("git-accelerator-dirty")?;
     let env = Hermetic::rooted_at(work.path())?;
@@ -223,7 +199,11 @@ fn a_foreign_dirty_file_under_accelerator_refuses() -> Result<(), TestError> {
         "---\nchanged: yes\n---\n",
     )?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
@@ -245,7 +225,11 @@ fn a_successful_run_clears_the_manifest_and_run_id_sidecar(
     env.git(&["commit", "--quiet", "-m", "init"], &root)?;
     mark_all_migrations_applied(&root)?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(stdout, "No pending migrations.\n");
@@ -293,8 +277,11 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
         "0001-rename-tickets-to-work\n",
     )?;
 
-    let (stdout, _stderr, code) =
-        run(&root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
+    let Outcome {
+        stdout,
+        stderr: _stderr,
+        code,
+    } = run(&env, &root, &[("ACCELERATOR_MIGRATE_FORCE", "1")])?;
 
     assert_eq!(code, 0, "{stdout}");
     assert!(stdout.starts_with("No pending migrations.\n"), "{stdout}");
@@ -306,7 +293,7 @@ fn force_bypasses_only_the_dirty_check_not_a_skipped_migration(
 }
 
 #[test]
-fn a_foreign_dirty_jj_file_refuses() -> Result<(), TestError> {
+fn an_unowned_jj_change_refuses() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
     let work = tempdir("jj-refuse")?;
     let env = Hermetic::rooted_at(work.path())?;
@@ -318,10 +305,200 @@ fn a_foreign_dirty_jj_file_refuses() -> Result<(), TestError> {
 
     fs::write(root.join("meta/b.md"), "two\n")?;
 
-    let (stdout, stderr, code) = run(&root, &[])?;
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
 
     assert_eq!(code, 1);
     assert_eq!(stdout, "");
     assert!(stderr.contains("dirty working tree"), "{stderr}");
     Ok(())
+}
+
+const REFUSAL_HEAD: &str = "Error: dirty working tree";
+const TWO_UNOWNED: &str =
+    "Unowned changes (2):\n  .accelerator/b\n  meta/a.md\n";
+
+fn committed_git_repo(
+    env: &Hermetic,
+    root: &std::path::Path,
+    files: &[&str],
+) -> Result<String, TestError> {
+    fs::create_dir_all(root)?;
+    env.git(&["init", "--quiet"], root)?;
+    for file in files {
+        let path = root.join(file);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, "one\n")?;
+    }
+    env.git(&["add", "-A"], root)?;
+    env.git(&["commit", "--quiet", "-m", "init"], root)?;
+    Ok(env.git(&["rev-parse", "HEAD"], root)?.trim().to_owned())
+}
+
+fn seed_manifest(
+    root: &std::path::Path,
+    manifested: &[&str],
+    run_base: &str,
+) -> Result<(), TestError> {
+    fs::create_dir_all(root.join(".accelerator/state"))?;
+    let listing: String =
+        manifested.iter().flat_map(|path| [*path, "\n"]).collect();
+    fs::write(
+        root.join(".accelerator/state/migrations-run-paths.txt"),
+        listing,
+    )?;
+    fs::write(
+        root.join(".accelerator/state/migrations-run.id"),
+        format!("{run_base}\n"),
+    )?;
+    Ok(())
+}
+
+#[test]
+fn a_git_refusal_lists_only_the_unowned_changes_of_the_current_run(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-listed")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    let head = committed_git_repo(
+        &env,
+        &root,
+        &["meta/a.md", "meta/owned.md", ".accelerator/b"],
+    )?;
+    seed_manifest(&root, &["meta/owned.md"], &head)?;
+    for path in ["meta/a.md", "meta/owned.md", ".accelerator/b"] {
+        fs::write(root.join(path), "two\n")?;
+    }
+
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
+    assert!(stderr.ends_with(TWO_UNOWNED), "{stderr}");
+    assert!(!stderr.contains("meta/owned.md"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_git_refusal_without_a_manifest_lists_every_change() -> Result<(), TestError>
+{
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-listed-bare")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    committed_git_repo(&env, &root, &["meta/a.md", ".accelerator/b"])?;
+    for path in ["meta/a.md", ".accelerator/b"] {
+        fs::write(root.join(path), "two\n")?;
+    }
+
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
+    assert!(stderr.ends_with(TWO_UNOWNED), "{stderr}");
+    Ok(())
+}
+
+fn a_jj_refusal_without_a_manifest_lists_every_change(
+    colocation: &str,
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempdir("jj-listed")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(root.join("meta"))?;
+    env.jj(&["git", "init", colocation], &root)?;
+    env.jj(&["commit", "-m", "init"], &root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(root.join("meta/a.md"), "two\n")?;
+    fs::write(root.join(".accelerator/b"), "two\n")?;
+
+    let Outcome {
+        stdout: _stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.starts_with(REFUSAL_HEAD), "{stderr}");
+    assert!(stderr.ends_with(TWO_UNOWNED), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_non_colocated_jj_refusal_lists_every_change() -> Result<(), TestError> {
+    a_jj_refusal_without_a_manifest_lists_every_change("--no-colocate")
+}
+
+#[test]
+fn a_colocated_jj_refusal_lists_every_change() -> Result<(), TestError> {
+    a_jj_refusal_without_a_manifest_lists_every_change("--colocate")
+}
+
+fn a_git_file_the_excludes_hide_is_not_a_change(
+    hide: impl Fn(&std::path::Path, &Hermetic) -> Result<Hermetic, TestError>,
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-excludes")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    committed_git_repo(&env, &root, &["meta/base.md"])?;
+    mark_all_migrations_applied(&root)?;
+    env.git(&["add", "-A"], &root)?;
+    env.git(&["commit", "--quiet", "-m", "ledger"], &root)?;
+    let env = hide(&root, &env)?;
+    fs::write(root.join("meta/ignored.md"), "ignored\n")?;
+
+    let proceeded = run(&env, &root, &[])?;
+    assert_eq!(proceeded.code, 0, "{}", proceeded.stderr);
+
+    fs::write(root.join("meta/visible.md"), "visible\n")?;
+    let refused = run(&env, &root, &[])?;
+    assert_eq!(refused.code, 1, "{}", refused.stderr);
+    assert!(
+        refused
+            .stderr
+            .ends_with("Unowned changes (1):\n  meta/visible.md\n"),
+        "{}",
+        refused.stderr
+    );
+    Ok(())
+}
+
+#[test]
+fn a_git_file_the_core_excludes_file_ignores_is_not_a_change(
+) -> Result<(), TestError> {
+    a_git_file_the_excludes_hide_is_not_a_change(|root, env| {
+        let base = root.parent().ok_or("no parent")?;
+        let excludes = base.join("global-ignore");
+        fs::write(&excludes, "ignored.md\n")?;
+        let config = base.join("global.gitconfig");
+        fs::write(
+            &config,
+            format!("[core]\n\texcludesFile = {}\n", excludes.display()),
+        )?;
+        Ok(env.clone().with_git_global_config(config))
+    })
+}
+
+#[test]
+fn a_git_file_info_exclude_ignores_is_not_a_change() -> Result<(), TestError> {
+    a_git_file_the_excludes_hide_is_not_a_change(|root, env| {
+        fs::write(root.join(".git/info/exclude"), "ignored.md\n")?;
+        Ok(env.clone())
+    })
 }

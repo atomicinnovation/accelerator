@@ -17,7 +17,6 @@ use migrate::ledger;
 use migrate::ports::DecisionSource;
 use migrate::ports::LedgerStore as _;
 use migrate::ports::ManifestStore as _;
-use migrate::ports::MigrationContext as _;
 use migrate::ports::NoInputDecisionSource;
 use migrate::ports::RunLock as _;
 use migrate::preflight::Preflight;
@@ -25,12 +24,12 @@ use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
 use migrate_adapters::context::FileMigrationContext;
 use migrate_adapters::decisions_file_decision_source::DecisionsFileDecisionSource;
-use migrate_adapters::dirty_path_scanner::VcsDirtyPathScanner;
 use migrate_adapters::ledger_store::FileLedgerStore;
 use migrate_adapters::manifest_store::FileManifestStore;
 use migrate_adapters::run_lock::FileRunLock;
 use migrate_adapters::session_log_factory::FileSessionLogFactory;
 use migrate_adapters::tty_decision_source::TtyDecisionSource;
+use migrate_adapters::working_copy::VcsWorkingCopy;
 use vcs::VcsKind;
 
 use crate::cli::Cli;
@@ -39,7 +38,7 @@ use crate::render::StdoutReporter;
 const RUNNER_APPLIED: &str = ".accelerator/state/migrations-applied";
 const RUNNER_SKIPPED: &str = ".accelerator/state/migrations-skipped";
 const RUNNER_RUN_PATHS: &str = ".accelerator/state/migrations-run-paths.txt";
-const RUNNER_RUN_ID: &str = ".accelerator/state/migrations-run.id";
+const RUNNER_RUN_BASE: &str = ".accelerator/state/migrations-run.id";
 const DECISION_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn project_root() -> Result<PathBuf, kernel::Error> {
@@ -222,20 +221,19 @@ fn run_default(
 
     let ctx = FileMigrationContext::new(root);
     let manifest_store = FileManifestStore::new(root);
-    let scanner = VcsDirtyPathScanner::new(root, vcs_kind(root));
+    let working_copy = VcsWorkingCopy::new(root, vcs_kind(root));
     let session_log_decisions = session_log_decision_count(root);
     let preflight = Preflight {
         lock: run_lock,
-        scanner: &scanner,
+        working_copy: &working_copy,
         manifest: &manifest_store,
         runner: migrate::manifest::RunnerPaths {
             applied: RUNNER_APPLIED,
             skipped: RUNNER_SKIPPED,
             run_paths: RUNNER_RUN_PATHS,
-            run_id: RUNNER_RUN_ID,
+            recorded_run_base: RUNNER_RUN_BASE,
             lock_dir: migrate_adapters::run_lock::LOCK_DIR,
         },
-        revision: ctx.revision(),
         force: force_requested(),
         session_log_decision_count: &session_log_decisions,
     };
@@ -246,8 +244,8 @@ fn run_default(
             render::resume_affordance(root, &affordance);
             guard
         }
-        Err(PreflightError::ForeignDirt) => {
-            eprintln!("{}", render::DIRTY_TREE_REFUSAL);
+        Err(PreflightError::UnownedChanges(unowned)) => {
+            eprintln!("{}", render::unowned_changes_refusal(&unowned));
             return Err(kernel::Error::Failed(String::new()));
         }
         Err(PreflightError::Failed(error)) => return Err(error.into()),
@@ -301,6 +299,9 @@ fn report(error: &kernel::Error) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    if let Err(error) = kernel::logging::init_if_requested() {
+        eprintln!("{error}");
+    }
     let cli = Cli::parse();
     match run(&cli) {
         Ok(()) => ExitCode::SUCCESS,

@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [features]
-# The dirty-path scanner suite builds real git repositories. On, an absent
+# The working-copy suite builds real git repositories. On, an absent
 # binary hard-fails; off, that suite is skipped. Mirrors vcs-adapters' own
 # bash-parity convention.
 bash-parity = []

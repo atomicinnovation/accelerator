@@ -48,7 +48,7 @@ sample_no_match = "2026-08-07"
 [[pattern]]
 name = "hex_or_jj_revision"
 regex = '\b([0-9a-f]{7,40}|[k-z]{8,32})\b'
-description = "git commit hex object ids / jj change ids recorded as a run's base revision"
+description = "commit hex ids in a recorded run base (joined by + on jj), and the jj change ids older captures recorded"
 sample_match = "kvwrmzxy"
 sample_no_match = "0007-unify-meta-corpus-frontmatter"
 

@@ -90,15 +90,9 @@ fn report(error: &kernel::Error) -> ExitCode {
 }
 
 fn main() -> ExitCode {
-    // Gated on the env var: an unconditional init would install a default-INFO
-    // stderr subscriber for every subcommand (detect and the guard hook
-    // included), where today the launcher's exec() image swap leaves them
-    // silent. A malformed filter is reported and ignored so status/log still
-    // render.
-    if std::env::var_os("ACCELERATOR_LOG").is_some() {
-        if let Err(error) = kernel::logging::init() {
-            eprintln!("{error}");
-        }
+    // A malformed filter is reported and ignored so status/log still render.
+    if let Err(error) = kernel::logging::init_if_requested() {
+        eprintln!("{error}");
     }
 
     let cli = Cli::parse();

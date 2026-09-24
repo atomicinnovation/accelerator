@@ -1,6 +1,7 @@
 //! Ownership classification, table-driven over every documented case.
 
 use migrate::manifest::classify;
+use migrate::manifest::decisions_file;
 use migrate::manifest::is_session_artefact;
 use migrate::manifest::is_session_log;
 use migrate::manifest::Ownership;
@@ -11,7 +12,7 @@ const fn runner() -> RunnerPaths<'static> {
         applied: ".accelerator/state/migrations-applied",
         skipped: ".accelerator/state/migrations-skipped",
         run_paths: ".accelerator/state/migrations-run-paths.txt",
-        run_id: ".accelerator/state/migrations-run.id",
+        recorded_run_base: ".accelerator/state/migrations-run.id",
         lock_dir: ".accelerator/state/migrate-run.lockdir",
     }
 }
@@ -23,7 +24,7 @@ fn each_runner_managed_bookkeeping_path_is_owned_regardless_of_manifest() {
         runner.applied,
         runner.skipped,
         runner.run_paths,
-        runner.run_id,
+        runner.recorded_run_base,
     ] {
         assert_eq!(
             classify(path, &runner, &[], false),
@@ -42,7 +43,7 @@ fn a_session_artefact_is_owned_by_pattern_only_when_the_base_revision_matches()
         classify(path, &runner, &[], true),
         Ownership::SessionArtefact
     );
-    assert_eq!(classify(path, &runner, &[], false), Ownership::Foreign);
+    assert_eq!(classify(path, &runner, &[], false), Ownership::Unowned);
 }
 
 #[test]
@@ -100,15 +101,60 @@ fn an_empty_manifest_with_a_matching_revision_still_refuses_an_unmanifested_path
 
     assert_eq!(
         classify("meta/work/0002-bar.md", &runner, &[], true),
-        Ownership::Foreign
+        Ownership::Unowned
     );
 }
 
 #[test]
-fn a_path_outside_every_class_is_foreign() {
+fn a_path_outside_every_class_is_unowned() {
     let runner = runner();
     assert_eq!(
         classify("meta/unrelated.md", &runner, &[], true),
-        Ownership::Foreign
+        Ownership::Unowned
     );
+}
+
+const DECISIONS_FILE_0007: &str =
+    ".accelerator/state/migrations-0007-unify-meta-corpus-frontmatter-decisions.txt";
+
+#[test]
+fn a_migrations_decisions_file_is_named_under_the_state_directory() {
+    assert_eq!(
+        decisions_file("0007-unify-meta-corpus-frontmatter"),
+        DECISIONS_FILE_0007
+    );
+}
+
+#[test]
+fn the_decisions_file_is_owned_only_while_the_run_base_matches() {
+    let runner = runner();
+
+    assert_eq!(
+        classify(DECISIONS_FILE_0007, &runner, &[], true),
+        Ownership::SessionArtefact
+    );
+    assert_eq!(
+        classify(DECISIONS_FILE_0007, &runner, &[], false),
+        Ownership::Unowned
+    );
+}
+
+#[test]
+fn the_decisions_file_is_not_a_session_log() {
+    assert!(!is_session_log(DECISIONS_FILE_0007));
+}
+
+#[test]
+fn a_decisions_suffix_without_a_migration_id_or_outside_state_is_unowned() {
+    let runner = runner();
+    for path in [
+        ".accelerator/state/migrations--decisions.txt",
+        "meta/x-decisions.txt",
+    ] {
+        assert_eq!(
+            classify(path, &runner, &[], true),
+            Ownership::Unowned,
+            "{path}"
+        );
+    }
 }

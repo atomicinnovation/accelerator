@@ -358,10 +358,6 @@ mod tests {
             Vec::new()
         }
 
-        fn revision(&self) -> Option<String> {
-            None
-        }
-
         fn corpus_index(&self) -> &dyn crate::ports::CorpusIndex {
             struct NoIndex;
             impl crate::ports::CorpusIndex for NoIndex {

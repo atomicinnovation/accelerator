@@ -9,7 +9,7 @@ status: "ready"
 kind: "story"
 priority: "low"
 parent: "work-item:0136"
-relates_to: ["work-item:0169", "work-item:0198", "work-item:0200"]
+relates_to: ["work-item:0169", "work-item:0198", "work-item:0200", "work-item:0241"]
 tags: ["vcs", "skills", "cli"]
 last_updated: "2026-09-22T10:16:10+00:00"
 last_updated_by: "Toby Clemson"
@@ -234,6 +234,9 @@ A plugin-wide sweep found the full extent:
 ## Dependencies
 
 - Blocked by: none — spike 0200, the original blocker, is complete.
+- Related: 0241 makes the migrate dirty-tree refusal name each foreign
+  path; the `config/migrate` dirty-path guidance rewritten here should point
+  at that list. Whichever item lands second reconciles the two.
 - Component coupling: the SessionStart VCS Command Reference is the load-bearing
   mechanism for the diff-range and identity phrasing; it is produced outside
   `skills/` by `accelerator vcs detect --descriptive`

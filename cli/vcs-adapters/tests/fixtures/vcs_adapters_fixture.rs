@@ -33,6 +33,9 @@ use vcs::VcsReporter;
 use vcs_adapters::library::InProcessProbe;
 
 fn main() -> ExitCode {
+    if let Err(error) = kernel::logging::init_if_requested() {
+        eprintln!("{error}");
+    }
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let (queries, start): (Vec<&str>, &str) = match arguments.as_slice() {
         [mode, start] if mode == "all" => (ALL.to_vec(), start),
@@ -177,6 +180,29 @@ fn report(query: &str, start: &Path) -> Result<(), String> {
                 },
             );
             print(query, &rendered);
+        }
+        "dirty_paths" => {
+            let root = probe.discover(start).unwrap_or_else(|| start.into());
+            let kind = probe.kind(&root);
+            let paths = probe
+                .dirty_paths(&root, kind)
+                .map_err(|error| format!("error: {error}"))?;
+            for path in paths {
+                println!("{path}");
+            }
+        }
+        "working_copy_state" => {
+            let root = probe.discover(start).unwrap_or_else(|| start.into());
+            let kind = probe.kind(&root);
+            let state = probe
+                .working_copy_state(&root, kind)
+                .map_err(|error| format!("error: {error}"))?;
+            for commit in state.base_commits {
+                println!("base\t{commit}");
+            }
+            for path in state.dirty_paths {
+                println!("dirty\t{path}");
+            }
         }
         other => return Err(format!("unknown query: {other}")),
     }

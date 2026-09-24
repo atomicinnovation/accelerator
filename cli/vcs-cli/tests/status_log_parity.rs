@@ -30,11 +30,14 @@ fn masks_path() -> PathBuf {
         .join("../vcs-test-support/fixtures/masks.toml")
 }
 
-fn run_vcs(subcommand: &str, dir: &Path) -> Result<String, TestError> {
-    let output = Command::new(BIN)
-        .arg(subcommand)
-        .current_dir(dir)
-        .output()?;
+fn run_vcs(
+    env: &Hermetic,
+    subcommand: &str,
+    dir: &Path,
+) -> Result<String, TestError> {
+    let mut command = Command::new(BIN);
+    env.apply(&mut command);
+    let output = command.arg(subcommand).current_dir(dir).output()?;
     assert!(
         output.status.success(),
         "accelerator-vcs {subcommand} exited {:?}: {}",
@@ -132,8 +135,8 @@ fn status_and_log_render_in_the_same_shape_from_both_backends(
     let git = states.get("parity-git").ok_or("parity-git missing")?;
     let jj = states.get("parity-jj").ok_or("parity-jj missing")?;
 
-    let git_changes = status_shape(&run_vcs("status", git)?);
-    let jj_changes = status_shape(&run_vcs("status", jj)?);
+    let git_changes = status_shape(&run_vcs(&env, "status", git)?);
+    let jj_changes = status_shape(&run_vcs(&env, "status", jj)?);
 
     let modified_tracked = ("modified".to_owned(), "tracked.txt".to_owned());
     assert!(
@@ -145,8 +148,8 @@ fn status_and_log_render_in_the_same_shape_from_both_backends(
         "jj must render the modified tracked file: {jj_changes:?}"
     );
 
-    assert_log_line_shape(&masks, &run_vcs("log", git)?)?;
-    assert_log_line_shape(&masks, &run_vcs("log", jj)?)?;
+    assert_log_line_shape(&masks, &run_vcs(&env, "log", git)?)?;
+    assert_log_line_shape(&masks, &run_vcs(&env, "log", jj)?)?;
     Ok(())
 }
 
@@ -162,7 +165,7 @@ fn a_five_commit_log_carries_no_author_date_or_graph() -> Result<(), TestError>
 
     // Author/date must be checked on the raw render — a committed mask would
     // rewrite a leaked timestamp or email and pass falsely.
-    let raw = run_vcs("log", git)?;
+    let raw = run_vcs(&env, "log", git)?;
     assert_eq!(raw.lines().count(), 5, "the log is five entries: {raw:?}");
     for line in raw.lines() {
         let (_id, subject) = line

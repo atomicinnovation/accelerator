@@ -120,6 +120,9 @@ _BUILD_SCRIPT_CRATES = frozenset(
         "valuable",
         "wasm-bindgen",
         "wasm-bindgen-shared",
+        # Reached only through whoami's wasi target edge; whoami is jj-cli's
+        # hostname source for resolving `--when.hostnames` config scopes.
+        "wit-bindgen",
         "zerocopy",
         "zmij",
     }

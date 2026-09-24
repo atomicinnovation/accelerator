@@ -12,9 +12,9 @@
 //! Runs with a `UserSettings` carrying jj-lib's own bundled defaults
 //! (`StackedConfig::with_defaults`) rather than the user's config, which forces
 //! `fsmonitor.backend = "none"` — sidestepping a hard failure on a Watchman
-//! config this build was not compiled to support — at the cost of ignoring the
-//! user's own `snapshot.max-new-file-size`/`snapshot.auto-track`, both set
-//! explicitly below instead.
+//! config this build was not compiled to support. Of the user's own snapshot
+//! settings, only `snapshot.max-new-file-size` is read from their config
+//! stack; `snapshot.auto-track` stays at tracking everything.
 //!
 //! The snapshot writes tree/blob objects into the backend as an unavoidable
 //! consequence of computing the new tree's id (exactly as `jj diff` does) but
@@ -26,12 +26,12 @@ use std::sync::Arc;
 
 use jj_lib::commit::Commit;
 use jj_lib::config::StackedConfig;
-use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::NothingMatcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::TreeDiffIterator;
+use jj_lib::object_id::ObjectId;
 use jj_lib::ref_name::WorkspaceNameBuf;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo as _;
@@ -43,6 +43,10 @@ use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
+use crate::library::git_excludes;
+use crate::library::jj_config::JjConfigEnvironment;
+use crate::library::jj_config::JjConfigSources;
+use crate::library::jj_config::MaxNewFileSize;
 use crate::library::Error;
 
 /// One path in the working-copy diff, with the before/after presence the status
@@ -58,9 +62,11 @@ pub(super) struct DiffEntry {
 }
 
 /// The working-copy diff against the parent tree, the snapshot tree itself
-/// (status reads conflicts from the tree, which the diff cannot express), and
-/// the bookmarks on the working-copy commit (byte-sorted).
+/// (status reads conflicts from the tree, which the diff cannot express), the
+/// bookmarks on the working-copy commit (byte-sorted), and the ids of the
+/// parent commits the diff is taken against.
 pub(super) struct WorkingCopySnapshot {
+    pub base_commits: Vec<String>,
     pub branch: Vec<String>,
     pub changes: Vec<DiffEntry>,
     pub tree: MergedTree,
@@ -152,16 +158,10 @@ pub(super) fn working_copy_diff(
     let parent_tree = pollster::block_on(wc_commit.parent_tree(repo.as_ref()))
         .map_err(err_wc_diff(root))?;
 
+    let options = snapshot_options(&workspace, &repo);
     let mut locked_ws =
         pollster::block_on(workspace.start_working_copy_mutation())
             .map_err(err_wc_diff(root))?;
-    let options = SnapshotOptions {
-        base_ignores: GitIgnoreFile::empty(),
-        progress: None,
-        start_tracking_matcher: &EverythingMatcher,
-        force_tracking_matcher: &NothingMatcher,
-        max_new_file_size: u64::MAX,
-    };
     let (new_tree, _stats) =
         pollster::block_on(locked_ws.locked_wc().snapshot(&options))
             .map_err(err_wc_diff(root))?;
@@ -185,11 +185,43 @@ pub(super) fn working_copy_diff(
         }
     }
 
+    let base_commits =
+        wc_commit.parent_ids().iter().map(ObjectId::hex).collect();
+
     Ok(Some(WorkingCopySnapshot {
+        base_commits,
         branch,
         changes,
         tree: new_tree,
     }))
+}
+
+/// The options jj-cli would snapshot this workspace with for `jj status`: its
+/// git excludes and its resolved `snapshot.max-new-file-size`. Every other
+/// setting is jj-lib's default.
+fn snapshot_options(
+    workspace: &Workspace,
+    repo: &ReadonlyRepo,
+) -> SnapshotOptions<'static> {
+    let root = workspace.workspace_root();
+    let environment = JjConfigEnvironment::from_process();
+    let sources = JjConfigSources::for_workspace(
+        root,
+        workspace.repo_path(),
+        &environment,
+    );
+    let context =
+        environment.status_resolution_context(root, workspace.repo_path());
+    SnapshotOptions {
+        base_ignores: git_excludes::base_ignores(root, repo.store()),
+        progress: None,
+        start_tracking_matcher: &EverythingMatcher,
+        force_tracking_matcher: &NothingMatcher,
+        max_new_file_size: MaxNewFileSize::resolve_or_unlimited(
+            &sources, &context,
+        )
+        .as_snapshot_limit(),
+    }
 }
 
 /// The settings-loaded repository and working-copy commit for the jj log walk.

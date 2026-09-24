@@ -264,15 +264,18 @@ In practice the agent first runs the migration and hits the **structured stall**
    interactive run dirties the tree only with files this run owns (the
    interactive session log, plus any frontmatter already written), and the
    **guarded resume** lets the re-run proceed over that own output without
-   `FORCE` when the base revision is unchanged, printing a
-   one-line affordance listing the owned paths being resumed over. `FORCE` is
-   required **only** when the pre-flight refuses — i.e. the tree carries dirt this
-   run does *not* own (foreign changes, or you have committed since the partial
-   run so the base revision moved). In that case, re-run once without `FORCE`
-   first to read the refusal guidance, confirm via the session's VCS status
-   command (see the SessionStart VCS Command Reference) that the dirty paths
-   really are this migration's own, and only then add
-   `ACCELERATOR_MIGRATE_FORCE=1`.
+   `FORCE` when the run base (the commits the working copy is based on) is
+   unchanged, printing a
+   one-line affordance listing the owned paths being resumed over. When the
+   pre-flight refuses, it lists the changes the run does *not* own. If the
+   refusal says a previous run's recorded base no longer matches (the run base
+   moved since the partial run, e.g. a parent was rewritten), confirm via the
+   session's VCS status command (see the SessionStart VCS Command Reference)
+   that the listed paths are only that run's output, commit them, and re-run
+   **without** `FORCE` to resume. Otherwise the listed paths are changes made
+   outside the run: commit or discard them. Reach for
+   `ACCELERATOR_MIGRATE_FORCE=1` only after confirming the listed paths are safe
+   to migrate over.
 
 The driver **validates the decisions file up front (a no-mutation dry-apply pass)
 and fails closed**: an unknown verb, a count mismatch (too few or too many
@@ -282,12 +285,13 @@ validation never partially applies. Once validation passes and the live
 apply begins, transformations are applied in order without rollback, so an
 apply-time failure can leave a partial corpus; recover with VCS revert, then
 re-run — guarded resume replays the run's own partial output without
-`FORCE` when the base revision is unchanged.
+`FORCE` when the run base is unchanged.
 
 When no decision input is available at all, the run emits the structured stall
 (`MIGRATION STALLED: no decision input available`) and stops without further
 mutation:
 
+<!-- @stall-start -->
 ```
 [0007-unify-meta-corpus-frontmatter] MIGRATION STALLED: no decision input available
 [0007-unify-meta-corpus-frontmatter]   pending decision: meta/work/0001-improve-startup-time.md#body:references#0
@@ -296,7 +300,7 @@ mutation:
 [0007-unify-meta-corpus-frontmatter]
 [0007-unify-meta-corpus-frontmatter]   This migration may have already partially modified the
 [0007-unify-meta-corpus-frontmatter]   working tree. Re-running /accelerator:migrate resumes this
-[0007-unify-meta-corpus-frontmatter]   partial run when the base revision is unchanged (decided
+[0007-unify-meta-corpus-frontmatter]   partial run when the run base is unchanged (decided
 [0007-unify-meta-corpus-frontmatter]   transformations are replayed, not re-applied).
 [0007-unify-meta-corpus-frontmatter]
 [0007-unify-meta-corpus-frontmatter]   To resume: each run answers the current prompt only (you
@@ -313,6 +317,7 @@ accelerator migrate --decisions-file <path>
 
 ACCELERATOR_MIGRATE_DECISIONS_FILE=<path> accelerator migrate
 ```
+<!-- @stall-end -->
 
 This contract is scoped to a single pending interactive migration (the realistic
 case); decisions files are consumed per migration.

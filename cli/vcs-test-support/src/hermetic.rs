@@ -23,9 +23,18 @@ pub const MINIMUM_GIT: (u32, u32) = (2, 45);
 #[derive(Debug, Clone)]
 pub struct Hermetic {
     home: PathBuf,
-    config_home: PathBuf,
-    jj_config: PathBuf,
+    config_home: XdgConfigHome,
+    jj_config: Option<PathBuf>,
+    git_global_config: PathBuf,
     ceiling: PathBuf,
+    variables: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone)]
+enum XdgConfigHome {
+    At(PathBuf),
+    Empty,
+    Unset,
 }
 
 impl Hermetic {
@@ -50,22 +59,100 @@ impl Hermetic {
 
         Ok(Self {
             home,
-            config_home,
-            jj_config,
+            config_home: XdgConfigHome::At(config_home),
+            jj_config: Some(jj_config),
+            git_global_config: PathBuf::from("/dev/null"),
             ceiling: base.to_path_buf(),
+            variables: Vec::new(),
         })
+    }
+
+    #[must_use]
+    pub fn home(&self) -> &Path {
+        &self.home
+    }
+
+    /// The directory jj reads its user config from when `JJ_CONFIG` is unset
+    /// and `XDG_CONFIG_HOME` is the isolated one.
+    ///
+    /// # Errors
+    ///
+    /// When `XDG_CONFIG_HOME` has been emptied or unset.
+    pub fn jj_user_config_dir(&self) -> Result<PathBuf, Error> {
+        match &self.config_home {
+            XdgConfigHome::At(path) => Ok(path.join("jj")),
+            XdgConfigHome::Empty | XdgConfigHome::Unset => Err(Error::message(
+                "the jj user config dir needs an XDG_CONFIG_HOME",
+            )),
+        }
+    }
+
+    #[must_use]
+    pub fn with_git_global_config(mut self, path: impl Into<PathBuf>) -> Self {
+        self.git_global_config = path.into();
+        self
+    }
+
+    #[must_use]
+    pub fn with_xdg_config_home(mut self, path: impl Into<PathBuf>) -> Self {
+        self.config_home = XdgConfigHome::At(path.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_empty_xdg_config_home(mut self) -> Self {
+        self.config_home = XdgConfigHome::Empty;
+        self
+    }
+
+    #[must_use]
+    pub fn without_xdg_config_home(mut self) -> Self {
+        self.config_home = XdgConfigHome::Unset;
+        self
+    }
+
+    #[must_use]
+    pub fn with_jj_config(mut self, path: impl Into<PathBuf>) -> Self {
+        self.jj_config = Some(path.into());
+        self
+    }
+
+    #[must_use]
+    pub fn without_jj_config(mut self) -> Self {
+        self.jj_config = None;
+        self
+    }
+
+    #[must_use]
+    pub fn with_variable(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.variables.push((key.into(), value.into()));
+        self
     }
 
     /// Applies the isolated environment to `command`.
     pub fn apply(&self, command: &mut Command) {
         command.env("HOME", &self.home);
-        command.env("XDG_CONFIG_HOME", &self.config_home);
-        command.env("JJ_CONFIG", &self.jj_config);
+        match &self.config_home {
+            XdgConfigHome::At(path) => command.env("XDG_CONFIG_HOME", path),
+            XdgConfigHome::Empty => command.env("XDG_CONFIG_HOME", ""),
+            XdgConfigHome::Unset => command.env_remove("XDG_CONFIG_HOME"),
+        };
+        match &self.jj_config {
+            Some(path) => command.env("JJ_CONFIG", path),
+            None => command.env_remove("JJ_CONFIG"),
+        };
         command.env("GIT_CEILING_DIRECTORIES", &self.ceiling);
         // A boolean, not a path: this is the only thing suppressing the
         // *system* gitconfig, whose location differs per platform.
         command.env("GIT_CONFIG_NOSYSTEM", "1");
-        command.env("GIT_CONFIG_GLOBAL", "/dev/null");
+        command.env("GIT_CONFIG_GLOBAL", &self.git_global_config);
+        for (key, value) in &self.variables {
+            command.env(key, value);
+        }
         for key in [
             "GIT_DIR",
             "GIT_WORK_TREE",

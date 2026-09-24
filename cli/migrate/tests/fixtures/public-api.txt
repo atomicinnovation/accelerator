@@ -69,10 +69,10 @@ pub migrate::list::ListGroup::transformations: alloc::vec::Vec<migrate::interact
 pub fn migrate::list::list_pending(entries: &[migrate::registry::MigrationEntry], applied: &[alloc::string::String], skipped: &[alloc::string::String], ctx: &dyn migrate::ports::MigrationContext, session_logs: &dyn migrate::ports::SessionLogFactory, reporter: &dyn migrate::ports::Reporter) -> core::result::Result<alloc::vec::Vec<migrate::list::ListGroup>, migrate::ports::MigrationError>
 pub mod migrate::manifest
 pub enum migrate::manifest::Ownership
-pub migrate::manifest::Ownership::Foreign
 pub migrate::manifest::Ownership::Manifested
 pub migrate::manifest::Ownership::RunnerManaged
 pub migrate::manifest::Ownership::SessionArtefact
+pub migrate::manifest::Ownership::Unowned
 impl core::clone::Clone for migrate::manifest::Ownership
 pub fn migrate::manifest::Ownership::clone(&self) -> migrate::manifest::Ownership
 impl core::cmp::Eq for migrate::manifest::Ownership
@@ -85,10 +85,11 @@ impl core::marker::StructuralPartialEq for migrate::manifest::Ownership
 pub struct migrate::manifest::RunnerPaths<'a>
 pub migrate::manifest::RunnerPaths::applied: &'a str
 pub migrate::manifest::RunnerPaths::lock_dir: &'a str
-pub migrate::manifest::RunnerPaths::run_id: &'a str
+pub migrate::manifest::RunnerPaths::recorded_run_base: &'a str
 pub migrate::manifest::RunnerPaths::run_paths: &'a str
 pub migrate::manifest::RunnerPaths::skipped: &'a str
-pub fn migrate::manifest::classify(path: &str, runner: &migrate::manifest::RunnerPaths<'_>, manifest: &[alloc::string::String], base_revision_matches: bool) -> migrate::manifest::Ownership
+pub fn migrate::manifest::classify(path: &str, runner: &migrate::manifest::RunnerPaths<'_>, manifest: &[alloc::string::String], run_base_matches: bool) -> migrate::manifest::Ownership
+pub fn migrate::manifest::decisions_file(migration_id: &str) -> alloc::string::String
 pub fn migrate::manifest::is_runner_managed(path: &str, runner: &migrate::manifest::RunnerPaths<'_>) -> bool
 pub fn migrate::manifest::is_session_artefact(path: &str) -> bool
 pub fn migrate::manifest::is_session_log(path: &str) -> bool
@@ -226,14 +227,15 @@ pub migrate::ports::PreviewEntry::id: &'a str
 pub struct migrate::ports::RunLockGuard(_)
 impl migrate::ports::RunLockGuard
 pub fn migrate::ports::RunLockGuard::new(guard: impl core::any::Any) -> Self
+pub struct migrate::ports::WorkingCopyObservation
+pub migrate::ports::WorkingCopyObservation::dirty_paths: alloc::vec::Vec<alloc::string::String>
+pub migrate::ports::WorkingCopyObservation::run_base: core::option::Option<migrate::run_base::RunBase>
 pub trait migrate::ports::CorpusIndex
 pub fn migrate::ports::CorpusIndex::target_exists(&self, target_type: &str, target_id: &str) -> bool
 pub trait migrate::ports::DecisionSource
 pub fn migrate::ports::DecisionSource::next_decision(&self, transformation: &migrate::interactive::Transformation, timeout: core::time::Duration) -> core::result::Result<migrate::interactive::Decision, migrate::ports::DecisionError>
 impl migrate::ports::DecisionSource for migrate::ports::NoInputDecisionSource
 pub fn migrate::ports::NoInputDecisionSource::next_decision(&self, _transformation: &migrate::interactive::Transformation, _timeout: core::time::Duration) -> core::result::Result<migrate::interactive::Decision, migrate::ports::DecisionError>
-pub trait migrate::ports::DirtyPathScanner
-pub fn migrate::ports::DirtyPathScanner::dirty_paths(&self, roots: &[&str]) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
 pub trait migrate::ports::LedgerStore
 pub fn migrate::ports::LedgerStore::applied(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
 pub fn migrate::ports::LedgerStore::skipped(&self) -> core::result::Result<alloc::vec::Vec<alloc::string::String>, migrate::ports::MigrationError>
@@ -243,9 +245,9 @@ pub trait migrate::ports::ManifestStore
 pub fn migrate::ports::ManifestStore::append_manifest_path(&self, path: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::ManifestStore::clear(&self) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::ManifestStore::manifest(&self) -> core::result::Result<core::option::Option<alloc::vec::Vec<alloc::string::String>>, migrate::ports::MigrationError>
-pub fn migrate::ports::ManifestStore::run_id(&self) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::record_run_base(&self, run_base: core::option::Option<&migrate::run_base::RunBase>) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::ManifestStore::recorded_run_base(&self) -> core::result::Result<core::option::Option<migrate::run_base::RunBase>, migrate::ports::MigrationError>
 pub fn migrate::ports::ManifestStore::write_manifest(&self, paths: &[alloc::string::String]) -> core::result::Result<(), migrate::ports::MigrationError>
-pub fn migrate::ports::ManifestStore::write_run_id(&self, revision: core::option::Option<&str>) -> core::result::Result<(), migrate::ports::MigrationError>
 pub trait migrate::ports::MigrationContext
 pub fn migrate::ports::MigrationContext::canonicalise_work_item_id(&self, _bare_number: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::config_value(&self, _key: &str) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
@@ -260,7 +262,6 @@ pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) ->
 pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
-pub fn migrate::ports::MigrationContext::revision(&self) -> core::option::Option<alloc::string::String>
 pub fn migrate::ports::MigrationContext::root(&self) -> &std::path::Path
 pub fn migrate::ports::MigrationContext::validate_frontmatter(&self, _files: &[std::path::PathBuf]) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::write(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
@@ -290,10 +291,12 @@ pub trait migrate::ports::SessionLogFactory
 pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<dyn migrate::ports::SessionLog>
 pub trait migrate::ports::SessionLogRewriter
 pub fn migrate::ports::SessionLogRewriter::cutover(&self, path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub trait migrate::ports::WorkingCopy
+pub fn migrate::ports::WorkingCopy::observe(&self, roots: &[&str]) -> core::result::Result<migrate::ports::WorkingCopyObservation, migrate::ports::MigrationError>
 pub mod migrate::preflight
 pub enum migrate::preflight::PreflightError
 pub migrate::preflight::PreflightError::Failed(migrate::ports::MigrationError)
-pub migrate::preflight::PreflightError::ForeignDirt
+pub migrate::preflight::PreflightError::UnownedChanges(migrate::preflight::UnownedChanges)
 impl core::convert::From<migrate::ports::MigrationError> for migrate::preflight::PreflightError
 pub fn migrate::preflight::PreflightError::from(error: migrate::ports::MigrationError) -> Self
 impl core::error::Error for migrate::preflight::PreflightError
@@ -312,12 +315,22 @@ pub struct migrate::preflight::Preflight<'a>
 pub migrate::preflight::Preflight::force: bool
 pub migrate::preflight::Preflight::lock: &'a dyn migrate::ports::RunLock
 pub migrate::preflight::Preflight::manifest: &'a dyn migrate::ports::ManifestStore
-pub migrate::preflight::Preflight::revision: core::option::Option<alloc::string::String>
 pub migrate::preflight::Preflight::runner: migrate::manifest::RunnerPaths<'a>
-pub migrate::preflight::Preflight::scanner: &'a dyn migrate::ports::DirtyPathScanner
 pub migrate::preflight::Preflight::session_log_decision_count: &'a dyn core::ops::function::Fn(&str) -> usize
+pub migrate::preflight::Preflight::working_copy: &'a dyn migrate::ports::WorkingCopy
 impl migrate::preflight::Preflight<'_>
 pub fn migrate::preflight::Preflight<'_>::run(&self) -> core::result::Result<(migrate::ports::RunLockGuard, migrate::preflight::PreflightOutcome), migrate::preflight::PreflightError>
+pub struct migrate::preflight::UnownedChanges
+pub migrate::preflight::UnownedChanges::paths: alloc::vec::Vec<alloc::string::String>
+pub migrate::preflight::UnownedChanges::stale_run: bool
+impl core::clone::Clone for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::clone(&self) -> migrate::preflight::UnownedChanges
+impl core::cmp::Eq for migrate::preflight::UnownedChanges
+impl core::cmp::PartialEq for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::eq(&self, other: &migrate::preflight::UnownedChanges) -> bool
+impl core::fmt::Debug for migrate::preflight::UnownedChanges
+pub fn migrate::preflight::UnownedChanges::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::preflight::UnownedChanges
 pub const migrate::preflight::SCOPES: [&str; 3]
 pub mod migrate::registry
 pub enum migrate::registry::ApplyOutcome
@@ -383,3 +396,18 @@ impl migrate::registry::MigrationMeta for migrate::migrations::m0010::Migration0
 pub fn migrate::migrations::m0010::Migration0010::description(&self) -> &'static str
 pub fn migrate::migrations::m0010::Migration0010::id(&self) -> &'static str
 pub fn migrate::registry::registry() -> alloc::vec::Vec<migrate::registry::MigrationEntry>
+pub mod migrate::run_base
+pub struct migrate::run_base::RunBase(_)
+impl migrate::run_base::RunBase
+pub fn migrate::run_base::RunBase::from_base_commits(ids: &[alloc::string::String]) -> core::option::Option<Self>
+pub fn migrate::run_base::RunBase::recorded(text: &str) -> core::option::Option<Self>
+impl core::clone::Clone for migrate::run_base::RunBase
+pub fn migrate::run_base::RunBase::clone(&self) -> migrate::run_base::RunBase
+impl core::cmp::Eq for migrate::run_base::RunBase
+impl core::cmp::PartialEq for migrate::run_base::RunBase
+pub fn migrate::run_base::RunBase::eq(&self, other: &migrate::run_base::RunBase) -> bool
+impl core::fmt::Debug for migrate::run_base::RunBase
+pub fn migrate::run_base::RunBase::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for migrate::run_base::RunBase
+pub fn migrate::run_base::RunBase::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for migrate::run_base::RunBase

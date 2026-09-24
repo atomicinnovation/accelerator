@@ -20,7 +20,6 @@
 //! The cargo-pup import rule resolves a grouped `use a::{b, c}` to an empty
 //! module name and rejects it, so every import here is single-item.
 
-use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::future::Future;
@@ -29,12 +28,10 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use etcetera::BaseStrategy as _;
 use jj_lib::backend::CommitId;
 use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigSource;
-use jj_lib::config::StackedConfig;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStore as _;
 use jj_lib::op_store::OpStoreError;
@@ -59,12 +56,16 @@ use vcs::UserIdentityProbe;
 use vcs::VcsKind;
 use vcs::VcsProbe;
 
+use crate::library::jj_config::JjConfigEnvironment;
+use crate::library::jj_config::JjConfigSources;
 use crate::markers::carries_any_marker;
 use crate::markers::carries_jj_marker;
 use crate::markers::marker_kind;
 use crate::markers::walk_up;
 
 mod dirty_paths;
+mod git_excludes;
+mod jj_config;
 mod snapshot;
 mod status_log;
 mod tracked;
@@ -186,6 +187,14 @@ impl std::error::Error for Error {
             }
         }
     }
+}
+
+/// The commits a working copy is based on and the paths that differ from
+/// them, taken from a single read of the repository.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkingCopyState {
+    pub base_commits: Vec<String>,
+    pub dirty_paths: Vec<String>,
 }
 
 /// Reads a repository's root, idiom and revision in-process.
@@ -395,10 +404,26 @@ impl InProcessProbe {
         root: &Path,
         kind: VcsKind,
     ) -> Result<Vec<String>, Error> {
+        Ok(self.working_copy_state(root, kind)?.dirty_paths)
+    }
+
+    /// The commits the working copy is based on, and its dirty paths relative
+    /// to them, read in one pass over the repository so the two cannot
+    /// disagree: `HEAD` on git (none while it is unborn), the working-copy
+    /// commit's parents on jj.
+    ///
+    /// # Errors
+    ///
+    /// When `root` is present but its status/diff cannot be computed.
+    pub fn working_copy_state(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<WorkingCopyState, Error> {
         match kind {
-            VcsKind::Git => dirty_paths::git_dirty_paths(root),
-            VcsKind::Jj => dirty_paths::jj_dirty_paths(root),
-            VcsKind::None => Ok(Vec::new()),
+            VcsKind::Git => dirty_paths::git_working_copy_state(root),
+            VcsKind::Jj => dirty_paths::jj_working_copy_state(root),
+            VcsKind::None => Ok(WorkingCopyState::default()),
         }
     }
 
@@ -738,22 +763,15 @@ fn read_checkout(state: &Path) -> Result<Checkout, Error> {
 /// `jj config get user.name` would consult for this key. The built-in default
 /// layers (colours, merge tools, revsets, ...) never set `user.name` so are
 /// skipped, as is the `EnvBase` layer (hostname/username/editor). Repo and
-/// workspace config are skipped too: jj's repo-config indirection — a config
-/// ID stored in the repo, resolving to content in the user's own config
-/// directory — is disproportionate machinery to replicate for a rarely-used
-/// per-repository override.
+/// workspace config are deliberately not read: the author of a document is
+/// the person, whichever repository they write it in.
 fn jj_user_name() -> Result<Option<String>, Error> {
-    let mut config = StackedConfig::empty();
-    let env_jj_config = std::env::var_os("JJ_CONFIG");
-
-    if env_jj_config.is_none() {
-        for path in jj_system_config_paths() {
-            load_jj_config_path(&mut config, ConfigSource::System, &path)?;
-        }
-    }
-    for path in jj_user_config_paths(env_jj_config.as_deref()) {
-        load_jj_config_path(&mut config, ConfigSource::User, &path)?;
-    }
+    let mut config =
+        JjConfigSources::user_level(&JjConfigEnvironment::from_process())
+            .stacked()
+            .map_err(|error| Error::JjConfig {
+                source: Box::new(error),
+            })?;
     if let Ok(user) = std::env::var("JJ_USER") {
         let mut layer = ConfigLayer::empty(ConfigSource::EnvOverrides);
         layer.set_value("user.name", user).map_err(|error| {
@@ -771,82 +789,6 @@ fn jj_user_name() -> Result<Option<String>, Error> {
             source: Box::new(error),
         }),
     }
-}
-
-/// Loads `path` into `config` at `source`, as a directory of `*.toml` layers
-/// or a single file, matching jj-cli's own dispatch. A path that is neither
-/// (does not exist) is silently skipped, since the candidate lists below
-/// carry paths that may not exist yet.
-fn load_jj_config_path(
-    config: &mut StackedConfig,
-    source: ConfigSource,
-    path: &Path,
-) -> Result<(), Error> {
-    let outcome = if path.is_dir() {
-        config.load_dir(source, path)
-    } else if path.is_file() {
-        config.load_file(source, path)
-    } else {
-        return Ok(());
-    };
-    outcome.map_err(|error| Error::JjConfig {
-        source: Box::new(error),
-    })
-}
-
-/// `/etc/jj/config.toml` and `/etc/jj/conf.d`, jj-cli's system-config
-/// candidates on Unix. Windows has none.
-fn jj_system_config_paths() -> Vec<PathBuf> {
-    if cfg!(unix) {
-        vec![
-            PathBuf::from("/etc/jj/config.toml"),
-            PathBuf::from("/etc/jj/conf.d"),
-        ]
-    } else {
-        Vec::new()
-    }
-}
-
-/// jj-cli's user-config candidates: `$JJ_CONFIG`'s paths when set (used
-/// exclusively), else the legacy `~/.jjconfig.toml` (only when it exists, or
-/// when the platform config directory could not be resolved at all), the
-/// platform `config.toml` (always a candidate, whether or not it exists yet),
-/// and the platform `conf.d` (only when it exists).
-fn jj_user_config_paths(env_jj_config: Option<&OsStr>) -> Vec<PathBuf> {
-    if let Some(paths) = env_jj_config {
-        return std::env::split_paths(paths)
-            .filter(|path| !path.as_os_str().is_empty())
-            .collect();
-    }
-
-    let home_dir = etcetera::home_dir()
-        .ok()
-        .map(|dir| dunce::canonicalize(&dir).unwrap_or(dir));
-    let user_config_dir = etcetera::choose_base_strategy()
-        .ok()
-        .map(|strategy| strategy.config_dir());
-
-    let home_config_path = home_dir.map(|dir| dir.join(".jjconfig.toml"));
-    let platform_config_path = user_config_dir
-        .clone()
-        .map(|dir| dir.join("jj").join("config.toml"));
-    let platform_config_dir =
-        user_config_dir.map(|dir| dir.join("jj").join("conf.d"));
-
-    let mut paths = Vec::new();
-    match home_config_path {
-        Some(path) if path.exists() || platform_config_path.is_none() => {
-            paths.push(path);
-        }
-        Some(_) | None => {}
-    }
-    if let Some(path) = platform_config_path {
-        paths.push(path);
-    }
-    if let Some(path) = platform_config_dir.filter(|path| path.exists()) {
-        paths.push(path);
-    }
-    paths
 }
 
 /// Drives one of the `OpStore` trait's async reads to completion. There is no

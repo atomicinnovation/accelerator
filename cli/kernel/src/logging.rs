@@ -35,6 +35,22 @@ pub fn init() -> Result<(), Error> {
     Ok(())
 }
 
+/// Installs the stderr subscriber only when `ACCELERATOR_LOG` is set.
+///
+/// An unconditional install would give every binary a default-INFO stderr
+/// subscriber where the launcher's `exec()` image swap otherwise leaves them
+/// silent.
+///
+/// # Errors
+///
+/// Returns [`Error::LogFilter`] when `ACCELERATOR_LOG` holds a malformed filter.
+pub fn init_if_requested() -> Result<(), Error> {
+    if std::env::var_os("ACCELERATOR_LOG").is_some() {
+        init()?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::filter_from_env;
