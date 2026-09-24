@@ -105,7 +105,10 @@ fn team_enumeration_stays_unbounded() {
             ))
         })
         .collect();
-    server.route(RequestKey::post(GRAPHQL), Route::Sequence(pages));
+    server.route(
+        RequestKey::graphql("TeamEnumeration"),
+        Route::Sequence(pages),
+    );
     let client = client_for(&server, TransportConfig::default());
 
     let teams = client.list_teams().expect("listing succeeds");

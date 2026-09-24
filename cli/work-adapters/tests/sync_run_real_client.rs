@@ -1000,7 +1000,7 @@ fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
     let server = MockServer::start();
     serve_issues(&server);
     server.route(
-        RequestKey::graphql("teams"),
+        RequestKey::graphql("TeamEnumeration"),
         connection(
             "teams",
             &serde_json::json!([
