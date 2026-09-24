@@ -28,6 +28,11 @@
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
   `accelerator config help` now lists every recognised key.
+- **Linear pulls can filter by project.** `linear.pull.filters.project` takes
+  a list of project names, resolved to ids over the projects linked to the
+  teams in scope; an active project wins over archived ones of the same name.
+  Jira `pull` blocks still refuse `project`. Adopt it only once everyone
+  sharing the config has upgraded: an older binary refuses the key.
 
 - **The browser auth-header path is live: authenticated design crawls now
   produce a login-gated inventory.** In `header` mode the daemon injects

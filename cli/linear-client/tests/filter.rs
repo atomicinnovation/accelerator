@@ -473,13 +473,10 @@ fn every_named_filter_key_is_accepted_by_linear_pull_validation() {
         FilterFamily::State,
         FilterFamily::Label,
         FilterFamily::Assignee,
+        FilterFamily::Project,
     ] {
         assert!(accepted(family), "{family:?}");
     }
-    assert!(
-        !accepted(FilterFamily::Project),
-        "project reaches configuration once its validation lands"
-    );
 }
 
 #[test]

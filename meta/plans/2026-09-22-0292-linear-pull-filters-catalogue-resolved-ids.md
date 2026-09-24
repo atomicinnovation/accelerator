@@ -2218,12 +2218,12 @@ impl Tracker {
 
 #### Automated Verification
 
-- [ ] Format and lint clean: `mise run cli:check`
-- [ ] Per-tracker validation: `cargo test -p tracker-support`
-- [ ] Vocabulary link: `cargo test -p linear-client --test filter`
-- [ ] Jira rejection and Linear end-to-end: `cargo test -p work-cli --test cli_sync --test sync_resolves_real_client`
-- [ ] Public API unchanged since Phase 3: `mise run public-api:check`
-- [ ] Read-only CI mirror green: `mise run check`
+- [x] Format and lint clean: `mise run cli:check`
+- [x] Per-tracker validation: `cargo test -p tracker-support`
+- [x] Vocabulary link: `cargo test -p linear-client --test filter`
+- [x] Jira rejection and Linear end-to-end: `cargo test -p work-cli --test cli_sync --test sync_resolves_real_client`
+- [x] Public API unchanged since Phase 3: `mise run public-api:check`
+- [x] Read-only CI mirror green: `mise run check`
 - [ ] Full local CI mirror green end-to-end: `mise run`
 
 #### Manual Verification
