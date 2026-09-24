@@ -39,6 +39,7 @@ members = [
     "design",
     "design-adapters",
     "design-cli",
+    "research",
     "process-probe"
 ]
 

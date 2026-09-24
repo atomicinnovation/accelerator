@@ -21,6 +21,7 @@ _PINNED_CRATES = (
     "kernel",
     "migrate",
     "remote-projection",
+    "research",
     "store",
     "tracker",
     "tracker-support",

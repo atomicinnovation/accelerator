@@ -788,10 +788,10 @@ Query normalisation tests cover a comma, `|`, a colon, parentheses, quotes,
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p research`
-- [ ] Public API pinned: `mise run public-api:update && mise run public-api:check`
-- [ ] Import rule holds: `mise run lint:cli:check` (cargo-pup) and `uv run pytest tests/integration/pup/test_import_rule.py -k research`
-- [ ] `mise run deny:check`, `mise run check`, and `mise run test` exit `0`
+- [x] Domain tests pass: `cargo test --manifest-path cli/Cargo.toml -p research`
+- [x] Public API pinned: `mise run public-api:update && mise run public-api:check`
+- [x] Import rule holds: `mise run lint:cli:check` (cargo-pup) and `uv run pytest tests/integration/pup/test_import_rule.py -k research`
+- [x] `mise run deny:check`, `mise run check`, and `mise run test` exit `0`
 
 #### Manual Verification
 

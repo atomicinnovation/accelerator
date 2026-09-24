@@ -4017,6 +4017,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "research"
+version = "1.24.0-pre.73"
+
+[[package]]
 name = "resolv-conf"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
