@@ -5,7 +5,7 @@ title: "Academic Source Profiles Implementation Plan"
 date: "2026-09-23T21:51:22+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0280"
 parent: "work-item:0280"
 derived_from: ["codebase-research:2026-09-23-0280-academic-source-profiles"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T20:29:44+00:00"
+last_updated: "2026-09-24T21:18:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2034,16 +2034,21 @@ keys, profiles, guard, and outline suffix.
 **File**: `skills/research/research-topic/SKILL.md`, `templates/topic-research-brief.md`
 **Changes**: the scoping interview offers `web`, `openalex`, and `arxiv`,
 suggesting the academic families for scholarly subjects and recommending an
-OpenAlex key when `openalex` is chosen; `source_profiles` records the chosen
-subset, defaulting to `["web"]`. The
-template's comment lists the three values.
+OpenAlex key (`openalex.api_key_cmd`, through `/accelerator:configure`) when
+`openalex` is chosen, since a keyless round runs on the small daily allowance;
+`source_profiles` records the chosen subset, defaulting to `["web"]`, and the
+set-creation step writes that subset rather than a fixed `["web"]`. The
+template's comment reads `# any of "web", "openalex", "arxiv"`.
 
 #### 2. Documentation
 
-- `docs-site/src/content/docs/research.md` (new) and its
-  `docs-site/astro.config.mjs` sidebar entry: the `accelerator research`
-  sub-binary (families, verbs, `--limit`, the 100 s deadline, output and
-  unavailable shapes, exit codes and `E_*` codes), the tier table, withdrawal
+- `docs-site/src/content/docs/research.md` (new, titled "Research CLI") and
+  its `docs-site/astro.config.mjs` sidebar entry in the Reference group,
+  after `corpus`: the `accelerator research`
+  sub-binary (families, verbs, `--limit`, query normalisation, the 100 s
+  deadline, output and unavailable shapes, exit codes and `E_*` codes, the
+  retry schedule, and the same-origin redirect and 8 MiB body limits), the
+  tier table, withdrawal
   detection, pacing, credentials, the `ACCELERATOR_RESEARCH_BIN` override row,
   the guard (it runs on every `Bash` and file-writing call; its parity with
   Claude Code's Bash-rule matching and the measured table, and the two
@@ -2059,15 +2064,19 @@ template's comment lists the three values.
   unconfined) and a refused binary (exit `1` on every call, with the recovery
   step); that every subagent of the configured researcher type, wherever it is
   spawned, may only run `accelerator research fetch` and write findings), the
-  `topic-research outstanding` JSON's additive-only rule, and an "Academic
+  `topic-research outstanding` invocation, its JSON arrays, and their
+  additive-only rule, and an "Academic
   profiles in research-topic" section
   covering `brief`, the `— profiles:` suffix, the finding layout, and that
   consumers group findings by frontmatter rather than filename.
 - `README.md` Concepts: a Research CLI entry.
-- `skills/config/configure/SKILL.md`: under `agents`, a warning that every
+- `skills/config/configure/SKILL.md`: under `agents`, a `researcher` row in
+  the agents table, and a warning that every
   subagent of the configured researcher type, wherever it is spawned, may
   only run `accelerator research fetch` and write findings, so it should be a
-  dedicated agent; and an `### openalex` section modelled on
+  dedicated agent that holds `Bash`; under `### research`, the depth notice's
+  "one researcher per (focus area, profile)"; and an `### openalex` section
+  modelled on
   `### linear` (personal-settings table, the ladder,
   `E_TOKEN_CMD_FROM_SHARED_CONFIG`, the 0600 and untracked gates, recognised
   keys, the keyless allowance).
@@ -2081,14 +2090,15 @@ template's comment lists the three values.
 
 #### Automated Verification
 
-- [ ] `mise run docs:check` exits `0`
-- [ ] `accelerator config help | grep -F openalex.api_key_cmd`
-- [ ] Bare `mise run` exits `0`
+- [x] `mise run docs:check` exits `0`
+- [x] `accelerator config help | grep -F openalex.api_key_cmd`
+- [x] Bare `mise run` exits `0` — run with `E2E_HEALTH_PORT=19187` past the
+      same orphaned server
 
 #### Manual Verification
 
 - [ ] `brief` on an academic subject offers and records the academic profiles.
-- [ ] The generated `research-topic` reference page shows the new description.
+- [x] The generated `research-topic` reference page shows the new description.
 
 ---
 
