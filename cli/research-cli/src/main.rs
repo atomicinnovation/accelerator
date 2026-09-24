@@ -1,13 +1,15 @@
-//! `accelerator-research` — the `research fetch` sub-binary, dispatched by
-//! the `accelerator` launcher.
+//! `accelerator-research` — the `research fetch` and `research guard`
+//! sub-binary, dispatched by the `accelerator` launcher.
 
 mod cli;
 mod context;
 mod fetch_command;
+mod guard;
 #[cfg(feature = "test-loopback")]
 mod loopback;
 mod provenance;
 mod render;
+mod write_target;
 
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -61,17 +63,47 @@ const USAGE: u8 = 2;
 fn main() -> ExitCode {
     let clock = selected_clock();
     let deadline = Deadline::starting(clock.now(), CALL_BUDGET, REQUEST_BUDGET);
-    let Command::Fetch {
-        family,
-        verb,
-        terms,
-        limit,
-    } = Cli::parse().command;
-    let request =
-        match FetchRequest::parse(&family, &verb, &terms, limit.as_deref()) {
-            Ok(request) => request,
-            Err(error) => return usage(&error.to_string()),
-        };
+    match Cli::try_parse() {
+        Ok(Cli {
+            command:
+                Command::Fetch {
+                    family,
+                    verb,
+                    terms,
+                    limit,
+                },
+        }) => fetch(clock, &deadline, &family, &verb, &terms, limit.as_deref()),
+        Ok(Cli {
+            command: Command::Guard { .. },
+        }) => guard::run(),
+        Err(error) if invoked_as_guard() => {
+            let _ = error.print();
+            ExitCode::SUCCESS
+        }
+        Err(error) => error.exit(),
+    }
+}
+
+/// A hook must never block by accident, and clap exits `2` on a usage error,
+/// which Claude Code reads as a block.
+fn invoked_as_guard() -> bool {
+    std::env::args_os()
+        .nth(1)
+        .is_some_and(|verb| verb == "guard")
+}
+
+fn fetch(
+    clock: Rc<dyn Clock>,
+    deadline: &Deadline,
+    family: &str,
+    verb: &str,
+    terms: &[String],
+    limit: Option<&str>,
+) -> ExitCode {
+    let request = match FetchRequest::parse(family, verb, terms, limit) {
+        Ok(request) => request,
+        Err(error) => return usage(&error.to_string()),
+    };
     let endpoints = match selected_endpoints() {
         Ok(endpoints) => endpoints,
         Err(message) => return usage(&message),
@@ -86,18 +118,18 @@ fn main() -> ExitCode {
         Ok(project) => project,
         Err(message) => return failure(&message),
     };
-    let call =
-        match source_call(request, endpoints, &project, &clock, &deadline) {
-            Ok(call) => call,
-            Err(message) => return failure(&message),
-        };
+    let call = match source_call(request, endpoints, &project, &clock, deadline)
+    {
+        Ok(call) => call,
+        Err(message) => return failure(&message),
+    };
     let ports = FetchPorts {
         clock,
         credentials: CredentialPorts::system(Box::new(
             VcsProvenance::discovered(project.root.clone()),
         )),
     };
-    match fetch_command::run(&ports, &project, &deadline, &call) {
+    match fetch_command::run(&ports, &project, deadline, &call) {
         Ok(fetched) => report(&fetched),
         Err(error) => failure(&error.to_string()),
     }

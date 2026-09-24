@@ -44,4 +44,14 @@ pub enum Command {
         #[arg(long)]
         limit: Option<String>,
     },
+    /// Judge a `PreToolUse` hook call from stdin, confining the researcher
+    /// subagent to the fetch and to finding files. Exits 2 to block.
+    Guard {
+        /// Accepted for parity with the launcher, which acts on it.
+        #[arg(long)]
+        fail_safe: bool,
+        /// Accepted for parity with the launcher, which acts on it.
+        #[arg(long)]
+        non_blocking: bool,
+    },
 }

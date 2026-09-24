@@ -115,3 +115,14 @@ impl Clock for LoggingClock {
         }
     }
 }
+
+const GUARD_PANIC: &str = "ACCELERATOR_RESEARCH_TEST_GUARD_PANIC";
+
+/// Fails the guard once it has identified a confined call, so the suite can
+/// prove a guard failure blocks.
+pub fn panic_if_asked() {
+    assert!(
+        std::env::var_os(GUARD_PANIC).is_none(),
+        "{GUARD_PANIC} is set"
+    );
+}

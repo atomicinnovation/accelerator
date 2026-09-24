@@ -6,6 +6,7 @@
 
 pub mod arxiv;
 pub mod classify;
+pub mod confinement;
 pub mod fetch;
 pub mod openalex;
 pub mod record;

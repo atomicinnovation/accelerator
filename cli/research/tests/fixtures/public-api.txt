@@ -132,6 +132,159 @@ pub fn research::classify::Received::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::StructuralPartialEq for research::classify::Received
 pub fn research::classify::arxiv(response: research::classify::Response) -> research::classify::Verdict
 pub fn research::classify::openalex(response: research::classify::Response, verb: research::request::Verb, key: core::option::Option<&research::request::KeySource>) -> research::classify::Verdict
+pub mod research::confinement
+pub enum research::confinement::Action
+pub research::confinement::Action::Command(alloc::string::String)
+pub research::confinement::Action::Unreadable
+pub research::confinement::Action::Write(core::result::Result<research::confinement::TopicsRelativePath, research::confinement::PathRejection>)
+impl core::clone::Clone for research::confinement::Action
+pub fn research::confinement::Action::clone(&self) -> research::confinement::Action
+impl core::cmp::Eq for research::confinement::Action
+impl core::cmp::PartialEq for research::confinement::Action
+pub fn research::confinement::Action::eq(&self, other: &research::confinement::Action) -> bool
+impl core::fmt::Debug for research::confinement::Action
+pub fn research::confinement::Action::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Action
+pub enum research::confinement::Block
+pub research::confinement::Block::Syntax(research::confinement::Construct)
+pub research::confinement::Block::Unreadable
+pub research::confinement::Block::Write(research::confinement::WriteRefusal)
+pub research::confinement::Block::WrongCommand
+impl core::clone::Clone for research::confinement::Block
+pub fn research::confinement::Block::clone(&self) -> research::confinement::Block
+impl core::cmp::Eq for research::confinement::Block
+impl core::cmp::PartialEq for research::confinement::Block
+pub fn research::confinement::Block::eq(&self, other: &research::confinement::Block) -> bool
+impl core::fmt::Debug for research::confinement::Block
+pub fn research::confinement::Block::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Block
+pub enum research::confinement::Construct
+pub research::confinement::Construct::Ampersand
+pub research::confinement::Construct::Backtick
+pub research::confinement::Construct::Brace
+pub research::confinement::Construct::Expansion
+pub research::confinement::Construct::InputRedirection
+pub research::confinement::Construct::LineContinuation
+pub research::confinement::Construct::Newline
+pub research::confinement::Construct::OutputRedirection
+pub research::confinement::Construct::Parenthesis
+pub research::confinement::Construct::Pipe
+pub research::confinement::Construct::ProcessSubstitution
+pub research::confinement::Construct::Separator
+impl core::clone::Clone for research::confinement::Construct
+pub fn research::confinement::Construct::clone(&self) -> research::confinement::Construct
+impl core::cmp::Eq for research::confinement::Construct
+impl core::cmp::PartialEq for research::confinement::Construct
+pub fn research::confinement::Construct::eq(&self, other: &research::confinement::Construct) -> bool
+impl core::fmt::Debug for research::confinement::Construct
+pub fn research::confinement::Construct::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::confinement::Construct
+pub fn research::confinement::Construct::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::confinement::Construct
+impl core::marker::StructuralPartialEq for research::confinement::Construct
+pub enum research::confinement::Decision
+pub research::confinement::Decision::Block(research::confinement::Block)
+pub research::confinement::Decision::Pass
+impl core::clone::Clone for research::confinement::Decision
+pub fn research::confinement::Decision::clone(&self) -> research::confinement::Decision
+impl core::cmp::Eq for research::confinement::Decision
+impl core::cmp::PartialEq for research::confinement::Decision
+pub fn research::confinement::Decision::eq(&self, other: &research::confinement::Decision) -> bool
+impl core::fmt::Debug for research::confinement::Decision
+pub fn research::confinement::Decision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Decision
+pub enum research::confinement::PathRejection
+pub research::confinement::PathRejection::DotComponent
+pub research::confinement::PathRejection::NotUnderTopics
+pub research::confinement::PathRejection::Symlink(alloc::string::String)
+pub research::confinement::PathRejection::Uninspectable
+impl core::clone::Clone for research::confinement::PathRejection
+pub fn research::confinement::PathRejection::clone(&self) -> research::confinement::PathRejection
+impl core::cmp::Eq for research::confinement::PathRejection
+impl core::cmp::PartialEq for research::confinement::PathRejection
+pub fn research::confinement::PathRejection::eq(&self, other: &research::confinement::PathRejection) -> bool
+impl core::fmt::Debug for research::confinement::PathRejection
+pub fn research::confinement::PathRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::PathRejection
+pub enum research::confinement::Researcher
+pub research::confinement::Researcher::Configured(alloc::string::String)
+pub research::confinement::Researcher::Default
+impl core::clone::Clone for research::confinement::Researcher
+pub fn research::confinement::Researcher::clone(&self) -> research::confinement::Researcher
+impl core::cmp::Eq for research::confinement::Researcher
+impl core::cmp::PartialEq for research::confinement::Researcher
+pub fn research::confinement::Researcher::eq(&self, other: &research::confinement::Researcher) -> bool
+impl core::fmt::Debug for research::confinement::Researcher
+pub fn research::confinement::Researcher::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::confinement::Researcher
+pub fn research::confinement::Researcher::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Researcher
+pub enum research::confinement::WriteRefusal
+pub research::confinement::WriteRefusal::OutsideFindings(research::confinement::TopicsRelativePath)
+pub research::confinement::WriteRefusal::Rejected(research::confinement::PathRejection)
+impl core::clone::Clone for research::confinement::WriteRefusal
+pub fn research::confinement::WriteRefusal::clone(&self) -> research::confinement::WriteRefusal
+impl core::cmp::Eq for research::confinement::WriteRefusal
+impl core::cmp::PartialEq for research::confinement::WriteRefusal
+pub fn research::confinement::WriteRefusal::eq(&self, other: &research::confinement::WriteRefusal) -> bool
+impl core::fmt::Debug for research::confinement::WriteRefusal
+pub fn research::confinement::WriteRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::WriteRefusal
+pub struct research::confinement::InternalFailure<'a>(pub &'a research::confinement::Researcher)
+impl core::fmt::Display for research::confinement::InternalFailure<'_>
+pub fn research::confinement::InternalFailure<'_>::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct research::confinement::Refusal<'a>
+pub research::confinement::Refusal::block: &'a research::confinement::Block
+pub research::confinement::Refusal::researcher: &'a research::confinement::Researcher
+pub research::confinement::Refusal::topics: &'a str
+impl core::fmt::Display for research::confinement::Refusal<'_>
+pub fn research::confinement::Refusal<'_>::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct research::confinement::Researchers
+impl research::confinement::Researchers
+pub const fn research::confinement::Researchers::default_only() -> Self
+pub fn research::confinement::Researchers::identify(&self, agent_type: &str) -> core::option::Option<research::confinement::Researcher>
+pub fn research::confinement::Researchers::with_configured(name: &str) -> Self
+impl core::clone::Clone for research::confinement::Researchers
+pub fn research::confinement::Researchers::clone(&self) -> research::confinement::Researchers
+impl core::cmp::Eq for research::confinement::Researchers
+impl core::cmp::PartialEq for research::confinement::Researchers
+pub fn research::confinement::Researchers::eq(&self, other: &research::confinement::Researchers) -> bool
+impl core::fmt::Debug for research::confinement::Researchers
+pub fn research::confinement::Researchers::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::Researchers
+pub struct research::confinement::ToolCall
+impl research::confinement::ToolCall
+pub fn research::confinement::ToolCall::agent_type(&self) -> &str
+pub fn research::confinement::ToolCall::is_subagent(&self) -> bool
+pub const fn research::confinement::ToolCall::new(agent_id: core::option::Option<alloc::string::String>, agent_type: core::option::Option<alloc::string::String>) -> Self
+impl core::clone::Clone for research::confinement::ToolCall
+pub fn research::confinement::ToolCall::clone(&self) -> research::confinement::ToolCall
+impl core::cmp::Eq for research::confinement::ToolCall
+impl core::cmp::PartialEq for research::confinement::ToolCall
+pub fn research::confinement::ToolCall::eq(&self, other: &research::confinement::ToolCall) -> bool
+impl core::fmt::Debug for research::confinement::ToolCall
+pub fn research::confinement::ToolCall::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::ToolCall
+pub struct research::confinement::TopicsRelativePath(_)
+impl research::confinement::TopicsRelativePath
+pub fn research::confinement::TopicsRelativePath::as_str(&self) -> &str
+pub const fn research::confinement::TopicsRelativePath::new(path: alloc::string::String) -> Self
+impl core::clone::Clone for research::confinement::TopicsRelativePath
+pub fn research::confinement::TopicsRelativePath::clone(&self) -> research::confinement::TopicsRelativePath
+impl core::cmp::Eq for research::confinement::TopicsRelativePath
+impl core::cmp::PartialEq for research::confinement::TopicsRelativePath
+pub fn research::confinement::TopicsRelativePath::eq(&self, other: &research::confinement::TopicsRelativePath) -> bool
+impl core::fmt::Debug for research::confinement::TopicsRelativePath
+pub fn research::confinement::TopicsRelativePath::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::confinement::TopicsRelativePath
+pub const research::confinement::DEFAULT_RESEARCHER: &str
+pub const research::confinement::PERMITTED_PREFIX: &str
+pub const research::confinement::STRICTER_THAN_MEASURED: [research::confinement::Construct; 2]
+pub trait research::confinement::FindingsScope
+pub fn research::confinement::FindingsScope::contains(&self, target: &research::confinement::TopicsRelativePath) -> bool
+pub fn research::confinement::command_decision(command: &str) -> research::confinement::Decision
+pub fn research::confinement::confined_researcher(call: &research::confinement::ToolCall, researchers: &research::confinement::Researchers) -> core::option::Option<research::confinement::Researcher>
+pub fn research::confinement::decide(action: &research::confinement::Action, findings: &dyn research::confinement::FindingsScope) -> research::confinement::Decision
 pub mod research::fetch
 pub enum research::fetch::Cause
 pub research::fetch::Cause::LockContention

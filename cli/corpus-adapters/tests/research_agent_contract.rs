@@ -1,7 +1,8 @@
 //! Repository-integrity guards on the research infrastructure's plugin
-//! markdown: the generic `researcher` agent must carry a bounded, shell-free
-//! tool grant; the OpenAlex profile must reach its source only through the
-//! fetch; and the `topic-research-finding` template the finding outputter
+//! markdown: the generic `researcher` agent must carry a bounded tool grant
+//! whose `Bash` only the registered research guard confines; each academic
+//! profile must reach its source only through a fetch the guard passes;
+//! and the `topic-research-finding` template the finding outputter
 //! delegates to must declare exactly the fields the `(topic-research, finding)`
 //! schema row requires, plus the omit-when-empty linkage slots — so the writer,
 //! the template, and the schema cannot drift silently.
@@ -15,6 +16,9 @@ use common::TestError;
 use corpus::frontmatter_validation::parse_entries;
 use corpus::frontmatter_validation::schema;
 use corpus::frontmatter_validation::template_shape::extract_frontmatter;
+use research::confinement::command_decision;
+use research::confinement::Decision;
+use serde_json::Value;
 
 fn read(relative: &str) -> Result<String, TestError> {
     Ok(std::fs::read_to_string(repo_root()?.join(relative))?)
@@ -28,8 +32,7 @@ fn field_names(frontmatter: &str) -> BTreeSet<String> {
 }
 
 #[test]
-fn the_researcher_agent_grants_a_bounded_shell_free_tool_set(
-) -> Result<(), TestError> {
+fn the_researcher_agent_grants_a_bounded_tool_set() -> Result<(), TestError> {
     let content = read("agents/researcher.md")?;
     let frontmatter = extract_frontmatter(&content);
     let entries = parse_entries(&frontmatter);
@@ -40,19 +43,115 @@ fn the_researcher_agent_grants_a_bounded_shell_free_tool_set(
         .ok_or("agents/researcher.md carries no tools: grant")?;
     let granted: BTreeSet<&str> = tools.split(',').map(str::trim).collect();
 
-    let expected: BTreeSet<&str> = ["WebSearch", "WebFetch", "Write", "Read"]
-        .into_iter()
-        .collect();
+    let expected: BTreeSet<&str> =
+        ["WebSearch", "WebFetch", "Write", "Read", "Bash"]
+            .into_iter()
+            .collect();
     assert_eq!(
         granted, expected,
         "the researcher's tool grant has drifted from the pinned set"
     );
-    assert!(
-        !granted.contains("Bash"),
-        "the researcher must never be granted Bash — it consumes \
-         attacker-controlled web content"
-    );
     Ok(())
+}
+
+const RESEARCH_GUARD: &str =
+    "/bin/accelerator research guard --fail-safe --non-blocking";
+
+fn pre_tool_use_commands(matcher: &str) -> Result<Vec<String>, TestError> {
+    let hooks: Value = serde_json::from_str(&read("hooks/hooks.json")?)?;
+    let groups = hooks["hooks"]["PreToolUse"]
+        .as_array()
+        .ok_or("hooks/hooks.json registers no PreToolUse hooks")?;
+    Ok(groups
+        .iter()
+        .filter(|group| group["matcher"] == matcher)
+        .filter_map(|group| group["hooks"].as_array())
+        .flatten()
+        .filter_map(|hook| hook["command"].as_str().map(str::to_owned))
+        .collect())
+}
+
+#[test]
+fn bash_is_granted_only_beside_the_registered_research_guard(
+) -> Result<(), TestError> {
+    for matcher in ["Bash", "Write|Edit|MultiEdit|NotebookEdit"] {
+        let commands = pre_tool_use_commands(matcher)?;
+        assert!(
+            commands
+                .iter()
+                .any(|command| command.ends_with(RESEARCH_GUARD)),
+            "the {matcher} PreToolUse group does not run the research \
+             guard: {commands:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn the_researcher_body_names_no_source_family() -> Result<(), TestError> {
+    let content = read("agents/researcher.md")?;
+    let body = content
+        .split_once("\n---\n")
+        .map_or(content.as_str(), |(_, body)| body)
+        .to_lowercase();
+    for family in ["openalex", "arxiv", "web-profile"] {
+        assert!(
+            !body.contains(family),
+            "the researcher's body names {family}; profiles are injected"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_profile_invocation_passes_the_guard() -> Result<(), TestError> {
+    for family in ["openalex", "arxiv"] {
+        let content = read(&format!(
+            "skills/research/profiles/{family}-profile/SKILL.md"
+        ))?;
+        let invocations = fenced_lines(&content)
+            .into_iter()
+            .chain(quoted_queries(&content).into_iter().map(|query| {
+                format!("accelerator research fetch {family} search {query}")
+            }))
+            .collect::<Vec<_>>();
+        assert!(
+            invocations.len() > 2,
+            "the {family} profile shows too few invocations: {invocations:?}"
+        );
+        for invocation in invocations {
+            assert_eq!(
+                command_decision(&invocation),
+                Decision::Pass,
+                "the {family} profile shows a call the guard blocks: \
+                 {invocation}"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn fenced_lines(content: &str) -> Vec<String> {
+    let mut in_fence = false;
+    let mut lines = Vec::new();
+    for line in content.lines().map(str::trim) {
+        if line.starts_with("```") {
+            in_fence = !in_fence;
+        } else if in_fence && !line.is_empty() {
+            lines.push(line.to_owned());
+        }
+    }
+    lines
+}
+
+/// The worked examples of a query written as one single-quoted argument.
+fn quoted_queries(content: &str) -> Vec<String> {
+    content
+        .split("`'")
+        .skip(1)
+        .filter_map(|rest| rest.split_once("'`"))
+        .map(|(query, _)| format!("'{query}'"))
+        .collect()
 }
 
 #[test]

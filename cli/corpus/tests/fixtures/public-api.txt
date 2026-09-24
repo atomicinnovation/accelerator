@@ -565,6 +565,8 @@ pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
+pub mod corpus::topic_research
+pub fn corpus::topic_research::is_finding_path(relative: &str) -> bool
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
 pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)

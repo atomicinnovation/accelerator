@@ -7,8 +7,10 @@
 # Fail-closed unless --fail-safe is present, in which case bootstrap-layer
 # aborts exit 0 with a stderr diagnostic; trust-chain aborts additionally record
 # durably. --fail-safe is a reserved global token: it is recognised anywhere
-# before a `--` separator and passed through to the launcher unchanged. Bash 3.2
-# floor (no associative arrays, ${var,,}, mapfile).
+# before a `--` separator and passed through to the launcher unchanged. So is
+# --non-blocking, which this script ignores: the launcher reads it to exit 1
+# rather than 2 on an integrity refusal, since a PreToolUse hook reads 2 as a
+# block. Bash 3.2 floor (no associative arrays, ${var,,}, mapfile).
 #
 # The cache directory must be writable and exec-capable on a cold start, which
 # is probed once. A warm start only reads and execs from it, so a populated

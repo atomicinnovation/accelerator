@@ -212,6 +212,7 @@ impl ResolveBinary for FetchVerifyCacheResolver {
                     return self.fetch_verify_store(name).map_err(|error| {
                         ResolutionError::CorruptCacheAndRefetchFailed {
                             asset: name.to_owned(),
+                            cached: cached.path.clone(),
                             detail: error.to_string(),
                         }
                     });

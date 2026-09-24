@@ -16,8 +16,9 @@ use accelerator::config_command::core::ConfigStack;
 use accelerator::launch::cache;
 use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
-    acquire_trees, consumes_trees, swallow_under_fail_safe, tree_var,
-    ExternalCommand, ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
+    acquire_trees, consumes_trees, tree_var, DispatchFailureExit,
+    DispatchFailurePolicy, ExternalCommand, ResolutionError, ResolveBinary,
+    LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::{self, augment_with_subbinaries};
@@ -415,31 +416,40 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
 }
 
 fn report(error: &kernel::Error) -> ExitCode {
-    let message = error.to_string();
-    if !message.is_empty() {
-        eprintln!("{message}");
-    }
+    print_diagnostic(error);
     match error {
         kernel::Error::Refusal(_) => ExitCode::from(2),
         _ => ExitCode::FAILURE,
     }
 }
 
-/// The exit code for a failed `run()`: an availability-class failure from
-/// resolving/exec'ing an external subcommand that forwarded `--fail-safe`
-/// exits 0 silently (bar a `tracing::warn!` diagnostic); every other failure
-/// reports and exits through [`report`] as before.
+fn print_diagnostic(error: &kernel::Error) {
+    let message = error.to_string();
+    if !message.is_empty() {
+        eprintln!("{message}");
+    }
+}
+
+/// The exit code for a failed `run()`: an external subcommand's failure exits
+/// as its forwarded [`DispatchFailurePolicy`] decides; every other failure
+/// reports and exits through [`report`].
 fn handle_dispatch_error(error: &kernel::Error, command: &Command) -> ExitCode {
-    if let Command::External(args) = command {
-        if swallow_under_fail_safe(error, args) {
+    let Command::External(args) = command else {
+        return report(error);
+    };
+    match DispatchFailurePolicy::forwarded_in(args).exit_for(error) {
+        DispatchFailureExit::Swallowed => {
             tracing::warn!(
                 %error,
                 "external dispatch failed under --fail-safe; exiting 0"
             );
-            return ExitCode::SUCCESS;
+            ExitCode::SUCCESS
+        }
+        DispatchFailureExit::Reported(code) => {
+            print_diagnostic(error);
+            ExitCode::from(code)
         }
     }
-    report(error)
 }
 
 fn parse_cli() -> Result<Cli, clap::Error> {
@@ -654,6 +664,30 @@ mod tests {
         let error = dispatch_error(integrity_failure);
         let command = Command::External(vec![OsString::from("--fail-safe")]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    #[test]
+    fn an_integrity_failure_exits_one_when_non_blocking_is_forwarded() {
+        let error = dispatch_error(integrity_failure);
+        for tokens in [
+            vec!["--non-blocking"],
+            vec!["--fail-safe", "--non-blocking"],
+        ] {
+            let command = Command::External(
+                tokens.into_iter().map(OsString::from).collect(),
+            );
+            assert_eq!(
+                handle_dispatch_error(&error, &command),
+                ExitCode::FAILURE
+            );
+        }
+    }
+
+    #[test]
+    fn an_availability_failure_exits_failure_when_only_non_blocking() {
+        let error = dispatch_error(availability_failure);
+        let command = Command::External(vec![OsString::from("--non-blocking")]);
+        assert_eq!(handle_dispatch_error(&error, &command), ExitCode::FAILURE);
     }
 
     #[test]
