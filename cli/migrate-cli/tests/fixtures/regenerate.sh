@@ -194,9 +194,8 @@ seed_bridge_corpus() {
 BRIDGE_DIR="$INTERACTIVE_FIXTURES/0006-decisions-bridge/migrations"
 PREDICATE_DIR="$INTERACTIVE_FIXTURES/0002-predicate/migrations"
 
-# gr_int_repo <vcs> — jj/git repo with an empty owned manifest seeded at the
-# current run base: HEAD on git, @'s sorted parent commit ids joined by + on
-# jj.
+# gr_base_rev <repo> <vcs> — the run base in RunBase::from_base_commits'
+# encoding, which a seeded manifest must match to be resumable.
 gr_base_rev() {
   local repo="$1" vcs="$2"
   if [ "$vcs" = jj ]; then
@@ -207,6 +206,8 @@ gr_base_rev() {
   fi
 }
 
+# gr_int_repo <vcs> — jj/git repo with an empty owned manifest seeded at the
+# current run base.
 gr_int_repo() {
   local vcs="$1" repo
   repo=$(mktemp -d "$WORK/gr-int-$vcs-XXXXXX")

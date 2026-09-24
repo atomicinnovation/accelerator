@@ -323,8 +323,7 @@ pub struct WorkingCopyObservation {
 }
 
 pub trait WorkingCopy {
-    /// Observes the working copy, keeping only dirty paths under the given
-    /// root prefixes.
+    /// Keeps only the dirty paths under the given root prefixes.
     ///
     /// # Errors
     /// [`MigrationError`] when the observation itself fails (not: when it

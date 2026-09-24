@@ -68,7 +68,7 @@ impl Preflight<'_> {
     /// # Errors
     /// [`PreflightError::UnownedChanges`] when the tree is dirty outside this
     /// run's own manifest/session artefacts; [`PreflightError::Failed`] when
-    /// the lock, scan, or manifest I/O itself fails.
+    /// the lock, working-copy observation, or manifest I/O itself fails.
     pub fn run(
         &self,
     ) -> Result<(RunLockGuard, PreflightOutcome), PreflightError> {

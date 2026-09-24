@@ -1,6 +1,3 @@
-//! Observes the working copy through `vcs_adapters::library::InProcessProbe`,
-//! scoped to the migrate engine's own root prefixes.
-
 use std::path::PathBuf;
 
 use migrate::ports::MigrationError;

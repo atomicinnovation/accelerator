@@ -1,6 +1,6 @@
 //! The composed `MigrationContext`: legacy-layout config access for
-//! doc-type directories, VCS revision, and the bounded atomic write every
-//! migration's mutation routes through.
+//! doc-type directories, and the bounded atomic write every migration's
+//! mutation routes through.
 
 use std::cell::OnceCell;
 use std::collections::HashMap;

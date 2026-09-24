@@ -21,9 +21,8 @@ impl RunBase {
         Some(Self(sorted.join("+")))
     }
 
-    /// Reads back what an earlier run recorded, whatever it was: records
-    /// written before the run base was defined stay comparable, and simply
-    /// never match.
+    /// Reads back whatever an earlier run recorded: a record in any other
+    /// encoding still compares, and never matches.
     #[must_use]
     pub fn recorded(text: &str) -> Option<Self> {
         let trimmed = text.trim();

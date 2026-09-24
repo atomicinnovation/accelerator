@@ -67,7 +67,6 @@ impl Hermetic {
         })
     }
 
-    /// The isolated `HOME`.
     #[must_use]
     pub fn home(&self) -> &Path {
         &self.home
