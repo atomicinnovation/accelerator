@@ -2224,7 +2224,7 @@ impl Tracker {
 - [x] Jira rejection and Linear end-to-end: `cargo test -p work-cli --test cli_sync --test sync_resolves_real_client`
 - [x] Public API unchanged since Phase 3: `mise run public-api:check`
 - [x] Read-only CI mirror green: `mise run check`
-- [ ] Full local CI mirror green end-to-end: `mise run`
+- [x] Full local CI mirror green end-to-end: `mise run`
 
 #### Manual Verification
 
