@@ -5,14 +5,14 @@ title: "Linear Pull Filters via Catalogue-Resolved Ids Implementation Plan"
 date: "2026-09-22T11:02:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0292"
 parent: "work-item:0292"
 derived_from: ["codebase-research:2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids"]
 tags: ["linear", "pull-filters", "catalogue", "discovery", "filter-lowering", "assignee", "project", "sync"]
 revision: "634e2aa521ccf1411e9327a64cf166fd543525ea"
 repository: "accelerator"
-last_updated: "2026-09-24T21:00:00+00:00"
+last_updated: "2026-09-24T18:23:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2139,13 +2139,13 @@ deliberate divergence, borrowed from the show flow's decade.
 
 #### Manual Verification
 
-- [ ] Against a legacy catalogue, a filtered `--preview` pull succeeds and
+- [x] Against a legacy catalogue, a filtered `--preview` pull succeeds and
       leaves `catalogue.json` unchanged. A second preview fetches again.
-- [ ] An apply pull then completes the base entry and prints the `note:`. A
+- [x] An apply pull then completes the base entry and prints the `note:`. A
       third pull makes no team-section fetch.
-- [ ] A whole-workspace pull filtering on `state` returns every team's
+- [x] A whole-workspace pull filtering on `state` returns every team's
       matching issues, and commits entries only for synced teams.
-- [ ] `accelerator linear search --state "In Progress"` returns only the init
+- [x] `accelerator linear search --state "In Progress"` returns only the init
       team's issues.
 
 ---
@@ -2228,8 +2228,8 @@ impl Tracker {
 
 #### Manual Verification
 
-- [ ] `configure` rejects a `project` filter under Jira.
-- [ ] A live Linear pull with `project: [<real project>]` returns only that
+- [x] `configure` rejects a `project` filter under Jira.
+- [x] A live Linear pull with `project: [<real project>]` returns only that
       project's issues.
 
 ---
