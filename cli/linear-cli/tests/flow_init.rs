@@ -302,6 +302,10 @@ fn init_discover_notes_a_legacy_file_without_teams() {
     let note = stderr.lines().find(|line| line.starts_with("note:"));
     assert!(note.is_some(), "no note: {stderr}");
     let note = note.unwrap();
+    assert!(
+        note.contains("If this repository synced other teams"),
+        "{note}"
+    );
     assert!(note.contains("older binary"), "{note}");
     assert!(note.contains("version control"), "{note}");
 }

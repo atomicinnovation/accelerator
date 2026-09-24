@@ -113,9 +113,11 @@ version control, or resolve the conflict, and re-run. Delete the file only as
 a last resort: synced teams are then re-derived from tracked work items on the
 next apply sync.
 
-If it prints a `note:` that the file has a `team` but no `teams`, an older
-binary may have overwritten the catalogue and erased its synced teams. Restore
-the file from version control, or let the next apply sync re-derive them.
+If it prints a `note:` that the file had a `team` but no `teams`, check
+whether this repository synced teams other than the base team. If it did, an
+older binary may have overwritten the catalogue and erased them: restore the
+file from version control, or let the next apply sync re-derive them. If it
+never did, the note needs no action.
 
 The subcommand also writes the discovered team key into `linear.team_key` in
 team config (`.accelerator/config.md`), the integration-owned scope key. An
