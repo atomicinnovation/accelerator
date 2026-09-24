@@ -5,7 +5,7 @@ title: "Linear Pull Filters via Catalogue-Resolved Ids"
 date: "2026-09-20T13:29:20+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
@@ -20,7 +20,7 @@ schema_version: 1
 # 0292: Linear Pull Filters via Catalogue-Resolved Ids
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
