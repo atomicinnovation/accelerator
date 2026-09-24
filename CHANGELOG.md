@@ -4,6 +4,31 @@
 
 ### Added
 
+- **`research-topic` researches the scholarly literature as well as the web.**
+  New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
+  all three, `outline` assigns each focus area one or more profiles with a
+  `— profiles: web, openalex` suffix, and `conduct` spawns one researcher per
+  (focus area, profile), each writing its own
+  `findings/<nn>-<slug>-<profile>.md`. An unsuffixed item is researched
+  through `web` alone, so existing sets are unchanged. See the
+  [Research CLI](https://atomicinnovation.github.io/accelerator/research/)
+  page.
+- **A new `accelerator research` command family.** `research fetch
+  <openalex|arxiv> <search|lookup>` returns normalised records as JSON, each
+  carrying a reputation tier the CLI derives from venue, version, retraction,
+  and confirmed arXiv withdrawal, within a 100 s deadline. A throttled,
+  budget-exhausted, or failing source degrades to `status: "unavailable"`
+  rather than an error, and arXiv requests are paced three seconds apart
+  across every process in the project.
+- **`accelerator corpus topic-research outstanding`** reports a
+  `research-topic` round's outstanding (focus area, profile) pairs and the
+  paths their findings go to, so `conduct` no longer allocates finding paths
+  itself.
+- **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
+  OpenAlex API key**, resolved through the same ladder as the tracker tokens,
+  with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
+  `accelerator config help` now lists every recognised key.
+
 - **The browser auth-header path is live: authenticated design crawls now
   produce a login-gated inventory.** In `header` mode the daemon injects
   `ACCELERATOR_BROWSER_AUTH_HEADER` on requests whose origin matches the crawl's
@@ -130,6 +155,9 @@
 
 ### Fixed
 
+- **Credential errors name the command key once.** A refused or failing token
+  command reported `jira.token_cmd_cmd`; it now names `jira.token_cmd`.
+
 - **`accelerator migrate` resumes stalled runs on jj.** The run base is now
   the parents of the working-copy commit, so `jj status`, edits and
   `jj describe` no longer make a stalled run look stale, and the dirty-tree
@@ -156,6 +184,22 @@
   with `ACCELERATOR_LOG=warn`.
 
 ### Security
+
+- **`accelerator config dump` hides API-key leaves.** Keys named `api_key` or
+  `api_key_cmd` are redacted alongside `token` and `token_cmd`.
+- **A version-tracked `config.local.md` is refused for plain credential
+  values too.** A tracked personal file supplying a `token` or `api_key` now
+  fails with `E_TOKEN_FROM_TRACKED_FILE`, whatever its mode, as a
+  `token_cmd` already did: every clone of the repository carries the
+  credential.
+- **The `research-topic` researcher is confined.** A `PreToolUse` hook,
+  `accelerator research guard`, limits every subagent of the configured
+  researcher type to running `accelerator research fetch` and writing finding
+  files under the research topics directory. Its command matching follows
+  Claude Code's own `Bash(…)` rule matching, measured per release, and also
+  blocks any `$` expansion and input redirection, which could otherwise read
+  an environment secret back or send it to another host. Point
+  `agents.researcher` only at a dedicated agent.
 
 - **Per-request classification of navigations and followed links.** The
   reachability + scheme verdict that guards a crawl's initial location is now

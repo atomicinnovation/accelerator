@@ -138,6 +138,20 @@ Interview the user to scope the subject (about three clarifying questions:
 what decision it informs, what is in and out of scope, what a satisfying
 dossier looks like). Derive the slug from the subject.
 
+Then ask which source profiles the research draws on, offering all three:
+
+- `web` — practice, tooling, standards, and current events;
+- `openalex` — the peer-reviewed literature across every discipline;
+- `arxiv` — preprints in physics, mathematics, computer science, and
+  neighbouring quantitative fields.
+
+Suggest `openalex` and `arxiv` alongside `web` when the subject is scholarly.
+When the user chooses `openalex`, recommend configuring an OpenAlex API key
+(`openalex.api_key_cmd` in `.accelerator/config.local.md`, through
+`/accelerator:configure`): without one, research runs on OpenAlex's small
+keyless daily allowance. Record the chosen subset as `source_profiles`,
+defaulting to `["web"]` when the user expresses no preference.
+
 **Refuse if `meta/research/topics/<slug>/` already exists.** Name the exact
 directory and point to the safe recovery — delete it or choose a different slug
 (a committed set is recoverable through the VCS) — so a re-`brief` never
@@ -146,8 +160,8 @@ silently overwrites a prior set.
 Build the set under a dot-prefixed sibling temp directory
 `meta/research/topics/.<slug>.tmp/`, removing any stale `.<slug>.tmp/` from an
 aborted run first. Write `manifest.md` (base `status: briefed`, `primary:
-brief.md`, counts 0) and `brief.md` (`source_profiles: ["web"]`, base `status:
-draft` during scoping, `complete` once authored). Then rename the temp
+brief.md`, counts 0) and `brief.md` (`source_profiles` the chosen subset, base
+`status: draft` during scoping, `complete` once authored). Then rename the temp
 directory to `meta/research/topics/<slug>/`, mirroring `inventory-design`, so
 the indexer's dot-skipping lister never sees a half-written set; clean up the
 temp directory on a failed rename.
