@@ -2,12 +2,14 @@
 name: init-linear
 description: >
   Set up the Linear integration for this project. Verifies a Linear personal
-  API key against the real Linear GraphQL API, lets you pick one team, and
-  persists that team plus its WorkflowState catalogue under
+  API key against the real Linear GraphQL API, lets you pick one base team,
+  and persists the states, labels, members and projects of the base team and
+  every synced team, plus the workspace labels, under
   `<paths.integrations>/linear/` (default
-  `.accelerator/state/integrations/linear/`). `catalogue.json` is team-shared
-  and version-controlled; `viewer.json` is per-developer and gitignored.
-  Idempotent: safe to re-run after credential or team changes.
+  `.accelerator/state/integrations/linear/`). Reports per-team section counts.
+  `catalogue.json` is team-shared and version-controlled; `viewer.json` is
+  per-developer and gitignored. Idempotent: safe to re-run after credential or
+  team changes, and re-running refreshes every synced team.
 argument-hint: "[--team-id <uuid>]"
 disable-model-invocation: true
 allowed-tools:
@@ -89,9 +91,31 @@ accelerator linear init discover --team-id <uuid>
 ```
 
 On success (`outcome: "discovered"`) the subcommand writes `catalogue.json`
-atomically, containing the chosen team's `{id, key, name}` and its WorkflowStates
-(`{id, name, type, position}`). Only the selected team's states are persisted
-(single-team scoping).
+atomically. It holds a complete entry (`states`, `labels`, `members`,
+`projects`) for the chosen base team and for every **synced team** — each team
+already in the catalogue's `teams` array, which sync adds when it imports items
+from a team. Other teams the credential can see are never catalogued. Archived
+states, labels and projects, and disabled members, are included. The
+workspace labels, which belong to no team, are written under the top-level
+`labels`. The JSON document reports the base `team` plus each entry's section
+counts under `teams`, and the number of `workspaceLabels`.
+
+The catalogue records the name, display name and email of every member of a
+synced team, and it is committed, so anyone with read access to the repository
+can read them.
+
+States, labels, members or projects added in Linear after init are not picked
+up by sync; re-run this step to refresh every synced team.
+
+If the subcommand refuses the existing catalogue as unparseable (for example
+an unresolved merge conflict), restore the last good `catalogue.json` from
+version control, or resolve the conflict, and re-run. Delete the file only as
+a last resort: synced teams are then re-derived from tracked work items on the
+next apply sync.
+
+If it prints a `note:` that the file has a `team` but no `teams`, an older
+binary may have overwritten the catalogue and erased its synced teams. Restore
+the file from version control, or let the next apply sync re-derive them.
 
 The subcommand also writes the discovered team key into `linear.team_key` in
 team config (`.accelerator/config.md`), the integration-owned scope key. An
@@ -111,14 +135,19 @@ Print a summary:
 
 ```
 Linear integration initialised:
-  Team:   <key> — <name>
-  States: <N> WorkflowStates cached (.accelerator/state/integrations/linear/catalogue.json)
+  Base team: <key> — <name>
+  Teams:     one line per entry in `teams`:
+             <key>: <states> states, <labels> labels, <members> members, <projects> projects
+  Workspace labels: <workspaceLabels>
+  Catalogue: .accelerator/state/integrations/linear/catalogue.json
   Viewer: <name> (.accelerator/state/integrations/linear/viewer.json — gitignored)
 ```
 
-Remind the user to commit
-`.accelerator/state/integrations/linear/catalogue.json` so teammates pick up the
-shared team + state catalogue without re-running `/init-linear`. (`viewer.json`
+Remind the user that the catalogue is committed and shared. If a teammate has
+already refreshed it, pull their change rather than re-running init;
+otherwise commit `.accelerator/state/integrations/linear/catalogue.json` so
+teammates pick it up. To refresh it later, run
+`accelerator linear init discover --team-id <uuid>` and commit the result. (`viewer.json`
 is gitignored — each developer runs `/init-linear` to record their own viewer
 identity and resolve their own credentials.)
 

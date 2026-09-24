@@ -952,7 +952,7 @@ fn imported_team_keys(
 /// Best-effort at finalisation: the imported files already landed, so a growth
 /// failure warns rather than failing the sync. The metadata is committed only
 /// for teams items were actually imported from — never the whole enumerated
-/// workspace — and a warning names each newly-committed team since the
+/// workspace — and a note names each newly-committed team since the
 /// catalogue is version-controlled and repo-wide.
 fn grow_linear_catalogue(
     report: &work_adapters::sync::run::RunReport,
@@ -960,9 +960,8 @@ fn grow_linear_catalogue(
     integration: &str,
     integrations_root: &Path,
     repo_root: &Path,
+    notes: &mut dyn std::io::Write,
 ) {
-    use linear_client::filter::TeamResolver;
-
     if integration != "linear" {
         return;
     }
@@ -970,12 +969,27 @@ fn grow_linear_catalogue(
     if imported.is_empty() {
         return;
     }
-    let known: std::collections::BTreeSet<String> =
-        linear_client::catalogue::CatalogueTeam::load(integrations_root)
-            .catalogued()
-            .into_iter()
-            .map(|(key, _)| key)
-            .collect();
+    let filesystem =
+        linear_client::cache::SystemFilesystem::new(repo_root.to_path_buf());
+    let cache = linear_client::cache::LinearCache::new(
+        &filesystem,
+        integrations_root.join("linear"),
+    );
+    let known: Vec<String> = match cache.load_for_update() {
+        Ok(catalogue) => catalogue
+            .teams()
+            .iter()
+            .map(|team| team.key.clone())
+            .collect(),
+        Err(error) => {
+            let _ = writeln!(
+                notes,
+                "warning: the Linear team catalogue could not be grown \
+                 ({error})."
+            );
+            return;
+        }
+    };
     let new_keys: Vec<String> = imported
         .into_iter()
         .filter(|key| !known.contains(key))
@@ -986,7 +1000,8 @@ fn grow_linear_catalogue(
     let visible = match tracker.enumerate_visible_entities() {
         Ok(visible) => visible,
         Err(error) => {
-            eprintln!(
+            let _ = writeln!(
+                notes,
                 "warning: the Linear team catalogue could not be grown for \
                  newly-imported team(s) ({error}); they will be catalogued on \
                  the next successful enumeration."
@@ -994,41 +1009,37 @@ fn grow_linear_catalogue(
             return;
         }
     };
-    let entries: Vec<(String, String, String)> = new_keys
+    let entries: Vec<linear_client::catalogue::TeamEntry> = new_keys
         .iter()
-        .filter_map(|key| {
-            visible
-                .iter()
-                .find(|entity| &entity.key == key)
-                .map(|entity| {
-                    (
-                        entity.key.clone(),
-                        entity.identifier.clone(),
-                        entity.name.clone(),
-                    )
-                })
+        .filter_map(|key| visible.iter().find(|entity| &entity.key == key))
+        .map(|entity| {
+            linear_client::catalogue::TeamEntry::identified(
+                &entity.identifier,
+                &entity.key,
+                &entity.name,
+            )
         })
         .collect();
     if entries.is_empty() {
         return;
     }
-    let filesystem =
-        linear_client::cache::SystemFilesystem::new(repo_root.to_path_buf());
-    let cache = linear_client::cache::LinearCache::new(
-        &filesystem,
-        integrations_root.join("linear"),
-    );
-    match cache.grow_catalogue(&entries) {
-        Ok(added) if !added.is_empty() => eprintln!(
+    let update = linear_client::catalogue::CatalogueUpdate {
+        entries,
+        ..Default::default()
+    };
+    let _ = match cache.record_team_entries(&update) {
+        Ok(added) if !added.is_empty() => writeln!(
+            notes,
             "note: committed Linear team metadata for newly-imported team(s): \
              {}. The catalogue is version-controlled and repo-wide.",
             added.join(", ")
         ),
-        Ok(_) => {}
-        Err(error) => eprintln!(
+        Ok(_) => Ok(()),
+        Err(error) => writeln!(
+            notes,
             "warning: the Linear team catalogue could not be grown ({error})."
         ),
-    }
+    };
 }
 
 /// The configured discovery filters, flattened from `<tracker>.pull.filters`
@@ -1412,6 +1423,7 @@ pub fn run_sync(
                 &integration,
                 &integrations_root,
                 &repo_root,
+                &mut std::io::stderr(),
             );
             warn_outstanding_pushes(&integrations_root, &integration);
             ExitCode::from(exit_code_for_report(&report))
@@ -1991,6 +2003,116 @@ mod tests {
             render_report(&report),
             "#\tdiscovery\tskipped\tpush-only\n#\tsummary\tsynced\t0"
         );
+    }
+
+    fn imported(id: &str) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state: SyncState::Unsynced,
+                action: Action::CreateFromRemote,
+            },
+            outcome: ItemOutcome::Applied,
+            validation: None,
+        }
+    }
+
+    fn report_importing(ids: &[&str]) -> RunReport {
+        RunReport {
+            reported: ids.iter().map(|id| imported(id)).collect(),
+            ..report_with(DiscoveryStatus::Ran { found: ids.len() })
+        }
+    }
+
+    fn seeded_integrations(catalogue: &serde_json::Value) -> tempfile::TempDir {
+        let root = tempfile::tempdir().expect("tempdir");
+        let linear = root.path().join("integrations/linear");
+        std::fs::create_dir_all(&linear).expect("linear state dir");
+        std::fs::write(linear.join("catalogue.json"), catalogue.to_string())
+            .expect("seed the catalogue");
+        root
+    }
+
+    fn grow(
+        root: &Path,
+        report: &RunReport,
+        visible: &[(&str, &str)],
+    ) -> String {
+        let tracker =
+            tracker_test_support::RecordingTracker::holding(Vec::new()).seeing(
+                visible
+                    .iter()
+                    .map(|(key, id)| tracker::VisibleEntity {
+                        key: (*key).to_owned(),
+                        identifier: (*id).to_owned(),
+                        name: format!("{key} team"),
+                    })
+                    .collect(),
+            );
+        let mut notes = Vec::new();
+        super::grow_linear_catalogue(
+            report,
+            &tracker,
+            "linear",
+            &root.join("integrations"),
+            root,
+            &mut notes,
+        );
+        String::from_utf8(notes).expect("utf-8 notes")
+    }
+
+    fn catalogue_at(root: &Path) -> serde_json::Value {
+        let raw = std::fs::read_to_string(
+            root.join("integrations/linear/catalogue.json"),
+        )
+        .expect("the catalogue");
+        serde_json::from_str(&raw).expect("valid JSON")
+    }
+
+    #[test]
+    fn growing_catalogues_a_team_imported_from_for_the_first_time() {
+        let root = seeded_integrations(&serde_json::json!({
+            "team": { "id": "t-base", "key": "BASE", "name": "Base" },
+        }));
+
+        let notes = grow(
+            root.path(),
+            &report_importing(&["OPS-7"]),
+            &[("BASE", "t-base"), ("OPS", "t-ops")],
+        );
+
+        let catalogue = catalogue_at(root.path());
+        let ops = catalogue["teams"]
+            .as_array()
+            .expect("teams")
+            .iter()
+            .find(|entry| entry["key"] == "OPS")
+            .expect("the imported team is catalogued")
+            .clone();
+        assert_eq!(
+            ops,
+            serde_json::json!({ "id": "t-ops", "key": "OPS", "name": "OPS team" })
+        );
+        assert!(notes.starts_with("note:"), "{notes}");
+        assert!(notes.contains("OPS"), "{notes}");
+    }
+
+    #[test]
+    fn growing_ignores_a_team_already_catalogued() {
+        let catalogue = serde_json::json!({
+            "team": { "id": "t-base", "key": "BASE", "name": "Base" },
+            "teams": [{ "id": "t-ops", "key": "OPS", "name": "Ops" }],
+        });
+        let root = seeded_integrations(&catalogue);
+
+        let notes = grow(
+            root.path(),
+            &report_importing(&["BASE-1", "OPS-7"]),
+            &[("BASE", "t-base"), ("OPS", "t-ops")],
+        );
+
+        assert_eq!(catalogue_at(root.path()), catalogue);
+        assert_eq!(notes, "");
     }
 
     fn report_with(discovery: DiscoveryStatus) -> RunReport {

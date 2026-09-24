@@ -65,6 +65,13 @@ impl Deadline {
         }
     }
 
+    /// A deadline that never expires, for a read whose completeness matters
+    /// more than its duration.
+    #[must_use]
+    pub fn never() -> Self {
+        Self::starting_now(Duration::MAX)
+    }
+
     #[must_use]
     pub fn expired(&self) -> bool {
         self.started.elapsed() >= self.budget

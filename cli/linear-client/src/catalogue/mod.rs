@@ -1,22 +1,42 @@
-//! The cache-backed [`StateResolver`], reading workflow states out of the
-//! `catalogue.json` that discovery writes.
+//! `catalogue.json`: its document shape, and the cache-backed
+//! [`StateResolver`] reading workflow states out of it.
 //!
 //! Name matching is case-insensitive and trimmed: every state whose display
 //! name matches is collected, so a name two states share resolves ambiguously
 //! rather than silently picking one.
 
+mod document;
+mod section;
+
 use std::path::Path;
 
 use serde_json::Value;
 
+pub use self::document::{
+    CatalogueDocument, CatalogueParseError, CatalogueUpdate, CataloguedLabel,
+    CataloguedMember, CataloguedProject, CataloguedState, Strictness,
+    TeamEntry,
+};
+pub use self::section::{CatalogueSection, SectionSet};
+
 use crate::filter::StateResolver;
 use crate::filter::TeamResolver;
 
+/// The catalogue under `<integrations_root>/linear/`, read forgivingly: a
+/// damaged entry is skipped, and an absent or unparseable file is `None`.
+#[must_use]
+pub fn read_catalogue(integrations_root: &Path) -> Option<CatalogueDocument> {
+    let text = std::fs::read_to_string(
+        integrations_root.join("linear/catalogue.json"),
+    )
+    .ok()?;
+    CatalogueDocument::parse(&text, Strictness::Forgiving).ok()
+}
+
 /// A non-empty string at `pointer` in `catalogue`, or `None`.
 ///
-/// Mirrors `auth.rs`'s `catalogue_field`: an empty string reads as `None`, so a
-/// blank `/team/key` never resolves and a blank `/team/id` never masquerades as
-/// a UUID.
+/// An empty string reads as `None`, so a blank `/team/key` never resolves and
+/// a blank `/team/id` never masquerades as a UUID.
 fn pointer_string(catalogue: &Value, pointer: &str) -> Option<String> {
     catalogue
         .pointer(pointer)

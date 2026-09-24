@@ -50,6 +50,18 @@
 
 ### Changed
 
+- **`catalogue.json` now records each synced team's states, labels, members
+  and projects, plus the workspace labels no team owns.** `init-linear`
+  writes a complete entry for the base team and for every team already
+  catalogued, never for other teams the credential can see, and includes
+  archived states, labels and projects and disabled members. A new
+  `baseTeam` points into the `teams` array. The legacy `team` and
+  `workflowStates` keys are still written, projected from the base team, for
+  one minor release so older binaries keep working. Init and sync now refuse
+  to rewrite a catalogue they cannot parse (a merge conflict, a damaged
+  entry), naming the recovery: restore it from version control first, and
+  delete it only as a last resort.
+
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
   across levels (no `--level`) returns its built-in catalogue default rather
@@ -156,6 +168,10 @@
   with `ACCELERATOR_LOG=warn`.
 
 ### Security
+
+- **`catalogue.json` now records the name, display name and email of every
+  member of a synced team, and the file is committed to the repository.**
+  Anyone with read access to the repository can read them.
 
 - **Per-request classification of navigations and followed links.** The
   reachability + scheme verdict that guards a crawl's initial location is now

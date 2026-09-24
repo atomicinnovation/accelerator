@@ -1,9 +1,9 @@
 //! Loads a retired mock's scenario JSON and installs it on a
 //! [`MockServer`].
 //!
-//! A scenario is `{expectations: [{method, path, consume?, response: {status,
-//! headers, body}, expect_body_contains?, capture_body?}]}` — a near one-to-one
-//! map onto `http-test-support`'s routes. Several expectations sharing a
+//! A scenario is `{expectations: [{method, path, operation?, consume?,
+//! response: {status, headers, body}, expect_body_contains?, capture_body?}]}`
+//! — a near one-to-one map onto `http-test-support`'s routes. Several expectations sharing a
 //! `(method, path)` key (the single-endpoint GraphQL case, marked `consume`)
 //! become a `Route::Sequence`; a lone expectation becomes a `Route::Headers`.
 //!
@@ -33,6 +33,10 @@ pub struct Response {
 pub struct Expectation {
     pub method: String,
     pub path: String,
+    /// The GraphQL operation this expectation answers, routed apart from
+    /// every other operation sharing its path.
+    #[serde(default)]
+    pub operation: Option<String>,
     /// Part of an ordered sequence for its `(method, path)` key — the
     /// single-endpoint case where two POSTs cannot be told apart by key.
     #[serde(default)]
@@ -46,6 +50,16 @@ pub struct Expectation {
     /// A substring a test asserts the request URL (query) carries — jira only.
     #[serde(default)]
     pub capture_url: Option<String>,
+}
+
+impl Expectation {
+    fn key(&self) -> RequestKey {
+        let key = RequestKey::new(&self.method, &self.path);
+        match &self.operation {
+            Some(operation) => key.with_operation(operation),
+            None => key,
+        }
+    }
 }
 
 /// A parsed scenario file.
@@ -84,7 +98,7 @@ impl Scenario {
         let mut order: Vec<RequestKey> = Vec::new();
         let mut grouped: HashMap<RequestKey, Vec<Route>> = HashMap::new();
         for expectation in &self.expectations {
-            let key = RequestKey::new(&expectation.method, &expectation.path);
+            let key = expectation.key();
             let route = route_for(&expectation.response);
             if !grouped.contains_key(&key) {
                 order.push(key.clone());
@@ -108,8 +122,7 @@ impl Scenario {
         self.expectations
             .iter()
             .filter_map(|expectation| {
-                let key =
-                    RequestKey::new(&expectation.method, &expectation.path);
+                let key = expectation.key();
                 expectation
                     .expect_body_contains
                     .clone()

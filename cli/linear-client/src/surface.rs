@@ -30,6 +30,19 @@ pub enum SurfaceError {
         body: String,
     },
 
+    #[error(
+        "E_CATALOGUE_TRUNCATED: {connection} ran past its ceiling of {pages} \
+         pages, so the catalogue would be incomplete; {remedy}"
+    )]
+    CatalogueTruncated {
+        connection: &'static str,
+        pages: usize,
+        remedy: &'static str,
+    },
+
+    #[error("E_REQ_DEADLINE: {operation} ran past its deadline; retry")]
+    DeadlineExpired { operation: &'static str },
+
     #[error("E_REQ_BAD_RESPONSE: {operation}: {reason}")]
     BadResponse {
         operation: &'static str,

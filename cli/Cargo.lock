@@ -176,6 +176,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "serde_json",
  "store",
  "tempfile",
  "tracing",
@@ -2395,6 +2396,9 @@ dependencies = [
 [[package]]
 name = "http-test-support"
 version = "1.24.0-pre.73"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "httparse"
@@ -3060,6 +3064,7 @@ dependencies = [
  "remote-projection",
  "reqwest",
  "rustls",
+ "serde",
  "serde_json",
  "store",
  "tempfile",
