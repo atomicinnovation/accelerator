@@ -488,10 +488,10 @@ fn discover(
     }
     if stored.predates_synced_teams() {
         eprintln!(
-            "note: catalogue.json had a `team` but no `teams`, so an older \
-             binary may have erased its synced teams. Restore it from version \
-             control, or let the next apply sync re-derive them from tracked \
-             work items."
+            "note: catalogue.json had a `team` but no `teams`. If this \
+             repository synced other teams, an older binary may have erased \
+             them: restore the file from version control, or let the next \
+             apply sync re-derive them from tracked work items."
         );
     }
     if let Some(base_key) = base_key {
