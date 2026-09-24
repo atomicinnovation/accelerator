@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:0121"
 relates_to: ["work-item:0280"]
 tags: ["research", "visualiser"]
-last_updated: "2026-09-23T16:23:54+00:00"
+last_updated: "2026-09-24T12:11:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-868"
@@ -53,9 +53,12 @@ umbrella doc type and nested indexing.
   implementation begins.
 - Group a focus area's findings together: since 0280 a focus area has one
   finding per source profile, named `findings/<nn>-<question-slug>-<profile>.md`
-  with a shared `<nn>`. Show each finding's profile, and read an outline item's
-  `— profiles: …` suffix (absent means `web`) as the focus area's assigned
-  profiles, including those not yet researched.
+  with a shared `<nn>`. Group them by their `question` and `source_profile`
+  frontmatter, not by filename, so legacy `<nn>-<slug>.md` findings from
+  before 0280 group too. Show
+  each finding's profile, and read an outline item's `— profiles: …` suffix
+  (absent means `web`) as the focus area's assigned profiles, including those
+  not yet researched, accepting `—`, `–`, and `--` alike before `profiles:`.
 - Render each source's reputation tier (`tier-1`/`tier-2`/`tier-3`) and its
   recorded domain or venue as a distinct visual element wherever a finding,
   synthesis, or report lists Sources, for web and academic profiles alike,
@@ -78,6 +81,13 @@ umbrella doc type and nested indexing.
       an outline item `- [ ] <question> — profiles: web, openalex, arxiv`, then
       the page shows one focus area with both findings labelled by profile and
       `arxiv` as outstanding.
+- [ ] Given two findings with the same `question` frontmatter but differing
+      `<nn>` prefixes, then the page shows them under one focus area; given a
+      legacy `<nn>-<slug>.md` finding, then it shows under its question's
+      focus area.
+- [ ] Given outline items suffixed `— profiles: web, arxiv`,
+      `– profiles: web, arxiv`, and `-- profiles: web, arxiv`, then each is
+      read as assigning `web` and `arxiv`.
 - [ ] Given Sources entries reading `— tier-3 (retracted) —` and
       `— tier-3 (withdrawn) —`, then each renders as `tier-3` with its
       retraction or withdrawal marked as a distinct element.

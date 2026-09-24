@@ -13,7 +13,7 @@ blocked_by: ["work-item:0277", "work-item:0279"]
 blocks: ["work-item:0283"]
 relates_to: ["work-item:0278", "work-item:0281", "work-item:0282", "work-item:0284"]
 tags: ["research", "skills", "sources", "config"]
-last_updated: "2026-09-23T16:25:57+00:00"
+last_updated: "2026-09-24T12:11:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-864"
@@ -74,6 +74,8 @@ deterministically, one researcher and one finding per (focus area, profile).
 ### Profile selection and findings
 
 - The brief's `source_profiles` accepts `openalex` and `arxiv` beside `web`.
+- `brief`'s scoping interview offers `web`, `openalex`, and `arxiv`, and writes
+  the chosen subset to `source_profiles`, defaulting to `["web"]`.
 - `outline` assigns each focus area one or more profiles, chosen by the model
   from the nature of the question and always a subset of the brief's
   `source_profiles`. Each outline item records them as a suffix:
@@ -149,20 +151,44 @@ deterministically, one researcher and one finding per (focus area, profile).
   "<rate_limited|budget_exhausted|upstream_error>"}` on stdout. A `--limit`
   outside 1–25, an unknown family or verb, a missing query or ID, and a
   credential refusal each exit non-zero before any upstream request.
-- Other upstream outcomes: a `404` on `lookup` returns `status: "ok"` with no
-  records; a `401` or `403` exits non-zero with an error naming the OpenAlex
-  key as rejected, so a bad key never reads as "None found"; any other `4xx`
-  exits non-zero; a connection failure or timeout is retried like a `5xx`.
-- On a `5xx`, or a `429` without `X-RateLimit-Remaining: 0`, the fetcher retries
-  at most 3 times, waiting 3, 6, then 12 seconds, or the `Retry-After` value
-  instead when present, clamped to 30 seconds. A retry that succeeds returns its
-  records as normal. When retries are exhausted, the final attempt decides the
-  reason: `rate_limited` after a `429`, `upstream_error` after a `5xx`,
-  connection failure, or timeout. On OpenAlex budget exhaustion — a `409`, or
-  a `429` with `X-RateLimit-Remaining: 0` — it returns
-  `reason: "budget_exhausted"` without retrying.
+- Other upstream outcomes: a `404` on OpenAlex `lookup` returns `status: "ok"`
+  with no records. A `401` or `403` on a keyed OpenAlex request exits non-zero
+  with an error naming the OpenAlex key as rejected, so a bad key never reads
+  as "None found"; on a keyless OpenAlex request it exits non-zero saying
+  OpenAlex refused an unauthenticated request. Any other OpenAlex `4xx` exits
+  non-zero. A connection failure or timeout is retried like a `5xx`.
+- An arXiv `lookup` whose `200` carries an empty feed, or an entry whose
+  version-stripped ID differs from the requested one, returns `status: "ok"`
+  with no records. A versioned ID is looked up without its version. A
+  malformed arXiv ID exits non-zero before any request.
+- arXiv `403`, `406`, and `429` are throttling: they are retried on the same
+  schedule as an OpenAlex `429` and end `rate_limited`. An arXiv `503` is a
+  `5xx`.
+- On a `5xx`, or a `429` that is not budget exhaustion, the fetcher retries at
+  most 3 times, waiting 3, 6, then 12 seconds, or the `Retry-After` value
+  instead when present, clamped to 30 seconds, for both sources. A retry that
+  succeeds returns its records as normal. When retries are exhausted, the final
+  attempt decides the reason: `rate_limited` after a `429`, `upstream_error`
+  after a `5xx`, connection failure, or timeout. On OpenAlex budget exhaustion
+  — a `409`, or a `429` whose `X-RateLimit-Remaining` is below
+  `X-RateLimit-Credits-Required` (or is `0` when that header is absent) — it
+  returns `reason: "budget_exhausted"` without retrying.
+- Every `research fetch` call completes within 100 seconds of process start,
+  including credential resolution, lock waits, waits inside the lock, and
+  withdrawal confirmations. When the next wait plus a 30-second request would
+  overrun that deadline, the call returns `status: "unavailable"` with the last
+  retryable attempt's reason, or `rate_limited` if none was made.
 - Waits go through an injectable clock so tests assert the schedule without
   sleeping.
+- OpenAlex `search` sends the query as
+  `filter=title_and_abstract.search:<query>`, with `,`, `|`, `!`, and `:`
+  replaced by spaces. arXiv `search` translates free text into `all:<term>`
+  clauses joined by `AND`, dropping parentheses, quotes, and the operator words
+  `AND`, `OR`, and `ANDNOT`. A query that is empty after normalisation is a
+  usage error and exits non-zero before any request.
+- OpenAlex follows at most 3 same-origin `https` redirects, since a merged work
+  `301`s to its surviving ID; any other redirect exits non-zero without
+  forwarding the key.
 
 ### Tier mapping
 
@@ -172,7 +198,7 @@ mean the OpenAlex work's primary location's.
 
 1. `tier-3` — an OpenAlex work whose `is_retracted` is true (the record's
    `retracted` is then `true`), or a withdrawn arXiv entry (`withdrawn` is then
-   `true`).
+   `true`; see arXiv access for when an entry is withdrawn).
 2. `tier-1` — an OpenAlex work whose type is not `preprint` and either whose
    source is a `journal` or `conference` with a `publishedVersion` or
    `acceptedVersion`, or whose source is `is_core` or has `medline` in
@@ -202,30 +228,68 @@ mean the OpenAlex work's primary location's.
   `config.md`'s `openalex.api_key_cmd` is refused with a non-zero exit and
   `E_TOKEN_CMD_FROM_SHARED_CONFIG`, even when `config.md` also holds
   `openalex.api_key`. When the ladder stops earlier, `config.md` is never read.
-  The ladder's existing refusals of a VCS-tracked or insecurely permissioned
-  `config.local.md` apply unchanged.
+  An insecurely permissioned `config.local.md` is refused as before.
+- A VCS-tracked `config.local.md` that supplies `openalex.api_key` or
+  `openalex.api_key_cmd` is refused with a non-zero exit, whatever its mode;
+  one that supplies neither leaves the call keyless.
 
 ### arXiv access
 
 - arXiv responses are parsed from Atom 1.0 into the record shape. Requests use
-  `GET` only and pass through a per-repository cross-process lock enforcing one
-  connection and at least three seconds between requests.
+  `GET` only, send a descriptive `User-Agent` and
+  `Accept: application/atom+xml`, and pass through a per-repository
+  cross-process lock enforcing one connection and at least three seconds
+  between requests.
+- An arXiv entry is withdrawn only when both hold:
+  - its `arxiv:comment` matches, case-insensitively, the anchored pattern
+    `^\s*(this (paper|article|submission|manuscript) (has been|is) withdrawn|withdrawn)`;
+  - an OAI-PMH `arXivRaw` `GetRecord` for it shows the latest `<version>` with
+    `<size>0kb</size>` and `<source_type>I</source_type>`.
+
+  The confirmation request is paced by the same lock. If it is unavailable,
+  the whole call returns `status: "unavailable"` with that reason, so an
+  unconfirmed withdrawal is never cited as `tier-2`.
 
 ### Researcher confinement
 
 - The researcher gains `Bash`; its "run no CLI" rule narrows to "run only
   `accelerator research fetch`".
-- A plugin `PreToolUse` `Bash` hook confines the researcher. It applies to a
-  call only when the hook input's `agent_id` is non-empty and its `agent_type`
-  equals the researcher agent name, resolved at call time through the same
-  lookup as `accelerator config agent researcher` (by default
-  `accelerator:researcher`); every other call passes untouched.
-- For an applicable call it allows only a command that, after trimming
+- A plugin `PreToolUse` hook confines the researcher. It applies to a call only
+  when the hook input's `agent_id` is non-empty and its `agent_type` equals
+  either the researcher agent name, resolved at call time through the same
+  lookup as `accelerator config agent researcher`, or `accelerator:researcher`,
+  which is always confined; every other call passes untouched. Once a call is
+  identified as the researcher's, an unreadable command or path blocks.
+- For an applicable `Bash` call it allows only a command that, after trimming
   surrounding whitespace, begins with `accelerator research fetch ` (including
-  the trailing space) and contains none of `;`, `&`, `|`, `<`, `>`, `` ` ``,
-  `$(`, `<(`, `>(`, or a newline — anywhere, including inside quotes.
-  Everything else exits `2`. A query that needs one of those characters is
-  rephrased by the researcher.
+  the trailing space) and whose remainder Claude Code's own `Bash(… *)` allow
+  rule would accept, as measured on the latest Claude Code release, tightened
+  for `$` and `<`. After the prefix, a command is blocked if, outside the
+  quoting that neutralises it, it:
+  - chains, with `&&`, `||`, `;`, `|`, `&`, a newline, or a backslash-newline;
+  - redirects output other than to `/dev/null` or by descriptor duplication
+    `[N]>&M`, so `>|`, `&>`, `>&word`, and `>&-` block;
+  - redirects input at all: any unquoted `<` outside comments, including
+    `<(…)`, `<>`, heredocs, and `</dev/tcp/…`;
+  - expands a parameter at all: any unescaped `$` outside single quotes and
+    comments, including `$VAR`, `$(…)`, `${…}`, `$[…]`, `$'…'`, and zsh
+    subscripts on any parameter (`$HOME[…]`, `$0[…]`, `$=HOME[…]`);
+  - substitutes with backticks or `=(…)`;
+  - groups, with `{…}`, `(`, or `)`.
+
+  Quoted text without `$`, a single-quoted `$`, globs, `~`, word-initial `#`
+  comments, `[N]>` or `>>` to `/dev/null`, and `[N]>&M` pass. Blocking `$` and
+  `<` is stricter than Claude Code, which accepts `$VAR` and `<`. Everything
+  blocked exits `2`; a query that needs a blocked construct is rephrased by the
+  researcher.
+- A second `PreToolUse` matcher, for `Write|Edit|MultiEdit|NotebookEdit`,
+  blocks an applicable call unless its path is absolute (or relative to the
+  hook's `cwd`), has no `.` or `..` component, crosses no symlink, and names
+  `<topics>/<set>/findings/<name>.md` with no leading dot in `<name>`, where
+  `<topics>` is the configured research topics directory.
+- `research-topic`'s `allowed-tools` grant `Bash(accelerator research fetch *)`
+  so the researcher's fetch runs without a prompt; a documented project allow
+  rule is the fallback.
 
 ### Documentation and registration
 
@@ -245,9 +309,11 @@ mean the OpenAlex work's primary location's.
 - 0283 records that its recursion carries a finding's `source_profile` into
   deeper levels, that its worst-case cost includes the per-profile multiplier,
   and that it unblocks on a passing gate sign-off rather than 0280's merge.
-- 0284 records that its set-level page groups several findings per focus area
-  by the `<nn>-<question-slug>-<profile>.md` layout, reads the `— profiles:`
-  suffix, and displays the `(retracted)` and `(withdrawn)` tier suffixes.
+- 0284 records that its set-level page groups a focus area's findings by their
+  `question` and `source_profile` frontmatter rather than by filename, accepts
+  legacy `<nn>-<slug>.md` findings, reads the `— profiles:` suffix whether
+  written with `—`, `–`, or `--`, and displays the `(retracted)` and
+  `(withdrawn)` tier suffixes.
 - 0281 records that `ask` and `report` read every finding of a focus area and
   accept suffixed tiers.
 
@@ -270,6 +336,9 @@ deterministic and run once.
 
 ### Outline and conduct
 
+- [ ] Given `brief`'s scoping interview, then it offers `web`, `openalex`, and
+      `arxiv`, and writes the chosen subset to `source_profiles`; given no
+      choice, then it writes `source_profiles: ["web"]`.
 - [ ] Given a brief with `source_profiles: ["web", "openalex", "arxiv"]` and
       `breadth: 2`, when `outline` runs, then it writes at most 2 focus areas,
       each matching `- [ ] <question> — profiles: <p>(, <p>)*` with every `<p>`
@@ -355,8 +424,9 @@ deterministic and run once.
         `medline` → `tier-3`
       - arXiv entry with `journal_ref` and `doi` → `tier-2`
       - arXiv entry with neither → `tier-2`
-      - withdrawn arXiv entry → `tier-3`, `withdrawn: true`,
-        `retracted: false`
+      - withdrawn arXiv entry — a withdrawal `arxiv:comment` confirmed by an
+        `arXivRaw` latest version of `0kb` with source type `I` → `tier-3`,
+        `withdrawn: true`, `retracted: false`
 - [ ] Given `search` with no `--limit` against an upstream fixture holding 30
       results, then exactly 10 records return; given `--limit 0` or
       `--limit 26`, an unknown family, an unknown verb, a `search` with no
@@ -365,21 +435,60 @@ deterministic and run once.
       and `arxiv lookup` with an arXiv ID, then each returns exactly one
       record; and `--help` lists both families, both verbs, and the 1–25
       `--limit` range.
-- [ ] Given an injected clock and an upstream `5xx` on every attempt, then
-      `research fetch` makes exactly 4 attempts with waits of 3, 6, and 12
-      seconds and exits `0` with `reason: "upstream_error"`; given a `429`
-      without `X-RateLimit-Remaining: 0` and with `Retry-After: 120` on every
-      attempt, then it waits 30 seconds before each of 3 retries and returns
-      `reason: "rate_limited"`; given a `429` with `Retry-After: 5` then a
-      `200`, then it waits 5 seconds and returns `status: "ok"` with the
-      records; given a `409` or a `429` with `X-RateLimit-Remaining: 0` from
-      OpenAlex, then it makes exactly one attempt and returns
-      `reason: "budget_exhausted"`; given a connection timeout on every attempt,
-      then it makes 4 attempts and returns `reason: "upstream_error"`.
-- [ ] Given a `lookup` answered `404`, then it exits `0` with
-      `status: "ok"` and no records; given `401` or `403`, then it exits
-      non-zero naming the rejected key and makes no retry; given `400`, then
-      it exits non-zero.
+- [ ] Given an injected clock, immediate upstream responses, and the 100-second
+      deadline: given a `5xx` on every attempt, then `research fetch` makes
+      exactly 4 attempts with waits of 3, 6, and 12 seconds and exits `0` with
+      `reason: "upstream_error"`; given a `429` that is not budget exhaustion
+      with `Retry-After: 120` on every attempt, then it makes 3 attempts with
+      two 30-second waits and returns `reason: "rate_limited"`; given a `429`
+      with `Retry-After: 5` then a `200`, then it waits 5 seconds and returns
+      `status: "ok"` with the records; given a 30-second timeout on every
+      attempt, then it makes 3 attempts and returns
+      `reason: "upstream_error"`.
+- [ ] Given a `409` from OpenAlex, a `429` with `X-RateLimit-Remaining: 0` and
+      no `X-RateLimit-Credits-Required`, or a `429` with
+      `X-RateLimit-Remaining: 5` and `X-RateLimit-Credits-Required: 10`, then
+      it makes exactly one attempt and returns `reason: "budget_exhausted"`.
+- [ ] Given arXiv answering `403`, `406`, or `429` on every attempt, then it
+      retries on the schedule and returns `reason: "rate_limited"`; given
+      arXiv answering `503` on every attempt, then it returns
+      `reason: "upstream_error"`.
+- [ ] Given an injected clock whose elapsed time since process start leaves
+      less than the next wait plus 30 seconds before the 100-second deadline,
+      then the call makes no further attempt and returns
+      `status: "unavailable"` with the last retryable attempt's reason, or
+      `rate_limited` if no attempt was made.
+- [ ] Given an OpenAlex `lookup` answered `404`, then it exits `0` with
+      `status: "ok"` and no records; given `401` or `403` on a keyed request,
+      then it exits non-zero naming the rejected key and makes no retry; given
+      `401` or `403` on a keyless request, then it exits non-zero saying
+      OpenAlex refused an unauthenticated request; given `400`, then it exits
+      non-zero.
+- [ ] Given an OpenAlex `lookup` answered with a same-origin `https` `301` to
+      the surviving work, then it follows it and returns that record; given a
+      fourth redirect, a cross-origin redirect, or an `http` redirect, then it
+      exits non-zero and the redirect target receives no `Authorization`
+      header.
+- [ ] Given an arXiv `lookup` whose `200` carries an empty feed, or an entry
+      whose version-stripped ID differs from the requested one, then it exits
+      `0` with `status: "ok"` and no records; given a versioned ID such as
+      `2101.00001v2`, then the request asks for `2101.00001`; given a
+      malformed arXiv ID, then it exits non-zero with no upstream request.
+- [ ] Given an arXiv request, then it carries a descriptive `User-Agent` and
+      `Accept: application/atom+xml`.
+- [ ] Given an entry whose `arxiv:comment` reads "This paper has been
+      withdrawn" and whose `arXivRaw` record's latest version has
+      `<size>0kb</size>` and `<source_type>I</source_type>`, then it is
+      `tier-3` with `withdrawn: true`; given an entry whose comment matches but
+      whose latest version is non-empty, then it is `tier-2` with
+      `withdrawn: false`; given the confirmation request unavailable, then the
+      call returns `status: "unavailable"` with that reason.
+- [ ] Given an OpenAlex `search` query containing a comma, a colon, or `|`,
+      then the request's `title_and_abstract.search` filter carries spaces in
+      their place; given an arXiv `search` query containing a parenthesis, a
+      quote, or the word `OR`, then the request's `search_query` is `all:`
+      clauses joined by `AND` with those dropped; given a query that is empty
+      after normalisation, then it exits non-zero with no upstream request.
 - [ ] Given two concurrent `research fetch arxiv` processes in the same
       repository, and separately two sequential calls issued within one
       second, then in each case their upstream `GET` requests are at least
@@ -404,31 +513,50 @@ deterministic and run once.
 - [ ] Given `ACCELERATOR_OPENALEX_API_KEY` set and `config.md` holding
       `openalex.api_key_cmd`, then the request uses the environment key and
       exits `0`.
-- [ ] Given `config.local.md` holding `openalex.api_key` that is VCS-tracked, or
-      readable by group or others, then `research fetch openalex` exits
-      non-zero with no upstream request.
+- [ ] Given `config.local.md` holding `openalex.api_key` or
+      `openalex.api_key_cmd` that is VCS-tracked, even at mode `0600`, or
+      holding `openalex.api_key` and readable by group or others, then
+      `research fetch openalex` exits non-zero with no upstream request; given
+      a VCS-tracked `config.local.md` holding neither key, then the request
+      carries no `Authorization` header.
 - [ ] Given any configured key, then the request URL does not contain it; and
       given a key with an upstream `5xx`, and a failing
       `openalex.api_key_cmd`, then neither stdout nor stderr contains any key.
 
 ### Researcher confinement
 
-- [ ] Given the `PreToolUse` hook and input with the researcher's `agent_type`
-      and a non-empty `agent_id`, then it allows
+- [ ] Given the `PreToolUse` `Bash` hook and input with the researcher's
+      `agent_type` and a non-empty `agent_id`, then it allows
       `accelerator research fetch arxiv search "graph neural networks"`,
       `accelerator research fetch openalex lookup W1858542512`, and
       `  accelerator research fetch arxiv search x  `; and blocks with exit `2`
       each of: `ls`, `accelerator research`, `accelerator research fetchx`,
       `echo accelerator research fetch arxiv search x`, and a `research fetch`
       call followed by `; ls`, `&& ls`, `|| ls`, `& ls`, `| cat`, `> out`,
-      `< in`, a newline and `ls`, `$(ls)`, `` `ls` ``, `<(ls)`, or a quoted
-      query containing `|`.
-- [ ] Given the `PreToolUse` hook, when the input has no `agent_id`, an empty
-      `agent_id` with the researcher's `agent_type`, an empty `agent_type`, or
-      another agent's `agent_type`, then every command passes.
-- [ ] Given the researcher agent name overridden in config, then the hook
-      confines calls whose `agent_type` is the overridden name and passes calls
-      whose `agent_type` is `accelerator:researcher`.
+      a newline and `ls`, `$(ls)`, `` `ls` ``, or `<(ls)`.
+- [ ] Given a `research fetch` call under the same input, then the hook blocks
+      with exit `2` one carrying each of: `;`, `$(ls)`, `=(ls)`, `(a)`,
+      `${HOME}`, `$HOME`, `"$HOME"`, `$0[x]`, `$'\'' ; ls`, `x#;ls`,
+      `</dev/tcp/example.org/80`, `< file`, and an unquoted URL containing
+      `&`; and allows one carrying each of: `'a;b'`, `'$HOME'`, `\$HOME`, and
+      a single-quoted URL containing `?`, `&`, and `#`.
+- [ ] Given the `PreToolUse` `Write|Edit|MultiEdit|NotebookEdit` hook and input
+      with the researcher's `agent_type` and a non-empty `agent_id`, then it
+      blocks with exit `2` writes to `.accelerator/config.md`,
+      `config.local.md`,
+      `<topics>/s/findings/new/../../../../.accelerator/config.md`, a dangling
+      symlink at the target, `<topics>/findings/x.md`, and
+      `<topics>/s/findings/sub/x.md`; and allows a write to
+      `<topics>/<set>/findings/01-x-web.md`.
+- [ ] Given either hook, when the input has no `agent_id`, an empty `agent_id`
+      with the researcher's `agent_type`, an empty `agent_type`, or another
+      agent's `agent_type`, then every call passes; given the researcher's
+      `agent_type` with an unreadable command or path, then it blocks.
+- [ ] Given the researcher agent name overridden in config, then the hooks
+      confine calls whose `agent_type` is the overridden name and calls whose
+      `agent_type` is `accelerator:researcher` alike.
+- [ ] Given `research-topic`'s `allowed-tools`, then they include
+      `Bash(accelerator research fetch *)`.
 - [ ] Given `agents/researcher.md`, then its body contains none of `openalex`,
       `arxiv`, or `web-profile`; and `openalex-profile` and `arxiv-profile`
       contain no instruction to use `WebFetch`.
@@ -510,7 +638,8 @@ None.
 ## Assumptions
 
 - With a free OpenAlex key, a round's OpenAlex spend stays under $1. Keyless use
-  exhausts its allowance within a single round and routinely yields
+  allows about 100 searches a day per client IP, shared with every other use
+  from that IP, while lookups are free; a round can exhaust it and yield
   `budget_exhausted`, so configuring a key is recommended.
 - Serialising arXiv requests at one per three seconds keeps a round's
   wall-clock time at or under 2 minutes × its focus-area count.
@@ -526,13 +655,15 @@ None.
   visualiser displays tiers.
 - `research fetch` is a new dispatched sub-binary in `cli/`; follow the
   thirteen-point registration checklist in `tasks/README.md`.
-- Key resolution reuses `resolve_token` in
-  `cli/tracker-support/src/credentials.rs`, treating its `NoToken` outcome as
-  keyless rather than an error; register the `openalex.*` keys in
-  `cli/config/src/catalogue.rs`.
+- Key resolution reuses the ladder `resolve_token` implements in
+  `cli/tracker-support/src/credentials.rs`, relocated to a neutral
+  `config::credentials` so no research crate depends on `tracker-support`,
+  and treats its `NoToken` outcome as keyless rather than an error; register
+  the `openalex.*` keys in `cli/config/src/catalogue.rs`.
 - The researcher guard sits beside `vcs guard` under `PreToolUse` `Bash` in
-  `hooks/hooks.json`. Plugin agents cannot carry their own `hooks`, and the
-  agent `tools` field cannot scope `Bash` by command.
+  `hooks/hooks.json`, with a second registration for
+  `Write|Edit|MultiEdit|NotebookEdit`. Plugin agents cannot carry their own
+  `hooks`, and the agent `tools` field cannot scope `Bash` by command.
 - The guard keys on `agent_id` as well as `agent_type` because `agent_type` is
   also present on main-thread calls in a session started with `--agent`. Plugin
   agents report their plugin-scoped name.
@@ -573,6 +704,15 @@ None.
   claim of no literature.
 - Defaulting unannotated outline items to `web` keeps pre-existing outlines and
   0281's proposals valid without coordinating a change to 0281.
+- arXiv keeps OpenAlex's 3/6/12-second schedule and 30-second `Retry-After`
+  clamp (2026-09-23). Persistent arXiv capacity `429`s therefore surface as
+  `unavailable` and are recovered by a later gap-fill `conduct`, rather than
+  by a longer in-call backoff that would overrun the call deadline.
+- Claude Code's own `Bash(… *)` matching is the confinement baseline
+  (2026-09-24), replacing a forbidden-character rule that also blocked
+  harmless quoted text. `$` and `<` are blocked beyond it because together
+  they let a researcher echo an environment secret back through a usage error
+  or send it to a remote host with `</dev/tcp/…`; the fetch needs neither.
 - The arXiv lock is per repository. Concurrent research in separate repos on
   one machine can jointly exceed arXiv's limit, which its terms count across all
   machines under a client's control; this is an accepted risk.

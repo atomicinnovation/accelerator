@@ -339,7 +339,7 @@ tests against the true contract.
 
 #### Automated Verification
 
-- [ ] Frontmatter validates:
+- [x] Frontmatter validates:
       `accelerator corpus frontmatter validate --file meta/work/0280-academic-source-profiles.md`
 
 #### Manual Verification
@@ -349,7 +349,7 @@ tests against the true contract.
       the superseded rule.
 - [ ] 0284 carries item 13; 0121, 0281, and 0283 still carry the Sibling
       contracts statements.
-- [ ] `accelerator corpus frontmatter validate --file meta/work/0284-topic-research-set-detail-page.md`
+- [x] `accelerator corpus frontmatter validate --file meta/work/0284-topic-research-set-detail-page.md`
 
 ---
 
