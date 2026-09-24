@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T12:55:17+00:00"
+last_updated: "2026-09-24T13:35:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -604,8 +604,8 @@ XML parsing.
 `cli/research/tests/fixtures/public-api.txt`,
 `tests/integration/pup/test_import_rule.py`
 **Changes**: follow the library-crate checklist (`tasks/README.md:613-671`):
-workspace-inherited fields, `[lints] workspace = true`, dependencies `kernel`
-only (plus `serde_json` as a dev-dependency). The `pup.ron` rule
+workspace-inherited fields, `[lints] workspace = true`, and no dependencies.
+`cli/clippy.toml` admits `OpenAlex` through `doc-valid-idents`. The `pup.ron` rule
 `research_domain_imports_only_permitted` admits `std|core|alloc`,
 `^kernel::Error(::|$)`, and `crate`, matching the sibling domain rules, with a
 violation/compliant probe pair modelled on linear-client's
@@ -615,14 +615,14 @@ violation/compliant probe pair modelled on linear-client's
 
 | Module | Owns |
 |---|---|
-| `request` | `Family`, `Verb`, `Limit` (1–25, default 10), `OpenAlexId` (`W\d+`, `https://openalex.org/W\d+`, or DOI in bare, `doi:`, or `https://doi.org/` form), `ArxivId` (new-style `\d{4}\.\d{4,5}(v\d+)?`, old-style `archive(.XX)?/\d{7}(v\d+)?`, version-stripping), `Doi` (anchored `^10\.\d{4,9}/\S+$` with no `.` or `..` path segment, percent-encoded outside the RFC 3986 unreserved set plus `/` in both request paths and `url`), `SearchQuery` normalisation per family, `UpstreamRequest` (URL built only through a query-component encoder, headers, auth) |
+| `request` | `Family`, `Verb`, `Limit` (1–25, default 10), `OpenAlexId` (`W\d+`, `https://openalex.org/W\d+`, or DOI in bare, `doi:`, or `https://doi.org/` form), `ArxivId` (new-style `\d{4}\.\d{4,5}(v\d+)?`, old-style `archive(.XX)?/\d{7}(v\d+)?`, version-stripping), `Doi` (anchored `^10\.\d{4,9}/\S+$` with no `.` or `..` path segment, percent-encoded outside the RFC 3986 unreserved set plus `/` in both request paths and `url`), `WorkId`, `OpenAlexQuery` and `ArxivQuery` normalisation, `OpenAlexRequest`/`ArxivRequest`, `FetchRequest::parse(family, verb, terms, limit)` (every usage error and its `E_*` message), `ApiKey`/`KeySource` (secret never rendered), `Endpoint` (production defaults), `UpstreamRequest` (URL built only through a query-component encoder, headers, bearer) |
 | `record` | `Record`, `Tier`, `VenueSignals`, serialisation-neutral field set |
-| `openalex` | `Work`, `Location`, `Source` typed inputs; `abstract_from_inverted_index`; `normalise(work) -> Record` |
-| `arxiv` | `Entry`, `RawVersion` typed inputs; `is_withdrawal_candidate(comment)`; `latest_version_withdrawn(&[RawVersion])`; `normalise(entry, withdrawn) -> Record` |
+| `openalex` | `Work`, `Location`, `Source` typed inputs; `abstract_from_inverted_index`; `normalise(work) -> Option<Record>`, `None` when the ID is not an OpenAlex work |
+| `arxiv` | `Entry`, `RawVersion` typed inputs; `is_withdrawal_candidate(comment)`; `latest_version_withdrawn(&[RawVersion])`; `Entry::arxiv_id`; `normalise(entry, withdrawn) -> Option<Record>`, `None` when the ID is not an arXiv abstract URL |
 | `tier` | `openalex_tier(&Work)`, `arxiv_tier(withdrawn)` |
-| `classify` | `Response` → `Verdict` per source |
-| `schedule` | `RetrySchedule`, `Deadline` |
-| `fetch` | `Transport`, `OpenAlexDecoder`, `ArxivDecoder`, `Clock`, `PacingGate` ports; `attempt_with_retries`, `fetch_openalex`, `fetch_arxiv` |
+| `classify` | `Response`/`Received` → `Verdict` per source; `Reason`, `FetchError`, `ClientRejection` and their coded messages |
+| `schedule` | `RetryNumber`, `RetrySchedule`, `Deadline` |
+| `fetch` | `Transport`, `OpenAlexDecoder`, `ArxivDecoder`, `Clock`, `PacingGate`, `ConfirmationCache` ports; `Unavailable`/`Cause`; a private retry loop; `fetch_openalex`, `fetch_arxiv` |
 
 `Record` carries `title`, `authors`, `url`, `venue`, `venue_signals`,
 `abstract_excerpt` (serialised as `abstract` in phase 5), `tier`, `retracted`,
@@ -723,33 +723,38 @@ explicit instants.
   `Failed(ClientError)`.
 - `Clock`: `now() -> Instant` for in-process arithmetic, `wall_now() ->
   SystemTime` for values persisted across processes, and `sleep(Duration)`.
-- `ConfirmationCache`: `recall(id, latest_version) -> Option<bool>` and
-  `record(id, latest_version, withdrawn)`. `fetch_arxiv` recalls before
+- `ConfirmationCache`: `recall(&ArxivId) -> Option<bool>` and
+  `record(&ArxivId, withdrawn)`, keyed by the ID as the feed reported it, so
+  its version is the latest version. `fetch_arxiv` recalls before
   confirming a candidate, and a hit makes no gate pass. On a miss, the
   confirmation's attempt closure calls `record` once the verdict is known, so
   the write happens inside the gate pass, under the lock.
 - `PacingGate::paced(&mut dyn FnMut() -> Attempted, &Deadline) ->
-  Result<Attempted, Unavailable>` owns waiting, holding, and release around
-  one attempt. The domain's closure sends, classifies, and returns
-  `Attempted { response, defer_until: Option<SystemTime> }`. A throttling
+  Result<(), Unavailable>` runs the closure exactly once, or refuses without
+  running it, and owns waiting, holding, and release around that attempt.
+  The domain's closure sends, classifies, and keeps the verdict to itself.
+  It decodes a delivered body inside the pass, then returns
+  `Attempted { defer_until: Option<SystemTime> }`. A throttling
   verdict sets `defer_until` to `wall_now` plus
   `RetrySchedule::deferral_after(retry, retry_after)`, which also covers the
   final attempt. The gate persists the deferral before it releases the lock
   and never classifies.
 
-`attempt_with_retries(request, ports)` is the shared loop. It runs one
+A private shared loop (`Attempts::until_settled`) runs one
 attempt per gate pass, classifies inside the pass, and sleeps between
 attempts outside the gate. It stops with `Unavailable` when the
 deadline would not admit the next wait, and the final retryable attempt
-decides the reason. `fetch_openalex` composes it once. `fetch_arxiv` composes
+decides the reason. A gate refusal keeps its `cause`, and takes that reason
+when a retryable attempt preceded it. `fetch_openalex` composes it once. `fetch_arxiv` composes
 it for the query, then:
 - decodes the feed and applies the lookup-miss rule;
 - deduplicates withdrawal candidates, recalls each from `ConfirmationCache`,
   and confirms each miss through the same loop under the same deadline;
 - returns `Unavailable` if any confirmation is.
 
-Both return `FetchOutcome::{Records(Vec<Record>), Unavailable(Reason),
-Failed(FetchError)}`, truncated to `Limit`.
+Both return `FetchOutcome::{Records(Vec<Record>), Unavailable(Unavailable),
+Failed(FetchError)}`, truncated to `Limit`. `Unavailable` carries a `Reason`
+and an optional `Cause::LockContention`.
 
 Unit tests use a scripted `Transport` that advances the recording clock by
 each attempt's declared duration (the request budget for a timeout), a
@@ -837,9 +842,9 @@ Bearer` only when a key resolved.
 `description = "Fetch tiered scholarly records from OpenAlex and arXiv"`;
 `_EXEMPT_MEMBERS` as `_COMPOSITION_ROOT`)
 **Changes**:
-- `cli.rs`: `fetch <family> <verb> [terms…] [--limit N]`, with family, verb,
-  and required terms validated in code so every usage error exits `2` before
-  any request, each naming the bad value and the accepted set:
+- `cli.rs`: `fetch <family> <verb> [terms…] [--limit N]`, validated by
+  `research::request::FetchRequest::parse` so every usage error exits `2`
+  before any request, each naming the bad value and the accepted set:
   `E_RESEARCH_USAGE: --limit must be 1–25 (got 50)`,
   `E_RESEARCH_USAGE: unknown family 'openAlex' (expected openalex or arxiv)`,
   `E_ARXIV_ID_MALFORMED: expected 2608.21129[vN] or archive/1234567 (got '2608.2112x')`,
