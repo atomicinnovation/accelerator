@@ -16,6 +16,7 @@ pub const config::catalogue::TEMPLATE_KEYS: &[&str]
 pub const config::catalogue::VISUALISER_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::WORK_INTEGRATION_VALUES: &[&str]
 pub const config::catalogue::WORK_KEYS: &[(&str, config::catalogue::Default)]
+pub fn config::catalogue::agent_name(config: &dyn config::service::ConfigAccess, name: &str) -> core::result::Result<alloc::string::String, config::error::ConfigError>
 pub fn config::catalogue::default_for(key: &str) -> core::option::Option<config::service::Value>
 pub fn config::catalogue::is_valid_work_integration(value: &str) -> bool
 pub mod config::credentials

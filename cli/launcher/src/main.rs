@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::error::ErrorKind;
-use clap::{CommandFactory as _, Parser as _};
+use clap::{CommandFactory as _, FromArgMatches as _};
 
 use accelerator::config_command::core::ConfigStack;
 use accelerator::launch::cache;
@@ -20,7 +20,7 @@ use accelerator::launch::core::{
     ExternalCommand, ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
 };
 use accelerator::launch::dispatch;
-use accelerator::launch::help::augment_with_subbinaries;
+use accelerator::launch::help::{self, augment_with_subbinaries};
 use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
@@ -442,13 +442,23 @@ fn handle_dispatch_error(error: &kernel::Error, command: &Command) -> ExitCode {
     report(error)
 }
 
+fn parse_cli() -> Result<Cli, clap::Error> {
+    let matches = Cli::command()
+        .mut_subcommand("config", |config| {
+            config.after_help(help::recognised_keys())
+        })
+        .try_get_matches_from(std::env::args_os())?;
+    Cli::from_arg_matches(&matches)
+}
+
 fn main() -> ExitCode {
-    // try_parse so the top-level `--help` can be intercepted and augmented, and
-    // a usage error re-mapped from clap's exit 2 to 1; a `foo --help` routes to
-    // External and is delegated to the child. The root args are collected once
-    // and threaded into the routing so it reads no process global.
+    // A fallible parse so the top-level `--help` can be intercepted and
+    // augmented, and a usage error re-mapped from clap's exit 2 to 1; a
+    // `foo --help` routes to External and is delegated to the child. The root
+    // args are collected once and threaded into the routing so it reads no
+    // process global.
     let root_args: Vec<OsString> = std::env::args_os().skip(1).collect();
-    let cli = match Cli::try_parse() {
+    let cli = match parse_cli() {
         Ok(cli) => cli,
         Err(error) => return handle_parse_error(&error, &root_args),
     };

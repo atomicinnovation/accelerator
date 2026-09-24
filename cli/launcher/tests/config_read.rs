@@ -1090,8 +1090,15 @@ fn dump_hides_credential_values() -> TestResult {
     let workspace = workspace("dump")?;
     let output = run_in(&workspace, &["config", "dump"])?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("`jira.token` | *(set — hidden)*"));
-    assert!(!stdout.contains("secret-value"));
+    for key in ["jira.token", "openalex.api_key", "openalex.api_key_cmd"] {
+        assert!(
+            stdout.contains(&format!("`{key}` | *(set — hidden)*")),
+            "{key} was not hidden: {stdout}"
+        );
+    }
+    for secret in ["secret-value", "openalex-secret-command"] {
+        assert!(!stdout.contains(secret), "{secret} leaked: {stdout}");
+    }
     Ok(())
 }
 

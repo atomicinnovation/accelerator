@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T12:02:08+00:00"
+last_updated: "2026-09-24T12:55:17+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -571,12 +571,12 @@ keeping the existing `HelpRoute` classification of the resulting error.
 
 #### Automated Verification
 
-- [ ] Catalogue tests pass: `cargo test --manifest-path cli/Cargo.toml -p config`
-- [ ] `mise run public-api:update && mise run public-api:check`, with the
+- [x] Catalogue tests pass: `cargo test --manifest-path cli/Cargo.toml -p config`
+- [x] `mise run public-api:update && mise run public-api:check`, with the
       `config` diff showing only `agent_name`
-- [ ] Launcher tests pass, test count up by the new cases: `cargo test --manifest-path cli/Cargo.toml -p accelerator --test config_read --test config_help`
-- [ ] `mise run cli:check` exits `0`
-- [ ] `mise run test` exits `0`
+- [x] Launcher tests pass, test count up by the new cases: `cargo test --manifest-path cli/Cargo.toml -p accelerator --test config_read --test config_help`
+- [x] `mise run cli:check` exits `0`
+- [x] `mise run test` exits `0`
 
 #### Manual Verification
 
