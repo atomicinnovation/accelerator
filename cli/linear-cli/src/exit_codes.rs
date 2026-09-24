@@ -63,7 +63,6 @@ pub const SEARCH_BAD_STATE: u8 = 78;
 // credential/transport failure so a consumer can branch on it and raise the
 // cap.
 pub const SEARCH_CAP_HIT: u8 = 79;
-// Borrowed from the show flow's decade because the search block is full.
 pub const SEARCH_UNRESOLVED_FILTER: u8 = 89;
 
 pub const SHOW_NO_KEY: u8 = 80;

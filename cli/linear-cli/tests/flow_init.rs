@@ -1,8 +1,8 @@
 //! `init verify` validates credentials without ever printing the token
 //! and persists `viewer.json`; `init discover` persists complete entries
-//! for the base team and every synced team into `catalogue.json`. The `Secret`-redaction invariant is why the no-token
-//! guarantee holds; the binary owns cache production so the repointed skill
-//! needs no `Write` grant.
+//! for the base team and every synced team into `catalogue.json`. The
+//! `Secret`-redaction invariant is why the no-token guarantee holds; the
+//! binary owns cache production so the repointed skill needs no `Write` grant.
 #![cfg(feature = "test-loopback")]
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 

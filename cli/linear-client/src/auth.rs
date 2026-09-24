@@ -4,8 +4,8 @@
 //! belongs to, so there is no site and no email.
 //!
 //! The team is the one value that was historically not stored in config.
-//! `catalogue.json` carries the base team, so an already-onboarded repository can
-//! have a populated catalogue and no `linear.team_id`. Requiring the key
+//! `catalogue.json` carries the base team, so an already-onboarded repository
+//! can have a populated catalogue and no `linear.team_id`. Requiring the key
 //! outright would report such a repository as an unconfigured tracker, and
 //! would leave one fact with two disagreeing sources of truth. Resolution is
 //! therefore the key first, then the catalogue.

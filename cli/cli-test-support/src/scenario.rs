@@ -3,9 +3,10 @@
 //!
 //! A scenario is `{expectations: [{method, path, operation?, consume?,
 //! response: {status, headers, body}, expect_body_contains?, capture_body?}]}`
-//! — a near one-to-one map onto `http-test-support`'s routes. Several expectations sharing a
-//! `(method, path)` key (the single-endpoint GraphQL case, marked `consume`)
-//! become a `Route::Sequence`; a lone expectation becomes a `Route::Headers`.
+//! — a near one-to-one map onto `http-test-support`'s routes. Several
+//! expectations sharing a `(method, path)` key (the single-endpoint GraphQL
+//! case, marked `consume`) become a `Route::Sequence`; a lone expectation
+//! becomes a `Route::Headers`.
 //!
 //! The schema is a single unified superset across providers — the jira-only
 //! `capture_url`/header fields and the linear-only `consume` flag are all
