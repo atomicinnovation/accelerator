@@ -6,38 +6,38 @@ date: "2026-09-24T16:12:00+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
-result: "partial"
+result: "pass"
 target: "plan:2026-09-22-0292-linear-pull-filters-catalogue-resolved-ids"
 tags: ["linear", "pull-filters", "catalogue", "sync"]
-last_updated: "2026-09-24T16:12:00+00:00"
+last_updated: "2026-09-24T18:23:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
 ## Validation Report: Linear Pull Filters via Catalogue-Resolved Ids Implementation Plan
 
-Every phase is implemented and the full local CI mirror is green. The result
-is `partial`, not `pass`, because a small set of planned items is missing or
-diverges: one documentation requirement, one discovery test, one operation
-name, and a new error identifier that the plan ruled out. Each is listed
-below with its fix. Clearing the "Before merge" recommendations makes this a
-`pass`.
+Every phase is implemented, the full local CI mirror is green, and the live
+checks pass. The first validation run returned `partial` because of five
+planned items: one documentation requirement, one discovery test, one
+operation name, a new error identifier the plan ruled out, and two stale
+docs. All five are now fixed (see "Fixed after the first validation"), so the
+result is `pass`.
 
 ### Implementation Status
 
 ✓ Spike: team-section fetch. Outcome recorded 2026-09-24; batched queries
 adopted.
-✓ Phase 1: catalogue document, init, one strict write path. Implemented; one
-unit test and one operation name missing.
+✓ Phase 1: catalogue document, init, one strict write path. Implemented;
+the missing test and operation name are added.
 ✓ Phase 2: resolution domain. Implemented; `ResolverSet` shape differs.
-⚠️ Phase 3: resolution, completion, live fetch and self-heal. Implemented;
-search skill docs incomplete, `E_PUSH_UNCONFIGURED` added against the plan,
-two stale docs.
+✓ Phase 3: resolution, completion, live fetch and self-heal. Implemented;
+its documentation and error-identifier gaps are fixed.
 ✓ Phase 4: config acceptance of `project` under Linear. Implemented.
 
 ### Automated Verification Results
 
-✓ Full local CI mirror: `mise run` exited 0 at revision `8c8a99cf` (~383s).
+✓ Full local CI mirror: `mise run` exited 0 at revision `8c8a99cf` (~383s),
+  and again with the fixes below applied.
   It covered format, lint, types, docs coverage, and the entire test suite.
   The formatters left the working copy unchanged.
 ✓ Every per-phase `cargo test -p …`, `mise run cli:check`,
@@ -101,27 +101,6 @@ No test was run in isolation beyond this.
 
 #### Deviations from Plan
 
-- **`E_PUSH_UNCONFIGURED` is a new identifier**
-  (`cli/work-cli/src/update.rs:271-277`). The plan says to report through
-  `for_tracker_error` with `into_detail` and add no new identifier. The exit
-  code is still 74, and the baseline is kept.
-- **Search skill §7 incomplete**
-  (`skills/integrations/linear/search-linear-issues/SKILL.md`).
-  - Exit codes 77, 78 and 89 are not documented.
-  - The refusal table omits `E_SEARCH_TEAM_UNFETCHED`.
-  - The new scoping paragraph (`:43-52`) is inserted inside the flag list, so
-    the `--limit N` bullet at `:53` is stranded after it.
-- **Missing test.** `one_deadline_spans_every_section_of_a_fetch` does not
-  exist. `an_expired_fetch_deadline_sends_no_request` does not prove the
-  deadline is shared across passes.
-- **`TeamEnumeration` is unnamed.** `TEAMS` (`discovery.rs:33`) is still an
-  anonymous query and is keyed on the root field `teams`.
-- **Stale docs.**
-  - `cli/tracker/src/lib.rs:165` still says `Retryable` is "the only class"
-    for a read.
-  - `cli/work-cli/src/exit_codes.rs:60-68` still says 74 means "No write was
-    made — the refusal is pre-flight". The per-item `unconfigured` ranking
-    breaks that.
 - **Structure (acceptable).** Types live in `resolution.rs` and in a
   `catalogue/` module directory.
   - `ResolverSet` holds an `Rc<dyn NameResolver>` plus a concrete
@@ -148,6 +127,20 @@ No test was run in isolation beyond this.
   entry rather than writing nothing. An unreturned base team still exits
   `BAD_RESPONSE`.
 - **`CatalogueBackfill`** lacks the planned `Send + Sync` supertraits.
+
+#### Fixed after the first validation
+
+- **`E_PUSH_UNCONFIGURED` removed.** A push refused on configuration now
+  reports the tracker's detail verbatim and exits 74, as planned.
+- **Search skill completed.** It documents exit codes 77, 78 and 89 and adds
+  `E_SEARCH_TEAM_UNFETCHED`, and `--limit N` is back in the flag list.
+- **`one_deadline_spans_every_section_of_a_fetch` added.** It uses a new
+  `Route::Delayed` in `http-test-support`. The test fails when each section
+  pass is given its own deadline.
+- **`TeamEnumeration` named.** The enumeration routes in
+  `tests/discovery.rs` and `sync_run_real_client.rs` now key on it.
+- **Stale docs corrected** at `tracker/src/lib.rs` (the `Retryable` read
+  rule) and `work-cli/src/exit_codes.rs` (per-item `unconfigured` exits 74).
 
 #### Potential Issues
 
@@ -208,36 +201,33 @@ No test was run in isolation beyond this.
 
 ### Manual Testing Required
 
-1. Phase 3 against the live tenant:
-   - [ ] On a legacy catalogue, a filtered `--preview` pull succeeds and
-     leaves `catalogue.json` unchanged. A second preview fetches again.
-   - [ ] An apply pull then completes the base entry and prints the `note:`.
-     A third pull makes no team-section fetch.
-   - [ ] A whole-workspace pull filtering on `state` returns every team's
-     matching issues, and commits entries only for synced teams.
-   - [ ] `accelerator linear search --state "In Progress"` returns only the
-     init team's issues.
-   - [ ] Delete a second team's entry from `teams` and run an apply sync.
-     The entry is re-derived.
-   - [ ] An ambiguous `assignee` refuses, naming the tier.
+These were run against the live tenant with the workspace build on
+2026-09-24:
+
+1. Phase 3:
+   - [x] On a legacy catalogue, a filtered `--preview` pull leaves
+     `catalogue.json` byte-identical across two runs. Discovery ran
+     (`found=0`) and did not refuse. The exit code was 4 because 12 tracked
+     items have existing sync conflicts, which outrank discovery in
+     `exit_code_for_report`. The filter path did not cause it.
+   - [x] An apply pull completes the base entry and prints the `note:`. A
+     third pull prints nothing and leaves the file unchanged.
+   - [x] A whole-workspace pull filtering on `state` returns issues from
+     other teams, and catalogues only the teams it imported from.
+   - [x] A synced team deleted from `teams` is re-derived by the next apply
+     sync.
+   - [x] `accelerator linear search --state "In Progress"` returns only `PP`
+     issues.
+   - [ ] An ambiguous `assignee` refuses, naming the tier. This could not be
+     run: no two of the tenant's 16 members share a full name or display
+     name, and none are disabled. It is covered by `tests/catalogue.rs`.
 2. Phase 4:
-   - [ ] `configure` rejects a `project` filter under Jira.
-   - [ ] A live Linear pull with `project: [<real project>]` returns only
-     that project's issues.
+   - [x] A Jira `project` filter is refused at validation.
+   - [x] A live Linear pull with a real `project` returns only that
+     project's issues.
 
 ### Recommendations
 
-- **Before merge:**
-  - Complete the search skill: exit codes 77/78/89 and
-    `E_SEARCH_TEAM_UNFETCHED`, and move the scoping paragraph out of the flag
-    list.
-  - Resolve `E_PUSH_UNCONFIGURED`: either drop it for `for_tracker_error`,
-    as planned, or amend the plan to record the choice.
-  - Fix the stale docs at `tracker/src/lib.rs:165` and
-    `work-cli/src/exit_codes.rs:60-68`.
-  - Add `one_deadline_spans_every_section_of_a_fetch`, and name the
-    `TeamEnumeration` query.
-  - Run the manual Phase 3 and 4 checks.
 - **Worth deciding:**
   - Route a create `Unconfigured` to exit 74 with its detail rather than a
     silent local save.
