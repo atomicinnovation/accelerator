@@ -6,6 +6,7 @@
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::TcpStream;
 use std::time::Duration;
+use std::time::Instant;
 
 use http_test_support::{MockServer, RequestKey, Route, UNMATCHED_STATUS};
 
@@ -362,4 +363,23 @@ fn a_sequenced_route_answers_each_hit_in_turn() {
         "the last entry repeats rather than becoming an unmatched key"
     );
     assert_eq!(server.hits(&key), 4);
+}
+
+#[test]
+fn every_hit_is_stamped_with_the_instant_it_arrived() {
+    let server = MockServer::start();
+    let key = RequestKey::get("/asset");
+    server.route(key.clone(), Route::Status(200));
+
+    let before = Instant::now();
+    request(&server, "GET", "/asset", &[], &[]);
+    std::thread::sleep(Duration::from_millis(50));
+    request(&server, "GET", "/asset", &[], &[]);
+    let after = Instant::now();
+
+    let instants = server.hit_instants(&key);
+    assert_eq!(instants.len(), 2);
+    assert!(before <= instants[0] && instants[1] <= after);
+    assert!(instants[1] - instants[0] >= Duration::from_millis(50));
+    assert!(server.hit_instants(&RequestKey::get("/never")).is_empty());
 }

@@ -1193,16 +1193,16 @@ in which a 3 s retry backoff is followed by no further pacing wait;
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p http-test-support -p research-adapters -p accelerator-research --all-features`
-- [ ] `uv run pytest tests/integration/deny` and `mise run deny:check` pass with `roxmltree`
-- [ ] `mise run lint:store-duplication:check` exits `0`
+- [x] `cargo test --manifest-path cli/Cargo.toml -p http-test-support -p research-adapters -p accelerator-research --all-features`
+- [x] `uv run pytest tests/integration/deny` and `mise run deny:check` pass with `roxmltree`
+- [x] `mise run lint:store-duplication:check` exits `0`
 - [ ] `mise run check` and `mise run test` exit `0`
 
 #### Manual Verification
 
-- [ ] `accelerator research fetch arxiv search "graph neural networks" --limit 3`
+- [x] `accelerator research fetch arxiv search "graph neural networks" --limit 3`
       returns three `tier-2` records against live arXiv.
-- [ ] `accelerator research fetch arxiv lookup 2608.21129` reports
+- [x] `accelerator research fetch arxiv lookup 2608.21129` reports
       `withdrawn: true`.
 
 ---

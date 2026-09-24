@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use config::ConfigAccess;
 use config::ConfigError;
+use config::Key;
 use config_adapters::compose;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
@@ -26,5 +27,19 @@ impl ProjectContext {
             root: FileConfigStore::discover_root(cwd),
             config: Box::new(composed.service),
         })
+    }
+}
+
+impl ProjectContext {
+    /// Where research keeps state across calls: `research/` under the
+    /// configured `paths.tmp`.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError`] when `paths.tmp` cannot be resolved.
+    pub fn research_scratch(&self) -> Result<PathBuf, ConfigError> {
+        let key = Key::parse("paths.tmp")?;
+        let tmp = self.config.effective_nonempty(&key, None)?.rendered();
+        Ok(self.root.join(tmp).join("research"))
     }
 }

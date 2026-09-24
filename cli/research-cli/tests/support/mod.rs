@@ -6,6 +6,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Child;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -16,9 +17,23 @@ pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
                           primary_location,is_retracted,\
                           abstract_inverted_index";
 
+/// Milliseconds since the Unix epoch at which every test clock's wall time
+/// starts, so values one process persists compare deterministically with
+/// another's.
+pub const CLOCK_EPOCH_MS: &str = "1800000000000";
+
 pub fn openalex_fixture(name: &str) -> String {
+    adapter_fixture("openalex", name)
+}
+
+pub fn arxiv_fixture(name: &str) -> String {
+    adapter_fixture("arxiv", name)
+}
+
+fn adapter_fixture(family: &str, name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../research-adapters/tests/fixtures/openalex")
+        .join("../research-adapters/tests/fixtures")
+        .join(family)
         .join(name);
     std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("{}: {error}", path.display()))
@@ -94,6 +109,18 @@ impl Project {
     fn clock_log(&self) -> PathBuf {
         self.work.path().join("clock.log")
     }
+
+    /// Forgets the waits earlier calls logged, so the next call's are its
+    /// own.
+    pub fn clear_clock_log(&self) {
+        let _ = std::fs::remove_file(self.clock_log());
+    }
+
+    /// The directory the arXiv lock, pacing state and logs live in under the
+    /// default `paths.tmp`.
+    pub fn research_scratch(&self) -> PathBuf {
+        self.root.join(".accelerator/tmp/research")
+    }
 }
 
 #[cfg(unix)]
@@ -125,25 +152,18 @@ impl Run {
     }
 }
 
-/// Runs `fetch <args>` in `project` against `server`, with every OpenAlex key
-/// variable cleared unless `env` sets it.
+/// Runs `fetch <args>` in `project` against `server` on the logging test
+/// clock, with every OpenAlex key variable cleared unless `env` sets it.
 pub fn fetch(
     project: &Project,
     server: &MockServer,
     args: &[&str],
     env: &[(&str, &str)],
 ) -> Run {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-research"));
+    let mut command = command(project, server, args);
     command
-        .arg("fetch")
-        .args(args)
-        .current_dir(project.root())
-        .env("ACCELERATOR_OPENALEX_API_URL", server.base_url())
         .env("ACCELERATOR_RESEARCH_TEST_CLOCK_LOG", project.clock_log())
-        .env_remove("ACCELERATOR_OPENALEX_API_KEY")
-        .env_remove("ACCELERATOR_OPENALEX_API_KEY_CMD")
-        .env_remove("ACCELERATOR_ALLOW_INSECURE_LOCAL")
-        .stdin(Stdio::null());
+        .env("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH", CLOCK_EPOCH_MS);
     for (name, value) in env {
         command.env(name, value);
     }
@@ -159,6 +179,38 @@ pub fn fetch(
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         waits,
     }
+}
+
+/// Starts `fetch <args>` in `project` against `server` on the real clock,
+/// so its waits really pass.
+pub fn spawn_in_real_time(
+    project: &Project,
+    server: &MockServer,
+    args: &[&str],
+) -> Child {
+    command(project, server, args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn accelerator-research")
+}
+
+fn command(project: &Project, server: &MockServer, args: &[&str]) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-research"));
+    command
+        .arg("fetch")
+        .args(args)
+        .current_dir(project.root())
+        .env("ACCELERATOR_OPENALEX_API_URL", server.base_url())
+        .env("ACCELERATOR_ARXIV_API_URL", server.base_url())
+        .env("ACCELERATOR_ARXIV_OAI_URL", server.base_url())
+        .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_LOG")
+        .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH")
+        .env_remove("ACCELERATOR_OPENALEX_API_KEY")
+        .env_remove("ACCELERATOR_OPENALEX_API_KEY_CMD")
+        .env_remove("ACCELERATOR_ALLOW_INSECURE_LOCAL")
+        .stdin(Stdio::null());
+    command
 }
 
 /// Asserts `actual` against the committed golden `name` under

@@ -346,6 +346,7 @@ pub research::request::ArxivRequest::Search::query: research::request::ArxivQuer
 impl research::request::ArxivRequest
 pub const fn research::request::ArxivRequest::limit(&self) -> research::request::Limit
 pub fn research::request::ArxivRequest::upstream(&self, api: &research::request::Endpoint) -> research::request::UpstreamRequest
+pub const fn research::request::ArxivRequest::verb(&self) -> research::request::Verb
 impl core::clone::Clone for research::request::ArxivRequest
 pub fn research::request::ArxivRequest::clone(&self) -> research::request::ArxivRequest
 impl core::cmp::Eq for research::request::ArxivRequest
@@ -377,6 +378,7 @@ pub research::request::FetchRequest::OpenAlex(research::request::OpenAlexRequest
 impl research::request::FetchRequest
 pub const fn research::request::FetchRequest::family(&self) -> research::request::Family
 pub fn research::request::FetchRequest::parse(family: &str, verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::request::RequestError>
+pub const fn research::request::FetchRequest::verb(&self) -> research::request::Verb
 impl core::clone::Clone for research::request::FetchRequest
 pub fn research::request::FetchRequest::clone(&self) -> research::request::FetchRequest
 impl core::cmp::Eq for research::request::FetchRequest

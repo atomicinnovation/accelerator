@@ -20,18 +20,25 @@ use research::fetch::FetchOutcome;
 use research::request::Endpoint;
 use research::request::FetchRequest;
 use research::schedule::Deadline;
+use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
+use research_adapters::confirmations::FileConfirmationCache;
+use research_adapters::diagnostics::Diagnostics;
+use research_adapters::diagnostics::Stderr;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
+use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
+use research_adapters::scratch::ScratchDir;
 use research_adapters::transport::HttpTransport;
 
 use crate::cli::Cli;
 use crate::cli::Command;
 use crate::context::ProjectContext;
+use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
-use crate::fetch_command::Refusal;
+use crate::fetch_command::SourceCall;
 use crate::provenance::VcsProvenance;
 
 // The test-only loopback feature must never reach a release binary: the compile
@@ -65,8 +72,8 @@ fn main() -> ExitCode {
             Ok(request) => request,
             Err(error) => return usage(&error.to_string()),
         };
-    let openalex_api = match selected_openalex_api() {
-        Ok(api) => api,
+    let endpoints = match selected_endpoints() {
+        Ok(endpoints) => endpoints,
         Err(message) => return usage(&message),
     };
     let project = match std::env::current_dir()
@@ -79,30 +86,69 @@ fn main() -> ExitCode {
         Ok(project) => project,
         Err(message) => return failure(&message),
     };
-    let transport = match HttpTransport::new(deadline.per_request()) {
-        Ok(transport) => transport,
-        Err(error) => return failure(&error.to_string()),
-    };
+    let call =
+        match source_call(request, endpoints, &project, &clock, &deadline) {
+            Ok(call) => call,
+            Err(message) => return failure(&message),
+        };
     let ports = FetchPorts {
         clock,
         credentials: CredentialPorts::system(Box::new(
             VcsProvenance::discovered(project.root.clone()),
         )),
-        openalex: OpenAlexAdapters {
-            api: openalex_api,
-            transport: Box::new(transport),
-            decoder: Box::new(JsonOpenAlexDecoder),
-            gate: Box::new(NoPacing),
-        },
     };
-    match fetch_command::run(&ports, &project, &deadline, &request) {
+    match fetch_command::run(&ports, &project, &deadline, &call) {
         Ok(fetched) => report(&fetched),
-        Err(Refusal::Credential(error)) => failure(&error.to_string()),
-        Err(Refusal::FamilyUnavailable(family)) => failure(&format!(
-            "E_RESEARCH_UNSUPPORTED: fetching from {family} is not available \
-             in this release"
-        )),
+        Err(error) => failure(&error.to_string()),
     }
+}
+
+/// Builds only the asked source's adapters, so an OpenAlex call never reads
+/// the configuration arXiv's shared state needs.
+fn source_call(
+    request: FetchRequest,
+    endpoints: Endpoints,
+    project: &ProjectContext,
+    clock: &Rc<dyn Clock>,
+    deadline: &Deadline,
+) -> Result<SourceCall, String> {
+    let transport = HttpTransport::new(deadline.per_request())
+        .map_err(|error| error.to_string())?;
+    Ok(match request {
+        FetchRequest::OpenAlex(request) => SourceCall::OpenAlex(
+            request,
+            OpenAlexAdapters {
+                api: endpoints.openalex_api,
+                transport: Box::new(transport),
+                decoder: Box::new(JsonOpenAlexDecoder),
+                gate: Box::new(NoPacing),
+            },
+        ),
+        FetchRequest::Arxiv(request) => {
+            let scratch = project
+                .research_scratch()
+                .map_err(|error| error.to_string())?;
+            let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
+            SourceCall::Arxiv(
+                request,
+                ArxivAdapters {
+                    api: endpoints.arxiv_api,
+                    oai: endpoints.arxiv_oai,
+                    transport: Box::new(transport),
+                    decoder: Box::new(XmlArxivDecoder),
+                    gate: Box::new(FilePacingGate::new(
+                        ScratchDir::new(&project.root, &scratch),
+                        clock.clone(),
+                        diagnostics.clone(),
+                    )),
+                    confirmations: Box::new(FileConfirmationCache::new(
+                        ScratchDir::new(&project.root, &scratch),
+                        diagnostics,
+                    )),
+                },
+            )
+        }
+    })
 }
 
 fn report(fetched: &Fetched) -> ExitCode {
@@ -141,13 +187,27 @@ fn selected_clock() -> Rc<dyn Clock> {
     Rc::new(SystemClock)
 }
 
+struct Endpoints {
+    openalex_api: Endpoint,
+    arxiv_api: Endpoint,
+    arxiv_oai: Endpoint,
+}
+
 #[cfg(feature = "test-loopback")]
-fn selected_openalex_api() -> Result<Endpoint, String> {
-    Ok(loopback::openalex_api()?.unwrap_or_else(Endpoint::openalex))
+fn selected_endpoints() -> Result<Endpoints, String> {
+    Ok(Endpoints {
+        openalex_api: loopback::openalex_api()?,
+        arxiv_api: loopback::arxiv_api()?,
+        arxiv_oai: loopback::arxiv_oai()?,
+    })
 }
 
 #[cfg(not(feature = "test-loopback"))]
 #[allow(clippy::unnecessary_wraps)]
-fn selected_openalex_api() -> Result<Endpoint, String> {
-    Ok(Endpoint::openalex())
+fn selected_endpoints() -> Result<Endpoints, String> {
+    Ok(Endpoints {
+        openalex_api: Endpoint::openalex(),
+        arxiv_api: Endpoint::arxiv_api(),
+        arxiv_oai: Endpoint::arxiv_oai(),
+    })
 }

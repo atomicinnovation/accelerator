@@ -452,6 +452,13 @@ pub enum ArxivRequest {
 }
 
 impl ArxivRequest {
+    pub const fn verb(&self) -> Verb {
+        match self {
+            Self::Search { .. } => Verb::Search,
+            Self::Lookup(_) => Verb::Lookup,
+        }
+    }
+
     pub const fn limit(&self) -> Limit {
         match self {
             Self::Search { limit, .. } => *limit,
@@ -528,6 +535,13 @@ impl FetchRequest {
         match self {
             Self::OpenAlex(_) => Family::OpenAlex,
             Self::Arxiv(_) => Family::Arxiv,
+        }
+    }
+
+    pub const fn verb(&self) -> Verb {
+        match self {
+            Self::OpenAlex(request) => request.verb(),
+            Self::Arxiv(request) => request.verb(),
         }
     }
 }

@@ -1054,10 +1054,16 @@ def _write_research_probe(
     (stub_src / "lib.rs").write_text(_TRACKER_SUPPORT_STUB_LIB)
 
 
-def test_research_decoder_rule_rejects_spawning(tmp_path: Path) -> None:
+_RESEARCH_DECODERS = ["openalex_json", "arxiv_xml"]
+
+
+@pytest.mark.parametrize("decoder", _RESEARCH_DECODERS)
+def test_research_decoder_rule_rejects_spawning(
+    tmp_path: Path, decoder: str
+) -> None:
     _require_tools()
     _write_research_probe(
-        tmp_path, "research-adapters", _SPAWN_VIOLATION, "openalex_json"
+        tmp_path, "research-adapters", _SPAWN_VIOLATION, decoder
     )
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     output = _ANSI.sub("", result.stdout + result.stderr)
@@ -1066,10 +1072,13 @@ def test_research_decoder_rule_rejects_spawning(tmp_path: Path) -> None:
     assert "research_adapters_decoders_spawn_nothing" in output, output
 
 
-def test_research_decoder_rule_permits_std_imports(tmp_path: Path) -> None:
+@pytest.mark.parametrize("decoder", _RESEARCH_DECODERS)
+def test_research_decoder_rule_permits_std_imports(
+    tmp_path: Path, decoder: str
+) -> None:
     _require_tools()
     _write_research_probe(
-        tmp_path, "research-adapters", _PROJECTION_COMPLIANT, "openalex_json"
+        tmp_path, "research-adapters", _PROJECTION_COMPLIANT, decoder
     )
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)

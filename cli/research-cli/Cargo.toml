@@ -34,5 +34,6 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 http-test-support = { path = "../http-test-support" }
+rustix = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }
 tempfile = { workspace = true }

@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api///dMRWt7p2AQxCLgTpBDb0vsJII</id>
+  <title>arXiv Query: search_query=all:graph AND all:neural AND all:networks&amp;id_list=&amp;start=0&amp;max_results=3</title>
+  <updated>2026-09-24T15:56:32Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:graph+AND+(all:neural+AND+all:networks)&amp;start=0&amp;max_results=3&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>3</opensearch:itemsPerPage>
+  <opensearch:totalResults>19171</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2211.12792v2</id>
+    <title>MECCH: Metapath Context Convolution-based Heterogeneous Graph Neural Networks</title>
+    <updated>2023-11-23T16:13:10Z</updated>
+    <link href="https://arxiv.org/abs/2211.12792v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2211.12792v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Heterogeneous graph neural networks (HGNNs) were proposed for representation learning on structural data with multiple types of nodes and edges. To deal with the performance degradation issue when HGNNs become deep, researchers combine metapaths into HGNNs to associate nodes closely related in semantics but far apart in the graph. However, existing metapath-based models suffer from either information loss or high computation costs. To address these problems, we present a novel Metapath Context Convolution-based Heterogeneous Graph Neural Network (MECCH). MECCH leverages metapath contexts, a new kind of graph structure that facilitates lossless node information aggregation while avoiding any redundancy. Specifically, MECCH applies three novel components after feature preprocessing to extract comprehensive information from the input graph efficiently: (1) metapath context construction, (2) metapath context encoder, and (3) convolutional metapath fusion. Experiments on five real-world heterogeneous graph datasets for node classification and link prediction show that MECCH achieves superior prediction accuracy compared with state-of-the-art baselines with improved computational efficiency.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-11-23T09:13:33Z</published>
+    <arxiv:comment>12 pages, 7 figures, 7 tables; published in Neural Networks; code available at https://github.com/cynricfu/MECCH</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <arxiv:journal_ref>Neural Networks 170 (2024) 266-275</arxiv:journal_ref>
+    <author>
+      <name>Xinyu Fu</name>
+    </author>
+    <author>
+      <name>Irwin King</name>
+    </author>
+    <arxiv:doi>10.1016/j.neunet.2023.11.030</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1016/j.neunet.2023.11.030" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2506.22084v1</id>
+    <title>Transformers are Graph Neural Networks</title>
+    <updated>2025-06-27T10:15:33Z</updated>
+    <link href="https://arxiv.org/abs/2506.22084v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2506.22084v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We establish connections between the Transformer architecture, originally introduced for natural language processing, and Graph Neural Networks (GNNs) for representation learning on graphs. We show how Transformers can be viewed as message passing GNNs operating on fully connected graphs of tokens, where the self-attention mechanism capture the relative importance of all tokens w.r.t. each-other, and positional encodings provide hints about sequential ordering or structure. Thus, Transformers are expressive set processing networks that learn relationships among input elements without being constrained by apriori graphs. Despite this mathematical connection to GNNs, Transformers are implemented via dense matrix operations that are significantly more efficient on modern hardware than sparse message passing. This leads to the perspective that Transformers are GNNs currently winning the hardware lottery.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-06-27T10:15:33Z</published>
+    <arxiv:comment>This paper is a technical version of an article in The Gradient at https://thegradient.pub/transformers-are-graph-neural-networks/</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Chaitanya K. Joshi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/1911.08941v1</id>
+    <title>Fast and Deep Graph Neural Networks</title>
+    <updated>2019-11-20T14:46:54Z</updated>
+    <link href="https://arxiv.org/abs/1911.08941v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1911.08941v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We address the efficiency issue for the construction of a deep graph neural network (GNN). The approach exploits the idea of representing each input graph as a fixed point of a dynamical system (implemented through a recurrent neural network), and leverages a deep architectural organization of the recurrent units. Efficiency is gained by many aspects, including the use of small and very sparse networks, where the weights of the recurrent units are left untrained under the stability condition introduced in this work. This can be viewed as a way to study the intrinsic power of the architecture of a deep GNN, and also to provide insights for the set-up of more complex fully-trained models. Through experimental results, we show that even without training of the recurrent connections, the architecture of small deep GNN is surprisingly able to achieve or improve the state-of-the-art performance on a significant set of tasks in the field of graphs classification.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.DS" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-11-20T14:46:54Z</published>
+    <arxiv:comment>Pre-print of 'Fast and Deep Graph Neural Networks', accepted for AAAI 2020. This document includes the Supplementary Material</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Claudio Gallicchio</name>
+    </author>
+    <author>
+      <name>Alessio Micheli</name>
+    </author>
+  </entry>
+</feed>

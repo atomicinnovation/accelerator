@@ -43,6 +43,9 @@ impl HttpTransport {
     /// A transport whose every request, body included, finishes within
     /// `per_request`.
     ///
+    /// No connection outlives its request, so nothing reaches a paced source
+    /// between the gate passes that admit each request.
+    ///
     /// # Errors
     ///
     /// [`TransportUnavailable`] when the TLS-backed client cannot be built.
@@ -50,6 +53,7 @@ impl HttpTransport {
         install_crypto_provider();
         let client = Client::builder()
             .timeout(per_request)
+            .pool_max_idle_per_host(0)
             .redirect(redirect::Policy::custom(follow_within_origin))
             .build()
             .map_err(|_| TransportUnavailable)?;

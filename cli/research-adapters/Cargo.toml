@@ -15,8 +15,12 @@ research = { path = "../research" }
 # transport installs ring itself.
 reqwest = { workspace = true }
 rustls = { workspace = true }
+roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+rustix = { workspace = true }
+store = { path = "../store" }
 
 [dev-dependencies]
 http-test-support = { path = "../http-test-support" }
+tempfile = { workspace = true }

@@ -50,6 +50,20 @@ fn a_verb_names_itself_as_callers_spell_it() {
 }
 
 #[test]
+fn a_request_names_the_verb_it_was_parsed_from() {
+    for (family, verb, term, expected) in [
+        ("openalex", "search", "graphs", Verb::Search),
+        ("openalex", "lookup", "W1", Verb::Lookup),
+        ("arxiv", "search", "graphs", Verb::Search),
+        ("arxiv", "lookup", "2608.21129", Verb::Lookup),
+    ] {
+        let request = FetchRequest::parse(family, verb, &terms(&[term]), None)
+            .expect("a valid request");
+        assert_eq!(request.verb(), expected, "{family} {verb}");
+    }
+}
+
+#[test]
 fn a_limit_defaults_to_ten() {
     assert_eq!(Limit::default().get(), 10);
 }

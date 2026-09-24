@@ -93,6 +93,9 @@ regex = "1"
 # the section-diff goldens assert its unified-diff output byte-for-byte, so a
 # formatting change in a new release must arrive as a deliberate re-bless.
 similar = "=2.7.0"
+# Read-only XML trees for arXiv's Atom and OAI-PMH responses. Its default
+# parsing refuses a DTD, so no entity expansion reaches the decoder.
+roxmltree = "0.21"
 # Used to load vcs-test-support/fixtures/masks.toml, the volatile-field mask
 # table shared across the Rust and Python golden cross-checks
 # (vcs-test-support::masks).

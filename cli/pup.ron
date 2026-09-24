@@ -114,7 +114,9 @@
         // typed inputs and nothing more, so none of them may spawn.
         Module((
             name: "research_adapters_decoders_spawn_nothing",
-            matches: Module("^research_adapters::openalex_json($|::)"),
+            matches: Module(
+                "^research_adapters::(openalex_json|arxiv_xml)($|::)"
+            ),
             rules: [
                 RestrictImports(
                     allowed_only: None,

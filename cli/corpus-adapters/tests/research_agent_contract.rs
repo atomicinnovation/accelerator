@@ -58,15 +58,31 @@ fn the_researcher_agent_grants_a_bounded_shell_free_tool_set(
 #[test]
 fn the_openalex_profile_never_instructs_web_fetching() -> Result<(), TestError>
 {
-    let content = read("skills/research/profiles/openalex-profile/SKILL.md")?;
+    assert_profile_only_fetches("openalex", "OpenAlex")
+}
+
+#[test]
+fn the_arxiv_profile_never_instructs_web_fetching() -> Result<(), TestError> {
+    assert_profile_only_fetches("arxiv", "arXiv")
+}
+
+/// An academic profile grants the fetch and no web tool, mentions a web
+/// tool only to forbid it, and runs nothing but its own family's fetch.
+fn assert_profile_only_fetches(
+    family: &str,
+    name: &str,
+) -> Result<(), TestError> {
+    let content = read(&format!(
+        "skills/research/profiles/{family}-profile/SKILL.md"
+    ))?;
     let frontmatter = extract_frontmatter(&content);
     assert!(
         frontmatter.contains("Bash(accelerator research fetch *)"),
-        "the OpenAlex profile must grant the fetch"
+        "the {name} profile must grant the fetch"
     );
     assert!(
         !frontmatter.contains("Web"),
-        "the OpenAlex profile must grant no web tool: {frontmatter}"
+        "the {name} profile must grant no web tool: {frontmatter}"
     );
 
     let body = content
@@ -76,11 +92,12 @@ fn the_openalex_profile_never_instructs_web_fetching() -> Result<(), TestError>
         let text = line.trim_start().trim_start_matches("- ");
         assert!(
             text.starts_with("No ") || text.starts_with("Never "),
-            "the OpenAlex profile mentions a web tool other than to forbid \
+            "the {name} profile mentions a web tool other than to forbid \
              it: {line}"
         );
     }
 
+    let fetch = format!("accelerator research fetch {family} ");
     let mut in_fence = false;
     let mut invocations = 0;
     for line in body.lines().map(str::trim) {
@@ -90,17 +107,14 @@ fn the_openalex_profile_never_instructs_web_fetching() -> Result<(), TestError>
         }
         if in_fence && !line.is_empty() {
             assert!(
-                line.starts_with("accelerator research fetch openalex "),
-                "the OpenAlex profile runs something other than the fetch: \
+                line.starts_with(&fetch),
+                "the {name} profile runs something other than the fetch: \
                  {line}"
             );
             invocations += 1;
         }
     }
-    assert!(
-        invocations > 0,
-        "the OpenAlex profile shows no fetch to run"
-    );
+    assert!(invocations > 0, "the {name} profile shows no fetch to run");
     Ok(())
 }
 
