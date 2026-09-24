@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T17:55:00+00:00"
+last_updated: "2026-09-24T21:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1238,11 +1238,11 @@ in which a 3 s retry backoff is followed by no further pacing wait;
 - [x] `cargo test --manifest-path cli/Cargo.toml -p http-test-support -p research-adapters -p accelerator-research --all-features`
 - [x] `uv run pytest tests/integration/deny` and `mise run deny:check` pass with `roxmltree`
 - [x] `mise run lint:store-duplication:check` exits `0`
-- [ ] `mise run check` and `mise run test` exit `0` — `check` exits `0`;
+- [x] `mise run check` and `mise run test` exit `0` — `check` exits `0`;
       `test:unit` and `test:integration` exit `0` (3,633 cli tests pass).
-      `test:e2e:visualiser` is outstanding: on 2026-09-24 an orphaned
-      e2e server from another workspace held Playwright's health port, so
-      this workspace's server never started. Re-run once it is gone.
+      An orphaned e2e server from another workspace still holds
+      Playwright's default health port, so `test:e2e` was run with
+      `E2E_HEALTH_PORT=19187` and exits `0` (355 passed, 1 skipped).
 
 #### Manual Verification
 
@@ -1349,7 +1349,7 @@ a slash-invoked skill:
 the command with `./probe` as its prefix, the 2.1.281 verdict, and the 2.1.144
 verdict. The fixture records only measurements; the guard's deliberate
 divergence is declared once, in code, as
-`confinement::STRICTER_THAN_CLAUDE_CODE`, the `Construct` variants for a `$`
+`confinement::STRICTER_THAN_MEASURED`, the `Construct` variants for a `$`
 expansion and an input redirection. The harness is the method above as a
 script: it takes a Claude Code binary and config directory, re-measures every
 row, and prints a diff against the fixture. Re-probing a new Claude Code
@@ -1362,20 +1362,20 @@ unless the row blocks with a stricter-set construct.
 latest column, with the prefix swapped for `accelerator research fetch `,
 plus lexer-boundary rows. For each fixture row, the guard's verdict must
 equal the latest measured one, except that a row the guard blocks with a
-construct in `STRICTER_THAN_CLAUDE_CODE` may be measured `allowed`. Any
+construct in `STRICTER_THAN_MEASURED` may be measured `allowed`. Any
 other disagreement fails, so the divergence cannot widen without a change
 to that constant.
 
 ```rust
 pub const PERMITTED_PREFIX: &str = "accelerator research fetch ";
 
-pub fn is_confined(call: &ToolCall, researchers: &Researchers) -> bool {
-    call.agent_id_present() && researchers.includes(call.agent_type())
+pub fn confined_researcher(call: &ToolCall, researchers: &Researchers) -> Option<Researcher> {
+    if call.is_subagent() { researchers.identify(call.agent_type()) } else { None }
 }
 
 pub fn decide(action: &Action, findings: &dyn FindingsScope) -> Decision {
     match action {
-        Action::Command(command) => command_decision(command.trim()),
+        Action::Command(command) => command_decision(command.trim_matches(SHELL_BLANKS)),
         Action::Write(Ok(target)) if findings.contains(target) => Decision::Pass,
         Action::Write(Ok(target)) => Decision::Block(Block::Write(WriteRefusal::OutsideFindings(target.clone()))),
         Action::Write(Err(rejection)) => Decision::Block(Block::Write(WriteRefusal::Rejected(rejection.clone()))),
@@ -1386,6 +1386,16 @@ pub fn decide(action: &Action, findings: &dyn FindingsScope) -> Decision {
 
 - `confinement` is new in this phase. `PERMITTED_PREFIX` and
   `command_decision` are public, because the contract tests below use them.
+  The constant is not `STRICTER_THAN_CLAUDE_…`: the claude-coupling lint bans
+  every `CLAUDE_*` token under `cli/`.
+- `SHELL_BLANKS` is space, tab, and newline. A wider trim, such as
+  `str::trim`, drops a trailing carriage return, vertical tab, form feed, or
+  no-break space that the shell keeps in the last word, so `>&2` followed by
+  a carriage return would pass and write a file named `2\r`. The
+  differential found this, and the boundary fixture pins it.
+- The boundary rows live in `cli/research/tests/fixtures/guard-boundary.tsv`
+  beside the measured baseline, so the Rust tests in
+  `cli/research/tests/confinement.rs` and the differential read one corpus.
 - `Researchers::includes` matches `accelerator:researcher` and the configured
   name.
 - `command_decision` blocks with `Block::WrongCommand` unless the command
@@ -1432,7 +1442,7 @@ pub fn decide(action: &Action, findings: &dyn FindingsScope) -> Decision {
 - `Action::Write` carries `Result<TopicsRelativePath, PathRejection>`, which
   the guard adapter builds (§3). `PathRejection` is one of `NotUnderTopics`,
   `DotComponent`, `Symlink(component)`, and `Uninspectable`. The rejection
-  reaches `decide` only after `is_confined`, so a non-researcher's `..` write
+  reaches `decide` only after `confined_researcher`, so a non-researcher's `..` write
   is never judged.
 - `FindingsScope::contains(&TopicsRelativePath) -> bool` is a port.
   `TopicsRelativePath`'s constructor is `pub`; the adapter carries the
@@ -1453,8 +1463,8 @@ stderr line, never `2`, because `2` means block. Order of work:
    payload passes. A missing or empty `agent_id` passes at once, before any
    config is read.
 2. Resolve the configured researcher through `config::agent_name`, only if
-   `agent_type` is not already `accelerator:researcher`. If `is_confined`
-   fails, pass without inspecting any path. Once it holds, install a panic
+   `agent_type` is not already `accelerator:researcher`. If
+   `confined_researcher` names no researcher, pass without inspecting any path. Once it holds, install a panic
    hook that writes
    `E_RESEARCH_GUARD_INTERNAL: <agent> tool call blocked — the guard failed while judging it`
    and exits `2`. A panic would otherwise exit `101`, which Claude Code
@@ -1615,7 +1625,9 @@ profile or family.
     same on every run; `RESEARCH_DIFFERENTIAL_SEED` overrides it, and the
     seed is printed on failure. An opt-in
     `test:integration:research-exhaustive` leaf splices at every position.
-  - Per string, one process-pool task first substitutes its worker's
+  - Workers are threads, each owning a listener, since each spends its time
+    waiting on subprocesses.
+  - Per string, one pool task first substitutes its worker's
     listener port for `{port}`, so the guard judges exactly the string
     that runs and never the template, whose unquoted `{` would block it
     and mask the `<` handling under test. It then asks the built
@@ -1726,13 +1738,15 @@ profile or family.
 
 #### Automated Verification
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p research -p corpus -p accelerator-research -p corpus-adapters -p accelerator --all-features`
-- [ ] `mise run public-api:update && mise run public-api:check`, with the
+- [x] `cargo test --manifest-path cli/Cargo.toml -p research -p corpus -p accelerator-research -p corpus-adapters -p accelerator --all-features`
+- [x] `mise run public-api:update && mise run public-api:check`, with the
       `corpus` diff showing only `topic_research::is_finding_path` and the
       `research` diff only the `confinement` module
-- [ ] `uv run pytest tests/integration/hooks` and
+- [x] `uv run pytest tests/integration/hooks` and
       `mise run test:integration:research`
-- [ ] `mise run check` and `mise run test` exit `0`
+- [x] `mise run check` and `mise run test` exit `0` — `test:e2e` run with
+      `E2E_HEALTH_PORT=19187` past the same orphaned server (355 passed);
+      `test:unit` (3,690 cli tests) and `test:integration` exit `0`
 
 #### Manual Verification
 
@@ -1747,7 +1761,7 @@ profile or family.
       reqwest, rustls, or roxmltree) before phase 8.
 - [ ] On each new Claude Code release, run `tasks/probe/claude_permissions.py`,
       add the release's column to the fixture, and move the lexer to the
-      new verdicts outside `STRICTER_THAN_CLAUDE_CODE`, which a re-probe
+      new verdicts outside `STRICTER_THAN_MEASURED`, which a re-probe
       never loosens.
 
 ---
