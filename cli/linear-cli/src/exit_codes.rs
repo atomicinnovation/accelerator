@@ -110,12 +110,15 @@ use linear_client::classify::{classify_errors, Outcome};
 use linear_client::{ClientError, GraphQlError, LinearFailure, SurfaceError};
 
 /// The exit code for a discovery-cache write failure. A held lock maps to the
-/// shared refresh-lock code; an IO or serialisation failure is a generic error.
+/// shared refresh-lock code; an IO, serialisation or unparseable-catalogue
+/// failure is a generic error.
 #[must_use]
 pub const fn for_cache(error: &CacheError) -> u8 {
     match error {
         CacheError::LockContended { .. } => REFRESH_LOCKED,
-        CacheError::Io { .. } | CacheError::Serialise { .. } => ERROR,
+        CacheError::Io { .. }
+        | CacheError::Serialise { .. }
+        | CacheError::Unparseable { .. } => ERROR,
     }
 }
 
@@ -145,6 +148,8 @@ pub fn for_surface(error: &SurfaceError) -> u8 {
             exit_code_for_status(*status, body)
         }
         SurfaceError::BadResponse { .. } => BAD_RESPONSE,
+        SurfaceError::CatalogueTruncated { .. } => ERROR,
+        SurfaceError::DeadlineExpired { .. } => CONNECT,
         SurfaceError::UnknownState { .. } => TRANSITION_STATE_NOT_IN_CATALOGUE,
         SurfaceError::AmbiguousState { .. } => TRANSITION_STATE_AMBIGUOUS,
         SurfaceError::BadLinkUrl { .. } => ATTACH_BAD_URL,
@@ -203,6 +208,8 @@ fn exit_code_for_status(status: u16, body: &str) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use linear_client::catalogue::CatalogueParseError;
+
     use super::*;
 
     fn code_for(graphql: GraphQlError) -> (u8, u8) {
@@ -232,6 +239,36 @@ mod tests {
         assert_eq!(exit_code_for_outcome(Outcome::Transport), CONNECT);
         assert_eq!(exit_code_for_outcome(Outcome::ServerError), SERVER_ERROR);
         assert_eq!(exit_code_for_outcome(Outcome::Unexpected), SERVER_ERROR);
+    }
+
+    #[test]
+    fn catalogue_truncation_maps_to_error() {
+        let error = SurfaceError::CatalogueTruncated {
+            connection: "issueLabels",
+            pages: 60,
+            remedy: "narrow the pull to fewer teams",
+        };
+
+        assert_eq!(for_surface(&error), ERROR);
+    }
+
+    #[test]
+    fn a_catalogue_fetch_past_its_deadline_maps_to_connect() {
+        let error = SurfaceError::DeadlineExpired {
+            operation: "discover team entries",
+        };
+
+        assert_eq!(for_surface(&error), CONNECT);
+    }
+
+    #[test]
+    fn an_unparseable_catalogue_maps_to_error() {
+        let error = CacheError::Unparseable {
+            path: "catalogue.json".to_owned(),
+            reason: CatalogueParseError::NotAnObject,
+        };
+
+        assert_eq!(for_cache(&error), ERROR);
     }
 
     #[test]

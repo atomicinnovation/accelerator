@@ -25,6 +25,11 @@ use store::NewFileMode;
 use store::WriteBounds;
 use thiserror::Error;
 
+use crate::catalogue::CatalogueDocument;
+use crate::catalogue::CatalogueParseError;
+use crate::catalogue::CatalogueUpdate;
+use crate::catalogue::Strictness;
+
 /// The gitignored entries in the Linear state directory. `catalogue.json` is
 /// deliberately absent — team and states are team-scoped, not per-developer,
 /// so it is committed.
@@ -42,12 +47,27 @@ pub enum CacheError {
     LockContended { path: String },
     #[error("E_CACHE_BAD_JSON: {detail}")]
     Serialise { detail: String },
+    #[error(
+        "E_CACHE_UNPARSEABLE: {path}: {reason}. Restore the last good \
+         catalogue.json from version control, or resolve its merge conflict. \
+         As a last resort, delete it and re-run init; synced teams are then \
+         re-derived from tracked work items on the next apply sync"
+    )]
+    Unparseable {
+        path: String,
+        reason: CatalogueParseError,
+    },
 }
 
 /// The filesystem operations the cache writer needs.
 pub trait Filesystem {
     fn exists(&self, path: &Path) -> bool;
-    fn read(&self, path: &Path) -> Option<String>;
+    /// The file's content, or `None` when it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// [`CacheError::Io`] when the file exists but cannot be read.
+    fn read(&self, path: &Path) -> Result<Option<String>, CacheError>;
     /// Writes `bytes` to `path` such that no reader ever observes a partial
     /// file: a mid-write failure leaves the previous content in place.
     ///
@@ -105,72 +125,56 @@ impl<'a> LinearCache<'a> {
         self.ensure_scaffold()
     }
 
-    /// Writes `catalogue.json` under the advisory lock.
+    /// The stored catalogue, parsed as strictly as a writer must: an absent
+    /// file is an empty catalogue, and any entry that would not survive a
+    /// rewrite refuses the load.
     ///
     /// # Errors
     ///
-    /// [`CacheError`] for contention, a write failure, or serialisation.
-    pub fn write_catalogue(&self, shape: &Value) -> Result<(), CacheError> {
-        let lockdir = self.state_dir.join(LOCK_DIR);
-        self.fs.with_lock(&lockdir, &mut || {
-            self.write_json("catalogue.json", shape)?;
-            self.ensure_scaffold()
+    /// [`CacheError::Io`] when the file cannot be read, and
+    /// [`CacheError::Unparseable`] when it cannot be parsed losslessly.
+    pub fn load_for_update(&self) -> Result<CatalogueDocument, CacheError> {
+        let path = self.catalogue_path();
+        let Some(text) = self.fs.read(&path)? else {
+            return Ok(CatalogueDocument::default());
+        };
+        CatalogueDocument::parse(&text, Strictness::Strict).map_err(|reason| {
+            CacheError::Unparseable {
+                path: path.display().to_string(),
+                reason,
+            }
         })
     }
 
-    /// Adds any of `teams` — each `(key, id, name)` — not already catalogued to
-    /// the committed multi-entry `teams` array, preserving the base `/team` and
-    /// `workflowStates`. The whole read-merge-write runs under one lock, so two
-    /// concurrent broadened pulls cannot each read the pre-growth index and
-    /// clobber one another's entry. Returns the keys newly committed, for the
-    /// operator warning a broadened pull emits.
+    /// Merges `update` into `catalogue.json` under the advisory lock, so two
+    /// concurrent writers cannot each read the pre-merge file and clobber one
+    /// another. Returns the keys of teams catalogued for the first time.
     ///
     /// # Errors
     ///
-    /// [`CacheError`] for contention, a read/write failure, or a catalogue that
-    /// is not a JSON object.
-    pub fn grow_catalogue(
+    /// [`CacheError`] for contention, a read or write failure, or a stored
+    /// catalogue that cannot be parsed losslessly.
+    pub fn record_team_entries(
         &self,
-        teams: &[(String, String, String)],
+        update: &CatalogueUpdate,
     ) -> Result<Vec<String>, CacheError> {
-        let path = self.state_dir.join("catalogue.json");
-        let mut added: Vec<String> = Vec::new();
+        let mut newly_catalogued = Vec::new();
         self.fs.with_lock(&self.state_dir.join(LOCK_DIR), &mut || {
-            added.clear();
-            let mut catalogue = self
-                .fs
-                .read(&path)
-                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-                .unwrap_or_else(|| serde_json::json!({}));
-            let known = catalogued_keys(&catalogue);
-            let object = catalogue.as_object_mut().ok_or_else(|| {
-                CacheError::Serialise {
-                    detail: "catalogue.json is not a JSON object".to_owned(),
-                }
-            })?;
-            let array = object
-                .entry("teams")
-                .or_insert_with(|| Value::Array(Vec::new()));
-            let Some(array) = array.as_array_mut() else {
-                return Err(CacheError::Serialise {
-                    detail: "catalogue.json `teams` is not an array".to_owned(),
-                });
-            };
-            for (key, id, name) in teams {
-                if known.iter().any(|seen| seen == key)
-                    || added.iter().any(|seen| seen == key)
-                {
-                    continue;
-                }
-                array.push(
-                    serde_json::json!({ "key": key, "id": id, "name": name }),
-                );
-                added.push(key.clone());
-            }
-            self.write_json("catalogue.json", &catalogue)?;
+            let mut document = self.load_for_update()?;
+            newly_catalogued = document.record(update.clone());
+            let text =
+                document.to_json().map_err(|error| CacheError::Serialise {
+                    detail: error.to_string(),
+                })?;
+            self.fs
+                .write_atomic(&self.catalogue_path(), text.as_bytes())?;
             self.ensure_scaffold()
         })?;
-        Ok(added)
+        Ok(newly_catalogued)
+    }
+
+    fn catalogue_path(&self) -> PathBuf {
+        self.state_dir.join("catalogue.json")
     }
 
     fn write_json(&self, name: &str, value: &Value) -> Result<(), CacheError> {
@@ -185,12 +189,22 @@ impl<'a> LinearCache<'a> {
             .write_atomic(&self.state_dir.join(name), text.as_bytes())
     }
 
+    /// Scaffold upkeep is incidental to the write that precedes it, so an
+    /// unreadable `.gitignore` skips the appends rather than failing a write
+    /// that already went ahead.
     fn ensure_scaffold(&self) -> Result<(), CacheError> {
         let gitignore = self.state_dir.join(".gitignore");
-        let existing = self.fs.read(&gitignore).unwrap_or_default();
-        for rule in GITIGNORE_RULES {
-            if !existing.lines().any(|line| line == *rule) {
-                self.fs.append_line(&gitignore, rule)?;
+        match self.fs.read(&gitignore) {
+            Ok(existing) => {
+                let existing = existing.unwrap_or_default();
+                for rule in GITIGNORE_RULES {
+                    if !existing.lines().any(|line| line == *rule) {
+                        self.fs.append_line(&gitignore, rule)?;
+                    }
+                }
+            }
+            Err(error) => {
+                tracing::warn!("skipping .gitignore upkeep: {error}");
             }
         }
         let gitkeep = self.state_dir.join(".gitkeep");
@@ -199,25 +213,6 @@ impl<'a> LinearCache<'a> {
         }
         Ok(())
     }
-}
-
-/// Every team key a catalogue already names — the multi-entry `teams` array and
-/// the base `/team` — so growth adds only genuinely new teams.
-fn catalogued_keys(catalogue: &Value) -> Vec<String> {
-    let mut keys: Vec<String> = Vec::new();
-    if let Some(entries) = catalogue.get("teams").and_then(Value::as_array) {
-        for entry in entries {
-            if let Some(key) = entry.get("key").and_then(Value::as_str) {
-                keys.push(key.to_owned());
-            }
-        }
-    }
-    if let Some(key) = catalogue.pointer("/team/key").and_then(Value::as_str) {
-        if !keys.iter().any(|seen| seen == key) {
-            keys.push(key.to_owned());
-        }
-    }
-    keys
 }
 
 /// The real filesystem.
@@ -258,8 +253,17 @@ impl Filesystem for SystemFilesystem {
         path.exists()
     }
 
-    fn read(&self, path: &Path) -> Option<String> {
-        std::fs::read_to_string(path).ok()
+    fn read(&self, path: &Path) -> Result<Option<String>, CacheError> {
+        match std::fs::read_to_string(path) {
+            Ok(content) => Ok(Some(content)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(None)
+            }
+            Err(error) => Err(CacheError::Io {
+                path: path.display().to_string(),
+                detail: error.to_string(),
+            }),
+        }
     }
 
     fn write_atomic(
@@ -288,7 +292,7 @@ impl Filesystem for SystemFilesystem {
     }
 
     fn append_line(&self, path: &Path, line: &str) -> Result<(), CacheError> {
-        let mut content = self.read(path).unwrap_or_default();
+        let mut content = self.read(path)?.unwrap_or_default();
         content.push_str(line);
         content.push('\n');
         self.write_atomic(path, content.as_bytes())

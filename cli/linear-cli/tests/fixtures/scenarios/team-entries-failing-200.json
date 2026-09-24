@@ -35,7 +35,7 @@
         "headers": {
           "Content-Type": "application/json"
         },
-        "body": "{\"data\": {\"issueLabels\": {\"nodes\": [{\"id\": \"label-bug\", \"name\": \"Bug\", \"archivedAt\": null, \"team\": {\"id\": \"team-x-uuid\"}}, {\"id\": \"label-z\", \"name\": \"Bug\", \"archivedAt\": null, \"team\": {\"id\": \"team-z-uuid\"}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+        "body": "{\"errors\":[{\"message\":\"internal error\"}]}"
       },
       "expect_body_contains": "issueLabels"
     },

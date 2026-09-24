@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-const EXPECTED_SCENARIO_COUNT: usize = 15;
+const EXPECTED_SCENARIO_COUNT: usize = 16;
 
 fn read_all_test_sources() -> String {
     let tests = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");

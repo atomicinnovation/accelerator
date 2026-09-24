@@ -118,3 +118,35 @@ fn the_loader_groups_a_consume_sequence_in_declaration_order() {
         "the second hit gets the second response, not a repeat of the first"
     );
 }
+
+#[test]
+fn a_scenario_operation_keys_both_its_route_and_its_body_expectation() {
+    let scenario = Scenario::from_json(
+        r#"{"expectations": [
+            {"method": "POST", "path": "/graphql", "operation": "TeamStates",
+             "response": {"status": 200, "body": "{\"states\":true}"},
+             "expect_body_contains": "workflowStates"},
+            {"method": "POST", "path": "/graphql",
+             "response": {"status": 200, "body": "{\"plain\":true}"}}
+        ]}"#,
+    )
+    .expect("scenario");
+    let server = MockServer::start();
+    scenario.install(&server);
+
+    let (status, body) = post(
+        &server,
+        "/graphql",
+        br#"{"query":"query TeamStates { workflowStates { nodes { id } } }"}"#,
+    );
+
+    assert_eq!(status, 200);
+    assert_eq!(body, br#"{"states":true}"#);
+    assert_eq!(
+        scenario.body_expectations(),
+        vec![(
+            RequestKey::graphql("TeamStates"),
+            "workflowStates".to_owned()
+        )]
+    );
+}

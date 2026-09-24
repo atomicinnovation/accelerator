@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-22-0292-linear-pull-filters-catalogue-
 tags: ["linear", "pull-filters", "catalogue", "discovery", "filter-lowering", "assignee", "project", "sync"]
 revision: "634e2aa521ccf1411e9327a64cf166fd543525ea"
 repository: "accelerator"
-last_updated: "2026-09-24T11:00:00+00:00"
+last_updated: "2026-09-24T18:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -445,6 +445,53 @@ built.
 **Outputs.** The chosen query and page sizes per section, the request count
 for N teams, the measured cost, the ceiling scope, and the catalogue size.
 These feed Phase 1 §2 and the Performance section.
+
+### Outcome (2026-09-24)
+
+Measured against the live tenant: 8 visible teams, 68 states, 164 team
+labels, 10 workspace labels, 16 users (63 memberships) and 39 projects. The
+spike **passes** for every section, so the pull path keeps batched queries
+and no value-targeted lookups are needed.
+
+| Section | Query | Page size | Points per page | Attribution |
+|---|---|---|---|---|
+| identities | `teams(filter: { id: { in } }, includeArchived: true)` | 250 | 625 | the node itself |
+| `states` | `workflowStates(filter: { team: { id: { in } } }, includeArchived: true)` | 250 | 725 | `team { id }` |
+| `labels` | `issueLabels(filter: { team: { id: { in } } }, includeArchived: true)` | 250 | 675 | `team { id }` |
+| workspace labels | `issueLabels(filter: { team: { null: true } }, includeArchived: true)` | 250 | 625 | none |
+| `members` | `users(includeDisabled: true)` with `teams(first: 10)` | 100 | 1,570 | nested `teams` |
+| `projects` | `projects(filter: { accessibleTeams: { some: { id: { in } } } }, includeArchived: true)` with `teams(first: 10)` | 100 | 1,550 | nested `teams` |
+
+- **Cost follows `first:`, not the records returned.** Linear refuses any
+  query over 10,000 points (`Query too complex`). A nested `teams(first: 50)`
+  costs about 67 points per outer slot, which breaches the per-page limit at
+  `first: 50`; `teams(first: 10)` costs about 15.6.
+- **Members come from `users`, not `teamMemberships`.** `teamMemberships`
+  is cheaper (976 points for 250 memberships), but it takes no filter and no
+  `includeDisabled`. The tenant has no disabled members, so whether it
+  returns them could not be observed. `users(includeDisabled: true)` states
+  the guarantee explicitly. All three sources agreed on the tenant's 63
+  team–member pairs.
+- **Nested team connections fail loud.** No user is in more than 8 teams and
+  no project in more than 2. A node whose nested `teams` reports
+  `hasNextPage` fails the fetch with `CatalogueTruncated` naming the nested
+  connection, rather than paging it.
+- **Request counts**, extrapolated at the tenant's per-team averages (8.5
+  states, 20.5 labels): `states` 2 requests at N = 50 and 7 at N = 200;
+  `labels` 5 and 17. `members` and `projects` take 10 requests per 1,000
+  records. All are within the exit criteria.
+- **Cost per filtered pull** (every section fetched live, 1,000 users):
+  about 26,000 points at N = 50 and about 49,000 at N = 200. Linear's
+  allowance is 3,000,000 points an hour, so one pull every 15 minutes uses
+  under 7% of it at N = 200.
+- **Ceilings bound each section across the whole batch**, and the `in` list
+  is not chunked. `states`, `labels`, workspace labels and the identity
+  lookup allow 60 pages (three times the 20-page budget). `members` and
+  `projects` allow 30 pages (three times the 10 pages budgeted per 1,000
+  records). A ceiling of three times the tenant's one measured page would
+  refuse any workspace past 300 users.
+- **Catalogue size.** A complete catalogue for the 8 teams is about 330
+  records.
 
 ---
 
@@ -921,19 +968,19 @@ generalises `paginate_teams`:
 
 #### Automated Verification
 
-- [ ] Format and lint clean: `mise run cli:check`
-- [ ] Per-operation routes and scenarios: `cargo test -p http-test-support -p cli-test-support`
-- [ ] Discovery tests pass: `cargo test -p linear-client --test discovery` and `cargo test -p linear-client --lib`
-- [ ] Cache and credential tests pass: `cargo test -p linear-client --test cache --test auth`
-- [ ] Init flow, scenario inventory and exit-code mapping pass: `cargo test -p linear-cli`
-- [ ] Sync growth pinned and unchanged: `cargo test -p work-cli`
-- [ ] Read-only CI mirror green: `mise run check`
+- [x] Format and lint clean: `mise run cli:check`
+- [x] Per-operation routes and scenarios: `cargo test -p http-test-support -p cli-test-support`
+- [x] Discovery tests pass: `cargo test -p linear-client --test discovery` and `cargo test -p linear-client --lib`
+- [x] Cache and credential tests pass: `cargo test -p linear-client --test cache --test auth`
+- [x] Init flow, scenario inventory and exit-code mapping pass: `cargo test -p linear-cli`
+- [x] Sync growth pinned and unchanged: `cargo test -p work-cli`
+- [x] Read-only CI mirror green: `mise run check`
 
 #### Manual Verification
 
-- [ ] `init-linear` against the live tenant writes complete entries for the
+- [x] `init-linear` against the live tenant writes complete entries for the
       base team and every existing `teams` entry, and no other team.
-- [ ] A pre-0292 binary still reads the refreshed file: `linear search
+- [x] A pre-0292 binary still reads the refreshed file: `linear search
       --state` and `transition` work.
 
 ---
