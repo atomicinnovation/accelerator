@@ -1,0 +1,40 @@
+[package]
+name = "accelerator-research"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Fetch tiered scholarly records from OpenAlex and arXiv"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "accelerator-research"
+path = "src/main.rs"
+
+[features]
+# Admits a loopback API URL override and a non-sleeping clock so the
+# integration tests can drive the binary against a mock. Never enabled in a
+# release build — a compile guard and a staged-binary byte scan both enforce
+# that.
+test-loopback = []
+
+[dependencies]
+research = { path = "../research" }
+research-adapters = { path = "../research-adapters" }
+config = { path = "../config" }
+config-adapters = { path = "../config-adapters" }
+vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
+corpus = { path = "../corpus" }
+
+[dev-dependencies]
+http-test-support = { path = "../http-test-support" }
+rustix = { workspace = true }
+vcs-test-support = { path = "../vcs-test-support" }
+tempfile = { workspace = true }

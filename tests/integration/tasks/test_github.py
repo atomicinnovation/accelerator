@@ -59,6 +59,7 @@ _SUBBINARY_DESCRIPTIONS: Mapping[str, str] = MappingProxyType(
             "The jira create|update|show|search|comment|transition|attach|"
             "init|fields|resolve-fields sub-binary."
         ),
+        "research": "The research fetch sub-binary.",
     }
 )
 
@@ -643,6 +644,7 @@ class TestBuilderSeams:
             "design",
             "linear",
             "jira",
+            "research",
         )
 
 

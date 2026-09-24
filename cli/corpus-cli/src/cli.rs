@@ -48,6 +48,25 @@ pub enum Command {
         /// The slug, set directory, or sub-document path to resolve.
         slug: String,
     },
+    /// Conventions of a `topic-research` set.
+    TopicResearch {
+        #[command(subcommand)]
+        action: TopicResearchAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TopicResearchAction {
+    /// The (focus area, profile) pairs a `conduct` round must still research,
+    /// each with its finding's absolute path, and every outline item's
+    /// completeness, as JSON. Read-only; fields are only ever added.
+    Outstanding {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The directory holding one `<name>-profile/SKILL.md` per profile.
+        #[arg(long)]
+        profiles_dir: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]

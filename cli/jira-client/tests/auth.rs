@@ -7,11 +7,11 @@ mod support;
 
 use std::path::Path;
 
+use config::credentials::{CredentialError, TokenSource};
 use jira_client::auth::{base_url, resolve_credentials, token_keys};
 use jira_client::ClientError;
 use support::{context, FixedConfig, FixedEnvironment, FixedProvenance};
 use tempfile::TempDir;
-use tracker_support::{CredentialError, TokenSource};
 
 fn workspace() -> TempDir {
     TempDir::new().expect("a scratch workspace")

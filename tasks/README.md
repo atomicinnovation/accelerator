@@ -430,6 +430,32 @@ adequate limit, clamps to the hard limit (finite on Linux, `RLIM_INFINITY` on
 macOS), and warns rather than aborting if `setrlimit` is refused — the link
 itself fails loudly if the limit really was the constraint.
 
+### Hook dispatch tokens
+
+The plugin's hooks pass two launcher tokens after the subcommand, each read
+only before a `--` separator and forwarded to the sub-binary unchanged, which
+declares both:
+
+| Launcher error           | Neither | `--fail-safe` | `--non-blocking` | Both |
+|--------------------------|---------|---------------|------------------|------|
+| Availability (`Failed`)  | `1`     | `0`           | `1`              | `0`  |
+| Integrity refusal        | `2`     | `2`           | `1`              | `1`  |
+
+A `PreToolUse` hook reads exit `2` as a block, so `research guard` passes
+both: a guard that cannot start must not block every tool call. `vcs guard`
+passes only `--fail-safe` and keeps failing closed on a refusal. A block the
+sub-binary itself decides is unaffected, because the launcher `exec`s it and
+its own exit `2` reaches Claude Code directly.
+
+### System prerequisites
+
+Beyond the `mise`-provisioned tools, `test:integration:research` runs the
+research guard's verdicts under both shells Claude Code's Bash tool may use,
+and fails naming whichever is missing:
+
+- `bash`
+- `zsh` — preinstalled on macOS; `apt-get install zsh` on Debian and Ubuntu
+
 ### Contributor environment variables
 
 Local-only toolchain escape hatches. **CI ignores both** (it runs the

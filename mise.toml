@@ -380,6 +380,19 @@ description = "Run hooks integration tests"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
 
+[tasks."test:integration:research"]
+description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample)"
+depends = ["build:cli:dev"]
+run = "invoke test.integration.research"
+
+# Deliberately absent from `test:integration` and the bare default task: it
+# splices every metacharacter at every position, which takes minutes rather
+# than the default lane's fixed sample.
+[tasks."test:integration:research-exhaustive"]
+description = "Run the research guard's lexer differential at every splice position (opt-in: minutes)"
+depends = ["build:cli:dev"]
+run = "invoke test.integration.research-exhaustive"
+
 # A depends-only shim: it lets the fixture-size guard join the test:integration
 # roll-up while keeping the roll-up's guarded invariant that every member is a
 # test:integration:* task. It runs no command of its own — do not delete it as
@@ -399,6 +412,7 @@ depends = [
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
+    "test:integration:research",
     "test:integration:fixture-size",
 ]
 

@@ -26,6 +26,7 @@ type TestError = Box<dyn std::error::Error>;
 const PERMITTED_HTTP_CRATES: &[&str] = &[
     "jira-client",
     "linear-client",
+    "research-adapters",
     "launcher",
     "visualiser/server",
     "http-test-support",

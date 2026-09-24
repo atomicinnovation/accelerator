@@ -13,5 +13,3 @@ workspace = true
 config = { path = "../config" }
 tracker = { path = "../tracker" }
 
-[dev-dependencies]
-tempfile = { workspace = true }

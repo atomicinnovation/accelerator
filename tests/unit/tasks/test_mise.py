@@ -60,6 +60,8 @@ _CONTRACT_LANE = "test:integration:tracker-contract"
 _LAUNCHER_DEPENDENTS = [
     "test:integration:conformance",
     "test:integration:hooks",
+    "test:integration:research",
+    "test:integration:research-exhaustive",
     "test:integration:visualiser",
 ]
 
@@ -198,6 +200,8 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     # evidence file rather than its exit status.
     "test:integration:tracker-contract": "live tracker credentials no CI job "
     "holds; the offline conformance run is the enforcing route",
+    "test:integration:research-exhaustive": "splices at every position, so "
+    "it runs for minutes; the fixed-seed sample is the enforcing route",
 }
 
 

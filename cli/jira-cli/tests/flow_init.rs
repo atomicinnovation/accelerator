@@ -1,7 +1,7 @@
 //! The `init verify` flow: it verifies credentials against `/myself`, caches the
 //! site identity, stamps the `verified` outcome, and — the load-bearing
 //! guarantee — never prints the token on any exit path. The
-//! `Secret` redaction in `tracker_support` is why the guarantee holds.
+//! `Secret` redaction in `config::credentials` is why the guarantee holds.
 
 #![cfg(feature = "test-loopback")]
 #![allow(clippy::expect_used, clippy::unwrap_used)]

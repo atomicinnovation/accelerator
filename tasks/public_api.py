@@ -21,6 +21,7 @@ _PINNED_CRATES = (
     "kernel",
     "migrate",
     "remote-projection",
+    "research",
     "store",
     "tracker",
     "tracker-support",
@@ -45,6 +46,7 @@ _TEST_SUPPORT = (
 _EXEMPT_MEMBERS = {
     "config-adapters": _ADAPTER,
     "design-adapters": _ADAPTER,
+    "research-adapters": _ADAPTER,
     "corpus-adapters": _ADAPTER,
     "migrate-adapters": _ADAPTER,
     "vcs-adapters": _ADAPTER,
@@ -66,6 +68,7 @@ _EXEMPT_MEMBERS = {
     "linear-cli": _COMPOSITION_ROOT,
     "corpus-cli": _COMPOSITION_ROOT,
     "design-cli": _COMPOSITION_ROOT,
+    "research-cli": _COMPOSITION_ROOT,
     "migrate-cli": _COMPOSITION_ROOT,
     "vcs-cli": _COMPOSITION_ROOT,
     "work-cli": _COMPOSITION_ROOT,

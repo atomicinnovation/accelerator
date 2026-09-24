@@ -64,6 +64,10 @@ The full documentation site is published at
 - [Design CLI](https://atomicinnovation.github.io/accelerator/design/) — the
   `accelerator design` sub-binary the design skills use to validate a crawl
   source, scrub credentials from artefacts, and audit gap documents.
+- [Research CLI](https://atomicinnovation.github.io/accelerator/research/) — the
+  `accelerator research` sub-binary `research-topic` uses to fetch tiered
+  scholarly records from OpenAlex and arXiv, and the guard confining its
+  researcher.
 - [Configuration](https://atomicinnovation.github.io/accelerator/configuration/)
   — config files, templates, per-skill customisation, and custom review lenses.
 - [Migrations](https://atomicinnovation.github.io/accelerator/migrations/) —

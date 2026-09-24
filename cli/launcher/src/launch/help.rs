@@ -1,8 +1,13 @@
-//! Manifest-driven help augmentation for external subcommands.
+//! Help augmentation clap's derive cannot express: the manifest's external
+//! subcommands and `config`'s recognised keys.
 //!
-//! Clap cannot enumerate them (they are fetched on demand), so each manifest
-//! binary is added as a clap subcommand, letting built-ins and sub-binaries
-//! render in one native "Commands:" section.
+//! Clap cannot enumerate external subcommands (they are fetched on demand), so
+//! each manifest binary is added as a clap subcommand, letting built-ins and
+//! sub-binaries render in one native "Commands:" section.
+
+use std::fmt::Write as _;
+
+use config::catalogue;
 
 use crate::launch::outbound::resolve::manifest::Manifest;
 
@@ -39,6 +44,40 @@ pub fn augment_with_subbinaries(
         );
     }
     command
+}
+
+/// The "Recognised keys:" block `config`'s help carries: every catalogued key,
+/// one per line, under its catalogue group.
+#[must_use]
+pub fn recognised_keys() -> String {
+    let agents: Vec<String> = catalogue::AGENT_KEYS
+        .iter()
+        .map(|name| format!("agents.{name}"))
+        .collect();
+    let groups: [(&str, Vec<&str>); 8] = [
+        ("Paths", defaulted(catalogue::PATH_KEYS)),
+        ("Templates", catalogue::TEMPLATE_KEYS.to_vec()),
+        ("Work", defaulted(catalogue::WORK_KEYS)),
+        ("Review", defaulted(catalogue::REVIEW_KEYS)),
+        ("Research", defaulted(catalogue::RESEARCH_KEYS)),
+        ("Agents", agents.iter().map(String::as_str).collect()),
+        ("Visualiser", defaulted(catalogue::VISUALISER_KEYS)),
+        ("Integrations and tools", catalogue::EXTRA_KEYS.to_vec()),
+    ];
+    let mut block = String::from("Recognised keys:\n");
+    for (heading, keys) in groups {
+        let _ = write!(block, "\n  {heading}:\n");
+        for key in keys {
+            let _ = writeln!(block, "    {key}");
+        }
+    }
+    block
+}
+
+fn defaulted(
+    group: &'static [(&'static str, catalogue::Default)],
+) -> Vec<&'static str> {
+    group.iter().map(|(key, _)| *key).collect()
 }
 
 /// Strip C0/C1 control characters (including the ESC/CSI introducer), operating

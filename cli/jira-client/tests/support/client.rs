@@ -5,12 +5,13 @@
 
 use std::time::Duration;
 
+use config::credentials::{Secret, TokenSource};
 use http_test_support::MockServer;
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
 use jira_client::{Credentials, JiraClient};
 use reqwest::Url;
-use tracker_support::{Secret, TokenSource, TransportConfig};
+use tracker_support::TransportConfig;
 
 use super::{NoJitter, RecordingSleeper};
 

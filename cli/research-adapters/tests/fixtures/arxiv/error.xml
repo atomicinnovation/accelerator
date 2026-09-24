@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+  <link xmlns="http://www.w3.org/2005/Atom" href="http://arxiv.org/api/query?search_query=&amp;id_list=2608.2112x" rel="self" type="application/atom+xml"/>
+  <title xmlns="http://www.w3.org/2005/Atom" type="html">ArXiv Query: search_query=&amp;id_list=2608.2112x</title>
+  <id xmlns="http://www.w3.org/2005/Atom">http://arxiv.org/api/kvuntZ8c9a4Eq5CF7KY03nMug+Q</id>
+  <updated xmlns="http://www.w3.org/2005/Atom">2026-09-24T00:00:00-04:00</updated>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <entry xmlns="http://www.w3.org/2005/Atom">
+    <id>http://arxiv.org/api/errors#incorrect_id_format_for_2608.2112x</id>
+    <title>Error</title>
+    <summary>incorrect id format for 2608.2112x</summary>
+    <updated>2026-09-24T00:00:00-04:00</updated>
+    <link href="http://arxiv.org/api/errors#incorrect_id_format_for_2608.2112x" rel="alternate" type="text/html"/>
+    <author>
+      <name>arXiv api core</name>
+    </author>
+  </entry>
+</feed>

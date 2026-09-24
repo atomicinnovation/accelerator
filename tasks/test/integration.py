@@ -104,6 +104,28 @@ def hooks(context: Context) -> None:
     )
 
 
+_RESEARCH_DIFFERENTIAL = "uv run pytest tests/integration/research -v"
+
+
+@task
+def research(context: Context) -> None:
+    """Run the research guard's lexer differential against bash and zsh.
+
+    Runs the measured baseline, the lexer-boundary rows, and a fixed-seed
+    sample of mutants through the compiled accelerator-research built by the
+    build:cli:dev dependency.
+    """
+    context.run(_RESEARCH_DIFFERENTIAL)
+
+
+@task
+def research_exhaustive(context: Context) -> None:
+    """Run the research guard's lexer differential at every position."""
+    context.run(
+        _RESEARCH_DIFFERENTIAL, env={"RESEARCH_DIFFERENTIAL_EXHAUSTIVE": "1"}
+    )
+
+
 # The Playwright-executor suites that need a real runtime.
 #
 # Discovered by name, not by a glob, so this lane's file set is stated rather

@@ -10,8 +10,9 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 blocked_by: ["work-item:0277", "work-item:0279"]
+relates_to: ["work-item:0280"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-09-08T11:42:24+00:00"
+last_updated: "2026-09-23T16:24:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -54,6 +55,14 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
 - Registers the `report` `research_kind` value into the existing umbrella doc
   type (no new library entry) and the `reports/` layout + rendering, plus a
   report template resolving through the 3-tier override.
+- Both read every finding of a focus area: since 0280 a focus area has one
+  finding per source profile, and coverage is judged across all of them. A
+  finding whose Sources read `None found.` counts as evidence of absence in
+  that family, not as a gap.
+- Sources derivation accepts `tier-3 (retracted)` and `tier-3 (withdrawn)` and
+  carries the suffix through unchanged.
+- A proposed focus area may carry a `— profiles: …` suffix chosen from the
+  brief's `source_profiles`; without one, `conduct` researches it as `web`.
 - Reports render through the shared `LibraryDocView` until the Slice 6 page
   (0284).
 
@@ -68,6 +77,10 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
       when corpus coverage is thin, applied only on explicit user confirmation
       and never as a silent mutation; this is the only way either verb changes
       the set.
+- [ ] Given a focus area with `web` and `openalex` findings, when `ask` or
+      `report` answers from it, then both findings inform the answer, and a
+      report's Sources carry each source's tier, including any `(retracted)` or
+      `(withdrawn)` suffix, unchanged.
 
 ## Open Questions
 
@@ -78,6 +91,9 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
 - Blocked by: 0277 (findings + synthesis to read), 0279 (gap-proposal
   activation — the read-only verbs depend only on 0277, but the proposed focus
   area is inert without 0279's re-invocation machinery).
+- Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
+  the tier suffixes these verbs read. If this item is built before 0280 lands,
+  0280 owns updating it.
 
 ## Assumptions
 
@@ -96,6 +112,8 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
 - The read-only core depends only on 0277; the gap-proposal depends on 0279, so
   this item records `blocked_by` 0279 at the user's direction rather than
   documenting the proposal as deferred.
+- Multi-finding reading and tier suffixes added (2026-09-23) after 0280's
+  review made a finding one per (focus area, source profile).
 - The `report` template ownership is placed here; the epic leaves it implicit.
 - Extracted from source documents without interactive enrichment. Acceptance
   criteria, dependencies, and kind may need refinement before promoting from

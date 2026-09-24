@@ -46,6 +46,7 @@ _CLI_RELEASE_BINARIES = (
     "accelerator-design",
     "accelerator-linear",
     "accelerator-jira",
+    "accelerator-research",
 )
 
 # The linked/stubbed pair whose size delta proves the VCS dependency trees are
@@ -314,13 +315,16 @@ def cli_dev(context: Context) -> None:
     launcher-dispatch guard dispatches through it via the ACCELERATOR_VCS_BIN
     dev-only override; cli/target/debug/accelerator-corpus is the sub-binary the
     conformance guard dispatches through it via the ACCELERATOR_CORPUS_BIN
-    dev-only override. Declared as a mise build dependency of the test tasks so
+    dev-only override; cli/target/debug/accelerator-research is the guard the
+    research-guard registration smoke and the lexer differential run.
+    Declared as a mise build dependency of the test tasks so
     build ordering lives in the task graph, not in ad-hoc cargo calls inside the
     tests.
     """
     context.run(
         f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        f"--bin accelerator --bin accelerator-vcs --bin accelerator-corpus"
+        f"--bin accelerator --bin accelerator-vcs --bin accelerator-corpus "
+        f"--bin accelerator-research"
     )
 
 

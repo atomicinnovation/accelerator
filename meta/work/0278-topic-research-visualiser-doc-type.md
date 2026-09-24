@@ -9,11 +9,11 @@ status: "in-progress"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-blocks: ["work-item:0279", "work-item:0280", "work-item:0281", "work-item:0284"]
+blocks: ["work-item:0279", "work-item:0281", "work-item:0284"]
 relates_to: ["work-item:0277"]
 external_id: "PP-862"
 tags: ["research", "visualiser", "infrastructure"]
-last_updated: "2026-09-15T13:54:36+00:00"
+last_updated: "2026-09-22T21:39:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -353,12 +353,12 @@ Fixtures, prototype, and gates:
 - This story modifies corpus/skill code that 0277's plan landed on this branch
   (the `research_status` collapse).
 - Shared downstream: the umbrella `topic-research` doc-type registration (Rust +
-  frontend) is a shared artefact later slices also consume — the academic-sources
-  slice (0280) renders reputation tiers and the consumption slice (0281) renders
-  the `report` kind, both through this frontend registration. Both are now
+  frontend) is a shared artefact later slices also consume — the consumption
+  slice (0281) renders the `report` kind through this frontend registration,
   recorded directly on this story's `blocks` rather than relying on the
   transitive-through-0277 ordering, which would hold only while the co-land
-  holds.
+  holds. The academic-sources slice (0280) no longer renders reputation tiers —
+  that moved to 0284 — so it no longer depends on this registration.
 - External/tooling gates: the Claude Design prototype has already been updated to
   cover topic-research (`2026-09-10-174311`), so that pre-implementation gate is
   met. The remaining completion gates are a human design reviewer to sign off the

@@ -1,7 +1,7 @@
-//! The policy every provider client shares: credential resolution, the
-//! bounded-retry schedule, identifier safety, the transport bounds, the
-//! ceiling-string conversion, and the `<tracker>.pull` discovery-scope and
-//! `<tracker>.push` write-bound config blocks.
+//! The policy every provider client shares: the bounded-retry schedule,
+//! identifier safety, the transport bounds, the ceiling-string conversion, and
+//! the `<tracker>.pull` discovery-scope and `<tracker>.push` write-bound config
+//! blocks.
 //!
 //! Admission is deliberately narrow — policy shared by two or more provider
 //! clients, with no transport and no provider specifics — so this does not
@@ -11,7 +11,6 @@
 
 pub mod block;
 pub mod ceiling;
-pub mod credentials;
 pub mod identifier;
 pub mod mime;
 pub mod pull;
@@ -19,19 +18,6 @@ pub mod push;
 pub mod retry;
 pub mod transport;
 
-pub use crate::credentials::refuse_tracked_source;
-pub use crate::credentials::resolve_token;
-pub use crate::credentials::CommandPolicy;
-pub use crate::credentials::CredentialContext;
-pub use crate::credentials::CredentialError;
-pub use crate::credentials::Environment;
-pub use crate::credentials::Provenance;
-pub use crate::credentials::ResolvedToken;
-pub use crate::credentials::Secret;
-pub use crate::credentials::SystemEnvironment;
-pub use crate::credentials::TokenKeys;
-pub use crate::credentials::TokenSource;
-pub use crate::credentials::INSECURE_MARKER_RELATIVE;
 pub use crate::identifier::identifier_is_safe;
 pub use crate::identifier::IdentifierRefusal;
 pub use crate::mime::sniff;

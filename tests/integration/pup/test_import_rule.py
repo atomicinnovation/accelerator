@@ -322,6 +322,31 @@ def test_real_config_rule_passes_a_compliant_service(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# config::service reaching the filesystem, a process, or the process
+# environment directly — denied even though each sits inside the permitted
+# std, so the credential ladder stays behind its ports.
+_CONFIG_SERVICE_STD_IO_VIOLATIONS = (
+    "use std::fs;\n\npub fn make() -> bool {\n"
+    '    fs::metadata("x").is_ok()\n}\n',
+    "use std::process::Command;\n\npub fn make() -> Command {\n"
+    '    Command::new("bash")\n}\n',
+    'use std::env;\n\npub fn make() -> bool {\n    env::var("X").is_ok()\n}\n',
+)
+
+
+@pytest.mark.parametrize("service_body", _CONFIG_SERVICE_STD_IO_VIOLATIONS)
+def test_real_config_rule_rejects_direct_std_io(
+    tmp_path: Path, service_body: str
+) -> None:
+    _require_tools()
+    _write_config_probe(tmp_path, service_body)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "config_domain_imports_only_permitted" in output, output
+
+
 # --- The domain rule also denies the shared `store` crate ---
 #
 # store is infrastructure and carries no inward rule of its own, so the
@@ -809,9 +834,9 @@ def test_tracker_test_support_rule_permits_importing_tracker(
 #
 # Both are `denied`-only rules over a whole crate, driven against a workspace
 # whose crate is literally named for it. remote-projection must not spawn;
-# tracker-support may (it runs the credential helper) but must not grow a
-# transport. Each compliant control imports something real, so a matcher that
-# resolved nothing could not pass it silently.
+# tracker-support must neither spawn nor grow a transport. Each compliant
+# control imports something real, so a matcher that resolved nothing could not
+# pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
@@ -845,10 +870,6 @@ _PROJECTION_COMPLIANT = (
     "pub fn make() -> BTreeMap<String, String> {\n"
     "    BTreeMap::new()\n"
     "}\n"
-)
-_POLICY_COMPLIANT = (
-    "use std::process::Command;\n\n"
-    'pub fn helper() -> Command {\n    Command::new("bash")\n}\n'
 )
 
 
@@ -946,11 +967,142 @@ def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
     assert "tracker_support_carries_policy_not_transport" in output, output
 
 
-def test_tracker_support_rule_permits_running_the_credential_helper(
-    tmp_path: Path,
+def test_tracker_support_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tracker-support", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "tracker_support_carries_policy_not_transport" in output, output
+
+
+def test_tracker_support_rule_permits_std_imports(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(
+        tmp_path, "tracker-support", _PROJECTION_COMPLIANT
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+# --- The research crates' rules ---
+#
+# research-adapters' decoding modules may not spawn, and no research crate may
+# reach tracker-support. Driven against crates named for the real ones, with a
+# stand-in `tracker-support` so the denied import resolves.
+
+_RESEARCH_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["{crate}", "tracker-support"]
+"""
+
+_RESEARCH_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tracker-support = {{ path = "../tracker-support" }}
+"""
+
+_TRACKER_SUPPORT_STUB_MANIFEST = """\
+[package]
+name = "tracker-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_TRACKER_SUPPORT_STUB_LIB = "pub struct Policy;\n"
+
+_TRACKER_SUPPORT_VIOLATION = (
+    "use tracker_support::Policy;\n\npub fn make() -> Policy {\n    Policy\n}\n"
+)
+
+
+def _write_research_probe(
+    root: Path, crate: str, lib_body: str, module: str | None = None
+) -> None:
+    (root / "Cargo.toml").write_text(_RESEARCH_WORKSPACE.format(crate=crate))
+
+    crate_src = root / crate / "src"
+    crate_src.mkdir(parents=True, exist_ok=True)
+    (root / crate / "Cargo.toml").write_text(
+        _RESEARCH_MANIFEST.format(crate=crate)
+    )
+    if module is None:
+        (crate_src / "lib.rs").write_text(lib_body)
+    else:
+        (crate_src / "lib.rs").write_text(f"pub mod {module};\n")
+        (crate_src / f"{module}.rs").write_text(lib_body)
+
+    stub_src = root / "tracker-support/src"
+    stub_src.mkdir(parents=True, exist_ok=True)
+    (root / "tracker-support/Cargo.toml").write_text(
+        _TRACKER_SUPPORT_STUB_MANIFEST
+    )
+    (stub_src / "lib.rs").write_text(_TRACKER_SUPPORT_STUB_LIB)
+
+
+_RESEARCH_DECODERS = ["openalex_json", "arxiv_xml"]
+
+
+@pytest.mark.parametrize("decoder", _RESEARCH_DECODERS)
+def test_research_decoder_rule_rejects_spawning(
+    tmp_path: Path, decoder: str
 ) -> None:
     _require_tools()
-    _write_shared_crate_probe(tmp_path, "tracker-support", _POLICY_COMPLIANT)
+    _write_research_probe(
+        tmp_path, "research-adapters", _SPAWN_VIOLATION, decoder
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "research_adapters_decoders_spawn_nothing" in output, output
+
+
+@pytest.mark.parametrize("decoder", _RESEARCH_DECODERS)
+def test_research_decoder_rule_permits_std_imports(
+    tmp_path: Path, decoder: str
+) -> None:
+    _require_tools()
+    _write_research_probe(
+        tmp_path, "research-adapters", _PROJECTION_COMPLIANT, decoder
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+@pytest.mark.parametrize("crate", ["research-adapters", "accelerator-research"])
+def test_research_tracker_support_rule_rejects_the_import(
+    tmp_path: Path, crate: str
+) -> None:
+    _require_tools()
+    _write_research_probe(tmp_path, crate, _TRACKER_SUPPORT_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "research_never_reaches_tracker_support" in output, output
+
+
+@pytest.mark.parametrize("crate", ["research-adapters", "accelerator-research"])
+def test_research_tracker_support_rule_permits_std_imports(
+    tmp_path: Path, crate: str
+) -> None:
+    _require_tools()
+    _write_research_probe(tmp_path, crate, _PROJECTION_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
@@ -1337,6 +1489,7 @@ def test_linear_client_io_rule_permits_a_filesystem_free_upload(
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
     ("vcs", "vcs_domain_imports_only_permitted", ()),
+    ("research", "research_domain_imports_only_permitted", ()),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
     (
         "migrate",

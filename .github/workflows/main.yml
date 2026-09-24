@@ -88,6 +88,12 @@ jobs:
           # crate the lockfile gained since the cache was saved.
           workspaces: cli
 
+      # test:integration:research runs the research guard's verdicts under
+      # zsh as well as bash; macOS ships zsh, ubuntu does not.
+      - name: Install zsh
+        if: runner.os == 'Linux'
+        run: sudo apt-get install --yes zsh
+
       - name: Run integration tests
         run: mise run test:integration
 

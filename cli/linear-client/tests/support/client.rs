@@ -4,6 +4,7 @@
 
 use std::time::Duration;
 
+use config::credentials::{Secret, TokenSource};
 use http_test_support::MockServer;
 use linear_client::filter::{
     FixedStates, FixedTeam, StateResolver, TeamResolver,
@@ -11,7 +12,7 @@ use linear_client::filter::{
 use linear_client::transport::Transport;
 use linear_client::{Credentials, LinearClient, UploadTransport};
 use reqwest::Url;
-use tracker_support::{Secret, TokenSource, TransportConfig};
+use tracker_support::TransportConfig;
 
 use super::{NoJitter, RecordingSleeper};
 
