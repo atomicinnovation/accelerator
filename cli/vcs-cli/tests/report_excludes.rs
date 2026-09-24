@@ -81,20 +81,36 @@ fn write(path: &Path, content: &str) -> Result<(), TestError> {
     Ok(())
 }
 
+fn assert_hidden_beside_a_listed_file(
+    repo: &Repo,
+    env: &Hermetic,
+) -> Result<(), TestError> {
+    write(&repo.root.join("meta/ignored.md"), "ignored")?;
+    write(&repo.root.join("meta/visible.md"), "visible")?;
+    let rendered = repo.status(env)?;
+    assert!(!rendered.contains("meta/ignored.md"), "{rendered}");
+    assert!(rendered.contains("meta/visible.md"), "{rendered}");
+    Ok(())
+}
+
 #[test]
-fn a_file_the_git_excludes_hide_is_not_listed() -> Result<(), TestError> {
+fn a_file_the_global_excludes_file_hides_is_not_listed() -> Result<(), TestError>
+{
     for colocation in COLOCATIONS {
         let repo = Repo::new(colocation)?;
-        write(&repo.root.join("meta/ignored.md"), "ignored")?;
-        write(&repo.root.join("meta/visible.md"), "visible")?;
-        let global = repo.with_global_excludes("ignored.md\n")?;
-        write(&repo.backing_exclude(), "ignored.md\n")?;
+        let env = repo.with_global_excludes("ignored.md\n")?;
+        assert_hidden_beside_a_listed_file(&repo, &env)?;
+    }
+    Ok(())
+}
 
-        for env in [global, repo.env.clone()] {
-            let rendered = repo.status(&env)?;
-            assert!(!rendered.contains("meta/ignored.md"), "{rendered}");
-            assert!(rendered.contains("meta/visible.md"), "{rendered}");
-        }
+#[test]
+fn a_file_the_backing_info_exclude_hides_is_not_listed() -> Result<(), TestError>
+{
+    for colocation in COLOCATIONS {
+        let repo = Repo::new(colocation)?;
+        write(&repo.backing_exclude(), "ignored.md\n")?;
+        assert_hidden_beside_a_listed_file(&repo, &repo.env)?;
     }
     Ok(())
 }
@@ -136,11 +152,28 @@ fn a_new_file_over_the_limit_is_not_listed() -> Result<(), TestError> {
         )?;
         fs::write(repo.root.join("meta/two"), vec![b'x'; 2048])?;
         fs::write(repo.root.join("meta/one"), vec![b'x'; 1024])?;
+        fs::write(repo.root.join("meta/half"), vec![b'x'; 512])?;
 
         let rendered = repo.status(&repo.env)?;
 
         assert!(!rendered.contains("meta/two"), "{rendered}");
         assert!(rendered.contains("meta/one"), "{rendered}");
+        assert!(rendered.contains("meta/half"), "{rendered}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_new_file_over_the_default_limit_is_not_listed() -> Result<(), TestError> {
+    for colocation in COLOCATIONS {
+        let repo = Repo::new(colocation)?;
+        fs::write(repo.root.join("meta/two"), vec![b'x'; 2 * 1024 * 1024])?;
+        fs::write(repo.root.join("meta/half"), vec![b'x'; 512])?;
+
+        let rendered = repo.status(&repo.env)?;
+
+        assert!(!rendered.contains("meta/two"), "{rendered}");
+        assert!(rendered.contains("meta/half"), "{rendered}");
     }
     Ok(())
 }

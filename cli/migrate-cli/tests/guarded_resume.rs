@@ -358,21 +358,50 @@ fn rewriting_or_rebasing_the_parent_makes_a_jj_stall_stale(
     Ok(())
 }
 
+enum Move {
+    New,
+    Commit,
+    EditChangeOnSibling,
+}
+
+impl Move {
+    fn apply(&self, stalled: &Stalled) -> Result<(), TestError> {
+        match self {
+            Self::New => stalled.jj(&["new"])?,
+            Self::Commit => stalled.jj(&["commit", "-m", "z"])?,
+            Self::EditChangeOnSibling => {
+                stalled.jj(&["new", "--no-edit", &stalled.sibling])?;
+                let on_sibling = change_id(
+                    &stalled.env,
+                    &stalled.root,
+                    &format!("children({}) & empty()", stalled.sibling),
+                )?;
+                stalled.jj(&["edit", &on_sibling])?
+            }
+        };
+        Ok(())
+    }
+}
+
 #[test]
 fn moving_onto_new_parents_starts_a_fresh_jj_run() -> Result<(), TestError> {
     for colocation in COLOCATIONS {
-        let stalled = Stalled::on(colocation, &Base::SingleParent)?;
-        stalled.jj(&["new"])?;
+        for movement in [Move::New, Move::Commit, Move::EditChangeOnSibling] {
+            let stalled = Stalled::on(colocation, &Base::SingleParent)?;
+            let stalled_base = stalled.recorded_run_base()?;
+            movement.apply(&stalled)?;
 
-        let fresh = run(&stalled.env, &stalled.root, &[], &[])?;
+            let fresh = run(&stalled.env, &stalled.root, &[], &[])?;
 
-        assert!(!fresh.stderr.contains("Resuming"), "{}", fresh.stderr);
-        assert!(
-            fresh.stderr.contains("MIGRATION STALLED"),
-            "{}",
-            fresh.stderr
-        );
-        assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
+            assert!(!fresh.stderr.contains("Resuming"), "{}", fresh.stderr);
+            assert!(
+                fresh.stderr.contains("MIGRATION STALLED"),
+                "{}",
+                fresh.stderr
+            );
+            assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
+            assert_ne!(stalled.recorded_run_base()?, stalled_base);
+        }
     }
     Ok(())
 }
@@ -434,6 +463,11 @@ fn a_stall_on_a_merge_resumes_until_one_parent_is_rewritten(
         assert_eq!(stalled.recorded_run_base()?, stalled.oracle()?);
         assert!(stalled.recorded_run_base()?.contains('+'));
         stalled.write_decisions()?;
+        fs::write(
+            stalled.root.join(common::OWNED_NOTE),
+            fs::read_to_string(stalled.root.join(common::OWNED_NOTE))?
+                + "\nedited\n",
+        )?;
         stalled.jj(&["status"])?;
 
         let resumed = run(&stalled.env, &stalled.root, &[], &[])?;

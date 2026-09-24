@@ -265,25 +265,45 @@ mod against_a_real_repository {
         Ok(())
     }
 
+    fn assert_hidden_beside_a_shown_item(
+        repo: &ExcludesRepo,
+        env: &Hermetic,
+    ) -> Result<(), TestError> {
+        write(&repo.root.join("meta/work/0002-hidden.md"), "x\n")?;
+        write(&repo.root.join("meta/work/0003-shown.md"), "x\n")?;
+        assert_eq!(
+            repo.dirtiness(env, "meta/work/0002-hidden.md")?,
+            "clean",
+            "{}",
+            repo.colocation
+        );
+        assert_eq!(
+            repo.dirtiness(env, "meta/work/0003-shown.md")?,
+            "dirty",
+            "{}",
+            repo.colocation
+        );
+        Ok(())
+    }
+
     #[test]
-    fn a_work_item_the_git_excludes_hide_is_clean() -> Result<(), TestError> {
+    fn a_work_item_the_global_excludes_file_hides_is_clean(
+    ) -> Result<(), TestError> {
         for colocation in COLOCATIONS {
             let repo = ExcludesRepo::new(colocation)?;
-            write(&repo.root.join("meta/work/0002-hidden.md"), "x\n")?;
-            write(&repo.root.join("meta/work/0003-shown.md"), "x\n")?;
-            let global = repo.with_global_excludes("0002-hidden.md\n")?;
-            write(&repo.backing_exclude(), "0002-hidden.md\n")?;
+            let env = repo.with_global_excludes("0002-hidden.md\n")?;
+            assert_hidden_beside_a_shown_item(&repo, &env)?;
+        }
+        Ok(())
+    }
 
-            for env in [global, repo.env.clone()] {
-                assert_eq!(
-                    repo.dirtiness(&env, "meta/work/0002-hidden.md")?,
-                    "clean"
-                );
-                assert_eq!(
-                    repo.dirtiness(&env, "meta/work/0003-shown.md")?,
-                    "dirty"
-                );
-            }
+    #[test]
+    fn a_work_item_the_backing_info_exclude_hides_is_clean(
+    ) -> Result<(), TestError> {
+        for colocation in COLOCATIONS {
+            let repo = ExcludesRepo::new(colocation)?;
+            write(&repo.backing_exclude(), "0002-hidden.md\n")?;
+            assert_hidden_beside_a_shown_item(&repo, &repo.env)?;
         }
         Ok(())
     }
@@ -388,6 +408,7 @@ mod against_a_real_repository {
     ) -> Result<(), TestError> {
         let repo = ExcludesRepo::new("--no-colocate")?;
         let env = with_limit(&repo, "--repo", "\"abc\"")?;
+        fs::write(repo.root.join("meta/work/0001-a.md"), "edited\n")?;
         fs::write(
             repo.root.join("meta/work/0002-large.md"),
             vec![b'x'; 2 * 1024 * 1024],
@@ -396,13 +417,17 @@ mod against_a_real_repository {
         let mut command = std::process::Command::new(FIXTURE);
         command
             .arg(&repo.root)
+            .arg(repo.root.join("meta/work/0001-a.md"))
             .arg(repo.root.join("meta/work/0002-large.md"));
         env.apply(&mut command);
         let output = command.env("ACCELERATOR_LOG", "warn").output()?;
 
-        assert!(String::from_utf8(output.stdout)?
-            .trim_end()
-            .ends_with("\tdirty"));
+        let stdout = String::from_utf8(output.stdout)?;
+        let dirtiness: Vec<&str> = stdout
+            .lines()
+            .filter_map(|line| line.rsplit_once('\t').map(|(_, state)| state))
+            .collect();
+        assert_eq!(dirtiness, ["dirty", "dirty"], "{stdout}");
         let stderr = String::from_utf8(output.stderr)?;
         assert!(stderr.contains("WARN"), "{stderr}");
         assert!(stderr.contains("snapshot.max-new-file-size"), "{stderr}");
