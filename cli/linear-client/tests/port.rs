@@ -7,10 +7,11 @@ mod support;
 use std::collections::BTreeMap;
 
 use http_test_support::{MockServer, RequestKey, Route};
-use linear_client::filter::FixedStates;
+use linear_client::catalogue::{Catalogue, TeamEntries};
+use linear_client::resolution::{FixedNames, ResolverSet};
 use serde_json::{json, Value};
 use support::client::{
-    brief, client_for, client_with, client_with_states, client_with_teams,
+    brief, client_for, client_with, client_with_resolvers, client_with_teams,
     TEAM_ID, TEAM_KEY,
 };
 use tracker::{
@@ -291,7 +292,13 @@ fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
     server.route(key.clone(), json_route(search_body(&[], None)));
     let mut states = BTreeMap::new();
     states.insert("open".to_owned(), "open-uuid".to_owned());
-    let client = client_with_states(&server, Box::new(FixedStates(states)));
+    let client = client_with_resolvers(
+        &server,
+        ResolverSet::new(
+            Box::new(FixedNames(states)),
+            TeamEntries::keyed(&[(TEAM_KEY, TEAM_ID)]),
+        ),
+    );
 
     let scope = SearchScope {
         entities: tracker::EntityScope::Keyed {
@@ -602,6 +609,40 @@ fn an_additional_team_item_is_provably_absent_when_its_team_read_completes() {
 
     assert_eq!(outcome.absent, vec![id("OPS-7")]);
     assert!(outcome.indeterminate.is_empty());
+}
+
+#[test]
+fn fetch_all_pages_the_base_team_once_when_it_is_catalogued() {
+    let server = MockServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(
+        key.clone(),
+        Route::Sequence(vec![
+            json_route(search_body(&["ENG-1"], None)),
+            json_route(search_body(&[], None)),
+        ]),
+    );
+    let catalogue = json!({
+        "baseTeam": TEAM_ID,
+        "teams": [
+            { "id": TEAM_ID, "key": TEAM_KEY, "name": "Engineering" },
+            { "id": "ops-uuid", "key": "OPS", "name": "Operations" }
+        ]
+    });
+    let client = client_with_resolvers(
+        &server,
+        Catalogue::from_text(&catalogue.to_string()).resolver_set(),
+    );
+
+    client
+        .fetch_all(&[id("ENG-1")])
+        .expect("fetch_all succeeds");
+
+    assert_eq!(
+        server.hits(&key),
+        2,
+        "the base team and the one additional team, each paged once"
+    );
 }
 
 #[test]

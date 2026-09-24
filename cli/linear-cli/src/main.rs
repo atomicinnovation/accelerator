@@ -112,7 +112,7 @@ fn run_search(args: SearchArgs) -> ExitCode {
     };
     if !args.quiet {
         if let Ok(filter) =
-            linear_client::filter::compose(&search, client.states())
+            linear_client::filter::compose(&search, client.resolvers())
         {
             eprintln!("INFO: composed IssueFilter: {filter}");
         }

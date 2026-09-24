@@ -5,12 +5,17 @@
 //! projected from the base entry on every write, so binaries that predate the
 //! per-team shape keep reading the file.
 
+use std::collections::BTreeSet;
+
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
 use serde_json::Number;
 use serde_json::Value;
 use thiserror::Error;
+
+use super::section::CatalogueSection;
 
 /// One team's identity and whichever of its sections the catalogue holds. A
 /// section that is `None` has never been fetched, which is distinct from a
@@ -164,12 +169,54 @@ pub struct CatalogueUpdate {
     pub workspace_labels: Option<Vec<CataloguedLabel>>,
 }
 
+/// What a forgiving read could not parse. A strict read refuses instead, so
+/// only a reader's document carries any.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct CatalogueDamage {
+    teams_unreadable: bool,
+    sections: BTreeSet<(String, CatalogueSection)>,
+    workspace_labels: bool,
+}
+
+impl CatalogueDamage {
+    pub(super) const fn teams_unreadable(&self) -> bool {
+        self.teams_unreadable
+    }
+
+    pub(super) fn section_damaged(
+        &self,
+        team_id: &str,
+        section: CatalogueSection,
+    ) -> bool {
+        self.sections.contains(&(team_id.to_owned(), section))
+    }
+
+    pub(super) const fn workspace_labels_damaged(&self) -> bool {
+        self.workspace_labels
+    }
+
+    pub(super) fn repair(&mut self, team_id: &str, section: CatalogueSection) {
+        self.sections.remove(&(team_id.to_owned(), section));
+    }
+
+    pub(super) const fn repair_workspace_labels(&mut self) {
+        self.workspace_labels = false;
+    }
+
+    fn damage_entry(&mut self, team_id: &str) {
+        for section in CatalogueSection::PER_TEAM {
+            self.sections.insert((team_id.to_owned(), section));
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CatalogueDocument {
     base_team: Option<String>,
     labels: Option<Vec<CataloguedLabel>>,
     teams: Vec<TeamEntry>,
     predates_synced_teams: bool,
+    damage: CatalogueDamage,
     extra: Map<String, Value>,
 }
 
@@ -201,24 +248,32 @@ impl CatalogueDocument {
         let Value::Object(mut object) = value else {
             return Err(CatalogueParseError::NotAnObject);
         };
+        let mut damage = CatalogueDamage::default();
         let base_team =
             object.remove(BASE_TEAM).as_ref().and_then(non_blank_string);
         let labels = parse_workspace_labels(
             object.remove(WORKSPACE_LABELS),
             strictness,
+            &mut damage,
         )?;
         let legacy_team = object.remove(LEGACY_TEAM);
         let legacy_states = object.remove(LEGACY_STATES);
         let teams_value = object.remove(TEAMS);
         let predates_synced_teams =
             legacy_team.is_some() && teams_value.is_none();
-        let teams = parse_teams(teams_value, strictness)?;
+        let teams = match strictness {
+            Strictness::Strict => parse_teams_strictly(teams_value)?,
+            Strictness::Forgiving => {
+                parse_teams_forgivingly(teams_value, &mut damage)
+            }
+        };
 
         let mut document = Self {
             base_team,
             labels,
             teams: Vec::new(),
             predates_synced_teams,
+            damage,
             extra: object,
         };
         document.merge_entries(teams);
@@ -229,6 +284,28 @@ impl CatalogueDocument {
             );
         }
         Ok(document)
+    }
+
+    /// A document standing in for a file that could not be read at all, so
+    /// every question about its teams answers that the catalogue is damaged.
+    #[must_use]
+    pub(super) fn unreadable() -> Self {
+        Self {
+            damage: CatalogueDamage {
+                teams_unreadable: true,
+                workspace_labels: true,
+                ..CatalogueDamage::default()
+            },
+            ..Self::default()
+        }
+    }
+
+    pub(super) const fn damage(&self) -> &CatalogueDamage {
+        &self.damage
+    }
+
+    pub(super) const fn damage_mut(&mut self) -> &mut CatalogueDamage {
+        &mut self.damage
     }
 
     pub fn base_team(&self) -> Option<&str> {
@@ -360,24 +437,18 @@ fn non_blank_string(value: &Value) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn parse_teams(
+fn parse_teams_strictly(
     value: Option<Value>,
-    strictness: Strictness,
 ) -> Result<Vec<TeamEntry>, CatalogueParseError> {
     let entries = match value {
         None | Some(Value::Null) => return Ok(Vec::new()),
         Some(Value::Array(entries)) => entries,
-        Some(_) => {
-            return match strictness {
-                Strictness::Forgiving => Ok(Vec::new()),
-                Strictness::Strict => Err(CatalogueParseError::TeamsNotAnArray),
-            };
-        }
+        Some(_) => return Err(CatalogueParseError::TeamsNotAnArray),
     };
     let mut teams = Vec::with_capacity(entries.len());
     for (index, raw) in entries.into_iter().enumerate() {
         let id = raw.get("id").and_then(Value::as_str).map(str::to_owned);
-        let parsed = serde_json::from_value::<TeamEntry>(raw)
+        let entry = serde_json::from_value::<TeamEntry>(raw)
             .map_err(|error| error.to_string())
             .and_then(|entry| {
                 if entry.id.trim().is_empty() {
@@ -385,28 +456,133 @@ fn parse_teams(
                 } else {
                     Ok(entry)
                 }
-            });
-        match (parsed, strictness) {
-            (Ok(entry), _) => teams.push(entry),
-            (Err(_), Strictness::Forgiving) => {}
-            (Err(reason), Strictness::Strict) => {
-                return Err(CatalogueParseError::Entry { index, id, reason });
-            }
-        }
+            })
+            .map_err(|reason| CatalogueParseError::Entry {
+                index,
+                id,
+                reason,
+            })?;
+        teams.push(entry);
     }
     Ok(teams)
+}
+
+/// Every entry with a usable id, each section parsed on its own so one
+/// damaged section never hides the rest of its entry.
+fn parse_teams_forgivingly(
+    value: Option<Value>,
+    damage: &mut CatalogueDamage,
+) -> Vec<TeamEntry> {
+    match value {
+        None | Some(Value::Null) => Vec::new(),
+        Some(Value::Array(entries)) => entries
+            .into_iter()
+            .filter_map(|raw| parse_entry_forgivingly(raw, damage))
+            .collect(),
+        Some(_) => {
+            damage.teams_unreadable = true;
+            Vec::new()
+        }
+    }
+}
+
+fn parse_entry_forgivingly(
+    raw: Value,
+    damage: &mut CatalogueDamage,
+) -> Option<TeamEntry> {
+    let Value::Object(mut fields) = raw else {
+        return None;
+    };
+    let id = fields.remove("id").as_ref().and_then(non_blank_string)?;
+    let key = take_string(&mut fields, "key");
+    let name = take_string(&mut fields, "name");
+    let states = take_section(
+        &mut fields,
+        "states",
+        &id,
+        CatalogueSection::States,
+        damage,
+    );
+    let labels = take_section(
+        &mut fields,
+        "labels",
+        &id,
+        CatalogueSection::Labels,
+        damage,
+    );
+    let members = take_section(
+        &mut fields,
+        "members",
+        &id,
+        CatalogueSection::Members,
+        damage,
+    );
+    let projects = take_section(
+        &mut fields,
+        "projects",
+        &id,
+        CatalogueSection::Projects,
+        damage,
+    );
+    let (key, name) = match (key, name) {
+        (Some(key), Some(name)) => (key, name),
+        (key, _) => {
+            damage.damage_entry(&id);
+            return Some(TeamEntry::identified(
+                &id,
+                &key.unwrap_or_default(),
+                "",
+            ));
+        }
+    };
+    Some(TeamEntry {
+        id,
+        key,
+        name,
+        states,
+        labels,
+        members,
+        projects,
+        extra: fields,
+    })
+}
+
+fn take_string(fields: &mut Map<String, Value>, name: &str) -> Option<String> {
+    match fields.remove(name) {
+        Some(Value::String(text)) => Some(text),
+        _ => None,
+    }
+}
+
+fn take_section<R: DeserializeOwned>(
+    fields: &mut Map<String, Value>,
+    name: &str,
+    team_id: &str,
+    section: CatalogueSection,
+    damage: &mut CatalogueDamage,
+) -> Option<Vec<R>> {
+    let value = fields.remove(name).filter(|value| !value.is_null())?;
+    serde_json::from_value(value)
+        .inspect_err(|_| {
+            damage.sections.insert((team_id.to_owned(), section));
+        })
+        .ok()
 }
 
 fn parse_workspace_labels(
     value: Option<Value>,
     strictness: Strictness,
+    damage: &mut CatalogueDamage,
 ) -> Result<Option<Vec<CataloguedLabel>>, CatalogueParseError> {
     let Some(value) = value.filter(|value| !value.is_null()) else {
         return Ok(None);
     };
     match (serde_json::from_value(value), strictness) {
         (Ok(labels), _) => Ok(Some(sorted_records(labels))),
-        (Err(_), Strictness::Forgiving) => Ok(None),
+        (Err(_), Strictness::Forgiving) => {
+            damage.workspace_labels = true;
+            Ok(None)
+        }
         (Err(error), Strictness::Strict) => {
             Err(CatalogueParseError::WorkspaceLabels {
                 reason: error.to_string(),

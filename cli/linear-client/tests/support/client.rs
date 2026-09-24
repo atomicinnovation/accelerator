@@ -5,9 +5,8 @@
 use std::time::Duration;
 
 use http_test_support::MockServer;
-use linear_client::filter::{
-    FixedStates, FixedTeam, StateResolver, TeamResolver,
-};
+use linear_client::catalogue::TeamEntries;
+use linear_client::resolution::{FixedNames, ResolverSet};
 use linear_client::transport::Transport;
 use linear_client::{Credentials, LinearClient, UploadTransport};
 use reqwest::Url;
@@ -18,13 +17,16 @@ use super::{NoJitter, RecordingSleeper};
 pub const TEAM_ID: &str = "5c9f2a1b-0000-4000-8000-000000000001";
 pub const TEAM_KEY: &str = "ENG";
 
-/// The catalogue's single key → UUID pairing, so a scope keyed by `TEAM_KEY`
-/// resolves to `TEAM_ID` the way `CatalogueTeam` would in production.
+/// Resolvers whose catalogue names only the base team, so a scope keyed by
+/// `TEAM_KEY` resolves to `TEAM_ID` as the catalogue would in production.
 #[must_use]
-pub fn fixed_team() -> Box<dyn TeamResolver> {
-    let mut map = std::collections::BTreeMap::new();
-    map.insert(TEAM_KEY.to_owned(), TEAM_ID.to_owned());
-    Box::new(FixedTeam(map))
+pub fn base_team_resolvers() -> ResolverSet {
+    keyed_resolvers(&[(TEAM_KEY, TEAM_ID)])
+}
+
+#[must_use]
+pub fn keyed_resolvers(teams: &[(&str, &str)]) -> ResolverSet {
+    ResolverSet::new(Box::new(FixedNames::default()), TeamEntries::keyed(teams))
 }
 
 #[must_use]
@@ -78,25 +80,20 @@ pub fn client_with_teams(
         Box::new(NoJitter),
     )
     .expect("the transport builds");
-    let mut map = std::collections::BTreeMap::new();
-    for (key, id) in teams {
-        map.insert((*key).to_owned(), (*id).to_owned());
-    }
     LinearClient::new(
         transport,
         loopback_upload(),
         Some(TEAM_KEY.to_owned()),
-        Box::new(FixedTeam(map)),
-        Box::new(FixedStates::default()),
+        keyed_resolvers(teams),
     )
 }
 
-/// A client whose catalogue-backed states are replaced by a fixed resolver, for
-/// the transition suites that assert name resolution.
+/// A client over the given resolvers, for the suites that assert name
+/// resolution.
 #[must_use]
-pub fn client_with_states(
+pub fn client_with_resolvers(
     server: &MockServer,
-    states: Box<dyn StateResolver>,
+    resolvers: ResolverSet,
 ) -> LinearClient {
     let transport = Transport::new(
         Url::parse(&format!("{}/graphql", server.base_url()))
@@ -111,8 +108,7 @@ pub fn client_with_states(
         transport,
         loopback_upload(),
         Some(TEAM_KEY.to_owned()),
-        fixed_team(),
-        states,
+        resolvers,
     )
 }
 
@@ -136,16 +132,10 @@ pub fn client_with(
     // An unset team key models a client with no catalogue scope knowledge, so
     // the team resolver is empty too — otherwise a catalogued team would prove
     // scope the "nothing is provable" case is built to lack.
-    let teams: Box<dyn TeamResolver> = if team_key.is_some() {
-        fixed_team()
+    let resolvers = if team_key.is_some() {
+        base_team_resolvers()
     } else {
-        Box::new(FixedTeam::default())
+        keyed_resolvers(&[])
     };
-    LinearClient::new(
-        transport,
-        loopback_upload(),
-        team_key,
-        teams,
-        Box::new(FixedStates::default()),
-    )
+    LinearClient::new(transport, loopback_upload(), team_key, resolvers)
 }

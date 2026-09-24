@@ -8,6 +8,8 @@ use serde_json::json;
 use serde_json::Value;
 
 use crate::client::LinearClient;
+use crate::resolution::NameUnresolved;
+use crate::resolution::SingleResolution;
 use crate::surface::interpret;
 use crate::surface::SurfaceError;
 
@@ -18,22 +20,25 @@ const ISSUE_UPDATE: &str = "mutation($id: String!, $input: IssueUpdateInput!) {
   }";
 
 impl LinearClient {
-    /// Resolves a state name to its UUID through the catalogue, refusing a name
-    /// that matches no state or more than one.
+    /// Resolves a state name to its UUID among the base team's states,
+    /// refusing a name that matches no state or more than one.
     ///
     /// # Errors
     ///
     /// [`SurfaceError::UnknownState`] or [`SurfaceError::AmbiguousState`].
     pub fn resolve_state(&self, name: &str) -> Result<String, SurfaceError> {
-        let matches = self.states().resolve_all(name);
-        match matches.as_slice() {
-            [id] => Ok(id.clone()),
-            [] => Err(SurfaceError::UnknownState {
+        match self.resolvers().team_states().resolve(name) {
+            SingleResolution::Resolved(id) => Ok(id),
+            SingleResolution::Unresolved(
+                NameUnresolved::NotFound | NameUnresolved::NotCatalogued(_),
+            ) => Err(SurfaceError::UnknownState {
                 name: name.to_owned(),
             }),
-            _ => Err(SurfaceError::AmbiguousState {
+            SingleResolution::Unresolved(NameUnresolved::Ambiguous {
+                count,
+            }) => Err(SurfaceError::AmbiguousState {
                 name: name.to_owned(),
-                count: matches.len(),
+                count,
             }),
         }
     }

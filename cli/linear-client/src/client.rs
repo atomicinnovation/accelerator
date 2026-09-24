@@ -35,8 +35,7 @@ use tracker_support::TransportConfig;
 use crate::auth::check_identifier;
 use crate::auth::resolve_credentials;
 use crate::auth::Credentials;
-use crate::catalogue::CatalogueStates;
-use crate::catalogue::CatalogueTeam;
+use crate::catalogue::Catalogue;
 use crate::classify::carries_errors;
 use crate::classify::classify;
 use crate::classify::classify_errors;
@@ -46,9 +45,8 @@ use crate::error::ClientError;
 use crate::failure::LinearFailure;
 use crate::filter::compose;
 use crate::filter::Search;
-use crate::filter::StateResolver;
-use crate::filter::TeamResolver;
 use crate::filter::FETCH_PAGE_SIZE;
+use crate::resolution::ResolverSet;
 use crate::surface::interpret as interpret_surface;
 use crate::surface::SurfaceError;
 use crate::transport::Deadline;
@@ -130,25 +128,22 @@ pub struct LinearClient {
     transport: Transport,
     upload: UploadTransport,
     team_key: Option<String>,
-    teams: Box<dyn TeamResolver>,
-    states: Box<dyn StateResolver>,
+    resolvers: ResolverSet,
 }
 
 impl LinearClient {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         transport: Transport,
         upload: UploadTransport,
         team_key: Option<String>,
-        teams: Box<dyn TeamResolver>,
-        states: Box<dyn StateResolver>,
+        resolvers: ResolverSet,
     ) -> Self {
         Self {
             transport,
             upload,
             team_key,
-            teams,
-            states,
+            resolvers,
         }
     }
 
@@ -174,14 +169,11 @@ impl LinearClient {
             Box::new(ClockJitter),
         )?;
         let upload = UploadTransport::production()?;
-        let teams = CatalogueTeam::load(integrations_root);
-        let states = CatalogueStates::load(integrations_root);
         Ok(Self::new(
             transport,
             upload,
             team_key,
-            Box::new(teams),
-            Box::new(states),
+            Catalogue::load(integrations_root).resolver_set(),
         ))
     }
 
@@ -196,8 +188,8 @@ impl LinearClient {
     }
 
     #[must_use]
-    pub fn states(&self) -> &dyn StateResolver {
-        self.states.as_ref()
+    pub const fn resolvers(&self) -> &ResolverSet {
+        &self.resolvers
     }
 
     const fn credentials(&self) -> &Credentials {
@@ -212,8 +204,8 @@ impl LinearClient {
     /// indeterminate rather than inferring absence.
     fn in_scope(&self, id: &ExternalId) -> Option<bool> {
         let mut known: Vec<String> = self
-            .teams
-            .catalogued()
+            .resolvers
+            .catalogued_teams()
             .into_iter()
             .map(|(key, _)| key)
             .collect();
@@ -292,7 +284,7 @@ impl LinearClient {
         if deadline.expired() {
             return Err("the operation deadline expired".to_owned());
         }
-        let filter = compose(search, self.states.as_ref())
+        let filter = compose(search, &self.resolvers)
             .map_err(|error| error.to_string())?;
         let variables = json!({
             "filter": filter,
@@ -395,7 +387,7 @@ impl LinearClient {
         &self,
         search: &Search,
     ) -> Result<DetailedPage, SurfaceError> {
-        let filter = compose(search, self.states.as_ref())?;
+        let filter = compose(search, &self.resolvers)?;
         let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
         let mut nodes = Vec::new();
@@ -696,7 +688,7 @@ impl RemoteTracker for LinearClient {
         let cap = self.transport.config().keyed_read_max_pages;
         let mut team_ids: Vec<String> =
             vec![self.credentials().team_id.clone()];
-        for (_, id) in self.teams.catalogued() {
+        for (_, id) in self.resolvers.catalogued_teams() {
             if !team_ids.contains(&id) {
                 team_ids.push(id);
             }
@@ -754,7 +746,7 @@ impl RemoteTracker for LinearClient {
                     .to_owned(),
             });
         };
-        let Some(team_id) = self.teams.resolve(key) else {
+        let Some(team) = self.resolvers.team_by_key(key) else {
             return Err(ScopeError {
                 detail: format!(
                     "E_SEARCH_UNKNOWN_TEAM: team key {key:?} resolves to no \
@@ -765,7 +757,7 @@ impl RemoteTracker for LinearClient {
         };
         Ok(SearchScope {
             entities: EntityScope::Keyed {
-                base: Some(team_id),
+                base: Some(team.id),
                 additional: additional.clone(),
             },
             filters: scope.filters.clone(),

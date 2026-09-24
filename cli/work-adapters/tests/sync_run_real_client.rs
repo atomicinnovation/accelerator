@@ -24,8 +24,9 @@ use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport as JiraTransport;
 use jira_client::Credentials as JiraCredentials;
 use jira_client::JiraClient;
-use linear_client::filter::FixedStates;
-use linear_client::filter::FixedTeam;
+use linear_client::catalogue::TeamEntries;
+use linear_client::resolution::FixedNames;
+use linear_client::resolution::ResolverSet;
 use linear_client::transport::Transport as LinearTransport;
 use linear_client::Credentials as LinearCredentials;
 use linear_client::{LinearClient, UploadTransport};
@@ -184,15 +185,14 @@ fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
         Box::new(NoJitter),
     )
     .expect("the linear transport builds");
-    let mut team_map = std::collections::BTreeMap::new();
-    team_map.insert(LINEAR_TEAM_KEY.to_owned(), LINEAR_TEAM_ID.to_owned());
-    let teams = FixedTeam(team_map);
     LinearClient::new(
         transport,
         UploadTransport::production().expect("the upload transport builds"),
         Some(LINEAR_TEAM_KEY.to_owned()),
-        Box::new(teams),
-        Box::new(FixedStates::default()),
+        ResolverSet::new(
+            Box::new(FixedNames::default()),
+            TeamEntries::keyed(&[(LINEAR_TEAM_KEY, LINEAR_TEAM_ID)]),
+        ),
     )
 }
 

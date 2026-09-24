@@ -19,8 +19,7 @@ use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use linear_client::auth::resolve_credentials;
 use linear_client::auth::team_key;
-use linear_client::catalogue::CatalogueStates;
-use linear_client::catalogue::CatalogueTeam;
+use linear_client::catalogue::Catalogue;
 use linear_client::transport::Transport;
 use linear_client::transport::Url;
 use linear_client::upload::url_is_allowed;
@@ -208,14 +207,11 @@ fn build_with_override(
     let allow_loopback = cfg!(feature = "test-loopback");
     let upload = UploadTransport::new(allow_loopback, Duration::from_secs(1))?;
     let team_key = team_key(context.config, integrations_root)?;
-    let teams = CatalogueTeam::load(integrations_root);
-    let states = CatalogueStates::load(integrations_root);
     Ok(LinearClient::new(
         transport,
         upload,
         team_key,
-        Box::new(teams),
-        Box::new(states),
+        Catalogue::load(integrations_root).resolver_set(),
     ))
 }
 
