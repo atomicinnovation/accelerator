@@ -1,0 +1,38 @@
+{
+  "states": [
+    {
+      "id": "t-a", "key": "T-A", "name": "Team t-a",
+      "states": [
+        { "id": "s-1", "name": "State s-1", "type": "started", "position": 1, "archivedAt": null },
+        { "id": "s-2", "name": "State s-2", "type": "started", "position": 1, "archivedAt": null }
+      ]
+    }
+  ],
+  "labels": [
+    {
+      "id": "t-a", "key": "T-A", "name": "Team t-a",
+      "labels": [
+        { "id": "l-1", "name": "Label l-1", "archivedAt": null },
+        { "id": "l-2", "name": "Label l-2", "archivedAt": null }
+      ]
+    }
+  ],
+  "members": [
+    {
+      "id": "t-a", "key": "T-A", "name": "Team t-a",
+      "members": [
+        { "id": "m-1", "name": "user-m-1", "displayName": "m-1", "email": "m-1@example.com", "active": true },
+        { "id": "m-2", "name": "user-m-2", "displayName": "m-2", "email": "m-2@example.com", "active": true }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "t-a", "key": "T-A", "name": "Team t-a",
+      "projects": [
+        { "id": "p-1", "name": "Project p-1", "archivedAt": null },
+        { "id": "p-2", "name": "Project p-2", "archivedAt": null }
+      ]
+    }
+  ]
+}

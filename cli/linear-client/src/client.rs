@@ -5,6 +5,7 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::sync::Arc;
 
 use remote_projection::Integration;
 use remote_projection::Op;
@@ -35,25 +36,37 @@ use tracker_support::TransportConfig;
 use crate::auth::check_identifier;
 use crate::auth::resolve_credentials;
 use crate::auth::Credentials;
-use crate::catalogue::CatalogueStates;
-use crate::catalogue::CatalogueTeam;
+use crate::catalogue::Catalogue;
+use crate::catalogue::CatalogueSection;
+use crate::catalogue::LiveCatalogueData;
+use crate::catalogue::SectionSet;
 use crate::classify::carries_errors;
 use crate::classify::classify;
 use crate::classify::classify_errors;
 use crate::classify::Operation;
 use crate::classify::Outcome;
+use crate::discovery::TeamEntryFetch as _;
 use crate::error::ClientError;
 use crate::failure::LinearFailure;
+use crate::filter::complete_for_teams;
 use crate::filter::compose;
-use crate::filter::Search;
-use crate::filter::StateResolver;
-use crate::filter::TeamResolver;
+use crate::filter::preflight;
+use crate::filter::ConfiguredSearch;
+use crate::filter::LowerableSearch;
+use crate::filter::UnresolvedFilters;
+use crate::filter::ValidatedSearch;
 use crate::filter::FETCH_PAGE_SIZE;
+use crate::healing::CatalogueBackfill;
+use crate::healing::NoBackfill;
+use crate::resolution::ResolverSet;
+use crate::resolution::TeamRef;
 use crate::surface::interpret as interpret_surface;
 use crate::surface::SurfaceError;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
+use crate::transport::Url;
+use crate::transport::ENDPOINT;
 use crate::upload::UploadTransport;
 
 const SHOW: &str = "query($id: String!) {
@@ -122,33 +135,43 @@ type Page = (Vec<(String, RemoteTimestamp)>, Option<String>);
 /// fail loud on the cap alone.
 #[derive(Debug)]
 pub struct DetailedPage {
+    /// The `IssueFilter` the search sent.
+    pub filter: Value,
     pub nodes: Vec<Value>,
     pub completeness: Completeness,
+}
+
+/// Why a validated search could not be completed into ids.
+enum CompletionFailure {
+    Unresolved(UnresolvedFilters),
+    Fetch(SurfaceError),
 }
 
 pub struct LinearClient {
     transport: Transport,
     upload: UploadTransport,
     team_key: Option<String>,
-    teams: Box<dyn TeamResolver>,
-    states: Box<dyn StateResolver>,
+    resolvers: ResolverSet,
+    backfill: Arc<dyn CatalogueBackfill>,
 }
 
 impl LinearClient {
+    /// `backfill` holds whatever team sections a search fetches live, for
+    /// the run's finaliser to record.
     #[must_use]
     pub fn new(
         transport: Transport,
         upload: UploadTransport,
         team_key: Option<String>,
-        teams: Box<dyn TeamResolver>,
-        states: Box<dyn StateResolver>,
+        resolvers: ResolverSet,
+        backfill: Arc<dyn CatalogueBackfill>,
     ) -> Self {
         Self {
             transport,
             upload,
             team_key,
-            teams,
-            states,
+            resolvers,
+            backfill,
         }
     }
 
@@ -163,25 +186,51 @@ impl LinearClient {
         context: &CredentialContext<'_>,
         integrations_root: &Path,
         transport_config: TransportConfig,
+        backfill: Arc<dyn CatalogueBackfill>,
+    ) -> Result<Self, ClientError> {
+        let endpoint = Url::parse(ENDPOINT).map_err(|error| {
+            ClientError::TlsUnavailable {
+                detail: error.to_string(),
+            }
+        })?;
+        Self::from_config_at(
+            endpoint,
+            context,
+            integrations_root,
+            transport_config,
+            backfill,
+        )
+    }
+
+    /// As [`Self::from_config`], against the GraphQL endpoint `endpoint`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_config`].
+    pub fn from_config_at(
+        endpoint: Url,
+        context: &CredentialContext<'_>,
+        integrations_root: &Path,
+        transport_config: TransportConfig,
+        backfill: Arc<dyn CatalogueBackfill>,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context, integrations_root)?;
         let team_key =
             crate::auth::team_key(context.config, integrations_root)?;
-        let transport = Transport::to_linear(
+        let transport = Transport::new(
+            endpoint,
             credentials,
             transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
         )?;
         let upload = UploadTransport::production()?;
-        let teams = CatalogueTeam::load(integrations_root);
-        let states = CatalogueStates::load(integrations_root);
         Ok(Self::new(
             transport,
             upload,
             team_key,
-            Box::new(teams),
-            Box::new(states),
+            Catalogue::load(integrations_root).resolver_set(),
+            backfill,
         ))
     }
 
@@ -196,12 +245,87 @@ impl LinearClient {
     }
 
     #[must_use]
-    pub fn states(&self) -> &dyn StateResolver {
-        self.states.as_ref()
+    pub const fn resolvers(&self) -> &ResolverSet {
+        &self.resolvers
     }
 
     const fn credentials(&self) -> &Credentials {
         self.transport.credentials()
+    }
+
+    /// The team a base-only scope's key names.
+    fn base_only_team(&self, key: Option<&str>) -> Result<TeamRef, ScopeError> {
+        let Some(key) = key else {
+            return Err(ScopeError {
+                detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
+                         linear.team_key, or run --push-only to push without \
+                         discovery"
+                    .to_owned(),
+            });
+        };
+        self.resolvers.team_by_key(key).ok_or_else(|| ScopeError {
+            detail: format!(
+                "E_SEARCH_UNKNOWN_TEAM: team key {key:?} resolves to no team \
+                 in the catalogue; check linear.team_key matches the \
+                 catalogue team key, or refresh linear/catalogue.json"
+            ),
+        })
+    }
+
+    /// Resolves every validated name over the search's teams. Teams whose
+    /// entry does not cover the configured families have the sections those
+    /// families need fetched, in one batch, and held in `backfill` once every
+    /// pass has succeeded.
+    fn complete_scope(
+        &self,
+        validated: ValidatedSearch,
+        backfill: &dyn CatalogueBackfill,
+    ) -> Result<LowerableSearch, CompletionFailure> {
+        let scoped: Vec<TeamRef> = validated
+            .team_ids()
+            .iter()
+            .map(|id| self.resolvers.team_by_id(id))
+            .collect();
+        if !validated.has_filters() {
+            return complete_for_teams(validated, &scoped, &self.resolvers)
+                .map_err(CompletionFailure::Unresolved);
+        }
+        let needed = validated.needed_sections();
+        let per_team =
+            SectionSet::of(&needed.team_sections().collect::<Vec<_>>());
+        let uncovered: Vec<String> = scoped
+            .iter()
+            .filter(|team| {
+                self.resolvers.covers(&team.id, &per_team) == Ok(false)
+            })
+            .map(|team| team.id.clone())
+            .collect();
+        let lacks_workspace_labels = needed
+            .contains(CatalogueSection::WorkspaceLabels)
+            && self.resolvers.has_workspace_labels() == Ok(false);
+        let mut sections: Vec<CatalogueSection> = if uncovered.is_empty() {
+            Vec::new()
+        } else {
+            per_team.team_sections().collect()
+        };
+        if lacks_workspace_labels {
+            sections.push(CatalogueSection::WorkspaceLabels);
+        }
+        if sections.is_empty() {
+            return complete_for_teams(validated, &scoped, &self.resolvers)
+                .map_err(CompletionFailure::Unresolved);
+        }
+        let fetched = self
+            .fetch_team_entries(&uncovered, &SectionSet::of(&sections))
+            .map_err(CompletionFailure::Fetch)?;
+        let live = LiveCatalogueData {
+            entries: fetched.entries,
+            workspace_labels: fetched.workspace_labels,
+        };
+        let resolvers = self.resolvers.with_fetched(&live);
+        backfill.hold(live);
+        complete_for_teams(validated, &scoped, &resolvers)
+            .map_err(CompletionFailure::Unresolved)
     }
 
     /// Whether an identifier belongs to the team this client is scoped to.
@@ -212,8 +336,8 @@ impl LinearClient {
     /// indeterminate rather than inferring absence.
     fn in_scope(&self, id: &ExternalId) -> Option<bool> {
         let mut known: Vec<String> = self
-            .teams
-            .catalogued()
+            .resolvers
+            .catalogued_teams()
             .into_iter()
             .map(|(key, _)| key)
             .collect();
@@ -285,15 +409,13 @@ impl LinearClient {
     /// One page of a search, following the Relay cursor.
     fn fetch_page(
         &self,
-        search: &Search,
+        filter: &Value,
         cursor: Option<&str>,
         deadline: &Deadline,
     ) -> Result<Page, String> {
         if deadline.expired() {
             return Err("the operation deadline expired".to_owned());
         }
-        let filter = compose(search, self.states.as_ref())
-            .map_err(|error| error.to_string())?;
         let variables = json!({
             "filter": filter,
             "first": FETCH_PAGE_SIZE,
@@ -341,7 +463,7 @@ impl LinearClient {
     /// [`Completeness::Complete`].
     fn page_all(
         &self,
-        search: &Search,
+        filter: &Value,
         cap: Ceiling,
     ) -> (Vec<(String, RemoteTimestamp)>, Completeness) {
         let deadline = self.transport.deadline();
@@ -352,7 +474,7 @@ impl LinearClient {
         let mut page = 0usize;
         loop {
             page += 1;
-            match self.fetch_page(search, cursor.as_deref(), &deadline) {
+            match self.fetch_page(filter, cursor.as_deref(), &deadline) {
                 Ok((mut found, next)) => {
                     index.append(&mut found);
                     cursor = next;
@@ -387,15 +509,36 @@ impl LinearClient {
     /// search flow propagates the transport failure — while a cap-hit or
     /// expired deadline is a successful, truncated result.
     ///
+    /// A search over one team resolves its filters there before any request,
+    /// when the catalogue covers them; otherwise the sections it needs are
+    /// fetched first. Nothing it fetches is held for the catalogue.
+    ///
     /// # Errors
     ///
-    /// [`SurfaceError`] for a rejected filter (an unknown state), a transport
-    /// failure, or a response carrying `errors[]`.
+    /// [`SurfaceError`] for a filter value that resolves to nothing, a
+    /// transport failure, or a response carrying `errors[]`.
     pub fn search_detailed(
         &self,
-        search: &Search,
+        search: ConfiguredSearch,
     ) -> Result<DetailedPage, SurfaceError> {
-        let filter = compose(search, self.states.as_ref())?;
+        let base_only_team = match search.team_ids() {
+            [team_id] => Some(self.resolvers.team_by_id(team_id)),
+            _ => None,
+        };
+        let validated =
+            preflight(search, &self.resolvers, base_only_team.as_ref())
+                .map_err(ClientError::UnresolvedFilters)?;
+        let lowerable =
+            self.complete_scope(validated, &NoBackfill)
+                .map_err(|failure| match failure {
+                    CompletionFailure::Unresolved(unresolved) => {
+                        SurfaceError::from(ClientError::UnresolvedFilters(
+                            unresolved,
+                        ))
+                    }
+                    CompletionFailure::Fetch(error) => error,
+                })?;
+        let filter = compose(&lowerable);
         let cap = self.transport.config().discovery_max_pages;
         let deadline = self.transport.deadline();
         let mut nodes = Vec::new();
@@ -443,6 +586,7 @@ impl LinearClient {
             }
         }
         Ok(DetailedPage {
+            filter,
             nodes,
             completeness,
         })
@@ -696,7 +840,7 @@ impl RemoteTracker for LinearClient {
         let cap = self.transport.config().keyed_read_max_pages;
         let mut team_ids: Vec<String> =
             vec![self.credentials().team_id.clone()];
-        for (_, id) in self.teams.catalogued() {
+        for (_, id) in self.resolvers.catalogued_teams() {
             if !team_ids.contains(&id) {
                 team_ids.push(id);
             }
@@ -704,12 +848,10 @@ impl RemoteTracker for LinearClient {
         let mut index: Vec<(String, RemoteTimestamp)> = Vec::new();
         let mut completeness = Completeness::Complete;
         for team_id in &team_ids {
-            let team_search = Search {
-                team_id: Some(team_id.clone()),
-                ..Search::default()
-            };
+            let team_filter =
+                compose(&LowerableSearch::for_teams(vec![team_id.clone()]));
             let (mut found, team_completeness) =
-                self.page_all(&team_search, cap);
+                self.page_all(&team_filter, cap);
             index.append(&mut found);
             completeness = completeness.merge(team_completeness);
         }
@@ -740,68 +882,71 @@ impl RemoteTracker for LinearClient {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        // The base-only path: substitute the base team key for its UUID from
-        // the catalogue. A broadened scope resolves its entities against the
-        // live enumeration instead and never reaches here.
-        let EntityScope::Keyed { base, additional } = &scope.entities else {
-            return Ok(scope.clone());
+        let refuse = |refusal: UnresolvedFilters| ScopeError {
+            detail: refusal.to_string(),
         };
-        let Some(key) = base.as_deref() else {
-            return Err(ScopeError {
-                detail: "E_SEARCH_NO_TEAM: discovery needs a team key; set \
-                         linear.team_key, or run --push-only to push without \
-                         discovery"
-                    .to_owned(),
-            });
+        let configured =
+            ConfiguredSearch::from_pairs(Vec::new(), &scope.filters)
+                .map_err(refuse)?;
+        let (entities, base_only_team) = match &scope.entities {
+            EntityScope::Keyed { base, additional }
+                if additional.is_empty() =>
+            {
+                let team = self.base_only_team(base.as_deref())?;
+                (
+                    EntityScope::Keyed {
+                        base: Some(team.id.clone()),
+                        additional: Vec::new(),
+                    },
+                    Some(team),
+                )
+            }
+            broadened => (broadened.clone(), None),
         };
-        let Some(team_id) = self.teams.resolve(key) else {
-            return Err(ScopeError {
-                detail: format!(
-                    "E_SEARCH_UNKNOWN_TEAM: team key {key:?} resolves to no \
-                     team in the catalogue; check linear.team_key matches the \
-                     catalogue team key, or refresh linear/catalogue.json"
-                ),
-            });
-        };
+        let validated =
+            preflight(configured, &self.resolvers, base_only_team.as_ref())
+                .map_err(refuse)?;
         Ok(SearchScope {
-            entities: EntityScope::Keyed {
-                base: Some(team_id),
-                additional: additional.clone(),
-            },
-            filters: scope.filters.clone(),
+            entities,
+            filters: validated.to_pairs(),
         })
     }
 
     fn search(&self, scope: &SearchScope) -> Result<Discovery, TrackerError> {
-        let (team_id, team_ids) = match &scope.entities {
+        let team_ids: Vec<String> = match &scope.entities {
             EntityScope::Keyed { base, additional } => {
-                (base.clone(), additional.clone())
+                base.iter().chain(additional).cloned().collect()
             }
-            EntityScope::WholeWorkspace => (None, Vec::new()),
+            EntityScope::WholeWorkspace => Vec::new(),
         };
-        if team_id.is_none() && team_ids.is_empty() {
+        if team_ids.is_empty() {
             return Err(TrackerError::Retryable {
                 detail: "E_SEARCH_UNRESOLVED_SCOPE: search needs a resolved \
                          team id; call resolve_scope first"
                     .to_owned(),
             });
         }
-        let mut search = Search {
-            team_id,
-            team_ids,
-            ..Search::default()
-        };
-        for (field, value) in &scope.filters {
-            match field.as_str() {
-                "state" => search.state.push(value.clone()),
-                "assignee" => search.assignee.push(value.clone()),
-                "label" => search.label.push(value.clone()),
-                "text" => search.text = Some(value.clone()),
-                _ => {}
-            }
-        }
-        let (index, completeness) =
-            self.page_all(&search, self.transport.config().discovery_max_pages);
+        let unconfigured =
+            |detail: String| TrackerError::Unconfigured { detail };
+        let validated = ValidatedSearch::from_pairs(team_ids, &scope.filters)
+            .map_err(|refusal| unconfigured(refusal.to_string()))?;
+        let lowerable = self
+            .complete_scope(validated, self.backfill.as_ref())
+            .map_err(|failure| match failure {
+                CompletionFailure::Unresolved(refusal) => {
+                    unconfigured(refusal.to_string())
+                }
+                CompletionFailure::Fetch(
+                    error @ SurfaceError::CatalogueTruncated { .. },
+                ) => unconfigured(error.to_string()),
+                CompletionFailure::Fetch(error) => TrackerError::Retryable {
+                    detail: error.to_string(),
+                },
+            })?;
+        let (index, completeness) = self.page_all(
+            &compose(&lowerable),
+            self.transport.config().discovery_max_pages,
+        );
         Ok(Discovery {
             found: index
                 .into_iter()

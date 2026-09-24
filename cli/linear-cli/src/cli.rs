@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
+use linear_client::filter::FilterKey;
+use linear_client::resolution::FilterFamily;
 
 #[derive(Parser)]
 #[command(name = "accelerator-linear", disable_version_flag = true)]
@@ -92,6 +94,23 @@ pub struct SearchArgs {
     pub limit: Option<u32>,
     #[arg(long, short)]
     pub quiet: bool,
+}
+
+impl SearchArgs {
+    /// The flags as the filter pairs a pull scope carries.
+    pub fn filter_pairs(&self) -> Vec<(String, String)> {
+        [
+            (FilterKey::Named(FilterFamily::State), &self.state),
+            (FilterKey::Named(FilterFamily::Assignee), &self.assignee),
+            (FilterKey::Named(FilterFamily::Label), &self.label),
+            (FilterKey::Text, &self.text),
+        ]
+        .into_iter()
+        .filter_map(|(key, value)| {
+            value.clone().map(|value| (key.as_str().to_owned(), value))
+        })
+        .collect()
+    }
 }
 
 #[derive(Subcommand)]

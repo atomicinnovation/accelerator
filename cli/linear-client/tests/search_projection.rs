@@ -10,9 +10,12 @@
 mod support;
 
 use http_test_support::{MockServer, RequestKey, Route};
-use linear_client::Search;
-use serde_json::Value;
-use support::client::{brief, client_for, TEAM_ID};
+use linear_client::filter::ConfiguredSearch;
+use serde_json::{json, Value};
+use support::catalogue::{complete_entry, resolvers, state};
+use support::client::{
+    brief, client_for, client_with_resolvers, TEAM_ID, TEAM_KEY,
+};
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 
@@ -57,15 +60,13 @@ fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
     );
 
     let client = client_for(&server, brief());
-    let search = Search {
-        team_id: Some(TEAM_ID.to_owned()),
-        text: Some("bug".to_owned()),
-        ..Search::default()
-    };
+    let search = ConfiguredSearch::from_pairs(
+        vec![TEAM_ID.to_owned()],
+        &[("text".to_owned(), "bug".to_owned())],
+    )
+    .expect("well formed");
 
-    let result = client
-        .search_detailed(&search)
-        .expect("the projection runs");
+    let result = client.search_detailed(search).expect("the projection runs");
 
     assert_eq!(result.nodes.len(), 2, "both pages accumulate");
     assert!(
@@ -151,14 +152,23 @@ fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
 fn an_unknown_state_filter_is_refused_rather_than_queried() {
     let server = MockServer::start();
     // No route registered: a wire call would 599, so a refusal must precede it.
-    let client = client_for(&server, brief());
-    let search = Search {
-        team_id: Some(TEAM_ID.to_owned()),
-        state: vec!["Nonexistent".to_owned()],
-        ..Search::default()
-    };
+    let client = client_with_resolvers(
+        &server,
+        resolvers(&json!({
+            "baseTeam": TEAM_ID,
+            "labels": [],
+            "teams": [complete_entry(TEAM_ID, TEAM_KEY, &json!({
+                "states": [state("s-todo", "Todo")]
+            }))]
+        })),
+    );
+    let search = ConfiguredSearch::from_pairs(
+        vec![TEAM_ID.to_owned()],
+        &[("state".to_owned(), "Nonexistent".to_owned())],
+    )
+    .expect("well formed");
 
-    let error = client.search_detailed(&search).expect_err("unknown state");
+    let error = client.search_detailed(search).expect_err("unknown state");
 
     assert!(
         error.to_string().contains("E_SEARCH_UNKNOWN_STATE"),

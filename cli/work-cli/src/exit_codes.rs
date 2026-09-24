@@ -31,9 +31,9 @@
 //!   acknowledge the blast radius, or sets a finite `max_items`. The work skill
 //!   drives that confirmation.
 //!
-//! Tracker-error codes (`70`/`71`), the two-class [`TrackerError`] split that
-//! [`for_tracker_error`] maps. This distinction is safety-critical — the work
-//! skills branch on it:
+//! Tracker-error codes (`70`/`71`), two of the three [`TrackerError`] classes
+//! [`for_tracker_error`] maps; the third, `Unconfigured`, maps to `74` below.
+//! This distinction is safety-critical — the work skills branch on it:
 //!
 //! - `70` `RETRYABLE` — the failure is provably *before* any remote mutation
 //!   (argument/validation/auth/connect, a read that failed, or a discovery
@@ -47,10 +47,11 @@
 //!   double-apply. Either way the operator reconciles by hand.
 //!
 //! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
-//! configure* a tracker rather than a tracker-error class. `72`/`73` and the
-//! credential branch of `74` come from `SelectionError`; `74` is also emitted
-//! pre-flight when a run's discovery scope names no valid target
-//! (`RunError::DiscoveryUnconfigured`):
+//! configure* a tracker. `72`/`73` and the credential branch of `74` come from
+//! `SelectionError`; `74` is also emitted pre-flight when a run's discovery
+//! scope names no valid target (`RunError::DiscoveryUnconfigured`), and for a
+//! [`TrackerError::Unconfigured`] — a tracker call refused on configuration
+//! before anything was sent:
 //!
 //! - `72` `NOT_AVAILABLE` — the configured tracker is recognised but has no
 //!   client wired yet (`trello`/`github-issues`).
@@ -60,11 +61,13 @@
 //!   configuration: its credentials are missing or refused, or a non-push-only
 //!   run's discovery scope names no valid target (an unset or unresolvable
 //!   key, or a configured `additional_*`/`all_*` entity the credential cannot
-//!   see). **No write was made** — the refusal is pre-flight, before the
-//!   apply/push phase. A broadened scope is confirmed against a live
+//!   see). A run-level refusal is pre-flight, before the apply/push phase, so
+//!   **no write was made**. A broadened scope is confirmed against a live
 //!   entity-enumeration read, so a read may have gone out, but nothing was
 //!   mutated — so save locally and fix the config; never reconcile against a
-//!   create that never happened.
+//!   create that never happened. A sync report whose worst outcome is a
+//!   per-item `unconfigured` failure also exits `74`: that item sent nothing,
+//!   but other items in the same run may already have applied.
 
 use tracker::TrackerError;
 
@@ -89,6 +92,7 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
     match error {
         TrackerError::Retryable { .. } => RETRYABLE,
         TrackerError::Terminal { .. } => TERMINAL,
+        TrackerError::Unconfigured { .. } => UNCONFIGURED,
     }
 }
 
@@ -118,5 +122,15 @@ mod tests {
              especially the exit-4 indeterminate code"
         );
         assert_ne!(KEYED_READ_CAPPED, UNRESOLVED);
+    }
+
+    #[test]
+    fn an_unconfigured_tracker_error_exits_74() {
+        assert_eq!(
+            for_tracker_error(&TrackerError::Unconfigured {
+                detail: String::new(),
+            }),
+            74
+        );
     }
 }

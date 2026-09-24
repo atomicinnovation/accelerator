@@ -261,11 +261,11 @@ const NOUN_OWNERS: &[(&str, Tracker, NounKind)] = &[
     ("all_teams", Tracker::Linear, NounKind::All),
 ];
 
-/// The accepted filter-field keys. Shared across trackers today; the
-/// per-tracker divergence is in field lowering, not the accepted set, so a
-/// single schema is enough until a tracker's accepted keys actually differ.
-const FILTER_SCHEMA: FilterSchema = FilterSchema {
+const JIRA_FILTERS: FilterSchema = FilterSchema {
     accepted: &["label", "state", "assignee"],
+};
+const LINEAR_FILTERS: FilterSchema = FilterSchema {
+    accepted: &["label", "state", "assignee", "project"],
 };
 
 impl Tracker {
@@ -277,6 +277,13 @@ impl Tracker {
             "jira" => Some(Self::Jira),
             "linear" => Some(Self::Linear),
             _ => None,
+        }
+    }
+
+    const fn filter_schema(self) -> FilterSchema {
+        match self {
+            Self::Jira => JIRA_FILTERS,
+            Self::Linear => LINEAR_FILTERS,
         }
     }
 
@@ -358,7 +365,7 @@ pub fn validate(
     if config.all_entities && !config.additional_entities.is_empty() {
         return Err(PullConfigError::MutuallyExclusiveScope);
     }
-    let accepted = FILTER_SCHEMA.accepted;
+    let accepted = tracker.filter_schema().accepted;
     for (field, _) in &config.filters {
         if field == "all" || field == "any" {
             return Err(PullConfigError::NestedFiltersUnsupported {
@@ -789,13 +796,47 @@ mod tests {
 
     #[test]
     fn an_unsupported_filter_key_is_rejected() {
+        for (tracker, accepted) in [
+            (Tracker::Jira, owned(&["label", "state", "assignee"])),
+            (
+                Tracker::Linear,
+                owned(&["label", "state", "assignee", "project"]),
+            ),
+        ] {
+            assert_eq!(
+                check(
+                    vec![("filters", block(vec![("colour", seq(&["red"]))]))],
+                    tracker,
+                ),
+                Err(PullConfigError::UnsupportedFilterKey {
+                    key: "colour".to_owned(),
+                    accepted,
+                }),
+                "{tracker:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_project_filter_is_accepted_under_linear() {
         assert_eq!(
             check(
-                vec![("filters", block(vec![("colour", seq(&["red"]))]))],
+                vec![("filters", block(vec![("project", seq(&["Alpha"]))]))],
+                Tracker::Linear,
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn a_project_filter_is_rejected_under_jira_listing_the_jira_set() {
+        assert_eq!(
+            check(
+                vec![("filters", block(vec![("project", seq(&["Alpha"]))]))],
                 Tracker::Jira,
             ),
             Err(PullConfigError::UnsupportedFilterKey {
-                key: "colour".to_owned(),
+                key: "project".to_owned(),
                 accepted: owned(&["label", "state", "assignee"]),
             })
         );

@@ -856,6 +856,46 @@ no new configuration.
 1.25.0 removal window) → the catalogue `/team/key`, so an already-onboarded
 repository resolves its scope from the catalogue with no configuration.
 
+#### Pull filters
+
+`linear.pull.filters` narrows discovery by `state`, `label`, `assignee` and
+`project`, each a list of values (values OR'd, keys AND'd). `project` is
+Linear-only: a Jira `pull` block accepts `state`, `label` and `assignee`, and
+refuses `project` at validation. Every value resolves to a Linear id through
+`catalogue.json` before anything is paged:
+
+- **Per team in scope.** A `state` or team `label` matches in each team the
+  pull covers and contributes that team's id; a workspace label matches
+  whichever teams are in scope. Within a team, an active record wins over
+  archived ones of the same name, and two active ones refuse as ambiguous.
+- **Assignees are members.** An `assignee` must be a member of a team in
+  scope, matched on their email, then their full name, then their display
+  name; the first tier with a match decides. A former member, or someone who
+  assigns work without being a member, refuses — use a current member, or
+  widen the scope.
+- **Projects are the scoped teams' projects.** A `project` matches by name
+  among the projects linked to a team in scope. An active project wins over
+  archived ones of the same name; two active projects of one name refuse as
+  ambiguous, listing the candidates — rename one in Linear.
+- **Refusals are loud.** A value no team in scope carries refuses the sync
+  with exit 74, under `pull filters could not be resolved:`, even when its
+  key's other values resolve. It is never silently dropped from the filter.
+
+The catalogue holds complete entries only for **synced teams** — the base
+team and each team that owns a tracked work item. A team in scope whose entry
+lacks what the filters need is fetched from Linear on each pull, for those
+sections only. An apply-mode sync then records complete entries for the
+synced teams it fetched, so commit `catalogue.json` with the pulled items;
+teams that are in scope but not synced are never written, and are fetched
+again on every filtered pull. A filtered pull that fetches every section live
+costs about 26,000 complexity points at 50 teams and 49,000 at 200 — under 7%
+of Linear's hourly allowance at one pull every 15 minutes.
+
+A complete entry is not refreshed by sync. States, labels, members or
+projects added in Linear to a synced team reach the catalogue only through a
+refresh: run `/accelerator:init-linear` (it refreshes every synced team) and
+commit the result.
+
 #### Personal settings (do not commit)
 
 Both token keys are personal and **must live exclusively in

@@ -7,6 +7,7 @@ mod config;
 mod create;
 mod diff;
 mod exit_codes;
+mod finaliser;
 mod list;
 mod next_number;
 mod resolve;
@@ -19,12 +20,15 @@ mod update;
 
 use std::path::Path;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use ::config::ConfigAccess;
 use clap::Parser as _;
 use config_adapters::compose;
 use config_adapters::plugin_root_from_env;
 use config_adapters::LegacyPolicy;
+use linear_client::healing::CatalogueHealing;
+use linear_client::healing::FetchUnavailable;
 
 use crate::cli::Cli;
 use crate::cli::Command;
@@ -448,12 +452,27 @@ fn run_sync(args: &cli::SyncArgs) -> ExitCode {
     };
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);
-    sync::run_sync(
-        &start,
-        service,
-        args,
-        &tracker_registry::ConfiguredTrackers::new(service, root),
-    )
+    let healing = Arc::new(CatalogueHealing::new());
+    let registry = tracker_registry::ConfiguredTrackers::new(service, root)
+        .with_catalogue_healing(Arc::clone(&healing));
+    let team_entry_fetch = || {
+        registry
+            .linear_team_entry_fetch()
+            .map_err(|error| FetchUnavailable {
+                reason: error.message(),
+            })
+    };
+    let linear =
+        finaliser::LinearCatalogueFinaliser::new(healing, &team_entry_fetch);
+    let integration =
+        crate::config::effective_nonempty(service, "work.integration").ok();
+    let finaliser: &dyn finaliser::RunFinaliser =
+        if integration.as_deref() == Some("linear") {
+            &linear
+        } else {
+            &finaliser::NoFinaliser
+        };
+    sync::run_sync(&start, service, args, &registry, finaliser)
 }
 
 fn main() -> ExitCode {

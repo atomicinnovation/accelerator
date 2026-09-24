@@ -363,3 +363,225 @@ fn a_sequenced_route_answers_each_hit_in_turn() {
     );
     assert_eq!(server.hits(&key), 4);
 }
+
+fn graphql_body(query: &str) -> Vec<u8> {
+    let escaped = query.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("{{\"query\":\"{escaped}\",\"variables\":{{}}}}").into_bytes()
+}
+
+fn post_graphql(server: &MockServer, query: &str) -> Response {
+    request(server, "POST", "/graphql", &[], &graphql_body(query))
+}
+
+fn json(body: &str) -> Route {
+    Route::Json {
+        status: 200,
+        body: body.to_owned(),
+    }
+}
+
+#[test]
+fn operations_are_served_their_own_sequences_whatever_the_order() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::graphql("TeamStates"),
+        Route::Sequence(vec![json("\"states-1\""), json("\"states-2\"")]),
+    );
+    server.route(
+        RequestKey::graphql("TeamLabels"),
+        Route::Sequence(vec![json("\"labels-1\""), json("\"labels-2\"")]),
+    );
+
+    let labels_1 = post_graphql(
+        &server,
+        "query TeamLabels { issueLabels { nodes { id } } }",
+    );
+    let states_1 = post_graphql(
+        &server,
+        "query TeamStates { workflowStates { nodes { id } } }",
+    );
+    let labels_2 = post_graphql(
+        &server,
+        "query TeamLabels { issueLabels { nodes { id } } }",
+    );
+    let states_2 = post_graphql(
+        &server,
+        "query TeamStates($ids: [ID!]) { workflowStates { nodes { id } } }",
+    );
+
+    assert_eq!(labels_1.body, b"\"labels-1\"");
+    assert_eq!(labels_2.body, b"\"labels-2\"");
+    assert_eq!(states_1.body, b"\"states-1\"");
+    assert_eq!(states_2.body, b"\"states-2\"");
+}
+
+#[test]
+fn two_operations_sharing_a_root_field_get_separate_sequences() {
+    let server = MockServer::start();
+    server.route(RequestKey::graphql("TeamLabels"), json("\"team\""));
+    server.route(
+        RequestKey::graphql("WorkspaceLabels"),
+        json("\"workspace\""),
+    );
+
+    let workspace = post_graphql(
+        &server,
+        "query WorkspaceLabels { issueLabels(filter: { team: { null: true } }) { nodes { id } } }",
+    );
+    let team = post_graphql(
+        &server,
+        "query TeamLabels { issueLabels { nodes { id } } }",
+    );
+
+    assert_eq!(workspace.body, b"\"workspace\"");
+    assert_eq!(team.body, b"\"team\"");
+}
+
+#[test]
+fn an_anonymous_query_is_keyed_on_its_first_root_field() {
+    let server = MockServer::start();
+    server.route(RequestKey::graphql("viewer"), json("\"viewer\""));
+    server.route(RequestKey::graphql("teams"), json("\"teams\""));
+
+    let bare = post_graphql(&server, "{ viewer { id } }");
+    let keyword = post_graphql(
+        &server,
+        "query($first: Int) { teams(first: $first) { nodes { id } } }",
+    );
+
+    assert_eq!(bare.body, b"\"viewer\"");
+    assert_eq!(keyword.body, b"\"teams\"");
+}
+
+#[test]
+fn a_request_is_counted_under_its_operation_and_the_plain_key() {
+    let server = MockServer::start();
+    server.route(RequestKey::graphql("TeamStates"), json("{}"));
+
+    post_graphql(
+        &server,
+        "query TeamStates { workflowStates { nodes { id } } }",
+    );
+    post_graphql(
+        &server,
+        "query TeamStates { workflowStates { nodes { id } } }",
+    );
+
+    assert_eq!(server.hits(&RequestKey::graphql("TeamStates")), 2);
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 2);
+    assert_eq!(server.bodies(&RequestKey::graphql("TeamStates")).len(), 2);
+}
+
+#[test]
+fn a_plain_sequence_advances_only_on_requests_it_serves() {
+    let server = MockServer::start();
+    server.route(RequestKey::graphql("TeamStates"), json("\"states\""));
+    server.route(
+        RequestKey::post("/graphql"),
+        Route::Sequence(vec![json("\"plain-1\""), json("\"plain-2\"")]),
+    );
+
+    post_graphql(
+        &server,
+        "query TeamStates { workflowStates { nodes { id } } }",
+    );
+    let first =
+        post_graphql(&server, "query Show { issue(id: \"PP-1\") { id } }");
+    post_graphql(
+        &server,
+        "query TeamStates { workflowStates { nodes { id } } }",
+    );
+    let second =
+        post_graphql(&server, "query Show { issue(id: \"PP-1\") { id } }");
+
+    assert_eq!(first.body, b"\"plain-1\"");
+    assert_eq!(second.body, b"\"plain-2\"");
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 4);
+}
+
+#[test]
+fn a_plain_route_serves_bodies_no_operation_key_matches() {
+    let server = MockServer::start();
+    server.route(RequestKey::post("/graphql"), json("\"plain\""));
+
+    let named =
+        post_graphql(&server, "query Show { issue(id: \"PP-1\") { id } }");
+    let not_graphql = request(&server, "POST", "/graphql", &[], b"not json");
+
+    assert_eq!(named.body, b"\"plain\"");
+    assert_eq!(not_graphql.body, b"\"plain\"");
+    assert!(server.unmatched().is_empty());
+}
+
+#[test]
+fn an_operation_matching_no_route_is_unmatched_and_listed() {
+    let server = MockServer::start();
+    server.route(RequestKey::graphql("TeamStates"), json("{}"));
+
+    let response = post_graphql(
+        &server,
+        "query TeamMembers { teamMemberships { nodes { id } } }",
+    );
+
+    assert_eq!(response.status, UNMATCHED_STATUS);
+    assert_eq!(server.unmatched(), vec![RequestKey::graphql("TeamMembers")]);
+    assert_eq!(server.hits(&RequestKey::graphql("TeamMembers")), 1);
+    std::mem::forget(server);
+}
+
+#[test]
+fn dropping_a_server_with_unmatched_operations_panics_naming_them() {
+    let outcome = std::panic::catch_unwind(|| {
+        let server = MockServer::start();
+        server.route(RequestKey::graphql("TeamStates"), json("{}"));
+        post_graphql(
+            &server,
+            "query TeamMembers { teamMemberships { nodes { id } } }",
+        );
+        drop(server);
+    });
+
+    let payload = outcome.expect_err("dropping should panic");
+    let message = payload
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| {
+            payload
+                .downcast_ref::<&str>()
+                .map(|text| (*text).to_owned())
+        })
+        .unwrap_or_default();
+    assert!(message.contains("TeamMembers"), "{message}");
+}
+
+#[test]
+fn dropping_a_server_that_registered_no_operation_keys_never_panics() {
+    let server = MockServer::start();
+    server.route(RequestKey::get("/present"), Route::Status(204));
+
+    request(&server, "GET", "/absent", &[], &[]);
+
+    drop(server);
+}
+
+#[test]
+fn a_delayed_route_answers_its_inner_route_after_the_delay() {
+    let server = MockServer::start();
+    server.route(
+        RequestKey::get("/later"),
+        Route::Delayed {
+            delay: Duration::from_millis(200),
+            route: Box::new(Route::Bytes {
+                status: 200,
+                body: b"payload".to_vec(),
+            }),
+        },
+    );
+
+    let started = std::time::Instant::now();
+    let answered = request(&server, "GET", "/later", &[], &[]);
+
+    assert!(started.elapsed() >= Duration::from_millis(200));
+    assert_eq!(answered.status, 200);
+    assert_eq!(answered.body, b"payload");
+}

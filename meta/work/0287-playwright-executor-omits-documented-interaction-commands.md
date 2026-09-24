@@ -13,6 +13,7 @@ tags: ["design", "playwright", "executor"]
 last_updated: "2026-09-10T17:32:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-873"
 ---
 # 0287: Playwright Executor Omits Documented Interaction Commands and Snapshot Refs
 

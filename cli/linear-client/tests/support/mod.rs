@@ -9,6 +9,7 @@
 
 #![allow(dead_code, clippy::expect_used)]
 
+pub mod catalogue;
 pub mod client;
 
 use std::cell::RefCell;

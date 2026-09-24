@@ -13,7 +13,10 @@ use std::process::ExitCode;
 
 use clap::Parser as _;
 use linear_client::cache::{LinearCache, SystemFilesystem};
-use linear_client::Search;
+use linear_client::catalogue::{CatalogueUpdate, SectionSet};
+use linear_client::discovery::{SectionFetch, TeamEntryFetch};
+use linear_client::filter::ConfiguredSearch;
+use linear_client::{ClientError, LinearClient, SurfaceError};
 use serde_json::{json, Value};
 use tracker::Completeness;
 use tracker::ExternalId;
@@ -95,28 +98,23 @@ fn run_show(args: &ShowArgs) -> ExitCode {
     }
 }
 
-fn run_search(args: SearchArgs) -> ExitCode {
+fn run_search(args: &SearchArgs) -> ExitCode {
     let client = match client_or_report() {
         Ok(built) => built.client,
         Err(code) => return code,
     };
-    let search = Search {
-        team_id: None,
-        team_ids: Vec::new(),
-        state: args.state.into_iter().collect(),
-        assignee: args.assignee.into_iter().collect(),
-        label: args.label.into_iter().collect(),
-        text: args.text,
-    };
-    if !args.quiet {
-        if let Ok(filter) =
-            linear_client::filter::compose(&search, client.states())
-        {
-            eprintln!("INFO: composed IssueFilter: {filter}");
+    let search = match scoped_search(&client, &args.filter_pairs()) {
+        Ok(search) => search,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::for_surface(&error));
         }
-    }
-    match client.search_detailed(&search) {
+    };
+    match client.search_detailed(search) {
         Ok(page) => {
+            if !args.quiet {
+                eprintln!("INFO: composed IssueFilter: {}", page.filter);
+            }
             let truncated = !page.completeness.is_complete();
             let keyword = if page.completeness == Completeness::CapHit {
                 keywords::Search::CapHit
@@ -160,6 +158,23 @@ fn run_search(args: SearchArgs) -> ExitCode {
             eprintln!("{error}");
             ExitCode::from(exit_codes::for_surface(&error))
         }
+    }
+}
+
+/// A search scoped to the catalogue's base team. Without one, only a
+/// text-only search can run, and it runs workspace-wide.
+fn scoped_search(
+    client: &LinearClient,
+    pairs: &[(String, String)],
+) -> Result<ConfiguredSearch, SurfaceError> {
+    let search = ConfiguredSearch::from_pairs(Vec::new(), pairs)
+        .map_err(ClientError::UnresolvedFilters)?;
+    match client.resolvers().base_team() {
+        Some(base) => Ok(search.for_teams(vec![base.id])),
+        None if search.has_filters() => {
+            Err(SurfaceError::SearchNeedsCatalogueTeam)
+        }
+        None => Ok(search),
     }
 }
 
@@ -428,43 +443,117 @@ fn run_init(action: InitAction) -> ExitCode {
             }
         },
         InitAction::Discover { team_id, force } => {
-            match built.client.discover_team(&team_id) {
-                Ok(catalogue) => {
-                    if let Err(error) = cache.write_catalogue(&catalogue) {
-                        eprintln!("{error}");
-                        return ExitCode::from(exit_codes::for_cache(&error));
-                    }
-                    report_team_key_writeback(
-                        &built.config.service,
-                        &catalogue,
-                        force,
-                    );
-                    print_json(&keywords::with_outcome(
-                        catalogue,
-                        keywords::Init::Discovered.keyword(),
-                    ));
-                    ExitCode::SUCCESS
-                }
-                Err(error) => {
-                    eprintln!("{error}");
-                    ExitCode::from(exit_codes::for_surface(&error))
-                }
-            }
+            discover(&built, &cache, &team_id, force)
         }
     }
 }
 
+fn discover(
+    built: &context::Built,
+    cache: &LinearCache<'_>,
+    team_id: &str,
+    force: bool,
+) -> ExitCode {
+    let stored = match cache.load_for_update() {
+        Ok(stored) => stored,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::for_cache(&error));
+        }
+    };
+    let mut synced_teams = vec![team_id.to_owned()];
+    synced_teams.extend(stored.teams().iter().map(|team| team.id.clone()));
+    let fetched = match built
+        .client
+        .fetch_team_entries(&synced_teams, &SectionSet::all())
+    {
+        Ok(fetched) => fetched,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::for_surface(&error));
+        }
+    };
+    if fetched.unreturned.iter().any(|id| id == team_id) {
+        eprintln!("E_REQ_BAD_RESPONSE: team {team_id} was not found");
+        return ExitCode::from(exit_codes::BAD_RESPONSE);
+    }
+    if !fetched.unreturned.is_empty() {
+        eprintln!(
+            "warning: synced team(s) {} were not returned by Linear and keep \
+             their catalogued entries",
+            fetched.unreturned.join(", ")
+        );
+    }
+    let summary = discovered_summary(team_id, &fetched);
+    let base_key = fetched
+        .entries
+        .iter()
+        .find(|entry| entry.id == team_id)
+        .map(|entry| entry.key.clone());
+    let update = CatalogueUpdate {
+        base_team: Some(team_id.to_owned()),
+        entries: fetched.entries,
+        workspace_labels: fetched.workspace_labels,
+    };
+    if let Err(error) = cache.record_team_entries(&update) {
+        eprintln!("{error}");
+        return ExitCode::from(exit_codes::for_cache(&error));
+    }
+    if stored.predates_synced_teams() {
+        eprintln!(
+            "note: catalogue.json had a `team` but no `teams`. If this \
+             repository synced other teams, an older binary may have erased \
+             them: restore the file from version control, or let the next \
+             apply sync re-derive them from tracked work items."
+        );
+    }
+    if let Some(base_key) = base_key {
+        report_team_key_writeback(&built.config.service, &base_key, force);
+    }
+    print_json(&keywords::with_outcome(
+        summary,
+        keywords::Init::Discovered.keyword(),
+    ));
+    ExitCode::SUCCESS
+}
+
+/// The team shape plus per-team section counts — the records themselves are
+/// in the committed catalogue, not the report.
+fn discovered_summary(base_team: &str, fetched: &SectionFetch) -> Value {
+    let count = |records: Option<usize>| records.unwrap_or_default();
+    let teams: Vec<Value> = fetched
+        .entries
+        .iter()
+        .map(|entry| {
+            json!({
+                "id": entry.id,
+                "key": entry.key,
+                "name": entry.name,
+                "states": count(entry.states.as_ref().map(Vec::len)),
+                "labels": count(entry.labels.as_ref().map(Vec::len)),
+                "members": count(entry.members.as_ref().map(Vec::len)),
+                "projects": count(entry.projects.as_ref().map(Vec::len)),
+            })
+        })
+        .collect();
+    let base = fetched
+        .entries
+        .iter()
+        .find(|entry| entry.id == base_team)
+        .map(|entry| json!({ "id": entry.id, "key": entry.key, "name": entry.name }));
+    json!({
+        "team": base,
+        "teams": teams,
+        "workspaceLabels": count(fetched.workspace_labels.as_ref().map(Vec::len)),
+    })
+}
+
 fn report_team_key_writeback(
     config: &dyn config::ConfigAccess,
-    catalogue: &Value,
+    discovered: &str,
     force: bool,
 ) {
     use init_writeback::WritebackOutcome;
-    let Some(discovered) =
-        catalogue.pointer("/team/key").and_then(Value::as_str)
-    else {
-        return;
-    };
     match init_writeback::write_team_key(
         config,
         discovered,
@@ -491,7 +580,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Show(args) => run_show(&args),
-        Command::Search(args) => run_search(args),
+        Command::Search(args) => run_search(&args),
         Command::Comment { action } => run_comment(action),
         Command::Transition(args) => run_transition(args),
         Command::Attach(args) => run_attach(&args),

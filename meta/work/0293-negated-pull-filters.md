@@ -9,10 +9,11 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-relates_to: ["work-item:0229", "work-item:0292"]
+blocked_by: ["work-item:0292"]
+relates_to: ["work-item:0229"]
 external_id: "PP-870"
 tags: ["sync", "linear", "jira", "scoping", "filters", "pull"]
-last_updated: "2026-09-20T17:55:13+00:00"
+last_updated: "2026-09-20T21:20:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -38,7 +39,9 @@ JQL composer already splits a value family into `field IN (...)` (positive) and
 `field NOT IN (...)` (negated, via a leading `~` on the value) at
 `cli/jira-client/src/jql.rs:262-298` — a dormant seam, as `filters` itself was
 before 0229. Linear's lowering (`cli/linear-client/src/filter.rs`) emits only
-`eq` / `in` with no negation. Neither the config surface nor the port's
+positive `eq` / `in` with no negation, and — building on 0292 — resolves
+`project` / `label` / `assignee` to catalogue ids, so this story's negations
+lower over those ids, not display names. Neither the config surface nor the port's
 `filters: Vec<(String, String)>` (`cli/tracker/src/lib.rs:326`) exposes polarity
 as anything but that ad-hoc `~`-prefix string. This story promotes negation to a
 first-class, validated config surface across both trackers and pins its
@@ -69,12 +72,14 @@ the request anticipated is unnecessary within this scope.
   - `state`: names resolved to UUIDs via the catalogue, negated as
     `state: { id: { nin: [...] } }` (single value `neq`). State is always set,
     so there is no unset case.
-  - `assignee`: `assignee: { name: { nin: [...] } }` / `neq`.
-  - `project` (if 0292 lands): `project: { name: { nin: [...] } }` / `neq`.
-  - `label` (to-many): `labels: { every: { name: { nin: [...] } } }` — not a
-    bare `nin` (which means "has some label not in the set") and not a `none`
-    quantifier (Linear has none); `every` gives "has no label in the set" and
-    keeps label-less issues.
+  - `assignee` (email→id via the catalogue, per 0292):
+    `assignee: { id: { nin: [...] } }` / `neq`.
+  - `project` (name→id via the catalogue, per 0292):
+    `project: { id: { nin: [...] } }` / `neq`.
+  - `label` (to-many, name→id via the catalogue, per 0292):
+    `labels: { every: { id: { nin: [...] } } }` — not a bare `nin` (which means
+    "has some label not in the set") and not a `none` quantifier (Linear has
+    none); `every` gives "has no label in the set" and keeps label-less issues.
   - No top-level `not` on `IssueFilter`: each negation is pushed to a comparator
     or the `every` / `null` relation construct. Arbitrary predicate negation is
     not server-expressible and is out of scope (see below).
@@ -139,9 +144,10 @@ Out of scope:
 
 ## Dependencies
 
-- Blocked by: none. 0229 (the filter mechanism) is implemented.
-- Relates to: 0292 (Linear project filter — shares the per-key comparator
-  surface; if both land, settle the config shape once) and the "Nested AND/OR
+- Blocked by: 0292 (Linear Pull Filters via Catalogue-Resolved Ids) —
+  establishes the id-keyed `project` / `label` / `assignee` lowering this story
+  negates.
+- Relates to: 0229 (the filter mechanism, implemented) and the "Nested AND/OR
   filters" future candidate on 0146.
 
 ## Assumptions
@@ -157,6 +163,10 @@ Out of scope:
 - Linear's exclusion of relation-less rows under bare negation is confirmed by
   research but not by Linear's own prose; verify with a client-contract check
   against the live schema before relying on the `null`-branch behaviour.
+- A negated `project` / `label` / `assignee` filter resolves its values through
+  the catalogue (0292) before negating — `assignee` by email, `project` /
+  `label` by name — so a value the catalogue cannot resolve refuses the pull
+  rather than silently negating nothing.
 
 ## Technical Notes
 
@@ -166,8 +176,9 @@ Out of scope:
   carries it. Work: feed it from explicit polarity, group same-key values, and
   wire the `IS EMPTY` policy through the existing `Search.empty` / `not_empty`
   seam (jql.rs:184-185, 219-230).
-- Linear: `comparator` / `ignore_case_comparator` (`filter.rs:160-175`) gain
-  `nin` / `neq` forms; `labels` gains the `every` form; `Search`
+- Linear: `comparator` (`filter.rs:160-175`) gains `nin` / `neq` forms over the
+  catalogue-resolved ids 0292 introduces (`project` / `assignee` on `id`,
+  `labels` on `every: { id }`); `assignee` is no longer name-based. `Search`
   (filter.rs:88-92) carries negated value lists per field, plus the
   nullable-relation `null` branch where the empty-field policy requires it.
   `IssueFilter` has no top-level `not`, so negation is per-field only. Golden
@@ -190,8 +201,8 @@ Out of scope:
   deferred nested model.
 - Flagged the to-many `labels` negation and the empty-field exclusion as the two
   real correctness risks — both Open Questions, not silent assumptions.
-- Sized medium, not low like 0292: a public-API port change plus divergent
-  per-tracker negation semantics, not a single-field addition.
+- Sized medium: a public-API port change plus divergent per-tracker negation
+  semantics, layered on 0292's id-keyed lowering.
 - Web research (2026) drove the Linear lowering: `neq` / `nin` comparators and
   the `labels` `every` quantifier are server-side, so no client-side filtering
   is needed for set-membership negation. The absence of a top-level `not` is
@@ -200,7 +211,8 @@ Out of scope:
 ## References
 
 - Related: 0229 — Per-Tracker Pull Scope Configuration (filter mechanism); 0292
-  — Linear Project Pull Filter (sibling); 0146 — parent epic
+  — Linear Pull Filters via Catalogue-Resolved Ids (blocker; establishes the
+  id-keyed lowering); 0146 — parent epic
 - Code: `cli/jira-client/src/jql.rs`, `cli/linear-client/src/filter.rs`,
   `cli/work/src/pull.rs`, `cli/tracker/src/lib.rs`
 - Linear API filtering guide: https://linear.app/developers/filtering

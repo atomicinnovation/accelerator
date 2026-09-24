@@ -4,8 +4,8 @@
 //! belongs to, so there is no site and no email.
 //!
 //! The team is the one value that was historically not stored in config.
-//! `catalogue.json` carries `.team.id`, so an already-onboarded repository can
-//! have a populated catalogue and no `linear.team_id`. Requiring the key
+//! `catalogue.json` carries the base team, so an already-onboarded repository
+//! can have a populated catalogue and no `linear.team_id`. Requiring the key
 //! outright would report such a repository as an unconfigured tracker, and
 //! would leave one fact with two disagreeing sources of truth. Resolution is
 //! therefore the key first, then the catalogue.
@@ -20,6 +20,8 @@ use tracker_support::Secret;
 use tracker_support::TokenKeys;
 use tracker_support::TokenSource;
 
+use crate::catalogue::read_catalogue;
+use crate::catalogue::TeamEntry;
 use crate::error::ClientError;
 
 /// Everything one authenticated Linear request needs.
@@ -95,7 +97,7 @@ pub fn resolve_team(
 ///
 /// Precedence is `linear.team_key` → the deprecated `work.default_project_code`
 /// (gated on `work.integration: linear`, so a legacy Linear repo keeps
-/// resolving and earns the removal warning) → the catalogue `/team/key`. The
+/// resolving and earns the removal warning) → the catalogue's base team. The
 /// legacy field outranks the catalogue during the window; a re-init that
 /// refreshes the catalogue without migrating still resolves the stale legacy
 /// value until `m0009` runs.
@@ -121,24 +123,21 @@ pub fn team_key(
         "work.default_project_code",
         resolved.deprecation.as_deref(),
     );
-    Ok(resolved
-        .value
-        .or_else(|| catalogue_field(integrations_root, "/team/key")))
+    Ok(resolved.value.or_else(|| {
+        catalogued_base_team(integrations_root, |base| base.key.clone())
+    }))
 }
 
 fn catalogue_team(integrations_root: &Path) -> Option<String> {
-    catalogue_field(integrations_root, "/team/id")
+    catalogued_base_team(integrations_root, |base| base.id.clone())
 }
 
-fn catalogue_field(integrations_root: &Path, pointer: &str) -> Option<String> {
-    let catalogue = integrations_root.join("linear/catalogue.json");
-    let raw = std::fs::read_to_string(catalogue).ok()?;
-    let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
-    parsed
-        .pointer(pointer)
-        .and_then(serde_json::Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
+fn catalogued_base_team(
+    integrations_root: &Path,
+    field: impl Fn(&TeamEntry) -> String,
+) -> Option<String> {
+    let catalogue = read_catalogue(integrations_root)?;
+    Some(field(catalogue.base_entry()?)).filter(|value| !value.is_empty())
 }
 
 /// The malformed-token check.

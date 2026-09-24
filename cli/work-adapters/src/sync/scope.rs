@@ -1,8 +1,9 @@
 //! The pre-search entity resolver a broadened discovery drives.
 //!
-//! A base-only pull resolves its scope through the adapter's pure
-//! `resolve_scope` and issues no extra request. A broadened pull —
-//! `additional_*` or whole-workspace — resolves its entities here instead:
+//! Every pull first passes its scope through the adapter's pure
+//! `resolve_scope`, which validates the filters and, for a base-only pull,
+//! resolves its entity with no extra request. A broadened pull —
+//! `additional_*` or whole-workspace — then resolves its entities here:
 //! against the credential's *live* visible set, so a configured entity the
 //! credential cannot see aborts the pull rather than silently searching a
 //! narrower scope. Single-sourcing the membership rule keeps it from drifting
@@ -32,8 +33,9 @@ pub enum EntityResolution {
     Transient(TrackerError),
 }
 
-/// Whether a scope broadens beyond the base entity, and so resolves through the
-/// live enumeration here rather than the adapter's pure `resolve_scope`.
+/// Whether a scope broadens beyond the base entity, and so resolves its
+/// entities through the live enumeration here after the adapter's pure
+/// `resolve_scope` has validated it.
 #[must_use]
 pub const fn is_broadened(scope: &SearchScope) -> bool {
     match &scope.entities {

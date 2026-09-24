@@ -3,15 +3,80 @@
     {
       "method": "POST",
       "path": "/graphql",
-      "consume": true,
+      "operation": "TeamIdentities",
       "response": {
         "status": 200,
         "headers": {
           "Content-Type": "application/json"
         },
-        "body": "{\"data\": {\"team\": {\"id\": \"team-x-uuid\", \"key\": \"BLA\", \"name\": \"Team X\", \"states\": {\"nodes\": [{\"id\": \"state-todo\", \"name\": \"Todo\", \"type\": \"unstarted\", \"position\": 0}, {\"id\": \"state-ip\", \"name\": \"In Progress\", \"type\": \"started\", \"position\": 1}]}}}}"
+        "body": "{\"data\": {\"teams\": {\"nodes\": [{\"id\": \"team-x-uuid\", \"key\": \"BLA\", \"name\": \"Team X\"}, {\"id\": \"team-y-uuid\", \"key\": \"OPS\", \"name\": \"Team Y\"}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
       },
-      "expect_body_contains": "team"
+      "expect_body_contains": "includeArchived: true"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation": "TeamStates",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"workflowStates\": {\"nodes\": [{\"id\": \"state-todo\", \"name\": \"Todo\", \"type\": \"unstarted\", \"position\": 0, \"archivedAt\": null, \"team\": {\"id\": \"team-x-uuid\"}}, {\"id\": \"state-ip\", \"name\": \"In Progress\", \"type\": \"started\", \"position\": 1, \"archivedAt\": null, \"team\": {\"id\": \"team-x-uuid\"}}, {\"id\": \"state-ops\", \"name\": \"Backlog\", \"type\": \"backlog\", \"position\": 0, \"archivedAt\": null, \"team\": {\"id\": \"team-y-uuid\"}}, {\"id\": \"state-z\", \"name\": \"Todo\", \"type\": \"unstarted\", \"position\": 0, \"archivedAt\": null, \"team\": {\"id\": \"team-z-uuid\"}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+      },
+      "expect_body_contains": "workflowStates"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation": "TeamLabels",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issueLabels\": {\"nodes\": [{\"id\": \"label-bug\", \"name\": \"Bug\", \"archivedAt\": null, \"team\": {\"id\": \"team-x-uuid\"}}, {\"id\": \"label-z\", \"name\": \"Bug\", \"archivedAt\": null, \"team\": {\"id\": \"team-z-uuid\"}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+      },
+      "expect_body_contains": "issueLabels"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation": "WorkspaceLabels",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"issueLabels\": {\"nodes\": [{\"id\": \"label-security\", \"name\": \"Security\", \"archivedAt\": null}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+      },
+      "expect_body_contains": "null: true"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation": "TeamMembers",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"users\": {\"nodes\": [{\"id\": \"user-ada\", \"name\": \"ada\", \"displayName\": \"Ada\", \"email\": \"ada@example.com\", \"active\": true, \"teams\": {\"nodes\": [{\"id\": \"team-x-uuid\"}, {\"id\": \"team-y-uuid\"}], \"pageInfo\": {\"hasNextPage\": false}}}, {\"id\": \"user-zed\", \"name\": \"zed\", \"displayName\": \"Zed\", \"email\": \"zed@example.com\", \"active\": false, \"teams\": {\"nodes\": [{\"id\": \"team-z-uuid\"}], \"pageInfo\": {\"hasNextPage\": false}}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+      },
+      "expect_body_contains": "includeDisabled: true"
+    },
+    {
+      "method": "POST",
+      "path": "/graphql",
+      "operation": "TeamProjects",
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\": {\"projects\": {\"nodes\": [{\"id\": \"project-alpha\", \"name\": \"Alpha\", \"archivedAt\": null, \"teams\": {\"nodes\": [{\"id\": \"team-x-uuid\"}], \"pageInfo\": {\"hasNextPage\": false}}}, {\"id\": \"project-zeta\", \"name\": \"Zeta\", \"archivedAt\": null, \"teams\": {\"nodes\": [{\"id\": \"team-z-uuid\"}], \"pageInfo\": {\"hasNextPage\": false}}}], \"pageInfo\": {\"hasNextPage\": false, \"endCursor\": null}}}}"
+      },
+      "expect_body_contains": "accessibleTeams"
     }
   ]
 }

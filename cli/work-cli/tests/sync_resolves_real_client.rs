@@ -155,3 +155,61 @@ fn linear_without_a_token_reports_unconfigured() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(74));
     Ok(())
 }
+
+fn linear_config_filtering_on(family: &str, value: &str) -> String {
+    format!(
+        "---\nwork:\n  integration: linear\nlinear:\n  team_key: ENG\n  \
+         pull:\n    filters:\n      {family}:\n        - {value}\n---\n"
+    )
+}
+
+fn seed_complete_linear_catalogue(dir: &Path) -> Result<(), TestError> {
+    let state = dir.join(".accelerator/state/integrations/linear");
+    fs::create_dir_all(&state)?;
+    fs::write(
+        state.join("catalogue.json"),
+        r#"{"baseTeam": "t-eng", "labels": [],
+           "teams": [{"id": "t-eng", "key": "ENG", "name": "Eng",
+             "states": [{"id": "s-todo", "name": "Todo",
+                         "type": "unstarted", "position": 0}],
+             "labels": [{"id": "l-bug", "name": "Bug"}],
+             "members": [],
+             "projects": [{"id": "p-alpha", "name": "Alpha"}]}]}"#,
+    )?;
+    Ok(())
+}
+
+#[test]
+fn a_linear_unknown_label_filter_refuses_with_exit_74() -> Result<(), TestError>
+{
+    let repo = scratch_repo(&linear_config_filtering_on("label", "typo"))?;
+    seed_complete_linear_catalogue(repo.path())?;
+
+    let output = run(repo.path(), &[("ACCELERATOR_LINEAR_TOKEN", "dummy")])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(output.status.code(), Some(74), "{stderr}");
+    assert!(
+        stderr.contains("pull filters could not be resolved:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("E_SEARCH_UNKNOWN_LABEL"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_linear_project_filter_reaches_resolution() -> Result<(), TestError> {
+    let repo = scratch_repo(&linear_config_filtering_on("project", "Nope"))?;
+    seed_complete_linear_catalogue(repo.path())?;
+
+    let output = run(repo.path(), &[("ACCELERATOR_LINEAR_TOKEN", "dummy")])?;
+
+    let stderr = String::from_utf8(output.stderr)?;
+    assert_eq!(output.status.code(), Some(74), "{stderr}");
+    assert!(
+        stderr.contains("pull filters could not be resolved:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("E_SEARCH_UNKNOWN_PROJECT"), "{stderr}");
+    Ok(())
+}

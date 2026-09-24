@@ -201,6 +201,7 @@ class TestPrereleaseSign:
         )
         mock_sign = mocker.patch.object(tsign, "sign_staged_binaries")
         mocker.patch.object(tmani, "collect_entries", return_value={})
+        mocker.patch.object(tr, "_tree_artifacts_staged", return_value=False)
         mock_emit = mocker.patch.object(tmani, "emit_manifest")
 
         prerelease_sign(ctx)
