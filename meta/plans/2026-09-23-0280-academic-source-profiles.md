@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T13:35:14+00:00"
+last_updated: "2026-09-24T17:55:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -858,16 +858,22 @@ Bearer` only when a key resolved.
 - `main.rs` alone builds every adapter. It first selects the `Clock`
   (`SystemClock`, or the test clock below), then creates the call's
   `Deadline` from that clock's `now()`, before any other work. It then asks
-  `context.rs` for the `ProjectContext`, builds `FetchPorts` around the same
-  clock, and calls `fetch_command::run(ports, project, deadline, request)`.
-  `FetchPorts` holds:
+  `context.rs` for the `ProjectContext`, builds a `SourceCall` pairing the
+  request with the adapters of the one source it asks, builds `FetchPorts`
+  around the same clock, and calls
+  `fetch_command::run(ports, project, deadline, call)`. Building only the
+  asked source's adapters means an OpenAlex call never reads the
+  configuration arXiv's shared state needs. `FetchPorts` holds:
   - the selected clock as one `Rc<dyn Clock>`, whose clones are the only
     clock handles any adapter receives;
   - `CredentialPorts` (environment, file facts, token-command runner,
-    provenance);
-  - for OpenAlex: its `Transport`, `OpenAlexDecoder`, and `NoPacing`;
-  - for arXiv (phase 6): its `Transport`, `ArxivDecoder`, `PacingGate`, and
-    `ConfirmationCache`.
+    provenance).
+
+  `SourceCall` is one of:
+  - `OpenAlex(request, OpenAlexAdapters)`: its `Transport`,
+    `OpenAlexDecoder`, and `NoPacing`;
+  - `Arxiv(request, ArxivAdapters)` (phase 6): its `Transport`,
+    `ArxivDecoder`, `PacingGate`, and `ConfirmationCache`.
 
   Under `test-loopback` only, `main.rs` also honours
   `ACCELERATOR_OPENALEX_API_URL` (a loopback URL only) and
@@ -1052,17 +1058,27 @@ throttle backoff, withdrawal confirmation, and `arxiv-profile`.
 
 #### 1. Decoding
 
-**File**: `cli/Cargo.toml` workspace dependency `roxmltree` (MIT/Apache-2.0, no
-dependencies); `cli/research-adapters/src/atom.rs`, `arxiv_raw.rs`
-**Changes**: `ArxivDecoder` parses by namespace URI (Atom, OpenSearch, arXiv),
+**File**: `cli/Cargo.toml` workspace dependency `roxmltree` 0.21
+(MIT/Apache-2.0; its one dependency, `memchr`, was already in the graph);
+`cli/research-adapters/src/arxiv_xml.rs` (`XmlArxivDecoder`) with submodules
+`arxiv_xml/atom.rs` and `arxiv_xml/arxiv_raw.rs`
+**Changes**: `XmlArxivDecoder` parses by namespace URI (Atom, OpenSearch, arXiv),
 tolerating element order and prefix changes; collapses whitespace in
 `title`/`summary`; extracts `id`, `author/name`, `arxiv:comment`,
 `arxiv:journal_ref`, `arxiv:doi`, `arxiv:primary_category`. A feed whose single
 entry is titled `Error` is `DecodeFailure::ErrorFeed`; non-XML, a truncated
 body, or an entry missing `id` or `title` is `DecodeFailure::Undecodable`,
-each with a fixture test.
-`raw_versions` yields `RawVersion { size, source_type }`. Fixture tests cover
-recorded feeds, including 2608.21129.
+each with a fixture test. roxmltree's default refusal of a DTD makes a feed
+declaring one `Undecodable`, so no entity expansion reaches the decoder.
+`raw_versions` yields `RawVersion { size, source_type }`; an OAI-PMH `<error>`
+is `DecodeFailure::ErrorFeed("<code>: <text>")`, and a version without a
+`size` is `Undecodable`. Fixture tests cover feeds recorded live on
+2026-09-24 under `cli/research-adapters/tests/fixtures/arxiv/`, including
+2608.21129 and its `arXivRaw` record. arXiv now answers a malformed
+`id_list` with an empty feed rather than an `Error` entry, so `error.xml` is
+hand-built in the documented legacy shape. The `pup` rule
+`research_adapters_decoders_spawn_nothing` covers `arxiv_xml` as well as
+`openalex_json`, with a probe pair for each.
 
 #### 2. Pacing gate
 
@@ -1070,29 +1086,39 @@ recorded feeds, including 2608.21129.
 **Changes**: `FilePacingGate` implementing `PacingGate`, holding a clone of
 the composition root's `Rc<dyn Clock>` rather than a clock of its own, so
 its in-lock waits advance the same timeline the domain's deadline reads.
+Both it and the confirmation cache write through a `ScratchDir`
+(`scratch.rs`: the project root and `<paths.tmp>/research`, bounding every
+`store::atomic_write`) and report degraded conditions through a
+`Diagnostics` port (`diagnostics.rs`, `Stderr` in production).
 
 State:
 - `<paths.tmp>/research/arxiv.lock` (`rustix::fs::flock`, exclusive), polled
   non-blocking every 100 ms until the deadline would not admit an attempt,
   then `Unavailable(RateLimited)` with a `lock contention` stderr diagnostic.
 - `<paths.tmp>/research/arxiv-pacing` (written through
-  `store::atomic_write`), holding the last request start and a `not_before`,
-  both as `wall_now` values.
+  `store::atomic_write`), holding `last_finish_ms` and `not_before_ms`,
+  both `wall_now` values in milliseconds since the Unix epoch.
 - `<paths.tmp>/research/arxiv-requests.log` and `arxiv-contention.log`, each
   appended one timestamped line with `O_APPEND` per request sent or per call
   ended in contention. Neither takes the lock, and phase 10 counts the lines
   inside a round's window.
 
 Per attempt, while holding the lock, the gate:
-1. computes the wait until the later of three seconds after the last start
-   (clamped to 0–3 s) and `not_before` (clamped to 0–30 s);
+1. computes the wait until the later of three seconds after the last
+   request finished (clamped to 0–3 s) and `not_before` (clamped to 0–30 s);
 2. releases the lock and returns `Unavailable(RateLimited)` if the deadline
    would not admit that wait;
-3. otherwise sleeps, records the new start, and runs the attempt closure;
-4. persists the closure's `defer_until`, if any, as
-   `min(max(existing, new), wall_now + 30 s)`;
+3. otherwise sleeps, appends to the request log, and runs the attempt
+   closure;
+4. re-reads the state and persists the finish time and the closure's
+   `defer_until`, if any, as `min(max(existing, new), wall_now + 30 s)`;
 5. releases only after the response body is read, so arXiv sees one request
    at a time.
+
+Spacing runs from the finish rather than the start because arXiv has
+certainly received a request only once its response is read. Spacing from
+the start let two requests arrive 2.969 s apart in the real-clock suite, since
+the first connection took longer to reach the server than the second.
 
 `not_before` only moves forward, so every waiting process backs off together
 and a shorter wait never shortens a longer one. On read, a stored value more
@@ -1100,21 +1126,24 @@ than 30 s ahead is discarded, so a wall-clock step cannot strand it. A failed
 state write emits a one-line stderr diagnostic, and the call continues. Retry
 sleeps happen outside the lock. An unreadable or unparseable state
 file counts as no previous request. The arXiv `HttpTransport` sets
-`pool_max_idle_per_host(0)` so no idle connection outlives a gate pass.
+`pool_max_idle_per_host(0)` so no idle connection outlives a gate pass; the
+setting applies to every `HttpTransport`, OpenAlex's included.
 Polling is not FIFO. The contention log lets phase 10 read lock
-contention against breadth.
+contention against breadth. When the lock file cannot be opened or the
+filesystem cannot `flock`, the gate reports it and paces without the lock.
 
 #### 3. Confirmation cache
 
 **File**: `cli/research-adapters/src/confirmations.rs`
-**Changes**: the `ConfirmationCache` adapter. Verdicts, both withdrawn and
-not, are cached in
+**Changes**: `FileConfirmationCache`, the `ConfirmationCache` adapter.
+Verdicts, both withdrawn and not, are cached in
 `<paths.tmp>/research/arxiv-withdrawals.json` (`store::atomic_write`), keyed
 by version-stripped ID plus the latest version the feed reported, so a new
 version invalidates the entry. The cache is consulted before any OAI request;
 a cached verdict needs no gate pass, and an unparseable cache counts as
 empty. It is written inside the gate pass that sent the OAI request, while the
-lock is held, re-reading and merging before the atomic replace.
+lock is held, re-reading and merging before the atomic replace. A failed
+write is reported through `Diagnostics` and the call continues.
 
 #### 4. Wiring
 
@@ -1125,9 +1154,15 @@ Confirmations issue
 `GET /oai?verb=GetRecord&identifier=oai:arXiv.org:<validated id>&metadataPrefix=arXivRaw`.
 `ACCELERATOR_ARXIV_API_URL` and `ACCELERATOR_ARXIV_OAI_URL` follow the
 test-loopback rule. The arXiv `venue_signals` are `{"journal_ref","doi"}`.
-`main.rs` builds `FilePacingGate` and the `ConfirmationCache` adapter from
-the composed `paths.tmp` and places them in `FetchPorts`. A
-`fetch_command.rs` unit test drives an arXiv lookup through fakes of both.
+For an arXiv request only, `main.rs` resolves
+`ProjectContext::research_scratch()` (`research/` under the effective
+`paths.tmp`), builds `FilePacingGate` and `FileConfirmationCache` from it, and
+places them in `SourceCall::Arxiv`. An OpenAlex call never reads `paths.tmp`,
+so an insecure `config.local.md` still reaches the credential ladder's coded
+`E_LOCAL_PERMS_INSECURE` refusal. `FetchRequest::verb` and `ArxivRequest::verb`
+join the domain's public API. A `fetch_command.rs` unit test drives an arXiv
+lookup through fakes of both, asserting two gate passes and one recorded
+verdict.
 
 #### 5. `arxiv-profile` skill
 
@@ -1140,10 +1175,15 @@ arXiv record is `tier-2` by design.
 
 - `cli/http-test-support`: record an `Instant` per hit and expose
   `hit_instants(&key)`, test-first in its own suite.
+- `cli/research-adapters/tests/arxiv_xml.rs`: recorded search, withdrawn
+  lookup, empty and error feeds; namespace-not-prefix matching; whitespace
+  collapse; non-XML, truncated, non-Atom, missing `id`/`title`, and DTD bodies
+  `Undecodable`; both recorded `arXivRaw` version lists; an OAI `<error>`; a
+  version without a size.
 - `cli/research-adapters/tests/pacing.rs` with a recording clock and a temp
   directory:
-  - spacing from a recent start;
-  - a future start clamped to 3 s;
+  - spacing from when the last request finished;
+  - a future finish clamped to 3 s;
   - a corrupt state file treated as absent;
   - a closure's `defer_until` is persisted before the lock is released, and a
     fresh gate on the same directory waits until it;
@@ -1178,6 +1218,8 @@ in which a 3 s retry backoff is followed by no further pacing wait;
   `paths.tmp`. The test clock advances `now` and `wall_now` together from one
   virtual offset whose epoch comes from `ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH`,
   shared by both processes, so persisted values compare deterministically.
+  The deferral case answers a `429` with `Retry-After: 20` then `200`, so
+  process 1 logs `[20000]` and process 2's first logged wait equals it.
 - a lock-contention `rate_limited` carries `"cause":"lock_contention"`;
 - a malformed `200` feed → exit `1`, `E_RESEARCH_UNDECODABLE`.
 - `cli/research-cli/tests/arxiv_pacing.rs` (real clock): the first process's
@@ -1187,7 +1229,7 @@ in which a 3 s retry backoff is followed by no further pacing wait;
   sequential calls land at least three seconds apart; a withdrawn search's
   search and OAI hits land at least three seconds apart.
 - `research_agent_contract.rs` gains the no-`WebFetch` assertion for
-  `arxiv-profile`.
+  `arxiv-profile`, sharing one helper with `openalex-profile`'s.
 
 ### Success Criteria
 
@@ -1196,7 +1238,11 @@ in which a 3 s retry backoff is followed by no further pacing wait;
 - [x] `cargo test --manifest-path cli/Cargo.toml -p http-test-support -p research-adapters -p accelerator-research --all-features`
 - [x] `uv run pytest tests/integration/deny` and `mise run deny:check` pass with `roxmltree`
 - [x] `mise run lint:store-duplication:check` exits `0`
-- [ ] `mise run check` and `mise run test` exit `0`
+- [ ] `mise run check` and `mise run test` exit `0` — `check` exits `0`;
+      `test:unit` and `test:integration` exit `0` (3,633 cli tests pass).
+      `test:e2e:visualiser` is outstanding: on 2026-09-24 an orphaned
+      e2e server from another workspace held Playwright's health port, so
+      this workspace's server never started. Re-run once it is gone.
 
 #### Manual Verification
 
