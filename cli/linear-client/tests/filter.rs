@@ -7,16 +7,18 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use linear_client::filter::{compose, FixedStates, Search, FETCH_PAGE_SIZE};
+use linear_client::catalogue::TeamEntries;
+use linear_client::filter::{compose, Search, FETCH_PAGE_SIZE};
+use linear_client::resolution::{FixedNames, ResolverSet};
 use linear_client::ClientError;
 
 const FAMILIES: [&str; 5] = ["team", "state", "assignee", "label", "text"];
 
-fn states() -> FixedStates {
+fn states() -> ResolverSet {
     let mut map = BTreeMap::new();
     map.insert("In Progress".to_owned(), "state-uuid".to_owned());
     map.insert("Done".to_owned(), "done-uuid".to_owned());
-    FixedStates(map)
+    ResolverSet::new(Box::new(FixedNames(map)), TeamEntries::keyed(&[]))
 }
 
 fn rows() -> Vec<(String, String, String)> {

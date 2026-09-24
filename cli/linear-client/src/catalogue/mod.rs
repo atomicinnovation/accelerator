@@ -1,180 +1,94 @@
-//! `catalogue.json`: its document shape, and the cache-backed
-//! [`StateResolver`] reading workflow states out of it.
+//! `catalogue.json`: its document shape, and the resolvers read out of it.
 //!
-//! Name matching is case-insensitive and trimmed: every state whose display
-//! name matches is collected, so a name two states share resolves ambiguously
-//! rather than silently picking one.
+//! A reader loads the file once and forgives what it cannot parse: an absent
+//! file resolves nothing, and a damaged part answers as damaged while the rest
+//! keeps resolving. Names match trimmed and Unicode case-insensitively.
 
 mod document;
+mod entries;
 mod section;
+mod team_states;
 
 use std::path::Path;
-
-use serde_json::Value;
 
 pub use self::document::{
     CatalogueDocument, CatalogueParseError, CatalogueUpdate, CataloguedLabel,
     CataloguedMember, CataloguedProject, CataloguedState, Strictness,
     TeamEntry,
 };
+pub use self::entries::{FamilyResolver, TeamEntries};
 pub use self::section::{CatalogueSection, SectionSet};
+pub use self::team_states::TeamStates;
 
-use crate::filter::StateResolver;
-use crate::filter::TeamResolver;
+use crate::resolution::ResolverSet;
 
 /// The catalogue under `<integrations_root>/linear/`, read forgivingly: a
 /// damaged entry is skipped, and an absent or unparseable file is `None`.
 #[must_use]
 pub fn read_catalogue(integrations_root: &Path) -> Option<CatalogueDocument> {
-    let text = std::fs::read_to_string(
-        integrations_root.join("linear/catalogue.json"),
-    )
-    .ok()?;
+    let text =
+        std::fs::read_to_string(catalogue_path(integrations_root)).ok()?;
     CatalogueDocument::parse(&text, Strictness::Forgiving).ok()
 }
 
-/// A non-empty string at `pointer` in `catalogue`, or `None`.
-///
-/// An empty string reads as `None`, so a blank `/team/key` never resolves and
-/// a blank `/team/id` never masquerades as a UUID.
-fn pointer_string(catalogue: &Value, pointer: &str) -> Option<String> {
-    catalogue
-        .pointer(pointer)
-        .and_then(Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
+fn catalogue_path(integrations_root: &Path) -> std::path::PathBuf {
+    integrations_root.join("linear/catalogue.json")
 }
 
-/// Workflow states loaded from a catalogue, each a display name paired with its
-/// UUID.
+/// Team data a run fetched live rather than read from the catalogue.
 #[derive(Debug, Clone, Default)]
-pub struct CatalogueStates {
-    states: Vec<(String, String)>,
+pub struct LiveCatalogueData {
+    pub entries: Vec<TeamEntry>,
+    pub workspace_labels: Option<Vec<CataloguedLabel>>,
 }
 
-impl CatalogueStates {
-    /// Loads the states from `<integrations_root>/linear/catalogue.json`,
-    /// yielding an empty resolver when the catalogue is absent or unreadable —
-    /// so a missing catalogue resolves nothing rather than erroring.
+/// A catalogue read once, for resolving names against.
+#[derive(Debug, Clone)]
+pub struct Catalogue {
+    document: CatalogueDocument,
+}
+
+impl Catalogue {
     #[must_use]
     pub fn load(integrations_root: &Path) -> Self {
-        let path = integrations_root.join("linear/catalogue.json");
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-            .map(|catalogue| Self::from_catalogue(&catalogue))
-            .unwrap_or_default()
-    }
-
-    /// Builds a resolver directly from a parsed catalogue.
-    #[must_use]
-    pub fn from_catalogue(catalogue: &Value) -> Self {
-        let states = catalogue
-            .get("workflowStates")
-            .and_then(Value::as_array)
-            .map(|states| {
-                states
-                    .iter()
-                    .filter_map(|state| {
-                        let name = state.get("name").and_then(Value::as_str)?;
-                        let id = state.get("id").and_then(Value::as_str)?;
-                        Some((name.to_owned(), id.to_owned()))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        Self { states }
-    }
-}
-
-fn normalise(name: &str) -> String {
-    name.trim().to_ascii_lowercase()
-}
-
-impl StateResolver for CatalogueStates {
-    fn resolve(&self, name: &str) -> Option<String> {
-        let mut matches = self.resolve_all(name);
-        match matches.len() {
-            1 => matches.pop(),
-            _ => None,
-        }
-    }
-
-    fn resolve_all(&self, name: &str) -> Vec<String> {
-        let wanted = normalise(name);
-        self.states
-            .iter()
-            .filter(|(state_name, _)| normalise(state_name) == wanted)
-            .map(|(_, id)| id.clone())
-            .collect()
-    }
-}
-
-/// The teams a catalogue names, each key paired with its UUID — the
-/// cache-backed [`TeamResolver`], resolving a configured team key to the UUID a
-/// search filter needs.
-///
-/// Reads the multi-entry `teams` array a broadened pull grows, always folding
-/// in the single `/team` object an older seed wrote, so a pre-upgrade catalogue
-/// resolves base-only and a grown one resolves every catalogued team.
-#[derive(Debug, Clone, Default)]
-pub struct CatalogueTeam {
-    teams: Vec<(String, String)>,
-}
-
-impl CatalogueTeam {
-    /// Loads the teams from `<integrations_root>/linear/catalogue.json`,
-    /// yielding an empty resolver when the catalogue is absent or unreadable —
-    /// so a missing catalogue resolves nothing rather than erroring.
-    #[must_use]
-    pub fn load(integrations_root: &Path) -> Self {
-        let path = integrations_root.join("linear/catalogue.json");
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-            .map(|catalogue| Self::from_catalogue(&catalogue))
-            .unwrap_or_default()
-    }
-
-    /// Builds a resolver directly from a parsed catalogue. The multi-entry
-    /// `teams` array is read first; the base `/team` is folded in when absent
-    /// from it, so a newer binary reading a pre-upgrade file (no `teams` key)
-    /// still resolves the base team.
-    #[must_use]
-    pub fn from_catalogue(catalogue: &Value) -> Self {
-        let mut teams: Vec<(String, String)> = Vec::new();
-        if let Some(entries) = catalogue.get("teams").and_then(Value::as_array)
-        {
-            for entry in entries {
-                if let (Some(key), Some(id)) = (
-                    pointer_string(entry, "/key"),
-                    pointer_string(entry, "/id"),
-                ) {
-                    teams.push((key, id));
-                }
+        match std::fs::read_to_string(catalogue_path(integrations_root)) {
+            Ok(text) => Self::from_text(&text),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Self::from_document(CatalogueDocument::default())
             }
+            Err(_) => Self::from_document(CatalogueDocument::unreadable()),
         }
-        if let (Some(key), Some(id)) = (
-            pointer_string(catalogue, "/team/key"),
-            pointer_string(catalogue, "/team/id"),
-        ) {
-            if !teams.iter().any(|(known, _)| known.trim() == key.trim()) {
-                teams.push((key, id));
-            }
-        }
-        Self { teams }
-    }
-}
-
-impl TeamResolver for CatalogueTeam {
-    fn resolve(&self, key: &str) -> Option<String> {
-        self.teams
-            .iter()
-            .find(|(team_key, _)| team_key.trim() == key.trim())
-            .map(|(_, team_id)| team_id.clone())
     }
 
-    fn catalogued(&self) -> Vec<(String, String)> {
-        self.teams.clone()
+    #[must_use]
+    pub fn from_text(text: &str) -> Self {
+        Self::from_document(
+            CatalogueDocument::parse(text, Strictness::Forgiving)
+                .unwrap_or_else(|_| CatalogueDocument::unreadable()),
+        )
+    }
+
+    #[must_use]
+    pub const fn from_document(document: CatalogueDocument) -> Self {
+        Self { document }
+    }
+
+    #[must_use]
+    pub fn resolver_set(&self) -> ResolverSet {
+        ResolverSet::new(
+            Box::new(TeamStates::of(&self.document)),
+            TeamEntries::from_document(self.document.clone()),
+        )
+    }
+
+    /// Every catalogued team as `(key, id)`, in id order.
+    #[must_use]
+    pub fn catalogued_teams(&self) -> Vec<(String, String)> {
+        entries::catalogued_teams(&self.document)
+    }
+
+    #[must_use]
+    pub fn base_team_id(&self) -> Option<String> {
+        self.document.base_entry().map(|base| base.id.clone())
     }
 }

@@ -21,6 +21,9 @@ impl CatalogueSection {
         Self::WorkspaceLabels,
     ];
 
+    pub const PER_TEAM: [Self; 4] =
+        [Self::States, Self::Labels, Self::Members, Self::Projects];
+
     const fn belongs_to_a_team(self) -> bool {
         !matches!(self, Self::WorkspaceLabels)
     }

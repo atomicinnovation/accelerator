@@ -10,67 +10,8 @@ use serde_json::Map;
 use serde_json::Value;
 
 use crate::error::ClientError;
-
-/// Resolves a workflow-state name to its UUID.
-pub trait StateResolver {
-    /// The single UUID a name resolves to, or `None` when it names no state or
-    /// more than one.
-    fn resolve(&self, name: &str) -> Option<String>;
-
-    /// Every UUID whose display name matches, so a caller can tell an unknown
-    /// name from an ambiguous one — the distinction the transition flow draws
-    /// between `E_TRANSITION_STATE_NOT_IN_CATALOGUE` and
-    /// `E_TRANSITION_STATE_AMBIGUOUS`.
-    fn resolve_all(&self, name: &str) -> Vec<String> {
-        self.resolve(name).into_iter().collect()
-    }
-}
-
-/// A fixed map, used by the search suites and by any caller with no catalogue.
-#[derive(Debug, Clone, Default)]
-pub struct FixedStates(pub std::collections::BTreeMap<String, String>);
-
-impl StateResolver for FixedStates {
-    fn resolve(&self, name: &str) -> Option<String> {
-        self.0.get(name).cloned()
-    }
-}
-
-/// Resolves a team **key** — the `ENG` in `ENG-42` — to the team UUID a search
-/// filter needs.
-///
-/// A separate job from [`StateResolver`]: a config names the team by its key,
-/// but the `{team:{id:{eq:…}}}` filter is evaluated against the UUID, so an
-/// unresolved key silently matches no team.
-pub trait TeamResolver {
-    /// The team UUID `key` resolves to, or `None` when it matches no team.
-    fn resolve(&self, key: &str) -> Option<String>;
-
-    /// Every catalogued team as `(key, uuid)`, for the multi-team keyed
-    /// reconcile read: a corpus that spans additional teams must page each and
-    /// accept each team's identifier prefix as in-scope. Empty for a resolver
-    /// with no catalogue.
-    fn catalogued(&self) -> Vec<(String, String)> {
-        Vec::new()
-    }
-}
-
-/// A fixed map, used by the search suites and by any caller with no catalogue.
-#[derive(Debug, Clone, Default)]
-pub struct FixedTeam(pub std::collections::BTreeMap<String, String>);
-
-impl TeamResolver for FixedTeam {
-    fn resolve(&self, key: &str) -> Option<String> {
-        self.0.get(key.trim()).cloned()
-    }
-
-    fn catalogued(&self) -> Vec<(String, String)> {
-        self.0
-            .iter()
-            .map(|(key, id)| (key.clone(), id.clone()))
-            .collect()
-    }
-}
+use crate::resolution::ResolverSet;
+use crate::resolution::SingleResolution;
 
 /// Everything the search surface accepts, in its own shape.
 ///
@@ -102,12 +43,12 @@ pub const FETCH_PAGE_SIZE: u32 = 250;
 ///
 /// # Errors
 ///
-/// [`ClientError::UnknownState`] when a state name is not in the catalogue —
-/// a refusal rather than a filter over the literal name, which would silently
-/// return the wrong issue set.
+/// [`ClientError::UnknownState`] when a state name does not resolve to exactly
+/// one base-team state — a refusal rather than a filter over the literal name,
+/// which would silently return the wrong issue set.
 pub fn compose(
     search: &Search,
-    states: &dyn StateResolver,
+    resolvers: &ResolverSet,
 ) -> Result<Value, ClientError> {
     let mut filter = Map::new();
     let teams: Vec<&String> = search
@@ -125,16 +66,16 @@ pub fn compose(
         }
     }
     if !search.state.is_empty() {
-        let ids =
-            search
-                .state
-                .iter()
-                .map(|name| {
-                    states.resolve(name).ok_or_else(|| {
-                        ClientError::UnknownState { name: name.clone() }
-                    })
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+        let ids = search
+            .state
+            .iter()
+            .map(|name| match resolvers.team_states().resolve(name) {
+                SingleResolution::Resolved(id) => Ok(id),
+                SingleResolution::Unresolved(_) => {
+                    Err(ClientError::UnknownState { name: name.clone() })
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         filter.insert("state".to_owned(), json!({"id": comparator(&ids)}));
     }
     if !search.assignee.is_empty() {

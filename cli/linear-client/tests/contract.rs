@@ -19,8 +19,9 @@ use config::credentials::{CommandPolicy, CredentialContext};
 use config_adapters::credentials::{
     BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
 };
-use linear_client::filter::FixedStates;
-use linear_client::filter::FixedTeam;
+use linear_client::catalogue::TeamEntries;
+use linear_client::resolution::FixedNames;
+use linear_client::resolution::ResolverSet;
 use linear_client::transport::Transport;
 use linear_client::{LinearClient, UploadTransport};
 use tracker::ExternalId;
@@ -152,8 +153,10 @@ fn live_client() -> LiveClient {
             transport,
             UploadTransport::production().expect("the upload transport builds"),
             Some(team_key),
-            Box::new(FixedTeam::default()),
-            Box::new(FixedStates::default()),
+            ResolverSet::new(
+                Box::new(FixedNames::default()),
+                TeamEntries::keyed(&[]),
+            ),
         ),
         unaccountable: ExternalId::new(
             std::env::var("ACCELERATOR_LINEAR_CONTRACT_UNACCOUNTABLE")

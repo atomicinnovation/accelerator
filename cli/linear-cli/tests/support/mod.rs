@@ -39,7 +39,8 @@ pub fn seed_catalogue(dir: &Path) {
     std::fs::write(
         &catalogue,
         r#"{"team": {"key": "BLA", "id": "team-uuid"},
-           "workflowStates": [{"name": "In Progress", "id": "state-ip-uuid"}]}"#,
+           "workflowStates": [{"name": "In Progress", "id": "state-ip-uuid",
+                              "type": "started", "position": 1}]}"#,
     )
     .expect("write catalogue");
 }

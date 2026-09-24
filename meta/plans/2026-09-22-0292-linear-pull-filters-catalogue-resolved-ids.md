@@ -1272,15 +1272,15 @@ is built inside a `OnceCell`, the first time it resolves anything. Indices are
 
 #### Automated Verification
 
-- [ ] Format and lint clean: `mise run cli:check`
-- [ ] Resolver tests pass: `cargo test -p linear-client --test catalogue`
-- [ ] Transition keeps 122/123: `cargo test -p linear-client --test transition` and `cargo test -p linear-cli --test flow_transition`
-- [ ] Every touched crate passes: `cargo test -p linear-client -p linear-cli -p work-adapters -p work-cli`
-- [ ] Read-only CI mirror green: `mise run check`
+- [x] Format and lint clean: `mise run cli:check`
+- [x] Resolver tests pass: `cargo test -p linear-client --test catalogue`
+- [x] Transition keeps 122/123: `cargo test -p linear-client --test transition` and `cargo test -p linear-cli --test flow_transition`
+- [x] Every touched crate passes: `cargo test -p linear-client -p linear-cli -p work-adapters -p work-cli`
+- [x] Read-only CI mirror green: `mise run check`
 
 #### Manual Verification
 
-- [ ] None: pure logic, covered by unit tests.
+- [x] None: pure logic, covered by unit tests.
 
 ---
 
