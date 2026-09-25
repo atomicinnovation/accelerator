@@ -30,10 +30,11 @@ its own follow-up questions to a depth I choose, so that one focus area yields
 a deeper answer without me commissioning each sub-question as a new round.
 
 At `depth > 1`, `conduct` researches each (focus area, profile) pair as a tree:
-every researcher writes a level note and returns up to `n` follow-up questions,
+every researcher writes a level note recording up to `n` follow-up questions,
 `n` starting at 4 and halving per descent (the dzhng halving); `conduct` spawns
-the next level from those follow-ups until the configured depth, then a
-composer writes the pair's single finding from its notes. This is the epic's
+the next level from the follow-ups recorded on disk until the configured depth,
+then a composer writes the pair's single finding from its notes. A concurrency
+cap bounds how many agents `conduct` spawns at once. This is the epic's
 acknowledged descope candidate — droppable if the epic runs long, keeping the
 knob (0282).
 
@@ -53,54 +54,85 @@ and paths but never holds research content.
 ## Requirements
 
 - **Level orchestration.** At `depth > 1`, `conduct` spawns each pair's level-1
-  researcher, then one researcher per returned follow-up question, level by
-  level, until `depth`. A node's follow-up cap is 4 at level 1 and
-  `ceil(parent cap / 2)` below it; `conduct` truncates a return exceeding its
-  cap to the cap.
+  researcher, then level by level until `depth`, one researcher per missing
+  node that `corpus topic-research outstanding` derives from the notes on disk.
+  `conduct` re-runs `outstanding` after each level; fresh runs and resumes take
+  the same path.
+- **Follow-up cap.** A node's cap is 4 at level 1 and `ceil(parent cap / 2)`
+  below it. `conduct` injects the cap at spawn, and the researcher records at
+  most that many `follow_ups`, most valuable first. When a note records more,
+  `outstanding` takes the first `cap` entries and warns; it never rejects the
+  note.
 - **Follow-ups at every level.** Every node, including those at the depth
-  limit, returns its capped follow-up questions; `conduct` spawns them only when
-  the node's `level` is below the resolved `depth`. `follow_ups: []` therefore
-  always means the node judged its question answered (pruning), never that it
-  hit the limit.
-- **Content-free orchestration.** A researcher returns its follow-up questions
-  and a short summary, never its note body.
+  limit, records its capped follow-up questions; `outstanding` derives children
+  only from notes whose `level` is below the resolved `depth`. `follow_ups: []`
+  therefore always means the node judged its question answered (pruning), never
+  that it hit the limit.
+- **Duplicate avoidance.** `conduct` injects into each researcher the questions
+  its tree already covers — the pair question, its ancestors' questions, and
+  the follow-ups recorded so far — as questions not to propose again.
+  `outstanding` skips a follow-up whose normalised question equals the pair
+  question or any node already in the tree. A skipped follow-up keeps its
+  position, so lineages stay stable.
+- **Content-free orchestration.** The notes on disk are the single source of
+  truth for follow-ups. A researcher returns only a short summary, never its
+  follow-ups or note body.
+- **Concurrency.** `conduct` spawns every batch — researchers at any depth,
+  including `depth: 1`, and composers — at most `concurrency` at a time,
+  resolved flag (`conduct --concurrency N`) > config
+  (`research.topic.concurrency`) > default `24`. `--concurrency` on `outline`
+  is a misplaced flag.
 - **Level notes.** Each node writes one note to
   `findings/<finding-stem>.levels/<lineage>.md`, where lineage encodes the
-  parent chain (`1`, `2-k`, `3-k-j`, …). Notes are written through a new
-  level-note outputter and template, carry frontmatter `kind: level-note`,
-  `question`, `source_profile`, `round`, `level`, `depth` (the resolved depth
-  the node ran under), and `follow_ups`, and are registered under the umbrella
-  `topic-research` type. Sources are tier-tagged as in findings. Notes are kept
-  after composition.
+  parent chain (`1`, `2-k`, `3-k-j`, …), each index being the 1-based position
+  of the question in its parent's capped `follow_ups`. Notes are written through
+  a new level-note outputter and template, carry frontmatter
+  `kind: level-note`, `question`, `source_profile`, `round`, `level`, `depth`
+  (the resolved depth the node ran under), and `follow_ups`, and are registered
+  under the umbrella `topic-research` type. Sources are tier-tagged as in
+  findings. Notes are kept after composition.
 - **Composer.** Once every expected node has a validated note, `conduct` spawns
-  a composer that reads only that pair's notes, fetches nothing, and writes the
-  pair's finding at its existing path through `finding-outputter` — standalone
-  prose answering the pair question, not a level-by-level walk — stamped with
-  the resolved `depth`.
-- **`depth: 1` unchanged.** One researcher per pair writes the finding
-  directly; no `.levels/` directory and no composer. A finding without `depth`
-  reads as `depth: 1`.
+  a dedicated `composer` agent (tools `Read, Write` only; configurable through
+  `accelerator config agent composer`) that reads only that pair's notes within
+  the resolved depth and writes the pair's finding at its existing path through
+  `finding-outputter` — standalone prose answering the pair question, not a
+  level-by-level walk — stamped with the resolved `depth`. Lacking fetch
+  tools, it can cite only sources already in the notes.
+- **`depth: 1` unchanged in shape.** A pair with no `.levels/` directory, at
+  `depth: 1`, gets one researcher that writes the finding directly; no
+  `.levels/` directory and no composer. A finding without `depth` reads as
+  `depth: 1`.
 - **Profile confinement.** Every node and the composer of a pair run with that
   pair's injected profile, and the finding keeps its `source_profile`.
 - **No human between levels**, and a finding's recursion does not consume the
   round's `breadth` budget.
 - **Write guard.** Researcher subagents may additionally write
   `<set>/findings/<nn>-<name>.levels/<lineage>.md`, still exactly one injected
-  path per spawn; every other path under `.levels/` is rejected.
+  path per spawn; every other path under `.levels/` is rejected. The `composer`
+  agent may write only the pair's top-level finding path, never under
+  `.levels/`.
 - **Resume.** A pair stays outstanding until its finding validates.
-  `corpus topic-research outstanding` reports, per partially researched pair,
-  its missing nodes — the recorded `follow_ups` of notes whose `level` is below
-  the resolved `depth`, minus validated notes — and pairs needing composition
-  only. A re-run spawns only the missing nodes, then composes. An invalid note
-  is quarantined as `.<lineage>.md.invalid` and treated as missing.
+  `corpus topic-research outstanding` takes the resolved depth (`--depth N`)
+  and reports, per partially researched pair, its missing nodes — the capped,
+  deduplicated `follow_ups` of notes whose `level` is below that depth, minus
+  validated notes — and pairs needing composition only. A re-run spawns only
+  the missing nodes, then composes. An invalid note is quarantined as
+  `.<lineage>.md.invalid` and treated as missing.
+- **Index retention.** A `.levels/` directory holds its `<nn>` index as a
+  quarantine marker does, keyed on the `question` of its `1.md` or
+  `.1.md.invalid`, so a resumed pair is allocated the same finding stem and a
+  new focus area never takes that index.
 - **Depth changes on resume.** A re-run at a smaller `--depth` composes from the
-  notes whose `level` is within that depth and stamps it; a re-run at a larger
-  `--depth` extends the tree from the recorded follow-ups of notes at the old
-  limit. A pair whose finding is composed is complete and is never re-deepened.
+  notes whose `level` is within that depth and stamps it — at `--depth 1`,
+  from `1.md` alone, spawning no researcher; a re-run at a larger `--depth`
+  extends the tree from the recorded follow-ups of notes at the old limit. A
+  pair whose finding is composed is complete and is never re-deepened.
 - **Counting.** `finding_count` and `round_count` count only the top-level
   `<nn>-*.md` files directly in `findings/`; `synthesise` reads only those.
 - **Surface.** Remove the dormant-depth notice from `conduct` and the "no effect
-  until 0283" caveat from `configure help`, and document the engine. The step 8
+  until 0283" caveat from `configure help`, and document the engine, the
+  `research.topic.concurrency` key and its default, and the `composer` agent
+  key. The step 8
   summary names each failed node by lineage with its reason and next step.
 
 ## Acceptance Criteria
@@ -113,12 +145,31 @@ and paths but never holds research content.
       researchers and 1 composer; the level-2 notes record their follow-ups and
       none is spawned.
 - [ ] Given `depth: 3`, when `conduct` runs, then level 1 spawns at most 4
-      children, each level-2 node at most 2, and level 3 none; a return over its
-      cap is truncated to the cap.
+      children, each level-2 node at most 2, and level 3 none; each researcher
+      is told its cap at spawn.
+- [ ] Given a note whose `follow_ups` exceed its level's cap, when
+      `outstanding` derives missing nodes, then it takes the first `cap`
+      entries and emits a warning, and the note stays valid.
+- [ ] Given a note whose follow-up normalises to the pair question or to a node
+      already in the tree, when `outstanding` derives missing nodes, then that
+      follow-up is skipped and the remaining siblings keep their lineage
+      positions.
+- [ ] Given a researcher at level 2 or below, then its spawn prompt lists the
+      pair question, its ancestors' questions and the tree's recorded
+      follow-ups as questions not to propose.
+- [ ] Given a researcher that returns follow-ups differing from its note, when
+      `conduct` spawns the next level, then the children match the note's
+      `follow_ups`, not the return.
 - [ ] Given a node returning `follow_ups: []`, when `conduct` runs, then that
       node spawns no children and the pair still composes.
 - [ ] Given `breadth: 2` and `depth: 3`, when `conduct` runs, then the round
       researches at most 2 focus areas regardless of node count.
+- [ ] Given `research.topic.concurrency: 2` and 5 pairs at `depth: 1`, when
+      `conduct` runs, then it spawns researchers in batches of at most 2; given
+      `--concurrency 3` as well, then batches of at most 3; given
+      `--concurrency` on `outline`, then it is rejected as a misplaced flag.
+- [ ] Given no concurrency config or flag, then `conduct` spawns at most 24 at
+      a time, composers included.
 - [ ] Given an `openalex` pair at `depth: 2`, then every node and the composer
       use the `openalex` profile, and every note and the finding carry
       `source_profile: openalex`.
@@ -132,12 +183,22 @@ and paths but never holds research content.
 - [ ] Given a researcher subagent, when it writes a `.levels/<lineage>.md` path,
       then the guard allows it; when it writes any other path under `.levels/`,
       then the guard rejects it.
+- [ ] Given the `composer` agent, then it has no fetch tools, and the guard
+      allows its injected top-level finding path and rejects every path under
+      `.levels/`.
 - [ ] Given a level-2 node that wrote no note (e.g. `budget_exhausted`), when
       `conduct` runs, then the pair has no finding, stays outstanding, and the
       summary names the node by lineage; when `conduct` re-runs, then it spawns
       only that node and its subtree, then the composer.
 - [ ] Given every note of a pair but no finding, when `conduct` re-runs, then it
       spawns only the composer.
+- [ ] Given focus areas A (`03`) and B (`04`) at `depth: 2` where A leaves only
+      `03-a-web.levels/` and B composes `04-b-web.md`, when `conduct` re-runs,
+      then A is allocated `03-a-web.md` and resumes from its notes; a newly
+      appended focus area is never allocated `03`.
+- [ ] Given a pair left outstanding at `depth: 3`, when `conduct` re-runs with
+      `--depth 1`, then the composer writes the finding from `1.md` alone,
+      stamped `depth: 1`, and no researcher is spawned.
 - [ ] Given a pair left outstanding at `depth: 3`, when `conduct` re-runs with
       `--depth 2`, then it composes from the level-1 and level-2 notes, stamps
       `depth: 2`, and spawns no researchers.
@@ -172,16 +233,23 @@ and paths but never holds research content.
 ## Assumptions
 
 - Keeping the default `depth: 1` makes this expensive recursion strictly opt-in.
-- `conduct`'s own context absorbs worst-case returns — 8 focus areas × 3
-  profiles × 13 nodes is 312 short follow-up lists per round at `depth: 3`.
-  Unmeasured.
 - A fixed starting cap of 4 suffices; promoting it to a
   `research.topic.fan_out` knob later is additive.
+- Accepted risk: `depth > 1` multiplies fetch calls, so an `openalex` pair can
+  exhaust a keyless daily budget within one round. It is not throttled; funding
+  a key is the remedy.
+- Accepted risk: the concurrency cap ships inside this descope candidate, so
+  dropping 0283 leaves `breadth` above 8 uncapped at `depth: 1`.
+- Accepted risk: near-paraphrase siblings at the same level run in parallel
+  unseen by each other and still spawn; the composer merges the overlap. No
+  surveyed system (dzhng, Anthropic, Sagan, open_deep_research, GPT-Researcher)
+  dedupes sub-questions semantically or persists a dedupe judgement.
 
 ## Technical Notes
 
 - Worst case per pair, excluding the composer, at cap 4: 5 nodes at `depth: 2`,
-  13 at `depth: 3`, 21 at `depth: 4`. Pruning keeps real cost beneath this.
+  13 at `depth: 3`, 21 at `depth: 4`. Pruning and dedupe keep real cost
+  beneath this.
 - Walkers of `findings/`: the visualiser indexer
   (`cli/visualiser/server/src/file_driver.rs:258`) never lists inside
   `findings/`; `corpus topic-research outstanding`
@@ -194,9 +262,23 @@ and paths but never holds research content.
   no dot-skip — hence notes carry frontmatter.
 - The notes directory name must never end in `.md`: `outstanding` would read it
   as a broken finding and consume an index.
-- Testability: the guard, `outstanding`'s missing-node derivation, and note
-  validation are unit-testable; spawn counts, halving, truncation and the
-  composer's no-fetch rule are `SKILL.md` prose contracts verified at eval level.
+- Index allocation: `Planner::index_for`
+  (`cli/corpus/src/topic_research/round.rs:434`) reuses an index only from a
+  retained finding or a quarantine marker, and `highest` counts only those;
+  `read_findings` skips non-`.md` names. Without index retention a pair whose
+  focus area composed nothing is reallocated `highest + 1` once a later focus
+  area composes, orphaning its `.levels/` directory.
+- Deduplication reuses `normalised` (`round.rs:292`), the whitespace-collapsing
+  comparison `outstanding` already applies to outline questions.
+- The guard recognises writers by `agent_type`
+  (`cli/research-cli/src/guard.rs:74`), so the `composer` agent needs its own
+  confinement rule.
+- Testability: the guard, `outstanding`'s missing-node derivation — cap,
+  halving, over-cap trim, dedupe and index retention — and note validation are
+  unit-testable; spawn batching, cap injection, known-question injection and
+  the researcher's ordering of follow-ups are `SKILL.md` prose contracts
+  verified at eval level. The composer's no-fetch rule is enforced by its tool
+  list.
 
 ## Drafting Notes
 
@@ -210,7 +292,17 @@ and paths but never holds research content.
   and the guard is extended; failure resumes rather than keeping a partial
   finding, with `--depth` as the escape hatch; limit-level nodes record
   follow-ups so a deeper re-run extends the tree.
-- Truncating an over-cap return to its cap is an inference, not discussed.
+- Stress-tested on 2026-09-25. Decisions: the notes on disk are the single
+  source of truth for follow-ups, so `outstanding` derives each level and fresh
+  runs and resumes share one path; the cap is injected so the model chooses its
+  follow-ups, with an ordered trim as a backstop rather than rejection; a
+  `.levels/` directory holds its index through its level-1 note's question; a
+  smaller `--depth`, including `--depth 1`, composes from existing notes; a
+  dedicated fetch-less `composer` agent; a per-batch concurrency cap as config
+  plus a `--concurrency` flag, kept in this item rather than split out despite
+  the descope risk; known-question injection plus exact-normalised dedupe,
+  after a sweep of the epic's prior art found no semantic sub-question dedupe
+  anywhere.
 - This remains the acknowledged descope candidate. If the epic runs long, drop
   this child and keep the knob (0282).
 - Status kept at `draft`.
@@ -225,4 +317,10 @@ and paths but never holds research content.
 - Prior art: dzhng/deep-research (per-node breadth halving)
 - To modify: `skills/research/research-topic/SKILL.md` (`conduct`),
   `agents/researcher.md`, `skills/research/outputters/`,
-  `templates/topic-research-finding.md`, `skills/config/configure/SKILL.md`
+  `templates/topic-research-finding.md`, `skills/config/configure/SKILL.md`,
+  `cli/corpus/src/topic_research/round.rs` (missing nodes, cap, dedupe, index
+  retention), `cli/corpus/src/topic_research/finding_path.rs` and
+  `cli/research-cli/src/guard.rs` (write guard), `cli/config/src/catalogue.rs`
+  (`research.topic.concurrency`, `composer` agent key)
+- To create: `agents/composer.md`, a level-note outputter under
+  `skills/research/outputters/`, and a level-note template
