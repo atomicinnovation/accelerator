@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-relates_to: ["work-item:0229", "work-item:0290"]
+relates_to: ["work-item:0229", "work-item:0230", "work-item:0290"]
 tags: ["sync", "tracker", "jira", "linear", "hierarchy", "parent-child", "relationships"]
 last_updated: "2026-09-20T19:15:54+00:00"
 last_updated_by: "Toby Clemson"
@@ -51,6 +51,8 @@ nesting. Both expose a single parent pointer, matching the local model.
   linked; a child whose parent lacks an `external_id` is linked once the parent is
   created in the same run.
 - Detect cycles in the local hierarchy and report them rather than looping.
+- Whichever of 0230 and 0291 ships first builds the parents-first ordering and
+  cycle detection; the other reuses it.
 - Divergence (parent differs, reparented, or unlinked on one side): last-writer-wins
   by timestamp (local `last_updated` vs remote `updated`), consistent with field
   mapping; the resolution is reported.
@@ -58,6 +60,9 @@ nesting. Both expose a single parent pointer, matching the local model.
   hierarchy-level violation): leave the edge unchanged, sync the rest of the item,
   warn.
 - The parent edge joins the digest and baseline so divergence is detected.
+- An edge whose local parent is a `draft-` item (0230) is deferred — not
+  warned as unresolved — until the draft is promoted; the next push then links
+  it.
 
 ## Acceptance Criteria
 
@@ -76,6 +81,10 @@ nesting. Both expose a single parent pointer, matching the local model.
       reports the cycle rather than looping.
 - [ ] Given the port, when an issue is read or pushed, then its parent reference
       crosses it.
+- [ ] Given a synced child whose local `parent` is a `draft-` item, when sync
+      pushes, then the edge is left unset without a warning; after the draft is
+      promoted, the next push sets the child's remote parent to the promoted
+      item's tracker ID.
 
 ## Open Questions
 
@@ -89,7 +98,8 @@ nesting. Both expose a single parent pointer, matching the local model.
 
 ## Dependencies
 
-- Blocked by: none.
+- Blocked by: 0230 (Tracker-Owned Work Item ID Generation), for the
+  draft-deferral requirement only — it needs 0230's draft form and promotion.
 - Blocks: none.
 
 ## Assumptions
@@ -125,3 +135,5 @@ nesting. Both expose a single parent pointer, matching the local model.
 
 - Source: `meta/work/0146-work-item-sync-enhancements.md`
 - Related: 0146 (parent), 0229, 0290
+- Related: 0230 — Tracker-Owned Work Item ID Generation: drafts, promotion, and
+  batch-created children arrive without remote parents for this item to link
