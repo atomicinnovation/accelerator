@@ -10,7 +10,7 @@ kind: "story"
 priority: "medium"
 parent: "work-item:0276"
 blocked_by: ["work-item:0292"]
-relates_to: ["work-item:0221", "work-item:0226"]
+relates_to: ["work-item:0221", "work-item:0226", "work-item:0230"]
 tags: ["config", "validation", "cli", "correctness"]
 last_updated: "2026-09-22T07:45:50+00:00"
 last_updated_by: "Toby Clemson"
@@ -159,6 +159,11 @@ repository — no CI lane runs it.
   delegates remote-existence validation of named entities to this command; in turn
   this command's pull-block validation portion is blocked by 0229 defining the
   `pull`-block config surface.
+- Relates to: 0230 (Tracker-Owned Work Item ID Generation) — this command's
+  `{tracker}`-validation portion is blocked by 0230 defining the rules:
+  `{tracker}` must be `work.id_pattern`'s only token and requires
+  `work.integration` to be `jira` or `linear`. If this command ships first,
+  0230 adds those rules to it; otherwise this command includes them.
 - Blocks: none.
 
 ## Assumptions
