@@ -194,10 +194,14 @@ a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried); a per-item `unconfigured` detail in the report is a write the
-tracker refused on configuration — other items may already have applied, so an
-exit 74 carrying that token is not a pre-flight refusal, and it ranks below
-`4`; `72` tracker recognised but no client built; `73`
+auto-retried); `75` a per-item request was rejected before sending — its
+failed row carries the `rejected` detail: nothing was sent for that item, but
+the same request would be refused again, so it must change (for example, its
+body) before a re-run; a per-item `unconfigured` detail in the report is a write
+the tracker refused on configuration — other items may already have applied, so
+an exit 74 carrying that token is not a pre-flight refusal, and it ranks below
+`4`; where a run yields several, the exit code follows the precedence
+`71 > 4 > 75 > 74 > 70`; `72` tracker recognised but no client built; `73`
 `work.integration` unset or unrecognised; `74` wired but a run cannot proceed on
 its config — missing/refused credentials, or a non-push-only run whose discovery
 scope names no valid target (nothing sent; set the key or run `--push-only`). A

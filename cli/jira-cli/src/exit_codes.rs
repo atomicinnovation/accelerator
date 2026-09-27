@@ -190,7 +190,10 @@ pub fn for_client(error: &ClientError) -> u8 {
         ClientError::BadIdentifier { .. } | ClientError::BadPath { .. } => {
             REQ_BAD_PATH
         }
-        ClientError::Transport { .. } => REQ_CONNECT,
+        ClientError::NotSent { .. } | ClientError::Transport { .. } => {
+            REQ_CONNECT
+        }
+        ClientError::RequestInvalid { .. } => REQ_BAD_REQUEST,
         ClientError::OversizedResponse { .. } => REQ_BAD_RESPONSE,
         ClientError::ConfigUnreadable { .. }
         | ClientError::TlsUnavailable { .. }
@@ -249,14 +252,14 @@ const fn for_adf(error: &AdfError) -> u8 {
 
 const fn exit_code_for_outcome(outcome: Outcome) -> u8 {
     match outcome {
-        Outcome::Status(400) => REQ_BAD_REQUEST,
+        Outcome::Status(400) | Outcome::RequestInvalid => REQ_BAD_REQUEST,
         Outcome::Status(401) => UNAUTHORIZED,
         Outcome::Status(403) => FORBIDDEN,
         Outcome::Status(404) => NOT_FOUND,
         Outcome::Status(410) => GONE,
         Outcome::Status(429) => RATELIMITED,
         Outcome::NonJsonBody => REQ_BAD_RESPONSE,
-        Outcome::Transport => REQ_CONNECT,
+        Outcome::Transport | Outcome::NotSent => REQ_CONNECT,
         Outcome::Status(_) => SERVER_ERROR,
     }
 }
@@ -406,7 +409,32 @@ mod tests {
             REQ_BAD_RESPONSE
         );
         assert_eq!(exit_code_for_outcome(Outcome::Transport), REQ_CONNECT);
+        assert_eq!(exit_code_for_outcome(Outcome::NotSent), REQ_CONNECT);
+        assert_eq!(
+            exit_code_for_outcome(Outcome::RequestInvalid),
+            REQ_BAD_REQUEST
+        );
         assert_eq!(exit_code_for_outcome(Outcome::Status(503)), SERVER_ERROR);
+    }
+
+    #[test]
+    fn an_unsent_or_invalid_request_keeps_its_captured_code() {
+        let detail = String::new;
+        assert_eq!(
+            for_client(&ClientError::NotSent { detail: detail() }),
+            REQ_CONNECT
+        );
+        assert_eq!(
+            for_client(&ClientError::RequestInvalid { detail: detail() }),
+            REQ_BAD_REQUEST
+        );
+        assert_eq!(
+            for_client(&ClientError::BadPath {
+                path: detail(),
+                reason: detail(),
+            }),
+            REQ_BAD_PATH
+        );
     }
 
     #[test]

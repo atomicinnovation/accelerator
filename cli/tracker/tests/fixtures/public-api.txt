@@ -75,6 +75,8 @@ impl core::fmt::Debug for tracker::RemoteTimestamp
 pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
 pub enum tracker::TrackerError
+pub tracker::TrackerError::Rejected
+pub tracker::TrackerError::Rejected::detail: alloc::string::String
 pub tracker::TrackerError::Retryable
 pub tracker::TrackerError::Retryable::detail: alloc::string::String
 pub tracker::TrackerError::Terminal

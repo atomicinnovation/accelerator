@@ -227,24 +227,18 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     ) {
         create::RunOutcome::Created { path, push } => {
             println!("{}", path.display());
-            let exit_code = push.as_ref().map_or(exit_codes::CLEAN, |report| {
-                if matches!(
-                    report.outcome,
-                    work::sync::PushOutcome::LoudTerminal
-                ) {
-                    exit_codes::TERMINAL
-                } else {
-                    exit_codes::CLEAN
-                }
-            });
-            if let Some(report) = &push {
-                println!(
-                    "{}\t{}",
-                    report.outcome.keyword(),
-                    report.external_id.as_deref().unwrap_or("")
-                );
+            let Some(report) = push else {
+                return ExitCode::SUCCESS;
+            };
+            println!(
+                "{}\t{}",
+                report.outcome.keyword(),
+                report.external_id.as_deref().unwrap_or("")
+            );
+            if let Some(cause) = &report.cause {
+                eprintln!("Error: {cause}");
             }
-            ExitCode::from(exit_code)
+            ExitCode::from(report.outcome.exit_code())
         }
         create::RunOutcome::Previewed(line) => {
             println!("{line}");
@@ -298,6 +292,10 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         update::RunOutcome::PushTerminal(message) => {
             eprintln!("{message}");
             ExitCode::from(exit_codes::TERMINAL)
+        }
+        update::RunOutcome::PushRejected(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::REJECTED)
         }
     }
 }

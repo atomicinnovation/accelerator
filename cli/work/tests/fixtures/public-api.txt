@@ -353,9 +353,11 @@ pub mod work::sync::push_decide
 pub enum work::sync::push_decide::PushOutcome
 pub work::sync::push_decide::PushOutcome::LocalSave
 pub work::sync::push_decide::PushOutcome::LoudTerminal
+pub work::sync::push_decide::PushOutcome::Rejected
 pub work::sync::push_decide::PushOutcome::Retry
 pub work::sync::push_decide::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::exit_code(self) -> u8
 pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
 impl core::clone::Clone for work::sync::push_decide::PushOutcome
 pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome
@@ -507,9 +509,11 @@ impl core::marker::StructuralPartialEq for work::sync::push_precondition::Pendin
 pub enum work::sync::PushOutcome
 pub work::sync::PushOutcome::LocalSave
 pub work::sync::PushOutcome::LoudTerminal
+pub work::sync::PushOutcome::Rejected
 pub work::sync::PushOutcome::Retry
 pub work::sync::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::exit_code(self) -> u8
 pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
 impl core::clone::Clone for work::sync::push_decide::PushOutcome
 pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome

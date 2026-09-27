@@ -20,6 +20,7 @@ const FROZEN_DISPATCH_CODES: &[(&str, u8)] = &[
     ("NOT_AVAILABLE", 72),
     ("UNRECOGNISED", 73),
     ("UNCONFIGURED", 74),
+    ("REJECTED", 75),
 ];
 
 fn rust_codes() -> Result<Vec<(String, u8)>, TestError> {

@@ -170,7 +170,10 @@ impl Transport {
     ///
     /// # Errors
     ///
-    /// [`ClientError::Transport`] for a connect, DNS or timeout failure, and
+    /// [`ClientError::RequestInvalid`] for a payload that cannot be built,
+    /// [`ClientError::NotSent`] for a connect or DNS failure on the first
+    /// attempt, [`ClientError::Transport`] for a timeout or for a connect
+    /// failure after an earlier attempt drew a response, and
     /// [`ClientError::OversizedResponse`] for a body beyond the bound.
     pub fn send(
         &self,
@@ -180,7 +183,7 @@ impl Transport {
         let payload = serde_json::to_string(
             &json!({"query": document, "variables": variables}),
         )
-        .map_err(|error| ClientError::Transport {
+        .map_err(|error| ClientError::RequestInvalid {
             detail: format!("the request body could not be built: {error}"),
         })?;
 
@@ -192,9 +195,7 @@ impl Transport {
                 .header("Authorization", self.credentials.token.expose())
                 .body(payload.clone())
                 .send()
-                .map_err(|error| ClientError::Transport {
-                    detail: connect_detail(&error),
-                })?;
+                .map_err(|error| send_failure(&error, attempt))?;
             let status = response.status().as_u16();
             let retry_after = retry_after(&response);
             let body = self.read_bounded(response)?;
@@ -293,6 +294,17 @@ fn body_read_detail(error: &std::io::Error) -> String {
         "the response body could not be read — a stalled, truncated or \
          dropped body: {error}"
     )
+}
+
+/// Only a first-attempt connect failure is provably unsent: once an earlier
+/// attempt drew a retryable response, that request may have been applied.
+fn send_failure(error: &reqwest::Error, attempt: usize) -> ClientError {
+    let detail = connect_detail(error);
+    if attempt == 1 && error.is_connect() {
+        ClientError::NotSent { detail }
+    } else {
+        ClientError::Transport { detail }
+    }
 }
 
 fn connect_detail(error: &reqwest::Error) -> String {

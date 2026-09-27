@@ -225,6 +225,9 @@ fn render_report(report: &RunReport) -> String {
                     Some(
                         work_adapters::sync::apply::FailureClass::Unconfigured,
                     ) => "unconfigured",
+                    Some(
+                        work_adapters::sync::apply::FailureClass::Rejected,
+                    ) => "rejected",
                     None => "-",
                 },
             ),
@@ -268,12 +271,21 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
                 if error.class() == Some(work_adapters::sync::apply::FailureClass::Unconfigured)
         )
     });
+    let any_rejected = report.reported.iter().any(|item| {
+        matches!(
+            item.outcome,
+            ItemOutcome::Failed(ref error)
+                if error.class() == Some(work_adapters::sync::apply::FailureClass::Rejected)
+        )
+    });
     let awaiting_human = report.awaiting_human().next().is_some();
 
     if any_terminal {
         exit_codes::TERMINAL
     } else if awaiting_human {
         exit_codes::UNRESOLVED
+    } else if any_rejected {
+        exit_codes::REJECTED
     } else if any_unconfigured {
         exit_codes::UNCONFIGURED
     } else if any_retryable
@@ -1978,6 +1990,52 @@ mod tests {
 
         assert!(render_report(&report)
             .contains("0001\tfailed\tlocally-modified\tunconfigured"));
+    }
+
+    fn rejected(detail: &str) -> TrackerError {
+        TrackerError::Rejected {
+            detail: detail.to_owned(),
+        }
+    }
+
+    #[test]
+    fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
+        let report = RunReport {
+            reported: vec![failed(
+                "0001",
+                SyncState::Unsynced,
+                rejected("jira create: the body has a table"),
+            )],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert!(
+            render_report(&report).contains("0001\tfailed\tunsynced\trejected")
+        );
+    }
+
+    #[test]
+    fn sync_exit_code_ranks_rejected_between_awaiting_human_and_unconfigured() {
+        let awaiting = || reported("0001", SyncState::Conflict, Action::Prompt);
+        let rejection =
+            || failed("0002", SyncState::Unsynced, rejected("bad body"));
+        let refused =
+            || failed("0003", SyncState::LocallyModified, unconfigured(""));
+        let exit_for = |items: Vec<ReportedItem>| {
+            super::exit_code_for_report(&RunReport {
+                reported: items,
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            })
+        };
+
+        assert_eq!(
+            exit_for(vec![awaiting(), rejection(), refused()]),
+            super::exit_codes::UNRESOLVED
+        );
+        assert_eq!(
+            exit_for(vec![rejection(), refused()]),
+            super::exit_codes::REJECTED
+        );
     }
 
     #[test]
