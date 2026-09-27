@@ -46,13 +46,15 @@ EMITTERS = (
     "skills/notes/create-note/SKILL.md",
 )
 # Surfaced by discovery but out of scope: migrate is a corpus transformer with
-# no full-block emission; the finding outputter is an injected output contract
-# whose example scaffold carries schema_version, not a skill that emits; and
-# research-topic is a multi-kind set producer the single-type full-block model
-# cannot check (its per-kind contracts are pinned by the committed set fixture).
+# no full-block emission; the finding and level-note outputters are injected
+# output contracts whose scaffolds may carry schema_version, not skills that
+# emit; and research-topic is a multi-kind set producer the single-type
+# full-block model cannot check (its per-kind contracts are pinned by the
+# committed set fixture).
 EXCLUDED = (
     "skills/config/migrate/SKILL.md",
     "skills/research/outputters/finding-outputter/SKILL.md",
+    "skills/research/outputters/level-note-outputter/SKILL.md",
     "skills/research/research-topic/SKILL.md",
 )
 # Status-transition mutators: not surfaced by discovery; asserted on the status

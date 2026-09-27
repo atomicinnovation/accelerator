@@ -2329,15 +2329,32 @@ beside `research_topic_grants_the_guards_permitted_command`):
   value and the no-URL rule, so the prose and the domain gate cannot drift
   apart.
 
+Implementation notes:
+- Neither outputter contains `schema_version:` or any other discovery
+  marker, so the conformance discovered count stays at 18. The new
+  outputter still joins the three allowlists beside `finding-outputter`.
+- A `deepen` spawn injects the finding outputter's path beside the
+  level-note outputter's, because the level-note outputter defers to it by
+  name. The researcher's step 1 reads both.
+- The composer's `subagent_type` resolves inline in step 4's `compose`
+  bullet, which sits above the `config instructions` line.
+- The summary also lists each failed `research` pair as `<stem>`, and the
+  reason table gains a row for a refused note or "wrote no note".
+- The build-system unit task is `test:unit:tasks`; there is no
+  `test:unit:build-system`.
+- `test:integration:dev` timed out waiting on the dev server in two of
+  three full runs. It passes alone, both on this phase and on its parent,
+  so the failure is load-dependent and predates this phase.
+
 ### Success Criteria
 
 #### Automated Verification
 
-- [ ] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
-- [ ] Python conformance and skill tests pass: `mise run test:unit:build-system` and `mise run test:integration`
-- [ ] Skill lints pass: `mise run check`
-- [ ] Docs build: `mise run docs:check`
-- [ ] Full run green: `mise run`
+- [x] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
+- [x] Python conformance and skill tests pass: `mise run test:unit:tasks` and `mise run test:integration`
+- [x] Skill lints pass: `mise run check`
+- [x] Docs build: `mise run docs:check`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 

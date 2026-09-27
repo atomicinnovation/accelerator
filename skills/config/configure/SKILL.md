@@ -248,6 +248,7 @@ Available agents and their roles:
 | `documents-analyser`      | Deep-dives on research topics in documents                 |
 | `web-search-researcher`   | Researches topics via web search                           |
 | `researcher`              | Researches one `research-topic` focus area through a profile |
+| `composer`                | Composes a `research-topic` finding from its level notes   |
 
 \```yaml
 ---
@@ -267,12 +268,17 @@ Unrecognised keys produce a warning to stderr and are ignored. Override
 values can be any agent name — the plugin does not validate values since
 the override may reference a user-defined agent outside the plugin.
 
-**Warning — `researcher` is confined.** A `PreToolUse` hook confines every
-subagent of the configured `researcher` type, wherever it is spawned: it may
-only run `accelerator research fetch` and write finding files under the
-research topics directory. Point `researcher` at a dedicated agent, never at
-one used for other work, or that work will be blocked. The agent needs
-`Bash` for the academic profiles.
+**Warning — `researcher` and `composer` are confined.** A `PreToolUse` hook
+confines every subagent of the configured `researcher` or `composer` type,
+wherever it is spawned. The researcher may only run `accelerator research
+fetch` and write finding and level-note files under the research topics
+directory; the composer may only write finding files there, and may run no
+command at all. Point each at a dedicated agent, never at one used for other
+work, or that work will be blocked, and never at the same agent, which is
+then confined as the researcher. The researcher needs `Bash` for the academic
+profiles. An `agents.composer` override must grant only `Read` and `Write`:
+the hook confines neither WebFetch nor WebSearch, so the composer's lack of
+network access rests on its tool list alone.
 
 ### review
 
@@ -439,9 +445,13 @@ not an integer of 1 or more is clamped to 1 with a warning naming the invalid
 value. There is no upper bound — breadth is
 the per-round cost guard.
 
-`depth` has no behavioural effect yet — recursive deepening is not yet available.
-A resolved depth above 1 prints a notice and still conducts one researcher per
-(focus area, profile).
+At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
+`depth` above 1, it researches each pair as a tree: every node writes a level
+note recording up to 4 follow-up questions at level 1, then 2, then 1 per
+node, and each follow-up becomes a node at the next level, down to `depth`.
+The `composer` then writes the pair's one finding from the notes. Cost grows
+with depth: up to 5×, 13× or 21× the researchers per pair at depths 2, 3 and
+4, plus one composer.
 
 Example configuration:
 
@@ -1188,7 +1198,9 @@ templates:
 \```
 
 Resolution order: `templates.<name>` config path (if set) → templates
-directory (`paths.templates`) → plugin default. Use the plugin's
+directory (`paths.templates`) → plugin default. `research-topic`'s level notes
+have no `templates.*` key, but a `topic-research-level-note.md` in the
+templates directory overrides them like any other template. Use the plugin's
 `templates/` directory as a starting point for customisation.
 
 **Note on cross-references**: Default templates contain hardcoded references

@@ -360,14 +360,19 @@ the researcher agent follows: `web-profile` (web search and fetch),
 - **`conduct`** spawns one researcher per outstanding (focus area, profile)
   pair, and ticks an item only once every one of its eligible pairs has a
   valid finding. A pair whose profile is not in the brief, or not installed,
-  is skipped and reported.
+  is skipped and reported. At `depth` above 1, a pair is researched as a tree
+  of level notes under `findings/<stem>.levels/`, each node recording the
+  follow-up questions the next level researches, and the `composer` agent
+  then writes the pair's one finding from those notes.
 
 Each pair's finding lives at `findings/<nn>-<question-slug>-<profile>.md`,
 where every profile of one focus area shares its `<nn>`. The finding's
 `question` and `source_profile` frontmatter, not its filename, identify the
 pair: sets written before profiles existed hold one `findings/<nn>-<slug>.md`
 per focus area, and still count as their `web` pair. Consumers group findings
-by frontmatter, never by parsing the filename.
+by frontmatter, never by parsing the filename. Consumers read only the
+top-level `findings/*.md`: a `<stem>.levels/` directory holds working notes,
+never findings.
 
 ### `research topic outstanding`
 

@@ -93,6 +93,15 @@
   `<set>/.conduct-run.json`, removed on completion and safe to delete after an
   interrupted run; consider adding `**/.conduct-run.json` to your
   `.gitignore`.
+- **`research-topic` deepens each finding recursively at `depth` above 1.**
+  `conduct` researches each (focus area, profile) pair as a tree: every node
+  writes a level note under `findings/<stem>.levels/` recording up to 4, then
+  2, then 1 follow-up questions per node, which the next level researches,
+  and a new fetch-less `composer` agent writes the pair's one finding from
+  the notes. A pair costs up to 5×, 13× or 21× the researchers at depths 2, 3
+  and 4. A deepened set (one with `.levels/` directories) needs every
+  collaborator on this version or later: an older plugin reports its notes
+  as an unknown kind and researches the pair again under a new stem.
 - **`research.topic.concurrency` and `conduct --concurrency N` cap how many
   agents `research-topic`'s `conduct` spawns at once** (default 24). `conduct`
   spawns its outstanding pairs in batches of at most that many, waiting on
@@ -243,6 +252,10 @@
   `findings/<nn>-<name>.levels/<lineage>.md`. The composer
   (`accelerator:composer`, or the name `agents.composer` configures) may
   write findings only and run no commands, the fetch included.
+
+- **A configured `research.topic.depth` above 1 takes effect.** It was
+  dormant until now: a team or personal `depth: 3` runs up to 13 researchers
+  and a composer per (focus area, profile) after upgrading.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
