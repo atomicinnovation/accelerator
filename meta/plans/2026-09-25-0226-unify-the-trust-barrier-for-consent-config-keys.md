@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T12:33:47+00:00"
+last_updated: "2026-09-27T15:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2776,43 +2776,47 @@ Each earlier phase has already documented its own behaviour.
 **Files**: `cli/config/src/credentials.rs`, `cli/config-adapters/src/credentials.rs`,
 `cli/config-adapters/src/store.rs`
 
-- Delete `insecure_override_allowed`, `INSECURE_MARKER_RELATIVE` and
-  `CredentialContext::insecure_marker`.
+- Delete `INSECURE_MARKER_RELATIVE`, `CredentialContext::insecure_marker`,
+  and, since Phase 3 left no reader of them, `CredentialContext::files`,
+  `CredentialPorts::files`, `FileFacts`, `FileState` and `SystemFileFacts`.
+  `CredentialContext` is then `{ provenance, execution }`, the shape Phase 3
+  planned. `insecure_override_allowed` no longer exists.
 - The override has been inert since Phase 1 replaced `personal_config_exists`
   with `config.personal_file()`, so removing it removes no route.
 - In `cli/config/tests/credentials.rs`, delete
-  `the_insecure_override_needs_both_the_variable_and_a_tracked_marker`
-  (`:443`), `a_symlinked_marker_does_not_unlock_the_override`,
-  `the_marker_path_lives_under_accelerator` and the `MARKER` const (`:22`).
-  Rewrite `a_symlinked_personal_config_is_refused_even_under_the_override`
-  (`:465-477`) without the variable.
+  `the_insecure_override_no_longer_unlocks_an_ignored_file` (`:667`),
+  `the_marker_path_lives_under_accelerator` (`:681`), the `MARKER` const
+  (`:27`), the `insecure_marker` and `files` fields of the test ladder
+  (`:233`), and `RecordingFiles` with the `file` helper and the
+  `inspected` assertion in
+  `an_environment_token_never_consults_a_tracked_personal_file`.
 - In `cli/config-adapters/tests/credentials.rs`, remove the `marker()` helper
-  (`:104-105`) and the marker from
-  `the_context_reads_the_projects_personal_config_and_marker` (`:173`), which
-  is renamed to match. Rewrite the second "even under the override" test
-  (`:301-321`) without the variable.
-- Written first, turn the config-adapters copy of
-  `the_insecure_override_needs_both_the_variable_and_a_tracked_marker`
-  (`config-adapters/tests/credentials.rs:273-297`) into a regression test over
+  (`:113`) and the marker from
+  `the_context_reads_the_projects_personal_config_and_marker` (`:219`, its
+  assertion at `:240`), which is renamed to match, and the `SystemFileFacts`
+  tests that go with the port.
+- Written first, turn
+  `the_insecure_override_does_not_unlock_an_ignored_personal_config`
+  (`config-adapters/tests/credentials.rs:328`) into a regression test over
   the real `FileConfigStore`: a 0640 personal file, with the variable set and
   the marker present, is still ignored with `E_LOCAL_PERMS_INSECURE`, and
   its values are never used. Add cases for 0400 accepted and 0604 ignored
   unless the store tests already cover them.
-- Remove the override from the test support that still sets it:
-  `cli/work-cli/tests/common/mod.rs:28`, `cli/work-cli/tests/cli_sync.rs:177`,
-  `cli/jira-client/tests/auth.rs:337`,
-  `cli/jira-client/tests/support/mod.rs:139`,
-  `cli/linear-client/tests/support/mod.rs:144`,
-  `cli/research-cli/tests/support/mod.rs:211`,
-  `cli/jira-client/tests/contract.rs:108-109`,
-  `cli/linear-client/tests/contract.rs:127-128`, config-adapters'
-  `a_symlinked_marker_does_not_unlock_the_override` (`:322-342`), and the
-  `insecure_marker` field of config's test ladder (`:181`). The
-  config-adapters marker assertion is at `:188`. Comments that describe the
-  marker without naming a searched identifier are updated too:
-  `config-adapters/src/credentials.rs:50`, and
-  `work-cli/tests/common/mod.rs:16` and `cli_sync.rs:178,183`. This list is thorough, and
-  the compiler and the retirement search enforce completeness.
+- Remove the override and the marker from the test support that still names
+  them, as of Phase 3:
+  - `cli/work-cli/tests/common/mod.rs:29` and `cli_sync.rs:180`, whose
+    scrubbed-set count drops from 5 to 4;
+  - `cli/jira-client/tests/auth.rs:533`;
+  - `cli/jira-client/tests/support/mod.rs:194` and
+    `cli/linear-client/tests/support/mod.rs:166`;
+  - `cli/jira-client/tests/contract.rs:121-122` and
+    `cli/linear-client/tests/contract.rs:140-141`;
+  - `cli/research-cli/tests/support/mod.rs:211`;
+  - `cli/collaboration-cli/src/auth.rs:248`, in its test context.
+
+  Comments that describe the marker without naming a searched identifier are
+  updated too, among them `work-cli/tests/common/mod.rs:14-17`. The compiler
+  and the retirement search enforce completeness.
 - Regenerate `config`'s public-API fixture.
 
 #### 2. Docs and CHANGELOG
@@ -2851,7 +2855,7 @@ Each earlier phase has already documented its own behaviour.
 
 #### Automated Verification
 
-- [ ] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. This is a text check, not a type guarantee
+- [ ] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. After Phase 3 the non-test matches are the four `TokenKeys::declared` calls (`jira-client/src/auth.rs:61`, `linear-client/src/auth.rs:51`, `research-cli/src/fetch_command.rs:212`, `collaboration-cli/src/auth.rs:26`), which the lookbehind cannot exempt because their first argument varies in length; `jira-client/src/auth.rs:41`, the `ALLOWED_SITES` constant `ConsentKey::declared` reads; and `design-cli/src/config.rs:66`, which Phase 4 migrates. Phase 7 either exempts `TokenKeys::declared` with a second pattern or accepts those four sites by name This is a text check, not a type guarantee
 - [ ] Retired identifiers are gone: `rg --no-require-git -l 'E_TOKEN_CMD_FROM_SHARED_CONFIG|E_TOKEN_CMD_FROM_TRACKED_FILE|E_ALLOWED_SITES_FROM_SHARED_CONFIG|AllowlistFromSharedConfig|ACCELERATOR_ALLOW_INSECURE_LOCAL|allow-insecure-local' cli skills docs-site` prints nothing
 - [ ] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing
 - [ ] Docs build and link-check: `mise run docs:check`
