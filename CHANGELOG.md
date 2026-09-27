@@ -214,6 +214,11 @@
   tmp base is still supported. State files an earlier version left directly
   under `inventory-design-playwright/` are no longer read and can be deleted.
 
+- **`accelerator corpus frontmatter print-schema` emits every schema row.** It
+  drops its `optional_extras` bank and gains `rows`, one object per schema row
+  carrying its template, extras (required and optional separately), status
+  vocabulary and linkage keys.
+
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
   across levels (no `--level`) returns its built-in catalogue default rather

@@ -371,17 +371,17 @@ which asserts that the synthesised `plan` fixture must carry `revision` and
 
 #### Automated Verification
 
-- [ ] Schema and template-shape tests pass: `cargo test -p corpus frontmatter_validation`
-- [ ] Template tree clean: `cargo test -p corpus-adapters --test template_shape_tree`
-- [ ] m0007 contract unchanged: `cargo test -p migrate m0007`
-- [ ] `print-schema` golden passes: `cargo test -p corpus-cli --test frontmatter_goldens`
-- [ ] Conformance passes: `mise run test:integration`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] Full run green: `mise run`
+- [x] Schema and template-shape tests pass: `cargo test -p corpus frontmatter_validation`
+- [x] Template tree clean: `cargo test -p corpus-adapters --test template_shape_tree`
+- [x] m0007 contract unchanged: `cargo test -p migrate m0007`
+- [x] `print-schema` golden passes: `cargo test -p corpus-cli --test frontmatter_goldens`
+- [x] Conformance passes: `mise run test:integration`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] None. This phase is a behaviour-preserving refactor.
+- [x] None. This phase is a behaviour-preserving refactor.
 
 ---
 

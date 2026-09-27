@@ -62,6 +62,7 @@ dependencies = [
  "corpus-adapters",
  "document",
  "kernel",
+ "serde_json",
  "tempfile",
  "vcs-test-support",
 ]

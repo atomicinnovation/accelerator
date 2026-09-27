@@ -373,10 +373,7 @@ fn check_required_extras(
     row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
-    for extra in row.extras {
-        if schema::OPTIONAL_EXTRAS.contains(extra) {
-            continue;
-        }
+    for extra in row.required_extras {
         if !is_present(entries, extra) {
             violations.push(Violation::MissingExtra {
                 extra: (*extra).to_owned(),
@@ -755,8 +752,7 @@ mod tests {
     }
 
     #[test]
-    fn an_optional_extra_absent_is_not_required() {
-        // reviewer is optional on a plan.
+    fn a_plan_without_reviewer_is_valid() {
         let violations = validate_file(
             "type: plan\nid: \"x\"\ntitle: t\ndate: \"2026-01-01T00:00:00Z\"\n\
              author: a\ntags: []\nlast_updated: \"2026-01-01T00:00:00Z\"\n\
@@ -766,6 +762,24 @@ mod tests {
         assert!(!violations
             .iter()
             .any(|v| matches!(v, Violation::MissingExtra { .. })));
+    }
+
+    #[test]
+    fn a_work_item_without_external_id_is_valid() {
+        assert!(!minimal_valid_work_item().contains("external_id"));
+        assert!(validate_file(&minimal_valid_work_item()).is_empty());
+    }
+
+    #[test]
+    fn a_review_without_reviewer_is_valid() {
+        let violations = validate_file(
+            "type: \"plan-review\"\nid: \"x-review-1\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"complete\"\nverdict: \"approve\"\n\
+             lenses: [\"correctness\"]\nreview_number: 1\nreview_pass: 1\n",
+        );
+        assert_eq!(violations, Vec::new());
     }
 
     #[test]

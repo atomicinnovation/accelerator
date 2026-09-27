@@ -3,8 +3,8 @@
 Ports the validator-driving half of the retired shell conformance guard. For
 each frontmatter-emitting SKILL.md it extracts the hard-coded literals, derives
 the enforced attribute set
-from `templates-schema.tsv` and the Rust schema banks (via `frontmatter
-print-schema`), and runs `accelerator
+from the Rust schema rows and banks (via `frontmatter print-schema`), and runs
+`accelerator
 corpus frontmatter validate` over a synthesised fixture — asserting acceptance,
 plus a per-axis negative self-test proving the guard is wired.
 
@@ -20,13 +20,11 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_TSV = (
-    REPO_ROOT / "cli/corpus/src/frontmatter_validation/templates-schema.tsv"
-)
 TEMPLATES_DIR = REPO_ROOT / "templates"
 
 EMITTERS = (
@@ -77,10 +75,10 @@ def _launcher() -> str:
 
 
 @functools.cache
-def _schema_banks() -> dict[str, tuple[str, ...]]:
-    """The three cross-cutting schema banks, sourced from the one Rust
-    definition via `accelerator corpus frontmatter print-schema` rather than a
-    hand-synced Python copy."""
+def _schema_banks() -> dict[str, Any]:
+    """The cross-cutting schema banks and every schema row, sourced from the
+    one Rust definition via `accelerator corpus frontmatter print-schema`
+    rather than a hand-synced Python copy."""
     proc = subprocess.run(
         [_launcher(), "corpus", "frontmatter", "print-schema"],
         capture_output=True,
@@ -88,7 +86,7 @@ def _schema_banks() -> dict[str, tuple[str, ...]]:
         cwd=REPO_ROOT,
         check=True,
     )
-    return {key: tuple(value) for key, value in json.loads(proc.stdout).items()}
+    return json.loads(proc.stdout)
 
 
 def _base_fields() -> tuple[str, ...]:
@@ -99,30 +97,8 @@ def _provenance_fields() -> tuple[str, ...]:
     return tuple(_schema_banks()["provenance_fields"])
 
 
-def _optional_extras() -> frozenset[str]:
-    return frozenset(_schema_banks()["optional_extras"])
-
-
-def _schema() -> dict[str, dict[str, str]]:
-    rows = SCHEMA_TSV.read_text(encoding="utf-8").splitlines()
-    table: dict[str, dict[str, str]] = {}
-    for line in rows[1:]:
-        if not line.strip():
-            continue
-        fields = line.split("\t")
-        tmpl, type_, kind, anchored, extras, vocab, forbidden, linkkeys = (
-            fields[:8]
-        )
-        table[type_] = {
-            "template": tmpl,
-            "kind": kind,
-            "anchored": anchored,
-            "extras": extras,
-            "vocab": vocab,
-            "forbidden": forbidden,
-            "linkkeys": linkkeys,
-        }
-    return table
+def _schema() -> dict[str, dict[str, Any]]:
+    return {row["linkage_type"]: row for row in _schema_banks()["rows"]}
 
 
 SCHEMA = _schema()
@@ -137,8 +113,8 @@ def _discovered() -> list[str]:
     return found
 
 
-def _status_in_vocab(status: str, vocab: str) -> bool:
-    return status in {token.strip() for token in vocab.split("|")}
+def _status_in_vocab(status: str, vocab: list[str]) -> bool:
+    return status in vocab
 
 
 def _template_keys(template: str) -> set[str]:
@@ -209,15 +185,13 @@ def _extract_review_adr_targets() -> list[str]:
 
 def _emit_valid(
     type_: str,
-    anchored: str,
-    extras: str,
-    vocab: str,
+    status: str,
     outfile: Path,
     extra_lines: str = "",
 ) -> None:
+    row = SCHEMA[type_]
     ids = {"work-item": "0001", "adr": "ADR-0001", "pr-description": "0042"}
     id_ = ids.get(type_, f"fixture-{type_}")
-    status = "".join(vocab.split("|", maxsplit=1)[0].split())
     lines = [
         "---",
         f'type: "{type_}"',
@@ -232,12 +206,8 @@ def _emit_valid(
         'last_updated_by: "Fixture Author"',
         "schema_version: 1",
     ]
-    lines.extend(
-        f'{extra}: "x"'
-        for extra in extras.split()
-        if extra not in _optional_extras()
-    )
-    if anchored == "yes":
+    lines.extend(f'{extra}: "x"' for extra in row["required_extras"])
+    if row["code_state_anchored"]:
         lines.append('revision: "abc123"')
         lines.append('repository: "repo"')
     if extra_lines:
@@ -312,8 +282,8 @@ def test_full_block_emitter_conforms(skill: str, tmp_path: Path) -> None:
     row = SCHEMA[type_]
 
     assert sv_lit == "1"
-    assert _status_in_vocab(status_lit, row["vocab"]), (
-        f"{skill}: status {status_lit!r} not in vocab {row['vocab']!r}"
+    assert _status_in_vocab(status_lit, row["status_vocab"]), (
+        f"{skill}: status {status_lit!r} not in vocab {row['status_vocab']!r}"
     )
 
     covered = _template_keys(row["template"]) | {
@@ -322,34 +292,32 @@ def test_full_block_emitter_conforms(skill: str, tmp_path: Path) -> None:
         "producer",
         "schema_version",
     }
-    enforced = set(_base_fields()) | {"status"} | set(row["linkkeys"].split())
-    enforced |= {
-        e for e in row["extras"].split() if e not in _optional_extras()
-    }
-    if row["anchored"] == "yes":
+    enforced = set(_base_fields()) | {"status"} | set(row["typed_linkage_keys"])
+    enforced |= set(row["required_extras"])
+    if row["code_state_anchored"]:
         enforced |= set(_provenance_fields())
     missing = sorted(enforced - covered)
     assert not missing, f"{skill} ({type_}): composed emission misses {missing}"
 
     fixture = tmp_path / f"accept-{type_}.md"
-    _emit_valid(type_, row["anchored"], row["extras"], status_lit, fixture)
+    _emit_valid(type_, status_lit, fixture)
     _assert_accepts([fixture])
 
 
 def test_validate_plan_plan_status_axis(tmp_path: Path) -> None:
-    vocab = SCHEMA["plan"]["vocab"]
+    vocab = SCHEMA["plan"]["status_vocab"]
     status = _extract_validate_plan_plan_status()
     assert status, "validate-plan -> plan: status literal not extracted"
     assert _status_in_vocab(status, vocab), (
         f"validate-plan -> plan: status {status!r} not in plan vocab"
     )
     fixture = tmp_path / "vp-plan.md"
-    _emit_valid("plan", "yes", "reviewer", status, fixture)
+    _emit_valid("plan", status, fixture)
     _assert_accepts([fixture])
 
 
 def test_review_adr_status_axis(tmp_path: Path) -> None:
-    vocab = SCHEMA["adr"]["vocab"]
+    vocab = SCHEMA["adr"]["status_vocab"]
     targets = _extract_review_adr_targets()
     assert targets, "review-adr -> adr: target statuses not extracted"
     for target in targets:
@@ -357,21 +325,33 @@ def test_review_adr_status_axis(tmp_path: Path) -> None:
             f"review-adr -> adr: status {target!r} not in adr vocab"
         )
         fixture = tmp_path / f"adr-{target}.md"
-        _emit_valid("adr", "no", "decision_makers", target, fixture)
+        _emit_valid("adr", target, fixture)
         _assert_accepts([fixture])
+
+
+def test_the_plan_row_still_enforces_its_provenance_fields(
+    tmp_path: Path,
+) -> None:
+    fixture = tmp_path / "plan-provenance.md"
+    _emit_valid("plan", "draft", fixture)
+    keys = {
+        line.split(":", 1)[0]
+        for line in fixture.read_text(encoding="utf-8").splitlines()
+    }
+    assert {"revision", "repository"} <= keys, keys
 
 
 def test_conditional_axis_provenance(tmp_path: Path) -> None:
     present = tmp_path / "prov-present.md"
-    _emit_valid("plan", "yes", "reviewer", "draft", present)
+    _emit_valid("plan", "draft", present)
     _assert_accepts([present])
 
     absent = tmp_path / "prov-absent.md"
-    _emit_valid("work-item", "no", "kind priority external_id", "draft", absent)
+    _emit_valid("work-item", "draft", absent)
     _assert_accepts([absent])
 
     missing = tmp_path / "prov-missing.md"
-    _emit_valid("plan", "yes", "reviewer", "draft", missing)
+    _emit_valid("plan", "draft", missing)
     stripped = "\n".join(
         line
         for line in missing.read_text(encoding="utf-8").splitlines()
@@ -383,8 +363,6 @@ def test_conditional_axis_provenance(tmp_path: Path) -> None:
     overemit = tmp_path / "prov-overemit.md"
     _emit_valid(
         "work-item",
-        "no",
-        "kind priority external_id",
         "draft",
         overemit,
         'revision: "x"\nrepository: "y"',
@@ -396,8 +374,6 @@ def test_conditional_axis_linkage(tmp_path: Path) -> None:
     present = tmp_path / "link-present.md"
     _emit_valid(
         "work-item",
-        "no",
-        "kind priority external_id",
         "draft",
         present,
         'parent: "work-item:0001"',
@@ -405,14 +381,12 @@ def test_conditional_axis_linkage(tmp_path: Path) -> None:
     _assert_accepts([present])
 
     absent = tmp_path / "link-absent.md"
-    _emit_valid("work-item", "no", "kind priority external_id", "draft", absent)
+    _emit_valid("work-item", "draft", absent)
     _assert_accepts([absent])
 
     bare = tmp_path / "link-bare.md"
     _emit_valid(
         "work-item",
-        "no",
-        "kind priority external_id",
         "draft",
         bare,
         "parent: 0042",
@@ -424,8 +398,6 @@ def test_conditional_axis_omit_when_empty(tmp_path: Path) -> None:
     present = tmp_path / "owe-present.md"
     _emit_valid(
         "work-item",
-        "no",
-        "kind priority external_id",
         "draft",
         present,
         'external_id: "JIRA-1"',
@@ -433,14 +405,12 @@ def test_conditional_axis_omit_when_empty(tmp_path: Path) -> None:
     _assert_accepts([present])
 
     absent = tmp_path / "owe-absent.md"
-    _emit_valid("work-item", "no", "kind priority external_id", "draft", absent)
+    _emit_valid("work-item", "draft", absent)
     _assert_accepts([absent])
 
     empty = tmp_path / "owe-empty.md"
     _emit_valid(
         "work-item",
-        "no",
-        "kind priority external_id",
         "draft",
         empty,
         'external_id: ""',
@@ -466,9 +436,7 @@ def test_negative_self_test_axis(
     axis: str, code: str, pattern: str, replacement: str | None, tmp_path: Path
 ) -> None:
     base = tmp_path / "neg-base.md"
-    _emit_valid(
-        "work-item", "no", "kind priority external_id", "draft | ready", base
-    )
+    _emit_valid("work-item", "draft", base)
     original = base.read_text(encoding="utf-8")
     compiled = re.compile(pattern, re.MULTILINE)
     if replacement is None:
@@ -483,34 +451,32 @@ def test_negative_self_test_axis(
 
 
 def test_contract_is_sourced_not_reencoded() -> None:
-    # Enforced set: from templates-schema.tsv and the Rust schema banks
-    # rather than being hard-coded here.
-    assert SCHEMA, "templates-schema.tsv yielded no rows"
+    # Enforced set: from the Rust schema rows and banks rather than being
+    # hard-coded here.
+    assert SCHEMA, "print-schema yielded no rows"
     assert _base_fields(), "print-schema base_fields bank is empty"
 
 
-def _tsv_row(template: str) -> dict[str, str]:
-    """The `templates-schema.tsv` row for `template`, which, unlike
-    `SCHEMA`, tells apart the kinds a multi-kind type declares."""
-    header, *rows = SCHEMA_TSV.read_text(encoding="utf-8").splitlines()
-    columns = header.split("\t")
-    for line in rows:
-        row = dict(zip(columns, line.split("\t"), strict=True))
+def _row_for_template(template: str) -> dict[str, Any]:
+    """The schema row for `template`, which, unlike `SCHEMA`, tells apart
+    the kinds a multi-kind type declares."""
+    for row in _schema_banks()["rows"]:
         if row["template"] == template:
             return row
-    raise AssertionError(f"templates-schema.tsv has no row for {template}")
+    raise AssertionError(f"print-schema has no row for {template}")
 
 
 def test_the_finding_template_declares_exactly_its_schema_row() -> None:
     # The finding outputter is excluded from the emitter check, so the
     # template it delegates to is held to its row here, with no extra keys.
-    row = _tsv_row("topic-research-finding.md")
+    row = _row_for_template("topic-research-finding.md")
     expected = {
         *_base_fields(),
         "producer",
         "status",
         "kind",
-        *row["extras"].split(),
-        *row["typed_linkage_keys"].split(),
+        *row["required_extras"],
+        *row["optional_extras"],
+        *row["typed_linkage_keys"],
     }
     assert _template_keys("topic-research-finding.md") == expected

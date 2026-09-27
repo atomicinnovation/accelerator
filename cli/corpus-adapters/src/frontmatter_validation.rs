@@ -14,6 +14,7 @@ use corpus::frontmatter_validation::declared_type;
 use corpus::frontmatter_validation::duplicate_check;
 use corpus::frontmatter_validation::parse_entries;
 use corpus::frontmatter_validation::raw_value;
+use corpus::frontmatter_validation::schema;
 use corpus::frontmatter_validation::strip_surrounding_quote;
 use corpus::frontmatter_validation::template_shape;
 use corpus::frontmatter_validation::validate_file;
@@ -233,16 +234,16 @@ pub fn validate_targets<F: FileReader>(
     Ok(results)
 }
 
-/// The work items whose `## Schema Reference` tables must agree with the TSV.
+/// The work items whose `## Schema Reference` tables must agree with
+/// [`schema::SCHEMA`].
 const SCHEMA_REFERENCE_WORK_ITEMS: [&str; 3] = [
     "meta/work/0065-update-artifact-templates-to-unified-schema.md",
     "meta/work/0066-update-review-skills-inline-frontmatter.md",
     "meta/work/0067-create-note-skill.md",
 ];
 
-/// Validates every `templates/*.md` skeleton against the embedded
-/// `templates-schema.tsv`, plus the TSV field-count self-check and the
-/// work-item Schema-Reference cross-check.
+/// Validates every `templates/*.md` skeleton against its [`schema::SCHEMA`]
+/// row, plus the work-item Schema-Reference cross-check.
 ///
 /// # Errors
 ///
@@ -251,16 +252,9 @@ pub fn validate_templates<R: FileReader>(
     project_root: &Path,
     reader: &R,
 ) -> Result<Vec<template_shape::TemplateViolation>, kernel::Error> {
-    let rows = match template_shape::parse_schema_tsv(
-        template_shape::TEMPLATES_SCHEMA_TSV,
-    ) {
-        Ok(rows) => rows,
-        Err(violation) => return Ok(vec![violation]),
-    };
-
     let mut violations = Vec::new();
-    for row in &rows {
-        let path = project_root.join("templates").join(&row.template);
+    for row in &schema::SCHEMA {
+        let path = project_root.join("templates").join(row.template);
         match reader.read(&path)? {
             Some(content) => {
                 let frontmatter = template_shape::extract_frontmatter(&content);
@@ -272,7 +266,7 @@ pub fn validate_templates<R: FileReader>(
             None => {
                 violations.push(
                     template_shape::TemplateViolation::MissingTemplateFile {
-                        template: row.template.clone(),
+                        template: row.template.to_owned(),
                     },
                 );
             }
@@ -289,9 +283,7 @@ pub fn validate_templates<R: FileReader>(
         }
     }
     if any_work_item {
-        let tsv: Vec<String> =
-            rows.iter().map(|row| row.template.clone()).collect();
-        violations.extend(template_shape::cross_check(&schema_ref, &tsv));
+        violations.extend(template_shape::cross_check(&schema_ref));
     }
     Ok(violations)
 }

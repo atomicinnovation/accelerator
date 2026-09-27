@@ -895,19 +895,46 @@ fn two_topic_sets_sharing_a_constant_manifest_id_collide(
     Ok(())
 }
 
-#[test]
-fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
-    let dir = tempdir("print-schema")?;
+fn print_schema(tag: &str) -> Result<serde_json::Value, TestError> {
+    let dir = tempdir(tag)?;
     let root = canonical_root(&dir)?;
     repo(&root)?;
     let output = run(&root, &["frontmatter", "print-schema"])?;
     assert!(output.status.success(), "{}", stderr(&output));
-    let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("\"base_fields\":[\"type\""), "{stdout}");
-    assert!(
-        stdout.contains("\"provenance_fields\":[\"revision\""),
-        "{stdout}"
+    Ok(serde_json::from_slice(&output.stdout)?)
+}
+
+#[test]
+fn print_schema_emits_the_two_banks() -> Result<(), TestError> {
+    let schema = print_schema("print-schema-banks")?;
+    assert_eq!(schema["base_fields"][0], "type");
+    assert_eq!(schema["provenance_fields"][0], "revision");
+    assert!(schema.get("optional_extras").is_none(), "{schema}");
+    Ok(())
+}
+
+#[test]
+fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
+    let schema = print_schema("print-schema-rows")?;
+    let rows = schema["rows"].as_array().ok_or("rows is not an array")?;
+    assert_eq!(rows.len(), 18);
+    let finding = rows
+        .iter()
+        .find(|row| row["template"] == "topic-research-finding.md")
+        .ok_or("no finding row")?;
+    assert_eq!(
+        finding,
+        &serde_json::json!({
+            "template": "topic-research-finding.md",
+            "linkage_type": "topic-research",
+            "kind": "finding",
+            "code_state_anchored": false,
+            "required_extras": ["round", "question", "source_profile"],
+            "optional_extras": [],
+            "status_vocab": ["complete"],
+            "forbidden_own_id_keys": [],
+            "typed_linkage_keys": ["parent", "relates_to"],
+        })
     );
-    assert!(stdout.contains("\"optional_extras\":"), "{stdout}");
     Ok(())
 }
