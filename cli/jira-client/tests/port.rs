@@ -7,7 +7,8 @@ mod support;
 use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::JiraClient;
 use serde_json::Value;
-use support::client::{brief, client_for, PROJECT};
+use support::client::{brief, client_for, client_with, PROJECT};
+use support::RecordingSleeper;
 use tracker::{
     Ceiling, Completeness, ExternalId, RemoteTimestamp, RemoteTracker as _,
     SearchScope, TrackerError,
@@ -665,4 +666,35 @@ fn the_page_cap_and_chunk_size_are_the_transcribed_ones() {
         client.transport().config().keyed_read_max_pages,
         tracker::Ceiling::Bounded(50)
     );
+}
+
+#[test]
+fn a_body_that_cannot_be_converted_is_rejected_and_names_its_cause() {
+    let server = MockHTTPServer::start();
+    let client = client_for(&server, brief());
+
+    let error = client
+        .create("A title", "| a | b |\n|---|---|\n| 1 | 2 |\n", "task")
+        .expect_err("a table has no ADF conversion");
+
+    let TrackerError::Rejected { detail } = error else {
+        panic!("an unconvertible body is rejected: {error}");
+    };
+    assert!(detail.contains("table"), "{detail}");
+    assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0);
+}
+
+#[test]
+fn a_bad_path_is_rejected_without_being_sent() {
+    let client = client_with(
+        &http_test_support::refused_base_url(),
+        brief(),
+        &RecordingSleeper::new(),
+    );
+
+    let error = client
+        .update(&id("../ENG-1"), "A title", "A body\n")
+        .expect_err("the identifier cannot be composed into a path");
+
+    assert!(matches!(error, TrackerError::Rejected { .. }), "{error}");
 }

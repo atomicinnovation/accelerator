@@ -1984,6 +1984,126 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
     Ok(())
 }
 
+/// A create-from-local run whose markers and baseline live on disk, so a test
+/// can assert which marker the run leaves behind.
+fn run_create_from_local_on_disk(
+    fixture: &Fixture,
+    item: &LocalItem,
+    tracker: &RecordingTracker,
+) -> RunReport {
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let real = RealWrite;
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker,
+        status: &status,
+        writer: &real,
+        clock: &clock,
+        author: &author,
+    };
+    let baseline_path = fixture.dir.path().join("last-sync.json");
+    std::fs::write(&baseline_path, baseline_document(&[]))
+        .expect("seed the baseline");
+    let reader = RealRead;
+    let mut store = BaselineStore::new(baseline_path, &reader, &real);
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus: std::slice::from_ref(item),
+        selection: ItemSelection::All,
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode: RunMode::Apply,
+        integrations_root: fixture.dir.path(),
+        integration: "jira",
+        scope: SearchScope::default(),
+    };
+    run(&sync_ports, &mut store, &request).expect("the run proceeds")
+}
+
+fn create_from_local_failure(
+    report: &RunReport,
+) -> &work_adapters::sync::apply::ApplyError {
+    report
+        .reported
+        .iter()
+        .find_map(|item| match &item.outcome {
+            ItemOutcome::Failed(error)
+                if item.planned.action == Action::CreateFromLocal =>
+            {
+                Some(error)
+            }
+            _ => None,
+        })
+        .expect("the create-from-local failed")
+}
+
+#[test]
+fn an_unreachable_tracker_leaves_no_marker_for_a_local_create(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Retryable {
+            detail: "jira create: could not connect".to_owned(),
+        },
+    );
+
+    let report = run_create_from_local_on_disk(&fixture, &item, &tracker);
+
+    let marker_path = work_adapters::sync::pending_push::path(
+        fixture.dir.path(),
+        "jira",
+        "0001",
+    );
+    assert!(
+        !marker_path.exists(),
+        "no issue exists, so no marker remains"
+    );
+    assert_eq!(
+        create_from_local_failure(&report).class(),
+        Some(work_adapters::sync::apply::FailureClass::Retryable)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_rejected_create_leaves_no_marker_and_reports_its_cause(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Rejected {
+            detail: "jira create: the body has a table".to_owned(),
+        },
+    );
+
+    let report = run_create_from_local_on_disk(&fixture, &item, &tracker);
+
+    let marker_path = work_adapters::sync::pending_push::path(
+        fixture.dir.path(),
+        "jira",
+        "0001",
+    );
+    assert!(
+        !marker_path.exists(),
+        "no issue exists, so no marker remains"
+    );
+    let failure = create_from_local_failure(&report);
+    assert_eq!(
+        failure.class(),
+        Some(work_adapters::sync::apply::FailureClass::Rejected)
+    );
+    assert!(
+        failure.to_string().contains("the body has a table"),
+        "{failure}"
+    );
+    Ok(())
+}
+
 // --- Small real-fs doubles for the marker-ordering test ---------------------
 
 /// A writer that fails every write, so a create can author its file (through

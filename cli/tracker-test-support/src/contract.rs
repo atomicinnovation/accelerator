@@ -275,8 +275,11 @@ pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
         .show(&id)
         .expect_err("the configured id must fail to read");
     assert!(
-        !matches!(error, TrackerError::Terminal { .. }),
-        "a read must never be classified terminal"
+        !matches!(
+            error,
+            TrackerError::Terminal { .. } | TrackerError::Rejected { .. }
+        ),
+        "a read must never be classified terminal or rejected"
     );
 }
 

@@ -28,7 +28,11 @@ pub enum ClientError {
     #[error("E_BAD_IDENTIFIER: {identifier:?} is refused — {reason}")]
     BadIdentifier { identifier: String, reason: String },
     #[error("E_GQL_CONNECT: {detail}")]
+    NotSent { detail: String },
+    #[error("E_GQL_CONNECT: {detail}")]
     Transport { detail: String },
+    #[error("E_GQL_INVALID: {detail}")]
+    RequestInvalid { detail: String },
     #[error(
         "E_GQL_OVERSIZED: the response exceeded the {limit}-byte bound before \
          it could be parsed"

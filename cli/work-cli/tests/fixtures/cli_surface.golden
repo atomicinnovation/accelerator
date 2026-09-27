@@ -89,7 +89,7 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
-      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist — see `exit_codes` for the 70/71 contract). The file is written either way
+      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist); a rejected request is reported, exits 75 and the item saved unsynced (nothing was sent) — see `exit_codes` for the 70/71/75 contract. The file is written either way
       --dry-run                      Preview the fields a `--push` create would resolve against the configured tracker, then exit without writing a file or creating a remote issue. Prints one tab-separated line the create skill parses; exits 70 when the tracker is unreachable (the preview could not be resolved), so the caller can distinguish an unreachable tracker from an unresolvable configured value (reported as an `unresolvable` source on the line, exit 0)
   -h, --help                         Print help
 
@@ -107,7 +107,7 @@ Options:
       --remove-tag <REMOVE_TAGS>  A tag to remove; repeatable
       --append <APPENDS>          A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY` (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
-      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged) or 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict)
+      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged), 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict) or 75 (rejected before sending, unchanged)
   -h, --help                      Print help
 
 === accelerator-work link-external-id --help ===
@@ -165,7 +165,7 @@ Reconcile local work items with the configured remote tracker (`work.integration
 
 A run may author **new** artefacts on both sides beyond updating existing ones: it creates remote issues from unsynced local drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote issues into new local files (bounded by `--max-pulls`, counted as pulls). Untracked discovery is scoped to the configured project, and a run that would exceed either bound refuses with zero writes (exit 5).
 
-Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 1 an internal error; 2 a usage error; 3 a `--target` matched no local id, path, or `external_id`; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a `--target` path lies outside the work directory; 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
+Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 75 a per-item request was rejected before sending, so it must change (ranked below 4 and above 74); 1 an internal error; 2 a usage error; 3 a `--target` matched no local id, path, or `external_id`; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a `--target` path lies outside the work directory; 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
 
 Usage: accelerator-work sync [OPTIONS]
 

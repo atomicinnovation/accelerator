@@ -77,6 +77,7 @@ pub struct CreateArgs {
 pub struct PushReport {
     pub outcome: PushOutcome,
     pub external_id: Option<String>,
+    pub cause: Option<String>,
 }
 
 pub enum RunOutcome {
@@ -417,13 +418,15 @@ enum CreateRetryOutcome {
     Created(ExternalId),
     Exhausted,
     Terminal(String),
+    Rejected(String),
 }
 
 /// Drives the create call with the retryable/terminal policy `push_decide`
 /// owns: a `70` (retryable) failure is retried once, then the item is saved
 /// unsynced; a `71` (terminal) failure is never retried — a remote issue may
-/// already exist. The retry count is bounded by `push_decide` returning
-/// `Retry` only on the first attempt.
+/// already exist; a `75` (rejected) failure is never retried either, because
+/// the same request would be refused again. The retry count is bounded by
+/// `push_decide` returning `Retry` only on the first attempt.
 fn drive_create_retry<F>(mut attempt_create: F) -> CreateRetryOutcome
 where
     F: FnMut() -> Result<ExternalId, TrackerError>,
@@ -441,6 +444,11 @@ where
                     }
                     PushOutcome::LoudTerminal => {
                         return CreateRetryOutcome::Terminal(
+                            error.into_detail(),
+                        )
+                    }
+                    PushOutcome::Rejected => {
+                        return CreateRetryOutcome::Rejected(
                             error.into_detail(),
                         )
                     }
@@ -463,6 +471,7 @@ fn attempted_at_epoch() -> u64 {
 struct PushExecution {
     outcome: PushOutcome,
     external_id: Option<String>,
+    cause: Option<String>,
     marker_to_delete_after_write: Option<PathBuf>,
 }
 
@@ -511,6 +520,7 @@ fn execute_push(
         PushPrecondition::ReuseId(external_id) => Ok(PushExecution {
             outcome: PushOutcome::WriteOnce,
             external_id: Some(external_id.as_str().to_owned()),
+            cause: None,
             marker_to_delete_after_write: Some(marker_path),
         }),
         PushPrecondition::Proceed => {
@@ -530,6 +540,7 @@ fn execute_push(
                     return Ok(PushExecution {
                         outcome,
                         external_id: None,
+                        cause: None,
                         marker_to_delete_after_write: None,
                     });
                 }
@@ -570,6 +581,7 @@ fn execute_push(
                     Ok(PushExecution {
                         outcome: PushOutcome::WriteOnce,
                         external_id: Some(external_id.as_str().to_owned()),
+                        cause: None,
                         marker_to_delete_after_write: Some(marker_path),
                     })
                 }
@@ -578,6 +590,16 @@ fn execute_push(
                     Ok(PushExecution {
                         outcome: PushOutcome::LocalSave,
                         external_id: None,
+                        cause: None,
+                        marker_to_delete_after_write: None,
+                    })
+                }
+                CreateRetryOutcome::Rejected(cause) => {
+                    std::fs::remove_file(&marker_path).ok();
+                    Ok(PushExecution {
+                        outcome: PushOutcome::Rejected,
+                        external_id: None,
+                        cause: Some(cause),
                         marker_to_delete_after_write: None,
                     })
                 }
@@ -598,6 +620,7 @@ fn execute_push(
                     Ok(PushExecution {
                         outcome: PushOutcome::LoudTerminal,
                         external_id: None,
+                        cause: None,
                         marker_to_delete_after_write: None,
                     })
                 }
@@ -670,6 +693,7 @@ fn try_run(
             Some(PushReport {
                 outcome: execution.outcome,
                 external_id: execution.external_id,
+                cause: execution.cause,
             }),
             execution.marker_to_delete_after_write,
         )
@@ -760,6 +784,12 @@ mod tests {
         }
     }
 
+    fn rejected() -> TrackerError {
+        TrackerError::Rejected {
+            detail: "jira create: the body has a table".to_owned(),
+        }
+    }
+
     #[test]
     fn a_retryable_create_is_retried_once_then_succeeds() {
         let calls = Cell::new(0u8);
@@ -799,6 +829,21 @@ mod tests {
         });
         assert_eq!(calls.get(), 1, "a terminal failure is never retried");
         assert!(matches!(outcome, CreateRetryOutcome::Terminal(_)));
+    }
+
+    #[test]
+    fn a_rejected_create_is_never_retried() {
+        let calls = Cell::new(0u8);
+        let outcome = drive_create_retry(|| {
+            calls.set(calls.get() + 1);
+            Err::<ExternalId, _>(rejected())
+        });
+        assert_eq!(calls.get(), 1, "a retry would be rejected identically");
+        assert!(matches!(
+            outcome,
+            CreateRetryOutcome::Rejected(cause)
+                if cause == "jira create: the body has a table"
+        ));
     }
 
     #[test]
@@ -894,5 +939,169 @@ mod tests {
             }
             _ => panic!("an unresolvable project must still preview at exit 0"),
         }
+    }
+
+    struct FakeConfig(std::collections::HashMap<String, String>);
+
+    impl ConfigAccess for FakeConfig {
+        fn get(
+            &self,
+            key: &::config::Key,
+            _level: Option<::config::Level>,
+        ) -> Result<::config::Resolved, ::config::ConfigError> {
+            Ok(self.0.get(&key.to_string()).map_or(
+                ::config::Resolved::Absent,
+                |value| {
+                    ::config::Resolved::Found(::config::Value::Scalar(
+                        ::config::Scalar::String(value.clone()),
+                    ))
+                },
+            ))
+        }
+
+        fn set(
+            &self,
+            _key: &::config::Key,
+            _value: &str,
+            _level: ::config::Level,
+        ) -> Result<(), ::config::ConfigError> {
+            unreachable!("create never writes config")
+        }
+    }
+
+    struct PluginWorkItemTemplate;
+
+    impl ReadTemplate for PluginWorkItemTemplate {
+        fn resolve_template(
+            &self,
+            _name: &str,
+            _config_path: Option<&str>,
+            _templates_dir: &str,
+        ) -> Result<Option<::config::ResolvedTemplate>, ::config::ConfigError>
+        {
+            self.plugin_default("work-item")
+        }
+
+        fn template_names(&self) -> Result<Vec<String>, ::config::ConfigError> {
+            Ok(vec!["work-item".to_owned()])
+        }
+
+        fn plugin_default(
+            &self,
+            _name: &str,
+        ) -> Result<Option<::config::ResolvedTemplate>, ::config::ConfigError>
+        {
+            Ok(Some(::config::ResolvedTemplate {
+                source: ::config::TemplateSource::PluginDefault,
+                abs_path: "templates/work-item.md".to_owned(),
+                display_path: "templates/work-item.md".to_owned(),
+                content: include_str!("../../../templates/work-item.md")
+                    .to_owned(),
+                warning: None,
+            }))
+        }
+    }
+
+    struct PushingRepo {
+        root: tempfile::TempDir,
+        config: FakeConfig,
+    }
+
+    impl PushingRepo {
+        fn new() -> Self {
+            let root = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+            let config = FakeConfig(
+                [
+                    ("work.integration", "jira"),
+                    ("paths.integrations", "integrations"),
+                ]
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect(),
+            );
+            Self { root, config }
+        }
+
+        fn create(&self, tracker: RecordingTracker) -> RunOutcome {
+            let args = CreateArgs {
+                title: "A tabled idea".to_owned(),
+                kind: "task".to_owned(),
+                priority: "low".to_owned(),
+                status: "draft".to_owned(),
+                parent: None,
+                tags: Vec::new(),
+                blocks: Vec::new(),
+                blocked_by: Vec::new(),
+                derived_from: Vec::new(),
+                relates_to: Vec::new(),
+                source: None,
+                project: None,
+                author: Some("A Tester".to_owned()),
+                producer: "create-work-item".to_owned(),
+                body_file: None,
+                push: true,
+                dry_run: false,
+            };
+            run(
+                self.root.path(),
+                &self.config,
+                &PluginWorkItemTemplate,
+                &args,
+                &FixedRegistry::holding(tracker),
+            )
+        }
+
+        fn marker(&self) -> PathBuf {
+            work_adapters::sync::pending_push::path(
+                &self.root.path().join("integrations"),
+                "jira",
+                "a-tabled-idea",
+            )
+        }
+    }
+
+    #[test]
+    fn a_rejected_push_is_rejected_exits_75_and_leaves_no_marker() {
+        let repo = PushingRepo::new();
+
+        let outcome = repo.create(
+            RecordingTracker::holding(Vec::new()).failing_create(rejected()),
+        );
+
+        let RunOutcome::Created {
+            push: Some(report), ..
+        } = outcome
+        else {
+            panic!("a rejected push still creates the local item");
+        };
+        assert_eq!(report.outcome, PushOutcome::Rejected);
+        assert_eq!(report.outcome.exit_code(), exit_codes::REJECTED);
+        assert_eq!(
+            report.cause.as_deref(),
+            Some("jira create: the body has a table")
+        );
+        assert!(!repo.marker().exists(), "no issue can exist");
+    }
+
+    #[test]
+    fn a_rejected_legacy_create_still_writes_the_unsynced_file_and_prints_its_path(
+    ) {
+        let repo = PushingRepo::new();
+
+        let outcome = repo.create(
+            RecordingTracker::holding(Vec::new()).failing_create(rejected()),
+        );
+
+        let RunOutcome::Created { path, .. } = outcome else {
+            panic!("a rejected push still creates the local item");
+        };
+        let written = std::fs::read_to_string(&path).expect("the file exists");
+        assert!(
+            path.ends_with("meta/work/0001-a-tabled-idea.md"),
+            "{}",
+            path.display()
+        );
+        assert!(!written.contains("external_id"), "{written}");
     }
 }

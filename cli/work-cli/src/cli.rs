@@ -99,7 +99,9 @@ pub enum Command {
     /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
     /// read failed or every per-item failure was retryable; 71 any
-    /// per-item failure was terminal; 1 an internal error; 2 a usage
+    /// per-item failure was terminal; 75 a per-item request was rejected
+    /// before sending, so it must change (ranked below 4 and above 74); 1
+    /// an internal error; 2 a usage
     /// error; 3 a `--target` matched no local id, path, or `external_id`; 5
     /// refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a
     /// `--target` path lies outside the work directory; 72 the configured
@@ -189,8 +191,9 @@ pub struct UpdateArgs {
     /// before writing the edit locally. Refused when the item has no
     /// `external_id` — see `create --push` for an unsynced item. Unlike
     /// `create --push`, a failed push leaves the local file untouched:
-    /// exit 70 (retryable, unchanged) or 71 (terminal, baseline entry
-    /// cleared so the next `sync` reconciles it as a conflict).
+    /// exit 70 (retryable, unchanged), 71 (terminal, baseline entry
+    /// cleared so the next `sync` reconciles it as a conflict) or 75
+    /// (rejected before sending, unchanged).
     #[arg(long)]
     pub push: bool,
 }
@@ -247,8 +250,10 @@ pub struct CreateArgs {
     /// Push the new item to the configured remote tracker before writing
     /// it locally. On a retryable failure the create is retried once, then
     /// the item is saved unsynced; a terminal failure is reported and the
-    /// item saved unsynced (a remote issue may already exist — see
-    /// `exit_codes` for the 70/71 contract). The file is written either way.
+    /// item saved unsynced (a remote issue may already exist); a rejected
+    /// request is reported, exits 75 and the item saved unsynced (nothing
+    /// was sent) — see `exit_codes` for the 70/71/75 contract. The file is
+    /// written either way.
     #[arg(long)]
     pub push: bool,
     /// Preview the fields a `--push` create would resolve against the

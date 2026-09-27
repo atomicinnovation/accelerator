@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-27T13:04:38+00:00"
+last_updated: "2026-09-27T15:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -208,6 +208,9 @@ ADR-0044, before any code changes land.
 **Changes**: Create through `/accelerator:create-adr`, then accept through
 `/accelerator:review-adr`. Content:
 
+> Implementation note: written directly from this content and committed as
+> `accepted`, rather than through the interactive skills.
+
 - Context: the two-identifier cost (294 items carrying `NNNN` and `PP-NNN`),
   ADR-0044's rejection of option 2 and why its objections no longer hold
   when the behaviour is opt-in per `id_pattern` and restricted to Jira and
@@ -273,6 +276,19 @@ timeout, under every pattern.
 **File**: `cli/linear-client/src/classify.rs` (unit tests): the first two,
 and `a_payload_that_cannot_be_serialised_is_rejected`.
 
+> Implementation note: the classification tests live in the existing
+> `cli/jira-client/tests/classify.rs` and `cli/linear-client/tests/classify.rs`,
+> alongside `an_invalid_request_is_rejected_on_both_mutations` (Jira) and new
+> status-table rows for `NotSent` and `RequestInvalid`.
+> `a_body_that_cannot_be_converted_is_rejected_and_names_its_cause` and
+> `a_bad_path_is_rejected` exercise the client through the port, so they live
+> in `cli/jira-client/tests/port.rs`. Linear's serialisation failure cannot be
+> induced through the client, so its test classifies `RequestInvalid`
+> directly. Both transports' existing "a transport failure makes exactly one
+> attempt" tests became
+> `a_refused_connection_is_not_sent_and_makes_exactly_one_attempt`, now
+> asserting `ClientError::NotSent`.
+
 **File**: `cli/jira-client/tests/` and `cli/linear-client/tests/` (the
 existing transport integration test files)
 
@@ -292,6 +308,12 @@ existing transport integration test files)
   without the refused retry.
 - `an_update_against_a_refused_connection_is_retryable`
 
+> Implementation note: no attempt count is exposed on the transport. The
+> tests assert the second attempt through the `RecordingSleeper`'s single
+> recorded backoff, and one accepted request through the mock's hit count.
+> The refused-port probe is shared as `http_test_support::refused_base_url()`,
+> and both helpers are pinned in `cli/http-test-support/tests/server.rs`.
+
 **File**: `cli/work-adapters/tests/sync_create.rs`
 
 - `an_unreachable_tracker_leaves_no_marker_for_a_local_create`:
@@ -305,6 +327,12 @@ existing transport integration test files)
 - `a_rejected_push_is_rejected_exits_75_and_leaves_no_marker`
 - `a_rejected_create_from_local_renders_a_rejected_failed_row`
 - `a_rejected_legacy_create_still_writes_the_unsynced_file_and_prints_its_path`
+
+> Implementation note: `a_rejected_create_from_local_renders_a_rejected_failed_row`
+> lives in `cli/work-cli/src/sync.rs`, beside `render_report`. `create.rs`
+> also gains `a_rejected_create_is_never_retried`. The create exit code moved
+> onto `work::sync::PushOutcome::exit_code()` so the frozen
+> `keyword_exit_codes.rs` oracle can reach it from the bin-only crate.
 
 **File**: `cli/work-cli/src/update.rs` (unit tests)
 
@@ -379,6 +407,12 @@ provably unapplied but not retryable.
   `cli/jira-cli/tests/fixtures/captured-exit-codes.txt` gains the
   `RequestInvalid` row.
 
+> Implementation note: the fixture maps constant names to integers, and
+> `RequestInvalid` reuses the existing `REQ_BAD_REQUEST` (34), so no row was
+> added and the fixture is unchanged. The new mappings are pinned in the
+> `jira-cli` and `linear-cli` `exit_codes.rs` unit tests. In `contract.rs`,
+> the read property now also rules out `Rejected`.
+
 **Changes**: Add `REJECTED: u8 = 75` to `exit_codes.rs`, documented as
 "provably unapplied; the request itself must change". It sits outside
 `TERMINAL` (71), whose meaning stays "a remote issue may already exist",
@@ -423,16 +457,16 @@ details, `:183-203`)
 
 #### Automated Verification:
 
-- [ ] New client tests pass:
+- [x] New client tests pass:
       `cd cli && cargo test -p jira-client -p linear-client`
-- [ ] Sync create test passes:
+- [x] Sync create test passes:
       `cd cli && cargo test -p work-adapters --test sync_create`
 - [ ] Tracker contract suite passes: `mise run test:integration:tracker-contract`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `cd cli && cargo test -p work --test sync_push_decide && cargo test -p work-adapters --test bash_parity_baseline && cargo test -p accelerator-work --test exit_codes_parity --test keyword_exit_codes`
-- [ ] `cd cli && cargo test -p http-test-support`
-- [ ] `cd cli && cargo test -p jira-cli -p linear-cli` (captured exit codes unchanged except the new row)
-- [ ] `mise run check` exits 0
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `cd cli && cargo test -p work --test sync_push_decide && cargo test -p work-adapters --test bash_parity_baseline && cargo test -p accelerator-work --test exit_codes_parity --test keyword_exit_codes`
+- [x] `cd cli && cargo test -p http-test-support`
+- [x] `cd cli && cargo test -p jira-cli -p linear-cli` (captured exit codes unchanged)
+- [x] `mise run check` exits 0
 - [ ] `mise run` exits 0
 
 #### Manual Verification:

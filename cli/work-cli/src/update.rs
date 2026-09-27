@@ -43,6 +43,7 @@ pub enum RunOutcome {
     PushUnconfigured(String),
     PushRetryable(String),
     PushTerminal(String),
+    PushRejected(String),
 }
 
 fn set_key_error_message(error: &UpdateError) -> String {
@@ -136,6 +137,7 @@ enum TryRunError {
     Unconfigured(String),
     Retryable(String),
     Terminal(String),
+    Rejected(String),
 }
 
 impl From<String> for TryRunError {
@@ -271,6 +273,11 @@ fn push_failure(
         TrackerError::Unconfigured { detail } => {
             TryRunError::Unconfigured(detail)
         }
+        TrackerError::Rejected { detail } => TryRunError::Rejected(format!(
+            "E_PUSH_REJECTED: pushing {} was refused before anything was \
+             sent, and the request must change: {detail}",
+            path.display()
+        )),
         TrackerError::Terminal { detail } => {
             baseline_store.remove(id).ok();
             TryRunError::Terminal(format!(
@@ -395,6 +402,9 @@ pub fn run(
         Err(TryRunError::Terminal(message)) => {
             RunOutcome::PushTerminal(message)
         }
+        Err(TryRunError::Rejected(message)) => {
+            RunOutcome::PushRejected(message)
+        }
     }
 }
 
@@ -510,6 +520,65 @@ mod tests {
             std::fs::read_to_string(&baseline).expect("baseline"),
             seeded,
             "an unconfigured push sent nothing, so the baseline stands"
+        );
+    }
+
+    #[test]
+    fn an_update_whose_request_is_invalid_exits_75_and_keeps_the_baseline() {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        let item = root.path().join("0001.md");
+        std::fs::write(
+            &item,
+            "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"ENG-1\"\n\
+             ---\n\nBody\n",
+        )
+        .expect("seed the item");
+        let baseline = root.path().join("integrations/jira/last-sync.json");
+        std::fs::create_dir_all(baseline.parent().expect("parent"))
+            .expect("baseline dir");
+        let seeded = "{\"timestamp\":0,\"items\":{\"0001\":{\
+            \"remote_updated_at\":\"2026-06-01T00:00:00Z\",\
+            \"remote_hash\":\"r\",\"local_hash\":\"l\"}}}\n";
+        std::fs::write(&baseline, seeded).expect("seed the baseline");
+        let config = FakeConfig(
+            [
+                ("work.integration", "jira"),
+                ("paths.integrations", "integrations"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .collect(),
+        );
+        let registry = FixedRegistry(RefCell::new(Some(Box::new(
+            RecordingTracker::holding(Vec::new()).failing_update(
+                tracker::ExternalId::new("ENG-1".to_owned()),
+                TrackerError::Rejected {
+                    detail: "jira update: the body has a table".to_owned(),
+                },
+            ),
+        ))));
+        let args = UpdateArgs {
+            path: item,
+            sets: Vec::new(),
+            add_tags: Vec::new(),
+            remove_tags: Vec::new(),
+            appends: Vec::new(),
+            removes: Vec::new(),
+            push: true,
+        };
+
+        let outcome = run(root.path(), &config, &args, &registry);
+
+        let RunOutcome::PushRejected(message) = outcome else {
+            panic!("an invalid request exits 75");
+        };
+        assert!(message.starts_with("E_PUSH_REJECTED: "), "{message}");
+        assert!(message.contains("the body has a table"), "{message}");
+        assert_eq!(
+            std::fs::read_to_string(&baseline).expect("baseline"),
+            seeded,
+            "nothing was applied, so the baseline stands"
         );
     }
 }

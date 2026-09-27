@@ -395,14 +395,10 @@ impl LinearClient {
         operation: Operation,
         detail: &str,
     ) -> Result<Value, LinearFailure> {
-        let received =
-            self.transport.send(document, variables).map_err(|error| {
-                LinearFailure::wire(
-                    Outcome::Transport,
-                    operation,
-                    error.to_string(),
-                )
-            })?;
+        let received = self
+            .transport
+            .send(document, variables)
+            .map_err(|error| send_failure(operation, &error))?;
         Self::interpret_outcome(&received).map_err(|outcome| {
             LinearFailure::wire(outcome, operation, detail.to_owned())
         })
@@ -806,7 +802,11 @@ fn refuse_identifier_op(
     operation: Operation,
 ) -> Result<(), LinearFailure> {
     check_identifier(id.as_str()).map_err(|error| {
-        LinearFailure::wire(Outcome::Transport, operation, error.to_string())
+        LinearFailure::wire(
+            Outcome::RequestInvalid,
+            operation,
+            error.to_string(),
+        )
     })
 }
 
@@ -1032,4 +1032,13 @@ impl RemoteTracker for LinearClient {
             ValidationOutcome::Valid
         }
     }
+}
+
+fn send_failure(operation: Operation, error: &ClientError) -> LinearFailure {
+    let outcome = match error {
+        ClientError::NotSent { .. } => Outcome::NotSent,
+        ClientError::RequestInvalid { .. } => Outcome::RequestInvalid,
+        _ => Outcome::Transport,
+    };
+    LinearFailure::wire(outcome, operation, error.to_string())
 }

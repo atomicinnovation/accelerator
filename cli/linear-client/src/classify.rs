@@ -112,10 +112,15 @@ pub enum Outcome {
     BadRequest(GraphQlError),
     /// A 5xx whose retries are exhausted.
     ServerError,
-    /// A connect, DNS or timeout failure.
+    /// A timeout, or a connect failure after the request may have been
+    /// applied.
     Transport,
     /// Any other status.
     Unexpected,
+    /// A connect or DNS failure before the request left the client.
+    NotSent,
+    /// A request the client refused as invalid before sending it.
+    RequestInvalid,
 }
 
 /// Whether a wire outcome proves no mutation happened, for this operation.
@@ -130,7 +135,9 @@ pub fn classify(
     detail: &str,
 ) -> TrackerError {
     let provably_unapplied = match outcome {
-        Outcome::SuccessWithErrors(
+        Outcome::NotSent
+        | Outcome::RequestInvalid
+        | Outcome::SuccessWithErrors(
             GraphQlError::Auth | GraphQlError::Complexity,
         )
         | Outcome::Unauthorised
@@ -151,7 +158,11 @@ pub fn classify(
         | Outcome::Unexpected => false,
     };
     let detail = format!("linear {}: {detail}", operation.name());
-    if provably_unapplied || !operation.mutates() {
+    if !operation.mutates() {
+        TrackerError::Retryable { detail }
+    } else if outcome == Outcome::RequestInvalid {
+        TrackerError::Rejected { detail }
+    } else if provably_unapplied {
         TrackerError::Retryable { detail }
     } else {
         TrackerError::Terminal { detail }

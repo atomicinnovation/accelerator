@@ -133,8 +133,8 @@ pub struct RemoteIssue {
 
 /// A failure reported by a remote tracker.
 ///
-/// Three classes, and closed: `#[non_exhaustive]` is absent so that adding a
-/// fourth is a compile-breaking change for every consumer.
+/// Four classes, and closed: `#[non_exhaustive]` is absent so that adding a
+/// fifth is a compile-breaking change for every consumer.
 ///
 /// The classes divide on two questions. The first is **could a remote change
 /// have happened?** That makes classification operation-scoped, not a property
@@ -148,6 +148,7 @@ pub struct RemoteIssue {
 /// | `Retryable` | no | a retry |
 /// | `Terminal` | yes | a human checking the remote |
 /// | `Unconfigured` | no | a configuration change |
+/// | `Rejected` | no | a changed request |
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackerError {
     /// No remote change occurred, provably.
@@ -196,6 +197,17 @@ pub enum TrackerError {
         /// What is misconfigured and how to fix it, for a human.
         detail: String,
     },
+    /// The client refused the request before sending it, because the
+    /// request itself is invalid — a body that cannot be converted, a path
+    /// that cannot be composed. Nothing reached the tracker, but a retry
+    /// would fail identically, so only changing the request clears it.
+    ///
+    /// Only mutating calls produce it; a read refused this way is
+    /// `Retryable`, like every other read failure.
+    Rejected {
+        /// What was invalid about the request, for a human.
+        detail: String,
+    },
 }
 
 impl TrackerError {
@@ -209,7 +221,8 @@ impl TrackerError {
         match self {
             Self::Retryable { detail }
             | Self::Terminal { detail }
-            | Self::Unconfigured { detail } => detail,
+            | Self::Unconfigured { detail }
+            | Self::Rejected { detail } => detail,
         }
     }
 }
@@ -230,6 +243,11 @@ impl Display for TrackerError {
                 formatter,
                 "tracker call refused on configuration, and nothing was sent: \
                  {detail}"
+            ),
+            Self::Rejected { detail } => write!(
+                formatter,
+                "tracker call rejected before anything was sent, and only a \
+                 changed request clears it: {detail}"
             ),
         }
     }
@@ -592,6 +610,8 @@ pub trait RemoteTracker {
     /// protocol makes the rejection provable. A remote create is not
     /// idempotent, so once the request may have been *applied* the failure is
     /// [`TrackerError::Terminal`]: a repeat would duplicate the issue.
+    /// [`TrackerError::Rejected`] when the client refused the request as
+    /// invalid before sending it.
     fn create(
         &self,
         title: &str,
@@ -609,7 +629,8 @@ pub trait RemoteTracker {
     /// [`TrackerError::Retryable`] only when it is provable that nothing was
     /// modified; otherwise [`TrackerError::Terminal`]. The operation is
     /// idempotent, so the hazard is not duplication but not knowing whether it
-    /// landed.
+    /// landed. [`TrackerError::Rejected`] when the client refused the request
+    /// as invalid before sending it.
     ///
     /// The two operations' provable sets are **not nested in either
     /// direction** for at least one provider — each is narrower than the other

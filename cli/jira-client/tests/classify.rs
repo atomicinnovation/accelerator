@@ -66,6 +66,16 @@ const STATUS_TABLE: &[StatusRow] = &[
         update_retryable: false,
     },
     StatusRow {
+        outcome: Outcome::NotSent,
+        create_retryable: true,
+        update_retryable: true,
+    },
+    StatusRow {
+        outcome: Outcome::RequestInvalid,
+        create_retryable: false,
+        update_retryable: false,
+    },
+    StatusRow {
         outcome: Outcome::Status(302),
         create_retryable: false,
         update_retryable: false,
@@ -115,13 +125,21 @@ fn the_status_table_covers_every_outcome_variant() {
                 == std::mem::discriminant(wanted)
         })
     };
-    for witness in
-        [Outcome::Status(0), Outcome::NonJsonBody, Outcome::Transport]
-    {
+    for witness in [
+        Outcome::Status(0),
+        Outcome::NonJsonBody,
+        Outcome::Transport,
+        Outcome::NotSent,
+        Outcome::RequestInvalid,
+    ] {
         // An empty exhaustive match: a new `Outcome` variant fails to compile
         // here, forcing a witness and a table row for it.
         match witness {
-            Outcome::Status(_) | Outcome::NonJsonBody | Outcome::Transport => {}
+            Outcome::Status(_)
+            | Outcome::NonJsonBody
+            | Outcome::Transport
+            | Outcome::NotSent
+            | Outcome::RequestInvalid => {}
         }
         assert!(present(&witness), "no row covers {witness:?}");
     }
@@ -135,4 +153,30 @@ fn a_classification_names_the_provider_and_operation() {
     };
     assert!(detail.contains("jira read"), "{detail}");
     assert!(detail.contains("ABC-1"), "{detail}");
+}
+
+#[test]
+fn a_create_that_was_never_sent_is_retryable() {
+    let error = classify(Outcome::NotSent, Operation::Create, "refused");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn a_create_whose_transport_failed_after_sending_is_terminal() {
+    let error = classify(Outcome::Transport, Operation::Create, "timed out");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+}
+
+#[test]
+fn an_invalid_request_is_rejected_on_both_mutations() {
+    for operation in [Operation::Create, Operation::Update] {
+        let error = classify(Outcome::RequestInvalid, operation, "bad body");
+
+        assert!(
+            matches!(error, TrackerError::Rejected { .. }),
+            "{operation:?}: {error}"
+        );
+    }
 }

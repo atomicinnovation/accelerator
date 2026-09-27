@@ -31,9 +31,9 @@
 //!   acknowledge the blast radius, or sets a finite `max_items`. The work skill
 //!   drives that confirmation.
 //!
-//! Tracker-error codes (`70`/`71`), two of the three [`TrackerError`] classes
-//! [`for_tracker_error`] maps; the third, `Unconfigured`, maps to `74` below.
-//! This distinction is safety-critical — the work skills branch on it:
+//! Tracker-error codes (`70`/`71`/`75`), three of the four [`TrackerError`]
+//! classes [`for_tracker_error`] maps; the fourth, `Unconfigured`, maps to `74`
+//! below. This distinction is safety-critical — the work skills branch on it:
 //!
 //! - `70` `RETRYABLE` — the failure is provably *before* any remote mutation
 //!   (argument/validation/auth/connect, a read that failed, or a discovery
@@ -45,6 +45,14 @@
 //!   issue) — a remote issue may already exist; a whole-item `update` is
 //!   idempotent, so there the hazard is response *uncertainty*, not
 //!   double-apply. Either way the operator reconciles by hand.
+//! - `75` `REJECTED` — provably unapplied; the request itself must change. The
+//!   client refused it as invalid before sending it (a body that cannot be
+//!   converted, a path that cannot be composed), so no remote issue exists,
+//!   but a retry would fail identically. **Never auto-retried.** Distinct from
+//!   `71`, whose meaning stays "a remote issue may already exist".
+//!
+//! Where one run yields several outcomes, the exit code takes the highest in
+//! the precedence `71 > 4 > 75 > 74 > 70`.
 //!
 //! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
 //! configure* a tracker. `72`/`73` and the credential branch of `74` come from
@@ -86,6 +94,7 @@ pub const TERMINAL: u8 = 71;
 pub const NOT_AVAILABLE: u8 = 72;
 pub const UNRECOGNISED: u8 = 73;
 pub const UNCONFIGURED: u8 = 74;
+pub const REJECTED: u8 = 75;
 
 #[must_use]
 pub const fn for_tracker_error(error: &TrackerError) -> u8 {
@@ -93,6 +102,7 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
         TrackerError::Retryable { .. } => RETRYABLE,
         TrackerError::Terminal { .. } => TERMINAL,
         TrackerError::Unconfigured { .. } => UNCONFIGURED,
+        TrackerError::Rejected { .. } => REJECTED,
     }
 }
 
@@ -115,6 +125,7 @@ mod tests {
             NOT_AVAILABLE,
             UNRECOGNISED,
             UNCONFIGURED,
+            REJECTED,
         ];
         assert!(
             !others.contains(&KEYED_READ_CAPPED),
@@ -122,6 +133,16 @@ mod tests {
              especially the exit-4 indeterminate code"
         );
         assert_ne!(KEYED_READ_CAPPED, UNRESOLVED);
+    }
+
+    #[test]
+    fn a_rejected_tracker_error_exits_75() {
+        assert_eq!(
+            for_tracker_error(&TrackerError::Rejected {
+                detail: String::new(),
+            }),
+            75
+        );
     }
 
     #[test]

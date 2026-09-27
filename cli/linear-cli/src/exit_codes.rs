@@ -180,8 +180,9 @@ pub fn for_client(error: &ClientError) -> u8 {
         ClientError::MalformedToken { .. } => TOKEN_MALFORMED,
         ClientError::NoTeam => CREATE_NO_CATALOGUE,
         ClientError::UnresolvedFilters(refusal) => for_unresolved(refusal),
-        ClientError::BadIdentifier { .. } => BAD_REQUEST,
-        ClientError::Transport { .. } => CONNECT,
+        ClientError::BadIdentifier { .. }
+        | ClientError::RequestInvalid { .. } => BAD_REQUEST,
+        ClientError::NotSent { .. } | ClientError::Transport { .. } => CONNECT,
         ClientError::OversizedResponse { .. } => BAD_RESPONSE,
         ClientError::ConfigUnreadable { .. }
         | ClientError::TlsUnavailable { .. } => ERROR,
@@ -226,9 +227,10 @@ const fn exit_code_for_outcome(outcome: Outcome) -> u8 {
         Outcome::SuccessWithErrors(
             GraphQlError::RateLimited | GraphQlError::BadRequest,
         )
-        | Outcome::BadRequest(GraphQlError::BadRequest) => BAD_REQUEST,
+        | Outcome::BadRequest(GraphQlError::BadRequest)
+        | Outcome::RequestInvalid => BAD_REQUEST,
         Outcome::NonJsonBody => BAD_RESPONSE,
-        Outcome::Transport => CONNECT,
+        Outcome::Transport | Outcome::NotSent => CONNECT,
         Outcome::ServerError | Outcome::Unexpected => SERVER_ERROR,
     }
 }
@@ -367,6 +369,8 @@ mod tests {
         assert_eq!(exit_code_for_outcome(Outcome::Unauthorised), UNAUTHORIZED);
         assert_eq!(exit_code_for_outcome(Outcome::NonJsonBody), BAD_RESPONSE);
         assert_eq!(exit_code_for_outcome(Outcome::Transport), CONNECT);
+        assert_eq!(exit_code_for_outcome(Outcome::NotSent), CONNECT);
+        assert_eq!(exit_code_for_outcome(Outcome::RequestInvalid), BAD_REQUEST);
         assert_eq!(exit_code_for_outcome(Outcome::ServerError), SERVER_ERROR);
         assert_eq!(exit_code_for_outcome(Outcome::Unexpected), SERVER_ERROR);
     }
@@ -471,6 +475,22 @@ mod tests {
     }
 
     #[test]
+    fn an_unsent_or_invalid_request_keeps_its_captured_code() {
+        assert_eq!(
+            for_client(&ClientError::NotSent {
+                detail: String::new()
+            }),
+            CONNECT
+        );
+        assert_eq!(
+            for_client(&ClientError::RequestInvalid {
+                detail: String::new()
+            }),
+            BAD_REQUEST
+        );
+    }
+
+    #[test]
     fn no_team_still_exits_105_for_every_flow() {
         assert_eq!(for_client(&ClientError::NoTeam), CREATE_NO_CATALOGUE);
         assert_eq!(
@@ -496,6 +516,8 @@ mod tests {
             Outcome::Transport,
             Outcome::ServerError,
             Outcome::Unexpected,
+            Outcome::NotSent,
+            Outcome::RequestInvalid,
         ];
         for outcome in outcomes {
             assert!(

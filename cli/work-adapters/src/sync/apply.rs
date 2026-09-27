@@ -27,6 +27,7 @@ pub enum FailureClass {
     Retryable,
     Terminal,
     Unconfigured,
+    Rejected,
 }
 
 #[derive(Debug)]
@@ -53,6 +54,7 @@ impl ApplyError {
                 TrackerError::Retryable { .. } => FailureClass::Retryable,
                 TrackerError::Terminal { .. } => FailureClass::Terminal,
                 TrackerError::Unconfigured { .. } => FailureClass::Unconfigured,
+                TrackerError::Rejected { .. } => FailureClass::Rejected,
             }),
             Self::Io { .. } => None,
         }
@@ -388,7 +390,8 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             }
             Err(
                 source @ (TrackerError::Retryable { .. }
-                | TrackerError::Unconfigured { .. }),
+                | TrackerError::Unconfigured { .. }
+                | TrackerError::Rejected { .. }),
             ) => Self::abandon_attempt(request, source),
             Err(TrackerError::Terminal { detail }) => {
                 self.record_terminal_failure(request, fingerprint, detail)

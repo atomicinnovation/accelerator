@@ -553,18 +553,20 @@ concurrently. Please re-run /create-work-item.
       duplicate-create guard all live inside `work create --push`; do **not**
       drive a retry loop yourself. On stdout it prints the written path on the
       first line and `<keyword>\t<external_id>` on the second, where the keyword
-      is one of `write-once`, `local-save`, or `loud-terminal`. Render per the
-      table below.
+      is one of `write-once`, `local-save`, `loud-terminal`, or `rejected`.
+      Render per the table below.
 
    **Outcome table** (`work create --push` returns the keyword; you render the
-   message). The 70-retryable / 71-terminal contract the keywords derive from
-   is documented in `exit_codes` and cross-referenced by `work create --help`:
+   message). The 70-retryable / 71-terminal / 75-rejected contract the keywords
+   derive from is documented in `exit_codes` and cross-referenced by
+   `work create --help`:
 
    | Second-line keyword | Exit | Action |
    |---|---|---|
    | `write-once` | 0 | The remote issue was created and the file written with its `external_id`. Confirm success (step 8), echoing the returned identifier. |
-   | `local-save` | 0 | The push could not be sent (retryable and retried once, or the tracker is not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`. |
+   | `local-save` | 0 | The push could not be sent (the tracker is unreachable, retryable and retried once, or not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`. |
    | `loud-terminal` | 71 | A terminal failure **at or after** the create, or the create succeeded but the write-back failed — a remote issue **may already exist**. The file was saved unsynced. Print loud non-idempotent guidance naming the saved path: do **not** blindly re-run `/create-work-item`; check the tracker, and if the issue exists reconcile via `/sync-work-items` **or** set `external_id: <KEY>` by hand. |
+| `rejected` | 75 | The client refused the request as invalid before sending it, so **no remote issue exists**, but re-sending the same request would be refused again. The file was saved unsynced. Relay the cause printed on stderr and tell the user the request must change (for example, the body) before it is pushed via `/sync-work-items`. |
 
    Because the create and the local write are one atomic CLI operation, there
    is no in-skill window where a remote issue exists but no file does — that
