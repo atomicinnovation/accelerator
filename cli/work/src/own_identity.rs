@@ -1,4 +1,4 @@
-//! Own-identity predicate and the `id`/`work_item_id` alias fallback,
+//! Own-identity predicate and the `id`/`work_item_id` fallback field,
 //! operating on already-extracted values.
 
 /// True iff either own-identity field carries a non-empty value.
@@ -11,7 +11,7 @@ pub fn is_work_item_file(id: Option<&str>, work_item_id: Option<&str>) -> bool {
 /// The alternate own-identity field name to fall back to, or `None` when
 /// `field` is not an own-identity field at all.
 #[must_use]
-pub fn own_identity_alias(field: &str) -> Option<&'static str> {
+pub fn own_identity_fallback_field(field: &str) -> Option<&'static str> {
     match field {
         "id" => Some("work_item_id"),
         "work_item_id" => Some("id"),
@@ -21,7 +21,7 @@ pub fn own_identity_alias(field: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_work_item_file, own_identity_alias};
+    use super::{is_work_item_file, own_identity_fallback_field};
 
     #[test]
     fn is_work_item_file_true_when_either_field_present() {
@@ -32,9 +32,9 @@ mod tests {
     }
 
     #[test]
-    fn own_identity_alias_maps_both_directions() {
-        assert_eq!(own_identity_alias("id"), Some("work_item_id"));
-        assert_eq!(own_identity_alias("work_item_id"), Some("id"));
-        assert_eq!(own_identity_alias("status"), None);
+    fn own_identity_fallback_field_maps_both_directions() {
+        assert_eq!(own_identity_fallback_field("id"), Some("work_item_id"));
+        assert_eq!(own_identity_fallback_field("work_item_id"), Some("id"));
+        assert_eq!(own_identity_fallback_field("status"), None);
     }
 }

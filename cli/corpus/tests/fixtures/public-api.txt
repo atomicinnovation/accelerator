@@ -123,7 +123,7 @@ pub const corpus::frontmatter_validation::schema::BASE_FIELDS: [&str; 9]
 pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 15]
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 3]
-pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
+pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 7]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 18]
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
@@ -647,9 +647,11 @@ impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
 impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub const corpus::work_item_id::TRACKER_TOKEN: &str
 pub trait corpus::work_item_id::IdScanner
 pub fn corpus::work_item_id::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
+pub fn corpus::work_item_id::is_tracker_key(token: &str) -> bool
 pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
 pub enum corpus::Band
 pub corpus::Band::Ambiguous
@@ -891,6 +893,7 @@ impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
 impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub const corpus::TRACKER_TOKEN: &str
 pub trait corpus::AtomicWrite
 pub fn corpus::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::Clock
@@ -904,5 +907,6 @@ pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &s
 pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
 pub fn corpus::is_key_token(token: &str) -> bool
+pub fn corpus::is_tracker_key(token: &str) -> bool
 pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
 pub fn corpus::references_key(pattern: &str) -> bool

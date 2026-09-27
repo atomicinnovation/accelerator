@@ -29,6 +29,7 @@ use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::FieldValue;
 use work::create::TypedLinkage;
+use work::identity::linker_of;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
@@ -38,8 +39,11 @@ use work::sync::PushOutcome;
 use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
+use work::work_item_files::identities;
+use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
 use work_adapters::filesystem::FilesystemLister;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
@@ -262,30 +266,10 @@ fn corpus_carries_external_id(
     work_dir: &Path,
     external_id: &ExternalId,
 ) -> bool {
-    let Ok(entries) = std::fs::read_dir(work_dir) else {
-        return false;
-    };
-    entries.filter_map(Result::ok).any(|entry| {
-        let path = entry.path();
-        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("md") {
-            return false;
-        }
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            return false;
-        };
-        let Ok((frontmatter, _)) =
-            work_adapters::sync::digest::split_frontmatter_and_body(&content)
-        else {
-            return false;
-        };
-        work::show::read_field_raw(&frontmatter, "external_id").is_some_and(
-            |raw| {
-                raw.trim_matches(|c: char| {
-                    c.is_ascii_whitespace() || c == '"' || c == '\''
-                }) == external_id.as_str()
-            },
-        )
-    })
+    let files = FilesystemWorkItemFiles::new(work_dir)
+        .files()
+        .unwrap_or_default();
+    linker_of(external_id.as_str(), &identities(&files)).is_some()
 }
 
 fn refusal_message(
@@ -788,6 +772,29 @@ mod tests {
         TrackerError::Rejected {
             detail: "jira create: the body has a table".to_owned(),
         }
+    }
+
+    #[test]
+    fn the_push_duplicate_check_sees_external_ids_in_drafts() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let drafts = dir.path().join("drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts dir");
+        std::fs::write(
+            drafts.join("draft-k7mq3x-title.md"),
+            "---\nid: \"draft-k7mq3x\"\nexternal_id: \"ENG-42\"\n---\n",
+        )
+        .expect("write draft");
+
+        let carries = |key: &str| {
+            super::corpus_carries_external_id(
+                dir.path(),
+                &ExternalId::new(key.to_owned()),
+            )
+        };
+
+        assert!(carries("ENG-42"));
+        assert!(carries("eng-42"));
+        assert!(!carries("ENG-43"));
     }
 
     #[test]
