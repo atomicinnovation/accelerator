@@ -2052,7 +2052,7 @@ misplaced-flag rule names `--concurrency` on `outline`.
 - [x] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
 - [x] Skill preprocessor lines resolve: `mise run test:integration:skill-invocation`
 - [x] Skill lints pass: `mise run check`
-- [ ] Full run green: `mise run`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
