@@ -32,8 +32,7 @@ fn repository() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
     Ok((guard, root))
 }
 
-/// A throwaway repository. Owns the `TempDir` guard so the directory is
-/// removed when the fixture drops.
+/// A throwaway repository.
 struct Fixture {
     root: PathBuf,
     _guard: TempDir,

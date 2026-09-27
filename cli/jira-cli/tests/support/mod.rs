@@ -72,7 +72,6 @@ pub fn run(dir: &Path, server: &MockHTTPServer, args: &[&str]) -> Output {
     run_with(dir, args, Some(&server.base_url()), &Token::Present)
 }
 
-/// As [`run`], with extra environment variables set.
 pub fn run_env(
     dir: &Path,
     server: &MockHTTPServer,

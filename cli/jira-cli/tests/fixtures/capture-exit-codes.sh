@@ -7,7 +7,7 @@
 # table in scripts/EXIT_CODES.md — the single document every helper draws from.
 # This script parses that table into `<rust-const-name>=<integer>` rows,
 # plus the unnamed shared HTTP codes the table lists with a `—` name (the Rust
-# binary reads them structurally from the client). Two normalisations:
+# binary reads them structurally from the client). Three normalisations:
 #   - `E_ADF_UNSUPPORTED_*` (a wildcard family) -> ADF_UNSUPPORTED.
 #   - code 26, the retired shared-config token-command refusal, was a stderr
 #     prefix only, never a fatal exit, so it is omitted (EXIT_CODES.md:28

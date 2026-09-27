@@ -213,8 +213,6 @@ def test_real_cli_pup_ron_loads() -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The real config rule, driven against a probe crate named `config` ---
-#
 # Unlike the version/launch probes above (which retarget a rule of the same
 # SHAPE at a synthetic module), these drive the SHIPPED cli/pup.ron via
 # --pup-config against a workspace whose crate is literally named `config`, so
@@ -347,8 +345,6 @@ def test_real_config_rule_rejects_direct_std_io(
     assert "config_domain_imports_only_permitted" in output, output
 
 
-# --- The domain rule also denies the shared `store` crate ---
-#
 # store is infrastructure and carries no inward rule of its own, so the
 # whole-crate domain allowance (std / kernel::Error / crate) is what must keep a
 # domain crate from importing it. Driven against a crate literally named
@@ -421,8 +417,6 @@ def test_real_config_rule_rejects_a_domain_crate_importing_store(
     assert "config_domain_imports_only_permitted" in output, output
 
 
-# --- The config_command module rule ---
-#
 # The launcher's config_command hexagon may name only the config domain and its
 # own subtree. Driven against a crate literally named `accelerator` (so the
 # `^accelerator::config_command` regex is exercised directly) with a
@@ -542,12 +536,11 @@ def test_config_command_rule_passes_a_compliant_module(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The library-backed VCS adapter's two-clause rule ---
-#
-# The only shipped rule pairing `allowed_only` with `denied`, because the thing
-# it prohibits (std::process) sits *inside* the permitted std. Driven against a
-# crate literally named `vcs-adapters` with a `library` module, under the
-# shipped cli/pup.ron, so a rename of the real module makes these fail.
+# The library-backed VCS adapter's rule is the only shipped rule pairing
+# `allowed_only` with `denied`, because the thing it prohibits (std::process)
+# sits *inside* the permitted std. Driven against a crate literally named
+# `vcs-adapters` with a `library` module, under the shipped cli/pup.ron, so a
+# rename of the real module makes these fail.
 #
 # The grouped-import case pins behaviour rather than asserting a preference:
 # cargo-pup resolves `use a::{b, c}` to an empty module name, which an
@@ -634,13 +627,11 @@ def test_vcs_library_rule_rejects_a_grouped_import(tmp_path: Path) -> None:
     assert "vcs_adapters_library_reads_in_process" in output, output
 
 
-# --- The tracker domain rule ---
-#
-# Driven against a workspace whose crates are literally named `tracker` and
-# `work`, so the shipped `^tracker($|::)` regex is exercised directly. The
-# violation is the one the crate exists to prevent: a port crate reaching for
-# the lifecycle domain would make every provider client depend on it
-# transitively.
+# The tracker domain rule is driven against a workspace whose crates are
+# literally named `tracker` and `work`, so the shipped `^tracker($|::)` regex is
+# exercised directly. The violation is the one the crate exists to prevent: a
+# port crate reaching for the lifecycle domain would make every provider client
+# depend on it transitively.
 
 _TRACKER_WORKSPACE = """\
 [workspace]
@@ -724,13 +715,11 @@ def test_real_tracker_rule_permits_std_and_crate_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The tracker-test-support import rule ---
-#
-# Driven against a workspace whose crates are literally named
-# `tracker-test-support` and `work`, so the hyphen-to-underscore matcher is
-# exercised directly. The compliant control must actually import `tracker`:
-# a matcher that silently resolves nothing would pass an import-free
-# control.
+# The tracker-test-support import rule is driven against a workspace whose
+# crates are literally named `tracker-test-support` and `work`, so the
+# hyphen-to-underscore matcher is exercised directly. The compliant control must
+# actually import `tracker`: a matcher that silently resolves nothing would pass
+# an import-free control.
 
 _TRACKER_TEST_SUPPORT_WORKSPACE = """\
 [workspace]
@@ -830,13 +819,11 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The remote-projection and tracker-support rules ---
-#
-# Both are `denied`-only rules over a whole crate, driven against a workspace
-# whose crate is literally named for it. remote-projection must not spawn;
-# tracker-support must neither spawn nor grow a transport. Each compliant
-# control imports something real, so a matcher that resolved nothing could not
-# pass it silently.
+# The remote-projection and tracker-support rules are both `denied`-only rules
+# over a whole crate, each driven against a workspace whose crate is literally
+# named for it. remote-projection must not spawn; tracker-support must neither
+# spawn nor grow a transport. Each compliant control imports something real, so
+# a matcher that resolved nothing could not pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
@@ -980,12 +967,11 @@ def test_consent_adapters_zero_spawn_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The VCS sub-binary stays free of config ---
-#
-# accelerator-vcs answers the launcher's tracking question for config files,
-# so it is the one place a config edge would look natural. The probe crate
-# depends on stubs of both config and vcs, so the compliant control imports a
-# real sibling and a matcher that resolved nothing could not pass it.
+# accelerator-vcs must stay free of config: it answers the launcher's tracking
+# question for config files, so it is the one place a config edge would look
+# natural. The probe crate depends on stubs of both config and vcs, so the
+# compliant control imports a real sibling and a matcher that resolved nothing
+# could not pass it.
 
 _VCS_CLI_MANIFEST = """\
 [package]
@@ -1092,8 +1078,6 @@ def test_tracker_support_rule_permits_std_imports(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The research crates' rules ---
-#
 # research-adapters' decoding modules may not spawn, and no research crate may
 # reach tracker-support. Driven against crates named for the real ones, with a
 # stand-in `tracker-support` so the denied import resolves.
@@ -1213,15 +1197,13 @@ def test_research_tracker_support_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The http-test-support std-only rule ---
-#
-# Driven against a workspace whose crates are literally named
-# `http-test-support` and `reqwest`, so the denied pattern is exercised
-# against a real resolved import. The stand-in `reqwest` crate is a local
-# stub: the rule matches on the import path, and building the real client
-# here would cost a full TLS-stack compile for no extra signal. The
-# compliant control must actually import something, so a matcher that
-# resolved nothing could not pass it silently.
+# The http-test-support std-only rule is driven against a workspace whose crates
+# are literally named `http-test-support` and `reqwest`, so the denied pattern
+# is exercised against a real resolved import. The stand-in `reqwest` crate is a
+# local stub: the rule matches on the import path, and building the real client
+# here would cost a full TLS-stack compile for no extra signal. The compliant
+# control must actually import something, so a matcher that resolved nothing
+# could not pass it silently.
 
 _HTTP_TEST_SUPPORT_WORKSPACE = """\
 [workspace]
@@ -1302,12 +1284,10 @@ def test_http_test_support_rule_permits_std_imports(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The graphql-test-support mounting rule ---
-#
-# Driven against a workspace whose crates are literally named
-# `graphql-test-support` and `http-test-support`. The violation opens its own
-# socket rather than mounting on the HTTP mock; the compliant control imports
-# the HTTP mock it must be allowed to mount on.
+# The graphql-test-support mounting rule is driven against a workspace whose
+# crates are literally named `graphql-test-support` and `http-test-support`. The
+# violation opens its own socket rather than mounting on the HTTP mock; the
+# compliant control imports the HTTP mock it must be allowed to mount on.
 
 _GRAPHQL_TEST_SUPPORT_WORKSPACE = """\
 [workspace]
@@ -1397,8 +1377,6 @@ def test_graphql_test_support_rule_permits_mounting_on_the_http_mock(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The provider-client isolation rule ---
-#
 # jira-client must not reach up into the work domain nor across to the other
 # provider client. Driven against a workspace whose crates are literally named
 # for them, under the shipped cli/pup.ron. The compliant control imports the
@@ -1607,11 +1585,10 @@ def test_jira_client_rule_permits_importing_the_port(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- jira-client's filesystem-confinement rule ---
-#
-# transport and discovery must stay off the filesystem; the atomic writes and
-# the advisory lock live only in the cache module. Driven against a crate named
-# `jira-client` with a `transport` module under the shipped cli/pup.ron.
+# jira-client's transport and discovery must stay off the filesystem; the atomic
+# writes and the advisory lock live only in the cache module. Driven against a
+# crate named `jira-client` with a `transport` module under the shipped
+# cli/pup.ron.
 
 _JIRA_TRANSPORT_FS_VIOLATION = (
     "use std::fs::File;\n\n"
@@ -1647,11 +1624,9 @@ def test_jira_client_io_rule_permits_a_filesystem_free_transport(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- linear-client's filesystem-confinement rule ---
-#
-# The Linear mirror: transport, upload and discovery must stay off the
-# filesystem, with the atomic writes and the advisory lock confined to the cache
-# module. Driven against a crate named `linear-client` with an `upload` module.
+# linear-client's transport, upload and discovery must stay off the filesystem,
+# with the atomic writes and the advisory lock confined to the cache module.
+# Driven against a crate named `linear-client` with an `upload` module.
 
 
 def _write_linear_io_probe(root: Path, upload_body: str) -> None:
@@ -1680,12 +1655,11 @@ def test_linear_client_io_rule_permits_a_filesystem_free_upload(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# --- The remaining whole-crate domain rules ---
-#
-# Each is driven against a workspace whose crate is literally named for it,
-# under the shipped cli/pup.ron, so deleting or mistyping a rule fails here.
-# corpus and vcs carry config's rule shape; work and migrate widen it, and
-# the third element pins what each widening permits.
+# The remaining whole-crate domain rules are each driven against a workspace
+# whose crate is literally named for it, under the shipped cli/pup.ron, so
+# deleting or mistyping a rule fails here. corpus and vcs carry config's rule
+# shape; work and migrate widen it, and the third element pins what each
+# widening permits.
 
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
