@@ -85,6 +85,14 @@
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
   itself.
+- **`research topic outstanding` plans deepened research.** `--depth N`
+  reports each pair's `stage`, the level-note `nodes` it still needs or the
+  `notes` its composer reads, `trims` and `shallower` pairs; `--limit`,
+  `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
+  and the new `end-run` verb closes one. A run keeps a transient
+  `<set>/.conduct-run.json`, removed on completion and safe to delete after an
+  interrupted run; consider adding `**/.conduct-run.json` to your
+  `.gitignore`.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.

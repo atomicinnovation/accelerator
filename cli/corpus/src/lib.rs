@@ -33,6 +33,7 @@ pub use crate::metadata::RepositoryFacts;
 pub use crate::record::Outcome;
 pub use crate::record::Record;
 pub use crate::store::AtomicWrite;
+pub use crate::store::FileRemove;
 pub use crate::store::RecordStore;
 pub use crate::store::StoreError;
 pub use crate::typed_ref::parse_typed_ref;

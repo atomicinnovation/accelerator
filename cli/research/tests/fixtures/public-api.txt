@@ -1324,6 +1324,7 @@ pub struct research::tree::LevelsDirectory
 impl research::tree::LevelsDirectory
 pub const fn research::tree::LevelsDirectory::new(stem: corpus::topic_research::stem::Stem, root_question: core::option::Option<alloc::string::String>, notes: alloc::vec::Vec<research::tree::LevelNote>, rejected: alloc::collections::btree::map::BTreeMap<corpus::topic_research::lineage::Lineage, research::tree::NoteRejection>) -> Self
 pub fn research::tree::LevelsDirectory::notes(&self) -> &[research::tree::LevelNote]
+pub const fn research::tree::LevelsDirectory::rejected(&self) -> &alloc::collections::btree::map::BTreeMap<corpus::topic_research::lineage::Lineage, research::tree::NoteRejection>
 pub fn research::tree::LevelsDirectory::root_question(&self) -> core::option::Option<&str>
 pub const fn research::tree::LevelsDirectory::stem(&self) -> &corpus::topic_research::stem::Stem
 impl core::clone::Clone for research::tree::LevelsDirectory

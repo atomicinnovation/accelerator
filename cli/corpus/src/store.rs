@@ -63,6 +63,16 @@ pub trait AtomicWrite {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError>;
 }
 
+/// Whole-file removal.
+pub trait FileRemove {
+    /// Succeeds when `path` is already absent.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the path resolves outside the store's root or the
+    /// removal fails.
+    fn remove(&self, path: &Path) -> Result<(), StoreError>;
+}
+
 /// Canonical-order JSONL append and anchored-prefix remove-by-key.
 pub trait RecordStore {
     /// # Errors

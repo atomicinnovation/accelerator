@@ -254,6 +254,12 @@ impl LevelsDirectory {
     pub fn notes(&self) -> &[LevelNote] {
         &self.notes
     }
+
+    /// Each refused note's rejection, by lineage.
+    #[must_use]
+    pub const fn rejected(&self) -> &BTreeMap<Lineage, NoteRejection> {
+        &self.rejected
+    }
 }
 
 /// A node still missing its level note.

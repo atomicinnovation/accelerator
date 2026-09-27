@@ -382,8 +382,52 @@ It prints JSON with four arrays: `items` (each outline item's `line`,
 `question`, and `complete`), `pairs` (each outstanding pair's `question`,
 `profile`, and absolute `path`), `skipped` (with a `reason`), and `warnings`.
 The JSON is additive-only: fields may be added, never renamed or removed, and
-consumers ignore fields they do not know. It is read-only, and exits `1` with
+consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+
+`--depth N` researches each pair as a tree of level notes under
+`findings/<stem>.levels/`. It defaults to `1` and is never read from
+`research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
+The JSON then also carries:
+
+- `depth`, the depth planned for;
+- each pair's `stage`: `research` (one researcher writes the finding),
+  `deepen` (its missing `nodes`, each with `lineage`, `level`, `question`,
+  `cap`, `id`, absolute `path`, `known_questions`, and a `rejected` reason
+  when the note on disk was refused) or `compose` (the `notes` the
+  composer reads, as absolute paths in lineage order);
+- a `spawn` ref on every `research` or `compose` pair and every node;
+- `trims`, one `{stem, lineage, recorded, cap}` per note that recorded more
+  follow-ups than its cap, each also printed to stderr as a `warning:` line;
+- `shallower`, each answered pair whose finding was researched below
+  `--depth`, which is not deepened again;
+- `remaining`, the spawns held back by `--limit N`, and `unaccepted`, each
+  `{spawn, rejected}` a run attempted that is still outstanding.
+
+The run flags exist for `conduct`. `--start` begins a run and returns its
+`run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
+as spawned. During a run the JSON also carries `run`, `batch` (the number the
+next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
+findings nobody was asked to write, or whose content changed).
+`accelerator research topic end-run SLUG --run ID` removes the run's
+ledger when the run finishes.
+
+It is read-only unless `--start` or `--run` is given; a run records its
+ledger in `<set>/.conduct-run.json`, which `end-run` removes. A leftover
+ledger means a run was interrupted, and is safe to delete; consider ignoring
+`**/.conduct-run.json`. A person clears a leftover ledger by deleting it or
+by re-running `conduct`.
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_LIMIT` | `--limit` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_RUN` | a malformed `--run`, or `--start` with `--run` | pass the id `--start` returned |
+| `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
+| `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
+| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 
 ## Local development
 

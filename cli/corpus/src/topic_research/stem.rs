@@ -30,9 +30,16 @@ impl Stem {
         })
     }
 
+    /// Whether a stem can end in `profile`, so the planner can allocate its
+    /// pairs.
+    #[must_use]
+    pub fn admits_profile(profile: &str) -> bool {
+        is_allocatable(profile)
+    }
+
     #[must_use]
     pub fn allocated(index: u32, slug: &str, profile: &str) -> Option<Self> {
-        is_allocatable(profile)
+        Self::admits_profile(profile)
             .then(|| Self::parse(&format!("{index:02}-{slug}-{profile}")))
             .flatten()
     }
@@ -108,7 +115,9 @@ mod tests {
     #[test]
     fn a_profile_outside_the_alphabet_allocates_no_stem() {
         for profile in ["Web", "we b", "web:1", ""] {
+            assert!(!Stem::admits_profile(profile), "{profile:?}");
             assert_eq!(Stem::allocated(3, "a", profile), None, "{profile:?}");
         }
+        assert!(Stem::admits_profile("open-alex2"));
     }
 }

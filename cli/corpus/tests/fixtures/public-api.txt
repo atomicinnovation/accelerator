@@ -129,6 +129,7 @@ pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 1
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 3]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 19]
+pub fn corpus::frontmatter_validation::schema::named_key(name: &str) -> core::option::Option<&'static str>
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
@@ -242,6 +243,7 @@ pub corpus::frontmatter_validation::violation::Violation::UnquotedString
 pub corpus::frontmatter_validation::violation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+pub fn corpus::frontmatter_validation::violation::Violation::schema_key(&self) -> core::option::Option<&'static str>
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
 pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
 impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
@@ -296,6 +298,7 @@ pub corpus::frontmatter_validation::Violation::UnquotedString
 pub corpus::frontmatter_validation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+pub fn corpus::frontmatter_validation::violation::Violation::schema_key(&self) -> core::option::Option<&'static str>
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
 pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
 impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
@@ -504,6 +507,8 @@ pub trait corpus::scan::CorpusWalker
 pub fn corpus::scan::CorpusWalker::walk_markdown(&self, roots: &[std::path::PathBuf]) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
 pub trait corpus::scan::DirReader
 pub fn corpus::scan::DirReader::list(&self, dir: &std::path::Path) -> core::result::Result<core::option::Option<alloc::vec::Vec<alloc::string::String>>, kernel::Error>
+pub trait corpus::scan::DirectoryProbe
+pub fn corpus::scan::DirectoryProbe::is_dir(&self, path: &std::path::Path) -> bool
 pub trait corpus::scan::FileReader
 pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
 pub mod corpus::slug
@@ -542,6 +547,8 @@ pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatte
 impl core::marker::StructuralPartialEq for corpus::store::StoreError
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::store::FileRemove
+pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
@@ -571,6 +578,7 @@ pub fn corpus::topic_research::Lineage::hash<__H: core::hash::Hasher>(&self, sta
 impl core::marker::StructuralPartialEq for corpus::topic_research::Lineage
 pub struct corpus::topic_research::Stem
 impl corpus::topic_research::Stem
+pub fn corpus::topic_research::Stem::admits_profile(profile: &str) -> bool
 pub fn corpus::topic_research::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
 pub const fn corpus::topic_research::Stem::index(&self) -> u32
 pub fn corpus::topic_research::Stem::parse(text: &str) -> core::option::Option<Self>
@@ -921,6 +929,8 @@ pub fn corpus::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -
 pub trait corpus::Clock
 pub fn corpus::Clock::filename_timestamp(&self, format: corpus::metadata::FilenameTimestampFormat) -> alloc::string::String
 pub fn corpus::Clock::now_utc_iso(&self) -> alloc::string::String
+pub trait corpus::FileRemove
+pub fn corpus::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::RecordStore

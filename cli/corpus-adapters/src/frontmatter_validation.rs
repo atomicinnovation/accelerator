@@ -138,11 +138,17 @@ pub fn validate_path<F: FileReader>(
     path: &Path,
     file_reader: &F,
 ) -> Result<Vec<Violation>, kernel::Error> {
-    let Some(content) = file_reader.read(path)? else {
-        return Ok(vec![Violation::NoFence]);
-    };
-    Ok(parsed_frontmatter_text(&content)
-        .map_or_else(|| vec![Violation::NoFence], |fm| validate_file(&fm)))
+    Ok(file_reader.read(path)?.map_or_else(
+        || vec![Violation::NoFence],
+        |content| validate_text(&content),
+    ))
+}
+
+/// Validates one document's structural conformance from its text.
+#[must_use]
+pub fn validate_text(content: &str) -> Vec<Violation> {
+    parsed_frontmatter_text(content)
+        .map_or_else(|| vec![Violation::NoFence], |fm| validate_file(&fm))
 }
 
 /// Which check categories a `frontmatter validate` invocation has enabled.

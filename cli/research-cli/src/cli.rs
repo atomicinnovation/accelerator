@@ -66,13 +66,45 @@ pub enum Command {
 #[derive(Subcommand)]
 pub enum TopicAction {
     /// The (focus area, profile) pairs a `conduct` round must still research,
-    /// each with its finding's absolute path, and every outline item's
-    /// completeness, as JSON. Read-only; fields are only ever added.
+    /// each with its finding's absolute path, and, at `--depth` above 1, each
+    /// pair's missing level-note nodes or the notes it composes from, and
+    /// every outline item's completeness, as JSON. Read-only unless `--start`
+    /// or `--run` is given; fields are only ever added.
+    ///
+    /// Every number and run flag is a raw string, hand-validated in the
+    /// command layer, so an invalid value or combination exits 1 with this
+    /// tool's own error text rather than clap's exit 2.
     Outstanding {
         /// The set's slug, set directory, or sub-document path.
         slug: String,
         /// The directory holding one `<name>-profile/SKILL.md` per profile.
         #[arg(long)]
         profiles_dir: PathBuf,
+        /// How many levels each pair's tree is researched to. Defaults to 1
+        /// and is never read from `research.topic.depth`, so a hand run
+        /// must pass the depth `conduct` resolved.
+        #[arg(long, default_value = "1", allow_hyphen_values = true)]
+        depth: String,
+        /// The most spawns to offer; the rest are counted in `remaining`.
+        #[arg(long, allow_hyphen_values = true)]
+        limit: Option<String>,
+        /// Begin a `conduct` run, recording its ledger in the set.
+        #[arg(long)]
+        start: bool,
+        /// Continue the `conduct` run with this id.
+        #[arg(long, allow_hyphen_values = true)]
+        run: Option<String>,
+        /// Acknowledge this batch of the run as spawned.
+        #[arg(long, allow_hyphen_values = true)]
+        spawned: Option<String>,
+    },
+    /// Remove the ledger of a `conduct` run that has finished. Succeeds when
+    /// the set has no ledger.
+    EndRun {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The run whose ledger is removed.
+        #[arg(long, allow_hyphen_values = true)]
+        run: String,
     },
 }

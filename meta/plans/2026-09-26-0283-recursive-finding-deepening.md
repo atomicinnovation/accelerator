@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T16:57:41+00:00"
+last_updated: "2026-09-27T18:01:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1647,11 +1647,15 @@ takes `--depth` and renders stages. Trims go to stderr.
 
 **File**: `cli/corpus-adapters/src/topic_research.rs`
 **Changes**:
-- `read_round_inputs` takes `depth: Depth` and returns `levels`.
+- `read_round_inputs` takes `depth: Depth`, `pins: PinnedIndexes` and the
+  injected `&dyn UnicodeText`, and returns a `RoundReading { inputs,
+  warnings }`, whose `inputs.levels` holds the levels directories read.
 - `read_finding` reads the optional `depth` into `Finding::depth`.
-- `available_profiles` skips a profile directory whose name `Stem`'s
-  alphabet cannot carry, and emits a warning naming it, so the planner never
-  allocates a path the guard would refuse.
+- `available_profiles` returns `AvailableProfiles { names, unallocatable }`,
+  so the planner never allocates a path the guard would refuse. A name
+  `Stem::admits_profile` refuses (a new `corpus` predicate sharing the
+  planner's alphabet) becomes `ReadingWarning::UnallocatableProfile`, which
+  the CLI adds to the JSON `warnings`.
 - The `scan` port gains a separate `DirectoryProbe` trait with `fn
   is_dir(&self, path: &Path) -> bool`. `read_round_inputs` requires it
   alongside `DirReader`, and `RealFs` and the topic-research stubs implement
@@ -1668,7 +1672,10 @@ takes `--depth` and renders stages. Trims go to stderr.
     `LevelNote::from_frontmatter` as a `LevelNoteFields`, keeping an
     accepted note and recording a rejection against its lineage; a scalar
     `follow_ups` reaches the domain as absent;
-  - treats a note that fails `validate_path` as missing, and records
+  - validates each note with a new `validate_text`, extracted from
+    `validate_path`, over the same bytes it digests, so the verdict and the
+    digest describe one read;
+  - treats a note that fails validation as missing, and records
     `NoteRejection::FailsValidation` against its lineage. It carries the
     first violation's `code()` and its `schema_key()`: a new
     `Violation::schema_key(&self) -> Option<&'static str>` in `corpus`,
@@ -1716,7 +1723,9 @@ takes `--depth` and renders stages. Trims go to stderr.
     digest. Any failure makes the ledger `Corrupt`, so no unchecked text
     from the file reaches a warning or the window.
 
-**Tests first** (`StubFs` unit tests in `cli/corpus-adapters/src/topic_research.rs`):
+**Tests first** (`StubFs` unit tests in `cli/corpus-adapters/src/topic_research.rs`;
+the ledger store and its tests live in
+`cli/corpus-adapters/src/topic_research/run_ledger.rs`):
 - `names_that_are_not_canonical_lineages_are_ignored`, covering `2-0.md`,
   `notes.txt`, a `2-1/` directory and a dot file other than a root marker
 - `a_suffixed_root_marker_names_the_directorys_question`
@@ -1769,18 +1778,22 @@ rather than clamps.
   failed write exits 1 with `E_TOPIC_RESEARCH_RUN_LEDGER: could not write
   {path}: {io error}`. `--spawned N` acknowledges batch N as
   spawned, and a call without it, or with a stale N, re-offers the pending
-  batch. `--spawned` is declared with `requires = "run"` and
-  `conflicts_with = "start"`, and parsed as a raw string that exits 1 with
+  batch. `--spawned` is a raw string that exits 1 with
   `E_TOPIC_RESEARCH_SPAWNED` unless it is a non-negative integer.
-- `--start` and `--run` are mutually exclusive. Without either, nothing is
-  read or written, so a hand run stays a pure query.
+- The flag combinations are validated by hand, not with clap's `requires`
+  and `conflicts_with`, which exit 2. `--start` with `--run` exits 1 with
+  `E_TOPIC_RESEARCH_RUN: --start and --run cannot be combined`, and
+  `--spawned` without `--run` exits 1 with `E_TOPIC_RESEARCH_SPAWNED:
+  --spawned needs --run`. Without `--start` or `--run`, nothing is read or
+  written, so a hand run stays a pure query.
 
 **File**: `cli/corpus-cli/src/cli.rs`
 **Changes**: `TopicResearchAction` gains `EndRun { slug, run }`, i.e.
 `accelerator corpus topic-research end-run SLUG --run ID`. It deletes the
 ledger only when its run is `ID`, succeeds when the file is absent, and
-exits 1 with `E_TOPIC_RESEARCH_RUN_SUPERSEDED` when another run owns it.
-`conduct` reaches it through the existing
+exits 1 with `E_TOPIC_RESEARCH_RUN_SUPERSEDED` when another run owns it. A
+corrupt ledger exits 1 with `E_TOPIC_RESEARCH_RUN_LEDGER` and is left in
+place; the next `--start` replaces it. `conduct` reaches it through the existing
 `Bash(accelerator corpus topic-research *)` allowance, so the skill never
 names the ledger file.
 
@@ -1808,7 +1821,10 @@ names the ledger file.
 - `compose` pairs gain `"notes"`, absolute paths in lineage order.
 - A top-level `"shallower"` lists `{"stem", "depth"}` for each answered pair
   stamped below `--depth`.
-- Every offered pair and node gains its `"spawn"` ref. A top-level
+- Every offered `research` or `compose` pair and every node gains its
+  `"spawn"` ref. A `deepen` pair carries none, because only its nodes are
+  spawned. `"unaccepted"` entries carry `"rejected": null` when no note was
+  refused. A top-level
   `"remaining"` holds the held-back count, and `"unaccepted"` lists
   `{"spawn", "rejected"}`.
 - With `--start` or `--run`, the top level also carries `"run"`, `"batch"`
@@ -1879,8 +1895,9 @@ names the ledger file.
 #### 3. Snapshot and docs
 
 - The `corpus-adapters` and `corpus-cli` crates are exempt from the public
-  API snapshots. `DirectoryProbe` lives in `corpus::scan`, so run
-  `mise run public-api:update` for `corpus`.
+  API snapshots. `DirectoryProbe`, `FileRemove`, `Violation::schema_key`,
+  `Stem::admits_profile` and `LevelsDirectory::rejected` are `corpus`
+  additions, so run `mise run public-api:update` for `corpus`.
 - The `Outstanding` doc comment gains "and, at `--depth` above 1, each pair's
   missing level-note nodes or the notes it composes from".
 - The `--depth` help says it defaults to 1 and is never read from
@@ -1918,15 +1935,15 @@ names the ledger file.
 
 #### Automated Verification
 
-- [ ] Outstanding CLI tests pass: `cargo test -p accelerator-corpus --test topic_research_outstanding`
-- [ ] Adapter tests pass: `cargo test -p corpus-adapters`
-- [ ] Domain imports stay confined: `mise run pup:check`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] Full run green: `mise run`
+- [x] Outstanding CLI tests pass: `cargo test -p accelerator-corpus --test topic_research_outstanding`
+- [x] Adapter tests pass: `cargo test -p corpus-adapters`
+- [x] Domain imports stay confined: `mise run pup:check`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] Running `accelerator corpus topic-research outstanding` against a
+- [x] Running `accelerator corpus topic-research outstanding` against a
       hand-seeded tree prints readable JSON and a trim warning on stderr only.
 
 ---

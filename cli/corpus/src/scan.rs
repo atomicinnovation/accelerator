@@ -26,6 +26,12 @@ pub trait FileReader {
     fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error>;
 }
 
+/// Tells a directory from anything else at a path.
+pub trait DirectoryProbe {
+    /// Whether `path` is a directory; a missing or unreadable path is not.
+    fn is_dir(&self, path: &Path) -> bool;
+}
+
 /// Recursively walks a set of directory roots for markdown files.
 pub trait CorpusWalker {
     /// Every `*.md` file found under any of `roots`, recursively. A root

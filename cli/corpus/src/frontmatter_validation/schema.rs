@@ -353,6 +353,28 @@ pub const LINKAGE_SOURCE_TYPES: [&str; 15] = [
 pub const OBSOLETE_LEGACY_KEYS: [&str; 3] =
     ["ticket", "ticket_id", "research_status"];
 
+/// `name` as the schema's own `'static` key, when any schema row, base field
+/// or reserved key names it.
+#[must_use]
+pub fn named_key(name: &str) -> Option<&'static str> {
+    let row_keys = SCHEMA.iter().flat_map(|row| {
+        row.required_extras
+            .iter()
+            .chain(row.optional_extras)
+            .chain(row.forbidden_own_id_keys)
+            .chain(row.typed_linkage_keys)
+    });
+    BASE_FIELDS
+        .iter()
+        .chain(&PROVENANCE_FIELDS)
+        .chain(&FORBIDDEN_PROVENANCE_FIELDS)
+        .chain(&OBSOLETE_LEGACY_KEYS)
+        .chain(&["kind", "status", "producer"])
+        .chain(row_keys)
+        .copied()
+        .find(|key| *key == name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{row_for, SCHEMA};

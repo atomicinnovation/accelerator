@@ -10,11 +10,12 @@ use corpus::resolve::DirectoryLister;
 use corpus::resolve::TypeShape;
 use corpus::scan::CorpusWalker;
 use corpus::scan::DirReader;
+use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 
-/// The real-filesystem adapter for [`DirReader`] and [`FileReader`],
-/// composed once at a `corpus-cli` command's dispatch site and injected into
-/// every command.
+/// The real-filesystem adapter for [`DirReader`], [`FileReader`] and
+/// [`DirectoryProbe`], composed once at a `corpus-cli` command's dispatch site
+/// and injected into every command.
 pub struct RealFs;
 
 impl DirReader for RealFs {
@@ -54,6 +55,12 @@ impl FileReader for RealFs {
                 path.display()
             ))
         })
+    }
+}
+
+impl DirectoryProbe for RealFs {
+    fn is_dir(&self, path: &Path) -> bool {
+        path.is_dir()
     }
 }
 
@@ -164,6 +171,7 @@ mod tests {
     use corpus::resolve::TypeShape;
     use corpus::scan::CorpusWalker;
     use corpus::scan::DirReader;
+    use corpus::scan::DirectoryProbe;
     use corpus::scan::FileReader;
 
     use super::RealFs;
@@ -186,6 +194,18 @@ mod tests {
     {
         let dir = tempfile::tempdir()?;
         assert_eq!(RealFs.read(dir.path())?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_directory_probes_as_a_directory(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("03-a-web.levels");
+        std::fs::write(&file, "")?;
+        assert!(RealFs.is_dir(dir.path()));
+        assert!(!RealFs.is_dir(&file));
+        assert!(!RealFs.is_dir(Path::new("/does/not/exist")));
         Ok(())
     }
 
