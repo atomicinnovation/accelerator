@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T21:00:00+00:00"
+last_updated: "2026-09-27T19:56:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2822,17 +2822,70 @@ description.
 
 #### Automated Verification
 
-- [ ] `cargo nextest run -p accelerator -p vcs-cli -p kernel`
-- [ ] Public API fixture for `kernel` (`TrackingAnswer`) regenerated and committed
-- [ ] Architecture rules hold, and the launcher has no `vcs`, `vcs-adapters` or `consent-adapters` dependency: `mise run cli:check`
-- [ ] `file_tracking` is called only by its permitted crates: `rg --no-require-git -n 'file_tracking' cli --glob '!**/tests/**' --glob '!cli/vcs-adapters/**' --glob '!cli/consent-adapters/**' --glob '!cli/vcs-cli/**'` prints nothing. On 2026-09-26, before Phase 1, `file_tracking` did not exist anywhere in `cli/`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] `cargo nextest run -p accelerator -p vcs-cli -p kernel`
+- [x] Public API fixture for `kernel` (`TrackingAnswer`) regenerated and committed
+- [x] Architecture rules hold, and the launcher has no `vcs`, `vcs-adapters` or `consent-adapters` dependency: `mise run cli:check`
+- [x] `file_tracking` is called only by its permitted crates: `rg --no-require-git -n 'file_tracking' cli --glob '!**/tests/**' --glob '!cli/vcs-adapters/**' --glob '!cli/consent-adapters/**' --glob '!cli/vcs-cli/**'` prints nothing. On 2026-09-26, before Phase 1, `file_tracking` did not exist anywhere in `cli/`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] In a Claude Code session on a repo whose `config.md` sets `github.token_cmd`, the start-of-session system message names the key and the personal route
 - [ ] The SessionStart wall-time delta is recorded and acceptable
+
+### Implementation Notes
+
+Phase 6 landed with these deviations and additions.
+
+- **`ConsentPorts`.** `ConfigStack` takes one `ConsentPorts` bundle rather
+  than two loose ports: `tracking`, `personal_config`, and an `environment`
+  the plan did not list, because `ProvenanceContext` requires one even though
+  `audit` reads none. The launcher wires `SystemEnvironment`. The constructor
+  now has eight parameters and carries `#[allow(clippy::too_many_arguments)]`,
+  as six other crates do. `ConfigStack::provenance()` builds the context.
+- **Where `DispatchedTracking` lives.** It is generic over `ResolveBinary`
+  and `CaptureBinary` in `accelerator::launch::outbound::tracking`, so its
+  mapping is unit-tested over fakes. `main.rs` composes it through
+  `compose_stack`, which delegates to `compose_stack_with`, the seam the
+  `Unchecked` end-to-end test injects a failing resolver through.
+- **Fetch budget.** `LazyProductionResolver` carries a `FetchBudget`
+  (`Dispatch` or `HelpListing`), built by `dispatch_resolver()` and
+  `tracking_resolver()`, which the budget test pins.
+- **Capture adapter.** `UnixCapture` in `launch::outbound::capture` (`poll`
+  over stdout, `waitid` with `NOWAIT` to observe the leader, `SIGKILL` to the
+  group before the reap) needed `rustix`'s `event` feature on the launcher.
+  pup bars the launcher from naming `BashCommandRunner`, so it is a smaller
+  single-stream copy of that runner's supervision rather than a reuse.
+- **`kernel::TrackingAnswer`.** Re-exported at the crate root from a private
+  module, beside `UnrecognisedTrackingAnswer`, so the public-API snapshot pins
+  each type once.
+- **Summary.** `consent_warnings` is a pure function over `audit`'s result,
+  unit-tested per finding. `inbound::cli::summary` is now public, so the
+  composition-root test renders through the real hook renderer.
+- **An unplanned registration surface.** `VCS_SUBCOMMANDS`
+  (`tasks/lint/skill_cli_refs.py`) is pinned against the clap enum and had to
+  gain `tracking`. The new `tasks/README.md` section lists it, and
+  `tasks/CLAUDE.md` points to that section.
+- **Test isolation.** The first test run, before `ACCELERATOR_VCS_BIN` was
+  wired, fetched a real `vcs` binary into
+  `cli/launcher/tests/fixtures/plugin/bin/`. It was deleted, and every
+  launcher test that reaches the summary now points `ACCELERATOR_VCS_BIN` at
+  `accelerator-fixture`, including `config_personal_file.rs`.
+- **Unchanged.** Plain `config summary`, without `--format=hook`, still prints
+  no consent warnings. The plan does not ask for it.
+- **Verification status.** On 2026-09-27 `mise run` passed. Earlier runs
+  failed on a parent-repository `e2e/start-server.mjs` orphan holding the e2e
+  health port, then on `test_vendor_assemble` and `test_dev_integration`
+  cases while the load average stood at 34 with `syspolicyd` busy. Those
+  cases passed alone and in the idle-machine run.
+- **Wall-time, this repository only.** `config summary --format=hook`
+  measured 5.0 ms median before (the installed 1.24.0-pre.72 launcher) and
+  ≈12–14 ms after, with `ACCELERATOR_VCS_BIN` set to a local release
+  `accelerator-vcs`; `vcs tracking` alone took ≈10 ms. One run in 25 took
+  7.5 s, most likely macOS scanning the freshly built launcher on first exec
+  (unverified). A large repository, and the fetch-and-verify path, are not
+  yet measured, so that criterion stays unticked.
 
 ---
 
@@ -2930,7 +2983,7 @@ Each earlier phase has already documented its own behaviour.
 
 #### Automated Verification
 
-- [ ] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. After Phase 3 the non-test matches are the four `TokenKeys::declared` calls (`jira-client/src/auth.rs:61`, `linear-client/src/auth.rs:51`, `research-cli/src/fetch_command.rs:212`, `collaboration-cli/src/auth.rs:26`), which the lookbehind cannot exempt because their first argument varies in length; `jira-client/src/auth.rs:41`, the `ALLOWED_SITES` constant `ConsentKey::declared` reads; and `design-cli/src/config.rs:66`, which Phase 4 migrates. On 2026-09-27, after Phase 5, the non-test matches were exactly those four `TokenKeys::declared` calls, `jira-client/src/auth.rs:41`, and `design-cli/src/config.rs:27`, the `BROWSER_PATH` constant `ExecutablePathKey::declared` reads. Phase 7 either exempts `TokenKeys::declared` and the two constants with further patterns or accepts those six sites by name. This is a text check, not a type guarantee
+- [ ] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. After Phase 3 the non-test matches are the four `TokenKeys::declared` calls (`jira-client/src/auth.rs:61`, `linear-client/src/auth.rs:51`, `research-cli/src/fetch_command.rs:212`, `collaboration-cli/src/auth.rs:26`), which the lookbehind cannot exempt because their first argument varies in length; `jira-client/src/auth.rs:41`, the `ALLOWED_SITES` constant `ConsentKey::declared` reads; and `design-cli/src/config.rs:66`, which Phase 4 migrates. On 2026-09-27, after Phase 5, the non-test matches were exactly those four `TokenKeys::declared` calls, `jira-client/src/auth.rs:41`, and `design-cli/src/config.rs:27`, the `BROWSER_PATH` constant `ExecutablePathKey::declared` reads. On 2026-09-27, after Phase 6, the non-test matches were unchanged. Phase 7 either exempts `TokenKeys::declared` and the two constants with further patterns or accepts those six sites by name. This is a text check, not a type guarantee
 - [ ] Retired identifiers are gone: `rg --no-require-git -l 'E_TOKEN_CMD_FROM_SHARED_CONFIG|E_TOKEN_CMD_FROM_TRACKED_FILE|E_ALLOWED_SITES_FROM_SHARED_CONFIG|AllowlistFromSharedConfig|ACCELERATOR_ALLOW_INSECURE_LOCAL|allow-insecure-local' cli skills docs-site` prints nothing
 - [ ] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing
 - [ ] Docs build and link-check: `mise run docs:check`

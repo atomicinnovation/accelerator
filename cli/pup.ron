@@ -431,6 +431,23 @@
                 ),
             ],
         )),
+        // The VCS sub-binary answers the launcher's tracking question about
+        // config files by path alone, so the VCS context never learns what a
+        // config file is.
+        Module((
+            name: "vcs_cli_is_free_of_config",
+            matches: Module("^accelerator_vcs($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^config(::|$)",
+                        "^config_adapters(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // Only the consent policy runs a command, so no consumer may name the
         // runner port or its production adapter; a consumer holds the opaque
         // `Runner` instead. The regex cannot negate, so it lists every crate

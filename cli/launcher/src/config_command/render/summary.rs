@@ -3,7 +3,9 @@
 
 use config::Level;
 
-use crate::config_command::core::summary::{Summary, SummaryView};
+use crate::config_command::core::summary::{
+    Summary, SummaryView, SummaryWarnings,
+};
 
 const INIT_HINT: &str = "Accelerator has not been initialised in this \
 repository. Type /accelerator:init at the prompt to set up the expected \
@@ -62,20 +64,30 @@ fn configured_body(view: &SummaryView) -> String {
 
 /// Wraps a summary in the compact `SessionStart` envelope.
 ///
-/// Session warnings follow the summary in `additionalContext` and also reach
-/// the user as the `systemMessage`; without any, the envelope carries the
-/// summary alone.
+/// Session warnings, then context notes, follow the summary in
+/// `additionalContext`. Only the session warnings also reach the user, as the
+/// `systemMessage`. Without either, the envelope carries the summary alone.
 #[must_use]
-pub fn hook_envelope(summary: Option<&str>, session: &[String]) -> String {
-    let warnings = session.join("\n");
+pub fn hook_envelope(
+    summary: Option<&str>,
+    warnings: &SummaryWarnings,
+) -> String {
+    let appended = warnings
+        .session
+        .iter()
+        .chain(&warnings.context_notes)
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join("\n");
     let context = match summary {
-        Some(summary) if !warnings.is_empty() => {
-            format!("{summary}\n\n{warnings}")
+        Some(summary) if !appended.is_empty() => {
+            format!("{summary}\n\n{appended}")
         }
         Some(summary) => summary.to_owned(),
-        None => warnings,
+        None => appended,
     };
-    let system_message = session
+    let system_message = warnings
+        .session
         .iter()
         .map(|warning| format!("[accelerator] {warning}"))
         .collect::<Vec<_>>()
@@ -86,11 +98,23 @@ pub fn hook_envelope(summary: Option<&str>, session: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::hook_envelope;
+    use crate::config_command::core::summary::SummaryWarnings;
+
+    fn warnings(session: &[&str], context_notes: &[&str]) -> SummaryWarnings {
+        SummaryWarnings {
+            operator: vec!["Warning: for stderr only".to_owned()],
+            session: session.iter().map(|&line| line.to_owned()).collect(),
+            context_notes: context_notes
+                .iter()
+                .map(|&line| line.to_owned())
+                .collect(),
+        }
+    }
 
     #[test]
     fn session_warnings_reach_both_fields() {
         let envelope =
-            hook_envelope(Some("summary"), &["E_X: warned".to_owned()]);
+            hook_envelope(Some("summary"), &warnings(&["E_X: warned"], &[]));
         assert_eq!(
             envelope,
             "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\
@@ -100,15 +124,53 @@ mod tests {
     }
 
     #[test]
+    fn each_session_warning_is_its_own_system_message_line() {
+        let envelope = hook_envelope(
+            Some("summary"),
+            &warnings(&["E_X: one", "E_Y: two"], &[]),
+        );
+        assert!(envelope.contains(
+            "\"systemMessage\":\"[accelerator] E_X: one\\n[accelerator] E_Y: two\""
+        ));
+    }
+
+    #[test]
     fn session_warnings_alone_still_make_an_envelope() {
-        let envelope = hook_envelope(None, &["E_X: warned".to_owned()]);
+        let envelope = hook_envelope(None, &warnings(&["E_X: warned"], &[]));
         assert!(envelope.contains("\"additionalContext\":\"E_X: warned\""));
         assert!(envelope.contains("\"systemMessage\""));
     }
 
     #[test]
-    fn the_envelope_carries_the_summary_as_additional_context() {
-        let envelope = hook_envelope(Some("line one\nline two"), &[]);
+    fn a_context_note_reaches_the_context_alone() {
+        let envelope = hook_envelope(
+            Some("summary"),
+            &warnings(&[], &["tracking was not checked"]),
+        );
+        assert_eq!(
+            envelope,
+            "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\
+             \"additionalContext\":\"summary\\n\\ntracking was not checked\"}}"
+        );
+    }
+
+    #[test]
+    fn context_notes_follow_the_session_warnings() {
+        let envelope = hook_envelope(
+            Some("summary"),
+            &warnings(&["E_X: warned"], &["not checked"]),
+        );
+        assert!(envelope.contains(
+            "\"additionalContext\":\"summary\\n\\nE_X: warned\\nnot checked\""
+        ));
+        assert!(envelope
+            .contains("\"systemMessage\":\"[accelerator] E_X: warned\""));
+    }
+
+    #[test]
+    fn the_envelope_carries_the_summary_alone_without_warnings() {
+        let envelope =
+            hook_envelope(Some("line one\nline two"), &warnings(&[], &[]));
         assert_eq!(
             envelope,
             "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\

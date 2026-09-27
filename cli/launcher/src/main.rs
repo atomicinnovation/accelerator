@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::error::ErrorKind;
 use clap::{CommandFactory as _, FromArgMatches as _};
 
-use accelerator::config_command::core::ConfigStack;
+use accelerator::config_command::core::{ConfigStack, ConsentPorts};
 use accelerator::launch::cache;
 use accelerator::launch::core::tree::AcquiredTree;
 use accelerator::launch::core::{
@@ -23,6 +23,7 @@ use accelerator::launch::core::{
 use accelerator::launch::dispatch;
 use accelerator::launch::help::{self, augment_with_subbinaries};
 use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
+use accelerator::launch::outbound::capture::UnixCapture;
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
 use accelerator::launch::outbound::resolve::cache_root::{
@@ -38,10 +39,15 @@ use accelerator::launch::outbound::resolve::{
     FetchVerifyCacheResolver, ResolverConfig, HOST_PLATFORM,
 };
 use accelerator::launch::outbound::tls::install_crypto_provider;
+use accelerator::launch::outbound::tracking::DispatchedTracking;
 use accelerator::version::core::VersionReporter;
 use accelerator::version::outbound::build_metadata::VergenBuildMetadata;
+use config::consent::ConfigFileTracking;
 use config::ConfigError;
-use config_adapters::LegacyPolicy;
+use config_adapters::credentials::{
+    SystemEnvironment, PERSONAL_CONFIG_RELATIVE,
+};
+use config_adapters::{FileConfigStore, LegacyPolicy};
 
 /// The release-download base URL, pinned to the `v{version}` tag and overridable
 /// by `ACCELERATOR_RELEASE_BASE_URL`.
@@ -56,11 +62,45 @@ fn release_base_url() -> String {
     )
 }
 
+/// How long a resolver may spend fetching a sub-binary it has not cached.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FetchBudget {
+    Dispatch,
+    HelpListing,
+}
+
+impl FetchBudget {
+    fn fetcher(self) -> Result<Fetcher, ResolutionError> {
+        match self {
+            Self::Dispatch => Fetcher::new(),
+            Self::HelpListing => Fetcher::for_help(),
+        }
+        .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })
+    }
+}
+
 /// The override first, else the real resolver built lazily so built-ins never
 /// touch the cache root, TLS, or the network. The rustls crypto provider is
 /// installed here rather than in `main`, so a `version` or `config` built-in
 /// never pays for capability it does not use.
-struct LazyProductionResolver;
+struct LazyProductionResolver {
+    budget: FetchBudget,
+}
+
+const fn dispatch_resolver() -> LazyProductionResolver {
+    LazyProductionResolver {
+        budget: FetchBudget::Dispatch,
+    }
+}
+
+/// The session-start tracking check runs on the help listing's budget, so a
+/// slow or unreachable release host delays the session by seconds, not by
+/// dispatch's retries.
+const fn tracking_resolver() -> LazyProductionResolver {
+    LazyProductionResolver {
+        budget: FetchBudget::HelpListing,
+    }
+}
 
 impl ResolveBinary for LazyProductionResolver {
     fn resolve(
@@ -76,7 +116,9 @@ impl ResolveBinary for LazyProductionResolver {
         ))?;
         let keys = TrustedKeys::embedded()?;
         let config = ResolverConfig::production(release_base_url(), cache);
-        FetchVerifyCacheResolver::new(config, keys)?.resolve(command)
+        let fetcher = self.budget.fetcher()?;
+        FetchVerifyCacheResolver::with_fetcher(config, keys, fetcher)
+            .resolve(command)
     }
 }
 
@@ -236,6 +278,15 @@ fn compose_stack(
     policy: LegacyPolicy,
     start: Option<PathBuf>,
 ) -> Result<ConfigStack, ConfigError> {
+    let tracking = DispatchedTracking::new(tracking_resolver(), UnixCapture);
+    compose_stack_with(policy, start, Box::new(tracking))
+}
+
+fn compose_stack_with(
+    policy: LegacyPolicy,
+    start: Option<PathBuf>,
+    tracking: Box<dyn ConfigFileTracking>,
+) -> Result<ConfigStack, ConfigError> {
     let start = match start {
         Some(start) => start,
         None => std::env::current_dir().map_err(|error| ConfigError::Io {
@@ -245,6 +296,12 @@ fn compose_stack(
     };
     let composed = config_adapters::compose(&start, policy)?;
     composed.report_ignored_personal_file();
+    let consent = ConsentPorts {
+        tracking,
+        environment: Box::new(SystemEnvironment),
+        personal_config: FileConfigStore::discover_root(&start)
+            .join(PERSONAL_CONFIG_RELATIVE),
+    };
     let plugin_root = config_adapters::plugin_root_from_env();
     let screened = composed.screened.with_plugin_root(plugin_root.clone());
     let store = composed.store.with_plugin_root(plugin_root);
@@ -256,6 +313,7 @@ fn compose_stack(
         Box::new(store.clone()),
         Box::new(store.clone()),
         Box::new(store),
+        consent,
     ))
 }
 
@@ -402,7 +460,7 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     // reclamation right up to the handover.
     let _tree_leases = export_consumed_trees(&cli.command);
     let reporter = VersionReporter::new(VergenBuildMetadata);
-    let resolver = LazyProductionResolver;
+    let resolver = dispatch_resolver();
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
     let start = resolution_start(&cli.command);
@@ -495,7 +553,7 @@ mod tests {
 
     use super::{
         build_listing, classify, handle_dispatch_error, is_root_help_args,
-        HelpRoute, ListingCause,
+        FetchBudget, HelpRoute, ListingCause,
     };
 
     fn args(items: &[&str]) -> Vec<OsString> {
@@ -696,6 +754,95 @@ mod tests {
         let error = dispatch_error(integrity_failure);
         let command = Command::External(vec![]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    #[test]
+    fn the_tracking_check_fetches_within_the_help_listing_budget() {
+        assert_eq!(super::tracking_resolver().budget, FetchBudget::HelpListing);
+    }
+
+    #[test]
+    fn dispatch_fetches_within_its_own_budget() {
+        assert_eq!(super::dispatch_resolver().budget, FetchBudget::Dispatch);
+    }
+
+    #[test]
+    fn a_vcs_binary_that_cannot_spawn_answers_unknown() {
+        use accelerator::launch::outbound::capture::UnixCapture;
+        use accelerator::launch::outbound::tracking::DispatchedTracking;
+        use config::consent::{
+            ConfigFileTracking as _, Tracking, TrackingCheck,
+        };
+
+        struct Missing;
+
+        impl ResolveBinary for Missing {
+            fn resolve(
+                &self,
+                _command: &ExternalCommand,
+            ) -> Result<PathBuf, ResolutionError> {
+                Ok(PathBuf::from("/nonexistent/accelerator-vcs"))
+            }
+        }
+
+        let tracking = DispatchedTracking::new(Missing, UnixCapture);
+
+        assert_eq!(
+            tracking.check(Path::new("/repo/.accelerator/config.local.md")),
+            TrackingCheck::Known(Tracking::Unknown)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_summary_over_an_unreachable_vcs_binary_notes_the_skipped_check_in_the_context_alone(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        use accelerator::config_command::inbound::cli::summary;
+        use accelerator::launch::outbound::capture::UnixCapture;
+        use accelerator::launch::outbound::tracking::DispatchedTracking;
+
+        let dir = tempfile::Builder::new()
+            .prefix("compose-stack-")
+            .tempdir()?;
+        std::fs::create_dir_all(dir.path().join(".git"))?;
+        std::fs::create_dir_all(dir.path().join(".accelerator"))?;
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\npaths:\n  work: x\n---\n",
+        )?;
+        let personal = dir.path().join(".accelerator/config.local.md");
+        std::fs::write(&personal, "---\npaths:\n  work: y\n---\n")?;
+        std::fs::set_permissions(
+            &personal,
+            std::fs::Permissions::from_mode(0o600),
+        )?;
+        let unreachable = DispatchedTracking::new(
+            FailingResolver(availability_failure),
+            UnixCapture,
+        );
+
+        let stack = super::compose_stack_with(
+            config_adapters::LegacyPolicy::Reject,
+            Some(dir.path().to_path_buf()),
+            Box::new(unreachable),
+        )?;
+        let envelope = summary(&stack, true)?.stdout;
+
+        assert!(
+            envelope.contains("Accelerator plugin configuration detected"),
+            "{envelope}"
+        );
+        assert!(
+            envelope.contains(
+                "tracking of .accelerator/config.local.md was not checked \
+                 this session"
+            ),
+            "{envelope}"
+        );
+        assert!(!envelope.contains("systemMessage"), "{envelope}");
+        Ok(())
     }
 
     #[cfg(unix)]

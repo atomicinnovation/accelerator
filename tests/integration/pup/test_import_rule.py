@@ -980,6 +980,89 @@ def test_consent_adapters_zero_spawn_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The VCS sub-binary stays free of config ---
+#
+# accelerator-vcs answers the launcher's tracking question for config files,
+# so it is the one place a config edge would look natural. The probe crate
+# depends on stubs of both config and vcs, so the compliant control imports a
+# real sibling and a matcher that resolved nothing could not pass it.
+
+_VCS_CLI_MANIFEST = """\
+[package]
+name = "accelerator-vcs"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+config = { path = "../config" }
+vcs = { path = "../vcs" }
+"""
+
+_STUB_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_VCS_CLI_CONFIG_VIOLATION = (
+    "use config::ConfigService;\n\n"
+    "pub fn make() -> ConfigService {\n    ConfigService\n}\n"
+)
+_VCS_CLI_COMPLIANT = (
+    "use vcs::VcsKind;\n\npub fn make() -> VcsKind {\n    VcsKind\n}\n"
+)
+
+
+def _write_vcs_cli_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(
+        """\
+[workspace]
+resolver = "2"
+members = ["accelerator-vcs", "config", "vcs"]
+"""
+    )
+    probe_src = root / "accelerator-vcs/src"
+    probe_src.mkdir(parents=True, exist_ok=True)
+    (root / "accelerator-vcs/Cargo.toml").write_text(_VCS_CLI_MANIFEST)
+    (probe_src / "lib.rs").write_text(lib_body)
+    for crate, lib in [
+        ("config", "pub struct ConfigService;\n"),
+        ("vcs", "pub struct VcsKind;\n"),
+    ]:
+        stub_src = root / crate / "src"
+        stub_src.mkdir(parents=True, exist_ok=True)
+        (root / crate / "Cargo.toml").write_text(
+            _STUB_MANIFEST.format(crate=crate)
+        )
+        (stub_src / "lib.rs").write_text(lib)
+
+
+def test_vcs_cli_rule_rejects_importing_config(tmp_path: Path) -> None:
+    _require_tools()
+    _write_vcs_cli_probe(tmp_path, _VCS_CLI_CONFIG_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "vcs_cli_is_free_of_config" in output, output
+
+
+def test_vcs_cli_rule_permits_importing_vcs(tmp_path: Path) -> None:
+    _require_tools()
+    _write_vcs_cli_probe(tmp_path, _VCS_CLI_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
     _require_tools()
     _write_shared_crate_probe(tmp_path, "tracker-support", _TRANSPORT_VIOLATION)

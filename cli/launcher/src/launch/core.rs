@@ -9,6 +9,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// A parsed external subcommand: the sub-binary name and the args to forward.
 ///
@@ -306,6 +307,36 @@ pub trait ExecBinary {
     /// Returns the error that prevented replacement; a successful `exec` never
     /// returns.
     fn exec(&self, program: &Path, args: &[OsString]) -> ResolutionError;
+}
+
+/// What a captured run of a sub-binary printed, and whether it succeeded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Captured {
+    pub succeeded: bool,
+    pub stdout: Vec<u8>,
+}
+
+/// Why a captured run produced no answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CaptureFailure {
+    CouldNotSpawn { program: PathBuf, detail: String },
+    TimedOut,
+    OutputExceeded { limit: usize },
+}
+
+/// Runs a resolved binary as a child and captures its stdout — a driven
+/// port. Nothing the child starts outlives the call.
+pub trait CaptureBinary {
+    /// # Errors
+    ///
+    /// A [`CaptureFailure`] when the child cannot start, outlives
+    /// `deadline`, or prints more than the capture holds.
+    fn capture(
+        &self,
+        program: &Path,
+        args: &[OsString],
+        deadline: Duration,
+    ) -> Result<Captured, CaptureFailure>;
 }
 
 /// Resolve the sub-binary and exec it. Only ever returns an error — a

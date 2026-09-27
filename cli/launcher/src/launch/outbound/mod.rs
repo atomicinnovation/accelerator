@@ -1,8 +1,10 @@
 //! Outbound (driven) adapters for the launcher shell.
 
+pub mod capture;
 pub mod exec;
 pub mod resolve;
 pub mod tls;
+pub mod tracking;
 
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;

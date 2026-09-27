@@ -17,6 +17,9 @@ pub mod work;
 
 pub mod template;
 
+use std::path::PathBuf;
+
+use config::consent::{ConfigFileTracking, Environment, ProvenanceContext};
 use config::{
     ConfigAccess, ConfigError, Key, Level, ReadConfigLevel, ReadContent,
     ReadLensCatalogue, ReadTemplate, Resolved, Scaffold, TemplateOverride,
@@ -84,6 +87,13 @@ pub enum OnFailure {
     Degrade,
 }
 
+/// What a whole-config consent check reads beyond the config itself.
+pub struct ConsentPorts {
+    pub tracking: Box<dyn ConfigFileTracking>,
+    pub environment: Box<dyn Environment>,
+    pub personal_config: PathBuf,
+}
+
 /// The composed configuration ports, handed to the inbound adapter.
 ///
 /// The composition root supplies the resolution service for scalar reads and
@@ -97,10 +107,12 @@ pub struct ConfigStack {
     templates: Box<dyn ReadTemplate>,
     overrides: Box<dyn TemplateOverride>,
     scaffold: Box<dyn Scaffold>,
+    consent: ConsentPorts,
 }
 
 impl ConfigStack {
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         service: Box<dyn ConfigAccess>,
         levels: Box<dyn ReadConfigLevel>,
@@ -109,6 +121,7 @@ impl ConfigStack {
         templates: Box<dyn ReadTemplate>,
         overrides: Box<dyn TemplateOverride>,
         scaffold: Box<dyn Scaffold>,
+        consent_ports: ConsentPorts,
     ) -> Self {
         Self {
             service,
@@ -118,6 +131,17 @@ impl ConfigStack {
             templates,
             overrides,
             scaffold,
+            consent: consent_ports,
+        }
+    }
+
+    #[must_use]
+    pub fn provenance(&self) -> ProvenanceContext<'_> {
+        ProvenanceContext {
+            config: self.service.as_ref(),
+            tracking: self.consent.tracking.as_ref(),
+            environment: self.consent.environment.as_ref(),
+            personal_config: self.consent.personal_config.clone(),
         }
     }
 

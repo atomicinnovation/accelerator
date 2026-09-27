@@ -113,6 +113,18 @@ walks you through gathering project context and writes the config file for you.
 
 - A `SessionStart` hook detects config files and injects a summary into the
   session context
+- The same summary warns about consent keys: a key such as
+  `jira.token_cmd` set in `config.md`, and a `config.local.md` that version
+  control tracks or whose tracking cannot be determined. Each warning reaches
+  both you, as the start-of-session message, and the session context.
+- The tracking check asks the `vcs` sub-binary. In the first session after an
+  upgrade, if the binary is not yet cached and cannot be fetched within a few
+  seconds, because the network is slow or offline, the check is noted as
+  skipped rather than warned about. It runs from the next session, and every
+  command that reads a consent key still checks tracking itself on every run.
+- Setting `ACCELERATOR_VCS_BIN` makes the session-start check run that binary
+  without verifying it, as every dispatch does, so an environment that sets
+  it can suppress this warning, though not the commands' own refusals
 - Skills read project context at invocation time via the `!` preprocessor
 - Config changes take effect on the next skill invocation (no session restart
   needed for skills); the SessionStart summary updates on session restart

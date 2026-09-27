@@ -19,13 +19,17 @@ use std::path::{Path, PathBuf};
 use clap::Parser as _;
 use tempfile::TempDir;
 
-use accelerator::config_command::core::ConfigStack;
+use accelerator::config_command::core::{ConfigStack, ConsentPorts};
 use accelerator::launch::core::{
     ExecBinary, ExternalCommand, ResolutionError, ResolveBinary,
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::inbound::cli::Cli;
 use accelerator::version::core::{ReportVersion, VersionReport};
+use config::consent::{ConfigFileTracking, Tracking};
+use config_adapters::credentials::{
+    SystemEnvironment, PERSONAL_CONFIG_RELATIVE,
+};
 use config_adapters::LegacyPolicy;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -47,6 +51,14 @@ impl ResolveBinary for SpyResolver {
 }
 
 /// Must never run: a built-in exec's nothing.
+struct UnreachableTracking;
+
+impl ConfigFileTracking for UnreachableTracking {
+    fn tracking(&self, _path: &Path) -> Tracking {
+        unreachable!("config path never checks tracking")
+    }
+}
+
 struct PanicExec;
 
 impl ExecBinary for PanicExec {
@@ -126,6 +138,11 @@ fn config_path_never_consults_the_resolver() -> TestResult {
                 Box::new(store.clone()),
                 Box::new(store.clone()),
                 Box::new(store),
+                ConsentPorts {
+                    tracking: Box::new(UnreachableTracking),
+                    environment: Box::new(SystemEnvironment),
+                    personal_config: root.join(PERSONAL_CONFIG_RELATIVE),
+                },
             ))
         },
         |_| panic!("config path must not run cache"),

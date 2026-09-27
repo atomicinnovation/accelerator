@@ -211,7 +211,7 @@ fn run_read(stack: &ConfigStack, action: &Action) -> Result<(), ConfigError> {
             Degrade::Notice(review_render::render_unavailable),
         ),
         Action::Summary { hook, on_failure } => finish(
-            resolve_summary(stack, *hook),
+            summary(stack, *hook).map_err(Failure::from),
             *on_failure,
             Degrade::Suppress,
         ),
@@ -285,24 +285,37 @@ fn resolve_review(
     Ok(review_render::render(&view, mode))
 }
 
-fn resolve_summary(
+/// The `config summary` output, as the `SessionStart` hook envelope when
+/// `hook` is set.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when a config level, body, or customisation directory
+/// cannot be read.
+pub fn summary(
     stack: &ConfigStack,
     hook: bool,
-) -> Result<Rendered, Failure> {
+) -> Result<Rendered, ConfigError> {
     let (summary, warnings) = summary_view::assemble(
         stack.config(),
         stack.levels(),
         stack.content(),
         stack.lenses(),
+        &stack.provenance(),
     )?;
     let body = summary_render::body(&summary);
     let stdout = match (body, hook) {
         (None, false) => String::new(),
-        (None, true) if warnings.session.is_empty() => String::new(),
+        (None, true)
+            if warnings.session.is_empty()
+                && warnings.context_notes.is_empty() =>
+        {
+            String::new()
+        }
         (Some(text), false) => format!("{text}\n"),
         (text, true) => format!(
             "{}\n",
-            summary_render::hook_envelope(text.as_deref(), &warnings.session)
+            summary_render::hook_envelope(text.as_deref(), &warnings)
         ),
     };
     Ok(Rendered {

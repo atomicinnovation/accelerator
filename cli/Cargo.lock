@@ -27,6 +27,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracker-support",
+ "vcs-test-support",
  "vergen",
  "vergen-gitcl",
 ]

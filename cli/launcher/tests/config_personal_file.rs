@@ -56,6 +56,10 @@ impl Fixture {
             .env_remove("ACCELERATOR_CACHE_DIR")
             .env_remove("ACCELERATOR_RELEASE_BASE_URL")
             .env("ACCELERATOR_PLUGIN_ROOT", plugin_root())
+            .env(
+                "ACCELERATOR_VCS_BIN",
+                env!("CARGO_BIN_EXE_accelerator-fixture"),
+            )
             .args(args);
         Ok(command.output()?)
     }
