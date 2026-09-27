@@ -76,8 +76,6 @@ mod tests {
     use config::consent::Tracking;
     use config::credentials::CredentialContext;
     use config::credentials::Environment;
-    use config::credentials::FileFacts;
-    use config::credentials::FileState;
     use config::credentials::Secret;
     use config::{
         ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value,
@@ -143,14 +141,6 @@ mod tests {
     impl ConfigFileTracking for FixedTracking {
         fn tracking(&self, _path: &Path) -> Tracking {
             self.0
-        }
-    }
-
-    struct NoFiles;
-
-    impl FileFacts for NoFiles {
-        fn inspect(&self, _path: &Path) -> Result<FileState, String> {
-            Ok(FileState::Absent)
         }
     }
 
@@ -244,8 +234,6 @@ mod tests {
                     runner: &self.runner,
                     timeout: CommandPolicy::DEFAULT_TIMEOUT,
                 },
-                files: &NoFiles,
-                insecure_marker: PathBuf::from(PERSONAL),
             })
         }
 

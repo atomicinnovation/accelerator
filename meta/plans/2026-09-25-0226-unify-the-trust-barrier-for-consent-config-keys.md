@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T19:56:00+00:00"
+last_updated: "2026-09-27T21:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2983,16 +2983,41 @@ Each earlier phase has already documented its own behaviour.
 
 #### Automated Verification
 
-- [ ] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. After Phase 3 the non-test matches are the four `TokenKeys::declared` calls (`jira-client/src/auth.rs:61`, `linear-client/src/auth.rs:51`, `research-cli/src/fetch_command.rs:212`, `collaboration-cli/src/auth.rs:26`), which the lookbehind cannot exempt because their first argument varies in length; `jira-client/src/auth.rs:41`, the `ALLOWED_SITES` constant `ConsentKey::declared` reads; and `design-cli/src/config.rs:66`, which Phase 4 migrates. On 2026-09-27, after Phase 5, the non-test matches were exactly those four `TokenKeys::declared` calls, `jira-client/src/auth.rs:41`, and `design-cli/src/config.rs:27`, the `BROWSER_PATH` constant `ExecutablePathKey::declared` reads. On 2026-09-27, after Phase 6, the non-test matches were unchanged. Phase 7 either exempts `TokenKeys::declared` and the two constants with further patterns or accepts those six sites by name. This is a text check, not a type guarantee
-- [ ] Retired identifiers are gone: `rg --no-require-git -l 'E_TOKEN_CMD_FROM_SHARED_CONFIG|E_TOKEN_CMD_FROM_TRACKED_FILE|E_ALLOWED_SITES_FROM_SHARED_CONFIG|AllowlistFromSharedConfig|ACCELERATOR_ALLOW_INSECURE_LOCAL|allow-insecure-local' cli skills docs-site` prints nothing
-- [ ] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing
-- [ ] Docs build and link-check: `mise run docs:check`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Consent keys are read only through the policy: `rg --no-require-git --pcre2 -n '(?<!ConsentKey::declared\(|CommandKey::declared\(|ExecutablePathKey::declared\()"(jira\.allowed_sites|jira\.token_cmd|linear\.token_cmd|github\.token_cmd|openalex\.api_key_cmd|design\.browser_path)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules. On 2026-09-27 its other matches were exactly the sites Phases 1–4 migrate: `jira-client/src/auth.rs:54,161,172`, `linear-client/src/auth.rs:50`, `research-cli/src/fetch_command.rs:200,402`, `collaboration-cli/src/auth.rs:67,77`, `design-cli/src/config.rs:64`, and `jira-cli/src/exit_codes.rs:276`, whose test fixture Phase 1 rewrites. After Phase 3 the non-test matches are the four `TokenKeys::declared` calls (`jira-client/src/auth.rs:61`, `linear-client/src/auth.rs:51`, `research-cli/src/fetch_command.rs:212`, `collaboration-cli/src/auth.rs:26`), which the lookbehind cannot exempt because their first argument varies in length; `jira-client/src/auth.rs:41`, the `ALLOWED_SITES` constant `ConsentKey::declared` reads; and `design-cli/src/config.rs:66`, which Phase 4 migrates. On 2026-09-27, after Phase 5, the non-test matches were exactly those four `TokenKeys::declared` calls, `jira-client/src/auth.rs:41`, and `design-cli/src/config.rs:27`, the `BROWSER_PATH` constant `ExecutablePathKey::declared` reads. On 2026-09-27, after Phase 6, the non-test matches were unchanged. Phase 7 either exempts `TokenKeys::declared` and the two constants with further patterns or accepts those six sites by name. This is a text check, not a type guarantee. On 2026-09-27, after Phase 7, the non-test matches were exactly those six sites, which Phase 7 accepts by name
+- [x] Retired identifiers are gone: `rg --no-require-git -l 'E_TOKEN_CMD_FROM_SHARED_CONFIG|E_TOKEN_CMD_FROM_TRACKED_FILE|E_ALLOWED_SITES_FROM_SHARED_CONFIG|AllowlistFromSharedConfig|ACCELERATOR_ALLOW_INSECURE_LOCAL|allow-insecure-local' cli skills docs-site` prints nothing
+- [x] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing
+- [x] Docs build and link-check: `mise run docs:check`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
 - [ ] `/accelerator:configure` explains the consent keys and the `visualiser.editor` exemption coherently
 - [ ] Every `*_cmd` paragraph in `skills/` and `docs-site/` matches the severity matrix
+
+### Implementation Notes
+
+Phase 7 landed with these deviations.
+
+- **The override regression test names neither identifier.** The retirement
+  search covers `cli/`, tests included, so a test that sets the retired
+  variable or writes the retired marker would fail it. The test at
+  `config-adapters/tests/credentials.rs` became
+  `a_group_readable_personal_config_is_ignored`, a 0640 file over the real
+  `FileConfigStore`. `personal_file.rs` already covered 0400 accepted and
+  0604 ignored, so no case was added.
+- **The policy-read search accepts six sites by name** rather than growing its
+  lookbehind: the four `TokenKeys::declared` calls, `ALLOWED_SITES` and
+  `BROWSER_PATH`.
+- **`research-cli`'s test `PERSONAL` constant** went with `FileFacts`, its
+  only reader.
+- **Docs.** The configure skill's `consent keys` section sits before
+  `command runner`, and the `visualiser.editor` exemption sits in the
+  editor deep-link section, so it is stated once. The Jira, Linear and
+  OpenAlex sections link to it in place of their code lists. The research and
+  collaboration pages keep their per-key tables and link for remedies. The
+  CHANGELOG gains a `Removed` entry and an `Added` entry for the reference.
+- **Verification status.** On 2026-09-27 `mise run` passed, including the
+  docs build, generate and audit lanes.
 
 ---
 

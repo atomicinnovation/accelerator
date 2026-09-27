@@ -203,6 +203,9 @@ warnings:
 | `E_COMMAND_OUTPUT_EXCEEDED`      | A key command that printed more than 65,536 bytes across stdout and stderr |
 | `E_TOKEN_MALFORMED`              | A key carrying a control character                             |
 
+The [consent keys](reference/skills/config/configure.md#consent-keys)
+reference gives each code's remedy.
+
 A tracked `config.local.md` that supplies neither key leaves the call
 keyless. A shared `openalex.api_key_cmd` does not: beside a `config.local.md`
 that sets no key, the call fails with `E_CONSENT_KEY_TEAM_LEVEL` rather than

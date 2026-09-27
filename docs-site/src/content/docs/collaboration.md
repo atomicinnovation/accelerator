@@ -67,7 +67,9 @@ refusals exit 2 when nothing else resolves, and are warnings otherwise:
 | `E_TOKEN_MALFORMED`              | A token carrying a control character                           |
 
 When the tracking status cannot be determined, the refusal names `GH_TOKEN`
-as the route that still works. Configure a token with:
+as the route that still works. The
+[consent keys](reference/skills/config/configure.md#consent-keys) reference
+gives each code's remedy. Configure a token with:
 
 ```bash
 accelerator config set github.token <token>          # personal, .accelerator/config.local.md

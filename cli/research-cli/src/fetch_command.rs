@@ -274,8 +274,6 @@ mod tests {
     use config::consent::Tracking;
     use config::credentials::CredentialError;
     use config::credentials::Environment;
-    use config::credentials::FileFacts;
-    use config::credentials::FileState;
     use config::ConfigError;
     use config::Key;
     use config::Level;
@@ -311,7 +309,6 @@ mod tests {
     use crate::context::ProjectContext;
 
     const ROOT: &str = "/project";
-    const PERSONAL: &str = "/project/.accelerator/config.local.md";
 
     const fn secs(seconds: u64) -> Duration {
         Duration::from_secs(seconds)
@@ -364,16 +361,6 @@ mod tests {
     }
 
     struct UntrackedPersonalFile;
-
-    impl FileFacts for UntrackedPersonalFile {
-        fn inspect(&self, path: &Path) -> Result<FileState, String> {
-            Ok(if path == Path::new(PERSONAL) {
-                FileState::File { mode: 0o600 }
-            } else {
-                FileState::Absent
-            })
-        }
-    }
 
     impl ConfigFileTracking for UntrackedPersonalFile {
         fn tracking(&self, _path: &Path) -> Tracking {
@@ -564,7 +551,6 @@ mod tests {
                     environment: Box::new(FixedEnvironment(
                         self.environment.clone(),
                     )),
-                    files: Box::new(UntrackedPersonalFile),
                     runner: Runner::new(Box::new(SlowKeyCommand {
                         clock: self.clock.clone(),
                         takes: self.key_command_takes,

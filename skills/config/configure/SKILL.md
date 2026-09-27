@@ -26,7 +26,8 @@ directory:
 
 Both files use YAML frontmatter for structured settings and a markdown body for
 free-form project context. Local settings override team settings for the same
-key.
+key, except for the [consent keys](#consent-keys), which are never read from
+the team file.
 
 ## Available Actions
 
@@ -717,7 +718,9 @@ See ADR-0024 for full rationale.
 strings that drive the doc "open in editor" deep-link; when both are absent the
 button is disabled. Precedence is **env var
 (`ACCELERATOR_VISUALISER_EDITOR` / `_EDITOR_PROJECT`) > config key > omitted**;
-a whitespace-only value collapses to absent.
+a whitespace-only value collapses to absent. `visualiser.editor` is not a
+[consent key](#consent-keys), so a team value applies: the browser follows the
+link it builds, and nothing in Accelerator spawns it.
 
 `visualiser.binary` points the launcher at an alternative server binary instead
 of the bundled/downloaded one — useful for local development. The path may be
@@ -763,10 +766,10 @@ Four keys are personal and **must live exclusively in
 
 `token_cmd` is a **consent key**, like `allowed_sites`: a committed
 `token_cmd` is a supply-chain command-injection sink (a single PR could land
-arbitrary shell that runs on every contributor's machine), so a value in the
-team-shared `config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL:
-jira.token_cmd …` and reported on stderr. The refusal is a `warning:` when
-another credential resolves, and fatal only when none does.
+arbitrary shell that runs on every contributor's machine), so it follows the
+[consent-key rule](#consent-keys): a value in the team-shared `config.md` is
+refused, as a `warning:` when another credential resolves and fatally only
+when none does.
 
 `allowed_sites` exists for self-hosted and non-`atlassian.net` tenants. The
 Rust client refuses to send credentials to any host outside `*.atlassian.net`
@@ -782,13 +785,8 @@ on commas and whitespace:
 ACCELERATOR_JIRA_ALLOWED_SITES="jira.example.com, jira.example.org"
 \```
 
-A value found anywhere else is refused and reported on stderr:
-
-- in the team-shared `config.md`, with `E_CONSENT_KEY_TEAM_LEVEL`;
-- in a `config.local.md` tracked by version control, with
-  `E_CONSENT_KEY_TRACKED`;
-- in a `config.local.md` whose tracking status cannot be determined, with
-  `E_CONSENT_KEY_TRACKING_UNKNOWN`.
+A value found anywhere else is refused with one of the
+[consent-key codes](#consent-keys).
 
 A refused allowlist only warns when the site is an `*.atlassian.net` host,
 which the default rule admits anyway; for any other site it is fatal (exit
@@ -801,11 +799,7 @@ paranoid mode is on, so later edits to a trusted file are not re-prompted.
 
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
 password manager. A `config.local.md` that is a symlink or looser than `0600`
-is not read, and an `E_LOCAL_PERMS_INSECURE` warning says so: its values are
-not used,
-team values and the `ACCELERATOR_*` overrides still resolve, commands that
-write refuse, and a command fails with that code only when nothing usable
-remains.
+is not read, as the [consent keys](#consent-keys) section describes.
 
 Example `config.local.md` (preferred form, using a password manager):
 
@@ -829,21 +823,10 @@ usable value wins; a failed command or refused value is reported as a
    exist; emits a runtime warning)*.
 
 `jira.token_cmd` runs only from the environment or an untracked
-`config.local.md`. Each other source is refused, and the refusal is reported
-on stderr:
-
-- a `jira.token_cmd` in the team-shared `config.md`, with
-  `E_CONSENT_KEY_TEAM_LEVEL`;
-- a `jira.token_cmd` in a `config.local.md` tracked by version control, or
-  whose tracking status cannot be determined, with `E_CONSENT_KEY_TRACKED` or
-  `E_CONSENT_KEY_TRACKING_UNKNOWN`;
-- a `jira.token` in such a file, with `E_TOKEN_FROM_TRACKED_FILE`, which
-  covers both the tracked and the undeterminable case;
-- a value carrying a control character, from any rung, with
-  `E_TOKEN_MALFORMED`.
-
-Each refusal is a `warning:` when a later rung resolves, and fatal (exit 24)
-only when none does. A command that fails, times out or prints too much falls
+`config.local.md`, and a `jira.token` in a tracked `config.local.md` is
+refused too. The [consent keys](#consent-keys) table lists every code. Each
+refusal is a `warning:` when a later rung resolves, and fatal (exit 24) only
+when none does. A command that fails, times out or prints too much falls
 through in the same way. Rationale: a committed `token_cmd` is a supply-chain
 command-injection sink — a single PR could land
 `jira.token_cmd: "<arbitrary shell>"` and that command would execute on every
@@ -979,12 +962,9 @@ usable value wins; a failed command or refused value is reported as a
 4. `config.local.md` `linear.token_cmd` (run by the [command runner](#command-runner)).
 5. `config.md` `linear.token` *(only when `config.local.md` does not exist)*.
 
-`linear.token_cmd` is a consent key, refused from the same sources and with
-the same codes as `jira.token_cmd`: a committed `token_cmd` is a supply-chain
-command-injection sink. A `config.local.md` that is a symlink or looser than
-`0600` is not read, with an `E_LOCAL_PERMS_INSECURE` warning; writers refuse,
-and it is fatal only when nothing usable remains, mirroring the Jira
-integration. With nothing usable left, the exit code names the fatal
+`linear.token_cmd` is a [consent key](#consent-keys), refused from the same
+sources as `jira.token_cmd`: a committed `token_cmd` is a supply-chain
+command-injection sink. With nothing usable left, the exit code names the fatal
 refusal: 24 for a provenance refusal, 25 for a command that failed, timed
 out or printed too much, 27 for a malformed token, and 29 for an insecure
 `config.local.md`.
@@ -1037,21 +1017,13 @@ the chain continues:
 5. `config.md` `openalex.api_key` *(only when `config.local.md` does not
    exist)*.
 
-`openalex.api_key_cmd` is a consent key, like `jira.token_cmd`: a committed
-command is a supply-chain command-injection sink, so a value in the
-team-shared `config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL`. The
-refusal is a `warning:` when another rung supplies a key. When none does, the
-fetch fails rather than going keyless, even beside a `config.local.md` that
-sets no key. Two further gates guard `config.local.md`:
-
-- a file that is a symlink or looser than `0600` is not read, with an
-  `E_LOCAL_PERMS_INSECURE` warning, and is fatal only when nothing usable
-  remains;
-- a file tracked by version control, or whose tracking status cannot be
-  determined, is refused, whatever its mode, when it supplies
-  `openalex.api_key` (`E_TOKEN_FROM_TRACKED_FILE`) or `openalex.api_key_cmd`
-  (`E_CONSENT_KEY_TRACKED` or `E_CONSENT_KEY_TRACKING_UNKNOWN`); untrack it.
-  A tracked file supplying neither leaves the fetch keyless.
+`openalex.api_key_cmd` is a [consent key](#consent-keys), like
+`jira.token_cmd`: a committed command is a supply-chain command-injection
+sink, so a value in the team-shared `config.md` is refused. The refusal is a
+`warning:` when another rung supplies a key. When none does, the fetch fails
+rather than going keyless, even beside a `config.local.md` that sets no key.
+A tracked `config.local.md` is refused when it supplies either setting, and
+one supplying neither leaves the fetch keyless.
 
 The key command runs under whatever remains of the fetch's 100 s deadline. The key is sent as an
 `Authorization: Bearer` header, never in a URL, and `accelerator config dump`
@@ -1070,6 +1042,60 @@ openalex:
 
 Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
 `openalex.*` keys are not consumed by any plugin script.
+
+### consent keys
+
+A consent key holds a value only you may supply, because the repository must
+not choose what runs on your machine or where your credentials go. There are
+six:
+
+| Key                    | Kind            | Environment override               |
+|------------------------|-----------------|------------------------------------|
+| `jira.allowed_sites`   | hostname list   | `ACCELERATOR_JIRA_ALLOWED_SITES`   |
+| `jira.token_cmd`       | command         | `ACCELERATOR_JIRA_TOKEN_CMD`       |
+| `linear.token_cmd`     | command         | `ACCELERATOR_LINEAR_TOKEN_CMD`     |
+| `openalex.api_key_cmd` | command         | `ACCELERATOR_OPENALEX_API_KEY_CMD` |
+| `github.token_cmd`     | command         | (none)                             |
+| `design.browser_path`  | executable path | `ACCELERATOR_DESIGN_BROWSER_PATH`  |
+
+Every consent key follows one rule. The environment override is tried first,
+then `config.local.md`, and the first source that passes every check wins. A
+value in the team-shared `config.md` is always refused, so for these keys, and
+only these, a team value never stands in for a missing personal one. A
+personal value is admitted only from a `config.local.md` that is readable and
+not tracked by version control. Commands run through the
+[command runner](#command-runner), and an executable path must be absolute and
+outside the repository.
+
+Every refusal met on the way is printed as a `warning:` when a usable value
+remains, whether a later source or the key's built-in fallback. With nothing
+usable, the refusal from the highest-precedence source tried is fatal and the
+rest are still printed as warnings. Taking a consent key from the environment
+prints a `notice:` naming the variable. The `SessionStart` hook reports
+team-level and tracked-file refusals at the start of each session.
+
+| Code                                  | Meaning                                                                  | Remedy                                                                                     |
+|---------------------------------------|--------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| `E_CONSENT_KEY_TEAM_LEVEL`            | A consent key in the team-shared `config.md`                             | Move it to `config.local.md`, or set its environment override                             |
+| `E_CONSENT_KEY_TRACKED`               | A consent key in a `config.local.md` tracked by version control          | Untrack the file (`git rm --cached`, or `jj file untrack`)                                 |
+| `E_CONSENT_KEY_TRACKING_UNKNOWN`      | A consent key in a `config.local.md` whose tracking status is unknown    | Use the key's environment override; the message names it                                   |
+| `E_TOKEN_FROM_TRACKED_FILE`           | A plaintext credential in a tracked or tracking-unknown `config.local.md` | Untrack the file, or use `ACCELERATOR_JIRA_TOKEN`, `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN` |
+| `E_TOKEN_MALFORMED`                   | A credential carrying a control character, from any source               | Fix the helper or value so it prints the credential alone                                  |
+| `E_LOCAL_PERMS_INSECURE`              | A `config.local.md` looser than `0600`, or a symlink; none of it is read | `chmod 600` it and replace a symlink with the file itself                                  |
+| `E_TOKEN_CMD_FAILED`                  | A command that could not start or exited non-zero                        | Run the command yourself under the runner's environment and fix it                         |
+| `E_COMMAND_TIMED_OUT`                 | A command that outlasted its deadline                                    | Use a helper that answers without prompting, such as a password manager's agent            |
+| `E_COMMAND_OUTPUT_EXCEEDED`           | A command that printed more than 65,536 bytes across stdout and stderr   | Silence the helper's tracing, such as `set -x`                                             |
+| `E_EXECUTABLE_PATH_RELATIVE`          | A relative executable path                                               | Use an absolute path outside the repository                                                |
+| `E_EXECUTABLE_PATH_INSIDE_REPOSITORY` | An executable path inside, or not shown to be outside, the repository    | Use an absolute path outside the repository and its main checkout                          |
+
+A `config.local.md` looser than `0600`, or a symlink, is not read at all:
+its values are not used, team values and the `ACCELERATOR_*` overrides still
+resolve, and a command fails with `E_LOCAL_PERMS_INSECURE` only when nothing
+usable remains. Commands that write refuse outright. On a filesystem that
+cannot honour file modes, keep team values in `config.md` and personal values
+in the `ACCELERATOR_*` overrides, and move `config.local.md` aside to run a
+command that writes. No override unlocks an insecure file, so the old
+insecure-local marker file does nothing and can be deleted.
 
 ### command runner
 

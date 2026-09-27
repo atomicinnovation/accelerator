@@ -17,14 +17,13 @@ use config::consent::{
     Runner, StartFailure, Tracking,
 };
 use config::credentials::{
-    resolve_token, CredentialContext, CredentialError, Environment, FileFacts,
-    FileState, ResolvedToken, TokenKeys, TokenSource, INSECURE_MARKER_RELATIVE,
+    resolve_token, CredentialContext, CredentialError, Environment,
+    ResolvedToken, TokenKeys, TokenSource,
 };
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 
 const SENTINEL: &str = "s3cr3t-sentinel-value";
 const PERSONAL: &str = "/project/.accelerator/config.local.md";
-const MARKER: &str = "/project/.accelerator/allow-insecure-local";
 
 struct FixedConfig {
     personal: BTreeMap<String, String>,
@@ -89,21 +88,6 @@ impl Environment for FixedEnvironment {
     }
 }
 
-struct RecordingFiles {
-    states: BTreeMap<PathBuf, Result<FileState, String>>,
-    inspected: RefCell<Vec<PathBuf>>,
-}
-
-impl FileFacts for RecordingFiles {
-    fn inspect(&self, path: &Path) -> Result<FileState, String> {
-        self.inspected.borrow_mut().push(path.to_path_buf());
-        self.states
-            .get(path)
-            .cloned()
-            .unwrap_or(Ok(FileState::Absent))
-    }
-}
-
 #[derive(Clone)]
 struct ScriptedRunner {
     outcome: Rc<RefCell<Result<String, CommandFailure>>>,
@@ -129,7 +113,6 @@ struct Ladder {
     config: FixedConfig,
     environment: FixedEnvironment,
     tracking: FixedTracking,
-    files: RecordingFiles,
     script: ScriptedRunner,
     runner: Runner,
     timeout: Duration,
@@ -150,10 +133,6 @@ impl Ladder {
             },
             environment: FixedEnvironment(BTreeMap::new()),
             tracking: FixedTracking(RefCell::new(BTreeMap::new())),
-            files: RecordingFiles {
-                states: BTreeMap::new(),
-                inspected: RefCell::new(Vec::new()),
-            },
             script: script.clone(),
             runner: Runner::new(Box::new(script)),
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
@@ -174,11 +153,6 @@ impl Ladder {
 
     fn team(mut self, key: &str, value: &str) -> Self {
         self.config.team.insert(key.to_owned(), value.to_owned());
-        self
-    }
-
-    fn file(mut self, path: &str, state: Result<FileState, String>) -> Self {
-        self.files.states.insert(PathBuf::from(path), state);
         self
     }
 
@@ -229,8 +203,6 @@ impl Ladder {
                     runner: &self.runner,
                     timeout: self.timeout,
                 },
-                files: &self.files,
-                insecure_marker: PathBuf::from(MARKER),
             },
             &keys(),
         )
@@ -550,7 +522,6 @@ fn an_environment_token_never_consults_a_tracked_personal_file() {
 
     assert_eq!(resolved.source, TokenSource::Env);
     assert!(resolved.refusals.is_empty());
-    assert!(ladder.files.inspected.borrow().is_empty());
     assert!(ladder.helper_runs().is_empty());
 }
 
@@ -661,28 +632,6 @@ fn an_ignored_personal_config_is_recorded_once_beside_a_team_command() {
     assert_eq!(codes(&[rejection.fatal]), ["E_LOCAL_PERMS_INSECURE"]);
     assert_eq!(codes(&rejection.warnings), ["E_CONSENT_KEY_TEAM_LEVEL"]);
     assert!(ladder.helper_runs().is_empty());
-}
-
-#[test]
-fn the_insecure_override_no_longer_unlocks_an_ignored_file() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
-        .personal_file(0o644)
-        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
-        .tracked(MARKER)
-        .personal("jira.token", "from-file");
-
-    let rejection = rejection(ladder.resolve().expect_err("inert"));
-
-    assert_eq!(codes(&[rejection.fatal]), ["E_LOCAL_PERMS_INSECURE"]);
-}
-
-#[test]
-fn the_marker_path_lives_under_accelerator() {
-    assert_eq!(
-        INSECURE_MARKER_RELATIVE,
-        ".accelerator/allow-insecure-local"
-    );
 }
 
 #[test]

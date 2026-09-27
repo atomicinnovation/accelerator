@@ -15,7 +15,8 @@ for paste-able examples of common customisations, see the
 | `.accelerator/config.md`          | Team-shared (committed) | Shared project context and settings |
 | `.accelerator/config.local.md`    | Personal (gitignored)   | Personal overrides and preferences  |
 
-Local settings override team settings for the same key. Markdown bodies from
+Local settings override team settings for the same key, except for the six
+consent keys, which are never read from the team file. Markdown bodies from
 both files are concatenated (team context first, then personal).
 
 The personal file (`.accelerator/config.local.md`) must be mode `0600` or
@@ -37,6 +38,14 @@ that writes. A file created via `accelerator config set` (which always writes
 personal-level values at `0600`) already satisfies this — the check can only
 trip on external tampering (a manual `chmod`, a tarball restore, a stray umask
 elsewhere).
+
+A consent key holds a value only you may supply: a credential command, the
+Jira hostname allowlist, or the design crawler's browser. It is read only from
+its `ACCELERATOR_*` environment override or from a `config.local.md` that is
+readable and not tracked by version control. A value in `config.md` is always
+refused, as a warning when a usable value remains and fatally when none does.
+The [consent keys](reference/skills/config/configure.md#consent-keys)
+reference lists the six keys and every refusal code with its remedy.
 
 ## File Format
 

@@ -151,6 +151,10 @@
   context. The tracking check runs through the `vcs` sub-binary. In the first
   session after an upgrade, if that binary cannot be fetched in time, the
   check is noted in the session context as skipped rather than warned about.
+- **A consent keys reference.** `/accelerator:configure` lists the six
+  consent keys, the rule they share, and every refusal code they can report
+  with its remedy. The configuration, research, collaboration and visualiser
+  docs link to it.
 
 ### Changed
 
@@ -310,6 +314,15 @@
   `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
+
+### Removed
+
+- **`ACCELERATOR_ALLOW_INSECURE_LOCAL` and the
+  `.accelerator/allow-insecure-local` marker.** Neither has had any effect
+  since an insecure `config.local.md` began to be ignored with a warning, and
+  both are now gone from the code. An existing marker is inert and can be
+  deleted. On a filesystem that cannot honour file modes, supply personal
+  values through the `ACCELERATOR_*` environment overrides.
 
 ### Fixed
 

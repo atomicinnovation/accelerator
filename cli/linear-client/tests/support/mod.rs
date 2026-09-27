@@ -26,7 +26,7 @@ use config::consent::{
 use config::credentials::{CredentialContext, Environment};
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 use config_adapters::credentials::{
-    BashCommandRunner, SystemEnvironment, SystemFileFacts,
+    BashCommandRunner, SystemEnvironment,
 };
 use tracker_support::{Jitter, Sleeper};
 
@@ -163,8 +163,6 @@ pub fn context<'a>(
             runner: runner_rooted_at(root),
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
         },
-        files: &SystemFileFacts,
-        insecure_marker: root.join("allow-insecure-local"),
     }
 }
 

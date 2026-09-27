@@ -12,13 +12,12 @@ use config::consent::{
     ConfigFileTracking, Refusal, RepositoryRoots, Runner, Tracking,
 };
 use config::credentials::{
-    resolve_token, CredentialError, Environment, FileFacts, FileState,
-    ResolvedToken, TokenKeys,
+    resolve_token, CredentialError, Environment, ResolvedToken, TokenKeys,
 };
 use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
 use config_adapters::credentials::{
     project_credential_context, BashCommandRunner, CredentialPorts,
-    SystemEnvironment, SystemFileFacts,
+    SystemEnvironment,
 };
 use tempfile::TempDir;
 
@@ -110,10 +109,6 @@ impl Project {
         self.path(".accelerator/config.local.md")
     }
 
-    fn marker(&self) -> PathBuf {
-        self.path(".accelerator/allow-insecure-local")
-    }
-
     fn write_personal_config(&self, mode: u32) -> PathBuf {
         let path = self.personal_config();
         std::fs::write(&path, "---\njira:\n  token: unused\n---\n")
@@ -137,7 +132,6 @@ impl Project {
                     })
                     .collect(),
             )),
-            files: Box::new(SystemFileFacts),
             runner: self.runner(),
             tracking: Box::new(Untracked),
         };
@@ -179,7 +173,6 @@ impl Project {
                     })
                     .collect(),
             )),
-            files: Box::new(SystemFileFacts),
             runner: self.runner(),
             tracking: Box::new(Untracked),
         };
@@ -216,7 +209,7 @@ fn set_mode(path: &Path, mode: u32) {
 fn set_mode(_path: &Path, _mode: u32) {}
 
 #[test]
-fn the_context_reads_the_projects_personal_config_and_marker() {
+fn the_context_reads_the_projects_personal_config() {
     let project = Project::new();
     let ports = CredentialPorts::system(
         Box::new(Untracked),
@@ -237,66 +230,7 @@ fn the_context_reads_the_projects_personal_config_and_marker() {
         context.provenance.personal_config,
         project.personal_config()
     );
-    assert_eq!(context.insecure_marker, project.marker());
     assert_eq!(context.execution.timeout, Duration::from_secs(12));
-}
-
-#[test]
-fn a_missing_path_is_absent() {
-    let project = Project::new();
-
-    let state = SystemFileFacts.inspect(&project.personal_config());
-
-    assert_eq!(state, Ok(FileState::Absent));
-}
-
-#[cfg(unix)]
-#[test]
-fn a_regular_file_reports_its_mode() {
-    let project = Project::new();
-    let path = project.write_personal_config(0o640);
-
-    let state = SystemFileFacts.inspect(&path);
-
-    assert_eq!(state, Ok(FileState::File { mode: 0o640 }));
-}
-
-#[test]
-fn a_directory_is_neither_absent_nor_a_file() {
-    let project = Project::new();
-
-    let state = SystemFileFacts.inspect(&project.path(".accelerator"));
-
-    assert_eq!(state, Ok(FileState::Other));
-}
-
-#[cfg(unix)]
-#[test]
-fn a_symlink_to_a_file_is_a_symlink() {
-    let project = Project::new();
-    let target = project.path("config.local.md.real");
-    std::fs::write(&target, "").expect("write the target");
-    std::os::unix::fs::symlink(&target, project.personal_config())
-        .expect("symlink the personal config");
-
-    let state = SystemFileFacts.inspect(&project.personal_config());
-
-    assert_eq!(state, Ok(FileState::Symlink));
-}
-
-#[cfg(unix)]
-#[test]
-fn a_dangling_symlink_is_absent() {
-    let project = Project::new();
-    std::os::unix::fs::symlink(
-        project.path("nowhere"),
-        project.personal_config(),
-    )
-    .expect("symlink the personal config");
-
-    let state = SystemFileFacts.inspect(&project.personal_config());
-
-    assert_eq!(state, Ok(FileState::Absent));
 }
 
 #[test]
@@ -325,14 +259,13 @@ fn the_environment_token_resolves_beside_an_insecure_personal_config() {
 }
 
 #[test]
-fn the_insecure_override_does_not_unlock_an_ignored_personal_config() {
+fn a_group_readable_personal_config_is_ignored() {
     let project = Project::new();
     project.write_personal_config(0o640);
-    std::fs::write(project.marker(), "").expect("write the marker");
 
     let error = project
-        .resolve_composed(&[("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")])
-        .expect_err("the variable and a tracked marker unlock nothing");
+        .resolve_composed(&[])
+        .expect_err("a group-readable credential file is never read");
 
     assert!(is_insecure_personal_file(&error), "{error:?}");
 }

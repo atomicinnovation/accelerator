@@ -529,8 +529,7 @@ fn a_loopback_site_is_unreachable_through_config_whatever_the_environment() {
         .with(
             "ACCELERATOR_JIRA_BASE_URL_OVERRIDE_TEST",
             "http://127.0.0.1:9",
-        )
-        .with("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1");
+        );
     let config = FixedConfig::new()
         .with_team("jira.site", "http://127.0.0.1:9")
         .with_team("jira.email", "a@b.c");

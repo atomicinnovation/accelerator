@@ -30,7 +30,7 @@ use config::consent::{
 };
 use config::credentials::CredentialContext;
 use config_adapters::credentials::{
-    BashCommandRunner, SystemEnvironment, SystemFileFacts,
+    BashCommandRunner, SystemEnvironment,
 };
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
@@ -117,9 +117,6 @@ fn live_client() -> LiveClient {
             runner: &runner,
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
         },
-        files: &SystemFileFacts,
-        insecure_marker: root
-            .join(config::credentials::INSECURE_MARKER_RELATIVE),
     };
     let credentials = jira_client::resolve_credentials(&context).expect(
         "a live contract run needs a tenant: set ACCELERATOR_JIRA_SITE, \

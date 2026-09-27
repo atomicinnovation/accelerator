@@ -193,15 +193,7 @@ fn the_scrubbed_set_is_derived_from_the_token_ladders() -> Result<(), TestError>
             assert!(scrubbed.contains(&(*name).to_owned()), "{scrubbed:?}");
         }
     }
-    assert!(
-        scrubbed.contains(&"ACCELERATOR_ALLOW_INSECURE_LOCAL".to_owned()),
-        "the insecure-local override must be scrubbed too: {scrubbed:?}"
-    );
-    assert_eq!(
-        scrubbed.len(),
-        5,
-        "two token env names per provider plus the insecure marker"
-    );
+    assert_eq!(scrubbed.len(), 4, "two token env names per provider");
     Ok(())
 }
 

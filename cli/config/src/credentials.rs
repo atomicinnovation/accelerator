@@ -26,8 +26,6 @@
 
 use std::error::Error;
 use std::fmt;
-use std::path::Path;
-use std::path::PathBuf;
 
 use crate::catalogue;
 use crate::catalogue::ExtraKey;
@@ -118,35 +116,10 @@ impl TokenKeys {
     }
 }
 
-/// What a path is, as the permissions gate needs to know it.
-///
-/// A dangling symlink is [`FileState::Absent`]: the ladder treats a personal
-/// config that cannot be opened as one that does not exist.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FileState {
-    Absent,
-    Symlink,
-    File { mode: u32 },
-    Other,
-}
-
-/// Filesystem facts, injected so the ladder names no filesystem.
-pub trait FileFacts {
-    /// # Errors
-    ///
-    /// A rendered reason when the path's facts cannot be read.
-    fn inspect(&self, path: &Path) -> Result<FileState, String>;
-}
-
-/// Repo-relative path of the insecure-local override marker.
-pub const INSECURE_MARKER_RELATIVE: &str = ".accelerator/allow-insecure-local";
-
 /// Everything the ladder reads beyond the keys themselves.
 pub struct CredentialContext<'a> {
     pub provenance: ProvenanceContext<'a>,
     pub execution: CommandExecution<'a>,
-    pub files: &'a dyn FileFacts,
-    pub insecure_marker: PathBuf,
 }
 
 /// Why no token could be resolved.

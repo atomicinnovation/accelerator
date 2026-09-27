@@ -426,21 +426,6 @@ pub fn config::credentials::CredentialError::fmt(&self, formatter: &mut core::fm
 impl core::fmt::Display for config::credentials::CredentialError
 pub fn config::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::credentials::CredentialError
-pub enum config::credentials::FileState
-pub config::credentials::FileState::Absent
-pub config::credentials::FileState::File
-pub config::credentials::FileState::File::mode: u32
-pub config::credentials::FileState::Other
-pub config::credentials::FileState::Symlink
-impl core::clone::Clone for config::credentials::FileState
-pub fn config::credentials::FileState::clone(&self) -> config::credentials::FileState
-impl core::cmp::Eq for config::credentials::FileState
-impl core::cmp::PartialEq for config::credentials::FileState
-pub fn config::credentials::FileState::eq(&self, other: &config::credentials::FileState) -> bool
-impl core::fmt::Debug for config::credentials::FileState
-pub fn config::credentials::FileState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for config::credentials::FileState
-impl core::marker::StructuralPartialEq for config::credentials::FileState
 pub enum config::credentials::TokenSource
 pub config::credentials::TokenSource::Env
 pub config::credentials::TokenSource::EnvCommand
@@ -458,8 +443,6 @@ impl core::marker::Copy for config::credentials::TokenSource
 impl core::marker::StructuralPartialEq for config::credentials::TokenSource
 pub struct config::credentials::CredentialContext<'a>
 pub config::credentials::CredentialContext::execution: config::consent::CommandExecution<'a>
-pub config::credentials::CredentialContext::files: &'a dyn config::credentials::FileFacts
-pub config::credentials::CredentialContext::insecure_marker: std::path::PathBuf
 pub config::credentials::CredentialContext::provenance: config::consent::ProvenanceContext<'a>
 pub struct config::credentials::ResolvedToken
 pub config::credentials::ResolvedToken::notice: core::option::Option<config::consent::Notice>
@@ -500,11 +483,8 @@ impl core::fmt::Debug for config::credentials::TokenKeys
 pub fn config::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for config::credentials::TokenKeys
 impl core::marker::StructuralPartialEq for config::credentials::TokenKeys
-pub const config::credentials::INSECURE_MARKER_RELATIVE: &str
 pub trait config::credentials::Environment
 pub fn config::credentials::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
-pub trait config::credentials::FileFacts
-pub fn config::credentials::FileFacts::inspect(&self, path: &std::path::Path) -> core::result::Result<config::credentials::FileState, alloc::string::String>
 pub fn config::credentials::resolve_token(context: &config::credentials::CredentialContext<'_>, keys: &config::credentials::TokenKeys) -> core::result::Result<config::credentials::ResolvedToken, config::credentials::CredentialError>
 pub mod config::error
 #[non_exhaustive] pub enum config::error::ConfigError
