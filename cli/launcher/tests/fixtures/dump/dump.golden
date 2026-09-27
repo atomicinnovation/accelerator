@@ -25,6 +25,7 @@
 | `agents.documents-analyser` | `accelerator:documents-analyser` | default |
 | `agents.web-search-researcher` | `accelerator:web-search-researcher` | default |
 | `agents.researcher` | `accelerator:researcher` | default |
+| `agents.composer` | `accelerator:composer` | default |
 | `paths.plans` | `meta/plans` | default |
 | `paths.research_codebase` | `meta/research/codebase` | default |
 | `paths.decisions` | `meta/decisions` | default |

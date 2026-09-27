@@ -1,4 +1,4 @@
-//! The `agents` view: the nine agent names resolved to their override or
+//! The `agents` view: every agent name resolved to its override or
 //! `accelerator:<key>` default, plus any unrecognised keys the config carries.
 //!
 //! An empty configured value falls back to the default; unrecognised keys are

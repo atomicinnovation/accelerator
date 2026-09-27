@@ -219,6 +219,14 @@
   carrying its template, extras (required and optional separately), status
   vocabulary and linkage keys.
 
+- **The research guard admits only an indexed finding stem, and confines a
+  `composer` role beside the researcher.** A confined write must name
+  `findings/<nn>-<name>.md`, whose stem is ASCII digits, a `-`, then only
+  `[a-z0-9-]`. The researcher may also write level notes,
+  `findings/<nn>-<name>.levels/<lineage>.md`. The composer
+  (`accelerator:composer`, or the name `agents.composer` configures) may
+  write findings only and run no commands, the fetch included.
+
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
   across levels (no `--level`) returns its built-in catalogue default rather

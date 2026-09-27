@@ -1,5 +1,6 @@
 //! The `research guard` `PreToolUse` hook: confines the researcher subagent
-//! to the fetch and to finding files.
+//! to the fetch, findings and level notes, and the composer subagent to
+//! findings alone.
 //!
 //! Exit `2` blocks the call; every other outcome exits `0`, because a hook
 //! that fails in any other way must not block unrelated work.
@@ -14,15 +15,16 @@ use config::catalogue;
 use config::ConfigError;
 use config::Key;
 use config_adapters::FileConfigStore;
-use research::confinement::confined_researcher;
+use research::confinement::confined_agent;
 use research::confinement::decide;
 use research::confinement::Action;
+use research::confinement::ConfinedAgent;
+use research::confinement::Confinement;
 use research::confinement::Decision;
 use research::confinement::InternalFailure;
 use research::confinement::Refusal;
-use research::confinement::Researcher;
-use research::confinement::Researchers;
 use research::confinement::ToolCall;
+use research::confinement::DEFAULT_COMPOSER;
 use research::confinement::DEFAULT_RESEARCHER;
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -30,13 +32,13 @@ use serde_json::Value;
 
 use crate::context::ProjectContext;
 use crate::write_target::locate;
-use crate::write_target::CorpusFindings;
+use crate::write_target::CorpusLayout;
 
 const BLOCK: u8 = 2;
 const TOPICS_KEY: &str = "paths.research_topics";
 
 /// Only the fields Claude Code itself writes. `tool_input` stays raw, since
-/// the researcher controls its strings and a value that fails to parse
+/// the confined agent controls its strings and a value that fails to parse
 /// there must fail only the confined call, not the whole envelope.
 #[derive(Deserialize)]
 struct Envelope {
@@ -71,28 +73,28 @@ pub fn run() -> ExitCode {
         return pass_with("no working directory to judge the call from");
     };
     let project = Project::at(cwd);
-    let Some(researcher) =
-        confined_researcher(&call, &project.researchers(call.agent_type()))
+    let Some(agent) =
+        confined_agent(&call, &project.confinement(call.agent_type()))
     else {
         return ExitCode::SUCCESS;
     };
-    block_on_panic(&researcher);
+    block_on_panic(&agent);
     #[cfg(feature = "test-loopback")]
     crate::loopback::panic_if_asked();
-    judge(&envelope, &project, &researcher)
+    judge(&envelope, &project, &agent)
 }
 
 fn judge(
     envelope: &Envelope,
     project: &Project,
-    researcher: &Researcher,
+    agent: &ConfinedAgent,
 ) -> ExitCode {
     let action = action(envelope, project);
-    match decide(&action, &CorpusFindings) {
+    match decide(&action, agent, &CorpusLayout) {
         Decision::Pass => ExitCode::SUCCESS,
         Decision::Block(block) => {
             let refusal = Refusal {
-                researcher,
+                agent,
                 topics: &project.topics().display().to_string(),
                 block: &block,
             };
@@ -127,10 +129,10 @@ fn action(envelope: &Envelope, project: &Project) -> Action {
 }
 
 /// A panic would exit `101`, which Claude Code reads as non-blocking, and
-/// the lexer judges researcher-written text. A hook rather than
-/// `catch_unwind` also holds under `panic = "abort"`.
-fn block_on_panic(researcher: &Researcher) {
-    let reason = InternalFailure(researcher).to_string();
+/// the lexer judges agent-written text. A hook rather than `catch_unwind`
+/// also holds under `panic = "abort"`.
+fn block_on_panic(agent: &ConfinedAgent) {
+    let reason = InternalFailure(agent).to_string();
     std::panic::set_hook(Box::new(move |_| {
         eprintln!("{reason}");
         std::process::exit(i32::from(BLOCK));
@@ -167,20 +169,27 @@ impl Project {
             .as_ref()
     }
 
-    fn researchers(&self, agent_type: &str) -> Researchers {
-        if agent_type == DEFAULT_RESEARCHER {
-            return Researchers::default_only();
+    fn confinement(&self, agent_type: &str) -> Confinement {
+        let confinement = Confinement::default();
+        if [DEFAULT_RESEARCHER, DEFAULT_COMPOSER].contains(&agent_type) {
+            return confinement;
         }
-        self.context()
-            .and_then(|context| {
+        let configured = |key| {
+            self.context().and_then(|context| {
                 read_or_default(catalogue::agent_name(
                     context.config.as_ref(),
-                    "researcher",
+                    key,
                 ))
             })
-            .map_or_else(Researchers::default_only, |name| {
-                Researchers::with_configured(&name)
-            })
+        };
+        let confinement = match configured("researcher") {
+            Some(name) => confinement.with_researcher(&name),
+            None => confinement,
+        };
+        match configured("composer") {
+            Some(name) => confinement.with_composer(&name),
+            None => confinement,
+        }
     }
 
     fn topics(&self) -> &Path {
@@ -196,8 +205,8 @@ impl Project {
     }
 }
 
-/// Unreadable configuration never stops the guard confining the
-/// researcher: it falls back to the catalogue defaults and says so.
+/// Unreadable configuration never stops the guard confining a research
+/// agent: it falls back to the catalogue defaults and says so.
 fn read_or_default<T>(read: Result<T, ConfigError>) -> Option<T> {
     read.map_err(|error| {
         let error = error.to_string();

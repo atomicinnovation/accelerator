@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T13:40:11+00:00"
+last_updated: "2026-09-27T15:06:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -650,7 +650,9 @@ impl fmt::Display for Stem;
 - **`allocated`** returns `None` for a profile outside the alphabet.
 - Every stem the domain carries (`Pair`, `SpawnRef`, `PairTrim`,
   `ShallowerPair`) is a `Stem`, not a `String`. An `IndexHolder` carries
-  only the index parsed from its name.
+  only the index parsed from its name. These types arrive in Phase 3, which
+  also moves `Pair` onto `Stem`; this phase adds the type and its path
+  predicates only.
 
 **Tests first**: `a_stem_carries_its_index_and_an_allocated_rest`, and
 `a_stem_outside_the_alphabet_is_refused`, which covers `03-A`, `03-a b`,
@@ -824,8 +826,9 @@ passing unchanged, because every allocated stem is indexed.
   - a configured name is suffixed `(agents.researcher)` or
     `(agents.composer)`;
   - the `E_RESEARCH_GUARD_UNREADABLE` and `E_RESEARCH_GUARD_INTERNAL` rows
-    (`:265-266`) and the failure-signatures sentence (`:307-308`) say "a
-    confined agent's call", not "a researcher call".
+    (`:265-266`) say "a confined agent's call", not "a researcher call";
+  - the failure-signatures sentence (`:307-308`) says "a confined agent's
+    call can no longer write outside `findings/`", not "the researcher".
 - `CHANGELOG.md` `[Unreleased]` gains a Changed line: the research guard
   admits only an indexed `[a-z0-9-]` finding stem, and confines a
   `composer` role as well as the researcher.
@@ -852,16 +855,16 @@ Run `mise run public-api:update`, which updates `corpus` (`Lineage`,
 
 #### Automated Verification
 
-- [ ] Path predicate tests pass: `cargo test -p corpus topic_research`
-- [ ] Confinement tests pass: `cargo test -p research --test confinement`
-- [ ] Guard end-to-end tests pass: `cargo test -p research-cli --test guard`
-- [ ] Config and launcher goldens pass: `cargo test -p config -p launcher`
-- [ ] Public API snapshots match: `mise run public-api:check`
-- [ ] Full run green: `mise run`
+- [x] Path predicate tests pass: `cargo test -p corpus topic_research`
+- [x] Confinement tests pass: `cargo test -p research --test confinement`
+- [x] Guard end-to-end tests pass: `cargo test -p accelerator-research --test guard`
+- [x] Config and launcher goldens pass: `cargo test -p config -p accelerator`
+- [x] Public API snapshots match: `mise run public-api:check`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] A hand-built hook payload with `agent_type: accelerator:composer` and a
+- [x] A hand-built hook payload with `agent_type: accelerator:composer` and a
       `.levels/` Write is blocked, with the composer refusal text.
 
 ---
@@ -2017,7 +2020,7 @@ misplaced-flag rule names `--concurrency` on `outline`.
 
 #### Automated Verification
 
-- [ ] Catalogue and goldens pass: `cargo test -p config -p config-adapters -p launcher`
+- [ ] Catalogue and goldens pass: `cargo test -p config -p config-adapters -p accelerator`
 - [ ] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
 - [ ] Skill preprocessor lines resolve: `mise run test:integration:skill-invocation`
 - [ ] Skill lints pass: `mise run check`
