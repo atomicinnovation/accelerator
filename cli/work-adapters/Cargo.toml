@@ -41,6 +41,7 @@ serde_json = { workspace = true }
 [dev-dependencies]
 config = { path = "../config" }
 tempfile = { workspace = true }
+corpus-adapters = { path = "../corpus-adapters" }
 remote-projection = { path = "../remote-projection" }
 tracker-test-support = { path = "../tracker-test-support" }
 vcs-test-support = { path = "../vcs-test-support" }

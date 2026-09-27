@@ -1265,22 +1265,58 @@ the same tree everywhere), `FileCorpusStore`, `LockdirLock` and
 `RetirementPorts`, embedded in `SyncPorts` (and, from Phase 6, in
 `PromotionPorts`, which also carries the tracker).
 
+> Implementation notes:
+>
+> - `FileRewrite` carries the planned `original` bytes and the plan
+>   `from_original`, rather than digests: `work` has no hashing dependency,
+>   and comparing bytes is exact. `retired_item` is `Option<String>`, `None`
+>   when an interrupted retirement already wrote `to`.
+> - `Retirement::recovery_dir()` names the directory relative to the state
+>   directory and the plan carries it, so `finish_retirement` takes no
+>   `recovery_dir`. `RecoveryCopies` gained `exists`,
+>   `mark_restore_pending`, `is_restore_pending` and `mark_completed`;
+>   `write_once` takes the original's path and the adapter mirrors it
+>   relative to the corpus root. `apply_retirement` treats an existing
+>   recovery directory as a resumed retirement.
+> - `RetirementPorts` gained `layout: CorpusLayout { roots, work_dir }`;
+>   the item identities are read from the walked corpus.
+> - `corpus::references::rewrite_references(content, &Renaming)` takes the
+>   doc type, both IDs, the shape and the path spellings `work::retirement`
+>   computes (`drafts/<old>` then `<old>` basenames). The `work-item-review`
+>   `work_item_id` rewrite lives in `work::retirement`.
+> - `StoreError` and `store::WriteError` gained `AlreadyExists`.
+>   `FileCorpusStore::create_new` calls a new `store::atomic_create`
+>   (stage, then `persist_noclobber`), since the store-duplication lint
+>   keeps temp-file writes in `cli/store/`. No `LOCK_FILE_NAME` existed;
+>   `LockdirLock::RETIREMENT_LOCKDIR` is the constant.
+> - Deferred to Phase 4, which gives retirement its first caller: embedding
+>   `RetirementPorts` in `SyncPorts`, mapping `RestoreIncomplete` to exit 71
+>   (the rendering is `RetirementFailure::message` with the
+>   `RETIREMENT_INCOMPLETE` keyword, in `work`), and the per-run report and
+>   sweep of `RESTORE-PENDING` / `COMPLETED` directories.
+> - `a_rollback_after_the_baseline_rename_keeps_a_concurrent_entry_for_another_item`
+>   was not written: the rename is the last step, so no rollback follows
+>   it. `renaming_an_entry_moves_it_in_one_write` covers re-reading.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p corpus references work_item_id`
-- [ ] `cd cli && cargo test -p work retirement`
-- [ ] `cd cli && cargo test -p work-adapters --test retirement`
-- [ ] `cd cli && cargo test -p corpus-adapters`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check` exits 0
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p corpus references work_item_id`
+- [x] `cd cli && cargo test -p work retirement`
+- [x] `cd cli && cargo test -p work-adapters --test retirement`
+- [x] `cd cli && cargo test -p corpus-adapters`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
 - [ ] Interrupt a scratch retirement with Ctrl-C mid-rewrite; the next
       retirement of the same item completes it.
+      Not yet possible: retirement has no CLI entry point until Phase 4.
+      Resumption is covered by
+      `an_interrupted_retirement_is_completed_by_the_next_retirement`.
 
 ---
 

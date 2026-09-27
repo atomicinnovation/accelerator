@@ -5744,6 +5744,7 @@ version = "1.24.0-pre.73"
 dependencies = [
  "config",
  "corpus",
+ "corpus-adapters",
  "graphql-test-support",
  "hex",
  "http-test-support",

@@ -4,6 +4,7 @@
 //! no subprocess, no regex — those live in the adapter/binary layers.
 
 pub mod create;
+pub mod dirtiness;
 pub mod draft_id;
 pub mod filter;
 pub mod identity;
@@ -11,6 +12,7 @@ pub mod next_number;
 pub mod normalise;
 pub mod own_identity;
 pub mod resolve;
+pub mod retirement;
 pub mod section_diff;
 pub mod show;
 pub mod sync;

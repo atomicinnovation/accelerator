@@ -6,10 +6,11 @@
 use std::path::Path;
 
 use ::config::ConfigAccess;
+use corpus::lock::ExclusiveLock as _;
+use corpus::lock::LockName;
 use corpus::AtomicWrite;
-use corpus_adapters::lock::acquire;
-use corpus_adapters::lock::LockOptions;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use document::Mapping;
 use document::Scalar;
@@ -303,13 +304,10 @@ fn try_run(
         validate_list_key(key)?;
     }
 
-    let lockdir = {
-        let mut name = args.path.as_os_str().to_owned();
-        name.push(".lockdir");
-        std::path::PathBuf::from(name)
-    };
-    let _guard =
-        acquire(&lockdir, LockOptions::default()).map_err(|error| {
+    let work_dir = args.path.parent().unwrap_or_else(|| Path::new("."));
+    let _guard = LockdirLock::new(work_dir)
+        .acquire(&LockName::ForFile(args.path.clone()))
+        .map_err(|error| {
             format!("could not acquire the update lock: {error}")
         })?;
 

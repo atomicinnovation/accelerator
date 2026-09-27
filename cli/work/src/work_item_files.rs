@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use crate::identity::ItemIdentity;
 use crate::show::read_field_raw;
 
+/// The work directory's subdirectory holding items no tracker has confirmed.
+pub const DRAFTS_DIRECTORY: &str = "drafts";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkItemFile {
     pub path: PathBuf,

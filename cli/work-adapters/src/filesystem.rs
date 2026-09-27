@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use work::resolve::DirectoryLister;
 use work::work_item_files::WorkItemFile;
 use work::work_item_files::WorkItemFiles;
+use work::work_item_files::DRAFTS_DIRECTORY;
 
 /// Lists the filenames directly inside `dir` (no recursion). A missing or
 /// unreadable directory yields an empty list, matching the shell's own
@@ -42,7 +43,7 @@ impl DirectoryLister for FilesystemLister {
 
 #[must_use]
 pub fn drafts_dir(work_dir: &Path) -> PathBuf {
-    work_dir.join("drafts")
+    work_dir.join(DRAFTS_DIRECTORY)
 }
 
 pub struct FilesystemWorkItemFiles {
