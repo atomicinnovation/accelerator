@@ -194,6 +194,14 @@
 - **`ACCELERATOR_DESIGN_BROWSER_PATH` prints a `notice:` line** naming the
   path, and a refused environment value falls through to the personal
   `design.browser_path` with a warning.
+- **The Playwright daemon's state is kept per browser.** Each browser's
+  daemon has its own slot beneath `inventory-design-playwright/`, `bundled`
+  or `custom-<digest>`, so changing `design.browser_path` spawns a daemon for
+  the new browser and leaves the previous one to idle out. A symlinked
+  `inventory-design-playwright` directory or slot now fails the launch,
+  naming the path, which can be removed when no crawl is running; a symlinked
+  tmp base is still supported. State files an earlier version left directly
+  under `inventory-design-playwright/` are no longer read and can be deleted.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
@@ -353,6 +361,10 @@
   `E_CONSENT_KEY_TEAM_LEVEL` even beside a personal value, which used to hide
   the warning, and a personal value from a `config.local.md` that is tracked,
   or whose tracking cannot be determined, is refused.
+- **A Playwright daemon runs only the browser it was spawned for.** A daemon
+  started with one browser is never reused once `design.browser_path`
+  admits another, so a changed or refused value takes effect on the next
+  crawl rather than when the running daemon idles out.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
   researcher type to running `accelerator research fetch` and writing finding

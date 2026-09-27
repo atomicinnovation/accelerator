@@ -663,6 +663,28 @@ The `<error>` code in parentheses aids support diagnostics and log searches.
 
 ---
 
+## State Directory
+
+Each browser has its own daemon, whose state lives in a slot of its own
+beneath `<paths.tmp>/inventory-design-playwright/`:
+
+- `bundled` for the bundled browser;
+- `custom-<digest>` for a `design.browser_path` browser, where `<digest>` is
+  the first 16 hex digits of the SHA-256 of the canonical executable path.
+
+When the browser changes, the executor finds no daemon in the new browser's
+slot and spawns one there. The previous browser's daemon serves nothing
+further and exits on its own idle timeout; the executor never stops it.
+
+The `inventory-design-playwright` directory and its slots must not be
+symlinks, and the executor refuses to launch when either is one, naming it.
+A symlinked tmp base, such as `.accelerator/tmp` redirected to a scratch
+volume, and an absolute `paths.tmp` are supported. Slot directories, and
+state files an earlier version left directly under
+`inventory-design-playwright/`, can be deleted whenever no crawl is running.
+
+---
+
 ## Environment Variables
 
 The Playwright daemon reads the following environment variables. All
@@ -674,9 +696,10 @@ the daemon.
 |-----------------------------------------|---------------|-----------|---------|
 | `ACCELERATOR_PLAYWRIGHT_IDLE_MS`        | `600000`      | caller    | Idle shutdown timeout (ms). Bounds the in-memory lifetime of an auth-bearing browser context; do not raise without considering auth-context exposure. Lowered from `1800000` in this release. |
 | `ACCELERATOR_PLAYWRIGHT_WALL_CLOCK_MS`  | `300000`      | caller    | Per-op wall-clock budget (ms) for any `BLOCKING_OPS` command. Hard-capped at 1800000 (30 min) regardless of override. The budget starts once the browser is ready, so acquiring Chromium is not charged to the first operation. A command that honours the budget answers with its own typed envelope (`wait-for-timeout`, and `timeout_ms` capping below); `wall-clock-exceeded` is a backstop for a command that ignores its timeout entirely, and so fires 2000 ms past the budget, outside the cap. |
-| `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | launcher  | Per-project state directory. Set by `accelerator design executor`; callers should not set it directly. |
+| `ACCELERATOR_PLAYWRIGHT_STATE_DIR`      | derived       | launcher  | Per-project, per-browser slot; see State Directory. Set by `accelerator design executor`; callers should not set it directly. |
 | `ACCELERATOR_PLAYWRIGHT_IDENTITY_FD`    | derived       | launcher  | Descriptor the daemon reads its identity record from at startup. Set by `accelerator design executor` on the daemon spawn only; a daemon started without it exits. |
 | `ACCELERATOR_PLAYWRIGHT_NS_ROOT`        | derived       | launcher  | Root of the vendored driver tree. Set by `accelerator design executor` from the resolved runtime; the daemon imports `playwright-core` from it by absolute path, so callers must not set it directly. |
+| `ACCELERATOR_DESIGN_BROWSER_EXECUTABLE` | derived       | launcher  | The browser executable the daemon launches: the bundled browser, or the canonical `design.browser_path` target. Set by `accelerator design executor`; callers should not set it directly. |
 
 **Removed in this release**: `ACCELERATOR_PLAYWRIGHT_OWNER_POLL_MS` is
 no longer read — the owner-PID watcher was removed (see the Breaking

@@ -2396,7 +2396,7 @@ walk lives in the policy. The roots come from Phase 2's `repository_roots`.
 
 - [x] `cargo nextest run -p config -p config-adapters -p design -p design-cli`
 - [x] Public API fixtures for `design` and `config` are regenerated
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
@@ -2450,7 +2450,8 @@ them.
   `E2E_HEALTH_PORT=19187` `test_cross_workspace_concurrency` timed out on
   readiness. `test:integration:dev` passed 17 of 17 run alone. The
   `mise run` criterion stays unticked until a run on an idle machine passes.
-  The two manual crawls have not been done.
+  The two manual crawls have not been done. On 2026-09-27 a `mise run` over
+  Phase 5's tree, which contains this phase, passed.
 
 ---
 
@@ -2563,16 +2564,42 @@ is supported.
 
 #### Automated Verification
 
-- [ ] `cargo nextest run -p design -p design-adapters -p design-cli`
-- [ ] Public API fixture for `design` regenerated and committed
-- [ ] Full local CI mirror passes: `mise run`
+- [x] `cargo nextest run -p design -p design-adapters -p design-cli`
+- [x] Public API fixture for `design` regenerated and committed
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] Crawl with the bundled browser, set a personal `design.browser_path`, crawl again: a new daemon pid serves the crawl from the `custom-…` slot, and the bundled daemon exits within `ACCELERATOR_PLAYWRIGHT_IDLE_MS`
 - [ ] Crawl twice with the same custom browser: the daemon pid is unchanged
 - [ ] Unset the key within the idle window: the next crawl reuses the still-running bundled daemon
+
+### Implementation Notes
+
+Phase 5 landed with these deviations and additions.
+
+- **Choosing the browser.** `DaemonBrowser::chosen_by(&HatchDecision)` in
+  `design::executor::daemon_browser` maps an admitted browser to `Custom`
+  and anything else to `Bundled`.
+- **The symlink check lives in `state_dir_for`**, which returns
+  `Result<PathBuf, kernel::Error>`. A leaf or slot that does not yet exist
+  passes, and `create_state_dir` then creates it.
+- **Executor order.** `run` now locates the repository, resolves the hatch,
+  and only then derives the state directory, so `Resolved` loses `cwd` and
+  the no-repo envelope still comes first.
+- **Launcher harness.** `ScriptedStore` serves one browser's slot from a map
+  keyed by `DaemonBrowser`. The browser-change test passed on first run,
+  because the launcher is slot-agnostic by design: it pins that the
+  previous slot is neither read, cleared nor signalled.
+- **The spawn tests** are unit tests in `design-cli/src/executor.rs`, since
+  design-cli is binary-only. `DaemonSpawner` is a concrete struct rather
+  than a port, so no recording spawner exists: `launch` builds it through
+  `daemon_spawner`, and the tests assert on the value it returns. They
+  build the hatch from a canonicalised outside symlink directly, because
+  Phase 4's seam tests already prove the hatch carries the canonical target.
+- **CHANGELOG.** The Security entry for a daemon bound to its browser, which
+  Phase 4 deferred, is in, beside the Changed entry for per-browser slots.
 
 ---
 

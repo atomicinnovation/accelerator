@@ -249,6 +249,13 @@ the path checks. When it supplies the browser, the executor prints
 A refused environment value falls through to the personal value, with a
 warning.
 
+Each browser has its own daemon. When the admitted browser changes, the next
+crawl spawns a daemon for it, and the previous browser's daemon exits on its
+own idle timeout. Their state lives in per-browser slots beneath
+`<paths.tmp>/inventory-design-playwright/`, which must not be symlinks; a
+symlinked tmp base is fine. A slot can be deleted whenever no crawl is
+running.
+
 ## Environment
 
 | Variable                       | Effect                                                                                                                        |

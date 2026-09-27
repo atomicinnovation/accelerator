@@ -200,12 +200,15 @@ impl<'ports> Launcher<'ports> {
 mod tests {
     use std::cell::Cell;
     use std::cell::RefCell;
+    use std::collections::HashMap;
     use std::convert::Infallible;
+    use std::path::PathBuf;
     use std::rc::Rc;
 
     use super::LaunchFailure;
     use super::Launcher;
     use super::START_TIMEOUT_SECONDS;
+    use crate::executor::daemon_browser::DaemonBrowser;
     use crate::executor::daemon_identity::ObservedDaemon;
     use crate::executor::daemon_identity::ObservedStartTime;
     use crate::executor::daemon_identity::RecordedDaemon;
@@ -250,10 +253,12 @@ mod tests {
         }
     }
 
-    /// Returns each queued state in turn, repeating the last — enough to model
-    /// "absent before the lock, present after" and "never becomes ready".
+    /// Returns each queued state of the slot it serves in turn, repeating the
+    /// last — enough to model "absent before the lock, present after" and
+    /// "never becomes ready", and a warm daemon in another browser's slot.
     struct ScriptedStore {
-        reads: RefCell<Vec<RecordedState>>,
+        slots: RefCell<HashMap<DaemonBrowser, Vec<RecordedState>>>,
+        serving: DaemonBrowser,
         cleared: Cell<usize>,
         stop_reason_cleared: Cell<usize>,
     }
@@ -261,16 +266,29 @@ mod tests {
     impl ScriptedStore {
         fn new(reads: Vec<RecordedState>) -> Self {
             Self {
-                reads: RefCell::new(reads),
+                slots: RefCell::new(HashMap::from([(
+                    DaemonBrowser::Bundled,
+                    reads,
+                )])),
+                serving: DaemonBrowser::Bundled,
                 cleared: Cell::new(0),
                 stop_reason_cleared: Cell::new(0),
             }
+        }
+
+        fn slot(&self, browser: &DaemonBrowser) -> Vec<RecordedState> {
+            self.slots
+                .borrow()
+                .get(browser)
+                .cloned()
+                .unwrap_or_default()
         }
     }
 
     impl StateStore for ScriptedStore {
         fn read(&self) -> RecordedState {
-            let mut reads = self.reads.borrow_mut();
+            let mut slots = self.slots.borrow_mut();
+            let reads = slots.entry(self.serving.clone()).or_default();
             if reads.len() > 1 {
                 reads.remove(0)
             } else {
@@ -406,6 +424,29 @@ mod tests {
                 },
                 diagnostics: FakeDiagnostics { lines: Vec::new() },
             }
+        }
+
+        /// A warm daemon in `warm`'s slot, and an executor whose vetted
+        /// browser is `vetted`, whose own slot is empty until it spawns.
+        fn after_a_browser_change(
+            warm: DaemonBrowser,
+            vetted: DaemonBrowser,
+        ) -> Self {
+            let mut harness =
+                Self::new(Vec::new(), matching(), RecordingLock::free());
+            harness.state.slots = RefCell::new(HashMap::from([
+                (warm, vec![live_record()]),
+                (
+                    vetted.clone(),
+                    vec![
+                        RecordedState::None,
+                        RecordedState::None,
+                        live_record(),
+                    ],
+                ),
+            ]));
+            harness.state.serving = vetted;
+            harness
         }
 
         fn spawn_not_found(mut self) -> Self {
@@ -690,5 +731,38 @@ mod tests {
             ));
         };
         Ok(())
+    }
+
+    /// A browser change is served by a daemon of its own: the previous
+    /// browser's daemon is never reused, signalled or cleared, and idles out.
+    #[test]
+    fn a_daemon_in_another_browsers_slot_is_invisible() {
+        let chrome = DaemonBrowser::Custom(PathBuf::from("/opt/chrome"));
+        let chromium = DaemonBrowser::Custom(PathBuf::from("/opt/chromium"));
+        for (warm, vetted) in [
+            (DaemonBrowser::Bundled, chrome.clone()),
+            (chrome.clone(), DaemonBrowser::Bundled),
+            (chrome, chromium),
+        ] {
+            let harness =
+                Harness::after_a_browser_change(warm.clone(), vetted.clone());
+
+            let (_, ran) = run(&harness);
+            assert!(ran, "{warm:?} to {vetted:?}");
+            assert_eq!(
+                harness.spawner.spawns.get(),
+                1,
+                "{warm:?} to {vetted:?}"
+            );
+            assert!(
+                harness.control.signalled.borrow().is_empty(),
+                "{warm:?} to {vetted:?}"
+            );
+            assert_eq!(
+                harness.state.slot(&warm),
+                vec![live_record()],
+                "{warm:?} to {vetted:?}"
+            );
+        }
     }
 }

@@ -5,6 +5,7 @@
 //! is exercised directly rather than through a real process and real elapsed
 //! time.
 
+pub mod daemon_browser;
 pub mod daemon_identity;
 pub mod envelope;
 pub mod forwardable;
@@ -13,6 +14,7 @@ pub mod launch;
 pub mod ports;
 pub mod reuse;
 
+pub use crate::executor::daemon_browser::DaemonBrowser;
 pub use crate::executor::daemon_identity::ObservedDaemon;
 pub use crate::executor::daemon_identity::ObservedStartTime;
 pub use crate::executor::daemon_identity::RecordedDaemon;
