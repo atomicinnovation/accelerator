@@ -5,14 +5,14 @@ title: "Tracker-Owned Work Item ID Generation Implementation Plan"
 date: "2026-09-26T01:21:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0230"
 parent: "work-item:0230"
 derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-27T18:00:00+00:00"
+last_updated: "2026-09-27T21:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1333,6 +1333,22 @@ before the engine plans anything, so the engine only ever sees the corpus
 after every retirement has landed and never imports a new key twice.
 
 ### Changes Required:
+
+#### 0. Carried over from Phase 3
+
+Phase 3 left three pieces for the first caller of retirement:
+
+- Embed `RetirementPorts` (with its `CorpusLayout`) in `SyncPorts`, and
+  build it in `run_sync` from `RealFs`, `FileCorpusStore`,
+  `LockdirLock`, `VcsWorkingCopyStatus` and `FileRecoveryCopies`.
+- Map `RetirementFailure::RestoreIncomplete` to the
+  `retirement-incomplete` reason keyword and exit 71, rendered through
+  `RetirementFailure::message`. The
+  `an_incomplete_restore_names_both_ids_every_unrestored_path_the_recovery_directory_and_the_remedy`
+  test in `cli/work-cli/src/sync.rs` moves here from Phase 3.
+- Report each `RESTORE-PENDING` recovery directory on every run; clear it
+  once every listed path matches its copy or has been deleted; remove a
+  `COMPLETED` directory on the next run.
 
 #### 1. Failing tests first
 
