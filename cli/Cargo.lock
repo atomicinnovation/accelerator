@@ -5732,6 +5732,7 @@ version = "1.24.0-pre.75"
 dependencies = [
  "config",
  "corpus",
+ "corpus-adapters",
  "graphql-test-support",
  "hex",
  "http-test-support",
@@ -5743,6 +5744,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "similar",
+ "store",
  "tempfile",
  "time",
  "tracing",
@@ -5750,6 +5752,7 @@ dependencies = [
  "tracker-support",
  "tracker-test-support",
  "vcs",
+ "vcs-adapters",
  "vcs-test-support",
  "work",
 ]

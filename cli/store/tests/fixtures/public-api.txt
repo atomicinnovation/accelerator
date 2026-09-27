@@ -44,6 +44,8 @@ impl core::fmt::Debug for store::NewFileMode
 pub fn store::NewFileMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for store::NewFileMode
 #[non_exhaustive] pub enum store::WriteError
+pub store::WriteError::AlreadyExists
+pub store::WriteError::AlreadyExists::path: alloc::string::String
 pub store::WriteError::CrossFilesystem
 pub store::WriteError::CrossFilesystem::path: alloc::string::String
 pub store::WriteError::InsecurePermissions
@@ -70,6 +72,7 @@ impl core::marker::StructuralPartialEq for store::WriteError
 pub struct store::WriteBounds<'a>
 pub store::WriteBounds::permitted_root: &'a std::path::Path
 pub store::WriteBounds::project_root: &'a std::path::Path
+pub fn store::atomic_create(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::atomic_write(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::current_umask() -> u32
 pub fn store::ensure_contained(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<std::path::PathBuf, store::WriteError>
