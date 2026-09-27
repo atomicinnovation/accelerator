@@ -29,6 +29,106 @@ free-form project context. Local settings override team settings for the same
 key, except for the [consent keys](#consent-keys), which are never read from
 the team file.
 
+## Consent Keys
+
+A consent key holds a value only you may supply, because the repository must
+not choose what runs on your machine or where your credentials go. There are
+six:
+
+| Key                    | Kind            | Environment override               |
+|------------------------|-----------------|------------------------------------|
+| `jira.allowed_sites`   | hostname list   | `ACCELERATOR_JIRA_ALLOWED_SITES`   |
+| `jira.token_cmd`       | command         | `ACCELERATOR_JIRA_TOKEN_CMD`       |
+| `linear.token_cmd`     | command         | `ACCELERATOR_LINEAR_TOKEN_CMD`     |
+| `openalex.api_key_cmd` | command         | `ACCELERATOR_OPENALEX_API_KEY_CMD` |
+| `github.token_cmd`     | command         | (none)                             |
+| `design.browser_path`  | executable path | `ACCELERATOR_DESIGN_BROWSER_PATH`  |
+
+Every consent key follows one rule. The environment override is tried first,
+then `config.local.md`, and the first source that passes every check wins. A
+value in the team-shared `config.md` is always refused, so for these keys, and
+only these, a team value never stands in for a missing personal one. A
+personal value is admitted only from a `config.local.md` that is readable and
+not tracked by version control. Commands run through the
+[command runner](#command-runner), and an executable path must be absolute and
+outside the repository.
+
+Every refusal met on the way is printed as a `warning:` when a usable value
+remains, whether a later source or the key's built-in fallback. With nothing
+usable, the refusal from the highest-precedence source tried is fatal and the
+rest are still printed as warnings. Taking a consent key from the environment
+prints a `notice:` naming the variable. The `SessionStart` hook reports
+team-level and tracked-file refusals at the start of each session.
+
+| Code                                  | Meaning                                                                  | Remedy                                                                                     |
+|---------------------------------------|--------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| `E_CONSENT_KEY_TEAM_LEVEL`            | A consent key in the team-shared `config.md`                             | Move it to `config.local.md`, or set its environment override                             |
+| `E_CONSENT_KEY_TRACKED`               | A consent key in a `config.local.md` tracked by version control          | Untrack the file (`git rm --cached`, or `jj file untrack`)                                 |
+| `E_CONSENT_KEY_TRACKING_UNKNOWN`      | A consent key in a `config.local.md` whose tracking status is unknown    | Use the key's environment override; the message names it                                   |
+| `E_TOKEN_FROM_TRACKED_FILE`           | A plaintext credential in a tracked or tracking-unknown `config.local.md` | Untrack the file, or use `ACCELERATOR_JIRA_TOKEN`, `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN` |
+| `E_TOKEN_MALFORMED`                   | A credential carrying a control character, from any source               | Fix the helper or value so it prints the credential alone                                  |
+| `E_LOCAL_PERMS_INSECURE`              | A `config.local.md` looser than `0600`, or a symlink; none of it is read | `chmod 600` it and replace a symlink with the file itself                                  |
+| `E_TOKEN_CMD_FAILED`                  | A command that could not start or exited non-zero                        | Run the command yourself under the runner's environment and fix it                         |
+| `E_COMMAND_TIMED_OUT`                 | A command that outlasted its deadline                                    | Use a helper that answers without prompting, such as a password manager's agent            |
+| `E_COMMAND_OUTPUT_EXCEEDED`           | A command that printed more than 65,536 bytes across stdout and stderr   | Silence the helper's tracing, such as `set -x`                                             |
+| `E_EXECUTABLE_PATH_RELATIVE`          | A relative executable path                                               | Use an absolute path outside the repository                                                |
+| `E_EXECUTABLE_PATH_INSIDE_REPOSITORY` | An executable path inside, or not shown to be outside, the repository    | Use an absolute path outside the repository and its main checkout                          |
+
+A `config.local.md` looser than `0600`, or a symlink, is not read at all:
+its values are not used, team values and the `ACCELERATOR_*` overrides still
+resolve, and a command fails with `E_LOCAL_PERMS_INSECURE` only when nothing
+usable remains. Commands that write refuse outright. On a filesystem that
+cannot honour file modes, keep team values in `config.md` and personal values
+in the `ACCELERATOR_*` overrides, and move `config.local.md` aside to run a
+command that writes. No override unlocks an insecure file, so the old
+insecure-local marker file does nothing and can be deleted.
+
+### Command Runner
+
+Every command-valued key (`jira.token_cmd`, `linear.token_cmd`,
+`openalex.api_key_cmd`, `github.token_cmd`, and the `ACCELERATOR_*_CMD`
+overrides) runs through one runner:
+
+- **Working directory**: a fresh temporary directory outside the repository,
+  removed afterwards. A command never runs in the repository or in `$HOME`.
+- **Environment**: only `PATH`, `HOME`, `TERM`, `XDG_CONFIG_HOME`,
+  `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`, plus what a key admits:
+  `github.token_cmd` admits `GH_HOST` and `GH_CONFIG_DIR`. Every other
+  variable, secrets included, is dropped.
+- **`PATH`**: an entry that is empty, relative, missing or inside the
+  repository is dropped, and so is an `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR` or
+  `GH_CONFIG_DIR` that points inside the repository. `bash` itself is found on
+  the filtered `PATH`, so call a helper by an absolute path outside the
+  repository.
+- **stdin** is empty.
+- **Timeout**: 30 s for Jira and Linear, and whatever remains of the 100 s
+  fetch deadline for OpenAlex. A command that outlasts it is refused with
+  `E_COMMAND_TIMED_OUT`.
+- **Output cap**: 65,536 bytes across stdout and stderr combined. More is
+  refused with `E_COMMAND_OUTPUT_EXCEEDED`, never truncated. stderr counts
+  towards the cap but is never shown.
+- **Result**: stdout, with surrounding whitespace trimmed. A command that
+  cannot start or exits non-zero is refused with `E_TOKEN_CMD_FAILED`.
+- **Interactive helpers** are unsupported. The command has no controlling
+  terminal in the foreground, so a helper that prompts on `/dev/tty` fails or
+  times out. Use a password manager's agent or desktop integration instead.
+- **Process group**: the command runs in its own process group. Once it exits,
+  anything it left in the group, such as a caching agent, receives `SIGTERM`,
+  then `SIGKILL` after a grace period of up to a second, so an agent can
+  finish its writes. A process that calls `setsid` leaves the group and is not
+  stopped.
+- **Interrupts**: Ctrl-C, `SIGTERM` or `SIGHUP` to the CLI during a run sends
+  the command's group `SIGTERM`, then `SIGKILL` after the grace period, and
+  the CLI then ends as the signal would have ended it. The group never
+  receives `SIGINT` itself, so a helper that cleans up in a trap should trap
+  `TERM`.
+
+`github.token_cmd` climbs the same chain as the tracker keys: `GH_TOKEN`,
+then `GITHUB_TOKEN`, then the personal `github.token`, then the personal
+`github.token_cmd`, then the team `github.token` only when `config.local.md`
+does not exist. It is refused from the same sources and with the same codes,
+with `GH_TOKEN` as the variable that still works.
+
 ## Available Actions
 
 When invoked:
@@ -107,7 +207,8 @@ for the markdown body — this is the highest-value feature.
 
 ### `help`
 
-Display the configuration reference:
+Display the configuration reference, then the [Consent Keys](#consent-keys)
+section and its command runner:
 
 ```
 ## Accelerator Configuration Reference
@@ -1042,106 +1143,6 @@ openalex:
 
 Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
 `openalex.*` keys are not consumed by any plugin script.
-
-### consent keys
-
-A consent key holds a value only you may supply, because the repository must
-not choose what runs on your machine or where your credentials go. There are
-six:
-
-| Key                    | Kind            | Environment override               |
-|------------------------|-----------------|------------------------------------|
-| `jira.allowed_sites`   | hostname list   | `ACCELERATOR_JIRA_ALLOWED_SITES`   |
-| `jira.token_cmd`       | command         | `ACCELERATOR_JIRA_TOKEN_CMD`       |
-| `linear.token_cmd`     | command         | `ACCELERATOR_LINEAR_TOKEN_CMD`     |
-| `openalex.api_key_cmd` | command         | `ACCELERATOR_OPENALEX_API_KEY_CMD` |
-| `github.token_cmd`     | command         | (none)                             |
-| `design.browser_path`  | executable path | `ACCELERATOR_DESIGN_BROWSER_PATH`  |
-
-Every consent key follows one rule. The environment override is tried first,
-then `config.local.md`, and the first source that passes every check wins. A
-value in the team-shared `config.md` is always refused, so for these keys, and
-only these, a team value never stands in for a missing personal one. A
-personal value is admitted only from a `config.local.md` that is readable and
-not tracked by version control. Commands run through the
-[command runner](#command-runner), and an executable path must be absolute and
-outside the repository.
-
-Every refusal met on the way is printed as a `warning:` when a usable value
-remains, whether a later source or the key's built-in fallback. With nothing
-usable, the refusal from the highest-precedence source tried is fatal and the
-rest are still printed as warnings. Taking a consent key from the environment
-prints a `notice:` naming the variable. The `SessionStart` hook reports
-team-level and tracked-file refusals at the start of each session.
-
-| Code                                  | Meaning                                                                  | Remedy                                                                                     |
-|---------------------------------------|--------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| `E_CONSENT_KEY_TEAM_LEVEL`            | A consent key in the team-shared `config.md`                             | Move it to `config.local.md`, or set its environment override                             |
-| `E_CONSENT_KEY_TRACKED`               | A consent key in a `config.local.md` tracked by version control          | Untrack the file (`git rm --cached`, or `jj file untrack`)                                 |
-| `E_CONSENT_KEY_TRACKING_UNKNOWN`      | A consent key in a `config.local.md` whose tracking status is unknown    | Use the key's environment override; the message names it                                   |
-| `E_TOKEN_FROM_TRACKED_FILE`           | A plaintext credential in a tracked or tracking-unknown `config.local.md` | Untrack the file, or use `ACCELERATOR_JIRA_TOKEN`, `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN` |
-| `E_TOKEN_MALFORMED`                   | A credential carrying a control character, from any source               | Fix the helper or value so it prints the credential alone                                  |
-| `E_LOCAL_PERMS_INSECURE`              | A `config.local.md` looser than `0600`, or a symlink; none of it is read | `chmod 600` it and replace a symlink with the file itself                                  |
-| `E_TOKEN_CMD_FAILED`                  | A command that could not start or exited non-zero                        | Run the command yourself under the runner's environment and fix it                         |
-| `E_COMMAND_TIMED_OUT`                 | A command that outlasted its deadline                                    | Use a helper that answers without prompting, such as a password manager's agent            |
-| `E_COMMAND_OUTPUT_EXCEEDED`           | A command that printed more than 65,536 bytes across stdout and stderr   | Silence the helper's tracing, such as `set -x`                                             |
-| `E_EXECUTABLE_PATH_RELATIVE`          | A relative executable path                                               | Use an absolute path outside the repository                                                |
-| `E_EXECUTABLE_PATH_INSIDE_REPOSITORY` | An executable path inside, or not shown to be outside, the repository    | Use an absolute path outside the repository and its main checkout                          |
-
-A `config.local.md` looser than `0600`, or a symlink, is not read at all:
-its values are not used, team values and the `ACCELERATOR_*` overrides still
-resolve, and a command fails with `E_LOCAL_PERMS_INSECURE` only when nothing
-usable remains. Commands that write refuse outright. On a filesystem that
-cannot honour file modes, keep team values in `config.md` and personal values
-in the `ACCELERATOR_*` overrides, and move `config.local.md` aside to run a
-command that writes. No override unlocks an insecure file, so the old
-insecure-local marker file does nothing and can be deleted.
-
-### command runner
-
-Every command-valued key (`jira.token_cmd`, `linear.token_cmd`,
-`openalex.api_key_cmd`, `github.token_cmd`, and the `ACCELERATOR_*_CMD`
-overrides) runs through one runner:
-
-- **Working directory**: a fresh temporary directory outside the repository,
-  removed afterwards. A command never runs in the repository or in `$HOME`.
-- **Environment**: only `PATH`, `HOME`, `TERM`, `XDG_CONFIG_HOME`,
-  `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`, plus what a key admits:
-  `github.token_cmd` admits `GH_HOST` and `GH_CONFIG_DIR`. Every other
-  variable, secrets included, is dropped.
-- **`PATH`**: an entry that is empty, relative, missing or inside the
-  repository is dropped, and so is an `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR` or
-  `GH_CONFIG_DIR` that points inside the repository. `bash` itself is found on
-  the filtered `PATH`, so call a helper by an absolute path outside the
-  repository.
-- **stdin** is empty.
-- **Timeout**: 30 s for Jira and Linear, and whatever remains of the 100 s
-  fetch deadline for OpenAlex. A command that outlasts it is refused with
-  `E_COMMAND_TIMED_OUT`.
-- **Output cap**: 65,536 bytes across stdout and stderr combined. More is
-  refused with `E_COMMAND_OUTPUT_EXCEEDED`, never truncated. stderr counts
-  towards the cap but is never shown.
-- **Result**: stdout, with surrounding whitespace trimmed. A command that
-  cannot start or exits non-zero is refused with `E_TOKEN_CMD_FAILED`.
-- **Interactive helpers** are unsupported. The command has no controlling
-  terminal in the foreground, so a helper that prompts on `/dev/tty` fails or
-  times out. Use a password manager's agent or desktop integration instead.
-- **Process group**: the command runs in its own process group. Once it exits,
-  anything it left in the group, such as a caching agent, receives `SIGTERM`,
-  then `SIGKILL` after a grace period of up to a second, so an agent can
-  finish its writes. A process that calls `setsid` leaves the group and is not
-  stopped.
-- **Interrupts**: Ctrl-C, `SIGTERM` or `SIGHUP` to the CLI during a run sends
-  the command's group `SIGTERM`, then `SIGKILL` after the grace period, and
-  the CLI then ends as the signal would have ended it. The group never
-  receives `SIGINT` itself, so a helper that cleans up in a trap should trap
-  `TERM`.
-
-`github.token_cmd` climbs the same chain as the tracker keys: `GH_TOKEN`,
-then `GITHUB_TOKEN`, then the personal `github.token`, then the personal
-`github.token_cmd`, then the team `github.token` only when `config.local.md`
-does not exist. It is refused from the same sources and with the same codes,
-with `GH_TOKEN` as the variable that still works.
 
 ### templates
 
