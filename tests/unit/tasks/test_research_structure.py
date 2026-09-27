@@ -114,6 +114,58 @@ def test_research_topic_grants_the_fetch_its_researchers_inherit() -> None:
     assert FETCH_GRANT in frontmatter_bash_rules(_read(RESEARCH_TOPIC))
 
 
+def _research_topic_prose() -> str:
+    """The skill's text with every run of whitespace collapsed to one space,
+    so an assertion never depends on where the prose wraps."""
+    return " ".join(_read(RESEARCH_TOPIC).split())
+
+
+def _section(prose: str, start: str, end: str) -> str:
+    begin = prose.find(start)
+    assert begin >= 0, f"{RESEARCH_TOPIC.name} lacks {start!r}"
+    rest = prose[begin:]
+    finish = rest.find(end)
+    assert finish >= 0, f"{RESEARCH_TOPIC.name} lacks {end!r}"
+    return rest[:finish]
+
+
+def test_research_topic_batches_through_the_spawn_window() -> None:
+    conduct = _section(_research_topic_prose(), "### conduct", "### synthesise")
+    for step in (
+        "--limit {concurrency} --start",
+        "--run {run} --spawned {batch}",
+    ):
+        assert step in conduct, (
+            f"conduct must plan through the spawn window with {step!r}"
+        )
+    end_run = conduct.find(
+        "accelerator research topic end-run SLUG --run {run}"
+    )
+    assert end_run >= 0, "conduct never ends its run"
+    manifest_edit = conduct.find("**Edit `manifest.md`**")
+    assert manifest_edit >= 0, "conduct never edits the manifest"
+    assert end_run < manifest_edit, (
+        "conduct must end its run before the final manifest edit"
+    )
+
+
+def test_research_topic_clamps_concurrency_under_the_knob_rule() -> None:
+    knobs = _section(
+        _research_topic_prose(),
+        "knobs bound the research",
+        "## Shared Preamble",
+    )
+    assert (
+        "- concurrency: !`accelerator config get "
+        "research.topic.concurrency --fail-safe`"
+    ) in knobs, (
+        "the knob block must resolve concurrency beside breadth and depth"
+    )
+    assert (
+        "(`--depth` or `--concurrency` on `outline`, `--breadth` on `conduct`)"
+    ) in knobs, "the misplaced-flag rule must name --concurrency on outline"
+
+
 def _injects(skill: str, profile: str) -> bool:
     """Whether `skill` injects `profile`, by name or through the `<profile>`
     placeholder a per-pair injection is written with."""

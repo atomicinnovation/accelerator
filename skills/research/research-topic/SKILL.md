@@ -9,7 +9,7 @@ description: Research an external subject over web and scholarly sources into
   closes it; a later outline or conduct reopens a closed subject. Use when the
   user wants to research a topic on the web or in the scholarly literature, not
   the codebase.
-argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG [--depth N] | synthesise SLUG | finalise SLUG"
+argument-hint: "brief SUBJECT | outline SLUG [--breadth N] | conduct SLUG [--depth N] [--concurrency N] | synthesise SLUG | finalise SLUG"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator corpus resolve *)
@@ -51,13 +51,15 @@ You are the engine for iterative topic research. The user invokes you with
 one verb and an argument. Dispatch on the verb: `brief SUBJECT`, `outline
 SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
-Two knobs bound the research. **breadth** is the ceiling on focus areas an
+Three knobs bound the research. **breadth** is the ceiling on focus areas an
 `outline` round may commission; **depth** is the recursion limit within a
-finding. Each knob's configured value, resolved `personal > team > built-in
-default`, is below:
+finding; **concurrency** is the most agents `conduct` spawns at once. Each
+knob's configured value, resolved `personal > team > built-in default`, is
+below:
 
 - breadth: !`accelerator config get research.topic.breadth --fail-safe`
 - depth: !`accelerator config get research.topic.depth --fail-safe`
+- concurrency: !`accelerator config get research.topic.concurrency --fail-safe`
 
 A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
 flag on the invocation wins over the configured value. Then apply these rules
@@ -75,9 +77,9 @@ in order:
 
   single-quoting the offending value. There is no upper bound; breadth is the
   per-round cost guard.
-- **Misplaced flag** — a flag belonging to the other verb (`--depth` on
-  `outline`, `--breadth` on `conduct`) is ignored with a one-line note; it
-  never clamps the verb's own knob.
+- **Misplaced flag** — a flag belonging to another verb (`--depth` or
+  `--concurrency` on `outline`, `--breadth` on `conduct`) is ignored with a
+  one-line note; it never clamps the verb's own knobs.
 
 Depth is dormant: `conduct` always spawns exactly one researcher per (focus
 area, profile) regardless of the resolved depth. When conduct's resolved depth
@@ -225,31 +227,39 @@ own finding. `accelerator research topic outstanding` owns which pairs
 are outstanding and where their findings go; never allocate a finding path
 yourself.
 
-1. **Plan the round.** Run:
+1. **Resolve depth and concurrency** per the knob-resolution rule above,
+   reading any `--depth N` and `--concurrency N` flags on the invocation.
+   When the resolved depth exceeds 1, print the depth notice defined in the
+   knob-resolution block.
+
+2. **Start the run.** Run:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --limit {concurrency} --start
    ```
 
    It prints JSON: `items`, each outline item's `line`, `question`, and
-   whether it is `complete`; `pairs`, each outstanding pair's `question`,
-   `profile`, and the absolute `path` its finding is written to; `skipped`,
-   each pair that cannot be researched, with its `reason`; and `warnings`.
-   Ignore any field not named here. If it exits non-zero, report its error
-   and stop.
+   whether it is `complete`; `pairs`, the batch offered to spawn now, each
+   with its `question`, `profile`, and the absolute `path` its finding is
+   written to; `skipped`, each pair that cannot be researched, with its
+   `reason`; `unaccepted`, each earlier spawn of this run whose pair is still
+   outstanding, by its `spawn` ref; `warnings`; and the `run` and `batch`
+   the next plan passes back. Keep `run` for the whole of `conduct`, and
+   report any warning that a stored ledger was replaced. Ignore any field
+   not named here. If it exits non-zero, report its error and stop.
 
-2. **Clear each path.** A pair's `path` that already exists holds a finding
-   that does not complete its pair. Quarantine it as `.<name>.invalid` beside
-   it before spawning, adding a unique suffix rather than overwriting an
-   existing marker, so an immutable finding is never clobbered.
+3. **Clear each path.** An offered pair's `path` that already exists holds a
+   finding that does not complete its pair. Quarantine it as
+   `.<name>.invalid` beside it before spawning, adding a unique suffix rather
+   than overwriting an existing marker, so an immutable finding is never
+   clobbered.
 
-3. **Resolve depth** per the knob-resolution rule above, reading any
-   `--depth N` flag on the invocation. When the resolved depth exceeds 1,
-   print the depth notice defined in the knob-resolution block.
-
-4. **Spawn one researcher per pair**, in parallel with the Task tool, using
+4. **Spawn the batch**: one researcher per offered pair, every Task call
+   issued together in one message and each waited on in full before the
+   next step, using
    `subagent_type: "!`accelerator config agent researcher --fail-safe`"`.
-   Inject into each agent's prompt:
+   Spawn exactly the offered pairs, never more. Inject into each agent's
+   prompt:
 
    - the profile path:
      `${CLAUDE_PLUGIN_ROOT}/skills/research/profiles/<profile>-profile/SKILL.md`
@@ -269,23 +279,52 @@ yourself.
    this boundary, exactly as `skills/vcs/commit/SKILL.md` wraps injected VCS
    context.
 
-5. **Handle each pair's outcome** after all return:
+5. **Handle each pair's outcome** once the whole batch returns:
 
    - A researcher that wrote **no file** (an unavailable source, a failed or
-     denied fetch, an agent error, or a refusal) is reported with the reason
-     its summary gives and left outstanding. There is nothing to quarantine.
+     denied fetch, an agent error, or a refusal) is recorded as failed with
+     the reason its summary gives and left outstanding. There is nothing to
+     quarantine.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
-     existing marker — and reported. The dot-prefix keeps it inside the
-     indexer's dot-skipping convention.
+     existing marker — and recorded as failed. The dot-prefix keeps it
+     inside the indexer's dot-skipping convention.
    - A finding that **validates** is retained.
 
-6. **Tick from disk.** Re-run the step 1 command and set every outline item's
-   checkbox, at its `line`, to its `complete` value — ticking and unticking
-   alike — so a checkbox never claims a focus area whose pairs are not all
-   answered.
+6. **Plan the next batch.** Run the step 2 command with `--run {run}
+   --spawned {batch}` in place of `--start`, where `batch` is the number the
+   previous plan returned:
 
-7. **Edit `manifest.md`** as the final step, to base `status: researching`;
+   ```bash
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --limit {concurrency} --run {run} --spawned {batch}
+   ```
+
+   Record each `unaccepted` pair not already recorded as failed, with the
+   reason "wrote a finding `outstanding` does not accept", or "wrote no
+   finding" when its `path` does not exist. Repeat steps 3–6 until the plan
+   offers no pair; with N pairs outstanding at the start this takes
+   `ceil(N / concurrency)` batches, and the run ledger never offers a pair
+   twice, so the loop always ends. Any non-zero exit, including
+   `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report it and stop.
+
+7. **End the run, then tick from disk.** Run:
+
+   ```bash
+   accelerator research topic end-run SLUG --run {run}
+   ```
+
+   If it exits non-zero, report its error and stop before ticking or editing
+   the manifest. Then run the plain plan, without `--limit` or any run flag:
+
+   ```bash
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles
+   ```
+
+   Set every outline item's checkbox, at its `line`, to its `complete` value
+   — ticking and unticking alike — so a checkbox never claims a focus area
+   whose pairs are not all answered.
+
+8. **Edit `manifest.md`** as the final step, to base `status: researching`;
    `round_count` set to the highest `round` stamped on any **retained,
    validated** finding on disk (the visible `<nn>-*.md` files, excluding any
    dot-prefixed `.invalid` quarantine marker, which still carries a `round:`
@@ -298,16 +337,16 @@ yourself.
    the injected `depth`, its pair's `question`, and its pair's profile as
    `source_profile`.
 
-8. **Summarise.** Name each pair the step 6 re-run still returns, with its
-   reason and next step, then each skipped pair and each warning. `conduct`
-   never fails because a source is unavailable.
+9. **Summarise.** Name each pair the step 7 plan still returns, with the
+   reason recorded for it and its next step, then each skipped pair and each
+   warning. `conduct` never fails because a source is unavailable.
 
    | Reason | Next step |
    |---|---|
    | `budget_exhausted`, keyless | configure `openalex.api_key` (`/accelerator:configure`), then re-run `conduct` |
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
-   | `rate_limited` with `cause: lock_contention` | the round had too many concurrent arXiv researchers; re-run `conduct`, or assign arXiv to fewer focus areas |
+   | `rate_limited` with `cause: lock_contention` | the round had too many concurrent arXiv researchers; re-run `conduct` with a lower `--concurrency`, or assign arXiv to fewer focus areas |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
    | "Bash unavailable" | grant `Bash` to the custom researcher agent |

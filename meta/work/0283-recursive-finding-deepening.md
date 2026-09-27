@@ -10,7 +10,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-26T00:55:27+00:00"
+last_updated: "2026-09-27T18:09:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-867"
@@ -95,7 +95,7 @@ and paths but never holds research content.
   including `depth: 1`, and composers — at most `concurrency` at a time,
   resolved flag (`conduct --concurrency N`) > config
   (`research.topic.concurrency`) > default `24`. `--concurrency` on `outline`
-  is rejected as a misplaced flag. A batch is one set of parallel spawns that
+  is ignored with a one-line note, as the other misplaced flags are. A batch is one set of parallel spawns that
   `conduct` issues together and waits on in full before issuing the next;
   researchers and composers of different pairs may share a batch. `conduct`
   fills each batch to `concurrency` from everything outstanding, so N spawns
@@ -222,7 +222,8 @@ and paths but never holds research content.
 - [ ] Given `research.topic.concurrency: 2` and 5 pairs at `depth: 1`, when
       `conduct` runs, then it spawns researchers in batches of 2, 2 and 1;
       given `--concurrency 3` as well, then batches of 3 and 2; given
-      `--concurrency` on `outline`, then it is rejected as a misplaced flag.
+      `--concurrency` on `outline`, then it is ignored with a one-line note,
+      as the other misplaced flags are.
 - [ ] Given `--concurrency 0`, or `research.topic.concurrency: many`, when
       `conduct` runs, then it spawns one agent per batch and warns, naming the
       invalid value and stating it was clamped to 1.
@@ -306,7 +307,8 @@ and paths but never holds research content.
       barrier, index retention from `1.md` and `.1.md.invalid`, and
       depth-bounded derivation at smaller and larger `--depth`, a
       composition-only pair, a dedupe case where `B` and ` B ` collapse under
-      `normalised`, and clamping of `research.topic.concurrency`.
+      `normalised`; and clamping of `research.topic.concurrency` verified by
+      the attended checks, as 0282's knobs are.
 
 ## Open Questions
 

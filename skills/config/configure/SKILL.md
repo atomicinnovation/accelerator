@@ -422,19 +422,21 @@ partitioned via script arrays, not frontmatter.
 ### research
 
 Tune how wide and deep `/accelerator:research-topic` goes. Config keys live under
-the `research.topic` namespace; both are positive integers. (These behavioural knobs
+the `research.topic` namespace; all three are positive integers. (These behavioural knobs
 are distinct from the `paths.research_*` output-directory keys under `### paths`.)
 
-| Key       | Default | Description                            |
-|-----------|---------|----------------------------------------|
-| `breadth` | `8`     | Focus-area ceiling per `outline` round |
-| `depth`   | `1`     | Recursion limit within a finding       |
+| Key           | Default | Description                            |
+|---------------|---------|----------------------------------------|
+| `breadth`     | `8`     | Focus-area ceiling per `outline` round |
+| `depth`       | `1`     | Recursion limit within a finding       |
+| `concurrency` | `24`    | Most agents `conduct` spawns at once   |
 
 Resolution order for each knob is **flag > personal (`config.local.md`) > team
-(`config.md`) > built-in default**: an `outline SLUG --breadth N` or `conduct
-SLUG --depth N` flag on the invocation overrides config, which overrides the
-built-in default. A resolved value that is not an integer of 1 or more is clamped
-to 1 with a warning naming the invalid value. There is no upper bound — breadth is
+(`config.md`) > built-in default**: an `outline SLUG --breadth N`, `conduct
+SLUG --depth N` or `conduct SLUG --concurrency N` flag on the invocation
+overrides config, which overrides the built-in default. A resolved value that is
+not an integer of 1 or more is clamped to 1 with a warning naming the invalid
+value. There is no upper bound — breadth is
 the per-round cost guard.
 
 `depth` has no behavioural effect yet — recursive deepening is not yet available.
@@ -449,6 +451,7 @@ research:
   topic:
     breadth: 6
     depth: 1
+    concurrency: 12
 ---
 \```
 

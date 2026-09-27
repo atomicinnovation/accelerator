@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T18:01:41+00:00"
+last_updated: "2026-09-27T18:09:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2048,10 +2048,10 @@ misplaced-flag rule names `--concurrency` on `outline`.
 
 #### Automated Verification
 
-- [ ] Catalogue and goldens pass: `cargo test -p config -p config-adapters -p accelerator`
-- [ ] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
-- [ ] Skill preprocessor lines resolve: `mise run test:integration:skill-invocation`
-- [ ] Skill lints pass: `mise run check`
+- [x] Catalogue and goldens pass: `cargo test -p config -p config-adapters -p accelerator`
+- [x] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
+- [x] Skill preprocessor lines resolve: `mise run test:integration:skill-invocation`
+- [x] Skill lints pass: `mise run check`
 - [ ] Full run green: `mise run`
 
 #### Manual Verification

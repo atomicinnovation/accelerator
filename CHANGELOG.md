@@ -93,6 +93,10 @@
   `<set>/.conduct-run.json`, removed on completion and safe to delete after an
   interrupted run; consider adding `**/.conduct-run.json` to your
   `.gitignore`.
+- **`research.topic.concurrency` and `conduct --concurrency N` cap how many
+  agents `research-topic`'s `conduct` spawns at once** (default 24). `conduct`
+  spawns its outstanding pairs in batches of at most that many, waiting on
+  each batch before the next.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
