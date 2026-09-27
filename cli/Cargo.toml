@@ -95,6 +95,15 @@ regex = "1"
 # the section-diff goldens assert its unified-diff output byte-for-byte, so a
 # formatting change in a new release must arrive as a deliberate re-bless.
 similar = "=2.7.0"
+# Unicode data for the plain-question gate. Exact-pinned as a pair built on one
+# Unicode version, because research-adapters copies its default-ignorable
+# table from that version's data and a test fails when either crate moves off
+# it.
+# unicode-normalization is already in the lock through gix-utils.
+unicode-normalization = "=0.1.25"
+unicode-properties = { version = "=0.1.4", default-features = false, features = [
+    "general-category",
+] }
 # Read-only XML trees for arXiv's Atom and OAI-PMH responses. Its default
 # parsing refuses a DTD, so no entity expansion reaches the decoder.
 roxmltree = "0.21"

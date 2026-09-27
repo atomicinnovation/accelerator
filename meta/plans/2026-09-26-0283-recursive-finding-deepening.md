@@ -5,7 +5,7 @@ title: "Recursive Finding Deepening Implementation Plan"
 date: "2026-09-26T16:57:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0283"
 parent: "work-item:0283"
 derived_from: ["codebase-research:2026-09-26-0283-recursive-finding-deepening"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T15:06:30+00:00"
+last_updated: "2026-09-27T16:57:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1067,7 +1067,7 @@ pub fn derive(
     - `fold` is NFKC through `unicode-normalization`, which maps `．` and
       `／` to ASCII and `｡` to `。`, which the gate then maps to `.`;
     - `is_hidden` holds for Unicode general categories Cc, Cf, Co, Cn, Zl
-      and Zp (through `unicode-general-category`), and for the
+      and Zp (through `unicode-properties`), and for the
       `Default_Ignorable_Code_Point` property. That covers line breaks,
       bidi and zero-width controls, variation selectors, U+034F, the
       Hangul fillers and the tag block U+E0000–E007F. The property comes
@@ -1078,9 +1078,10 @@ pub fn derive(
       `the_ignorable_table_matches_the_crates_unicode_version` asserts
       that version, a `(u8, u8, u8)` constant, against
       `unicode_normalization::UNICODE_VERSION`, which is 17.0.0 at the
-      locked 0.1.25. `unicode-general-category` is taken at a release built
-      on the same Unicode version, confirmed from its documentation before
-      implementing, and both crates are pinned exactly in
+      locked 0.1.25, and against `unicode_properties::UNICODE_VERSION`.
+      `unicode-properties` 0.1.4, with only its `general-category` feature,
+      replaces `unicode-general-category`, whose latest release (1.1.0) is
+      built on Unicode 16.0.0. Both crates are pinned exactly in
       `[workspace.dependencies]`. A `cargo update` that moves either one to
       a new Unicode version then fails the test on purpose, and the table
       is regenerated.
@@ -1249,7 +1250,9 @@ and without a field, because `from_frontmatter` never builds
 **Changes**:
 - `RoundInputs` gains `pub levels: Vec<LevelsDirectory>` and
   `pub depth: Depth`.
-- `Pair` gains `pub stage: Stage`:
+- `Pair` gains `pub stem: Stem`, from which its `path`, level-note paths
+  and spawn ref all derive, and `pub stage: Stage`. A pair whose profile
+  cannot form a `Stem` is not planned; Phase 4's adapter warns about it:
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1406,7 +1409,11 @@ impl RunLedger {
       acknowledged node's `notes_seen` entry is dropped. A note `conduct`
       quarantined and re-researched is then taken afresh rather than
       compared with the note it replaced.
-    - `record(&window)` pins every focus area's index from `window.round`,
+    - `record(&window)` pins every focus area's index from
+      `window.round.indexes`, a `PinnedIndexes` the planner fills with the
+      index of each focus area it planned an outstanding pair for. The round
+      carries the questions already normalised, because `record` has no
+      `UnicodeText` to normalise them with,
       adds the digest of every accepted note absent from `notes_seen`, and
       adds every stem in `window.round.answered` absent from
       `answered_seen`. Both sets only grow, so a pair answered in one batch
@@ -1459,8 +1466,9 @@ impl RunLedger {
     therefore terminates by construction for as long as its run owns the
     ledger, whether or not every re-plan acknowledges its batch. A
     superseded run stops at its next plan.
-- `Finding` gains `pub depth: Option<Depth>`, the depth it was stamped
-  with. A legacy finding has none and reads as depth 1.
+- `Finding` gains a private `depth: Option<Depth>`, the depth it was
+  stamped with, set through `Finding::with_depth(depth)` because its other
+  fields are private too. A legacy finding has none and reads as depth 1.
 - `Round` gains `pub shallower: Vec<ShallowerPair>`. `ShallowerPair { stem,
   depth }` is an answered pair whose finding was stamped below the requested
   depth, so `conduct` can say why it is not re-deepened.
@@ -1487,12 +1495,15 @@ impl RunLedger {
 - `Planner::new` feeds every `IndexHolder` name into `highest`.
   `index_for` falls back to the minimum over index holders whose question
   matches.
-- Allocation is checked end to end. `highest + 1` becomes a `checked_add`,
-  and an index with no successor is left out of `highest`. `next_index`
-  becomes an `Option<u32>` advanced with `checked_add`, and when it is
-  exhausted the focus area is reported as a warning and not planned. A
-  name such as `4294967294-x.levels` therefore cannot overflow the first or
-  any later allocation.
+- Allocation is checked end to end. `next_index` is an `Option<u32>`:
+  `highest.checked_add(1)`, or 1 when nothing holds an index, advanced with
+  `checked_add`. An index at `u32::MAX` therefore exhausts allocation
+  rather than being left out of `highest`, which could hand out
+  `u32::MAX` a second time. A focus area that needs a new index once
+  allocation is exhausted is reported as
+  `Warning::IndexesExhausted { question }` and not planned. A name such as
+  `4294967294-x.levels` therefore cannot overflow the first or any later
+  allocation.
 
 **Tests first** (planning in `round.rs`, the window in `spawn_window.rs`):
 - `a_pair_without_levels_at_depth_one_is_researched_directly`, which also
@@ -1580,11 +1591,11 @@ phase. So this phase also:
   Phase 4 replaces with real reads;
 - adds `cli/corpus-adapters/src/unicode_text.rs` with `UnicodeTables`, the
   `UnicodeText` implementation specified in item 1. It declares
-  `unicode-normalization` and `unicode-general-category` in
+  `unicode-normalization` and `unicode-properties` in
   `cli/Cargo.toml` `[workspace.dependencies]`, with a justifying comment,
   and takes both into `corpus-adapters` with `{ workspace = true }`;
 - injects `UnicodeTables` in `corpus-cli`'s call to `Round::plan`;
-- runs `mise run notices:update`, which records `unicode-general-category`.
+- runs `mise run notices:update`, which records `unicode-properties`.
 
 **Tests first** (`cli/corpus-adapters/src/unicode_text.rs`):
 - `unicode_tables_hide_every_refused_class`, covering `\u{7}`, `\u{202E}`,
@@ -1608,17 +1619,17 @@ as fullwidth punctuation are treated as the same.
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo test -p corpus topic_research`
-- [ ] Unicode tables pass: `cargo test -p corpus-adapters unicode_text`
-- [ ] Existing outstanding CLI tests unaffected: `cargo test -p accelerator-corpus --test topic_research_outstanding`
-- [ ] Domain imports stay confined: `mise run pup:check`
-- [ ] Third-party notices match: `mise run notices:check`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] Full run green: `mise run`
+- [x] Domain tests pass: `cargo test -p corpus topic_research`
+- [x] Unicode tables pass: `cargo test -p corpus-adapters unicode_text`
+- [x] Existing outstanding CLI tests unaffected: `cargo test -p accelerator-corpus --test topic_research_outstanding`
+- [x] Domain imports stay confined: `mise run pup:check`
+- [x] Third-party notices match: `mise run notices:check`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] None. This phase is domain code plus its minimal wiring, fully
+- [x] None. This phase is domain code plus its minimal wiring, fully
       covered by unit tests.
 
 ---

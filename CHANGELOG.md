@@ -219,6 +219,11 @@
   carrying its template, extras (required and optional separately), status
   vocabulary and linkage keys.
 
+- **`accelerator research topic outstanding` matches questions after
+  Unicode compatibility folding.** Questions that differ only by forms such as
+  fullwidth punctuation are treated as the same, so a finding for `A？`
+  answers the outline item `A?`.
+
 - **The research guard admits only an indexed finding stem, and confines a
   `composer` role beside the researcher.** A confined write must name
   `findings/<nn>-<name>.md`, whose stem is ASCII digits, a `-`, then only

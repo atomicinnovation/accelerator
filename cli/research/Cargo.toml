@@ -6,5 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[dependencies]
+corpus = { path = "../corpus" }
+
 [lints]
 workspace = true

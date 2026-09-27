@@ -94,7 +94,9 @@
         )),
         // The whole research crate is domain (no adapter modules live in it);
         // HTTP, JSON and XML decoding, the pacing lock and the clock live in
-        // research-adapters, injected through ports.
+        // research-adapters, injected through ports. It additionally permits
+        // corpus, a zero-dependency port crate, for the topic-research set
+        // layout's stems and lineages that round planning allocates.
         Module((
             name: "research_domain_imports_only_permitted",
             matches: Module("^research($|::)"),
@@ -103,6 +105,7 @@
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
+                        "^corpus(::|$)",
                         "^crate(::|$)",
                     ]),
                     denied: None,

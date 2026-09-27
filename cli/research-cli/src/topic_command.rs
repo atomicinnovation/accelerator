@@ -9,6 +9,7 @@ use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 use research::round::Round;
 use research_adapters::topic_research::read_round_inputs;
+use research_adapters::unicode_text::UnicodeTables;
 use serde_json::json;
 
 use crate::context::ProjectContext;
@@ -37,7 +38,7 @@ pub fn outstanding<F: DirReader + FileReader>(
     };
     let inputs = read_round_inputs(&set_root, profiles_dir, fs)
         .map_err(|error| error.to_string())?;
-    Ok(render(&Round::plan(&inputs), &set_root).to_string())
+    Ok(render(&Round::plan(&inputs, &UnicodeTables), &set_root).to_string())
 }
 
 /// Each pair's `path` is emitted beneath `set_root`, which resolution has

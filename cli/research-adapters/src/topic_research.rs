@@ -12,11 +12,13 @@ use corpus::Scalar;
 use corpus_adapters::frontmatter_validation::validate_path;
 use corpus_adapters::parse;
 use corpus_adapters::FrontmatterState;
+use research::pinned_indexes::PinnedIndexes;
 use research::round::Finding;
 use research::round::Outline;
 use research::round::QuarantineMarker;
 use research::round::RoundInputs;
 use research::round::DEFAULT_PROFILE;
+use research::tree::Depth;
 
 const PROFILE_SUFFIX: &str = "-profile";
 const QUARANTINE_SUFFIX: &str = ".invalid";
@@ -83,6 +85,9 @@ pub fn read_round_inputs<F: DirReader + FileReader>(
         markers,
         source_profiles,
         available_profiles: available_profiles(profiles_dir, fs)?,
+        levels: Vec::new(),
+        depth: Depth::default(),
+        pins: PinnedIndexes::default(),
     })
 }
 

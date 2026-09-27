@@ -12,3 +12,4 @@ pub mod pacing;
 pub mod scratch;
 pub mod topic_research;
 pub mod transport;
+pub mod unicode_text;
