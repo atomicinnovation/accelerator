@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-28T09:00:00+00:00"
+last_updated: "2026-09-28T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2037,21 +2037,62 @@ retires it to the key path as normal.
 sync, a draft simply waits; it is never pushed without retiring its ID,
 so no later promotion can duplicate it.
 
+> Implementation notes:
+>
+> - `tracker` forbids inline test modules (`tracker/tests/structure.rs`), so
+>   `only_jira_and_linear_support_tracker_owned_ids` lives in
+>   `tracker/tests/tracker_owned_ids.rs`, and
+>   `the_id_pattern_error_display_equals_resolve_schemes_message` is a
+>   `work-cli` `config` unit test, where both the error and `resolve_scheme`
+>   are in reach. `resolve_scheme` prints
+>   `E_WORK_ID_PATTERN_INVALID: <IdPatternError>`.
+> - `validate_id_pattern` is brace-aware, so an escaped `{{tracker}}` is a
+>   literal. `compile` in `Scan` mode returns the tracker scan regex; in
+>   `Format` mode, and in `pattern_max_number` and `parse_full_id`, it is
+>   `TrackerHasNoNumber`. `canonicalise_id` under `{tracker}` returns its
+>   (quote-stripped) input.
+> - The visualiser needed no width change: it has no numeric handling beyond
+>   the scan regex, so composing succeeds once `compile_scan_regex` accepts
+>   `{tracker}`. `the_visualiser_composes_under_a_tracker_pattern` is in
+>   `visualiser/server/tests/compose_contract.rs`, beside the other
+>   `compose::load` contracts.
+> - `work::draft_id` also has `mint_draft_ids(draws, items, count)`, which
+>   `next-number --count` uses so a batch never repeats an ID;
+>   `DraftIdExhausted { attempts }` renders as `E_DRAFT_ID_EXHAUSTED`.
+> - `work create --project` under `{tracker}` is `E_PATTERN_KEY_UNUSED`, as
+>   `next-number --project` is.
+> - The pull-adoption tests are `work-cli` `sync_author` unit tests, since
+>   the engine sees authoring only through the `LocalAuthor` port; they also
+>   cover refusing a key another item holds (`holder_of`) or links
+>   (`linker_of`). `unpromoted_drafts_are_never_created_from_local` is in
+>   `work-adapters/tests/sync_create.rs`.
+> - The `next-number --help` long text is the only user-facing mention of
+>   `{tracker}`, as §4 asks.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p corpus -p corpus-adapters -p work -p work-adapters`
-- [ ] `cd cli && cargo test -p accelerator-work`
-- [ ] `mise run test:unit:visualiser`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p corpus -p corpus-adapters -p work -p work-adapters`
+- [x] `cd cli && cargo test -p accelerator-work`
+- [x] `mise run test:unit:visualiser`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run` exits 0
+
+> Implementation note: the full run's only failure was
+> `test:e2e:visualiser`, which reused an orphaned `start-server.mjs` from
+> another checkout holding the shared health port; it passed on rerun once
+> that process was stopped.
 
 #### Manual Verification:
 
 - [ ] In a scratch repo configured with `{tracker}` + Linear,
       `accelerator work create "T" task low` writes a draft and
       `accelerator visualiser` starts.
+      The draft half is observed (`meta/work/drafts/draft-t3xgaz-t.md`, `id`
+      and H1 agreeing); the visualiser start is covered by
+      `the_visualiser_composes_under_a_tracker_pattern` but not yet run by
+      hand.
 
 ---
 

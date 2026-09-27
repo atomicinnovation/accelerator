@@ -15,6 +15,7 @@ use corpus_adapters::FileRecoveryCopies;
 use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
+use work::draft_id::DraftId;
 use work::identity::IdentityField;
 use work::retirement::RECOVERY_PARENT;
 use work::retirement::RETIREMENT_INCOMPLETE;
@@ -430,6 +431,8 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
 
 fn id_is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
     scheme.is_canonical_id_token(id)
+        || (scheme.ownership() == IdOwnership::Tracker
+            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
 }
 
 fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
@@ -1444,7 +1447,7 @@ pub fn run_sync(
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
-        ownership: IdOwnership::Local,
+        ownership: scheme.ownership(),
         state_dir: &state_dir,
     };
     let discovery = WorkDirDiscovery {
@@ -2730,6 +2733,56 @@ mod tests {
         assert!(!super::id_is_token_safe(&scheme, "0001; rm -rf ~"));
         assert!(!super::id_is_token_safe(&scheme, "1"));
         assert!(!super::id_is_token_safe(&scheme, ""));
+    }
+
+    fn tracker_scheme() -> WorkItemIdScheme {
+        WorkItemIdScheme {
+            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
+            key: None,
+        }
+    }
+
+    #[test]
+    fn a_conflict_dossier_is_written_for_a_tracker_keyed_item() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dossiers = vec![
+            conflict_dossier("ENG-42", false),
+            conflict_dossier("MY_PROJ-7", false),
+            conflict_dossier("0230", false),
+            conflict_dossier("../ENG-1", false),
+        ];
+
+        super::persist_dossiers(
+            &dossiers,
+            dir.path(),
+            &tracker_scheme(),
+            &ok_render,
+        );
+
+        assert_eq!(
+            md_files(dir.path()),
+            vec!["0230.md", "ENG-42.md", "MY_PROJ-7.md"]
+        );
+    }
+
+    #[test]
+    fn a_conflict_dossier_is_written_for_a_draft() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        super::persist_dossiers(
+            &[conflict_dossier("draft-k7mq3x", false)],
+            dir.path(),
+            &tracker_scheme(),
+            &ok_render,
+        );
+
+        assert_eq!(md_files(dir.path()), vec!["draft-k7mq3x.md"]);
+    }
+
+    #[test]
+    fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
+        assert!(!super::id_is_token_safe(&scheme(), "ENG-42"));
+        assert!(!super::id_is_token_safe(&scheme(), "draft-k7mq3x"));
     }
 
     fn md_files(dir: &std::path::Path) -> Vec<String> {

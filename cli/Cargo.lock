@@ -5751,6 +5751,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "rand 0.9.5",
  "remote-projection",
  "reqwest",
  "serde_json",

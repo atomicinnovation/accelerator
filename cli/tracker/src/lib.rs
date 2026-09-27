@@ -815,3 +815,10 @@ pub trait RemoteTracker {
         body: &str,
     ) -> ValidationOutcome;
 }
+
+/// True iff the integration's issue keys are stable, unique, file-safe
+/// identifiers a work item can take as its `id`.
+#[must_use]
+pub fn supports_tracker_owned_ids(integration: &str) -> bool {
+    matches!(integration, "jira" | "linear")
+}

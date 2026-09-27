@@ -9,6 +9,7 @@ use ::config::resolve_with_deprecated_fallback;
 use ::config::ConfigAccess;
 use ::config::Key;
 use corpus::references_key;
+use corpus::validate_id_pattern;
 use corpus::WorkItemIdScheme;
 
 pub const LEGACY_PREFIX_KEY: &str = "work.default_project_code";
@@ -47,12 +48,23 @@ fn work_key_required(id_pattern: &str) -> kernel::Error {
 ///
 /// # Errors
 ///
-/// A [`kernel::Error`] when a key read fails, or when the pattern references
-/// `{key}` but no prefix is configured.
+/// A [`kernel::Error`] when a key read fails, when the pattern breaks a
+/// `{tracker}` rule, or when the pattern references `{key}` but no prefix is
+/// configured.
 pub fn resolve_scheme(
     config: &dyn ConfigAccess,
 ) -> Result<WorkItemIdScheme, kernel::Error> {
     let id_pattern = effective_nonempty(config, "work.id_pattern")?;
+    let integration = configured_override(config, "work.integration")?;
+    validate_id_pattern(
+        &id_pattern,
+        integration
+            .as_deref()
+            .is_some_and(tracker::supports_tracker_owned_ids),
+    )
+    .map_err(|error| {
+        kernel::Error::Failed(format!("E_WORK_ID_PATTERN_INVALID: {error}"))
+    })?;
     let pattern_uses_key = references_key(&id_pattern);
     let prefix = resolve_with_deprecated_fallback(
         config,
@@ -122,6 +134,9 @@ mod tests {
     use ::config::{
         ConfigAccess, ConfigError, Key, Level, Resolved, Scalar, Value,
     };
+
+    use corpus::IdOwnership;
+    use corpus::IdPatternError;
 
     use super::resolve_scheme;
 
@@ -204,6 +219,53 @@ mod tests {
         ]);
         let scheme = resolve_scheme(&config).unwrap();
         assert_eq!(scheme.key.as_deref(), Some("PP"));
+    }
+
+    #[test]
+    fn resolve_scheme_accepts_tracker_under_jira_or_linear() {
+        for integration in ["jira", "linear"] {
+            let config = FakeConfig::with(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", integration),
+            ]);
+            let scheme = resolve_scheme(&config).unwrap();
+            assert_eq!(scheme.ownership(), IdOwnership::Tracker);
+        }
+    }
+
+    #[test]
+    fn resolve_scheme_rejects_an_invalid_tracker_pattern() {
+        let cases = [
+            ("{tracker}-{number:04d}", Some("linear")),
+            ("{tracker}", None),
+            ("{tracker}", Some("trello")),
+            ("{tracker}", Some("github-issues")),
+        ];
+        for (pattern, integration) in cases {
+            let mut pairs = vec![("work.id_pattern", pattern)];
+            pairs.extend(integration.map(|name| ("work.integration", name)));
+            let error = resolve_scheme(&FakeConfig::with(&pairs)).unwrap_err();
+            assert!(
+                error.to_string().starts_with("E_WORK_ID_PATTERN_INVALID: "),
+                "{pattern} {integration:?}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_id_pattern_error_display_equals_resolve_schemes_message() {
+        let config = FakeConfig::with(&[
+            ("work.id_pattern", "{tracker}"),
+            ("work.integration", "trello"),
+        ]);
+        let error = resolve_scheme(&config).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "E_WORK_ID_PATTERN_INVALID: {}",
+                IdPatternError::TrackerNeedsJiraOrLinear
+            )
+        );
     }
 
     #[test]

@@ -1057,6 +1057,22 @@ mod tests {
         assert!(listing.contains("⚪ unsynced"), "{listing}");
     }
 
+    #[test]
+    fn a_draft_in_the_canonical_directory_is_listed_as_a_draft() {
+        let repo = integrated_repo(&[
+            ("0001-a.md", "0001"),
+            ("draft-k7mq3x-b.md", "draft-k7mq3x"),
+        ]);
+
+        let listing = listed(repo.path());
+
+        let draft_row = listing
+            .lines()
+            .find(|line| line.contains("draft-k7mq3x"))
+            .expect("the misplaced draft is listed");
+        assert!(draft_row.contains("🟠 draft"), "{listing}");
+    }
+
     fn write_item(dir: &Path, id: &str, body: &str) -> PathBuf {
         let path = dir.join(format!("{id}.md"));
         std::fs::write(&path, format!("---\nid: \"{id}\"\n---\n{body}\n"))

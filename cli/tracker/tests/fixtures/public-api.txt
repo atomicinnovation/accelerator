@@ -245,3 +245,4 @@ pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> co
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
 pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>
 pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> tracker::ValidationOutcome
+pub fn tracker::supports_tracker_owned_ids(integration: &str) -> bool
