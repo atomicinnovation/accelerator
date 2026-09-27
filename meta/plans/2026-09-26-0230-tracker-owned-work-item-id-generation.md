@@ -235,14 +235,14 @@ ADR-0044, before any code changes land.
 
 #### Automated Verification:
 
-- [ ] Frontmatter validates:
+- [x] Frontmatter validates:
       `accelerator corpus frontmatter validate --file meta/decisions/ADR-0069-tracker-owned-work-item-identity.md`
-- [ ] Whole corpus still clean: `mise run test:unit:cli` (includes
+- [x] Whole corpus still clean: `mise run test:unit:cli` (includes
       `this_repositorys_own_corpus_is_clean`)
 
 #### Manual Verification:
 
-- [ ] ADR-0069 is `accepted` and ADR-0044 is `superseded`.
+- [x] ADR-0069 is `accepted` and ADR-0044 is `superseded`.
 - [ ] The ADR's decision matches the work item's Requirements section.
 
 ---
