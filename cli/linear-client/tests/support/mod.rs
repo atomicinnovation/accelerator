@@ -19,16 +19,20 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
+use config::consent::{ConfigFileTracking, Tracking};
 use config::credentials::{
     CommandPolicy, CredentialContext, Environment, Provenance,
 };
-use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 use config_adapters::credentials::{BashTokenCommandRunner, SystemFileFacts};
 use tracker_support::{Jitter, Sleeper};
 
+/// A personal value implies a readable personal file; a config with none has
+/// no personal file at all.
 pub struct FixedConfig {
     personal: BTreeMap<String, String>,
     team: BTreeMap<String, String>,
+    personal_file: PersonalFile,
 }
 
 impl FixedConfig {
@@ -37,12 +41,14 @@ impl FixedConfig {
         Self {
             personal: BTreeMap::new(),
             team: BTreeMap::new(),
+            personal_file: PersonalFile::Absent,
         }
     }
 
     #[must_use]
     pub fn with_personal(mut self, key: &str, value: &str) -> Self {
         self.personal.insert(key.to_owned(), value.to_owned());
+        self.personal_file = PersonalFile::Readable;
         self
     }
 
@@ -78,6 +84,10 @@ impl config::ConfigAccess for FixedConfig {
         _level: Level,
     ) -> Result<(), ConfigError> {
         unreachable!("the client never writes config")
+    }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &self.personal_file
     }
 }
 
@@ -128,17 +138,28 @@ impl Provenance for FixedProvenance {
     }
 }
 
+impl ConfigFileTracking for FixedProvenance {
+    fn tracking(&self, path: &Path) -> Tracking {
+        if self.is_tracked(path) {
+            Tracking::Tracked
+        } else {
+            Tracking::Untracked
+        }
+    }
+}
+
 #[must_use]
 pub fn context<'a>(
     environment: &'a dyn Environment,
     config: &'a dyn config::ConfigAccess,
-    provenance: &'a dyn Provenance,
+    provenance: &'a FixedProvenance,
     root: &Path,
 ) -> CredentialContext<'a> {
     CredentialContext {
         environment,
         config,
         provenance,
+        tracking: provenance,
         files: &SystemFileFacts,
         commands: &BashTokenCommandRunner,
         personal_config: root.join("config.local.md"),

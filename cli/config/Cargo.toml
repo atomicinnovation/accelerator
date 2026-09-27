@@ -9,8 +9,14 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Test-only key descriptors. Only `config` and `config-adapters` may enable it,
+# and only as dev-dependencies, so consumer tests exercise real keys.
+test-support = []
+
 [dependencies]
 kernel = { path = "../kernel" }
 
 [dev-dependencies]
+config = { path = ".", features = ["test-support"] }
 tempfile = { workspace = true }

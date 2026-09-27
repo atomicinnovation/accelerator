@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use config::{
     ConfigError, CustomLens, EjectOutcome, EjectResult, LensFields, Level,
-    Node, ReadConfigLevel, ReadContent, ReadLensCatalogue, ReadTemplate,
-    ResolvedTemplate, Scaffold, TemplateOverride, TemplateSource,
+    Node, PersonalFile, ReadConfigLevel, ReadContent, ReadLensCatalogue,
+    ReadTemplate, ResolvedTemplate, Scaffold, TemplateOverride, TemplateSource,
     WriteConfigLevel,
 };
 use store::{NewFileMode, WriteBounds, WriteError, TEMP_PREFIX};
@@ -128,6 +128,31 @@ impl FileConfigStore {
         self.root.join(".accelerator")
     }
 
+    /// Whether the personal file is absent, readable, or to be ignored,
+    /// decided by the same check every personal read runs, without reading
+    /// the file's contents.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] when the file's metadata cannot be read.
+    pub fn probe_personal_file(&self) -> Result<PersonalFile, ConfigError> {
+        let path = self.level_path(Level::Personal);
+        match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(PersonalFile::Absent)
+            }
+            Err(error) => return Err(io_error(&path, &error)),
+            Ok(_) => {}
+        }
+        match store::require_owner_only_permissions(&path) {
+            Ok(()) => Ok(PersonalFile::Readable),
+            Err(WriteError::InsecurePermissions { mode, .. }) => {
+                Ok(PersonalFile::Ignored { path, mode })
+            }
+            Err(error) => Err(to_config_error(error)),
+        }
+    }
+
     fn legacy_dir(&self) -> PathBuf {
         self.root.join(".claude")
     }
@@ -181,7 +206,8 @@ impl FileConfigStore {
 /// domain), since it is a POSIX-specific concept the `config` domain crate
 /// itself must not need to know about — only `to_config_error` (below)
 /// translates its `WriteError::InsecurePermissions` into this crate's own
-/// `ConfigError::Invalid`.
+/// `ConfigError::InsecurePersonalFile`. A write runs the same check: an
+/// atomic write would otherwise replace an insecure file at 0600.
 fn require_secure_personal_file(
     level: Level,
     path: &Path,
@@ -231,6 +257,7 @@ impl ReadConfigLevel for FileConfigStore {
 impl WriteConfigLevel for FileConfigStore {
     fn write(&self, level: Level, document: &Node) -> Result<(), ConfigError> {
         let path = self.level_path(level);
+        require_secure_personal_file(level, &path)?;
         let config_dir = self.config_dir();
         let bounds = self.bounds(&config_dir);
         store::ensure_contained(&path, &bounds).map_err(to_config_error)?;
@@ -764,14 +791,8 @@ fn to_config_error(error: WriteError) -> ConfigError {
             detail: "atomic rename crossed a filesystem boundary".to_owned(),
         },
         WriteError::Io { path, detail } => ConfigError::Io { path, detail },
-        // A caller-fixable local-environment problem (the same category as
-        // `ConfigError::Invalid`), not a transient/degradable `Io` failure —
-        // needs its own arm ahead of the catch-all below, which maps to
-        // `Io` and would otherwise misclassify it as non-refusal.
-        error @ WriteError::InsecurePermissions { .. } => {
-            ConfigError::Invalid {
-                detail: error.to_string(),
-            }
+        WriteError::InsecurePermissions { path, mode } => {
+            ConfigError::InsecurePersonalFile { path, mode }
         }
         other => ConfigError::Io {
             path: String::new(),
@@ -1094,7 +1115,7 @@ mod tests {
                 "new",
                 Level::Personal,
             ),
-            Err(ConfigError::Invalid { .. })
+            Err(ConfigError::InsecurePersonalFile { .. })
         ));
         assert_eq!(
             mode_of(&root.join(".accelerator/config.local.md"))?,
@@ -1160,7 +1181,7 @@ mod tests {
         let store = FileConfigStore::at(&root);
         assert!(matches!(
             store.read(Level::Personal),
-            Err(ConfigError::Invalid { .. })
+            Err(ConfigError::InsecurePersonalFile { .. })
         ));
         Ok(())
     }
@@ -1209,7 +1230,7 @@ mod tests {
         let Err(error) = store.read(Level::Personal) else {
             return Err("expected an insecure-permissions refusal".into());
         };
-        assert!(matches!(error, ConfigError::Invalid { .. }));
+        assert!(matches!(error, ConfigError::InsecurePersonalFile { .. }));
         assert!(error.to_string().contains("644"), "{error}");
         Ok(())
     }
@@ -1278,7 +1299,7 @@ mod tests {
         let store = FileConfigStore::at(&root);
         assert!(matches!(
             store.config_body(Level::Personal),
-            Err(ConfigError::Invalid { .. })
+            Err(ConfigError::InsecurePersonalFile { .. })
         ));
         Ok(())
     }
@@ -1298,7 +1319,7 @@ mod tests {
         let store = FileConfigStore::at(&root);
         assert!(matches!(
             store.config_body(Level::Personal),
-            Err(ConfigError::Invalid { .. })
+            Err(ConfigError::InsecurePersonalFile { .. })
         ));
         Ok(())
     }

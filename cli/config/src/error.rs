@@ -59,6 +59,10 @@ pub enum ConfigError {
     Invalid {
         detail: String,
     },
+    InsecurePersonalFile {
+        path: String,
+        mode: u32,
+    },
     UnsafePath {
         path: String,
     },
@@ -79,6 +83,7 @@ impl ConfigError {
     pub const fn is_refusal(&self) -> bool {
         match self {
             Self::Invalid { .. }
+            | Self::InsecurePersonalFile { .. }
             | Self::PluginRootUnavailable
             | Self::PluginRootNotAnInstallation { .. } => true,
             Self::NotFound { .. }
@@ -123,6 +128,11 @@ impl Display for ConfigError {
                  non-empty segments"
             ),
             Self::Invalid { detail } => write!(formatter, "{detail}"),
+            Self::InsecurePersonalFile { path, mode } => write!(
+                formatter,
+                "E_LOCAL_PERMS_INSECURE: {path} is mode {mode:04o} or a \
+                 symlink; run 'chmod 600 {path}' to use it"
+            ),
             Self::UnsafePath { path } => write!(
                 formatter,
                 "refusing to follow an unsafe config path '{path}'"
@@ -289,6 +299,11 @@ mod tests {
         .is_refusal());
         assert!(ConfigError::Invalid {
             detail: "bad".to_owned()
+        }
+        .is_refusal());
+        assert!(ConfigError::InsecurePersonalFile {
+            path: ".accelerator/config.local.md".to_owned(),
+            mode: 0o644,
         }
         .is_refusal());
     }

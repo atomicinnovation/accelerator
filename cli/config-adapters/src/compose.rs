@@ -1,23 +1,73 @@
 //! The wiring protocol as a single tested helper: discover the root once, run
-//! the legacy guard against it, then build the store and service rooted at the
-//! same directory.
+//! the legacy guard against it, probe the personal file, then build the store
+//! and service rooted at the same directory.
 
 use std::path::Path;
 
-use config::{ConfigError, ConfigService};
+use config::consent::Refusal;
+use config::{ConfigError, ConfigService, PersonalFile};
 
 use crate::legacy;
+use crate::screen::ScreenedStore;
 use crate::store::{FileConfigStore, LegacyPolicy};
 
 /// The composed configuration ports handed to the composition root.
 ///
-/// The resolution service serves scalar reads; the store serves the
-/// view-assembling block subcommands as a raw level reader. Both are the same
-/// `FileConfigStore` rooted at the discovered project directory, each boxed
-/// behind its `config`-crate trait by the root.
+/// The service reads through `screened` and writes through the checked store.
+/// `screened` also serves the view-assembling block subcommands as a raw level
+/// reader, so both read paths tolerate an ignored personal file alike. `store`
+/// serves only the ports that never read a config level.
 pub struct Composed {
-    pub service: ConfigService<FileConfigStore, FileConfigStore>,
+    pub service: ConfigService<ScreenedStore, FileConfigStore>,
     pub store: FileConfigStore,
+    pub screened: ScreenedStore,
+}
+
+impl Composed {
+    /// Composes the ports over an already-rooted store: probes its personal
+    /// file once and screens every read through that fact.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] when the personal file's metadata cannot be read.
+    pub fn over(store: FileConfigStore) -> Result<Self, ConfigError> {
+        let personal_file = store.probe_personal_file()?;
+        let screened = ScreenedStore::new(store.clone(), personal_file.clone());
+        let service = ConfigService::with_personal_file(
+            screened.clone(),
+            store.clone(),
+            personal_file,
+        );
+        Ok(Self {
+            service,
+            store,
+            screened,
+        })
+    }
+
+    #[must_use]
+    pub const fn personal_file(&self) -> &PersonalFile {
+        self.screened.personal_file()
+    }
+
+    /// Reports an ignored personal file on stderr, once per process however
+    /// many times the process composes.
+    pub fn report_ignored_personal_file(&self) {
+        if let Some(refusal) = Refusal::for_personal_file(self.personal_file())
+        {
+            kernel::render::personal_file_warning(&refusal);
+        }
+    }
+
+    /// For a command that writes: its writes would persist after the user
+    /// fixed the file's mode, so it refuses rather than run on team values.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::InsecurePersonalFile`] when the personal file is ignored.
+    pub fn require_readable_personal_file(&self) -> Result<(), ConfigError> {
+        self.personal_file().require_readable()
+    }
 }
 
 /// Wires the configuration ports at `cwd`'s project root.
@@ -29,7 +79,8 @@ pub struct Composed {
 /// # Errors
 ///
 /// [`ConfigError::LegacyLayout`] when the discovered root carries the legacy
-/// `.claude/accelerator.md` layout and the policy is [`LegacyPolicy::Reject`].
+/// `.claude/accelerator.md` layout and the policy is [`LegacyPolicy::Reject`];
+/// [`ConfigError::Io`] when the personal file's metadata cannot be read.
 pub fn compose(
     cwd: &Path,
     policy: LegacyPolicy,
@@ -38,9 +89,7 @@ pub fn compose(
     if policy == LegacyPolicy::Reject {
         legacy::assert_no_legacy_layout(&root)?;
     }
-    let store = FileConfigStore::at(root).with_legacy_policy(policy);
-    let service = ConfigService::new(store.clone(), store.clone());
-    Ok(Composed { service, store })
+    Composed::over(FileConfigStore::at(root).with_legacy_policy(policy))
 }
 
 #[cfg(test)]

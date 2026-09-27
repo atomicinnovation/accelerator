@@ -168,6 +168,8 @@ fn jira_client(base: &str, config: TransportConfig) -> JiraClient {
             email: "toby@example.com".to_owned(),
             token: Secret::new("secret".to_owned()),
             source: TokenSource::Env,
+            refusals: Vec::new(),
+            notice: None,
         },
         config,
         Box::new(NoSleep),

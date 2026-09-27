@@ -9,6 +9,7 @@
 mod compose;
 mod document;
 mod render;
+mod screen;
 mod store;
 
 pub mod credentials;
@@ -16,4 +17,5 @@ pub mod legacy;
 
 pub use compose::{compose, Composed};
 pub use render::{render_resolved, render_value, ABSENT_SENTINEL};
+pub use screen::ScreenedStore;
 pub use store::{plugin_root_from_env, FileConfigStore, LegacyPolicy};

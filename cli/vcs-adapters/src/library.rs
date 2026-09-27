@@ -451,6 +451,18 @@ impl InProcessProbe {
             VcsKind::None => Ok(false),
         }
     }
+
+    /// Whether git's index at `root` holds any file beneath `directory`.
+    ///
+    /// # Errors
+    ///
+    /// When `root`'s index cannot be read.
+    pub(crate) fn tracks_any_under(
+        root: &Path,
+        directory: &str,
+    ) -> Result<bool, Error> {
+        tracked::git_tracks_any_under(root, directory)
+    }
 }
 
 impl vcs::VcsReporter for InProcessProbe {

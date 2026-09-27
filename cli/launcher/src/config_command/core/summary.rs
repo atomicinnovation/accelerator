@@ -5,6 +5,7 @@
 //! the state the hook injects nothing for. The init sentinel resolves against
 //! the project root, not the caller's CWD.
 
+use config::consent::Refusal;
 use config::{
     ConfigAccess, ConfigError, Key, Level, Node, ReadConfigLevel, ReadContent,
     ReadLensCatalogue,
@@ -31,11 +32,35 @@ pub struct SummaryView {
     pub initialised: bool,
 }
 
+/// The warnings a summary raises, by who must see them.
+pub struct SummaryWarnings {
+    /// For whoever ran the command: stderr.
+    pub operator: Vec<String>,
+    /// For the user and the session alike: only the user can act on them,
+    /// and the session must be able to explain them.
+    pub session: Vec<String>,
+}
+
 /// # Errors
 ///
 /// A [`ConfigError`] when a config level, body, or customisation directory
 /// cannot be read.
 pub fn assemble(
+    config: &dyn ConfigAccess,
+    levels: &dyn ReadConfigLevel,
+    content: &dyn ReadContent,
+    enumeration: &dyn ReadLensCatalogue,
+) -> Result<(Summary, SummaryWarnings), ConfigError> {
+    let session = Refusal::for_personal_file(config.personal_file())
+        .map(|refusal| refusal.to_string())
+        .into_iter()
+        .collect();
+    let (summary, operator) =
+        assemble_view(config, levels, content, enumeration)?;
+    Ok((summary, SummaryWarnings { operator, session }))
+}
+
+fn assemble_view(
     config: &dyn ConfigAccess,
     levels: &dyn ReadConfigLevel,
     content: &dyn ReadContent,

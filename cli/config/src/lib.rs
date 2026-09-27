@@ -6,6 +6,7 @@
 //! its closure. Those concerns live in the `config-adapters` crate.
 
 pub mod catalogue;
+pub mod consent;
 pub mod credentials;
 pub mod error;
 pub mod identifier;
@@ -40,6 +41,7 @@ pub use crate::service::CustomLens;
 pub use crate::service::EjectOutcome;
 pub use crate::service::EjectResult;
 pub use crate::service::LensFields;
+pub use crate::service::PersonalFile;
 pub use crate::service::ReadConfigLevel;
 pub use crate::service::ReadContent;
 pub use crate::service::ReadLensCatalogue;

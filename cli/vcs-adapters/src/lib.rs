@@ -10,12 +10,15 @@
 
 pub mod library;
 mod markers;
+mod tracking;
 
 use std::path::Path;
 
 use vcs::RepoFacts;
 
 use crate::library::InProcessProbe;
+
+pub use crate::tracking::file_tracking;
 
 /// The facts for the repository containing `start`.
 #[must_use]

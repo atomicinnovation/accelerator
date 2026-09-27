@@ -163,6 +163,7 @@ fn render_base_repo_failure(failure: &BaseRepoFailure) -> String {
 fn run_base_repo(pull_number: u64) -> Result<(), kernel::Error> {
     let start = current_dir()?;
     let composed = compose(&start, LegacyPolicy::Reject)?;
+    composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
     let client = build_blocking_client(service)?;
     let origin_remote = InProcessProbe;
@@ -198,6 +199,7 @@ fn run_update_body(
     })?;
     let start = current_dir()?;
     let composed = compose(&start, LegacyPolicy::Reject)?;
+    composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
     let client = build_blocking_client(service)?;
     let origin_remote = InProcessProbe;

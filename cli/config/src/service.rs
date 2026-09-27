@@ -1,6 +1,8 @@
 //! The driven and driving ports and the application service that performs
 //! precedence resolution and the nested-path walk and insert.
 
+use std::path::PathBuf;
+
 use crate::catalogue;
 use crate::error::ConfigError;
 use crate::error::Existing;
@@ -349,6 +351,42 @@ pub trait ReadTemplate {
     ) -> Result<Option<ResolvedTemplate>, ConfigError>;
 }
 
+/// What composition learned about `config.local.md`, established once so every
+/// reader of the personal level consults the same fact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PersonalFile {
+    Absent,
+    Readable,
+    /// A symlink, or a mode wider than 0600: the file is never read, and the
+    /// personal level answers as absent.
+    Ignored {
+        path: PathBuf,
+        mode: u32,
+    },
+}
+
+impl PersonalFile {
+    /// For a command that writes: its writes would persist after the user
+    /// fixed the file's mode, so it refuses rather than run on team values.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::InsecurePersonalFile`] when the file is ignored.
+    pub fn require_readable(&self) -> Result<(), ConfigError> {
+        match self {
+            Self::Ignored { path, mode } => {
+                Err(ConfigError::InsecurePersonalFile {
+                    path: path.display().to_string(),
+                    mode: *mode,
+                })
+            }
+            Self::Absent | Self::Readable => Ok(()),
+        }
+    }
+}
+
+static READABLE: PersonalFile = PersonalFile::Readable;
+
 /// The operations the core offers callers — the driving port.
 pub trait ConfigAccess {
     /// Resolves a key, full-stack (personal over team) when `level` is `None`,
@@ -439,6 +477,10 @@ pub trait ConfigAccess {
             },
         )
     }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &READABLE
+    }
 }
 
 const fn source_of(level: Level) -> Source {
@@ -465,11 +507,26 @@ fn default_resolution(key: &Key) -> Resolution {
 pub struct ConfigService<R, W> {
     reader: R,
     writer: W,
+    personal_file: PersonalFile,
 }
 
 impl<R, W> ConfigService<R, W> {
     pub const fn new(reader: R, writer: W) -> Self {
-        Self { reader, writer }
+        Self::with_personal_file(reader, writer, PersonalFile::Readable)
+    }
+
+    /// A service carrying the composed fact about `config.local.md`. The
+    /// reader, not the service, is what tolerates an ignored file.
+    pub const fn with_personal_file(
+        reader: R,
+        writer: W,
+        personal_file: PersonalFile,
+    ) -> Self {
+        Self {
+            reader,
+            writer,
+            personal_file,
+        }
     }
 }
 
@@ -514,6 +571,10 @@ impl<R: ReadConfigLevel, W: WriteConfigLevel> ConfigAccess
         };
         insert(&mut root, key.segments(), value, key)?;
         self.writer.write(level, &Node::Mapping(root))
+    }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &self.personal_file
     }
 }
 
@@ -638,6 +699,20 @@ mod tests {
 
     fn found_text(value: &str) -> Resolved {
         Resolved::Found(Value::Scalar(Scalar::String(value.to_owned())))
+    }
+
+    #[test]
+    fn only_an_ignored_personal_file_refuses_a_writer() {
+        assert!(super::PersonalFile::Absent.require_readable().is_ok());
+        assert!(super::PersonalFile::Readable.require_readable().is_ok());
+        assert!(matches!(
+            super::PersonalFile::Ignored {
+                path: ".accelerator/config.local.md".into(),
+                mode: 0o644,
+            }
+            .require_readable(),
+            Err(ConfigError::InsecurePersonalFile { mode: 0o644, .. })
+        ));
     }
 
     #[test]

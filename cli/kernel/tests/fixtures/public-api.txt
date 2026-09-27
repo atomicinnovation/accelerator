@@ -7,6 +7,9 @@ pub fn kernel::hooks::session_start(context: &str, system_message: core::option:
 pub mod kernel::logging
 pub fn kernel::logging::init() -> core::result::Result<(), kernel::Error>
 pub fn kernel::logging::init_if_requested() -> core::result::Result<(), kernel::Error>
+pub mod kernel::render
+pub fn kernel::render::personal_file_warning(warning: &dyn core::fmt::Display)
+pub fn kernel::render::report_personal_file_once(report: impl core::ops::function::FnOnce())
 pub enum kernel::Error
 pub kernel::Error::Failed(alloc::string::String)
 pub kernel::Error::LogFilter(alloc::string::String)

@@ -26,6 +26,7 @@ use ::config::ConfigAccess;
 use clap::Parser as _;
 use config_adapters::compose;
 use config_adapters::plugin_root_from_env;
+use config_adapters::Composed;
 use config_adapters::LegacyPolicy;
 use linear_client::healing::CatalogueHealing;
 use linear_client::healing::FetchUnavailable;
@@ -42,20 +43,40 @@ fn current_dir() -> Result<std::path::PathBuf, kernel::Error> {
     })
 }
 
-fn run_resolve(input: &str) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+/// Whether a command writes, to the project tree or to a tracker. A writer
+/// refuses to run beside an ignored personal config, because its writes
+/// would outlive the fix.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Intent {
+    Read,
+    Write,
+}
+
+/// Composes the configuration at the working directory, reporting an ignored
+/// personal config once, or prints the failure.
+fn composed_here(
+    intent: Intent,
+) -> Result<(std::path::PathBuf, Composed), ExitCode> {
+    let failed = |error: &dyn std::fmt::Display| {
+        eprintln!("{error}");
+        ExitCode::FAILURE
     };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let start = current_dir().map_err(|error| failed(&error))?;
+    let composed = compose(&start, LegacyPolicy::Reject)
+        .map_err(|error| failed(&error))?;
+    composed.report_ignored_personal_file();
+    if intent == Intent::Write {
+        composed
+            .require_readable_personal_file()
+            .map_err(|error| failed(&error))?;
+    }
+    Ok((start, composed))
+}
+
+fn run_resolve(input: &str) -> ExitCode {
+    let (start, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
 
@@ -97,19 +118,9 @@ fn run_resolve(input: &str) -> ExitCode {
 }
 
 fn run_template_hints(field: &str) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (_, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     let store = composed.store.with_plugin_root(plugin_root_from_env());
@@ -198,19 +209,9 @@ fn create_args_from_cli(cli_args: cli::CreateArgs) -> create::CreateArgs {
 }
 
 fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (start, composed) = match composed_here(Intent::Write) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     let store = composed.store.with_plugin_root(plugin_root_from_env());
@@ -261,19 +262,9 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
 }
 
 fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (start, composed) = match composed_here(Intent::Write) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);
@@ -323,19 +314,9 @@ fn run_link_external_id(path: &Path, external_id: &str) -> ExitCode {
 }
 
 fn run_canonicalise_id(input: &str) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (_, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     match canonicalise_id::run(service, input) {
@@ -351,19 +332,9 @@ fn run_canonicalise_id(input: &str) -> ExitCode {
 }
 
 fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (start, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     match next_number::run(&start, service, project, count) {
@@ -388,19 +359,9 @@ fn run_next_number(project: Option<&str>, count: u32) -> ExitCode {
 }
 
 fn run_list(args: &cli::ListArgs) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (start, composed) = match composed_here(Intent::Read) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);
@@ -436,19 +397,9 @@ fn run_list(args: &cli::ListArgs) -> ExitCode {
 }
 
 fn run_sync(args: &cli::SyncArgs) -> ExitCode {
-    let start = match current_dir() {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let composed = match compose(&start, LegacyPolicy::Reject) {
+    let (start, composed) = match composed_here(Intent::Write) {
         Ok(composed) => composed,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
     let service: &dyn ConfigAccess = &composed.service;
     let root = config_adapters::FileConfigStore::discover_root(&start);

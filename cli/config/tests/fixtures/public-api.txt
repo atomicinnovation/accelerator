@@ -3,12 +3,41 @@ pub mod config::catalogue
 pub enum config::catalogue::Default
 pub config::catalogue::Default::Scalar(&'static str)
 pub config::catalogue::Default::Seq(&'static [&'static str])
+pub enum config::catalogue::Trust
+pub config::catalogue::Trust::CommandConsent
+pub config::catalogue::Trust::CommandConsent::admitted_environment: &'static [&'static str]
+pub config::catalogue::Trust::Consent
+pub config::catalogue::Trust::Open
+pub config::catalogue::Trust::PathConsent
+impl core::clone::Clone for config::catalogue::Trust
+pub fn config::catalogue::Trust::clone(&self) -> config::catalogue::Trust
+impl core::cmp::Eq for config::catalogue::Trust
+impl core::cmp::PartialEq for config::catalogue::Trust
+pub fn config::catalogue::Trust::eq(&self, other: &config::catalogue::Trust) -> bool
+impl core::fmt::Debug for config::catalogue::Trust
+pub fn config::catalogue::Trust::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::catalogue::Trust
+impl core::marker::StructuralPartialEq for config::catalogue::Trust
+pub struct config::catalogue::ExtraKey
+pub config::catalogue::ExtraKey::name: &'static str
+pub config::catalogue::ExtraKey::overrides: &'static [&'static str]
+pub config::catalogue::ExtraKey::recovery: core::option::Option<&'static str>
+pub config::catalogue::ExtraKey::trust: config::catalogue::Trust
+impl config::catalogue::ExtraKey
+pub fn config::catalogue::ExtraKey::recovery_hint(&self) -> core::option::Option<&'static str>
+impl core::cmp::Eq for config::catalogue::ExtraKey
+impl core::cmp::PartialEq for config::catalogue::ExtraKey
+pub fn config::catalogue::ExtraKey::eq(&self, other: &config::catalogue::ExtraKey) -> bool
+impl core::fmt::Debug for config::catalogue::ExtraKey
+pub fn config::catalogue::ExtraKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::catalogue::ExtraKey
 pub const config::catalogue::AGENT_KEYS: &[&str]
 pub const config::catalogue::AGENT_PREFIX: &str
+pub const config::catalogue::BASE_COMMAND_ENVIRONMENT: &[&str]
 pub const config::catalogue::BUILTIN_CODE_LENSES: &[&str]
 pub const config::catalogue::BUILTIN_WORK_ITEM_LENSES: &[&str]
 pub const config::catalogue::DOC_TYPES: &[(&str, &str)]
-pub const config::catalogue::EXTRA_KEYS: &[&str]
+pub const config::catalogue::EXTRA_KEYS: &[config::catalogue::ExtraKey]
 pub const config::catalogue::PATH_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::RESEARCH_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::REVIEW_KEYS: &[(&str, config::catalogue::Default)]
@@ -17,8 +46,220 @@ pub const config::catalogue::VISUALISER_KEYS: &[(&str, config::catalogue::Defaul
 pub const config::catalogue::WORK_INTEGRATION_VALUES: &[&str]
 pub const config::catalogue::WORK_KEYS: &[(&str, config::catalogue::Default)]
 pub fn config::catalogue::agent_name(config: &dyn config::service::ConfigAccess, name: &str) -> core::result::Result<alloc::string::String, config::error::ConfigError>
+pub fn config::catalogue::consent_keys() -> impl core::iter::traits::iterator::Iterator<Item = &'static config::catalogue::ExtraKey>
+pub fn config::catalogue::declared(name: &str) -> core::option::Option<&'static config::catalogue::ExtraKey>
 pub fn config::catalogue::default_for(key: &str) -> core::option::Option<config::service::Value>
 pub fn config::catalogue::is_valid_work_integration(value: &str) -> bool
+pub mod config::consent
+pub enum config::consent::AuditFinding
+pub config::consent::AuditFinding::Key(config::consent::Refusal)
+pub config::consent::AuditFinding::PersonalFile(config::consent::Distrust)
+pub config::consent::AuditFinding::PersonalFileIgnored(config::consent::Refusal)
+pub config::consent::AuditFinding::PersonalFileUnchecked
+impl core::clone::Clone for config::consent::AuditFinding
+pub fn config::consent::AuditFinding::clone(&self) -> config::consent::AuditFinding
+impl core::cmp::Eq for config::consent::AuditFinding
+impl core::cmp::PartialEq for config::consent::AuditFinding
+pub fn config::consent::AuditFinding::eq(&self, other: &config::consent::AuditFinding) -> bool
+impl core::fmt::Debug for config::consent::AuditFinding
+pub fn config::consent::AuditFinding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::consent::AuditFinding
+pub enum config::consent::Distrust
+pub config::consent::Distrust::Tracked
+pub config::consent::Distrust::Unknown
+impl core::clone::Clone for config::consent::Distrust
+pub fn config::consent::Distrust::clone(&self) -> config::consent::Distrust
+impl core::cmp::Eq for config::consent::Distrust
+impl core::cmp::PartialEq for config::consent::Distrust
+pub fn config::consent::Distrust::eq(&self, other: &config::consent::Distrust) -> bool
+impl core::fmt::Debug for config::consent::Distrust
+pub fn config::consent::Distrust::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::consent::Distrust
+pub fn config::consent::Distrust::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::Distrust
+impl core::marker::StructuralPartialEq for config::consent::Distrust
+pub enum config::consent::Refusal
+pub config::consent::Refusal::InsecurePersonalFile
+pub config::consent::Refusal::InsecurePersonalFile::mode: u32
+pub config::consent::Refusal::InsecurePersonalFile::path: std::path::PathBuf
+pub config::consent::Refusal::TeamLevel
+pub config::consent::Refusal::TeamLevel::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::UntrustedPersonalFile
+pub config::consent::Refusal::UntrustedPersonalFile::distrust: config::consent::Distrust
+pub config::consent::Refusal::UntrustedPersonalFile::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::UntrustedPersonalFile::path: std::path::PathBuf
+impl config::consent::Refusal
+pub fn config::consent::Refusal::for_personal_file(personal_file: &config::service::PersonalFile) -> core::option::Option<Self>
+pub const fn config::consent::Refusal::key(&self) -> core::option::Option<&'static config::catalogue::ExtraKey>
+pub const fn config::consent::Refusal::reason(&self) -> config::consent::RefusalReason
+impl core::clone::Clone for config::consent::Refusal
+pub fn config::consent::Refusal::clone(&self) -> config::consent::Refusal
+impl core::cmp::Eq for config::consent::Refusal
+impl core::cmp::PartialEq for config::consent::Refusal
+pub fn config::consent::Refusal::eq(&self, other: &config::consent::Refusal) -> bool
+impl core::fmt::Debug for config::consent::Refusal
+pub fn config::consent::Refusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::consent::Refusal
+pub fn config::consent::Refusal::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::consent::Refusal
+pub enum config::consent::RefusalReason
+pub config::consent::RefusalReason::PersonalFile
+pub config::consent::RefusalReason::Provenance
+impl core::clone::Clone for config::consent::RefusalReason
+pub fn config::consent::RefusalReason::clone(&self) -> config::consent::RefusalReason
+impl core::cmp::Eq for config::consent::RefusalReason
+impl core::cmp::PartialEq for config::consent::RefusalReason
+pub fn config::consent::RefusalReason::eq(&self, other: &config::consent::RefusalReason) -> bool
+impl core::fmt::Debug for config::consent::RefusalReason
+pub fn config::consent::RefusalReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::RefusalReason
+impl core::marker::StructuralPartialEq for config::consent::RefusalReason
+pub enum config::consent::Tracking
+pub config::consent::Tracking::Tracked
+pub config::consent::Tracking::Unknown
+pub config::consent::Tracking::Untracked
+impl config::consent::Tracking
+pub const fn config::consent::Tracking::distrust(self) -> core::option::Option<config::consent::Distrust>
+impl core::clone::Clone for config::consent::Tracking
+pub fn config::consent::Tracking::clone(&self) -> config::consent::Tracking
+impl core::cmp::Eq for config::consent::Tracking
+impl core::cmp::PartialEq for config::consent::Tracking
+pub fn config::consent::Tracking::eq(&self, other: &config::consent::Tracking) -> bool
+impl core::fmt::Debug for config::consent::Tracking
+pub fn config::consent::Tracking::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::Tracking
+impl core::marker::StructuralPartialEq for config::consent::Tracking
+pub enum config::consent::TrackingCheck
+pub config::consent::TrackingCheck::Known(config::consent::Tracking)
+pub config::consent::TrackingCheck::Unchecked
+impl core::clone::Clone for config::consent::TrackingCheck
+pub fn config::consent::TrackingCheck::clone(&self) -> config::consent::TrackingCheck
+impl core::cmp::Eq for config::consent::TrackingCheck
+impl core::cmp::PartialEq for config::consent::TrackingCheck
+pub fn config::consent::TrackingCheck::eq(&self, other: &config::consent::TrackingCheck) -> bool
+impl core::fmt::Debug for config::consent::TrackingCheck
+pub fn config::consent::TrackingCheck::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::TrackingCheck
+impl core::marker::StructuralPartialEq for config::consent::TrackingCheck
+pub enum config::consent::Usable<T>
+pub config::consent::Usable::Absent
+pub config::consent::Usable::Refused(config::consent::Rejection)
+pub config::consent::Usable::Value
+pub config::consent::Usable::Value::notice: core::option::Option<config::consent::Notice>
+pub config::consent::Usable::Value::value: T
+pub config::consent::Usable::Value::warnings: alloc::vec::Vec<config::consent::Refusal>
+impl<T: core::clone::Clone> core::clone::Clone for config::consent::Usable<T>
+pub fn config::consent::Usable<T>::clone(&self) -> config::consent::Usable<T>
+impl<T: core::cmp::Eq> core::cmp::Eq for config::consent::Usable<T>
+impl<T: core::cmp::PartialEq> core::cmp::PartialEq for config::consent::Usable<T>
+pub fn config::consent::Usable<T>::eq(&self, other: &config::consent::Usable<T>) -> bool
+impl<T: core::fmt::Debug> core::fmt::Debug for config::consent::Usable<T>
+pub fn config::consent::Usable<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T> core::marker::StructuralPartialEq for config::consent::Usable<T>
+pub struct config::consent::Aborted
+pub config::consent::Aborted::error: config::error::ConfigError
+pub config::consent::Aborted::warnings: alloc::vec::Vec<config::consent::Refusal>
+impl core::clone::Clone for config::consent::Aborted
+pub fn config::consent::Aborted::clone(&self) -> config::consent::Aborted
+impl core::cmp::Eq for config::consent::Aborted
+impl core::cmp::PartialEq for config::consent::Aborted
+pub fn config::consent::Aborted::eq(&self, other: &config::consent::Aborted) -> bool
+impl core::fmt::Debug for config::consent::Aborted
+pub fn config::consent::Aborted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::consent::Aborted
+pub struct config::consent::CommandKey(_)
+impl config::consent::CommandKey
+pub fn config::consent::CommandKey::declared(name: &str) -> core::result::Result<Self, config::error::ConfigError>
+pub const fn config::consent::CommandKey::descriptor(&self) -> &'static config::catalogue::ExtraKey
+impl core::clone::Clone for config::consent::CommandKey
+pub fn config::consent::CommandKey::clone(&self) -> config::consent::CommandKey
+impl core::cmp::Eq for config::consent::CommandKey
+impl core::cmp::PartialEq for config::consent::CommandKey
+pub fn config::consent::CommandKey::eq(&self, other: &config::consent::CommandKey) -> bool
+impl core::fmt::Debug for config::consent::CommandKey
+pub fn config::consent::CommandKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::CommandKey
+impl core::marker::StructuralPartialEq for config::consent::CommandKey
+pub struct config::consent::ConsentKey(_)
+impl config::consent::ConsentKey
+pub fn config::consent::ConsentKey::declared(name: &str) -> core::result::Result<Self, config::error::ConfigError>
+pub const fn config::consent::ConsentKey::descriptor(&self) -> &'static config::catalogue::ExtraKey
+impl core::clone::Clone for config::consent::ConsentKey
+pub fn config::consent::ConsentKey::clone(&self) -> config::consent::ConsentKey
+impl core::cmp::Eq for config::consent::ConsentKey
+impl core::cmp::PartialEq for config::consent::ConsentKey
+pub fn config::consent::ConsentKey::eq(&self, other: &config::consent::ConsentKey) -> bool
+impl core::fmt::Debug for config::consent::ConsentKey
+pub fn config::consent::ConsentKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::ConsentKey
+impl core::marker::StructuralPartialEq for config::consent::ConsentKey
+pub struct config::consent::Consented<T>
+pub config::consent::Consented::admitted: core::option::Option<T>
+pub config::consent::Consented::notice: core::option::Option<config::consent::Notice>
+pub config::consent::Consented::refusals: alloc::vec::Vec<config::consent::Refusal>
+impl<T> config::consent::Consented<T>
+pub fn config::consent::Consented<T>::map<U>(self, transform: impl core::ops::function::FnOnce(T) -> U) -> config::consent::Consented<U>
+pub fn config::consent::Consented<T>::or_fallback(self, fallback: core::option::Option<T>) -> config::consent::Usable<T>
+impl<T: core::clone::Clone> core::clone::Clone for config::consent::Consented<T>
+pub fn config::consent::Consented<T>::clone(&self) -> config::consent::Consented<T>
+impl<T: core::cmp::Eq> core::cmp::Eq for config::consent::Consented<T>
+impl<T: core::cmp::PartialEq> core::cmp::PartialEq for config::consent::Consented<T>
+pub fn config::consent::Consented<T>::eq(&self, other: &config::consent::Consented<T>) -> bool
+impl<T: core::fmt::Debug> core::fmt::Debug for config::consent::Consented<T>
+pub fn config::consent::Consented<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T> core::marker::StructuralPartialEq for config::consent::Consented<T>
+pub struct config::consent::ExecutablePathKey(_)
+impl config::consent::ExecutablePathKey
+pub fn config::consent::ExecutablePathKey::declared(name: &str) -> core::result::Result<Self, config::error::ConfigError>
+pub const fn config::consent::ExecutablePathKey::descriptor(&self) -> &'static config::catalogue::ExtraKey
+impl core::clone::Clone for config::consent::ExecutablePathKey
+pub fn config::consent::ExecutablePathKey::clone(&self) -> config::consent::ExecutablePathKey
+impl core::cmp::Eq for config::consent::ExecutablePathKey
+impl core::cmp::PartialEq for config::consent::ExecutablePathKey
+pub fn config::consent::ExecutablePathKey::eq(&self, other: &config::consent::ExecutablePathKey) -> bool
+impl core::fmt::Debug for config::consent::ExecutablePathKey
+pub fn config::consent::ExecutablePathKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::consent::ExecutablePathKey
+impl core::marker::StructuralPartialEq for config::consent::ExecutablePathKey
+pub struct config::consent::Notice
+impl config::consent::Notice
+pub fn config::consent::Notice::new(key: &'static config::catalogue::ExtraKey, variable: &'static str, value: &str) -> Self
+impl core::clone::Clone for config::consent::Notice
+pub fn config::consent::Notice::clone(&self) -> config::consent::Notice
+impl core::cmp::Eq for config::consent::Notice
+impl core::cmp::PartialEq for config::consent::Notice
+pub fn config::consent::Notice::eq(&self, other: &config::consent::Notice) -> bool
+impl core::fmt::Debug for config::consent::Notice
+pub fn config::consent::Notice::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::consent::Notice
+pub fn config::consent::Notice::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::consent::Notice
+pub struct config::consent::ProvenanceContext<'a>
+pub config::consent::ProvenanceContext::config: &'a dyn config::service::ConfigAccess
+pub config::consent::ProvenanceContext::environment: &'a dyn config::consent::Environment
+pub config::consent::ProvenanceContext::personal_config: std::path::PathBuf
+pub config::consent::ProvenanceContext::tracking: &'a dyn config::consent::ConfigFileTracking
+pub struct config::consent::Rejection
+pub config::consent::Rejection::fatal: config::consent::Refusal
+pub config::consent::Rejection::warnings: alloc::vec::Vec<config::consent::Refusal>
+impl config::consent::Rejection
+pub const fn config::consent::Rejection::alone(fatal: config::consent::Refusal) -> Self
+impl core::clone::Clone for config::consent::Rejection
+pub fn config::consent::Rejection::clone(&self) -> config::consent::Rejection
+impl core::cmp::Eq for config::consent::Rejection
+impl core::cmp::PartialEq for config::consent::Rejection
+pub fn config::consent::Rejection::eq(&self, other: &config::consent::Rejection) -> bool
+impl core::fmt::Debug for config::consent::Rejection
+pub fn config::consent::Rejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::consent::Rejection
+pub trait config::consent::ConfigFileTracking
+pub fn config::consent::ConfigFileTracking::check(&self, path: &std::path::Path) -> config::consent::TrackingCheck
+pub fn config::consent::ConfigFileTracking::tracking(&self, path: &std::path::Path) -> config::consent::Tracking
+pub trait config::consent::Environment
+pub fn config::consent::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub fn config::consent::audit(context: &config::consent::ProvenanceContext<'_>) -> core::result::Result<alloc::vec::Vec<config::consent::AuditFinding>, config::error::ConfigError>
+pub fn config::consent::reportable(warnings: &[config::consent::Refusal]) -> impl core::iter::traits::iterator::Iterator<Item = &config::consent::Refusal>
+pub fn config::consent::resolve(context: &config::consent::ProvenanceContext<'_>, key: &config::consent::ConsentKey) -> core::result::Result<config::consent::Consented<alloc::string::String>, config::consent::Aborted>
 pub mod config::credentials
 pub enum config::credentials::CredentialError
 pub config::credentials::CredentialError::ConfigUnreadable
@@ -117,11 +358,14 @@ pub struct config::credentials::CredentialContext<'a>
 pub config::credentials::CredentialContext::command: config::credentials::CommandPolicy
 pub config::credentials::CredentialContext::commands: &'a dyn config::credentials::TokenCommandRunner
 pub config::credentials::CredentialContext::config: &'a dyn config::service::ConfigAccess
-pub config::credentials::CredentialContext::environment: &'a dyn config::credentials::Environment
+pub config::credentials::CredentialContext::environment: &'a dyn config::consent::Environment
 pub config::credentials::CredentialContext::files: &'a dyn config::credentials::FileFacts
 pub config::credentials::CredentialContext::insecure_marker: std::path::PathBuf
 pub config::credentials::CredentialContext::personal_config: std::path::PathBuf
 pub config::credentials::CredentialContext::provenance: &'a dyn config::credentials::Provenance
+pub config::credentials::CredentialContext::tracking: &'a dyn config::consent::ConfigFileTracking
+impl config::credentials::CredentialContext<'_>
+pub fn config::credentials::CredentialContext<'_>::provenance(&self) -> config::consent::ProvenanceContext<'_>
 pub struct config::credentials::ResolvedToken
 pub config::credentials::ResolvedToken::source: config::credentials::TokenSource
 pub config::credentials::ResolvedToken::value: config::credentials::Secret
@@ -171,6 +415,9 @@ pub fn config::credentials::refuse_tracked_source(provenance: &dyn config::crede
 pub fn config::credentials::resolve_token(context: &config::credentials::CredentialContext<'_>, keys: &config::credentials::TokenKeys) -> core::result::Result<config::credentials::ResolvedToken, config::credentials::CredentialError>
 pub mod config::error
 #[non_exhaustive] pub enum config::error::ConfigError
+pub config::error::ConfigError::InsecurePersonalFile
+pub config::error::ConfigError::InsecurePersonalFile::mode: u32
+pub config::error::ConfigError::InsecurePersonalFile::path: alloc::string::String
 pub config::error::ConfigError::Invalid
 pub config::error::ConfigError::Invalid::detail: alloc::string::String
 pub config::error::ConfigError::InvalidKey
@@ -340,6 +587,22 @@ impl core::cmp::PartialEq for config::service::EjectOutcome
 pub fn config::service::EjectOutcome::eq(&self, other: &config::service::EjectOutcome) -> bool
 impl core::marker::Copy for config::service::EjectOutcome
 impl core::marker::StructuralPartialEq for config::service::EjectOutcome
+pub enum config::service::PersonalFile
+pub config::service::PersonalFile::Absent
+pub config::service::PersonalFile::Ignored
+pub config::service::PersonalFile::Ignored::mode: u32
+pub config::service::PersonalFile::Ignored::path: std::path::PathBuf
+pub config::service::PersonalFile::Readable
+impl config::service::PersonalFile
+pub fn config::service::PersonalFile::require_readable(&self) -> core::result::Result<(), config::error::ConfigError>
+impl core::clone::Clone for config::service::PersonalFile
+pub fn config::service::PersonalFile::clone(&self) -> config::service::PersonalFile
+impl core::cmp::Eq for config::service::PersonalFile
+impl core::cmp::PartialEq for config::service::PersonalFile
+pub fn config::service::PersonalFile::eq(&self, other: &config::service::PersonalFile) -> bool
+impl core::fmt::Debug for config::service::PersonalFile
+pub fn config::service::PersonalFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::PersonalFile
 pub enum config::service::Resolved
 pub config::service::Resolved::Absent
 pub config::service::Resolved::Found(config::service::Value)
@@ -393,10 +656,12 @@ impl core::marker::StructuralPartialEq for config::service::Value
 pub struct config::service::ConfigService<R, W>
 impl<R, W> config::service::ConfigService<R, W>
 pub const fn config::service::ConfigService<R, W>::new(reader: R, writer: W) -> Self
+pub const fn config::service::ConfigService<R, W>::with_personal_file(reader: R, writer: W, personal_file: config::service::PersonalFile) -> Self
 impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
 pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 pub struct config::service::CustomLens
 pub config::service::CustomLens::dir: alloc::string::String
@@ -430,11 +695,13 @@ pub trait config::service::ConfigAccess
 pub fn config::service::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigAccess::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigAccess::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::service::ConfigAccess::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
 pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 pub trait config::service::ReadConfigLevel
 pub fn config::service::ReadConfigLevel::read(&self, level: config::level::Level) -> core::result::Result<core::option::Option<config::node::Node>, config::error::ConfigError>
@@ -461,6 +728,9 @@ pub trait config::service::WriteConfigLevel
 pub fn config::service::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
 pub fn config::service::project(node: &config::node::Node) -> config::service::Value
 #[non_exhaustive] pub enum config::ConfigError
+pub config::ConfigError::InsecurePersonalFile
+pub config::ConfigError::InsecurePersonalFile::mode: u32
+pub config::ConfigError::InsecurePersonalFile::path: alloc::string::String
 pub config::ConfigError::Invalid
 pub config::ConfigError::Invalid::detail: alloc::string::String
 pub config::ConfigError::InvalidKey
@@ -555,6 +825,22 @@ pub fn config::node::Node::eq(&self, other: &config::node::Node) -> bool
 impl core::fmt::Debug for config::node::Node
 pub fn config::node::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::node::Node
+pub enum config::PersonalFile
+pub config::PersonalFile::Absent
+pub config::PersonalFile::Ignored
+pub config::PersonalFile::Ignored::mode: u32
+pub config::PersonalFile::Ignored::path: std::path::PathBuf
+pub config::PersonalFile::Readable
+impl config::service::PersonalFile
+pub fn config::service::PersonalFile::require_readable(&self) -> core::result::Result<(), config::error::ConfigError>
+impl core::clone::Clone for config::service::PersonalFile
+pub fn config::service::PersonalFile::clone(&self) -> config::service::PersonalFile
+impl core::cmp::Eq for config::service::PersonalFile
+impl core::cmp::PartialEq for config::service::PersonalFile
+pub fn config::service::PersonalFile::eq(&self, other: &config::service::PersonalFile) -> bool
+impl core::fmt::Debug for config::service::PersonalFile
+pub fn config::service::PersonalFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::service::PersonalFile
 pub enum config::Resolved
 pub config::Resolved::Absent
 pub config::Resolved::Found(config::service::Value)
@@ -624,10 +910,12 @@ pub config::AliasedScalar::value: core::option::Option<alloc::string::String>
 pub struct config::ConfigService<R, W>
 impl<R, W> config::service::ConfigService<R, W>
 pub const fn config::service::ConfigService<R, W>::new(reader: R, writer: W) -> Self
+pub const fn config::service::ConfigService<R, W>::with_personal_file(reader: R, writer: W, personal_file: config::service::PersonalFile) -> Self
 impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
 pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 pub struct config::CustomLens
 pub config::CustomLens::dir: alloc::string::String
@@ -694,11 +982,13 @@ pub trait config::ConfigAccess
 pub fn config::ConfigAccess::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::ConfigAccess::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::ConfigAccess::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::ConfigAccess::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::ConfigAccess::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 impl<R: config::service::ReadConfigLevel, W: config::service::WriteConfigLevel> config::service::ConfigAccess for config::service::ConfigService<R, W>
 pub fn config::service::ConfigService<R, W>::effective(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::effective_nonempty(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolution, config::error::ConfigError>
 pub fn config::service::ConfigService<R, W>::get(&self, key: &config::key::Key, level: core::option::Option<config::level::Level>) -> core::result::Result<config::service::Resolved, config::error::ConfigError>
+pub fn config::service::ConfigService<R, W>::personal_file(&self) -> &config::service::PersonalFile
 pub fn config::service::ConfigService<R, W>::set(&self, key: &config::key::Key, value: &str, level: config::level::Level) -> core::result::Result<(), config::error::ConfigError>
 pub trait config::ReadConfigLevel
 pub fn config::ReadConfigLevel::read(&self, level: config::level::Level) -> core::result::Result<core::option::Option<config::node::Node>, config::error::ConfigError>

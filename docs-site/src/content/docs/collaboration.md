@@ -60,8 +60,10 @@ accelerator config set github.token_cmd '<command>'   # personal only — never 
 ```
 
 The personal config file (`.accelerator/config.local.md`) must be mode
-0600 or stricter and not a symlink, or every read of it — not just
-`github.token` — is refused; see
+0600 or stricter and not a symlink. Otherwise it is ignored with an
+`E_LOCAL_PERMS_INSECURE` warning, a team `github.token` is not used in its
+place, and the command fails with that code (exit 2) unless `GH_TOKEN` or
+`GITHUB_TOKEN` supplies a token; see
 [Configuration](configuration.md#config-files).
 
 ## Local development

@@ -25,8 +25,9 @@ fn recognised_keys() -> Vec<String> {
         .map(|name| format!("agents.{name}"));
     let bare = catalogue::TEMPLATE_KEYS
         .iter()
-        .chain(catalogue::EXTRA_KEYS)
-        .map(|key| (*key).to_owned());
+        .copied()
+        .chain(catalogue::EXTRA_KEYS.iter().map(|key| key.name))
+        .map(str::to_owned);
     defaulted.chain(agents).chain(bare).collect()
 }
 

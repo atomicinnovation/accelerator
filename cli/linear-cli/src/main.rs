@@ -26,6 +26,7 @@ use crate::cli::{
     SearchArgs, ShowArgs, TransitionArgs, UpdateArgs,
 };
 use crate::context::ContextError;
+use crate::context::Intent;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -42,8 +43,8 @@ fn id_of(value: &str) -> ExternalId {
 }
 
 /// Builds the client, or prints the failure and returns the mapped exit code.
-fn client_or_report() -> Result<context::Built, ExitCode> {
-    context::build_client().map_err(|error| match error {
+fn client_or_report(intent: Intent) -> Result<context::Built, ExitCode> {
+    context::build_client(intent).map_err(|error| match error {
         ContextError::BadApiUrl(raw) => {
             eprintln!(
                 "E_BAD_API_URL: ACCELERATOR_LINEAR_API_URL={raw:?} is not an \
@@ -71,7 +72,7 @@ fn print_json(value: &Value) {
 }
 
 fn run_show(args: &ShowArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -99,7 +100,7 @@ fn run_show(args: &ShowArgs) -> ExitCode {
 }
 
 fn run_search(args: &SearchArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -185,7 +186,7 @@ fn run_comment(action: CommentAction) -> ExitCode {
             Ok(body) => body,
             Err(code) => return code,
         };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -226,7 +227,7 @@ fn run_transition(args: TransitionArgs) -> ExitCode {
         eprintln!("E_TRANSITION_NO_STATE: a target state is required");
         return ExitCode::from(exit_codes::TRANSITION_NO_STATE);
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -246,7 +247,7 @@ fn run_transition(args: TransitionArgs) -> ExitCode {
 }
 
 fn run_attach(args: &AttachArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -291,7 +292,7 @@ fn run_update(args: UpdateArgs) -> ExitCode {
         eprintln!("E_UPDATE_NO_OPS: at least one field to update is required");
         return ExitCode::from(exit_codes::UPDATE_NO_OPS);
     }
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -331,7 +332,7 @@ fn run_create(args: &CreateArgs) -> ExitCode {
         Ok(inputs) => inputs,
         Err(code) => return code,
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -397,7 +398,7 @@ fn resolve_create_inputs(
 }
 
 fn run_init(action: InitAction) -> ExitCode {
-    let built = match client_or_report() {
+    let built = match client_or_report(Intent::Write) {
         Ok(built) => built,
         Err(code) => return code,
     };

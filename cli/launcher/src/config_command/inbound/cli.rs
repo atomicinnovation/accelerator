@@ -295,14 +295,20 @@ fn resolve_summary(
         stack.content(),
         stack.lenses(),
     )?;
-    let stdout = match (summary_render::body(&summary), hook) {
-        (None, _) => String::new(),
+    let body = summary_render::body(&summary);
+    let stdout = match (body, hook) {
+        (None, false) => String::new(),
+        (None, true) if warnings.session.is_empty() => String::new(),
         (Some(text), false) => format!("{text}\n"),
-        (Some(text), true) => {
-            format!("{}\n", summary_render::hook_envelope(&text))
-        }
+        (text, true) => format!(
+            "{}\n",
+            summary_render::hook_envelope(text.as_deref(), &warnings.session)
+        ),
     };
-    Ok(Rendered { stdout, warnings })
+    Ok(Rendered {
+        stdout,
+        warnings: warnings.operator,
+    })
 }
 
 fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
@@ -498,6 +504,9 @@ fn run_eject(
     force: bool,
     dry_run: bool,
 ) -> Result<(), kernel::Error> {
+    if force && !dry_run {
+        stack.config().personal_file().require_readable()?;
+    }
     let dir = template_view::templates_dir(stack.config())?;
     if all {
         return eject_all(stack, &dir, force, dry_run);
@@ -623,6 +632,7 @@ fn run_reset(
         )));
     };
     if confirm {
+        stack.config().personal_file().require_readable()?;
         stack.overrides().delete(&resolved.abs_path)?;
         print!(
             "{}",

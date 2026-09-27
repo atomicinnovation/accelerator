@@ -18,6 +18,7 @@ path = "tests/fixtures/config_adapters_fixture.rs"
 
 [dependencies]
 config = { path = "../config" }
+kernel = { path = "../kernel" }
 document = { path = "../document" }
 store = { path = "../store" }
 

@@ -23,6 +23,7 @@ use config_adapters::credentials::CredentialPorts;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use consent_adapters::VcsConfigFileTracking;
 use linear_client::auth::resolve_credentials;
 use linear_client::auth::team_key;
 use linear_client::catalogue::Catalogue;
@@ -109,6 +110,15 @@ fn integrations_dir(
     })
 }
 
+/// Whether a command writes, to the project tree or to the tracker. A writer
+/// refuses to run beside an ignored personal config: its routing keys would
+/// silently come from the team file, and its writes would outlive the fix.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Intent {
+    Read,
+    Write,
+}
+
 /// A built client and the paths its init caches are written under.
 pub struct Built {
     pub client: LinearClient,
@@ -129,7 +139,7 @@ pub struct Built {
 ///
 /// [`ContextError`] for a bad override, an unreadable config, or a client that
 /// cannot be constructed.
-pub fn build_client() -> Result<Built, ContextError> {
+pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let start = std::env::current_dir().map_err(|error| {
         ContextError::Config(format!(
             "could not read the working directory: {error}"
@@ -137,13 +147,20 @@ pub fn build_client() -> Result<Built, ContextError> {
     })?;
     let composed = compose(&start, LegacyPolicy::Reject)
         .map_err(|error| ContextError::Config(error.to_string()))?;
+    composed.report_ignored_personal_file();
+    if intent == Intent::Write {
+        composed
+            .require_readable_personal_file()
+            .map_err(|error| ContextError::Config(error.to_string()))?;
+    }
     let service: &dyn ConfigAccess = &composed.service;
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let ports = CredentialPorts::system(Box::new(VcsProvenance::discovered(
-        root.clone(),
-    )));
+    let ports = CredentialPorts::system(
+        Box::new(VcsProvenance::discovered(root.clone())),
+        Box::new(VcsConfigFileTracking),
+    );
     let context = project_credential_context(
         &root,
         &ports,

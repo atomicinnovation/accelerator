@@ -1,0 +1,11 @@
+pub mod consent_adapters
+pub struct consent_adapters::VcsConfigFileTracking
+impl config::consent::ConfigFileTracking for consent_adapters::VcsConfigFileTracking
+pub fn consent_adapters::VcsConfigFileTracking::tracking(&self, path: &std::path::Path) -> config::consent::Tracking
+impl core::clone::Clone for consent_adapters::VcsConfigFileTracking
+pub fn consent_adapters::VcsConfigFileTracking::clone(&self) -> consent_adapters::VcsConfigFileTracking
+impl core::default::Default for consent_adapters::VcsConfigFileTracking
+pub fn consent_adapters::VcsConfigFileTracking::default() -> consent_adapters::VcsConfigFileTracking
+impl core::fmt::Debug for consent_adapters::VcsConfigFileTracking
+pub fn consent_adapters::VcsConfigFileTracking::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for consent_adapters::VcsConfigFileTracking

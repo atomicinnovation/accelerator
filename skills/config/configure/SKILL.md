@@ -739,15 +739,6 @@ Configure access to a Jira Cloud tenant. One key belongs in team-shared
 | Key              | Default | Description                                            |
 |------------------|---------|--------------------------------------------------------|
 | `site`           | (empty) | Cloud subdomain (e.g. `atomic-innovation`)             |
-| `allowed_sites`  | (empty) | Extra exact hostnames the Rust client may send the token to, beyond `*.atlassian.net` |
-
-`allowed_sites` exists for self-hosted and non-`atlassian.net` tenants. The
-Rust client refuses to send credentials to any host outside `*.atlassian.net`
-unless it is listed here as an exact hostname — no wildcard expansion, matched
-at a label boundary, so neither `atlassian.net.example.com` nor
-`evil-atlassian.net` is admitted. Like `token_cmd`, it is refused when the file
-it came from is tracked by version control: a committed allowlist is a
-credential-destination decision a clone would inherit.
 
 Example shared configuration in `config.md`:
 
@@ -760,14 +751,15 @@ jira:
 
 #### Personal settings (do not commit)
 
-Three keys are personal and **must live exclusively in
+Four keys are personal and **must live exclusively in
 `config.local.md`**, which is gitignored:
 
-| Key         | Default | Description                                            |
-|-------------|---------|--------------------------------------------------------|
-| `email`     | (empty) | Your Atlassian account email                           |
-| `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
-| `token_cmd` | (empty) | Shell command whose stdout is the token                |
+| Key             | Default | Description                                            |
+|-----------------|---------|--------------------------------------------------------|
+| `email`         | (empty) | Your Atlassian account email                           |
+| `token`         | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
+| `token_cmd`     | (empty) | Shell command whose stdout is the token                |
+| `allowed_sites` | (empty) | Extra exact hostnames the Rust client may send the token to, beyond `*.atlassian.net` |
 
 `token_cmd` from the team-shared `config.md` is **never** honoured: a
 committed `token_cmd` is a supply-chain command-injection sink (a single PR
@@ -775,11 +767,43 @@ could land arbitrary shell that runs on every contributor's machine). When
 detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
 in config.md ignored — move to config.local.md` to stderr.
 
+`allowed_sites` exists for self-hosted and non-`atlassian.net` tenants. The
+Rust client refuses to send credentials to any host outside `*.atlassian.net`
+unless it is listed here as an exact hostname — no wildcard expansion, matched
+at a label boundary, so neither `atlassian.net.example.com` nor
+`evil-atlassian.net` is admitted. The repository may propose `jira.site`, but
+only you may widen where the token is sent, so `allowed_sites` is a **consent
+key**: it is read only from an untracked `config.local.md` or from the
+`ACCELERATOR_JIRA_ALLOWED_SITES` environment variable, whose entries are split
+on commas and whitespace:
+
+\```bash
+ACCELERATOR_JIRA_ALLOWED_SITES="jira.example.com, jira.example.org"
+\```
+
+A value found anywhere else is refused and reported on stderr:
+
+- in the team-shared `config.md`, with `E_CONSENT_KEY_TEAM_LEVEL`;
+- in a `config.local.md` tracked by version control, with
+  `E_CONSENT_KEY_TRACKED`;
+- in a `config.local.md` whose tracking status cannot be determined, with
+  `E_CONSENT_KEY_TRACKING_UNKNOWN`.
+
+A refused allowlist only warns when the site is an `*.atlassian.net` host,
+which the default rule admits anyway; for any other site it is fatal (exit
+24). Taking the allowlist from the environment prints a `notice:` line naming
+the variable and its value, so you can see which setting decided it.
+
+Trusting a repository's `mise.toml` or `.envrc` extends your consent to any
+`ACCELERATOR_JIRA_ALLOWED_SITES` it sets. mise trusts a file by its path unless
+paranoid mode is on, so later edits to a trusted file are not re-prompted.
+
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
-password manager. The resolver refuses to read credentials from a
-`config.local.md` looser than `0600` (override with
-`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
-`.accelerator/allow-insecure-local` marker).
+password manager. A `config.local.md` that is a symlink or looser than `0600`
+is ignored with an `E_LOCAL_PERMS_INSECURE` warning: its values are not used,
+team values and the `ACCELERATOR_*` overrides still resolve, commands that
+write refuse, and a command fails with that code only when nothing usable
+remains.
 
 Example `config.local.md` (preferred form, using a password manager):
 
@@ -926,10 +950,10 @@ Authentication resolves through this chain (first non-empty wins):
 a committed `token_cmd` is a supply-chain command-injection sink. A
 `linear.token_cmd` found in `config.md` is ignored, emitting
 `E_TOKEN_CMD_FROM_SHARED_CONFIG: linear.token_cmd in config.md ignored — move to
-config.local.md` to stderr. The resolver also refuses to read credentials from a
-`config.local.md` looser than `0600` (override with
-`ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
-`.accelerator/allow-insecure-local` marker), mirroring the Jira integration.
+config.local.md` to stderr. A `config.local.md` that is a symlink or looser
+than `0600` is ignored with an `E_LOCAL_PERMS_INSECURE` warning; writers refuse,
+and it is fatal only when nothing usable remains, mirroring the Jira
+integration.
 
 Example `config.local.md` (preferred form, using a password manager):
 
@@ -984,9 +1008,9 @@ chain reaches `config.md` and finds one, the fetch is refused with
 `E_TOKEN_CMD_FROM_SHARED_CONFIG: openalex.api_key_cmd in config.md refused —
 move it to config.local.md`. Two further gates guard `config.local.md`:
 
-- a file looser than `0600` is refused with `E_LOCAL_PERMS_INSECURE`
-  (override with `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
-  `.accelerator/allow-insecure-local` marker);
+- a file that is a symlink or looser than `0600` is ignored with an
+  `E_LOCAL_PERMS_INSECURE` warning, and is fatal only when nothing usable
+  remains;
 - a file tracked by version control is refused, whatever its mode, when it
   supplies `openalex.api_key` (`E_TOKEN_FROM_TRACKED_FILE`) or
   `openalex.api_key_cmd` (`E_TOKEN_CMD_FROM_TRACKED_FILE`); untrack it. A

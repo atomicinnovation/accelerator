@@ -244,13 +244,14 @@ fn compose_stack(
         })?,
     };
     let composed = config_adapters::compose(&start, policy)?;
-    let store = composed
-        .store
-        .with_plugin_root(config_adapters::plugin_root_from_env());
+    composed.report_ignored_personal_file();
+    let plugin_root = config_adapters::plugin_root_from_env();
+    let screened = composed.screened.with_plugin_root(plugin_root.clone());
+    let store = composed.store.with_plugin_root(plugin_root);
     Ok(ConfigStack::new(
         Box::new(composed.service),
-        Box::new(store.clone()),
-        Box::new(store.clone()),
+        Box::new(screened.clone()),
+        Box::new(screened),
         Box::new(store.clone()),
         Box::new(store.clone()),
         Box::new(store.clone()),
@@ -695,5 +696,35 @@ mod tests {
         let error = dispatch_error(integrity_failure);
         let command = Command::External(vec![]);
         assert_eq!(handle_dispatch_error(&error, &command), ExitCode::from(2));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_block_views_read_the_personal_level_through_the_screen(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        use config::Level;
+
+        let dir = tempfile::Builder::new()
+            .prefix("compose-stack-")
+            .tempdir()?;
+        std::fs::create_dir_all(dir.path().join(".git"))?;
+        std::fs::create_dir_all(dir.path().join(".accelerator"))?;
+        let personal = dir.path().join(".accelerator/config.local.md");
+        std::fs::write(&personal, "---\npaths:\n  work: x\n---\nbody\n")?;
+        std::fs::set_permissions(
+            &personal,
+            std::fs::Permissions::from_mode(0o644),
+        )?;
+
+        let stack = super::compose_stack(
+            config_adapters::LegacyPolicy::Reject,
+            Some(dir.path().to_path_buf()),
+        )?;
+
+        assert_eq!(stack.levels().read(Level::Personal)?, None);
+        assert_eq!(stack.content().config_body(Level::Personal)?, None);
+        Ok(())
     }
 }

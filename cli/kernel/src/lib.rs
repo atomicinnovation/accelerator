@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 
 pub mod hooks;
 pub mod logging;
+pub mod render;
 
 /// The error taxonomy accelerator subcommands report through.
 ///

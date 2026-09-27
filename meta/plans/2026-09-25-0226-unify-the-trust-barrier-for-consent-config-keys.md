@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T08:17:48+00:00"
+last_updated: "2026-09-27T12:33:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1155,17 +1155,64 @@ pub trait ConfigAccess {
 
 #### Automated Verification
 
-- [ ] Consent policy tests pass: `cargo nextest run -p config --test consent`
-- [ ] Tracking tests pass: `cargo nextest run -p vcs -p vcs-adapters -p consent-adapters`
-- [ ] Jira auth and exit-code tests pass: `cargo nextest run -p jira-client -p jira-cli`
-- [ ] Architecture rules hold: `mise run cli:check` (cargo-pup, clippy, rustfmt)
-- [ ] Public API fixtures regenerated and committed for `config`, `consent-adapters` and `vcs` (which gains `FileTracking`)
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Consent policy tests pass: `cargo nextest run -p config --test consent`
+- [x] Tracking tests pass: `cargo nextest run -p vcs -p vcs-adapters -p consent-adapters`
+- [x] Jira auth and exit-code tests pass: `cargo nextest run -p jira-client -p jira-cli`
+- [x] Architecture rules hold: `mise run cli:check` (cargo-pup, clippy, rustfmt)
+- [x] Public API fixtures regenerated and committed for `config`, `consent-adapters` and `vcs` (which gains `FileTracking`)
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] In a scratch git repo with a team `jira.allowed_sites` and an `*.atlassian.net` site, `accelerator jira search …` runs and prints `warning: E_CONSENT_KEY_TEAM_LEVEL: jira.allowed_sites …`
+
+### Implementation Notes
+
+Phase 1 landed with these deviations and additions. Later phases build on
+them.
+
+- **Warnings on Jira failures.** `ClientError::WithWarnings { error,
+  warnings }`, with `cause()` and `warnings()`, carries the allowlist's
+  warnings on any failure after it, since `from_config`'s signature is
+  unchanged. `for_client` maps through `cause()` and is no longer `const`, nor
+  is `for_surface`. Phase 3's `Consent(rejection)` routing already exists.
+- **Writer intent.** jira-cli and linear-cli `build_client(Intent)` and
+  work-cli's `composed_here(Intent)` report the ignored file, and refuse for
+  `Intent::Write`. jira-cli `search` and bare `init`'s prompt check read the
+  default project tolerantly; `resolve-fields` refuses and exits 108, the code
+  that path gave before.
+- **Shared composition pieces.** `Composed::over(store)` composes over an
+  already-rooted store, which migrate uses. `Composed::report_ignored_personal_file`
+  prints through `kernel::render::personal_file_warning`, and the visualiser
+  logs through `kernel::render::report_personal_file_once`. The writer check
+  lives on `PersonalFile::require_readable`, which `Composed` and the launcher
+  share. `FileMigrationContext::new` is fallible.
+- **Consent helpers.** `consent::reportable` drops `InsecurePersonalFile` from
+  the warnings a consumer prints. `Refusal::for_personal_file` builds that
+  refusal from the fact. `Environment` moved to `consent`, and `credentials`
+  re-exports it. `Notice`'s `Display` includes the `notice:` prefix.
+- **Summary.** `SummaryWarnings { operator, session }` exists; Phase 6 adds
+  `context_notes`. The plain `config summary` output leaves session warnings
+  out, since the composition root already printed the ignored file on stderr.
+- **Names.** The lint is `tasks/lint/config_test_support.py`
+  (`lint:config-test-support:check`), because a `test_`-prefixed module reads
+  as a test file. The launcher's cases are in
+  `launcher/tests/config_personal_file.rs`, not `config_read.rs`.
+- **Override docs.** `ACCELERATOR_ALLOW_INSECURE_LOCAL` became inert, so its
+  mentions in the configure skill were removed in this phase, and the
+  CHANGELOG says it has no effect. Phase 7 keeps the code deletion and the
+  Removed entry.
+- **Stale-wording check.** Phase 1's insecure-file wording, "ignored with an
+  `E_LOCAL_PERMS_INSECURE` warning", sits within 200 characters of `_cmd` in
+  `skills/config/configure/SKILL.md`, `research.md`, `collaboration.md` and
+  `skills/issue-trackers.mdx`. The check in Phases 3 and 7 therefore matches
+  it. Phase 3 rewords those passages (for example "is not read") or narrows
+  the pattern to team-level command keys.
+- **Test order.** The jira-cli, work-cli, launcher and migrate binary tests
+  were written after the code. A mutation of jira-cli's writer gate was
+  caught; the others were not mutation-checked.
+- **Public API.** `kernel`'s fixture also changed, for `kernel::render`.
 
 ---
 
@@ -1456,7 +1503,7 @@ passing `deadline.remaining(..)`, and the trackers pass
   forwarding of interrupts to the helper. Its GitHub note says that `github.token_cmd` does
   not yet run under the runner, until Phase 3 replaces it. Link it
   from each chain's `*_CMD` step. Correct the password-manager paragraph
-  (`~:814-817`) and give three workarounds:
+  (`~:838-841`) and give three workarounds:
   - `env VAR=… cmd`, for static values;
   - an absolute-path wrapper script;
   - for values that exist only in the session (`SSH_AUTH_SOCK`,
@@ -1843,12 +1890,13 @@ search stays clean.
 
 #### 6. Docs and CHANGELOG
 
-- `skills/config/configure/SKILL.md`: replace every "ignored" (`:772-776`,
-  `:803-807`, `:885-889`) with the refusal-and-report behaviour and the
-  command-key refusal codes. On 2026-09-26 the stale-wording check below
-  matched only this file, at `:769-776`, `:799-807`, `:882-888` and
-  `:937-941`, which are the four paragraphs this phase rewrites. A match
-  anywhere else is new wording, not a leftover. Describe the `notice:` line
+- `skills/config/configure/SKILL.md`: replace every "ignored" (`:764-768`,
+  `:827-831`, `:909-912`) with the refusal-and-report behaviour and the
+  command-key refusal codes. After Phase 1 the stale-wording check below
+  matches this file's command-key paragraphs (`:764-768`, `:827-831`,
+  `:909-912`, `:965-977`) and Phase 1's insecure-file wording in this file,
+  `research.md`, `collaboration.md` and `skills/issue-trackers.mdx`, which
+  this phase rewords (see Phase 1's Implementation Notes). Describe the `notice:` line
   and state that it never prints a command. Replace the Command runner
   section's GitHub note with the runner guarantees for `github.token_cmd`
   and the GitHub ladder.
@@ -1865,15 +1913,15 @@ search stays clean.
 - `docs-site/src/content/docs/research.md:103`: the exit-code table row
   names the `E_CONSENT_KEY_*` codes too.
 - `docs-site/src/content/docs/research.md:167-197` and the configure skill's
-  OpenAlex section (`:941-953`):
+  OpenAlex section (`:965-977`):
   - rewrite the refusal table;
   - replace "leaves the call keyless" with the rule that a team
     `api_key_cmd` beside a personal file without a key now fails;
   - note that `E_TOKEN_FROM_TRACKED_FILE` also covers an undeterminable
     tracking status.
 - `skills/research/research-topic/SKILL.md:150-152`: the same keyless caveat.
-- Fall-through: reword the chain headers at configure `:794`, `:877` and
-  `:931` and research.md `:173` from "first non-empty wins" to "the first
+- Fall-through: reword the chain headers at configure `:818`, `:901` and
+  `:955` and research.md `:173` from "first non-empty wins" to "the first
   rung that yields a usable value wins; a failed command or refused value is
   reported as a `warning:` and the chain continues". Rewrite research.md's
   "each exiting 1" lead-in (`:182-183`) to match.
@@ -2670,9 +2718,9 @@ Each earlier phase has already documented its own behaviour.
 #### 2. Docs and CHANGELOG
 
 - `skills/config/configure/SKILL.md`:
-  - remove the override (`:779-782`, `:889-892`, `:947-949`). Refer to
-    "the old insecure-local marker file" without naming its path, so the
-    retirement search stays clean, and say it can be deleted;
+  - Phase 1 already removed the override's mentions. Say that "the old
+    insecure-local marker file" can be deleted, without naming its path, so
+    the retirement search stays clean;
   - state that an insecure `config.local.md` is ignored with a warning, and
     the routes out for a filesystem that cannot honour file modes;
   - add a "Consent keys" section listing the six keys and their kinds, with

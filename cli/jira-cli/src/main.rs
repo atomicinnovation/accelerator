@@ -16,6 +16,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use config::consent;
+use config::consent::Refusal;
 use jira_client::cache::JiraCache;
 use jira_client::cache::SystemFilesystem;
 use jira_client::comment::Visibility;
@@ -39,6 +41,7 @@ use crate::cli::{
     InitAction, SearchArgs, ShowArgs, TransitionArgs, UpdateArgs,
 };
 use crate::context::ContextError;
+use crate::context::Intent;
 use crate::resolve_fields::ResolveError;
 
 // The test-only loopback feature must never reach a release binary: the compile
@@ -55,9 +58,10 @@ fn id_of(value: &str) -> ExternalId {
     ExternalId::new(value.to_owned())
 }
 
-/// Builds the client, or prints the failure and returns the mapped exit code.
-fn client_or_report() -> Result<context::Built, ExitCode> {
-    context::build_client().map_err(|error| match error {
+/// Builds the client and reports the consent notice and warnings met on the
+/// way, or prints the failure and returns the mapped exit code.
+fn client_or_report(intent: Intent) -> Result<context::Built, ExitCode> {
+    let built = context::build_client(intent).map_err(|error| match error {
         ContextError::BadApiUrl(raw) => {
             eprintln!(
                 "E_BAD_API_URL: ACCELERATOR_JIRA_API_URL={raw:?} is not an \
@@ -70,10 +74,22 @@ fn client_or_report() -> Result<context::Built, ExitCode> {
             ExitCode::from(exit_codes::ERROR)
         }
         ContextError::Client(error) => {
+            report_warnings(error.warnings());
             eprintln!("{error}");
             ExitCode::from(exit_codes::for_client(&error))
         }
-    })
+    })?;
+    if let Some(notice) = built.client.notice() {
+        eprintln!("{notice}");
+    }
+    report_warnings(built.client.refusals());
+    Ok(built)
+}
+
+fn report_warnings(warnings: &[Refusal]) {
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
+    }
 }
 
 fn print_json(value: &Value) {
@@ -233,7 +249,7 @@ fn run_create(args: &CreateArgs) -> ExitCode {
         Ok(body) => body,
         Err(code) => return code,
     };
-    let built = match client_or_report() {
+    let built = match client_or_report(Intent::Write) {
         Ok(built) => built,
         Err(code) => return code,
     };
@@ -369,7 +385,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
         Ok(body) => body,
         Err(code) => return code,
     };
-    let built = match client_or_report() {
+    let built = match client_or_report(Intent::Write) {
         Ok(built) => built,
         Err(code) => return code,
     };
@@ -442,7 +458,7 @@ fn run_update(args: &UpdateArgs) -> ExitCode {
 }
 
 fn run_show(args: &ShowArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -488,7 +504,7 @@ fn slice_comments(issue: &mut Value, limit: usize) {
 }
 
 fn run_search(args: &SearchArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -627,7 +643,7 @@ fn run_comment_add(args: &CommentAddArgs) -> ExitCode {
         Some(Err(code)) => return code,
         None => None,
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -649,7 +665,7 @@ fn run_comment_add(args: &CommentAddArgs) -> ExitCode {
 }
 
 fn run_comment_list(args: &CommentListArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Read) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -687,7 +703,7 @@ fn run_comment_edit(args: &CommentEditArgs) -> ExitCode {
         Some(Err(code)) => return code,
         None => None,
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -710,7 +726,7 @@ fn run_comment_edit(args: &CommentEditArgs) -> ExitCode {
 }
 
 fn run_comment_delete(args: &CommentDeleteArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -752,7 +768,7 @@ fn run_transition(args: &TransitionArgs) -> ExitCode {
         Ok(comment) => comment,
         Err(code) => return code,
     };
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built.client,
         Err(code) => return code,
     };
@@ -775,7 +791,7 @@ fn run_transition(args: &TransitionArgs) -> ExitCode {
 }
 
 fn run_attach(args: &AttachArgs) -> ExitCode {
-    let client = match client_or_report() {
+    let client = match client_or_report(Intent::Write) {
         Ok(built) => built,
         Err(code) => return code,
     };
@@ -815,7 +831,7 @@ fn run_init(action: Option<&InitAction>) -> ExitCode {
         return ExitCode::from(exit_codes::INIT_NEEDS_CONFIG);
     }
 
-    let built = match client_or_report() {
+    let built = match client_or_report(Intent::Write) {
         Ok(built) => built,
         Err(code) => return code,
     };
@@ -944,7 +960,7 @@ fn list_cached(cache: &JiraCache<'_>, file: &str, field: &str) -> ExitCode {
 }
 
 fn run_fields(action: FieldsAction) -> ExitCode {
-    let built = match client_or_report() {
+    let built = match client_or_report(Intent::Read) {
         Ok(built) => built,
         Err(code) => return code,
     };
@@ -1020,6 +1036,10 @@ fn run_resolve_fields(args: &cli::ResolveFieldsArgs) -> ExitCode {
         Err(ResolveError::Usage(message)) => {
             eprintln!("jira resolve-fields: {message}");
             ExitCode::from(exit_codes::USAGE)
+        }
+        Err(ResolveError::PersonalConfigIgnored(message)) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::RESOLVE_NO_PROJECT)
         }
     }
 }

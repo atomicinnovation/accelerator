@@ -292,3 +292,89 @@ fn no_origin_remote_configured_exits_two() -> Result<(), TestError> {
     assert!(stderr.contains("origin"), "{stderr}");
     Ok(())
 }
+
+#[cfg(unix)]
+fn with_insecure_personal_config(dir: &Path) -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    fs::create_dir_all(dir.join(".accelerator"))?;
+    fs::write(
+        dir.join(".accelerator/config.md"),
+        "---\ngithub:\n  token: team-token\n---\n",
+    )?;
+    let personal = dir.join(".accelerator/config.local.md");
+    fs::write(&personal, "---\ngithub:\n  token: mine\n---\n")?;
+    fs::set_permissions(&personal, fs::Permissions::from_mode(0o644))?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn a_team_token_is_not_used_beside_an_insecure_personal_config(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    with_insecure_personal_config(repo.path())?;
+    let server = MockHTTPServer::start();
+    let key = RequestKey::new("GET", "/repos/candidate-owner/candidate-repo");
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_accelerator-collaboration"))
+        .args(["pr", "base-repo", "42"])
+        .current_dir(repo.path())
+        .env_remove("GH_TOKEN")
+        .env_remove("GITHUB_TOKEN")
+        .env(
+            "ACCELERATOR_COLLABORATION_GITHUB_API_URL",
+            server.base_url(),
+        )
+        .output()?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("E_LOCAL_PERMS_INSECURE"), "{stderr}");
+    assert_eq!(server.hits(&key), 0);
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn gh_token_works_beside_an_insecure_personal_config() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    with_insecure_personal_config(repo.path())?;
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
+    );
+    server.route(
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
+    );
+
+    let output = run(repo.path(), &server, &["pr", "base-repo", "42"])?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert_eq!(
+        stderr.matches("warning: E_LOCAL_PERMS_INSECURE").count(),
+        1,
+        "{stderr}"
+    );
+    Ok(())
+}

@@ -26,6 +26,7 @@ tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
+consent-adapters = { path = "../consent-adapters" }
 kernel = { path = "../kernel" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }

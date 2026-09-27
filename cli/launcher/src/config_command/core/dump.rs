@@ -75,7 +75,7 @@ pub fn assemble(
         rows.push(defaulted_row(config, key)?);
     }
     for key in catalogue::EXTRA_KEYS {
-        rows.push(extra_row(config, key)?);
+        rows.push(extra_row(config, key.name)?);
     }
     rows.extend(pull_rows(config)?);
     rows.extend(push_rows(config)?);

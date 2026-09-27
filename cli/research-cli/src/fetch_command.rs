@@ -253,6 +253,8 @@ mod tests {
     use std::time::Instant;
     use std::time::SystemTime;
 
+    use config::consent::ConfigFileTracking;
+    use config::consent::Tracking;
     use config::credentials::CommandPolicy;
     use config::credentials::CredentialError;
     use config::credentials::Environment;
@@ -363,6 +365,12 @@ mod tests {
     impl Provenance for UntrackedPersonalFile {
         fn is_tracked(&self, _path: &Path) -> bool {
             false
+        }
+    }
+
+    impl ConfigFileTracking for UntrackedPersonalFile {
+        fn tracking(&self, _path: &Path) -> Tracking {
+            Tracking::Untracked
         }
     }
 
@@ -556,6 +564,7 @@ mod tests {
                         timeouts: self.timeouts.clone(),
                     }),
                     provenance: Box::new(UntrackedPersonalFile),
+                    tracking: Box::new(UntrackedPersonalFile),
                 },
             };
             let project = ProjectContext {

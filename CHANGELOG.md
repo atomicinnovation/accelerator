@@ -78,6 +78,12 @@
   caveats are documented under Terminal Invocation in the
   [Internals](https://atomicinnovation.github.io/accelerator/internals/) page.
 
+- **`ACCELERATOR_JIRA_ALLOWED_SITES` supplies the Jira allowlist from the
+  environment.** Entries are split on commas and whitespace.
+- **A `notice:` line reports a consent key taken from the environment.** It
+  names the variable that decided the value, and for `jira.allowed_sites` the
+  value itself.
+
 ### Changed
 
 - **`catalogue.json` now records each synced team's states, labels, members
@@ -187,6 +193,29 @@
   policy-refused destination, folded into the existing cross-origin skip; the
   `same_origin` field's definition is restated accordingly in `PROTOCOL.md`.
 
+- **A team-level `jira.allowed_sites` warns rather than fails when the site
+  needs no allowlist.** Beside an `*.atlassian.net` site it now warns with
+  `E_CONSENT_KEY_TEAM_LEVEL` and continues; beside any other site it fails
+  with exit 24 instead of 1.
+- **The allowlist's refusal codes are renamed.** A tracked personal
+  `jira.allowed_sites` reports `E_CONSENT_KEY_TRACKED` (or
+  `E_CONSENT_KEY_TRACKING_UNKNOWN` when tracking cannot be determined) instead
+  of `E_TOKEN_CMD_FROM_TRACKED_FILE`, and a team-level one reports
+  `E_CONSENT_KEY_TEAM_LEVEL` instead of `E_ALLOWED_SITES_FROM_SHARED_CONFIG`.
+  Beside an `*.atlassian.net` site a tracked personal allowlist now warns
+  where it used to fail. Scripts matching stderr need updating.
+- **An insecure `config.local.md` is ignored with a warning instead of
+  failing everything.** A symlinked personal config, or one looser than
+  `0600`, used to fail every command and the `SessionStart` hook. Its values
+  are now not used: team values and the `ACCELERATOR_*` overrides still
+  resolve, each command warns once with `E_LOCAL_PERMS_INSECURE`, and it fails
+  with that code only when nothing usable remains. Commands that write still
+  refuse: `migrate`, `work create`/`update`/`sync`, the Jira and Linear
+  commands that write to the tracker or to config, `config set` and
+  `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
+  instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
+  and its marker no longer have any effect.
+
 ### Fixed
 
 - **Credential errors name the command key once.** A refused or failing token
@@ -226,6 +255,13 @@
   fails with `E_TOKEN_FROM_TRACKED_FILE`, whatever its mode, as a
   `token_cmd` already did: every clone of the repository carries the
   credential.
+- **A failed tracking query refuses a personal `jira.allowed_sites`.** When
+  a VCS is detected but cannot say whether `config.local.md` is tracked, the
+  allowlist is refused with `E_CONSENT_KEY_TRACKING_UNKNOWN` rather than
+  admitted, and `.accelerator/` in a subdirectory of a checkout is now
+  checked against the enclosing repository.
+- **A committed team plaintext token is never used while `config.local.md`
+  exists**, including when that file is ignored as insecure.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
   researcher type to running `accelerator research fetch` and writing finding

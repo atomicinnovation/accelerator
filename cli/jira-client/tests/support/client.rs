@@ -24,6 +24,8 @@ pub fn credentials(base: &str) -> Credentials {
         email: "toby@example.com".to_owned(),
         token: Secret::new("secret-token".to_owned()),
         source: TokenSource::Env,
+        refusals: Vec::new(),
+        notice: None,
     }
 }
 

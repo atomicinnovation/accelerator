@@ -88,7 +88,9 @@ linear:
 ---
 ```
 
-`.accelerator/config.local.md` must be mode `0600` or stricter.
+`.accelerator/config.local.md` must be mode `0600` or stricter; otherwise it
+is ignored with an `E_LOCAL_PERMS_INSECURE` warning, writers refuse, and it is
+fatal only when nothing usable remains.
 [`init-linear`](../reference/skills/integrations/linear/init-linear.md)
 fixes the workspace to a single team and caches that team with its
 workflow states — `catalogue.json` is committed and team-shared,

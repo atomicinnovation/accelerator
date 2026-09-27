@@ -723,6 +723,11 @@ owes five things. `cli/tracker/` is the worked example.
 
 Then run `mise run deny:check`.
 
+One placement rule decides where a new config adapter goes: it belongs in
+`cli/consent-adapters` only when it needs VCS. A VCS-free adapter stays in
+`cli/config-adapters`, whose dependents include the launcher and the
+visualiser server, so `gix` and `jj-lib` stay out of both.
+
 ## CI job → local command
 
 Each CI check job mirrors a single `mise run` task, so a red job is reproducible

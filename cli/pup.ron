@@ -416,6 +416,21 @@
                 ),
             ],
         )),
+        // consent-adapters answers the consent policy's VCS questions through
+        // vcs-adapters' in-process probes, so it spawns nothing itself.
+        Module((
+            name: "consent_adapters_is_zero_spawn",
+            matches: Module("^consent_adapters($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // A permit list alone cannot express this, because std::process sits
         // inside the permitted std, so the rule pairs one with an explicit
         // deny; the deny wins on overlap. The permit list rejects grouped

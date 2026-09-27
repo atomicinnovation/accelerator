@@ -40,6 +40,9 @@ pub enum ResolveError {
     AlreadySynced { file: String, external_id: String },
     /// No project could be resolved from a flag, config or a project-coded id.
     NoProject,
+    /// The project would fall back to config, but the personal config is
+    /// ignored, so the team file would silently decide it.
+    PersonalConfigIgnored(String),
     /// A malformed invocation (both modes, neither mode, unreadable file).
     Usage(String),
 }
@@ -113,7 +116,11 @@ pub fn resolve_from(
 /// [`ResolveError`] for a malformed invocation, an already-synced file, or an
 /// unresolvable project.
 pub fn resolve(args: &ResolveFieldsArgs) -> Result<Resolution, ResolveError> {
-    let config_project = configured_default_project();
+    let config_project = if args.project.is_some() {
+        None
+    } else {
+        configured_project_for_writing()?
+    };
 
     match (&args.file, &args.kind) {
         (Some(path), _) => {
@@ -170,10 +177,37 @@ const fn is_quote_or_space(c: char) -> bool {
 /// during the removal window, gated on `work.integration: jira`.
 #[must_use]
 pub fn configured_default_project() -> Option<String> {
+    let composed = composed()?;
+    composed.report_ignored_personal_file();
+    configured_project_key(&composed.service)
+}
+
+/// As [`configured_default_project`], for a command that writes: the team
+/// file must not silently decide where it writes.
+///
+/// # Errors
+///
+/// [`ResolveError::PersonalConfigIgnored`] when the personal config is
+/// ignored as insecure.
+fn configured_project_for_writing() -> Result<Option<String>, ResolveError> {
+    let Some(composed) = composed() else {
+        return Ok(None);
+    };
+    composed.report_ignored_personal_file();
+    composed.require_readable_personal_file().map_err(|error| {
+        ResolveError::PersonalConfigIgnored(error.to_string())
+    })?;
+    Ok(configured_project_key(&composed.service))
+}
+
+fn composed() -> Option<config_adapters::Composed> {
     let start = std::env::current_dir().ok()?;
-    let composed = compose(&start, LegacyPolicy::Reject).ok()?;
+    compose(&start, LegacyPolicy::Reject).ok()
+}
+
+fn configured_project_key(config: &dyn config::ConfigAccess) -> Option<String> {
     let resolved = config::resolve_with_deprecated_fallback(
-        &composed.service,
+        config,
         "jira.project_key",
         "work.default_project_code",
         Some("jira"),

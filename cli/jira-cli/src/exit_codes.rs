@@ -134,6 +134,8 @@ pub const ATTACH_NO_FILES: u8 = 131;
 pub const ATTACH_FILE_MISSING: u8 = 132;
 pub const ATTACH_BAD_FLAG: u8 = 133;
 
+use config::consent::Refusal;
+use config::consent::RefusalReason;
 use config::credentials::CredentialError;
 use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
@@ -157,7 +159,7 @@ pub const fn for_failure(failure: &JiraFailure) -> u8 {
 /// The exit code for a surface-flow failure (`search`/`show`/`comment`/
 /// `transition`/`attach`/`init`/`fields`).
 #[must_use]
-pub const fn for_surface(error: &SurfaceError) -> u8 {
+pub fn for_surface(error: &SurfaceError) -> u8 {
     match error {
         SurfaceError::Client(client) => for_client(client),
         SurfaceError::Adf(adf) => for_adf(adf),
@@ -173,24 +175,36 @@ pub const fn for_surface(error: &SurfaceError) -> u8 {
     }
 }
 
-/// The exit code for a client-construction or credential failure.
+/// The exit code for a client-construction or credential failure, decided
+/// by the failure beneath any warnings it carries.
 #[must_use]
-pub const fn for_client(error: &ClientError) -> u8 {
-    match error {
+pub fn for_client(error: &ClientError) -> u8 {
+    match error.cause() {
         ClientError::NoSite => AUTH_NO_SITE,
         ClientError::BadSite { .. } => BAD_SITE,
         ClientError::NoProject => CREATE_NO_PROJECT,
         ClientError::NoEmail => AUTH_NO_EMAIL,
         ClientError::Credential(credential) => for_credential(credential),
+        ClientError::Consent(rejection) => for_refusal(&rejection.fatal),
         ClientError::BadJql { .. } => JQL_NO_PROJECT,
         ClientError::BadIdentifier { .. } | ClientError::BadPath { .. } => {
             REQ_BAD_PATH
         }
         ClientError::Transport { .. } => REQ_CONNECT,
         ClientError::OversizedResponse { .. } => REQ_BAD_RESPONSE,
-        ClientError::AllowlistFromSharedConfig
-        | ClientError::ConfigUnreadable { .. }
-        | ClientError::TlsUnavailable { .. } => ERROR,
+        ClientError::ConfigUnreadable { .. }
+        | ClientError::TlsUnavailable { .. }
+        | ClientError::WithWarnings { .. } => ERROR,
+    }
+}
+
+/// The exit code for a consent refusal that left nothing usable, mapped onto
+/// the frozen codes rather than adding any.
+#[must_use]
+pub const fn for_refusal(refusal: &Refusal) -> u8 {
+    match refusal.reason() {
+        RefusalReason::Provenance => NO_TOKEN,
+        RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
     }
 }
 
@@ -258,7 +272,14 @@ const fn exit_code_for_status(status: u16) -> u8 {
 mod tests {
     use std::path::PathBuf;
 
+    use config::consent::{Distrust, Rejection};
+
     use super::*;
+
+    fn allowlist() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.allowed_sites")
+            .unwrap_or_else(|| unreachable!("the allowlist is declared"))
+    }
 
     #[test]
     fn a_tracked_personal_token_or_command_is_no_token() {
@@ -277,6 +298,54 @@ mod tests {
                 path,
             }),
             NO_TOKEN
+        );
+    }
+
+    #[test]
+    fn every_consent_refusal_maps_to_a_frozen_code() {
+        let key = allowlist();
+        let path = PathBuf::from(".accelerator/config.local.md");
+        let rows = [
+            (Refusal::TeamLevel { key }, NO_TOKEN),
+            (
+                Refusal::UntrustedPersonalFile {
+                    key,
+                    path: path.clone(),
+                    distrust: Distrust::Tracked,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::UntrustedPersonalFile {
+                    key,
+                    path: path.clone(),
+                    distrust: Distrust::Unknown,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::InsecurePersonalFile { path, mode: 0o644 },
+                LOCAL_PERMS_INSECURE,
+            ),
+        ];
+        for (refusal, code) in rows {
+            assert_eq!(for_refusal(&refusal), code, "{refusal}");
+        }
+    }
+
+    #[test]
+    fn a_consent_client_error_exits_by_its_fatal_refusal() {
+        let key = allowlist();
+        let error =
+            ClientError::Consent(Rejection::alone(Refusal::TeamLevel { key }));
+
+        assert_eq!(for_client(&error), NO_TOKEN);
+        assert_eq!(
+            for_client(
+                &ClientError::NoEmail
+                    .with_warnings(vec![Refusal::TeamLevel { key }])
+            ),
+            AUTH_NO_EMAIL
         );
     }
 

@@ -1,0 +1,741 @@
+//! The trust barrier for consent keys, and the one ordered refusal channel
+//! every credential rung reports through.
+//!
+//! A consent key holds a value only the user may supply. A team-level value is
+//! always refused, and so is a value read from a `config.local.md` that is
+//! VCS-tracked or whose tracking cannot be determined. An environment override
+//! skips those provenance checks: whoever controls the environment is the
+//! user.
+//!
+//! The highest-precedence source that passes every check wins, and every
+//! refusal met on the way is reported, the team-level one last. Severity is
+//! decided in one place, [`Consented::or_fallback`]: a refusal is fatal only
+//! when no usable value remains.
+//!
+//! Plaintext credentials are not consent keys, but their refusals travel in
+//! the same channel, so a consumer orders and renders every refusal alike.
+//!
+//! The policy is pure: the environment, the tracking answer and the config
+//! levels all arrive through ports.
+
+use std::fmt;
+use std::path::Path;
+use std::path::PathBuf;
+
+use crate::catalogue;
+use crate::catalogue::ExtraKey;
+use crate::catalogue::Trust;
+use crate::error::ConfigError;
+use crate::key::Key;
+use crate::level::Level;
+use crate::render::render_value;
+use crate::service::ConfigAccess;
+use crate::service::PersonalFile;
+use crate::service::Resolved;
+
+/// Environment reads, injected so a test needs no process state.
+pub trait Environment {
+    fn read(&self, name: &str) -> Option<String>;
+}
+
+/// Whether a file is tracked by the repository's VCS. `Unknown` means a VCS
+/// was detected but could not answer, which the policy treats as tracked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tracking {
+    Untracked,
+    Tracked,
+    Unknown,
+}
+
+impl Tracking {
+    #[must_use]
+    pub const fn distrust(self) -> Option<Distrust> {
+        match self {
+            Self::Untracked => None,
+            Self::Tracked => Some(Distrust::Tracked),
+            Self::Unknown => Some(Distrust::Unknown),
+        }
+    }
+}
+
+/// Why a personal file must not be trusted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Distrust {
+    Tracked,
+    Unknown,
+}
+
+impl fmt::Display for Distrust {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Tracked => "E_CONSENT_KEY_TRACKED",
+            Self::Unknown => "E_CONSENT_KEY_TRACKING_UNKNOWN",
+        })
+    }
+}
+
+/// The warnings a consumer prints itself: an ignored personal file is left
+/// out, because every composition root has already reported it once.
+pub fn reportable(warnings: &[Refusal]) -> impl Iterator<Item = &Refusal> {
+    warnings
+        .iter()
+        .filter(|warning| warning.reason() != RefusalReason::PersonalFile)
+}
+
+/// Whether the tracking question could be put at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackingCheck {
+    Known(Tracking),
+    Unchecked,
+}
+
+/// Answers whether a config file is VCS-tracked.
+pub trait ConfigFileTracking {
+    fn tracking(&self, path: &Path) -> Tracking;
+
+    /// As [`Self::tracking`], but able to report that the question could not
+    /// be put at all. Only a whole-config [`audit`] asks this way, so it can
+    /// tell an unreachable tracking service apart from an unknown answer.
+    fn check(&self, path: &Path) -> TrackingCheck {
+        TrackingCheck::Known(self.tracking(path))
+    }
+}
+
+/// Why a value was not used.
+#[derive(Clone, PartialEq, Eq)]
+pub enum Refusal {
+    TeamLevel {
+        key: &'static ExtraKey,
+    },
+    UntrustedPersonalFile {
+        key: &'static ExtraKey,
+        path: PathBuf,
+        distrust: Distrust,
+    },
+    InsecurePersonalFile {
+        path: PathBuf,
+        mode: u32,
+    },
+}
+
+/// The class of a refusal, which a consumer maps onto its own exit codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefusalReason {
+    Provenance,
+    PersonalFile,
+}
+
+impl Refusal {
+    /// The refusal a composition root reports once for an ignored personal
+    /// file, or `None` when the file is absent or readable.
+    #[must_use]
+    pub fn for_personal_file(personal_file: &PersonalFile) -> Option<Self> {
+        match personal_file {
+            PersonalFile::Ignored { path, mode } => {
+                Some(Self::InsecurePersonalFile {
+                    path: path.clone(),
+                    mode: *mode,
+                })
+            }
+            PersonalFile::Absent | PersonalFile::Readable => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn key(&self) -> Option<&'static ExtraKey> {
+        match self {
+            Self::TeamLevel { key }
+            | Self::UntrustedPersonalFile { key, .. } => Some(key),
+            Self::InsecurePersonalFile { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn reason(&self) -> RefusalReason {
+        match self {
+            Self::TeamLevel { .. } | Self::UntrustedPersonalFile { .. } => {
+                RefusalReason::Provenance
+            }
+            Self::InsecurePersonalFile { .. } => RefusalReason::PersonalFile,
+        }
+    }
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TeamLevel { key } => write!(
+                formatter,
+                "E_CONSENT_KEY_TEAM_LEVEL: {} in .accelerator/config.md is \
+                 refused — only you may set it; move it to \
+                 .accelerator/config.local.md",
+                key.name
+            ),
+            Self::UntrustedPersonalFile {
+                key,
+                path,
+                distrust,
+            } => {
+                write!(
+                    formatter,
+                    "{distrust}: {} in {} is refused — ",
+                    key.name,
+                    escaped(&path.display().to_string())
+                )?;
+                match distrust {
+                    Distrust::Tracked => formatter.write_str(
+                        "the file is tracked by version control, so the \
+                         repository chose the value; untrack it",
+                    ),
+                    Distrust::Unknown => {
+                        formatter.write_str(
+                            "whether the file is tracked by version control \
+                             could not be determined",
+                        )?;
+                        recovery_hint(formatter, key)
+                    }
+                }
+            }
+            Self::InsecurePersonalFile { path, mode } => write!(
+                formatter,
+                "E_LOCAL_PERMS_INSECURE: {} is mode {mode:04o}; ignored — run \
+                 chmod 600 on it (it must not be a symlink), or where file \
+                 modes cannot be honoured, keep team values in \
+                 .accelerator/config.md and secrets in the ACCELERATOR_* \
+                 overrides",
+                escaped(&path.display().to_string())
+            ),
+        }
+    }
+}
+
+fn recovery_hint(
+    formatter: &mut fmt::Formatter<'_>,
+    key: &ExtraKey,
+) -> fmt::Result {
+    key.recovery_hint().map_or(Ok(()), |hint| {
+        write!(formatter, "; set {hint} in the environment")
+    })
+}
+
+/// Redacts every path and value: a refusal may reach a CI log through `{:?}`.
+impl fmt::Debug for Refusal {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TeamLevel { key } => formatter
+                .debug_struct("TeamLevel")
+                .field("key", &key.name)
+                .finish(),
+            Self::UntrustedPersonalFile { key, distrust, .. } => formatter
+                .debug_struct("UntrustedPersonalFile")
+                .field("key", &key.name)
+                .field("distrust", distrust)
+                .finish_non_exhaustive(),
+            Self::InsecurePersonalFile { mode, .. } => formatter
+                .debug_struct("InsecurePersonalFile")
+                .field("mode", mode)
+                .finish_non_exhaustive(),
+        }
+    }
+}
+
+/// Escapes control characters, so a crafted path or value cannot forge or hide
+/// an output line.
+fn escaped(text: &str) -> String {
+    let mut rendered = String::with_capacity(text.len());
+    for character in text.chars() {
+        if character.is_control() {
+            rendered.extend(character.escape_default());
+        } else {
+            rendered.push(character);
+        }
+    }
+    rendered
+}
+
+/// A key declared as [`Trust::Consent`]: a value with no checks beyond
+/// provenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConsentKey(&'static ExtraKey);
+
+/// A key declared as [`Trust::CommandConsent`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommandKey(ConsentKey);
+
+/// A key declared as [`Trust::PathConsent`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExecutablePathKey(ConsentKey);
+
+impl ConsentKey {
+    /// # Errors
+    ///
+    /// [`ConfigError::Invalid`] unless the catalogue declares `name` as a
+    /// plain consent key.
+    pub fn declared(name: &str) -> Result<Self, ConfigError> {
+        declared_as(name, "a consent key", |trust| trust == Trust::Consent)
+            .map(Self)
+    }
+
+    #[cfg(feature = "test-support")]
+    #[must_use]
+    pub fn for_test(name: &str) -> Self {
+        Self(leaked(name, Trust::Consent))
+    }
+
+    #[must_use]
+    pub const fn descriptor(&self) -> &'static ExtraKey {
+        self.0
+    }
+}
+
+impl CommandKey {
+    /// # Errors
+    ///
+    /// [`ConfigError::Invalid`] unless the catalogue declares `name` as a
+    /// command-valued consent key.
+    pub fn declared(name: &str) -> Result<Self, ConfigError> {
+        declared_as(name, "a command-valued consent key", |trust| {
+            matches!(trust, Trust::CommandConsent { .. })
+        })
+        .map(|key| Self(ConsentKey(key)))
+    }
+
+    #[cfg(feature = "test-support")]
+    #[must_use]
+    pub fn for_test(
+        name: &str,
+        admitted_environment: &'static [&'static str],
+    ) -> Self {
+        Self(ConsentKey(leaked(
+            name,
+            Trust::CommandConsent {
+                admitted_environment,
+            },
+        )))
+    }
+
+    #[must_use]
+    pub const fn descriptor(&self) -> &'static ExtraKey {
+        self.0 .0
+    }
+}
+
+impl ExecutablePathKey {
+    /// # Errors
+    ///
+    /// [`ConfigError::Invalid`] unless the catalogue declares `name` as a
+    /// path-valued consent key.
+    pub fn declared(name: &str) -> Result<Self, ConfigError> {
+        declared_as(name, "a path-valued consent key", |trust| {
+            trust == Trust::PathConsent
+        })
+        .map(|key| Self(ConsentKey(key)))
+    }
+
+    #[cfg(feature = "test-support")]
+    #[must_use]
+    pub fn for_test(name: &str) -> Self {
+        Self(ConsentKey(leaked(name, Trust::PathConsent)))
+    }
+
+    #[must_use]
+    pub const fn descriptor(&self) -> &'static ExtraKey {
+        self.0 .0
+    }
+}
+
+fn declared_as(
+    name: &str,
+    kind: &str,
+    admits: impl Fn(Trust) -> bool,
+) -> Result<&'static ExtraKey, ConfigError> {
+    catalogue::declared(name)
+        .filter(|key| admits(key.trust))
+        .ok_or_else(|| ConfigError::Invalid {
+            detail: format!("{name} is not declared as {kind}"),
+        })
+}
+
+#[cfg(feature = "test-support")]
+fn leaked(name: &str, trust: Trust) -> &'static ExtraKey {
+    Box::leak(Box::new(ExtraKey {
+        name: Box::leak(name.to_owned().into_boxed_str()),
+        trust,
+        overrides: &[],
+        recovery: None,
+    }))
+}
+
+/// That a consent key was taken from the environment, which skips the
+/// provenance checks, so the user can see which variable decided it.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Notice {
+    key: &'static ExtraKey,
+    variable: &'static str,
+    value: Option<String>,
+}
+
+impl Notice {
+    /// A command is never shown: it may carry a secret inline.
+    #[must_use]
+    pub fn new(
+        key: &'static ExtraKey,
+        variable: &'static str,
+        value: &str,
+    ) -> Self {
+        let shown = !matches!(key.trust, Trust::CommandConsent { .. });
+        Self {
+            key,
+            variable,
+            value: shown.then(|| value.to_owned()),
+        }
+    }
+}
+
+impl fmt::Display for Notice {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "notice: {} taken from {}",
+            self.key.name, self.variable
+        )?;
+        self.value
+            .as_ref()
+            .map_or(Ok(()), |value| write!(formatter, ": {}", escaped(value)))
+    }
+}
+
+impl fmt::Debug for Notice {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Notice")
+            .field("key", &self.key.name)
+            .field("variable", &self.variable)
+            .finish_non_exhaustive()
+    }
+}
+
+/// What the policy decided: the admitted value, if any, and every refusal met
+/// on the way, in precedence order with the team-level refusal last.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Consented<T> {
+    pub admitted: Option<T>,
+    pub refusals: Vec<Refusal>,
+    pub notice: Option<Notice>,
+}
+
+/// A consent failure: the refusal that left nothing usable, and every other
+/// refusal as a warning.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rejection {
+    pub fatal: Refusal,
+    pub warnings: Vec<Refusal>,
+}
+
+impl Rejection {
+    #[must_use]
+    pub const fn alone(fatal: Refusal) -> Self {
+        Self {
+            fatal,
+            warnings: Vec::new(),
+        }
+    }
+}
+
+/// A consumer's verdict once its own fallback is weighed in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Usable<T> {
+    Value {
+        value: T,
+        warnings: Vec<Refusal>,
+        notice: Option<Notice>,
+    },
+    Refused(Rejection),
+    Absent,
+}
+
+impl<T> Consented<T> {
+    /// The one owner of refusal ordering: the refusals of the candidates
+    /// tried, in precedence order, then the team-level refusals.
+    pub(crate) fn from_candidates(
+        admitted: Option<T>,
+        candidate_refusals: Vec<Refusal>,
+        team_refusals: Vec<Refusal>,
+    ) -> Self {
+        let (mut refusals, mut team_level): (Vec<_>, Vec<_>) =
+            candidate_refusals
+                .into_iter()
+                .chain(team_refusals)
+                .partition(|refusal| {
+                    !matches!(refusal, Refusal::TeamLevel { .. })
+                });
+        refusals.append(&mut team_level);
+        Self {
+            admitted,
+            refusals,
+            notice: None,
+        }
+    }
+
+    fn noticed(mut self, notice: Option<Notice>) -> Self {
+        self.notice = notice;
+        self
+    }
+
+    #[must_use]
+    pub fn map<U>(self, transform: impl FnOnce(T) -> U) -> Consented<U> {
+        Consented {
+            admitted: self.admitted.map(transform),
+            refusals: self.refusals,
+            notice: self.notice,
+        }
+    }
+
+    /// Decides severity: with a usable value, admitted or `fallback`, every
+    /// refusal is a warning; with none, the highest-precedence refusal is
+    /// fatal and the rest are warnings.
+    #[must_use]
+    pub fn or_fallback(self, fallback: Option<T>) -> Usable<T> {
+        if let Some(value) = self.admitted {
+            return Usable::Value {
+                value,
+                warnings: self.refusals,
+                notice: self.notice,
+            };
+        }
+        if let Some(value) = fallback {
+            return Usable::Value {
+                value,
+                warnings: self.refusals,
+                notice: None,
+            };
+        }
+        let mut refusals = self.refusals.into_iter();
+        refusals.next().map_or(Usable::Absent, |fatal| {
+            Usable::Refused(Rejection {
+                fatal,
+                warnings: refusals.collect(),
+            })
+        })
+    }
+}
+
+/// A resolution that could not finish reading config, carrying every refusal
+/// gathered so far so a team-level value is still reported.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Aborted {
+    pub error: ConfigError,
+    pub warnings: Vec<Refusal>,
+}
+
+/// One whole-config consent finding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuditFinding {
+    Key(Refusal),
+    PersonalFile(Distrust),
+    PersonalFileUnchecked,
+    PersonalFileIgnored(Refusal),
+}
+
+/// Everything the provenance checks read.
+pub struct ProvenanceContext<'a> {
+    pub config: &'a dyn ConfigAccess,
+    pub tracking: &'a dyn ConfigFileTracking,
+    pub environment: &'a dyn Environment,
+    pub personal_config: PathBuf,
+}
+
+enum Rung {
+    Absent,
+    Candidate(String),
+    Refused(Refusal),
+}
+
+/// Resolves a plain consent key.
+///
+/// # Errors
+///
+/// [`Aborted`] when a config level cannot be read.
+pub fn resolve(
+    context: &ProvenanceContext<'_>,
+    key: &ConsentKey,
+) -> Result<Consented<String>, Aborted> {
+    let descriptor = key.descriptor();
+    let team_refusals = team_level_refusals(context.config, descriptor)
+        .map_err(|error| Aborted {
+            error,
+            warnings: Vec::new(),
+        })?;
+
+    if let Some((variable, value)) =
+        environment_candidate(context.environment, descriptor)
+    {
+        let notice = Notice::new(descriptor, variable, &value);
+        return Ok(Consented::from_candidates(
+            Some(value),
+            Vec::new(),
+            team_refusals,
+        )
+        .noticed(Some(notice)));
+    }
+
+    let personal = match personal_candidate(context, descriptor) {
+        Ok(rung) => rung,
+        Err(error) => {
+            return Err(Aborted {
+                error,
+                warnings: team_refusals,
+            })
+        }
+    };
+    let (admitted, refusals) = match personal {
+        Rung::Absent => (None, Vec::new()),
+        Rung::Candidate(value) => (Some(value), Vec::new()),
+        Rung::Refused(refusal) => (None, vec![refusal]),
+    };
+    Ok(Consented::from_candidates(
+        admitted,
+        refusals,
+        team_refusals,
+    ))
+}
+
+/// Every consent problem in the whole config: each team-level consent key,
+/// and a `config.local.md` that is distrusted or ignored whatever it sets.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when the team level cannot be read.
+pub fn audit(
+    context: &ProvenanceContext<'_>,
+) -> Result<Vec<AuditFinding>, ConfigError> {
+    let mut findings = Vec::new();
+    for key in catalogue::consent_keys() {
+        findings.extend(
+            team_level_refusals(context.config, key)?
+                .into_iter()
+                .map(AuditFinding::Key),
+        );
+    }
+    let path = match context.config.personal_file() {
+        PersonalFile::Absent => return Ok(findings),
+        PersonalFile::Readable => &context.personal_config,
+        PersonalFile::Ignored { path, mode } => {
+            findings.push(AuditFinding::PersonalFileIgnored(
+                Refusal::InsecurePersonalFile {
+                    path: path.clone(),
+                    mode: *mode,
+                },
+            ));
+            path
+        }
+    };
+    match context.tracking.check(path) {
+        TrackingCheck::Unchecked => {
+            findings.push(AuditFinding::PersonalFileUnchecked);
+        }
+        TrackingCheck::Known(tracking) => {
+            findings
+                .extend(tracking.distrust().map(AuditFinding::PersonalFile));
+        }
+    }
+    Ok(findings)
+}
+
+fn team_level_refusals(
+    config: &dyn ConfigAccess,
+    key: &'static ExtraKey,
+) -> Result<Vec<Refusal>, ConfigError> {
+    Ok(raw_value(config, key, Level::Team)?
+        .map(|_| Refusal::TeamLevel { key })
+        .into_iter()
+        .collect())
+}
+
+fn environment_candidate(
+    environment: &dyn Environment,
+    key: &ExtraKey,
+) -> Option<(&'static str, String)> {
+    key.overrides.iter().find_map(|variable| {
+        environment
+            .read(variable)
+            .and_then(|value| non_blank(&value))
+            .map(|value| (*variable, value))
+    })
+}
+
+fn personal_candidate(
+    context: &ProvenanceContext<'_>,
+    key: &'static ExtraKey,
+) -> Result<Rung, ConfigError> {
+    match context.config.personal_file() {
+        PersonalFile::Absent => Ok(Rung::Absent),
+        PersonalFile::Ignored { path, mode } => {
+            Ok(Rung::Refused(Refusal::InsecurePersonalFile {
+                path: path.clone(),
+                mode: *mode,
+            }))
+        }
+        PersonalFile::Readable => {
+            let Some(value) = raw_value(context.config, key, Level::Personal)?
+            else {
+                return Ok(Rung::Absent);
+            };
+            let distrust = context
+                .tracking
+                .tracking(&context.personal_config)
+                .distrust();
+            Ok(distrust.map_or(Rung::Candidate(value), |distrust| {
+                Rung::Refused(Refusal::UntrustedPersonalFile {
+                    key,
+                    path: context.personal_config.clone(),
+                    distrust,
+                })
+            }))
+        }
+    }
+}
+
+fn raw_value(
+    config: &dyn ConfigAccess,
+    key: &ExtraKey,
+    level: Level,
+) -> Result<Option<String>, ConfigError> {
+    let parsed = Key::parse(key.name)?;
+    Ok(match config.get(&parsed, Some(level))? {
+        Resolved::Found(value) => non_blank(&render_value(&value)),
+        Resolved::Absent => None,
+    })
+}
+
+fn non_blank(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Consented, Distrust, Refusal};
+    use crate::catalogue;
+
+    #[test]
+    fn candidate_refusals_come_before_team_level_ones_whatever_the_order_given()
+    {
+        let key = catalogue::declared("jira.allowed_sites")
+            .unwrap_or_else(|| unreachable!("the allowlist is declared"));
+        let team = Refusal::TeamLevel { key };
+        let tracked = Refusal::UntrustedPersonalFile {
+            key,
+            path: "/p".into(),
+            distrust: Distrust::Tracked,
+        };
+
+        let consented: Consented<String> = Consented::from_candidates(
+            None,
+            vec![team.clone(), tracked.clone()],
+            Vec::new(),
+        );
+
+        assert_eq!(consented.refusals, [tracked, team]);
+    }
+}

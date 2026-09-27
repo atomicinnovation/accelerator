@@ -28,6 +28,7 @@ pub fn resolve_tmp_dir(cwd: &Path) -> Result<String, LaunchFailure> {
     let composed =
         config_adapters::compose(cwd, config_adapters::LegacyPolicy::Reject)
             .map_err(|error| failed(&error))?;
+    composed.report_ignored_personal_file();
     let key = Key::parse("paths.tmp").map_err(|error| failed(&error))?;
     Ok(composed
         .service
@@ -60,6 +61,7 @@ pub fn resolve_browser_hatch(
     let composed =
         config_adapters::compose(cwd, config_adapters::LegacyPolicy::Reject)
             .map_err(|error| failed(&error))?;
+    composed.report_ignored_personal_file();
     let key =
         Key::parse("design.browser_path").map_err(|error| failed(&error))?;
     let resolution = composed

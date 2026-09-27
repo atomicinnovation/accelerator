@@ -42,6 +42,7 @@ struct Prepared {
 impl Prepared {
     fn discover(cwd: &Path) -> Result<Self, OrchestrationError> {
         let composed = config_adapters::compose(cwd, LegacyPolicy::Reject)?;
+        crate::compose::report_ignored_personal_file(&composed);
         let project_root = config_adapters::FileConfigStore::discover_root(cwd);
         let tmp_rel = composed
             .service

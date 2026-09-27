@@ -4,6 +4,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use config::consent;
+use config::consent::Notice;
+use config::consent::Refusal;
 use config::credentials::CommandPolicy;
 use config::credentials::CredentialContext;
 use config::credentials::Environment;
@@ -11,6 +14,7 @@ use config::credentials::Provenance;
 use config::ConfigAccess;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
+use consent_adapters::VcsConfigFileTracking;
 use jira_client::JiraClient;
 use linear_client::discovery::TeamEntryFetch;
 use linear_client::healing::CatalogueBackfill;
@@ -221,9 +225,10 @@ impl<'a> ConfiguredTrackers<'a> {
         &self,
         body: impl FnOnce(&CredentialContext<'_>) -> T,
     ) -> T {
-        let ports = CredentialPorts::system(Box::new(
-            VcsProvenance::discovered(self.root.clone()),
-        ));
+        let ports = CredentialPorts::system(
+            Box::new(VcsProvenance::discovered(self.root.clone())),
+            Box::new(VcsConfigFileTracking),
+        );
         let mut context = project_credential_context(
             &self.root,
             &ports,
@@ -279,6 +284,17 @@ impl std::fmt::Display for PullError {
 
 impl std::error::Error for PullError {}
 
+/// Prints what the consent policy met while resolving a tracker's
+/// credentials: the notice of an environment override, and each warning.
+fn report_consent(notice: Option<&Notice>, warnings: &[Refusal]) {
+    if let Some(notice) = notice {
+        eprintln!("{notice}");
+    }
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
+    }
+}
+
 impl TrackerRegistry for ConfiguredTrackers<'_> {
     fn resolve(
         &self,
@@ -291,8 +307,14 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
                 self.with_credential_context(|context| {
                     JiraClient::from_config(context, transport_config)
                 })
-                .map(|client| Box::new(client) as Box<dyn RemoteTracker>)
-                .map_err(|error| Self::unconfigured(name, error))
+                .map(|client| {
+                    report_consent(client.notice(), client.refusals());
+                    Box::new(client) as Box<dyn RemoteTracker>
+                })
+                .map_err(|error| {
+                    report_consent(None, error.warnings());
+                    Self::unconfigured(name, error)
+                })
             }
             "linear" => self
                 .linear_client(self.backfill())

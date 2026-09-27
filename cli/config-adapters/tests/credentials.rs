@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
 
+use config::consent::{ConfigFileTracking, Tracking};
 use config::credentials::{
     resolve_token, CommandPolicy, CredentialError, Environment, FileFacts,
     FileState, Provenance, ResolvedToken, TokenCommandFailure,
@@ -60,6 +61,14 @@ struct FixedEnvironment(BTreeMap<String, String>);
 impl Environment for FixedEnvironment {
     fn read(&self, name: &str) -> Option<String> {
         self.0.get(name).cloned()
+    }
+}
+
+struct Untracked;
+
+impl ConfigFileTracking for Untracked {
+    fn tracking(&self, _path: &Path) -> Tracking {
+        Tracking::Untracked
     }
 }
 
@@ -132,6 +141,7 @@ impl Project {
             files: Box::new(SystemFileFacts),
             commands: Box::new(BashTokenCommandRunner),
             provenance: Box::new(FixedProvenance(tracked.to_vec())),
+            tracking: Box::new(Untracked),
         };
         let config = FixedConfig {
             personal: personal
@@ -145,6 +155,43 @@ impl Project {
                 &ports,
                 &config,
                 command_timeout,
+            ),
+            &keys(),
+        )
+    }
+
+    /// Resolves over the real composed store, so the personal file's mode and
+    /// shape decide whether it is read at all.
+    fn resolve_composed(
+        &self,
+        environment: &[(&str, &str)],
+    ) -> Result<ResolvedToken, CredentialError> {
+        std::fs::create_dir_all(self.path(".git")).expect("mark the root");
+        let composed = config_adapters::compose(
+            self.root.path(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("the project composes");
+        let ports = CredentialPorts {
+            environment: Box::new(FixedEnvironment(
+                environment
+                    .iter()
+                    .map(|(name, value)| {
+                        ((*name).to_owned(), (*value).to_owned())
+                    })
+                    .collect(),
+            )),
+            files: Box::new(SystemFileFacts),
+            commands: Box::new(BashTokenCommandRunner),
+            provenance: Box::new(FixedProvenance(vec![self.marker()])),
+            tracking: Box::new(Untracked),
+        };
+        resolve_token(
+            &project_credential_context(
+                self.root.path(),
+                &ports,
+                &composed.service,
+                Duration::from_secs(5),
             ),
             &keys(),
         )
@@ -172,7 +219,10 @@ fn set_mode(_path: &Path, _mode: u32) {}
 #[test]
 fn the_context_reads_the_projects_personal_config_and_marker() {
     let project = Project::new();
-    let ports = CredentialPorts::system(Box::new(FixedProvenance(Vec::new())));
+    let ports = CredentialPorts::system(
+        Box::new(FixedProvenance(Vec::new())),
+        Box::new(Untracked),
+    );
     let config = FixedConfig {
         personal: BTreeMap::new(),
     };
@@ -253,90 +303,57 @@ fn a_dangling_symlink_is_absent() {
 }
 
 #[test]
-fn a_personal_config_looser_than_0600_is_refused() {
+fn an_insecure_personal_config_is_ignored_and_refused_when_nothing_remains() {
     let project = Project::new();
     project.write_personal_config(0o644);
 
     let error = project
-        .resolve(
-            &[],
-            &[("jira.token", "from-file")],
-            &[],
-            Duration::from_secs(5),
-        )
-        .expect_err("a world-readable credential file is refused");
+        .resolve_composed(&[])
+        .expect_err("an ignored credential file yields nothing usable");
 
     assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
     assert!(error.to_string().contains("chmod 600"), "{error}");
 }
 
 #[test]
-fn the_insecure_override_needs_both_the_variable_and_a_tracked_marker() {
+fn the_environment_token_resolves_beside_an_insecure_personal_config() {
     let project = Project::new();
     project.write_personal_config(0o644);
-    std::fs::write(project.marker(), "").expect("write the marker");
-    let unlocked = [("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")];
-    let personal = [("jira.token", "from-file")];
-
-    let refused =
-        project.resolve(&unlocked, &personal, &[], Duration::from_secs(5));
-    assert!(
-        matches!(refused, Err(CredentialError::LocalPermsInsecure { .. })),
-        "an untracked marker does not unlock the override"
-    );
 
     let resolved = project
-        .resolve(
-            &unlocked,
-            &personal,
-            &[project.marker()],
-            Duration::from_secs(5),
-        )
-        .expect("a tracked marker plus the variable honours the override");
-    assert_eq!(resolved.value.expose(), "from-file");
+        .resolve_composed(&[("ACCELERATOR_JIRA_TOKEN", "from-env")])
+        .expect("the environment is unaffected by an ignored file");
+
+    assert_eq!(resolved.value.expose(), "from-env");
 }
 
-#[cfg(unix)]
 #[test]
-fn a_symlinked_personal_config_is_refused_even_under_the_override() {
+fn the_insecure_override_does_not_unlock_an_ignored_personal_config() {
     let project = Project::new();
-    let target = project.path("config.local.md.real");
-    std::fs::write(&target, "---\njira:\n  token: from-file\n---\n")
-        .expect("write the real personal config");
-    std::os::unix::fs::symlink(&target, project.personal_config())
-        .expect("symlink the personal config");
+    project.write_personal_config(0o640);
     std::fs::write(project.marker(), "").expect("write the marker");
 
     let error = project
-        .resolve(
-            &[("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")],
-            &[("jira.token", "from-file")],
-            &[project.marker()],
-            Duration::from_secs(5),
-        )
-        .expect_err("a symlinked personal config is refused");
+        .resolve_composed(&[("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")])
+        .expect_err("the variable and a tracked marker unlock nothing");
 
     assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
 }
 
 #[cfg(unix)]
 #[test]
-fn a_symlinked_marker_does_not_unlock_the_override() {
+fn a_symlinked_personal_config_is_ignored() {
     let project = Project::new();
-    project.write_personal_config(0o644);
-    let target = project.path("marker-target");
-    std::fs::write(&target, "").expect("write the marker target");
-    std::os::unix::fs::symlink(&target, project.marker())
-        .expect("symlink the marker");
+    let target = project.path("config.local.md.real");
+    std::fs::write(&target, "---\njira:\n  token: from-file\n---\n")
+        .expect("write the real personal config");
+    set_mode(&target, 0o600);
+    std::os::unix::fs::symlink(&target, project.personal_config())
+        .expect("symlink the personal config");
 
     let error = project
-        .resolve(
-            &[("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")],
-            &[("jira.token", "from-file")],
-            &[project.marker()],
-            Duration::from_secs(5),
-        )
-        .expect_err("a symlinked marker is refused");
+        .resolve_composed(&[])
+        .expect_err("a symlinked personal config is never read");
 
     assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
 }

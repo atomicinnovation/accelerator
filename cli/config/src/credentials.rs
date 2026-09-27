@@ -4,14 +4,14 @@
 //! |---|---|---|
 //! | 1 | `ACCELERATOR_<PROVIDER>_TOKEN` | |
 //! | 2 | `ACCELERATOR_<PROVIDER>_TOKEN_CMD` | a second environment source |
-//! | 3 | `config.local.md` `token` | behind the permissions gate |
-//! | 4 | `config.local.md` `token_cmd` | behind the same gate |
+//! | 3 | `config.local.md` `token` | only when the file is readable |
+//! | 4 | `config.local.md` `token_cmd` | only when the file is readable |
 //! | 5 | `config.md` `token` | only when `config.local.md` is absent |
 //!
 //! Two consequences a summary tends to get backwards: the personal
 //! `token_cmd` outranks the shared `token` value, and the shared file is
 //! consulted only when the personal one does not exist at all — not merely
-//! when it carries no token.
+//! when it carries no token, and not when it is ignored as insecure.
 //!
 //! Four deliberate hardening choices, each made because the safer behaviour
 //! is worth it rather than for convenience:
@@ -40,8 +40,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::consent::ConfigFileTracking;
+pub use crate::consent::Environment;
+use crate::consent::ProvenanceContext;
 use crate::render::render_value;
 use crate::service::ConfigAccess;
+use crate::service::PersonalFile;
 use crate::service::Resolved;
 use crate::Key;
 use crate::Level;
@@ -92,11 +96,6 @@ pub struct TokenKeys {
     pub env_command: &'static str,
     pub value: Key,
     pub command: Key,
-}
-
-/// Environment reads, injected so a test needs no process state.
-pub trait Environment {
-    fn read(&self, name: &str) -> Option<String>;
 }
 
 /// Whether a file is tracked by the repository's VCS — the property that
@@ -178,11 +177,25 @@ pub struct CredentialContext<'a> {
     pub environment: &'a dyn Environment,
     pub config: &'a dyn ConfigAccess,
     pub provenance: &'a dyn Provenance,
+    pub tracking: &'a dyn ConfigFileTracking,
     pub files: &'a dyn FileFacts,
     pub commands: &'a dyn TokenCommandRunner,
     pub personal_config: PathBuf,
     pub insecure_marker: PathBuf,
     pub command: CommandPolicy,
+}
+
+impl CredentialContext<'_> {
+    /// The consent policy's view of the same ports.
+    #[must_use]
+    pub fn provenance(&self) -> ProvenanceContext<'_> {
+        ProvenanceContext {
+            config: self.config,
+            tracking: self.tracking,
+            environment: self.environment,
+            personal_config: self.personal_config.clone(),
+        }
+    }
 }
 
 /// Why no token could be resolved.
@@ -306,47 +319,64 @@ pub fn resolve_token(
         return accept(value, TokenSource::EnvCommand, &key_name(&keys.value));
     }
 
-    if personal_config_exists(context)? {
-        if let Some(value) =
-            level_value(context.config, &keys.value, Level::Personal)?
-        {
-            refuse_tracked_value(context, &key_name(&keys.value))?;
-            return accept(
-                value,
-                TokenSource::Personal,
-                &key_name(&keys.value),
-            );
+    match context.config.personal_file() {
+        PersonalFile::Ignored { path, mode } => {
+            Err(CredentialError::LocalPermsInsecure {
+                path: path.clone(),
+                mode: *mode,
+            })
         }
+        PersonalFile::Readable => resolve_personal(context, keys),
+        PersonalFile::Absent => resolve_shared(context, keys),
+    }
+}
 
-        if let Some(command) =
-            level_value(context.config, &keys.command, Level::Personal)?
-        {
-            refuse_tracked_source(
-                context.provenance,
-                &context.personal_config,
-                &key_name(&keys.command),
-            )?;
-            let value =
-                run_token_command(context, &command, &key_name(&keys.command))?;
-            return accept(
-                value,
-                TokenSource::PersonalCommand,
-                &key_name(&keys.value),
-            );
-        }
-    } else {
-        if level_value(context.config, &keys.command, Level::Team)?.is_some() {
-            return Err(CredentialError::TokenCmdFromSharedConfig {
-                key: key_name(&keys.command),
-            });
-        }
-        if let Some(value) =
-            level_value(context.config, &keys.value, Level::Team)?
-        {
-            return accept(value, TokenSource::Shared, &key_name(&keys.value));
-        }
+fn resolve_personal(
+    context: &CredentialContext<'_>,
+    keys: &TokenKeys,
+) -> Result<ResolvedToken, CredentialError> {
+    if let Some(value) =
+        level_value(context.config, &keys.value, Level::Personal)?
+    {
+        refuse_tracked_value(context, &key_name(&keys.value))?;
+        return accept(value, TokenSource::Personal, &key_name(&keys.value));
     }
 
+    if let Some(command) =
+        level_value(context.config, &keys.command, Level::Personal)?
+    {
+        refuse_tracked_source(
+            context.provenance,
+            &context.personal_config,
+            &key_name(&keys.command),
+        )?;
+        let value =
+            run_token_command(context, &command, &key_name(&keys.command))?;
+        return accept(
+            value,
+            TokenSource::PersonalCommand,
+            &key_name(&keys.value),
+        );
+    }
+
+    Err(CredentialError::NoToken {
+        key: key_name(&keys.value),
+    })
+}
+
+fn resolve_shared(
+    context: &CredentialContext<'_>,
+    keys: &TokenKeys,
+) -> Result<ResolvedToken, CredentialError> {
+    if level_value(context.config, &keys.command, Level::Team)?.is_some() {
+        return Err(CredentialError::TokenCmdFromSharedConfig {
+            key: key_name(&keys.command),
+        });
+    }
+    if let Some(value) = level_value(context.config, &keys.value, Level::Team)?
+    {
+        return accept(value, TokenSource::Shared, &key_name(&keys.value));
+    }
     Err(CredentialError::NoToken {
         key: key_name(&keys.value),
     })
@@ -430,50 +460,6 @@ fn level_value(
         Resolved::Found(value) => nonempty(Some(render_value(&value))),
         Resolved::Absent => None,
     })
-}
-
-/// Whether the personal config exists, behind the mode-0600 gate, with an
-/// override: `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
-/// `.accelerator/allow-insecure-local` is a regular, non-symlink, VCS-tracked
-/// file.
-fn personal_config_exists(
-    context: &CredentialContext<'_>,
-) -> Result<bool, CredentialError> {
-    let path = &context.personal_config;
-    let state = context.files.inspect(path).map_err(|detail| {
-        CredentialError::ConfigUnreadable {
-            key: path.display().to_string(),
-            detail,
-        }
-    })?;
-    let mode = match state {
-        FileState::Absent => return Ok(false),
-        FileState::Symlink | FileState::Other => {
-            return Err(CredentialError::LocalPermsInsecure {
-                path: path.clone(),
-                mode: 0,
-            })
-        }
-        FileState::File { mode } => mode,
-    };
-    if mode.trailing_zeros() >= 6 || insecure_override_allowed(context) {
-        return Ok(true);
-    }
-    Err(CredentialError::LocalPermsInsecure {
-        path: path.clone(),
-        mode,
-    })
-}
-
-fn insecure_override_allowed(context: &CredentialContext<'_>) -> bool {
-    if context.environment.read("ACCELERATOR_ALLOW_INSECURE_LOCAL")
-        != Some("1".to_owned())
-    {
-        return false;
-    }
-    let marker = &context.insecure_marker;
-    matches!(context.files.inspect(marker), Ok(FileState::File { .. }))
-        && context.provenance.is_tracked(marker)
 }
 
 fn run_token_command(

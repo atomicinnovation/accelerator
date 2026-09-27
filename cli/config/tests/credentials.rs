@@ -9,13 +9,14 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use config::consent::{ConfigFileTracking, Tracking};
 use config::credentials::{
     refuse_tracked_source, resolve_token, CommandPolicy, CredentialContext,
     CredentialError, Environment, FileFacts, FileState, Provenance,
     ResolvedToken, TokenCommandFailure, TokenCommandRunner, TokenKeys,
     TokenSource, INSECURE_MARKER_RELATIVE,
 };
-use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 
 const SENTINEL: &str = "s3cr3t-sentinel-value";
 const PERSONAL: &str = "/project/.accelerator/config.local.md";
@@ -24,6 +25,7 @@ const MARKER: &str = "/project/.accelerator/allow-insecure-local";
 struct FixedConfig {
     personal: BTreeMap<String, String>,
     team: BTreeMap<String, String>,
+    personal_file: PersonalFile,
 }
 
 impl config::ConfigAccess for FixedConfig {
@@ -49,6 +51,18 @@ impl config::ConfigAccess for FixedConfig {
         _level: Level,
     ) -> Result<(), ConfigError> {
         unreachable!("the ladder never writes")
+    }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &self.personal_file
+    }
+}
+
+struct Untracked;
+
+impl ConfigFileTracking for Untracked {
+    fn tracking(&self, _path: &Path) -> Tracking {
+        Tracking::Untracked
     }
 }
 
@@ -118,6 +132,7 @@ impl Ladder {
             config: FixedConfig {
                 personal: BTreeMap::new(),
                 team: BTreeMap::new(),
+                personal_file: PersonalFile::Absent,
             },
             environment: FixedEnvironment(BTreeMap::new()),
             provenance: FixedProvenance(Vec::new()),
@@ -155,8 +170,16 @@ impl Ladder {
         self
     }
 
-    fn personal_file(self, mode: u32) -> Self {
-        self.file(PERSONAL, Ok(FileState::File { mode }))
+    fn personal_file(mut self, mode: u32) -> Self {
+        self.config.personal_file = if mode.trailing_zeros() >= 6 {
+            PersonalFile::Readable
+        } else {
+            PersonalFile::Ignored {
+                path: PathBuf::from(PERSONAL),
+                mode,
+            }
+        };
+        self
     }
 
     fn tracked(mut self, path: &str) -> Self {
@@ -175,6 +198,7 @@ impl Ladder {
                 environment: &self.environment,
                 config: &self.config,
                 provenance: &self.provenance,
+                tracking: &Untracked,
                 files: &self.files,
                 commands: &self.runner,
                 personal_config: PathBuf::from(PERSONAL),
@@ -428,85 +452,46 @@ fn an_allowlist_value_from_a_tracked_file_is_held_to_the_same_rule() {
 }
 
 #[test]
-fn a_personal_config_looser_than_0600_is_refused() {
+fn an_ignored_personal_config_with_no_environment_token_is_refused() {
     let ladder = Ladder::new()
         .personal_file(0o644)
         .personal("jira.token", "from-file");
 
-    let error = ladder.resolve().expect_err("a readable file is refused");
+    let error = ladder.resolve().expect_err("an ignored file is refused");
 
     assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
     assert!(error.to_string().contains("chmod 600"), "{error}");
 }
 
 #[test]
-fn the_insecure_override_needs_both_the_variable_and_a_tracked_marker() {
-    let untracked = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
+fn an_ignored_personal_config_never_lets_the_team_token_through() {
+    let ladder = Ladder::new()
         .personal_file(0o644)
-        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
-        .personal("jira.token", "from-file");
-    assert!(
-        matches!(
-            untracked.resolve(),
-            Err(CredentialError::LocalPermsInsecure { .. })
-        ),
-        "an untracked marker does not unlock the override"
-    );
-
-    let tracked = untracked.tracked(MARKER);
-    let resolved = tracked
-        .resolve()
-        .expect("a tracked marker plus the variable honours the override");
-    assert_eq!(resolved.value.expose(), "from-file");
-}
-
-#[test]
-fn a_symlinked_personal_config_is_refused_even_under_the_override() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
-        .file(PERSONAL, Ok(FileState::Symlink))
-        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
-        .tracked(MARKER)
-        .personal("jira.token", "from-file");
-
-    let error = ladder.resolve().expect_err("a symlink is refused");
-
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-}
-
-#[test]
-fn a_personal_config_that_is_not_a_regular_file_is_refused() {
-    let ladder = Ladder::new()
-        .file(PERSONAL, Ok(FileState::Other))
-        .personal("jira.token", "from-file");
-
-    let error = ladder.resolve().expect_err("a directory is refused");
-
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-}
-
-#[test]
-fn an_uninspectable_personal_config_is_unreadable() {
-    let ladder = Ladder::new()
-        .file(PERSONAL, Err("permission denied".to_owned()))
         .team("jira.token", "from-shared");
 
-    let error = ladder.resolve().expect_err("an unreadable file is refused");
+    let error = ladder
+        .resolve()
+        .expect_err("a team token is not used beside an ignored file");
+    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
 
-    assert!(matches!(error, CredentialError::ConfigUnreadable { .. }));
+    let resolved = ladder
+        .env("ACCELERATOR_JIRA_TOKEN", "from-env")
+        .resolve()
+        .expect("the environment still resolves beside an ignored file");
+    assert_eq!(resolved.value.expose(), "from-env");
+    assert_eq!(resolved.source, TokenSource::Env);
 }
 
 #[test]
-fn a_symlinked_marker_does_not_unlock_the_override() {
+fn the_insecure_override_no_longer_unlocks_an_ignored_file() {
     let ladder = Ladder::new()
         .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
         .personal_file(0o644)
-        .file(MARKER, Ok(FileState::Symlink))
+        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
         .tracked(MARKER)
         .personal("jira.token", "from-file");
 
-    let error = ladder.resolve().expect_err("a symlinked marker is refused");
+    let error = ladder.resolve().expect_err("the override is inert");
 
     assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
 }

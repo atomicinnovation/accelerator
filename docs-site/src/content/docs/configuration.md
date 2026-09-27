@@ -19,15 +19,24 @@ Local settings override team settings for the same key. Markdown bodies from
 both files are concatenated (team context first, then personal).
 
 The personal file (`.accelerator/config.local.md`) must be mode `0600` or
-stricter and must not be a symlink, or it — and every value in it — is
-refused on read. This applies to the whole file, not just credential keys
-like `github.token`, since a personal config file is treated as
-sensitive-by-convention as a whole (matching how SSH keys or `.netrc` are
-handled). The remedy is `chmod 600 .accelerator/config.local.md`; there is
-no bypass. A file created via `accelerator config set` (which always
-writes personal-level values at `0600`) already satisfies this — the check
-can only trip on external tampering (a manual `chmod`, a tarball restore,
-a stray umask elsewhere).
+stricter and must not be a symlink. Otherwise it is ignored with an
+`E_LOCAL_PERMS_INSECURE` warning: none of its values are used, since a
+personal config file is treated as sensitive-by-convention as a whole
+(matching how SSH keys or `.netrc` are handled). Team values in `config.md`
+and the `ACCELERATOR_*` environment overrides still resolve, and a command
+fails with `E_LOCAL_PERMS_INSECURE` only when nothing usable remains.
+Commands that write — `migrate`, `work create`/`update`/`sync`, the Jira and
+Linear commands that write to the tracker, `config set` and
+`config templates eject --force`/`reset --confirm` — refuse outright, because
+their writes would outlive the fix.
+
+The remedy is `chmod 600 .accelerator/config.local.md`. On a filesystem that
+cannot honour file modes, keep team values in `config.md` and secrets in the
+`ACCELERATOR_*` overrides, and move `config.local.md` aside to run a command
+that writes. A file created via `accelerator config set` (which always writes
+personal-level values at `0600`) already satisfies this — the check can only
+trip on external tampering (a manual `chmod`, a tarball restore, a stray umask
+elsewhere).
 
 ## File Format
 

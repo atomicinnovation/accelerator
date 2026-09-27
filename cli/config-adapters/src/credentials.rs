@@ -9,6 +9,7 @@ use std::process::Stdio;
 use std::time::Duration;
 use std::time::Instant;
 
+use config::consent::ConfigFileTracking;
 use config::credentials::CommandPolicy;
 use config::credentials::CredentialContext;
 use config::credentials::Environment;
@@ -29,19 +30,24 @@ pub struct CredentialPorts {
     pub files: Box<dyn FileFacts>,
     pub commands: Box<dyn TokenCommandRunner>,
     pub provenance: Box<dyn Provenance>,
+    pub tracking: Box<dyn ConfigFileTracking>,
 }
 
 impl CredentialPorts {
     /// The production environment, filesystem, and helper runner, with the
-    /// caller's VCS provenance, which needs a VCS adapter this crate does not
-    /// depend on.
+    /// caller's VCS provenance and tracking, which need a VCS adapter this
+    /// crate does not depend on.
     #[must_use]
-    pub fn system(provenance: Box<dyn Provenance>) -> Self {
+    pub fn system(
+        provenance: Box<dyn Provenance>,
+        tracking: Box<dyn ConfigFileTracking>,
+    ) -> Self {
         Self {
             environment: Box::new(SystemEnvironment),
             files: Box::new(SystemFileFacts),
             commands: Box::new(BashTokenCommandRunner),
             provenance,
+            tracking,
         }
     }
 }
@@ -59,6 +65,7 @@ pub fn project_credential_context<'a>(
         environment: ports.environment.as_ref(),
         config,
         provenance: ports.provenance.as_ref(),
+        tracking: ports.tracking.as_ref(),
         files: ports.files.as_ref(),
         commands: ports.commands.as_ref(),
         personal_config: root.join(PERSONAL_CONFIG_RELATIVE),

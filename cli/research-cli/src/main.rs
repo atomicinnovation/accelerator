@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use clap::Parser as _;
 use config_adapters::credentials::CredentialPorts;
+use consent_adapters::VcsConfigFileTracking;
 use corpus_adapters::RealFs;
 use research::fetch::Clock;
 use research::fetch::FetchOutcome;
@@ -130,9 +131,10 @@ fn fetch(
     };
     let ports = FetchPorts {
         clock,
-        credentials: CredentialPorts::system(Box::new(
-            VcsProvenance::discovered(project.root.clone()),
-        )),
+        credentials: CredentialPorts::system(
+            Box::new(VcsProvenance::discovered(project.root.clone())),
+            Box::new(VcsConfigFileTracking),
+        ),
     };
     match fetch_command::run(&ports, &project, deadline, &call) {
         Ok(fetched) => report(&fetched),

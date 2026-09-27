@@ -7,6 +7,7 @@
 
 use std::process::Command;
 
+use config::consent::Refusal;
 use config::{ConfigAccess, Key, Level, Resolved};
 
 pub enum TokenSource {
@@ -36,10 +37,13 @@ pub struct ResolvedToken {
 /// `jira`/`linear`'s shared-config `token_cmd` ban — rather than silently
 /// executed.
 ///
+/// Beside an ignored `config.local.md`, no config value is used at all: a
+/// committed team token must not stand in for the user's own.
+///
 /// # Errors
 ///
-/// `kernel::Error::Refusal` when nothing resolves, or when a shared-config
-/// `token_cmd` is present.
+/// `kernel::Error::Refusal` when nothing resolves, when a shared-config
+/// `token_cmd` is present, or when the personal config is ignored.
 pub fn resolve_github_token(
     config: &dyn ConfigAccess,
 ) -> Result<ResolvedToken, kernel::Error> {
@@ -55,6 +59,10 @@ pub fn resolve_github_token(
             value,
             source: TokenSource::GithubTokenEnv,
         });
+    }
+
+    if let Some(refusal) = Refusal::for_personal_file(config.personal_file()) {
+        return Err(kernel::Error::Refusal(refusal.to_string()));
     }
 
     if let Some(value) = nonempty_config_value(config)? {
@@ -164,13 +172,16 @@ mod tests {
     use std::collections::BTreeMap;
     use std::sync::Mutex;
 
-    use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+    use config::{
+        ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value,
+    };
 
     use super::{resolve_github_token, TokenSource};
 
     struct FixedConfig {
         personal: BTreeMap<&'static str, &'static str>,
         team: BTreeMap<&'static str, &'static str>,
+        personal_file: PersonalFile,
     }
 
     impl FixedConfig {
@@ -178,7 +189,16 @@ mod tests {
             Self {
                 personal: BTreeMap::new(),
                 team: BTreeMap::new(),
+                personal_file: PersonalFile::Readable,
             }
+        }
+
+        fn with_ignored_personal_file(mut self) -> Self {
+            self.personal_file = PersonalFile::Ignored {
+                path: "/project/.accelerator/config.local.md".into(),
+                mode: 0o644,
+            };
+            self
         }
 
         fn with_personal(
@@ -226,6 +246,10 @@ mod tests {
             _level: Level,
         ) -> Result<(), ConfigError> {
             unreachable!("resolve_github_token never writes")
+        }
+
+        fn personal_file(&self) -> &PersonalFile {
+            &self.personal_file
         }
     }
 
@@ -364,6 +388,42 @@ mod tests {
             assert!(matches!(result, Err(kernel::Error::Refusal(_))));
             Ok(())
         })
+    }
+
+    #[test]
+    fn an_ignored_personal_file_never_lets_a_team_token_through(
+    ) -> Result<(), kernel::Error> {
+        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
+            let config = FixedConfig::new()
+                .with_team("github.token", "team-token")
+                .with_ignored_personal_file();
+            let Err(kernel::Error::Refusal(message)) =
+                resolve_github_token(&config)
+            else {
+                return Err(kernel::Error::Failed(
+                    "a team token must not be used beside an ignored file"
+                        .to_owned(),
+                ));
+            };
+            assert!(message.starts_with("E_LOCAL_PERMS_INSECURE"), "{message}");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn an_env_token_resolves_beside_an_ignored_personal_file(
+    ) -> Result<(), kernel::Error> {
+        with_env(
+            &[("GH_TOKEN", Some("gh-env-token")), ("GITHUB_TOKEN", None)],
+            || {
+                let config = FixedConfig::new()
+                    .with_team("github.token", "team-token")
+                    .with_ignored_personal_file();
+                let resolved = resolve_github_token(&config)?;
+                assert_eq!(resolved.value, "gh-env-token");
+                Ok(())
+            },
+        )
     }
 
     #[test]

@@ -22,7 +22,7 @@ fn every_doc_type_dir_matches_configs_own_resolution_field_for_field(
     let service = ConfigService::new(store.clone(), store);
     let expected = config::paths::doc_type_dirs(&service)?;
 
-    let ctx = FileMigrationContext::new(dir.path());
+    let ctx = FileMigrationContext::new(dir.path())?;
     let actual = ctx.doc_type_dirs();
 
     assert_eq!(actual.len(), expected.len());

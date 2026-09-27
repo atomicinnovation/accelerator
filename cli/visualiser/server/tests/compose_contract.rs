@@ -232,3 +232,20 @@ fn a_wrong_plugin_root_refuses_to_compose() {
         "the error does not name the offending root: {error}"
     );
 }
+
+#[test]
+fn an_insecure_personal_config_is_ignored_and_team_values_are_served() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let tmp = tempfile::tempdir().unwrap();
+    seed_project(tmp.path());
+    let local = tmp.path().join(".accelerator/config.local.md");
+    std::fs::write(&local, "---\npaths:\n  work: personal/work\n---\n")
+        .unwrap();
+    std::fs::set_permissions(&local, std::fs::Permissions::from_mode(0o644))
+        .unwrap();
+
+    let cfg = compose(tmp.path());
+
+    assert_eq!(cfg.doc_paths["work"], tmp.path().join("custom/work"));
+}

@@ -51,6 +51,12 @@ impl config::credentials::Provenance for NothingTracked {
     }
 }
 
+impl config::consent::ConfigFileTracking for NothingTracked {
+    fn tracking(&self, _path: &std::path::Path) -> config::consent::Tracking {
+        config::consent::Tracking::Untracked
+    }
+}
+
 struct LiveClient {
     client: JiraClient,
     unaccountable: ExternalId,
@@ -102,6 +108,7 @@ fn live_client() -> LiveClient {
         environment: &environment,
         config: service.as_ref(),
         provenance: &provenance,
+        tracking: &provenance,
         files: &SystemFileFacts,
         commands: &BashTokenCommandRunner,
         personal_config: root.join(".accelerator/config.local.md"),

@@ -190,7 +190,7 @@ each exiting `1` before any request:
 | `E_TOKEN_CMD_FROM_SHARED_CONFIG` | `openalex.api_key_cmd` in the shared `config.md`               |
 | `E_TOKEN_FROM_TRACKED_FILE`      | `openalex.api_key` in a `config.local.md` tracked by version control |
 | `E_TOKEN_CMD_FROM_TRACKED_FILE`  | `openalex.api_key_cmd` in a tracked `config.local.md`          |
-| `E_LOCAL_PERMS_INSECURE`         | A `config.local.md` looser than `0600`                         |
+| `E_LOCAL_PERMS_INSECURE`         | A `config.local.md` looser than `0600` or a symlink — ignored with a warning; fatal only when nothing usable remains |
 | `E_TOKEN_CMD_FAILED`             | A key command that failed or outlasted the deadline            |
 | `E_TOKEN_MALFORMED`              | A key carrying a control character                             |
 

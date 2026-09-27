@@ -43,6 +43,12 @@ impl config::credentials::Provenance for NothingTracked {
     }
 }
 
+impl config::consent::ConfigFileTracking for NothingTracked {
+    fn tracking(&self, _path: &Path) -> config::consent::Tracking {
+        config::consent::Tracking::Untracked
+    }
+}
+
 /// A live run configures itself through `ACCELERATOR_LINEAR_*`, so the config
 /// surface it needs is the empty one: the ladder's first two rungs are
 /// environment sources.
@@ -122,6 +128,7 @@ fn live_client() -> LiveClient {
         environment: &environment,
         config: &config,
         provenance: &provenance,
+        tracking: &provenance,
         files: &SystemFileFacts,
         commands: &BashTokenCommandRunner,
         personal_config: root.join(".accelerator/config.local.md"),

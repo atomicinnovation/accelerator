@@ -24,6 +24,7 @@ impl ProjectContext {
     /// [`ConfigError`] when the project's configuration cannot be composed.
     pub fn enclosing(cwd: &Path) -> Result<Self, ConfigError> {
         let composed = compose(cwd, LegacyPolicy::Reject)?;
+        composed.report_ignored_personal_file();
         Ok(Self {
             root: FileConfigStore::discover_root(cwd),
             config: Box::new(composed.service),
