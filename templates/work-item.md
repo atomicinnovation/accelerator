@@ -17,6 +17,7 @@ derived_from: []                             # typed-linkage list: ["plan:NNNN",
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
 source: ""                                   # typed-linkage ref: "issue-research:NNNN" or ""
 external_id: ""                              # remote tracker identifier (Jira/Linear key); may equal id or differ; presence = synced; omit when not linked
+aliases: []                                  # retired IDs of this item; omit when empty
 tags: []
 last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
 last_updated_by: "Author Name"

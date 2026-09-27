@@ -13,16 +13,21 @@ use ::config::ConfigAccess;
 use corpus::WorkItemIdScheme;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
+use work::draft_id::DraftId;
 use work::filter::canonical_reference;
 use work::filter::strip_reference_prefix;
 use work::filter::Filter;
 use work::filter::WorkItemView;
+use work::identity::ItemIdentity;
 use work::show::read_field_raw;
 use work::sync::label;
 use work::sync::plan;
 use work::sync::RenderableState;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
+use work::work_item_files::identity_of;
+use work::work_item_files::WorkItemFiles;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::digest::split_frontmatter_and_body;
 use work_adapters::sync::digest::LazyItemDigests;
@@ -73,21 +78,12 @@ fn is_fence(line: &str) -> bool {
     line.starts_with("---") && line[3..].chars().all(char::is_whitespace)
 }
 
-fn nonempty_external_id(frontmatter: &str) -> Option<ExternalId> {
-    read_field_raw(frontmatter, "external_id")
-        .filter(|raw| !raw.trim().is_empty())
-        .map(ExternalId::new)
-}
-
-fn scanned_item(path: PathBuf, frontmatter: &str) -> Option<ScannedItem> {
-    let id = read_field_raw(frontmatter, "id")
-        .or_else(|| read_field_raw(frontmatter, "work_item_id"))
-        .filter(|raw| !raw.trim().is_empty())?;
+fn scanned_item(identity: ItemIdentity, frontmatter: &str) -> ScannedItem {
     let tags = read_field_raw(frontmatter, "tags")
         .map(|raw| work::tags::parse_current_tags(&raw))
         .unwrap_or_default();
-    Some(ScannedItem {
-        id,
+    ScannedItem {
+        id: identity.id,
         title: read_field_raw(frontmatter, "title"),
         kind: read_field_raw(frontmatter, "kind"),
         status: read_field_raw(frontmatter, "status"),
@@ -95,39 +91,29 @@ fn scanned_item(path: PathBuf, frontmatter: &str) -> Option<ScannedItem> {
         tags,
         parent: read_field_raw(frontmatter, "parent")
             .filter(|raw| !raw.trim().is_empty()),
-        external_id: nonempty_external_id(frontmatter),
-        path,
-    })
+        external_id: identity.external_id.map(ExternalId::new),
+        path: identity.path,
+    }
 }
 
-/// Scans `work_dir` for `*.md` work items.
+/// Scans `work_dir` and its drafts directory for `*.md` work items.
 ///
 /// A file with no opening fence or an unclosed one yields a skip warning; a
 /// well-formed file with no `id`/`work_item_id` is silently excluded (it is
 /// simply not a work item). Items are sorted by id.
-#[must_use]
-pub fn scan(work_dir: &Path) -> Scan {
+///
+/// # Errors
+///
+/// A [`kernel::Error`] when the work directory cannot be listed.
+pub fn scan(work_dir: &Path) -> Result<Scan, kernel::Error> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
-    let Ok(entries) = std::fs::read_dir(work_dir) else {
-        return Scan { items, warnings };
-    };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension().and_then(std::ffi::OsStr::to_str) == Some("md")
-        })
-        .collect();
-    paths.sort();
-    for path in paths {
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let name = path
+    for file in FilesystemWorkItemFiles::new(work_dir).files()? {
+        let name = file
+            .path
             .file_name()
             .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-        match frontmatter_of(&content) {
+        match frontmatter_of(&file.content) {
             Frontmatter::Missing => {
                 warnings.push(format!("{name}: skipped — no frontmatter"));
             }
@@ -136,14 +122,14 @@ pub fn scan(work_dir: &Path) -> Scan {
                     .push(format!("{name}: skipped — unclosed frontmatter"));
             }
             Frontmatter::Found(frontmatter) => {
-                if let Some(item) = scanned_item(path, &frontmatter) {
-                    items.push(item);
+                if let Some(identity) = identity_of(&file) {
+                    items.push(scanned_item(identity, &frontmatter));
                 }
             }
         }
     }
     items.sort_by(|a, b| a.id.cmp(&b.id));
-    Scan { items, warnings }
+    Ok(Scan { items, warnings })
 }
 
 fn item_view(item: &ScannedItem) -> WorkItemView<'_> {
@@ -551,10 +537,10 @@ fn local_items(items: &[ScannedItem]) -> Vec<LocalItem> {
 
 /// Builds the id → label map for the Sync column.
 ///
-/// With no baseline on disk, every item is presence-only (no remote read),
-/// matching the skill's floor. With a baseline, the classifier upgrades
-/// tracked items to the five-state vocabulary; `remote-absent`/
-/// `indeterminate` degrade back to presence-only.
+/// A draft reads `draft` whatever its state. With no baseline on disk, every
+/// other item is presence-only (no remote read), matching the skill's floor.
+/// With a baseline, the classifier upgrades tracked items to the five-state
+/// vocabulary; `remote-absent`/`indeterminate` degrade back to presence-only.
 #[must_use]
 pub fn sync_column(
     items: &[ScannedItem],
@@ -563,13 +549,15 @@ pub fn sync_column(
     items
         .iter()
         .map(|item| {
-            (
-                item.id.clone(),
+            let rendered = if is_draft(item) {
+                label(RenderableState::Draft)
+            } else {
                 sync_label(
                     states.get(&item.id).copied(),
                     item.external_id.as_ref(),
-                ),
-            )
+                )
+            };
+            (item.id.clone(), rendered)
         })
         .collect()
 }
@@ -617,7 +605,10 @@ pub fn run(
 
     let scheme = crate::config::resolve_scheme(config).unwrap_or_default();
 
-    let scan_result = scan(&work_dir);
+    let scan_result = match scan(&work_dir) {
+        Ok(scan_result) => scan_result,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
     if scan_result.items.is_empty() {
         return RunOutcome::EmptyDirectory {
             message: empty_directory_message(&work_dir),
@@ -649,6 +640,12 @@ pub fn run(
     }
 }
 
+fn is_draft(item: &ScannedItem) -> bool {
+    DraftId::parse(&item.id).is_some()
+}
+
+/// The Sync column's labels, or `None` when the column is not rendered: it
+/// is rendered once a sync baseline exists or any item is a draft.
 fn classify_labels(
     config: &dyn ConfigAccess,
     root: &Path,
@@ -658,19 +655,23 @@ fn classify_labels(
     let integration =
         crate::config::effective_nonempty(config, "work.integration")
             .unwrap_or_default();
-    if integration.is_empty() {
+    let baseline_path = (!integration.is_empty())
+        .then(|| crate::sync::integrations_dir(config, root).ok())
+        .flatten()
+        .map(|integrations_root| {
+            work_adapters::sync::baseline::path(
+                &integrations_root,
+                &integration,
+            )
+        })
+        .filter(|path| path.is_file());
+
+    if baseline_path.is_none() && !items.iter().any(is_draft) {
         return None;
     }
-    let integrations_root = crate::sync::integrations_dir(config, root).ok()?;
-    let baseline_path =
-        work_adapters::sync::baseline::path(&integrations_root, &integration);
-
-    let states = if baseline_path.is_file() {
-        resolve_states(registry, &integration, &baseline_path, items)
-            .unwrap_or_default()
-    } else {
-        BTreeMap::new()
-    };
+    let states = baseline_path
+        .and_then(|path| resolve_states(registry, &integration, &path, items))
+        .unwrap_or_default();
     Some(sync_column(items, &states))
 }
 
@@ -766,6 +767,7 @@ mod tests {
             sync_label(Some(SyncState::Conflict), Some(&id)),
             "🔴 conflict"
         );
+        assert_eq!(label(RenderableState::Draft), "🟠 draft");
     }
 
     #[test]
@@ -874,7 +876,7 @@ mod tests {
         )
         .unwrap();
 
-        let scan = scan(dir.path());
+        let scan = scan(dir.path()).expect("scan");
 
         assert_eq!(scan.items.len(), 1);
         assert_eq!(scan.items[0].id, "0001");
@@ -903,7 +905,7 @@ mod tests {
         )
         .unwrap();
 
-        let scan = scan(dir.path());
+        let scan = scan(dir.path()).expect("scan");
 
         let first = &scan.items[0];
         assert_eq!(first.tags, vec!["backend", "api"]);
@@ -912,6 +914,148 @@ mod tests {
             Some("ENG-9")
         );
         assert!(scan.items[1].external_id.is_none());
+    }
+
+    #[test]
+    fn scan_lists_items_in_the_drafts_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("drafts")).unwrap();
+        std::fs::write(
+            dir.path().join("0001-a.md"),
+            "---\nid: \"0001\"\n---\nbody\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("drafts/draft-k7mq3x-b.md"),
+            "---\nid: \"draft-k7mq3x\"\n---\nbody\n",
+        )
+        .unwrap();
+
+        let ids: Vec<String> = scan(dir.path())
+            .expect("scan")
+            .items
+            .into_iter()
+            .map(|item| item.id)
+            .collect();
+
+        assert_eq!(ids, vec!["0001", "draft-k7mq3x"]);
+    }
+
+    #[test]
+    fn the_sync_column_reads_draft_for_a_draft_only() {
+        let items = vec![
+            with_external(item("0001"), "ENG-1"),
+            item("0002"),
+            item("draft-k7mq3x"),
+        ];
+        let states =
+            BTreeMap::from([("draft-k7mq3x".to_owned(), SyncState::Synced)]);
+
+        let column = sync_column(&items, &states);
+
+        assert_eq!(column["0001"], "🟢 synced");
+        assert_eq!(column["0002"], "⚪ unsynced");
+        assert_eq!(column["draft-k7mq3x"], "🟠 draft");
+    }
+
+    struct NoTracker;
+
+    impl crate::tracker_registry::TrackerRegistry for NoTracker {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<
+            Box<dyn RemoteTracker>,
+            crate::tracker_registry::SelectionError,
+        > {
+            Err(crate::tracker_registry::SelectionError::Unset)
+        }
+    }
+
+    fn integrated_repo(items: &[(&str, &str)]) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        std::fs::create_dir_all(dir.path().join(".accelerator")).unwrap();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\n---\n",
+        )
+        .unwrap();
+        for (relative, id) in items {
+            let path = dir.path().join("meta/work").join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(
+                path,
+                format!("---\nid: \"{id}\"\ntitle: \"T\"\n---\nbody\n"),
+            )
+            .unwrap();
+        }
+        dir
+    }
+
+    fn listed(dir: &Path) -> String {
+        let composed = config_adapters::compose(
+            dir,
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+        let args = crate::cli::ListArgs {
+            status: None,
+            kind: None,
+            priority: None,
+            parent: None,
+            tags: Vec::new(),
+            hierarchy: false,
+            term: None,
+        };
+        match run(dir, &composed.service, &NoTracker, &args) {
+            RunOutcome::Rendered { output, .. } => output,
+            _ => unreachable!("the listing renders"),
+        }
+    }
+
+    fn header(listing: &str) -> &str {
+        listing
+            .lines()
+            .find(|line| line.starts_with("| ID"))
+            .expect("the listing renders a table header")
+    }
+
+    #[test]
+    fn with_no_baseline_and_no_draft_the_sync_column_is_absent() {
+        let repo = integrated_repo(&[("0001-a.md", "0001")]);
+
+        let listing = listed(repo.path());
+
+        assert!(!header(&listing).contains("Sync"), "{listing}");
+    }
+
+    #[test]
+    fn with_a_baseline_the_sync_column_is_present() {
+        let repo = integrated_repo(&[("0001-a.md", "0001")]);
+        let baseline = repo
+            .path()
+            .join(".accelerator/state/integrations/jira/last-sync.json");
+        std::fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+        std::fs::write(&baseline, "{}").unwrap();
+
+        let listing = listed(repo.path());
+
+        assert!(header(&listing).contains("Sync"), "{listing}");
+    }
+
+    #[test]
+    fn with_a_draft_and_no_baseline_the_sync_column_is_present() {
+        let repo = integrated_repo(&[
+            ("0001-a.md", "0001"),
+            ("drafts/draft-k7mq3x-b.md", "draft-k7mq3x"),
+        ]);
+
+        let listing = listed(repo.path());
+
+        assert!(header(&listing).contains("Sync"), "{listing}");
+        assert!(listing.contains("🟠 draft"), "{listing}");
+        assert!(listing.contains("⚪ unsynced"), "{listing}");
     }
 
     fn write_item(dir: &Path, id: &str, body: &str) -> PathBuf {

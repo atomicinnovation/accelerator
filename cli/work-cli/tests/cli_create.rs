@@ -79,6 +79,21 @@ fn creates_a_work_item_with_the_template_schema() -> Result<(), TestError> {
 }
 
 #[test]
+fn work_create_accepts_a_template_declaring_aliases() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let template =
+        fs::read_to_string(repo.path().join("templates/work-item.md"))?;
+    assert!(template.contains("\naliases: []"), "{template}");
+
+    let output = run(repo.path(), &["create", "Test item", "task", "medium"])?;
+    assert!(output.status.success(), "{output:?}");
+    let path = String::from_utf8(output.stdout)?.trim().to_owned();
+    let content = fs::read_to_string(&path)?;
+    assert!(!content.contains("aliases:"), "{content}");
+    Ok(())
+}
+
+#[test]
 fn a_second_invocation_allocates_the_next_sequential_id(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;

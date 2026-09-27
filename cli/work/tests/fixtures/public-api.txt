@@ -48,6 +48,20 @@ pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option:
 pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
 pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
 pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
+pub mod work::draft_id
+pub struct work::draft_id::DraftId(_)
+impl work::draft_id::DraftId
+pub const work::draft_id::DraftId::PREFIX: &'static str
+pub fn work::draft_id::DraftId::as_str(&self) -> &str
+pub fn work::draft_id::DraftId::parse(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::clone(&self) -> work::draft_id::DraftId
+impl core::cmp::Eq for work::draft_id::DraftId
+impl core::cmp::PartialEq for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::eq(&self, other: &work::draft_id::DraftId) -> bool
+impl core::fmt::Debug for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::draft_id::DraftId
 pub mod work::filter
 pub struct work::filter::Filter
 pub work::filter::Filter::kind: core::option::Option<alloc::string::String>
@@ -80,6 +94,61 @@ pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'
 impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
 pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
+pub mod work::identity
+pub enum work::identity::IdentityField
+pub work::identity::IdentityField::Alias
+pub work::identity::IdentityField::ExternalId
+pub work::identity::IdentityField::Id
+impl work::identity::IdentityField
+pub const fn work::identity::IdentityField::frontmatter_key(self) -> &'static str
+impl core::clone::Clone for work::identity::IdentityField
+pub fn work::identity::IdentityField::clone(&self) -> work::identity::IdentityField
+impl core::cmp::Eq for work::identity::IdentityField
+impl core::cmp::PartialEq for work::identity::IdentityField
+pub fn work::identity::IdentityField::eq(&self, other: &work::identity::IdentityField) -> bool
+impl core::fmt::Debug for work::identity::IdentityField
+pub fn work::identity::IdentityField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::identity::IdentityField
+impl core::marker::StructuralPartialEq for work::identity::IdentityField
+pub enum work::identity::IdentityResolution<'a>
+pub work::identity::IdentityResolution::Conflicting(alloc::vec::Vec<work::identity::IdentityMatch<'a>>)
+pub work::identity::IdentityResolution::Unique(&'a work::identity::ItemIdentity)
+pub work::identity::IdentityResolution::Unmatched
+impl<'a> core::clone::Clone for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::clone(&self) -> work::identity::IdentityResolution<'a>
+impl<'a> core::cmp::Eq for work::identity::IdentityResolution<'a>
+impl<'a> core::cmp::PartialEq for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::eq(&self, other: &work::identity::IdentityResolution<'a>) -> bool
+impl<'a> core::fmt::Debug for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::identity::IdentityResolution<'a>
+pub struct work::identity::IdentityMatch<'a>
+pub work::identity::IdentityMatch::field: work::identity::IdentityField
+pub work::identity::IdentityMatch::item: &'a work::identity::ItemIdentity
+impl<'a> core::clone::Clone for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::clone(&self) -> work::identity::IdentityMatch<'a>
+impl<'a> core::cmp::Eq for work::identity::IdentityMatch<'a>
+impl<'a> core::cmp::PartialEq for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::eq(&self, other: &work::identity::IdentityMatch<'a>) -> bool
+impl<'a> core::fmt::Debug for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::identity::IdentityMatch<'a>
+pub struct work::identity::ItemIdentity
+pub work::identity::ItemIdentity::aliases: alloc::vec::Vec<alloc::string::String>
+pub work::identity::ItemIdentity::external_id: core::option::Option<alloc::string::String>
+pub work::identity::ItemIdentity::id: alloc::string::String
+pub work::identity::ItemIdentity::path: std::path::PathBuf
+impl core::clone::Clone for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
+impl core::cmp::Eq for work::identity::ItemIdentity
+impl core::cmp::PartialEq for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::eq(&self, other: &work::identity::ItemIdentity) -> bool
+impl core::fmt::Debug for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::identity::ItemIdentity
+pub fn work::identity::holder_of<'a>(candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
+pub fn work::identity::linker_of<'a>(key: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
+pub fn work::identity::resolve_identity<'a>(token: &str, items: &'a [work::identity::ItemIdentity]) -> work::identity::IdentityResolution<'a>
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingKey
@@ -104,7 +173,7 @@ pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc:
 pub fn work::normalise::trim_lines(content: &str) -> alloc::string::String
 pub mod work::own_identity
 pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, work_item_id: core::option::Option<&str>) -> bool
-pub fn work::own_identity::own_identity_alias(field: &str) -> core::option::Option<&'static str>
+pub fn work::own_identity::own_identity_fallback_field(field: &str) -> core::option::Option<&'static str>
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
@@ -288,6 +357,7 @@ pub fn work::sync::decide::resolve_conflict_token(raw: &str) -> core::option::Op
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
 pub work::sync::label::RenderableState::Conflict
+pub work::sync::label::RenderableState::Draft
 pub work::sync::label::RenderableState::LocallyModified
 pub work::sync::label::RenderableState::RemotelyModified
 pub work::sync::label::RenderableState::Synced
@@ -565,6 +635,7 @@ impl core::marker::Copy for work::sync::classify::RemotePresence
 impl core::marker::StructuralPartialEq for work::sync::classify::RemotePresence
 pub enum work::sync::RenderableState
 pub work::sync::RenderableState::Conflict
+pub work::sync::RenderableState::Draft
 pub work::sync::RenderableState::LocallyModified
 pub work::sync::RenderableState::RemotelyModified
 pub work::sync::RenderableState::Synced
@@ -787,3 +858,20 @@ impl core::marker::StructuralPartialEq for work::update::UpdateError
 pub const work::update::LIST_FIELDS: &[&str]
 pub fn work::update::mutate_list(current: &[alloc::string::String], action: work::update::ListAction, value: &str) -> work::update::ListMutation
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
+pub mod work::work_item_files
+pub struct work::work_item_files::WorkItemFile
+pub work::work_item_files::WorkItemFile::content: alloc::string::String
+pub work::work_item_files::WorkItemFile::path: std::path::PathBuf
+impl core::clone::Clone for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::clone(&self) -> work::work_item_files::WorkItemFile
+impl core::cmp::Eq for work::work_item_files::WorkItemFile
+impl core::cmp::PartialEq for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::eq(&self, other: &work::work_item_files::WorkItemFile) -> bool
+impl core::fmt::Debug for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::work_item_files::WorkItemFile
+pub trait work::work_item_files::WorkItemFiles
+pub fn work::work_item_files::WorkItemFiles::canonical(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
+pub fn work::work_item_files::WorkItemFiles::files(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
+pub fn work::work_item_files::identities(files: &[work::work_item_files::WorkItemFile]) -> alloc::vec::Vec<work::identity::ItemIdentity>
+pub fn work::work_item_files::identity_of(file: &work::work_item_files::WorkItemFile) -> core::option::Option<work::identity::ItemIdentity>

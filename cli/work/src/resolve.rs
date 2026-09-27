@@ -11,6 +11,8 @@
 
 use corpus::WorkItemIdScheme;
 
+use crate::draft_id::DraftId;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputClass {
     Path,
@@ -176,6 +178,15 @@ pub fn classify_input(input: &str, scheme: &WorkItemIdScheme) -> InputClass {
         return InputClass::Path;
     }
 
+    if DraftId::parse(input).is_some() {
+        return InputClass::FullId;
+    }
+    if scheme.id_pattern == corpus::TRACKER_TOKEN
+        && corpus::is_tracker_key(input)
+    {
+        return InputClass::FullId;
+    }
+
     let pattern_has_key = corpus::references_key(&scheme.id_pattern);
     let all_digits = input.chars().all(|c| c.is_ascii_digit());
 
@@ -201,6 +212,12 @@ fn is_md_filename(name: &str) -> bool {
         .next()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
         && name.contains('.')
+}
+
+fn is_draft_prefix(prefix: &str) -> bool {
+    DraftId::PREFIX
+        .strip_suffix('-')
+        .is_some_and(|draft| prefix.eq_ignore_ascii_case(draft))
 }
 
 fn width_with_default(scheme: &WorkItemIdScheme) -> usize {
@@ -312,6 +329,7 @@ fn resolve_bare_number(
                 };
                 let prefix = &f[..marker_start];
                 if !prefix.is_empty()
+                    && !is_draft_prefix(prefix)
                     && prefix
                         .chars()
                         .next()
@@ -422,6 +440,40 @@ mod tests {
         assert_eq!(classify_input("PP-0042", &scheme), InputClass::FullId);
         assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
         assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
+    }
+
+    #[test]
+    fn a_draft_id_is_not_classified_invalid_under_a_numeric_pattern() {
+        assert_eq!(
+            classify_input("draft-k7mq3x", &numeric()),
+            InputClass::FullId
+        );
+        assert_eq!(
+            classify_input("DRAFT-K7MQ3X", &numeric()),
+            InputClass::FullId
+        );
+    }
+
+    #[test]
+    fn a_tracker_key_is_a_full_id_under_the_tracker_pattern() {
+        let scheme = WorkItemIdScheme {
+            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
+            key: None,
+        };
+        assert_eq!(classify_input("ENG-999", &scheme), InputClass::FullId);
+        assert_eq!(classify_input("42", &scheme), InputClass::BareNumber);
+        assert_eq!(classify_input("abc", &scheme), InputClass::Invalid);
+    }
+
+    #[test]
+    fn bare_number_candidates_never_include_drafts() {
+        let lister = FakeLister(vec!["PROJ-0007-a.md", "draft-0007-b.md"]);
+        let scheme = project_scheme(None);
+        let outcome = resolve("7", SearchClass::BareNumber, &scheme, &lister);
+        assert_eq!(
+            outcome,
+            ResolveOutcome::Single("PROJ-0007-a.md".to_owned())
+        );
     }
 
     #[test]

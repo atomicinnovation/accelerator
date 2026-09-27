@@ -258,6 +258,23 @@ pub fn is_key_token(token: &str) -> bool {
     KEY_TOKEN_SPELLINGS.contains(&token)
 }
 
+/// The sole-token pattern under which the tracker owns each work item's `id`.
+pub const TRACKER_TOKEN: &str = "{tracker}";
+
+/// True iff `token` is shaped like a Jira key or Linear identifier:
+/// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
+#[must_use]
+pub fn is_tracker_key(token: &str) -> bool {
+    let Some((prefix, number)) = token.rsplit_once('-') else {
+        return false;
+    };
+    let mut prefix_chars = prefix.chars();
+    prefix_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && prefix_chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !number.is_empty()
+        && number.chars().all(|c| c.is_ascii_digit())
+}
+
 /// True iff `pattern` references the local ID prefix token in any recognised
 /// spelling.
 ///
@@ -332,8 +349,26 @@ fn is_project_prefixed(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_key_token, references_key, IdScan, IdScanner, WorkItemIdScheme,
+        is_key_token, is_tracker_key, references_key, IdScan, IdScanner,
+        WorkItemIdScheme,
     };
+
+    #[test]
+    fn jira_and_linear_keys_are_tracker_keys_in_either_case() {
+        assert!(is_tracker_key("PP-760"));
+        assert!(is_tracker_key("eng-42"));
+        assert!(is_tracker_key("MY_PROJ-7"));
+    }
+
+    #[test]
+    fn a_non_key_token_is_not_a_tracker_key() {
+        assert!(!is_tracker_key("0230"));
+        assert!(!is_tracker_key("PP-"));
+        assert!(!is_tracker_key("-760"));
+        assert!(!is_tracker_key("1PP-760"));
+        assert!(!is_tracker_key("PP-76a"));
+        assert!(!is_tracker_key("draft-k7mq3x"));
+    }
 
     #[test]
     fn is_key_token_accepts_both_spellings() {

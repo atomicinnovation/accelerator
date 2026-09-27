@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-27T15:40:00+00:00"
+last_updated: "2026-09-27T18:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -467,7 +467,10 @@ details, `:183-203`)
 - [x] `cd cli && cargo test -p http-test-support`
 - [x] `cd cli && cargo test -p jira-cli -p linear-cli` (captured exit codes unchanged)
 - [x] `mise run check` exits 0
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
+
+> Implementation note: verified by Phase 2's full run, which includes this
+> phase's code.
 
 #### Manual Verification:
 
@@ -621,6 +624,14 @@ input, canonical lowercase) with at least one letter in the suffix.
 draft minting reuse it. `linker_of` checks `external_id`
 case-insensitively; every path that binds a key to an item calls it.
 
+> Implementation note: `corpus::is_tracker_key` (Phase 3 §2) and
+> `corpus::TRACKER_TOKEN` (Phase 5 §2) landed here, because
+> `an_unknown_tracker_key_under_tracker_is_not_found` needs
+> `classify_input` to read `ENG-999` as a `FullId` under `{tracker}`.
+> `classify_input` also returns `FullId` for any `DraftId`, and bare-number
+> search skips `draft-`-prefixed filenames. `IdentityField::frontmatter_key`
+> names each field for diagnostics.
+
 #### 3. Discovery port and adapter
 
 **File**: `cli/work/src/work_item_files.rs` (new; named so it does not
@@ -658,6 +669,11 @@ for the port's error type
 `drafts_dir(work_dir) -> PathBuf` is the single definition of the drafts
 location.
 
+> Implementation note: the domain also exposes `identity_of(&WorkItemFile)`,
+> which `identities` maps over, so `list` and `sync` build one item per file.
+> A missing directory yields no files; any other listing failure is an
+> error, which `sync` exits 1 on and `list` reports as `Failed`.
+
 #### 4. Readers moved onto the port
 
 **Files and changes**:
@@ -691,6 +707,22 @@ location.
   `allocate_id` and `next-number`, so the exclusion of drafts from
   numbering is explicit at the call site.
 
+> Implementation note: `resolve_with` returns a new
+> `RunOutcome::Conflicting(Vec<IdentityCandidate>)`, carrying a typed
+> `IdentityField`, rather than `Ambiguous` with string tags, which a
+> project-prefix tag could collide with. `main` renders it as
+> `E_RESOLVE_AMBIGUOUS` with a `[id|aliases|external_id]` suffix, exit 2.
+> In `sync`, the new failure is `TargetResolutionFailure::RetiredAlias`
+> (exit 2); an `id`-against-`id` conflict maps to `AmbiguousLocal`.
+> `external_id_index` and `colliding_file` were removed, since the
+> identity lookup subsumes them, and the fake-resolver tests they backed
+> were rewritten against a temp corpus. `allocate_id` and `next-number`
+> still use `FilesystemLister`, which already lists only the canonical
+> directory; they were not moved onto `canonical()`. The
+> `cli_create_push` fixture item carrying `external_id` without `id` gained
+> `id: "0001"`, since a file with no `id` is no longer a work item to the
+> duplicate check.
+
 #### 5. `aliases` in schema, template and create
 
 **Files**:
@@ -703,6 +735,13 @@ location.
 - `OPTIONAL_EXTRAS` (`schema.rs:305-312`): add `aliases`.
 - `cli/work/src/create.rs` `KNOWN_FRONTMATTER_KEYS`: add `aliases`.
   `compose_frontmatter` omits it (always empty at create).
+
+> Implementation note: `templates-schema.tsv` now lives at
+> `cli/corpus/src/frontmatter_validation/templates-schema.tsv` as the
+> fixture `every_row_matches_templates_schema_tsv` reads. The two
+> draft-link goldens passed before any change, because the whole-corpus
+> walk already recurses into `drafts/`, and are kept as characterisation
+> tests.
 
 #### 6. Sync column rule
 
@@ -730,23 +769,31 @@ provisional ID) is unrelated to `status: draft`; replace "filename is authoritat
 
 #### Automated Verification:
 
-- [ ] Domain tests: `cd cli && cargo test -p work identity resolve`
-- [ ] Adapter tests: `cd cli && cargo test -p work-adapters --test work_item_files`
-- [ ] CLI unit tests: `cd cli && cargo test -p accelerator-work`
-- [ ] Frontmatter goldens and self-corpus check:
-      `cd cli && cargo test -p corpus-cli --test frontmatter_goldens`
-- [ ] Public API snapshots updated deliberately:
+- [x] Domain tests: `cd cli && cargo test -p work identity resolve`
+- [x] Adapter tests: `cd cli && cargo test -p work-adapters --test work_item_files`
+- [x] CLI unit tests: `cd cli && cargo test -p accelerator-work`
+- [x] Frontmatter goldens and self-corpus check:
+      `cd cli && cargo test -p accelerator-corpus --test frontmatter_goldens`
+- [x] Public API snapshots updated deliberately:
       `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check` exits 0
-- [ ] `mise run test:integration:pup`
-- [ ] `mise run` exits 0
+- [x] `mise run pup:check` exits 0
+- [x] `mise run test:integration:pup`
+- [x] `mise run` exits 0
+
+> Implementation note: the full run's only failure was
+> `test_cold_path_forks_the_backend_once_with_no_missing_input`, a
+> bootstrap timeout in shell this phase does not touch; it passed on
+> rerun.
 
 #### Manual Verification:
 
-- [ ] `accelerator work resolve PP-760` returns
+- [x] `accelerator work resolve PP-760` returns
       `meta/work/0230-tracker-owned-work-item-id-generation.md` in this repo.
 - [ ] `accelerator work list` in this repo renders the Sync column only
       when `last-sync.json` exists.
+      Present with this repo's Linear baseline; the absent case is covered
+      by `with_no_baseline_and_no_draft_the_sync_column_is_absent` but not
+      yet observed by hand.
 
 ---
 
@@ -873,6 +920,9 @@ the rest.
 `[A-Za-z][A-Za-z0-9_]*-[0-9]+` case-insensitively, covering Jira's key
 alphabet and Linear identifiers. `is_project_prefixed` is unchanged: it
 validates legacy `{key}-{number}` IDs, which never contain `_`.
+
+> Implementation note: already landed in Phase 2, with its tests, and
+> re-exported as `corpus::is_tracker_key`.
 
 #### 2a. Pure retirement plan
 
@@ -1780,6 +1830,9 @@ impl WorkItemIdScheme {
 `Display` for `IdPatternError`
 carries the exact acceptance-criteria messages; 0227's
 `config validate` calls the same function.
+
+> Implementation note: `TRACKER_TOKEN` already landed in Phase 2 and is
+> re-exported from `corpus`.
 
 **File**: `cli/work-cli/src/config.rs` `resolve_scheme`
 **Changes**: Read `work.integration`; ask

@@ -2,9 +2,11 @@
 
 use crate::sync::state::SyncState;
 
-/// The five states that carry a rendered label. `RemoteAbsent` and
-/// `Indeterminate` have none, so a caller cannot ask for a glyph that does
-/// not exist.
+/// The states that carry a rendered label.
+///
+/// `RemoteAbsent` and `Indeterminate` have none, so a caller cannot ask for a
+/// glyph that does not exist. `Draft` is read from the item's provisional ID,
+/// never from a [`SyncState`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderableState {
     Synced,
@@ -12,6 +14,7 @@ pub enum RenderableState {
     LocallyModified,
     RemotelyModified,
     Conflict,
+    Draft,
 }
 
 impl TryFrom<SyncState> for RenderableState {
@@ -64,5 +67,6 @@ pub const fn label(state: RenderableState) -> &'static str {
         RenderableState::LocallyModified => "🔵 locally modified",
         RenderableState::RemotelyModified => "🟣 remotely modified",
         RenderableState::Conflict => "🔴 conflict",
+        RenderableState::Draft => "🟠 draft",
     }
 }

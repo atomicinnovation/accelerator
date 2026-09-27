@@ -932,6 +932,48 @@ fn a_topic_research_reference_resolves_under_the_whole_corpus_check(
 }
 
 #[test]
+fn a_typed_link_to_a_draft_id_resolves_when_the_draft_exists(
+) -> Result<(), TestError> {
+    let dir = tempdir("draft-ref-resolves")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    write_work_item(
+        &root.join("meta/work/drafts/draft-k7mq3x-parent.md"),
+        "draft-k7mq3x",
+    )?;
+    let child = root.join("meta/work/0001-child.md");
+    write_work_item(&child, "0001")?;
+    let content = fs::read_to_string(&child)?
+        .replace("---\nbody", "parent: \"work-item:draft-k7mq3x\"\n---\nbody");
+    fs::write(&child, content)?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn a_typed_link_to_an_absent_draft_is_dangling() -> Result<(), TestError> {
+    let dir = tempdir("draft-ref-dangling")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let child = root.join("meta/work/0001-child.md");
+    write_work_item(&child, "0001")?;
+    let content = fs::read_to_string(&child)?
+        .replace("---\nbody", "parent: \"work-item:draft-k7mq3x\"\n---\nbody");
+    fs::write(&child, content)?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(!output.status.success(), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("draft-k7mq3x"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
 fn a_topic_research_reference_without_its_set_is_dangling(
 ) -> Result<(), TestError> {
     // Negative control: without the target set indexed, resolution genuinely

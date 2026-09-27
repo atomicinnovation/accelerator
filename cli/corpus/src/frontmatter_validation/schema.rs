@@ -31,7 +31,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         kind: "",
         code_state_anchored: false,
         required_extras: &["kind", "priority"],
-        optional_extras: &["external_id"],
+        optional_extras: &["external_id", "aliases"],
         empty_list_extras: &[],
         status_vocab: &[
             "draft",

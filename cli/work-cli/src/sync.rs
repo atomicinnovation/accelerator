@@ -15,10 +15,14 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
+use work::identity::IdentityField;
 use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
+use work::work_item_files::identity_of;
+use work::work_item_files::WorkItemFiles;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
@@ -41,6 +45,7 @@ use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
 use crate::finaliser::RunFinaliser;
+use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
@@ -102,42 +107,19 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
     }
 }
 
-fn discover_items(work_dir: &Path) -> Vec<LocalItem> {
-    let Ok(entries) = std::fs::read_dir(work_dir) else {
-        return Vec::new();
-    };
-    let mut items: Vec<LocalItem> = entries
-        .filter_map(std::result::Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension().and_then(std::ffi::OsStr::to_str) == Some("md")
-        })
-        .filter_map(|path| {
-            let content = std::fs::read_to_string(&path).ok()?;
-            let (frontmatter, _) =
-                work_adapters::sync::digest::split_frontmatter_and_body(
-                    &content,
-                )
-                .ok()?;
-            let id = work::show::read_field_raw(&frontmatter, "id")?;
-            let external_id =
-                work::show::read_field_raw(&frontmatter, "external_id")
-                    .filter(|raw| {
-                        !raw.trim_matches(|c: char| {
-                            c.is_ascii_whitespace() || c == '"' || c == '\''
-                        })
-                        .is_empty()
-                    })
-                    .map(ExternalId::new);
-            Some(LocalItem {
-                id,
-                path,
-                external_id,
-            })
+fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
+    let files = FilesystemWorkItemFiles::new(work_dir).files()?;
+    let mut items: Vec<LocalItem> = files
+        .iter()
+        .filter_map(identity_of)
+        .map(|identity| LocalItem {
+            id: identity.id,
+            path: identity.path,
+            external_id: identity.external_id.map(ExternalId::new),
         })
         .collect();
     items.sort_by(|a, b| a.id.cmp(&b.id));
-    items
+    Ok(items)
 }
 
 fn parse_resolutions(
@@ -418,6 +400,7 @@ enum TargetResolutionFailure {
     AmbiguousLocal(String),
     AmbiguousExternal(String),
     LocalCollision(String),
+    RetiredAlias(String),
     PushOnlyRemoteOnly(String),
     Absent(String),
     Indeterminate(String),
@@ -432,6 +415,7 @@ impl TargetResolutionFailure {
             | Self::AmbiguousLocal(message)
             | Self::AmbiguousExternal(message)
             | Self::LocalCollision(message)
+            | Self::RetiredAlias(message)
             | Self::PushOnlyRemoteOnly(message)
             | Self::Absent(message)
             | Self::Indeterminate(message) => message,
@@ -444,6 +428,7 @@ impl TargetResolutionFailure {
             | Self::AmbiguousLocal(_)
             | Self::AmbiguousExternal(_)
             | Self::LocalCollision(_)
+            | Self::RetiredAlias(_)
             | Self::PushOnlyRemoteOnly(_) => exit_codes::USAGE,
             Self::Unmanaged(_) | Self::Absent(_) => {
                 exit_codes::RESOLVE_NOT_FOUND
@@ -454,50 +439,65 @@ impl TargetResolutionFailure {
     }
 }
 
-fn external_id_index(
-    corpus: &[LocalItem],
-) -> BTreeMap<String, Vec<&LocalItem>> {
-    let mut index: BTreeMap<String, Vec<&LocalItem>> = BTreeMap::new();
-    for item in corpus {
-        if let Some(external) = &item.external_id {
-            index
-                .entry(canonical_external_key(external))
-                .or_default()
-                .push(item);
-        }
+/// The failure for a token that more than one item's identity names, told
+/// apart by the fields that name it.
+fn identity_conflict(
+    token: &str,
+    candidates: &[IdentityCandidate],
+) -> TargetResolutionFailure {
+    let named_by = |field: IdentityField| {
+        candidates
+            .iter()
+            .filter(move |candidate| candidate.field == field)
+    };
+    let local = named_by(IdentityField::Id).next();
+    let linked = local.and_then(|local| {
+        named_by(IdentityField::ExternalId)
+            .find(|candidate| candidate.path != local.path)
+    });
+    if let (Some(local), Some(linked)) = (local, linked) {
+        return TargetResolutionFailure::LocalCollision(format!(
+            "'{token}' is the local id of {} and also the external_id \
+             recorded by {}; re-run with the path of the file you intended",
+            local.path.display(),
+            linked.path.display()
+        ));
     }
-    index
+    if let Some(retiring) = named_by(IdentityField::Alias).next() {
+        return TargetResolutionFailure::RetiredAlias(format!(
+            "'{token}' is an id retired by {} and is also claimed by another \
+             item; re-run with the path of the file you intended",
+            retiring.path.display()
+        ));
+    }
+    if candidates
+        .iter()
+        .all(|candidate| candidate.field == IdentityField::ExternalId)
+    {
+        return TargetResolutionFailure::AmbiguousExternal(format!(
+            "'{token}' matches more than one item's external_id; re-run \
+             with a local id or a path"
+        ));
+    }
+    ambiguous_local(token)
 }
 
-/// The other local file a dual-shape token collides with: the token is
-/// `local_match`'s local id and simultaneously a *different* file's
-/// `external_id`. A genuine local/local collision, decidable entirely from the
-/// corpus, so the caller can name both files without any remote call.
-fn colliding_file<'a>(
-    index: &BTreeMap<String, Vec<&'a LocalItem>>,
-    token: &str,
-    local_match: &LocalItem,
-) -> Option<&'a LocalItem> {
-    let key = canonical_external_key(&ExternalId::new(token.to_owned()));
-    index
-        .get(&key)?
-        .iter()
-        .find(|item| item.id != local_match.id)
-        .copied()
+fn ambiguous_local(token: &str) -> TargetResolutionFailure {
+    TargetResolutionFailure::AmbiguousLocal(format!(
+        "'{token}' is an ambiguous local id; re-run with a full id or a path"
+    ))
 }
 
 /// Resolves each `--target` token to a local item or a remote candidate,
-/// accumulating every failure so one run names all offenders. Local resolution
-/// wins; a token that resolves locally to `NotFound`/`Invalid` cascades to the
-/// `external_id` index, and a token that matches nothing locally becomes a
-/// remote candidate rather than an abort. An ambiguous or out-of-directory
-/// local outcome still fails.
+/// accumulating every failure so one run names all offenders. A token that
+/// no item's identity or filename names becomes a remote candidate rather
+/// than an abort. An ambiguous, conflicting or out-of-directory local
+/// outcome still fails.
 fn resolve_targets(
     corpus: &[LocalItem],
     targets: &[String],
     resolver: &dyn Fn(&str) -> RunOutcome,
 ) -> Result<ResolvedTargets, Vec<TargetResolutionFailure>> {
-    let index = external_id_index(corpus);
     let mut matched: Vec<&LocalItem> = Vec::new();
     let mut remote_candidates: Vec<ExternalId> = Vec::new();
     let mut candidate_keys = std::collections::BTreeSet::new();
@@ -520,18 +520,7 @@ fn resolve_targets(
                         .unwrap_or(false)
                 });
                 match local_match {
-                    Some(item) => match colliding_file(&index, token, item) {
-                        Some(other) => failures.push(
-                            TargetResolutionFailure::LocalCollision(format!(
-                                "'{token}' is the local id of {} and also \
-                                 the external_id recorded by {}; re-run with \
-                                 the path of the file you intended",
-                                item.path.display(),
-                                other.path.display()
-                            )),
-                        ),
-                        None => matched.push(item),
-                    },
+                    Some(item) => matched.push(item),
                     None => failures.push(TargetResolutionFailure::Unmanaged(
                         format!(
                             "'{token}' resolves to a file that is not a \
@@ -540,13 +529,9 @@ fn resolve_targets(
                     )),
                 }
             }
-            RunOutcome::Ambiguous(_) => {
-                failures.push(TargetResolutionFailure::AmbiguousLocal(
-                    format!(
-                    "'{token}' is an ambiguous local id; re-run with a full \
-                     id or a path"
-                ),
-                ));
+            RunOutcome::Ambiguous(_) => failures.push(ambiguous_local(token)),
+            RunOutcome::Conflicting(candidates) => {
+                failures.push(identity_conflict(token, &candidates));
             }
             RunOutcome::OutsideWorkDir(message) => {
                 failures.push(TargetResolutionFailure::OutsideWorkDir(message));
@@ -554,20 +539,8 @@ fn resolve_targets(
             RunOutcome::NotFound(_) | RunOutcome::Invalid(_) => {
                 let key =
                     canonical_external_key(&ExternalId::new(token.to_owned()));
-                match index.get(&key).map(Vec::as_slice) {
-                    Some([one]) => matched.push(one),
-                    None | Some([]) => {
-                        if candidate_keys.insert(key) {
-                            remote_candidates
-                                .push(ExternalId::new(token.clone()));
-                        }
-                    }
-                    Some(_) => failures.push(
-                        TargetResolutionFailure::AmbiguousExternal(format!(
-                            "'{token}' matches more than one item's \
-                             external_id; re-run with a local id or a path"
-                        )),
-                    ),
+                if candidate_keys.insert(key) {
+                    remote_candidates.push(ExternalId::new(token.clone()));
                 }
             }
         }
@@ -1119,7 +1092,13 @@ pub fn run_sync(
         }
     };
 
-    let items = discover_items(&work_dir);
+    let items = match discover_items(&work_dir) {
+        Ok(items) => items,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
 
     let scheme = match crate::config::resolve_scheme(config) {
         Ok(scheme) => scheme,
@@ -1466,28 +1445,169 @@ mod tests {
         item.path.canonicalize().expect("canonicalise item path")
     }
 
+    struct RealCorpus {
+        _dir: tempfile::TempDir,
+        work_dir: PathBuf,
+    }
+
+    impl RealCorpus {
+        fn new() -> Self {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let work_dir =
+                dir.path().canonicalize().expect("canonical work dir");
+            std::fs::create_dir_all(work_dir.join("drafts"))
+                .expect("drafts dir");
+            Self {
+                _dir: dir,
+                work_dir,
+            }
+        }
+
+        fn item(&self, relative: &str, frontmatter: &str) -> &Self {
+            std::fs::write(
+                self.work_dir.join(relative),
+                format!("---\n{frontmatter}---\n\n# Title\n"),
+            )
+            .expect("write item");
+            self
+        }
+
+        fn items(&self) -> Vec<LocalItem> {
+            super::discover_items(&self.work_dir).expect("discover items")
+        }
+
+        fn resolve(&self, targets: &[&str]) -> ResolveResult {
+            let resolver = |token: &str| {
+                crate::resolve::resolve_with(
+                    &scheme(),
+                    &self.work_dir,
+                    &self.work_dir,
+                    token,
+                )
+            };
+            let targets: Vec<String> =
+                targets.iter().map(|&target| target.to_owned()).collect();
+            resolve_targets(&self.items(), &targets, &resolver)
+        }
+    }
+
+    type ResolveResult =
+        Result<super::ResolvedTargets, Vec<TargetResolutionFailure>>;
+
+    fn only_failure(result: ResolveResult) -> TargetResolutionFailure {
+        let Err(mut failures) = result else {
+            unreachable!("the target must fail")
+        };
+        assert_eq!(failures.len(), 1, "{failures:?}");
+        failures.remove(0)
+    }
+
+    fn matched_ids(result: ResolveResult) -> Vec<String> {
+        result
+            .expect("the targets resolve")
+            .items
+            .into_iter()
+            .map(|item| item.id)
+            .collect()
+    }
+
     #[test]
-    fn a_local_local_collision_is_a_usage_error_naming_both_files() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let local = target_item(dir.path(), "0001", None);
-        let remote_holder = target_item(dir.path(), "0002", Some("0001"));
-        let corpus = vec![local, remote_holder];
-        let local_path = canonical(&corpus[0]);
-        let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
+    fn a_target_that_is_one_items_id_and_anothers_external_id_is_a_local_collision(
+    ) {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\n")
+            .item("0002-b.md", "id: \"0002\"\nexternal_id: \"0001\"\n");
 
-        let failures =
-            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
-                .expect_err("a local/local collision must abort");
+        let failure = only_failure(corpus.resolve(&["0001"]));
 
-        assert_eq!(failures.len(), 1);
-        assert!(matches!(
-            failures[0],
-            TargetResolutionFailure::LocalCollision(_)
-        ));
-        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
-        let message = failures[0].message();
-        assert!(message.contains("0001.md"), "names file A: {message}");
-        assert!(message.contains("0002.md"), "names file B: {message}");
+        assert!(
+            matches!(failure, TargetResolutionFailure::LocalCollision(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+        let message = failure.message();
+        assert!(message.contains("0001-a.md"), "names file A: {message}");
+        assert!(message.contains("0002-b.md"), "names file B: {message}");
+    }
+
+    #[test]
+    fn a_target_that_is_several_items_external_id_is_ambiguous_external() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\nexternal_id: \"PP-1\"\n")
+            .item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-1\"\n");
+
+        let failure = only_failure(corpus.resolve(&["PP-1"]));
+
+        assert!(
+            matches!(failure, TargetResolutionFailure::AmbiguousExternal(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+    }
+
+    #[test]
+    fn a_target_matching_an_alias_names_the_retiring_item() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\nexternal_id: \"ENG-42\"\n")
+            .item("ENG-7-b.md", "id: \"ENG-7\"\naliases: [\"ENG-42\"]\n");
+
+        let failure = only_failure(corpus.resolve(&["ENG-42"]));
+
+        assert!(
+            matches!(failure, TargetResolutionFailure::RetiredAlias(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+        let message = failure.message();
+        assert!(message.contains("ENG-42"), "names the alias: {message}");
+        assert!(
+            message.contains("ENG-7-b.md"),
+            "names the retiring item: {message}"
+        );
+    }
+
+    #[test]
+    fn a_lowercase_key_target_resolves_its_item() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(matched_ids(corpus.resolve(&["pp-787"])), vec!["0002"]);
+    }
+
+    #[test]
+    fn a_remote_id_token_matches_through_the_items_external_id() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(matched_ids(corpus.resolve(&["PP-787"])), vec!["0002"]);
+    }
+
+    #[test]
+    fn two_tokens_naming_one_item_de_duplicate_to_a_single_entry() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(
+            matched_ids(corpus.resolve(&["0002", "PP-787"])),
+            vec!["0002"],
+            "the same item named twice collapses to a single slice entry"
+        );
+    }
+
+    #[test]
+    fn sync_discovery_includes_drafts() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\n")
+            .item("drafts/draft-k7mq3x-b.md", "id: \"draft-k7mq3x\"\n");
+
+        let ids: Vec<String> =
+            corpus.items().into_iter().map(|item| item.id).collect();
+
+        assert_eq!(ids, vec!["0001", "draft-k7mq3x"]);
     }
 
     #[test]
@@ -1537,21 +1657,6 @@ mod tests {
     }
 
     #[test]
-    fn a_remote_id_token_matches_through_the_external_id_index() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
-        let resolver =
-            |_token: &str| RunOutcome::Invalid("not local".to_owned());
-
-        let matched =
-            resolve_targets(&corpus, &["PP-787".to_owned()], &resolver)
-                .expect("the remote id resolves through the index");
-
-        assert_eq!(matched.items.len(), 1);
-        assert_eq!(matched.items[0].id, "0002");
-    }
-
-    #[test]
     fn a_no_local_match_token_becomes_a_remote_candidate() {
         let dir = tempfile::tempdir().expect("tempdir");
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
@@ -1585,34 +1690,6 @@ mod tests {
             1,
             "two spellings of one issue fold to a single candidate"
         );
-    }
-
-    #[test]
-    fn two_tokens_naming_one_item_de_duplicate_to_a_single_entry() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
-        let item_path = canonical(&corpus[0]);
-        let resolver = move |token: &str| {
-            if token == "0002" {
-                RunOutcome::Resolved(item_path.clone())
-            } else {
-                RunOutcome::Invalid("not local".to_owned())
-            }
-        };
-
-        let matched = resolve_targets(
-            &corpus,
-            &["0002".to_owned(), "PP-787".to_owned()],
-            &resolver,
-        )
-        .expect("both tokens resolve to the one item");
-
-        assert_eq!(
-            matched.items.len(),
-            1,
-            "the same item named twice collapses to a single slice entry"
-        );
-        assert_eq!(matched.items[0].id, "0002");
     }
 
     #[test]

@@ -98,6 +98,19 @@ fn run_resolve(input: &str) -> ExitCode {
             }
             ExitCode::from(exit_codes::USAGE)
         }
+        Ok(RunOutcome::Conflicting(candidates)) => {
+            eprintln!(
+                "E_RESOLVE_AMBIGUOUS: multiple work items match '{input}':"
+            );
+            for candidate in candidates {
+                eprintln!(
+                    "  {} [{}]",
+                    candidate.path.display(),
+                    candidate.field.frontmatter_key()
+                );
+            }
+            ExitCode::from(exit_codes::USAGE)
+        }
         Ok(RunOutcome::NotFound(message)) => {
             eprintln!("E_RESOLVE_NOT_FOUND: {message}");
             ExitCode::from(exit_codes::RESOLVE_NOT_FOUND)
