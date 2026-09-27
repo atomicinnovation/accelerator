@@ -5,6 +5,8 @@ use std::fs;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Component, Path, PathBuf};
 
+use corpus::store::KeptRecovery;
+use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
 use corpus::StoreError;
 
@@ -151,6 +153,47 @@ impl RecoveryCopies for FileRecoveryCopies {
             _ => Ok(()),
         }
     }
+
+    fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        let location = self.location(parent);
+        let entries = match fs::read_dir(&location) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(Vec::new());
+            }
+            Err(error) => return Err(io(&location, &error)),
+        };
+        let mut names: Vec<_> = entries
+            .flatten()
+            .filter(|entry| entry.path().is_dir())
+            .map(|entry| entry.file_name())
+            .collect();
+        names.sort();
+        Ok(names
+            .into_iter()
+            .filter_map(|name| {
+                let dir = parent.join(name);
+                let found = self.location(&dir);
+                let state = if found.join(COMPLETED).is_file() {
+                    KeptState::Completed
+                } else {
+                    let listing =
+                        fs::read_to_string(found.join(RESTORE_PENDING)).ok()?;
+                    KeptState::RestorePending(
+                        listing.lines().map(PathBuf::from).collect(),
+                    )
+                };
+                Some(KeptRecovery { dir, state })
+            })
+            .collect())
+    }
+
+    fn copy_settled(&self, dir: &Path, original: &Path) -> bool {
+        let Ok(copy) = fs::read(self.mirrored(dir, original)) else {
+            return true;
+        };
+        fs::read(original).is_ok_and(|current| current == copy)
+    }
 }
 
 #[cfg(test)]
@@ -172,6 +215,65 @@ mod tests {
 
     fn dir() -> &'static Path {
         Path::new("retirement-recovery/draft-k7mq3x--PP-900")
+    }
+
+    #[test]
+    fn kept_lists_restore_pending_and_completed_directories(
+    ) -> Result<(), TestError> {
+        let state = TempDir::new()?;
+        let store = copies(&state);
+        let pending = Path::new("retirement-recovery/PP-1--ENG-1");
+        let completed = Path::new("retirement-recovery/PP-2--ENG-2");
+        let plain = Path::new("retirement-recovery/PP-3--ENG-3");
+        for dir in [pending, completed, plain] {
+            store.prepare(dir)?;
+        }
+        store.mark_restore_pending(
+            pending,
+            &[PathBuf::from("/repo/meta/work/a.md")],
+        )?;
+        store.mark_restore_pending(completed, &[])?;
+        store.mark_completed(completed)?;
+
+        let kept = store.kept(Path::new("retirement-recovery"))?;
+
+        assert_eq!(
+            kept,
+            vec![
+                corpus::store::KeptRecovery {
+                    dir: pending.to_path_buf(),
+                    state: corpus::store::KeptState::RestorePending(vec![
+                        PathBuf::from("/repo/meta/work/a.md")
+                    ]),
+                },
+                corpus::store::KeptRecovery {
+                    dir: completed.to_path_buf(),
+                    state: corpus::store::KeptState::Completed,
+                },
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_copy_is_settled_once_its_original_matches_it_or_it_is_deleted(
+    ) -> Result<(), TestError> {
+        let state = TempDir::new()?;
+        let corpus = TempDir::new()?;
+        let store = FileRecoveryCopies::new(state.path(), corpus.path());
+        let original = corpus.path().join("work/a.md");
+        fs::create_dir_all(original.parent().ok_or("no parent")?)?;
+        fs::write(&original, "edited")?;
+        store.prepare(dir())?;
+        store.write_once(dir(), &original, b"before")?;
+
+        assert!(!store.copy_settled(dir(), &original));
+        fs::write(&original, "before")?;
+        assert!(store.copy_settled(dir(), &original));
+        fs::write(&original, "edited")?;
+        fs::remove_file(state.path().join(dir()).join("work/a.md"))?;
+        assert!(store.copy_settled(dir(), &original));
+        Ok(())
     }
 
     #[test]

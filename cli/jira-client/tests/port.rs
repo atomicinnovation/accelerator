@@ -698,3 +698,78 @@ fn a_bad_path_is_rejected_without_being_sent() {
 
     assert!(matches!(error, TrackerError::Rejected { .. }), "{error}");
 }
+
+fn fixture(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("the fixture exists")
+}
+
+#[test]
+fn show_reports_the_key_the_tracker_returned() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: fixture("issue-project-moved.golden.json"),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("PP-76")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("OPS-5"));
+}
+
+#[test]
+fn locate_reports_not_found_for_a_404() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-404"),
+        Route::Status(404),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-404")).expect("a 404 is an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_an_error_for_a_401() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-401"),
+        Route::Status(401),
+    );
+    let client = client_for(&server, brief());
+
+    let error = client
+        .locate(&id("PP-401"))
+        .expect_err("a 401 is a failed read, not an absence");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn locate_of_a_moved_key_finds_the_issue_under_its_new_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: fixture("issue-project-moved.golden.json"),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-76")).expect("locate succeeds");
+
+    let tracker::Located::Found(issue) = located else {
+        panic!("the moved issue is found");
+    };
+    assert_eq!(issue.key, id("OPS-5"));
+}

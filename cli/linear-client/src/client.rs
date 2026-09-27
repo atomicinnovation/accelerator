@@ -22,6 +22,7 @@ use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -718,17 +719,45 @@ impl LinearClient {
         id: &ExternalId,
     ) -> Result<RemoteIssue, LinearFailure> {
         refuse_identifier_op(id, Operation::Read)?;
-        let received = self
-            .transport
+        let received = self.send_show(id)?;
+        Self::issue_from(id, &received)
+    }
+
+    /// `locate`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] for every failed read other than Linear answering
+    /// that no issue has the identifier.
+    pub fn locate_op(&self, id: &ExternalId) -> Result<Located, LinearFailure> {
+        refuse_identifier_op(id, Operation::Read)?;
+        let received = self.send_show(id)?;
+        if received
+            .json()
+            .is_some_and(|body| crate::classify::answers_not_found(&body))
+        {
+            return Ok(Located::NotFound);
+        }
+        Self::issue_from(id, &received).map(Located::Found)
+    }
+
+    fn send_show(&self, id: &ExternalId) -> Result<Received, LinearFailure> {
+        self.transport
             .send(SHOW, &json!({"id": id.as_str()}))
             .map_err(|error| {
-            LinearFailure::wire(
-                Outcome::Transport,
-                Operation::Read,
-                error.to_string(),
-            )
-        })?;
-        let body = Self::interpret_outcome(&received).map_err(|outcome| {
+                LinearFailure::wire(
+                    Outcome::Transport,
+                    Operation::Read,
+                    error.to_string(),
+                )
+            })
+    }
+
+    fn issue_from(
+        id: &ExternalId,
+        received: &Received,
+    ) -> Result<RemoteIssue, LinearFailure> {
+        let body = Self::interpret_outcome(received).map_err(|outcome| {
             LinearFailure::wire(
                 outcome,
                 Operation::Read,
@@ -748,10 +777,28 @@ impl LinearClient {
             )
         })?;
         Ok(RemoteIssue {
+            key: current_identifier(&body, id)?,
             updated: stamp(body.pointer("/data/issue/updatedAt")),
             body: port_body(&projected),
         })
     }
+}
+
+/// The identifier Linear answered under, which is the issue's new one when
+/// the requested identifier belonged to it before a team move.
+fn current_identifier(
+    body: &Value,
+    requested: &ExternalId,
+) -> Result<ExternalId, LinearFailure> {
+    let Some(identifier) = body
+        .pointer("/data/issue/identifier")
+        .and_then(Value::as_str)
+    else {
+        return Ok(requested.clone());
+    };
+    let current = ExternalId::new(identifier.to_owned());
+    refuse_identifier_op(&current, Operation::Read)?;
+    Ok(current)
 }
 
 /// One `teams` node as a [`VisibleEntity`]: a Linear team's key is its
@@ -839,6 +886,10 @@ impl RemoteTracker for LinearClient {
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
         self.show_op(id).map_err(TrackerError::from)
+    }
+
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        self.locate_op(id).map_err(TrackerError::from)
     }
 
     fn fetch_all(

@@ -87,6 +87,21 @@ pub trait RemoveFile {
     fn remove(&self, path: &Path) -> Result<(), StoreError>;
 }
 
+/// Why a recovery directory outlived the change it was made for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeptState {
+    /// These originals could not be restored and still await a person.
+    RestorePending(Vec<PathBuf>),
+    /// The change has since completed; the copies remain for reference.
+    Completed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeptRecovery {
+    pub dir: PathBuf,
+    pub state: KeptState,
+}
+
 /// Write-once copies of files a change is about to overwrite, kept in a
 /// named directory outside the corpus until the change has landed.
 ///
@@ -136,6 +151,16 @@ pub trait RecoveryCopies {
     /// # Errors
     /// [`StoreError`] when `dir` exists but cannot be removed.
     fn remove_dir(&self, dir: &Path) -> Result<(), StoreError>;
+
+    /// Every directory under `parent` kept past its change, in name order.
+    ///
+    /// # Errors
+    /// [`StoreError`] when `parent` exists but cannot be listed.
+    fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError>;
+
+    /// Whether a person has dealt with `original`'s copy in `dir`: the
+    /// original matches it again, or the copy has been deleted.
+    fn copy_settled(&self, dir: &Path, original: &Path) -> bool;
 }
 
 /// Canonical-order JSONL append and anchored-prefix remove-by-key.

@@ -182,7 +182,8 @@ mistaken for a skip.
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
-remote-absent or indeterminate items); `5` refused (would exceed
+remote-absent, not-found or indeterminate items, or a key change refused or
+rolled back); `5` refused (would exceed
 `--max-pulls`/`--max-pushes`, zero writes); `7` the keyed reconcile read hit its
 `<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
 un-read items' remote state is unknown and nothing was written — raise the cap
@@ -194,7 +195,8 @@ a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried); `75` a per-item request was rejected before sending — its
+auto-retried), or a retirement stopped with `retirement-incomplete` (see Step
+5); `75` a per-item request was rejected before sending — its
 failed row carries the `rejected` detail: nothing was sent for that item, but
 the same request would be refused again, so it must change (for example, its
 body) before a re-run; a per-item `unconfigured` detail in the report is a write
@@ -351,12 +353,42 @@ pulled:                <ids>
 pushed-unsynced:       <ids>   (new external_id written back)
 pulled-untracked:      <ids>   (remote key → new local id; includes a
                                  targeted create-from-remote)
+key-changed:           <id>: <old>-><new>
+resumed:               <old-id>: <old>-><new>
+not-found:             <ids>   (no issue under the stored key)
 conflicts-skipped:     <ids>
 overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
 needs-retry:           <ids>
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
+
+Before the engine plans, the run settles identity changes, and reports them in
+the same four-column record, keyed by the id the item had when the run started:
+
+- `key-changed` (`<id>\tkey-changed\t<state>\t<old>-><new>`): the item's remote
+  issue now answers to another key, because it moved to another project or
+  team. The item's `external_id` follows it. Where the item's `id` was the old
+  key, the old key is retired: the file is renamed to the new key, the old
+  key joins `aliases`, and references across `meta/` are rewritten.
+- `resumed` (`<old-id>\tresumed\t<state>\t<old>-><new>`): a retirement an
+  earlier run left unfinished was completed.
+- `not-found` (`<id>\tnot-found\tremote-absent\t<key>`): the tracker answered
+  that no issue has the stored key. The item is left unchanged for a human.
+- A key change that would give two items one identity, or that rolled back,
+  is a `failed` row naming both items; the item is left unchanged.
+
+`#\tnote\tdeferred-to-next-run\tN` counts items written while the run was
+reading the remote; the next sync reconciles them. When the run is refused
+after identity changes landed, `#\tnote\tidentity-applied-before-refusal\tN`
+says so: each landed change is complete and stands.
+
+A run that stops with `retirement-incomplete` (exit `71`) could not restore
+every file a failed retirement had written. Relay the message, which names both
+ids, each unrestored path and the recovery directory: restore the named paths
+from version control, or from the recovery directory for files with
+uncommitted changes, then sync again. Until every path matches its recovery
+copy, each sync warns about the directory.
 
 When the report carries the targeted discovery line, render it with exact human
 phrasing so the machine TSV token never leaks verbatim, passing it through

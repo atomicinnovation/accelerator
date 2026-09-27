@@ -105,6 +105,9 @@ impl RemoteTimestamp {
 /// What a tracker reports about one issue, in full.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteIssue {
+    /// The key the tracker holds the issue under now, which differs from the
+    /// requested one when the issue has moved to another project or team.
+    pub key: ExternalId,
     /// The tracker's own last-modified stamp, stored as `remote_updated_at`
     /// in the sync baseline. The two names refer to one value.
     pub updated: RemoteTimestamp,
@@ -129,6 +132,15 @@ pub struct RemoteIssue {
     /// the implementing client's obligation. A body differing by so much as
     /// whitespace reclassifies every synced item as remotely modified.
     pub body: String,
+}
+
+/// Whether a keyed read found the issue, as opposed to failing to read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Located {
+    /// The issue, under whatever key the tracker now holds it.
+    Found(RemoteIssue),
+    /// The tracker answered that no issue has the requested key.
+    NotFound,
 }
 
 /// A failure reported by a remote tracker.
@@ -295,9 +307,11 @@ pub struct FetchOutcome {
     /// missing from a complete retrieval reads as absence, so filtering out the
     /// null-stamped entries reports a live issue as deleted.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
-    /// Provably gone from the tracker. Only ever drawn from a complete
-    /// retrieval, so empty whenever `completeness` is not
-    /// [`Completeness::Complete`].
+    /// Provably not found under the requested key. Only ever drawn from a
+    /// complete retrieval, so empty whenever `completeness` is not
+    /// [`Completeness::Complete`]. Not found is not deleted: the issue may
+    /// have moved to another key, and [`RemoteTracker::locate`] is the
+    /// authority on which.
     pub absent: Vec<ExternalId>,
     /// Not accounted for, and the retrieval could not prove why.
     pub indeterminate: Vec<ExternalId>,
@@ -646,10 +660,8 @@ pub trait RemoteTracker {
     /// Reads one remote issue in full, including its projected body.
     ///
     /// Absence is not discoverable here — a `RemoteIssue` or an error are the
-    /// only outcomes. Establish that an id is gone with `fetch_all`, whose
-    /// partition distinguishes provable absence from an unproven miss, and do
-    /// not build a retry loop around a `show` that may be reading a deleted
-    /// issue.
+    /// only outcomes. Establish that an id is gone with `locate`, and do not
+    /// build a retry loop around a `show` that may be reading a deleted issue.
     ///
     /// # Errors
     ///
@@ -661,6 +673,19 @@ pub trait RemoteTracker {
     /// deleted issue fails here indefinitely, so the caller degrades to
     /// presence-only rather than looping.
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError>;
+
+    /// Reads one remote issue, distinguishing a definitive not-found from a
+    /// failed read — the authority on whether an issue `fetch_all` could not
+    /// find under its key has moved or is missing.
+    ///
+    /// A moved issue is found: the returned [`RemoteIssue::key`] is its new
+    /// key.
+    ///
+    /// # Errors
+    ///
+    /// Only [`TrackerError::Retryable`], for a read that failed without the
+    /// tracker answering whether the issue exists.
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError>;
 
     /// Reads the requested issues in bulk, partitioned by what the retrieval
     /// could establish.

@@ -578,6 +578,17 @@ pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
 pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
 pub fn corpus::slug::title_case_segment(segment: &str) -> alloc::string::String
 pub mod corpus::store
+pub enum corpus::store::KeptState
+pub corpus::store::KeptState::Completed
+pub corpus::store::KeptState::RestorePending(alloc::vec::Vec<std::path::PathBuf>)
+impl core::clone::Clone for corpus::store::KeptState
+pub fn corpus::store::KeptState::clone(&self) -> corpus::store::KeptState
+impl core::cmp::Eq for corpus::store::KeptState
+impl core::cmp::PartialEq for corpus::store::KeptState
+pub fn corpus::store::KeptState::eq(&self, other: &corpus::store::KeptState) -> bool
+impl core::fmt::Debug for corpus::store::KeptState
+pub fn corpus::store::KeptState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::KeptState
 #[non_exhaustive] pub enum corpus::store::StoreError
 pub corpus::store::StoreError::AlreadyExists
 pub corpus::store::StoreError::AlreadyExists::path: alloc::string::String
@@ -607,6 +618,17 @@ pub fn corpus::store::StoreError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -
 impl core::fmt::Display for corpus::store::StoreError
 pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::store::StoreError
+pub struct corpus::store::KeptRecovery
+pub corpus::store::KeptRecovery::dir: std::path::PathBuf
+pub corpus::store::KeptRecovery::state: corpus::store::KeptState
+impl core::clone::Clone for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::clone(&self) -> corpus::store::KeptRecovery
+impl core::cmp::Eq for corpus::store::KeptRecovery
+impl core::cmp::PartialEq for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::eq(&self, other: &corpus::store::KeptRecovery) -> bool
+impl core::fmt::Debug for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::KeptRecovery
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::ExclusiveCreate
@@ -615,8 +637,10 @@ pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecoveryCopies
+pub fn corpus::store::RecoveryCopies::copy_settled(&self, dir: &std::path::Path, original: &std::path::Path) -> bool
 pub fn corpus::store::RecoveryCopies::exists(&self, dir: &std::path::Path) -> bool
 pub fn corpus::store::RecoveryCopies::is_restore_pending(&self, dir: &std::path::Path) -> bool
+pub fn corpus::store::RecoveryCopies::kept(&self, parent: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::store::KeptRecovery>, corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::mark_completed(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::mark_restore_pending(&self, dir: &std::path::Path, unrestored: &[std::path::PathBuf]) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::prepare(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
@@ -685,6 +709,18 @@ impl core::iter::traits::collect::FromIterator<(alloc::string::String, corpus::v
 pub fn corpus::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, corpus::value::FrontmatterValue)>>(iter: I) -> Self
 impl core::marker::StructuralPartialEq for corpus::value::Mapping
 pub mod corpus::work_item_id
+pub enum corpus::work_item_id::IdOwnership
+pub corpus::work_item_id::IdOwnership::Local
+pub corpus::work_item_id::IdOwnership::Tracker
+impl core::clone::Clone for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::clone(&self) -> corpus::work_item_id::IdOwnership
+impl core::cmp::Eq for corpus::work_item_id::IdOwnership
+impl core::cmp::PartialEq for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::eq(&self, other: &corpus::work_item_id::IdOwnership) -> bool
+impl core::fmt::Debug for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdOwnership
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
 pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
@@ -791,6 +827,18 @@ pub fn corpus::value::FrontmatterValue::eq(&self, other: &corpus::value::Frontma
 impl core::fmt::Debug for corpus::value::FrontmatterValue
 pub fn corpus::value::FrontmatterValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::value::FrontmatterValue
+pub enum corpus::IdOwnership
+pub corpus::IdOwnership::Local
+pub corpus::IdOwnership::Tracker
+impl core::clone::Clone for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::clone(&self) -> corpus::work_item_id::IdOwnership
+impl core::cmp::Eq for corpus::work_item_id::IdOwnership
+impl core::cmp::PartialEq for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::eq(&self, other: &corpus::work_item_id::IdOwnership) -> bool
+impl core::fmt::Debug for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdOwnership
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
 pub enum corpus::Outcome
 pub corpus::Outcome::Accepted
 pub corpus::Outcome::Edited

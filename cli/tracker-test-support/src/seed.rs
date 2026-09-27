@@ -288,6 +288,7 @@ mod tests {
     fn reuses_records_already_seeded() {
         let seeded = ExternalId::new("SCR-1".to_owned());
         let issue = RemoteIssue {
+            key: seeded.clone(),
             updated: RemoteTimestamp::NotReported,
             body: format!("issue 0195\nbody\n\n{}", seed_marker("0195")),
         };

@@ -1,17 +1,23 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
+use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::FileRecoveryCopies;
+use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
 use work::identity::IdentityField;
+use work::retirement::RECOVERY_PARENT;
+use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -19,11 +25,20 @@ use work::sync::SyncDirection;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::retirement::sweep_recoveries;
+use work_adapters::retirement::CorpusLayout;
+use work_adapters::retirement::RecoveryNotice;
+use work_adapters::retirement::RetirementFiles;
+use work_adapters::retirement::RetirementPorts;
+use work_adapters::retirement_records::FileRetirementRecords;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
+use work_adapters::sync::identity_settlement::IdentityOutcome;
+use work_adapters::sync::identity_settlement::IdentityRow;
+use work_adapters::sync::identity_settlement::SettlementPorts;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -35,6 +50,10 @@ use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
+use work_adapters::sync::settled_run::run_settled;
+use work_adapters::sync::settled_run::CorpusDiscovery;
+use work_adapters::sync::settled_run::DiscoveredCorpus;
+use work_adapters::sync::settled_run::SettledRunFailure;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::cli::SyncArgs;
@@ -118,6 +137,89 @@ fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
     Ok(items)
 }
 
+/// Where retirement records and recovery copies live, relative to the
+/// repository root.
+const STATE_DIR: &str = ".accelerator/state";
+
+/// Every configured document directory, so a retirement rewrites references
+/// across the same tree `corpus frontmatter validate` walks.
+fn corpus_roots(
+    config: &dyn ConfigAccess,
+    repo_root: &Path,
+) -> Result<Vec<PathBuf>, ::config::ConfigError> {
+    Ok(::config::paths::doc_type_dirs(config)?
+        .into_iter()
+        .map(|resolved| repo_root.join(resolved.dir))
+        .collect())
+}
+
+struct WorkDirDiscovery<'a> {
+    work_dir: &'a Path,
+    root: &'a Path,
+}
+
+impl CorpusDiscovery for WorkDirDiscovery<'_> {
+    fn discover(&self) -> Result<DiscoveredCorpus, RunError> {
+        Ok(DiscoveredCorpus {
+            items: discover_items(self.work_dir).map_err(RunError::Internal)?,
+            status: Box::new(VcsWorkingCopyStatus::probed_from(self.root)),
+        })
+    }
+}
+
+/// Clears recovery copies nobody needs any more and warns about every
+/// restore still waiting for a person.
+fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
+    let notices = match sweep_recoveries(recovery) {
+        Ok(notices) => notices,
+        Err(error) => {
+            eprintln!("warning: recovery copies could not be checked: {error}");
+            return;
+        }
+    };
+    for notice in notices {
+        match notice {
+            RecoveryNotice::StillPending { dir, unrestored } => {
+                let paths =
+                    unrestored.iter().fold(String::new(), |listing, path| {
+                        listing + "\n  " + &path.display().to_string()
+                    });
+                eprintln!(
+                    "warning: {RETIREMENT_INCOMPLETE}: these paths still differ \
+                     from their recovery copies in {}:{paths}\ncompare each path \
+                     with its recovery copy and merge, then delete the copy",
+                    recovery.location(&dir).display()
+                );
+            }
+            RecoveryNotice::Cleared { dir } => eprintln!(
+                "note: every path an incomplete restore left has been dealt \
+                 with; removed {}",
+                recovery.location(&dir).display()
+            ),
+        }
+    }
+}
+
+/// Notes each retirement that completed after an incomplete restore; its
+/// copies stay for reference until the next run removes them.
+fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
+    use corpus::store::RecoveryCopies as _;
+
+    let Ok(kept) = recovery.kept(Path::new(RECOVERY_PARENT)) else {
+        return;
+    };
+    for kept in kept {
+        if kept.state == corpus::store::KeptState::Completed {
+            eprintln!(
+                "note: the retirement whose restore was incomplete has since \
+                 completed; its recovery copies remain in {} for reference \
+                 and are removed on the next sync",
+                recovery.location(&kept.dir).display()
+            );
+        }
+    }
+}
+
 fn parse_resolutions(
     raw: &[(String, String)],
 ) -> Result<BTreeMap<String, Resolution>, String> {
@@ -182,10 +284,53 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
     }
 }
 
+/// The state an identity row shows: the engine's state for the item under
+/// its settled id, or the state the identity change itself implies.
+fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == row.settled_id)
+        .map_or_else(
+            || match row.action {
+                work::sync::IdentityAction::NotFound => {
+                    work::sync::SyncState::RemoteAbsent.to_string()
+                }
+                work::sync::IdentityAction::KeyChanged
+                | work::sync::IdentityAction::Resumed => "-".to_owned(),
+            },
+            |item| item.planned.state.to_string(),
+        )
+}
+
+fn identity_line(row: &IdentityRow, report: &RunReport) -> String {
+    let state = identity_state(row, report);
+    match &row.outcome {
+        IdentityOutcome::Refused(reason) | IdentityOutcome::Failed(reason) => {
+            format!("{}\tfailed\t{state}\t{}", row.id, single_line(reason))
+        }
+        IdentityOutcome::Applied | IdentityOutcome::NotApplied => {
+            format!("{}\t{}\t{state}\t{}", row.id, row.action, row.detail)
+        }
+    }
+}
+
 fn render_report(report: &RunReport) -> String {
-    let mut lines = Vec::new();
+    let settled_ids: BTreeSet<&str> = report
+        .identity
+        .iter()
+        .map(|row| row.settled_id.as_str())
+        .collect();
+    let mut lines: Vec<String> = report
+        .identity
+        .iter()
+        .map(|row| identity_line(row, report))
+        .collect();
     let mut synced_count = 0usize;
     for item in &report.reported {
+        if settled_ids.contains(item.planned.id.as_str()) {
+            continue;
+        }
         if matches!(item.planned.state, work::sync::SyncState::Synced) {
             synced_count += 1;
             continue;
@@ -221,6 +366,12 @@ fn render_report(report: &RunReport) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    if report.deferred > 0 {
+        lines.push(format!(
+            "#\tnote\tdeferred-to-next-run\t{}",
+            report.deferred
+        ));
+    }
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
@@ -256,7 +407,8 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
                 if error.class() == Some(work_adapters::sync::apply::FailureClass::Rejected)
         )
     });
-    let awaiting_human = report.awaiting_human().next().is_some();
+    let awaiting_human = report.awaiting_human().next().is_some()
+        || report.identity.iter().any(IdentityRow::awaits_human);
 
     if any_terminal {
         exit_codes::TERMINAL
@@ -1030,6 +1182,69 @@ fn refusal_message(
     )
 }
 
+/// What a failed run's message needs to name the limits and caps it hit.
+struct RunErrorContext<'a> {
+    config: &'a dyn ConfigAccess,
+    integration: &'a str,
+    max_pulls_source: Option<::config::Level>,
+    max_pushes_source: Option<::config::Level>,
+}
+
+/// The message and exit code for a run that stopped before reporting.
+fn run_error_outcome(
+    error: &RunError,
+    context: &RunErrorContext<'_>,
+) -> (String, u8) {
+    match error {
+        RunError::Refused {
+            pulls,
+            pushes,
+            max_pulls,
+            max_pushes,
+            new_local_files,
+            new_remote_issues,
+        } => (
+            refusal_message(
+                context.integration,
+                *pulls,
+                *pushes,
+                *max_pulls,
+                *max_pushes,
+                *new_local_files,
+                *new_remote_issues,
+                context.max_pulls_source,
+                context.max_pushes_source,
+            ),
+            exit_codes::REFUSED_BULK_OVERWRITE,
+        ),
+        RunError::DiscoveryIncomplete {
+            found,
+            completeness,
+        } => (
+            discovery_incomplete_message(
+                context.config,
+                context.integration,
+                *found,
+                *completeness,
+            ),
+            exit_codes::REFUSED_BULK_OVERWRITE,
+        ),
+        RunError::DiscoveryUnconfigured { detail } => (
+            format!("refused: discovery is unconfigured — {detail}"),
+            exit_codes::UNCONFIGURED,
+        ),
+        RunError::KeyedReadCapped => (
+            keyed_read_capped_message(context.config, context.integration),
+            exit_codes::KEYED_READ_CAPPED,
+        ),
+        RunError::RetirementIncomplete { message } => {
+            (message.clone(), exit_codes::TERMINAL)
+        }
+        RunError::Read(error) => (error.to_string(), exit_codes::RETRYABLE),
+        RunError::Internal(error) => (error.to_string(), exit_codes::ERROR),
+    }
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -1181,14 +1396,67 @@ pub fn run_sync(
         );
         return ExitCode::from(exit_codes::ERROR);
     }
+    let state_dir = repo_root.join(STATE_DIR);
+    if let Err(error) = std::fs::create_dir_all(&state_dir) {
+        eprintln!(
+            "could not create the state directory {}: {error}",
+            state_dir.display()
+        );
+        return ExitCode::from(exit_codes::ERROR);
+    }
+    let corpus_roots = match corpus_roots(config, &repo_root) {
+        Ok(roots) => roots,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
     let file_reader = RealFs;
     let corpus_store = FileCorpusStore::new(baseline_dir);
+    let project_store = FileCorpusStore::new(&repo_root);
+    let state_store = FileCorpusStore::new(&state_dir);
+    let file_locks = LockdirLock::new(&work_dir);
+    let recovery = FileRecoveryCopies::new(&state_dir, &repo_root);
     let mut baseline_store =
+        BaselineStore::new(baseline_path.clone(), &file_reader, &corpus_store);
+    let retirement_baseline =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
     let status = VcsWorkingCopyStatus::probed_from(&root);
+    let retirement = RetirementPorts {
+        files: RetirementFiles {
+            reader: &file_reader,
+            writer: &project_store,
+            creator: &project_store,
+            remover: &project_store,
+            file_locks: &file_locks,
+            recovery: &recovery,
+        },
+        layout: CorpusLayout {
+            roots: &corpus_roots,
+            work_dir: &work_dir,
+        },
+        walker: &file_reader,
+        status: &status,
+        lock: &file_locks,
+        baseline: &retirement_baseline,
+    };
+    let records = FileRetirementRecords::new(&state_dir, &state_store);
+    let settlement = SettlementPorts {
+        retirement: &retirement,
+        records: &records,
+        ownership: IdOwnership::Local,
+        state_dir: &state_dir,
+    };
+    let discovery = WorkDirDiscovery {
+        work_dir: &work_dir,
+        root: &repo_root,
+    };
     let clock = SystemClock;
-    let author =
-        crate::sync_author::ConfiguredLocalAuthor::new(config, root, work_dir);
+    let author = crate::sync_author::ConfiguredLocalAuthor::new(
+        config,
+        root,
+        work_dir.clone(),
+    );
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
@@ -1258,7 +1526,14 @@ pub fn run_sync(
         scope,
     };
 
-    match work_adapters::sync::run::run(&ports, &mut baseline_store, &request) {
+    sweep_kept_recoveries(&recovery);
+    match run_settled(
+        &request,
+        &ports,
+        &settlement,
+        &mut baseline_store,
+        &discovery,
+    ) {
         Ok(report) => {
             if let work_adapters::sync::baseline::Degradation::Unparseable {
                 detail,
@@ -1316,62 +1591,31 @@ pub fn run_sync(
                 &mut std::io::stderr(),
             );
             warn_outstanding_pushes(&integrations_root, &integration);
+            report_kept_recoveries(&recovery);
             ExitCode::from(exit_code_for_report(&report))
         }
-        Err(RunError::Refused {
-            pulls,
-            pushes,
-            max_pulls,
-            max_pushes,
-            new_local_files,
-            new_remote_issues,
+        Err(SettledRunFailure {
+            error,
+            identity_applied,
         }) => {
-            eprintln!(
-                "{}",
-                refusal_message(
-                    &integration,
-                    pulls,
-                    pushes,
-                    max_pulls,
-                    max_pushes,
-                    new_local_files,
-                    new_remote_issues,
+            if identity_applied > 0 {
+                println!(
+                    "#\tnote\tidentity-applied-before-refusal\t\
+                     {identity_applied}"
+                );
+            }
+            let (message, code) = run_error_outcome(
+                &error,
+                &RunErrorContext {
+                    config,
+                    integration: &integration,
                     max_pulls_source,
                     max_pushes_source,
-                )
+                },
             );
-            ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
-        }
-        Err(RunError::DiscoveryIncomplete {
-            found,
-            completeness,
-        }) => {
-            eprintln!(
-                "{}",
-                discovery_incomplete_message(
-                    config,
-                    &integration,
-                    found,
-                    completeness,
-                )
-            );
-            ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
-        }
-        Err(RunError::DiscoveryUnconfigured { detail }) => {
-            eprintln!("refused: discovery is unconfigured — {detail}");
-            ExitCode::from(exit_codes::UNCONFIGURED)
-        }
-        Err(RunError::KeyedReadCapped) => {
-            eprintln!("{}", keyed_read_capped_message(config, &integration));
-            ExitCode::from(exit_codes::KEYED_READ_CAPPED)
-        }
-        Err(RunError::Read(error)) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::RETRYABLE)
-        }
-        Err(RunError::Internal(error)) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::ERROR)
+            eprintln!("{message}");
+            report_kept_recoveries(&recovery);
+            ExitCode::from(code)
         }
     }
 }
@@ -1934,6 +2178,8 @@ mod tests {
     #[test]
     fn render_report_sorts_fixed_width_ids_numerically() {
         let report = RunReport {
+            identity: Vec::new(),
+            deferred: 0,
             reported: vec![
                 reported("0001", SyncState::LocallyModified, Action::Push),
                 reported("0002", SyncState::RemotelyModified, Action::Pull),
@@ -1978,6 +2224,8 @@ mod tests {
     #[test]
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
+            identity: Vec::new(),
+            deferred: 0,
             reported: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -1993,8 +2241,281 @@ mod tests {
         );
     }
 
+    fn identity_row(
+        id: &str,
+        settled_id: &str,
+        action: work::sync::IdentityAction,
+        detail: &str,
+        outcome: work_adapters::sync::identity_settlement::IdentityOutcome,
+    ) -> work_adapters::sync::identity_settlement::IdentityRow {
+        work_adapters::sync::identity_settlement::IdentityRow {
+            id: id.to_owned(),
+            settled_id: settled_id.to_owned(),
+            action,
+            detail: detail.to_owned(),
+            outcome,
+        }
+    }
+
+    fn settled_report(
+        identity: Vec<work_adapters::sync::identity_settlement::IdentityRow>,
+        reported: Vec<ReportedItem>,
+    ) -> RunReport {
+        RunReport {
+            identity,
+            reported,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        }
+    }
+
+    #[test]
+    fn a_key_change_row_renders_old_and_new_keys() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "ENG-42",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("ENG-42", SyncState::LocallyModified, Action::Push)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.lines().any(|line| line
+                == "PP-760\tkey-changed\tlocally-modified\tPP-760->ENG-42"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn a_not_found_row_is_a_four_column_record() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-76",
+                "PP-76",
+                IdentityAction::NotFound,
+                "PP-76",
+                IdentityOutcome::NotApplied,
+            )],
+            vec![reported("PP-76", SyncState::RemoteAbsent, Action::Noop)],
+        );
+
+        let rendered = render_report(&report);
+
+        let line = rendered
+            .lines()
+            .find(|line| line.starts_with("PP-76\t"))
+            .expect("a row for the item");
+        assert_eq!(line, "PP-76\tnot-found\tremote-absent\tPP-76");
+        assert_eq!(line.split('\t').count(), 4);
+    }
+
+    #[test]
+    fn each_id_appears_in_one_report_row() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "0230",
+                "0230",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("0230", SyncState::LocallyModified, Action::Push)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert_eq!(
+            rendered
+                .lines()
+                .filter(|line| line.starts_with("0230\t"))
+                .count(),
+            1,
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn key_changed_rows_survive_synced_row_suppression() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "0230",
+                "0230",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("0230", SyncState::Synced, Action::Noop)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains("0230\tkey-changed\tsynced\tPP-760->ENG-42"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+    }
+
+    #[test]
+    fn a_refused_identity_row_renders_as_failed_with_its_reason() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "PP-760",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Refused(
+                    "cannot retire PP-760 for ENG-42: ENG-7-other.md\nholds it"
+                        .to_owned(),
+                ),
+            )],
+            Vec::new(),
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains(
+                "PP-760\tfailed\t-\tcannot retire PP-760 for ENG-42: \
+                 ENG-7-other.md holds it"
+            ),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn a_key_change_collision_exits_unresolved() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "PP-760",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Refused("collision".to_owned()),
+            )],
+            Vec::new(),
+        );
+
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            exit_codes::UNRESOLVED
+        );
+    }
+
+    #[test]
+    fn deferred_items_are_noted() {
+        let report = RunReport {
+            deferred: 2,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert!(
+            render_report(&report).contains("#\tnote\tdeferred-to-next-run\t2"),
+        );
+    }
+
+    #[test]
+    fn an_incomplete_restore_names_both_ids_every_unrestored_path_the_recovery_directory_and_the_remedy(
+    ) {
+        use work::retirement::Retirement;
+        use work::retirement::RetirementCause;
+        use work::retirement::RetirementCauseKind;
+        use work::retirement::RetirementFailure;
+        use work_adapters::sync::run::RunError;
+
+        struct NoConfig;
+
+        impl ::config::ConfigAccess for NoConfig {
+            fn get(
+                &self,
+                _key: &::config::Key,
+                _level: Option<::config::Level>,
+            ) -> Result<::config::Resolved, ::config::ConfigError> {
+                Ok(::config::Resolved::Absent)
+            }
+
+            fn set(
+                &self,
+                _key: &::config::Key,
+                _value: &str,
+                _level: ::config::Level,
+            ) -> Result<(), ::config::ConfigError> {
+                unreachable!("reporting a failure never writes config")
+            }
+        }
+
+        let retirement = Retirement {
+            old_id: "PP-760",
+            new_id: "ENG-42",
+            new_external_id: Some("ENG-42"),
+        };
+        let recovery = Path::new(
+            "/repo/.accelerator/state/retirement-recovery/PP-760--ENG-42",
+        );
+        let failure = RetirementFailure::RestoreIncomplete {
+            cause: RetirementCause {
+                path: PathBuf::from("/repo/meta/work/ENG-42-a.md"),
+                kind: RetirementCauseKind::ChangedSinceSnapshot,
+            },
+            unrestored: vec![
+                PathBuf::from("/repo/meta/plans/plan.md"),
+                PathBuf::from("/repo/meta/work/0001-child.md"),
+            ],
+        };
+        let error = RunError::RetirementIncomplete {
+            message: failure.message(&retirement, recovery),
+        };
+
+        let (message, code) = super::run_error_outcome(
+            &error,
+            &super::RunErrorContext {
+                config: &NoConfig,
+                integration: "linear",
+                max_pulls_source: None,
+                max_pushes_source: None,
+            },
+        );
+
+        assert_eq!(code, exit_codes::TERMINAL);
+        for expected in [
+            "retirement-incomplete",
+            "PP-760",
+            "ENG-42",
+            "/repo/meta/plans/plan.md",
+            "/repo/meta/work/0001-child.md",
+            "/repo/.accelerator/state/retirement-recovery/PP-760--ENG-42",
+            "restore these paths from version control",
+        ] {
+            assert!(message.contains(expected), "{expected}: {message}");
+        }
+    }
+
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
+            identity: Vec::new(),
+            deferred: 0,
             reported: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -2061,6 +2582,8 @@ mod tests {
     #[test]
     fn render_report_renders_an_unconfigured_failure() {
         let report = RunReport {
+            identity: Vec::new(),
+            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::LocallyModified,
@@ -2082,6 +2605,8 @@ mod tests {
     #[test]
     fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
         let report = RunReport {
+            identity: Vec::new(),
+            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::Unsynced,
@@ -2104,6 +2629,8 @@ mod tests {
             || failed("0003", SyncState::LocallyModified, unconfigured(""));
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
+                identity: Vec::new(),
+                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -2144,6 +2671,8 @@ mod tests {
         };
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
+                identity: Vec::new(),
+                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -2395,6 +2924,13 @@ mod tests {
             unimplemented!("not exercised by the fetch_all failure path")
         }
 
+        fn locate(
+            &self,
+            _id: &ExternalId,
+        ) -> Result<tracker::Located, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
         fn search(
             &self,
             _scope: &tracker::SearchScope,
@@ -2459,6 +2995,13 @@ mod tests {
 
         fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
             self.0.show(id)
+        }
+
+        fn locate(
+            &self,
+            id: &ExternalId,
+        ) -> Result<tracker::Located, TrackerError> {
+            self.0.locate(id)
         }
 
         fn fetch_all(
@@ -2733,6 +3276,7 @@ mod tests {
 
     fn issue(body: &str) -> RemoteIssue {
         RemoteIssue {
+            key: ExternalId::new("ENG-1".to_owned()),
             updated: tracker::RemoteTimestamp::Reported(
                 "2026-01-01T00:00:00Z".to_owned(),
             ),

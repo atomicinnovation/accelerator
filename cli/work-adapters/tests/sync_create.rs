@@ -168,6 +168,7 @@ fn baseline_document(entries: &[String]) -> String {
 
 fn issue(body: &str) -> RemoteIssue {
     RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
         body: body.to_owned(),
     }
@@ -982,6 +983,7 @@ fn planned_writes_over_bound_refuse_before_any_create_from_remote(
         holding.push((
             external.clone(),
             RemoteIssue {
+                key: external.clone(),
                 updated: stamp.clone(),
                 body: "Title\nRemote body\n".to_owned(),
             },
@@ -1371,6 +1373,7 @@ fn a_mixed_run_writes_the_targeted_union_and_no_non_targeted_item(
         (
             a_external.clone(),
             RemoteIssue {
+                key: a_external.clone(),
                 updated: stamp_moved,
                 body: "Title\nRemote body\n".to_owned(),
             },
@@ -2187,6 +2190,13 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
 
     fn show(&self, _id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
         Ok(issue("Draft one\nBody"))
+    }
+
+    fn locate(
+        &self,
+        id: &ExternalId,
+    ) -> Result<tracker::Located, TrackerError> {
+        self.show(id).map(tracker::Located::Found)
     }
 
     fn fetch_all(

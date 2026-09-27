@@ -114,6 +114,7 @@ fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
 fn a_stamp_that_proves_unchanged_costs_no_show() {
     let id = ExternalId::new("ENG-1".to_owned());
     let issue = RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("2026-06-01".to_owned()),
         body: "Title\nBody\n".to_owned(),
     };
@@ -157,6 +158,7 @@ fn a_stamp_that_proves_unchanged_costs_no_show() {
 fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
     let id = ExternalId::new("ENG-1".to_owned());
     let issue = RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("2026-07-01".to_owned()),
         body: "Title\nNew body\n".to_owned(),
     };
@@ -203,6 +205,7 @@ fn absent_and_indeterminate_partition_correctly() {
     let known_id = ExternalId::new("ENG-1".to_owned());
     let unseen_id = ExternalId::new("ENG-2".to_owned());
     let issue = RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::NotReported,
         body: String::new(),
     };
@@ -237,6 +240,7 @@ fn absent_and_indeterminate_partition_correctly() {
 fn per_item_strategy_calls_show_for_every_present_id_and_never_fetch_all() {
     let id = ExternalId::new("ENG-1".to_owned());
     let issue = RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("x".to_owned()),
         body: "Title\nBody\n".to_owned(),
     };
@@ -304,4 +308,149 @@ fn an_item_with_no_external_id_still_gets_a_facts_entry() {
     );
 
     assert!(facts.per_id.contains_key("0001"));
+}
+
+fn key(raw: &str) -> ExternalId {
+    ExternalId::new(raw.to_owned())
+}
+
+fn held(raw: &str, stamp: &str) -> (ExternalId, RemoteIssue) {
+    (
+        key(raw),
+        RemoteIssue {
+            key: key(raw),
+            updated: RemoteTimestamp::Reported(stamp.to_owned()),
+            body: "Title\nBody\n".to_owned(),
+        },
+    )
+}
+
+fn gathered(
+    tracker: &RecordingTracker,
+    items: &[LocalItem],
+    strategy: RetrievalStrategy,
+) -> fetch::GatheredFacts {
+    fetch::gather(
+        items,
+        &Baseline::read(None).0,
+        tracker,
+        &AlwaysClean,
+        strategy,
+    )
+}
+
+#[test]
+fn an_id_absent_from_the_bulk_read_is_located_and_reported_moved() {
+    let tracker = RecordingTracker::holding(vec![held("PP-760", "2026-07-01")])
+        .moving(&key("PP-760"), &key("ENG-42"));
+    let items = vec![item("0230", Some("PP-760"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert_eq!(
+        facts.identity.get("0230"),
+        Some(&fetch::IdentityObservation::Moved {
+            old: key("PP-760"),
+            new: key("ENG-42"),
+        })
+    );
+    let (remote, _) = facts.per_id.get("0230").expect("a fact");
+    assert_eq!(remote.presence, RemotePresence::Present);
+    assert_eq!(remote.body.as_deref(), Some("Title\nBody\n"));
+}
+
+#[test]
+fn a_show_answering_another_key_after_the_bulk_read_is_a_move() {
+    let tracker = RecordingTracker::holding(vec![held("PP-760", "2026-07-01")])
+        .showing_under(&key("PP-760"), &key("ENG-42"));
+    let items = vec![item("0230", Some("PP-760"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert_eq!(
+        facts.identity.get("0230"),
+        Some(&fetch::IdentityObservation::Moved {
+            old: key("PP-760"),
+            new: key("ENG-42"),
+        })
+    );
+}
+
+#[test]
+fn a_key_answered_in_another_case_is_not_a_move() {
+    let tracker = RecordingTracker::holding(vec![held("PP-760", "2026-07-01")])
+        .showing_under(&key("PP-760"), &key("pp-760"));
+    let items = vec![item("0230", Some("PP-760"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert!(facts.identity.is_empty(), "{:?}", facts.identity);
+}
+
+#[test]
+fn a_per_item_read_answering_another_key_is_a_move() {
+    let tracker = RecordingTracker::holding(vec![held("PP-760", "2026-07-01")])
+        .moving(&key("PP-760"), &key("ENG-42"));
+    let items = vec![item("0230", Some("PP-760"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::PerItem);
+
+    assert_eq!(
+        facts.identity.get("0230"),
+        Some(&fetch::IdentityObservation::Moved {
+            old: key("PP-760"),
+            new: key("ENG-42"),
+        })
+    );
+}
+
+#[test]
+fn an_id_the_tracker_cannot_find_is_reported_not_found_and_absent() {
+    let tracker =
+        RecordingTracker::holding(Vec::new()).not_found(&key("PP-76"));
+    let items = vec![item("PP-76", Some("PP-76"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert_eq!(
+        facts.identity.get("PP-76"),
+        Some(&fetch::IdentityObservation::NotFound { key: key("PP-76") })
+    );
+    assert_eq!(
+        facts.per_id.get("PP-76").map(|(remote, _)| remote.presence),
+        Some(RemotePresence::Absent)
+    );
+}
+
+#[test]
+fn a_failed_locate_leaves_the_bulk_reads_answer() {
+    let tracker = RecordingTracker::holding(Vec::new()).failing_locate(
+        &key("PP-76"),
+        tracker::TrackerError::Retryable {
+            detail: "down".to_owned(),
+        },
+    );
+    let items = vec![item("PP-76", Some("PP-76"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert!(facts.identity.is_empty());
+    assert_eq!(
+        facts.per_id.get("PP-76").map(|(remote, _)| remote.presence),
+        Some(RemotePresence::Absent)
+    );
+}
+
+#[test]
+fn an_indeterminate_id_is_located() {
+    let tracker = RecordingTracker::truncating(Vec::new(), vec![key("PP-760")])
+        .not_found(&key("PP-760"));
+    let items = vec![item("0230", Some("PP-760"))];
+
+    let facts = gathered(&tracker, &items, RetrievalStrategy::Bulk);
+
+    assert_eq!(
+        facts.identity.get("0230"),
+        Some(&fetch::IdentityObservation::NotFound { key: key("PP-760") })
+    );
 }

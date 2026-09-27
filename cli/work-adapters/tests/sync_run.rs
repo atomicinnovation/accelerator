@@ -167,6 +167,7 @@ fn pullable(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"{local_hash}\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
         body: projected_body().to_owned(),
     };
@@ -197,6 +198,7 @@ fn pushable(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
         body: projected_body().to_owned(),
     };
@@ -481,6 +483,7 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
         (
             a_external.clone(),
             RemoteIssue {
+                key: a_external.clone(),
                 updated: RemoteTimestamp::Reported(STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
@@ -603,6 +606,7 @@ fn a_cap_hit_keyed_read_aborts_the_sync_with_zero_writes(
     let spy = Spy::default();
     spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
         body: projected_body().to_owned(),
     };
@@ -944,6 +948,7 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
         | RunError::DiscoveryUnconfigured { .. }
+        | RunError::RetirementIncomplete { .. }
         | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
@@ -1071,6 +1076,7 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
         | RunError::DiscoveryUnconfigured { .. }
+        | RunError::RetirementIncomplete { .. }
         | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
@@ -1151,8 +1157,9 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
             external_id: Some(external.clone()),
         }],
         tracker: RecordingTracker::holding(vec![(
-            external,
+            external.clone(),
             RemoteIssue {
+                key: external,
                 updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
@@ -1216,6 +1223,7 @@ fn conflicting(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"stale\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
         body: remote_body.to_owned(),
     };
@@ -1330,8 +1338,9 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
             external_id: Some(external.clone()),
         }],
         tracker: RecordingTracker::holding(vec![(
-            external,
+            external.clone(),
             RemoteIssue {
+                key: external,
                 updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
