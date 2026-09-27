@@ -234,3 +234,215 @@ fn resolve_fields_refuses_to_take_its_project_from_config() {
     );
     assert!(output.stdout.is_empty(), "nothing is resolved");
 }
+
+fn token_cmd_config(team_token_cmd: Option<&str>) -> String {
+    let command = team_token_cmd
+        .map_or(String::new(), |command| format!("  token_cmd: {command}\n"));
+    format!(
+        "---\nwork:\n  integration: jira\njira:\n  site: acme\n  \
+         email: toby@example.com\n  project_key: ENG\n{command}---\n"
+    )
+}
+
+fn verify_without_token(
+    dir: &std::path::Path,
+    server: &MockHTTPServer,
+    environment: &[(&str, &str)],
+) -> std::process::Output {
+    support::run_env_with(
+        dir,
+        server,
+        &["init", "verify"],
+        environment,
+        &support::Token::Absent,
+    )
+}
+
+#[test]
+fn a_team_token_command_with_nothing_usable_exits_no_token() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(Some("printf team")));
+
+    let output = verify_without_token(dir.path(), &server, &[]);
+
+    assert_eq!(output.status.code(), Some(24), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("E_CONSENT_KEY_TEAM_LEVEL: jira.token_cmd"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(server.hits(&RequestKey::get(MYSELF)), 0);
+}
+
+#[test]
+fn a_team_token_command_beside_a_personal_token_warns_and_runs() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(Some("printf team")));
+    support::personal(dir.path(), "---\njira:\n  token: mine\n---\n", 0o600);
+
+    let output = verify_without_token(dir.path(), &server, &[]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stderr(&output)
+            .contains("warning: E_CONSENT_KEY_TEAM_LEVEL: jira.token_cmd"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn an_environment_token_command_is_noticed_without_its_command() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(None));
+
+    let output = verify_without_token(
+        dir.path(),
+        &server,
+        &[("ACCELERATOR_JIRA_TOKEN_CMD", "printf from-the-helper")],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains(
+            "notice: jira.token_cmd taken from ACCELERATOR_JIRA_TOKEN_CMD"
+        ),
+        "{}",
+        stderr(&output)
+    );
+    assert!(!stderr(&output).contains("printf"), "{}", stderr(&output));
+}
+
+fn showing_server() -> MockHTTPServer {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get(ISSUE),
+        Route::Json {
+            status: 200,
+            body: r#"{"key":"ENG-42","fields":{"summary":"a bug"}}"#.to_owned(),
+        },
+    );
+    server
+}
+
+fn show_without_token(
+    dir: &std::path::Path,
+    server: &MockHTTPServer,
+    environment: &[(&str, &str)],
+) -> std::process::Output {
+    support::run_env_with(
+        dir,
+        server,
+        &["show", "ENG-42"],
+        environment,
+        &support::Token::Absent,
+    )
+}
+
+#[test]
+fn an_environment_token_command_runs_beside_an_insecure_personal_config() {
+    let server = showing_server();
+    let dir = insecure_scratch();
+
+    let output = show_without_token(
+        dir.path(),
+        &server,
+        &[("ACCELERATOR_JIRA_TOKEN_CMD", "printf from-the-helper")],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        stderr(&output)
+            .matches("warning: E_LOCAL_PERMS_INSECURE")
+            .count(),
+        1,
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn an_insecure_personal_config_with_nothing_usable_exits_perms_insecure() {
+    let server = showing_server();
+    let dir = insecure_scratch();
+
+    let output = show_without_token(dir.path(), &server, &[]);
+
+    assert_eq!(output.status.code(), Some(29), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("E_LOCAL_PERMS_INSECURE"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(server.hits(&RequestKey::get(ISSUE)), 0);
+}
+
+#[test]
+fn a_tracked_personal_command_beside_a_team_command_is_fatal_and_warns() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(Some("printf team")));
+    support::personal(
+        dir.path(),
+        "---\njira:\n  token_cmd: printf mine\n---\n",
+        0o600,
+    );
+    support::track_personal(dir.path());
+
+    let output = verify_without_token(dir.path(), &server, &[]);
+
+    assert_eq!(output.status.code(), Some(24), "{}", stderr(&output));
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("warning: E_CONSENT_KEY_TEAM_LEVEL: jira.token_cmd"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("E_CONSENT_KEY_TRACKED: jira.token_cmd"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_helper_printing_a_control_character_exits_no_token() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(None));
+
+    let output = verify_without_token(
+        dir.path(),
+        &server,
+        &[("ACCELERATOR_JIRA_TOKEN_CMD", "printf 'tok\\001'")],
+    );
+
+    assert_eq!(output.status.code(), Some(24), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("E_TOKEN_MALFORMED: jira.token_cmd"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_personal_token_command_runs_outside_the_project_in_a_fresh_directory() {
+    let server = verifying_server();
+    let dir = support::scratch(&token_cmd_config(None));
+    let record = tempfile::tempdir().unwrap();
+    let recorded = record.path().join("cwd");
+    support::personal(
+        dir.path(),
+        &format!(
+            "---\njira:\n  token_cmd: pwd > {} && printf tok\n---\n",
+            recorded.display()
+        ),
+        0o600,
+    );
+
+    let output = verify_without_token(dir.path(), &server, &[]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let cwd = std::path::PathBuf::from(
+        std::fs::read_to_string(&recorded).unwrap().trim(),
+    );
+    let project = dir.path().canonicalize().unwrap();
+    assert!(!cwd.starts_with(&project), "{}", cwd.display());
+    assert!(!cwd.exists(), "{} outlived the run", cwd.display());
+}

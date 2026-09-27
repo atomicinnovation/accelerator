@@ -7,12 +7,12 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use config::consent::CommandKey;
+use config::consent;
+use config::consent::Refusal;
 use config::credentials::resolve_token;
 use config::credentials::CredentialError;
 use config::credentials::TokenKeys;
 use config::credentials::TokenSource;
-use config::Key;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
 use research::classify::Response;
@@ -181,41 +181,46 @@ fn resolve_key(
         project.config.as_ref(),
         deadline.remaining(ports.clock.now()),
     );
-    match resolve_token(&context, &openalex_keys()) {
-        Ok(resolved) => Ok(Some(ApiKey::new(
-            resolved.value.expose().to_owned(),
-            key_source(resolved.source),
-        ))),
+    let keys = openalex_keys();
+    match resolve_token(&context, &keys) {
+        Ok(resolved) => {
+            if let Some(notice) = &resolved.notice {
+                eprintln!("{notice}");
+            }
+            report_warnings(&resolved.refusals);
+            Ok(Some(ApiKey::new(
+                resolved.value.expose().to_owned(),
+                key_source(&keys, resolved.source),
+            )))
+        }
         Err(CredentialError::NoToken { .. }) => Ok(None),
-        Err(error) => Err(error),
+        Err(error) => {
+            report_warnings(error.warnings());
+            Err(error)
+        }
     }
 }
-const ENV_KEY: &str = "ACCELERATOR_OPENALEX_API_KEY";
-const ENV_KEY_COMMAND: &str = "ACCELERATOR_OPENALEX_API_KEY_CMD";
 
+fn report_warnings(warnings: &[Refusal]) {
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
+    }
+}
+
+#[allow(clippy::expect_used)]
 fn openalex_keys() -> TokenKeys {
-    TokenKeys {
-        env: ENV_KEY,
-        env_command: ENV_KEY_COMMAND,
-        value: catalogued("openalex.api_key"),
-        command: catalogued_command("openalex.api_key_cmd"),
-    }
+    TokenKeys::declared("openalex.api_key", "openalex.api_key_cmd")
+        .expect("OpenAlex's key and key command are declared")
 }
 
-#[allow(clippy::expect_used)]
-fn catalogued(key: &str) -> Key {
-    Key::parse(key).expect("a catalogued key parses")
-}
-
-#[allow(clippy::expect_used)]
-fn catalogued_command(key: &str) -> CommandKey {
-    CommandKey::declared(key).expect("a catalogued command key is declared")
-}
-
-fn key_source(source: TokenSource) -> KeySource {
+fn key_source(keys: &TokenKeys, source: TokenSource) -> KeySource {
+    let first_override =
+        |key: &'static config::catalogue::ExtraKey| -> &'static str {
+            key.overrides.first().copied().unwrap_or(key.name)
+        };
     KeySource::new(match source {
-        TokenSource::Env => ENV_KEY,
-        TokenSource::EnvCommand => ENV_KEY_COMMAND,
+        TokenSource::Env => first_override(keys.plaintext),
+        TokenSource::EnvCommand => first_override(keys.command.descriptor()),
         TokenSource::Personal => "openalex.api_key in config.local.md",
         TokenSource::PersonalCommand => {
             "openalex.api_key_cmd in config.local.md"
@@ -271,7 +276,6 @@ mod tests {
     use config::credentials::Environment;
     use config::credentials::FileFacts;
     use config::credentials::FileState;
-    use config::credentials::Provenance;
     use config::ConfigError;
     use config::Key;
     use config::Level;
@@ -368,12 +372,6 @@ mod tests {
             } else {
                 FileState::Absent
             })
-        }
-    }
-
-    impl Provenance for UntrackedPersonalFile {
-        fn is_tracked(&self, _path: &Path) -> bool {
-            false
         }
     }
 
@@ -572,7 +570,6 @@ mod tests {
                         takes: self.key_command_takes,
                         timeouts: self.timeouts.clone(),
                     })),
-                    provenance: Box::new(UntrackedPersonalFile),
                     tracking: Box::new(UntrackedPersonalFile),
                 },
             };

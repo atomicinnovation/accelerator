@@ -48,12 +48,6 @@ use tracker_test_support::seed::{
 /// provenance question arises.
 struct NothingTracked;
 
-impl config::credentials::Provenance for NothingTracked {
-    fn is_tracked(&self, _path: &std::path::Path) -> bool {
-        false
-    }
-}
-
 impl config::consent::ConfigFileTracking for NothingTracked {
     fn tracking(&self, _path: &std::path::Path) -> config::consent::Tracking {
         config::consent::Tracking::Untracked
@@ -113,16 +107,17 @@ fn live_client() -> LiveClient {
     let root = std::env::current_dir().expect("a working directory");
     let service = config_service(&root);
     let context = CredentialContext {
-        environment: &environment,
-        config: service.as_ref(),
-        provenance: &provenance,
-        tracking: &provenance,
-        files: &SystemFileFacts,
+        provenance: config::consent::ProvenanceContext {
+            config: service.as_ref(),
+            tracking: &provenance,
+            environment: &environment,
+            personal_config: root.join(".accelerator/config.local.md"),
+        },
         execution: CommandExecution {
             runner: &runner,
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
         },
-        personal_config: root.join(".accelerator/config.local.md"),
+        files: &SystemFileFacts,
         insecure_marker: root
             .join(config::credentials::INSECURE_MARKER_RELATIVE),
     };

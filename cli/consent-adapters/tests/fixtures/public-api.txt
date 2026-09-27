@@ -10,4 +10,5 @@ impl core::fmt::Debug for consent_adapters::VcsConfigFileTracking
 pub fn consent_adapters::VcsConfigFileTracking::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for consent_adapters::VcsConfigFileTracking
 pub fn consent_adapters::command_runner(config_root: &std::path::Path, cwd: &std::path::Path) -> config::consent::Runner
+pub fn consent_adapters::credential_ports(config_root: &std::path::Path, cwd: &std::path::Path) -> config_adapters::credentials::CredentialPorts
 pub fn consent_adapters::repository_roots(config_root: &std::path::Path, cwd: &std::path::Path) -> config::consent::RepositoryRoots

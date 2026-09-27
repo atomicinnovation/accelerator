@@ -9,11 +9,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use config::consent::{
-    CommandKey, ConfigFileTracking, RepositoryRoots, Runner, Tracking,
+    ConfigFileTracking, Refusal, RepositoryRoots, Runner, Tracking,
 };
 use config::credentials::{
     resolve_token, CredentialError, Environment, FileFacts, FileState,
-    Provenance, ResolvedToken, TokenKeys,
+    ResolvedToken, TokenKeys,
 };
 use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
 use config_adapters::credentials::{
@@ -72,22 +72,17 @@ impl ConfigFileTracking for Untracked {
     }
 }
 
-struct FixedProvenance(Vec<PathBuf>);
-
-impl Provenance for FixedProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        self.0.iter().any(|tracked| tracked == path)
-    }
+fn keys() -> TokenKeys {
+    TokenKeys::declared("jira.token", "jira.token_cmd")
+        .expect("jira's token keys are declared")
 }
 
-fn keys() -> TokenKeys {
-    TokenKeys {
-        env: "ACCELERATOR_JIRA_TOKEN",
-        env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
-        value: Key::parse("jira.token").expect("jira.token parses"),
-        command: CommandKey::declared("jira.token_cmd")
-            .expect("jira.token_cmd is a command key"),
-    }
+const fn is_insecure_personal_file(error: &CredentialError) -> bool {
+    matches!(
+        error,
+        CredentialError::Consent(rejection)
+            if matches!(rejection.fatal, Refusal::InsecurePersonalFile { .. })
+    )
 }
 
 /// A scratch project with an `.accelerator/` directory.
@@ -131,7 +126,6 @@ impl Project {
         &self,
         environment: &[(&str, &str)],
         personal: &[(&str, &str)],
-        tracked: &[PathBuf],
         command_timeout: Duration,
     ) -> Result<ResolvedToken, CredentialError> {
         let ports = CredentialPorts {
@@ -145,7 +139,6 @@ impl Project {
             )),
             files: Box::new(SystemFileFacts),
             runner: self.runner(),
-            provenance: Box::new(FixedProvenance(tracked.to_vec())),
             tracking: Box::new(Untracked),
         };
         let config = FixedConfig {
@@ -188,7 +181,6 @@ impl Project {
             )),
             files: Box::new(SystemFileFacts),
             runner: self.runner(),
-            provenance: Box::new(FixedProvenance(vec![self.marker()])),
             tracking: Box::new(Untracked),
         };
         resolve_token(
@@ -227,7 +219,6 @@ fn set_mode(_path: &Path, _mode: u32) {}
 fn the_context_reads_the_projects_personal_config_and_marker() {
     let project = Project::new();
     let ports = CredentialPorts::system(
-        Box::new(FixedProvenance(Vec::new())),
         Box::new(Untracked),
         runner_rooted_at(project.root.path()),
     );
@@ -242,7 +233,10 @@ fn the_context_reads_the_projects_personal_config_and_marker() {
         Duration::from_secs(12),
     );
 
-    assert_eq!(context.personal_config, project.personal_config());
+    assert_eq!(
+        context.provenance.personal_config,
+        project.personal_config()
+    );
     assert_eq!(context.insecure_marker, project.marker());
     assert_eq!(context.execution.timeout, Duration::from_secs(12));
 }
@@ -314,7 +308,7 @@ fn an_insecure_personal_config_is_ignored_and_refused_when_nothing_remains() {
         .resolve_composed(&[])
         .expect_err("an ignored credential file yields nothing usable");
 
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
+    assert!(is_insecure_personal_file(&error), "{error:?}");
     assert!(error.to_string().contains("chmod 600"), "{error}");
 }
 
@@ -340,7 +334,7 @@ fn the_insecure_override_does_not_unlock_an_ignored_personal_config() {
         .resolve_composed(&[("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")])
         .expect_err("the variable and a tracked marker unlock nothing");
 
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
+    assert!(is_insecure_personal_file(&error), "{error:?}");
 }
 
 #[cfg(unix)]
@@ -358,7 +352,7 @@ fn a_symlinked_personal_config_is_ignored() {
         .resolve_composed(&[])
         .expect_err("a symlinked personal config is never read");
 
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
+    assert!(is_insecure_personal_file(&error), "{error:?}");
 }
 
 #[test]
@@ -369,7 +363,6 @@ fn a_failing_helper_leaks_nothing_it_printed() {
     let error = project
         .resolve(
             &[("ACCELERATOR_JIRA_TOKEN_CMD", &command)],
-            &[],
             &[],
             Duration::from_secs(5),
         )

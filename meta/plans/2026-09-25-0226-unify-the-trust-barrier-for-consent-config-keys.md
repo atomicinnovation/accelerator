@@ -2139,19 +2139,69 @@ search stays clean.
 
 #### Automated Verification
 
-- [ ] `cargo nextest run -p config -p jira-client -p jira-cli -p linear-client -p linear-cli -p work-cli -p collaboration-cli`
-- [ ] `cargo nextest run -p research-cli --features test-loopback`
-- [ ] `InProcessProbe::is_tracked` becomes `pub(crate)` once the four copies are deleted, beside `tracks_any_under`, so a call from any other crate fails to compile. `vcs-adapters/tests/tracked.rs` becomes unit tests inside the crate or goes through `file_tracking`. Visibility replaces a pup rule, which could not see a fully qualified method call
-- [ ] Public API fixtures for `config` and `consent-adapters` (`credential_ports`) regenerated and committed
-- [ ] Override names live only in the catalogue: `rg --no-require-git -n '"(ACCELERATOR_(JIRA|LINEAR)_TOKEN(_CMD)?|ACCELERATOR_OPENALEX_API_KEY(_CMD)?|ACCELERATOR_JIRA_ALLOWED_SITES|ACCELERATOR_DESIGN_BROWSER_PATH|GH_TOKEN|GITHUB_TOKEN)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules and, until Phase 4, at `design-cli/src/config.rs:74`. On 2026-09-26 its non-test matches were exactly the literals this phase deletes: `collaboration-cli/src/auth.rs:46,53`, `jira-client/src/auth.rs:51-52`, `linear-client/src/auth.rs:47-48`, `research-cli/src/fetch_command.rs:192-193`, and `design-cli/src/config.rs:74`, which Phase 4 removes
-- [ ] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing. It fails before this phase's rewording and passes after it
-- [ ] Full local CI mirror passes: `mise run`
+- [x] `cargo nextest run -p config -p jira-client -p jira-cli -p linear-client -p linear-cli -p work-cli -p collaboration-cli`
+- [x] `cargo nextest run -p research-cli --features test-loopback`
+- [x] `InProcessProbe::is_tracked` becomes `pub(crate)` once the four copies are deleted, beside `tracks_any_under`, so a call from any other crate fails to compile. `vcs-adapters/tests/tracked.rs` becomes unit tests inside the crate or goes through `file_tracking`. Visibility replaces a pup rule, which could not see a fully qualified method call
+- [x] Public API fixtures for `config` and `consent-adapters` (`credential_ports`) regenerated and committed
+- [x] Override names live only in the catalogue: `rg --no-require-git -n '"(ACCELERATOR_(JIRA|LINEAR)_TOKEN(_CMD)?|ACCELERATOR_OPENALEX_API_KEY(_CMD)?|ACCELERATOR_JIRA_ALLOWED_SITES|ACCELERATOR_DESIGN_BROWSER_PATH|GH_TOKEN|GITHUB_TOKEN)"' cli --glob '!cli/config/src/catalogue.rs' --glob '!**/tests/**'` matches only inside `#[cfg(test)]` modules and, until Phase 4, at `design-cli/src/config.rs:74`. On 2026-09-26 its non-test matches were exactly the literals this phase deletes: `collaboration-cli/src/auth.rs:46,53`, `jira-client/src/auth.rs:51-52`, `linear-client/src/auth.rs:47-48`, `research-cli/src/fetch_command.rs:192-193`, and `design-cli/src/config.rs:74`, which Phase 4 removes
+- [x] No doc calls a team-level command key ignored: `rg --no-require-git -U -i --pcre2 '_cmd[\s\S]{0,200}?(\bignored\b|never\**\s+(honoured|consumed))|(\bignored\b|never\**\s+(honoured|consumed))[\s\S]{0,200}?_cmd' skills docs-site` prints nothing. It fails before this phase's rewording and passes after it
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] A personal `github.token_cmd: gh auth token`, with `gh` authenticated through its config under `$HOME`, lets `accelerator collaboration …` reach GitHub
 - [ ] A team-level `jira.token_cmd` with a personal `jira.token` prints the warning and succeeds
+
+### Implementation Notes
+
+Phase 3 landed with these deviations and additions. Later phases build on
+them.
+
+- **Ladder shape.** `Ladder<S>` is keyed by a source label, and `finish`
+  returns `Consented<Admitted<S>>` with `Admitted { source, value }`, so the
+  credential ladder keeps `TokenSource`. `offer` takes the rung's key, which
+  `MalformedToken` names. `Rung<T>` is public and generic.
+- **Malformed reason.** `MalformedToken` has its own `RefusalReason::Malformed`,
+  which Jira maps to 24 and Linear to 27, so neither `for_refusal` matches on
+  variants.
+- **Credential types.** `CredentialError` is now `NoToken`, `Consent` and
+  `ConfigUnreadable(Aborted)`, with `warnings()`. `ResolvedToken` keeps
+  `source`, which research's key source reads, beside `refusals` and
+  `notice`. `TokenKeys { plaintext, command }` is built by
+  `TokenKeys::declared`.
+- **Context shape.** `CredentialContext` is
+  `{ provenance, execution, files, insecure_marker }`. `files` and
+  `insecure_marker` stay until Phase 7 deletes the override.
+- **GitHub.** `resolve_github_token` calls the shared `resolve_token` with
+  `github.token` and `github.token_cmd`. `github.token_cmd` declares no
+  overrides, so the shared ladder is exactly the order this phase specifies.
+  collaboration-cli's own `TokenSource` is deleted.
+- **Jira notices.** The allowlist and the token command can each notice, so
+  `Credentials` and `JiraClient` carry `notices: Vec<Notice>`. A token
+  `Consent` error becomes `ClientError::Consent`, with the allowlist's
+  warnings before the token's.
+- **Linear warnings.** `LinearClient` gains `reporting`, `refusals()` and
+  `notice()`. A failure after the token resolves, such as `NoTeam`, does not
+  carry the token's warnings.
+- **work-cli tests.** work-cli has no loopback seam, so a fully resolved
+  client would reach the real tracker. Its warning case stops at Jira's
+  offline `E_NO_PROJECT`, and the Linear path pins the fatal case only.
+- **Tests not written.** The jira-client and linear-client supports keep the
+  real runner; `config`'s tests pin that the context's timeout reaches the
+  runner. There is no binary-level `Aborted` case, because no personal read
+  fails at binary level except the insecure file; `config`'s test covers it.
+  The Jira `init` cases live in `flow_consent.rs`, and use `show` wherever
+  `init`'s writer gate would refuse first.
+- **Test order.** The `config` tests were red first. The binary tests,
+  Linear's `\x01` case among them, were written after the code and not
+  mutation-checked.
+- **Tracked probe.** `vcs-adapters/tests/tracked.rs` is deleted, since
+  `file_tracking.rs` covers each case. `is_tracked` became an associated
+  function, like `tracks_any_under`, because clippy flags an unused `self` on
+  a `pub(crate)` method.
+- **Doc wording.** The insecure-file wording beside `_cmd` now reads "is not
+  read", so the stale-wording check passes without narrowing its pattern.
 
 ---
 

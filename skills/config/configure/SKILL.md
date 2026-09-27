@@ -761,11 +761,12 @@ Four keys are personal and **must live exclusively in
 | `token_cmd`     | (empty) | Shell command whose stdout is the token                |
 | `allowed_sites` | (empty) | Extra exact hostnames the Rust client may send the token to, beyond `*.atlassian.net` |
 
-`token_cmd` from the team-shared `config.md` is **never** honoured: a
-committed `token_cmd` is a supply-chain command-injection sink (a single PR
-could land arbitrary shell that runs on every contributor's machine). When
-detected, the resolver emits `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd
-in config.md ignored — move to config.local.md` to stderr.
+`token_cmd` is a **consent key**, like `allowed_sites`: a committed
+`token_cmd` is a supply-chain command-injection sink (a single PR could land
+arbitrary shell that runs on every contributor's machine), so a value in the
+team-shared `config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL:
+jira.token_cmd …` and reported on stderr. The refusal is a `warning:` when
+another credential resolves, and fatal only when none does.
 
 `allowed_sites` exists for self-hosted and non-`atlassian.net` tenants. The
 Rust client refuses to send credentials to any host outside `*.atlassian.net`
@@ -800,7 +801,8 @@ paranoid mode is on, so later edits to a trusted file are not re-prompted.
 
 `token` plaintext is supported but discouraged — prefer `token_cmd` with a
 password manager. A `config.local.md` that is a symlink or looser than `0600`
-is ignored with an `E_LOCAL_PERMS_INSECURE` warning: its values are not used,
+is not read, and an `E_LOCAL_PERMS_INSECURE` warning says so: its values are
+not used,
 team values and the `ACCELERATOR_*` overrides still resolve, commands that
 write refuse, and a command fails with that code only when nothing usable
 remains.
@@ -815,7 +817,9 @@ jira:
 ---
 \```
 
-Authentication resolves through this chain (first non-empty wins):
+Authentication resolves through this chain. The first rung that yields a
+usable value wins; a failed command or refused value is reported as a
+`warning:` and the chain continues:
 
 1. `ACCELERATOR_JIRA_TOKEN` env var.
 2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run by the [command runner](#command-runner)).
@@ -824,16 +828,33 @@ Authentication resolves through this chain (first non-empty wins):
 5. `config.md` `jira.token` *(only when `config.local.md` does not
    exist; emits a runtime warning)*.
 
-`jira.token_cmd` is **never** consumed from the team-shared `config.md`
-file. Only the four sources above (env vars and `config.local.md`) are
-honoured. A `jira.token_cmd` value found in `config.md` is ignored; a
-runtime warning prints `E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in
-config.md ignored — move to config.local.md` to stderr. Rationale:
-a committed `token_cmd` is a supply-chain command-injection sink — a single PR
-could land `jira.token_cmd: "<arbitrary shell>"` and that command would execute
-on every contributor's machine the next time any Jira helper or `/init-jira`
-ran. Restricting the executable indirection to local-only files keeps the blast
-radius bounded to the user's own machine.
+`jira.token_cmd` runs only from the environment or an untracked
+`config.local.md`. Each other source is refused, and the refusal is reported
+on stderr:
+
+- a `jira.token_cmd` in the team-shared `config.md`, with
+  `E_CONSENT_KEY_TEAM_LEVEL`;
+- a `jira.token_cmd` in a `config.local.md` tracked by version control, or
+  whose tracking status cannot be determined, with `E_CONSENT_KEY_TRACKED` or
+  `E_CONSENT_KEY_TRACKING_UNKNOWN`;
+- a `jira.token` in such a file, with `E_TOKEN_FROM_TRACKED_FILE`, which
+  covers both the tracked and the undeterminable case;
+- a value carrying a control character, from any rung, with
+  `E_TOKEN_MALFORMED`.
+
+Each refusal is a `warning:` when a later rung resolves, and fatal (exit 24)
+only when none does. A command that fails, times out or prints too much falls
+through in the same way. Rationale: a committed `token_cmd` is a supply-chain
+command-injection sink — a single PR could land
+`jira.token_cmd: "<arbitrary shell>"` and that command would execute on every
+contributor's machine the next time any Jira helper or `/init-jira` ran.
+Restricting the executable indirection to the user's own sources keeps the
+blast radius bounded to the user's own machine.
+
+Taking the command from `ACCELERATOR_JIRA_TOKEN_CMD` prints a `notice:` line
+naming the variable. It never prints the command, which may carry a secret
+inline. When the tracking status cannot be determined, the refusal names the
+variable that still works, such as `ACCELERATOR_JIRA_TOKEN`.
 
 `token_cmd` is the supported integration point for password managers and
 keychains. 1Password CLI (`op read ...`) with its desktop-app integration,
@@ -948,7 +969,9 @@ Both token keys are personal and **must live exclusively in
 | `token`     | (empty) | Plaintext API token (discouraged — prefer `token_cmd`) |
 | `token_cmd` | (empty) | Shell command whose stdout is the token                |
 
-Authentication resolves through this chain (first non-empty wins):
+Authentication resolves through this chain. The first rung that yields a
+usable value wins; a failed command or refused value is reported as a
+`warning:` and the chain continues:
 
 1. `ACCELERATOR_LINEAR_TOKEN` env var.
 2. `ACCELERATOR_LINEAR_TOKEN_CMD` env var (run by the [command runner](#command-runner)).
@@ -956,14 +979,15 @@ Authentication resolves through this chain (first non-empty wins):
 4. `config.local.md` `linear.token_cmd` (run by the [command runner](#command-runner)).
 5. `config.md` `linear.token` *(only when `config.local.md` does not exist)*.
 
-`linear.token_cmd` is **never** consumed from the team-shared `config.md` file:
-a committed `token_cmd` is a supply-chain command-injection sink. A
-`linear.token_cmd` found in `config.md` is ignored, emitting
-`E_TOKEN_CMD_FROM_SHARED_CONFIG: linear.token_cmd in config.md ignored — move to
-config.local.md` to stderr. A `config.local.md` that is a symlink or looser
-than `0600` is ignored with an `E_LOCAL_PERMS_INSECURE` warning; writers refuse,
+`linear.token_cmd` is a consent key, refused from the same sources and with
+the same codes as `jira.token_cmd`: a committed `token_cmd` is a supply-chain
+command-injection sink. A `config.local.md` that is a symlink or looser than
+`0600` is not read, with an `E_LOCAL_PERMS_INSECURE` warning; writers refuse,
 and it is fatal only when nothing usable remains, mirroring the Jira
-integration.
+integration. With nothing usable left, the exit code names the fatal
+refusal: 24 for a provenance refusal, 25 for a command that failed, timed
+out or printed too much, 27 for a malformed token, and 29 for an insecure
+`config.local.md`.
 
 Example `config.local.md` (preferred form, using a password manager):
 
@@ -1002,7 +1026,9 @@ Both key settings are personal and **must live exclusively in
 | `api_key`     | (empty) | Plaintext API key (discouraged — prefer `api_key_cmd`)    |
 | `api_key_cmd` | (empty) | Shell command whose stdout is the key                     |
 
-The key resolves through this chain (first non-empty wins):
+The key resolves through this chain. The first rung that yields a usable
+value wins; a failed command or refused value is reported as a `warning:` and
+the chain continues:
 
 1. `ACCELERATOR_OPENALEX_API_KEY` env var.
 2. `ACCELERATOR_OPENALEX_API_KEY_CMD` env var (run by the [command runner](#command-runner)).
@@ -1011,19 +1037,21 @@ The key resolves through this chain (first non-empty wins):
 5. `config.md` `openalex.api_key` *(only when `config.local.md` does not
    exist)*.
 
-`openalex.api_key_cmd` is **never** consumed from the team-shared `config.md`
-file: a committed command is a supply-chain command-injection sink. When the
-chain reaches `config.md` and finds one, the fetch is refused with
-`E_TOKEN_CMD_FROM_SHARED_CONFIG: openalex.api_key_cmd in config.md refused —
-move it to config.local.md`. Two further gates guard `config.local.md`:
+`openalex.api_key_cmd` is a consent key, like `jira.token_cmd`: a committed
+command is a supply-chain command-injection sink, so a value in the
+team-shared `config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL`. The
+refusal is a `warning:` when another rung supplies a key. When none does, the
+fetch fails rather than going keyless, even beside a `config.local.md` that
+sets no key. Two further gates guard `config.local.md`:
 
-- a file that is a symlink or looser than `0600` is ignored with an
+- a file that is a symlink or looser than `0600` is not read, with an
   `E_LOCAL_PERMS_INSECURE` warning, and is fatal only when nothing usable
   remains;
-- a file tracked by version control is refused, whatever its mode, when it
-  supplies `openalex.api_key` (`E_TOKEN_FROM_TRACKED_FILE`) or
-  `openalex.api_key_cmd` (`E_TOKEN_CMD_FROM_TRACKED_FILE`); untrack it. A
-  tracked file supplying neither leaves the fetch keyless.
+- a file tracked by version control, or whose tracking status cannot be
+  determined, is refused, whatever its mode, when it supplies
+  `openalex.api_key` (`E_TOKEN_FROM_TRACKED_FILE`) or `openalex.api_key_cmd`
+  (`E_CONSENT_KEY_TRACKED` or `E_CONSENT_KEY_TRACKING_UNKNOWN`); untrack it.
+  A tracked file supplying neither leaves the fetch keyless.
 
 The key command runs under whatever remains of the fetch's 100 s deadline. The key is sent as an
 `Authorization: Bearer` header, never in a URL, and `accelerator config dump`
@@ -1046,8 +1074,8 @@ Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
 ### command runner
 
 Every command-valued key (`jira.token_cmd`, `linear.token_cmd`,
-`openalex.api_key_cmd` and their `ACCELERATOR_*_CMD` overrides) runs through
-one runner:
+`openalex.api_key_cmd`, `github.token_cmd`, and the `ACCELERATOR_*_CMD`
+overrides) runs through one runner:
 
 - **Working directory**: a fresh temporary directory outside the repository,
   removed afterwards. A command never runs in the repository or in `$HOME`.
@@ -1083,8 +1111,11 @@ one runner:
   receives `SIGINT` itself, so a helper that cleans up in a trap should trap
   `TERM`.
 
-`github.token_cmd` does not run under this runner yet: it still runs as a
-bare `bash -c`.
+`github.token_cmd` climbs the same chain as the tracker keys: `GH_TOKEN`,
+then `GITHUB_TOKEN`, then the personal `github.token`, then the personal
+`github.token_cmd`, then the team `github.token` only when `config.local.md`
+does not exist. It is refused from the same sources and with the same codes,
+with `GH_TOKEN` as the variable that still works.
 
 ### templates
 

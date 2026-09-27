@@ -11,10 +11,12 @@ use std::time::Duration;
 
 use config::catalogue::Trust;
 use config::consent::{
-    audit, resolve, AuditFinding, CommandKey, CommandPolicy,
+    audit, resolve, resolve_command, AuditFinding, CommandExecution,
+    CommandFailure, CommandKey, CommandPolicy, CommandRunner,
     ConfigFileTracking, ConsentKey, Consented, Distrust, Environment,
-    ExecutablePathKey, FailureCause, ProvenanceContext, Refusal, RefusalReason,
-    RepositoryRoots, StartFailure, Tracking, TrackingCheck, Usable,
+    ExecutablePathKey, FailureCause, Ladder, ProvenanceContext, Refusal,
+    RefusalReason, RepositoryRoots, Rung, Runner, StartFailure, Tracking,
+    TrackingCheck, Usable,
 };
 use config::{
     ConfigAccess, ConfigError, Key, Level, PersonalFile, Resolved, Scalar,
@@ -866,4 +868,479 @@ fn a_command_policy_for_a_test_carries_its_bounds() {
 
     assert_eq!(policy.timeout(), Duration::from_secs(4));
     assert_eq!(policy.admitted_environment(), ["PATH", "GH_HOST"]);
+}
+
+#[derive(Clone)]
+struct RecordingRunner {
+    outcome: std::rc::Rc<RefCell<Result<String, CommandFailure>>>,
+    runs: std::rc::Rc<RefCell<Vec<(String, CommandPolicy)>>>,
+}
+
+impl RecordingRunner {
+    fn answering(outcome: Result<String, CommandFailure>) -> Self {
+        Self {
+            outcome: std::rc::Rc::new(RefCell::new(outcome)),
+            runs: std::rc::Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    fn commands(&self) -> Vec<String> {
+        self.runs
+            .borrow()
+            .iter()
+            .map(|(command, _)| command.clone())
+            .collect()
+    }
+}
+
+impl CommandRunner for RecordingRunner {
+    fn run(
+        &self,
+        command: &str,
+        policy: &CommandPolicy,
+    ) -> Result<String, CommandFailure> {
+        self.runs
+            .borrow_mut()
+            .push((command.to_owned(), policy.clone()));
+        self.outcome.borrow().clone()
+    }
+}
+
+const fn execution(runner: &Runner) -> CommandExecution<'_> {
+    CommandExecution {
+        runner,
+        timeout: Duration::from_secs(7),
+    }
+}
+
+fn plaintext() -> &'static config::catalogue::ExtraKey {
+    config::catalogue::declared("jira.token").unwrap()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Step {
+    First,
+    Second,
+    Third,
+}
+
+#[test]
+fn a_consented_command_runs_under_its_keys_policy_and_the_given_timeout() {
+    let recording = RecordingRunner::answering(Ok("token".to_owned()));
+    let runner = Runner::new(Box::new(recording.clone()));
+    let project = Project::new().personal("github.token_cmd", "gh auth token");
+    let context = project.context();
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("github.token_cmd").unwrap(),
+    )
+    .unwrap();
+
+    let Rung::Candidate(command) = candidates.personal().unwrap() else {
+        panic!("an untracked personal command is a candidate");
+    };
+    let value = command.run(&execution(&runner)).unwrap();
+
+    assert_eq!(value, "token");
+    let runs = recording.runs.borrow();
+    assert_eq!(runs[0].0, "gh auth token");
+    assert_eq!(runs[0].1.timeout(), Duration::from_secs(7));
+    assert_eq!(
+        runs[0].1.admitted_environment(),
+        [
+            config::catalogue::BASE_COMMAND_ENVIRONMENT,
+            &["GH_HOST", "GH_CONFIG_DIR"]
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn a_consented_command_maps_each_failure_to_its_refusal() {
+    let key = config::catalogue::declared("jira.token_cmd").unwrap();
+    for (failure, code) in [
+        (
+            CommandFailure::Failed(FailureCause::Exited(1)),
+            "E_TOKEN_CMD_FAILED",
+        ),
+        (CommandFailure::TimedOut, "E_COMMAND_TIMED_OUT"),
+        (CommandFailure::OutputExceeded, "E_COMMAND_OUTPUT_EXCEEDED"),
+    ] {
+        let runner =
+            Runner::new(Box::new(RecordingRunner::answering(Err(failure))));
+        let project = Project::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "x");
+        let context = project.context();
+        let candidates = resolve_command(
+            &context,
+            CommandKey::declared("jira.token_cmd").unwrap(),
+        )
+        .unwrap();
+        let Rung::Candidate(command) = candidates.environment() else {
+            panic!("the environment command is a candidate");
+        };
+
+        let refusal = command.run(&execution(&runner)).unwrap_err();
+
+        assert_eq!(codes(std::slice::from_ref(&refusal)), [code]);
+        assert_eq!(refusal.key(), Some(key));
+    }
+}
+
+#[test]
+fn command_candidates_carry_the_team_refusal_and_read_the_personal_level_lazily(
+) {
+    let project = Project::new()
+        .team("jira.token_cmd", "op read team")
+        .personal("jira.token_cmd", "op read mine")
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "op read env");
+    let context = project.context();
+
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("jira.token_cmd").unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        codes(candidates.team_level_refusals()),
+        ["E_CONSENT_KEY_TEAM_LEVEL"]
+    );
+    assert!(matches!(candidates.environment(), Rung::Candidate(_)));
+    assert_eq!(project.personal_reads(), 0);
+    assert!(matches!(candidates.personal(), Ok(Rung::Candidate(_))));
+    assert_eq!(project.personal_reads(), 1);
+}
+
+#[test]
+fn a_distrusted_personal_command_is_refused_without_running() {
+    for (answer, code) in [
+        (Tracking::Tracked, "E_CONSENT_KEY_TRACKED"),
+        (Tracking::Unknown, "E_CONSENT_KEY_TRACKING_UNKNOWN"),
+    ] {
+        let project = Project::new()
+            .personal("linear.token_cmd", "op read mine")
+            .tracking(answer);
+        let context = project.context();
+        let candidates = resolve_command(
+            &context,
+            CommandKey::declared("linear.token_cmd").unwrap(),
+        )
+        .unwrap();
+
+        let Ok(Rung::Refused(refusal)) = candidates.personal() else {
+            panic!("a distrusted personal command is refused");
+        };
+        assert_eq!(codes(&[refusal]), [code]);
+    }
+}
+
+#[test]
+fn the_first_offered_value_wins_and_later_rungs_are_never_consulted() {
+    let recording = RecordingRunner::answering(Ok("from-helper".to_owned()));
+    let runner = Runner::new(Box::new(recording.clone()));
+    let project = Project::new().personal("jira.token_cmd", "op read mine");
+    let context = project.context();
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("jira.token_cmd").unwrap(),
+    )
+    .unwrap();
+    let mut ladder = Ladder::new(Vec::new());
+
+    ladder
+        .offer(Step::First, plaintext(), || {
+            Ok(Rung::Candidate("first".to_owned()))
+        })
+        .unwrap();
+    ladder
+        .offer(Step::Second, plaintext(), || {
+            panic!("a later offer is never read")
+        })
+        .unwrap();
+    ladder
+        .attempt(Step::Third, || candidates.personal(), &execution(&runner))
+        .unwrap();
+
+    let consented = ladder.finish();
+    let admitted = consented.admitted.unwrap();
+    assert_eq!(admitted.value, "first");
+    assert_eq!(admitted.source, Step::First);
+    assert!(recording.commands().is_empty());
+    assert_eq!(project.personal_reads(), 0);
+}
+
+#[test]
+fn a_failed_attempt_records_its_refusal_and_falls_through() {
+    let runner = Runner::new(Box::new(RecordingRunner::answering(Err(
+        CommandFailure::TimedOut,
+    ))));
+    let project = Project::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "slow");
+    let context = project.context();
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("jira.token_cmd").unwrap(),
+    )
+    .unwrap();
+    let mut ladder = Ladder::new(Vec::new());
+
+    ladder
+        .attempt(
+            Step::First,
+            || Ok(candidates.environment()),
+            &execution(&runner),
+        )
+        .unwrap();
+    ladder
+        .offer(Step::Second, plaintext(), || {
+            Ok(Rung::Candidate("second".to_owned()))
+        })
+        .unwrap();
+
+    let consented = ladder.finish();
+    assert_eq!(consented.admitted.unwrap().source, Step::Second);
+    assert_eq!(codes(&consented.refusals), ["E_COMMAND_TIMED_OUT"]);
+    assert!(consented.notice.is_none());
+}
+
+#[test]
+fn finish_orders_rung_refusals_before_the_seeded_team_level_ones() {
+    let team = Refusal::TeamLevel {
+        key: config::catalogue::declared("jira.token_cmd").unwrap(),
+    };
+    let mut ladder: Ladder<Step> = Ladder::new(vec![team]);
+
+    ladder
+        .offer(Step::First, plaintext(), || {
+            Ok(Rung::Refused(Refusal::PlaintextFromUntrustedFile {
+                key: plaintext(),
+                path: PathBuf::from(PERSONAL),
+                distrust: Distrust::Tracked,
+            }))
+        })
+        .unwrap();
+
+    let Usable::Refused(rejection) = ladder.finish().or_fallback(None) else {
+        panic!("nothing usable remains");
+    };
+    assert_eq!(codes(&[rejection.fatal]), ["E_TOKEN_FROM_TRACKED_FILE"]);
+    assert_eq!(codes(&rejection.warnings), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+}
+
+#[test]
+fn an_environment_command_carries_a_notice_and_an_environment_value_none() {
+    let runner =
+        Runner::new(Box::new(RecordingRunner::answering(Ok("tok".to_owned()))));
+    let project = Project::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "op read x");
+    let context = project.context();
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("jira.token_cmd").unwrap(),
+    )
+    .unwrap();
+
+    let mut commanded: Ladder<Step> = Ladder::new(Vec::new());
+    commanded
+        .attempt(
+            Step::First,
+            || Ok(candidates.environment()),
+            &execution(&runner),
+        )
+        .unwrap();
+    let notice = commanded.finish().notice.unwrap().to_string();
+    assert_eq!(
+        notice,
+        "notice: jira.token_cmd taken from ACCELERATOR_JIRA_TOKEN_CMD"
+    );
+
+    let mut offered: Ladder<Step> = Ladder::new(Vec::new());
+    offered
+        .offer(Step::First, plaintext(), || {
+            Ok(Rung::Candidate("tok".to_owned()))
+        })
+        .unwrap();
+    assert!(offered.finish().notice.is_none());
+}
+
+#[test]
+fn a_value_carrying_a_control_character_is_refused_and_falls_through() {
+    let runner = Runner::new(Box::new(RecordingRunner::answering(Ok(
+        "tok\u{1}".to_owned(),
+    ))));
+    let project = Project::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "op read x");
+    let context = project.context();
+    let candidates = resolve_command(
+        &context,
+        CommandKey::declared("jira.token_cmd").unwrap(),
+    )
+    .unwrap();
+    let mut ladder = Ladder::new(Vec::new());
+
+    ladder
+        .offer(Step::First, plaintext(), || {
+            Ok(Rung::Candidate("abc\r\ndef".to_owned()))
+        })
+        .unwrap();
+    ladder
+        .attempt(
+            Step::Second,
+            || Ok(candidates.environment()),
+            &execution(&runner),
+        )
+        .unwrap();
+    ladder
+        .offer(Step::Third, plaintext(), || {
+            Ok(Rung::Candidate("clean".to_owned()))
+        })
+        .unwrap();
+
+    let consented = ladder.finish();
+    assert_eq!(consented.admitted.unwrap().value, "clean");
+    assert_eq!(
+        codes(&consented.refusals),
+        ["E_TOKEN_MALFORMED", "E_TOKEN_MALFORMED"]
+    );
+    assert_eq!(consented.refusals[0].key(), Some(plaintext()));
+    assert_eq!(consented.refusals[0].reason(), RefusalReason::Malformed);
+    assert!(consented.notice.is_none());
+}
+
+#[test]
+fn a_failed_rung_read_aborts_carrying_every_refusal_so_far() {
+    let team = Refusal::TeamLevel {
+        key: config::catalogue::declared("jira.token_cmd").unwrap(),
+    };
+    let mut ladder: Ladder<Step> = Ladder::new(vec![team]);
+    ladder
+        .offer(Step::First, plaintext(), || {
+            Ok(Rung::Refused(Refusal::MalformedToken { key: plaintext() }))
+        })
+        .unwrap();
+
+    let aborted = ladder
+        .offer(Step::Second, plaintext(), || {
+            Err(ConfigError::Io {
+                path: PERSONAL.to_owned(),
+                detail: "boom".to_owned(),
+            })
+        })
+        .unwrap_err();
+
+    assert!(matches!(aborted.error, ConfigError::Io { .. }));
+    assert_eq!(
+        codes(&aborted.warnings),
+        ["E_TOKEN_MALFORMED", "E_CONSENT_KEY_TEAM_LEVEL"]
+    );
+}
+
+#[test]
+fn a_plaintext_refusal_renders_its_code_and_the_keys_recovery_hint() {
+    for (distrust, ending) in [
+        (Distrust::Tracked, "untrack it"),
+        (
+            Distrust::Unknown,
+            "set ACCELERATOR_JIRA_TOKEN in the environment",
+        ),
+    ] {
+        let rendered = Refusal::PlaintextFromUntrustedFile {
+            key: plaintext(),
+            path: PathBuf::from(PERSONAL),
+            distrust,
+        }
+        .to_string();
+
+        assert!(
+            rendered.starts_with(&format!(
+                "E_TOKEN_FROM_TRACKED_FILE: jira.token in {PERSONAL} is \
+                 refused"
+            )),
+            "{rendered}"
+        );
+        assert!(rendered.ends_with(ending), "{rendered}");
+    }
+    let github = config::catalogue::declared("github.token").unwrap();
+    let rendered = Refusal::PlaintextFromUntrustedFile {
+        key: github,
+        path: PathBuf::from(PERSONAL),
+        distrust: Distrust::Unknown,
+    }
+    .to_string();
+    assert!(
+        rendered.ends_with("set GH_TOKEN in the environment"),
+        "{rendered}"
+    );
+}
+
+/// The one policy, for command keys: every command key is refused at team
+/// level, tracked and unknown by the same code path, and reaches the runner
+/// through `resolve_command` and `Ladder::attempt` under its own policy.
+#[test]
+fn every_command_key_is_refused_and_run_by_one_policy() {
+    let keys = [
+        CommandKey::for_test("example.hatch_cmd", &["EXAMPLE_HOST"]),
+        CommandKey::declared("jira.token_cmd").unwrap(),
+        CommandKey::declared("linear.token_cmd").unwrap(),
+        CommandKey::declared("github.token_cmd").unwrap(),
+        CommandKey::declared("openalex.api_key_cmd").unwrap(),
+    ];
+    for key in keys {
+        let name = key.descriptor().name;
+        for (project, code) in [
+            (Project::new().team(name, "cmd"), "E_CONSENT_KEY_TEAM_LEVEL"),
+            (
+                Project::new()
+                    .personal(name, "cmd")
+                    .tracking(Tracking::Tracked),
+                "E_CONSENT_KEY_TRACKED",
+            ),
+            (
+                Project::new()
+                    .personal(name, "cmd")
+                    .tracking(Tracking::Unknown),
+                "E_CONSENT_KEY_TRACKING_UNKNOWN",
+            ),
+        ] {
+            let recording = RecordingRunner::answering(Ok("tok".to_owned()));
+            let runner = Runner::new(Box::new(recording.clone()));
+            let context = project.context();
+            let candidates = resolve_command(&context, key).unwrap();
+            let mut ladder: Ladder<Step> =
+                Ladder::new(candidates.team_level_refusals().to_vec());
+            ladder
+                .attempt(
+                    Step::First,
+                    || candidates.personal(),
+                    &execution(&runner),
+                )
+                .unwrap();
+
+            let consented = ladder.finish();
+            assert_eq!(consented.admitted, None, "{name}");
+            assert_eq!(codes(&consented.refusals), [code], "{name}");
+            assert_eq!(consented.refusals[0].key(), Some(key.descriptor()));
+            assert!(recording.commands().is_empty(), "{name}");
+        }
+
+        let recording = RecordingRunner::answering(Ok("tok".to_owned()));
+        let runner = Runner::new(Box::new(recording.clone()));
+        let project = Project::new().personal(name, "cmd");
+        let context = project.context();
+        let candidates = resolve_command(&context, key).unwrap();
+        let mut ladder: Ladder<Step> = Ladder::new(Vec::new());
+        ladder
+            .attempt(Step::First, || candidates.personal(), &execution(&runner))
+            .unwrap();
+
+        assert_eq!(ladder.finish().admitted.unwrap().value, "tok");
+        let Trust::CommandConsent {
+            admitted_environment: declared,
+        } = key.descriptor().trust
+        else {
+            unreachable!("a command key")
+        };
+        assert_eq!(
+            recording.runs.borrow()[0].1.admitted_environment(),
+            [config::catalogue::BASE_COMMAND_ENVIRONMENT, declared].concat(),
+            "{name}"
+        );
+    }
 }

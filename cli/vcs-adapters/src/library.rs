@@ -431,16 +431,15 @@ impl InProcessProbe {
     /// `root` — git via the index, jj via the working-copy commit's tree.
     ///
     /// The library-first counterpart of `git ls-files --error-unmatch` /
-    /// `jj file list`: it decides whether a command-valued or allowlist-valued
-    /// config key may be honoured, since a tracked `config.local.md` is one a
-    /// fresh clone would carry and run. `VcsKind::None` tracks nothing.
+    /// `jj file list`. Crate-private: every trust decision goes through the
+    /// fail-closed `file_tracking` walk instead. `VcsKind::None` tracks
+    /// nothing.
     ///
     /// # Errors
     ///
     /// When `root` carries the named idiom but its index or working-copy tree
     /// cannot be read.
-    pub fn is_tracked(
-        &self,
+    pub(crate) fn is_tracked(
         root: &Path,
         relpath: &str,
         kind: VcsKind,

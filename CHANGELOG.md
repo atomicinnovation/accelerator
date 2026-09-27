@@ -37,6 +37,31 @@
 - **Trimming strips all surrounding whitespace** from a credential command's
   output, so a token ending in `\r` is now accepted where it used to be
   malformed.
+- **Command-key refusal codes are renamed.** A team-level `jira.token_cmd`,
+  `linear.token_cmd`, `openalex.api_key_cmd` or `github.token_cmd` reports
+  `E_CONSENT_KEY_TEAM_LEVEL` where it reported
+  `E_TOKEN_CMD_FROM_SHARED_CONFIG`. A command from a tracked `config.local.md`
+  reports `E_CONSENT_KEY_TRACKED` where it reported
+  `E_TOKEN_CMD_FROM_TRACKED_FILE`, and `E_CONSENT_KEY_TRACKING_UNKNOWN` when
+  the tracking status cannot be determined.
+- **OpenAlex no longer goes keyless beside a team `api_key_cmd`.** With a
+  `config.local.md` that sets no key, a shared `openalex.api_key_cmd` now fails
+  the fetch with `E_CONSENT_KEY_TEAM_LEVEL` instead of leaving it keyless.
+- **`github.token_cmd` runs under the hardened runner**, with `GH_HOST` and
+  `GH_CONFIG_DIR` admitted beside the base environment, where it used to run
+  as a bare `bash -c` with the full environment and no timeout.
+- **GitHub checks where its personal credentials come from.** A personal
+  `github.token_cmd` or `github.token` from a `config.local.md` that is
+  tracked, or whose tracking cannot be determined, is refused
+  (`E_CONSENT_KEY_TRACKED`, `E_CONSENT_KEY_TRACKING_UNKNOWN` or
+  `E_TOKEN_FROM_TRACKED_FILE`), where GitHub had no tracked-file check before.
+- **GitHub's precedence matches the trackers'.** A personal `github.token_cmd`
+  now wins over a team `github.token`, which is used only when
+  `config.local.md` does not exist.
+- **linear-cli exit codes follow the fatal refusal.** With nothing else
+  usable, it exits 25 for a failed, timed-out or oversized token command, 27
+  for a token carrying a control character, and 29 for an insecure
+  `config.local.md`, where all three used to exit 24.
 
 ### Added
 
@@ -150,6 +175,22 @@
   exits 89 instead of returning an empty result, and `--state` with no
   catalogued team exits 77 instead of 78. A `--text`-only search with no
   catalogued team still runs workspace-wide.
+
+- **A credential refusal falls through to the next source.** A failing
+  `ACCELERATOR_*_TOKEN_CMD`, a refused command, or a token carrying a control
+  character is now reported as a `warning:` and the next credential is tried,
+  instead of failing at once. It is fatal only when nothing usable remains.
+  GitHub now rejects a token carrying a control character too.
+- **An undeterminable tracking status refuses personal credentials.** When
+  whether `config.local.md` is tracked cannot be determined, its token
+  commands and plaintext tokens are refused, each naming the environment
+  variable that still works (`GH_TOKEN` for GitHub). It used to be treated as
+  untracked.
+- **The `notice:` line covers command keys.** A token command taken from the
+  environment prints `notice: <key> taken from <variable>`, and never prints
+  the command.
+- **A GitHub personal `token_cmd` beside a team `token_cmd` now runs**, with
+  an `E_CONSENT_KEY_TEAM_LEVEL` warning. It used to exit 2.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved

@@ -15,15 +15,12 @@ use std::path::PathBuf;
 
 use config::consent::CommandPolicy;
 use config::credentials::CredentialContext;
-use config::credentials::Provenance;
 use config::ConfigAccess;
 use config::Key;
 use config_adapters::compose;
 use config_adapters::credentials::project_credential_context;
-use config_adapters::credentials::CredentialPorts;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
-use consent_adapters::VcsConfigFileTracking;
 use jira_client::auth::base_url;
 use jira_client::auth::project_code;
 use jira_client::auth::resolve_credentials;
@@ -35,9 +32,6 @@ use jira_client::JiraClient;
 use tracker_support::ClockJitter;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
-use vcs::VcsKind;
-use vcs::VcsProbe as _;
-use vcs_adapters::library::InProcessProbe;
 
 /// Whether a command writes, to the project tree or to the tracker. A writer
 /// refuses to run beside an ignored personal config: its routing keys would
@@ -93,32 +87,6 @@ fn is_loopback(url: &Url) -> bool {
     )
 }
 
-struct VcsProvenance {
-    root: PathBuf,
-    kind: VcsKind,
-}
-
-impl VcsProvenance {
-    fn discovered(root: PathBuf) -> Self {
-        let kind = InProcessProbe.kind(&root);
-        Self { root, kind }
-    }
-}
-
-impl Provenance for VcsProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        let Ok(relpath) = path.strip_prefix(&self.root) else {
-            return false;
-        };
-        let Some(relpath) = relpath.to_str() else {
-            return false;
-        };
-        InProcessProbe
-            .is_tracked(&self.root, relpath, self.kind)
-            .unwrap_or(false)
-    }
-}
-
 fn integrations_dir(
     config: &dyn ConfigAccess,
     root: &Path,
@@ -172,11 +140,7 @@ pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let ports = CredentialPorts::system(
-        Box::new(VcsProvenance::discovered(root.clone())),
-        Box::new(VcsConfigFileTracking),
-        consent_adapters::command_runner(&root, &start),
-    );
+    let ports = consent_adapters::credential_ports(&root, &start);
     let context = project_credential_context(
         &root,
         &ports,
@@ -224,9 +188,9 @@ fn build_with_override(
     let mut credentials = resolve_credentials(context)?;
     credentials.base = endpoint;
     let refusals = credentials.refusals.clone();
-    let notice = credentials.notice.clone();
+    let notices = credentials.notices.clone();
     let warned = |error: ClientError| error.with_warnings(refusals.clone());
-    let project = project_code(context.config).map_err(warned)?;
+    let project = project_code(context.provenance.config).map_err(warned)?;
     let transport = Transport::new(
         credentials,
         transport_config,
@@ -240,7 +204,7 @@ fn build_with_override(
         Box::new(FixedResolver::new()),
         Box::new(FixedResolver::new()),
     )
-    .reporting(refusals, notice))
+    .reporting(refusals, notices))
 }
 
 #[cfg(test)]

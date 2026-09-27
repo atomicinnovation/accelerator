@@ -14,16 +14,13 @@ use std::time::Duration;
 
 use config::consent::CommandPolicy;
 use config::credentials::CredentialContext;
-use config::credentials::Provenance;
 use config::ConfigAccess;
 use config::Key;
 use config_adapters::compose;
 use config_adapters::credentials::project_credential_context;
-use config_adapters::credentials::CredentialPorts;
 use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
-use consent_adapters::VcsConfigFileTracking;
 use linear_client::auth::resolve_credentials;
 use linear_client::auth::team_key;
 use linear_client::catalogue::Catalogue;
@@ -37,9 +34,6 @@ use linear_client::LinearClient;
 use tracker_support::ClockJitter;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
-use vcs::VcsKind;
-use vcs::VcsProbe as _;
-use vcs_adapters::library::InProcessProbe;
 
 /// Why a client could not be built, mapped to an exit code by the caller.
 pub enum ContextError {
@@ -64,32 +58,6 @@ fn api_base_uri() -> Result<Option<Url>, ContextError> {
     let url = Url::parse(&raw)
         .map_err(|_| ContextError::BadApiUrl(raw.into_owned()))?;
     Ok(Some(url))
-}
-
-struct VcsProvenance {
-    root: PathBuf,
-    kind: VcsKind,
-}
-
-impl VcsProvenance {
-    fn discovered(root: PathBuf) -> Self {
-        let kind = InProcessProbe.kind(&root);
-        Self { root, kind }
-    }
-}
-
-impl Provenance for VcsProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        let Ok(relpath) = path.strip_prefix(&self.root) else {
-            return false;
-        };
-        let Some(relpath) = relpath.to_str() else {
-            return false;
-        };
-        InProcessProbe
-            .is_tracked(&self.root, relpath, self.kind)
-            .unwrap_or(false)
-    }
 }
 
 fn integrations_dir(
@@ -157,11 +125,7 @@ pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let ports = CredentialPorts::system(
-        Box::new(VcsProvenance::discovered(root.clone())),
-        Box::new(VcsConfigFileTracking),
-        consent_adapters::command_runner(&root, &start),
-    );
+    let ports = consent_adapters::credential_ports(&root, &start);
     let context = project_credential_context(
         &root,
         &ports,
@@ -217,6 +181,8 @@ fn build_with_override(
     transport_config: TransportConfig,
 ) -> Result<LinearClient, ClientError> {
     let credentials = resolve_credentials(context, integrations_root)?;
+    let refusals = credentials.refusals.clone();
+    let notice = credentials.notice.clone();
     let transport = Transport::new(
         endpoint,
         credentials,
@@ -226,14 +192,15 @@ fn build_with_override(
     )?;
     let allow_loopback = cfg!(feature = "test-loopback");
     let upload = UploadTransport::new(allow_loopback, Duration::from_secs(1))?;
-    let team_key = team_key(context.config, integrations_root)?;
+    let team_key = team_key(context.provenance.config, integrations_root)?;
     Ok(LinearClient::new(
         transport,
         upload,
         team_key,
         Catalogue::load(integrations_root).resolver_set(),
         Arc::new(NoBackfill),
-    ))
+    )
+    .reporting(refusals, notice))
 }
 
 #[cfg(test)]

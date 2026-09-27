@@ -19,8 +19,11 @@ use collaboration::PullRequestBodyUpdate;
 use collaboration::PullRequestExistence;
 use collaboration::RepositoryDetails;
 use collaboration::RepositoryLookup;
+use config::consent::CommandPolicy;
 use config::ConfigAccess;
 use config_adapters::compose;
+use config_adapters::credentials::project_credential_context;
+use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use github::GitHubRemoteUrlRecognizer;
 use github::OctocrabClient;
@@ -102,9 +105,18 @@ impl PullRequestBodyUpdate for BlockingGitHubClient {
 }
 
 fn build_blocking_client(
+    start: &Path,
     config: &dyn ConfigAccess,
 ) -> Result<BlockingGitHubClient, kernel::Error> {
-    let token = auth::resolve_github_token(config)?;
+    let root = FileConfigStore::discover_root(start);
+    let ports = consent_adapters::credential_ports(&root, start);
+    let context = project_credential_context(
+        &root,
+        &ports,
+        config,
+        CommandPolicy::DEFAULT_TIMEOUT,
+    );
+    let token = auth::resolve_github_token(&context)?.expose().to_owned();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -122,9 +134,9 @@ fn build_blocking_client(
         let _guard = runtime.enter();
         match github_api_base_uri() {
             Some(base_uri) => {
-                OctocrabClient::with_base_uri(base_uri, Some(token.value))
+                OctocrabClient::with_base_uri(base_uri, Some(token))
             }
-            None => OctocrabClient::new(token.value),
+            None => OctocrabClient::new(token),
         }
     }
     .map_err(kernel::Error::Failed)?;
@@ -165,7 +177,7 @@ fn run_base_repo(pull_number: u64) -> Result<(), kernel::Error> {
     let composed = compose(&start, LegacyPolicy::Reject)?;
     composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
-    let client = build_blocking_client(service)?;
+    let client = build_blocking_client(&start, service)?;
     let origin_remote = InProcessProbe;
     let recognizer = GitHubRemoteUrlRecognizer;
 
@@ -201,7 +213,7 @@ fn run_update_body(
     let composed = compose(&start, LegacyPolicy::Reject)?;
     composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
-    let client = build_blocking_client(service)?;
+    let client = build_blocking_client(&start, service)?;
     let origin_remote = InProcessProbe;
     let recognizer = GitHubRemoteUrlRecognizer;
 

@@ -39,6 +39,7 @@ dependencies = [
  "collaboration",
  "config",
  "config-adapters",
+ "consent-adapters",
  "github",
  "http",
  "http-test-support",

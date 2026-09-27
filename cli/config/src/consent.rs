@@ -129,6 +129,14 @@ pub enum Refusal {
         key: &'static ExtraKey,
         limit: usize,
     },
+    PlaintextFromUntrustedFile {
+        key: &'static ExtraKey,
+        path: PathBuf,
+        distrust: Distrust,
+    },
+    MalformedToken {
+        key: &'static ExtraKey,
+    },
 }
 
 /// The class of a refusal, which a consumer maps onto its own exit codes.
@@ -137,6 +145,7 @@ pub enum RefusalReason {
     Provenance,
     PersonalFile,
     Command,
+    Malformed,
 }
 
 /// Why a command produced no value. Only structured causes travel here, so a
@@ -193,7 +202,9 @@ impl Refusal {
             | Self::UntrustedPersonalFile { key, .. }
             | Self::CommandFailed { key, .. }
             | Self::CommandTimedOut { key, .. }
-            | Self::CommandOutputExceeded { key, .. } => Some(key),
+            | Self::CommandOutputExceeded { key, .. }
+            | Self::PlaintextFromUntrustedFile { key, .. }
+            | Self::MalformedToken { key } => Some(key),
             Self::InsecurePersonalFile { .. } => None,
         }
     }
@@ -201,9 +212,12 @@ impl Refusal {
     #[must_use]
     pub const fn reason(&self) -> RefusalReason {
         match self {
-            Self::TeamLevel { .. } | Self::UntrustedPersonalFile { .. } => {
+            Self::TeamLevel { .. }
+            | Self::UntrustedPersonalFile { .. }
+            | Self::PlaintextFromUntrustedFile { .. } => {
                 RefusalReason::Provenance
             }
+            Self::MalformedToken { .. } => RefusalReason::Malformed,
             Self::InsecurePersonalFile { .. } => RefusalReason::PersonalFile,
             Self::CommandFailed { .. }
             | Self::CommandTimedOut { .. }
@@ -226,27 +240,32 @@ impl fmt::Display for Refusal {
                 key,
                 path,
                 distrust,
-            } => {
-                write!(
-                    formatter,
-                    "{distrust}: {} in {} is refused — ",
-                    key.name,
-                    escaped(&path.display().to_string())
-                )?;
-                match distrust {
-                    Distrust::Tracked => formatter.write_str(
-                        "the file is tracked by version control, so the \
-                         repository chose the value; untrack it",
-                    ),
-                    Distrust::Unknown => {
-                        formatter.write_str(
-                            "whether the file is tracked by version control \
-                             could not be determined",
-                        )?;
-                        recovery_hint(formatter, key)
-                    }
-                }
-            }
+            } => untrusted_file(
+                formatter,
+                &distrust.to_string(),
+                key,
+                path,
+                *distrust,
+                "the repository chose the value",
+            ),
+            Self::PlaintextFromUntrustedFile {
+                key,
+                path,
+                distrust,
+            } => untrusted_file(
+                formatter,
+                "E_TOKEN_FROM_TRACKED_FILE",
+                key,
+                path,
+                *distrust,
+                "every clone carries the credential",
+            ),
+            Self::MalformedToken { key } => write!(
+                formatter,
+                "E_TOKEN_MALFORMED: {} yielded a value carrying a control \
+                 character",
+                key.name
+            ),
             Self::InsecurePersonalFile { path, mode } => write!(
                 formatter,
                 "E_LOCAL_PERMS_INSECURE: {} is mode {mode:04o}; ignored — run \
@@ -282,6 +301,36 @@ impl fmt::Display for Seconds {
             write!(formatter, "{}s", self.0.as_secs())
         } else {
             write!(formatter, "{:.1}s", self.0.as_secs_f64())
+        }
+    }
+}
+
+fn untrusted_file(
+    formatter: &mut fmt::Formatter<'_>,
+    code: &str,
+    key: &ExtraKey,
+    path: &Path,
+    distrust: Distrust,
+    consequence: &str,
+) -> fmt::Result {
+    write!(
+        formatter,
+        "{code}: {} in {} is refused — ",
+        key.name,
+        escaped(&path.display().to_string())
+    )?;
+    match distrust {
+        Distrust::Tracked => write!(
+            formatter,
+            "the file is tracked by version control, so {consequence}; \
+             untrack it"
+        ),
+        Distrust::Unknown => {
+            formatter.write_str(
+                "whether the file is tracked by version control could not \
+                 be determined",
+            )?;
+            recovery_hint(formatter, key)
         }
     }
 }
@@ -326,6 +375,15 @@ impl fmt::Debug for Refusal {
                 .debug_struct("CommandOutputExceeded")
                 .field("key", &key.name)
                 .field("limit", limit)
+                .finish(),
+            Self::PlaintextFromUntrustedFile { key, distrust, .. } => formatter
+                .debug_struct("PlaintextFromUntrustedFile")
+                .field("key", &key.name)
+                .field("distrust", distrust)
+                .finish_non_exhaustive(),
+            Self::MalformedToken { key } => formatter
+                .debug_struct("MalformedToken")
+                .field("key", &key.name)
                 .finish(),
         }
     }
@@ -822,9 +880,11 @@ pub struct ProvenanceContext<'a> {
     pub personal_config: PathBuf,
 }
 
-enum Rung {
+/// What one source of a value yielded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Rung<T> {
     Absent,
-    Candidate(String),
+    Candidate(T),
     Refused(Refusal),
 }
 
@@ -919,6 +979,226 @@ pub fn audit(
     Ok(findings)
 }
 
+/// A command the policy has resolved for a command key, which only
+/// [`Self::run`] can execute.
+pub struct ConsentedCommand {
+    key: CommandKey,
+    command: String,
+    variable: Option<&'static str>,
+}
+
+impl ConsentedCommand {
+    /// Runs the command under its key's policy.
+    ///
+    /// # Errors
+    ///
+    /// The command refusal for a command that could not start, failed,
+    /// timed out, or printed too much.
+    pub fn run(
+        &self,
+        execution: &CommandExecution<'_>,
+    ) -> Result<String, Refusal> {
+        execution.run(self.key, &self.command)
+    }
+
+    fn notice(&self) -> Option<Notice> {
+        self.variable.map(|variable| {
+            Notice::new(self.key.descriptor(), variable, &self.command)
+        })
+    }
+}
+
+/// The candidates a command key offers: the environment's and the personal
+/// level's, read only when asked for, beside the team-level refusal.
+pub struct CommandCandidates<'a> {
+    context: &'a ProvenanceContext<'a>,
+    key: CommandKey,
+    team_level: Vec<Refusal>,
+}
+
+impl CommandCandidates<'_> {
+    /// The environment override, which skips the provenance checks.
+    #[must_use]
+    pub fn environment(&self) -> Rung<ConsentedCommand> {
+        environment_candidate(self.context.environment, self.key.descriptor())
+            .map_or(Rung::Absent, |(variable, command)| {
+                Rung::Candidate(ConsentedCommand {
+                    key: self.key,
+                    command,
+                    variable: Some(variable),
+                })
+            })
+    }
+
+    /// The personal level's command, refused when the file is distrusted or
+    /// ignored.
+    ///
+    /// # Errors
+    ///
+    /// A [`ConfigError`] when the personal level cannot be read.
+    pub fn personal(&self) -> Result<Rung<ConsentedCommand>, ConfigError> {
+        Ok(
+            match personal_candidate(self.context, self.key.descriptor())? {
+                Rung::Absent => Rung::Absent,
+                Rung::Refused(refusal) => Rung::Refused(refusal),
+                Rung::Candidate(command) => Rung::Candidate(ConsentedCommand {
+                    key: self.key,
+                    command,
+                    variable: None,
+                }),
+            },
+        )
+    }
+
+    #[must_use]
+    pub fn team_level_refusals(&self) -> &[Refusal] {
+        &self.team_level
+    }
+}
+
+/// Resolves a command key's candidates, reading the team level at once so
+/// its refusal is reported whichever source later wins.
+///
+/// # Errors
+///
+/// [`Aborted`] when the team level cannot be read.
+pub fn resolve_command<'a>(
+    context: &'a ProvenanceContext<'a>,
+    key: CommandKey,
+) -> Result<CommandCandidates<'a>, Aborted> {
+    let team_level = team_level_refusals(context.config, key.descriptor())
+        .map_err(|error| Aborted {
+            error,
+            warnings: Vec::new(),
+        })?;
+    Ok(CommandCandidates {
+        context,
+        key,
+        team_level,
+    })
+}
+
+/// The value a [`Ladder`] admitted, and which of its rungs yielded it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Admitted<S> {
+    pub source: S,
+    pub value: String,
+}
+
+/// Climbs rungs in precedence order: the first to yield a usable value is
+/// admitted, and every refusal met on the way is kept.
+///
+/// Once a value is admitted, later rungs are never consulted, so no further
+/// level is read and no further command runs. A value carrying a control
+/// character is refused as malformed and the climb continues.
+pub struct Ladder<S> {
+    admitted: Option<Admitted<S>>,
+    refusals: Vec<Refusal>,
+    team_level: Vec<Refusal>,
+    notice: Option<Notice>,
+}
+
+impl<S> Ladder<S> {
+    #[must_use]
+    pub const fn new(team_level: Vec<Refusal>) -> Self {
+        Self {
+            admitted: None,
+            refusals: Vec::new(),
+            team_level,
+            notice: None,
+        }
+    }
+
+    /// Offers a plain value for `key` from `source`.
+    ///
+    /// # Errors
+    ///
+    /// [`Aborted`] when the rung cannot read its level.
+    pub fn offer(
+        &mut self,
+        source: S,
+        key: &'static ExtraKey,
+        rung: impl FnOnce() -> Result<Rung<String>, ConfigError>,
+    ) -> Result<(), Aborted> {
+        if self.admitted.is_some() {
+            return Ok(());
+        }
+        match rung().map_err(|error| self.aborted(error))? {
+            Rung::Absent => {}
+            Rung::Refused(refusal) => self.refusals.push(refusal),
+            Rung::Candidate(value) => self.admit(source, key, value, None),
+        }
+        Ok(())
+    }
+
+    /// Runs a consented command from `source`, a failure falling through.
+    ///
+    /// # Errors
+    ///
+    /// [`Aborted`] when the rung cannot read its level.
+    pub fn attempt(
+        &mut self,
+        source: S,
+        rung: impl FnOnce() -> Result<Rung<ConsentedCommand>, ConfigError>,
+        execution: &CommandExecution<'_>,
+    ) -> Result<(), Aborted> {
+        if self.admitted.is_some() {
+            return Ok(());
+        }
+        match rung().map_err(|error| self.aborted(error))? {
+            Rung::Absent => {}
+            Rung::Refused(refusal) => self.refusals.push(refusal),
+            Rung::Candidate(command) => match command.run(execution) {
+                Ok(value) => self.admit(
+                    source,
+                    command.key.descriptor(),
+                    value,
+                    command.notice(),
+                ),
+                Err(refusal) => self.refusals.push(refusal),
+            },
+        }
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn finish(self) -> Consented<Admitted<S>> {
+        Consented::from_candidates(
+            self.admitted,
+            self.refusals,
+            self.team_level,
+        )
+        .noticed(self.notice)
+    }
+
+    fn admit(
+        &mut self,
+        source: S,
+        key: &'static ExtraKey,
+        value: String,
+        notice: Option<Notice>,
+    ) {
+        if value.chars().any(char::is_control) {
+            self.refusals.push(Refusal::MalformedToken { key });
+            return;
+        }
+        self.admitted = Some(Admitted { source, value });
+        self.notice = notice;
+    }
+
+    fn aborted(&self, error: ConfigError) -> Aborted {
+        Aborted {
+            error,
+            warnings: Consented::<()>::from_candidates(
+                None,
+                self.refusals.clone(),
+                self.team_level.clone(),
+            )
+            .refusals,
+        }
+    }
+}
+
 fn team_level_refusals(
     config: &dyn ConfigAccess,
     key: &'static ExtraKey,
@@ -929,7 +1209,7 @@ fn team_level_refusals(
         .collect())
 }
 
-fn environment_candidate(
+pub(crate) fn environment_candidate(
     environment: &dyn Environment,
     key: &ExtraKey,
 ) -> Option<(&'static str, String)> {
@@ -944,7 +1224,36 @@ fn environment_candidate(
 fn personal_candidate(
     context: &ProvenanceContext<'_>,
     key: &'static ExtraKey,
-) -> Result<Rung, ConfigError> {
+) -> Result<Rung<String>, ConfigError> {
+    personal_value(context, key, |key, path, distrust| {
+        Refusal::UntrustedPersonalFile {
+            key,
+            path,
+            distrust,
+        }
+    })
+}
+
+/// A plaintext credential's personal value, refused like a consent key's when
+/// the file is distrusted, though a plaintext key is not a consent key.
+pub(crate) fn personal_plaintext(
+    context: &ProvenanceContext<'_>,
+    key: &'static ExtraKey,
+) -> Result<Rung<String>, ConfigError> {
+    personal_value(context, key, |key, path, distrust| {
+        Refusal::PlaintextFromUntrustedFile {
+            key,
+            path,
+            distrust,
+        }
+    })
+}
+
+fn personal_value(
+    context: &ProvenanceContext<'_>,
+    key: &'static ExtraKey,
+    distrusted: fn(&'static ExtraKey, PathBuf, Distrust) -> Refusal,
+) -> Result<Rung<String>, ConfigError> {
     match context.config.personal_file() {
         PersonalFile::Absent => Ok(Rung::Absent),
         PersonalFile::Ignored { path, mode } => {
@@ -963,17 +1272,17 @@ fn personal_candidate(
                 .tracking(&context.personal_config)
                 .distrust();
             Ok(distrust.map_or(Rung::Candidate(value), |distrust| {
-                Rung::Refused(Refusal::UntrustedPersonalFile {
+                Rung::Refused(distrusted(
                     key,
-                    path: context.personal_config.clone(),
+                    context.personal_config.clone(),
                     distrust,
-                })
+                ))
             }))
         }
     }
 }
 
-fn raw_value(
+pub(crate) fn raw_value(
     config: &dyn ConfigAccess,
     key: &ExtraKey,
     level: Level,

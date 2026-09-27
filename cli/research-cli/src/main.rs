@@ -7,7 +7,6 @@ mod fetch_command;
 mod guard;
 #[cfg(feature = "test-loopback")]
 mod loopback;
-mod provenance;
 mod render;
 mod topic_command;
 mod write_target;
@@ -19,8 +18,6 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
-use config_adapters::credentials::CredentialPorts;
-use consent_adapters::VcsConfigFileTracking;
 use corpus_adapters::RealFs;
 use research::fetch::Clock;
 use research::fetch::FetchOutcome;
@@ -47,7 +44,6 @@ use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::SourceCall;
-use crate::provenance::VcsProvenance;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -132,10 +128,9 @@ fn fetch(
     };
     let ports = FetchPorts {
         clock,
-        credentials: CredentialPorts::system(
-            Box::new(VcsProvenance::discovered(project.root.clone())),
-            Box::new(VcsConfigFileTracking),
-            consent_adapters::command_runner(&project.root, &project.root),
+        credentials: consent_adapters::credential_ports(
+            &project.root,
+            &project.root,
         ),
     };
     match fetch_command::run(&ports, &project, deadline, &call) {

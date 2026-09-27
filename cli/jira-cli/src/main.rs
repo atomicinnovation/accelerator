@@ -79,7 +79,7 @@ fn client_or_report(intent: Intent) -> Result<context::Built, ExitCode> {
             ExitCode::from(exit_codes::for_client(&error))
         }
     })?;
-    if let Some(notice) = built.client.notice() {
+    for notice in built.client.notices() {
         eprintln!("{notice}");
     }
     report_warnings(built.client.refusals());

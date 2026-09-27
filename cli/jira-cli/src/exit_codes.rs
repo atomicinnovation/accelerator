@@ -203,7 +203,7 @@ pub fn for_client(error: &ClientError) -> u8 {
 #[must_use]
 pub const fn for_refusal(refusal: &Refusal) -> u8 {
     match refusal.reason() {
-        RefusalReason::Provenance => NO_TOKEN,
+        RefusalReason::Provenance | RefusalReason::Malformed => NO_TOKEN,
         RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
         RefusalReason::Command => TOKEN_CMD_FAILED,
     }
@@ -216,14 +216,9 @@ pub const fn for_refusal(refusal: &Refusal) -> u8 {
 #[must_use]
 pub const fn for_credential(error: &CredentialError) -> u8 {
     match error {
-        CredentialError::NoToken { .. }
-        | CredentialError::TokenCmdFromSharedConfig { .. }
-        | CredentialError::TokenCmdFromTrackedFile { .. }
-        | CredentialError::TokenFromTrackedFile { .. }
-        | CredentialError::MalformedToken { .. } => NO_TOKEN,
+        CredentialError::NoToken { .. } => NO_TOKEN,
         CredentialError::Consent(rejection) => for_refusal(&rejection.fatal),
-        CredentialError::LocalPermsInsecure { .. } => LOCAL_PERMS_INSECURE,
-        CredentialError::ConfigUnreadable { .. } => ERROR,
+        CredentialError::ConfigUnreadable(_) => ERROR,
     }
 }
 
@@ -284,6 +279,11 @@ mod tests {
             .unwrap_or_else(|| unreachable!("the allowlist is declared"))
     }
 
+    fn token() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.token")
+            .unwrap_or_else(|| unreachable!("the token is declared"))
+    }
+
     fn token_cmd() -> &'static config::catalogue::ExtraKey {
         config::catalogue::declared("jira.token_cmd")
             .unwrap_or_else(|| unreachable!("the token command is declared"))
@@ -299,26 +299,6 @@ mod tests {
         ));
 
         assert_eq!(for_credential(&timed_out), TOKEN_CMD_FAILED);
-    }
-
-    #[test]
-    fn a_tracked_personal_token_or_command_is_no_token() {
-        let path = PathBuf::from(".accelerator/config.local.md");
-
-        assert_eq!(
-            for_credential(&CredentialError::TokenFromTrackedFile {
-                key: "jira.token".to_owned(),
-                path: path.clone(),
-            }),
-            NO_TOKEN
-        );
-        assert_eq!(
-            for_credential(&CredentialError::TokenCmdFromTrackedFile {
-                key: "jira.token_cmd".to_owned(),
-                path,
-            }),
-            NO_TOKEN
-        );
     }
 
     #[test]
@@ -377,6 +357,15 @@ mod tests {
                 },
                 TOKEN_CMD_FAILED,
             ),
+            (
+                Refusal::PlaintextFromUntrustedFile {
+                    key: token(),
+                    path: PathBuf::from(".accelerator/config.local.md"),
+                    distrust: Distrust::Unknown,
+                },
+                NO_TOKEN,
+            ),
+            (Refusal::MalformedToken { key: token() }, NO_TOKEN),
         ];
         for (refusal, code) in rows {
             assert_eq!(for_refusal(&refusal), code, "{refusal}");

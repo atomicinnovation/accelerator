@@ -1,6 +1,5 @@
 //! Resolves a `RemoteTracker` from the `work.integration` config key.
 
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,11 +9,8 @@ use config::consent::Notice;
 use config::consent::Refusal;
 use config::credentials::CredentialContext;
 use config::credentials::Environment;
-use config::credentials::Provenance;
 use config::ConfigAccess;
 use config_adapters::credentials::project_credential_context;
-use config_adapters::credentials::CredentialPorts;
-use consent_adapters::VcsConfigFileTracking;
 use jira_client::JiraClient;
 use linear_client::discovery::TeamEntryFetch;
 use linear_client::healing::CatalogueBackfill;
@@ -24,9 +20,6 @@ use linear_client::transport::Url;
 use linear_client::LinearClient;
 use tracker::RemoteTracker;
 use tracker_support::TransportConfig;
-use vcs::VcsKind;
-use vcs::VcsProbe as _;
-use vcs_adapters::library::InProcessProbe;
 
 pub enum SelectionError {
     Unset,
@@ -80,45 +73,6 @@ pub trait TrackerRegistry {
         &self,
         name: &str,
     ) -> Result<Box<dyn RemoteTracker>, SelectionError>;
-}
-
-/// Answers `Provenance` for the credential trust boundary by reading whether a
-/// path is tracked in the repository at `root`, in-process.
-///
-/// A read failure is treated as untracked, so an unreadable repository
-/// loosens the check rather than refusing every credential.
-struct VcsProvenance {
-    root: PathBuf,
-    kind: VcsKind,
-}
-
-impl VcsProvenance {
-    fn discovered(root: PathBuf) -> Self {
-        let kind = InProcessProbe.kind(&root);
-        Self { root, kind }
-    }
-}
-
-impl Provenance for VcsProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        let Ok(relpath) = path.strip_prefix(&self.root) else {
-            return false;
-        };
-        let Some(relpath) = relpath.to_str() else {
-            return false;
-        };
-        match InProcessProbe.is_tracked(&self.root, relpath, self.kind) {
-            Ok(tracked) => tracked,
-            Err(error) => {
-                tracing::warn!(
-                    %error,
-                    path = %path.display(),
-                    "could not determine VCS tracking; treating as untracked"
-                );
-                false
-            }
-        }
-    }
 }
 
 /// The production registry. `jira` and `linear` resolve real clients from
@@ -211,7 +165,10 @@ impl<'a> ConfiguredTrackers<'a> {
                 backfill,
             ),
         })
-        .map_err(|error| Self::unconfigured(name, error))
+        .map_err(|error| {
+            report_consent([], error.warnings());
+            Self::unconfigured(name, error)
+        })
     }
 
     fn backfill(&self) -> Arc<dyn CatalogueBackfill> {
@@ -225,11 +182,7 @@ impl<'a> ConfiguredTrackers<'a> {
         &self,
         body: impl FnOnce(&CredentialContext<'_>) -> T,
     ) -> T {
-        let ports = CredentialPorts::system(
-            Box::new(VcsProvenance::discovered(self.root.clone())),
-            Box::new(VcsConfigFileTracking),
-            consent_adapters::command_runner(&self.root, &self.root),
-        );
+        let ports = consent_adapters::credential_ports(&self.root, &self.root);
         let mut context = project_credential_context(
             &self.root,
             &ports,
@@ -237,7 +190,7 @@ impl<'a> ConfiguredTrackers<'a> {
             CommandPolicy::DEFAULT_TIMEOUT,
         );
         if let Some(environment) = self.environment {
-            context.environment = environment;
+            context.provenance.environment = environment;
         }
         body(&context)
     }
@@ -286,9 +239,12 @@ impl std::fmt::Display for PullError {
 impl std::error::Error for PullError {}
 
 /// Prints what the consent policy met while resolving a tracker's
-/// credentials: the notice of an environment override, and each warning.
-fn report_consent(notice: Option<&Notice>, warnings: &[Refusal]) {
-    if let Some(notice) = notice {
+/// credentials: the notice of each environment override, and each warning.
+fn report_consent<'a>(
+    notices: impl IntoIterator<Item = &'a Notice>,
+    warnings: &[Refusal],
+) {
+    for notice in notices {
         eprintln!("{notice}");
     }
     for warning in consent::reportable(warnings) {
@@ -309,17 +265,18 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
                     JiraClient::from_config(context, transport_config)
                 })
                 .map(|client| {
-                    report_consent(client.notice(), client.refusals());
+                    report_consent(client.notices(), client.refusals());
                     Box::new(client) as Box<dyn RemoteTracker>
                 })
                 .map_err(|error| {
-                    report_consent(None, error.warnings());
+                    report_consent([], error.warnings());
                     Self::unconfigured(name, error)
                 })
             }
-            "linear" => self
-                .linear_client(self.backfill())
-                .map(|client| Box::new(client) as Box<dyn RemoteTracker>),
+            "linear" => self.linear_client(self.backfill()).map(|client| {
+                report_consent(client.notice(), client.refusals());
+                Box::new(client) as Box<dyn RemoteTracker>
+            }),
             "trello" | "github-issues" => Err(SelectionError::NotAvailable {
                 name: name.to_owned(),
             }),

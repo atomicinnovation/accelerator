@@ -118,6 +118,12 @@ pub config::consent::Refusal::CommandTimedOut::key: &'static config::catalogue::
 pub config::consent::Refusal::InsecurePersonalFile
 pub config::consent::Refusal::InsecurePersonalFile::mode: u32
 pub config::consent::Refusal::InsecurePersonalFile::path: std::path::PathBuf
+pub config::consent::Refusal::MalformedToken
+pub config::consent::Refusal::MalformedToken::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::PlaintextFromUntrustedFile
+pub config::consent::Refusal::PlaintextFromUntrustedFile::distrust: config::consent::Distrust
+pub config::consent::Refusal::PlaintextFromUntrustedFile::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::PlaintextFromUntrustedFile::path: std::path::PathBuf
 pub config::consent::Refusal::TeamLevel
 pub config::consent::Refusal::TeamLevel::key: &'static config::catalogue::ExtraKey
 pub config::consent::Refusal::UntrustedPersonalFile
@@ -140,6 +146,7 @@ pub fn config::consent::Refusal::fmt(&self, formatter: &mut core::fmt::Formatter
 impl core::marker::StructuralPartialEq for config::consent::Refusal
 pub enum config::consent::RefusalReason
 pub config::consent::RefusalReason::Command
+pub config::consent::RefusalReason::Malformed
 pub config::consent::RefusalReason::PersonalFile
 pub config::consent::RefusalReason::Provenance
 impl core::clone::Clone for config::consent::RefusalReason
@@ -151,6 +158,18 @@ impl core::fmt::Debug for config::consent::RefusalReason
 pub fn config::consent::RefusalReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for config::consent::RefusalReason
 impl core::marker::StructuralPartialEq for config::consent::RefusalReason
+pub enum config::consent::Rung<T>
+pub config::consent::Rung::Absent
+pub config::consent::Rung::Candidate(T)
+pub config::consent::Rung::Refused(config::consent::Refusal)
+impl<T: core::clone::Clone> core::clone::Clone for config::consent::Rung<T>
+pub fn config::consent::Rung<T>::clone(&self) -> config::consent::Rung<T>
+impl<T: core::cmp::Eq> core::cmp::Eq for config::consent::Rung<T>
+impl<T: core::cmp::PartialEq> core::cmp::PartialEq for config::consent::Rung<T>
+pub fn config::consent::Rung<T>::eq(&self, other: &config::consent::Rung<T>) -> bool
+impl<T: core::fmt::Debug> core::fmt::Debug for config::consent::Rung<T>
+pub fn config::consent::Rung<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T> core::marker::StructuralPartialEq for config::consent::Rung<T>
 pub enum config::consent::StartFailure
 pub config::consent::StartFailure::NoBashOnPath
 pub config::consent::StartFailure::SpawnFailed
@@ -213,9 +232,27 @@ pub fn config::consent::Aborted::clone(&self) -> config::consent::Aborted
 impl core::cmp::Eq for config::consent::Aborted
 impl core::cmp::PartialEq for config::consent::Aborted
 pub fn config::consent::Aborted::eq(&self, other: &config::consent::Aborted) -> bool
+impl core::convert::From<config::consent::Aborted> for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::from(aborted: config::consent::Aborted) -> Self
 impl core::fmt::Debug for config::consent::Aborted
 pub fn config::consent::Aborted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for config::consent::Aborted
+pub struct config::consent::Admitted<S>
+pub config::consent::Admitted::source: S
+pub config::consent::Admitted::value: alloc::string::String
+impl<S: core::clone::Clone> core::clone::Clone for config::consent::Admitted<S>
+pub fn config::consent::Admitted<S>::clone(&self) -> config::consent::Admitted<S>
+impl<S: core::cmp::Eq> core::cmp::Eq for config::consent::Admitted<S>
+impl<S: core::cmp::PartialEq> core::cmp::PartialEq for config::consent::Admitted<S>
+pub fn config::consent::Admitted<S>::eq(&self, other: &config::consent::Admitted<S>) -> bool
+impl<S: core::fmt::Debug> core::fmt::Debug for config::consent::Admitted<S>
+pub fn config::consent::Admitted<S>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<S> core::marker::StructuralPartialEq for config::consent::Admitted<S>
+pub struct config::consent::CommandCandidates<'a>
+impl config::consent::CommandCandidates<'_>
+pub fn config::consent::CommandCandidates<'_>::environment(&self) -> config::consent::Rung<config::consent::ConsentedCommand>
+pub fn config::consent::CommandCandidates<'_>::personal(&self) -> core::result::Result<config::consent::Rung<config::consent::ConsentedCommand>, config::error::ConfigError>
+pub fn config::consent::CommandCandidates<'_>::team_level_refusals(&self) -> &[config::consent::Refusal]
 pub struct config::consent::CommandExecution<'a>
 pub config::consent::CommandExecution::runner: &'a config::consent::Runner
 pub config::consent::CommandExecution::timeout: core::time::Duration
@@ -274,6 +311,9 @@ pub fn config::consent::Consented<T>::eq(&self, other: &config::consent::Consent
 impl<T: core::fmt::Debug> core::fmt::Debug for config::consent::Consented<T>
 pub fn config::consent::Consented<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<T> core::marker::StructuralPartialEq for config::consent::Consented<T>
+pub struct config::consent::ConsentedCommand
+impl config::consent::ConsentedCommand
+pub fn config::consent::ConsentedCommand::run(&self, execution: &config::consent::CommandExecution<'_>) -> core::result::Result<alloc::string::String, config::consent::Refusal>
 pub struct config::consent::ExecutablePathKey(_)
 impl config::consent::ExecutablePathKey
 pub fn config::consent::ExecutablePathKey::declared(name: &str) -> core::result::Result<Self, config::error::ConfigError>
@@ -287,6 +327,12 @@ impl core::fmt::Debug for config::consent::ExecutablePathKey
 pub fn config::consent::ExecutablePathKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for config::consent::ExecutablePathKey
 impl core::marker::StructuralPartialEq for config::consent::ExecutablePathKey
+pub struct config::consent::Ladder<S>
+impl<S> config::consent::Ladder<S>
+pub fn config::consent::Ladder<S>::attempt(&mut self, source: S, rung: impl core::ops::function::FnOnce() -> core::result::Result<config::consent::Rung<config::consent::ConsentedCommand>, config::error::ConfigError>, execution: &config::consent::CommandExecution<'_>) -> core::result::Result<(), config::consent::Aborted>
+pub fn config::consent::Ladder<S>::finish(self) -> config::consent::Consented<config::consent::Admitted<S>>
+pub const fn config::consent::Ladder<S>::new(team_level: alloc::vec::Vec<config::consent::Refusal>) -> Self
+pub fn config::consent::Ladder<S>::offer(&mut self, source: S, key: &'static config::catalogue::ExtraKey, rung: impl core::ops::function::FnOnce() -> core::result::Result<config::consent::Rung<alloc::string::String>, config::error::ConfigError>) -> core::result::Result<(), config::consent::Aborted>
 pub struct config::consent::Notice
 impl config::consent::Notice
 pub fn config::consent::Notice::new(key: &'static config::catalogue::ExtraKey, variable: &'static str, value: &str) -> Self
@@ -345,32 +391,22 @@ pub fn config::consent::Environment::read(&self, name: &str) -> core::option::Op
 pub fn config::consent::audit(context: &config::consent::ProvenanceContext<'_>) -> core::result::Result<alloc::vec::Vec<config::consent::AuditFinding>, config::error::ConfigError>
 pub fn config::consent::reportable(warnings: &[config::consent::Refusal]) -> impl core::iter::traits::iterator::Iterator<Item = &config::consent::Refusal>
 pub fn config::consent::resolve(context: &config::consent::ProvenanceContext<'_>, key: &config::consent::ConsentKey) -> core::result::Result<config::consent::Consented<alloc::string::String>, config::consent::Aborted>
+pub fn config::consent::resolve_command<'a>(context: &'a config::consent::ProvenanceContext<'a>, key: config::consent::CommandKey) -> core::result::Result<config::consent::CommandCandidates<'a>, config::consent::Aborted>
 pub mod config::credentials
 pub enum config::credentials::CredentialError
-pub config::credentials::CredentialError::ConfigUnreadable
-pub config::credentials::CredentialError::ConfigUnreadable::detail: alloc::string::String
-pub config::credentials::CredentialError::ConfigUnreadable::key: alloc::string::String
+pub config::credentials::CredentialError::ConfigUnreadable(config::consent::Aborted)
 pub config::credentials::CredentialError::Consent(config::consent::Rejection)
-pub config::credentials::CredentialError::LocalPermsInsecure
-pub config::credentials::CredentialError::LocalPermsInsecure::mode: u32
-pub config::credentials::CredentialError::LocalPermsInsecure::path: std::path::PathBuf
-pub config::credentials::CredentialError::MalformedToken
-pub config::credentials::CredentialError::MalformedToken::key: alloc::string::String
 pub config::credentials::CredentialError::NoToken
 pub config::credentials::CredentialError::NoToken::key: alloc::string::String
-pub config::credentials::CredentialError::TokenCmdFromSharedConfig
-pub config::credentials::CredentialError::TokenCmdFromSharedConfig::key: alloc::string::String
-pub config::credentials::CredentialError::TokenCmdFromTrackedFile
-pub config::credentials::CredentialError::TokenCmdFromTrackedFile::key: alloc::string::String
-pub config::credentials::CredentialError::TokenCmdFromTrackedFile::path: std::path::PathBuf
-pub config::credentials::CredentialError::TokenFromTrackedFile
-pub config::credentials::CredentialError::TokenFromTrackedFile::key: alloc::string::String
-pub config::credentials::CredentialError::TokenFromTrackedFile::path: std::path::PathBuf
+impl config::credentials::CredentialError
+pub fn config::credentials::CredentialError::warnings(&self) -> &[config::consent::Refusal]
 impl core::clone::Clone for config::credentials::CredentialError
 pub fn config::credentials::CredentialError::clone(&self) -> config::credentials::CredentialError
 impl core::cmp::Eq for config::credentials::CredentialError
 impl core::cmp::PartialEq for config::credentials::CredentialError
 pub fn config::credentials::CredentialError::eq(&self, other: &config::credentials::CredentialError) -> bool
+impl core::convert::From<config::consent::Aborted> for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::from(aborted: config::consent::Aborted) -> Self
 impl core::error::Error for config::credentials::CredentialError
 impl core::fmt::Debug for config::credentials::CredentialError
 pub fn config::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -408,17 +444,13 @@ pub fn config::credentials::TokenSource::fmt(&self, f: &mut core::fmt::Formatter
 impl core::marker::Copy for config::credentials::TokenSource
 impl core::marker::StructuralPartialEq for config::credentials::TokenSource
 pub struct config::credentials::CredentialContext<'a>
-pub config::credentials::CredentialContext::config: &'a dyn config::service::ConfigAccess
-pub config::credentials::CredentialContext::environment: &'a dyn config::consent::Environment
 pub config::credentials::CredentialContext::execution: config::consent::CommandExecution<'a>
 pub config::credentials::CredentialContext::files: &'a dyn config::credentials::FileFacts
 pub config::credentials::CredentialContext::insecure_marker: std::path::PathBuf
-pub config::credentials::CredentialContext::personal_config: std::path::PathBuf
-pub config::credentials::CredentialContext::provenance: &'a dyn config::credentials::Provenance
-pub config::credentials::CredentialContext::tracking: &'a dyn config::consent::ConfigFileTracking
-impl config::credentials::CredentialContext<'_>
-pub fn config::credentials::CredentialContext<'_>::provenance(&self) -> config::consent::ProvenanceContext<'_>
+pub config::credentials::CredentialContext::provenance: config::consent::ProvenanceContext<'a>
 pub struct config::credentials::ResolvedToken
+pub config::credentials::ResolvedToken::notice: core::option::Option<config::consent::Notice>
+pub config::credentials::ResolvedToken::refusals: alloc::vec::Vec<config::consent::Refusal>
 pub config::credentials::ResolvedToken::source: config::credentials::TokenSource
 pub config::credentials::ResolvedToken::value: config::credentials::Secret
 impl core::clone::Clone for config::credentials::ResolvedToken
@@ -443,9 +475,9 @@ pub fn config::credentials::Secret::fmt(&self, formatter: &mut core::fmt::Format
 impl core::marker::StructuralPartialEq for config::credentials::Secret
 pub struct config::credentials::TokenKeys
 pub config::credentials::TokenKeys::command: config::consent::CommandKey
-pub config::credentials::TokenKeys::env: &'static str
-pub config::credentials::TokenKeys::env_command: &'static str
-pub config::credentials::TokenKeys::value: config::key::Key
+pub config::credentials::TokenKeys::plaintext: &'static config::catalogue::ExtraKey
+impl config::credentials::TokenKeys
+pub fn config::credentials::TokenKeys::declared(plaintext: &str, command: &str) -> core::result::Result<Self, config::error::ConfigError>
 impl core::clone::Clone for config::credentials::TokenKeys
 pub fn config::credentials::TokenKeys::clone(&self) -> config::credentials::TokenKeys
 impl core::cmp::Eq for config::credentials::TokenKeys
@@ -453,15 +485,13 @@ impl core::cmp::PartialEq for config::credentials::TokenKeys
 pub fn config::credentials::TokenKeys::eq(&self, other: &config::credentials::TokenKeys) -> bool
 impl core::fmt::Debug for config::credentials::TokenKeys
 pub fn config::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::credentials::TokenKeys
 impl core::marker::StructuralPartialEq for config::credentials::TokenKeys
 pub const config::credentials::INSECURE_MARKER_RELATIVE: &str
 pub trait config::credentials::Environment
 pub fn config::credentials::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
 pub trait config::credentials::FileFacts
 pub fn config::credentials::FileFacts::inspect(&self, path: &std::path::Path) -> core::result::Result<config::credentials::FileState, alloc::string::String>
-pub trait config::credentials::Provenance
-pub fn config::credentials::Provenance::is_tracked(&self, path: &std::path::Path) -> bool
-pub fn config::credentials::refuse_tracked_source(provenance: &dyn config::credentials::Provenance, path: &std::path::Path, key: &str) -> core::result::Result<(), config::credentials::CredentialError>
 pub fn config::credentials::resolve_token(context: &config::credentials::CredentialContext<'_>, keys: &config::credentials::TokenKeys) -> core::result::Result<config::credentials::ResolvedToken, config::credentials::CredentialError>
 pub mod config::error
 #[non_exhaustive] pub enum config::error::ConfigError

@@ -69,7 +69,7 @@ impl TrackingQueries for InProcessProbe {
         relpath: &str,
         kind: VcsKind,
     ) -> Result<bool, Error> {
-        Self::is_tracked(self, root, relpath, kind)
+        Self::is_tracked(root, relpath, kind)
     }
 
     fn tracks_any_under(

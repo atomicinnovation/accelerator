@@ -12,6 +12,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use config::consent;
+use config::consent::Refusal;
 use linear_client::cache::{LinearCache, SystemFilesystem};
 use linear_client::catalogue::{CatalogueUpdate, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
@@ -44,7 +46,7 @@ fn id_of(value: &str) -> ExternalId {
 
 /// Builds the client, or prints the failure and returns the mapped exit code.
 fn client_or_report(intent: Intent) -> Result<context::Built, ExitCode> {
-    context::build_client(intent).map_err(|error| match error {
+    let built = context::build_client(intent).map_err(|error| match error {
         ContextError::BadApiUrl(raw) => {
             eprintln!(
                 "E_BAD_API_URL: ACCELERATOR_LINEAR_API_URL={raw:?} is not an \
@@ -57,10 +59,22 @@ fn client_or_report(intent: Intent) -> Result<context::Built, ExitCode> {
             ExitCode::from(exit_codes::ERROR)
         }
         ContextError::Client(error) => {
+            report_warnings(error.warnings());
             eprintln!("{error}");
             ExitCode::from(exit_codes::for_client(&error))
         }
-    })
+    })?;
+    if let Some(notice) = built.client.notice() {
+        eprintln!("{notice}");
+    }
+    report_warnings(built.client.refusals());
+    Ok(built)
+}
+
+fn report_warnings(warnings: &[Refusal]) {
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
+    }
 }
 
 fn print_json(value: &Value) {

@@ -184,11 +184,14 @@ fn the_scrubbed_set_is_derived_from_the_token_ladders() -> Result<(), TestError>
         jira_client::auth::token_keys()?,
         linear_client::auth::token_keys()?,
     ] {
-        assert!(scrubbed.contains(&keys.env.to_owned()), "{scrubbed:?}");
-        assert!(
-            scrubbed.contains(&keys.env_command.to_owned()),
-            "{scrubbed:?}"
-        );
+        for name in keys
+            .plaintext
+            .overrides
+            .iter()
+            .chain(keys.command.descriptor().overrides)
+        {
+            assert!(scrubbed.contains(&(*name).to_owned()), "{scrubbed:?}");
+        }
     }
     assert!(
         scrubbed.contains(&"ACCELERATOR_ALLOW_INSECURE_LOCAL".to_owned()),

@@ -6,12 +6,12 @@ use std::time::Duration;
 
 use config::consent::CommandExecution;
 use config::consent::ConfigFileTracking;
+use config::consent::ProvenanceContext;
 use config::consent::Runner;
 use config::credentials::CredentialContext;
 use config::credentials::Environment;
 use config::credentials::FileFacts;
 use config::credentials::FileState;
-use config::credentials::Provenance;
 use config::credentials::INSECURE_MARKER_RELATIVE;
 use config::ConfigAccess;
 
@@ -25,17 +25,15 @@ pub struct CredentialPorts {
     pub environment: Box<dyn Environment>,
     pub files: Box<dyn FileFacts>,
     pub runner: Runner,
-    pub provenance: Box<dyn Provenance>,
     pub tracking: Box<dyn ConfigFileTracking>,
 }
 
 impl CredentialPorts {
-    /// The production environment and filesystem, with the caller's VCS
-    /// provenance, tracking and command runner, which need a VCS adapter this
-    /// crate does not depend on.
+    /// The production environment and filesystem, with the caller's tracking
+    /// and command runner, which need a VCS adapter this crate does not
+    /// depend on.
     #[must_use]
     pub fn system(
-        provenance: Box<dyn Provenance>,
         tracking: Box<dyn ConfigFileTracking>,
         runner: Runner,
     ) -> Self {
@@ -43,7 +41,6 @@ impl CredentialPorts {
             environment: Box::new(SystemEnvironment),
             files: Box::new(SystemFileFacts),
             runner,
-            provenance,
             tracking,
         }
     }
@@ -59,16 +56,17 @@ pub fn project_credential_context<'a>(
     command_timeout: Duration,
 ) -> CredentialContext<'a> {
     CredentialContext {
-        environment: ports.environment.as_ref(),
-        config,
-        provenance: ports.provenance.as_ref(),
-        tracking: ports.tracking.as_ref(),
-        files: ports.files.as_ref(),
+        provenance: ProvenanceContext {
+            config,
+            tracking: ports.tracking.as_ref(),
+            environment: ports.environment.as_ref(),
+            personal_config: root.join(PERSONAL_CONFIG_RELATIVE),
+        },
         execution: CommandExecution {
             runner: &ports.runner,
             timeout: command_timeout,
         },
-        personal_config: root.join(PERSONAL_CONFIG_RELATIVE),
+        files: ports.files.as_ref(),
         insecure_marker: root.join(INSECURE_MARKER_RELATIVE),
     }
 }

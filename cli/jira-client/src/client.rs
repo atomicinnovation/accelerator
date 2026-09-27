@@ -77,7 +77,7 @@ pub struct JiraClient {
     accounts: Box<dyn AccountResolver>,
     fields: Box<dyn FieldResolver>,
     refusals: Vec<Refusal>,
-    notice: Option<Notice>,
+    notices: Vec<Notice>,
 }
 
 impl JiraClient {
@@ -94,7 +94,7 @@ impl JiraClient {
             accounts,
             fields,
             refusals: Vec::new(),
-            notice: None,
+            notices: Vec::new(),
         }
     }
 
@@ -104,10 +104,10 @@ impl JiraClient {
     pub fn reporting(
         mut self,
         refusals: Vec<Refusal>,
-        notice: Option<Notice>,
+        notices: Vec<Notice>,
     ) -> Self {
         self.refusals = refusals;
-        self.notice = notice;
+        self.notices = notices;
         self
     }
 
@@ -117,8 +117,8 @@ impl JiraClient {
     }
 
     #[must_use]
-    pub const fn notice(&self) -> Option<&Notice> {
-        self.notice.as_ref()
+    pub fn notices(&self) -> &[Notice] {
+        &self.notices
     }
 
     /// Builds a client from configuration.
@@ -137,10 +137,10 @@ impl JiraClient {
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context)?;
         let refusals = credentials.refusals.clone();
-        let notice = credentials.notice.clone();
+        let notices = credentials.notices.clone();
         let warned = |error: ClientError| error.with_warnings(refusals.clone());
-        let project =
-            crate::auth::project_code(context.config).map_err(warned)?;
+        let project = crate::auth::project_code(context.provenance.config)
+            .map_err(warned)?;
         let transport = Transport::new(
             credentials,
             transport_config,
@@ -154,7 +154,7 @@ impl JiraClient {
             Box::new(FixedResolver::new()),
             Box::new(FixedResolver::new()),
         )
-        .reporting(refusals, notice))
+        .reporting(refusals, notices))
     }
 
     #[must_use]

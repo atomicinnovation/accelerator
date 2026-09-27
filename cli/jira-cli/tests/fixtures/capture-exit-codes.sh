@@ -9,8 +9,9 @@
 # plus the unnamed shared HTTP codes the table lists with a `—` name (the Rust
 # binary reads them structurally from the client). Two normalisations:
 #   - `E_ADF_UNSUPPORTED_*` (a wildcard family) -> ADF_UNSUPPORTED.
-#   - code 26 (E_TOKEN_CMD_FROM_SHARED_CONFIG) is a stderr prefix only, never a
-#     fatal exit, so it is omitted (EXIT_CODES.md:28 flags this).
+#   - code 26, the retired shared-config token-command refusal, was a stderr
+#     prefix only, never a fatal exit, so it is omitted (EXIT_CODES.md:28
+#     flags this).
 #   - the E_BODY_* helper codes (1-6) are caller-namespaced: every caller remaps
 #     them to its own flow code (create->105, comment->94, update->116,
 #     transition->125), so they are not part of the binary's taxonomy and are

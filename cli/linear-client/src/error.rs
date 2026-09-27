@@ -6,6 +6,7 @@
 //! is reproduced because codes 25, 27 and 29 are re-exited verbatim by the
 //! transport and appear in the update mapper's retryable clause.
 
+use config::consent::Refusal;
 use config::credentials::CredentialError;
 use thiserror::Error;
 
@@ -37,4 +38,15 @@ pub enum ClientError {
     ConfigUnreadable { key: String, detail: String },
     #[error("the TLS stack could not be initialised: {detail}")]
     TlsUnavailable { detail: String },
+}
+
+impl ClientError {
+    /// Every refusal to report as a warning before this failure.
+    #[must_use]
+    pub fn warnings(&self) -> &[Refusal] {
+        match self {
+            Self::Credential(credential) => credential.warnings(),
+            _ => &[],
+        }
+    }
 }

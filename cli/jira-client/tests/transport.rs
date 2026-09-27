@@ -24,7 +24,7 @@ fn credentials(base: &str) -> Credentials {
         token: Secret::new("secret-token".to_owned()),
         source: TokenSource::Env,
         refusals: Vec::new(),
-        notice: None,
+        notices: Vec::new(),
     }
 }
 

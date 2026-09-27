@@ -107,6 +107,9 @@ pub const ATTACH_UPLOAD_FAILED: u8 = 136;
 pub const ATTACH_REGISTER_FAILED: u8 = 137;
 pub const ATTACH_BAD_FLAG: u8 = 138;
 
+use config::consent::Refusal;
+use config::consent::RefusalReason;
+use config::credentials::CredentialError;
 use linear_client::cache::CacheError;
 use linear_client::classify::{classify_errors, Outcome};
 use linear_client::filter::{UnresolvedFilter, UnresolvedFilters};
@@ -170,6 +173,9 @@ pub fn for_surface(error: &SurfaceError) -> u8 {
 #[must_use]
 pub fn for_client(error: &ClientError) -> u8 {
     match error {
+        ClientError::Credential(CredentialError::Consent(rejection)) => {
+            for_refusal(&rejection.fatal)
+        }
         ClientError::Credential(_) => NO_TOKEN,
         ClientError::MalformedToken { .. } => TOKEN_MALFORMED,
         ClientError::NoTeam => CREATE_NO_CATALOGUE,
@@ -194,6 +200,18 @@ fn for_unresolved(refusal: &UnresolvedFilters) -> u8 {
         SEARCH_BAD_STATE
     } else {
         SEARCH_UNRESOLVED_FILTER
+    }
+}
+
+/// The exit code for a consent refusal that left nothing usable, mapped onto
+/// the frozen codes rather than adding any.
+#[must_use]
+pub const fn for_refusal(refusal: &Refusal) -> u8 {
+    match refusal.reason() {
+        RefusalReason::Provenance => NO_TOKEN,
+        RefusalReason::Command => TOKEN_CMD_FAILED,
+        RefusalReason::Malformed => TOKEN_MALFORMED,
+        RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
     }
 }
 
@@ -229,6 +247,12 @@ fn exit_code_for_status(status: u16, body: &str) -> u8 {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::path::PathBuf;
+    use std::time::Duration;
+
+    use config::consent::{
+        CommandPolicy, Distrust, FailureCause, Rejection, StartFailure,
+    };
     use linear_client::catalogue::{CatalogueParseError, CatalogueSection};
     use linear_client::filter::{UnresolvedFilter, UnresolvedFilters};
     use linear_client::resolution::{
@@ -236,6 +260,87 @@ mod tests {
     };
 
     use super::*;
+
+    fn declared(name: &str) -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared(name)
+            .unwrap_or_else(|| unreachable!("{name} is declared"))
+    }
+
+    #[test]
+    fn every_consent_refusal_maps_to_a_frozen_code() {
+        let command = declared("linear.token_cmd");
+        let token = declared("linear.token");
+        let path = PathBuf::from(".accelerator/config.local.md");
+        let rows = [
+            (Refusal::TeamLevel { key: command }, NO_TOKEN),
+            (
+                Refusal::UntrustedPersonalFile {
+                    key: command,
+                    path: path.clone(),
+                    distrust: Distrust::Tracked,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::PlaintextFromUntrustedFile {
+                    key: token,
+                    path: path.clone(),
+                    distrust: Distrust::Unknown,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::CommandFailed {
+                    key: command,
+                    cause: FailureCause::CouldNotStart(
+                        StartFailure::NoBashOnPath,
+                    ),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandTimedOut {
+                    key: command,
+                    after: Duration::from_secs(30),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandOutputExceeded {
+                    key: command,
+                    limit: CommandPolicy::OUTPUT_LIMIT,
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (Refusal::MalformedToken { key: token }, TOKEN_MALFORMED),
+            (
+                Refusal::InsecurePersonalFile { path, mode: 0o644 },
+                LOCAL_PERMS_INSECURE,
+            ),
+        ];
+        for (refusal, code) in rows {
+            assert_eq!(for_refusal(&refusal), code, "{refusal}");
+        }
+    }
+
+    #[test]
+    fn a_credential_error_exits_by_its_fatal_refusal_or_no_token() {
+        let consent = ClientError::Credential(CredentialError::Consent(
+            Rejection::alone(Refusal::MalformedToken {
+                key: declared("linear.token"),
+            }),
+        ));
+        let missing = ClientError::Credential(CredentialError::NoToken {
+            key: "linear.token".to_owned(),
+        });
+        let quoted = ClientError::MalformedToken {
+            found: "a double-quote".to_owned(),
+        };
+
+        assert_eq!(for_client(&consent), TOKEN_MALFORMED);
+        assert_eq!(for_client(&missing), NO_TOKEN);
+        assert_eq!(for_client(&quoted), TOKEN_MALFORMED);
+    }
 
     fn code_for(graphql: GraphQlError) -> (u8, u8) {
         (

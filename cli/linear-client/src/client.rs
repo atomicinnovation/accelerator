@@ -7,6 +7,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
+use config::consent::Notice;
+use config::consent::Refusal;
 use config::credentials::CredentialContext;
 use remote_projection::Integration;
 use remote_projection::Op;
@@ -153,6 +155,8 @@ pub struct LinearClient {
     team_key: Option<String>,
     resolvers: ResolverSet,
     backfill: Arc<dyn CatalogueBackfill>,
+    refusals: Vec<Refusal>,
+    notice: Option<Notice>,
 }
 
 impl LinearClient {
@@ -172,7 +176,32 @@ impl LinearClient {
             team_key,
             resolvers,
             backfill,
+            refusals: Vec::new(),
+            notice: None,
         }
+    }
+
+    /// The consent refusals and notice met while resolving the credentials,
+    /// for the caller to report.
+    #[must_use]
+    pub fn reporting(
+        mut self,
+        refusals: Vec<Refusal>,
+        notice: Option<Notice>,
+    ) -> Self {
+        self.refusals = refusals;
+        self.notice = notice;
+        self
+    }
+
+    #[must_use]
+    pub fn refusals(&self) -> &[Refusal] {
+        &self.refusals
+    }
+
+    #[must_use]
+    pub const fn notice(&self) -> Option<&Notice> {
+        self.notice.as_ref()
     }
 
     /// Builds a client from configuration, resolving every value eagerly into
@@ -215,8 +244,12 @@ impl LinearClient {
         backfill: Arc<dyn CatalogueBackfill>,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context, integrations_root)?;
-        let team_key =
-            crate::auth::team_key(context.config, integrations_root)?;
+        let refusals = credentials.refusals.clone();
+        let notice = credentials.notice.clone();
+        let team_key = crate::auth::team_key(
+            context.provenance.config,
+            integrations_root,
+        )?;
         let transport = Transport::new(
             endpoint,
             credentials,
@@ -231,7 +264,8 @@ impl LinearClient {
             team_key,
             Catalogue::load(integrations_root).resolver_set(),
             backfill,
-        ))
+        )
+        .reporting(refusals, notice))
     }
 
     #[must_use]

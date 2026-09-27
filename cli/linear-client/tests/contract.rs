@@ -40,12 +40,6 @@ use tracker_test_support::seed::{
 /// question arises.
 struct NothingTracked;
 
-impl config::credentials::Provenance for NothingTracked {
-    fn is_tracked(&self, _path: &Path) -> bool {
-        false
-    }
-}
-
 impl config::consent::ConfigFileTracking for NothingTracked {
     fn tracking(&self, _path: &Path) -> config::consent::Tracking {
         config::consent::Tracking::Untracked
@@ -133,16 +127,17 @@ fn live_client() -> LiveClient {
             PathBuf::from,
         );
     let context = CredentialContext {
-        environment: &environment,
-        config: &config,
-        provenance: &provenance,
-        tracking: &provenance,
-        files: &SystemFileFacts,
+        provenance: config::consent::ProvenanceContext {
+            config: &config,
+            tracking: &provenance,
+            environment: &environment,
+            personal_config: root.join(".accelerator/config.local.md"),
+        },
         execution: CommandExecution {
             runner: &runner,
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
         },
-        personal_config: root.join(".accelerator/config.local.md"),
+        files: &SystemFileFacts,
         insecure_marker: root
             .join(config::credentials::INSECURE_MARKER_RELATIVE),
     };

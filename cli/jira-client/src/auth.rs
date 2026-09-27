@@ -19,12 +19,13 @@
 //! `jira.allowed_sites` is for.
 
 use config::consent;
-use config::consent::CommandKey;
 use config::consent::ConsentKey;
 use config::consent::Notice;
 use config::consent::Refusal;
+use config::consent::Rejection;
 use config::consent::Usable;
 use config::credentials::CredentialContext;
+use config::credentials::CredentialError;
 use config::credentials::Secret;
 use config::credentials::TokenKeys;
 use config::credentials::TokenSource;
@@ -48,21 +49,17 @@ pub struct Credentials {
     pub token: Secret,
     pub source: TokenSource,
     pub refusals: Vec<Refusal>,
-    pub notice: Option<Notice>,
+    pub notices: Vec<Notice>,
 }
 
-/// The environment names and config keys Jira's token climbs.
+/// The config keys Jira's token climbs.
 ///
 /// # Errors
 ///
-/// [`ClientError::ConfigUnreadable`] if a key spelling stops parsing.
+/// [`ClientError::ConfigUnreadable`] if the catalogue stops declaring them.
 pub fn token_keys() -> Result<TokenKeys, ClientError> {
-    Ok(TokenKeys {
-        env: "ACCELERATOR_JIRA_TOKEN",
-        env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
-        value: key("jira.token")?,
-        command: command_key("jira.token_cmd")?,
-    })
+    TokenKeys::declared("jira.token", "jira.token_cmd")
+        .map_err(|error| unreadable("jira.token", &error))
 }
 
 /// Resolves the site, email and token a Jira client authenticates with.
@@ -73,28 +70,52 @@ pub fn token_keys() -> Result<TokenKeys, ClientError> {
 pub fn resolve_credentials(
     context: &CredentialContext<'_>,
 ) -> Result<Credentials, ClientError> {
-    let site =
-        configured(context.config, "jira.site")?.ok_or(ClientError::NoSite)?;
+    let config = context.provenance.config;
+    let site = configured(config, "jira.site")?.ok_or(ClientError::NoSite)?;
     let destination = admitted_destination(context, &site)?;
     let warned =
         |error: ClientError| error.with_warnings(destination.warnings.clone());
-    let email = configured(context.config, "jira.email")
+    let email = configured(config, "jira.email")
         .and_then(|email| email.ok_or(ClientError::NoEmail))
         .map_err(warned)?;
-    let resolved = token_keys()
-        .and_then(|keys| {
-            Ok(config::credentials::resolve_token(context, &keys)?)
-        })
-        .map_err(warned)?;
+    let resolved = token_keys().map_err(warned)?;
+    let resolved = config::credentials::resolve_token(context, &resolved)
+        .map_err(|error| {
+            beside_allowlist_warnings(error, destination.warnings.clone())
+        })?;
 
     Ok(Credentials {
         base: destination.base,
         email,
         token: resolved.value,
         source: resolved.source,
-        refusals: destination.warnings,
-        notice: destination.notice,
+        refusals: [destination.warnings, resolved.refusals].concat(),
+        notices: destination
+            .notice
+            .into_iter()
+            .chain(resolved.notice)
+            .collect(),
     })
+}
+
+/// A token failure, reporting the allowlist's warnings before the token's own.
+fn beside_allowlist_warnings(
+    error: CredentialError,
+    allowlist_warnings: Vec<Refusal>,
+) -> ClientError {
+    match error {
+        CredentialError::Consent(rejection) => {
+            ClientError::Consent(Rejection {
+                fatal: rejection.fatal,
+                warnings: [allowlist_warnings, rejection.warnings].concat(),
+            })
+        }
+        other => {
+            let warnings =
+                [allowlist_warnings, other.warnings().to_vec()].concat();
+            ClientError::Credential(other).with_warnings(warnings)
+        }
+    }
 }
 
 /// The base URL the token may be sent to, and the allowlist's warnings.
@@ -113,7 +134,7 @@ fn admitted_destination(
 ) -> Result<Destination, ClientError> {
     let key = ConsentKey::declared(ALLOWED_SITES)
         .map_err(|error| unreadable(ALLOWED_SITES, &error))?;
-    let consented = consent::resolve(&context.provenance(), &key)
+    let consented = consent::resolve(&context.provenance, &key)
         .map_err(|aborted| {
             unreadable(ALLOWED_SITES, &aborted.error)
                 .with_warnings(aborted.warnings)
@@ -281,10 +302,6 @@ fn rendered(resolved: &Resolved) -> Option<String> {
 
 fn key(name: &str) -> Result<Key, ClientError> {
     Key::parse(name).map_err(|error| unreadable(name, &error))
-}
-
-fn command_key(name: &str) -> Result<CommandKey, ClientError> {
-    CommandKey::declared(name).map_err(|error| unreadable(name, &error))
 }
 
 fn unreadable(name: &str, error: &config::ConfigError) -> ClientError {

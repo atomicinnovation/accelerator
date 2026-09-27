@@ -378,3 +378,188 @@ fn gh_token_works_beside_an_insecure_personal_config() -> Result<(), TestError>
     );
     Ok(())
 }
+
+fn resolving_server() -> MockHTTPServer {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
+    );
+    server.route(
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
+    );
+    server
+}
+
+fn base_repo(
+    dir: &Path,
+    server: &MockHTTPServer,
+    gh_token: Option<&str>,
+) -> Result<Output, TestError> {
+    let mut command =
+        Command::new(env!("CARGO_BIN_EXE_accelerator-collaboration"));
+    command
+        .args(["pr", "base-repo", "42"])
+        .current_dir(dir)
+        .env_remove("GITHUB_TOKEN")
+        .env(
+            "ACCELERATOR_COLLABORATION_GITHUB_API_URL",
+            server.base_url(),
+        );
+    match gh_token {
+        Some(token) => command.env("GH_TOKEN", token),
+        None => command.env_remove("GH_TOKEN"),
+    };
+    Ok(command.output()?)
+}
+
+fn write_configs(
+    dir: &Path,
+    team: &str,
+    personal: Option<&str>,
+) -> Result<(), TestError> {
+    fs::create_dir_all(dir.join(".accelerator"))?;
+    fs::write(
+        dir.join(".accelerator/config.md"),
+        format!("---\ngithub:\n{team}---\n"),
+    )?;
+    if let Some(personal) = personal {
+        let path = dir.join(".accelerator/config.local.md");
+        fs::write(&path, format!("---\ngithub:\n{personal}---\n"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        }
+    }
+    Ok(())
+}
+
+fn track_personal_config(dir: &Path) -> Result<(), TestError> {
+    let status = Command::new("git")
+        .args(["add", "--force", ".accelerator/config.local.md"])
+        .current_dir(dir)
+        .status()?;
+    assert!(status.success(), "git add failed");
+    Ok(())
+}
+
+#[test]
+fn a_team_token_command_beside_gh_token_warns_and_runs() -> Result<(), TestError>
+{
+    let repo = scratch_repo()?;
+    write_configs(repo.path(), "  token_cmd: printf team\n", None)?;
+    let server = resolving_server();
+
+    let output = base_repo(repo.path(), &server, Some("test-token"))?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("warning: E_CONSENT_KEY_TEAM_LEVEL: github.token_cmd"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_team_token_command_alone_is_refused() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    write_configs(repo.path(), "  token_cmd: printf team\n", None)?;
+    let server = resolving_server();
+
+    let output = base_repo(repo.path(), &server, None)?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("E_CONSENT_KEY_TEAM_LEVEL: github.token_cmd"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_tracked_personal_token_is_refused() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    write_configs(
+        repo.path(),
+        "  host: github.com\n",
+        Some("  token: mine\n"),
+    )?;
+    track_personal_config(repo.path())?;
+    let server = resolving_server();
+
+    let output = base_repo(repo.path(), &server, None)?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("E_TOKEN_FROM_TRACKED_FILE: github.token"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_tracked_personal_command_beside_a_team_command_is_fatal_and_warns(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    write_configs(
+        repo.path(),
+        "  token_cmd: printf team\n",
+        Some("  token_cmd: printf mine\n"),
+    )?;
+    track_personal_config(repo.path())?;
+    let server = resolving_server();
+
+    let output = base_repo(repo.path(), &server, None)?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains("warning: E_CONSENT_KEY_TEAM_LEVEL: github.token_cmd"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("E_CONSENT_KEY_TRACKED: github.token_cmd"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_personal_token_command_runs_outside_the_project_in_a_fresh_directory(
+) -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let record = tempfile::tempdir()?;
+    let recorded = record.path().join("cwd");
+    write_configs(
+        repo.path(),
+        "  host: github.com\n",
+        Some(&format!(
+            "  token_cmd: pwd > {} && printf from-helper\n",
+            recorded.display()
+        )),
+    )?;
+    let server = resolving_server();
+
+    let output = base_repo(repo.path(), &server, None)?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    let cwd = std::path::PathBuf::from(fs::read_to_string(&recorded)?.trim());
+    assert!(!cwd.starts_with(repo.path().canonicalize()?));
+    assert!(!cwd.exists(), "{} outlived the run", cwd.display());
+    Ok(())
+}

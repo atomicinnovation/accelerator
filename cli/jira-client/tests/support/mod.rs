@@ -1,5 +1,5 @@
 //! Test doubles the client's own seams need: a fixed config and environment,
-//! a provenance answer, and the clock and jitter the retry suites assert as
+//! a tracking answer, and the clock and jitter the retry suites assert as
 //! data rather than by wall clock.
 
 #![allow(dead_code, clippy::expect_used)]
@@ -14,10 +14,10 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use config::consent::{
-    CommandExecution, CommandPolicy, ConfigFileTracking, RepositoryRoots,
-    Runner, Tracking,
+    CommandExecution, CommandPolicy, ConfigFileTracking, ProvenanceContext,
+    RepositoryRoots, Runner, Tracking,
 };
-use config::credentials::{CredentialContext, Environment, Provenance};
+use config::credentials::{CredentialContext, Environment};
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 use config_adapters::credentials::{
     BashCommandRunner, SystemEnvironment, SystemFileFacts,
@@ -121,12 +121,12 @@ impl Environment for FixedEnvironment {
 
 /// What the VCS answers about every file: tracked when named, untracked
 /// otherwise, or unknown for all.
-pub struct FixedProvenance {
+pub struct FixedTracking {
     tracked: Vec<PathBuf>,
     answer_for_all: Option<Tracking>,
 }
 
-impl FixedProvenance {
+impl FixedTracking {
     #[must_use]
     pub const fn nothing_tracked() -> Self {
         Self {
@@ -160,16 +160,10 @@ impl FixedProvenance {
     }
 }
 
-impl Provenance for FixedProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        self.tracked.iter().any(|tracked| tracked == path)
-    }
-}
-
-impl ConfigFileTracking for FixedProvenance {
+impl ConfigFileTracking for FixedTracking {
     fn tracking(&self, path: &Path) -> Tracking {
         self.answer_for_all.unwrap_or_else(|| {
-            if self.is_tracked(path) {
+            if self.tracked.iter().any(|tracked| tracked == path) {
                 Tracking::Tracked
             } else {
                 Tracking::Untracked
@@ -182,20 +176,21 @@ impl ConfigFileTracking for FixedProvenance {
 pub fn context<'a>(
     environment: &'a dyn Environment,
     config: &'a dyn config::ConfigAccess,
-    provenance: &'a FixedProvenance,
+    tracking: &'a FixedTracking,
     root: &Path,
 ) -> CredentialContext<'a> {
     CredentialContext {
-        environment,
-        config,
-        provenance,
-        tracking: provenance,
-        files: &SystemFileFacts,
+        provenance: ProvenanceContext {
+            config,
+            tracking,
+            environment,
+            personal_config: root.join("config.local.md"),
+        },
         execution: CommandExecution {
             runner: runner_rooted_at(root),
             timeout: CommandPolicy::DEFAULT_TIMEOUT,
         },
-        personal_config: root.join("config.local.md"),
+        files: &SystemFileFacts,
         insecure_marker: root.join("allow-insecure-local"),
     }
 }

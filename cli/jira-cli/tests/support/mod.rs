@@ -85,6 +85,37 @@ pub fn run_env(
     command.output().expect("run accelerator-jira")
 }
 
+/// As [`run_env`], with the env token present or absent.
+pub fn run_env_with(
+    dir: &Path,
+    server: &MockHTTPServer,
+    args: &[&str],
+    environment: &[(&str, &str)],
+    token: &Token,
+) -> Output {
+    let mut command = command(dir, args, Some(&server.base_url()), token);
+    command.envs(environment.iter().copied());
+    command.output().expect("run accelerator-jira")
+}
+
+/// Makes `dir` a git repository whose index holds its
+/// `.accelerator/config.local.md`, so the personal file reads as tracked.
+pub fn track_personal(dir: &Path) {
+    for args in [
+        &["init", "--quiet"][..],
+        &["add", "--force", ".accelerator/config.local.md"][..],
+    ] {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+}
+
 /// Writes `.accelerator/config.local.md` at `mode`.
 #[cfg(unix)]
 pub fn personal(dir: &Path, content: &str, mode: u32) {

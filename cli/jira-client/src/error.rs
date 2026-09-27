@@ -83,6 +83,7 @@ impl ClientError {
         match self {
             Self::WithWarnings { warnings, .. } => warnings,
             Self::Consent(rejection) => &rejection.warnings,
+            Self::Credential(credential) => credential.warnings(),
             _ => &[],
         }
     }
