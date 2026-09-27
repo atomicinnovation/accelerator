@@ -47,8 +47,9 @@ pub struct DiscoveredIssue {
 /// and living in the binary layer. This port is that seam.
 pub trait LocalAuthor {
     /// Authors a brand-new local work-item file for a discovered remote issue,
-    /// allocating the next id and refusing when the target path already
-    /// exists. Returns the path written.
+    /// allocating the next id (or, under `{tracker}`, adopting the issue's
+    /// key) and refusing when the target path already exists. Returns the
+    /// path written.
     ///
     /// The write is exclusive-create: a crash mid-write must leave no partial
     /// file, and an id collision — a stray on-disk file, or a concurrent

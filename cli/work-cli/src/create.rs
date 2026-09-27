@@ -1,6 +1,7 @@
-//! Adapter/binary wiring for `work create`: allocates the next ID under a
-//! per-directory lock, derives metadata, composes the frontmatter via
-//! `work::create::compose_frontmatter`, and performs one atomic write.
+//! Adapter/binary wiring for `work create`: allocates the next ID (a draft ID
+//! under `{tracker}`) under a per-directory lock, derives metadata, composes
+//! the frontmatter via `work::create::compose_frontmatter`, and performs one
+//! atomic write.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -9,6 +10,7 @@ use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
+use corpus::IdOwnership;
 use corpus_adapters::compile_scan_regex;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
@@ -30,6 +32,7 @@ use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::FieldValue;
 use work::create::TypedLinkage;
+use work::draft_id::mint_draft_id;
 use work::identity::linker_of;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
@@ -43,6 +46,8 @@ use work::sync::RequestFingerprint;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
+use work_adapters::draft_id::RandomSuffixDraws;
+use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 
@@ -58,6 +63,9 @@ use crate::tracker_registry::TrackerRegistry;
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
 pub const LOCK_FILE_NAME: &str = ".accelerator-work-create.lockdir";
+const TRACKER_PUSH_UNSUPPORTED: &str = "E_TRACKER_PUSH_UNSUPPORTED: `--push` \
+     under `{tracker}` is not supported yet; omit `--push` to save a draft, \
+     which `work sync` will promote";
 
 pub struct CreateArgs {
     pub title: String,
@@ -203,6 +211,44 @@ pub fn allocate_id(
         .into_iter()
         .next()
         .ok_or_else(|| "allocation produced no ID".to_owned())
+}
+
+/// Where a new item goes and the `id` it takes: the next number in the work
+/// directory, or under `{tracker}` a fresh draft ID in the drafts directory.
+struct Placement {
+    id: String,
+    dir: PathBuf,
+}
+
+fn place_new_item(
+    scheme: &corpus::WorkItemIdScheme,
+    work_dir: &Path,
+    project: Option<&str>,
+) -> Result<Placement, String> {
+    match scheme.ownership() {
+        IdOwnership::Local => Ok(Placement {
+            id: allocate_id(scheme, work_dir, project)?,
+            dir: work_dir.to_path_buf(),
+        }),
+        IdOwnership::Tracker if project.is_some() => Err(allocation_message(
+            &AllocationError::ProjectUnused,
+            &scheme.id_pattern,
+        )),
+        IdOwnership::Tracker => Ok(Placement {
+            id: mint_draft(work_dir)?,
+            dir: drafts_dir(work_dir),
+        }),
+    }
+}
+
+/// A draft ID no item in `work_dir` holds as its `id` or `aliases`.
+fn mint_draft(work_dir: &Path) -> Result<String, String> {
+    let files = FilesystemWorkItemFiles::new(work_dir)
+        .files()
+        .map_err(|error| error.to_string())?;
+    mint_draft_id(&mut RandomSuffixDraws, &identities(&files))
+        .map(|draft| draft.as_str().to_owned())
+        .map_err(|error| error.to_string())
 }
 
 fn resolve_and_check_template(
@@ -622,6 +668,9 @@ fn try_run(
     registry: &dyn TrackerRegistry,
 ) -> Result<(PathBuf, Option<PushReport>), String> {
     let scheme = resolve_scheme(config).map_err(|error| error.to_string())?;
+    if args.push && scheme.ownership() == IdOwnership::Tracker {
+        return Err(TRACKER_PUSH_UNSUPPORTED.to_owned());
+    }
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
         resolve_work_dir(config, &root).map_err(|error| error.to_string())?;
@@ -636,7 +685,8 @@ fn try_run(
         })?;
 
     let project = args.project.clone().or_else(|| scheme.key.clone());
-    let id = allocate_id(&scheme, &work_dir, project.as_deref())?;
+    let Placement { id, dir } =
+        place_new_item(&scheme, &work_dir, project.as_deref())?;
 
     let metadata = derive_at(
         &root,
@@ -652,7 +702,10 @@ fn try_run(
     let body = resolve_body(args, &resolved_template, &id)?;
 
     let slug = slugify(&args.title);
-    let target = work_dir.join(format!("{id}-{slug}.md"));
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        format!("could not create {}: {error}", dir.display())
+    })?;
+    let target = dir.join(format!("{id}-{slug}.md"));
     if target.exists() {
         return Err(format!(
             "refusing to overwrite an existing file: {}",
@@ -1019,22 +1072,48 @@ mod tests {
 
     impl PushingRepo {
         fn new() -> Self {
+            Self::configured(&[
+                ("work.integration", "jira"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn tracker_owned() -> Self {
+            Self::configured(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", "linear"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn configured(pairs: &[(&str, &str)]) -> Self {
             let root = tempfile::tempdir().expect("tempdir");
             std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
             let config = FakeConfig(
-                [
-                    ("work.integration", "jira"),
-                    ("paths.integrations", "integrations"),
-                ]
-                .into_iter()
-                .map(|(key, value)| (key.to_owned(), value.to_owned()))
-                .collect(),
+                pairs
+                    .iter()
+                    .map(|(key, value)| {
+                        ((*key).to_owned(), (*value).to_owned())
+                    })
+                    .collect(),
             );
             Self { root, config }
         }
 
         fn create(&self, tracker: RecordingTracker) -> RunOutcome {
-            let args = CreateArgs {
+            self.create_pushing(true, tracker)
+        }
+
+        fn create_pushing(
+            &self,
+            push: bool,
+            tracker: RecordingTracker,
+        ) -> RunOutcome {
+            self.create_with(&Self::args(push), tracker)
+        }
+
+        fn args(push: bool) -> CreateArgs {
+            CreateArgs {
                 title: "A tabled idea".to_owned(),
                 kind: "task".to_owned(),
                 priority: "low".to_owned(),
@@ -1050,14 +1129,21 @@ mod tests {
                 author: Some("A Tester".to_owned()),
                 producer: "create-work-item".to_owned(),
                 body_file: None,
-                push: true,
+                push,
                 dry_run: false,
-            };
+            }
+        }
+
+        fn create_with(
+            &self,
+            args: &CreateArgs,
+            tracker: RecordingTracker,
+        ) -> RunOutcome {
             run(
                 self.root.path(),
                 &self.config,
                 &PluginWorkItemTemplate,
-                &args,
+                args,
                 &FixedRegistry::holding(tracker),
             )
         }
@@ -1113,5 +1199,86 @@ mod tests {
             path.display()
         );
         assert!(!written.contains("external_id"), "{written}");
+    }
+
+    #[test]
+    fn create_without_push_under_tracker_writes_a_draft() {
+        let repo = PushingRepo::tracker_owned();
+
+        let outcome =
+            repo.create_pushing(false, RecordingTracker::holding(Vec::new()));
+
+        let RunOutcome::Created { path, push: None } = outcome else {
+            panic!("an offline create under {{tracker}} writes a draft");
+        };
+        let written = std::fs::read_to_string(&path).expect("the draft exists");
+        let identity = work::work_item_files::identity_of(
+            &work::work_item_files::WorkItemFile {
+                path: path.clone(),
+                content: written.clone(),
+            },
+        )
+        .expect("the draft has an id");
+        let id = identity.id;
+        assert!(
+            work::draft_id::DraftId::parse(&id)
+                .is_some_and(|draft| draft.as_str() == id),
+            "{id}"
+        );
+        assert_eq!(
+            path,
+            repo.root
+                .path()
+                .join("meta/work/drafts")
+                .join(format!("{id}-a-tabled-idea.md"))
+        );
+        assert!(
+            written.contains(&format!("\n# {id}: A tabled idea\n")),
+            "{written}"
+        );
+        assert_eq!(identity.external_id, None);
+        assert!(!repo.marker().exists(), "no push was attempted");
+    }
+
+    #[test]
+    fn create_with_push_under_tracker_refuses_until_supported() {
+        let repo = PushingRepo::tracker_owned();
+
+        let outcome = repo.create(RecordingTracker::holding(Vec::new()));
+
+        let RunOutcome::Failed(message) = outcome else {
+            panic!("--push under {{tracker}} is refused");
+        };
+        assert_eq!(
+            message,
+            "E_TRACKER_PUSH_UNSUPPORTED: `--push` under `{tracker}` is not \
+             supported yet; omit `--push` to save a draft, which `work sync` \
+             will promote"
+        );
+        assert!(
+            !repo.root.path().join("meta/work").exists()
+                || std::fs::read_dir(repo.root.path().join("meta/work"))
+                    .expect("work dir")
+                    .flatten()
+                    .all(|entry| entry.file_name() == LOCK_FILE_NAME),
+            "nothing is written"
+        );
+    }
+
+    #[test]
+    fn create_with_project_under_tracker_is_e_pattern_key_unused() {
+        let repo = PushingRepo::tracker_owned();
+        let args = CreateArgs {
+            project: Some("ENG".to_owned()),
+            ..PushingRepo::args(false)
+        };
+
+        let outcome =
+            repo.create_with(&args, RecordingTracker::holding(Vec::new()));
+
+        let RunOutcome::Failed(message) = outcome else {
+            panic!("--project names no token under {{tracker}}");
+        };
+        assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
     }
 }

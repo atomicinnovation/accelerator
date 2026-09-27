@@ -76,6 +76,25 @@ pub fn work::draft_id::DraftId::eq(&self, other: &work::draft_id::DraftId) -> bo
 impl core::fmt::Debug for work::draft_id::DraftId
 pub fn work::draft_id::DraftId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::draft_id::DraftId
+pub struct work::draft_id::DraftIdExhausted
+pub work::draft_id::DraftIdExhausted::attempts: usize
+impl core::clone::Clone for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::clone(&self) -> work::draft_id::DraftIdExhausted
+impl core::cmp::Eq for work::draft_id::DraftIdExhausted
+impl core::cmp::PartialEq for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::eq(&self, other: &work::draft_id::DraftIdExhausted) -> bool
+impl core::error::Error for work::draft_id::DraftIdExhausted
+impl core::fmt::Debug for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::draft_id::DraftIdExhausted
+impl core::marker::StructuralPartialEq for work::draft_id::DraftIdExhausted
+pub const work::draft_id::ALPHABET: &[u8; 32]
+pub trait work::draft_id::SuffixDraws
+pub fn work::draft_id::SuffixDraws::draw(&mut self) -> [u8; 6]
+pub fn work::draft_id::mint_draft_id(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity]) -> core::result::Result<work::draft_id::DraftId, work::draft_id::DraftIdExhausted>
+pub fn work::draft_id::mint_draft_ids(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity], count: usize) -> core::result::Result<alloc::vec::Vec<work::draft_id::DraftId>, work::draft_id::DraftIdExhausted>
 pub mod work::filter
 pub struct work::filter::Filter
 pub work::filter::Filter::kind: core::option::Option<alloc::string::String>

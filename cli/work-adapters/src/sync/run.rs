@@ -14,6 +14,7 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use work::draft_id::DraftId;
 use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
@@ -629,8 +630,9 @@ fn discover_untracked(
     })
 }
 
-/// The unsynced local drafts eligible for create-from-local: state `Unsynced`
-/// (no `external_id`), under a push-capable direction.
+/// The unsynced local items eligible for create-from-local: state `Unsynced`
+/// (no `external_id`), under a push-capable direction. A draft is excluded:
+/// it reaches the tracker only through promotion, which retires its ID.
 fn unsynced_creates<'a>(
     plan: &work::sync::SyncPlan,
     items: &'a [LocalItem],
@@ -643,6 +645,7 @@ fn unsynced_creates<'a>(
         .iter()
         .filter(|planned| planned.state == SyncState::Unsynced)
         .filter_map(|planned| items.iter().find(|item| item.id == planned.id))
+        .filter(|item| DraftId::parse(&item.id).is_none())
         .collect()
 }
 

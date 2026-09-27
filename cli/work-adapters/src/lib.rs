@@ -3,6 +3,7 @@
 
 pub mod author;
 pub mod diff;
+pub mod draft_id;
 pub mod filesystem;
 pub mod retirement;
 pub mod retirement_records;

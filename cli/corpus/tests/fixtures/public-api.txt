@@ -787,6 +787,21 @@ impl core::fmt::Debug for corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::work_item_id::IdOwnership
 impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
+pub enum corpus::work_item_id::IdPatternError
+pub corpus::work_item_id::IdPatternError::TrackerNeedsJiraOrLinear
+pub corpus::work_item_id::IdPatternError::TrackerNotSoleToken
+impl core::clone::Clone for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::clone(&self) -> corpus::work_item_id::IdPatternError
+impl core::cmp::Eq for corpus::work_item_id::IdPatternError
+impl core::cmp::PartialEq for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::eq(&self, other: &corpus::work_item_id::IdPatternError) -> bool
+impl core::error::Error for corpus::work_item_id::IdPatternError
+impl core::fmt::Debug for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdPatternError
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdPatternError
 pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
@@ -801,6 +816,7 @@ pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, toke
 pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
 pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::ownership(&self) -> corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
@@ -816,6 +832,7 @@ pub fn corpus::work_item_id::WorkItemIdCanonicaliser::canonicalise(&self, input:
 pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
 pub fn corpus::work_item_id::is_tracker_key(token: &str) -> bool
 pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
+pub fn corpus::work_item_id::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>
 pub enum corpus::Band
 pub corpus::Band::Ambiguous
 pub corpus::Band::Resolved
@@ -907,6 +924,21 @@ impl core::fmt::Debug for corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for corpus::work_item_id::IdOwnership
 impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
+pub enum corpus::IdPatternError
+pub corpus::IdPatternError::TrackerNeedsJiraOrLinear
+pub corpus::IdPatternError::TrackerNotSoleToken
+impl core::clone::Clone for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::clone(&self) -> corpus::work_item_id::IdPatternError
+impl core::cmp::Eq for corpus::work_item_id::IdPatternError
+impl core::cmp::PartialEq for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::eq(&self, other: &corpus::work_item_id::IdPatternError) -> bool
+impl core::error::Error for corpus::work_item_id::IdPatternError
+impl core::fmt::Debug for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdPatternError
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdPatternError
 pub enum corpus::Outcome
 pub corpus::Outcome::Accepted
 pub corpus::Outcome::Edited
@@ -1063,6 +1095,7 @@ pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, toke
 pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
 pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::ownership(&self) -> corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
@@ -1090,3 +1123,4 @@ pub fn corpus::is_key_token(token: &str) -> bool
 pub fn corpus::is_tracker_key(token: &str) -> bool
 pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
 pub fn corpus::references_key(pattern: &str) -> bool
+pub fn corpus::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>

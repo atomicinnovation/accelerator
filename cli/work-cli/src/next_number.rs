@@ -1,16 +1,23 @@
 //! Adapter/binary wiring for `work next-number`: a thin display wrapper
-//! around `work::next_number::allocate` — never writes a file, never
-//! commits a number.
+//! around `work::next_number::allocate`, or `work::draft_id::mint_draft_ids`
+//! under `{tracker}` — never writes a file, never commits a number.
 
 use std::path::Path;
 
 use ::config::ConfigAccess;
+use corpus::IdOwnership;
+use corpus::WorkItemIdScheme;
 use corpus_adapters::compile_scan_regex;
 use corpus_adapters::RegexScanner;
+use work::draft_id::mint_draft_ids;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
 use work::resolve::DirectoryLister;
+use work::work_item_files::identities;
+use work::work_item_files::WorkItemFiles;
+use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemLister;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
 
 use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
@@ -63,6 +70,34 @@ fn allocation_message(error: &AllocationError, pattern: &str) -> String {
     }
 }
 
+fn mint_drafts(
+    scheme: &WorkItemIdScheme,
+    work_dir: &Path,
+    project: Option<&str>,
+    count: u32,
+) -> RunOutcome {
+    if project.is_some() {
+        return RunOutcome::Failed(allocation_message(
+            &AllocationError::ProjectUnused,
+            &scheme.id_pattern,
+        ));
+    }
+    let files = match FilesystemWorkItemFiles::new(work_dir).files() {
+        Ok(files) => files,
+        Err(error) => return RunOutcome::Failed(error.to_string()),
+    };
+    let count = usize::try_from(count).unwrap_or(usize::MAX);
+    match mint_draft_ids(&mut RandomSuffixDraws, &identities(&files), count) {
+        Ok(drafts) => RunOutcome::Allocated(
+            drafts
+                .into_iter()
+                .map(|draft| draft.as_str().to_owned())
+                .collect(),
+        ),
+        Err(error) => RunOutcome::Failed(error.to_string()),
+    }
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through [`RunOutcome`].
@@ -83,6 +118,9 @@ pub fn run(
         Err(error) => return RunOutcome::Failed(error.to_string()),
     };
     let project = project.map(str::to_owned).or_else(|| scheme.key.clone());
+    if scheme.ownership() == IdOwnership::Tracker {
+        return mint_drafts(&scheme, &work_dir, project.as_deref(), count);
+    }
 
     let filenames = FilesystemLister::new(&work_dir).filenames();
     let scan_regex = match compile_scan_regex(
@@ -116,5 +154,100 @@ pub fn run(
         Err(other) => {
             RunOutcome::Failed(allocation_message(&other, &scheme.id_pattern))
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests {
+    use std::collections::BTreeSet;
+    use std::collections::HashMap;
+
+    use ::config::ConfigAccess;
+    use ::config::ConfigError;
+    use ::config::Key;
+    use ::config::Level;
+    use ::config::Resolved;
+    use ::config::Scalar;
+    use ::config::Value;
+    use work::draft_id::DraftId;
+
+    use super::run;
+    use super::RunOutcome;
+
+    struct TrackerConfig(HashMap<String, String>);
+
+    impl TrackerConfig {
+        fn new() -> Self {
+            Self(
+                [
+                    ("work.id_pattern", "{tracker}"),
+                    ("work.integration", "jira"),
+                ]
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect(),
+            )
+        }
+    }
+
+    impl ConfigAccess for TrackerConfig {
+        fn get(
+            &self,
+            key: &Key,
+            _level: Option<Level>,
+        ) -> Result<Resolved, ConfigError> {
+            Ok(self
+                .0
+                .get(&key.to_string())
+                .map_or(Resolved::Absent, |value| {
+                    Resolved::Found(Value::Scalar(Scalar::String(
+                        value.clone(),
+                    )))
+                }))
+        }
+
+        fn set(
+            &self,
+            _key: &Key,
+            _value: &str,
+            _level: Level,
+        ) -> Result<(), ConfigError> {
+            unreachable!("next-number never writes config")
+        }
+    }
+
+    fn repo() -> tempfile::TempDir {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        root
+    }
+
+    #[test]
+    fn next_number_under_tracker_returns_distinct_draft_ids() {
+        let root = repo();
+
+        let RunOutcome::Allocated(ids) =
+            run(root.path(), &TrackerConfig::new(), None, 5)
+        else {
+            panic!("next-number under {{tracker}} mints drafts");
+        };
+
+        assert_eq!(ids.len(), 5);
+        assert!(ids.iter().all(|id| DraftId::parse(id).is_some()), "{ids:?}");
+        assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), 5, "{ids:?}");
+    }
+
+    #[test]
+    fn next_number_with_project_under_tracker_is_e_pattern_key_unused() {
+        let root = repo();
+
+        let RunOutcome::Failed(message) =
+            run(root.path(), &TrackerConfig::new(), Some("ENG"), 1)
+        else {
+            panic!("--project names no token under {{tracker}}");
+        };
+
+        assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
     }
 }

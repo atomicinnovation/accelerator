@@ -1161,3 +1161,34 @@ fn a_whole_corpus_references_run_skips_every_ineligible_file(
     );
     Ok(())
 }
+
+#[test]
+fn a_legacy_corpus_validates_under_a_tracker_config() -> Result<(), TestError> {
+    let dir = tempdir("tracker-legacy")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    fs::create_dir_all(root.join(".accelerator"))?;
+    fs::write(
+        root.join(".accelerator/config.md"),
+        "---\nwork:\n  id_pattern: \"{tracker}\"\n  integration: linear\n---\n",
+    )?;
+    write_work_item(&root.join("meta/work/0001-parent.md"), "0001")?;
+    write_work_item(&root.join("meta/work/ENG-42-tracked.md"), "ENG-42")?;
+    write_work_item(
+        &root.join("meta/work/drafts/draft-k7mq3x-draft.md"),
+        "draft-k7mq3x",
+    )?;
+    let child = root.join("meta/work/0002-child.md");
+    write_work_item(&child, "0002")?;
+    let content = fs::read_to_string(&child)?.replace(
+        "---\nbody",
+        "parent: \"work-item:0001\"\n\
+         relates_to: [\"work-item:ENG-42\", \"work-item:draft-k7mq3x\"]\n\
+         ---\nbody",
+    );
+    fs::write(&child, content)?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}

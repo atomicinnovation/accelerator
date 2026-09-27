@@ -1723,6 +1723,45 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
 }
 
 #[test]
+fn unpromoted_drafts_are_never_created_from_local() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        std::slice::from_ref(&draft),
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        SearchScope::default(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a run over a draft must not refuse")?;
+
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Create { .. })),
+        "a draft is promoted, never created from local"
+    );
+    assert!(author.linked.borrow().is_empty());
+    assert!(!report
+        .reported
+        .iter()
+        .any(|item| item.planned.action == Action::CreateFromLocal));
+    Ok(())
+}
+
+#[test]
 fn create_from_local_writes_the_marker_before_the_create(
 ) -> Result<(), TestError> {
     let fixture = Fixture::new()?;

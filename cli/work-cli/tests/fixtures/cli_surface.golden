@@ -134,14 +134,23 @@ Options:
   -h, --help  Print help
 
 === accelerator-work next-number --help ===
-Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number.
+
+Under `work.id_pattern: "{tracker}"` the IDs are provisional draft IDs, for items written under `meta/work/drafts/`; `work create` places a draft there itself.
 
 Usage: accelerator-work next-number [OPTIONS]
 
 Options:
-      --project <PROJECT>  The project code, when the configured pattern needs one
-      --count <COUNT>      How many sequential IDs to print [default: 1]
-  -h, --help               Print help
+      --project <PROJECT>
+          The project code, when the configured pattern needs one
+
+      --count <COUNT>
+          How many sequential IDs to print
+          
+          [default: 1]
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 === accelerator-work list --help ===
 List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it

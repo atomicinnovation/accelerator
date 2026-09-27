@@ -14,7 +14,13 @@ use std::fmt::{self, Display, Formatter, Write as _};
 
 use corpus::work_item_id::CanonicaliseError;
 use corpus::work_item_id::WorkItemIdCanonicaliser;
+use corpus::IdPatternError;
+use corpus::TRACKER_TOKEN;
 use regex::Regex;
+
+/// Captures a whole Jira key or Linear identifier, the `is_tracker_key`
+/// grammar.
+const TRACKER_SCAN_REGEX: &str = "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatternError {
@@ -33,6 +39,8 @@ pub enum PatternError {
     EmptyInput,
     NoMatch,
     UnrecognisedIdShape(String),
+    Invalid(IdPatternError),
+    TrackerHasNoNumber,
 }
 
 impl Display for PatternError {
@@ -89,6 +97,12 @@ impl Display for PatternError {
             Self::UnrecognisedIdShape(input) => write!(
                 formatter,
                 "input '{input}' is not a recognised ID shape"
+            ),
+            Self::Invalid(error) => error.fmt(formatter),
+            Self::TrackerHasNoNumber => write!(
+                formatter,
+                "a `{{tracker}}` pattern has no {{number}} token; the \
+                 tracker assigns each ID"
             ),
         }
     }
@@ -225,6 +239,14 @@ fn compile(
     if pattern.is_empty() {
         return Err(PatternError::Empty);
     }
+    corpus::validate_id_pattern(pattern, true)
+        .map_err(PatternError::Invalid)?;
+    if pattern == TRACKER_TOKEN {
+        return match mode {
+            Mode::Scan => Ok(TRACKER_SCAN_REGEX.to_owned()),
+            Mode::Format => Err(PatternError::TrackerHasNoNumber),
+        };
+    }
 
     let chars: Vec<char> = pattern.chars().collect();
     let len = chars.len();
@@ -303,9 +325,10 @@ fn compile(
 ///
 /// # Errors
 ///
-/// A [`PatternError`] when the pattern is empty, malformed, uses an unknown or
-/// adjacent token, carries a hostile literal, lacks a `{number}` token, or the
-/// key value is required but absent or invalid.
+/// A [`PatternError`] when the pattern is empty, malformed, breaks a
+/// `{tracker}` rule, uses an unknown or adjacent token, carries a hostile
+/// literal, lacks a `{number}` token, or the key value is required but absent
+/// or invalid.
 pub fn compile_scan_regex(
     pattern: &str,
     key_value: &str,
@@ -317,7 +340,8 @@ pub fn compile_scan_regex(
 ///
 /// # Errors
 ///
-/// The same [`PatternError`] cases as [`compile_scan_regex`].
+/// The same [`PatternError`] cases as [`compile_scan_regex`], and
+/// [`PatternError::TrackerHasNoNumber`] under `{tracker}`.
 pub fn compile_format_string(
     pattern: &str,
     key_value: &str,
@@ -329,12 +353,17 @@ pub fn compile_format_string(
 ///
 /// # Errors
 ///
-/// [`PatternError::Empty`] for an empty pattern, [`PatternError::NoNumberToken`]
+/// [`PatternError::Empty`] for an empty pattern,
+/// [`PatternError::TrackerHasNoNumber`] under `{tracker}`,
+/// [`PatternError::NoNumberToken`]
 /// when no `{number}` token is present, or [`PatternError::WidthOverflow`] when
 /// the configured width's cap does not fit in a `u64`.
 pub fn pattern_max_number(pattern: &str) -> Result<u64, PatternError> {
     if pattern.is_empty() {
         return Err(PatternError::Empty);
+    }
+    if pattern == TRACKER_TOKEN {
+        return Err(PatternError::TrackerHasNoNumber);
     }
     let width = if let Some(width) = explicit_number_width(pattern) {
         width
@@ -529,6 +558,9 @@ pub fn canonicalise_id(
     if input.is_empty() {
         return Err(PatternError::EmptyInput);
     }
+    if pattern == TRACKER_TOKEN {
+        return Ok(input.to_owned());
+    }
 
     let has_key = corpus::references_key(pattern);
 
@@ -590,7 +622,9 @@ fn canonicalise_error(error: PatternError) -> CanonicaliseError {
         | PatternError::UnknownToken(_)
         | PatternError::HostileChar(_)
         | PatternError::NoNumberToken
-        | PatternError::WidthOverflow(_)) => {
+        | PatternError::WidthOverflow(_)
+        | PatternError::Invalid(_)
+        | PatternError::TrackerHasNoNumber) => {
             CanonicaliseError::MalformedPattern(malformed.to_string())
         }
     }
@@ -598,6 +632,8 @@ fn canonicalise_error(error: PatternError) -> CanonicaliseError {
 
 #[cfg(test)]
 mod tests {
+    use corpus::IdPatternError;
+
     use super::*;
 
     #[test]
@@ -935,5 +971,81 @@ mod tests {
             canonicalise_id("42", "{project}-{number:04d}", "PROJ")?
         );
         Ok(())
+    }
+
+    #[test]
+    fn compile_rejects_tracker_embedded_in_a_longer_pattern() {
+        for pattern in ["{tracker}-{number:04d}", "v{tracker}"] {
+            assert_eq!(
+                compile_scan_regex(pattern, ""),
+                Err(PatternError::Invalid(IdPatternError::TrackerNotSoleToken)),
+                "{pattern}"
+            );
+        }
+        assert_eq!(
+            PatternError::Invalid(IdPatternError::TrackerNotSoleToken)
+                .to_string(),
+            IdPatternError::TrackerNotSoleToken.to_string()
+        );
+    }
+
+    #[test]
+    fn compile_format_string_under_tracker_is_tracker_has_no_number() {
+        assert_eq!(
+            compile_format_string("{tracker}", ""),
+            Err(PatternError::TrackerHasNoNumber)
+        );
+    }
+
+    #[test]
+    fn pattern_max_number_under_tracker_is_tracker_has_no_number() {
+        assert_eq!(
+            pattern_max_number("{tracker}"),
+            Err(PatternError::TrackerHasNoNumber)
+        );
+    }
+
+    #[test]
+    fn parse_full_id_under_tracker_is_tracker_has_no_number() {
+        assert_eq!(
+            parse_full_id("ENG-42", "{tracker}"),
+            Err(PatternError::TrackerHasNoNumber)
+        );
+    }
+
+    #[test]
+    fn canonicalise_id_under_tracker_returns_the_token_unchanged(
+    ) -> Result<(), PatternError> {
+        assert_eq!(canonicalise_id("ENG-42", "{tracker}", "")?, "ENG-42");
+        assert_eq!(canonicalise_id("\"eng-42\"", "{tracker}", "")?, "eng-42");
+        assert_eq!(
+            canonicalise_id("draft-k7mq3x", "{tracker}", "")?,
+            "draft-k7mq3x"
+        );
+        Ok(())
+    }
+
+    fn tracker_scan(filename: &str) -> Option<String> {
+        let regex =
+            Regex::new(&compile_scan_regex("{tracker}", "").ok()?).ok()?;
+        regex
+            .captures(filename)
+            .and_then(|captures| captures.get(1))
+            .map(|key| key.as_str().to_owned())
+    }
+
+    #[test]
+    fn the_tracker_scan_regex_captures_an_underscore_key() {
+        assert_eq!(
+            tracker_scan("MY_PROJ-7-a-title.md").as_deref(),
+            Some("MY_PROJ-7")
+        );
+        assert_eq!(tracker_scan("ENG-42-title.md").as_deref(), Some("ENG-42"));
+    }
+
+    #[test]
+    fn a_legacy_digit_prefixed_filename_does_not_scan_as_a_tracker_key() {
+        assert_eq!(tracker_scan("0296-2026-review.md"), None);
+        assert_eq!(tracker_scan("draft-k7mq3x-title.md"), None);
     }
 }

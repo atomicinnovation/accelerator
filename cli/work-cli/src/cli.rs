@@ -72,6 +72,10 @@ pub enum Command {
     },
     /// Print the next N sequential IDs the configured pattern would
     /// allocate. Display-only: never writes a file or commits a number.
+    ///
+    /// Under `work.id_pattern: "{tracker}"` the IDs are provisional draft
+    /// IDs, for items written under `meta/work/drafts/`; `work create` places
+    /// a draft there itself.
     NextNumber {
         /// The project code, when the configured pattern needs one.
         #[arg(long)]
