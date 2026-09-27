@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-27T21:30:00+00:00"
+last_updated: "2026-09-28T09:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1314,8 +1314,9 @@ the same tree everywhere), `FileCorpusStore`, `LockdirLock` and
 
 - [ ] Interrupt a scratch retirement with Ctrl-C mid-rewrite; the next
       retirement of the same item completes it.
-      Not yet possible: retirement has no CLI entry point until Phase 4.
-      Resumption is covered by
+      Not yet possible: `work sync` reaches retirement only for a key
+      change under tracker ownership, which Phase 5 switches on. Resumption
+      is covered by
       `an_interrupted_retirement_is_completed_by_the_next_retirement`.
 
 ---
@@ -1960,8 +1961,9 @@ comes from frontmatter `id`, as the indexer already does
 **File**: `cli/work-cli/src/sync.rs`
 **Changes**: `is_canonical_id_token` callers (`id_is_token_safe`, `:286`)
 accept `is_tracker_key` tokens and draft IDs under tracker ownership, so conflict
-dossiers keep working. `SyncRequest.ownership` comes from
-`scheme.ownership()`.
+dossiers keep working. `SettlementPorts.ownership` (Phase 4 placed
+ownership there, not on `SyncRequest`) comes from `scheme.ownership()`,
+replacing the `IdOwnership::Local` `run_sync` passes today.
 
 #### 3. Draft minting
 
@@ -2826,7 +2828,7 @@ pub enum PromotionMode {
 **File**: `cli/work-adapters/src/sync/identity_settlement.rs` `settle_identities`
 **Changes**:
 
-- After following key changes, when `request.ownership` is `Tracker`, the
+- After following key changes, when `settlement.ownership` is `Tracker`, the
   direction is not `PullOnly`, and `request.promote` is set, promote each
   draft in `id` order (under `Scope::Targeted`, only targeted drafts).
 - Promotions are decided together with key changes and count toward
@@ -2839,7 +2841,9 @@ pub enum PromotionMode {
 **File**: `cli/work-adapters/src/sync/run.rs`
 **Changes**: `SyncRequest` gains `promote: bool`. (Drafts have been
 filtered out of `unsynced_creates` since Phase 5.) Each promotion's key
-joins `SettledView.promoted_keys`.
+joins `SettledView.promoted_keys`, a field this phase adds: Phase 4's view
+carries only `followed_keys`, and drops unsettled items in `run_settled`
+before the engine. `IdentityPlan` gains `promotions` here too.
 
 **File**: `cli/work-cli/src/sync.rs` `run_sync`
 **Changes**: Maps `--no-promote` onto `SyncRequest.promote`. The
