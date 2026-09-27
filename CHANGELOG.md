@@ -191,6 +191,9 @@
   the command.
 - **A GitHub personal `token_cmd` beside a team `token_cmd` now runs**, with
   an `E_CONSENT_KEY_TEAM_LEVEL` warning. It used to exit 2.
+- **`ACCELERATOR_DESIGN_BROWSER_PATH` prints a `notice:` line** naming the
+  path, and a refused environment value falls through to the personal
+  `design.browser_path` with a warning.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
@@ -339,6 +342,17 @@
   checked against the enclosing repository.
 - **A committed team plaintext token is never used while `config.local.md`
   exists**, including when that file is ignored as insecure.
+- **`design.browser_path` must be an absolute path outside the repository.**
+  A relative value is refused with `E_EXECUTABLE_PATH_RELATIVE`. A value whose
+  canonical target, followed through every symlink, is inside the config
+  root, the current workspace or the main repository, or cannot be shown to
+  be outside them, is refused with `E_EXECUTABLE_PATH_INSIDE_REPOSITORY`. The
+  crawler warns and uses the bundled browser, and launches an admitted value's
+  canonical target.
+- **A team-level `design.browser_path` is always reported.** It warns with
+  `E_CONSENT_KEY_TEAM_LEVEL` even beside a personal value, which used to hide
+  the warning, and a personal value from a `config.local.md` that is tracked,
+  or whose tracking cannot be determined, is refused.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
   researcher type to running `accelerator research fetch` and writing finding

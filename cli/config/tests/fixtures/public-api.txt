@@ -120,6 +120,11 @@ pub config::consent::Refusal::InsecurePersonalFile::mode: u32
 pub config::consent::Refusal::InsecurePersonalFile::path: std::path::PathBuf
 pub config::consent::Refusal::MalformedToken
 pub config::consent::Refusal::MalformedToken::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::PathInsideRepository
+pub config::consent::Refusal::PathInsideRepository::key: &'static config::catalogue::ExtraKey
+pub config::consent::Refusal::PathInsideRepository::path: std::path::PathBuf
+pub config::consent::Refusal::PathRelative
+pub config::consent::Refusal::PathRelative::key: &'static config::catalogue::ExtraKey
 pub config::consent::Refusal::PlaintextFromUntrustedFile
 pub config::consent::Refusal::PlaintextFromUntrustedFile::distrust: config::consent::Distrust
 pub config::consent::Refusal::PlaintextFromUntrustedFile::key: &'static config::catalogue::ExtraKey
@@ -149,6 +154,7 @@ pub config::consent::RefusalReason::Command
 pub config::consent::RefusalReason::Malformed
 pub config::consent::RefusalReason::PersonalFile
 pub config::consent::RefusalReason::Provenance
+pub config::consent::RefusalReason::Value
 impl core::clone::Clone for config::consent::RefusalReason
 pub fn config::consent::RefusalReason::clone(&self) -> config::consent::RefusalReason
 impl core::cmp::Eq for config::consent::RefusalReason
@@ -381,6 +387,7 @@ impl core::marker::StructuralPartialEq for config::consent::RepositoryRoots
 pub struct config::consent::Runner(_)
 impl config::consent::Runner
 pub fn config::consent::Runner::new(runner: alloc::boxed::Box<dyn config::consent::CommandRunner>) -> Self
+pub const config::consent::SYMLINK_HOP_LIMIT: usize
 pub trait config::consent::CommandRunner
 pub fn config::consent::CommandRunner::run(&self, command: &str, policy: &config::consent::CommandPolicy) -> core::result::Result<alloc::string::String, config::consent::CommandFailure>
 pub trait config::consent::ConfigFileTracking
@@ -388,10 +395,16 @@ pub fn config::consent::ConfigFileTracking::check(&self, path: &std::path::Path)
 pub fn config::consent::ConfigFileTracking::tracking(&self, path: &std::path::Path) -> config::consent::Tracking
 pub trait config::consent::Environment
 pub fn config::consent::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub trait config::consent::ExecutablePaths
+pub fn config::consent::ExecutablePaths::canonicalise(&self, existing: &std::path::Path) -> core::option::Option<std::path::PathBuf>
+pub fn config::consent::ExecutablePaths::exists(&self, path: &std::path::Path) -> bool
+pub fn config::consent::ExecutablePaths::link_target(&self, path: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub fn config::consent::audit(context: &config::consent::ProvenanceContext<'_>) -> core::result::Result<alloc::vec::Vec<config::consent::AuditFinding>, config::error::ConfigError>
 pub fn config::consent::reportable(warnings: &[config::consent::Refusal]) -> impl core::iter::traits::iterator::Iterator<Item = &config::consent::Refusal>
 pub fn config::consent::resolve(context: &config::consent::ProvenanceContext<'_>, key: &config::consent::ConsentKey) -> core::result::Result<config::consent::Consented<alloc::string::String>, config::consent::Aborted>
 pub fn config::consent::resolve_command<'a>(context: &'a config::consent::ProvenanceContext<'a>, key: config::consent::CommandKey) -> core::result::Result<config::consent::CommandCandidates<'a>, config::consent::Aborted>
+pub fn config::consent::resolve_executable_path(context: &config::consent::ProvenanceContext<'_>, key: &config::consent::ExecutablePathKey, roots: &config::consent::RepositoryRoots, paths: &dyn config::consent::ExecutablePaths) -> core::result::Result<config::consent::Consented<std::path::PathBuf>, config::consent::Aborted>
+pub fn config::consent::vet_executable_path(key: &config::consent::ExecutablePathKey, value: &str, roots: &config::consent::RepositoryRoots, paths: &dyn config::consent::ExecutablePaths) -> core::result::Result<std::path::PathBuf, config::consent::Refusal>
 pub mod config::credentials
 pub enum config::credentials::CredentialError
 pub config::credentials::CredentialError::ConfigUnreadable(config::consent::Aborted)

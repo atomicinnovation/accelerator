@@ -21,6 +21,7 @@ config = { path = "../config" }
 kernel = { path = "../kernel" }
 document = { path = "../document" }
 store = { path = "../store" }
+dunce = { workspace = true }
 tempfile = { workspace = true }
 rustix = { workspace = true, features = ["event"] }
 libc = { workspace = true }

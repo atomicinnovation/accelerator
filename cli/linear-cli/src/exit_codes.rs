@@ -208,7 +208,7 @@ fn for_unresolved(refusal: &UnresolvedFilters) -> u8 {
 #[must_use]
 pub const fn for_refusal(refusal: &Refusal) -> u8 {
     match refusal.reason() {
-        RefusalReason::Provenance => NO_TOKEN,
+        RefusalReason::Provenance | RefusalReason::Value => NO_TOKEN,
         RefusalReason::Command => TOKEN_CMD_FAILED,
         RefusalReason::Malformed => TOKEN_MALFORMED,
         RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,

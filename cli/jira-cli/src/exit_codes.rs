@@ -203,7 +203,9 @@ pub fn for_client(error: &ClientError) -> u8 {
 #[must_use]
 pub const fn for_refusal(refusal: &Refusal) -> u8 {
     match refusal.reason() {
-        RefusalReason::Provenance | RefusalReason::Malformed => NO_TOKEN,
+        RefusalReason::Provenance
+        | RefusalReason::Malformed
+        | RefusalReason::Value => NO_TOKEN,
         RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
         RefusalReason::Command => TOKEN_CMD_FAILED,
     }

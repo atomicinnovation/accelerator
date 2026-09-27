@@ -72,12 +72,14 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "consent-adapters",
  "design",
  "design-adapters",
  "kernel",
  "serde_json",
  "tempfile",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -821,6 +823,7 @@ version = "1.24.0-pre.73"
 dependencies = [
  "config",
  "document",
+ "dunce",
  "kernel",
  "libc",
  "rustix",

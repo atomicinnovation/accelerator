@@ -220,11 +220,34 @@ change.
 
 `design.browser_path` points the runtime crawler at a browser executable you
 already have, skipping the bundled browser entirely (the driver is still
-materialised). It is a **personal-level key** — settable only in the gitignored
-`.accelerator/config.local.md`, never a repo-tracked `.accelerator/config.md` —
-because a value committed to a shared config would name the binary the inventory
-skill executes on every contributor's machine. A value resolving inside the
-repository being inventoried is refused for the same reason.
+materialised). It is a **consent key**: only you may choose the binary the
+inventory skill executes, so the value is taken only from the environment or
+from an untracked `.accelerator/config.local.md`. A value in the repo-tracked
+`.accelerator/config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL`, and so is
+one from a `config.local.md` that is tracked (`E_CONSENT_KEY_TRACKED`) or
+whose tracking cannot be determined (`E_CONSENT_KEY_TRACKING_UNKNOWN`).
+
+The value must be an **absolute path outside the repository**:
+
+- a relative value, such as `./chromium` or a bare `chromium`, is refused with
+  `E_EXECUTABLE_PATH_RELATIVE`, whatever it would resolve to;
+- the path is followed through every symlink to its canonical target, and a
+  target inside the config root, the current workspace or the main repository
+  is refused with `E_EXECUTABLE_PATH_INSIDE_REPOSITORY`. So is a path that
+  cannot be shown to lie outside them: a symlink chain longer than 40 hops, a
+  `..` beneath a missing directory, or a repository one of whose roots could
+  not be determined;
+- the crawler launches the canonical target, not the path as written.
+
+A refused value is never fatal. The executor prints each refusal as a
+`warning:` line and crawls with the bundled browser.
+
+`ACCELERATOR_DESIGN_BROWSER_PATH` overrides the personal value. It skips the
+provenance checks, since whoever controls the environment is the user, but not
+the path checks. When it supplies the browser, the executor prints
+`notice: design.browser_path taken from ACCELERATOR_DESIGN_BROWSER_PATH: <path>`.
+A refused environment value falls through to the personal value, with a
+warning.
 
 ## Environment
 
@@ -233,6 +256,7 @@ repository being inventoried is refused for the same reason.
 | `ACCELERATOR_DESIGN_BIN`       | One-shot override pointing `accelerator design …` at a locally-built `accelerator-design` binary, bypassing the normal fetch-and-cache dispatch |
 | `ACCELERATOR_CACHE_DIR`        | Where materialised runtime trees live. **Trust-relevant**: it must be a private, user-owned path and a **local filesystem** — `flock` is unreliable on NFS/SMB/FUSE, and an unresponsive network mount can block a cache hit in the kernel |
 | `ACCELERATOR_RELEASE_BASE_URL` | Mirror hatch for the release host the runtime is fetched from. The redirect allowlist is derived from this host, so a mirror must serve the bytes inline rather than 3xx-redirecting to another host |
+| `ACCELERATOR_DESIGN_BROWSER_PATH` | Overrides the personal `design.browser_path`. It skips the provenance checks but not the path checks, and a refused value falls through to the personal value with a warning; see [The browser hatch](#the-browser-hatch) |
 
 `ACCELERATOR_DESIGN_BIN` mirrors `ACCELERATOR_CORPUS_BIN` and
 `ACCELERATOR_VCS_BIN` for the sub-binaries they name.

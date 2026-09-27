@@ -15,6 +15,7 @@ mod store;
 
 pub mod credentials;
 pub mod legacy;
+pub mod paths;
 
 pub use compose::{compose, Composed};
 pub use render::{render_resolved, render_value, ABSENT_SENTINEL};

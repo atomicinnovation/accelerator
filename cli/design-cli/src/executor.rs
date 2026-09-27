@@ -73,7 +73,6 @@ const MARKER_TTL_SECONDS: u64 = 300;
 struct Resolved {
     paths: HostPaths,
     state_dir: PathBuf,
-    repository_root: PathBuf,
     cwd: PathBuf,
 }
 
@@ -123,15 +122,15 @@ pub fn run(
         Err(failure) => return report(failure),
     };
 
-    let hatch = match crate::config::resolve_browser_hatch(
-        &resolved.cwd,
-        &resolved.repository_root,
-    ) {
+    let hatch = match crate::config::browser_hatch(&resolved.cwd) {
         Ok(hatch) => hatch,
         Err(failure) => return report(failure),
     };
     for warning in &hatch.warnings {
         eprintln!("warning: {warning}");
+    }
+    if let Some(notice) = &hatch.notice {
+        eprintln!("{notice}");
     }
 
     let markers = MarkerStore::in_state_dir(&resolved.state_dir);
@@ -379,7 +378,6 @@ fn resolve() -> Result<Resolved, LaunchFailure> {
     Ok(Resolved {
         paths: HostPaths::new(state_dir.clone()),
         state_dir,
-        repository_root: facts.root,
         cwd,
     })
 }

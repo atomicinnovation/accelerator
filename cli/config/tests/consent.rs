@@ -5,18 +5,21 @@
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use config::catalogue::Trust;
 use config::consent::{
-    audit, resolve, resolve_command, AuditFinding, CommandExecution,
-    CommandFailure, CommandKey, CommandPolicy, CommandRunner,
-    ConfigFileTracking, ConsentKey, Consented, Distrust, Environment,
-    ExecutablePathKey, FailureCause, Ladder, ProvenanceContext, Refusal,
-    RefusalReason, RepositoryRoots, Rung, Runner, StartFailure, Tracking,
-    TrackingCheck, Usable,
+    audit, resolve, resolve_command, resolve_executable_path,
+    vet_executable_path, AuditFinding, CommandExecution, CommandFailure,
+    CommandKey, CommandPolicy, CommandRunner, ConfigFileTracking, ConsentKey,
+    Consented, Distrust, Environment, ExecutablePathKey, ExecutablePaths,
+    FailureCause, Ladder, ProvenanceContext, Refusal, RefusalReason,
+    RepositoryRoots, Rung, Runner, StartFailure, Tracking, TrackingCheck,
+    Usable, SYMLINK_HOP_LIMIT,
 };
 use config::{
     ConfigAccess, ConfigError, Key, Level, PersonalFile, Resolved, Scalar,
@@ -1341,6 +1344,390 @@ fn every_command_key_is_refused_and_run_by_one_policy() {
             recording.runs.borrow()[0].1.admitted_environment(),
             [config::catalogue::BASE_COMMAND_ENVIRONMENT, declared].concat(),
             "{name}"
+        );
+    }
+}
+
+const BROWSER: &str = "design.browser_path";
+
+/// An in-memory filesystem: entries that exist, and links whose targets are
+/// stored exactly as written.
+#[derive(Default)]
+struct FakePaths {
+    entries: BTreeSet<PathBuf>,
+    links: BTreeMap<PathBuf, PathBuf>,
+    uncanonicalisable: bool,
+}
+
+impl FakePaths {
+    fn with_entry(mut self, path: &str) -> Self {
+        self.entries.insert(PathBuf::from(path));
+        self
+    }
+
+    fn with_link(mut self, link: &str, target: &str) -> Self {
+        self.links
+            .insert(PathBuf::from(link), PathBuf::from(target));
+        self
+    }
+
+    const fn uncanonicalisable(mut self) -> Self {
+        self.uncanonicalisable = true;
+        self
+    }
+}
+
+impl FakePaths {
+    fn present(&self, path: &Path) -> bool {
+        path == Path::new("/")
+            || self
+                .entries
+                .iter()
+                .chain(self.links.keys())
+                .any(|entry| entry.starts_with(path))
+    }
+
+    /// Resolves `..` as the kernel does: only beneath a directory that exists.
+    fn resolved(&self, path: &Path) -> Option<PathBuf> {
+        let mut walked = PathBuf::new();
+        for component in path.components() {
+            if component == Component::ParentDir {
+                walked.pop();
+            } else {
+                walked.push(component);
+                if !self.present(&walked) {
+                    return None;
+                }
+            }
+        }
+        Some(walked)
+    }
+}
+
+impl ExecutablePaths for FakePaths {
+    fn canonicalise(&self, existing: &Path) -> Option<PathBuf> {
+        if self.uncanonicalisable {
+            return None;
+        }
+        self.resolved(existing)
+    }
+
+    fn link_target(&self, path: &Path) -> Option<PathBuf> {
+        self.resolved(path)
+            .and_then(|resolved| self.links.get(&resolved).cloned())
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        self.resolved(path).is_some()
+    }
+}
+
+fn three_roots() -> RepositoryRoots {
+    RepositoryRoots::complete(vec![
+        PathBuf::from("/project"),
+        PathBuf::from("/work/ws"),
+        PathBuf::from("/work/main"),
+    ])
+}
+
+fn browser_key() -> ExecutablePathKey {
+    ExecutablePathKey::declared(BROWSER).unwrap()
+}
+
+fn vetted(
+    value: &str,
+    roots: &RepositoryRoots,
+    paths: &FakePaths,
+) -> Result<PathBuf, Refusal> {
+    vet_executable_path(&browser_key(), value, roots, paths)
+}
+
+fn code_of(refused: Result<PathBuf, Refusal>) -> String {
+    codes(&[refused.expect_err("the value is refused")]).remove(0)
+}
+
+const INSIDE: &str = "E_EXECUTABLE_PATH_INSIDE_REPOSITORY";
+
+#[test]
+fn a_relative_value_is_refused_whatever_it_would_resolve_to() {
+    let paths = FakePaths::default().with_entry("/opt/chromium");
+    for value in ["./tools/chromium", "chromium", "../opt/chromium"] {
+        let refusal = vetted(value, &three_roots(), &paths).unwrap_err();
+
+        assert_eq!(
+            codes(std::slice::from_ref(&refusal)),
+            ["E_EXECUTABLE_PATH_RELATIVE"]
+        );
+        assert_eq!(refusal.reason(), RefusalReason::Value);
+        assert_eq!(refusal.key().map(|key| key.name), Some(BROWSER));
+    }
+}
+
+#[test]
+fn an_absolute_path_inside_any_root_is_refused_however_it_gets_there() {
+    for root in ["/project", "/work/ws", "/work/main"] {
+        let inside = format!("{root}/bin/chromium");
+        let paths = FakePaths::default()
+            .with_entry(&inside)
+            .with_link("/opt/pointing-in", &inside);
+        for value in [
+            inside.clone(),
+            "/opt/pointing-in".to_owned(),
+            format!("{root}/bin/missing"),
+        ] {
+            assert_eq!(
+                code_of(vetted(&value, &three_roots(), &paths)),
+                INSIDE,
+                "{value}"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_outside_symlink_resolves_to_its_canonical_target() {
+    let paths = FakePaths::default()
+        .with_entry("/opt/chrome/chrome")
+        .with_link("/usr/local/bin/chrome", "/opt/chrome/chrome");
+
+    assert_eq!(
+        vetted("/usr/local/bin/chrome", &three_roots(), &paths),
+        Ok(PathBuf::from("/opt/chrome/chrome"))
+    );
+}
+
+#[test]
+fn a_relative_link_target_is_joined_onto_the_links_directory() {
+    let paths = FakePaths::default()
+        .with_entry("/opt/Caskroom/chromium/chromium")
+        .with_link("/opt/bin/chromium", "../Caskroom/chromium/chromium");
+
+    assert_eq!(
+        vetted("/opt/bin/chromium", &three_roots(), &paths),
+        Ok(PathBuf::from("/opt/Caskroom/chromium/chromium"))
+    );
+}
+
+#[test]
+fn with_only_a_config_root_a_path_inside_it_is_refused() {
+    let roots = RepositoryRoots::complete(vec![PathBuf::from("/project")]);
+    let paths = FakePaths::default().with_entry("/project/chromium");
+
+    assert_eq!(code_of(vetted("/project/chromium", &roots, &paths)), INSIDE);
+}
+
+#[test]
+fn a_value_that_cannot_be_shown_to_be_outside_is_refused() {
+    let base = FakePaths::default().with_entry("/project/bin");
+    let cases: [(&str, FakePaths, RepositoryRoots); 6] = [
+        ("/project/a/b/chromium", FakePaths::default(), three_roots()),
+        (
+            "/opt/dangling",
+            FakePaths::default()
+                .with_entry("/project/bin")
+                .with_link("/opt/dangling", "/project/bin/gone"),
+            three_roots(),
+        ),
+        (
+            "/opt/missing/../chromium",
+            FakePaths::default().with_entry("/opt/other"),
+            three_roots(),
+        ),
+        (
+            "/opt/chromium",
+            FakePaths::default()
+                .with_entry("/opt/chromium")
+                .uncanonicalisable(),
+            three_roots(),
+        ),
+        (
+            "/opt/chromium",
+            FakePaths::default().with_entry("/opt/chromium"),
+            RepositoryRoots::incomplete(vec![PathBuf::from("/project")]),
+        ),
+        (
+            "/opt/dir/chromium",
+            base.with_link("/opt/dir", "/project/bin/gone-dir"),
+            three_roots(),
+        ),
+    ];
+    for (value, paths, roots) in cases {
+        let refusal = vetted(value, &roots, &paths).unwrap_err();
+
+        assert_eq!(codes(std::slice::from_ref(&refusal)), [INSIDE], "{value}");
+        assert!(
+            refusal.to_string().contains(
+                "is inside, or cannot be shown to be outside, the repository"
+            ),
+            "{refusal}"
+        );
+    }
+}
+
+#[test]
+fn a_symlink_cycle_is_refused_within_the_hop_limit() {
+    for paths in [
+        FakePaths::default().with_link("/opt/self", "/opt/self"),
+        FakePaths::default()
+            .with_link("/opt/self", "/opt/other")
+            .with_link("/opt/other", "/opt/self"),
+    ] {
+        assert_eq!(
+            code_of(vetted("/opt/self", &three_roots(), &paths)),
+            INSIDE
+        );
+    }
+    assert_eq!(SYMLINK_HOP_LIMIT, 40);
+}
+
+#[test]
+fn a_nonexistent_path_outside_every_root_is_admitted_beneath_its_ancestor() {
+    let paths = FakePaths::default().with_entry("/opt");
+
+    assert_eq!(
+        vetted("/opt/chrome/chrome", &three_roots(), &paths),
+        Ok(PathBuf::from("/opt/chrome/chrome"))
+    );
+}
+
+#[test]
+fn path_refusals_render_their_codes_and_debug_redacts_the_path() {
+    let key = browser_key().descriptor();
+    let relative = Refusal::PathRelative { key };
+    let inside = Refusal::PathInsideRepository {
+        key,
+        path: PathBuf::from("/secret/place/chromium"),
+    };
+
+    assert!(relative
+        .to_string()
+        .starts_with("E_EXECUTABLE_PATH_RELATIVE: design.browser_path"));
+    assert!(inside.to_string().contains("/secret/place/chromium"));
+    for refusal in [relative, inside] {
+        let debugged = format!("{refusal:?}");
+        assert!(!debugged.contains("/secret/place"), "{debugged}");
+        assert!(debugged.contains(BROWSER), "{debugged}");
+        assert!(
+            refusal
+                .to_string()
+                .contains("absolute path outside the repository"),
+            "{refusal}"
+        );
+    }
+}
+
+impl Project {
+    fn resolve_path(
+        &self,
+        key: ExecutablePathKey,
+        paths: &FakePaths,
+    ) -> Consented<PathBuf> {
+        resolve_executable_path(&self.context(), &key, &three_roots(), paths)
+            .unwrap_or_else(|_| panic!("the path resolution aborted"))
+    }
+}
+
+#[test]
+fn a_refused_environment_path_falls_through_to_a_valid_personal_one() {
+    let paths = FakePaths::default().with_entry("/opt/chrome");
+    let consented = Project::new()
+        .env("ACCELERATOR_DESIGN_BROWSER_PATH", "./chromium")
+        .personal(BROWSER, "/opt/chrome")
+        .team(BROWSER, "/opt/team-chrome")
+        .resolve_path(browser_key(), &paths);
+
+    assert_eq!(consented.admitted, Some(PathBuf::from("/opt/chrome")));
+    assert_eq!(
+        codes(&consented.refusals),
+        ["E_EXECUTABLE_PATH_RELATIVE", "E_CONSENT_KEY_TEAM_LEVEL"]
+    );
+    assert!(consented.notice.is_none());
+}
+
+#[test]
+fn an_environment_path_wins_with_a_notice_and_never_reads_the_personal_level() {
+    let paths = FakePaths::default().with_entry("/opt/chrome");
+    let project = Project::new()
+        .env("ACCELERATOR_DESIGN_BROWSER_PATH", "/opt/chrome")
+        .ignored_personal_file();
+    let consented = project.resolve_path(browser_key(), &paths);
+
+    assert_eq!(consented.admitted, Some(PathBuf::from("/opt/chrome")));
+    assert!(consented.refusals.is_empty());
+    assert_eq!(
+        consented.notice.unwrap().to_string(),
+        "notice: design.browser_path taken from \
+         ACCELERATOR_DESIGN_BROWSER_PATH: /opt/chrome"
+    );
+    assert_eq!(project.personal_reads(), 0);
+}
+
+#[test]
+fn a_personal_path_refused_on_its_value_leaves_nothing_admitted() {
+    let paths = FakePaths::default().with_entry("/project/chromium");
+    let consented = Project::new()
+        .personal(BROWSER, "/project/chromium")
+        .resolve_path(browser_key(), &paths);
+
+    assert_eq!(consented.admitted, None);
+    assert_eq!(codes(&consented.refusals), [INSIDE]);
+}
+
+/// The one policy, for path keys: every path key is refused on provenance
+/// and on its value by the same codes, and yields its canonical path.
+#[test]
+fn every_path_key_is_refused_and_vetted_by_one_policy() {
+    let paths = FakePaths::default()
+        .with_entry("/opt/chrome/chrome")
+        .with_entry("/project/chromium")
+        .with_link("/opt/bin/chrome", "/opt/chrome/chrome");
+    for key in [ExecutablePathKey::for_test("example.path"), browser_key()] {
+        let name = key.descriptor().name;
+        for (project, code) in [
+            (
+                Project::new().team(name, "/opt/bin/chrome"),
+                "E_CONSENT_KEY_TEAM_LEVEL",
+            ),
+            (
+                Project::new()
+                    .personal(name, "/opt/bin/chrome")
+                    .tracking(Tracking::Tracked),
+                "E_CONSENT_KEY_TRACKED",
+            ),
+            (
+                Project::new()
+                    .personal(name, "/opt/bin/chrome")
+                    .tracking(Tracking::Unknown),
+                "E_CONSENT_KEY_TRACKING_UNKNOWN",
+            ),
+            (
+                Project::new().personal(name, "bin/chrome"),
+                "E_EXECUTABLE_PATH_RELATIVE",
+            ),
+            (Project::new().personal(name, "/project/chromium"), INSIDE),
+        ] {
+            let consented = project.resolve_path(key, &paths);
+            assert_eq!(consented.admitted, None, "{name}");
+            assert_eq!(codes(&consented.refusals), [code], "{name}");
+            assert_eq!(consented.refusals[0].key(), Some(key.descriptor()));
+        }
+
+        let consented = Project::new()
+            .personal(name, "/opt/bin/chrome")
+            .resolve_path(key, &paths);
+        assert_eq!(
+            consented.admitted,
+            Some(PathBuf::from("/opt/chrome/chrome")),
+            "{name}"
+        );
+        assert_eq!(
+            vet_executable_path(
+                &key,
+                "/opt/bin/chrome",
+                &three_roots(),
+                &paths
+            ),
+            Ok(PathBuf::from("/opt/chrome/chrome"))
         );
     }
 }

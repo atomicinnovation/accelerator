@@ -625,7 +625,7 @@ output, the single-flight materialisation waiter, or the spawn errno.
 | Reason                        | Decided by                 | Arises when                                                         | Remediation                                    |
 |-------------------------------|----------------------------|--------------------------------------------------------------------|------------------------------------------------|
 | `unsupported-platform`        | pre-fetch platform probe   | the host libc is musl, which the bundled browser cannot run        | none — code-only is the answer                 |
-| `loader-unresolvable`         | probe or spawn errno       | the psABI dynamic loader is absent or relocated (e.g. NixOS)       | install `nix-ld`, or set `design.browser_path` |
+| `loader-unresolvable`         | probe or spawn errno       | the psABI dynamic loader is absent or relocated (e.g. NixOS)       | install `nix-ld`, or set `design.browser_path` to an absolute path outside the repository |
 | `glibc-too-old`               | bootstrap log              | the loader reports ``version `GLIBC_2.NN' not found``              | upgrade the distribution                       |
 | `runtime-libraries-missing`   | bootstrap log              | the loader reports `error while loading shared libraries: <soname>`| install the package providing that soname      |
 | `artifact-unavailable`        | materialisation            | materialisation failed with an unmapped or persistent cause        | `accelerator cache repair`                     |

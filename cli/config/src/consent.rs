@@ -15,10 +15,14 @@
 //! Plaintext credentials are not consent keys, but their refusals travel in
 //! the same channel, so a consumer orders and renders every refusal alike.
 //!
-//! The policy is pure: the environment, the tracking answer and the config
-//! levels all arrive through ports.
+//! A path-valued consent key must also name an absolute executable that can
+//! be shown to lie outside the repository.
+//!
+//! The policy is pure: the environment, the tracking answer, the config
+//! levels and the filesystem facts all arrive through ports.
 
 use std::fmt;
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -137,6 +141,13 @@ pub enum Refusal {
     MalformedToken {
         key: &'static ExtraKey,
     },
+    PathRelative {
+        key: &'static ExtraKey,
+    },
+    PathInsideRepository {
+        key: &'static ExtraKey,
+        path: PathBuf,
+    },
 }
 
 /// The class of a refusal, which a consumer maps onto its own exit codes.
@@ -146,6 +157,7 @@ pub enum RefusalReason {
     PersonalFile,
     Command,
     Malformed,
+    Value,
 }
 
 /// Why a command produced no value. Only structured causes travel here, so a
@@ -204,7 +216,9 @@ impl Refusal {
             | Self::CommandTimedOut { key, .. }
             | Self::CommandOutputExceeded { key, .. }
             | Self::PlaintextFromUntrustedFile { key, .. }
-            | Self::MalformedToken { key } => Some(key),
+            | Self::MalformedToken { key }
+            | Self::PathRelative { key }
+            | Self::PathInsideRepository { key, .. } => Some(key),
             Self::InsecurePersonalFile { .. } => None,
         }
     }
@@ -218,6 +232,9 @@ impl Refusal {
                 RefusalReason::Provenance
             }
             Self::MalformedToken { .. } => RefusalReason::Malformed,
+            Self::PathRelative { .. } | Self::PathInsideRepository { .. } => {
+                RefusalReason::Value
+            }
             Self::InsecurePersonalFile { .. } => RefusalReason::PersonalFile,
             Self::CommandFailed { .. }
             | Self::CommandTimedOut { .. }
@@ -288,6 +305,20 @@ impl fmt::Display for Refusal {
                 formatter,
                 "E_COMMAND_OUTPUT_EXCEEDED: {} printed more than {limit} bytes",
                 key.name
+            ),
+            Self::PathRelative { key } => write!(
+                formatter,
+                "E_EXECUTABLE_PATH_RELATIVE: {} is a relative path and is \
+                 refused — set it to an absolute path outside the repository",
+                key.name
+            ),
+            Self::PathInsideRepository { key, path } => write!(
+                formatter,
+                "E_EXECUTABLE_PATH_INSIDE_REPOSITORY: {} ({}) is inside, or \
+                 cannot be shown to be outside, the repository and is refused \
+                 — set it to an absolute path outside the repository",
+                key.name,
+                escaped(&path.display().to_string())
             ),
         }
     }
@@ -385,6 +416,14 @@ impl fmt::Debug for Refusal {
                 .debug_struct("MalformedToken")
                 .field("key", &key.name)
                 .finish(),
+            Self::PathRelative { key } => formatter
+                .debug_struct("PathRelative")
+                .field("key", &key.name)
+                .finish(),
+            Self::PathInsideRepository { key, .. } => formatter
+                .debug_struct("PathInsideRepository")
+                .field("key", &key.name)
+                .finish_non_exhaustive(),
         }
     }
 }
@@ -555,6 +594,109 @@ impl RepositoryRoots {
     pub const fn is_complete(&self) -> bool {
         self.complete
     }
+}
+
+/// The filesystem facts the path checks read, injected so the policy touches
+/// no filesystem.
+pub trait ExecutablePaths {
+    /// The real location of an existing path, or `None` when it cannot be
+    /// resolved.
+    fn canonicalise(&self, existing: &Path) -> Option<PathBuf>;
+
+    /// A symlink's target exactly as stored, relative or absolute, or `None`
+    /// when `path` is not a symlink.
+    fn link_target(&self, path: &Path) -> Option<PathBuf>;
+
+    /// Whether an entry exists at `path` without following a final symlink,
+    /// so a dangling symlink exists.
+    fn exists(&self, path: &Path) -> bool;
+}
+
+/// Linux's `MAXSYMLINKS`.
+pub const SYMLINK_HOP_LIMIT: usize = 40;
+
+/// Vets a path-valued consent key's value: it must be absolute and resolve,
+/// through every symlink, to a canonical path outside every repository root.
+///
+/// # Errors
+///
+/// [`Refusal::PathRelative`] for a relative value, and
+/// [`Refusal::PathInsideRepository`] for every value that cannot be shown to
+/// lie outside the repository: inside a root, incomplete roots, a symlink
+/// chain past [`SYMLINK_HOP_LIMIT`], a `..` beneath a missing directory, or a
+/// location that cannot be canonicalised.
+pub fn vet_executable_path(
+    key: &ExecutablePathKey,
+    value: &str,
+    roots: &RepositoryRoots,
+    paths: &dyn ExecutablePaths,
+) -> Result<PathBuf, Refusal> {
+    let descriptor = key.descriptor();
+    let supplied = Path::new(value);
+    if !supplied.is_absolute() {
+        return Err(Refusal::PathRelative { key: descriptor });
+    }
+    let inside = || Refusal::PathInsideRepository {
+        key: descriptor,
+        path: supplied.to_path_buf(),
+    };
+    if !roots.is_complete() {
+        return Err(inside());
+    }
+    canonical_location(paths, supplied)
+        .filter(|canonical| !roots.contains(canonical))
+        .ok_or_else(inside)
+}
+
+fn canonical_location(
+    paths: &dyn ExecutablePaths,
+    supplied: &Path,
+) -> Option<PathBuf> {
+    let mut current = supplied.to_path_buf();
+    for _ in 0..=SYMLINK_HOP_LIMIT {
+        if let Some(target) = paths.link_target(&current) {
+            current = beside_link(&current, target);
+            continue;
+        }
+        let (ancestor, remainder) = nearest_existing_ancestor(paths, &current)?;
+        if let Some(target) = paths.link_target(&ancestor) {
+            current = beside_link(&ancestor, target).join(remainder);
+            continue;
+        }
+        if remainder
+            .components()
+            .any(|component| component == Component::ParentDir)
+        {
+            return None;
+        }
+        return paths
+            .canonicalise(&ancestor)
+            .map(|real| real.join(remainder));
+    }
+    None
+}
+
+fn beside_link(link: &Path, target: PathBuf) -> PathBuf {
+    if target.is_absolute() {
+        return target;
+    }
+    match link.parent() {
+        Some(parent) => parent.join(target),
+        None => target,
+    }
+}
+
+fn nearest_existing_ancestor(
+    paths: &dyn ExecutablePaths,
+    path: &Path,
+) -> Option<(PathBuf, PathBuf)> {
+    let mut ancestor = path.to_path_buf();
+    let mut missing = Vec::new();
+    while !paths.exists(&ancestor) {
+        missing.push(ancestor.components().next_back()?.as_os_str().to_owned());
+        ancestor = ancestor.parent()?.to_path_buf();
+    }
+    Some((ancestor, missing.iter().rev().collect()))
 }
 
 /// The bounds one command runs under. Only the policy builds one for a real
@@ -888,6 +1030,22 @@ pub enum Rung<T> {
     Refused(Refusal),
 }
 
+impl<T> Rung<T> {
+    fn and_then<U>(
+        self,
+        check: impl FnOnce(T) -> Result<U, Refusal>,
+    ) -> Rung<U> {
+        match self {
+            Self::Absent => Rung::Absent,
+            Self::Refused(refusal) => Rung::Refused(refusal),
+            Self::Candidate(value) => match check(value) {
+                Ok(checked) => Rung::Candidate(checked),
+                Err(refusal) => Rung::Refused(refusal),
+            },
+        }
+    }
+}
+
 /// Resolves a plain consent key.
 ///
 /// # Errors
@@ -897,23 +1055,56 @@ pub fn resolve(
     context: &ProvenanceContext<'_>,
     key: &ConsentKey,
 ) -> Result<Consented<String>, Aborted> {
-    let descriptor = key.descriptor();
+    resolve_checked(context, key.descriptor(), |value| Ok(value.to_owned()))
+}
+
+/// Resolves a path-valued consent key to its canonical path.
+///
+/// The first candidate, in precedence order, whose value passes
+/// [`vet_executable_path`] is admitted, and a refused candidate falls through
+/// to the next.
+///
+/// # Errors
+///
+/// [`Aborted`] when a config level cannot be read.
+pub fn resolve_executable_path(
+    context: &ProvenanceContext<'_>,
+    key: &ExecutablePathKey,
+    roots: &RepositoryRoots,
+    paths: &dyn ExecutablePaths,
+) -> Result<Consented<PathBuf>, Aborted> {
+    resolve_checked(context, key.descriptor(), |value| {
+        vet_executable_path(key, value, roots, paths)
+    })
+}
+
+fn resolve_checked<T>(
+    context: &ProvenanceContext<'_>,
+    descriptor: &'static ExtraKey,
+    check: impl Fn(&str) -> Result<T, Refusal>,
+) -> Result<Consented<T>, Aborted> {
     let team_refusals = team_level_refusals(context.config, descriptor)
         .map_err(|error| Aborted {
             error,
             warnings: Vec::new(),
         })?;
+    let mut refusals = Vec::new();
 
     if let Some((variable, value)) =
         environment_candidate(context.environment, descriptor)
     {
-        let notice = Notice::new(descriptor, variable, &value);
-        return Ok(Consented::from_candidates(
-            Some(value),
-            Vec::new(),
-            team_refusals,
-        )
-        .noticed(Some(notice)));
+        match check(&value) {
+            Ok(admitted) => {
+                let notice = Notice::new(descriptor, variable, &value);
+                return Ok(Consented::from_candidates(
+                    Some(admitted),
+                    refusals,
+                    team_refusals,
+                )
+                .noticed(Some(notice)));
+            }
+            Err(refusal) => refusals.push(refusal),
+        }
     }
 
     let personal = match personal_candidate(context, descriptor) {
@@ -921,14 +1112,22 @@ pub fn resolve(
         Err(error) => {
             return Err(Aborted {
                 error,
-                warnings: team_refusals,
+                warnings: Consented::<()>::from_candidates(
+                    None,
+                    refusals,
+                    team_refusals,
+                )
+                .refusals,
             })
         }
     };
-    let (admitted, refusals) = match personal {
-        Rung::Absent => (None, Vec::new()),
-        Rung::Candidate(value) => (Some(value), Vec::new()),
-        Rung::Refused(refusal) => (None, vec![refusal]),
+    let admitted = match personal.and_then(|value| check(&value)) {
+        Rung::Absent => None,
+        Rung::Candidate(admitted) => Some(admitted),
+        Rung::Refused(refusal) => {
+            refusals.push(refusal);
+            None
+        }
     };
     Ok(Consented::from_candidates(
         admitted,

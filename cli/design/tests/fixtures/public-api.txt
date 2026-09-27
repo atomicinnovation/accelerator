@@ -562,6 +562,7 @@ pub fn design::runtime::bootstrap::classify_bootstrap_log(lines: &[&str]) -> des
 pub mod design::runtime::browser_path
 pub struct design::runtime::browser_path::HatchDecision
 pub design::runtime::browser_path::HatchDecision::browser: core::option::Option<std::path::PathBuf>
+pub design::runtime::browser_path::HatchDecision::notice: core::option::Option<alloc::string::String>
 pub design::runtime::browser_path::HatchDecision::warnings: alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for design::runtime::browser_path::HatchDecision
 pub fn design::runtime::browser_path::HatchDecision::clone(&self) -> design::runtime::browser_path::HatchDecision
@@ -571,7 +572,6 @@ pub fn design::runtime::browser_path::HatchDecision::eq(&self, other: &design::r
 impl core::fmt::Debug for design::runtime::browser_path::HatchDecision
 pub fn design::runtime::browser_path::HatchDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::runtime::browser_path::HatchDecision
-pub fn design::runtime::browser_path::vet(chosen: core::option::Option<&str>, team_level_present: bool, repo_root: &std::path::Path, canonicalise: &dyn core::ops::function::Fn(&std::path::Path) -> core::option::Option<std::path::PathBuf>) -> design::runtime::browser_path::HatchDecision
 pub mod design::runtime::downgrade
 pub enum design::runtime::downgrade::DowngradeReason
 pub design::runtime::downgrade::DowngradeReason::ArtifactUnavailable

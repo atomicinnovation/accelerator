@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T15:40:00+00:00"
+last_updated: "2026-09-27T17:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2394,15 +2394,63 @@ walk lives in the policy. The roots come from Phase 2's `repository_roots`.
 
 #### Automated Verification
 
-- [ ] `cargo nextest run -p config -p config-adapters -p design -p design-cli`
-- [ ] Public API fixtures for `design` and `config` are regenerated
+- [x] `cargo nextest run -p config -p config-adapters -p design -p design-cli`
+- [x] Public API fixtures for `design` and `config` are regenerated
 - [ ] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] With `design.browser_path` set personally to an absolute Chrome outside the repository, `inventory-design` crawls with that browser
 - [ ] With `design.browser_path: ./chromium`, the executor warns `E_EXECUTABLE_PATH_RELATIVE` and crawls with the bundled browser
+
+### Implementation Notes
+
+Phase 4 landed with these deviations and additions. Later phases build on
+them.
+
+- **Seam location.** design-cli is binary-only, so the
+  `resolve_browser_hatch(provenance, roots, paths)` cases run as unit tests
+  inside `design-cli/src/config.rs`, over a real git project.
+  `design-cli/tests/browser_path.rs` drives the binary and pins what it
+  prints: the `notice:` line, no notice for a personal value, the relative
+  warning, and a single `E_LOCAL_PERMS_INSECURE`.
+- **Production entry.** `browser_hatch(cwd)` composes the config, builds the
+  `ProvenanceContext`, and calls the seam. `executor.rs` passes only
+  `resolved.cwd`. The config root is found from it, and `Resolved` loses
+  `repository_root`.
+- **One resolution path.** `resolve` and `resolve_executable_path` share
+  `resolve_checked`, which runs a value check on each candidate. A plain
+  consent key's check always admits.
+- **Refusal reason.** Both path refusals are `RefusalReason::Value`. Jira and
+  Linear never see one, and map it to `NO_TOKEN` to keep `for_refusal`
+  exhaustive.
+- **Ignored file.** The hatch renders warnings through `reportable`, so an
+  insecure `config.local.md` is reported once, by the composition root.
+- **`exists`.** `SystemExecutablePaths::exists` uses `symlink_metadata`, so a
+  dangling link exists, as step 4 requires.
+- **A link inside the repository pointing out** is now admitted as its
+  outside target, where `vet` refused it on the containing directory. The
+  canonical target is what is launched.
+- **Test order.** The `config` and `config-adapters` tests were red first.
+  The design-cli seam and binary tests were written before the code but
+  first compiled against it. The `reportable` filter was mutation-checked.
+- **Package name.** design-cli's package is `accelerator-design`, so the
+  first criterion runs as `cargo nextest run -p config -p config-adapters
+  -p design -p accelerator-design`.
+- **CHANGELOG.** The Security entries cover the path checks and the unmasked
+  team-level warning. The daemon bound to the vetted browser waits for
+  Phase 5's entry.
+- **Verification status.** On 2026-09-27, `mise run check`,
+  `mise run test:unit:cli` (3,943 passed) and `mise run docs:check` passed.
+  `mise run` did not. Its last two runs failed only in the visualiser lanes,
+  a different test each time, while another workspace's visualiser server
+  ran on the same machine and held the default e2e health port 19087:
+  `test:e2e:visualiser` could not find its `.e2e-port`, and with
+  `E2E_HEALTH_PORT=19187` `test_cross_workspace_concurrency` timed out on
+  readiness. `test:integration:dev` passed 17 of 17 run alone. The
+  `mise run` criterion stays unticked until a run on an idle machine passes.
+  The two manual crawls have not been done.
 
 ---
 
