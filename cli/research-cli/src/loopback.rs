@@ -17,6 +17,7 @@ const ARXIV_API_URL: &str = "ACCELERATOR_ARXIV_API_URL";
 const ARXIV_OAI_URL: &str = "ACCELERATOR_ARXIV_OAI_URL";
 const CLOCK_LOG: &str = "ACCELERATOR_RESEARCH_TEST_CLOCK_LOG";
 const CLOCK_EPOCH: &str = "ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH";
+const CALL_BUDGET: &str = "ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS";
 const LOOPBACK_ORIGINS: [&str; 3] =
     ["http://127.0.0.1:", "http://localhost:", "http://[::1]:"];
 
@@ -66,6 +67,15 @@ fn overridden(
             "E_BAD_API_URL: {variable}={raw:?} is not a loopback URL"
         ))
     }
+}
+
+/// A shorter call budget, when the variable names one in milliseconds, so a
+/// suite can exhaust the deadline in real time.
+pub fn call_budget() -> Option<Duration> {
+    std::env::var(CALL_BUDGET)
+        .ok()
+        .and_then(|millis| millis.parse().ok())
+        .map(Duration::from_millis)
 }
 
 /// The logging clock, when a log is named. Its wall time starts at the

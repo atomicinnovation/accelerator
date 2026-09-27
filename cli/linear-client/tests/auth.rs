@@ -234,7 +234,7 @@ fn there_is_no_site_or_email_in_linears_auth_band() {
     assert_eq!(keys.env, "ACCELERATOR_LINEAR_TOKEN");
     assert_eq!(keys.env_command, "ACCELERATOR_LINEAR_TOKEN_CMD");
     assert_eq!(keys.value.to_string(), "linear.token");
-    assert_eq!(keys.command.to_string(), "linear.token_cmd");
+    assert_eq!(keys.command.descriptor().name, "linear.token_cmd");
 }
 
 #[test]

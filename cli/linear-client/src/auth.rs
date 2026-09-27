@@ -12,6 +12,7 @@
 
 use std::path::Path;
 
+use config::consent::CommandKey;
 use config::credentials::CredentialContext;
 use config::credentials::Secret;
 use config::credentials::TokenKeys;
@@ -49,7 +50,7 @@ pub fn token_keys() -> Result<TokenKeys, ClientError> {
         env: "ACCELERATOR_LINEAR_TOKEN",
         env_command: "ACCELERATOR_LINEAR_TOKEN_CMD",
         value: key("linear.token")?,
-        command: key("linear.token_cmd")?,
+        command: command_key("linear.token_cmd")?,
     })
 }
 
@@ -190,10 +191,18 @@ fn configured(
 }
 
 fn key(name: &str) -> Result<Key, ClientError> {
-    Key::parse(name).map_err(|error| ClientError::ConfigUnreadable {
+    Key::parse(name).map_err(|error| unreadable(name, &error))
+}
+
+fn command_key(name: &str) -> Result<CommandKey, ClientError> {
+    CommandKey::declared(name).map_err(|error| unreadable(name, &error))
+}
+
+fn unreadable(name: &str, error: &config::ConfigError) -> ClientError {
+    ClientError::ConfigUnreadable {
         key: name.to_owned(),
         detail: error.to_string(),
-    })
+    }
 }
 
 /// The frontmatter-safety check every identifier entering a request goes

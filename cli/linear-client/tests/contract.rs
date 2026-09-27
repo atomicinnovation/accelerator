@@ -15,9 +15,12 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use config::credentials::{CommandPolicy, CredentialContext};
+use config::consent::{
+    CommandExecution, CommandPolicy, RepositoryRoots, Runner,
+};
+use config::credentials::CredentialContext;
 use config_adapters::credentials::{
-    BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
+    BashCommandRunner, SystemEnvironment, SystemFileFacts,
 };
 use linear_client::catalogue::TeamEntries;
 use linear_client::resolution::FixedNames;
@@ -116,6 +119,11 @@ impl ContractSubject for LiveClient {
 
 fn live_client() -> LiveClient {
     let environment = SystemEnvironment;
+    let runner = Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(Vec::new()),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )));
     let provenance = NothingTracked;
     let config = EnvironmentOnlyConfig;
     let root = std::env::current_dir().expect("a working directory");
@@ -130,11 +138,13 @@ fn live_client() -> LiveClient {
         provenance: &provenance,
         tracking: &provenance,
         files: &SystemFileFacts,
-        commands: &BashTokenCommandRunner,
+        execution: CommandExecution {
+            runner: &runner,
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
+        },
         personal_config: root.join(".accelerator/config.local.md"),
         insecure_marker: root
             .join(config::credentials::INSECURE_MARKER_RELATIVE),
-        command: CommandPolicy::rooted_at(root.clone()),
     };
     let credentials =
         linear_client::resolve_credentials(&context, &integrations).expect(

@@ -6,6 +6,7 @@
 //! environment, filesystem, and helper-process ports. The `config` core sees
 //! only the `Node` tree and the port traits these adapters hand it.
 
+mod command_runner;
 mod compose;
 mod document;
 mod render;

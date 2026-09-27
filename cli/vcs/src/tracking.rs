@@ -1,4 +1,7 @@
-//! Whether a file is tracked, as every repository enclosing it answers.
+//! Whether a file is tracked, and which repositories enclose a directory, as
+//! every repository enclosing it answers.
+
+use std::path::PathBuf;
 
 /// A file's tracking status across every enclosing repository. `Unknown`
 /// means a repository was detected but could not answer.
@@ -23,6 +26,15 @@ impl FileTracking {
             }
         })
     }
+}
+
+/// The roots of every repository enclosing a directory. `complete` is false
+/// when a repository was detected but one of its roots could not be
+/// determined, so the set may be missing a root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RootsAnswer {
+    pub roots: Vec<PathBuf>,
+    pub complete: bool,
 }
 
 #[cfg(test)]

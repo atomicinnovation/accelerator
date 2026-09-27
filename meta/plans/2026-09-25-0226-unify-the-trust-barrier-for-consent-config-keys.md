@@ -1655,17 +1655,67 @@ arithmetic.
 
 #### Automated Verification
 
-- [ ] Roots and runner tests pass: `cargo nextest run -p vcs -p vcs-adapters -p consent-adapters -p config-adapters`
-- [ ] Ladder and research tests pass: `cargo nextest run -p config -p research-cli --features test-loopback`
-- [ ] Jira exit-code parity passes with no new constant: `cargo nextest run -p jira-cli --test exit_codes_parity`
-- [ ] Public API fixtures for `config`, `vcs` (`RootsAnswer`) and `consent-adapters` (`command_runner`, `repository_roots`) regenerated and committed
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Roots and runner tests pass: `cargo nextest run -p vcs -p vcs-adapters -p consent-adapters -p config-adapters`
+- [x] Ladder and research tests pass: `cargo nextest run -p config -p research-cli --features test-loopback`
+- [x] Jira exit-code parity passes with no new constant: `cargo nextest run -p jira-cli --test exit_codes_parity`
+- [x] Public API fixtures for `config`, `vcs` (`RootsAnswer`) and `consent-adapters` (`command_runner`, `repository_roots`) regenerated and committed
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification
 
-- [ ] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
+- [x] `CHANGELOG.md` `[Unreleased]` carries this phase's entries, and every doc listed under "Docs and CHANGELOG" describes the behaviour this phase ships
 - [ ] A personal `jira.token_cmd: op read op://…` still yields a token through 1Password's CLI (with the 1Password desktop-app integration, it needs `HOME` and `PATH` only)
 - [ ] On a Linux desktop with `gh` storing its token in the Secret Service keyring, a personal `github.token_cmd: gh auth token` yields a token
+
+### Implementation Notes
+
+Phase 2 landed with these deviations and additions. Later phases build on
+them.
+
+- **Credential context.** `CredentialContext` swapped `commands` and
+  `command` for `execution: CommandExecution` only. It keeps its other fields,
+  the legacy `Provenance` included, so the `{ provenance, execution }` reshape
+  moves to Phase 3, which deletes `Provenance`.
+- **Where the runner lives.** `BashCommandRunner` is in
+  `config-adapters/src/command_runner.rs`, with its signal handling in
+  `command_runner/interrupts.rs`, and `credentials` re-exports it.
+  `CommandExecution::run(key, command)` is the `pub(crate)` step that builds
+  the policy and maps each `CommandFailure` to its `Refusal`, which Phase 3's
+  `ConsentedCommand::run` can wrap. `CommandKey` passes by value, as clippy
+  asks of a `Copy` type.
+- **Runner details the plan left open.** stdout that is not valid UTF-8 is
+  decoded lossily rather than refused, since `FailureCause` has no variant for
+  it. A leader with no exit status reports `CouldNotStart(SpawnFailed)`.
+  Locator variables are judged by the full `PATH` rule, so a missing
+  directory is dropped too.
+- **Composition roots.** work-cli and research-cli pass the config root as the
+  runner's `cwd`, having no separate working directory to hand. jira-cli and
+  linear-cli pass the process's working directory.
+- **Roots tests.** A crafted `.jj` with a plausible store layout resolves its
+  own repository root, so it cannot mark the roots incomplete. The crafted-marker
+  case is split in two: every crafted layout keeps the git root, and a `.jj`
+  with no loadable repository marks the roots incomplete.
+- **Research timeout test.** The deadline with 5 s left comes from
+  `ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS`, a new `test-loopback`-only seam
+  beside the test clock. The package is `accelerator-research`, so the
+  criterion's `-p research-cli` reads `-p accelerator-research`.
+- **Superseded tests.** Beside the two the plan named, three more
+  config-adapters runner tests were deleted: the parent-environment scrub, the
+  project-root working directory (now inverted), and trailing-newline trimming.
+  `runner.rs` covers each.
+- **Pup rule.** `only_the_consent_policy_names_the_command_runner` lists every
+  other crate in one regex, on a line wider than 80 columns, because a RON
+  string cannot split and the regex cannot negate. Its red step failed
+  `pup:check` on a deliberate import of `CommandRunner` in research-cli.
+- **Docs link.** The configure reference renders its settings inside a code
+  fence, so the page has no heading anchors. `research.md` links to the page,
+  not to `#command-runner`.
+- **Notices.** `signal-hook` 0.4.4 adds a licence entry to
+  `licenses/accelerator-third-party-notices.txt`.
+- **Leak marker.** Under full-suite concurrency, nextest now and then marks
+  `a_helper_that_prompts_on_the_terminal_fails_rather_than_prompting` leaky.
+  Leaky tests pass under this repo's nextest profile, and the cause was not
+  found.
 
 ---
 

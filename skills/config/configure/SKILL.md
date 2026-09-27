@@ -818,9 +818,9 @@ jira:
 Authentication resolves through this chain (first non-empty wins):
 
 1. `ACCELERATOR_JIRA_TOKEN` env var.
-2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
+2. `ACCELERATOR_JIRA_TOKEN_CMD` env var (run by the [command runner](#command-runner)).
 3. `config.local.md` `jira.token`.
-4. `config.local.md` `jira.token_cmd`.
+4. `config.local.md` `jira.token_cmd` (run by the [command runner](#command-runner)).
 5. `config.md` `jira.token` *(only when `config.local.md` does not
    exist; emits a runtime warning)*.
 
@@ -836,9 +836,19 @@ ran. Restricting the executable indirection to local-only files keeps the blast
 radius bounded to the user's own machine.
 
 `token_cmd` is the supported integration point for password managers and
-keychains: 1Password CLI (`op read ...`), `pass`, macOS Keychain (`security
-find-generic-password ...`), Freedesktop Secret Service (`secret-tool ...`),
-and AWS Secrets Manager all work without plugin-side knowledge.
+keychains. 1Password CLI (`op read ...`) with its desktop-app integration,
+`pass`, macOS Keychain (`security find-generic-password ...`) and Freedesktop
+Secret Service (`secret-tool ...`) work as they are. A helper that needs a
+variable the [command runner](#command-runner) does not pass on, such as
+`AWS_PROFILE` for AWS Secrets Manager, has three workarounds:
+
+- set a static value inline: `env AWS_PROFILE=work aws secretsmanager ...`;
+- wrap the helper in a script, at an absolute path outside the repository,
+  that sets what it needs;
+- for a value that exists only in your session (`SSH_AUTH_SOCK`,
+  `OP_SESSION_*`, `OP_SERVICE_ACCOUNT_TOKEN`, temporary STS credentials),
+  resolve the credential yourself and export it as `ACCELERATOR_JIRA_TOKEN`,
+  `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN`.
 
 The Jira scope key is **`jira.project_key`** — the integration-owned project
 key that resolves the creation-home project and discovery scope. It is
@@ -941,9 +951,9 @@ Both token keys are personal and **must live exclusively in
 Authentication resolves through this chain (first non-empty wins):
 
 1. `ACCELERATOR_LINEAR_TOKEN` env var.
-2. `ACCELERATOR_LINEAR_TOKEN_CMD` env var (run via `bash -c`, stdout trimmed).
+2. `ACCELERATOR_LINEAR_TOKEN_CMD` env var (run by the [command runner](#command-runner)).
 3. `config.local.md` `linear.token`.
-4. `config.local.md` `linear.token_cmd`.
+4. `config.local.md` `linear.token_cmd` (run by the [command runner](#command-runner)).
 5. `config.md` `linear.token` *(only when `config.local.md` does not exist)*.
 
 `linear.token_cmd` is **never** consumed from the team-shared `config.md` file:
@@ -995,10 +1005,9 @@ Both key settings are personal and **must live exclusively in
 The key resolves through this chain (first non-empty wins):
 
 1. `ACCELERATOR_OPENALEX_API_KEY` env var.
-2. `ACCELERATOR_OPENALEX_API_KEY_CMD` env var (run via `bash -c`, stdout
-   trimmed).
+2. `ACCELERATOR_OPENALEX_API_KEY_CMD` env var (run by the [command runner](#command-runner)).
 3. `config.local.md` `openalex.api_key`.
-4. `config.local.md` `openalex.api_key_cmd`.
+4. `config.local.md` `openalex.api_key_cmd` (run by the [command runner](#command-runner)).
 5. `config.md` `openalex.api_key` *(only when `config.local.md` does not
    exist)*.
 
@@ -1016,7 +1025,7 @@ move it to config.local.md`. Two further gates guard `config.local.md`:
   `openalex.api_key_cmd` (`E_TOKEN_CMD_FROM_TRACKED_FILE`); untrack it. A
   tracked file supplying neither leaves the fetch keyless.
 
-The key command runs under the fetch's 100 s deadline. The key is sent as an
+The key command runs under whatever remains of the fetch's 100 s deadline. The key is sent as an
 `Authorization: Bearer` header, never in a URL, and `accelerator config dump`
 hides both settings.
 
@@ -1033,6 +1042,49 @@ openalex:
 
 Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
 `openalex.*` keys are not consumed by any plugin script.
+
+### command runner
+
+Every command-valued key (`jira.token_cmd`, `linear.token_cmd`,
+`openalex.api_key_cmd` and their `ACCELERATOR_*_CMD` overrides) runs through
+one runner:
+
+- **Working directory**: a fresh temporary directory outside the repository,
+  removed afterwards. A command never runs in the repository or in `$HOME`.
+- **Environment**: only `PATH`, `HOME`, `TERM`, `XDG_CONFIG_HOME`,
+  `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`, plus what a key admits:
+  `github.token_cmd` admits `GH_HOST` and `GH_CONFIG_DIR`. Every other
+  variable, secrets included, is dropped.
+- **`PATH`**: an entry that is empty, relative, missing or inside the
+  repository is dropped, and so is an `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR` or
+  `GH_CONFIG_DIR` that points inside the repository. `bash` itself is found on
+  the filtered `PATH`, so call a helper by an absolute path outside the
+  repository.
+- **stdin** is empty.
+- **Timeout**: 30 s for Jira and Linear, and whatever remains of the 100 s
+  fetch deadline for OpenAlex. A command that outlasts it is refused with
+  `E_COMMAND_TIMED_OUT`.
+- **Output cap**: 65,536 bytes across stdout and stderr combined. More is
+  refused with `E_COMMAND_OUTPUT_EXCEEDED`, never truncated. stderr counts
+  towards the cap but is never shown.
+- **Result**: stdout, with surrounding whitespace trimmed. A command that
+  cannot start or exits non-zero is refused with `E_TOKEN_CMD_FAILED`.
+- **Interactive helpers** are unsupported. The command has no controlling
+  terminal in the foreground, so a helper that prompts on `/dev/tty` fails or
+  times out. Use a password manager's agent or desktop integration instead.
+- **Process group**: the command runs in its own process group. Once it exits,
+  anything it left in the group, such as a caching agent, receives `SIGTERM`,
+  then `SIGKILL` after a grace period of up to a second, so an agent can
+  finish its writes. A process that calls `setsid` leaves the group and is not
+  stopped.
+- **Interrupts**: Ctrl-C, `SIGTERM` or `SIGHUP` to the CLI during a run sends
+  the command's group `SIGTERM`, then `SIGKILL` after the grace period, and
+  the CLI then ends as the signal would have ended it. The group never
+  receives `SIGINT` itself, so a helper that cleans up in a trap should trap
+  `TERM`.
+
+`github.token_cmd` does not run under this runner yet: it still runs as a
+bare `bash -c`.
 
 ### templates
 

@@ -117,6 +117,10 @@ rand = "0.9"
 # visualiser server, which delegated its own copy of that read to it.
 libc = "0.2"
 rustix = { version = "1", features = ["process", "fs"] }
+# The command runner forwards interrupts to a helper's process group. Kept at
+# 0.4 with default features off to match the optional copy gix declares, so
+# multiple-versions = "deny" holds.
+signal-hook = { version = "0.4", default-features = false }
 # Exact-pinned: pre-1.0, and its entry classification, PAX/GNU long-name
 # handling and symlink semantics are exactly what the tree extractor's
 # admission rules sit on top of, so a patch bump could shift the trust boundary

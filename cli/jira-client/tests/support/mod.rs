@@ -13,12 +13,15 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-use config::consent::{ConfigFileTracking, Tracking};
-use config::credentials::{
-    CommandPolicy, CredentialContext, Environment, Provenance,
+use config::consent::{
+    CommandExecution, CommandPolicy, ConfigFileTracking, RepositoryRoots,
+    Runner, Tracking,
 };
+use config::credentials::{CredentialContext, Environment, Provenance};
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
-use config_adapters::credentials::{BashTokenCommandRunner, SystemFileFacts};
+use config_adapters::credentials::{
+    BashCommandRunner, SystemEnvironment, SystemFileFacts,
+};
 use tracker_support::{Jitter, Sleeper};
 
 /// A personal value implies a readable personal file; a config with none has
@@ -188,11 +191,24 @@ pub fn context<'a>(
         provenance,
         tracking: provenance,
         files: &SystemFileFacts,
-        commands: &BashTokenCommandRunner,
+        execution: CommandExecution {
+            runner: runner_rooted_at(root),
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
+        },
         personal_config: root.join("config.local.md"),
         insecure_marker: root.join("allow-insecure-local"),
-        command: CommandPolicy::rooted_at(root.to_path_buf()),
     }
+}
+
+/// A real runner judging `root` as the repository. Leaked, because a context
+/// borrows its runner for as long as the test holds it.
+#[must_use]
+pub fn runner_rooted_at(root: &Path) -> &'static Runner {
+    Box::leak(Box::new(Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(vec![root.to_path_buf()]),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )))))
 }
 
 /// Records what it was asked to sleep for, and never waits: the retry

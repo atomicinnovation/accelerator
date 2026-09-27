@@ -7,6 +7,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use config::consent::CommandKey;
 use config::credentials::resolve_token;
 use config::credentials::CredentialError;
 use config::credentials::TokenKeys;
@@ -197,13 +198,18 @@ fn openalex_keys() -> TokenKeys {
         env: ENV_KEY,
         env_command: ENV_KEY_COMMAND,
         value: catalogued("openalex.api_key"),
-        command: catalogued("openalex.api_key_cmd"),
+        command: catalogued_command("openalex.api_key_cmd"),
     }
 }
 
 #[allow(clippy::expect_used)]
 fn catalogued(key: &str) -> Key {
     Key::parse(key).expect("a catalogued key parses")
+}
+
+#[allow(clippy::expect_used)]
+fn catalogued_command(key: &str) -> CommandKey {
+    CommandKey::declared(key).expect("a catalogued command key is declared")
 }
 
 fn key_source(source: TokenSource) -> KeySource {
@@ -253,16 +259,19 @@ mod tests {
     use std::time::Instant;
     use std::time::SystemTime;
 
+    use config::consent::CommandFailure;
+    use config::consent::CommandPolicy;
+    use config::consent::CommandRunner;
     use config::consent::ConfigFileTracking;
+    use config::consent::Refusal;
+    use config::consent::Rejection;
+    use config::consent::Runner;
     use config::consent::Tracking;
-    use config::credentials::CommandPolicy;
     use config::credentials::CredentialError;
     use config::credentials::Environment;
     use config::credentials::FileFacts;
     use config::credentials::FileState;
     use config::credentials::Provenance;
-    use config::credentials::TokenCommandFailure;
-    use config::credentials::TokenCommandRunner;
     use config::ConfigError;
     use config::Key;
     use config::Level;
@@ -382,16 +391,16 @@ mod tests {
         timeouts: Rc<RefCell<Vec<Duration>>>,
     }
 
-    impl TokenCommandRunner for SlowKeyCommand {
+    impl CommandRunner for SlowKeyCommand {
         fn run(
             &self,
             _command: &str,
             policy: &CommandPolicy,
-        ) -> Result<String, TokenCommandFailure> {
-            self.timeouts.borrow_mut().push(policy.timeout);
-            if self.takes > policy.timeout {
-                self.clock.advance(policy.timeout);
-                return Err(TokenCommandFailure::TimedOut);
+        ) -> Result<String, CommandFailure> {
+            self.timeouts.borrow_mut().push(policy.timeout());
+            if self.takes > policy.timeout() {
+                self.clock.advance(policy.timeout());
+                return Err(CommandFailure::TimedOut);
             }
             self.clock.advance(self.takes);
             Ok("command-key".to_owned())
@@ -558,11 +567,11 @@ mod tests {
                         self.environment.clone(),
                     )),
                     files: Box::new(UntrackedPersonalFile),
-                    commands: Box::new(SlowKeyCommand {
+                    runner: Runner::new(Box::new(SlowKeyCommand {
                         clock: self.clock.clone(),
                         takes: self.key_command_takes,
                         timeouts: self.timeouts.clone(),
-                    }),
+                    })),
                     provenance: Box::new(UntrackedPersonalFile),
                     tracking: Box::new(UntrackedPersonalFile),
                 },
@@ -653,7 +662,13 @@ mod tests {
 
         let refusal = call.run().expect_err("a refusal");
 
-        assert!(matches!(refusal, CredentialError::TokenCmdTimedOut { .. }));
+        assert!(matches!(
+            refusal,
+            CredentialError::Consent(Rejection {
+                fatal: Refusal::CommandTimedOut { .. },
+                ..
+            })
+        ));
         assert_eq!(*call.timeouts.borrow(), [secs(88)]);
         assert!(call.bearers.borrow().is_empty());
     }

@@ -13,7 +13,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use config::credentials::CommandPolicy;
+use config::consent::CommandPolicy;
 use config::credentials::CredentialContext;
 use config::credentials::Provenance;
 use config::ConfigAccess;
@@ -175,6 +175,7 @@ pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let ports = CredentialPorts::system(
         Box::new(VcsProvenance::discovered(root.clone())),
         Box::new(VcsConfigFileTracking),
+        consent_adapters::command_runner(&root, &start),
     );
     let context = project_credential_context(
         &root,

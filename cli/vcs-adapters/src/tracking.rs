@@ -30,11 +30,11 @@ pub fn file_tracking(path: &Path) -> FileTracking {
 
 /// Whether a marker entry exists. An error means a marker may be there but
 /// cannot be seen.
-trait MarkerProbe {
+pub trait MarkerProbe {
     fn present(&self, marker: &Path) -> io::Result<bool>;
 }
 
-struct FilesystemMarkers;
+pub struct FilesystemMarkers;
 
 impl MarkerProbe for FilesystemMarkers {
     fn present(&self, marker: &Path) -> io::Result<bool> {
@@ -83,7 +83,7 @@ impl TrackingQueries for InProcessProbe {
 
 /// A repository found above the file, or a marker that could not be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Enclosing {
+pub enum Enclosing {
     Repository { root: PathBuf, kind: VcsKind },
     Unusable,
 }
@@ -96,7 +96,10 @@ fn file_tracking_with(
     let Ok(file) = dunce::canonicalize(path) else {
         return FileTracking::Unknown;
     };
-    let enclosing = enclosing_repositories(&file, markers);
+    let Some(directory) = file.parent() else {
+        return FileTracking::Unknown;
+    };
+    let enclosing = enclosing_repositories(directory, markers);
     let answers = enclosing
         .iter()
         .map(|repository| answer(repository, &file, queries));
@@ -104,23 +107,25 @@ fn file_tracking_with(
     FileTracking::combine(answers.chain(tripped))
 }
 
-fn enclosing_repositories(
-    file: &Path,
+/// The nearest `.jj` and the nearest `.git` at or above `directory`, each
+/// found independently so neither marker can hide the other.
+pub fn enclosing_repositories(
+    directory: &Path,
     markers: &dyn MarkerProbe,
 ) -> Vec<Enclosing> {
     [(".jj", VcsKind::Jj), (".git", VcsKind::Git)]
         .into_iter()
-        .filter_map(|(marker, kind)| nearest(file, marker, kind, markers))
+        .filter_map(|(marker, kind)| nearest(directory, marker, kind, markers))
         .collect()
 }
 
 fn nearest(
-    file: &Path,
+    directory: &Path,
     marker: &str,
     kind: VcsKind,
     markers: &dyn MarkerProbe,
 ) -> Option<Enclosing> {
-    for dir in file.ancestors().skip(1) {
+    for dir in directory.ancestors() {
         match markers.present(&dir.join(marker)) {
             Ok(false) => {}
             Ok(true) if dir.to_str().is_some() => {

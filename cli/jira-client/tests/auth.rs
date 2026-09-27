@@ -525,7 +525,7 @@ fn the_keys_the_ladder_reads_are_jiras_own() {
     assert_eq!(keys.env, "ACCELERATOR_JIRA_TOKEN");
     assert_eq!(keys.env_command, "ACCELERATOR_JIRA_TOKEN_CMD");
     assert_eq!(keys.value.to_string(), "jira.token");
-    assert_eq!(keys.command.to_string(), "jira.token_cmd");
+    assert_eq!(keys.command.descriptor().name, "jira.token_cmd");
 }
 
 #[test]

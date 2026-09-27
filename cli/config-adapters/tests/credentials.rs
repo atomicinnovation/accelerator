@@ -7,18 +7,18 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
-use std::time::Instant;
 
-use config::consent::{ConfigFileTracking, Tracking};
+use config::consent::{
+    CommandKey, ConfigFileTracking, RepositoryRoots, Runner, Tracking,
+};
 use config::credentials::{
-    resolve_token, CommandPolicy, CredentialError, Environment, FileFacts,
-    FileState, Provenance, ResolvedToken, TokenCommandFailure,
-    TokenCommandRunner, TokenKeys,
+    resolve_token, CredentialError, Environment, FileFacts, FileState,
+    Provenance, ResolvedToken, TokenKeys,
 };
 use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
 use config_adapters::credentials::{
-    project_credential_context, BashTokenCommandRunner, CredentialPorts,
-    SystemFileFacts,
+    project_credential_context, BashCommandRunner, CredentialPorts,
+    SystemEnvironment, SystemFileFacts,
 };
 use tempfile::TempDir;
 
@@ -85,7 +85,8 @@ fn keys() -> TokenKeys {
         env: "ACCELERATOR_JIRA_TOKEN",
         env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
         value: Key::parse("jira.token").expect("jira.token parses"),
-        command: Key::parse("jira.token_cmd").expect("jira.token_cmd parses"),
+        command: CommandKey::declared("jira.token_cmd")
+            .expect("jira.token_cmd is a command key"),
     }
 }
 
@@ -95,6 +96,10 @@ struct Project {
 }
 
 impl Project {
+    fn runner(&self) -> Runner {
+        runner_rooted_at(self.root.path())
+    }
+
     fn new() -> Self {
         let root = TempDir::new().expect("a scratch project");
         std::fs::create_dir(root.path().join(".accelerator"))
@@ -139,7 +144,7 @@ impl Project {
                     .collect(),
             )),
             files: Box::new(SystemFileFacts),
-            commands: Box::new(BashTokenCommandRunner),
+            runner: self.runner(),
             provenance: Box::new(FixedProvenance(tracked.to_vec())),
             tracking: Box::new(Untracked),
         };
@@ -182,7 +187,7 @@ impl Project {
                     .collect(),
             )),
             files: Box::new(SystemFileFacts),
-            commands: Box::new(BashTokenCommandRunner),
+            runner: self.runner(),
             provenance: Box::new(FixedProvenance(vec![self.marker()])),
             tracking: Box::new(Untracked),
         };
@@ -198,12 +203,14 @@ impl Project {
     }
 }
 
-fn policy(project: &Project) -> CommandPolicy {
-    CommandPolicy {
-        timeout: Duration::from_secs(5),
-        max_output_bytes: 1024,
-        working_directory: project.root.path().to_path_buf(),
-    }
+fn runner_rooted_at(root: &Path) -> Runner {
+    Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(vec![root
+            .canonicalize()
+            .expect("the project root resolves")]),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )))
 }
 
 #[cfg(unix)]
@@ -222,6 +229,7 @@ fn the_context_reads_the_projects_personal_config_and_marker() {
     let ports = CredentialPorts::system(
         Box::new(FixedProvenance(Vec::new())),
         Box::new(Untracked),
+        runner_rooted_at(project.root.path()),
     );
     let config = FixedConfig {
         personal: BTreeMap::new(),
@@ -236,12 +244,7 @@ fn the_context_reads_the_projects_personal_config_and_marker() {
 
     assert_eq!(context.personal_config, project.personal_config());
     assert_eq!(context.insecure_marker, project.marker());
-    assert_eq!(context.command.timeout, Duration::from_secs(12));
-    assert_eq!(context.command.working_directory, project.root.path());
-    assert_eq!(
-        context.command.max_output_bytes,
-        CommandPolicy::rooted_at(PathBuf::new()).max_output_bytes
-    );
+    assert_eq!(context.execution.timeout, Duration::from_secs(12));
 }
 
 #[test]
@@ -359,17 +362,6 @@ fn a_symlinked_personal_config_is_ignored() {
 }
 
 #[test]
-fn the_helpers_trailing_newline_is_trimmed() {
-    let project = Project::new();
-
-    let printed = BashTokenCommandRunner
-        .run("printf 'token\\n'", &policy(&project))
-        .expect("the helper runs");
-
-    assert_eq!(printed, "token");
-}
-
-#[test]
 fn a_failing_helper_leaks_nothing_it_printed() {
     let project = Project::new();
     let command = format!("printf '{SENTINEL}'; exit 3");
@@ -383,87 +375,10 @@ fn a_failing_helper_leaks_nothing_it_printed() {
         )
         .expect_err("a non-zero helper is a failure");
 
-    assert!(matches!(error, CredentialError::TokenCmdFailed { .. }));
+    assert_eq!(
+        error.to_string(),
+        "E_TOKEN_CMD_FAILED: jira.token_cmd exited with status 3"
+    );
     assert!(!error.to_string().contains(SENTINEL), "{error}");
     assert!(!format!("{error:?}").contains(SENTINEL));
-}
-
-#[test]
-fn a_hanging_helper_is_abandoned_at_the_timeout() {
-    let project = Project::new();
-    let mut policy = policy(&project);
-    policy.timeout = Duration::from_millis(300);
-
-    let started = Instant::now();
-    let failure = BashTokenCommandRunner
-        .run("sleep 120", &policy)
-        .expect_err("a hanging helper does not stall the caller");
-
-    assert_eq!(failure, TokenCommandFailure::TimedOut);
-    assert!(
-        started.elapsed() < Duration::from_secs(30),
-        "the call returned in {:?}",
-        started.elapsed()
-    );
-}
-
-#[test]
-fn an_unbounded_helper_is_truncated_rather_than_buffered_without_limit() {
-    let project = Project::new();
-    let mut policy = policy(&project);
-    policy.max_output_bytes = 64;
-
-    let outcome = BashTokenCommandRunner
-        .run("yes abcdefghijklmnopqrstuvwxyz | head -c 10000000", &policy);
-
-    match outcome {
-        Ok(printed) => assert!(
-            printed.len() <= 64,
-            "the captured output must respect the cap"
-        ),
-        Err(failure) => assert!(
-            matches!(failure, TokenCommandFailure::Failed(_)),
-            "{failure:?}"
-        ),
-    }
-}
-
-#[test]
-fn the_helper_cannot_read_the_parent_process_environment() {
-    let project = Project::new();
-    let leaked = project.path("leaked");
-    // SAFETY: single-threaded test setup; the assertion is that the child
-    // cannot see this, which is the point of the scrub.
-    std::env::set_var("ACCELERATOR_TEST_SENTINEL", SENTINEL);
-
-    let printed = BashTokenCommandRunner.run(
-        &format!(
-            "printf '%s' \"${{ACCELERATOR_TEST_SENTINEL:-absent}}\" > {} \
-             && printf 'token'",
-            leaked.display()
-        ),
-        &policy(&project),
-    );
-    std::env::remove_var("ACCELERATOR_TEST_SENTINEL");
-
-    assert_eq!(printed, Ok("token".to_owned()));
-    assert_eq!(
-        std::fs::read_to_string(&leaked).expect("the helper wrote its view"),
-        "absent",
-        "the parent's environment must not reach the helper"
-    );
-}
-
-#[test]
-fn the_helper_runs_in_the_configured_working_directory() {
-    let project = Project::new();
-
-    BashTokenCommandRunner
-        .run("printf 'token' > seen; printf 'token'", &policy(&project))
-        .expect("the helper runs");
-
-    assert!(
-        project.path("seen").exists(),
-        "the helper ran somewhere other than its defined working directory"
-    );
 }

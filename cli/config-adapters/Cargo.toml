@@ -21,6 +21,10 @@ config = { path = "../config" }
 kernel = { path = "../kernel" }
 document = { path = "../document" }
 store = { path = "../store" }
+tempfile = { workspace = true }
+rustix = { workspace = true, features = ["event"] }
+libc = { workspace = true }
+signal-hook = { workspace = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
+config = { path = "../config", features = ["test-support"] }

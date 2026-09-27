@@ -617,6 +617,33 @@ fn a_shared_key_command_is_refused_before_any_request() {
 }
 
 #[test]
+fn a_hanging_key_command_times_out_within_the_budget_left() {
+    let server = server_with(works(), search_page());
+    let project = Project::new().personal_config(
+        &config_with("  api_key_cmd: sleep 60 & wait\n"),
+        0o600,
+    );
+    let started = std::time::Instant::now();
+
+    let run = fetch(
+        &project,
+        &server,
+        &["openalex", "search", "x"],
+        &[("ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS", "5000")],
+    );
+
+    assert_eq!(run.code, Some(1), "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("E_COMMAND_TIMED_OUT: openalex.api_key_cmd"),
+        "{}",
+        run.stderr
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
+    assert_eq!(server.hits(&works()), 0);
+}
+
+#[test]
 fn an_environment_key_outranks_a_shared_key_command() {
     let project =
         Project::new().shared_config(&config_with("  api_key_cmd: printf k\n"));

@@ -103,7 +103,7 @@ never the key.
 | `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed |
 | `E_RESEARCH_UNDECODABLE`          | 1    | A response the CLI could not parse                           |
 | `E_RESEARCH_TRANSPORT`            | 1    | The HTTP client could not start                              |
-| `E_TOKEN_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
+| `E_TOKEN_*`, `E_COMMAND_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
 
 ### Retries and deadlines
 
@@ -176,7 +176,10 @@ output or errors. The key resolves through the same ladder as the tracker
 tokens, first non-empty wins:
 
 1. `ACCELERATOR_OPENALEX_API_KEY`
-2. `ACCELERATOR_OPENALEX_API_KEY_CMD`, run with its stdout trimmed
+2. `ACCELERATOR_OPENALEX_API_KEY_CMD`, run in a fresh temporary directory
+   outside the repository, with a scrubbed environment and a filtered `PATH`,
+   its output capped at 65,536 bytes and its stdout trimmed — see the
+   command runner in [`/accelerator:configure`](reference/skills/config/configure.md)
 3. `openalex.api_key` in `.accelerator/config.local.md`
 4. `openalex.api_key_cmd` in `.accelerator/config.local.md`
 5. `openalex.api_key` in `.accelerator/config.md`, only when
@@ -191,7 +194,9 @@ each exiting `1` before any request:
 | `E_TOKEN_FROM_TRACKED_FILE`      | `openalex.api_key` in a `config.local.md` tracked by version control |
 | `E_TOKEN_CMD_FROM_TRACKED_FILE`  | `openalex.api_key_cmd` in a tracked `config.local.md`          |
 | `E_LOCAL_PERMS_INSECURE`         | A `config.local.md` looser than `0600` or a symlink — ignored with a warning; fatal only when nothing usable remains |
-| `E_TOKEN_CMD_FAILED`             | A key command that failed or outlasted the deadline            |
+| `E_TOKEN_CMD_FAILED`             | A key command that could not start or exited non-zero          |
+| `E_COMMAND_TIMED_OUT`            | A key command that outlasted the deadline                      |
+| `E_COMMAND_OUTPUT_EXCEEDED`      | A key command that printed more than 65,536 bytes across stdout and stderr |
 | `E_TOKEN_MALFORMED`              | A key carrying a control character                             |
 
 A tracked `config.local.md` that supplies neither key leaves the call

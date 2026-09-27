@@ -24,9 +24,9 @@
 //!   and `.gitignore` does not apply to an already-tracked file, so
 //!   a hostile repository could otherwise supply a command a fresh clone
 //!   executes, and a committed value is a leaked credential
-//! - the helper runs under a wall-clock timeout, an output cap, a scrubbed
-//!   environment and a defined working directory, so the one deliberately
-//!   executed foreign code path is no more privileged than it needs to be
+//! - the helper runs only through the consent policy's runner, under the
+//!   command key's own policy, so the one deliberately executed foreign code
+//!   path is no more privileged than it needs to be
 //! - its output is never folded into an error, and [`Secret`] and
 //!   [`CredentialError`] both redact under `Debug`
 //!
@@ -38,11 +38,13 @@ use std::error::Error;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
-use std::time::Duration;
 
+use crate::consent::CommandExecution;
+use crate::consent::CommandKey;
 use crate::consent::ConfigFileTracking;
 pub use crate::consent::Environment;
 use crate::consent::ProvenanceContext;
+use crate::consent::Rejection;
 use crate::render::render_value;
 use crate::service::ConfigAccess;
 use crate::service::PersonalFile;
@@ -95,34 +97,13 @@ pub struct TokenKeys {
     pub env: &'static str,
     pub env_command: &'static str,
     pub value: Key,
-    pub command: Key,
+    pub command: CommandKey,
 }
 
 /// Whether a file is tracked by the repository's VCS — the property that
 /// decides whether a command-valued or allowlist-valued key may be honoured.
 pub trait Provenance {
     fn is_tracked(&self, path: &Path) -> bool;
-}
-
-/// The bounds the credential helper runs under.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CommandPolicy {
-    pub timeout: Duration,
-    pub max_output_bytes: usize,
-    pub working_directory: PathBuf,
-}
-
-impl CommandPolicy {
-    pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
-
-    #[must_use]
-    pub const fn rooted_at(working_directory: PathBuf) -> Self {
-        Self {
-            timeout: Self::DEFAULT_TIMEOUT,
-            max_output_bytes: 64 * 1024,
-            working_directory,
-        }
-    }
 }
 
 /// What a path is, as the permissions gate needs to know it.
@@ -145,30 +126,6 @@ pub trait FileFacts {
     fn inspect(&self, path: &Path) -> Result<FileState, String>;
 }
 
-/// Why a credential helper produced no token.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenCommandFailure {
-    CouldNotRun(String),
-    Failed(String),
-    TimedOut,
-}
-
-/// Runs a credential helper, injected so the ladder spawns no process.
-///
-/// The helper's stdout never reaches a failure: only the trailing newline is
-/// trimmed from what it printed.
-pub trait TokenCommandRunner {
-    /// # Errors
-    ///
-    /// [`TokenCommandFailure`] when the helper cannot run, fails, or outlives
-    /// the policy's timeout.
-    fn run(
-        &self,
-        command: &str,
-        policy: &CommandPolicy,
-    ) -> Result<String, TokenCommandFailure>;
-}
-
 /// Repo-relative path of the insecure-local override marker.
 pub const INSECURE_MARKER_RELATIVE: &str = ".accelerator/allow-insecure-local";
 
@@ -179,10 +136,9 @@ pub struct CredentialContext<'a> {
     pub provenance: &'a dyn Provenance,
     pub tracking: &'a dyn ConfigFileTracking,
     pub files: &'a dyn FileFacts,
-    pub commands: &'a dyn TokenCommandRunner,
+    pub execution: CommandExecution<'a>,
     pub personal_config: PathBuf,
     pub insecure_marker: PathBuf,
-    pub command: CommandPolicy,
 }
 
 impl CredentialContext<'_> {
@@ -205,8 +161,7 @@ impl CredentialContext<'_> {
 #[derive(Clone, PartialEq, Eq)]
 pub enum CredentialError {
     NoToken { key: String },
-    TokenCmdFailed { key: String, detail: String },
-    TokenCmdTimedOut { key: String, after: Duration },
+    Consent(Rejection),
     TokenCmdFromSharedConfig { key: String },
     TokenCmdFromTrackedFile { key: String, path: PathBuf },
     TokenFromTrackedFile { key: String, path: PathBuf },
@@ -223,14 +178,7 @@ impl fmt::Display for CredentialError {
                 "E_NO_TOKEN: no token found; configure {key} or {key}_cmd \
                  in .accelerator/config.local.md"
             ),
-            Self::TokenCmdFailed { key, detail } => {
-                write!(formatter, "E_TOKEN_CMD_FAILED: {key} {detail}")
-            }
-            Self::TokenCmdTimedOut { key, after } => write!(
-                formatter,
-                "E_TOKEN_CMD_FAILED: {key} did not finish within {}s",
-                after.as_secs()
-            ),
+            Self::Consent(rejection) => rejection.fatal.fmt(formatter),
             Self::TokenCmdFromSharedConfig { key } => write!(
                 formatter,
                 "E_TOKEN_CMD_FROM_SHARED_CONFIG: {key} in config.md \
@@ -272,11 +220,11 @@ impl fmt::Debug for CredentialError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (variant, key) = match self {
             Self::NoToken { key } => ("NoToken", key.as_str()),
-            Self::TokenCmdFailed { key, .. } => {
-                ("TokenCmdFailed", key.as_str())
-            }
-            Self::TokenCmdTimedOut { key, .. } => {
-                ("TokenCmdTimedOut", key.as_str())
+            Self::Consent(rejection) => {
+                return formatter
+                    .debug_tuple("Consent")
+                    .field(rejection)
+                    .finish();
             }
             Self::TokenCmdFromSharedConfig { key } => {
                 ("TokenCmdFromSharedConfig", key.as_str())
@@ -314,8 +262,7 @@ pub fn resolve_token(
 
     if let Some(command) = nonempty(context.environment.read(keys.env_command))
     {
-        let value =
-            run_token_command(context, &command, &key_name(&keys.command))?;
+        let value = run_token_command(context, keys, &command)?;
         return accept(value, TokenSource::EnvCommand, &key_name(&keys.value));
     }
 
@@ -343,15 +290,14 @@ fn resolve_personal(
     }
 
     if let Some(command) =
-        level_value(context.config, &keys.command, Level::Personal)?
+        level_value(context.config, &command_key(keys)?, Level::Personal)?
     {
         refuse_tracked_source(
             context.provenance,
             &context.personal_config,
-            &key_name(&keys.command),
+            keys.command.descriptor().name,
         )?;
-        let value =
-            run_token_command(context, &command, &key_name(&keys.command))?;
+        let value = run_token_command(context, keys, &command)?;
         return accept(
             value,
             TokenSource::PersonalCommand,
@@ -368,9 +314,10 @@ fn resolve_shared(
     context: &CredentialContext<'_>,
     keys: &TokenKeys,
 ) -> Result<ResolvedToken, CredentialError> {
-    if level_value(context.config, &keys.command, Level::Team)?.is_some() {
+    if level_value(context.config, &command_key(keys)?, Level::Team)?.is_some()
+    {
         return Err(CredentialError::TokenCmdFromSharedConfig {
-            key: key_name(&keys.command),
+            key: keys.command.descriptor().name.to_owned(),
         });
     }
     if let Some(value) = level_value(context.config, &keys.value, Level::Team)?
@@ -462,32 +409,21 @@ fn level_value(
     })
 }
 
+fn command_key(keys: &TokenKeys) -> Result<Key, CredentialError> {
+    let name = keys.command.descriptor().name;
+    Key::parse(name).map_err(|error| CredentialError::ConfigUnreadable {
+        key: name.to_owned(),
+        detail: error.to_string(),
+    })
+}
+
 fn run_token_command(
     context: &CredentialContext<'_>,
+    keys: &TokenKeys,
     command: &str,
-    key: &str,
 ) -> Result<String, CredentialError> {
     context
-        .commands
-        .run(command, &context.command)
-        .map_err(|failure| match failure {
-            TokenCommandFailure::CouldNotRun(detail) => {
-                CredentialError::TokenCmdFailed {
-                    key: key.to_owned(),
-                    detail: format!("could not be run: {detail}"),
-                }
-            }
-            TokenCommandFailure::Failed(detail) => {
-                CredentialError::TokenCmdFailed {
-                    key: key.to_owned(),
-                    detail,
-                }
-            }
-            TokenCommandFailure::TimedOut => {
-                CredentialError::TokenCmdTimedOut {
-                    key: key.to_owned(),
-                    after: context.command.timeout,
-                }
-            }
-        })
+        .execution
+        .run(keys.command, command)
+        .map_err(|refusal| CredentialError::Consent(Rejection::alone(refusal)))
 }

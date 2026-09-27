@@ -25,9 +25,12 @@
 
 #![allow(clippy::expect_used, clippy::panic)]
 
-use config::credentials::{CommandPolicy, CredentialContext};
+use config::consent::{
+    CommandExecution, CommandPolicy, RepositoryRoots, Runner,
+};
+use config::credentials::CredentialContext;
 use config_adapters::credentials::{
-    BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
+    BashCommandRunner, SystemEnvironment, SystemFileFacts,
 };
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
@@ -101,6 +104,11 @@ impl ContractSubject for LiveClient {
 
 fn live_client() -> LiveClient {
     let environment = SystemEnvironment;
+    let runner = Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(Vec::new()),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )));
     let provenance = NothingTracked;
     let root = std::env::current_dir().expect("a working directory");
     let service = config_service(&root);
@@ -110,11 +118,13 @@ fn live_client() -> LiveClient {
         provenance: &provenance,
         tracking: &provenance,
         files: &SystemFileFacts,
-        commands: &BashTokenCommandRunner,
+        execution: CommandExecution {
+            runner: &runner,
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
+        },
         personal_config: root.join(".accelerator/config.local.md"),
         insecure_marker: root
             .join(config::credentials::INSECURE_MARKER_RELATIVE),
-        command: CommandPolicy::rooted_at(root.clone()),
     };
     let credentials = jira_client::resolve_credentials(&context).expect(
         "a live contract run needs a tenant: set ACCELERATOR_JIRA_SITE, \

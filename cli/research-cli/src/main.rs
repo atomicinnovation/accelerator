@@ -68,7 +68,8 @@ const USAGE: u8 = 2;
 
 fn main() -> ExitCode {
     let clock = selected_clock();
-    let deadline = Deadline::starting(clock.now(), CALL_BUDGET, REQUEST_BUDGET);
+    let deadline =
+        Deadline::starting(clock.now(), selected_call_budget(), REQUEST_BUDGET);
     match Cli::try_parse() {
         Ok(Cli {
             command:
@@ -134,6 +135,7 @@ fn fetch(
         credentials: CredentialPorts::system(
             Box::new(VcsProvenance::discovered(project.root.clone())),
             Box::new(VcsConfigFileTracking),
+            consent_adapters::command_runner(&project.root, &project.root),
         ),
     };
     match fetch_command::run(&ports, &project, deadline, &call) {
@@ -246,6 +248,16 @@ fn selected_clock() -> Rc<dyn Clock> {
 #[cfg(not(feature = "test-loopback"))]
 fn selected_clock() -> Rc<dyn Clock> {
     Rc::new(SystemClock)
+}
+
+#[cfg(feature = "test-loopback")]
+fn selected_call_budget() -> Duration {
+    loopback::call_budget().unwrap_or(CALL_BUDGET)
+}
+
+#[cfg(not(feature = "test-loopback"))]
+const fn selected_call_budget() -> Duration {
+    CALL_BUDGET
 }
 
 struct Endpoints {

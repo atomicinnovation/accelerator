@@ -7,12 +7,14 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use config::catalogue::Trust;
 use config::consent::{
-    audit, resolve, AuditFinding, CommandKey, ConfigFileTracking, ConsentKey,
-    Consented, Distrust, Environment, ExecutablePathKey, ProvenanceContext,
-    Refusal, RefusalReason, Tracking, TrackingCheck, Usable,
+    audit, resolve, AuditFinding, CommandKey, CommandPolicy,
+    ConfigFileTracking, ConsentKey, Consented, Distrust, Environment,
+    ExecutablePathKey, FailureCause, ProvenanceContext, Refusal, RefusalReason,
+    RepositoryRoots, StartFailure, Tracking, TrackingCheck, Usable,
 };
 use config::{
     ConfigAccess, ConfigError, Key, Level, PersonalFile, Resolved, Scalar,
@@ -784,4 +786,84 @@ fn a_consumer_leaves_the_ignored_file_to_its_composition_root() {
             .collect();
 
     assert_eq!(codes(&reported), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+}
+
+#[test]
+fn each_command_refusal_renders_its_code_and_cause() {
+    let key = config::catalogue::declared("jira.token_cmd").unwrap();
+    for (refusal, rendered) in [
+        (
+            Refusal::CommandFailed {
+                key,
+                cause: FailureCause::CouldNotStart(StartFailure::NoBashOnPath),
+            },
+            "E_TOKEN_CMD_FAILED: jira.token_cmd could not start: no bash on \
+             the filtered PATH",
+        ),
+        (
+            Refusal::CommandFailed {
+                key,
+                cause: FailureCause::CouldNotStart(StartFailure::SpawnFailed),
+            },
+            "E_TOKEN_CMD_FAILED: jira.token_cmd could not start",
+        ),
+        (
+            Refusal::CommandFailed {
+                key,
+                cause: FailureCause::Exited(3),
+            },
+            "E_TOKEN_CMD_FAILED: jira.token_cmd exited with status 3",
+        ),
+        (
+            Refusal::CommandTimedOut {
+                key,
+                after: Duration::from_secs(9),
+            },
+            "E_COMMAND_TIMED_OUT: jira.token_cmd did not finish within 9s",
+        ),
+        (
+            Refusal::CommandTimedOut {
+                key,
+                after: Duration::from_millis(2_500),
+            },
+            "E_COMMAND_TIMED_OUT: jira.token_cmd did not finish within 2.5s",
+        ),
+        (
+            Refusal::CommandOutputExceeded {
+                key,
+                limit: CommandPolicy::OUTPUT_LIMIT,
+            },
+            "E_COMMAND_OUTPUT_EXCEEDED: jira.token_cmd printed more than \
+             65536 bytes",
+        ),
+    ] {
+        assert_eq!(refusal.to_string(), rendered);
+        assert_eq!(refusal.reason(), RefusalReason::Command);
+        assert_eq!(refusal.key(), Some(key));
+        assert!(format!("{refusal:?}").contains("jira.token_cmd"));
+    }
+}
+
+#[test]
+fn repository_roots_contain_every_path_beneath_a_root() {
+    let roots = RepositoryRoots::complete(vec![
+        PathBuf::from("/work/repo"),
+        PathBuf::from("/work/main"),
+    ]);
+
+    assert!(roots.contains(Path::new("/work/repo")));
+    assert!(roots.contains(Path::new("/work/main/bin/tool")));
+    assert!(!roots.contains(Path::new("/work/repository")));
+    assert!(!roots.contains(Path::new("/usr/bin")));
+    assert!(roots.is_complete());
+    assert!(!RepositoryRoots::incomplete(Vec::new()).is_complete());
+}
+
+#[test]
+fn a_command_policy_for_a_test_carries_its_bounds() {
+    let policy =
+        CommandPolicy::for_test(Duration::from_secs(4), &["PATH", "GH_HOST"]);
+
+    assert_eq!(policy.timeout(), Duration::from_secs(4));
+    assert_eq!(policy.admitted_environment(), ["PATH", "GH_HOST"]);
 }

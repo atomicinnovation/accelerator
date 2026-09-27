@@ -19,6 +19,7 @@
 //! `jira.allowed_sites` is for.
 
 use config::consent;
+use config::consent::CommandKey;
 use config::consent::ConsentKey;
 use config::consent::Notice;
 use config::consent::Refusal;
@@ -60,7 +61,7 @@ pub fn token_keys() -> Result<TokenKeys, ClientError> {
         env: "ACCELERATOR_JIRA_TOKEN",
         env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
         value: key("jira.token")?,
-        command: key("jira.token_cmd")?,
+        command: command_key("jira.token_cmd")?,
     })
 }
 
@@ -280,6 +281,10 @@ fn rendered(resolved: &Resolved) -> Option<String> {
 
 fn key(name: &str) -> Result<Key, ClientError> {
     Key::parse(name).map_err(|error| unreadable(name, &error))
+}
+
+fn command_key(name: &str) -> Result<CommandKey, ClientError> {
+    CommandKey::declared(name).map_err(|error| unreadable(name, &error))
 }
 
 fn unreadable(name: &str, error: &config::ConfigError) -> ClientError {

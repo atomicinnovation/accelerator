@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Credential commands run under a hardened runner.** `jira.token_cmd`,
+  `linear.token_cmd`, `openalex.api_key_cmd` and their `ACCELERATOR_*_CMD`
+  overrides now run in a fresh temporary directory outside the repository
+  rather than at the project root, and see only `PATH`, `HOME`, `TERM`,
+  `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`. A helper
+  that needs anything else can set a static value inline
+  (`env VAR=… cmd`), run from a wrapper script, or, for a value that exists
+  only in your session (`SSH_AUTH_SOCK`, `OP_SESSION_*`, STS credentials), be
+  replaced by exporting the resolved credential as `ACCELERATOR_JIRA_TOKEN`,
+  `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN`.
+- **`PATH` entries that are relative, empty, missing or inside the repository
+  are dropped** before a credential command runs, so call a helper by an
+  absolute path outside the repository.
+- **Output over 65,536 bytes is refused** with `E_COMMAND_OUTPUT_EXCEEDED`,
+  where it used to be truncated and accepted. stdout and stderr count towards
+  the cap together.
+- **A timed-out credential command reports `E_COMMAND_TIMED_OUT`** instead of
+  `E_TOKEN_CMD_FAILED`, which now means only a command that could not start or
+  exited non-zero. Jira exits 25 for all three.
+- **Interactive credential helpers are unsupported.** A helper that prompts on
+  `/dev/tty` fails or times out, because the command has no controlling
+  terminal in the foreground.
+- **A helper's leftover processes are stopped.** Anything a credential command
+  leaves running in its process group, such as a caching agent, receives
+  `SIGTERM` once the command exits, then `SIGKILL` after a grace period of up to
+  a second.
+- **Ctrl-C, `SIGTERM` or `SIGHUP` during a credential command** sends its
+  process group `SIGTERM`, then `SIGKILL` after the grace period, and never
+  `SIGINT` directly, so a helper that traps `INT` to clean up should trap
+  `TERM`.
+- **Trimming strips all surrounding whitespace** from a credential command's
+  output, so a token ending in `\r` is now accepted where it used to be
+  malformed.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**

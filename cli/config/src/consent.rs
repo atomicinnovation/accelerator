@@ -21,6 +21,7 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::catalogue;
 use crate::catalogue::ExtraKey;
@@ -116,6 +117,18 @@ pub enum Refusal {
         path: PathBuf,
         mode: u32,
     },
+    CommandFailed {
+        key: &'static ExtraKey,
+        cause: FailureCause,
+    },
+    CommandTimedOut {
+        key: &'static ExtraKey,
+        after: Duration,
+    },
+    CommandOutputExceeded {
+        key: &'static ExtraKey,
+        limit: usize,
+    },
 }
 
 /// The class of a refusal, which a consumer maps onto its own exit codes.
@@ -123,6 +136,38 @@ pub enum Refusal {
 pub enum RefusalReason {
     Provenance,
     PersonalFile,
+    Command,
+}
+
+/// Why a command produced no value. Only structured causes travel here, so a
+/// command's output never reaches a refusal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureCause {
+    CouldNotStart(StartFailure),
+    /// The shell's convention: a leader killed by a signal reports
+    /// `128 + signal`.
+    Exited(i32),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartFailure {
+    NoBashOnPath,
+    SpawnFailed,
+}
+
+impl fmt::Display for FailureCause {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CouldNotStart(StartFailure::NoBashOnPath) => formatter
+                .write_str("could not start: no bash on the filtered PATH"),
+            Self::CouldNotStart(StartFailure::SpawnFailed) => {
+                formatter.write_str("could not start")
+            }
+            Self::Exited(status) => {
+                write!(formatter, "exited with status {status}")
+            }
+        }
+    }
 }
 
 impl Refusal {
@@ -145,7 +190,10 @@ impl Refusal {
     pub const fn key(&self) -> Option<&'static ExtraKey> {
         match self {
             Self::TeamLevel { key }
-            | Self::UntrustedPersonalFile { key, .. } => Some(key),
+            | Self::UntrustedPersonalFile { key, .. }
+            | Self::CommandFailed { key, .. }
+            | Self::CommandTimedOut { key, .. }
+            | Self::CommandOutputExceeded { key, .. } => Some(key),
             Self::InsecurePersonalFile { .. } => None,
         }
     }
@@ -157,6 +205,9 @@ impl Refusal {
                 RefusalReason::Provenance
             }
             Self::InsecurePersonalFile { .. } => RefusalReason::PersonalFile,
+            Self::CommandFailed { .. }
+            | Self::CommandTimedOut { .. }
+            | Self::CommandOutputExceeded { .. } => RefusalReason::Command,
         }
     }
 }
@@ -205,6 +256,32 @@ impl fmt::Display for Refusal {
                  overrides",
                 escaped(&path.display().to_string())
             ),
+            Self::CommandFailed { key, cause } => {
+                write!(formatter, "E_TOKEN_CMD_FAILED: {} {cause}", key.name)
+            }
+            Self::CommandTimedOut { key, after } => write!(
+                formatter,
+                "E_COMMAND_TIMED_OUT: {} did not finish within {}",
+                key.name,
+                Seconds(*after)
+            ),
+            Self::CommandOutputExceeded { key, limit } => write!(
+                formatter,
+                "E_COMMAND_OUTPUT_EXCEEDED: {} printed more than {limit} bytes",
+                key.name
+            ),
+        }
+    }
+}
+
+struct Seconds(Duration);
+
+impl fmt::Display for Seconds {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.subsec_nanos() == 0 {
+            write!(formatter, "{}s", self.0.as_secs())
+        } else {
+            write!(formatter, "{:.1}s", self.0.as_secs_f64())
         }
     }
 }
@@ -235,6 +312,21 @@ impl fmt::Debug for Refusal {
                 .debug_struct("InsecurePersonalFile")
                 .field("mode", mode)
                 .finish_non_exhaustive(),
+            Self::CommandFailed { key, cause } => formatter
+                .debug_struct("CommandFailed")
+                .field("key", &key.name)
+                .field("cause", cause)
+                .finish(),
+            Self::CommandTimedOut { key, after } => formatter
+                .debug_struct("CommandTimedOut")
+                .field("key", &key.name)
+                .field("after", after)
+                .finish(),
+            Self::CommandOutputExceeded { key, limit } => formatter
+                .debug_struct("CommandOutputExceeded")
+                .field("key", &key.name)
+                .field("limit", limit)
+                .finish(),
         }
     }
 }
@@ -364,6 +456,191 @@ fn leaked(name: &str, trust: Trust) -> &'static ExtraKey {
         overrides: &[],
         recovery: None,
     }))
+}
+
+/// What "inside the repository" means: the config root, and each root of
+/// every repository enclosing the working directory.
+///
+/// Incomplete when a repository was detected but one of its roots could not
+/// be determined.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepositoryRoots {
+    roots: Vec<PathBuf>,
+    complete: bool,
+}
+
+impl RepositoryRoots {
+    #[must_use]
+    pub const fn complete(roots: Vec<PathBuf>) -> Self {
+        Self {
+            roots,
+            complete: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn incomplete(known: Vec<PathBuf>) -> Self {
+        Self {
+            roots: known,
+            complete: false,
+        }
+    }
+
+    /// Whether `canonical`, already canonicalised by the caller, lies at or
+    /// beneath any root.
+    #[must_use]
+    pub fn contains(&self, canonical: &Path) -> bool {
+        self.roots.iter().any(|root| canonical.starts_with(root))
+    }
+
+    #[must_use]
+    pub const fn is_complete(&self) -> bool {
+        self.complete
+    }
+}
+
+/// The bounds one command runs under. Only the policy builds one for a real
+/// key, so the environment a command sees is always its descriptor's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandPolicy {
+    timeout: Duration,
+    admitted_environment: Vec<&'static str>,
+}
+
+impl CommandPolicy {
+    pub const OUTPUT_LIMIT: usize = 65_536;
+    pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
+    pub(crate) fn for_key(key: CommandKey, timeout: Duration) -> Self {
+        let declared = match key.descriptor().trust {
+            Trust::CommandConsent {
+                admitted_environment,
+            } => admitted_environment,
+            Trust::Open | Trust::Consent | Trust::PathConsent => &[],
+        };
+        Self {
+            timeout,
+            admitted_environment: catalogue::BASE_COMMAND_ENVIRONMENT
+                .iter()
+                .chain(declared)
+                .copied()
+                .collect(),
+        }
+    }
+
+    #[cfg(feature = "test-support")]
+    #[must_use]
+    pub fn for_test(
+        timeout: Duration,
+        admitted_environment: &[&'static str],
+    ) -> Self {
+        Self {
+            timeout,
+            admitted_environment: admitted_environment.to_vec(),
+        }
+    }
+
+    #[must_use]
+    pub const fn timeout(&self) -> Duration {
+        self.timeout
+    }
+
+    #[must_use]
+    pub fn admitted_environment(&self) -> &[&'static str] {
+        &self.admitted_environment
+    }
+}
+
+/// Why a command run produced no value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandFailure {
+    Failed(FailureCause),
+    TimedOut,
+    OutputExceeded,
+}
+
+/// Runs a consented command, injected so the policy spawns no process.
+pub trait CommandRunner {
+    /// Returns the command's stdout trimmed of surrounding whitespace.
+    ///
+    /// # Errors
+    ///
+    /// [`CommandFailure`] when the command cannot start, exits non-zero,
+    /// outlives the policy's timeout, or prints past
+    /// [`CommandPolicy::OUTPUT_LIMIT`].
+    fn run(
+        &self,
+        command: &str,
+        policy: &CommandPolicy,
+    ) -> Result<String, CommandFailure>;
+}
+
+/// A command runner a consumer can hold and hand on, but never run: only the
+/// policy runs a command, and only one it has resolved.
+///
+/// ```compile_fail
+/// # use config::consent::{CommandPolicy, Runner};
+/// fn attempt(runner: &Runner, policy: &CommandPolicy) {
+///     let _ = runner.run("printf token", policy);
+/// }
+/// ```
+///
+/// ```compile_fail
+/// # use config::consent::{CommandKey, CommandPolicy};
+/// let key = CommandKey::declared("jira.token_cmd").unwrap();
+/// let _ = CommandPolicy::for_key(key, CommandPolicy::DEFAULT_TIMEOUT);
+/// ```
+pub struct Runner(Box<dyn CommandRunner>);
+
+impl Runner {
+    #[must_use]
+    pub fn new(runner: Box<dyn CommandRunner>) -> Self {
+        Self(runner)
+    }
+
+    pub(crate) fn run(
+        &self,
+        command: &str,
+        policy: &CommandPolicy,
+    ) -> Result<String, CommandFailure> {
+        self.0.run(command, policy)
+    }
+}
+
+/// How a consented command is run: through which runner, and for how long.
+pub struct CommandExecution<'a> {
+    pub runner: &'a Runner,
+    pub timeout: Duration,
+}
+
+impl CommandExecution<'_> {
+    /// Runs `command` for `key` under its descriptor's policy, refusing on any
+    /// failure.
+    pub(crate) fn run(
+        &self,
+        key: CommandKey,
+        command: &str,
+    ) -> Result<String, Refusal> {
+        let descriptor = key.descriptor();
+        self.runner
+            .run(command, &CommandPolicy::for_key(key, self.timeout))
+            .map_err(|failure| match failure {
+                CommandFailure::Failed(cause) => Refusal::CommandFailed {
+                    key: descriptor,
+                    cause,
+                },
+                CommandFailure::TimedOut => Refusal::CommandTimedOut {
+                    key: descriptor,
+                    after: self.timeout,
+                },
+                CommandFailure::OutputExceeded => {
+                    Refusal::CommandOutputExceeded {
+                        key: descriptor,
+                        limit: CommandPolicy::OUTPUT_LIMIT,
+                    }
+                }
+            })
+    }
 }
 
 /// That a consent key was taken from the environment, which skips the

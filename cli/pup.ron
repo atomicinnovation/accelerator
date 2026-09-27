@@ -431,6 +431,29 @@
                 ),
             ],
         )),
+        // Only the consent policy runs a command, so no consumer may name the
+        // runner port or its production adapter; a consumer holds the opaque
+        // `Runner` instead. The regex cannot negate, so it lists every crate
+        // but config, config_adapters and consent_adapters, on one line
+        // because a RON string cannot split. A grouped import resolves to an
+        // empty module name and slips past a denied list; the opaque `Runner`
+        // is the primary guarantee, this the second line.
+        Module((
+            name: "only_the_consent_policy_names_the_command_runner",
+            matches: Module(
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process_probe|work|work_adapters|remote_projection|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+            ),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^config::consent::CommandRunner$",
+                        "^config_adapters::credentials::BashCommandRunner$",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // A permit list alone cannot express this, because std::process sits
         // inside the permitted std, so the rule pairs one with an explicit
         // deny; the deny wins on overlap. The permit list rejects grouped

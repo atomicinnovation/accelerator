@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use config::consent;
+use config::consent::CommandPolicy;
 use config::consent::Notice;
 use config::consent::Refusal;
-use config::credentials::CommandPolicy;
 use config::credentials::CredentialContext;
 use config::credentials::Environment;
 use config::credentials::Provenance;
@@ -228,6 +228,7 @@ impl<'a> ConfiguredTrackers<'a> {
         let ports = CredentialPorts::system(
             Box::new(VcsProvenance::discovered(self.root.clone())),
             Box::new(VcsConfigFileTracking),
+            consent_adapters::command_runner(&self.root, &self.root),
         );
         let mut context = project_credential_context(
             &self.root,

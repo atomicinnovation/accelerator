@@ -205,6 +205,7 @@ pub const fn for_refusal(refusal: &Refusal) -> u8 {
     match refusal.reason() {
         RefusalReason::Provenance => NO_TOKEN,
         RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
+        RefusalReason::Command => TOKEN_CMD_FAILED,
     }
 }
 
@@ -220,8 +221,7 @@ pub const fn for_credential(error: &CredentialError) -> u8 {
         | CredentialError::TokenCmdFromTrackedFile { .. }
         | CredentialError::TokenFromTrackedFile { .. }
         | CredentialError::MalformedToken { .. } => NO_TOKEN,
-        CredentialError::TokenCmdFailed { .. }
-        | CredentialError::TokenCmdTimedOut { .. } => TOKEN_CMD_FAILED,
+        CredentialError::Consent(rejection) => for_refusal(&rejection.fatal),
         CredentialError::LocalPermsInsecure { .. } => LOCAL_PERMS_INSECURE,
         CredentialError::ConfigUnreadable { .. } => ERROR,
     }
@@ -271,14 +271,34 @@ const fn exit_code_for_status(status: u16) -> u8 {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::time::Duration;
 
-    use config::consent::{Distrust, Rejection};
+    use config::consent::{
+        CommandPolicy, Distrust, FailureCause, Rejection, StartFailure,
+    };
 
     use super::*;
 
     fn allowlist() -> &'static config::catalogue::ExtraKey {
         config::catalogue::declared("jira.allowed_sites")
             .unwrap_or_else(|| unreachable!("the allowlist is declared"))
+    }
+
+    fn token_cmd() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.token_cmd")
+            .unwrap_or_else(|| unreachable!("the token command is declared"))
+    }
+
+    #[test]
+    fn a_credential_consent_error_exits_by_its_fatal_refusal() {
+        let timed_out = CredentialError::Consent(Rejection::alone(
+            Refusal::CommandTimedOut {
+                key: token_cmd(),
+                after: Duration::from_secs(30),
+            },
+        ));
+
+        assert_eq!(for_credential(&timed_out), TOKEN_CMD_FAILED);
     }
 
     #[test]
@@ -326,6 +346,36 @@ mod tests {
             (
                 Refusal::InsecurePersonalFile { path, mode: 0o644 },
                 LOCAL_PERMS_INSECURE,
+            ),
+            (
+                Refusal::CommandFailed {
+                    key: token_cmd(),
+                    cause: FailureCause::Exited(3),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandFailed {
+                    key: token_cmd(),
+                    cause: FailureCause::CouldNotStart(
+                        StartFailure::NoBashOnPath,
+                    ),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandTimedOut {
+                    key: token_cmd(),
+                    after: Duration::from_secs(30),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandOutputExceeded {
+                    key: token_cmd(),
+                    limit: CommandPolicy::OUTPUT_LIMIT,
+                },
+                TOKEN_CMD_FAILED,
             ),
         ];
         for (refusal, code) in rows {

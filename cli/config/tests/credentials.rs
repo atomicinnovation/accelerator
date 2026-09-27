@@ -7,13 +7,18 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::time::Duration;
 
-use config::consent::{ConfigFileTracking, Tracking};
+use config::catalogue::BASE_COMMAND_ENVIRONMENT;
+use config::consent::{
+    CommandExecution, CommandFailure, CommandKey, CommandPolicy, CommandRunner,
+    ConfigFileTracking, FailureCause, Refusal, Rejection, Runner, StartFailure,
+    Tracking,
+};
 use config::credentials::{
-    refuse_tracked_source, resolve_token, CommandPolicy, CredentialContext,
-    CredentialError, Environment, FileFacts, FileState, Provenance,
-    ResolvedToken, TokenCommandFailure, TokenCommandRunner, TokenKeys,
+    refuse_tracked_source, resolve_token, CredentialContext, CredentialError,
+    Environment, FileFacts, FileState, Provenance, ResolvedToken, TokenKeys,
     TokenSource, INSECURE_MARKER_RELATIVE,
 };
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
@@ -97,21 +102,22 @@ impl FileFacts for RecordingFiles {
     }
 }
 
+#[derive(Clone)]
 struct ScriptedRunner {
-    outcome: Result<String, TokenCommandFailure>,
-    runs: RefCell<Vec<(String, CommandPolicy)>>,
+    outcome: Rc<RefCell<Result<String, CommandFailure>>>,
+    runs: Rc<RefCell<Vec<(String, CommandPolicy)>>>,
 }
 
-impl TokenCommandRunner for ScriptedRunner {
+impl CommandRunner for ScriptedRunner {
     fn run(
         &self,
         command: &str,
         policy: &CommandPolicy,
-    ) -> Result<String, TokenCommandFailure> {
+    ) -> Result<String, CommandFailure> {
         self.runs
             .borrow_mut()
             .push((command.to_owned(), policy.clone()));
-        self.outcome.clone()
+        self.outcome.borrow().clone()
     }
 }
 
@@ -122,12 +128,17 @@ struct Ladder {
     environment: FixedEnvironment,
     provenance: FixedProvenance,
     files: RecordingFiles,
-    runner: ScriptedRunner,
-    command: CommandPolicy,
+    script: ScriptedRunner,
+    runner: Runner,
+    timeout: Duration,
 }
 
 impl Ladder {
     fn new() -> Self {
+        let script = ScriptedRunner {
+            outcome: Rc::new(RefCell::new(Ok("from-helper".to_owned()))),
+            runs: Rc::new(RefCell::new(Vec::new())),
+        };
         Self {
             config: FixedConfig {
                 personal: BTreeMap::new(),
@@ -140,11 +151,9 @@ impl Ladder {
                 states: BTreeMap::new(),
                 inspected: RefCell::new(Vec::new()),
             },
-            runner: ScriptedRunner {
-                outcome: Ok("from-helper".to_owned()),
-                runs: RefCell::new(Vec::new()),
-            },
-            command: CommandPolicy::rooted_at(PathBuf::from("/project")),
+            script: script.clone(),
+            runner: Runner::new(Box::new(script)),
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
         }
     }
 
@@ -187,8 +196,8 @@ impl Ladder {
         self
     }
 
-    fn helper(mut self, outcome: Result<String, TokenCommandFailure>) -> Self {
-        self.runner.outcome = outcome;
+    fn helper(self, outcome: Result<String, CommandFailure>) -> Self {
+        *self.script.outcome.borrow_mut() = outcome;
         self
     }
 
@@ -200,17 +209,19 @@ impl Ladder {
                 provenance: &self.provenance,
                 tracking: &Untracked,
                 files: &self.files,
-                commands: &self.runner,
+                execution: CommandExecution {
+                    runner: &self.runner,
+                    timeout: self.timeout,
+                },
                 personal_config: PathBuf::from(PERSONAL),
                 insecure_marker: PathBuf::from(MARKER),
-                command: self.command.clone(),
             },
             &keys(),
         )
     }
 
     fn helper_runs(&self) -> Vec<String> {
-        self.runner
+        self.script
             .runs
             .borrow()
             .iter()
@@ -224,7 +235,8 @@ fn keys() -> TokenKeys {
         env: "ACCELERATOR_JIRA_TOKEN",
         env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
         value: Key::parse("jira.token").expect("jira.token parses"),
-        command: Key::parse("jira.token_cmd").expect("jira.token_cmd parses"),
+        command: CommandKey::declared("jira.token_cmd")
+            .expect("jira.token_cmd is a command key"),
     }
 }
 
@@ -259,13 +271,13 @@ fn the_environment_command_is_a_second_environment_source() {
 fn the_helper_runs_under_the_contexts_command_policy() {
     let mut ladder =
         Ladder::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token");
-    ladder.command.timeout = Duration::from_secs(7);
+    ladder.timeout = Duration::from_secs(7);
 
     ladder.resolve().expect("the environment command resolves");
 
-    let runs = ladder.runner.runs.borrow();
-    assert_eq!(runs[0].1.timeout, Duration::from_secs(7));
-    assert_eq!(runs[0].1.working_directory, PathBuf::from("/project"));
+    let runs = ladder.script.runs.borrow();
+    assert_eq!(runs[0].1.timeout(), Duration::from_secs(7));
+    assert_eq!(runs[0].1.admitted_environment(), BASE_COMMAND_ENVIRONMENT);
 }
 
 #[test]
@@ -514,60 +526,62 @@ fn a_token_carrying_a_control_character_is_refused() {
 }
 
 #[test]
-fn a_failing_helper_names_the_command_key_once() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::Failed(
-            "exited with exit status: 3".to_owned(),
-        )));
-
-    let error = ladder.resolve().expect_err("a failing helper");
-
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd exited with exit status: 3"
+fn a_failing_helper_is_refused_with_its_cause() {
+    let key = config::catalogue::declared("jira.token_cmd").unwrap();
+    for (failure, cause) in [
+        (
+            CommandFailure::Failed(FailureCause::Exited(3)),
+            FailureCause::Exited(3),
         ),
-        "{error}"
-    );
+        (
+            CommandFailure::Failed(FailureCause::CouldNotStart(
+                StartFailure::NoBashOnPath,
+            )),
+            FailureCause::CouldNotStart(StartFailure::NoBashOnPath),
+        ),
+    ] {
+        let ladder = Ladder::new()
+            .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+            .helper(Err(failure));
+
+        let error = ladder.resolve().expect_err("a failing helper");
+
+        assert_eq!(
+            error,
+            CredentialError::Consent(Rejection::alone(
+                Refusal::CommandFailed { key, cause }
+            ))
+        );
+    }
 }
 
 #[test]
-fn a_helper_that_cannot_run_names_the_command_key_once() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::CouldNotRun(
-            "no such file".to_owned(),
-        )));
-
-    let error = ladder.resolve().expect_err("an unrunnable helper");
-
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd could not be run: no such file"
-        ),
-        "{error}"
-    );
-}
-
-#[test]
-fn a_timed_out_helper_names_the_command_key_once_and_the_policy_timeout() {
+fn a_timed_out_helper_names_the_command_key_and_the_timeout() {
     let mut ladder = Ladder::new()
         .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::TimedOut));
-    ladder.command.timeout = Duration::from_secs(9);
+        .helper(Err(CommandFailure::TimedOut));
+    ladder.timeout = Duration::from_secs(9);
 
     let error = ladder.resolve().expect_err("a hanging helper");
 
-    assert!(matches!(
-        error,
-        CredentialError::TokenCmdTimedOut { after, .. }
-            if after == Duration::from_secs(9)
-    ));
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd did not finish within 9s"
-        ),
-        "{error}"
+    assert_eq!(
+        error.to_string(),
+        "E_COMMAND_TIMED_OUT: jira.token_cmd did not finish within 9s"
+    );
+}
+
+#[test]
+fn an_oversized_helper_output_is_refused() {
+    let ladder = Ladder::new()
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+        .helper(Err(CommandFailure::OutputExceeded));
+
+    let error = ladder.resolve().expect_err("an oversized helper");
+
+    assert_eq!(
+        error.to_string(),
+        "E_COMMAND_OUTPUT_EXCEEDED: jira.token_cmd printed more than 65536 \
+         bytes"
     );
 }
 
