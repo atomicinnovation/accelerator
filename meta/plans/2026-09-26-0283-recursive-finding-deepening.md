@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T18:09:29+00:00"
+last_updated: "2026-09-27T21:10:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -144,7 +144,7 @@ Verify with `mise run` (exits 0) and the attended runs in Phase 7.
 - **Lint and census tests.**
   - `skill-permissions` requires `config instructions` to be the last `!`
     command in `SKILL.md`, so new `!` lines go above
-    `skills/research/research-topic/SKILL.md:453`.
+    `skills/research/research-topic/SKILL.md:493`.
   - A new outputter that mentions `schema_version:` joins the three
     allowlists that already name `finding-outputter`:
     `tests/integration/conformance/test_conformance.py:57`,
@@ -1990,7 +1990,8 @@ asserts `"6"`.
     `outline`, `--breadth` on `conduct`".
 - Conduct batches through the spawn window that Phase 4 ships, so Phase 6
   only adds stages to a loop that already exists:
-  - resolve concurrency alongside depth in step 3;
+  - resolve concurrency alongside depth, as the new step 1, because the
+    first plan already passes `--limit {concurrency}`;
   - start with `outstanding SLUG --profiles-dir … --limit {concurrency}
     --start`, and keep the returned `run` and `batch`. Report any warning
     about a discarded ledger;
@@ -2043,6 +2044,17 @@ many agents `conduct` spawns at once (default 24).
 `research_topic_clamps_concurrency_under_the_knob_rule`. It asserts that the
 knob block lists `concurrency` under the clamping rule and that the
 misplaced-flag rule names `--concurrency` on `outline`.
+
+Implementation notes:
+- `conduct` has nine steps: resolve knobs, start the run, clear, spawn the
+  batch, handle outcomes, plan the next batch, end the run and tick, edit
+  the manifest, summarise. The tick runs a plain `outstanding` without
+  `--limit` or any run flag, after `end-run`.
+- The `lock_contention` row of the reason table also suggests re-running
+  with a lower `--concurrency`.
+- The knob block opens "Three knobs bound the research", which the clamping
+  test anchors on.
+- 0283 was pushed to `PP-867` with `/accelerator:sync-work-items`.
 
 ### Success Criteria
 
@@ -2157,7 +2169,8 @@ also asserts that "outside the focus question" is absent.
 
 **File**: `skills/research/research-topic/SKILL.md`
 **Changes**:
-- Delete the dormant-depth paragraph (`:82-86`).
+- Delete the dormant-depth paragraph (`:84-88`) and the depth-notice
+  sentence in `conduct` step 1 (`:230-231`).
 - Load the level-note template alongside the others with
   ``!`accelerator config template topic-research --kind level-note --fail-safe` ``.
 - Resolve the composer with
@@ -2228,6 +2241,7 @@ also asserts that "outside the focus question" is absent.
      `accelerator corpus topic-research end-run SLUG --run {run}`. If
      `end-run` exits non-zero, `conduct` reports it and stops before the
      tick and the manifest edit, printing only the summary so far. The
+     plain tick plan Phase 5 runs after `end-run` gains `--depth {depth}`. The
      manifest edit stays the final write, and no ledger outlives a
      completed run. The count rule gains "files directly in
      `findings/`; `.levels/` is never counted".
