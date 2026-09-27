@@ -21,7 +21,7 @@ pub struct SchemaRow {
     pub typed_linkage_keys: &'static [&'static str],
 }
 
-pub const SCHEMA: [SchemaRow; 18] = [
+pub const SCHEMA: [SchemaRow; 19] = [
     SchemaRow {
         template: "work-item.md",
         linkage_type: "work-item",
@@ -244,7 +244,7 @@ pub const SCHEMA: [SchemaRow; 18] = [
         kind: "finding",
         code_state_anchored: false,
         required_extras: &["round", "question", "source_profile"],
-        optional_extras: &[],
+        optional_extras: &["depth"],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -255,6 +255,24 @@ pub const SCHEMA: [SchemaRow; 18] = [
         kind: "synthesis",
         code_state_anchored: false,
         required_extras: &["rounds_covered"],
+        optional_extras: &[],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        template: "topic-research-level-note.md",
+        linkage_type: "topic-research",
+        kind: "level-note",
+        code_state_anchored: false,
+        required_extras: &[
+            "round",
+            "question",
+            "source_profile",
+            "level",
+            "depth",
+            "follow_ups",
+        ],
         optional_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
@@ -402,13 +420,20 @@ mod tests {
     }
 
     #[test]
-    fn eighteen_rows_are_present() {
-        assert_eq!(SCHEMA.len(), 18);
+    fn nineteen_rows_are_present() {
+        assert_eq!(SCHEMA.len(), 19);
     }
 
     #[test]
     fn topic_research_kinds_each_resolve_to_a_distinct_row() {
-        for kind in ["manifest", "brief", "outline", "finding", "synthesis"] {
+        for kind in [
+            "manifest",
+            "brief",
+            "outline",
+            "finding",
+            "synthesis",
+            "level-note",
+        ] {
             let resolved = row_for("topic-research", kind).map(|row| row.kind);
             assert_eq!(resolved, Some(kind), "topic-research/{kind}");
         }
@@ -465,6 +490,19 @@ mod tests {
     }
 
     #[test]
+    fn a_finding_row_holds_depth_as_optional_and_a_level_note_row_requires_it(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let finding =
+            row_for("topic-research", "finding").ok_or("finding row")?;
+        assert!(finding.optional_extras.contains(&"depth"));
+        assert!(!finding.required_extras.contains(&"depth"));
+        let note =
+            row_for("topic-research", "level-note").ok_or("level-note row")?;
+        assert!(note.required_extras.contains(&"depth"));
+        Ok(())
+    }
+
+    #[test]
     fn every_formerly_global_optional_extra_is_optional_on_exactly_its_rows() {
         let expected = [
             ("decision_makers", "adr"),
@@ -476,6 +514,8 @@ mod tests {
             ("reviewer", "pr-review"),
             ("reviewer", "work-item-review"),
         ];
+        let formerly_global: Vec<&str> =
+            expected.iter().map(|(extra, _)| *extra).collect();
         let mut optional: Vec<(&str, &str)> = SCHEMA
             .iter()
             .flat_map(|row| {
@@ -483,6 +523,7 @@ mod tests {
                     .iter()
                     .map(move |extra| (*extra, row.linkage_type))
             })
+            .filter(|(extra, _)| formerly_global.contains(extra))
             .collect();
         optional.sort_unstable();
         assert_eq!(optional, expected);

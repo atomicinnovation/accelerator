@@ -466,10 +466,21 @@ def _row_for_template(template: str) -> dict[str, Any]:
     raise AssertionError(f"print-schema has no row for {template}")
 
 
-def test_the_finding_template_declares_exactly_its_schema_row() -> None:
+@pytest.mark.parametrize(
+    ("template", "kind"),
+    [
+        ("topic-research-finding.md", "finding"),
+        ("topic-research-level-note.md", "level-note"),
+    ],
+)
+def test_a_topic_research_template_declares_exactly_its_schema_row(
+    template: str, kind: str
+) -> None:
     # The finding outputter is excluded from the emitter check, so the
-    # template it delegates to is held to its row here, with no extra keys.
-    row = _row_for_template("topic-research-finding.md")
+    # templates it delegates to are held to their rows here, with no extra
+    # keys.
+    row = _row_for_template(template)
+    assert row["kind"] == kind
     expected = {
         *_base_fields(),
         "producer",
@@ -479,4 +490,4 @@ def test_the_finding_template_declares_exactly_its_schema_row() -> None:
         *row["optional_extras"],
         *row["typed_linkage_keys"],
     }
-    assert _template_keys("topic-research-finding.md") == expected
+    assert _template_keys(template) == expected

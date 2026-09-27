@@ -258,7 +258,7 @@ yourself.
    - the pair's `question`, byte for byte, and its `profile` as the source
      profile
    - the round number of the `## Round N` heading the item's `line` sits
-     under, the derived timestamp and author
+     under, `depth: 1`, the derived timestamp and author
    - the pair's `path`, verbatim, as the output path
 
    The researcher composes the finding per the outputter and writes it,
@@ -295,7 +295,8 @@ yourself.
    gap-fill within an existing round leaves `round_count` unchanged;
    conducting a newly appended round raises it. Each finding carries
    `kind: finding`, its focus area's injected `round` (not a constant `1`),
-   its pair's `question`, and its pair's profile as `source_profile`.
+   the injected `depth`, its pair's `question`, and its pair's profile as
+   `source_profile`.
 
 8. **Summarise.** Name each pair the step 6 re-run still returns, with its
    reason and next step, then each skipped pair and each warning. `conduct`

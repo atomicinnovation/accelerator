@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T12:41:02+00:00"
+last_updated: "2026-09-27T13:40:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -374,7 +374,7 @@ which asserts that the synthesised `plan` fixture must carry `revision` and
 - [x] Schema and template-shape tests pass: `cargo test -p corpus frontmatter_validation`
 - [x] Template tree clean: `cargo test -p corpus-adapters --test template_shape_tree`
 - [x] m0007 contract unchanged: `cargo test -p migrate m0007`
-- [x] `print-schema` golden passes: `cargo test -p corpus-cli --test frontmatter_goldens`
+- [x] `print-schema` golden passes: `cargo test -p accelerator-corpus --test frontmatter_goldens`
 - [x] Conformance passes: `mise run test:integration`
 - [x] Public API snapshot matches: `mise run public-api:check`
 - [x] Full run green: `mise run`
@@ -427,6 +427,9 @@ SchemaRow {
 - `print_schema_emits_every_row_with_its_template` (`frontmatter_goldens.rs`)
   moves to 19 rows, and asserts the `topic-research-level-note.md` row with
   `optional_extras: []` and the finding row's `optional_extras: ["depth"]`.
+- `every_formerly_global_optional_extra_is_optional_on_exactly_its_rows`
+  filters to the keys it enumerates, so the finding row's `depth` does not
+  break it.
 
 **File**: `cli/corpus/src/frontmatter_validation/mod.rs`
 **Changes**:
@@ -533,7 +536,9 @@ schema_version: 1
 #### 6. Lockstep documentation
 
 - `meta/work/0065-update-artifact-templates-to-unified-schema.md`: add a
-  `topic-research-level-note.md` row to the topic-research sub-table.
+  `topic-research-level-note.md` row to the topic-research sub-table, list
+  `depth` as optional on the finding row, and drop the sub-table's "five" and
+  "schema-TSV" wording.
 - `cli/visualiser/frontend/src/routes/library/template-tier.ts`: map
   `topic-research-level-note` exactly, beside the five existing
   topic-research names. Extend `LibraryTemplatesIndex.test.tsx` with it.
@@ -544,19 +549,19 @@ schema_version: 1
 
 #### Automated Verification
 
-- [ ] Schema tests pass: `cargo test -p corpus frontmatter_validation`
-- [ ] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
-- [ ] Template tree clean: `cargo test -p corpus-adapters --test template_shape_tree`
-- [ ] Goldens pass: `cargo test -p corpus-cli --test frontmatter_goldens`
-- [ ] Public API snapshot matches: `mise run public-api:check`
-- [ ] Frontend tests pass: `mise run test:unit:frontend`
-- [ ] Full run green: `mise run`
+- [x] Schema tests pass: `cargo test -p corpus frontmatter_validation`
+- [x] Contract tests pass: `cargo test -p corpus-adapters --test research_agent_contract`
+- [x] Template tree clean: `cargo test -p corpus-adapters --test template_shape_tree`
+- [x] Goldens pass: `cargo test -p accelerator-corpus --test frontmatter_goldens`
+- [x] Public API snapshot matches: `mise run public-api:check`
+- [x] Frontend tests pass: `mise run test:unit:frontend`
+- [x] Full run green: `mise run`
 
 #### Manual Verification
 
-- [ ] `accelerator config template topic-research --kind level-note` prints
+- [x] `accelerator config template topic-research --kind level-note` prints
       the new template.
-- [ ] A legacy finding without `depth` still validates with
+- [x] A legacy finding without `depth` still validates with
       `accelerator corpus frontmatter validate --file`.
 
 ---
@@ -1602,7 +1607,7 @@ as fullwidth punctuation are treated as the same.
 
 - [ ] Domain tests pass: `cargo test -p corpus topic_research`
 - [ ] Unicode tables pass: `cargo test -p corpus-adapters unicode_text`
-- [ ] Existing outstanding CLI tests unaffected: `cargo test -p corpus-cli --test topic_research_outstanding`
+- [ ] Existing outstanding CLI tests unaffected: `cargo test -p accelerator-corpus --test topic_research_outstanding`
 - [ ] Domain imports stay confined: `mise run pup:check`
 - [ ] Third-party notices match: `mise run notices:check`
 - [ ] Public API snapshot matches: `mise run public-api:check`
@@ -1899,7 +1904,7 @@ names the ledger file.
 
 #### Automated Verification
 
-- [ ] Outstanding CLI tests pass: `cargo test -p corpus-cli --test topic_research_outstanding`
+- [ ] Outstanding CLI tests pass: `cargo test -p accelerator-corpus --test topic_research_outstanding`
 - [ ] Adapter tests pass: `cargo test -p corpus-adapters`
 - [ ] Domain imports stay confined: `mise run pup:check`
 - [ ] Public API snapshot matches: `mise run public-api:check`

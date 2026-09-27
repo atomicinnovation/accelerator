@@ -25,6 +25,7 @@ derive it:
 - **finding template** — the resolved `topic-research-finding` template to render.
 - **output path** — where to write the finding.
 - **round** — the round number this finding belongs to.
+- **depth** — the resolved depth the finding was researched or composed under.
 - **question** — the focus area's question.
 - **source profile** — the profile this finding was researched through.
 - **timestamp** — the ISO datetime for `date` and `last_updated`.

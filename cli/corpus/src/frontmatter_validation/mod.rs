@@ -382,15 +382,22 @@ fn check_required_extras(
     }
 }
 
+const WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"];
+
+const EMPTY_LIST_PERMITTED_KEYS: [&str; 1] = ["follow_ups"];
+
 fn check_empty_placeholders(
     entries: &[(String, String)],
     violations: &mut Vec<Violation>,
 ) {
     for (key, value) in entries {
-        if key == "tags" {
+        if WHOLLY_EXEMPT_KEYS.contains(&key.as_str()) {
             continue;
         }
-        if value == "\"\"" || value == "[]" {
+        let is_empty_string = value == "\"\"";
+        let is_forbidden_empty_list =
+            value == "[]" && !EMPTY_LIST_PERMITTED_KEYS.contains(&key.as_str());
+        if is_empty_string || is_forbidden_empty_list {
             violations.push(Violation::EmptyPlaceholder { key: key.clone() });
         }
     }
@@ -809,6 +816,97 @@ mod tests {
         assert!(!validate_file(&minimal_valid_work_item())
             .iter()
             .any(|v| matches!(v, Violation::EmptyPlaceholder { .. })));
+    }
+
+    fn topic_research_document(kind: &str, extras: &[&str]) -> String {
+        let mut lines = vec![
+            "type: \"topic-research\"".to_owned(),
+            "id: \"attention.01-a-web\"".to_owned(),
+            "title: \"Question\"".to_owned(),
+            "date: \"2026-01-01T00:00:00+00:00\"".to_owned(),
+            "author: \"Toby\"".to_owned(),
+            "tags: []".to_owned(),
+            "last_updated: \"2026-01-01T00:00:00+00:00\"".to_owned(),
+            "last_updated_by: \"Toby\"".to_owned(),
+            "schema_version: 1".to_owned(),
+            "status: \"complete\"".to_owned(),
+            format!("kind: \"{kind}\""),
+        ];
+        lines.extend(extras.iter().map(|extra| (*extra).to_owned()));
+        lines.join("\n")
+    }
+
+    fn level_note_with(extras: &[&str]) -> String {
+        let mut all = vec![
+            "round: 1",
+            "question: \"Question\"",
+            "source_profile: \"web\"",
+            "level: 1",
+        ];
+        all.extend_from_slice(extras);
+        topic_research_document("level-note", &all)
+    }
+
+    #[test]
+    fn a_finding_without_depth_is_valid() {
+        let finding = topic_research_document(
+            "finding",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"web\"",
+            ],
+        );
+        assert_eq!(validate_file(&finding), Vec::new());
+    }
+
+    #[test]
+    fn a_level_note_without_depth_is_missing_an_extra() {
+        let note = level_note_with(&["follow_ups: []"]);
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::MissingExtra {
+                extra: "depth".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn follow_ups_is_exempt_from_empty_placeholder() {
+        let note = level_note_with(&["depth: 2", "follow_ups: []"]);
+        assert_eq!(validate_file(&note), Vec::new());
+    }
+
+    #[test]
+    fn an_empty_source_profile_is_still_a_placeholder() {
+        let note = topic_research_document(
+            "level-note",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"\"",
+                "level: 1",
+                "depth: 2",
+                "follow_ups: []",
+            ],
+        );
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::EmptyPlaceholder {
+                key: "source_profile".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn an_empty_string_follow_ups_is_still_a_placeholder() {
+        let note = level_note_with(&["depth: 2", "follow_ups: \"\""]);
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::EmptyPlaceholder {
+                key: "follow_ups".to_owned()
+            }]
+        );
     }
 
     #[test]
