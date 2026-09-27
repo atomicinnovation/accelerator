@@ -1730,16 +1730,68 @@ vocabulary and the summary, and the `retirement-incomplete` stop with its
 remedy: restore the named paths from VCS or the named recovery directory,
 then sync.
 
+> Implementation notes:
+>
+> - The three fixtures are hand-authored from the documented response
+>   shapes, not captured; replace them with redacted captures. The Linear
+>   classifier matches `extensions.code` `ENTITY_NOT_FOUND`
+>   (`linear_client::classify::NOT_FOUND_CODE`); if the real code differs,
+>   `locate` degrades to a failed read and the item stays unchanged.
+> - `GatheredRemote` stays a struct. `GatheredFacts.identity` holds an
+>   `IdentityObservation::{Moved, NotFound}` per item, and a moved item's
+>   `per_id` fact describes the issue under its new key. A failed per-item
+>   `show` is followed by `locate`, so not-found is visible under
+>   `--per-item-reads` too.
+> - `RetirementPorts` is not embedded in `SyncPorts`. `run_settled` takes a
+>   separate `SettlementPorts { retirement, records, ownership, state_dir }`,
+>   so `ownership` lives there rather than on `SyncRequest`, and existing
+>   `run` callers are untouched. `BaselineStore` holds only references, so
+>   the retirement ports and the engine each hold one over the same file.
+> - The pass's rows are `IdentityRow`s with an `IdentityOutcome`, keyworded
+>   by `work::sync::IdentityAction` (`key-changed`, `not-found`, `resumed`),
+>   rather than new `Action` variants. A refused or rolled-back change is a
+>   `failed` row whose detail is the refusal message. A row's state column
+>   is the engine's state for the item's settled id (`-` when the engine did
+>   not plan it). The renderer suppresses that engine row.
+> - `Discovery` is `CorpusDiscovery`, returning `DiscoveredCorpus { items,
+>   status }`; the fresh status re-probes dirtiness into the pass's facts.
+>   `run_with` takes the pass's facts and a `SettledView`. The engine plans a
+>   new `ItemSelection::Settled { items }` (whole-corpus discovery and
+>   watermark) or a remapped `Targeted`. Unsettled items are dropped before
+>   the engine, so `SettledView` carries only the followed keys; the Phase 7
+>   fields and `IdentityPlan.promotions` land with promotion.
+> - An engine refusal after identity changes is a `SettledRunFailure {
+>   error, identity_applied }`, from which `work-cli` prints the
+>   `identity-applied-before-refusal` note.
+> - Records live in `work-adapters::retirement_records`
+>   (`RetirementRecords`, `FileRetirementRecords`). A record whose
+>   retirement has no step left (`retirement_outstanding`) is removed
+>   without a `resumed` row.
+> - `RecoveryCopies` gained `kept` and `copy_settled`;
+>   `sweep_recoveries` runs before each sync. It removes `COMPLETED`
+>   directories and clears a `RESTORE-PENDING` one once each listed path
+>   matches its copy or the copy has been deleted. `work-cli` warns about
+>   the rest, and notes directories completed this run.
+> - The state directory is `<root>/.accelerator/state`; the corpus roots are
+>   `config::paths::doc_type_dirs`.
+> - The contract suite gained `locate_finds_a_created_issue`, and
+>   `create_then_show_round_trips` asserts `key`.
+> - The `sync_run.rs` tests live in a new `work-adapters/tests/sync_settled.rs`.
+>   The rendering tests (`each_id_appears_in_one_report_row`, the key-changed
+>   half of `promoted_and_key_changed_rows_survive_synced_row_suppression`)
+>   are `work-cli` unit tests.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p jira-client -p linear-client -p tracker-test-support`
-- [ ] `cd cli && cargo test -p work-adapters --test sync_run --test sync_create --test sync_run_real_client`
+- [x] `cd cli && cargo test -p jira-client -p linear-client -p tracker-test-support`
+- [x] `cd cli && cargo test -p work-adapters --test sync_settled --test sync_run --test sync_create --test sync_run_real_client`
 - [ ] `mise run test:integration:tracker-contract`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_surface`
-- [ ] `mise run` exits 0
+      Needs live Jira and Linear tenants.
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_surface`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 

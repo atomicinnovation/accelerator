@@ -362,6 +362,8 @@ pub work::retirement::RetirementPlan::resumes: bool
 pub work::retirement::RetirementPlan::retired_item: core::option::Option<alloc::string::String>
 pub work::retirement::RetirementPlan::rewrites: alloc::vec::Vec<work::retirement::FileRewrite>
 pub work::retirement::RetirementPlan::to: std::path::PathBuf
+impl work::retirement::RetirementPlan
+pub const fn work::retirement::RetirementPlan::leaves_corpus_unchanged(&self) -> bool
 impl core::clone::Clone for work::retirement::RetirementPlan
 pub fn work::retirement::RetirementPlan::clone(&self) -> work::retirement::RetirementPlan
 impl core::cmp::Eq for work::retirement::RetirementPlan
@@ -370,6 +372,23 @@ pub fn work::retirement::RetirementPlan::eq(&self, other: &work::retirement::Ret
 impl core::fmt::Debug for work::retirement::RetirementPlan
 pub fn work::retirement::RetirementPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::retirement::RetirementPlan
+pub struct work::retirement::RetirementRecord
+pub work::retirement::RetirementRecord::new: alloc::string::String
+pub work::retirement::RetirementRecord::new_external_id: core::option::Option<alloc::string::String>
+pub work::retirement::RetirementRecord::old: alloc::string::String
+pub work::retirement::RetirementRecord::recovery_dir: std::path::PathBuf
+impl work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::of(retirement: &work::retirement::Retirement<'_>) -> Self
+pub fn work::retirement::RetirementRecord::retirement(&self) -> work::retirement::Retirement<'_>
+impl core::clone::Clone for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::clone(&self) -> work::retirement::RetirementRecord
+impl core::cmp::Eq for work::retirement::RetirementRecord
+impl core::cmp::PartialEq for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::eq(&self, other: &work::retirement::RetirementRecord) -> bool
+impl core::fmt::Debug for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
+pub const work::retirement::RECOVERY_PARENT: &str
 pub const work::retirement::RETIREMENT_INCOMPLETE: &str
 pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub mod work::section_diff
@@ -498,6 +517,47 @@ impl core::marker::Copy for work::sync::decide::SyncDirection
 impl core::marker::StructuralPartialEq for work::sync::decide::SyncDirection
 pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
+pub mod work::sync::identity
+pub enum work::sync::identity::IdentityAction
+pub work::sync::identity::IdentityAction::KeyChanged
+pub work::sync::identity::IdentityAction::NotFound
+pub work::sync::identity::IdentityAction::Resumed
+impl work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::clone(&self) -> work::sync::identity::IdentityAction
+impl core::cmp::Eq for work::sync::identity::IdentityAction
+impl core::cmp::PartialEq for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::eq(&self, other: &work::sync::identity::IdentityAction) -> bool
+impl core::fmt::Debug for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::identity::IdentityAction
+impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
+pub mod work::sync::key_change
+pub enum work::sync::key_change::KeyChange
+pub work::sync::key_change::KeyChange::FollowExternalId
+pub work::sync::key_change::KeyChange::FollowExternalId::item: alloc::string::String
+pub work::sync::key_change::KeyChange::FollowExternalId::new: tracker::ExternalId
+pub work::sync::key_change::KeyChange::FollowExternalId::old: tracker::ExternalId
+pub work::sync::key_change::KeyChange::RetireKey
+pub work::sync::key_change::KeyChange::RetireKey::item: alloc::string::String
+pub work::sync::key_change::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::key_change::KeyChange::RetireKey::old: tracker::ExternalId
+impl work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::item(&self) -> &str
+pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
+impl core::clone::Clone for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
+impl core::cmp::Eq for work::sync::key_change::KeyChange
+impl core::cmp::PartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_change::KeyChange) -> bool
+impl core::fmt::Debug for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
 pub work::sync::label::RenderableState::Conflict
@@ -702,6 +762,44 @@ impl core::fmt::Debug for work::dirtiness::Dirtiness
 pub fn work::dirtiness::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::dirtiness::Dirtiness
 impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
+pub enum work::sync::IdentityAction
+pub work::sync::IdentityAction::KeyChanged
+pub work::sync::IdentityAction::NotFound
+pub work::sync::IdentityAction::Resumed
+impl work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::clone(&self) -> work::sync::identity::IdentityAction
+impl core::cmp::Eq for work::sync::identity::IdentityAction
+impl core::cmp::PartialEq for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::eq(&self, other: &work::sync::identity::IdentityAction) -> bool
+impl core::fmt::Debug for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::identity::IdentityAction
+impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
+pub enum work::sync::KeyChange
+pub work::sync::KeyChange::FollowExternalId
+pub work::sync::KeyChange::FollowExternalId::item: alloc::string::String
+pub work::sync::KeyChange::FollowExternalId::new: tracker::ExternalId
+pub work::sync::KeyChange::FollowExternalId::old: tracker::ExternalId
+pub work::sync::KeyChange::RetireKey
+pub work::sync::KeyChange::RetireKey::item: alloc::string::String
+pub work::sync::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::KeyChange::RetireKey::old: tracker::ExternalId
+impl work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::item(&self) -> &str
+pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
+impl core::clone::Clone for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
+impl core::cmp::Eq for work::sync::key_change::KeyChange
+impl core::cmp::PartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_change::KeyChange) -> bool
+impl core::fmt::Debug for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
 pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
@@ -917,6 +1015,7 @@ pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64,
 pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
 pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
+pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>

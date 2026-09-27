@@ -91,6 +91,28 @@ pub fn classify_errors(body: &Value) -> GraphQlError {
     GraphQlError::BadRequest
 }
 
+/// The `extensions.code` Linear answers a keyed read of an unknown issue
+/// with. Matched instead of the message, which is prose.
+pub const NOT_FOUND_CODE: &str = "entity_not_found";
+
+/// Whether a keyed issue read is Linear answering that no issue has the
+/// identifier: the not-found code, or a `null` issue with no errors.
+#[must_use]
+pub fn answers_not_found(body: &Value) -> bool {
+    let errors = body.get("errors").and_then(Value::as_array);
+    let carries_not_found_code = errors.is_some_and(|errors| {
+        errors.iter().any(|error| {
+            error
+                .pointer("/extensions/code")
+                .and_then(Value::as_str)
+                .is_some_and(|code| code.eq_ignore_ascii_case(NOT_FOUND_CODE))
+        })
+    });
+    let null_issue = !carries_errors(body)
+        && body.pointer("/data/issue").is_some_and(Value::is_null);
+    carries_not_found_code || null_issue
+}
+
 /// Whether a body carries a non-empty `errors[]` array.
 #[must_use]
 pub fn carries_errors(body: &Value) -> bool {

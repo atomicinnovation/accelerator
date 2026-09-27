@@ -11,6 +11,9 @@ use std::path::PathBuf;
 
 use tracker::Completeness;
 use tracker::ExternalId;
+use tracker::FetchOutcome;
+use tracker::Located;
+use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
@@ -52,8 +55,19 @@ pub struct GatheredRemote {
     pub body: Option<String>,
 }
 
+/// A read that answered under a key other than the one the item stores, or
+/// answered that no issue has it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IdentityObservation {
+    Moved { old: ExternalId, new: ExternalId },
+    NotFound { key: ExternalId },
+}
+
 pub struct GatheredFacts {
     pub per_id: BTreeMap<String, (GatheredRemote, Dirtiness)>,
+    /// Keyed by item id. A moved item's `per_id` fact describes the issue
+    /// under its new key.
+    pub identity: BTreeMap<String, IdentityObservation>,
     /// A `fetch_all` pre-flight failure. Every present id is marked
     /// `Indeterminate` and this is carried through so the run can report
     /// it — discarding it turns a misconfigured token into a whole-corpus
@@ -147,9 +161,85 @@ const fn placeholder_remote() -> GatheredRemote {
     }
 }
 
+const fn unaccounted(presence: RemotePresence) -> GatheredRemote {
+    GatheredRemote {
+        presence,
+        remote_updated: RemoteTimestamp::NotReported,
+        body: None,
+    }
+}
+
+fn is_move(requested: &ExternalId, answered: &ExternalId) -> bool {
+    !requested.as_str().eq_ignore_ascii_case(answered.as_str())
+}
+
+/// Accumulates one item's gathered facts, noting a key change wherever a
+/// read answers under a key other than the one requested.
+struct Gathering {
+    per_id: BTreeMap<String, GatheredRemote>,
+    identity: BTreeMap<String, IdentityObservation>,
+}
+
+impl Gathering {
+    fn record(&mut self, id: &str, remote: GatheredRemote) {
+        self.per_id.insert(id.to_owned(), remote);
+    }
+
+    fn record_issue(
+        &mut self,
+        id: &str,
+        requested: &ExternalId,
+        issue: RemoteIssue,
+    ) {
+        if is_move(requested, &issue.key) {
+            self.identity.insert(
+                id.to_owned(),
+                IdentityObservation::Moved {
+                    old: requested.clone(),
+                    new: issue.key,
+                },
+            );
+        }
+        self.record(
+            id,
+            GatheredRemote {
+                presence: RemotePresence::Present,
+                remote_updated: issue.updated,
+                body: Some(issue.body),
+            },
+        );
+    }
+
+    /// Asks the tracker whether an issue its bulk read could not account
+    /// for has moved or is gone; a failed answer keeps what the bulk read
+    /// said.
+    fn locate(
+        &mut self,
+        id: &str,
+        requested: &ExternalId,
+        tracker: &dyn RemoteTracker,
+        otherwise: RemotePresence,
+    ) {
+        match tracker.locate(requested) {
+            Ok(Located::Found(issue)) => {
+                self.record_issue(id, requested, issue);
+            }
+            Ok(Located::NotFound) => {
+                self.identity.insert(
+                    id.to_owned(),
+                    IdentityObservation::NotFound {
+                        key: requested.clone(),
+                    },
+                );
+                self.record(id, unaccounted(RemotePresence::Absent));
+            }
+            Err(_) => self.record(id, unaccounted(otherwise)),
+        }
+    }
+}
+
 /// Gathers the facts `work::sync::plan` needs, for every item.
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn gather(
     items: &[LocalItem],
     baseline: &Baseline,
@@ -157,7 +247,10 @@ pub fn gather(
     status: &dyn WorkingCopyStatus,
     strategy: RetrievalStrategy,
 ) -> GatheredFacts {
-    let mut per_id = BTreeMap::new();
+    let mut gathering = Gathering {
+        per_id: BTreeMap::new(),
+        identity: BTreeMap::new(),
+    };
     let mut read_failure = None;
     let mut keyed_read = Completeness::Complete;
     let present = present_ids(items);
@@ -165,19 +258,15 @@ pub fn gather(
     match strategy {
         RetrievalStrategy::PerItem => {
             for (id, external_id) in &present {
-                let remote = match tracker.show(external_id) {
-                    Ok(issue) => GatheredRemote {
-                        presence: RemotePresence::Present,
-                        remote_updated: issue.updated,
-                        body: Some(issue.body),
-                    },
-                    Err(_) => GatheredRemote {
-                        presence: RemotePresence::Indeterminate,
-                        remote_updated: RemoteTimestamp::NotReported,
-                        body: None,
-                    },
-                };
-                per_id.insert((*id).to_owned(), remote);
+                match tracker.show(external_id) {
+                    Ok(issue) => gathering.record_issue(id, external_id, issue),
+                    Err(_) => gathering.locate(
+                        id,
+                        external_id,
+                        tracker,
+                        RemotePresence::Indeterminate,
+                    ),
+                }
             }
         }
         RetrievalStrategy::Bulk => {
@@ -187,68 +276,23 @@ pub fn gather(
                 Err(error) => {
                     read_failure = Some(error);
                     for (id, _) in &present {
-                        per_id.insert(
-                            (*id).to_owned(),
-                            GatheredRemote {
-                                presence: RemotePresence::Indeterminate,
-                                remote_updated: RemoteTimestamp::NotReported,
-                                body: None,
-                            },
+                        gathering.record(
+                            id,
+                            unaccounted(RemotePresence::Indeterminate),
                         );
                     }
                 }
                 Ok(outcome) => {
                     keyed_read = outcome.completeness;
                     for (id, external_id) in &present {
-                        if let Some((_, stamp)) = outcome
-                            .found
-                            .iter()
-                            .find(|(found_id, _)| found_id == *external_id)
-                        {
-                            let baseline_updated = baseline
-                                .get(id)
-                                .map(|entry| &entry.remote_updated_at);
-                            let unchanged =
-                                baseline_updated.is_some_and(|known| {
-                                    stamp.proves_unchanged_since(known)
-                                });
-                            let body = if unchanged {
-                                None
-                            } else {
-                                tracker
-                                    .show(external_id)
-                                    .ok()
-                                    .map(|issue| issue.body)
-                            };
-                            per_id.insert(
-                                (*id).to_owned(),
-                                GatheredRemote {
-                                    presence: RemotePresence::Present,
-                                    remote_updated: stamp.clone(),
-                                    body,
-                                },
-                            );
-                        } else if outcome.absent.contains(external_id) {
-                            per_id.insert(
-                                (*id).to_owned(),
-                                GatheredRemote {
-                                    presence: RemotePresence::Absent,
-                                    remote_updated:
-                                        RemoteTimestamp::NotReported,
-                                    body: None,
-                                },
-                            );
-                        } else {
-                            per_id.insert(
-                                (*id).to_owned(),
-                                GatheredRemote {
-                                    presence: RemotePresence::Indeterminate,
-                                    remote_updated:
-                                        RemoteTimestamp::NotReported,
-                                    body: None,
-                                },
-                            );
-                        }
+                        gather_from_bulk(
+                            &mut gathering,
+                            id,
+                            external_id,
+                            &outcome,
+                            baseline,
+                            tracker,
+                        );
                     }
                 }
             }
@@ -257,14 +301,73 @@ pub fn gather(
 
     let mut per_id_with_dirty = BTreeMap::new();
     for item in items {
-        let remote = per_id.remove(&item.id).unwrap_or_else(placeholder_remote);
+        let remote = gathering
+            .per_id
+            .remove(&item.id)
+            .unwrap_or_else(placeholder_remote);
         let dirty = status.is_dirty(&item.path);
         per_id_with_dirty.insert(item.id.clone(), (remote, dirty));
     }
 
     GatheredFacts {
         per_id: per_id_with_dirty,
+        identity: gathering.identity,
         read_failure,
         keyed_read,
+    }
+}
+
+fn gather_from_bulk(
+    gathering: &mut Gathering,
+    id: &str,
+    external_id: &ExternalId,
+    outcome: &FetchOutcome,
+    baseline: &Baseline,
+    tracker: &dyn RemoteTracker,
+) {
+    let found = outcome
+        .found
+        .iter()
+        .find(|(found_id, _)| found_id == external_id);
+    let Some((_, stamp)) = found else {
+        let otherwise = if outcome.absent.contains(external_id) {
+            RemotePresence::Absent
+        } else {
+            RemotePresence::Indeterminate
+        };
+        gathering.locate(id, external_id, tracker, otherwise);
+        return;
+    };
+    let unchanged = baseline.get(id).is_some_and(|entry| {
+        stamp.proves_unchanged_since(&entry.remote_updated_at)
+    });
+    if unchanged {
+        gathering.record(
+            id,
+            GatheredRemote {
+                presence: RemotePresence::Present,
+                remote_updated: stamp.clone(),
+                body: None,
+            },
+        );
+        return;
+    }
+    match tracker.show(external_id) {
+        Ok(issue) => gathering.record_issue(
+            id,
+            external_id,
+            RemoteIssue {
+                updated: stamp.clone(),
+                ..issue
+            },
+        ),
+        Err(_) => gathering.record(
+            id,
+            GatheredRemote {
+                presence: RemotePresence::Present,
+                remote_updated: stamp.clone(),
+                body: None,
+            },
+        ),
     }
 }

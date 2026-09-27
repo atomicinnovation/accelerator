@@ -134,6 +134,13 @@ impl RemoteTracker for Fake {
         })
     }
 
+    fn locate(
+        &self,
+        id: &ExternalId,
+    ) -> Result<tracker::Located, TrackerError> {
+        self.show(id).map(tracker::Located::Found)
+    }
+
     fn fetch_all(
         &self,
         _ids: &[ExternalId],
@@ -200,6 +207,7 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
     let item_path = real_item_file(&dir, item_content());
     let fake = Fake::default();
     fake.set_show_result(RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
         body: "Title\nProjected body\n".to_owned(),
     });

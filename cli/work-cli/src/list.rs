@@ -1081,6 +1081,7 @@ mod tests {
             (
                 ExternalId::new("ENG-1".to_owned()),
                 RemoteIssue {
+                    key: ExternalId::new("ENG-1".to_owned()),
                     updated: stamp.clone(),
                     body: "Item\nunchanged body\n".to_owned(),
                 },
@@ -1088,6 +1089,7 @@ mod tests {
             (
                 ExternalId::new("ENG-2".to_owned()),
                 RemoteIssue {
+                    key: ExternalId::new("ENG-2".to_owned()),
                     updated: stamp.clone(),
                     body: "Item\nremote body\n".to_owned(),
                 },

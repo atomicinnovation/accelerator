@@ -20,6 +20,10 @@ use crate::identity::ItemIdentity;
 use crate::work_item_files::DRAFTS_DIRECTORY;
 
 const WORK_ITEM: &str = "work-item";
+
+/// Where every retirement keeps its recovery copies, relative to the state
+/// directory.
+pub const RECOVERY_PARENT: &str = "retirement-recovery";
 const WORK_ITEM_REVIEW: &str = "work-item-review";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,8 +39,42 @@ impl Retirement<'_> {
     /// finds the copies its first attempt made.
     #[must_use]
     pub fn recovery_dir(&self) -> PathBuf {
-        PathBuf::from("retirement-recovery")
+        PathBuf::from(RECOVERY_PARENT)
             .join(format!("{}--{}", self.old_id, self.new_id))
+    }
+}
+
+/// The durable note that a retirement has started.
+///
+/// Written before it applies and removed once it has finished, rolled back
+/// or been refused, so a leftover record always names a retirement still in
+/// progress.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RetirementRecord {
+    pub old: String,
+    pub new: String,
+    pub new_external_id: Option<String>,
+    pub recovery_dir: PathBuf,
+}
+
+impl RetirementRecord {
+    #[must_use]
+    pub fn of(retirement: &Retirement<'_>) -> Self {
+        Self {
+            old: retirement.old_id.to_owned(),
+            new: retirement.new_id.to_owned(),
+            new_external_id: retirement.new_external_id.map(str::to_owned),
+            recovery_dir: retirement.recovery_dir(),
+        }
+    }
+
+    #[must_use]
+    pub fn retirement(&self) -> Retirement<'_> {
+        Retirement {
+            old_id: &self.old,
+            new_id: &self.new,
+            new_external_id: self.new_external_id.as_deref(),
+        }
     }
 }
 
@@ -76,6 +114,17 @@ pub struct RetirementPlan {
     pub recovery: Vec<PathBuf>,
     pub recovery_dir: PathBuf,
     pub resumes: bool,
+}
+
+impl RetirementPlan {
+    /// Whether no file is left to write, create or remove, as when every
+    /// corpus step of an interrupted retirement has already landed.
+    #[must_use]
+    pub const fn leaves_corpus_unchanged(&self) -> bool {
+        self.rewrites.is_empty()
+            && self.retired_item.is_none()
+            && self.from_original.is_none()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1071,6 +1120,24 @@ mod tests {
                 "{stage}"
             );
         }
+    }
+
+    #[test]
+    fn a_completed_retirement_leaves_the_corpus_unchanged() {
+        let finished = vec![interrupted_target(), referencing("See PP-900.\n")];
+        let unfinished =
+            vec![interrupted_target(), referencing("See draft-k7mq3x.\n")];
+
+        assert!(planned(&promotion(), &finished).leaves_corpus_unchanged());
+        assert!(!planned(&promotion(), &unfinished).leaves_corpus_unchanged());
+    }
+
+    #[test]
+    fn a_record_carries_its_retirement_back() {
+        let record = super::RetirementRecord::of(&promotion());
+
+        assert_eq!(record.retirement(), promotion());
+        assert_eq!(record.recovery_dir, promotion().recovery_dir());
     }
 
     #[test]

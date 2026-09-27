@@ -261,6 +261,14 @@ pub fn is_key_token(token: &str) -> bool {
 /// The sole-token pattern under which the tracker owns each work item's `id`.
 pub const TRACKER_TOKEN: &str = "{tracker}";
 
+/// Who sets a work item's `id`: the repository, from its pattern, or the
+/// tracker, whose key the `id` then equals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdOwnership {
+    Local,
+    Tracker,
+}
+
 /// True iff `token` is shaped like a Jira key or Linear identifier:
 /// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
 #[must_use]

@@ -5,4 +5,5 @@ pub mod author;
 pub mod diff;
 pub mod filesystem;
 pub mod retirement;
+pub mod retirement_records;
 pub mod sync;

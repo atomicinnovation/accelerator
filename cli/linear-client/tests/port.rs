@@ -1161,3 +1161,105 @@ fn a_label_filter_fetches_workspace_labels_only_when_the_catalogue_lacks_them()
         assert_eq!(sent_filter(&server)["labels"]["id"]["eq"], "l-bug");
     }
 }
+
+fn fixture(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("the fixture exists")
+}
+
+#[test]
+fn show_reports_the_identifier_the_tracker_returned() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(issue_body("ENG-7", "2026-01-01T00:00:00.000Z", "\"\"")),
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("ENG-7")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("ENG-7"));
+}
+
+#[test]
+fn show_of_a_team_moved_identifier_reports_the_new_identifier() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-team-moved.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("PP-760")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("ENG-42"));
+}
+
+#[test]
+fn locate_reports_not_found_for_an_unknown_identifier() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-not-found.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("ENG-999")).expect("an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_not_found_for_a_null_issue() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route("{\"data\":{\"issue\":null}}".to_owned()),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("ENG-999")).expect("an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_an_error_for_a_non_not_found_graphql_error() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(
+            "{\"errors\":[{\"message\":\"Entity not found: Issue\",\
+             \"extensions\":{\"code\":\"INTERNAL_SERVER_ERROR\"}}],\
+             \"data\":null}"
+                .to_owned(),
+        ),
+    );
+    let client = client_for(&server, brief());
+
+    let error = client
+        .locate(&id("ENG-999"))
+        .expect_err("only the structured not-found code is an absence");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn locate_of_a_team_moved_identifier_finds_the_issue_under_its_new_one() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-team-moved.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-760")).expect("an answer");
+
+    let tracker::Located::Found(issue) = located else {
+        panic!("the moved issue is found");
+    };
+    assert_eq!(issue.key, id("ENG-42"));
+}

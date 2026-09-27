@@ -11,9 +11,11 @@ use corpus::scan::CorpusWalker;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
+use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
 use corpus::store::RemoveFile;
 use corpus::StoreError;
+use work::identity::ItemIdentity;
 use work::retirement::plan_retirement;
 use work::retirement::CorpusFile;
 use work::retirement::Retirement;
@@ -22,6 +24,7 @@ use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementPlan;
 use work::retirement::RetirementRefusal;
+use work::retirement::RECOVERY_PARENT;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFile;
 use work::work_item_files::DRAFTS_DIRECTORY;
@@ -421,11 +424,10 @@ pub fn apply_retirement(
     Ok(())
 }
 
-fn plan_from_corpus(
-    retirement: &Retirement<'_>,
+fn walked_corpus(
     ports: &RetirementPorts<'_>,
-) -> Result<RetirementPlan, FinishFailure> {
-    let corpus = corpus_files(
+) -> Result<Vec<CorpusFile>, FinishFailure> {
+    corpus_files(
         ports.walker,
         ports.files.reader,
         ports.status,
@@ -441,10 +443,49 @@ fn plan_from_corpus(
                 }),
             ),
         })
-    })?;
+    })
+}
+
+fn plan_from_corpus(
+    retirement: &Retirement<'_>,
+    ports: &RetirementPorts<'_>,
+) -> Result<RetirementPlan, FinishFailure> {
+    let corpus = walked_corpus(ports)?;
     let items = identities(&work_items(&corpus, ports.layout.work_dir));
     plan_retirement(retirement, ports.layout.work_dir, &items, &corpus)
         .map_err(FinishFailure::Refused)
+}
+
+/// The identities of every work item, drafts included, as the corpus now
+/// stands.
+///
+/// # Errors
+///
+/// [`FinishFailure::Failed`] when the corpus cannot be read.
+pub fn corpus_identities(
+    ports: &RetirementPorts<'_>,
+) -> Result<Vec<ItemIdentity>, FinishFailure> {
+    let corpus = walked_corpus(ports)?;
+    Ok(identities(&work_items(&corpus, ports.layout.work_dir)))
+}
+
+/// Whether `retirement` still has a step to take: a file to write, create
+/// or remove, or a baseline entry still under the old ID.
+///
+/// # Errors
+///
+/// [`FinishFailure`] when planning refuses or the corpus cannot be read.
+pub fn retirement_outstanding(
+    retirement: &Retirement<'_>,
+    ports: &RetirementPorts<'_>,
+) -> Result<bool, FinishFailure> {
+    let plan = plan_from_corpus(retirement, ports)?;
+    let baseline_still_old = ports
+        .baseline
+        .load()
+        .map(|(baseline, _)| baseline.get(retirement.old_id).is_some())
+        .unwrap_or(true);
+    Ok(!plan.leaves_corpus_unchanged() || baseline_still_old)
 }
 
 /// Plans and applies a retirement, whether fresh or interrupted.
@@ -481,4 +522,53 @@ pub fn finish_retirement(
         let _ = recovery.remove_dir(&recovery_dir);
     }
     Ok(())
+}
+
+/// A recovery directory a sweep found still needing a person, or found
+/// dealt with and removed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecoveryNotice {
+    StillPending {
+        dir: PathBuf,
+        unrestored: Vec<PathBuf>,
+    },
+    Cleared {
+        dir: PathBuf,
+    },
+}
+
+/// Removes the recovery directories nobody needs any more.
+///
+/// That is a completed retirement's, whose notice an earlier run gave, and
+/// an incomplete restore's once every unrestored path matches its copy
+/// again or the copy has been deleted. Reports every restore still pending.
+///
+/// # Errors
+///
+/// [`StoreError`] when the directories cannot be listed or one cannot be
+/// removed.
+pub fn sweep_recoveries(
+    recovery: &dyn RecoveryCopies,
+) -> Result<Vec<RecoveryNotice>, StoreError> {
+    let mut notices = Vec::new();
+    for kept in recovery.kept(Path::new(RECOVERY_PARENT))? {
+        match kept.state {
+            KeptState::Completed => recovery.remove_dir(&kept.dir)?,
+            KeptState::RestorePending(unrestored) => {
+                let settled = unrestored
+                    .iter()
+                    .all(|path| recovery.copy_settled(&kept.dir, path));
+                if settled {
+                    recovery.remove_dir(&kept.dir)?;
+                    notices.push(RecoveryNotice::Cleared { dir: kept.dir });
+                } else {
+                    notices.push(RecoveryNotice::StillPending {
+                        dir: kept.dir,
+                        unrestored,
+                    });
+                }
+            }
+        }
+    }
+    Ok(notices)
 }

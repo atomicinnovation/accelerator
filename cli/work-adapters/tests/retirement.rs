@@ -899,3 +899,53 @@ mod in_a_real_repository {
         )
     }
 }
+
+#[test]
+fn a_restore_pending_directory_is_reported_until_every_path_matches_its_copy(
+) -> Result<(), TestError> {
+    use corpus::store::RecoveryCopies as _;
+    use work_adapters::retirement::sweep_recoveries;
+    use work_adapters::retirement::RecoveryNotice;
+
+    let repo = Repo::new()?;
+    let recovery = FileRecoveryCopies::new(repo.state_dir(), repo.path("meta"));
+    let dir = promotion().recovery_dir();
+    let child = repo.path(CHILD);
+    recovery.prepare(&dir)?;
+    recovery.write_once(&dir, &child, CHILD_CONTENT.as_bytes())?;
+    recovery.mark_restore_pending(&dir, std::slice::from_ref(&child))?;
+    repo.write(CHILD, "edited after the retirement wrote it")?;
+
+    assert_eq!(
+        sweep_recoveries(&recovery)?,
+        vec![RecoveryNotice::StillPending {
+            dir: dir.clone(),
+            unrestored: vec![child],
+        }]
+    );
+    repo.write(CHILD, CHILD_CONTENT)?;
+    assert_eq!(
+        sweep_recoveries(&recovery)?,
+        vec![RecoveryNotice::Cleared { dir }]
+    );
+    assert!(!repo.path(RECOVERY).exists());
+    Ok(())
+}
+
+#[test]
+fn a_completed_directory_is_removed_by_the_next_sweep() -> Result<(), TestError>
+{
+    use corpus::store::RecoveryCopies as _;
+    use work_adapters::retirement::sweep_recoveries;
+
+    let repo = Repo::new()?;
+    let recovery = FileRecoveryCopies::new(repo.state_dir(), repo.path("meta"));
+    let dir = promotion().recovery_dir();
+    recovery.prepare(&dir)?;
+    recovery.mark_restore_pending(&dir, &[])?;
+    recovery.mark_completed(&dir)?;
+
+    assert!(sweep_recoveries(&recovery)?.is_empty());
+    assert!(!repo.path(RECOVERY).exists());
+    Ok(())
+}
