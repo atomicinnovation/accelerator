@@ -19,9 +19,7 @@ use config::consent::{
 };
 use config::credentials::{CredentialContext, Environment};
 use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
-use config_adapters::credentials::{
-    BashCommandRunner, SystemEnvironment,
-};
+use config_adapters::credentials::{BashCommandRunner, SystemEnvironment};
 use tracker_support::{Jitter, Sleeper};
 
 /// A personal value implies a readable personal file; a config with none has

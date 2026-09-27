@@ -29,9 +29,7 @@ use config::consent::{
     CommandExecution, CommandPolicy, RepositoryRoots, Runner,
 };
 use config::credentials::CredentialContext;
-use config_adapters::credentials::{
-    BashCommandRunner, SystemEnvironment,
-};
+use config_adapters::credentials::{BashCommandRunner, SystemEnvironment};
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
 use jira_client::JiraClient;

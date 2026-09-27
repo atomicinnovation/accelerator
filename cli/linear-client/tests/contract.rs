@@ -19,9 +19,7 @@ use config::consent::{
     CommandExecution, CommandPolicy, RepositoryRoots, Runner,
 };
 use config::credentials::CredentialContext;
-use config_adapters::credentials::{
-    BashCommandRunner, SystemEnvironment,
-};
+use config_adapters::credentials::{BashCommandRunner, SystemEnvironment};
 use linear_client::catalogue::TeamEntries;
 use linear_client::resolution::FixedNames;
 use linear_client::resolution::ResolverSet;
