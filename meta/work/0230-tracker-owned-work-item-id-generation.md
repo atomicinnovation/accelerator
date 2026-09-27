@@ -13,7 +13,7 @@ blocked_by: ["work-item:0228"]
 relates_to: ["work-item:0227", "work-item:0229", "work-item:0291"]
 blocks: ["work-item:0295"]
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
-last_updated: "2026-09-26T00:47:47+00:00"
+last_updated: "2026-09-27T13:04:38+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-760"
@@ -278,10 +278,10 @@ creation-home entity: the Jira project or Linear team the scope key resolves to
       named after the draft ID exists, and for
       `local-save` and `work create` without `--push` no marker exists.
 - [ ] Given `{tracker}` and a create whose issue `PP-900` is created but whose
-      local write and its retry both fail, when the create completes, then no
-      file is written, a `created` marker records `PP-900`, and the next
-      `work sync` writes `meta/work/PP-900-<slug>.md` with `id` `PP-900` and
-      no `pending_push` marker for `PP-900` remains.
+      ID retirement and its retry both fail, when the create completes, then
+      the draft is unchanged, a `pending_push` record holds `PP-900`, and the
+      next `work sync` writes `meta/work/PP-900-<slug>.md` with `id` `PP-900`
+      and no `pending_push` marker for `PP-900` remains.
 - [ ] Given `{tracker}` and a create whose issue `PP-900` is created, whose first
       local write fails, and whose retry succeeds, when the create completes,
       then `meta/work/PP-900-<slug>.md` exists with `id` `PP-900`, no marker
@@ -413,8 +413,7 @@ creation-home entity: the Jira project or Linear team the scope key resolves to
       broadened to team `OPS`, when `work sync` pulls remote-only issue
       `OPS-7`, then its local `id` is `OPS-7`.
 - [ ] Given `{tracker}` and a remote-only issue, when `work sync` pulls it, then
-      the local `id` equals its `external_id`, and `work next-number` returns
-      the same value before and after the pull.
+      the local `id` equals its `external_id` and no local number is consumed.
 - [ ] Given `{tracker}`, a reachable tracker, and `extract-work-items`
       approving an epic and two children with the push offer accepted, when
       the batch is written, then all three exist remotely, each child's local
