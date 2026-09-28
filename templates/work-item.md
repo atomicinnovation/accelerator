@@ -1,6 +1,6 @@
 ---
 type: "work-item"                            # artifact-type discriminator
-id: "NNNN"                                   # local own-identity from accelerator work create; always a quoted string
+id: "NNNN"                                   # own-identity from accelerator work create (the tracker key under {tracker}, a draft- ID until promoted); always a quoted string
 title: "Title as Short Noun Phrase"
 date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: "Author Name"

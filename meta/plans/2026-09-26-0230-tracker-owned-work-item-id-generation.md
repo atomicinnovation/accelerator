@@ -3392,6 +3392,49 @@ and ``!`accelerator config work integration --fail-safe` ``. Under
 
 Legacy patterns keep the existing flow.
 
+> Implementation notes:
+>
+> - `cyclic_members` returns only nodes on a cycle, so `work list
+>   --hierarchy` now nests an item beneath a cycle under its cyclic parent
+>   instead of rendering it flat with `(cycle)`
+>   (`an_item_beneath_a_cycle_nests_under_its_cyclic_parent`).
+> - `BatchKeyword` lives in `work::create_batch`, beside `PushOutcome`, so
+>   the black-box `keyword_exit_codes` oracle can pin `declined` (0) and
+>   `pending` (4).
+> - The journal is `.accelerator/state/batch-journal/journal.json`, with
+>   its own `*` `.gitignore`: `.accelerator/state/integrations/` holds
+>   committed catalogues, so a `*` `.gitignore` in `.accelerator/state/`
+>   itself would hide them. An entry is claimed by request digest, then by
+>   title, and read back from the corpus: a draft still held is `pending`,
+>   an item under its key `write-once`, a key no item carries
+>   `created-unwritten`; an entry naming nothing is forgotten and the entry
+>   created again.
+> - The manifest is a JSON array. `status` defaults to `draft`, `body_file`
+>   is relative to the manifest, and an unreadable body file is a manifest
+>   rejection. `create-batch` takes `--author` and `--producer` beside
+>   `--push`.
+> - The per-item seam is `create::create_item(.., drafted)`, `drafted`
+>   firing as soon as a draft is on disk. `CreateFailure::Pending` carries
+>   `existing_draft`, and `PushReport.details` carries the holder and
+>   restore paths from `PromotionRow::of`, which `create_tracker_keyed_item`
+>   now builds.
+> - A `CreateFailure::Failed` entry stops the batch: the lines so far are
+>   printed and it exits 1; a rerun resumes through the journal. A
+>   `pending` refusal from a legacy marker has no draft, so its line's path
+>   is empty and its children are created without a `parent`, each saying
+>   so on stderr.
+> - The skill renders a recovery per keyword. Eval
+>   `extract_under_tracker_renders_rejected_created_blocked_and_pending_from_detail_lines`
+>   first failed by telling the user to re-run the batch for a rejected
+>   item; the rerun after adding the recovery table passed.
+> - The frontmatter-population and conformance suites needed no new
+>   expectations: both check every injection line generically.
+> - The `docs-site/.../reference/skills/work/*` pages are generated from
+>   each `SKILL.md` and untracked, so they change through the skill edits;
+>   `list-work-items` already described drafts. The hand-written pages
+>   changed are the sync guide, the cookbook, the work-items overview and
+>   the configure skill.
+
 **File**: `skills/work/refine-work-item/SKILL.md` (`:177-189`)
 **Changes**: Inject the same two lines. Under `{tracker}`, create
 children with
@@ -3432,15 +3475,15 @@ shared config.
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p work hierarchy`
-- [ ] `cd cli && cargo test -p accelerator-work`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check` exits 0
-- [ ] `mise run test:unit:tasks`
-- [ ] `mise run test:integration:conformance`
-- [ ] `mise run test:integration:skill-invocation`
-- [ ] `mise run docs:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work hierarchy`
+- [x] `cd cli && cargo test -p accelerator-work`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check` exits 0
+- [x] `mise run test:unit:tasks`
+- [x] `mise run test:integration:conformance`
+- [x] `mise run test:integration:skill-invocation`
+- [x] `mise run docs:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 

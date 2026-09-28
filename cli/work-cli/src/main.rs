@@ -1,10 +1,13 @@
 //! `accelerator-work` — the `work create|show|resolve|diff|update`
 //! sub-binary, dispatched by the `accelerator` launcher.
 
+mod batch_journal;
+mod batch_manifest;
 mod canonicalise_id;
 mod cli;
 mod config;
 mod create;
+mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
@@ -282,6 +285,57 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
     }
 }
 
+fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    let store = composed.store.with_plugin_root(plugin_root_from_env());
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    let print = |report: &create_batch::BatchReport| {
+        for line in &report.lines {
+            println!("{line}");
+        }
+        for cause in &report.causes {
+            eprintln!("Error: {cause}");
+        }
+    };
+    match create_batch::run(
+        &start,
+        service,
+        &store,
+        args,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
+    ) {
+        create_batch::BatchOutcome::Reported(report) => {
+            print(&report);
+            ExitCode::from(report.code)
+        }
+        create_batch::BatchOutcome::Invalid(problems) => {
+            for problem in problems {
+                eprintln!("{problem}");
+            }
+            ExitCode::from(exit_codes::USAGE)
+        }
+        create_batch::BatchOutcome::Failed { report, message } => {
+            print(&report);
+            eprintln!("Error: {message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
     let (start, composed) = match composed_here(Intent::Write) {
         Ok(composed) => composed,
@@ -502,6 +556,7 @@ fn main() -> ExitCode {
         Command::Show { path, field } => run_show(&path, field.as_deref()),
         Command::Diff { local, remote } => run_diff(&local, &remote),
         Command::Create(args) => run_create(*args),
+        Command::CreateBatch(args) => run_create_batch(&args),
         Command::Update(args) => run_update(&args),
         Command::LinkExternalId { path, external_id } => {
             run_link_external_id(&path, &external_id)

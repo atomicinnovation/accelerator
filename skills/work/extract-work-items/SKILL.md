@@ -27,6 +27,16 @@ accelerator:web-search-researcher.
 **Work items directory**: !`accelerator config path work --fail-safe`
 **Codebase research directory**: !`accelerator config path research_codebase --fail-safe`
 **Plans directory**: !`accelerator config path plans --fail-safe`
+**Active integration**: !`accelerator config work integration --fail-safe`
+**ID pattern**: !`accelerator config work id_pattern --fail-safe`
+
+When **ID pattern** is `{tracker}`, the tracker owns every item's `id`: an
+item takes its issue's key once the tracker creates it, and one no tracker
+has confirmed is saved as a **draft** under a provisional `draft-` ID, which
+`/sync-work-items` promotes later. Step 4 then creates the whole batch
+through `accelerator work create-batch` (see "Step 4 under `{tracker}`").
+Under every other pattern, Step 4 allocates numbers and writes the files as
+described there.
 
 ## Work Item Template
 
@@ -333,6 +343,9 @@ in Step 4 after all approvals — enriched and thin — are collected.
 
 ### Step 4: Write Work Items
 
+When **ID pattern** is `{tracker}`, follow "Step 4 under `{tracker}`" below
+instead of this step.
+
 1. **Count approved (non-skipped) items: N.**
 
 2. **If N is 0**: print "No work items approved — nothing written." and exit
@@ -538,7 +551,129 @@ If any invocation exits non-zero, the document violates the canonical
 frontmatter standard; report the emitted violation and fix the frontmatter
 before completing.
 
+### Step 4 under `{tracker}`: Create the Batch
+
+1. **Count approved (non-skipped) items: N.** If N is 0, print "No work
+   items approved — nothing written." and exit cleanly.
+
+2. **Build the manifest.** Give each approved draft a short unique `ref`
+   (its slug will do). For each, write the drafted body (H1 through
+   References) to a scratch file with the `NNNN` placeholder left literally
+   in place, then write one JSON array to a scratch manifest file, one
+   entry per draft in presentation order:
+
+   ```json
+   [
+     {"ref": "add-foo", "title": "Add foo", "kind": "epic",
+      "priority": "high", "body_file": "add-foo.md",
+      "derived_from": ["plan:2026-01-01-foo"]},
+     {"ref": "foo-api", "title": "Foo API", "kind": "story",
+      "priority": "medium", "body_file": "foo-api.md",
+      "parent": {"ref": "add-foo"}}
+   ]
+   ```
+
+   - `parent` is `{"ref": "<ref>"}` when the approved hierarchy places the
+     item under another draft of this batch, or a typed reference such as
+     `"work-item:0042"` when its parent already exists. Omit it otherwise.
+   - `tags`, `blocks`, `blocked_by`, `relates_to`, `derived_from` and
+     `source` follow the same omit-when-empty rules as the frontmatter in
+     Step 4 h. `body_file` is relative to the manifest's directory.
+   - Do not call `accelerator work next-number`, and never write an item
+     with the `Write` tool: `create-batch` mints every ID and writes every
+     file.
+
+3. **Make one push offer for the whole batch** (when **Active integration**
+   is non-empty). Use the `AskUserQuestion` tool with two options:
+
+   1. **Yes, push all N to [tracker] now** — create every issue and take
+      its key as the item's ID
+   2. **No, save as drafts** — save every item as a draft; `/sync-work-items`
+      promotes them later
+
+   Never ask per item.
+
+4. **Create the batch** with one call, adding `--push` only when the push
+   was accepted:
+
+   ```
+   accelerator work create-batch --manifest <manifest-file> \
+     --producer extract-work-items --author "<resolved author>" [--push]
+   ```
+
+   It creates parents before their children and writes each child's
+   `parent` as the ID its parent actually took, so a child of an item left
+   as a draft links to that draft (promotion rewrites the link later).
+
+5. **Read the output.** Each item prints one line,
+   `<ref>\t<path>\t<keyword>\t<key>`, in the order the items were created.
+   After them come `#\tdetail\t<ref>\t<source>\t<path>[\t<recovery-dir>]`
+   lines; match each to its item by `<ref>`, never by position. A
+   `holder` source names the item already claiming the key; `vcs` and
+   `recovery` sources name paths to restore, the latter from
+   `<recovery-dir>`.
+
+6. **Print a summary table**, one row per item line in printed order:
+
+   ```
+   | Item    | Outcome                  | File                            |
+   |---------|--------------------------|---------------------------------|
+   | Add foo | created ENG-42           | `meta/work/ENG-42-add-foo.md`   |
+   | Foo API | draft — push declined    | `meta/work/drafts/draft-…`      |
+   ```
+
+   The Outcome column renders the keyword:
+
+   | Keyword | Outcome |
+   |---|---|
+   | `write-once` | `created <KEY>` |
+   | `created-unwritten` | `created <KEY> — local write failed` |
+   | `declined` | `draft — push declined` |
+   | `local-save` | `draft — tracker unreachable` |
+   | `loud-terminal` | `draft — remote issue may exist` |
+   | `rejected` | `draft — request rejected` |
+   | `retirement-incomplete` | `created <KEY> — local write incomplete; restore from VCS or <recovery-dir>` |
+   | `created-blocked` | `created <KEY> — blocked by <holder>; resolve it, then promote` |
+   | `pending` | `draft — already pending as <draft>; run work sync` |
+
+   `<holder>` and `<recovery-dir>` come from the item's detail lines, and
+   `<draft>` is the item line's path. An empty path appears only on
+   `created-unwritten` under a legacy pattern; render the File cell as
+   `—`. After the table, relay each `Error: <ref>: …` line from stderr
+   under its item, with the recovery for its outcome. A draft's ID is the
+   `draft-` prefix of its filename.
+
+   | Keyword | Recovery |
+   |---|---|
+   | `declined`, `local-save` | none; `/sync-work-items` promotes the draft |
+   | `loud-terminal` | check the tracker, then `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create` |
+   | `rejected` | edit the draft to remove the cause stderr names, then `accelerator work promote <draft-id>` or `/sync-work-items` |
+   | `created-unwritten` | none; the next `/sync-work-items` links the issue |
+   | `created-blocked` | resolve the collision stderr describes, then `accelerator work promote <draft-id>` |
+   | `retirement-incomplete` | restore the paths the detail lines name, then `/sync-work-items` |
+   | `pending` | `accelerator work promote <draft-id>` or `/sync-work-items` |
+
+   Never re-run `create-batch` to recover an item: every item it reported
+   already has a draft or an issue, so a rerun changes nothing for it.
+
+7. **Branch on the exit code.** 0, 4, 70, 71, 74 and 75 all mean the batch
+   ran; the table above is the report. 2 means the manifest was refused
+   or its parents form a cycle, and nothing was written: relay the
+   message, fix the manifest, and call again. 1 means an item could not be
+   created: the items printed before it were; relay the error, and once it
+   is fixed call `create-batch` again with the same manifest — a pushed
+   batch creates only the entries it never reached.
+
+8. **Validate the frontmatter** of every item whose line names a path:
+
+   ```bash
+   accelerator corpus frontmatter validate --file <path>
+   ```
+
 ## Quality Guidelines
+
+- Under `{tracker}`, Step 4 under `{tracker}` replaces Step 4: the
+  `accelerator work next-number` rules below apply only to other patterns.
 
 - Never call `accelerator work next-number` before all approvals are collected.
   The number space is shared and finite; consuming numbers for drafts the

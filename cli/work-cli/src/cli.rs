@@ -7,9 +7,9 @@ use clap::Parser;
 use clap::Subcommand;
 
 /// The `accelerator-work` command-line surface: work-item lifecycle
-/// primitives (`create`, `show`, `resolve`, `diff`, `update`, `sync`,
-/// `promote`) plus small utility subcommands used by the skills that
-/// orchestrate them.
+/// primitives (`create`, `create-batch`, `show`, `resolve`, `diff`,
+/// `update`, `sync`, `promote`) plus small utility subcommands used by the
+/// skills that orchestrate them.
 #[derive(Parser)]
 #[command(name = "accelerator-work", disable_version_flag = true)]
 pub struct Cli {
@@ -53,6 +53,23 @@ pub enum Command {
     /// Atomically create a new work item under the configured pattern,
     /// self-allocating its own ID.
     Create(Box<CreateArgs>),
+    /// Create every item a JSON manifest describes, parents first, each as
+    /// `create` would, linking each child's `parent` to the ID its parent
+    /// took.
+    ///
+    /// Prints one `<ref>\t<path>\t<keyword>\t<key>` line per item, then a
+    /// `#\tdetail\t<ref>\t<source>\t<path>[\t<recovery-dir>]` line for
+    /// each path a `created-blocked` or `retirement-incomplete` item names.
+    /// The keywords are `create --push`'s, plus `declined` (created without
+    /// a push) and `pending` (an earlier create of the same content awaits
+    /// promotion; the path is its draft). A pushed batch records each entry
+    /// in a journal under `.accelerator/state/`, so a rerun creates only the
+    /// entries it never reached.
+    ///
+    /// Exits with the item code of greatest precedence (see `exit_codes`),
+    /// `pending` counting as 4 and `declined` as 0; a refused manifest or a
+    /// parent cycle exits 2 before anything is written.
+    CreateBatch(Box<CreateBatchArgs>),
     /// Atomically apply field/tag/list-field edits to an existing work
     /// item's frontmatter.
     Update(Box<UpdateArgs>),
@@ -283,6 +300,29 @@ pub struct CreateArgs {
     /// source on the line, exit 0).
     #[arg(long)]
     pub dry_run: bool,
+}
+
+/// `work create-batch`'s flags, boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+pub struct CreateBatchArgs {
+    /// The JSON manifest: an array of entries, each with `ref`, `title`,
+    /// `kind` and `priority`, and optionally `status`, `body_file`
+    /// (relative to the manifest), `tags`, `blocks`, `blocked_by`,
+    /// `relates_to`, `derived_from`, `source` and `parent` — either
+    /// `{"ref": "<ref>"}` naming another entry, or a typed reference to an
+    /// existing item.
+    #[arg(long)]
+    pub manifest: PathBuf,
+    /// Push every item to the configured remote tracker, as `create --push`
+    /// does for one.
+    #[arg(long)]
+    pub push: bool,
+    /// The author. Falls back to the current VCS identity when omitted.
+    #[arg(long)]
+    pub author: Option<String>,
+    /// The producer name recorded in each item's frontmatter.
+    #[arg(long, default_value = "accelerator-work")]
+    pub producer: String,
 }
 
 /// `work sync`'s flags, boxed for the same reason as [`CreateArgs`].

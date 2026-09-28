@@ -8,7 +8,10 @@
       4,
       5,
       6,
-      7
+      7,
+      8,
+      9,
+      10
     ]
   },
   "runs": [
@@ -347,6 +350,123 @@
           "evidence": "ok"
         }
       ]
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "extract_under_tracker_makes_one_push_offer_and_calls_create_batch",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "push-offer.md contains exactly one push offer covering all three items",
+          "passed": true,
+          "evidence": "push-offer.md presents one AskUserQuestion covering all three items; \"The offer is not asked per item.\""
+        },
+        {
+          "text": "manifest.json has three entries and both stories' parent is {\"ref\": \"<the epic's ref>\"}",
+          "passed": true,
+          "evidence": "manifest.json has three entries; both stories carry \"parent\": {\"ref\": \"search-overhaul\"}."
+        },
+        {
+          "text": "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work next-number call",
+          "passed": true,
+          "evidence": "commands.md: one accelerator work create-batch --manifest ... --producer extract-work-items --author \"Ada Lovelace\", no --push; no next-number call."
+        },
+        {
+          "text": "summary.md renders all three items with the outcome 'draft \u2014 push declined'",
+          "passed": true,
+          "evidence": "summary.md renders all three rows as \"draft \u2014 push declined\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "extract_under_tracker_renders_the_four_0230_outcome_strings_in_order",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The rows appear in the order Alpha, Beta, Gamma, Delta",
+          "passed": true,
+          "evidence": "summary.md table rows in order Alpha, Beta, Gamma, Delta."
+        },
+        {
+          "text": "The outcomes read exactly 'created ENG-901', 'draft \u2014 tracker unreachable', 'draft \u2014 remote issue may exist' and 'created ENG-904 \u2014 local write failed'",
+          "passed": true,
+          "evidence": "Outcomes: \"created ENG-901\", \"draft \u2014 tracker unreachable\", \"draft \u2014 remote issue may exist\", \"created ENG-904 \u2014 local write failed\"."
+        },
+        {
+          "text": "Each row's File cell names the path from its line",
+          "passed": true,
+          "evidence": "File cells: meta/work/ENG-901-alpha.md, meta/work/drafts/draft-b2c3d4-beta.md, meta/work/drafts/draft-c3d4e5-gamma.md, meta/work/drafts/draft-d4e5f6-delta.md."
+        },
+        {
+          "text": "For Gamma the response offers accelerator work promote draft-c3d4e5 --adopt <KEY> if the issue exists, otherwise --create, and does not suggest re-running the batch",
+          "passed": true,
+          "evidence": "For Gamma: \"run accelerator work promote draft-c3d4e5 --adopt <KEY>\" if it exists, otherwise \"--create\"; \"Do not re-run the batch\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "eval_name": "extract_under_tracker_renders_rejected_created_blocked_and_pending_from_detail_lines",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Alpha's outcome reads 'draft \u2014 request rejected' and its stderr cause (the unsupported table) is relayed",
+          "passed": true,
+          "evidence": "Alpha row: \"draft \u2014 request rejected\"; relayed \"Error: alpha: linear create: the body has an unsupported table\"."
+        },
+        {
+          "text": "Beta's outcome reads 'created ENG-902 \u2014 blocked by meta/work/0017-beta.md; resolve it, then promote', taking the holder from the detail line",
+          "passed": true,
+          "evidence": "Beta row: \"created ENG-902 \u2014 blocked by meta/work/0017-beta.md; resolve it, then promote\", holder from the detail line."
+        },
+        {
+          "text": "Gamma's outcome reads 'draft \u2014 already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'",
+          "passed": true,
+          "evidence": "Gamma row: \"draft \u2014 already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync\"."
+        },
+        {
+          "text": "The response does not suggest re-running the batch",
+          "passed": true,
+          "evidence": "Recoveries are work promote or /sync-work-items per item; no suggestion to re-run the batch."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -358,5 +478,8 @@
         "max": 1.0
       }
     }
-  }
+  },
+  "notes": [
+    "Evals 8-10 ({tracker} batch creation through work create-batch) were run with_skill only on 2026-09-28, by claude-sonnet-5; the old skill has no {tracker} flow. Eval 10 first failed one expectation (it told the user to fix the rejected item and re-run the batch); a per-keyword recovery table was added to Step 4 under {tracker} and the rerun passed."
+  ]
 }

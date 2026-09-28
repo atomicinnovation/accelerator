@@ -37,7 +37,8 @@ pub fn detail_lines(row: &PromotionRow) -> impl Iterator<Item = String> + '_ {
         .map(|detail| detail_line(&row.draft, detail))
 }
 
-fn detail_line(id: &str, detail: &Detail) -> String {
+#[must_use]
+pub fn detail_line(id: &str, detail: &Detail) -> String {
     let path = detail.path.display();
     match &detail.source {
         DetailSource::Holder => format!("#\tdetail\t{id}\tholder\t{path}"),

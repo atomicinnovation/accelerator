@@ -23,6 +23,13 @@ accelerator:documents-locator, accelerator:documents-analyser,
 accelerator:web-search-researcher.
 
 **Work items directory**: !`accelerator config path work --fail-safe`
+**Active integration**: !`accelerator config work integration --fail-safe`
+**ID pattern**: !`accelerator config work id_pattern --fail-safe`
+
+When **ID pattern** is `{tracker}`, the tracker owns every item's `id`, so
+decompose never allocates numbers: it creates each child as a **draft**
+through `accelerator work create` (see "Under `{tracker}`" in 4a), and
+`/sync-work-items` promotes the drafts later.
 
 ## Work Item Template
 
@@ -172,7 +179,26 @@ options. State the allocation count and warn about partial state:
    recover)
 2. **No, cancel** — cancel without writing
 
-**On approval**:
+**On approval** under `{tracker}`: do not call `accelerator work
+next-number` and do not write children with the `Write` tool. For each
+child, write its body (H1 through the remaining template sections, with the
+`NNNN` placeholder left literally in place) to a scratch file and run:
+
+```
+accelerator work create "<child title>" <kind> <priority> \
+  --status draft --author "<resolved author>" --producer refine-work-item \
+  --parent "work-item:<parent id>" --body-file <scratch-file> \
+  [--tag <value>]...
+```
+
+with no `--push`, so each child is saved as a draft. Its stdout is the
+draft's path; the draft's `id` is the `draft-` prefix of its filename, and
+that is the ID the parent's `### Child work items` links and the ledger
+name. If a call exits non-zero, stop, relay its stderr, and list the
+children already written. Then continue at step 3 below. The pre-write
+warning says "create N drafts" rather than "allocate N numbers".
+
+**On approval** under every other pattern:
 
 1. Call `accelerator work next-number --count N`
    exactly once to allocate N consecutive numbers.

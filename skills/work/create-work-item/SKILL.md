@@ -423,6 +423,10 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
+Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
+assigns the key on a push, and `accelerator work create` mints the draft ID
+itself, so its first stdout line is the only path to report.
+
 1. **Call `accelerator work next-number`** to get the next full ID under the
    configured pattern:
 
@@ -519,8 +523,9 @@ concurrently. Please re-run /create-work-item.
         `unresolvable` means the configured `jira.project_key` names a
         project the tracker does not hold — surface that as a pre-create
         failure **before** the gate (name `jira.project_key`) and do
-        **not** offer the push; save locally instead. A `default` source is a
-        benign fallback, not a failure.
+        **not** offer the push; save locally instead, through the step 6
+        call (no `--push`). A `default` source is a benign fallback, not a
+        failure.
       - **Exit 0, linear** → `linear\t(no user-resolvable type/project fields)`
         (the team and issue-type catalogue are fixed by `/init-linear`).
         Offer the push.
@@ -529,6 +534,14 @@ concurrently. Please re-run /create-work-item.
         could not be resolved and offer to save locally now, or retry the
         preview. The push itself carries its own retry (below), so a transient
         outage here must not strand the draft.
+      - **Any other non-zero exit** → the tracker is not usable for a push
+        (not available, unrecognised, or unconfigured). Relay the stderr
+        message and save locally.
+
+      Every "save locally" above is the step 6 `accelerator work create`
+      call with no `--push`, so under `{tracker}` it writes a draft that
+      `/sync-work-items` promotes later. Never write the file with the
+      `Write` tool, and never call `accelerator work next-number` for it.
 
       Then, when a push is still on the table:
 
@@ -540,9 +553,13 @@ concurrently. Please re-run /create-work-item.
          `/sync-work-items` (it offers to create unsynced local drafts on the
          remote), which shares this `external_id` contract.
 
+      Under `{tracker}` the second option reads **No, save as draft** —
+      save it as a draft in `drafts/`; `/sync-work-items` promotes it onto
+      a tracker key later.
+
    2. **On decline** → write the file now with `external_id` omitted (unsynced)
       via the `accelerator work create` call from step 6 (no `--push`), then go
-      to step 8.
+      to step 8. Under `{tracker}` that call writes a draft.
 
    3. **On accept** → run the **same** `accelerator work create` call with
       `--push` added (never a re-derived tracker — the CLI reads **Active
@@ -612,8 +629,10 @@ Work item created: `<path>`
    or assume it matches step 2's preview path. When the item was saved unsynced
    (decline, `local-save`, or `loud-terminal`), say so: `Work item created
    (unsynced): … — push later with /sync-work-items`. Under `{tracker}`, report
-   the tracker key on `write-once`, and otherwise the draft path and why it is
-   still a draft.
+   the tracker key on `write-once` (`Work item created: <KEY> at <path>`), and
+   otherwise the draft path and why it is still a draft (`Work item saved as
+   draft: <path> — <reason>; /sync-work-items promotes it`), where the reason
+   is "push declined", "tracker unreachable", or the outcome table's cause.
 
 ### In enrich-existing mode
 
