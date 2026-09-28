@@ -72,6 +72,14 @@ def _profile_skill(name: str) -> Path:
     return PROFILES_DIR / f"{name}-profile" / "SKILL.md"
 
 
+def _profiles() -> list[str]:
+    """Every installed profile, by name."""
+    return sorted(
+        path.parent.name.removesuffix("-profile")
+        for path in (REPO_ROOT / PROFILES_DIR).glob("*-profile/SKILL.md")
+    )
+
+
 def _academic_profiles() -> list[str]:
     """Every installed profile whose skill grants the fetch."""
     return sorted(
@@ -334,6 +342,33 @@ def test_the_level_note_outputter_bounds_follow_ups_by_cap_and_known_questions(
     assert rule in _prose(LEVEL_NOTE_OUTPUTTER), (
         f"the level-note outputter must state {rule!r}, which the planner's "
         "note gate enforces"
+    )
+
+
+@pytest.mark.parametrize("profile", _profiles())
+@pytest.mark.parametrize(
+    "rule",
+    ["**Denied**", "Write no file", '"fetch denied by permissions"'],
+)
+def test_every_profile_writes_no_file_when_its_fetch_is_denied(
+    profile: str, rule: str
+) -> None:
+    prose = _prose(REPO_ROOT / _profile_skill(profile))
+    _, outcome_marker, outcome = prose.partition("## Outcome")
+    assert outcome_marker, f"the {profile} profile has no Outcome"
+    assert rule in outcome, (
+        f"the {profile} profile's Outcome must state {rule!r}, so a denied "
+        "fetch leaves no unsourced document for conduct to accept"
+    )
+
+
+@pytest.mark.parametrize("profile", _profiles())
+def test_no_profile_lets_a_focus_question_license_a_fetch(profile: str) -> None:
+    assert "outside the focus question" not in _prose(
+        REPO_ROOT / _profile_skill(profile)
+    ), (
+        f"the {profile} profile must not let a focus question license a "
+        "fetch a page asks for"
     )
 
 

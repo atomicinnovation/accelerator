@@ -369,6 +369,14 @@
 
 ### Fixed
 
+- **Web researchers write nothing when fetching is denied.** A researcher on
+  the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
+  that has neither tool, now writes no finding or level note and reports
+  "fetch denied by permissions", as `openalex` and `arxiv` researchers do.
+  Before, it wrote a document from memory that `conduct` accepted as
+  research. The profile also no longer lets a focus question license
+  fetching a URL a page asks for.
+
 - **Credential errors name the command key once.** A refused or failing token
   command reported `jira.token_cmd_cmd`; it now names `jira.token_cmd`.
 
