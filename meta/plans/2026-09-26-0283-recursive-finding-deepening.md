@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-28T08:40:00+00:00"
+last_updated: "2026-09-28T09:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2358,7 +2358,7 @@ Implementation notes:
 
 #### Manual Verification
 
-- [ ] The Phase 7 attended runs pass.
+- [x] The Phase 7 attended runs pass.
 
 ---
 
@@ -2466,17 +2466,18 @@ questions are read from each spawn prompt.
 Implementation notes:
 - Results are in
   `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`.
-- Step 10 fails on a `web` pair: `web-profile` has no write-no-file outcome
-  for a denied fetch, so researchers wrote unsourced notes. The OpenAlex
-  variant passes.
+- Step 10 first failed on a `web` pair: `web-profile` had no write-no-file
+  outcome for a denied fetch, so researchers wrote unsourced notes. The
+  profile gained an Outcome section, lost its focus-question carve-out, and
+  the re-run passes.
 - Step 17 failed 4 of 24 arXiv nodes on `lock_contention`, which is
-  material.
+  material. Work item 0295 takes up the per-profile batch cap.
 
 ### Success Criteria
 
 #### Manual Verification
 
-- [ ] Steps 1–17 pass, each recorded in the validation document.
+- [x] Steps 1–17 pass, each recorded in the validation document.
 - [x] `accelerator corpus frontmatter validate` over the whole corpus exits 0
       after the runs.
 

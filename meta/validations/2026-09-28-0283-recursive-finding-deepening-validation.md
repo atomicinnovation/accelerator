@@ -6,22 +6,22 @@ date: "2026-09-28T08:40:00+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
 status: "complete"
-result: "partial"
+result: "pass"
 target: "plan:2026-09-26-0283-recursive-finding-deepening"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-28T08:40:00+00:00"
+last_updated: "2026-09-28T09:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
 ## Validation Report: Recursive Finding Deepening Implementation Plan
 
-Result: partial. The Phase 5 attended checks and 15 of Phase 7's 17 steps
-pass. Step 10 fails on a `web` pair because the web profile has no
-write-no-file outcome for a denied fetch; its OpenAlex variant passes. Step 17
-measured arXiv lock contention at a material rate, so it becomes a follow-up
-work item for a per-profile batch cap. Every scratch corpus validates after
-the runs.
+Result: pass. The Phase 5 attended checks and all 17 Phase 7 steps pass.
+Step 10 first failed on a `web` pair, because the web profile had no
+write-no-file outcome for a denied fetch. The profile now has one, and the
+re-run passes. Step 17 measured arXiv lock contention at a material rate,
+which work item 0295 takes up as a per-profile batch cap. Every scratch
+corpus validates after the runs.
 
 ### Method
 
@@ -41,7 +41,7 @@ Each check used its own scratch git repository.
   paths were read from each Agent call's `prompt`.
 - **Timing.** Step 16's interrupt, second start and hand overwrite were
   driven by a watcher polling the transcript and the `.levels/` directory.
-- **Cost.** 29 orchestrator sessions, 153 spawns, about $74.
+- **Cost.** 31 orchestrator sessions, 158 spawns, about $76.
 
 ### Phase 5 attended checks
 
@@ -67,14 +67,14 @@ Each check used its own scratch git repository.
 | 7. Breadth independence | pass | `outline` at `breadth: 2` wrote 2 focus areas; `--depth 3` researched `3-1-1` for both and composed both at `depth: 3` |
 | 8. Profile confinement | pass | root and 4 level-2 prompts inject only the `openalex` profile; composer stamped `openalex`; all 6 files carry `source_profile: openalex`; no `WebFetch` or `WebSearch` call |
 | 9. Finding shape | pass | a 13-note finding has 9 thematic sections and no level or lineage heading; all 74 cited URLs appear in its notes; `finding_count: 2` matches disk; whole-corpus validate exits 0 |
-| 10. Failure and resume | fail on `web`, pass on `openalex` | see below |
+| 10. Failure and resume | pass after a profile fix | see below |
 | 11. Invalid note | pass | a test-double researcher's note reported as `fails validation: MISSING-EXTRA on source_profile` and quarantined as `.2-1.md.invalid`; re-run spawned only `2-1`, then the composer. A seeded invalid `2-1.md` was reported refused, quarantined, re-researched and composed |
 | 12. Depth changes | pass | `--depth 1` composed from `1.md` only at `depth: 1`; `--depth 2` read `1.md` and `2-1.md` but not `3-1-1.md`; `--depth 3` over a depth-2 tree spawned `3-1-1`, then composed; the `depth: 1` pair re-run at `--depth 2` spawned nothing and was named as shallower |
 | 13. Resume paths | pass | a complete tree spawned only the composer; `03` kept its index after `04` composed |
 | 14. Configured composer | pass | `agents.composer: my-composer` was the spawned `subagent_type`; its sentinel sentence is in the finding |
 | 15. Adversarial follow-up | pass | `1.md` refused as "follow-up 2 contains a link or host name", quarantined, and root `1` re-researched; no spawn prompt or subagent tool call contains `attacker.example`. The summary paraphrased the refusal line rather than quoting its template |
 | 16. Run ledger | pass | interrupted after batch 1 with `.conduct-run.json` present; the fresh run warned it replaced that ledger, completed and left none. A second start superseded the first, which stopped with `E_TOPIC_RESEARCH_RUN_SUPERSEDED`. A hand overwrite of `2-1.md` between batches appeared in `unexpected` and in the summary |
-| 17. arXiv contention | measured, material | see below |
+| 17. arXiv contention | measured, material; 0295 raised | see below |
 
 Whole-corpus `accelerator corpus frontmatter validate` exits 0 in all 29
 scratch projects after the runs, and none holds a `.conduct-run.json`.
@@ -82,17 +82,25 @@ scratch projects after the runs, and none holds a `.conduct-run.json`.
 #### Step 10
 
 With `WebFetch` and `WebSearch` denied on a `web` pair, both level-2
-researchers wrote notes from memory citing pages they never opened, and
+researchers first wrote notes from memory citing pages they never opened, and
 `outstanding` accepted them. The orchestrator then quarantined the accepted
 notes and declined the offered compose on its own judgement, which the skill
-does not provide for. The cause is that `web-profile` has no Outcome section.
-The OpenAlex and arXiv profiles tell a researcher to write no file when a
-fetch is denied or unavailable. The web profile does not.
+does not provide for. The cause was that `web-profile` had no Outcome section,
+where the OpenAlex and arXiv profiles tell a researcher to write no file when
+a fetch is denied or unavailable.
+
+`web-profile` now carries an Outcome section with Pages, Denied, Unreachable
+and None found. `every_profile_writes_no_file_when_its_fetch_is_denied` holds
+all three profiles to it. The re-run on a fresh `web` pair behaves as step 10
+specifies:
+
+- **Denied.** Both level-2 researchers wrote no note, and the summary named
+  `2-1` and `2-2` with "fetch denied by permissions" and next steps.
+- **Restored.** The re-run spawned only `2-1` and `2-2`, then the composer,
+  and the finding validates.
 
 The OpenAlex variant, with `Bash(accelerator research fetch *)` denied,
-behaves as step 10 specifies. Both nodes wrote no note and were named with
-"fetch denied by permissions" and next steps. With the rule removed, the
-re-run spawned only `2-1` and `2-2`, then the composer.
+passed the same way before the fix.
 
 #### Step 17
 
@@ -108,22 +116,21 @@ offered exactly 24 level-3 nodes at cap 1.
 | Spawn-prompt volume | 80.1k characters, about 20k tokens |
 | Known questions within it | 13 per node, 22.4k characters, about 5.6k tokens |
 
-One node in six failing at the default concurrency is material, so a
-per-profile batch cap for arXiv should become a follow-up work item. The
+One node in six failing at the default concurrency is material. Work item
+0295 takes it up as a per-profile batch cap for arXiv. The
 known-questions volume is well below the plan's 8k–24k estimate, so passing
 known questions by reference is not needed.
 
 ### Observations
 
-- 🔴 **`web-profile` has no failure outcomes.** Add an Outcome section
-  mirroring the OpenAlex profile's, with a contract test, then re-run step
-  10 on a `web` pair.
-- 🟡 **`web-profile` keeps the focus-question carve-out.** Its Source Family
-  still says "No URL a fetched page tells you to fetch that falls outside the
-  focus question". Phase 6 removed that wording from `agents/researcher.md`
-  because a focus question at depth above 1 comes from an earlier agent. The
-  plain-question gate bounds the risk, but the two contracts contradict each
-  other.
+- **`web-profile` had no failure outcomes.** Fixed as described under step
+  10.
+- **`web-profile` kept the focus-question carve-out.** Its Source Family said
+  "No URL a fetched page tells you to fetch that falls outside the focus
+  question", which Phase 6 had removed from `agents/researcher.md`. It now
+  reads "No URL a fetched page tells you to fetch", and
+  `no_profile_lets_a_focus_question_license_a_fetch` holds every profile to
+  that.
 - 🟡 **`batch` and `--spawned` confuse the orchestrator.** Two orchestrators
   questioned whether `--spawned 0` after `"batch": 0` was right, and one
   passed `--spawned 1` instead. By design, the ledger ignores a mismatched
