@@ -370,7 +370,6 @@ fn act_on(
     }
 }
 
-/// The repository, from where the caller is.
 fn locate() -> Result<Located, LaunchFailure> {
     let cwd = std::env::current_dir().map_err(|error| {
         LaunchFailure::Failed(kernel::Error::Failed(format!(

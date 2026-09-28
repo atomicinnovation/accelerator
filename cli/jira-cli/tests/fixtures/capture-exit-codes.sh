@@ -10,8 +10,7 @@
 # binary reads them structurally from the client). Three normalisations:
 #   - `E_ADF_UNSUPPORTED_*` (a wildcard family) -> ADF_UNSUPPORTED.
 #   - code 26, the retired shared-config token-command refusal, was a stderr
-#     prefix only, never a fatal exit, so it is omitted (EXIT_CODES.md:28
-#     flags this).
+#     prefix only, never a fatal exit, so it is omitted.
 #   - the E_BODY_* helper codes (1-6) are caller-namespaced: every caller remaps
 #     them to its own flow code (create->105, comment->94, update->116,
 #     transition->125), so they are not part of the binary's taxonomy and are

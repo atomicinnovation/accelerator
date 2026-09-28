@@ -32,7 +32,6 @@ fn repository() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
     Ok((guard, root))
 }
 
-/// A throwaway repository.
 struct Fixture {
     root: PathBuf,
     _guard: TempDir,

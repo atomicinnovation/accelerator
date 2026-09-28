@@ -94,7 +94,6 @@ pub enum TrackingCheck {
     Unchecked,
 }
 
-/// Answers whether a config file is VCS-tracked.
 pub trait ConfigFileTracking {
     fn tracking(&self, path: &Path) -> Tracking;
 
