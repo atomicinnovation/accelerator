@@ -48,6 +48,23 @@ pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option:
 pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
 pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
 pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
+pub mod work::create_batch
+pub enum work::create_batch::BatchKeyword
+pub work::create_batch::BatchKeyword::Declined
+pub work::create_batch::BatchKeyword::Pending
+pub work::create_batch::BatchKeyword::Pushed(work::sync::push_decide::PushOutcome)
+impl work::create_batch::BatchKeyword
+pub const fn work::create_batch::BatchKeyword::exit_code(self) -> u8
+pub const fn work::create_batch::BatchKeyword::keyword(self) -> &'static str
+impl core::clone::Clone for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::clone(&self) -> work::create_batch::BatchKeyword
+impl core::cmp::Eq for work::create_batch::BatchKeyword
+impl core::cmp::PartialEq for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::eq(&self, other: &work::create_batch::BatchKeyword) -> bool
+impl core::fmt::Debug for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::create_batch::BatchKeyword
+impl core::marker::StructuralPartialEq for work::create_batch::BatchKeyword
 pub mod work::dirtiness
 pub enum work::dirtiness::Dirtiness
 pub work::dirtiness::Dirtiness::Clean
@@ -127,6 +144,32 @@ pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'
 impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
 pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
+pub mod work::hierarchy
+pub enum work::hierarchy::BatchOrder<'a>
+pub work::hierarchy::BatchOrder::Cycle(alloc::vec::Vec<&'a str>)
+pub work::hierarchy::BatchOrder::ParentsFirst(alloc::vec::Vec<&'a str>)
+impl<'a> core::clone::Clone for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::clone(&self) -> work::hierarchy::BatchOrder<'a>
+impl<'a> core::cmp::Eq for work::hierarchy::BatchOrder<'a>
+impl<'a> core::cmp::PartialEq for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::eq(&self, other: &work::hierarchy::BatchOrder<'a>) -> bool
+impl<'a> core::fmt::Debug for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::hierarchy::BatchOrder<'a>
+pub struct work::hierarchy::HierarchyNode<'a>
+pub work::hierarchy::HierarchyNode::key: &'a str
+pub work::hierarchy::HierarchyNode::parent: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::clone(&self) -> work::hierarchy::HierarchyNode<'a>
+impl<'a> core::cmp::Eq for work::hierarchy::HierarchyNode<'a>
+impl<'a> core::cmp::PartialEq for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::eq(&self, other: &work::hierarchy::HierarchyNode<'a>) -> bool
+impl<'a> core::fmt::Debug for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::hierarchy::HierarchyNode<'a>
+impl<'a> core::marker::StructuralPartialEq for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::cyclic_members<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::set::BTreeSet<&'a str>
+pub fn work::hierarchy::parents_first<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> work::hierarchy::BatchOrder<'a>
 pub mod work::identity
 pub enum work::identity::IdentityField
 pub work::identity::IdentityField::Alias

@@ -159,6 +159,35 @@ For Linear, set `work.integration: linear`. The `init-jira` /
 `init-linear` skills walk through this interactively — see
 [Sync work items with Jira or Linear](sync-work-items.md).
 
+### Let the tracker own work-item IDs
+
+To name each item by its Jira or Linear key instead of a local number:
+
+```yaml
+---
+work:
+  integration: linear
+  id_pattern: "{tracker}"
+---
+```
+
+Two rules apply, and a pattern that breaks either is refused wherever it
+is read:
+
+- `{tracker}` must be the only token in `work.id_pattern` —
+  `"{tracker}-{number:04d}"` is rejected.
+- `work.integration` must be `jira` or `linear`.
+
+Under `{tracker}` an item pushed at creation takes the issue's key as
+its `id`; any other new item is saved as a draft in `meta/work/drafts/`
+under a `draft-xxxxxx` ID until `work sync` or `work promote` promotes it.
+`work.key` and `--project` are unused, and items created before the
+switch keep their IDs.
+
+⚠️ `{tracker}` needs Accelerator 1.24.0 or later. An older version cannot
+read the pattern at all, so upgrade every teammate before switching a
+shared `.accelerator/config.md`.
+
 ## Customise document templates
 
 Point a template key at your own file, or eject the default and edit it:

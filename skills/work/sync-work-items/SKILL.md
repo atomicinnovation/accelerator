@@ -365,8 +365,9 @@ the engine's report:
 pushed:                <ids>
 pulled:                <ids>
 pushed-unsynced:       <ids>   (new external_id written back)
-pulled-untracked:      <ids>   (remote key → new local id; includes a
-                                 targeted create-from-remote)
+pulled-untracked:      <ids>   (remote key → local id, equal under
+                                 {tracker}; includes a targeted
+                                 create-from-remote)
 promoted:              <draft-id> → <KEY>
 not promoted (reason): <draft-id> (<reason>)
 key-changed:           <id>: <old>-><new>

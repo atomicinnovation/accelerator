@@ -1,5 +1,5 @@
 === accelerator-work --help ===
-The `accelerator-work` command-line surface: work-item lifecycle primitives (`create`, `show`, `resolve`, `diff`, `update`, `sync`, `promote`) plus small utility subcommands used by the skills that orchestrate them
+The `accelerator-work` command-line surface: work-item lifecycle primitives (`create`, `create-batch`, `show`, `resolve`, `diff`, `update`, `sync`, `promote`) plus small utility subcommands used by the skills that orchestrate them
 
 Usage: accelerator-work <COMMAND>
 
@@ -9,6 +9,7 @@ Commands:
   show              Print a work item: the whole file, or a single frontmatter field
   diff              Show a per-section diff between two work-item-shaped files, for conflict-resolution review. `local` is the `-` side, `remote` is the `+` side
   create            Atomically create a new work item under the configured pattern, self-allocating its own ID
+  create-batch      Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took
   update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
   canonicalise-id   Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
@@ -93,6 +94,33 @@ Options:
       --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist); a rejected request is reported, exits 75 and the item saved unsynced (nothing was sent) — see `exit_codes` for the 70/71/75 contract. The file is written either way
       --dry-run                      Preview the fields a `--push` create would resolve against the configured tracker, then exit without writing a file or creating a remote issue. Prints one tab-separated line the create skill parses; exits 70 when the tracker is unreachable (the preview could not be resolved), so the caller can distinguish an unreachable tracker from an unresolvable configured value (reported as an `unresolvable` source on the line, exit 0)
   -h, --help                         Print help
+
+=== accelerator-work create-batch --help ===
+Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took.
+
+Prints one `<ref>\t<path>\t<keyword>\t<key>` line per item, then a `#\tdetail\t<ref>\t<source>\t<path>[\t<recovery-dir>]` line for each path a `created-blocked` or `retirement-incomplete` item names. The keywords are `create --push`'s, plus `declined` (created without a push) and `pending` (an earlier create of the same content awaits promotion; the path is its draft). A pushed batch records each entry in a journal under `.accelerator/state/`, so a rerun creates only the entries it never reached.
+
+Exits with the item code of greatest precedence (see `exit_codes`), `pending` counting as 4 and `declined` as 0; a refused manifest or a parent cycle exits 2 before anything is written.
+
+Usage: accelerator-work create-batch [OPTIONS] --manifest <MANIFEST>
+
+Options:
+      --manifest <MANIFEST>
+          The JSON manifest: an array of entries, each with `ref`, `title`, `kind` and `priority`, and optionally `status`, `body_file` (relative to the manifest), `tags`, `blocks`, `blocked_by`, `relates_to`, `derived_from`, `source` and `parent` — either `{"ref": "<ref>"}` naming another entry, or a typed reference to an existing item
+
+      --push
+          Push every item to the configured remote tracker, as `create --push` does for one
+
+      --author <AUTHOR>
+          The author. Falls back to the current VCS identity when omitted
+
+      --producer <PRODUCER>
+          The producer name recorded in each item's frontmatter
+          
+          [default: accelerator-work]
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 === accelerator-work update --help ===
 Atomically apply field/tag/list-field edits to an existing work item's frontmatter

@@ -66,9 +66,11 @@ use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
-use work_adapters::promotion::held_key;
 use work_adapters::promotion::promote;
+use work_adapters::promotion::Detail;
+use work_adapters::promotion::PromotionOutcome;
 use work_adapters::promotion::PromotionPorts;
+use work_adapters::promotion::PromotionRow;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::remote_create::send_create;
@@ -121,6 +123,9 @@ pub struct PushReport {
     /// What stderr tells the user beside the keyword: a rejected request's
     /// cause, a blocking item and its remedy, or the paths to restore.
     pub cause: Option<String>,
+    /// The blocking item, or each path to restore, for a caller that
+    /// reports them as data.
+    pub details: Vec<Detail>,
 }
 
 pub enum RunOutcome {
@@ -528,9 +533,9 @@ impl CreationContext<'_> {
 }
 
 /// What a creation strategy left on disk, and what became of its push.
-struct CreationOutcome {
-    path: Option<PathBuf>,
-    push: Option<PushReport>,
+pub struct CreationOutcome {
+    pub path: Option<PathBuf>,
+    pub push: Option<PushReport>,
 }
 
 impl CreationOutcome {
@@ -554,6 +559,7 @@ fn pushed(
             outcome,
             external_id: key.map(|key| key.as_str().to_owned()),
             cause,
+            details: Vec::new(),
         }),
     }
 }
@@ -587,6 +593,7 @@ fn write_draft(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
 ) -> Result<(DraftId, PathBuf), String> {
     let _guard = context.lock()?;
     let files = FilesystemWorkItemFiles::new(&context.work_dir)
@@ -600,6 +607,7 @@ fn write_draft(
         context.slug()
     ));
     write_new(store, &target, &context.content(draft.as_str(), None)?)?;
+    drafted(&draft);
     Ok((draft, target))
 }
 
@@ -607,8 +615,9 @@ fn save_draft(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
 ) -> Result<CreationOutcome, String> {
-    let (_, path) = write_draft(context, store, draws)?;
+    let (_, path) = write_draft(context, store, draws, drafted)?;
     Ok(CreationOutcome::unpushed(path))
 }
 
@@ -885,18 +894,33 @@ enum PendingCreate {
     Record {
         draft: DraftId,
         stage: PromotionStage,
+        draft_path: Option<PathBuf>,
     },
-    UnreadableRecord(PathBuf),
+    UnreadableRecord {
+        path: PathBuf,
+        draft_path: PathBuf,
+    },
     LegacyMarker(PathBuf),
     Draft(PathBuf),
 }
 
 impl PendingCreate {
+    /// The draft the earlier create left, where one still exists.
+    fn existing_draft(&self) -> Option<PathBuf> {
+        match self {
+            Self::Record { draft_path, .. } => draft_path.clone(),
+            Self::UnreadableRecord { draft_path, .. }
+            | Self::Draft(draft_path) => Some(draft_path.clone()),
+            Self::LegacyMarker(_) => None,
+        }
+    }
+
     fn message(&self, title: &str) -> String {
         match self {
             Self::Record {
                 draft,
                 stage: PromotionStage::Attempted,
+                ..
             } => format!(
                 "E_PUSH_PENDING: {draft} records a create of this content whose \
                  outcome is unknown; if the tracker has its issue run `work \
@@ -909,7 +933,7 @@ impl PendingCreate {
                  issue; run `work promote {draft}` or `work sync` to finish it",
                 draft = draft.as_str()
             ),
-            Self::UnreadableRecord(path) => format!(
+            Self::UnreadableRecord { path, .. } => format!(
                 "E_PUSH_PENDING: {} could not be read and may record a create \
                  of this content; inspect it before creating again",
                 path.display()
@@ -973,29 +997,35 @@ fn pending_create(
             Some((draft, file.path.as_path(), file.content.as_str()))
         })
         .collect();
-    let draft_exists =
-        |wanted: &DraftId| drafts.iter().any(|(draft, _, _)| draft == wanted);
+    let draft_path = |wanted: &DraftId| {
+        drafts
+            .iter()
+            .find(|(draft, _, _)| draft == wanted)
+            .map(|(_, path, _)| path.to_path_buf())
+    };
 
     for entry in records.outstanding().map_err(|error| error.to_string())? {
         match entry {
             Ok(record) if record.content_digest == wanted => {
                 return Ok(Some(PendingCreate::Record {
+                    draft_path: draft_path(&record.draft_id),
                     draft: record.draft_id,
                     stage: record.stage,
                 }));
             }
             Ok(_) => {}
             Err(unreadable) => {
-                let names_live_draft = unreadable
+                let live_draft = unreadable
                     .path
                     .file_stem()
                     .and_then(std::ffi::OsStr::to_str)
                     .and_then(DraftId::parse)
-                    .is_some_and(|draft| draft_exists(&draft));
-                if names_live_draft {
-                    return Ok(Some(PendingCreate::UnreadableRecord(
-                        unreadable.path,
-                    )));
+                    .and_then(|draft| draft_path(&draft));
+                if let Some(draft_path) = live_draft {
+                    return Ok(Some(PendingCreate::UnreadableRecord {
+                        path: unreadable.path,
+                        draft_path,
+                    }));
                 }
             }
         }
@@ -1123,16 +1153,16 @@ pub const fn create_outcome_of(reason: &NotPromoted) -> PushOutcome {
     }
 }
 
-/// Maps a promotion's result onto the create outcome the skills read.
+/// Maps a promotion's row onto the create outcome the skills read.
 fn promotion_outcome(
-    result: Result<Promotion, NotPromoted>,
+    row: PromotionRow,
     context: &CreationContext<'_>,
     draft: &DraftId,
-    draft_path: PathBuf,
-    records: &dyn PromotionRecords,
 ) -> CreationOutcome {
-    let reason = match result {
-        Ok(Promotion::Completed(key, _) | Promotion::AlreadyDone(key)) => {
+    let (reason, key) = match row.outcome {
+        PromotionOutcome::Promoted(
+            Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
+        ) => {
             let path = FilesystemWorkItemFiles::new(&context.work_dir)
                 .files()
                 .ok()
@@ -1158,9 +1188,14 @@ fn promotion_outcome(
                 None,
             );
         }
-        Err(reason) => reason,
+        PromotionOutcome::Previewed => {
+            unreachable!("a create never previews its promotion")
+        }
+        PromotionOutcome::NotPromoted { reason, held_key } => {
+            (reason, held_key)
+        }
     };
-    let key = held_key(&reason, draft, records);
+    let draft_path = row.path;
     let outcome = create_outcome_of(&reason);
     let shown_key = match outcome {
         PushOutcome::CreatedUnwritten | PushOutcome::CreatedBlocked => {
@@ -1168,7 +1203,7 @@ fn promotion_outcome(
         }
         _ => None,
     };
-    match reason {
+    let mut created = match reason {
         NotPromoted::RetirementFailed(
             failure @ RetirementFailure::RestoreIncomplete { .. },
         ) => incomplete_outcome(
@@ -1191,7 +1226,16 @@ fn promotion_outcome(
             pushed(Some(draft_path), outcome, shown_key, Some(detail))
         }
         _ => pushed(Some(draft_path), outcome, shown_key, None),
+    };
+    if let Some(report) = created.push.as_mut() {
+        if matches!(
+            report.outcome,
+            PushOutcome::CreatedBlocked | PushOutcome::RetirementIncomplete
+        ) {
+            report.details = row.details;
+        }
     }
+    created
 }
 
 /// Under `{tracker}` with `--push`: writes a draft, then promotes it, so an
@@ -1200,6 +1244,7 @@ fn create_tracker_keyed_item(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
     registry: &dyn TrackerRegistry,
 ) -> Result<CreationOutcome, CreateFailure> {
     let (integrations_root, integration) = context.pending_push_location()?;
@@ -1214,11 +1259,12 @@ fn create_tracker_keyed_item(
     if let Some(pending) =
         pending_create(context, &records, &integrations_root, &integration)?
     {
-        return Err(CreateFailure::Pending(
-            pending.message(&context.args.title),
-        ));
+        return Err(CreateFailure::Pending {
+            message: pending.message(&context.args.title),
+            existing_draft: pending.existing_draft(),
+        });
     }
-    let (draft, draft_path) = write_draft(context, store, draws)?;
+    let (draft, draft_path) = write_draft(context, store, draws, drafted)?;
     let Ok(tracker) = registry.resolve(&integration) else {
         return Ok(pushed(
             Some(draft_path),
@@ -1237,24 +1283,29 @@ fn create_tracker_keyed_item(
     )?;
     let baseline = workspace.baseline(store);
     let retirement = workspace.retirement_ports(store, &baseline);
-    let result = promote(
+    let ports = PromotionPorts {
+        tracker: tracker.as_ref(),
+        retirement: &retirement,
+        records: &records,
+    };
+    let result = promote(&draft, &PromotionMode::Standard, &ports);
+    let row = PromotionRow::of(
         &draft,
-        &PromotionMode::Standard,
-        &PromotionPorts {
-            tracker: tracker.as_ref(),
-            retirement: &retirement,
-            records: &records,
-        },
+        draft_path,
+        result,
+        &ports,
+        workspace.state_dir(),
     );
-    Ok(promotion_outcome(
-        result, context, &draft, draft_path, &records,
-    ))
+    Ok(promotion_outcome(row, context, &draft))
 }
 
 /// Why a create wrote nothing: an earlier create of the same content is
 /// still pending, or something failed.
-enum CreateFailure {
-    Pending(String),
+pub enum CreateFailure {
+    Pending {
+        message: String,
+        existing_draft: Option<PathBuf>,
+    },
     Failed(String),
 }
 
@@ -1304,12 +1355,20 @@ fn creation_context<'a>(
     })
 }
 
-fn try_run(
+/// Creates one item through the strategy its ID ownership and `--push`
+/// select, calling `drafted` as soon as a draft is on disk.
+///
+/// # Errors
+///
+/// [`CreateFailure::Pending`] when an earlier create of the same content
+/// is still pending, otherwise [`CreateFailure::Failed`].
+pub fn create_item(
     start: &Path,
     config: &dyn ConfigAccess,
     templates: &dyn ReadTemplate,
     args: &CreateArgs,
     seams: &mut Seams<'_>,
+    drafted: &mut dyn FnMut(&DraftId),
 ) -> Result<CreationOutcome, CreateFailure> {
     let context = creation_context(start, config, templates, args)?;
     let store = (seams.store_at)(&context.root);
@@ -1318,12 +1377,13 @@ fn try_run(
             Ok(create_local_item(&context, store.as_ref(), seams.registry)?)
         }
         (IdOwnership::Tracker, false) => {
-            Ok(save_draft(&context, store.as_ref(), seams.draws)?)
+            Ok(save_draft(&context, store.as_ref(), seams.draws, drafted)?)
         }
         (IdOwnership::Tracker, true) => create_tracker_keyed_item(
             &context,
             store.as_ref(),
             seams.draws,
+            drafted,
             seams.registry,
         ),
     }
@@ -1379,11 +1439,13 @@ pub fn run_with(
         };
         return preview_push(&integration, &args.kind, seams.registry);
     }
-    match try_run(start, config, templates, args, seams) {
+    match create_item(start, config, templates, args, seams, &mut |_| {}) {
         Ok(CreationOutcome { path, push }) => {
             RunOutcome::Created { path, push }
         }
-        Err(CreateFailure::Pending(message)) => RunOutcome::Pending(message),
+        Err(CreateFailure::Pending { message, .. }) => {
+            RunOutcome::Pending(message)
+        }
         Err(CreateFailure::Failed(message)) => RunOutcome::Failed(message),
     }
 }
@@ -1402,6 +1464,9 @@ mod tests {
     use super::*;
     use std::rc::Rc;
 
+    use crate::test_support::FakeConfig;
+    use crate::test_support::Faults;
+    use crate::test_support::PluginWorkItemTemplate;
     use crate::test_support::StubRegistry;
 
     fn retryable() -> TrackerError {
@@ -1526,67 +1591,6 @@ mod tests {
                 assert!(line.ends_with("GONE\tunresolvable"), "{line}");
             }
             _ => panic!("an unresolvable project must still preview at exit 0"),
-        }
-    }
-
-    struct FakeConfig(std::collections::HashMap<String, String>);
-
-    impl ConfigAccess for FakeConfig {
-        fn get(
-            &self,
-            key: &::config::Key,
-            _level: Option<::config::Level>,
-        ) -> Result<::config::Resolved, ::config::ConfigError> {
-            Ok(self.0.get(&key.to_string()).map_or(
-                ::config::Resolved::Absent,
-                |value| {
-                    ::config::Resolved::Found(::config::Value::Scalar(
-                        ::config::Scalar::String(value.clone()),
-                    ))
-                },
-            ))
-        }
-
-        fn set(
-            &self,
-            _key: &::config::Key,
-            _value: &str,
-            _level: ::config::Level,
-        ) -> Result<(), ::config::ConfigError> {
-            unreachable!("create never writes config")
-        }
-    }
-
-    struct PluginWorkItemTemplate;
-
-    impl ReadTemplate for PluginWorkItemTemplate {
-        fn resolve_template(
-            &self,
-            _name: &str,
-            _config_path: Option<&str>,
-            _templates_dir: &str,
-        ) -> Result<Option<::config::ResolvedTemplate>, ::config::ConfigError>
-        {
-            self.plugin_default("work-item")
-        }
-
-        fn template_names(&self) -> Result<Vec<String>, ::config::ConfigError> {
-            Ok(vec!["work-item".to_owned()])
-        }
-
-        fn plugin_default(
-            &self,
-            _name: &str,
-        ) -> Result<Option<::config::ResolvedTemplate>, ::config::ConfigError>
-        {
-            Ok(Some(::config::ResolvedTemplate {
-                source: ::config::TemplateSource::PluginDefault,
-                abs_path: "templates/work-item.md".to_owned(),
-                display_path: "templates/work-item.md".to_owned(),
-                content: include_str!("../../../templates/work-item.md")
-                    .to_owned(),
-                warning: None,
-            }))
         }
     }
 
@@ -1787,54 +1791,6 @@ mod tests {
             panic!("--project names no token under {{tracker}}");
         };
         assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
-    }
-
-    struct Faults {
-        inner: FileCorpusStore,
-        applies: fn(&Path) -> bool,
-        left: std::cell::Cell<usize>,
-    }
-
-    impl Faults {
-        fn check(&self, path: &Path) -> Result<(), corpus::StoreError> {
-            if (self.applies)(path) && self.left.get() > 0 {
-                self.left.set(self.left.get() - 1);
-                return Err(corpus::StoreError::Io {
-                    path: path.display().to_string(),
-                    detail: "injected".to_owned(),
-                });
-            }
-            Ok(())
-        }
-    }
-
-    impl AtomicWrite for Faults {
-        fn write(
-            &self,
-            path: &Path,
-            bytes: &[u8],
-        ) -> Result<(), corpus::StoreError> {
-            self.check(path)?;
-            self.inner.write(path, bytes)
-        }
-    }
-
-    impl ExclusiveCreate for Faults {
-        fn create_new(
-            &self,
-            path: &Path,
-            bytes: &[u8],
-        ) -> Result<(), corpus::StoreError> {
-            self.check(path)?;
-            self.inner.create_new(path, bytes)
-        }
-    }
-
-    impl RemoveFile for Faults {
-        fn remove(&self, path: &Path) -> Result<(), corpus::StoreError> {
-            self.check(path)?;
-            self.inner.remove(path)
-        }
     }
 
     fn in_the_work_directory_itself(path: &Path) -> bool {

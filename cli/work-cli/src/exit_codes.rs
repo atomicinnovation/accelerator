@@ -92,6 +92,13 @@
 //! still pending sends nothing and exits `4` (`E_PUSH_PENDING`,
 //! `E_DRAFT_EXISTS`).
 //!
+//! `work create-batch` reports each entry with a `create --push` keyword, or
+//! with `declined` (`0`, created without a push) or `pending` (`4`, an
+//! earlier create of the same content awaits promotion), and exits with the
+//! entry code that ranks highest in the precedence above; `0` when every
+//! entry's is. A refused manifest or a parent cycle exits `2` before
+//! anything is written.
+//!
 //! `work sync` and `work promote` report a draft left unpromoted as
 //! `not-promoted` with a reason keyword, each folded into the precedence
 //! above, with `1` ranked just below `71`:

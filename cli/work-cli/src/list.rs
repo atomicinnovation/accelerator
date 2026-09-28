@@ -18,6 +18,8 @@ use work::filter::canonical_reference;
 use work::filter::strip_reference_prefix;
 use work::filter::Filter;
 use work::filter::WorkItemView;
+use work::hierarchy::cyclic_members;
+use work::hierarchy::HierarchyNode;
 use work::identity::ItemIdentity;
 use work::show::read_field_raw;
 use work::sync::label;
@@ -315,100 +317,58 @@ pub fn render_hierarchy(
             .filter(|key| canonical_id.contains_key(key))
     };
 
-    let in_cycle = cyclic_members(items, scheme, &canonical_id);
-    let children: BTreeMap<String, Vec<&ScannedItem>> =
-        child_index(items, scheme, &canonical_id, &in_cycle);
+    let keys: Vec<String> = items
+        .iter()
+        .map(|item| canonical_reference(&item.id, scheme))
+        .collect();
+    let parents: Vec<Option<String>> =
+        items.iter().map(|item| parent_of(item)).collect();
+    let nodes: Vec<HierarchyNode<'_>> = keys
+        .iter()
+        .zip(&parents)
+        .map(|(key, parent)| HierarchyNode {
+            key,
+            parent: parent.as_deref(),
+        })
+        .collect();
+    let in_cycle = cyclic_members(&nodes);
+    let children = child_index(items, &keys, &parents, &in_cycle);
 
     let mut lines = Vec::new();
-    for item in items {
-        let key = canonical_reference(&item.id, scheme);
-        if in_cycle.contains(&key) {
-            lines.push(format!(
-                "{} (cycle)",
-                tree_line(item, labels.and_then(|map| map.get(&item.id)))
-            ));
+    for ((item, key), parent) in items.iter().zip(&keys).zip(&parents) {
+        let line = tree_line(item, labels.and_then(|map| map.get(&item.id)));
+        if in_cycle.contains(key.as_str()) {
+            lines.push(format!("{line} (cycle)"));
+        } else if parent.is_some() {
             continue;
-        }
-        let parent = parent_of(item);
-        if parent.is_none() {
-            if let Some(raw) = &item.parent {
-                if !in_cycle.contains(&key) {
-                    lines.push(format!(
-                        "{} (parent {} not found)",
-                        tree_line(
-                            item,
-                            labels.and_then(|map| map.get(&item.id))
-                        ),
-                        strip_reference_prefix(raw)
-                    ));
-                    render_children(
-                        &key, &children, labels, &mut lines, 1, scheme,
-                    );
-                    continue;
-                }
-            }
-            lines.push(tree_line(
-                item,
-                labels.and_then(|map| map.get(&item.id)),
+        } else if let Some(raw) = &item.parent {
+            lines.push(format!(
+                "{line} (parent {} not found)",
+                strip_reference_prefix(raw)
             ));
-            render_children(&key, &children, labels, &mut lines, 1, scheme);
+        } else {
+            lines.push(line);
         }
+        render_children(key, &children, labels, &mut lines, 1, scheme);
     }
     lines.join("\n")
 }
 
-fn cyclic_members(
-    items: &[&ScannedItem],
-    scheme: &WorkItemIdScheme,
-    index: &BTreeMap<String, &ScannedItem>,
-) -> BTreeSet<String> {
-    let mut cyclic = BTreeSet::new();
-    for item in items {
-        let mut seen = BTreeSet::new();
-        let mut cursor = canonical_reference(&item.id, scheme);
-        loop {
-            if !seen.insert(cursor.clone()) {
-                cyclic.insert(canonical_reference(&item.id, scheme));
-                break;
-            }
-            let Some(current) = index.get(&cursor) else {
-                break;
-            };
-            let Some(parent) = current
-                .parent
-                .as_deref()
-                .map(|raw| canonical_reference(raw, scheme))
-                .filter(|key| index.contains_key(key))
-            else {
-                break;
-            };
-            cursor = parent;
-        }
-    }
-    cyclic
-}
-
+/// Each parent's children, in the order given. A cycle member is never
+/// indexed as a child, so every walk down from a parent terminates.
 fn child_index<'a>(
     items: &[&'a ScannedItem],
-    scheme: &WorkItemIdScheme,
-    index: &BTreeMap<String, &ScannedItem>,
-    in_cycle: &BTreeSet<String>,
+    keys: &[String],
+    parents: &[Option<String>],
+    in_cycle: &BTreeSet<&str>,
 ) -> BTreeMap<String, Vec<&'a ScannedItem>> {
     let mut children: BTreeMap<String, Vec<&ScannedItem>> = BTreeMap::new();
-    for item in items {
-        let key = canonical_reference(&item.id, scheme);
-        if in_cycle.contains(&key) {
+    for ((item, key), parent) in items.iter().zip(keys).zip(parents) {
+        if in_cycle.contains(key.as_str()) {
             continue;
         }
-        if let Some(parent) = item
-            .parent
-            .as_deref()
-            .map(|raw| canonical_reference(raw, scheme))
-            .filter(|parent| {
-                index.contains_key(parent) && !in_cycle.contains(parent)
-            })
-        {
-            children.entry(parent).or_default().push(item);
+        if let Some(parent) = parent {
+            children.entry(parent.clone()).or_default().push(item);
         }
     }
     children
@@ -1288,6 +1248,27 @@ mod tests {
                 "0002 — Item 0002 (kind: story, status: draft) (cycle)"
             ),
             "{tree}"
+        );
+    }
+
+    #[test]
+    fn an_item_beneath_a_cycle_nests_under_its_cyclic_parent() {
+        let mut a = item("0001");
+        a.parent = Some("work-item:0002".to_owned());
+        let mut b = item("0002");
+        b.parent = Some("work-item:0001".to_owned());
+        let mut beneath = item("0003");
+        beneath.parent = Some("work-item:0001".to_owned());
+        let items = vec![a, b, beneath];
+        let selected: Vec<&ScannedItem> = items.iter().collect();
+
+        let tree = render_hierarchy(&selected, None, &scheme());
+
+        assert_eq!(
+            tree,
+            "0001 — Item 0001 (kind: story, status: draft) (cycle)\n  \
+             └── 0003 — Item 0003 (kind: story, status: draft)\n\
+             0002 — Item 0002 (kind: story, status: draft) (cycle)"
         );
     }
 

@@ -1,16 +1,18 @@
-//! Pins every push outcome's keyword and exit code, and every reason a draft
-//! is not promoted, against a frozen expectation.
+//! Pins every push outcome's keyword and exit code, every keyword a batch
+//! create reports, and every reason a draft is not promoted, against a
+//! frozen expectation.
 //!
 //! The work skills branch on both the keyword `work create --push`,
-//! `work sync` and `work promote` print and the code each exits with, so the
-//! pairs are literals committed here rather than derived from the code they
-//! guard.
+//! `work create-batch`, `work sync` and `work promote` print and the code
+//! each exits with, so the pairs are literals committed here rather than
+//! derived from the code they guard.
 #![allow(clippy::expect_used, clippy::panic)]
 
 use std::path::PathBuf;
 
 use corpus::StoreError;
 use tracker::ExternalId;
+use work::create_batch::BatchKeyword;
 use work::identity::IdentityField;
 use work::promotion::NotPromoted;
 use work::retirement::RetirementCause;
@@ -58,6 +60,44 @@ fn every_keyword_maps_to_its_frozen_exit_code() {
         );
     }
     assert_eq!(EVERY_OUTCOME.len(), FROZEN_KEYWORD_EXIT_CODES.len());
+}
+
+const FROZEN_BATCH_KEYWORD_EXIT_CODES: &[(&str, u8)] = &[
+    ("write-once", 0),
+    ("retry", 70),
+    ("local-save", 0),
+    ("loud-terminal", 71),
+    ("rejected", 75),
+    ("created-unwritten", 71),
+    ("created-blocked", 4),
+    ("retirement-incomplete", 71),
+    ("declined", 0),
+    ("pending", 4),
+];
+
+#[test]
+fn every_batch_keyword_maps_to_its_frozen_exit_code() {
+    let every_keyword: Vec<BatchKeyword> = EVERY_OUTCOME
+        .iter()
+        .copied()
+        .map(BatchKeyword::Pushed)
+        .chain([BatchKeyword::Declined, BatchKeyword::Pending])
+        .collect();
+    for keyword in &every_keyword {
+        let (_, frozen) = FROZEN_BATCH_KEYWORD_EXIT_CODES
+            .iter()
+            .find(|(frozen, _)| *frozen == keyword.keyword())
+            .unwrap_or_else(|| {
+                panic!("no frozen code for keyword {}", keyword.keyword())
+            });
+        assert_eq!(
+            keyword.exit_code(),
+            *frozen,
+            "{} has drifted from its contract",
+            keyword.keyword()
+        );
+    }
+    assert_eq!(every_keyword.len(), FROZEN_BATCH_KEYWORD_EXIT_CODES.len());
 }
 
 /// `(keyword, exit before an issue exists, exit once one does)`.

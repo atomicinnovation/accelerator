@@ -80,3 +80,4 @@
 - All 14 pre-existing evals (1–14) pass 100% in both configs — no regressions introduced by the enrich-existing extension.
 - Evals 1–14 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior.
 - Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed.
+- Evals 35 and 36 ({tracker} push-gate decline and preview failure) were run with_skill only on 2026-09-28, by claude-sonnet-5; both passed on the first run.

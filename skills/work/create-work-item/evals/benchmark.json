@@ -42,7 +42,9 @@
       "6",
       "7",
       "8",
-      "9"
+      "9",
+      "35",
+      "36"
     ],
     "runs_per_configuration": 1
   },
@@ -1836,6 +1838,84 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 35,
+      "eval_name": "tracker_pattern_push_gate_decline_reads_save_as_draft",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The decline option's label reads 'No, save as draft'",
+          "passed": true,
+          "evidence": "push-offer.md option 2 label: \"No, save as draft\"."
+        },
+        {
+          "text": "commands.md shows no call to accelerator work next-number",
+          "passed": true,
+          "evidence": "commands.md runs only the --push --dry-run preview, the no-push create and the validate call; no next-number."
+        },
+        {
+          "text": "After the decline, commands.md shows accelerator work create without --push",
+          "passed": true,
+          "evidence": "commands.md step 2: accelerator work create \"Dark mode\" story medium --status draft ... --body-file ..., without --push."
+        },
+        {
+          "text": "The response names meta/work/drafts/draft-k7mq3x-dark-mode.md as a draft that /sync-work-items promotes later",
+          "passed": true,
+          "evidence": "response.md: \"Work item saved as draft: meta/work/drafts/draft-k7mq3x-dark-mode.md \u2014 push declined; /sync-work-items promotes it\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 36,
+      "eval_name": "tracker_pattern_preview_failure_saves_a_draft",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response says the tracker could not be reached and offers to save now or retry the preview",
+          "passed": true,
+          "evidence": "response.md: \"the connection was refused, so Linear is unreachable right now\" and offers to save now or retry the preview."
+        },
+        {
+          "text": "commands.md shows accelerator work create without --push after the user chose to save",
+          "passed": true,
+          "evidence": "commands.md line 2: accelerator work create \"Dark mode\" story medium --status draft ... --body-file <scratch-file>, without --push."
+        },
+        {
+          "text": "commands.md shows no call to accelerator work next-number and no file written by hand",
+          "passed": true,
+          "evidence": "commands.md lists only the preview, the no-push create and the validate call; no next-number, no hand-written file."
+        },
+        {
+          "text": "The response names meta/work/drafts/draft-p4t9wz-dark-mode.md as a draft",
+          "passed": true,
+          "evidence": "response.md: \"Work item saved as draft: meta/work/drafts/draft-p4t9wz-dark-mode.md \u2014 tracker unreachable\"."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -1892,6 +1972,7 @@
     "eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values \u2014 showing identity is not preserved.",
     "All 14 pre-existing evals (1\u201314) pass 100% in both configs \u2014 no regressions introduced by the enrich-existing extension.",
     "Evals 1\u201314 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior.",
-    "Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed."
+    "Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed.",
+    "Evals 35 and 36 ({tracker} push-gate decline and preview failure) were run with_skill only on 2026-09-28, by claude-sonnet-5; both passed on the first run."
   ]
 }

@@ -592,7 +592,7 @@ Configure work-item identifiers and the active remote tracker. Four keys are rec
 |------------------------------|------------------|--------------------------------------------|
 | `integration`                | (empty)          | Active remote tracker. Allowed values: `jira`, `linear`, `trello`, `github-issues`. When set, integration skills auto-scope to the tracker scope key (`jira.project_key` / `linear.team_key`). Team→local override precedence applies; use `/accelerator:configure view` to confirm which source is active. |
 | `id_pattern`                 | `{number:04d}`   | DSL controlling work-item ID shape         |
-| `key`                        | (empty)          | Local ID prefix substituted into `{key}`. Required when `id_pattern` references `{key}`. Work-owned and fully independent of the tracker scope key — it never derives from it. |
+| `key`                        | (empty)          | Local ID prefix substituted into `{key}`. Required when `id_pattern` references `{key}`; unused under `{tracker}`. Work-owned and fully independent of the tracker scope key — it never derives from it. |
 | `default_project_code`       | (empty)          | **Deprecated** (removed in 1.25.0). A read-time alias resolving into `work.key` (tracker-less) or the tracker scope key (tracker-backed). Run `/accelerator:migrate` to materialise the replacement keys. |
 
 Example configuration for a project tracking issues with prefixed
@@ -667,7 +667,20 @@ The `id_pattern` value is a small DSL with two tokens:
   are rewritten to `{key}` by `/accelerator:migrate`.
 - `{{` and `}}` — escaped literals for a literal `{` or `}`.
 
-**Validation rules** (enforced when the pattern is consumed):
+`{tracker}` is a pattern on its own rather than a token beside others: the
+tracker owns every item's `id`. An item pushed at creation takes its Jira
+or Linear key as `id`; any other new item is a **draft** in
+`meta/work/drafts/` under a provisional `draft-xxxxxx` ID until `work
+sync` or `work promote` promotes it onto its key, keeping the draft ID in
+its `aliases`. Two rules apply: `{tracker}` must be the only token in
+`work.id_pattern`, and `work.integration` must be `jira` or `linear`.
+`work.key` and `--project` are unused under it, and items created earlier
+keep their IDs. It needs Accelerator 1.24.0 or later; upgrade every
+teammate before switching a shared config, since an older version cannot
+read the pattern.
+
+**Validation rules** for `{number}` patterns (enforced when the pattern is
+consumed):
 
 1. Pattern must contain at least one `{number}` token.
 2. No filesystem-hostile chars (`/`, `\`, `:`, `*`, `?`, `<`, `>`,
@@ -712,7 +725,8 @@ not value — is what marks an item synced.
 
 #### Choosing between default and project-coded patterns
 
-Pick the default `{number:04d}` if your project tracks work items
+Pick `{tracker}` when every new item should be named by its Jira or Linear
+key. Pick the default `{number:04d}` if your project tracks work items
 internally and does not link out to an external tracker. Pick
 `{key}-{number:04d}` (with an explicit `work.key`) when:
 
