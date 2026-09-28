@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-28T20:00:00+00:00"
+last_updated: "2026-09-28T12:29:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3434,6 +3434,30 @@ Legacy patterns keep the existing flow.
 >   `list-work-items` already described drafts. The hand-written pages
 >   changed are the sync guide, the cookbook, the work-items overview and
 >   the configure skill.
+> - Test placement: the manifest rejections are `batch_manifest.rs` unit
+>   tests, and the journal's claiming, pruning and fail-closed
+>   `.gitignore` are `batch_journal.rs` unit tests. Four planned names are
+>   assertion labels inside a broader test:
+>   `promoting_the_parent_rewrites_both_children` in
+>   `a_local_save_parent_still_creates_its_children_linked_to_its_draft`,
+>   `children_of_a_journalled_parent_link_to_its_recorded_key` in
+>   `a_rerun_of_a_partial_batch_creates_only_the_unreached_entries`,
+>   `a_retirement_incomplete_line_carries_its_key` in
+>   `each_line_carries_the_outcome_keyword_and_key`, and
+>   `legacy_items_named_as_parents_keep_their_ids` in
+>   `a_parent_given_as_a_typed_reference_to_an_existing_item_is_kept`.
+>   `blocked_and_incomplete_items_carry_trailing_detail_lines` drives a
+>   real `created-blocked`; the incomplete case's rendering is
+>   `an_incomplete_item_renders_its_paths_and_recovery_directory`, since
+>   `RecordingTracker` cannot force an incomplete restore. The exit-code
+>   and line tests are pure over `BatchItem`, because one
+>   `RecordingTracker` cannot script a different outcome per create.
+>   Added beyond the plan: `a_node_that_is_its_own_parent_is_a_cycle`,
+>   `a_rejected_manifest_writes_nothing`,
+>   `a_draft_journalled_before_its_create_finished_is_reported_from_the_corpus`
+>   and `a_child_whose_parent_took_no_id_says_it_was_created_unlinked`.
+>   Not written: a batch killed mid-promotion; the draft-written journal
+>   entry covers it, but only the kill between items is exercised.
 
 **File**: `skills/work/refine-work-item/SKILL.md` (`:177-189`)
 **Changes**: Inject the same two lines. Under `{tracker}`, create
@@ -3577,7 +3601,7 @@ One row per acceptance criterion in 0230, in the work item's order.
 | 37 | `work resolve PP-760` / `pp-760` finds legacy `0230` | 2 | `resolving_pp_760_finds_legacy_item_0230_by_external_id` |
 | 38 | `PP-900` / `pp-900` resolves when `id` = `external_id` | 2 | `work_resolve_pp_900_and_lowercase_resolve_an_item_whose_id_and_external_id_agree` |
 | 39 | `ENG-42` in two items' fields → ambiguous | 2 | `work_resolve_exits_ambiguous_naming_both_items_and_fields` |
-| 40 | Legacy IDs unchanged by sync, create, extract | 6, 7, 8 | `legacy_ids_are_unchanged_by_sync_under_tracker`, `a_tracker_create_leaves_legacy_items_byte_identical`, `legacy_items_named_as_parents_keep_their_ids` |
+| 40 | Legacy IDs unchanged by sync, create, extract | 6, 7, 8 | `legacy_ids_are_unchanged_by_sync_under_tracker`, `a_tracker_create_leaves_legacy_items_byte_identical`, `a_parent_given_as_a_typed_reference_to_an_existing_item_is_kept` (label `legacy_items_named_as_parents_keep_their_ids`) |
 | 41 | Pushed legacy `0042` keeps its `id` | 5 | `a_legacy_unsynced_item_pushed_under_tracker_keeps_its_id` |
 | 42 | Linear team move retires `PP-760` → `ENG-42`; resolve old | 4 | `a_moved_issue_retires_the_old_key_when_id_equals_external_id`, `work_resolve_pp_760_returns_the_moved_path` |
 | 43 | Jira project move `PP-76` → `OPS-5` | 4 | `a_jira_project_move_retires_the_key` |
@@ -3590,7 +3614,7 @@ One row per acceptance criterion in 0230, in the work item's order.
 | 50 | Batch accepted: three remote, children name epic key | 8 | `push_accepted_creates_all_three_and_links_children_to_the_epic_key` |
 | 51 | Batch cycle: nothing created or written | 8 | `a_cycle_stops_the_batch_before_any_create_naming_the_members` |
 | 52 | Batch declined: three linked drafts, `draft — push declined` | 8 | `push_declined_writes_every_item_as_a_draft_linked_to_parent_drafts`, eval `extract_under_tracker_makes_one_push_offer_and_calls_create_batch` |
-| 53 | `local-save` epic: children link its draft; promotion rewrites | 8 | `a_local_save_parent_still_creates_its_children_linked_to_its_draft`, `promoting_the_parent_rewrites_both_children` |
+| 53 | `local-save` epic: children link its draft; promotion rewrites | 8 | `a_local_save_parent_still_creates_its_children_linked_to_its_draft` (label `promoting_the_parent_rewrites_both_children`) |
 | 54 | Four-outcome summary strings, in order | 8 | `each_line_carries_the_outcome_keyword_and_key`, eval `extract_under_tracker_renders_the_four_0230_outcome_strings_in_order` |
 
 ### Manual Testing Steps:
