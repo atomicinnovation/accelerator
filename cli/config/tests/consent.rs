@@ -815,6 +815,16 @@ fn each_command_refusal_renders_its_code_and_cause() {
         (
             Refusal::CommandFailed {
                 key,
+                cause: FailureCause::CouldNotStart(
+                    StartFailure::NoWorkingDirectoryOutsideTheRepository,
+                ),
+            },
+            "E_TOKEN_CMD_FAILED: jira.token_cmd could not start: no \
+             temporary directory outside the repository",
+        ),
+        (
+            Refusal::CommandFailed {
+                key,
                 cause: FailureCause::Exited(3),
             },
             "E_TOKEN_CMD_FAILED: jira.token_cmd exited with status 3",

@@ -120,14 +120,12 @@ impl BashCommandRunner {
             .collect()
     }
 
-    fn working_directory(&self) -> io::Result<TempDir> {
-        let made = fresh_directory_in(&self.temp_base);
-        match made {
-            Ok(directory) if !self.inside_the_repository(directory.path()) => {
-                Ok(directory)
-            }
-            Ok(_) | Err(_) => fresh_directory_in(Path::new("/tmp")),
-        }
+    fn working_directory(&self) -> Result<TempDir, StartFailure> {
+        [self.temp_base.as_path(), Path::new("/tmp")]
+            .into_iter()
+            .filter_map(|base| fresh_directory_in(base).ok())
+            .find(|directory| !self.inside_the_repository(directory.path()))
+            .ok_or(StartFailure::NoWorkingDirectoryOutsideTheRepository)
     }
 
     fn inside_the_repository(&self, path: &Path) -> bool {
@@ -164,9 +162,8 @@ impl CommandRunner for BashCommandRunner {
         policy: &CommandPolicy,
     ) -> Result<String, CommandFailure> {
         let run = ActiveRun::begin();
-        let working_directory = self
-            .working_directory()
-            .map_err(|_| could_not_start(StartFailure::SpawnFailed))?;
+        let working_directory =
+            self.working_directory().map_err(could_not_start)?;
         let search_path = self.search_path();
         let bash = bash_on(&search_path)
             .ok_or(could_not_start(StartFailure::NoBashOnPath))?;

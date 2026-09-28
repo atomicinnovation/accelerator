@@ -220,6 +220,25 @@ fn the_working_directory_is_never_home_or_inside_the_repository() {
 }
 
 #[test]
+fn a_repository_enclosing_every_temporary_directory_cannot_start() {
+    let fixture = Fixture::new();
+    let runner = BashCommandRunner::new(
+        RepositoryRoots::complete(vec![PathBuf::from("/")]),
+        Box::new(Map(fixture.parent())),
+        fixture.temp_base,
+    );
+
+    let outcome = runner.run("true", &base());
+
+    assert_eq!(
+        outcome,
+        Err(CommandFailure::Failed(FailureCause::CouldNotStart(
+            StartFailure::NoWorkingDirectoryOutsideTheRepository
+        )))
+    );
+}
+
+#[test]
 fn a_waited_on_background_child_times_out_and_is_killed() {
     let fixture = Fixture::new();
     let pidfile = fixture.pidfile("child");

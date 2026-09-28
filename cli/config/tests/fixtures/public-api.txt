@@ -178,6 +178,7 @@ pub fn config::consent::Rung<T>::fmt(&self, f: &mut core::fmt::Formatter<'_>) ->
 impl<T> core::marker::StructuralPartialEq for config::consent::Rung<T>
 pub enum config::consent::StartFailure
 pub config::consent::StartFailure::NoBashOnPath
+pub config::consent::StartFailure::NoWorkingDirectoryOutsideTheRepository
 pub config::consent::StartFailure::SpawnFailed
 impl core::clone::Clone for config::consent::StartFailure
 pub fn config::consent::StartFailure::clone(&self) -> config::consent::StartFailure

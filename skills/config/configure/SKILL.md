@@ -90,7 +90,9 @@ Every command-valued key (`jira.token_cmd`, `linear.token_cmd`,
 overrides) runs through one runner:
 
 - **Working directory**: a fresh temporary directory outside the repository,
-  removed afterwards. A command never runs in the repository or in `$HOME`.
+  removed afterwards. A command never runs in the repository or in `$HOME`;
+  when no temporary directory lies outside the repository, it is refused with
+  `E_TOKEN_CMD_FAILED`.
 - **Environment**: only `PATH`, `HOME`, `TERM`, `XDG_CONFIG_HOME`,
   `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`, plus what a key admits:
   `github.token_cmd` admits `GH_HOST` and `GH_CONFIG_DIR`. Every other

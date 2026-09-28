@@ -173,6 +173,7 @@ pub enum FailureCause {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartFailure {
     NoBashOnPath,
+    NoWorkingDirectoryOutsideTheRepository,
     SpawnFailed,
 }
 
@@ -181,6 +182,12 @@ impl fmt::Display for FailureCause {
         match self {
             Self::CouldNotStart(StartFailure::NoBashOnPath) => formatter
                 .write_str("could not start: no bash on the filtered PATH"),
+            Self::CouldNotStart(
+                StartFailure::NoWorkingDirectoryOutsideTheRepository,
+            ) => formatter.write_str(
+                "could not start: no temporary directory outside the \
+                 repository",
+            ),
             Self::CouldNotStart(StartFailure::SpawnFailed) => {
                 formatter.write_str("could not start")
             }
