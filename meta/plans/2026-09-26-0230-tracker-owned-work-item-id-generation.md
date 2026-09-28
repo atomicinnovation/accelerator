@@ -2732,19 +2732,74 @@ table, `:493-587`)
 **Changes**: `tracker_pattern_created_blocked_relays_holder_and_promote_remedy`,
 `tracker_pattern_loud_terminal_offers_adopt_or_create`.
 
+> Implementation notes:
+>
+> - Every recorded remote hash travels with the stamp read beside it, as
+>   `work::promotion::ReadBack { hash, updated }`: `RemoteRetitled` holds a
+>   `read_back`, each `RemoteKeptReason` holds one, and
+>   `RemoteHash::Known(ReadBack)`. Without the stamp a promoted item's
+>   baseline could never prove the issue unchanged, and every later sync
+>   would `show` it. Records persist it as `<prefix>_updated_at`, reported
+>   or `null`, as the baseline does.
+> - `intended_baseline` returns `Option`, `None` for stages that have not
+>   settled the remote side. `retitling(created_hash, read_back,
+>   matches_draft)` decides `Retitle` or `Keep(Edited | NoHash)`.
+>   `without_ids` is the ID normalisation `content_digest` and the
+>   read-back comparisons share.
+> - `NotPromoted::RecordUnwritable { key, detail }` (`record-unwritable`)
+>   covers a record write that fails; with a key it maps to
+>   `created-unwritten`.
+> - The Retire step relies on `finish_retirement`'s own re-plan for its
+>   second attempt rather than rewriting the record's baseline between
+>   attempts: a draft edited mid-promotion keeps the edit in the promoted
+>   file, and the next sync sees it as a local change and pushes it.
+> - Records are read and written through
+>   `work_adapters::promotion_records::{PromotionRecords,
+>   FilePromotionRecords}`; `SettlementPorts` gained `promotions`.
+>   Reconciliation finishes `Retiring` records; earlier stages wait for the
+>   draft's next promotion. `outstanding` returns `MarkerEntry`s.
+> - `work-cli` `create::run` delegates to `run_with(.., Seams { registry,
+>   store_at, draws })`, the seam the fault-injecting store and the draws
+>   enter through. `E_PUSH_PENDING` / `E_DRAFT_EXISTS` are
+>   `RunOutcome::Pending`, exit 4. `SharedTracker` and `StubRegistry`
+>   moved to `work-cli/src/test_support.rs`.
+> - The pull records an orphaned record's removal as a stderr note, not a
+>   `#\tnote` report line, since the author has no report to write to. An
+>   unreadable record whose draft exists refuses every tracker-owned
+>   import, because it may hold any key; the identity pass cannot express
+>   that in `followed_keys`.
+> - Sync's create-from-local keeps its own `link_and_baseline`; only
+>   `work create --push` and promotion go through `record_created_baseline`.
+> - `RecordingTracker` gained `failing_create_once` beside
+>   `parking_create`.
+> - Not written, with the covering test: the out-of-grammar key warning
+>   (`RecordingTracker` mints only `REC-n`); the real-VCS draft promotion and
+>   resumed recovery copies (Phase 3's retirement suite); the live-promotion
+>   lock wait and concurrent-pull race (`the_pull_takes_the_retirement_lock_before_the_create_lock`,
+>   `two_promoters_of_one_draft_create_one_issue`); the kill-after-`to` and
+>   kill-per-stage variants (`a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote`,
+>   which kills at every store operation); `every_not_promoted_reason_has_a_create_outcome`
+>   (the mapping is an exhaustive `match`); the vanished-draft, incomplete
+>   restore and concurrent-sync create outcomes.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p work promotion`
-- [ ] `cd cli && cargo test -p accelerator-work create`
-- [ ] `cd cli && cargo test -p work-adapters --test promotion --test sync_create`
-- [ ] `cd cli && cargo test -p jira-client -p linear-client`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_create_push`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run test:unit:tasks`
-- [ ] `mise run test:integration:conformance`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work promotion`
+- [x] `cd cli && cargo test -p accelerator-work create`
+- [x] `cd cli && cargo test -p work-adapters --test promotion --test sync_create`
+- [x] `cd cli && cargo test -p jira-client -p linear-client`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_create_push`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run test:unit:tasks`
+- [x] `mise run test:integration:conformance`
+- [x] `mise run` exits 0
+
+> Implementation note: the first full run failed only in
+> `test:unit:design-automation` (a request-token test timing out) and
+> `test:integration:dev`, neither touched here; both passed on rerun, and a
+> later full run passed end to end.
 
 #### Manual Verification:
 

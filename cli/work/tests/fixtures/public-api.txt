@@ -207,6 +207,185 @@ pub fn work::normalise::trim_lines(content: &str) -> alloc::string::String
 pub mod work::own_identity
 pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, work_item_id: core::option::Option<&str>) -> bool
 pub fn work::own_identity::own_identity_fallback_field(field: &str) -> core::option::Option<&'static str>
+pub mod work::promotion
+pub enum work::promotion::NotPromoted
+pub work::promotion::NotPromoted::CreateOutcomeUnknown
+pub work::promotion::NotPromoted::EarlierAttemptUnconfirmed
+pub work::promotion::NotPromoted::ReadBackFailed(tracker::ExternalId)
+pub work::promotion::NotPromoted::RecordUnwritable
+pub work::promotion::NotPromoted::RecordUnwritable::detail: alloc::string::String
+pub work::promotion::NotPromoted::RecordUnwritable::key: core::option::Option<tracker::ExternalId>
+pub work::promotion::NotPromoted::Refused(work::retirement::RetirementRefusal)
+pub work::promotion::NotPromoted::RequestRejected
+pub work::promotion::NotPromoted::RequestRejected::detail: alloc::string::String
+pub work::promotion::NotPromoted::RetirementFailed(work::retirement::RetirementFailure)
+pub work::promotion::NotPromoted::TrackerUnreachable
+impl work::promotion::NotPromoted
+pub const fn work::promotion::NotPromoted::keyword(&self) -> &'static str
+impl core::clone::Clone for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::clone(&self) -> work::promotion::NotPromoted
+impl core::cmp::Eq for work::promotion::NotPromoted
+impl core::cmp::PartialEq for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::eq(&self, other: &work::promotion::NotPromoted) -> bool
+impl core::fmt::Debug for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::NotPromoted
+pub enum work::promotion::Promotion
+pub work::promotion::Promotion::AlreadyDone(tracker::ExternalId)
+pub work::promotion::Promotion::Completed(tracker::ExternalId)
+impl core::clone::Clone for work::promotion::Promotion
+pub fn work::promotion::Promotion::clone(&self) -> work::promotion::Promotion
+impl core::cmp::Eq for work::promotion::Promotion
+impl core::cmp::PartialEq for work::promotion::Promotion
+pub fn work::promotion::Promotion::eq(&self, other: &work::promotion::Promotion) -> bool
+impl core::fmt::Debug for work::promotion::Promotion
+pub fn work::promotion::Promotion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::Promotion
+pub enum work::promotion::PromotionMode
+pub work::promotion::PromotionMode::Standard
+impl core::clone::Clone for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::clone(&self) -> work::promotion::PromotionMode
+impl core::cmp::Eq for work::promotion::PromotionMode
+impl core::cmp::PartialEq for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::eq(&self, other: &work::promotion::PromotionMode) -> bool
+impl core::fmt::Debug for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionMode
+pub enum work::promotion::PromotionStage
+pub work::promotion::PromotionStage::Attempted
+pub work::promotion::PromotionStage::Created
+pub work::promotion::PromotionStage::Created::created_remote_hash: core::option::Option<alloc::string::String>
+pub work::promotion::PromotionStage::Created::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteKept
+pub work::promotion::PromotionStage::RemoteKept::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteKept::reason: work::promotion::RemoteKeptReason
+pub work::promotion::PromotionStage::RemoteRetitled
+pub work::promotion::PromotionStage::RemoteRetitled::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteRetitled::read_back: work::promotion::ReadBack
+pub work::promotion::PromotionStage::Retiring
+pub work::promotion::PromotionStage::Retiring::baseline: work::promotion::IntendedBaseline
+pub work::promotion::PromotionStage::Retiring::before: alloc::boxed::Box<work::promotion::PromotionStage>
+pub work::promotion::PromotionStage::Retiring::key: tracker::ExternalId
+pub work::promotion::PromotionStage::Retiring::recovery_dir: std::path::PathBuf
+impl work::promotion::PromotionStage
+pub const fn work::promotion::PromotionStage::key(&self) -> core::option::Option<&tracker::ExternalId>
+impl core::clone::Clone for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::clone(&self) -> work::promotion::PromotionStage
+impl core::cmp::Eq for work::promotion::PromotionStage
+impl core::cmp::PartialEq for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::eq(&self, other: &work::promotion::PromotionStage) -> bool
+impl core::fmt::Debug for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionStage
+pub enum work::promotion::PromotionStep
+pub work::promotion::PromotionStep::CreateIssue
+pub work::promotion::PromotionStep::Finish
+pub work::promotion::PromotionStep::Retire(tracker::ExternalId)
+pub work::promotion::PromotionStep::RetitleRemote(tracker::ExternalId)
+pub work::promotion::PromotionStep::Stop(work::promotion::NotPromoted)
+impl core::clone::Clone for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::clone(&self) -> work::promotion::PromotionStep
+impl core::cmp::Eq for work::promotion::PromotionStep
+impl core::cmp::PartialEq for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::eq(&self, other: &work::promotion::PromotionStep) -> bool
+impl core::fmt::Debug for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionStep
+pub enum work::promotion::RecordState<'a>
+pub work::promotion::RecordState::Absent
+pub work::promotion::RecordState::Present(&'a work::promotion::PromotionRecord)
+pub work::promotion::RecordState::Unreadable
+impl<'a> core::clone::Clone for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::clone(&self) -> work::promotion::RecordState<'a>
+impl<'a> core::cmp::Eq for work::promotion::RecordState<'a>
+impl<'a> core::cmp::PartialEq for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::eq(&self, other: &work::promotion::RecordState<'a>) -> bool
+impl<'a> core::fmt::Debug for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::promotion::RecordState<'a>
+impl<'a> core::marker::StructuralPartialEq for work::promotion::RecordState<'a>
+pub enum work::promotion::RemoteHash
+pub work::promotion::RemoteHash::Known(work::promotion::ReadBack)
+pub work::promotion::RemoteHash::Unknown
+impl core::clone::Clone for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::clone(&self) -> work::promotion::RemoteHash
+impl core::cmp::Eq for work::promotion::RemoteHash
+impl core::cmp::PartialEq for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::eq(&self, other: &work::promotion::RemoteHash) -> bool
+impl core::fmt::Debug for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::RemoteHash
+pub enum work::promotion::RemoteKeptReason
+pub work::promotion::RemoteKeptReason::Edited
+pub work::promotion::RemoteKeptReason::Edited::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::NoHash
+pub work::promotion::RemoteKeptReason::NoHash::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::UpdateFailed
+pub work::promotion::RemoteKeptReason::UpdateFailed::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::UserNamedAdopt
+pub work::promotion::RemoteKeptReason::UserNamedAdopt::read_back: work::promotion::ReadBack
+impl work::promotion::RemoteKeptReason
+pub const fn work::promotion::RemoteKeptReason::read_back(&self) -> &work::promotion::ReadBack
+impl core::clone::Clone for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::clone(&self) -> work::promotion::RemoteKeptReason
+impl core::cmp::Eq for work::promotion::RemoteKeptReason
+impl core::cmp::PartialEq for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::eq(&self, other: &work::promotion::RemoteKeptReason) -> bool
+impl core::fmt::Debug for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::RemoteKeptReason
+pub enum work::promotion::Retitling
+pub work::promotion::Retitling::Keep(work::promotion::RemoteKeptReason)
+pub work::promotion::Retitling::Retitle
+impl core::clone::Clone for work::promotion::Retitling
+pub fn work::promotion::Retitling::clone(&self) -> work::promotion::Retitling
+impl core::cmp::Eq for work::promotion::Retitling
+impl core::cmp::PartialEq for work::promotion::Retitling
+pub fn work::promotion::Retitling::eq(&self, other: &work::promotion::Retitling) -> bool
+impl core::fmt::Debug for work::promotion::Retitling
+pub fn work::promotion::Retitling::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::Retitling
+pub struct work::promotion::IntendedBaseline
+pub work::promotion::IntendedBaseline::local_hash: alloc::string::String
+pub work::promotion::IntendedBaseline::remote_hash: work::promotion::RemoteHash
+impl core::clone::Clone for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::clone(&self) -> work::promotion::IntendedBaseline
+impl core::cmp::Eq for work::promotion::IntendedBaseline
+impl core::cmp::PartialEq for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::eq(&self, other: &work::promotion::IntendedBaseline) -> bool
+impl core::fmt::Debug for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::IntendedBaseline
+pub struct work::promotion::PromotionRecord
+pub work::promotion::PromotionRecord::content_digest: alloc::string::String
+pub work::promotion::PromotionRecord::draft_id: work::draft_id::DraftId
+pub work::promotion::PromotionRecord::request: work::sync::push_precondition::RequestFingerprint
+pub work::promotion::PromotionRecord::stage: work::promotion::PromotionStage
+impl core::clone::Clone for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::clone(&self) -> work::promotion::PromotionRecord
+impl core::cmp::Eq for work::promotion::PromotionRecord
+impl core::cmp::PartialEq for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::eq(&self, other: &work::promotion::PromotionRecord) -> bool
+impl core::fmt::Debug for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionRecord
+pub struct work::promotion::ReadBack
+pub work::promotion::ReadBack::hash: alloc::string::String
+pub work::promotion::ReadBack::updated: tracker::RemoteTimestamp
+impl core::clone::Clone for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::clone(&self) -> work::promotion::ReadBack
+impl core::cmp::Eq for work::promotion::ReadBack
+impl core::cmp::PartialEq for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::eq(&self, other: &work::promotion::ReadBack) -> bool
+impl core::fmt::Debug for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::ReadBack
+pub const work::promotion::ID_PLACEHOLDER: &str
+pub fn work::promotion::intended_baseline(disposition: &work::promotion::PromotionStage, draft_digest: &str, promoted_digest: &str, read_back_matches_promoted: bool) -> core::option::Option<work::promotion::IntendedBaseline>
+pub fn work::promotion::next_step(record: work::promotion::RecordState<'_>, mode: &work::promotion::PromotionMode) -> work::promotion::PromotionStep
+pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Option<&str>, read_back_hash: &str, read_back_matches_draft: bool) -> bool
+pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
+pub fn work::promotion::without_ids(text: &str, ids: &[&str]) -> alloc::string::String
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
@@ -281,6 +460,7 @@ pub work::retirement::RetirementFailure::RestoreIncomplete::unrestored: alloc::v
 pub work::retirement::RetirementFailure::RolledBack
 pub work::retirement::RetirementFailure::RolledBack::cause: work::retirement::RetirementCause
 impl work::retirement::RetirementFailure
+pub const fn work::retirement::RetirementFailure::keyword(&self) -> &'static str
 pub fn work::retirement::RetirementFailure::message(&self, retirement: &work::retirement::Retirement<'_>, recovery_location: &std::path::Path) -> alloc::string::String
 impl core::clone::Clone for work::retirement::RetirementFailure
 pub fn work::retirement::RetirementFailure::clone(&self) -> work::retirement::RetirementFailure
@@ -299,6 +479,7 @@ pub work::retirement::RetirementRefusal::KeyLinked
 pub work::retirement::RetirementRefusal::KeyLinked::holder: std::path::PathBuf
 pub work::retirement::RetirementRefusal::TargetExists(std::path::PathBuf)
 impl work::retirement::RetirementRefusal
+pub const fn work::retirement::RetirementRefusal::keyword(&self) -> &'static str
 pub fn work::retirement::RetirementRefusal::message(&self, retirement: &work::retirement::Retirement<'_>) -> alloc::string::String
 impl core::clone::Clone for work::retirement::RetirementRefusal
 pub fn work::retirement::RetirementRefusal::clone(&self) -> work::retirement::RetirementRefusal
@@ -410,6 +591,7 @@ impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
 pub const work::retirement::RECOVERY_PARENT: &str
 pub const work::retirement::RETIREMENT_INCOMPLETE: &str
 pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
+pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
 pub enum work::section_diff::SectionName
 pub work::section_diff::SectionName::Frontmatter
@@ -644,9 +826,12 @@ pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_
 pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
 pub mod work::sync::push_decide
 pub enum work::sync::push_decide::PushOutcome
+pub work::sync::push_decide::PushOutcome::CreatedBlocked
+pub work::sync::push_decide::PushOutcome::CreatedUnwritten
 pub work::sync::push_decide::PushOutcome::LocalSave
 pub work::sync::push_decide::PushOutcome::LoudTerminal
 pub work::sync::push_decide::PushOutcome::Rejected
+pub work::sync::push_decide::PushOutcome::RetirementIncomplete
 pub work::sync::push_decide::PushOutcome::Retry
 pub work::sync::push_decide::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome
@@ -838,9 +1023,12 @@ impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
 pub enum work::sync::PushOutcome
+pub work::sync::PushOutcome::CreatedBlocked
+pub work::sync::PushOutcome::CreatedUnwritten
 pub work::sync::PushOutcome::LocalSave
 pub work::sync::PushOutcome::LoudTerminal
 pub work::sync::PushOutcome::Rejected
+pub work::sync::PushOutcome::RetirementIncomplete
 pub work::sync::PushOutcome::Retry
 pub work::sync::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome

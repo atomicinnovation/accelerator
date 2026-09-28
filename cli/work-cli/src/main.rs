@@ -15,6 +15,8 @@ mod show;
 mod sync;
 mod sync_author;
 mod template_hints;
+#[cfg(test)]
+mod test_support;
 mod tracker_registry;
 mod update;
 
@@ -239,7 +241,12 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
         create::RunOutcome::Created { path, push } => {
-            println!("{}", path.display());
+            println!(
+                "{}",
+                path.as_deref()
+                    .map(Path::display)
+                    .map_or_else(String::new, |shown| shown.to_string())
+            );
             let Some(report) = push else {
                 return ExitCode::SUCCESS;
             };
@@ -260,6 +267,10 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         create::RunOutcome::PreviewFailed { message, code } => {
             eprintln!("Error: {message}");
             ExitCode::from(code)
+        }
+        create::RunOutcome::Pending(message) => {
+            eprintln!("Error: {message}");
+            ExitCode::from(exit_codes::UNRESOLVED)
         }
         create::RunOutcome::Failed(message) => {
             eprintln!("Error: {message}");

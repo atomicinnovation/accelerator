@@ -364,7 +364,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     fn create_marking_progress(
-        &mut self,
+        &self,
         request: &CreateFromLocalRequest<'_>,
         digest: String,
     ) -> Result<(), ApplyError> {
@@ -400,7 +400,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     fn record_created(
-        &mut self,
+        &self,
         request: &CreateFromLocalRequest<'_>,
         fingerprint: &RequestFingerprint,
         external_id: &ExternalId,
@@ -460,7 +460,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     }
 
     fn link_and_baseline(
-        &mut self,
+        &self,
         request: &CreateFromLocalRequest<'_>,
         external_id: &ExternalId,
     ) -> Result<(), ApplyError> {

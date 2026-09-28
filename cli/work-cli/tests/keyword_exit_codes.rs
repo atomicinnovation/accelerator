@@ -14,6 +14,9 @@ const FROZEN_KEYWORD_EXIT_CODES: &[(&str, u8)] = &[
     ("local-save", 0),
     ("loud-terminal", 71),
     ("rejected", 75),
+    ("created-unwritten", 71),
+    ("created-blocked", 4),
+    ("retirement-incomplete", 71),
 ];
 
 const EVERY_OUTCOME: &[PushOutcome] = &[
@@ -22,6 +25,9 @@ const EVERY_OUTCOME: &[PushOutcome] = &[
     PushOutcome::LocalSave,
     PushOutcome::LoudTerminal,
     PushOutcome::Rejected,
+    PushOutcome::CreatedUnwritten,
+    PushOutcome::CreatedBlocked,
+    PushOutcome::RetirementIncomplete,
 ];
 
 #[test]

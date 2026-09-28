@@ -6,6 +6,7 @@ pub mod apply;
 pub mod baseline;
 pub mod baseline_store;
 pub mod create;
+pub mod created_baseline;
 pub mod digest;
 pub mod fetch;
 pub mod identity_settlement;

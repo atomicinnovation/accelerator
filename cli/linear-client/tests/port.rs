@@ -81,6 +81,31 @@ fn search_body(identifiers: &[&str], next: Option<&str>) -> String {
 }
 
 #[test]
+fn create_targets_the_configured_linear_team() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(
+        key.clone(),
+        json_route(
+            "{\"data\":{\"issueCreate\":{\"success\":true,\
+             \"issue\":{\"id\":\"u\",\"identifier\":\"ENG-7\"}}}}"
+                .to_owned(),
+        ),
+    );
+
+    let created = client_for(&server, brief())
+        .create("A title", "A body\n", "task")
+        .expect("create succeeds");
+
+    assert_eq!(created, id("ENG-7"));
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    assert_eq!(TEAM_KEY, "ENG");
+    assert_eq!(sent["variables"]["input"]["teamId"], TEAM_ID);
+}
+
+#[test]
 fn create_sends_the_mutation_and_returns_the_identifier() {
     let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);

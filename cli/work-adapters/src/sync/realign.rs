@@ -71,9 +71,8 @@ pub fn realign_baselines(
         let baseline_path =
             baseline::path(integrations_root, &integration.to_string_lossy());
         let writer = writer_at(&entry.path());
-        let mut store =
-            BaselineStore::new(baseline_path, reader, writer.as_ref());
-        realigned += realign_one_baseline(&mut store, &by_id, reader)
+        let store = BaselineStore::new(baseline_path, reader, writer.as_ref());
+        realigned += realign_one_baseline(&store, &by_id, reader)
             .map_err(RealignError::Baseline)?;
     }
     Ok(realigned)
@@ -88,7 +87,7 @@ fn frontmatter_id(content: &str) -> Option<String> {
 }
 
 fn realign_one_baseline(
-    store: &mut BaselineStore<'_>,
+    store: &BaselineStore<'_>,
     by_id: &HashMap<String, (&Path, &str)>,
     reader: &dyn FileReader,
 ) -> Result<usize, StoreError> {

@@ -21,6 +21,13 @@ use work::sync::decide_key_change;
 use work::sync::IdentityAction;
 use work::sync::KeyChange;
 
+use work::draft_id::DraftId;
+use work::promotion::NotPromoted;
+use work::promotion::PromotionStage;
+
+use crate::promotion::finish_promotion;
+use crate::promotion_records::PromotionRecords;
+use crate::promotion_records::StoredRecord;
 use crate::retirement::acquire_retirement_lock;
 use crate::retirement::corpus_identities;
 use crate::retirement::finish_retirement;
@@ -41,6 +48,7 @@ use crate::sync::run::SyncRequest;
 pub struct SettlementPorts<'a> {
     pub retirement: &'a RetirementPorts<'a>,
     pub records: &'a dyn RetirementRecords,
+    pub promotions: &'a dyn PromotionRecords,
     pub ownership: IdOwnership,
     /// Where recovery directories live, so a failure can name one on disk.
     pub state_dir: &'a Path,
@@ -228,6 +236,99 @@ fn reconcile(
     Ok(rows)
 }
 
+/// Finishes every promotion a record says was retiring its draft when its
+/// run stopped. Earlier stages wait for the draft's next promotion, which
+/// resumes them.
+fn reconcile_promotions(
+    mode: RunMode,
+    settlement: &SettlementPorts<'_>,
+) -> Result<Vec<IdentityRow>, RunError> {
+    let mut rows = Vec::new();
+    for record in settlement
+        .promotions
+        .outstanding()
+        .map_err(internal)?
+        .into_iter()
+        .flatten()
+    {
+        let PromotionStage::Retiring { key, .. } = &record.stage else {
+            continue;
+        };
+        let row = |outcome| IdentityRow {
+            id: record.draft_id.as_str().to_owned(),
+            settled_id: key.to_string(),
+            action: IdentityAction::Resumed,
+            detail: arrow(record.draft_id.as_str(), key.as_str()),
+            outcome,
+        };
+        if mode == RunMode::Preview {
+            rows.push(row(IdentityOutcome::NotApplied));
+            continue;
+        }
+        let lock = acquire_retirement_lock(settlement.retirement.lock)
+            .map_err(internal)?;
+        let StoredRecord::Present(current) =
+            settlement.promotions.read(&record.draft_id)
+        else {
+            continue;
+        };
+        if *current != record {
+            continue;
+        }
+        let retirement = Retirement {
+            old_id: record.draft_id.as_str(),
+            new_id: key.as_str(),
+            new_external_id: Some(key.as_str()),
+        };
+        let outcome = match finish_promotion(
+            &record,
+            settlement.retirement,
+            settlement.promotions,
+            &lock,
+        ) {
+            Ok(_) => IdentityOutcome::Applied,
+            Err(NotPromoted::RetirementFailed(
+                failure @ RetirementFailure::RestoreIncomplete { .. },
+            )) => return Err(incomplete(&failure, &retirement, settlement)),
+            Err(NotPromoted::Refused(refusal)) => {
+                IdentityOutcome::Refused(refusal.message(&retirement))
+            }
+            Err(NotPromoted::RetirementFailed(failure)) => {
+                IdentityOutcome::Failed(failure.message(
+                    &retirement,
+                    &settlement.state_dir.join(retirement.recovery_dir()),
+                ))
+            }
+            Err(other) => IdentityOutcome::Failed(other.keyword().to_owned()),
+        };
+        rows.push(row(outcome));
+    }
+    Ok(rows)
+}
+
+/// The key of every promotion record that has one and whose draft still
+/// exists: its draft's promotion will resume onto it, so it is tracked.
+fn keys_held_by_promotions(
+    request: &SyncRequest<'_>,
+    settlement: &SettlementPorts<'_>,
+) -> Result<Vec<ExternalId>, RunError> {
+    let draft_exists = |draft: &DraftId| {
+        request
+            .corpus
+            .iter()
+            .any(|item| item.id.eq_ignore_ascii_case(draft.as_str()))
+    };
+    Ok(settlement
+        .promotions
+        .outstanding()
+        .map_err(internal)?
+        .into_iter()
+        .flatten()
+        .filter(|record| draft_exists(&record.draft_id))
+        .filter_map(|record| record.stage.key().cloned())
+        .collect())
+}
+
 fn not_found_row(item: &str, key: &ExternalId) -> IdentityRow {
     IdentityRow {
         id: item.to_owned(),
@@ -397,6 +498,8 @@ pub fn settle_identities(
     settlement: &SettlementPorts<'_>,
 ) -> Result<SettlementReport, RunError> {
     let mut rows = reconcile(request.mode, settlement)?;
+    rows.extend(reconcile_promotions(request.mode, settlement)?);
+    let promotion_keys = keys_held_by_promotions(request, settlement)?;
     let (plan, not_found, facts) =
         detect_identity_changes(request, ports, settlement)?;
     check_ceilings(
@@ -438,7 +541,8 @@ pub fn settle_identities(
     let view = SettledView::following(
         plan.key_changes
             .iter()
-            .map(|change| change.new_key().clone()),
+            .map(|change| change.new_key().clone())
+            .chain(promotion_keys),
     );
     Ok(SettlementReport {
         rows,

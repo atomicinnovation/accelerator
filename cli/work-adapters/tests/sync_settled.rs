@@ -31,17 +31,26 @@ use tracker::TrackerError;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
 use work::dirtiness::Dirtiness;
+use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
+use work::promotion::IntendedBaseline;
+use work::promotion::PromotionRecord;
+use work::promotion::PromotionStage;
+use work::promotion::ReadBack;
+use work::promotion::RemoteHash;
 use work::retirement::Retirement;
 use work::retirement::RetirementRecord;
 use work::sync::IdentityAction;
+use work::sync::RequestFingerprint;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
 use work::work_item_files::identities;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion_records::FilePromotionRecords;
+use work_adapters::promotion_records::PromotionRecords as _;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RetirementFiles;
 use work_adapters::retirement::RetirementPorts;
@@ -159,8 +168,7 @@ impl Repo {
 
     fn baseline_set(&self, id: &str, entry: Entry) {
         let store = FileCorpusStore::new(self.root());
-        let mut baseline =
-            BaselineStore::new(self.path(BASELINE), &RealFs, &store);
+        let baseline = BaselineStore::new(self.path(BASELINE), &RealFs, &store);
         baseline.set(id, entry).unwrap();
     }
 
@@ -499,9 +507,15 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         inner: FileRetirementRecords::new(&state, &plain),
         log,
     };
+    let promotions = FilePromotionRecords::new(
+        &repo.path(".accelerator/state/integrations"),
+        "linear",
+        &plain,
+    );
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
+        promotions: &promotions,
         ownership: options.ownership,
         state_dir: &state,
     };
@@ -1478,4 +1492,136 @@ fn a_key_change_and_a_planned_pull_of_a_referencing_item_in_one_run_keep_the_rew
     assert!(child.contains("work-item:ENG-42"), "{child}");
     assert!(!child.contains("PP-760"), "{child}");
     assert!(repo.baseline_entry("ENG-42").is_some());
+}
+
+const PROMOTED_DRAFT: &str = "draft-k7mq3x";
+
+fn promotion_record(stage: PromotionStage) -> PromotionRecord {
+    PromotionRecord {
+        draft_id: DraftId::parse(PROMOTED_DRAFT).unwrap(),
+        request: RequestFingerprint {
+            title: "Title".to_owned(),
+            digest: "request".to_owned(),
+            attempted_at: 1,
+            failure: None,
+        },
+        content_digest: "content".to_owned(),
+        stage,
+    }
+}
+
+fn save_promotion(repo: &Repo, record: &PromotionRecord) {
+    let store = FileCorpusStore::new(repo.root());
+    FilePromotionRecords::new(
+        &repo.path(".accelerator/state/integrations"),
+        "linear",
+        &store,
+    )
+    .save(record)
+    .unwrap();
+}
+
+fn promotion_records_left(repo: &Repo) -> usize {
+    let store = FileCorpusStore::new(repo.root());
+    FilePromotionRecords::new(
+        &repo.path(".accelerator/state/integrations"),
+        "linear",
+        &store,
+    )
+    .outstanding()
+    .unwrap()
+    .len()
+}
+
+#[test]
+fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
+    let repo = Repo::new();
+    let promoted = "---\nid: \"ENG-42\"\ntitle: \"Title\"\nexternal_id: \
+                    \"ENG-42\"\naliases: [\"draft-k7mq3x\"]\n---\n\n\
+                    # ENG-42: Title\n";
+    repo.write("meta/work/ENG-42-title.md", promoted);
+    let settled_remote = ReadBack {
+        hash: digest::remote_body(BODY),
+        updated: RemoteTimestamp::Reported(STAMP.to_owned()),
+    };
+    save_promotion(
+        &repo,
+        &promotion_record(PromotionStage::Retiring {
+            key: key("ENG-42"),
+            baseline: IntendedBaseline {
+                remote_hash: RemoteHash::Known(settled_remote.clone()),
+                local_hash: digest::local(promoted).unwrap(),
+            },
+            recovery_dir: PathBuf::from(
+                "retirement-recovery/draft-k7mq3x--ENG-42",
+            ),
+            before: Box::new(PromotionStage::RemoteRetitled {
+                key: key("ENG-42"),
+                read_back: settled_remote,
+            }),
+        }),
+    );
+
+    let outcome = sync(
+        &repo,
+        &RecordingTracker::holding(vec![held("ENG-42")]),
+        Options::default(),
+    );
+
+    let row = outcome.row(PROMOTED_DRAFT);
+    assert_eq!(row.action, IdentityAction::Resumed);
+    assert_eq!(row.outcome, IdentityOutcome::Applied);
+    assert_eq!(row.detail, "draft-k7mq3x->ENG-42");
+    assert_eq!(promotion_records_left(&repo), 0);
+    assert_eq!(
+        outcome.engine_state("ENG-42"),
+        Some(SyncState::Synced),
+        "a_fresh_create_then_sync_reports_synced_under_tracker"
+    );
+}
+
+#[test]
+fn untracked_discovery_skips_a_key_held_by_a_drafts_created_marker() {
+    let repo = Repo::new();
+    repo.write(
+        "meta/work/drafts/draft-k7mq3x-title.md",
+        "---\nid: \"draft-k7mq3x\"\ntitle: \"Title\"\n---\n\n\
+         # draft-k7mq3x: Title\n",
+    );
+    save_promotion(
+        &repo,
+        &promotion_record(PromotionStage::Created {
+            key: key("ENG-42"),
+            created_remote_hash: None,
+        }),
+    );
+    let tracker = RecordingTracker::holding(vec![held("ENG-42")]).discovering(
+        vec![(key("ENG-42"), RemoteTimestamp::Reported(STAMP.to_owned()))],
+        true,
+    );
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert!(outcome.imported.is_empty(), "{:?}", outcome.imported);
+    assert_eq!(promotion_records_left(&repo), 1);
+}
+
+#[test]
+fn a_record_whose_draft_has_vanished_does_not_hide_its_key_from_discovery() {
+    let repo = Repo::new();
+    save_promotion(
+        &repo,
+        &promotion_record(PromotionStage::Created {
+            key: key("ENG-42"),
+            created_remote_hash: None,
+        }),
+    );
+    let tracker = RecordingTracker::holding(vec![held("ENG-42")]).discovering(
+        vec![(key("ENG-42"), RemoteTimestamp::Reported(STAMP.to_owned()))],
+        true,
+    );
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert_eq!(outcome.imported, vec!["ENG-42".to_owned()]);
 }

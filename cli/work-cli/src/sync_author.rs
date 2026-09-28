@@ -16,6 +16,7 @@ use corpus::IdOwnership;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::LockdirLock;
 use document::Scalar;
 use document::Yaml;
 use store::lock::acquire;
@@ -25,16 +26,22 @@ use vcs_adapters::library::InProcessProbe;
 use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::TypedLinkage;
+use work::draft_id::DraftId;
 use work::identity::holder_of;
 use work::identity::linker_of;
+use work::identity::ItemIdentity;
 use work::sync::PendingPush;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::RepositoryIdentityProbe;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion_records::FilePromotionRecords;
+use work_adapters::promotion_records::PromotionRecords as _;
+use work_adapters::retirement::acquire_retirement_lock;
 use work_adapters::sync::create::AuthoredLocal;
 use work_adapters::sync::create::DiscoveredIssue;
 use work_adapters::sync::create::LocalAuthor;
+use work_adapters::sync::pending_push::Marker;
 
 use crate::config::resolve_scheme;
 
@@ -73,6 +80,7 @@ impl ConfiguredLocalAuthor<'_> {
     fn adoptable(&self, key: &ExternalId) -> Result<String, kernel::Error> {
         let files = FilesystemWorkItemFiles::new(&self.work_dir).files()?;
         let items = identities(&files);
+        self.refuse_keys_held_by_promotions(key, &items)?;
         if let Some(held) = holder_of(key.as_str(), &items) {
             return Err(failed(format!(
                 "refusing to adopt '{}': {} already holds it in `{}`",
@@ -91,16 +99,86 @@ impl ConfiguredLocalAuthor<'_> {
         Ok(key.as_str().to_owned())
     }
 
-    /// Removes each `created` pending-push marker naming `key`: its issue now
-    /// has a local file, so no create can resume from it.
-    fn spend_created_markers(&self, key: &ExternalId) {
-        let Ok(integration) =
+    fn pending_push_location(&self) -> Option<(PathBuf, String)> {
+        let integration =
             crate::config::effective_nonempty(self.config, "work.integration")
+                .ok()?;
+        let integrations_root =
+            crate::sync::integrations_dir(self.config, &self.root).ok()?;
+        Some((integrations_root, integration))
+    }
+
+    /// Refuses a key a live promotion holds or may hold: a record naming it
+    /// whose draft still exists, or an unreadable record whose draft still
+    /// exists, which may stand for any key. A record whose draft has
+    /// vanished holds nothing, so it is removed and the import proceeds.
+    fn refuse_keys_held_by_promotions(
+        &self,
+        key: &ExternalId,
+        items: &[ItemIdentity],
+    ) -> Result<(), kernel::Error> {
+        let Some((integrations_root, integration)) =
+            self.pending_push_location()
         else {
-            return;
+            return Ok(());
         };
-        let Ok(integrations_root) =
-            crate::sync::integrations_dir(self.config, &self.root)
+        let store = FileCorpusStore::new(&integrations_root);
+        let records =
+            FilePromotionRecords::new(&integrations_root, &integration, &store);
+        let draft_exists = |draft: &DraftId| {
+            items
+                .iter()
+                .any(|item| item.id.eq_ignore_ascii_case(draft.as_str()))
+        };
+        for entry in records.outstanding().map_err(failed)? {
+            match entry {
+                Ok(record) => {
+                    let names_key = record
+                        .stage
+                        .key()
+                        .is_some_and(|held| same_key(held, key));
+                    if !names_key {
+                        continue;
+                    }
+                    if draft_exists(&record.draft_id) {
+                        return Err(failed(format!(
+                            "refusing to adopt '{key}': the promotion of {} \
+                             is already adopting it",
+                            record.draft_id.as_str()
+                        )));
+                    }
+                    records.remove(&record.draft_id).map_err(failed)?;
+                    eprintln!(
+                        "note: removed the orphaned promotion record for {key}; \
+                         its draft {} no longer exists",
+                        record.draft_id.as_str()
+                    );
+                }
+                Err(unreadable) => {
+                    let names_live_draft = unreadable
+                        .path
+                        .file_stem()
+                        .and_then(std::ffi::OsStr::to_str)
+                        .and_then(DraftId::parse)
+                        .is_some_and(|draft| draft_exists(&draft));
+                    if names_live_draft {
+                        return Err(failed(format!(
+                            "refusing to adopt '{key}': {} could not be read \
+                             and may record a promotion adopting it",
+                            unreadable.path.display()
+                        )));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Removes each legacy `created` pending-push marker naming `key`: its
+    /// issue now has a local file, so no create can resume from it.
+    fn spend_created_markers(&self, key: &ExternalId) {
+        let Some((integrations_root, integration)) =
+            self.pending_push_location()
         else {
             return;
         };
@@ -110,14 +188,21 @@ impl ConfiguredLocalAuthor<'_> {
         ) else {
             return;
         };
-        for (path, marker) in markers {
-            if let PendingPush::Created { external_id, .. } = marker {
-                if external_id.as_str().eq_ignore_ascii_case(key.as_str()) {
+        for (path, marker) in markers.into_iter().flatten() {
+            if let Marker::Legacy(PendingPush::Created {
+                external_id, ..
+            }) = marker
+            {
+                if same_key(&external_id, key) {
                     std::fs::remove_file(&path).ok();
                 }
             }
         }
     }
+}
+
+fn same_key(left: &ExternalId, right: &ExternalId) -> bool {
+    left.as_str().eq_ignore_ascii_case(right.as_str())
 }
 
 /// Splits a projected remote body — a title line, then the description — into
@@ -165,6 +250,13 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let (title, description) = split_projected(&issue.issue.body);
 
         std::fs::create_dir_all(&self.work_dir).map_err(failed)?;
+        let retirement_locks = LockdirLock::new(&self.work_dir);
+        let _retirement = match scheme.ownership() {
+            IdOwnership::Local => None,
+            IdOwnership::Tracker => Some(
+                acquire_retirement_lock(&retirement_locks).map_err(failed)?,
+            ),
+        };
         let lockdir = self.work_dir.join(crate::create::LOCK_FILE_NAME);
         let _guard =
             acquire(&lockdir, LockOptions::default()).map_err(failed)?;
@@ -254,10 +346,15 @@ mod tests {
     use tracker::ExternalId;
     use tracker::RemoteIssue;
     use tracker::RemoteTimestamp;
+    use work::draft_id::DraftId;
+    use work::promotion::PromotionRecord;
+    use work::promotion::PromotionStage;
     use work::sync::PendingPush;
     use work::sync::RequestFingerprint;
     use work::work_item_files::identity_of;
     use work::work_item_files::WorkItemFile;
+    use work_adapters::promotion_records::FilePromotionRecords;
+    use work_adapters::promotion_records::PromotionRecords as _;
     use work_adapters::sync::create::AuthoredLocal;
     use work_adapters::sync::create::DiscoveredIssue;
     use work_adapters::sync::create::LocalAuthor;
@@ -518,5 +615,106 @@ mod tests {
         assert_eq!(identity.id, "0001");
         assert_eq!(identity.external_id.as_deref(), Some("ENG-5"));
         assert_eq!(repo.filenames(), vec!["0001-legacy.md"]);
+    }
+
+    fn save_promotion(repo: &TrackerRepo, stage: PromotionStage) -> PathBuf {
+        let store = corpus_adapters::FileCorpusStore::new(repo.dir.path());
+        let records =
+            FilePromotionRecords::new(&repo.integrations(), "linear", &store);
+        let record = PromotionRecord {
+            draft_id: DraftId::parse("draft-k7mq3x").expect("draft id"),
+            request: fingerprint("A pulled title"),
+            content_digest: "content".to_owned(),
+            stage,
+        };
+        records.save(&record).expect("saved");
+        records.path_of(&record.draft_id)
+    }
+
+    fn created(key: &str) -> PromotionStage {
+        PromotionStage::Created {
+            key: ExternalId::new(key.to_owned()),
+            created_remote_hash: None,
+        }
+    }
+
+    fn write_draft(repo: &TrackerRepo) {
+        let drafts = repo.work_dir().join("drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::write(
+            drafts.join("draft-k7mq3x-a-pulled-title.md"),
+            "---\nid: \"draft-k7mq3x\"\n---\n\n# draft-k7mq3x: T\n",
+        )
+        .expect("draft");
+    }
+
+    #[test]
+    fn pull_cleanup_keeps_a_created_marker_whose_draft_still_exists() {
+        let repo = TrackerRepo::new();
+        write_draft(&repo);
+        let record = save_promotion(&repo, created("ENG-42"));
+
+        let refused = repo.pull("ENG-42");
+
+        assert!(
+            refused.is_err(),
+            "the live promotion adopts it: {refused:?}"
+        );
+        assert!(record.exists());
+        assert!(!repo.work_dir().join("ENG-42-a-pulled-title.md").exists());
+    }
+
+    #[test]
+    fn an_unreadable_record_of_a_live_draft_refuses_the_import() {
+        let repo = TrackerRepo::new();
+        write_draft(&repo);
+        let record = save_promotion(&repo, created("ENG-42"));
+        std::fs::write(&record, "{").expect("torn");
+
+        assert!(repo.pull("ENG-7").is_err());
+    }
+
+    #[test]
+    fn a_vanished_draft_s_record_is_removed_and_its_key_imported() {
+        let repo = TrackerRepo::new();
+        let record = save_promotion(&repo, created("ENG-42"));
+
+        let authored = repo.pull("ENG-42").expect("the key is imported");
+
+        assert_eq!(authored.id, "ENG-42");
+        assert!(!record.exists(), "the orphaned record is removed");
+    }
+
+    #[test]
+    fn the_pull_takes_the_retirement_lock_before_the_create_lock() {
+        use corpus::lock::ExclusiveLock as _;
+
+        let repo = TrackerRepo::new();
+        let locks = corpus_adapters::LockdirLock::new(repo.work_dir());
+        let held = locks
+            .acquire(&corpus::lock::LockName::Retirement)
+            .expect("held");
+        let (done, finished) = std::sync::mpsc::channel();
+
+        std::thread::scope(|scope| {
+            let repo = &repo;
+            let pulling = scope.spawn(move || {
+                let pulled = repo.pull("ENG-42");
+                done.send(()).expect("send");
+                pulled
+            });
+            assert!(
+                finished
+                    .recv_timeout(std::time::Duration::from_millis(150))
+                    .is_err(),
+                "the pull waits for the retirement lock"
+            );
+            assert!(
+                !repo.work_dir().join(crate::create::LOCK_FILE_NAME).exists(),
+                "and has not taken the create lock"
+            );
+            drop(held);
+            assert!(pulling.join().expect("joined").is_ok());
+        });
     }
 }

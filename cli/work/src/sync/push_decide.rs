@@ -12,6 +12,13 @@ pub enum PushOutcome {
     LocalSave,
     LoudTerminal,
     Rejected,
+    /// An issue exists and no local item carries it.
+    CreatedUnwritten,
+    /// An issue exists, but a local item already claims its key.
+    CreatedBlocked,
+    /// An issue exists, and retiring the draft onto it could not restore
+    /// every path it had written.
+    RetirementIncomplete,
 }
 
 impl PushOutcome {
@@ -23,6 +30,9 @@ impl PushOutcome {
             Self::LocalSave => "local-save",
             Self::LoudTerminal => "loud-terminal",
             Self::Rejected => "rejected",
+            Self::CreatedUnwritten => "created-unwritten",
+            Self::CreatedBlocked => "created-blocked",
+            Self::RetirementIncomplete => "retirement-incomplete",
         }
     }
 
@@ -32,12 +42,16 @@ impl PushOutcome {
         match self {
             Self::WriteOnce | Self::LocalSave => 0,
             Self::Retry => RETRYABLE,
-            Self::LoudTerminal => TERMINAL,
+            Self::LoudTerminal
+            | Self::CreatedUnwritten
+            | Self::RetirementIncomplete => TERMINAL,
             Self::Rejected => REJECTED,
+            Self::CreatedBlocked => AWAITING_HUMAN,
         }
     }
 }
 
+const AWAITING_HUMAN: u8 = 4;
 const RETRYABLE: u8 = 70;
 const TERMINAL: u8 = 71;
 const NOT_AVAILABLE: u8 = 72;
@@ -58,7 +72,7 @@ pub const fn push_decide(
 ) -> PushOutcome {
     if code == 0 {
         return if write_failed {
-            PushOutcome::LoudTerminal
+            PushOutcome::CreatedUnwritten
         } else {
             PushOutcome::WriteOnce
         };

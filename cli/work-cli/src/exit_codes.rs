@@ -76,6 +76,21 @@
 //!   create that never happened. A sync report whose worst outcome is a
 //!   per-item `unconfigured` failure also exits `74`: that item sent nothing,
 //!   but other items in the same run may already have applied.
+//!
+//! `work create --push` outcomes once an issue exists, each printed as its
+//! keyword and key:
+//!
+//! - `created-unwritten` (`71`) — no local item carries the new issue; under
+//!   a numeric pattern no file exists, so the path line is empty. The next
+//!   sync links it.
+//! - `created-blocked` (`4`) — a local item already claims the new key; a
+//!   person resolves the collision, then promotes the draft.
+//! - `retirement-incomplete` (`71`) — retiring the draft onto the key could
+//!   not restore every path it wrote.
+//!
+//! A `work create --push` that finds an earlier create of the same content
+//! still pending sends nothing and exits `4` (`E_PUSH_PENDING`,
+//! `E_DRAFT_EXISTS`).
 
 use tracker::TrackerError;
 

@@ -12,6 +12,10 @@ pub mod evidence;
 pub mod seed;
 
 use std::cell::RefCell;
+use std::sync::Arc;
+use std::sync::Condvar;
+use std::sync::Mutex;
+use std::sync::PoisonError;
 
 use tracker::Completeness;
 use tracker::CreatePreview;
@@ -68,6 +72,51 @@ pub enum Call {
     },
 }
 
+#[derive(Debug, Default)]
+struct ParkState {
+    parked: bool,
+    released: bool,
+}
+
+/// Holds a parked `create` until released. Clones share one parking spot.
+#[derive(Debug, Clone, Default)]
+pub struct ParkHandle(Arc<(Mutex<ParkState>, Condvar)>);
+
+impl ParkHandle {
+    fn park(&self) {
+        let (state, signal) = &*self.0;
+        state.lock().unwrap_or_else(PoisonError::into_inner).parked = true;
+        signal.notify_all();
+        let held = state.lock().unwrap_or_else(PoisonError::into_inner);
+        drop(
+            signal
+                .wait_while(held, |parking| !parking.released)
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// Blocks until a `create` has parked.
+    pub fn wait_parked(&self) {
+        let (state, signal) = &*self.0;
+        let held = state.lock().unwrap_or_else(PoisonError::into_inner);
+        drop(
+            signal
+                .wait_while(held, |parking| !parking.parked)
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// Lets the parked `create`, and any later one, continue.
+    pub fn release(&self) {
+        let (state, signal) = &*self.0;
+        state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .released = true;
+        signal.notify_all();
+    }
+}
+
 /// A `RemoteTracker` fake that records every call it receives and can be
 /// configured to fail in the shapes the sync engine must survive.
 pub struct RecordingTracker {
@@ -85,6 +134,9 @@ pub struct RecordingTracker {
     locate_failures: Vec<(ExternalId, TrackerError)>,
     update_failures: Vec<(ExternalId, TrackerError)>,
     create_failure: Option<(TrackerError, bool)>,
+    /// How many creates fail before the rest succeed; `None` fails every one.
+    create_failures_left: RefCell<Option<usize>>,
+    park: Option<ParkHandle>,
     preview_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
     rewrites_scope_filters: bool,
@@ -118,6 +170,8 @@ impl RecordingTracker {
             locate_failures: Vec::new(),
             update_failures: Vec::new(),
             create_failure: None,
+            create_failures_left: RefCell::new(None),
+            park: None,
             preview_failure: None,
             scope_refusal: None,
             rewrites_scope_filters: false,
@@ -178,6 +232,22 @@ impl RecordingTracker {
     pub fn failing_create(mut self, error: TrackerError) -> Self {
         self.create_failure = Some((error, false));
         self
+    }
+
+    /// Fails only the first create with `error`; later creates succeed.
+    #[must_use]
+    pub fn failing_create_once(mut self, error: TrackerError) -> Self {
+        self.create_failure = Some((error, false));
+        self.create_failures_left = RefCell::new(Some(1));
+        self
+    }
+
+    /// Parks the next `create` until the returned handle releases it, so a
+    /// test can hold one promotion mid-flight while another contends.
+    pub fn parking_create(&mut self) -> ParkHandle {
+        let handle = ParkHandle::default();
+        self.park = Some(handle.clone());
+        handle
     }
 
     /// The terminal-failure-that-in-fact-succeeded shape: the issue is
@@ -412,7 +482,21 @@ impl RemoteTracker for RecordingTracker {
             kind: kind.to_owned(),
         });
 
-        if let Some((error, also_creates)) = &self.create_failure {
+        if let Some(park) = &self.park {
+            park.park();
+        }
+
+        let fails = self.create_failure.is_some()
+            && self
+                .create_failures_left
+                .borrow()
+                .is_none_or(|left| left > 0);
+        if let Some(left) = self.create_failures_left.borrow_mut().as_mut() {
+            *left = left.saturating_sub(1);
+        }
+        if let Some((error, also_creates)) =
+            self.create_failure.as_ref().filter(|_| fails)
+        {
             if *also_creates {
                 let id = self.allocate_id();
                 self.issues.borrow_mut().push((
