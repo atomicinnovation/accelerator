@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-28T07:38:06+00:00"
+last_updated: "2026-09-28T08:40:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2068,13 +2068,13 @@ Implementation notes:
 
 #### Manual Verification
 
-- [ ] With `research.topic.concurrency: 2` and 5 `depth: 1` pairs, `conduct`
+- [x] With `research.topic.concurrency: 2` and 5 `depth: 1` pairs, `conduct`
       issues Agent calls in messages of 2, 2 and 1.
-- [ ] `--concurrency 3` overrides this, giving 3 and 2.
-- [ ] `--concurrency 0` and `research.topic.concurrency: many` each spawn
+- [x] `--concurrency 3` overrides this, giving 3 and 2.
+- [x] `--concurrency 0` and `research.topic.concurrency: many` each spawn
       one agent per batch, with the clamping warning naming the value.
-- [ ] With no config, 30 pairs spawn in batches of 24 and 6.
-- [ ] `outline --concurrency 3` prints the misplaced-flag note and proceeds.
+- [x] With no config, 30 pairs spawn in batches of 24 and 6.
+- [x] `outline --concurrency 3` prints the misplaced-flag note and proceeds.
 
 ---
 
@@ -2463,12 +2463,21 @@ questions are read from each spawn prompt.
     A rate that is material becomes a follow-up work item for a
     per-profile batch cap.
 
+Implementation notes:
+- Results are in
+  `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`.
+- Step 10 fails on a `web` pair: `web-profile` has no write-no-file outcome
+  for a denied fetch, so researchers wrote unsourced notes. The OpenAlex
+  variant passes.
+- Step 17 failed 4 of 24 arXiv nodes on `lock_contention`, which is
+  material.
+
 ### Success Criteria
 
 #### Manual Verification
 
 - [ ] Steps 1–17 pass, each recorded in the validation document.
-- [ ] `accelerator corpus frontmatter validate` over the whole corpus exits 0
+- [x] `accelerator corpus frontmatter validate` over the whole corpus exits 0
       after the runs.
 
 ---
