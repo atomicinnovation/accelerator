@@ -453,8 +453,6 @@ def test_negative_self_test_axis(
 
 
 def test_contract_is_sourced_not_reencoded() -> None:
-    # Enforced set: from the Rust schema rows and banks rather than being
-    # hard-coded here.
     assert SCHEMA, "print-schema yielded no rows"
     assert _base_fields(), "print-schema base_fields bank is empty"
 

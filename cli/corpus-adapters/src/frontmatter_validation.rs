@@ -144,7 +144,6 @@ pub fn validate_path<F: FileReader>(
     ))
 }
 
-/// Validates one document's structural conformance from its text.
 #[must_use]
 pub fn validate_text(content: &str) -> Vec<Violation> {
     parsed_frontmatter_text(content)

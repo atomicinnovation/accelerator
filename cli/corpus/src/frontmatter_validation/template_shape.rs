@@ -5,16 +5,15 @@
 //! parallel, template-only shape rules — base-field presence, the declared
 //! type, the provenance bundle, per-type extras, the status-comment
 //! vocabulary, the typed-linkage slot grammar, the closed linkage set, the
-//! absence of any legacy own-identity key, and the work-item
-//! Schema-Reference cross-check — plus the
-//! general canonical-quoting rule, so a hand-edited template that drifts from
-//! canonical quoting is caught here rather than only when a producer next
-//! emits from it.
+//! absence of any legacy own-identity key, and the work-item Schema-Reference
+//! cross-check — plus the general canonical-quoting rule, so a hand-edited
+//! template that drifts from canonical quoting is caught here rather than only
+//! when a producer next emits from it.
 //!
 //! Pure logic: the filesystem walk (reading each `templates/<name>.md`) lives
-//! in `corpus_adapters`. Its own [`TemplateViolation`] type keeps
-//! these template-only variants out of the instance-validation
-//! [`super::Violation`] enum, which no populated document could ever carry.
+//! in `corpus_adapters`. Its own [`TemplateViolation`] type keeps these
+//! template-only variants out of the instance-validation [`super::Violation`]
+//! enum, which no populated document could ever carry.
 
 use core::fmt;
 
@@ -97,7 +96,6 @@ const LIST_CARDINALITY: [&str; 5] = [
 const INVERSE_GUIDANCE_LINE: &str = "# inverse of blocks — producers SHOULD \
      prefer writing blocks: on the canonical side";
 
-/// A single template-shape violation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplateViolation {
     MissingTemplateFile { template: String },

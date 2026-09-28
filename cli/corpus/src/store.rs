@@ -63,7 +63,6 @@ pub trait AtomicWrite {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError>;
 }
 
-/// Whole-file removal.
 pub trait FileRemove {
     /// Succeeds when `path` is already absent.
     ///

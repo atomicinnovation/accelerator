@@ -28,7 +28,6 @@ use serde_json::Value;
 
 const LEDGER_NAME: &str = ".conduct-run.json";
 
-/// Where the set rooted at `set_dir` keeps its run ledger.
 #[must_use]
 pub fn run_ledger_path(set_dir: &Path) -> PathBuf {
     set_dir.join(LEDGER_NAME)
