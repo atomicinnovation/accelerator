@@ -3183,6 +3183,23 @@ skills are updated for `{tracker}`.
   surfaced as `RunOutcome::Pending` (exit 4); `create-batch`'s `pending`
   keyword maps from it, and its message names the existing draft.
 
+#### 0a. Carried over from Phase 7
+
+- `Promotion::Completed(key, SyncState)` carries the state the next sync
+  finds the promoted item in; match it as `Completed(key, _)` where only the
+  key matters.
+- `create::create_outcome_of(&NotPromoted) -> PushOutcome` is the pure map
+  from a promotion's reason to the create keyword; `promotion_outcome` adds
+  the path and stderr cause. `create-batch` can reuse both.
+- `work_adapters::promotion::held_key(reason, draft, records)` names the key
+  a draft left unpromoted already has.
+- `work-cli/src/identity_workspace.rs` (`IdentityWorkspace::open`) builds the
+  retirement ports, baseline and record stores that `create`, `sync` and
+  `promote` share; `create-batch` takes its ports from it rather than
+  wiring them again.
+- `crate::sync::severity(code)` ranks exit codes (`71 > 1 > 4 > 75 > 74 >
+  70 > 0`); fold the batch's per-item codes through it.
+
 #### 1. Failing tests first
 
 **File**: `cli/work/src/hierarchy.rs` (new, unit tests; moved from
@@ -3499,7 +3516,7 @@ One row per acceptance criterion in 0230, in the work item's order.
 | 19 | Whole-token boundaries and case | 3 | `occurrences_adjacent_to_a_letter_digit_or_hyphen_are_left` |
 | 20 | Outside `meta/` byte-identical | 3, 6 | `files_outside_the_corpus_root_are_byte_identical`, `a_draft_id_outside_meta_is_untouched` |
 | 21 | `PP-76` → `ENG-42` leaves `PP-760` | 3, 4 | `a_retired_key_that_prefixes_another_leaves_the_other_untouched`, `a_moved_issue_retires_the_old_key_when_id_equals_external_id` |
-| 22 | `--no-promote` leaves drafts, syncs the rest, exits 0 | 7 | `sync_with_no_promote_leaves_drafts_and_exits_zero` |
+| 22 | `--no-promote` leaves drafts, syncs the rest, exits 0 | 7 | `sync_with_no_promote_leaves_drafts_untouched`, `no_promote_exits_zero_with_drafts_pending` |
 | 23 | `work promote` one draft = sync promotion | 7 | `promote_one_draft_matches_a_sync_promotion` |
 | 24 | Edited draft with `created` marker adopted, no new issue | 6 | `a_created_marker_is_adopted_without_a_new_issue_even_after_edits` |
 | 25 | Retitled `attempted` draft still stopped; same-titled draft promoted | 6 | `an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft` |
