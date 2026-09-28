@@ -103,7 +103,7 @@ fn the_allowlist_override_is_noticed_with_its_value() {
 fn a_personal_allowlist_is_not_noticed() {
     let server = verifying_server();
     let dir = support::scratch(&config(&format!("https://{OUTSIDE}"), None));
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         &format!("---\njira:\n  allowed_sites: {OUTSIDE}\n---\n"),
         0o600,
@@ -117,7 +117,7 @@ fn a_personal_allowlist_is_not_noticed() {
 
 fn insecure_scratch() -> tempfile::TempDir {
     let dir = support::scratch(support::CONFIG);
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         "---\njira:\n  project_key: MINE\n---\n",
         0o644,
@@ -278,7 +278,11 @@ fn a_team_token_command_with_nothing_usable_exits_no_token() {
 fn a_team_token_command_beside_a_personal_token_warns_and_runs() {
     let server = verifying_server();
     let dir = support::scratch(&token_cmd_config(Some("printf team")));
-    support::personal(dir.path(), "---\njira:\n  token: mine\n---\n", 0o600);
+    support::write_personal_config(
+        dir.path(),
+        "---\njira:\n  token: mine\n---\n",
+        0o600,
+    );
 
     let output = verify_without_token(dir.path(), &server, &[]);
 
@@ -381,7 +385,7 @@ fn an_insecure_personal_config_with_nothing_usable_exits_perms_insecure() {
 fn a_tracked_personal_command_beside_a_team_command_is_fatal_and_warns() {
     let server = verifying_server();
     let dir = support::scratch(&token_cmd_config(Some("printf team")));
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         "---\njira:\n  token_cmd: printf mine\n---\n",
         0o600,
@@ -427,7 +431,7 @@ fn a_personal_token_command_runs_outside_the_project_in_a_fresh_directory() {
     let dir = support::scratch(&token_cmd_config(None));
     let record = tempfile::tempdir().unwrap();
     let recorded = record.path().join("cwd");
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         &format!(
             "---\njira:\n  token_cmd: pwd > {} && printf tok\n---\n",

@@ -130,9 +130,8 @@ pub fn run_without_token(
     command.output().expect("run accelerator-linear")
 }
 
-/// Writes `.accelerator/config.local.md` at `mode`.
 #[cfg(unix)]
-pub fn personal(dir: &Path, content: &str, mode: u32) {
+pub fn write_personal_config(dir: &Path, content: &str, mode: u32) {
     use std::os::unix::fs::PermissionsExt as _;
 
     let path = dir.join(".accelerator/config.local.md");

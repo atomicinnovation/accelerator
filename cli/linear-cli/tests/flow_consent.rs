@@ -59,7 +59,7 @@ fn a_team_token_command_alone_exits_no_token() {
 fn a_team_token_command_beside_a_personal_token_warns_and_runs() {
     let server = showing_server();
     let dir = support::scratch(TEAM_COMMAND);
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         "---\nlinear:\n  token: lin_api_mine\n---\n",
         0o600,
@@ -80,7 +80,7 @@ fn a_team_token_command_beside_a_personal_token_warns_and_runs() {
 fn a_tracked_personal_command_beside_a_team_command_is_fatal_and_warns() {
     let server = showing_server();
     let dir = support::scratch(TEAM_COMMAND);
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         "---\nlinear:\n  token_cmd: printf mine\n---\n",
         0o600,
@@ -167,7 +167,7 @@ fn an_environment_token_command_is_noticed_without_its_command() {
 fn an_insecure_personal_config_admits_an_environment_token_and_nothing_else() {
     let server = showing_server();
     let dir = support::scratch(support::CONFIG);
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         "---\nlinear:\n  token: lin_api_mine\n---\n",
         0o644,
@@ -195,7 +195,7 @@ fn a_personal_token_command_runs_outside_the_project_in_a_fresh_directory() {
     let dir = support::scratch(support::CONFIG);
     let record = tempfile::tempdir().unwrap();
     let recorded = record.path().join("cwd");
-    support::personal(
+    support::write_personal_config(
         dir.path(),
         &format!(
             "---\nlinear:\n  token_cmd: pwd > {} && printf lin_api_cmd\n---\n",
