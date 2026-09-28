@@ -1,0 +1,6 @@
+# Advisories `mise run docs:audit:check` tolerates. Each reason carries a
+# `review-by: YYYY-MM-DD`; past that date the ignore stops suppressing and the
+# check fails until the entry is re-checked upstream, then removed or re-dated.
+ignore = [
+    { id = "GHSA-ch52-4w7c-c8xp", reason = "http-cache-semantics <=4.2.0 max-stale cross-user cache disclosure, reached only through astro; no patched release exists and the docs site is built statically. review-by: 2026-11-03" },
+]

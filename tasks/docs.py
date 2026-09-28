@@ -1,10 +1,18 @@
 """Documentation-site tasks (Astro Starlight in docs-site/)."""
 
+import datetime as dt
 from pathlib import Path
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import DOCS_SITE, REPO_ROOT
+from tasks.shared.npm_audit import (
+    IgnoreListError,
+    blocking_advisories,
+    lapsed_ignores,
+    parse_ignores,
+    parse_report,
+)
+from tasks.shared.paths import DOCS_AUDIT_IGNORES, DOCS_SITE, REPO_ROOT
 from tasks.shared.skill_pages import (
     DOCS_GENERATED_RELATIVE,
     discover_skills,
@@ -32,16 +40,45 @@ def preview(context: Context) -> None:
 
 
 @task
-def audit_check(context: Context) -> None:
+def audit_check(
+    context: Context, ignores: str | None = None, today: str | None = None
+) -> None:
     """Fail on high/critical npm advisories in the docs-site tree."""
-    result = context.run(
-        f"npm --prefix {DOCS_SITE} audit --audit-level=high", warn=True
+    ignores_path = Path(ignores) if ignores else DOCS_AUDIT_IGNORES
+    on = (
+        dt.date.fromisoformat(today)
+        if today
+        else dt.datetime.now(tz=dt.UTC).date()
     )
-    if result.exited != 0:
+    try:
+        advisory_ignores = parse_ignores(ignores_path.read_text())
+    except IgnoreListError as error:
+        raise Exit(f"{ignores_path}: {error}", code=1) from error
+    report = context.run(
+        f"npm --prefix {DOCS_SITE} audit --json", warn=True, hide="out"
+    )
+    blocking = blocking_advisories(
+        parse_report(report.stdout), advisory_ignores, on
+    )
+    lapsed = lapsed_ignores(advisory_ignores, on)
+    if lapsed:
         raise Exit(
-            "npm audit reported high or critical advisories — run "
-            "`mise run docs:audit:fix` for the non-breaking subset, then "
-            "resolve the rest by hand",
+            f"advisory ignores in {ignores_path} past their review-by date — "
+            "re-check whether upstream now offers a fix, then remove or "
+            "re-date each: "
+            + ", ".join(f"{i.ghsa_id} ({i.review_by})" for i in lapsed),
+            code=1,
+        )
+    if blocking:
+        raise Exit(
+            "npm audit reported high or critical advisories: "
+            + "; ".join(
+                f"{a.ghsa_id} {a.package}: {a.title} ({a.severity})"
+                for a in blocking
+            )
+            + " — run `mise run docs:audit:fix` for the non-breaking subset, "
+            f"then resolve the rest by hand or, with no fix upstream, add a "
+            f"dated ignore to {ignores_path}",
             code=1,
         )
 
