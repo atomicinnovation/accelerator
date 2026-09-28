@@ -2116,6 +2116,27 @@ applies under every pattern (0296 Defect 1).
 
 ### Changes Required:
 
+#### 0. Carried over from Phase 5
+
+Where Phase 5 left the code this phase builds on:
+
+- `work-cli/src/create.rs` `try_run` returns `E_TRACKER_PUSH_UNSUPPORTED`
+  straight after `resolve_scheme`, before any lock or write. Remove it and
+  its test, `create_with_push_under_tracker_refuses_until_supported`.
+- `place_new_item` returns a `Placement { id, dir }`: the next number in
+  the work directory, or a draft ID in `drafts_dir`, refusing `--project`
+  under `{tracker}` with `E_PATTERN_KEY_UNUSED`. Drafts are minted by the
+  private `mint_draft`, which hard-wires `RandomSuffixDraws`. §7's
+  `save_draft` and `create_tracker_keyed_item` replace the `Tracker` arm
+  and take `draws` as a parameter, so tests can script the suffix.
+- `work-cli/src/sync_author.rs`: `adoptable` refuses a pulled key that
+  `holder_of` or `linker_of` finds, and `spend_created_markers` removes
+  every `created` marker naming the adopted key, whether or not its draft
+  still exists. §6's "skips markers whose draft still exists" narrows that
+  function.
+- `next-number` under `{tracker}` mints through
+  `work::draft_id::mint_draft_ids`, which keeps a batch distinct.
+
 #### 1. Failing tests first
 
 **File**: `cli/work/src/promotion.rs` (unit tests)
