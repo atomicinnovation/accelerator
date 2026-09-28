@@ -6,21 +6,25 @@ date: "2026-09-27T23:29:55+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
-result: "partial"
+result: "pass"
 target: "plan:2026-09-25-0226-unify-the-trust-barrier-for-consent-config-keys"
 tags: ["security", "config", "consent", "credentials", "session-start"]
-last_updated: "2026-09-27T23:29:55+00:00"
+last_updated: "2026-09-28T07:37:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
 ## Validation Report: Unify the Trust Barrier for Consent Config Keys
 
-Validated at `prtrorvlqyry` (working copy empty). The code faithfully
-implements all seven phases, but the full local CI mirror fails. Phase 7's
-docs link to `configure#consent-keys`, and that anchor does not exist on the
-generated page. Phase 7's `docs:check` and `mise run` criteria are ticked
-but do not hold at this revision.
+The result is pass. All seven phases are implemented, and after the
+post-validation fixes the full local CI mirror passes. The attended manual
+checks below have not been run.
+
+This was first validated at `prtrorvlqyry`, where the full local CI mirror
+failed. Phase 7's docs linked to `configure#consent-keys`, an anchor missing
+from the generated page, so Phase 7's ticked `docs:check` and `mise run`
+criteria did not hold. The anchor fix and the two code fixes recorded below
+followed that validation.
 
 ### Implementation Status
 
@@ -34,7 +38,8 @@ but do not hold at this revision.
 
 ### Automated Verification Results
 
-After the anchor fix, a rerun of `mise run` exited 0 in 408 s: 3990 Rust
+After the post-validation fixes, `mise run` exited 0 with 3992 Rust tests
+passing. After the anchor fix alone, a rerun of `mise run` exited 0 in 408 s: 3990 Rust
 tests passed, and the docs link check reported all internal links valid. The
 consent keys section and its command runner now sit outside the `help` block,
 as `## Consent Keys` in `skills/config/configure/SKILL.md`. The `help` action
@@ -111,13 +116,13 @@ all five links. None of the earlier 0226 commits contains them.
 The Implementation Notes record the deviations below except where marked
 unrecorded.
 
-- ⚠️ Unrecorded: the session-start summary still reports the
-  insecure-personal-file warning twice. `cli/launcher/src/main.rs:298` still
-  calls `composed.report_ignored_personal_file()`, so `config summary
-  --format=hook` writes `E_LOCAL_PERMS_INSECURE` to stderr and also puts it in
-  the hook fields. The plan said the audit finding would replace the direct
-  print "so the summary reports it once". No test asserts stderr for this
-  case.
+- Fixed after validation: the session-start summary reported the
+  insecure-personal-file warning twice, on stderr and in the hook fields,
+  although the plan said it would be reported once. The launcher now skips
+  the direct warning for `config summary --format hook` only
+  (`PersonalFileWarning` in `cli/launcher/src/main.rs`). Two new tests pin
+  the behaviour: the hook summary's stderr is clear of the code, and plain
+  `config summary` still warns once on stderr.
 - Unrecorded: `GH_TOKEN` and `GITHUB_TOKEN` are not separate rungs.
   `environment_candidate` takes the first non-blank override
   (`cli/config/src/consent.rs:1411-1420`), so a malformed `GH_TOKEN` hides a
@@ -137,19 +142,20 @@ unrecorded.
 
 #### Potential Issues:
 
-- 🔒 The runner's `/tmp` fallback fails open
-  (`cli/config-adapters/src/command_runner.rs:123-131`). When the preferred
-  base lies inside the repository roots, or cannot be created, the runner
-  falls back to `/tmp` without re-checking it. A checkout at `/`, `/tmp` or
-  `/private/tmp` therefore runs the credential helper inside the repository.
-- Legacy-layout users lose every personal consent key.
-  `PERSONAL_CONFIG_RELATIVE` is hard-coded to `.accelerator/config.local.md`
-  (`cli/config-adapters/src/credentials.rs:18`). Under the legacy fallback,
-  though, the store reads `.claude/accelerator.local.md`
-  (`cli/config-adapters/src/store.rs:168-173`). Tracking the absent path
-  answers `Unknown`, so each such key is refused with
-  `E_CONSENT_KEY_TRACKING_UNKNOWN`. This fails closed, but it is a silent
-  regression for those users.
+- 🔒 Fixed after validation: the runner's `/tmp` fallback failed open.
+  When the preferred base lay inside the repository roots, the runner fell
+  back to `/tmp` without re-checking it. Now both candidates are checked, and
+  a command with no directory outside the roots is refused as
+  `StartFailure::NoWorkingDirectoryOutsideTheRepository`
+  (`E_TOKEN_CMD_FAILED`, "could not start: no temporary directory outside
+  the repository").
+- Overstated at validation: the legacy layout does not lose personal consent
+  keys. Every credential consumer composes with `LegacyPolicy::Reject`, which
+  stops on a legacy layout before any key is read. The hard-coded
+  `PERSONAL_CONFIG_RELATIVE` is reached only through a manual `config summary
+  --allow-legacy-layout`. There, a legacy personal file draws a spurious
+  `E_CONSENT_KEY_TRACKING_UNKNOWN`. The `SessionStart` hook never passes that
+  flag.
 - The runner can spin: a `poll` error other than `EINTR` returns without
   sleeping (`command_runner.rs:252-254`), so the loop busy-waits until the
   deadline. The final `leader.wait()` (`:405`) has no bound.
@@ -198,14 +204,8 @@ These are the plan's unticked manual criteria, and none has been run.
 
 ### Recommendations:
 
-- Make the launcher's direct `report_ignored_personal_file()` call conditional
-  on the output format, so the hook summary reports the warning once. Add the
-  stderr assertion the plan implied.
-- Re-check `/tmp` against the repository roots, or refuse to run the command
-  when no directory outside the roots exists.
-- Choose the personal-config path from the store's active layout instead of
-  the constant, or record the legacy-layout refusal in Migration Notes and the
-  CHANGELOG.
+- Optionally take the audit's personal-config path from the store's active
+  layout, so `config summary --allow-legacy-layout` stops warning spuriously.
 - Decide whether `GH_TOKEN` and `GITHUB_TOKEN` should be separate rungs, and
   record the decision in the Phase 3 notes.
 - Remove or correct the stale comments and the doc comments that only restate

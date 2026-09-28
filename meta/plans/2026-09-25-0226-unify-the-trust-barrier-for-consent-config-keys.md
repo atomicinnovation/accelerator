@@ -5,7 +5,7 @@ title: "Unify the Trust Barrier for Consent Config Keys Implementation Plan"
 date: "2026-09-25T08:18:32+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0226"
 parent: "work-item:0226"
 derived_from: ["codebase-research:2026-09-24-0226-unify-the-trust-barrier-for-consent-config-keys"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-08-11-0
 tags: ["security", "config", "consent", "credentials", "design", "session-start"]
 revision: "5fe7e8627c289090b870dc76acad5033fe37be1b"
 repository: "accelerator"
-last_updated: "2026-09-27T21:30:00+00:00"
+last_updated: "2026-09-28T07:37:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
