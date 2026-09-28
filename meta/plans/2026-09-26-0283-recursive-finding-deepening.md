@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-27T21:10:05+00:00"
+last_updated: "2026-09-28T07:38:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
