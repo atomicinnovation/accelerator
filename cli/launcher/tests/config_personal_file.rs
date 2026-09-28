@@ -112,7 +112,7 @@ fn reads_run_on_team_values_and_warn_once() -> TestResult {
 }
 
 #[test]
-fn the_session_start_summary_warns_in_both_hook_fields() -> TestResult {
+fn the_session_start_summary_warns_once_in_both_hook_fields() -> TestResult {
     let fixture = Fixture::new()?;
 
     let output = fixture.run(&["config", "summary", "--format", "hook"])?;
@@ -130,6 +130,28 @@ fn the_session_start_summary_warns_in_both_hook_fields() -> TestResult {
     );
     assert!(system_message.contains("[accelerator]"), "{envelope}");
     assert_eq!(envelope.lines().count(), 1, "{envelope}");
+    assert!(
+        !stderr(&output).contains("E_LOCAL_PERMS_INSECURE"),
+        "{}",
+        stderr(&output)
+    );
+    Ok(())
+}
+
+#[test]
+fn the_plain_summary_warns_once_on_stderr() -> TestResult {
+    let fixture = Fixture::new()?;
+
+    let output = fixture.run(&["config", "summary"])?;
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        stderr(&output).matches(WARNING).count(),
+        1,
+        "{}",
+        stderr(&output)
+    );
+    assert!(!stdout(&output).contains("E_LOCAL_PERMS_INSECURE"));
     Ok(())
 }
 

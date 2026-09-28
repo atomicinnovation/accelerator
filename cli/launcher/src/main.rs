@@ -22,7 +22,9 @@ use accelerator::launch::core::{
 };
 use accelerator::launch::dispatch;
 use accelerator::launch::help::{self, augment_with_subbinaries};
-use accelerator::launch::inbound::cli::{CacheAction, Cli, Command};
+use accelerator::launch::inbound::cli::{
+    CacheAction, Cli, Command, ConfigAction, SummaryFormat,
+};
 use accelerator::launch::outbound::capture::UnixCapture;
 use accelerator::launch::outbound::exec::UnixExec;
 use accelerator::launch::outbound::override_path;
@@ -271,20 +273,43 @@ const fn legacy_policy(command: &Command) -> LegacyPolicy {
     }
 }
 
+/// Who warns about an ignored personal file. The hook summary carries the
+/// warning in its envelope, so a direct warning would repeat it.
+#[derive(Clone, Copy)]
+enum PersonalFileWarning {
+    Direct,
+    InTheHookEnvelope,
+}
+
+const fn personal_file_warning(command: &Command) -> PersonalFileWarning {
+    match command {
+        Command::Config {
+            action:
+                ConfigAction::Summary {
+                    format: Some(SummaryFormat::Hook),
+                    ..
+                },
+        } => PersonalFileWarning::InTheHookEnvelope,
+        _ => PersonalFileWarning::Direct,
+    }
+}
+
 /// Composes the `config` port bundle at `start`'s project root (the current
 /// directory when `start` is `None`), applying the resolved legacy policy.
 /// Invoked lazily by `dispatch`.
 fn compose_stack(
     policy: LegacyPolicy,
     start: Option<PathBuf>,
+    warning: PersonalFileWarning,
 ) -> Result<ConfigStack, ConfigError> {
     let tracking = DispatchedTracking::new(tracking_resolver(), UnixCapture);
-    compose_stack_with(policy, start, Box::new(tracking))
+    compose_stack_with(policy, start, warning, Box::new(tracking))
 }
 
 fn compose_stack_with(
     policy: LegacyPolicy,
     start: Option<PathBuf>,
+    warning: PersonalFileWarning,
     tracking: Box<dyn ConfigFileTracking>,
 ) -> Result<ConfigStack, ConfigError> {
     let start = match start {
@@ -295,7 +320,9 @@ fn compose_stack_with(
         })?,
     };
     let composed = config_adapters::compose(&start, policy)?;
-    composed.report_ignored_personal_file();
+    if matches!(warning, PersonalFileWarning::Direct) {
+        composed.report_ignored_personal_file();
+    }
     let consent = ConsentPorts {
         tracking,
         environment: Box::new(SystemEnvironment),
@@ -464,12 +491,13 @@ fn run(cli: &Cli) -> Result<(), kernel::Error> {
     let executor = UnixExec;
     let policy = legacy_policy(&cli.command);
     let start = resolution_start(&cli.command);
+    let warning = personal_file_warning(&cli.command);
     dispatch(
         cli,
         &reporter,
         &resolver,
         &executor,
-        move || compose_stack(policy, start),
+        move || compose_stack(policy, start, warning),
         run_cache,
     )
 }
@@ -826,6 +854,7 @@ mod tests {
         let stack = super::compose_stack_with(
             config_adapters::LegacyPolicy::Reject,
             Some(dir.path().to_path_buf()),
+            super::PersonalFileWarning::InTheHookEnvelope,
             Box::new(unreachable),
         )?;
         let envelope = summary(&stack, true)?.stdout;
@@ -868,6 +897,7 @@ mod tests {
         let stack = super::compose_stack(
             config_adapters::LegacyPolicy::Reject,
             Some(dir.path().to_path_buf()),
+            super::PersonalFileWarning::Direct,
         )?;
 
         assert_eq!(stack.levels().read(Level::Personal)?, None);
