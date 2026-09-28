@@ -246,6 +246,7 @@ fn run_sync(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope,
     };
     run(&sync_ports, &mut store, &request)
@@ -292,6 +293,7 @@ fn run_sync_targeted(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope,
     };
     run(&sync_ports, &mut store, &request)
@@ -337,6 +339,7 @@ fn run_sync_targeted_pull(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request)
@@ -384,6 +387,7 @@ fn run_at(
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request)
@@ -1631,6 +1635,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
             mode: RunMode::Apply,
             integrations_root: fixture.dir.path(),
             integration: "jira",
+            promote: true,
             scope: SearchScope::default(),
         };
         let report = run(&sync_ports, &mut store, &request).map_err(|_| {
@@ -1807,6 +1812,7 @@ fn create_from_local_writes_the_marker_before_the_create(
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     let _ = run(&sync_ports, &mut store, &request);
@@ -2061,6 +2067,7 @@ fn run_create_from_local_on_disk(
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request).expect("the run proceeds")

@@ -8,6 +8,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::path::PathBuf;
 
 use corpus::IdOwnership;
 use tracker::Ceiling;
@@ -23,9 +24,16 @@ use work::sync::KeyChange;
 
 use work::draft_id::DraftId;
 use work::promotion::NotPromoted;
+use work::promotion::Promotion;
+use work::promotion::PromotionMode;
 use work::promotion::PromotionStage;
+use work::sync::SyncDirection;
 
 use crate::promotion::finish_promotion;
+use crate::promotion::promote;
+use crate::promotion::PromotionOutcome;
+use crate::promotion::PromotionPorts;
+use crate::promotion::PromotionRow;
 use crate::promotion_records::PromotionRecords;
 use crate::promotion_records::StoredRecord;
 use crate::retirement::acquire_retirement_lock;
@@ -39,6 +47,7 @@ use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
 use crate::sync::fetch::LocalItem;
+use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::run::RunError;
 use crate::sync::run::RunMode;
 use crate::sync::run::SettledView;
@@ -52,6 +61,9 @@ pub struct SettlementPorts<'a> {
     pub ownership: IdOwnership,
     /// Where recovery directories live, so a failure can name one on disk.
     pub state_dir: &'a Path,
+    /// Probes the working copy afresh, so each promotion plans its
+    /// retirement over the dirtiness the ones before it left.
+    pub probe_status: &'a dyn Fn() -> Box<dyn WorkingCopyStatus>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +103,13 @@ impl IdentityRow {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IdentityPlan {
     pub key_changes: Vec<KeyChange>,
+    pub promotions: Vec<PlannedPromotion>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedPromotion {
+    pub draft: DraftId,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,8 +118,9 @@ pub struct Ceilings {
     pub max_pushes: Ceiling,
 }
 
-/// Refuses an identity plan whose decided changes exceed the pull bound.
-/// Every decided change counts, whether or not it then applies.
+/// Refuses an identity plan whose decided changes exceed a bound: key
+/// changes count as pulls, promotions as pushes. Every decided change
+/// counts, whether or not it then applies.
 ///
 /// # Errors
 ///
@@ -110,14 +130,15 @@ pub const fn check_ceilings(
     limits: &Ceilings,
 ) -> Result<(), RunError> {
     let pulls = plan.key_changes.len();
-    if limits.max_pulls.exceeds(pulls) {
+    let pushes = plan.promotions.len();
+    if limits.max_pulls.exceeds(pulls) || limits.max_pushes.exceeds(pushes) {
         return Err(RunError::Refused {
             pulls,
-            pushes: 0,
+            pushes,
             max_pulls: limits.max_pulls,
             max_pushes: limits.max_pushes,
             new_local_files: 0,
-            new_remote_issues: 0,
+            new_remote_issues: pushes,
         });
     }
     Ok(())
@@ -130,6 +151,11 @@ pub struct SettlementReport {
     pub facts: GatheredFacts,
     /// Decided key changes, which the engine's pull budget no longer has.
     pub pulls_used: usize,
+    /// Decided promotions, which the engine's push budget no longer has.
+    pub pushes_used: usize,
+    pub promotions: Vec<PromotionRow>,
+    /// Drafts this run set out to promote, which the engine leaves alone.
+    pub promoting: BTreeSet<String>,
     pub view: SettledView,
     /// Items whose detected key change was not applied; the engine leaves
     /// them for the next run.
@@ -234,6 +260,19 @@ fn reconcile(
         rows.push(row(finish_locked(&retirement, settlement, &lock)?));
     }
     Ok(rows)
+}
+
+/// Finishes every retirement an earlier run left interrupted, as a sync
+/// does before anything else changes an identity.
+///
+/// # Errors
+///
+/// [`RunError::RetirementIncomplete`] when a retirement could not restore
+/// the corpus, and [`RunError::Internal`] when the records cannot be read.
+pub fn finish_interrupted_retirements(
+    settlement: &SettlementPorts<'_>,
+) -> Result<Vec<IdentityRow>, RunError> {
+    reconcile(RunMode::Apply, settlement)
 }
 
 /// Finishes every promotion a record says was retiring its draft when its
@@ -373,7 +412,79 @@ fn detect_identity_changes(
             }
         }
     }
+    plan.promotions = drafts_to_promote(request, settlement);
     Ok((plan, not_found, facts))
+}
+
+/// The drafts a run promotes, in id order: under a tracker-owned pattern,
+/// on a run that may push, unless promotion is turned off.
+fn drafts_to_promote(
+    request: &SyncRequest<'_>,
+    settlement: &SettlementPorts<'_>,
+) -> Vec<PlannedPromotion> {
+    let promotes = settlement.ownership == IdOwnership::Tracker
+        && request.direction != SyncDirection::PullOnly
+        && request.promote;
+    if !promotes {
+        return Vec::new();
+    }
+    let mut drafts: Vec<PlannedPromotion> = request
+        .reconciled()
+        .iter()
+        .filter_map(|item| {
+            DraftId::parse(&item.id).map(|draft| PlannedPromotion {
+                draft,
+                path: item.path.clone(),
+            })
+        })
+        .collect();
+    drafts.sort_by(|left, right| left.draft.as_str().cmp(right.draft.as_str()));
+    drafts
+}
+
+/// Promotes one draft over a working copy probed afresh. A retirement that
+/// could not restore the corpus stops the pass, as it does for a key
+/// change.
+fn promote_draft(
+    planned: &PlannedPromotion,
+    ports: &SyncPorts<'_>,
+    settlement: &SettlementPorts<'_>,
+) -> Result<PromotionRow, RunError> {
+    let status = (settlement.probe_status)();
+    let retirement = RetirementPorts {
+        status: status.as_ref(),
+        ..*settlement.retirement
+    };
+    let promotion_ports = PromotionPorts {
+        tracker: ports.tracker,
+        retirement: &retirement,
+        records: settlement.promotions,
+    };
+    let result =
+        promote(&planned.draft, &PromotionMode::Standard, &promotion_ports);
+    if let Err(NotPromoted::RetirementFailed(
+        failure @ RetirementFailure::RestoreIncomplete { .. },
+    )) = &result
+    {
+        if let Some(key) = settlement.promotions.read(&planned.draft).key() {
+            return Err(incomplete(
+                failure,
+                &Retirement {
+                    old_id: planned.draft.as_str(),
+                    new_id: key.as_str(),
+                    new_external_id: Some(key.as_str()),
+                },
+                settlement,
+            ));
+        }
+    }
+    Ok(PromotionRow::of(
+        &planned.draft,
+        planned.path.clone(),
+        result,
+        &promotion_ports,
+        settlement.state_dir,
+    ))
 }
 
 fn key_change_row(change: &KeyChange, outcome: IdentityOutcome) -> IdentityRow {
@@ -534,20 +645,48 @@ pub fn settle_identities(
     }
     rows.extend(not_found);
 
+    let mut promotions = Vec::new();
+    for planned in &plan.promotions {
+        promotions.push(if request.mode == RunMode::Preview {
+            PromotionRow::previewed(&planned.draft, planned.path.clone())
+        } else {
+            promote_draft(planned, ports, settlement)?
+        });
+    }
+
+    let promoted_keys: Vec<ExternalId> = promotions
+        .iter()
+        .filter_map(|row| match &row.outcome {
+            PromotionOutcome::Promoted(
+                Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
+            ) => Some(key.clone()),
+            PromotionOutcome::Previewed
+            | PromotionOutcome::NotPromoted { .. } => None,
+        })
+        .collect();
     let applied = rows
         .iter()
         .filter(|row| row.outcome == IdentityOutcome::Applied)
-        .count();
+        .count()
+        + promoted_keys.len();
     let view = SettledView::following(
         plan.key_changes
             .iter()
             .map(|change| change.new_key().clone())
             .chain(promotion_keys),
-    );
+    )
+    .promoting(promoted_keys);
     Ok(SettlementReport {
         rows,
         facts: rekeyed(facts, &renamed),
         pulls_used: plan.key_changes.len(),
+        pushes_used: plan.promotions.len(),
+        promoting: plan
+            .promotions
+            .iter()
+            .map(|planned| planned.draft.as_str().to_owned())
+            .collect(),
+        promotions,
         view,
         unsettled,
         renamed,
@@ -565,7 +704,10 @@ pub fn plannable<'a>(
     let mut plannable = Vec::new();
     let mut deferred = 0;
     for item in items {
-        if report.unsettled.contains(&item.id) {
+        if report.unsettled.contains(&item.id)
+            || report.promoting.contains(&item.id)
+            || report.view.promoted(&item.id)
+        {
             continue;
         }
         if report.facts.per_id.contains_key(&item.id) {
@@ -597,6 +739,7 @@ mod tests {
                     new: ExternalId::new(format!("ENG-{index}")),
                 })
                 .collect(),
+            promotions: Vec::new(),
         }
     }
 

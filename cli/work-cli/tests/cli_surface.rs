@@ -21,6 +21,7 @@ const SUBCOMMANDS: &[&str] = &[
     "next-number",
     "list",
     "sync",
+    "promote",
 ];
 
 fn help(args: &[&str]) -> Result<String, TestError> {

@@ -320,6 +320,7 @@ mod tests {
     fn report(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
             read_failure: None,
@@ -505,6 +506,7 @@ mod tests {
     fn an_applied_import_names_a_synced_team_and_a_failed_one_does_not() {
         let run_report = RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: vec![
                 imported("OPS-7", ItemOutcome::Applied),

@@ -35,6 +35,8 @@ use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::promotion::IntendedBaseline;
+use work::promotion::NotPromoted;
+use work::promotion::Promotion;
 use work::promotion::PromotionRecord;
 use work::promotion::PromotionStage;
 use work::promotion::ReadBack;
@@ -49,6 +51,7 @@ use work::work_item_files::identities;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles as _;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion::PromotionOutcome;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
 use work_adapters::retirement::CorpusLayout;
@@ -388,6 +391,9 @@ impl CorpusDiscovery for FileDiscovery<'_> {
 struct Options {
     ownership: IdOwnership,
     mode: RunMode,
+    direction: SyncDirection,
+    promote: bool,
+    max_pushes: Ceiling,
     strategy: RetrievalStrategy,
     max_pulls: Ceiling,
     targets: Option<Vec<&'static str>>,
@@ -403,6 +409,9 @@ impl Default for Options {
         Self {
             ownership: IdOwnership::Tracker,
             mode: RunMode::Apply,
+            direction: SyncDirection::Bidirectional,
+            promote: true,
+            max_pushes: Ceiling::Bounded(25),
             strategy: RetrievalStrategy::Bulk,
             max_pulls: Ceiling::Bounded(25),
             targets: None,
@@ -418,6 +427,7 @@ impl Default for Options {
 struct Outcome {
     result: Result<RunReport, SettledRunFailure>,
     imported: Vec<String>,
+    probes: usize,
 }
 
 impl Outcome {
@@ -446,6 +456,21 @@ impl Outcome {
             .map(|reported| reported.planned.state)
     }
 
+    fn promotion(&self, draft: &str) -> &PromotionOutcome {
+        &self
+            .report()
+            .promotions
+            .iter()
+            .find(|row| row.draft == draft)
+            .unwrap_or_else(|| {
+                panic!(
+                    "no promotion row for {draft}: {:?}",
+                    self.report().promotions
+                )
+            })
+            .outcome
+    }
+
     fn error(&self) -> &RunError {
         match &self.result {
             Ok(_) => panic!("the run succeeded"),
@@ -462,6 +487,34 @@ fn targeted(items: &[LocalItem], targets: Option<&[&str]>) -> Vec<LocalItem> {
             .cloned()
             .collect()
     })
+}
+
+fn request<'a>(
+    items: &'a [LocalItem],
+    targeted: Option<&'a [LocalItem]>,
+    options: &Options,
+    resolutions: &'a BTreeMap<String, work::sync::Resolution>,
+    integrations_root: &'a Path,
+) -> SyncRequest<'a> {
+    SyncRequest {
+        corpus: items,
+        selection: targeted.map_or(ItemSelection::All, |targeted| {
+            ItemSelection::Targeted {
+                items: targeted,
+                pull_ids: &[],
+            }
+        }),
+        direction: options.direction,
+        strategy: options.strategy,
+        resolutions,
+        max_pulls: options.max_pulls,
+        max_pushes: options.max_pushes,
+        mode: options.mode,
+        integrations_root,
+        integration: "linear",
+        scope: tracker::SearchScope::default(),
+        promote: options.promote,
+    }
 }
 
 fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
@@ -512,12 +565,18 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         "linear",
         &plain,
     );
+    let probes = Cell::new(0);
+    let probe_status = || -> Box<dyn WorkingCopyStatus> {
+        probes.set(probes.get() + 1);
+        Box::new(EveryPath(Dirtiness::Clean))
+    };
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
         promotions: &promotions,
         ownership: options.ownership,
         state_dir: &state,
+        probe_status: &probe_status,
     };
     let author = FileAuthor::default();
     let ports = SyncPorts {
@@ -530,29 +589,15 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let mut baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &plain);
     let items = repo.items();
     let targeted = targeted(&items, options.targets.as_deref());
-    let selection = if options.targets.is_some() {
-        ItemSelection::Targeted {
-            items: &targeted,
-            pull_ids: &[],
-        }
-    } else {
-        ItemSelection::All
-    };
     let resolutions = BTreeMap::new();
     let integrations_root = repo.path(".accelerator/state/integrations");
-    let request = SyncRequest {
-        corpus: &items,
-        selection,
-        direction: SyncDirection::Bidirectional,
-        strategy: options.strategy,
-        resolutions: &resolutions,
-        max_pulls: options.max_pulls,
-        max_pushes: Ceiling::Bounded(25),
-        mode: options.mode,
-        integrations_root: &integrations_root,
-        integration: "linear",
-        scope: tracker::SearchScope::default(),
-    };
+    let request = request(
+        &items,
+        options.targets.is_some().then_some(targeted.as_slice()),
+        &options,
+        &resolutions,
+        &integrations_root,
+    );
     let discovery = FileDiscovery {
         repo,
         dirtiness: options.dirtiness_after,
@@ -561,7 +606,11 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let result =
         run_settled(&request, &ports, &settlement, &mut baseline, &discovery);
     let imported = author.imported.borrow().clone();
-    Outcome { result, imported }
+    Outcome {
+        result,
+        imported,
+        probes: probes.get(),
+    }
 }
 
 fn moved(from: &str, to: &str) -> RecordingTracker {
@@ -1600,7 +1649,14 @@ fn untracked_discovery_skips_a_key_held_by_a_drafts_created_marker() {
         true,
     );
 
-    let outcome = sync(&repo, &tracker, Options::default());
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            promote: false,
+            ..Options::default()
+        },
+    );
 
     assert!(outcome.imported.is_empty(), "{:?}", outcome.imported);
     assert_eq!(promotion_records_left(&repo), 1);
@@ -1624,4 +1680,415 @@ fn a_record_whose_draft_has_vanished_does_not_hide_its_key_from_discovery() {
     let outcome = sync(&repo, &tracker, Options::default());
 
     assert_eq!(outcome.imported, vec!["ENG-42".to_owned()]);
+}
+
+const ALPHA: &str = "draft-aaaaaa";
+const BRAVO: &str = "draft-bbbbbb";
+
+fn draft_file(id: &str) -> String {
+    format!("meta/work/drafts/{id}-title.md")
+}
+
+impl Repo {
+    fn draft(&self, id: &str) {
+        self.write(
+            &draft_file(id),
+            &format!(
+                "---\nid: \"{id}\"\ntitle: \"Title\"\nkind: \"story\"\n\
+                 ---\n\n# {id}: Title\n"
+            ),
+        );
+    }
+
+    fn promoted_file(&self, key: &str) -> Option<String> {
+        self.read(&format!("meta/work/{key}-title.md"))
+    }
+}
+
+fn creates(tracker: &RecordingTracker) -> usize {
+    tracker
+        .calls()
+        .iter()
+        .filter(|call| matches!(call, Call::Create { .. }))
+        .count()
+}
+
+fn promoted_onto(outcome: &Outcome, draft: &str) -> String {
+    match outcome.promotion(draft) {
+        PromotionOutcome::Promoted(Promotion::Completed(key, _)) => {
+            key.to_string()
+        }
+        other => panic!("{draft} was not promoted: {other:?}"),
+    }
+}
+
+#[test]
+fn sync_promotes_every_draft_and_continues_past_failures() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.draft(BRAVO);
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create_once(
+        TrackerError::Terminal {
+            detail: "response lost".to_owned(),
+        },
+    );
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert!(
+        matches!(
+            outcome.promotion(ALPHA),
+            PromotionOutcome::NotPromoted {
+                reason: NotPromoted::CreateOutcomeUnknown,
+                ..
+            }
+        ),
+        "{:?}",
+        outcome.promotion(ALPHA)
+    );
+    assert!(
+        repo.read(&draft_file(ALPHA)).is_some(),
+        "alpha stays a draft"
+    );
+    let bravo = promoted_onto(&outcome, BRAVO);
+    assert!(repo.promoted_file(&bravo).is_some(), "bravo is promoted");
+    assert_eq!(repo.read(&draft_file(BRAVO)), None);
+}
+
+#[test]
+fn sync_with_no_promote_leaves_drafts_untouched() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            promote: false,
+            ..Options::default()
+        },
+    );
+
+    assert!(outcome.report().promotions.is_empty());
+    assert_eq!(creates(&tracker), 0);
+    assert!(repo.read(&draft_file(ALPHA)).is_some());
+}
+
+#[test]
+fn a_legacy_unsynced_item_is_still_created_from_local_under_tracker() {
+    let repo = Repo::new();
+    repo.item("0042-title.md", "0042", None);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert_eq!(creates(&tracker), 1);
+    assert!(outcome.report().promotions.is_empty());
+    assert!(repo.read("meta/work/0042-title.md").is_some());
+}
+
+#[test]
+fn a_promoted_item_gets_no_engine_row_in_the_same_run() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+
+    let outcome = sync(
+        &repo,
+        &RecordingTracker::holding(Vec::new()),
+        Options::default(),
+    );
+
+    let key = promoted_onto(&outcome, ALPHA);
+    assert_eq!(outcome.engine_state(&key), None);
+    assert_eq!(outcome.engine_state(ALPHA), None);
+    assert_eq!(outcome.report().deferred, 0, "nothing is deferred");
+}
+
+#[test]
+fn legacy_ids_are_unchanged_by_sync_under_tracker() {
+    let repo = Repo::new();
+    repo.item("0042-title.md", "0042", Some("PP-1"));
+    repo.item("ACC-0042-title.md", "ACC-0042", Some("PP-2"));
+    repo.item("PP-760-title.md", "PP-760", Some("PP-760"));
+    repo.draft(ALPHA);
+    let before: Vec<Option<String>> = [
+        "meta/work/0042-title.md",
+        "meta/work/ACC-0042-title.md",
+        "meta/work/PP-760-title.md",
+    ]
+    .iter()
+    .map(|file| repo.read(file))
+    .collect();
+    let tracker = RecordingTracker::holding(vec![
+        held("PP-1"),
+        held("PP-2"),
+        held("PP-760"),
+    ]);
+
+    sync(&repo, &tracker, Options::default());
+
+    let after: Vec<Option<String>> = [
+        "meta/work/0042-title.md",
+        "meta/work/ACC-0042-title.md",
+        "meta/work/PP-760-title.md",
+    ]
+    .iter()
+    .map(|file| repo.read(file))
+    .collect();
+    assert_eq!(before, after);
+}
+
+fn refused_pushes(outcome: &Outcome) -> usize {
+    match outcome.error() {
+        RunError::Refused { pushes, .. } => *pushes,
+        other => panic!("not refused: {other:?}"),
+    }
+}
+
+#[test]
+fn promotions_count_towards_max_pushes() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.item("0042-title.md", "0042", None);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            max_pushes: Ceiling::Bounded(1),
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(refused_pushes(&outcome), 1, "the engine had no budget left");
+    let Err(failure) = &outcome.result else {
+        panic!("refused");
+    };
+    assert_eq!(failure.identity_applied, 1, "the promotion had landed");
+}
+
+#[test]
+fn promotions_beyond_max_pushes_refuse_the_run_before_any_create() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.draft(BRAVO);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            max_pushes: Ceiling::Bounded(1),
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(refused_pushes(&outcome), 2);
+    assert_eq!(creates(&tracker), 0);
+    assert!(repo.read(&draft_file(ALPHA)).is_some());
+    assert!(repo.read(&draft_file(BRAVO)).is_some());
+}
+
+#[test]
+fn promotions_beyond_max_pushes_refuse_before_any_key_change_is_applied() {
+    let repo = Repo::new();
+    moved_tracker_owned_item(&repo);
+    repo.draft(ALPHA);
+    repo.draft(BRAVO);
+    let before = repo.snapshot();
+
+    let outcome = sync(
+        &repo,
+        &moved("PP-760", "ENG-42"),
+        Options {
+            max_pushes: Ceiling::Bounded(1),
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(refused_pushes(&outcome), 2);
+    assert_eq!(repo.snapshot(), before, "nothing was applied");
+}
+
+#[test]
+fn a_failed_promotion_still_consumes_push_budget() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.item("0042-title.md", "0042", None);
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Rejected {
+            detail: "a table".to_owned(),
+        },
+    );
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            max_pushes: Ceiling::Bounded(1),
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(refused_pushes(&outcome), 1);
+}
+
+#[test]
+fn the_engine_does_not_plan_drafts_being_promoted() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Rejected {
+            detail: "a table".to_owned(),
+        },
+    );
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert!(matches!(
+        outcome.promotion(ALPHA),
+        PromotionOutcome::NotPromoted { .. }
+    ));
+    assert_eq!(outcome.engine_state(ALPHA), None);
+}
+
+#[test]
+fn preview_lists_drafts_to_promote_and_creates_nothing() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    let before = repo.snapshot();
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            mode: RunMode::Preview,
+            ..Options::default()
+        },
+    );
+
+    assert_eq!(outcome.promotion(ALPHA), &PromotionOutcome::Previewed);
+    assert_eq!(creates(&tracker), 0);
+    assert_eq!(repo.snapshot(), before);
+}
+
+#[test]
+fn pull_only_leaves_drafts_untouched() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    let before = repo.read(&draft_file(ALPHA));
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            direction: SyncDirection::PullOnly,
+            ..Options::default()
+        },
+    );
+
+    assert!(outcome.report().promotions.is_empty());
+    assert_eq!(creates(&tracker), 0);
+    assert_eq!(repo.read(&draft_file(ALPHA)), before);
+}
+
+#[test]
+fn a_targeted_sync_promotes_only_targeted_drafts() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.draft(BRAVO);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            targets: Some(vec![BRAVO]),
+            ..Options::default()
+        },
+    );
+
+    promoted_onto(&outcome, BRAVO);
+    assert_eq!(outcome.report().promotions.len(), 1);
+    assert!(repo.read(&draft_file(ALPHA)).is_some());
+}
+
+#[test]
+fn each_promotion_reads_dirtiness_fresh() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    repo.draft(BRAVO);
+
+    let outcome = sync(
+        &repo,
+        &RecordingTracker::holding(Vec::new()),
+        Options::default(),
+    );
+
+    assert_eq!(outcome.probes, 2);
+}
+
+#[test]
+fn a_promotion_record_left_by_failed_retirements_is_finished_by_the_next_sync()
+{
+    let repo = Repo::new();
+    repo.draft(PROMOTED_DRAFT);
+    let remote = ReadBack {
+        hash: digest::remote_body(BODY),
+        updated: RemoteTimestamp::Reported(STAMP.to_owned()),
+    };
+    save_promotion(
+        &repo,
+        &promotion_record(PromotionStage::RemoteRetitled {
+            key: key("PP-900"),
+            read_back: remote,
+        }),
+    );
+    let tracker = RecordingTracker::holding(vec![held("PP-900")]);
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    assert_eq!(promoted_onto(&outcome, PROMOTED_DRAFT), "PP-900");
+    let promoted = repo.promoted_file("PP-900").expect("the key path");
+    assert!(promoted.contains("id: \"PP-900\""), "{promoted}");
+    assert_eq!(promotion_records_left(&repo), 0, "the marker is gone");
+    assert_eq!(creates(&tracker), 0, "one remote issue");
+}
+
+#[test]
+fn a_failed_promotion_retirement_then_sync_then_sync_creates_one_issue() {
+    let repo = Repo::new();
+    repo.draft(ALPHA);
+    let tracker = RecordingTracker::holding(Vec::new());
+
+    let failed = sync(
+        &repo,
+        &tracker,
+        Options {
+            fail_at: Some(0),
+            keep_failing: true,
+            ..Options::default()
+        },
+    );
+    assert!(
+        matches!(
+            failed.promotion(ALPHA),
+            PromotionOutcome::NotPromoted {
+                reason: NotPromoted::RetirementFailed(_),
+                held_key: Some(_),
+            }
+        ),
+        "{:?}",
+        failed.promotion(ALPHA)
+    );
+    let finished = sync(&repo, &tracker, Options::default());
+    let key = promoted_onto(&finished, ALPHA);
+    sync(&repo, &tracker, Options::default());
+
+    assert_eq!(creates(&tracker), 1);
+    assert!(repo.promoted_file(&key).is_some());
 }

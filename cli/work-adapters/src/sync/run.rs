@@ -26,6 +26,7 @@ use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
 
+use crate::promotion::PromotionRow;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
@@ -158,6 +159,8 @@ pub struct SyncRequest<'a> {
     /// The scope untracked-remote discovery searches. Team/project-scoped by
     /// default so the untracked set stays bounded on a shared workspace.
     pub scope: SearchScope,
+    /// Whether a run under a tracker-owned pattern promotes its drafts.
+    pub promote: bool,
 }
 
 impl<'a> SyncRequest<'a> {
@@ -232,6 +235,7 @@ pub enum DiscoveryStatus {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SettledView {
     followed_keys: BTreeSet<String>,
+    promoted_keys: BTreeSet<String>,
 }
 
 impl SettledView {
@@ -243,7 +247,28 @@ impl SettledView {
                 .into_iter()
                 .map(|key| canonical_external_key(&key))
                 .collect(),
+            promoted_keys: BTreeSet::new(),
         }
+    }
+
+    /// The same view, also knowing the keys this run promoted drafts onto:
+    /// the engine leaves those items for the next run.
+    pub(crate) fn promoting(
+        self,
+        keys: impl IntoIterator<Item = ExternalId>,
+    ) -> Self {
+        Self {
+            promoted_keys: keys
+                .into_iter()
+                .map(|key| canonical_external_key(&key))
+                .collect(),
+            ..self
+        }
+    }
+
+    pub(crate) fn promoted(&self, id: &str) -> bool {
+        self.promoted_keys
+            .contains(&canonical_external_key(&ExternalId::new(id.to_owned())))
     }
 
     fn follows(&self, key: &ExternalId) -> bool {
@@ -255,6 +280,8 @@ pub struct RunReport {
     /// The identity pass's rows, each keyed by the item's id when the run
     /// started. The engine's row for the same item is not rendered.
     pub identity: Vec<IdentityRow>,
+    /// Every draft the run set out to promote, in id order.
+    pub promotions: Vec<PromotionRow>,
     /// Items that appeared after the identity pass read the remote, left
     /// for the next run.
     pub deferred: usize,
@@ -1154,6 +1181,7 @@ fn execute<'a>(
         }
         return Ok(RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported,
             read_failure,
@@ -1226,6 +1254,7 @@ fn execute<'a>(
 
     Ok(RunReport {
         identity: Vec::new(),
+        promotions: Vec::new(),
         deferred: 0,
         reported,
         read_failure,

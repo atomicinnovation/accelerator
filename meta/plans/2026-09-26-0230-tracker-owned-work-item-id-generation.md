@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-28T18:00:00+00:00"
+last_updated: "2026-09-28T20:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -3093,18 +3093,61 @@ and the `#\tdetail` and `#\tnote` lines, matched to rows by id.
 each reason keyword to the frozen `keyword_exit_codes` oracle.
 (`exit_codes_parity.rs` pins only the constants; no new constant here.)
 
+> Implementation notes:
+>
+> - `Promotion::Completed(key, SyncState)` carries the state the next sync
+>   finds the promoted item in, from `IntendedBaseline::next_sync`. The row's
+>   state column uses the existing `SyncState` keywords, so the push case is
+>   `locally-modified`, not `local-changed`.
+> - `NotPromoted::exit_code(issue_exists)` lives in `work::promotion`, beside
+>   `PushOutcome::exit_code`, so the black-box `keyword_exit_codes` oracle
+>   can pin every reason. `1` (`record-unwritable` before a create) ranks
+>   just below `71`; `exit_code_for_report` now folds every outcome through
+>   one `severity` ranking.
+> - `create_outcome_of` is the pure half of `promotion_outcome`.
+>   `each_outcome_exits_alike_from_every_command_or_is_documented` compares
+>   it with `NotPromoted::exit_code`; three reasons differ, each documented
+>   in `exit_codes.rs`: `tracker-unreachable`, `possible-duplicate` and
+>   `record-unwritable` before a create.
+> - The adapter builds each row (`work_adapters::promotion::PromotionRow`)
+>   with its `details`, since it holds the corpus and the recovery copies;
+>   `work-cli/src/promotion_report.rs` only renders. An unrestored path is
+>   `recovery` when the recovery directory holds an unsettled copy of it,
+>   otherwise `vcs`. Detail lines follow the discovery line and precede the
+>   notes and summary.
+> - A promotion whose retirement cannot restore the corpus stops the sync as
+>   a key change does (`RunError::RetirementIncomplete`), so only
+>   `work promote` prints `vcs` and `recovery` detail lines. Failed identity
+>   rows got no detail lines: their reason text already names both paths.
+> - `--adopt` checks the retirement's refusals before writing the record, so
+>   a refused or missing adopt changes nothing, and it adopts the key the
+>   user named.
+> - `SettlementPorts.probe_status` probes the working copy afresh for each
+>   promotion (`each_promotion_reads_dirtiness_fresh`); `RetirementPorts`
+>   and its parts are `Copy` so a promotion's ports differ only in status.
+> - `work-cli/src/identity_workspace.rs` holds the wiring `create`, `sync`
+>   and `promote` share. `E_PROMOTE_NOT_A_DRAFT` exits 2, and also covers a
+>   draft ID no item holds. `work promote` finishes interrupted key-change
+>   retirements first (`finish_interrupted_retirements`) and prints their
+>   rows before its own.
+> - Test placement: the sync-promotion tests are in `sync_settled.rs`, whose
+>   harness carries the settlement ports. `every_not_promoted_reason_has_a_keyword`
+>   is `every_not_promoted_reason_is_reported_under_its_keyword` plus the
+>   frozen oracle; `adopt_and_create_are_mutually_exclusive` is a `cli.rs`
+>   parse test. A preview's row is `<draft-id>\tpromote\tunsynced\t-`.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] `cd cli && cargo test -p work promotion`
-- [ ] `cd cli && cargo test -p work-adapters --test promotion --test sync_create`
-- [ ] `cd cli && cargo test -p accelerator-work`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_surface`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run test:unit:tasks`
-- [ ] `mise run test:integration:conformance`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work promotion`
+- [x] `cd cli && cargo test -p work-adapters --test promotion --test sync_create`
+- [x] `cd cli && cargo test -p accelerator-work`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_surface`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run test:unit:tasks`
+- [x] `mise run test:integration:conformance`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 

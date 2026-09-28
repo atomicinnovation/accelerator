@@ -32,6 +32,7 @@ use work::work_item_files::DRAFTS_DIRECTORY;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::fetch::WorkingCopyStatus;
 
+#[derive(Clone, Copy)]
 pub struct RetirementFiles<'a> {
     pub reader: &'a dyn FileReader,
     pub writer: &'a dyn AtomicWrite,
@@ -43,11 +44,13 @@ pub struct RetirementFiles<'a> {
 
 /// Where the corpus lives: every root it is walked from, and the work
 /// directory inside it.
+#[derive(Clone, Copy)]
 pub struct CorpusLayout<'a> {
     pub roots: &'a [PathBuf],
     pub work_dir: &'a Path,
 }
 
+#[derive(Clone, Copy)]
 pub struct RetirementPorts<'a> {
     pub files: RetirementFiles<'a>,
     pub layout: CorpusLayout<'a>,
