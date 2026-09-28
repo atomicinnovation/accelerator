@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-28T12:00:00+00:00"
+last_updated: "2026-09-28T18:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2771,7 +2771,23 @@ table, `:493-587`)
 > - Sync's create-from-local keeps its own `link_and_baseline`; only
 >   `work create --push` and promotion go through `record_created_baseline`.
 > - `RecordingTracker` gained `failing_create_once` beside
->   `parking_create`.
+>   `parking_create`; both are pinned in `tracker-test-support/tests/parking.rs`.
+> - Test placement: `send_create`'s retry tests moved from `create.rs` to
+>   `work-adapters/tests/remote_create.rs`. The reconciliation and
+>   discovery tests planned for `sync_create.rs` are in `sync_settled.rs`,
+>   whose harness carries the settlement ports. The pull-side tests
+>   (`pull_cleanup_keeps_a_created_marker_whose_draft_still_exists`,
+>   `a_vanished_draft_s_record_is_removed_and_its_key_imported`,
+>   `the_pull_takes_the_retirement_lock_before_the_create_lock`) are
+>   `work-cli` `sync_author` unit tests. `a_create_then_sync_reports_synced`
+>   is a `work-cli` `sync` unit test, beside `drive_sync`.
+> - The skill's `loud-terminal` row is split by ID pattern: under
+>   `{tracker}` it names the draft by its ID and offers `work promote
+>   --adopt` / `--create`, and never suggests setting `external_id` by
+>   hand. The first run of `tracker_pattern_loud_terminal_offers_adopt_or_create`
+>   failed on exactly that before the split. Both new evals are recorded
+>   in `evals/benchmark.json` and `benchmark.md`; the tasks suite requires
+>   a `with_skill` run for every eval ID.
 > - Not written, with the covering test: the out-of-grammar key warning
 >   (`RecordingTracker` mints only `REC-n`); the real-VCS draft promotion and
 >   resumed recovery copies (Phase 3's retirement suite); the live-promotion
@@ -2821,6 +2837,36 @@ thin entry point onto the Phase 6 promotion service. This phase adds the
 through sync's `create_from_local`.
 
 ### Changes Required:
+
+#### 0. Carried over from Phase 6
+
+Where Phase 6 left the code this phase builds on:
+
+- The service is `work_adapters::promotion::promote(draft, &mode, &PromotionPorts
+  { tracker, retirement, records })`, holding the retirement lock
+  throughout; `finish_promotion(record, retirement_ports, records, lock)`
+  is the shared tail. `work::promotion::next_step` destructures
+  `PromotionMode::Standard` irrefutably, so adding modes turns that into a
+  `match`.
+- Records live behind `work_adapters::promotion_records::{PromotionRecords,
+  FilePromotionRecords, StoredRecord}`; `StoredRecord::Present` boxes its
+  record. `RemoteKeptReason::UserNamedAdopt { read_back }` already exists,
+  and every recorded hash is a `ReadBack { hash, updated }`.
+- `SettlementPorts.promotions` exists. The identity pass finishes only
+  `Retiring` records (`reconcile_promotions`); a record at `Created`,
+  `RemoteRetitled` or `RemoteKept` waits for its draft's next promotion,
+  which this phase's sync promotion supplies
+  (`a_promotion_record_left_by_failed_retirements_is_finished_by_the_next_sync`
+  depends on it). Keys held by records whose draft exists already join
+  `SettledView.followed_keys` through `SettledView::following`.
+- `NotPromoted` also has `RecordUnwritable { key, detail }`
+  (`record-unwritable`); the keyword table and `keyword_exit_codes` need
+  its exit: 71 with a key, as `created-unwritten`, and 1 without.
+- `work-cli/src/create.rs` builds its `RetirementPorts` and
+  `FilePromotionRecords` inline in `create_tracker_keyed_item`, and maps
+  results in `promotion_outcome`. `promote.rs` and `run_sync` need the
+  same wiring, so extract it rather than copy it.
+- `SharedTracker` and `StubRegistry` are in `work-cli/src/test_support.rs`.
 
 #### 1. Failing tests first
 
@@ -3081,6 +3127,18 @@ parent's resulting ID, and prints the five outcome strings. The work-item
 skills are updated for `{tracker}`.
 
 ### Changes Required:
+
+#### 0. Carried over from Phase 6
+
+- The three strategies are `create_local_item(context, store, registry)`,
+  `save_draft(context, store, draws)` and `create_tracker_keyed_item(context,
+  store, draws, registry)` over a `CreationContext`, returning
+  `CreationOutcome { path: Option<PathBuf>, push: Option<PushReport> }`
+  (the keyword is `push.outcome`). `run_with(.., Seams { registry,
+  store_at, draws })` is the test seam.
+- The rerun guard's refusals are `CreateFailure::Pending(message)`,
+  surfaced as `RunOutcome::Pending` (exit 4); `create-batch`'s `pending`
+  keyword maps from it, and its message names the existing draft.
 
 #### 1. Failing tests first
 
