@@ -18,6 +18,7 @@ fn outcome(raw: &str) -> PushOutcome {
         "local-save" => PushOutcome::LocalSave,
         "loud-terminal" => PushOutcome::LoudTerminal,
         "rejected" => PushOutcome::Rejected,
+        "created-unwritten" => PushOutcome::CreatedUnwritten,
         other => panic!("unrecognised outcome: {other}"),
     }
 }

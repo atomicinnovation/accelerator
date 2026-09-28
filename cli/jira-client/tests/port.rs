@@ -7,7 +7,9 @@ mod support;
 use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::JiraClient;
 use serde_json::Value;
-use support::client::{brief, client_for, client_with, PROJECT};
+use support::client::{
+    brief, client_for, client_for_project, client_with, PROJECT,
+};
 use support::RecordingSleeper;
 use tracker::{
     Ceiling, Completeness, ExternalId, RemoteTimestamp, RemoteTracker as _,
@@ -116,6 +118,30 @@ fn create_posts_the_issue_and_returns_its_key() {
     assert_eq!(sent["fields"]["summary"], "A title");
     assert_eq!(sent["fields"]["issuetype"]["name"], "Bug");
     assert_eq!(sent["fields"]["description"]["type"], "doc");
+}
+
+#[test]
+fn create_targets_the_configured_jira_project() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(ISSUE);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 201,
+            body: "{\"key\":\"OPS-7\"}".to_owned(),
+        },
+    );
+
+    let created = client_for_project(&server, "OPS")
+        .create("A title", "A body\n", "Task")
+        .expect("create succeeds");
+
+    assert_eq!(created, id("OPS-7"));
+    let sent: Value = serde_json::from_slice(
+        &server.last_body(&key).expect("the request carried a body"),
+    )
+    .expect("the body is JSON");
+    assert_eq!(sent["fields"]["project"]["key"], "OPS");
 }
 
 #[test]

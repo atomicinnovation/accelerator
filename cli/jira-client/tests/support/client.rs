@@ -47,11 +47,34 @@ pub fn client_for(
     client_with(&server.base_url(), config, &RecordingSleeper::new())
 }
 
+/// A client against `server` whose configured project is `project`.
+#[must_use]
+pub fn client_for_project(
+    server: &MockHTTPServer,
+    project: &str,
+) -> JiraClient {
+    client_in(
+        &server.base_url(),
+        brief(),
+        &RecordingSleeper::new(),
+        project,
+    )
+}
+
 #[must_use]
 pub fn client_with(
     base: &str,
     config: TransportConfig,
     sleeper: &RecordingSleeper,
+) -> JiraClient {
+    client_in(base, config, sleeper, PROJECT)
+}
+
+fn client_in(
+    base: &str,
+    config: TransportConfig,
+    sleeper: &RecordingSleeper,
+    project: &str,
 ) -> JiraClient {
     let transport = Transport::new(
         credentials(base),
@@ -62,7 +85,7 @@ pub fn client_with(
     .expect("the transport builds");
     JiraClient::new(
         transport,
-        PROJECT.to_owned(),
+        project.to_owned(),
         Box::new(FixedResolver::new()),
         Box::new(FixedResolver::new()),
     )

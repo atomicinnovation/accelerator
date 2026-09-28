@@ -42,6 +42,8 @@
 - ✓ **enrich-existing-oblique-status-mention** (30a): 2/2 (100%)
 - ✓ **enrich-existing-identity-swap-check-performed** (31): 2/2 (100%)
 - ✓ **topic-string-flow-still-calls-next-number** (32): 3/3 (100%)
+- ✓ **tracker_pattern_created_blocked_relays_holder_and_promote_remedy** (33): 4/4 (100%)
+- ✓ **tracker_pattern_loud_terminal_offers_adopt_or_create** (34): 4/4 (100%)
 - ✓ **model-proposes-type** (4): 2/2 (100%)
 - ✓ **challenge-untestable-ac** (5): 2/2 (100%)
 - ✓ **bug-type-requirements** (6): 3/3 (100%)
@@ -77,3 +79,4 @@
 - eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values — showing identity is not preserved.
 - All 14 pre-existing evals (1–14) pass 100% in both configs — no regressions introduced by the enrich-existing extension.
 - Evals 1–14 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior.
+- Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed.

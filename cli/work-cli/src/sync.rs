@@ -5,6 +5,9 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use work::sync::PendingPush;
+use work_adapters::promotion_records::FilePromotionRecords;
+use work_adapters::sync::pending_push::Marker;
 
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
@@ -98,13 +101,31 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
     ) else {
         return;
     };
-    for (path, marker) in markers {
+    for entry in markers {
+        let (path, marker) = match entry {
+            Ok(readable) => readable,
+            Err(unreadable) => {
+                eprintln!(
+                    "warning: {} could not be read ({}); a create or \
+                     promotion it recorded may have partially applied",
+                    unreadable.path.display(),
+                    unreadable.detail
+                );
+                continue;
+            }
+        };
         let (request, external_id) = match &marker {
-            work::sync::PendingPush::Attempted { request } => (request, None),
-            work::sync::PendingPush::Created {
+            Marker::Legacy(PendingPush::Attempted { request }) => {
+                (request, None)
+            }
+            Marker::Legacy(PendingPush::Created {
                 request,
                 external_id,
-            } => (request, Some(external_id.as_str())),
+            }) => (request, Some(external_id.as_str())),
+            Marker::Promotion(record) => (
+                &record.request,
+                record.stage.key().map(tracker::ExternalId::as_str),
+            ),
         };
         eprintln!(
             "warning: {} names a pending push for '{}' attempted at {}{}{}",
@@ -140,11 +161,11 @@ fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
 
 /// Where retirement records and recovery copies live, relative to the
 /// repository root.
-const STATE_DIR: &str = ".accelerator/state";
+pub const STATE_DIR: &str = ".accelerator/state";
 
 /// Every configured document directory, so a retirement rewrites references
 /// across the same tree `corpus frontmatter validate` walks.
-fn corpus_roots(
+pub fn corpus_roots(
     config: &dyn ConfigAccess,
     repo_root: &Path,
 ) -> Result<Vec<PathBuf>, ::config::ConfigError> {
@@ -1444,9 +1465,16 @@ pub fn run_sync(
         baseline: &retirement_baseline,
     };
     let records = FileRetirementRecords::new(&state_dir, &state_store);
+    let integrations_store = FileCorpusStore::new(&integrations_root);
+    let promotions = FilePromotionRecords::new(
+        &integrations_root,
+        &integration,
+        &integrations_store,
+    );
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
+        promotions: &promotions,
         ownership: scheme.ownership(),
         state_dir: &state_dir,
     };
@@ -2938,8 +2966,7 @@ mod tests {
     use crate::finaliser::FinishedRun;
     use crate::finaliser::NoFinaliser;
     use crate::finaliser::RunFinaliser;
-    use crate::tracker_registry::SelectionError;
-    use crate::tracker_registry::TrackerRegistry;
+    use crate::test_support::StubRegistry;
 
     /// A tracker whose `fetch_all` fails pre-flight — the whole-call `Err` path
     /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
@@ -3022,97 +3049,6 @@ mod tests {
         }
     }
 
-    /// Shares one `RecordingTracker` between the registry (which hands the
-    /// engine a `Box<dyn RemoteTracker>`) and the test (which inspects the call
-    /// log afterwards), since the box is moved into `run_sync`.
-    struct SharedTracker(Rc<RecordingTracker>);
-
-    impl RemoteTracker for SharedTracker {
-        fn create(
-            &self,
-            title: &str,
-            body: &str,
-            kind: &str,
-        ) -> Result<ExternalId, TrackerError> {
-            self.0.create(title, body, kind)
-        }
-
-        fn update(
-            &self,
-            id: &ExternalId,
-            title: &str,
-            body: &str,
-        ) -> Result<(), TrackerError> {
-            self.0.update(id, title, body)
-        }
-
-        fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
-            self.0.show(id)
-        }
-
-        fn locate(
-            &self,
-            id: &ExternalId,
-        ) -> Result<tracker::Located, TrackerError> {
-            self.0.locate(id)
-        }
-
-        fn fetch_all(
-            &self,
-            ids: &[ExternalId],
-        ) -> Result<tracker::FetchOutcome, TrackerError> {
-            self.0.fetch_all(ids)
-        }
-
-        fn search(
-            &self,
-            scope: &tracker::SearchScope,
-        ) -> Result<tracker::Discovery, TrackerError> {
-            self.0.search(scope)
-        }
-
-        fn resolve_scope(
-            &self,
-            scope: &tracker::SearchScope,
-        ) -> Result<tracker::SearchScope, tracker::ScopeError> {
-            self.0.resolve_scope(scope)
-        }
-
-        fn enumerate_visible_entities(
-            &self,
-        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
-        {
-            self.0.enumerate_visible_entities()
-        }
-
-        fn preview_create(
-            &self,
-            kind: &str,
-        ) -> Result<tracker::CreatePreview, TrackerError> {
-            self.0.preview_create(kind)
-        }
-
-        fn validate_update(
-            &self,
-            id: &ExternalId,
-            title: &str,
-            body: &str,
-        ) -> tracker::ValidationOutcome {
-            self.0.validate_update(id, title, body)
-        }
-    }
-
-    struct StubRegistry(Rc<RecordingTracker>);
-
-    impl TrackerRegistry for StubRegistry {
-        fn resolve(
-            &self,
-            _name: &str,
-        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
-            Ok(Box::new(SharedTracker(Rc::clone(&self.0))))
-        }
-    }
-
     fn sync_repo() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         let git = |args: &[&str]| {
@@ -3192,6 +3128,63 @@ mod tests {
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
         super::run_sync(dir, &composed.service, args, &registry, finaliser)
+    }
+
+    #[test]
+    fn a_create_then_sync_reports_synced() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let composed = config_adapters::compose(
+            dir.path(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+        let templates = composed.store.with_plugin_root(Some(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        ));
+        let created = crate::create::run(
+            dir.path(),
+            &composed.service,
+            &templates,
+            &crate::create::CreateArgs {
+                title: "Round trip".to_owned(),
+                kind: "task".to_owned(),
+                priority: "low".to_owned(),
+                status: "ready".to_owned(),
+                parent: None,
+                tags: Vec::new(),
+                blocks: Vec::new(),
+                blocked_by: Vec::new(),
+                derived_from: Vec::new(),
+                relates_to: Vec::new(),
+                source: None,
+                project: None,
+                author: Some("A Tester".to_owned()),
+                producer: "create-work-item".to_owned(),
+                body_file: None,
+                push: true,
+                dry_run: false,
+            },
+            &StubRegistry(Rc::clone(&tracker)),
+        );
+        assert!(matches!(
+            created,
+            crate::create::RunOutcome::Created { path: Some(_), .. }
+        ));
+        let calls_after_create = tracker.calls().len();
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        let mutated =
+            tracker.calls()[calls_after_create..].iter().any(|call| {
+                matches!(call, Call::Create { .. } | Call::Update { .. })
+            });
+        assert!(
+            !mutated,
+            "a synced item pushes nothing: {:?}",
+            tracker.calls()
+        );
     }
 
     /// Keeps what the run handed it, and can report a failure of its own.

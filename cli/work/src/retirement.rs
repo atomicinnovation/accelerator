@@ -142,6 +142,16 @@ pub enum RetirementRefusal {
 
 impl RetirementRefusal {
     #[must_use]
+    pub const fn keyword(&self) -> &'static str {
+        match self {
+            Self::IdTaken { .. } => "id-taken",
+            Self::KeyLinked { .. } => "key-linked",
+            Self::TargetExists(_) => "target-exists",
+            Self::ItemNotFound(_) => "item-not-found",
+        }
+    }
+
+    #[must_use]
     pub fn message(&self, retirement: &Retirement<'_>) -> String {
         let Retirement { old_id, new_id, .. } = retirement;
         match self {
@@ -212,6 +222,14 @@ impl std::fmt::Display for RetirementCause {
 }
 
 impl RetirementFailure {
+    #[must_use]
+    pub const fn keyword(&self) -> &'static str {
+        match self {
+            Self::RolledBack { .. } => "retirement-failed",
+            Self::RestoreIncomplete { .. } => RETIREMENT_INCOMPLETE,
+        }
+    }
+
     /// `recovery_location` is where the recovery directory lives on disk.
     #[must_use]
     pub fn message(
@@ -411,6 +429,31 @@ pub fn plan_retirement(
         recovery_dir: retirement.recovery_dir(),
         resumes: interrupted.is_some(),
     })
+}
+
+/// What the retiring item's file at `from` holds once retired: every
+/// reference rewritten, and its `id`, `external_id`, H1 and `aliases` set.
+#[must_use]
+pub fn retired_content(
+    content: &str,
+    retirement: &Retirement<'_>,
+    from: &Path,
+    work_dir: &Path,
+) -> String {
+    let to = file_for(
+        work_dir,
+        retirement.new_id,
+        &slug_after(retirement.old_id, from),
+    );
+    let spellings = path_spellings(from, &to, work_dir);
+    let renaming = Renaming {
+        doc_type: WORK_ITEM,
+        old_id: retirement.old_id,
+        new_id: retirement.new_id,
+        shape: shape_of(retirement.old_id),
+        path_spellings: &spellings,
+    };
+    retired_item_content(&rewrite_references(content, &renaming), retirement)
 }
 
 fn refuse_collisions(
@@ -688,6 +731,25 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
         plan_retirement(retirement, work_dir(), &items, corpus)
+    }
+
+    #[test]
+    fn retired_content_is_what_the_plan_creates() {
+        let corpus = [draft()];
+        let planned = planned(&promotion(), &corpus);
+
+        assert_eq!(
+            planned.retired_item.as_deref(),
+            Some(
+                super::retired_content(
+                    &corpus[0].content,
+                    &promotion(),
+                    &corpus[0].path,
+                    work_dir()
+                )
+                .as_str()
+            )
+        );
     }
 
     fn planned(

@@ -180,8 +180,7 @@ impl Repo {
         }
         let store = FileCorpusStore::new(repo.root());
         fs::create_dir_all(repo.path(BASELINE).parent().ok_or("no parent")?)?;
-        let mut baseline =
-            BaselineStore::new(repo.path(BASELINE), &RealFs, &store);
+        let baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &store);
         baseline.set("draft-k7mq3x", entry("draft"))?;
         baseline.set("0001", entry("child"))?;
         Ok(repo)

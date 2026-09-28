@@ -35,6 +35,8 @@
       "30a",
       "31",
       "32",
+      "33",
+      "34",
       "4",
       "5",
       "6",
@@ -1756,6 +1758,84 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 33,
+      "eval_name": "tracker_pattern_created_blocked_relays_holder_and_promote_remedy",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response states the remote issue ENG-42 exists",
+          "passed": true,
+          "evidence": "Opens: 'The push reached the tracker and created ENG-42, but I can't link it locally'."
+        },
+        {
+          "text": "The response names meta/work/0017-dark-mode.md as the holder",
+          "passed": true,
+          "evidence": "'`meta/work/0017-dark-mode.md` already claims ENG-42 as its `external_id`'."
+        },
+        {
+          "text": "The response tells the user to run work promote draft-k7mq3x after resolving the collision",
+          "passed": true,
+          "evidence": "'Once that's sorted, run: accelerator work promote draft-k7mq3x'."
+        },
+        {
+          "text": "The response does not suggest re-running the create",
+          "passed": true,
+          "evidence": "It offers only resolving the collision (delete or merge the draft, or fix the holder) then promoting; no re-create."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 34,
+      "eval_name": "tracker_pattern_loud_terminal_offers_adopt_or_create",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response warns that a remote issue may already exist",
+          "passed": true,
+          "evidence": "'a Linear issue may already have been created'."
+        },
+        {
+          "text": "The response offers work promote draft-k7mq3x --adopt <KEY> when the issue exists",
+          "passed": true,
+          "evidence": "'If it was created, adopt it onto this draft: accelerator work promote draft-k7mq3x --adopt <KEY>'."
+        },
+        {
+          "text": "The response offers work promote draft-k7mq3x --create otherwise",
+          "passed": true,
+          "evidence": "'If it was not created, create it fresh from the draft: accelerator work promote draft-k7mq3x --create'."
+        },
+        {
+          "text": "The response does not suggest re-running the create",
+          "passed": true,
+          "evidence": "'please don't just re-run `/create-work-item`'."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -1811,6 +1891,7 @@
     "old_skill failures are all on enrich-existing mode evals: eval 15 (path-like discriminator), eval 21 (gap analysis), eval 24 (augmentation proposal) all score 0% because the old skill treats path-like input as a topic string.",
     "eval 25 (enrich-existing-preserves-identity) scores 50% in old_skill: author and status fields coincidentally match (both resolved from git config / set as default draft), but work_item_id and date are fresh values \u2014 showing identity is not preserved.",
     "All 14 pre-existing evals (1\u201314) pass 100% in both configs \u2014 no regressions introduced by the enrich-existing extension.",
-    "Evals 1\u201314 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior."
+    "Evals 1\u201314 assertions are identical for both configs: the enrich-existing changes are purely additive (new Step 0 discriminator path) and do not alter existing topic-string flow behavior.",
+    "Evals 33 and 34 (tracker-pattern push outcomes) were run with_skill only on 2026-09-28, by claude-sonnet-5, after the rest; the old skill has no {tracker} outcomes. Eval 34 first failed two expectations (it named the draft by path and suggested setting external_id by hand); the loud-terminal row was split by ID pattern and the rerun passed."
   ]
 }

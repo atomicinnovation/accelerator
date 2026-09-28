@@ -71,7 +71,7 @@ impl<'a> BaselineStore<'a> {
     /// # Errors
     ///
     /// [`StoreError`] on either the read or the write.
-    pub fn set(&mut self, id: &str, entry: Entry) -> Result<(), StoreError> {
+    pub fn set(&self, id: &str, entry: Entry) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         baseline.set(id, entry);
         self.write_document(&baseline)
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn renaming_an_entry_moves_it_in_one_write() -> Result<(), StoreError> {
         let file = MemoryFile::default();
-        let mut store =
+        let store =
             BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
         store.set("draft-k7mq3x", entry("moved"))?;
         store.set("0001", entry("kept"))?;
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn renaming_an_absent_entry_is_a_no_op() -> Result<(), StoreError> {
         let file = MemoryFile::default();
-        let mut store =
+        let store =
             BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
         store.set("0001", entry("kept"))?;
         *file.writes.borrow_mut() = 0;

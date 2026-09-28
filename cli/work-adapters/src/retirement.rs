@@ -446,7 +446,13 @@ fn walked_corpus(
     })
 }
 
-fn plan_from_corpus(
+/// Plans `retirement` over the corpus as it now stands.
+///
+/// # Errors
+///
+/// [`FinishFailure::Refused`] when planning refuses, and
+/// [`FinishFailure::Failed`] when the corpus cannot be read.
+pub fn plan_from_corpus(
     retirement: &Retirement<'_>,
     ports: &RetirementPorts<'_>,
 ) -> Result<RetirementPlan, FinishFailure> {
