@@ -17,6 +17,7 @@ use crate::draft_id::DraftId;
 use crate::retirement::RetirementFailure;
 use crate::retirement::RetirementRefusal;
 use crate::sync::RequestFingerprint;
+use crate::sync::SyncState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromotionRecord {
@@ -102,6 +103,21 @@ pub struct IntendedBaseline {
     pub local_hash: String,
 }
 
+impl IntendedBaseline {
+    /// The state the next sync finds a promoted item whose content digests
+    /// to `promoted_digest` in.
+    #[must_use]
+    pub fn next_sync(&self, promoted_digest: &str) -> SyncState {
+        match self.remote_hash {
+            RemoteHash::Unknown => SyncState::Conflict,
+            RemoteHash::Known(_) if self.local_hash == promoted_digest => {
+                SyncState::Synced
+            }
+            RemoteHash::Known(_) => SyncState::LocallyModified,
+        }
+    }
+}
+
 /// `Unknown` is a remote hash the sync classifier always reads as changed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RemoteHash {
@@ -122,11 +138,17 @@ pub enum RecordState<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PromotionMode {
     Standard,
+    /// The user named the issue the draft's create reached.
+    Adopt(ExternalId),
+    /// The user accepts that an earlier create may have reached the
+    /// tracker, and asks for a fresh one.
+    CreateAcceptingDuplicate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PromotionStep {
     CreateIssue,
+    VerifyThenAdopt(ExternalId),
     RetitleRemote(ExternalId),
     Retire(ExternalId),
     Finish,
@@ -153,6 +175,10 @@ pub enum NotPromoted {
         key: Option<ExternalId>,
         detail: String,
     },
+    AdoptedIssueMissing(ExternalId),
+    AdoptConflictsWithRecordedKey {
+        recorded: ExternalId,
+    },
 }
 
 impl NotPromoted {
@@ -167,13 +193,50 @@ impl NotPromoted {
             Self::Refused(refusal) => refusal.keyword(),
             Self::RetirementFailed(failure) => failure.keyword(),
             Self::RecordUnwritable { .. } => "record-unwritable",
+            Self::AdoptedIssueMissing(_) => "adopted-issue-missing",
+            Self::AdoptConflictsWithRecordedKey { .. } => {
+                "adopt-conflicts-with-recorded-key"
+            }
+        }
+    }
+
+    /// The code `work sync` and `work promote` exit with for a draft left
+    /// unpromoted, given whether an issue already exists for it: once one
+    /// does, a draft that has vanished leaves it unlinked.
+    #[must_use]
+    pub const fn exit_code(&self, issue_exists: bool) -> u8 {
+        match self {
+            Self::TrackerUnreachable => RETRYABLE,
+            Self::RequestRejected { .. } => REJECTED,
+            Self::Refused(RetirementRefusal::ItemNotFound(_))
+                if issue_exists =>
+            {
+                TERMINAL
+            }
+            Self::EarlierAttemptUnconfirmed
+            | Self::Refused(_)
+            | Self::AdoptedIssueMissing(_)
+            | Self::AdoptConflictsWithRecordedKey { .. } => AWAITING_HUMAN,
+            Self::CreateOutcomeUnknown
+            | Self::ReadBackFailed(_)
+            | Self::RetirementFailed(_)
+            | Self::RecordUnwritable { key: Some(_), .. } => TERMINAL,
+            Self::RecordUnwritable { key: None, .. } => INTERNAL_ERROR,
         }
     }
 }
 
+const INTERNAL_ERROR: u8 = 1;
+const AWAITING_HUMAN: u8 = 4;
+const RETRYABLE: u8 = 70;
+const TERMINAL: u8 = 71;
+const REJECTED: u8 = 75;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Promotion {
-    Completed(ExternalId),
+    /// Promoted onto the key; the promoted item is in the state the next
+    /// sync will find it in.
+    Completed(ExternalId, SyncState),
     AlreadyDone(ExternalId),
 }
 
@@ -208,30 +271,63 @@ pub fn without_ids(text: &str, ids: &[&str]) -> String {
 }
 
 /// The step that resumes a promotion from its record.
+///
+/// The recovery modes replace a record that stands for no confirmed create;
+/// once a key is recorded every mode resumes onto it, and an adopt naming a
+/// different key stops.
 #[must_use]
 pub fn next_step(
     record: RecordState<'_>,
     mode: &PromotionMode,
 ) -> PromotionStep {
-    let PromotionMode::Standard = mode;
+    let recorded = match record {
+        RecordState::Present(record) => {
+            record.stage.key().map(|key| (key, &record.stage))
+        }
+        RecordState::Absent | RecordState::Unreadable => None,
+    };
+    match (mode, recorded) {
+        (PromotionMode::Adopt(named), None) => {
+            PromotionStep::VerifyThenAdopt(named.clone())
+        }
+        (PromotionMode::CreateAcceptingDuplicate, None) => {
+            PromotionStep::CreateIssue
+        }
+        (PromotionMode::Standard, None) => standard_start(record),
+        (PromotionMode::Adopt(named), Some((key, _))) if key != named => {
+            PromotionStep::Stop(NotPromoted::AdoptConflictsWithRecordedKey {
+                recorded: key.clone(),
+            })
+        }
+        (_, Some((_, stage))) => resume(stage),
+    }
+}
+
+const fn standard_start(record: RecordState<'_>) -> PromotionStep {
     match record {
         RecordState::Absent => PromotionStep::CreateIssue,
         RecordState::Unreadable => {
             PromotionStep::Stop(NotPromoted::CreateOutcomeUnknown)
         }
-        RecordState::Present(record) => match &record.stage {
-            PromotionStage::Attempted => {
-                PromotionStep::Stop(NotPromoted::EarlierAttemptUnconfirmed)
-            }
-            PromotionStage::Created { key, .. } => {
-                PromotionStep::RetitleRemote(key.clone())
-            }
-            PromotionStage::RemoteRetitled { key, .. }
-            | PromotionStage::RemoteKept { key, .. } => {
-                PromotionStep::Retire(key.clone())
-            }
-            PromotionStage::Retiring { .. } => PromotionStep::Finish,
-        },
+        RecordState::Present(_) => {
+            PromotionStep::Stop(NotPromoted::EarlierAttemptUnconfirmed)
+        }
+    }
+}
+
+fn resume(stage: &PromotionStage) -> PromotionStep {
+    match stage {
+        PromotionStage::Attempted => {
+            PromotionStep::Stop(NotPromoted::EarlierAttemptUnconfirmed)
+        }
+        PromotionStage::Created { key, .. } => {
+            PromotionStep::RetitleRemote(key.clone())
+        }
+        PromotionStage::RemoteRetitled { key, .. }
+        | PromotionStage::RemoteKept { key, .. } => {
+            PromotionStep::Retire(key.clone())
+        }
+        PromotionStage::Retiring { .. } => PromotionStep::Finish,
     }
 }
 
@@ -339,6 +435,7 @@ mod tests {
     use super::Retitling;
     use crate::draft_id::DraftId;
     use crate::sync::RequestFingerprint;
+    use crate::sync::SyncState;
 
     fn key() -> ExternalId {
         ExternalId::new("PP-900".to_owned())
@@ -437,6 +534,101 @@ mod tests {
         assert_eq!(
             next_step(RecordState::Unreadable, &PromotionMode::Standard),
             PromotionStep::Stop(NotPromoted::CreateOutcomeUnknown)
+        );
+    }
+
+    #[test]
+    fn next_step_under_adopt_and_create_modes() {
+        let other = ExternalId::new("PP-901".to_owned());
+        let later_stages = [
+            (
+                PromotionStage::Created {
+                    key: key(),
+                    created_remote_hash: None,
+                },
+                PromotionStep::RetitleRemote(key()),
+            ),
+            (
+                PromotionStage::RemoteRetitled {
+                    key: key(),
+                    read_back: read_back("h"),
+                },
+                PromotionStep::Retire(key()),
+            ),
+            (
+                kept(RemoteKeptReason::UpdateFailed {
+                    read_back: read_back("r"),
+                }),
+                PromotionStep::Retire(key()),
+            ),
+            (retiring(), PromotionStep::Finish),
+        ];
+        let adopt = PromotionMode::Adopt(key());
+        let adopt_other = PromotionMode::Adopt(other);
+        let create = PromotionMode::CreateAcceptingDuplicate;
+        let attempted = record(PromotionStage::Attempted);
+        for replaceable in [
+            RecordState::Absent,
+            RecordState::Unreadable,
+            RecordState::Present(&attempted),
+        ] {
+            assert_eq!(
+                next_step(replaceable, &adopt),
+                PromotionStep::VerifyThenAdopt(key()),
+                "{replaceable:?}"
+            );
+            assert_eq!(
+                next_step(replaceable, &create),
+                PromotionStep::CreateIssue,
+                "{replaceable:?}"
+            );
+        }
+        for (stage, resumed) in later_stages {
+            let held = record(stage);
+            let state = RecordState::Present(&held);
+            assert_eq!(next_step(state, &adopt), resumed, "{held:?}");
+            assert_eq!(next_step(state, &create), resumed, "{held:?}");
+            assert_eq!(
+                next_step(state, &adopt_other),
+                PromotionStep::Stop(
+                    NotPromoted::AdoptConflictsWithRecordedKey {
+                        recorded: key()
+                    }
+                ),
+                "{held:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_next_sync_finds_what_the_intended_baseline_forces() {
+        let known = |local: &str| IntendedBaseline {
+            remote_hash: RemoteHash::Known(read_back("r")),
+            local_hash: local.to_owned(),
+        };
+        let unknown = IntendedBaseline {
+            remote_hash: RemoteHash::Unknown,
+            local_hash: "promoted".to_owned(),
+        };
+
+        assert_eq!(known("promoted").next_sync("promoted"), SyncState::Synced);
+        assert_eq!(
+            known("draft").next_sync("promoted"),
+            SyncState::LocallyModified
+        );
+        assert_eq!(unknown.next_sync("promoted"), SyncState::Conflict);
+    }
+
+    #[test]
+    fn every_new_reason_has_its_keyword() {
+        assert_eq!(
+            NotPromoted::AdoptedIssueMissing(key()).keyword(),
+            "adopted-issue-missing"
+        );
+        assert_eq!(
+            NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() }
+                .keyword(),
+            "adopt-conflicts-with-recorded-key"
         );
     }
 

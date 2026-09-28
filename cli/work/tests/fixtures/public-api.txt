@@ -209,6 +209,9 @@ pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, wor
 pub fn work::own_identity::own_identity_fallback_field(field: &str) -> core::option::Option<&'static str>
 pub mod work::promotion
 pub enum work::promotion::NotPromoted
+pub work::promotion::NotPromoted::AdoptConflictsWithRecordedKey
+pub work::promotion::NotPromoted::AdoptConflictsWithRecordedKey::recorded: tracker::ExternalId
+pub work::promotion::NotPromoted::AdoptedIssueMissing(tracker::ExternalId)
 pub work::promotion::NotPromoted::CreateOutcomeUnknown
 pub work::promotion::NotPromoted::EarlierAttemptUnconfirmed
 pub work::promotion::NotPromoted::ReadBackFailed(tracker::ExternalId)
@@ -221,6 +224,7 @@ pub work::promotion::NotPromoted::RequestRejected::detail: alloc::string::String
 pub work::promotion::NotPromoted::RetirementFailed(work::retirement::RetirementFailure)
 pub work::promotion::NotPromoted::TrackerUnreachable
 impl work::promotion::NotPromoted
+pub const fn work::promotion::NotPromoted::exit_code(&self, issue_exists: bool) -> u8
 pub const fn work::promotion::NotPromoted::keyword(&self) -> &'static str
 impl core::clone::Clone for work::promotion::NotPromoted
 pub fn work::promotion::NotPromoted::clone(&self) -> work::promotion::NotPromoted
@@ -232,7 +236,7 @@ pub fn work::promotion::NotPromoted::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::StructuralPartialEq for work::promotion::NotPromoted
 pub enum work::promotion::Promotion
 pub work::promotion::Promotion::AlreadyDone(tracker::ExternalId)
-pub work::promotion::Promotion::Completed(tracker::ExternalId)
+pub work::promotion::Promotion::Completed(tracker::ExternalId, work::sync::state::SyncState)
 impl core::clone::Clone for work::promotion::Promotion
 pub fn work::promotion::Promotion::clone(&self) -> work::promotion::Promotion
 impl core::cmp::Eq for work::promotion::Promotion
@@ -242,6 +246,8 @@ impl core::fmt::Debug for work::promotion::Promotion
 pub fn work::promotion::Promotion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::Promotion
 pub enum work::promotion::PromotionMode
+pub work::promotion::PromotionMode::Adopt(tracker::ExternalId)
+pub work::promotion::PromotionMode::CreateAcceptingDuplicate
 pub work::promotion::PromotionMode::Standard
 impl core::clone::Clone for work::promotion::PromotionMode
 pub fn work::promotion::PromotionMode::clone(&self) -> work::promotion::PromotionMode
@@ -283,6 +289,7 @@ pub work::promotion::PromotionStep::Finish
 pub work::promotion::PromotionStep::Retire(tracker::ExternalId)
 pub work::promotion::PromotionStep::RetitleRemote(tracker::ExternalId)
 pub work::promotion::PromotionStep::Stop(work::promotion::NotPromoted)
+pub work::promotion::PromotionStep::VerifyThenAdopt(tracker::ExternalId)
 impl core::clone::Clone for work::promotion::PromotionStep
 pub fn work::promotion::PromotionStep::clone(&self) -> work::promotion::PromotionStep
 impl core::cmp::Eq for work::promotion::PromotionStep
@@ -348,6 +355,8 @@ impl core::marker::StructuralPartialEq for work::promotion::Retitling
 pub struct work::promotion::IntendedBaseline
 pub work::promotion::IntendedBaseline::local_hash: alloc::string::String
 pub work::promotion::IntendedBaseline::remote_hash: work::promotion::RemoteHash
+impl work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::next_sync(&self, promoted_digest: &str) -> work::sync::state::SyncState
 impl core::clone::Clone for work::promotion::IntendedBaseline
 pub fn work::promotion::IntendedBaseline::clone(&self) -> work::promotion::IntendedBaseline
 impl core::cmp::Eq for work::promotion::IntendedBaseline

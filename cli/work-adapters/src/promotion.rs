@@ -5,10 +5,12 @@
 //! baseline, recording each stage before the next, so any run can finish a
 //! promotion another left.
 
+use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::StoreError;
 use tracker::ExternalId;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTracker;
 use work::draft_id::DraftId;
@@ -32,6 +34,7 @@ use work::retirement::Retirement;
 use work::retirement::RetirementCause;
 use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
+use work::retirement::RetirementRefusal;
 use work::sync::RequestFingerprint;
 
 use crate::promotion_records::PromotionRecords;
@@ -50,6 +53,191 @@ use crate::retirement::RetirementPorts;
 use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::pending_push;
+
+/// What became of one draft a run set out to promote.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PromotionOutcome {
+    Previewed,
+    Promoted(Promotion),
+    /// `held_key` names the issue the draft's record holds, once one
+    /// exists.
+    NotPromoted {
+        reason: NotPromoted,
+        held_key: Option<ExternalId>,
+    },
+}
+
+/// Where a person looks to act on a row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DetailSource {
+    /// The item already claiming the key, or the file in the target's way.
+    Holder,
+    /// A path to restore from version control.
+    Vcs,
+    /// A path to restore from its copy in the recovery directory at
+    /// `location`.
+    Recovery { location: PathBuf },
+    /// The row's own item: the draft, or the promoted item a conflict will
+    /// be raised for.
+    Item,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Detail {
+    pub source: DetailSource,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PromotionRow {
+    pub draft: String,
+    /// Where the draft was when the run began.
+    pub path: PathBuf,
+    pub outcome: PromotionOutcome,
+    /// What a person needs to look at: every unpromoted draft names at
+    /// least one path, and so does a promotion the next sync will find in
+    /// conflict.
+    pub details: Vec<Detail>,
+}
+
+impl PromotionRow {
+    #[must_use]
+    pub fn previewed(draft: &DraftId, path: PathBuf) -> Self {
+        Self {
+            draft: draft.as_str().to_owned(),
+            path,
+            outcome: PromotionOutcome::Previewed,
+            details: Vec::new(),
+        }
+    }
+
+    /// The row for a promotion that ran over `ports`, naming the key its
+    /// record holds when it stopped short, and the paths a person needs.
+    /// `state_dir` is where recovery directories live.
+    #[must_use]
+    pub fn of(
+        draft: &DraftId,
+        path: PathBuf,
+        result: Result<Promotion, NotPromoted>,
+        ports: &PromotionPorts<'_>,
+        state_dir: &Path,
+    ) -> Self {
+        let (outcome, details) = match result {
+            Ok(promotion) => (
+                PromotionOutcome::Promoted(promotion.clone()),
+                conflict_subject(&promotion, ports.retirement),
+            ),
+            Err(reason) => {
+                let held_key = held_key(&reason, draft, ports.records);
+                let details = unpromoted_subjects(
+                    &reason,
+                    draft,
+                    held_key.as_ref(),
+                    &path,
+                    ports.retirement,
+                    state_dir,
+                );
+                (PromotionOutcome::NotPromoted { reason, held_key }, details)
+            }
+        };
+        Self {
+            draft: draft.as_str().to_owned(),
+            path,
+            outcome,
+            details,
+        }
+    }
+}
+
+fn conflict_subject(
+    promotion: &Promotion,
+    ports: &RetirementPorts<'_>,
+) -> Vec<Detail> {
+    let Promotion::Completed(key, work::sync::SyncState::Conflict) = promotion
+    else {
+        return Vec::new();
+    };
+    corpus_identities(ports)
+        .ok()
+        .and_then(|items| {
+            items.into_iter().find(|item| same(&item.id, key.as_str()))
+        })
+        .map(|item| Detail {
+            source: DetailSource::Item,
+            path: item.path,
+        })
+        .into_iter()
+        .collect()
+}
+
+fn unpromoted_subjects(
+    reason: &NotPromoted,
+    draft: &DraftId,
+    held_key: Option<&ExternalId>,
+    draft_path: &Path,
+    ports: &RetirementPorts<'_>,
+    state_dir: &Path,
+) -> Vec<Detail> {
+    let detail = |source, path: &Path| Detail {
+        source,
+        path: path.to_path_buf(),
+    };
+    match reason {
+        NotPromoted::Refused(
+            RetirementRefusal::IdTaken { holder, .. }
+            | RetirementRefusal::KeyLinked { holder }
+            | RetirementRefusal::TargetExists(holder),
+        ) => vec![detail(DetailSource::Holder, holder)],
+        NotPromoted::RetirementFailed(
+            RetirementFailure::RestoreIncomplete { unrestored, .. },
+        ) => {
+            let recovery_dir = held_key.map(|key| {
+                Retirement {
+                    old_id: draft.as_str(),
+                    new_id: key.as_str(),
+                    new_external_id: Some(key.as_str()),
+                }
+                .recovery_dir()
+            });
+            unrestored
+                .iter()
+                .map(|path| {
+                    let copied = recovery_dir.as_ref().filter(|dir| {
+                        !ports.files.recovery.copy_settled(dir, path)
+                    });
+                    detail(
+                        copied.map_or(DetailSource::Vcs, |dir| {
+                            DetailSource::Recovery {
+                                location: state_dir.join(dir),
+                            }
+                        }),
+                        path,
+                    )
+                })
+                .collect()
+        }
+        _ => vec![detail(DetailSource::Item, draft_path)],
+    }
+}
+
+/// The issue a draft left unpromoted already has: named by the reason, or
+/// held by the draft's record.
+#[must_use]
+pub fn held_key(
+    reason: &NotPromoted,
+    draft: &DraftId,
+    records: &dyn PromotionRecords,
+) -> Option<ExternalId> {
+    let named = match reason {
+        NotPromoted::ReadBackFailed(key)
+        | NotPromoted::RecordUnwritable { key: Some(key), .. }
+        | NotPromoted::AdoptConflictsWithRecordedKey { recorded: key } => {
+            Some(key.clone())
+        }
+        _ => None,
+    };
+    named.or_else(|| records.read(draft).key())
+}
 
 pub struct PromotionPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
@@ -199,25 +387,25 @@ pub fn promote(
         let stored = ports.records.read(draft);
         match next_step(record_state(&stored), mode) {
             PromotionStep::CreateIssue => promotion.create_issue()?,
+            PromotionStep::VerifyThenAdopt(key) => {
+                promotion.adopt(&key, &stored)?;
+            }
             PromotionStep::RetitleRemote(key) => {
                 promotion.retitle_remote(&key, &stored)?;
             }
             PromotionStep::Retire(key) => {
-                return promotion
-                    .retire(&key, &stored)
-                    .map(Promotion::Completed);
+                return promotion.retire(&key, &stored);
             }
             PromotionStep::Finish => {
                 let StoredRecord::Present(record) = stored else {
                     return Err(NotPromoted::CreateOutcomeUnknown);
                 };
-                let key = finish_promotion(
+                return finish_promotion(
                     &record,
                     ports.retirement,
                     ports.records,
                     &lock,
-                )?;
-                return Ok(Promotion::Completed(key));
+                );
             }
             PromotionStep::Stop(reason) => return Err(reason),
         }
@@ -235,11 +423,9 @@ fn already_promoted(
     let Some(holder) = items.iter().find(|item| {
         item.aliases.iter().any(|alias| same(alias, draft.as_str()))
     }) else {
-        return Err(NotPromoted::Refused(
-            work::retirement::RetirementRefusal::ItemNotFound(
-                draft.as_str().to_owned(),
-            ),
-        ));
+        return Err(NotPromoted::Refused(RetirementRefusal::ItemNotFound(
+            draft.as_str().to_owned(),
+        )));
     };
     if let StoredRecord::Present(record) = ports.records.read(draft) {
         if matches!(record.stage, PromotionStage::Retiring { .. }) {
@@ -297,9 +483,9 @@ impl Promoting<'_> {
         })
     }
 
-    fn create_issue(&self) -> Result<(), NotPromoted> {
+    fn fresh_request(&self) -> RequestFingerprint {
         let content = self.content;
-        let request = RequestFingerprint {
+        RequestFingerprint {
             title: content.title.clone(),
             digest: pending_push::request_digest(
                 &content.title,
@@ -308,7 +494,12 @@ impl Promoting<'_> {
             ),
             attempted_at: now_epoch(),
             failure: None,
-        };
+        }
+    }
+
+    fn create_issue(&self) -> Result<(), NotPromoted> {
+        let content = self.content;
+        let request = self.fresh_request();
         self.save(&self.record(request.clone(), PromotionStage::Attempted))?;
         let created = send_create(
             &CreateRequest {
@@ -356,6 +547,40 @@ impl Promoting<'_> {
                 Err(NotPromoted::CreateOutcomeUnknown)
             }
         }
+    }
+
+    /// Records the issue the user named as the draft's, once the tracker
+    /// confirms it and nothing local already claims its key. The issue is
+    /// never rewritten: its content is the user's.
+    fn adopt(
+        &self,
+        named: &ExternalId,
+        stored: &StoredRecord,
+    ) -> Result<(), NotPromoted> {
+        let issue = match self.ports.tracker.locate(named) {
+            Ok(Located::Found(issue)) => issue,
+            Ok(Located::NotFound) => {
+                return Err(NotPromoted::AdoptedIssueMissing(named.clone()));
+            }
+            Err(_) => return Err(NotPromoted::TrackerUnreachable),
+        };
+        plan_from_corpus(&self.retirement(named), self.ports.retirement)
+            .map_err(from_finish)?;
+        let request = match stored {
+            StoredRecord::Present(record) => record.request.clone(),
+            StoredRecord::Absent | StoredRecord::Unreadable(_) => {
+                self.fresh_request()
+            }
+        };
+        self.save(&self.record(
+            request,
+            PromotionStage::RemoteKept {
+                key: named.clone(),
+                reason: RemoteKeptReason::UserNamedAdopt {
+                    read_back: read_back_of(&issue),
+                },
+            },
+        ))
     }
 
     fn retirement<'k>(&'k self, key: &'k ExternalId) -> Retirement<'k> {
@@ -456,7 +681,7 @@ impl Promoting<'_> {
         &self,
         key: &ExternalId,
         stored: &StoredRecord,
-    ) -> Result<ExternalId, NotPromoted> {
+    ) -> Result<Promotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
@@ -506,7 +731,8 @@ impl Promoting<'_> {
 ///
 /// Retires the draft ID to the key if that is still outstanding, records
 /// the intended baseline once the draft ID is only an alias of the key's
-/// item, then removes the record.
+/// item, then removes the record. The completed promotion names the state
+/// that baseline leaves the promoted item in.
 ///
 /// A refused or rolled-back retirement rewinds the record to its stage
 /// before `Retiring`, so no `Retiring` record stands for a retirement that
@@ -521,7 +747,7 @@ pub fn finish_promotion(
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
-) -> Result<ExternalId, NotPromoted> {
+) -> Result<Promotion, NotPromoted> {
     let PromotionStage::Retiring {
         key,
         baseline,
@@ -554,14 +780,22 @@ pub fn finish_promotion(
             Err(failure) => return Err(rewind(from_finish(failure))),
         }
     }
-    let settled = identities(retirement_ports)?.iter().any(|item| {
+    let items = identities(retirement_ports)?;
+    let promoted_item = items.iter().find(|item| {
         same(&item.id, key.as_str())
             && item
                 .aliases
                 .iter()
                 .any(|alias| same(alias, record.draft_id.as_str()))
     });
-    if settled {
+    let next_sync = promoted_item
+        .and_then(|item| retirement_ports.files.reader.read(&item.path).ok())
+        .flatten()
+        .and_then(|content| digest::local(&content).ok())
+        .map_or(work::sync::SyncState::Synced, |promoted| {
+            baseline.next_sync(&promoted)
+        });
+    if promoted_item.is_some() {
         record_created_baseline(
             key.as_str(),
             baseline,
@@ -573,5 +807,5 @@ pub fn finish_promotion(
     records
         .remove(&record.draft_id)
         .map_err(|error| unwritable(Some(key), &error))?;
-    Ok(key.clone())
+    Ok(Promotion::Completed(key.clone(), next_sync))
 }

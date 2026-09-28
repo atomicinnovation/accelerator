@@ -8,8 +8,11 @@ mod create;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod identity_workspace;
 mod list;
 mod next_number;
+mod promote;
+mod promotion_report;
 mod resolve;
 mod show;
 mod sync;
@@ -448,6 +451,49 @@ fn run_sync(args: &cli::SyncArgs) -> ExitCode {
     sync::run_sync(&start, service, args, &registry, finaliser)
 }
 
+fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    let registry = tracker_registry::ConfiguredTrackers::new(service, root);
+    match promote::run(&start, service, args, &registry) {
+        promote::PromoteOutcome::Reported {
+            lines,
+            remedy,
+            code,
+        } => {
+            for line in lines {
+                println!("{line}");
+            }
+            if let Some(remedy) = remedy {
+                eprintln!("Error: {remedy}");
+            }
+            ExitCode::from(code)
+        }
+        promote::PromoteOutcome::NotADraft(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::USAGE)
+        }
+        promote::PromoteOutcome::Failed { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
@@ -466,5 +512,6 @@ fn main() -> ExitCode {
         }
         Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
+        Command::Promote(args) => run_promote(&args),
     }
 }

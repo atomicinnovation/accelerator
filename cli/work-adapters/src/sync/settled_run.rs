@@ -141,19 +141,25 @@ pub fn run_settled<'a>(
         strategy: request.strategy,
         resolutions: request.resolutions,
         max_pulls: remaining(request.max_pulls, settled.pulls_used),
-        max_pushes: request.max_pushes,
+        max_pushes: remaining(request.max_pushes, settled.pushes_used),
         mode: request.mode,
         integrations_root: request.integrations_root,
         integration: request.integration,
         scope: request.scope.clone(),
+        promote: request.promote,
     };
     let SettlementReport {
-        rows, facts, view, ..
+        rows,
+        facts,
+        view,
+        promotions,
+        ..
     } = settled;
     let facts = refreshed(facts, &planned, rediscovered.status.as_ref());
     let mut report = run_with(ports, baseline, &engine_request, facts, &view)
         .map_err(failed(applied))?;
     report.identity = rows;
+    report.promotions = promotions;
     report.deferred = deferred;
     Ok(report)
 }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
 use corpus::StoreError;
+use tracker::ExternalId;
 use work::draft_id::DraftId;
 use work::promotion::PromotionRecord;
 
@@ -20,6 +21,17 @@ pub enum StoredRecord {
     Absent,
     Unreadable(UnreadableMarker),
     Present(Box<PromotionRecord>),
+}
+
+impl StoredRecord {
+    /// The key a present record holds, once the draft's issue exists.
+    #[must_use]
+    pub fn key(&self) -> Option<ExternalId> {
+        match self {
+            Self::Present(record) => record.stage.key().cloned(),
+            Self::Absent | Self::Unreadable(_) => None,
+        }
+    }
 }
 
 pub trait PromotionRecords {

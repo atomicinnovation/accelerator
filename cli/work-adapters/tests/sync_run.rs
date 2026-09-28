@@ -274,6 +274,7 @@ fn request<'a>(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope: tracker::SearchScope::default(),
     }
 }
@@ -448,6 +449,7 @@ fn run_with<'a>(
         mode: RunMode::Apply,
         integrations_root: dir,
         integration: "jira",
+        promote: true,
         scope: tracker::SearchScope::default(),
     };
     run(&ports, &mut store, &request)

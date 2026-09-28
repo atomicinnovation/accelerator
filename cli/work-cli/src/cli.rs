@@ -7,8 +7,9 @@ use clap::Parser;
 use clap::Subcommand;
 
 /// The `accelerator-work` command-line surface: work-item lifecycle
-/// primitives (`create`, `show`, `resolve`, `diff`, `update`) plus small
-/// utility subcommands used by the skills that orchestrate them.
+/// primitives (`create`, `show`, `resolve`, `diff`, `update`, `sync`,
+/// `promote`) plus small utility subcommands used by the skills that
+/// orchestrate them.
 #[derive(Parser)]
 #[command(name = "accelerator-work", disable_version_flag = true)]
 pub struct Cli {
@@ -99,6 +100,10 @@ pub enum Command {
     /// remote issues into new local files (bounded by `--max-pulls`, counted
     /// as pulls). Untracked discovery is scoped to the configured project, and
     /// a run that would exceed either bound refuses with zero writes (exit 5).
+    /// Under `work.id_pattern: "{tracker}"` it first promotes every draft
+    /// onto an issue the tracker creates for it, each counted as a push,
+    /// unless `--no-promote` is given; a draft left unpromoted exits by its
+    /// reason, as `work promote` does.
     ///
     /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
@@ -116,6 +121,15 @@ pub enum Command {
     /// authoritative: check it for `unresolved` lines regardless of exit
     /// code, since a 71 run may also carry conflicts.
     Sync(Box<SyncArgs>),
+    /// Promote one draft onto an issue the tracker creates for it, under
+    /// `work.id_pattern: "{tracker}"`: the draft ID is retired to the
+    /// tracker key across `meta/`, as `work sync` does for every draft.
+    ///
+    /// Prints the same `<draft-id>\t<action>\t<state>\t<detail>` row and
+    /// `#\tdetail` lines as `work sync`, and exits with the same code for
+    /// each reason a draft is not promoted (see `exit_codes`). A draft
+    /// promoted already prints `already-promoted` and exits 0.
+    Promote(Box<PromoteArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -315,6 +329,11 @@ pub struct SyncArgs {
     /// finite `max_items` to avoid it.
     #[arg(long)]
     pub allow_unbounded: bool,
+    /// Leave drafts as they are. Under `work.id_pattern: "{tracker}"` a run
+    /// otherwise promotes every draft it reconciles onto an issue the
+    /// tracker creates for it, counting each promotion as a push.
+    #[arg(long)]
+    pub no_promote: bool,
     /// Reconcile only this work item; repeatable. Accepts a local id
     /// (0042), a remote tracker key / `external_id` (PP-787), or a file
     /// path. Naming any target suppresses untracked-remote discovery.
@@ -322,15 +341,48 @@ pub struct SyncArgs {
     pub targets: Vec<String>,
 }
 
+/// `work promote`'s arguments, boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+pub struct PromoteArgs {
+    /// The draft's ID (`draft-xxxxxx`).
+    pub draft_id: String,
+    /// Adopt this existing issue as the draft's instead of creating one,
+    /// after confirming the tracker holds it. The issue is never rewritten.
+    /// For a draft whose earlier create may have reached the tracker.
+    #[arg(long, value_name = "KEY", conflicts_with = "create")]
+    pub adopt: Option<String>,
+    /// Create a new issue even though an earlier create may already have
+    /// reached the tracker, accepting the risk of a duplicate.
+    #[arg(long)]
+    pub create: bool,
+}
+
 #[cfg(test)]
 mod tests {
+    use clap::Parser as _;
+
     use super::parse_ceiling;
+    use super::Cli;
     use tracker::Ceiling;
 
     #[test]
     fn a_non_negative_integer_including_zero_parses_to_a_bound() {
         assert_eq!(parse_ceiling("25"), Ok(Ceiling::Bounded(25)));
         assert_eq!(parse_ceiling("0"), Ok(Ceiling::Bounded(0)));
+    }
+
+    #[test]
+    fn adopt_and_create_are_mutually_exclusive() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "promote",
+            "draft-aaaaaa",
+            "--adopt",
+            "PP-900",
+            "--create",
+        ]);
+
+        assert!(parsed.is_err());
     }
 
     #[test]

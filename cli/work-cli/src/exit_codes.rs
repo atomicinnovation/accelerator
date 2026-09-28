@@ -91,6 +91,27 @@
 //! A `work create --push` that finds an earlier create of the same content
 //! still pending sends nothing and exits `4` (`E_PUSH_PENDING`,
 //! `E_DRAFT_EXISTS`).
+//!
+//! `work sync` and `work promote` report a draft left unpromoted as
+//! `not-promoted` with a reason keyword, each folded into the precedence
+//! above, with `1` ranked just below `71`:
+//!
+//! - `tracker-unreachable` — `70`.
+//! - `remote-may-exist`, `read-back-failed`, `retirement-failed`,
+//!   `retirement-incomplete` — `71`: an issue may exist, or does, and no item
+//!   carries it.
+//! - `rejected` — `75`.
+//! - `possible-duplicate`, `id-taken`, `key-linked`, `target-exists`,
+//!   `adopted-issue-missing`, `adopt-conflicts-with-recorded-key` — `4`.
+//! - `item-not-found` — `4`, or `71` once an issue exists for the vanished
+//!   draft.
+//! - `record-unwritable` — `71` once an issue exists, otherwise `1`.
+//!
+//! Three reasons exit differently from `work create --push`, whose job is to
+//! save the user's intent rather than to reconcile: an unreachable tracker is
+//! `0` there (`local-save`, the draft is saved), an earlier unconfirmed
+//! create is `71` there (`loud-terminal`), and an unwritable first record is
+//! `0` there (`local-save`).
 
 use tracker::TrackerError;
 

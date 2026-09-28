@@ -36,8 +36,12 @@ use work::promotion::RemoteHash;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
 use work::sync::RequestFingerprint;
+use work::sync::SyncState;
 use work_adapters::promotion::promote;
+use work_adapters::promotion::Detail;
+use work_adapters::promotion::DetailSource;
 use work_adapters::promotion::PromotionPorts;
+use work_adapters::promotion::PromotionRow;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords as _;
 use work_adapters::promotion_records::StoredRecord;
@@ -223,6 +227,15 @@ fn promote_with(
     tracker: &RecordingTracker,
     store: &Store,
 ) -> Result<Promotion, NotPromoted> {
+    promote_in(repo, tracker, store, &PromotionMode::Standard)
+}
+
+fn promote_in(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+    store: &Store,
+    mode: &PromotionMode,
+) -> Result<Promotion, NotPromoted> {
     let roots = vec![repo.path("meta")];
     let work_dir = repo.path("meta/work");
     let locks = LockdirLock::with_options(&work_dir, FAST);
@@ -252,12 +265,61 @@ fn promote_with(
     let records = repo.records(store);
     promote(
         &draft(),
-        &PromotionMode::Standard,
+        mode,
         &PromotionPorts {
             tracker,
             retirement: &retirement,
             records: &records,
         },
+    )
+}
+
+/// Promotes the draft and reports it as a sync or `work promote` would.
+fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
+    let store = Store::new(repo.root());
+    let roots = vec![repo.path("meta")];
+    let work_dir = repo.path("meta/work");
+    let locks = LockdirLock::with_options(&work_dir, FAST);
+    let state = repo.path(".accelerator/state");
+    let recovery = FileRecoveryCopies::new(&state, repo.path("meta"));
+    let baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, &store);
+    let retirement = RetirementPorts {
+        files: RetirementFiles {
+            reader: &RealFs,
+            writer: &store,
+            creator: &store,
+            remover: &store,
+            file_locks: &locks,
+            recovery: &recovery,
+        },
+        layout: CorpusLayout {
+            roots: &roots,
+            work_dir: &work_dir,
+        },
+        walker: &RealFs,
+        status: &Clean,
+        lock: &locks,
+        baseline: &baseline,
+    };
+    let records = repo.records(&store);
+    let ports = PromotionPorts {
+        tracker,
+        retirement: &retirement,
+        records: &records,
+    };
+    let result = promote(&draft(), &PromotionMode::Standard, &ports);
+    PromotionRow::of(&draft(), repo.path(DRAFT), result, &ports, &state)
+}
+
+fn adopted(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+) -> Result<Promotion, NotPromoted> {
+    promote_in(
+        repo,
+        tracker,
+        &Store::new(repo.root()),
+        &PromotionMode::Adopt(key()),
     )
 }
 
@@ -344,7 +406,10 @@ fn promotion_creates_the_issue_moves_the_file_and_rewrites_meta() {
     let repo = Repo::new().unwrap();
     let tracker = fresh_tracker();
 
-    assert_eq!(promoted(&repo, &tracker), Ok(Promotion::Completed(key())));
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
 
     assert_eq!(creates(&tracker), 1);
     assert_promoted(&repo);
@@ -521,7 +586,10 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         },
     );
 
-    assert_eq!(twin_promoted, Ok(Promotion::Completed(key())));
+    assert_eq!(
+        twin_promoted,
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
 }
 
 #[test]
@@ -549,7 +617,10 @@ fn a_created_marker_is_adopted_without_a_new_issue_even_after_edits() {
     let edited = DRAFT_CONTENT.replace("Supersedes nothing", "Supersedes all");
     repo.write(DRAFT, &edited).unwrap();
 
-    assert_eq!(promoted(&repo, &tracker), Ok(Promotion::Completed(key())));
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
 
     assert_eq!(creates(&tracker), 0);
     assert_promoted(&repo);
@@ -633,7 +704,10 @@ fn a_failed_h1_update_records_a_baseline_that_makes_the_next_sync_push() {
         },
     );
 
-    assert_eq!(promoted(&repo, &tracker), Ok(Promotion::Completed(key())));
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::LocallyModified))
+    );
 
     let entry = repo.baseline_entry(KEY).unwrap();
     let remote = tracker.show(&key()).unwrap();
@@ -703,7 +777,7 @@ fn a_retirement_failure_rolls_back_and_leaves_a_promotion_record_holding_the_key
 
     assert_eq!(
         promoted(&repo, &tracker),
-        Ok(Promotion::Completed(key())),
+        Ok(Promotion::Completed(key(), SyncState::Synced)),
         "the_next_promotion_adopts_it_without_a_new_issue"
     );
     assert_eq!(creates(&tracker), 1);
@@ -801,7 +875,10 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
         before: Box::new(before),
     }));
 
-    assert_eq!(promoted(&repo, &tracker), Ok(Promotion::Completed(key())));
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Conflict))
+    );
 
     assert_eq!(creates(&tracker), 0);
     assert_promoted(&repo);
@@ -852,7 +929,7 @@ fn a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote() {
         assert!(
             matches!(
                 resumed,
-                Ok(Promotion::Completed(_) | Promotion::AlreadyDone(_))
+                Ok(Promotion::Completed(..) | Promotion::AlreadyDone(_))
             ),
             "killed at {die_at} ({first:?}): {resumed:?}"
         );
@@ -871,7 +948,7 @@ fn a_draft_in_the_canonical_directory_is_promoted_as_a_draft() {
 
     assert_eq!(
         promoted(&repo, &fresh_tracker()),
-        Ok(Promotion::Completed(key()))
+        Ok(Promotion::Completed(key(), SyncState::Synced))
     );
     assert_eq!(repo.read("meta/work/draft-k7mq3x-add-search.md"), None);
     assert_promoted(&repo);
@@ -890,7 +967,10 @@ fn a_draft_edited_during_promotion_is_replanned_and_keeps_the_edit() {
         repo.write(DRAFT, &format!("{DRAFT_CONTENT}\nAn afterthought.\n"))
             .unwrap();
         park.release();
-        assert_eq!(promoting.join().unwrap(), Ok(Promotion::Completed(key())));
+        assert_eq!(
+            promoting.join().unwrap(),
+            Ok(Promotion::Completed(key(), SyncState::Synced))
+        );
     });
 
     assert!(repo.read(TARGET).unwrap().contains("An afterthought."));
@@ -919,7 +999,7 @@ fn two_promoters_of_one_draft_create_one_issue() {
 
         let (first, first_creates) = first.join().unwrap();
         let (second, second_creates) = second.join().unwrap();
-        assert_eq!(first, Ok(Promotion::Completed(key())));
+        assert_eq!(first, Ok(Promotion::Completed(key(), SyncState::Synced)));
         assert_eq!(second, Ok(Promotion::AlreadyDone(key())));
         first_creates + second_creates
     });
@@ -971,4 +1051,227 @@ fn promoted_waiting(
             records: &records,
         },
     )
+}
+
+#[test]
+fn adopting_a_named_key_verifies_it_then_retires_the_draft() {
+    let repo = Repo::new().unwrap();
+    repo.save(&record_at(PromotionStage::Attempted));
+    let tracker = tracker_holding(&draft_projection());
+
+    let result = adopted(&repo, &tracker);
+
+    assert!(
+        matches!(&result, Ok(Promotion::Completed(adopted, _)) if *adopted == key()),
+        "{result:?}"
+    );
+    assert_eq!(creates(&tracker), 0);
+    assert!(
+        tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Locate { id } if *id == key())),
+        "the named key is verified: {:?}",
+        tracker.calls()
+    );
+    assert_promoted(&repo);
+}
+
+#[test]
+fn a_user_named_adopt_never_rewrites_and_the_next_sync_raises_a_conflict_when_bodies_differ(
+) {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding("Add search\nWritten in the tracker.\n");
+
+    assert_eq!(
+        adopted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Conflict))
+    );
+
+    assert!(updates(&tracker).is_empty(), "the issue is never rewritten");
+    let entry = repo.baseline_entry(KEY).unwrap();
+    assert_eq!(entry.remote_hash, "", "the remote reads as changed");
+    assert_ne!(
+        entry.local_hash,
+        digest::local(&repo.read(TARGET).unwrap()).unwrap(),
+        "the local reads as changed, so the two conflict"
+    );
+}
+
+#[test]
+fn a_user_named_adopt_differing_only_by_id_reports_local_changed_and_the_next_sync_pushes_the_key_h1(
+) {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding(&draft_projection());
+
+    assert_eq!(
+        adopted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::LocallyModified))
+    );
+
+    assert!(updates(&tracker).is_empty(), "the issue is never rewritten");
+    let entry = repo.baseline_entry(KEY).unwrap();
+    let remote = tracker.show(&key()).unwrap();
+    assert_eq!(
+        entry.remote_hash,
+        digest::remote_body(&remote.body),
+        "the remote reads as unchanged"
+    );
+    assert_ne!(
+        entry.local_hash,
+        digest::local(&repo.read(TARGET).unwrap()).unwrap(),
+        "the local reads as changed, so the next sync pushes the key H1"
+    );
+}
+
+#[test]
+fn adopting_a_key_linked_by_a_legacy_item_is_refused_naming_both() {
+    let repo = Repo::new().unwrap();
+    repo.write(
+        "meta/work/0002-legacy.md",
+        "---\nid: \"0002\"\nexternal_id: \"REC-1\"\n---\n\n# 0002: Legacy\n",
+    )
+    .unwrap();
+    let tracker = tracker_holding(&draft_projection());
+
+    let result = adopted(&repo, &tracker);
+
+    assert!(
+        matches!(
+            &result,
+            Err(NotPromoted::Refused(RetirementRefusal::KeyLinked { holder }))
+                if holder.ends_with("0002-legacy.md")
+        ),
+        "{result:?}"
+    );
+    assert_eq!(repo.stored(), StoredRecord::Absent, "nothing is recorded");
+    assert_eq!(repo.read(DRAFT).unwrap(), DRAFT_CONTENT);
+}
+
+#[test]
+fn adopting_a_missing_issue_changes_nothing() {
+    let repo = Repo::new().unwrap();
+    repo.save(&record_at(PromotionStage::Attempted));
+
+    assert_eq!(
+        adopted(&repo, &fresh_tracker().not_found(&key())),
+        Err(NotPromoted::AdoptedIssueMissing(key()))
+    );
+
+    assert!(matches!(
+        repo.stored(),
+        StoredRecord::Present(record) if record.stage == PromotionStage::Attempted
+    ));
+    assert_eq!(repo.read(DRAFT).unwrap(), DRAFT_CONTENT);
+}
+
+#[test]
+fn adopting_replaces_an_unreadable_record() {
+    let repo = Repo::new().unwrap();
+    fs::create_dir_all(repo.record_path().parent().unwrap()).unwrap();
+    fs::write(repo.record_path(), "{\"kind\":").unwrap();
+
+    let result = adopted(&repo, &tracker_holding(&draft_projection()));
+
+    assert!(matches!(result, Ok(Promotion::Completed(..))), "{result:?}");
+    assert_promoted(&repo);
+}
+
+#[test]
+fn creating_accepts_the_duplicate_risk_over_an_attempted_record() {
+    let repo = Repo::new().unwrap();
+    repo.save(&record_at(PromotionStage::Attempted));
+    let tracker = fresh_tracker();
+
+    let result = promote_in(
+        &repo,
+        &tracker,
+        &Store::new(repo.root()),
+        &PromotionMode::CreateAcceptingDuplicate,
+    );
+
+    assert_eq!(result, Ok(Promotion::Completed(key(), SyncState::Synced)));
+    assert_eq!(creates(&tracker), 1);
+    assert_promoted(&repo);
+}
+
+#[test]
+fn an_adopt_naming_another_key_than_the_record_holds_stops() {
+    let repo = Repo::new().unwrap();
+    repo.save(&record_at(PromotionStage::Created {
+        key: ExternalId::new("REC-7".to_owned()),
+        created_remote_hash: None,
+    }));
+
+    assert_eq!(
+        adopted(&repo, &tracker_holding(&draft_projection())),
+        Err(NotPromoted::AdoptConflictsWithRecordedKey {
+            recorded: ExternalId::new("REC-7".to_owned())
+        })
+    );
+}
+
+#[test]
+fn each_not_promoted_row_names_its_subject() {
+    let repo = Repo::new().unwrap();
+    let unreachable = fresh_tracker().failing_create(TrackerError::Retryable {
+        detail: "connection refused".to_owned(),
+    });
+
+    let row = reported(&repo, &unreachable);
+
+    assert_eq!(
+        row.details,
+        vec![Detail {
+            source: DetailSource::Item,
+            path: repo.path(DRAFT),
+        }]
+    );
+}
+
+#[test]
+fn a_collision_names_its_holder() {
+    let repo = Repo::new().unwrap();
+    repo.write(
+        "meta/work/0002-legacy.md",
+        "---\nid: \"0002\"\nexternal_id: \"REC-1\"\n---\n\n# 0002: Legacy\n",
+    )
+    .unwrap();
+
+    let row = reported(&repo, &fresh_tracker());
+
+    assert_eq!(
+        row.details,
+        vec![Detail {
+            source: DetailSource::Holder,
+            path: repo.path("meta/work/0002-legacy.md"),
+        }]
+    );
+}
+
+#[test]
+fn a_promotion_that_will_conflict_names_the_promoted_item() {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding("Add search\nSomeone rewrote this.\n");
+    repo.save(&record_at(PromotionStage::Created {
+        key: key(),
+        created_remote_hash: Some(digest::remote_body(&draft_projection())),
+    }));
+
+    let row = reported(&repo, &tracker);
+
+    assert_eq!(
+        row.details,
+        vec![Detail {
+            source: DetailSource::Item,
+            path: repo.path(TARGET),
+        }]
+    );
+}
+
+#[test]
+fn a_clean_promotion_names_nothing() {
+    let repo = Repo::new().unwrap();
+
+    assert!(reported(&repo, &fresh_tracker()).details.is_empty());
 }

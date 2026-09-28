@@ -18,8 +18,6 @@ use corpus_adapters::compile_scan_regex;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
-use corpus_adapters::FileRecoveryCopies;
-use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use corpus_adapters::RegexScanner;
 use document::Mapping;
@@ -69,24 +67,20 @@ use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion::held_key;
 use work_adapters::promotion::promote;
 use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::promotion_records::PromotionRecords;
-use work_adapters::promotion_records::StoredRecord;
 use work_adapters::remote_create::send_create;
 use work_adapters::remote_create::CreateRequest;
 use work_adapters::remote_create::RemoteCreate;
-use work_adapters::retirement::CorpusLayout;
-use work_adapters::retirement::RetirementFiles;
-use work_adapters::retirement::RetirementPorts;
 use work_adapters::sync::baseline;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::created_baseline::record_created_baseline;
 use work_adapters::sync::digest;
 use work_adapters::sync::pending_push;
 use work_adapters::sync::pending_push::Marker;
-use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
@@ -94,6 +88,7 @@ use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 use crate::config::templates_dir;
 use crate::exit_codes;
+use crate::identity_workspace::IdentityWorkspace;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -380,7 +375,7 @@ fn refusal_message(
     }
 }
 
-const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
+pub const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     match error {
         SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
         SelectionError::Unconfigured { .. } => exit_codes::UNCONFIGURED,
@@ -1028,18 +1023,7 @@ fn pending_create(
         .map(|(_, path, _)| PendingCreate::Draft(path.to_path_buf())))
 }
 
-/// The key a promotion obtained, as its record now holds it.
-fn recorded_key(
-    records: &dyn PromotionRecords,
-    draft: &DraftId,
-) -> Option<ExternalId> {
-    match records.read(draft) {
-        StoredRecord::Present(record) => record.stage.key().cloned(),
-        StoredRecord::Absent | StoredRecord::Unreadable(_) => None,
-    }
-}
-
-fn blocked_remedy(
+pub fn blocked_remedy(
     refusal: &RetirementRefusal,
     key: &ExternalId,
     draft: &DraftId,
@@ -1111,6 +1095,35 @@ fn incomplete_outcome(
     )
 }
 
+/// The create outcome a draft left unpromoted reports.
+pub const fn create_outcome_of(reason: &NotPromoted) -> PushOutcome {
+    match reason {
+        NotPromoted::TrackerUnreachable
+        | NotPromoted::RecordUnwritable { key: None, .. } => {
+            PushOutcome::LocalSave
+        }
+        NotPromoted::CreateOutcomeUnknown
+        | NotPromoted::EarlierAttemptUnconfirmed => PushOutcome::LoudTerminal,
+        NotPromoted::RequestRejected { .. } => PushOutcome::Rejected,
+        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_))
+        | NotPromoted::ReadBackFailed(_)
+        | NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
+            ..
+        })
+        | NotPromoted::RecordUnwritable { key: Some(_), .. } => {
+            PushOutcome::CreatedUnwritten
+        }
+        NotPromoted::Refused(_)
+        | NotPromoted::AdoptedIssueMissing(_)
+        | NotPromoted::AdoptConflictsWithRecordedKey { .. } => {
+            PushOutcome::CreatedBlocked
+        }
+        NotPromoted::RetirementFailed(
+            RetirementFailure::RestoreIncomplete { .. },
+        ) => PushOutcome::RetirementIncomplete,
+    }
+}
+
 /// Maps a promotion's result onto the create outcome the skills read.
 fn promotion_outcome(
     result: Result<Promotion, NotPromoted>,
@@ -1119,14 +1132,8 @@ fn promotion_outcome(
     draft_path: PathBuf,
     records: &dyn PromotionRecords,
 ) -> CreationOutcome {
-    let key = || recorded_key(records, draft);
-    let target_of = |key: &ExternalId| {
-        context
-            .work_dir
-            .join(format!("{}-{}.md", key.as_str(), context.slug()))
-    };
-    match result {
-        Ok(Promotion::Completed(key) | Promotion::AlreadyDone(key)) => {
+    let reason = match result {
+        Ok(Promotion::Completed(key, _) | Promotion::AlreadyDone(key)) => {
             let path = FilesystemWorkItemFiles::new(&context.work_dir)
                 .files()
                 .ok()
@@ -1135,70 +1142,56 @@ fn promotion_outcome(
                         .into_iter()
                         .find(|item| item.id.eq_ignore_ascii_case(key.as_str()))
                 })
-                .map_or_else(|| target_of(&key), |item| item.path);
-            pushed(Some(path), PushOutcome::WriteOnce, Some(&key), None)
+                .map_or_else(
+                    || {
+                        context.work_dir.join(format!(
+                            "{}-{}.md",
+                            key.as_str(),
+                            context.slug()
+                        ))
+                    },
+                    |item| item.path,
+                );
+            return pushed(
+                Some(path),
+                PushOutcome::WriteOnce,
+                Some(&key),
+                None,
+            );
         }
-        Err(NotPromoted::TrackerUnreachable) => {
-            pushed(Some(draft_path), PushOutcome::LocalSave, None, None)
+        Err(reason) => reason,
+    };
+    let key = held_key(&reason, draft, records);
+    let outcome = create_outcome_of(&reason);
+    let shown_key = match outcome {
+        PushOutcome::CreatedUnwritten | PushOutcome::CreatedBlocked => {
+            key.as_ref()
         }
-        Err(
-            NotPromoted::CreateOutcomeUnknown
-            | NotPromoted::EarlierAttemptUnconfirmed,
-        ) => pushed(Some(draft_path), PushOutcome::LoudTerminal, None, None),
-        Err(NotPromoted::RequestRejected { detail }) => {
-            pushed(Some(draft_path), PushOutcome::Rejected, None, Some(detail))
-        }
-        Err(NotPromoted::Refused(RetirementRefusal::ItemNotFound(_))) => {
-            pushed(None, PushOutcome::CreatedUnwritten, key().as_ref(), None)
-        }
-        Err(NotPromoted::Refused(refusal)) => {
-            let key = key();
-            let remedy =
-                key.as_ref().map(|key| blocked_remedy(&refusal, key, draft));
-            pushed(
-                Some(draft_path),
-                PushOutcome::CreatedBlocked,
-                key.as_ref(),
-                remedy,
-            )
-        }
-        Err(NotPromoted::ReadBackFailed(key)) => pushed(
-            Some(draft_path),
-            PushOutcome::CreatedUnwritten,
-            Some(&key),
-            None,
-        ),
-        Err(NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
-            ..
-        })) => pushed(
-            Some(draft_path),
-            PushOutcome::CreatedUnwritten,
-            key().as_ref(),
-            None,
-        ),
-        Err(NotPromoted::RetirementFailed(
+        _ => None,
+    };
+    match reason {
+        NotPromoted::RetirementFailed(
             failure @ RetirementFailure::RestoreIncomplete { .. },
-        )) => incomplete_outcome(
+        ) => incomplete_outcome(
             &failure,
             context,
             draft,
             &draft_path,
-            key().as_ref(),
+            key.as_ref(),
         ),
-        Err(NotPromoted::RecordUnwritable { key, detail }) => match key {
-            Some(key) => pushed(
-                Some(draft_path),
-                PushOutcome::CreatedUnwritten,
-                Some(&key),
-                Some(detail),
-            ),
-            None => pushed(
-                Some(draft_path),
-                PushOutcome::LocalSave,
-                None,
-                Some(detail),
-            ),
-        },
+        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_)) => {
+            pushed(None, outcome, shown_key, None)
+        }
+        NotPromoted::Refused(refusal) => {
+            let remedy =
+                key.as_ref().map(|key| blocked_remedy(&refusal, key, draft));
+            pushed(Some(draft_path), outcome, shown_key, remedy)
+        }
+        NotPromoted::RequestRejected { detail }
+        | NotPromoted::RecordUnwritable { detail, .. } => {
+            pushed(Some(draft_path), outcome, shown_key, Some(detail))
+        }
+        _ => pushed(Some(draft_path), outcome, shown_key, None),
     }
 }
 
@@ -1236,35 +1229,15 @@ fn create_tracker_keyed_item(
         ));
     };
 
-    let roots = crate::sync::corpus_roots(context.config, &context.root)
-        .map_err(|error| error.to_string())?;
-    let state_dir = context.root.join(crate::sync::STATE_DIR);
-    let locks = LockdirLock::new(&context.work_dir);
-    let recovery = FileRecoveryCopies::new(&state_dir, &context.root);
-    let status =
-        VcsWorkingCopyStatus::probed_from(&context.root, &InProcessProbe);
-    let path = baseline_path(context)?;
-    std::fs::create_dir_all(path.parent().unwrap_or(&context.root))
-        .map_err(|error| error.to_string())?;
-    let baseline = BaselineStore::new(path, &RealFs, store);
-    let retirement = RetirementPorts {
-        files: RetirementFiles {
-            reader: &RealFs,
-            writer: store,
-            creator: store,
-            remover: store,
-            file_locks: &locks,
-            recovery: &recovery,
-        },
-        layout: CorpusLayout {
-            roots: &roots,
-            work_dir: &context.work_dir,
-        },
-        walker: &RealFs,
-        status: &status,
-        lock: &locks,
-        baseline: &baseline,
-    };
+    let workspace = IdentityWorkspace::open(
+        context.config,
+        &context.root,
+        &context.work_dir,
+        &integrations_root,
+        &integration,
+    )?;
+    let baseline = workspace.baseline(store);
+    let retirement = workspace.retirement_ports(store, &baseline);
     let result = promote(
         &draft,
         &PromotionMode::Standard,

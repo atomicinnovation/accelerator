@@ -6,7 +6,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use work::sync::PendingPush;
-use work_adapters::promotion_records::FilePromotionRecords;
 use work_adapters::sync::pending_push::Marker;
 
 use ::config::catalogue::TRACKERS;
@@ -18,8 +17,6 @@ use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
-use corpus_adapters::LockdirLock;
-use corpus_adapters::RealFs;
 use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::draft_id::DraftId;
@@ -34,16 +31,12 @@ use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::retirement::sweep_recoveries;
-use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::RecoveryNotice;
-use work_adapters::retirement::RetirementFiles;
-use work_adapters::retirement::RetirementPorts;
-use work_adapters::retirement_records::FileRetirementRecords;
 use work_adapters::sync::baseline;
-use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
+use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::identity_settlement::IdentityOutcome;
 use work_adapters::sync::identity_settlement::IdentityRow;
 use work_adapters::sync::identity_settlement::SettlementPorts;
@@ -68,6 +61,10 @@ use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
 use crate::finaliser::RunFinaliser;
+use crate::identity_workspace::IdentityWorkspace;
+use crate::promotion_report::detail_lines;
+use crate::promotion_report::promotion_exit;
+use crate::promotion_report::promotion_line;
 use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
@@ -333,7 +330,16 @@ fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
 }
 
 fn identity_line(row: &IdentityRow, report: &RunReport) -> String {
-    let state = identity_state(row, report);
+    identity_line_in_state(row, &identity_state(row, report))
+}
+
+/// An identity row reported with no engine run beside it to take a state
+/// from, as `work promote` reports the retirements it finishes first.
+pub fn standalone_identity_line(row: &IdentityRow) -> String {
+    identity_line_in_state(row, "-")
+}
+
+fn identity_line_in_state(row: &IdentityRow, state: &str) -> String {
     match &row.outcome {
         IdentityOutcome::Refused(reason) | IdentityOutcome::Failed(reason) => {
             format!("{}\tfailed\t{state}\t{}", row.id, single_line(reason))
@@ -354,6 +360,7 @@ fn render_report(report: &RunReport) -> String {
         .identity
         .iter()
         .map(|row| identity_line(row, report))
+        .chain(report.promotions.iter().map(promotion_line))
         .collect();
     let mut synced_count = 0usize;
     for item in &report.reported {
@@ -395,6 +402,9 @@ fn render_report(report: &RunReport) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    let mut promotions: Vec<_> = report.promotions.iter().collect();
+    promotions.sort_by(|left, right| left.draft.cmp(&right.draft));
+    lines.extend(promotions.into_iter().flat_map(detail_lines));
     if report.deferred > 0 {
         lines.push(format!(
             "#\tnote\tdeferred-to-next-run\t{}",
@@ -407,54 +417,58 @@ fn render_report(report: &RunReport) -> String {
     lines.join("\n")
 }
 
-fn exit_code_for_report(report: &RunReport) -> u8 {
-    let any_terminal = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Terminal)
-        )
-    });
-    let any_retryable = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Retryable)
-        )
-    });
-    let any_unconfigured = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Unconfigured)
-        )
-    });
-    let any_rejected = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Rejected)
-        )
-    });
-    let awaiting_human = report.awaiting_human().next().is_some()
-        || report.identity.iter().any(IdentityRow::awaits_human);
-
-    if any_terminal {
-        exit_codes::TERMINAL
-    } else if awaiting_human {
-        exit_codes::UNRESOLVED
-    } else if any_rejected {
-        exit_codes::REJECTED
-    } else if any_unconfigured {
-        exit_codes::UNCONFIGURED
-    } else if any_retryable
-        || report.read_failure.is_some()
-        || matches!(report.discovery, DiscoveryStatus::Failed { .. })
-    {
-        exit_codes::RETRYABLE
-    } else {
-        exit_codes::CLEAN
+/// Where one run yields several outcomes, the most severe wins:
+/// `71 > 1 > 4 > 75 > 74 > 70 > 0`.
+pub const fn severity(code: u8) -> u8 {
+    match code {
+        exit_codes::TERMINAL => 6,
+        exit_codes::ERROR => 5,
+        exit_codes::UNRESOLVED => 4,
+        exit_codes::REJECTED => 3,
+        exit_codes::UNCONFIGURED => 2,
+        exit_codes::RETRYABLE => 1,
+        _ => 0,
     }
+}
+
+const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
+    match class {
+        work_adapters::sync::apply::FailureClass::Terminal => {
+            exit_codes::TERMINAL
+        }
+        work_adapters::sync::apply::FailureClass::Retryable => {
+            exit_codes::RETRYABLE
+        }
+        work_adapters::sync::apply::FailureClass::Unconfigured => {
+            exit_codes::UNCONFIGURED
+        }
+        work_adapters::sync::apply::FailureClass::Rejected => {
+            exit_codes::REJECTED
+        }
+    }
+}
+
+fn exit_code_for_report(report: &RunReport) -> u8 {
+    let failures =
+        report
+            .reported
+            .iter()
+            .filter_map(|item| match &item.outcome {
+                ItemOutcome::Failed(error) => error.class().map(failure_code),
+                ItemOutcome::Applied | ItemOutcome::NotApplied => None,
+            });
+    let awaiting_human = (report.awaiting_human().next().is_some()
+        || report.identity.iter().any(IdentityRow::awaits_human))
+    .then_some(exit_codes::UNRESOLVED);
+    let read_failed = (report.read_failure.is_some()
+        || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
+    .then_some(exit_codes::RETRYABLE);
+    failures
+        .chain(awaiting_human)
+        .chain(read_failed)
+        .chain(report.promotions.iter().map(promotion_exit))
+        .max_by_key(|&code| severity(code))
+        .unwrap_or(exit_codes::CLEAN)
 }
 
 fn id_is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
@@ -1404,79 +1418,46 @@ pub fn run_sync(
         }
     };
 
-    let baseline_path = baseline::path(&integrations_root, &integration);
-    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
-    // The integration's state directory holds the baseline, the conflict
-    // dossiers, and the pending-push markers. On a never-synced integration it
-    // does not exist yet, and the atomic-write containment check canonicalises
-    // this directory as its trusted root, so the first baseline write fails
-    // unless it is present. Create it up-front rather than relying on a later
-    // write to author it.
-    if let Err(error) = std::fs::create_dir_all(baseline_dir) {
-        eprintln!(
-            "could not create the integration state directory {}: {error}",
-            baseline_dir.display()
-        );
-        return ExitCode::from(exit_codes::ERROR);
-    }
-    let state_dir = repo_root.join(STATE_DIR);
-    if let Err(error) = std::fs::create_dir_all(&state_dir) {
-        eprintln!(
-            "could not create the state directory {}: {error}",
-            state_dir.display()
-        );
-        return ExitCode::from(exit_codes::ERROR);
-    }
-    let corpus_roots = match corpus_roots(config, &repo_root) {
-        Ok(roots) => roots,
-        Err(error) => {
-            eprintln!("{error}");
+    let workspace = match IdentityWorkspace::open(
+        config,
+        &repo_root,
+        &work_dir,
+        &integrations_root,
+        &integration,
+    ) {
+        Ok(workspace) => workspace,
+        Err(message) => {
+            eprintln!("{message}");
             return ExitCode::from(exit_codes::ERROR);
         }
     };
-    let file_reader = RealFs;
+    let baseline_path = workspace.baseline_path();
+    let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
     let corpus_store = FileCorpusStore::new(baseline_dir);
     let project_store = FileCorpusStore::new(&repo_root);
-    let state_store = FileCorpusStore::new(&state_dir);
-    let file_locks = LockdirLock::new(&work_dir);
-    let recovery = FileRecoveryCopies::new(&state_dir, &repo_root);
-    let mut baseline_store =
-        BaselineStore::new(baseline_path.clone(), &file_reader, &corpus_store);
-    let retirement_baseline =
-        BaselineStore::new(baseline_path, &file_reader, &corpus_store);
-    let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
-    let retirement = RetirementPorts {
-        files: RetirementFiles {
-            reader: &file_reader,
-            writer: &project_store,
-            creator: &project_store,
-            remover: &project_store,
-            file_locks: &file_locks,
-            recovery: &recovery,
-        },
-        layout: CorpusLayout {
-            roots: &corpus_roots,
-            work_dir: &work_dir,
-        },
-        walker: &file_reader,
-        status: &status,
-        lock: &file_locks,
-        baseline: &retirement_baseline,
-    };
-    let records = FileRetirementRecords::new(&state_dir, &state_store);
+    let state_store = FileCorpusStore::new(workspace.state_dir());
     let integrations_store = FileCorpusStore::new(&integrations_root);
-    let promotions = FilePromotionRecords::new(
-        &integrations_root,
-        &integration,
-        &integrations_store,
-    );
+    let mut baseline_store = workspace.baseline(&corpus_store);
+    let retirement_baseline = workspace.baseline(&corpus_store);
+    let retirement =
+        workspace.retirement_ports(&project_store, &retirement_baseline);
+    let records = workspace.retirement_records(&state_store);
+    let promotions = workspace.promotion_records(&integrations_store);
+    let probe_status = || -> Box<dyn WorkingCopyStatus> {
+        Box::new(VcsWorkingCopyStatus::probed_from(
+            &repo_root,
+            &InProcessProbe,
+        ))
+    };
     let settlement = SettlementPorts {
         retirement: &retirement,
         records: &records,
         promotions: &promotions,
         ownership: scheme.ownership(),
-        state_dir: &state_dir,
+        state_dir: workspace.state_dir(),
+        probe_status: &probe_status,
     };
+    let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {
         work_dir: &work_dir,
         root: &repo_root,
@@ -1490,7 +1471,7 @@ pub fn run_sync(
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
-        status: &status,
+        status: workspace.status(),
         writer: &corpus_store,
         clock: &clock,
         author: &author,
@@ -1554,9 +1535,10 @@ pub fn run_sync(
         integrations_root: &integrations_root,
         integration: &integration,
         scope,
+        promote: !args.no_promote,
     };
 
-    sweep_kept_recoveries(&recovery);
+    sweep_kept_recoveries(recovery);
     match run_settled(
         &request,
         &ports,
@@ -1621,7 +1603,7 @@ pub fn run_sync(
                 &mut std::io::stderr(),
             );
             warn_outstanding_pushes(&integrations_root, &integration);
-            report_kept_recoveries(&recovery);
+            report_kept_recoveries(recovery);
             ExitCode::from(exit_code_for_report(&report))
         }
         Err(SettledRunFailure {
@@ -1644,7 +1626,7 @@ pub fn run_sync(
                 },
             );
             eprintln!("{message}");
-            report_kept_recoveries(&recovery);
+            report_kept_recoveries(recovery);
             ExitCode::from(code)
         }
     }
@@ -2209,6 +2191,7 @@ mod tests {
     fn render_report_sorts_fixed_width_ids_numerically() {
         let report = RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: vec![
                 reported("0001", SyncState::LocallyModified, Action::Push),
@@ -2255,6 +2238,7 @@ mod tests {
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
             read_failure: None,
@@ -2545,6 +2529,7 @@ mod tests {
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: Vec::new(),
             read_failure: None,
@@ -2553,6 +2538,407 @@ mod tests {
             dossiers: Vec::new(),
             discovery,
             keyed_read_budget_limited: false,
+        }
+    }
+
+    mod promotion_rows {
+        use std::path::PathBuf;
+
+        use tracker::ExternalId;
+        use work::identity::IdentityField;
+        use work::promotion::NotPromoted;
+        use work::promotion::Promotion;
+        use work::retirement::RetirementCause;
+        use work::retirement::RetirementCauseKind;
+        use work::retirement::RetirementFailure;
+        use work::retirement::RetirementRefusal;
+        use work::sync::Action;
+        use work::sync::SyncState;
+        use work_adapters::promotion::Detail;
+        use work_adapters::promotion::DetailSource;
+        use work_adapters::promotion::PromotionOutcome;
+        use work_adapters::promotion::PromotionRow;
+        use work_adapters::sync::run::DiscoveryStatus;
+        use work_adapters::sync::run::RunReport;
+
+        use super::super::exit_code_for_report;
+        use super::super::render_report;
+        use super::report_with;
+        use super::reported;
+        use crate::exit_codes;
+
+        fn key() -> ExternalId {
+            ExternalId::new("PP-900".to_owned())
+        }
+
+        fn draft_path(draft: &str) -> PathBuf {
+            PathBuf::from(format!("meta/work/drafts/{draft}-title.md"))
+        }
+
+        fn row(draft: &str, outcome: PromotionOutcome) -> PromotionRow {
+            PromotionRow {
+                draft: draft.to_owned(),
+                path: draft_path(draft),
+                outcome,
+                details: Vec::new(),
+            }
+        }
+
+        fn not_promoted(draft: &str, reason: NotPromoted) -> PromotionRow {
+            PromotionRow {
+                details: vec![Detail {
+                    source: DetailSource::Item,
+                    path: draft_path(draft),
+                }],
+                ..row(
+                    draft,
+                    PromotionOutcome::NotPromoted {
+                        reason,
+                        held_key: None,
+                    },
+                )
+            }
+        }
+
+        fn promoting(rows: Vec<PromotionRow>) -> RunReport {
+            RunReport {
+                promotions: rows,
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            }
+        }
+
+        fn lines(report: &RunReport) -> Vec<String> {
+            render_report(report).lines().map(str::to_owned).collect()
+        }
+
+        #[test]
+        fn a_not_promoted_draft_is_reported_with_its_reason() {
+            let report = promoting(vec![not_promoted(
+                "draft-aaaaaa",
+                NotPromoted::TrackerUnreachable,
+            )]);
+
+            assert!(lines(&report).contains(
+                &"draft-aaaaaa\tnot-promoted\tunsynced\ttracker-unreachable"
+                    .to_owned()
+            ));
+        }
+
+        #[test]
+        fn promotion_rows_are_four_column_records() {
+            let report = promoting(vec![
+                row("draft-aaaaaa", PromotionOutcome::Previewed),
+                row(
+                    "draft-bbbbbb",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        key(),
+                        SyncState::Synced,
+                    )),
+                ),
+                row(
+                    "draft-cccccc",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        ExternalId::new("PP-901".to_owned()),
+                        SyncState::LocallyModified,
+                    )),
+                ),
+                row(
+                    "draft-dddddd",
+                    PromotionOutcome::Promoted(Promotion::AlreadyDone(
+                        ExternalId::new("PP-902".to_owned()),
+                    )),
+                ),
+            ]);
+
+            let rendered = lines(&report);
+
+            for expected in [
+                "draft-aaaaaa\tpromote\tunsynced\t-",
+                "draft-bbbbbb\tpromoted\tsynced\tPP-900",
+                "draft-cccccc\tpromoted\tlocally-modified\tPP-901",
+                "draft-dddddd\talready-promoted\tsynced\tPP-902",
+            ] {
+                assert!(
+                    rendered.contains(&expected.to_owned()),
+                    "{expected} in {rendered:?}"
+                );
+            }
+        }
+
+        #[test]
+        fn detail_lines_trail_the_report_and_carry_their_row_id() {
+            let mut report = promoting(vec![
+                not_promoted("draft-bbbbbb", NotPromoted::TrackerUnreachable),
+                not_promoted(
+                    "draft-aaaaaa",
+                    NotPromoted::Refused(RetirementRefusal::KeyLinked {
+                        holder: PathBuf::from("meta/work/0002-legacy.md"),
+                    }),
+                ),
+            ]);
+            report.promotions[1].details = vec![Detail {
+                source: DetailSource::Holder,
+                path: PathBuf::from("meta/work/0002-legacy.md"),
+            }];
+            report.reported = vec![reported(
+                "0001",
+                SyncState::LocallyModified,
+                Action::Push,
+            )];
+
+            let rendered = lines(&report);
+
+            let first_hash = rendered
+                .iter()
+                .position(|line| line.starts_with('#'))
+                .unwrap();
+            assert!(
+                rendered[first_hash..]
+                    .iter()
+                    .all(|line| line.starts_with('#')),
+                "{rendered:?}"
+            );
+            let details: Vec<&String> = rendered
+                .iter()
+                .filter(|line| line.starts_with("#\tdetail\t"))
+                .collect();
+            assert_eq!(
+                details,
+                vec![
+                    "#\tdetail\tdraft-aaaaaa\tholder\tmeta/work/0002-legacy.md",
+                    "#\tdetail\tdraft-bbbbbb\titem\t\
+                     meta/work/drafts/draft-bbbbbb-title.md",
+                ]
+            );
+        }
+
+        #[test]
+        fn an_adopt_that_will_conflict_reports_promoted_conflict_with_a_detail_line(
+        ) {
+            let report = promoting(vec![PromotionRow {
+                details: vec![Detail {
+                    source: DetailSource::Item,
+                    path: PathBuf::from("meta/work/PP-900-title.md"),
+                }],
+                ..row(
+                    "draft-aaaaaa",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        key(),
+                        SyncState::Conflict,
+                    )),
+                )
+            }]);
+
+            let rendered = lines(&report);
+
+            assert!(rendered.contains(
+                &"draft-aaaaaa\tpromoted\tconflict\tPP-900".to_owned()
+            ));
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\titem\tmeta/work/PP-900-title.md"
+                    .to_owned()
+            ));
+        }
+
+        #[test]
+        fn a_path_to_restore_names_vcs_or_its_recovery_directory() {
+            let mut report = promoting(vec![not_promoted(
+                "draft-aaaaaa",
+                NotPromoted::TrackerUnreachable,
+            )]);
+            report.promotions[0].details = vec![
+                Detail {
+                    source: DetailSource::Vcs,
+                    path: PathBuf::from("meta/plans/a.md"),
+                },
+                Detail {
+                    source: DetailSource::Recovery {
+                        location: PathBuf::from(".accelerator/state/r"),
+                    },
+                    path: PathBuf::from("meta/plans/b.md"),
+                },
+            ];
+
+            let rendered = lines(&report);
+
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\tvcs\tmeta/plans/a.md".to_owned()
+            ));
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\trecovery\tmeta/plans/b.md\t\
+                  .accelerator/state/r"
+                    .to_owned()
+            ));
+        }
+
+        fn cause() -> RetirementCause {
+            RetirementCause {
+                path: PathBuf::from("meta/work/x.md"),
+                kind: RetirementCauseKind::ChangedSinceSnapshot,
+            }
+        }
+
+        fn every_reason() -> Vec<NotPromoted> {
+            let holder = PathBuf::from("meta/work/0001-holder.md");
+            vec![
+                NotPromoted::TrackerUnreachable,
+                NotPromoted::CreateOutcomeUnknown,
+                NotPromoted::RequestRejected {
+                    detail: String::new(),
+                },
+                NotPromoted::EarlierAttemptUnconfirmed,
+                NotPromoted::Refused(RetirementRefusal::IdTaken {
+                    holder: holder.clone(),
+                    field: IdentityField::Id,
+                }),
+                NotPromoted::Refused(RetirementRefusal::KeyLinked {
+                    holder: holder.clone(),
+                }),
+                NotPromoted::Refused(RetirementRefusal::TargetExists(holder)),
+                NotPromoted::Refused(RetirementRefusal::ItemNotFound(
+                    "draft-aaaaaa".to_owned(),
+                )),
+                NotPromoted::AdoptedIssueMissing(key()),
+                NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() },
+                NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
+                    cause: cause(),
+                }),
+                NotPromoted::RetirementFailed(
+                    RetirementFailure::RestoreIncomplete {
+                        cause: cause(),
+                        unrestored: Vec::new(),
+                    },
+                ),
+                NotPromoted::ReadBackFailed(key()),
+                NotPromoted::RecordUnwritable {
+                    key: Some(key()),
+                    detail: String::new(),
+                },
+                NotPromoted::RecordUnwritable {
+                    key: None,
+                    detail: String::new(),
+                },
+            ]
+        }
+
+        #[test]
+        fn every_not_promoted_reason_is_reported_under_its_keyword() {
+            for reason in every_reason() {
+                let keyword = reason.keyword();
+                let report =
+                    promoting(vec![not_promoted("draft-aaaaaa", reason)]);
+
+                assert!(
+                    lines(&report).contains(&format!(
+                        "draft-aaaaaa\tnot-promoted\tunsynced\t{keyword}"
+                    )),
+                    "{keyword}"
+                );
+            }
+        }
+
+        fn exit_for(reasons: Vec<NotPromoted>) -> u8 {
+            exit_code_for_report(&promoting(
+                reasons
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, reason)| {
+                        not_promoted(&format!("draft-{index:06}"), reason)
+                    })
+                    .collect(),
+            ))
+        }
+
+        #[test]
+        fn exit_code_reflects_not_promoted_drafts() {
+            let unreachable = || NotPromoted::TrackerUnreachable;
+            let duplicate = || NotPromoted::EarlierAttemptUnconfirmed;
+            let rejected = || NotPromoted::RequestRejected {
+                detail: String::new(),
+            };
+            let incomplete = || {
+                NotPromoted::RetirementFailed(
+                    RetirementFailure::RestoreIncomplete {
+                        cause: cause(),
+                        unrestored: Vec::new(),
+                    },
+                )
+            };
+            for (reasons, expected) in [
+                (vec![unreachable()], exit_codes::RETRYABLE),
+                (vec![rejected(), unreachable()], exit_codes::REJECTED),
+                (
+                    vec![duplicate(), rejected(), unreachable()],
+                    exit_codes::UNRESOLVED,
+                ),
+                (
+                    vec![incomplete(), duplicate(), rejected()],
+                    exit_codes::TERMINAL,
+                ),
+                (
+                    vec![NotPromoted::AdoptedIssueMissing(key())],
+                    exit_codes::UNRESOLVED,
+                ),
+            ] {
+                assert_eq!(exit_for(reasons.clone()), expected, "{reasons:?}");
+            }
+        }
+
+        #[test]
+        fn a_promoted_draft_leaves_the_exit_clean() {
+            let report = promoting(vec![row(
+                "draft-aaaaaa",
+                PromotionOutcome::Promoted(Promotion::Completed(
+                    key(),
+                    SyncState::Conflict,
+                )),
+            )]);
+
+            assert_eq!(exit_code_for_report(&report), exit_codes::CLEAN);
+        }
+
+        /// `create` reports an unreachable tracker, an earlier unconfirmed
+        /// create and an unwritable first record as saving a draft or a loud
+        /// terminal; `exit_codes` documents each difference.
+        const DOCUMENTED_DIFFERENCES: &[&str] = &[
+            "tracker-unreachable",
+            "possible-duplicate",
+            "record-unwritable",
+        ];
+
+        #[test]
+        fn each_outcome_exits_alike_from_every_command_or_is_documented() {
+            for reason in every_reason() {
+                let from_create =
+                    crate::create::create_outcome_of(&reason).exit_code();
+                let from_sync = reason.exit_code(true);
+                let documented = DOCUMENTED_DIFFERENCES
+                    .contains(&reason.keyword())
+                    && !matches!(
+                        reason,
+                        NotPromoted::RecordUnwritable { key: Some(_), .. }
+                    );
+                assert!(
+                    from_create == from_sync || documented,
+                    "{} exits {from_create} from create and {from_sync} from \
+                     sync",
+                    reason.keyword()
+                );
+            }
+        }
+
+        #[test]
+        fn drafts_skipped_by_no_promote_do_not_affect_the_exit_code() {
+            let report = RunReport {
+                reported: vec![reported(
+                    "draft-aaaaaa",
+                    SyncState::Unsynced,
+                    Action::Noop,
+                )],
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            };
+
+            assert_eq!(exit_code_for_report(&report), exit_codes::CLEAN);
         }
     }
 
@@ -2613,6 +2999,7 @@ mod tests {
     fn render_report_renders_an_unconfigured_failure() {
         let report = RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: vec![failed(
                 "0001",
@@ -2636,6 +3023,7 @@ mod tests {
     fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
         let report = RunReport {
             identity: Vec::new(),
+            promotions: Vec::new(),
             deferred: 0,
             reported: vec![failed(
                 "0001",
@@ -2660,6 +3048,7 @@ mod tests {
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
                 identity: Vec::new(),
+                promotions: Vec::new(),
                 deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
@@ -2702,6 +3091,7 @@ mod tests {
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
                 identity: Vec::new(),
+                promotions: Vec::new(),
                 deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
@@ -3102,6 +3492,7 @@ mod tests {
             max_pulls: None,
             max_pushes: None,
             allow_unbounded: false,
+            no_promote: false,
             targets,
         }
     }
@@ -3127,6 +3518,91 @@ mod tests {
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
         super::run_sync(dir, &composed.service, args, &registry, finaliser)
+    }
+
+    fn tracker_sync_repo_with_a_draft() -> tempfile::TempDir {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\n  id_pattern: \"{tracker}\"\n---\n",
+        )
+        .expect("write config");
+        std::fs::create_dir_all(dir.path().join("meta/work/drafts"))
+            .expect("mkdir");
+        std::fs::write(
+            dir.path().join("meta/work/drafts/draft-aaaaaa-title.md"),
+            "---\nid: \"draft-aaaaaa\"\ntitle: \"Title\"\nkind: \"task\"\n\
+             ---\n\n# draft-aaaaaa: Title\n",
+        )
+        .expect("write draft");
+        dir
+    }
+
+    fn creates(tracker: &RecordingTracker) -> usize {
+        tracker
+            .calls()
+            .iter()
+            .filter(|call| matches!(call, Call::Create { .. }))
+            .count()
+    }
+
+    #[test]
+    fn no_promote_maps_onto_the_sync_request() {
+        for (no_promote, expected_creates) in [(false, 1), (true, 0)] {
+            let dir = tracker_sync_repo_with_a_draft();
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            drive_sync(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    no_promote,
+                    ..sync_args(Vec::new())
+                },
+            );
+
+            assert_eq!(creates(&tracker), expected_creates, "{no_promote}");
+        }
+    }
+
+    #[test]
+    fn no_promote_exits_zero_with_drafts_pending() {
+        let dir = tracker_sync_repo_with_a_draft();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                no_promote: true,
+                ..sync_args(Vec::new())
+            },
+        );
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        assert!(dir
+            .path()
+            .join("meta/work/drafts/draft-aaaaaa-title.md")
+            .exists());
+    }
+
+    #[test]
+    fn an_unreachable_tracker_leaves_the_draft_and_exits_retryable() {
+        let dir = tracker_sync_repo_with_a_draft();
+        let tracker =
+            Rc::new(RecordingTracker::holding(Vec::new()).failing_create(
+                TrackerError::Retryable {
+                    detail: "connection refused".to_owned(),
+                },
+            ));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::from(exit_codes::RETRYABLE));
+        assert!(dir
+            .path()
+            .join("meta/work/drafts/draft-aaaaaa-title.md")
+            .exists());
     }
 
     #[test]
