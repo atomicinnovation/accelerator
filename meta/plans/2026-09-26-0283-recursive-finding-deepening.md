@@ -5,7 +5,7 @@ title: "Recursive Finding Deepening Implementation Plan"
 date: "2026-09-26T16:57:59+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0283"
 parent: "work-item:0283"
 derived_from: ["codebase-research:2026-09-26-0283-recursive-finding-deepening"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-09-28T09:05:00+00:00"
+last_updated: "2026-09-28T09:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -163,7 +163,8 @@ Verify with `mise run` (exits 0) and the attended runs in Phase 7.
   checked (an accepted risk in the work item).
 - A `research.topic.fan_out` knob. The starting cap stays fixed at 4.
 - Throttling OpenAlex or arXiv at depth. Keyless budget exhaustion and arXiv
-  serialisation are accepted risks.
+  serialisation are accepted risks. Phase 7 measured the arXiv rate as material,
+  and 0295 follows it up.
 - Re-deepening a pair whose finding already validates.
 - Visualiser indexing or navigation of level notes (0278, 0284). The only
   visualiser change is a glyph-map entry for the new template.
@@ -2465,13 +2466,22 @@ questions are read from each spawn prompt.
 
 Implementation notes:
 - Results are in
-  `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`.
+  `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`,
+  which also records the Phase 5 attended checks.
+- Each check ran as a headless `claude -p` session with `--plugin-dir` on
+  this tree through the contributor launcher override, in its own scratch
+  repository. Seeded notes took their path, `id` and `question` from
+  `outstanding`. 31 sessions spawned 158 agents.
 - Step 10 first failed on a `web` pair: `web-profile` had no write-no-file
   outcome for a denied fetch, so researchers wrote unsourced notes. The
   profile gained an Outcome section, lost its focus-question carve-out, and
   the re-run passes.
 - Step 17 failed 4 of 24 arXiv nodes on `lock_contention`, which is
   material. Work item 0295 takes up the per-profile batch cap.
+- Two observations stay open, outside this plan. Orchestrators doubted the
+  `batch` and `--spawned` hand-off, and one passed a mismatched number that
+  the ledger ignored without a word. `corpus metadata derive` prints no
+  author, so `conduct` falls back to `git config user.name`.
 
 ### Success Criteria
 
@@ -2535,9 +2545,9 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 - ⏱️ **Spawn-prompt volume.** `conduct` writes every deepen prompt, each
   carrying its node's `known_questions` verbatim: up to about 13 questions
   of at most 300 characters at level 3. A full batch of 24 can carry about
-  8k–24k generated tokens of known questions. Phase 7 step 17 records the
-  real figure. If it proves material, a follow-up can pass known questions
-  by reference.
+  8k–24k generated tokens of known questions. Phase 7 step 17 measured
+  about 5.6k tokens of known questions within about 20k tokens of prompts
+  for a batch of 24 level-3 nodes, so they stay inline.
 - **`outstanding` cost.** It now validates every note under each
   `.levels/`, which is linear in note count per plan: at most 21 per pair
   at depth 4. The cost is repeated once per batch, as is hashing each
@@ -2550,8 +2560,9 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 - **arXiv serialisation.** arXiv fetches share one project-wide lock with a
   3 s spacing and a 100 s per-call budget. Recursion lets up to
   `concurrency` arXiv nodes queue on it at once, and a wait past the budget
-  fails as `lock_contention`. Phase 7 measures the rate before any
-  per-profile cap is considered.
+  fails as `lock_contention`. Phase 7 step 17 lost 4 of 24 concurrent
+  arXiv nodes this way (3.6% contention per fetch), so 0295 adds a
+  per-profile batch cap.
 
 ## Migration Notes
 
@@ -2592,6 +2603,8 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 ## References
 
 - Original work item: `meta/work/0283-recursive-finding-deepening.md`
+- Validation: `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`
+- Follow-up: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`
 - Codebase research: `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`
 - Prior plans: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
   (the guard and `outstanding`), `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
