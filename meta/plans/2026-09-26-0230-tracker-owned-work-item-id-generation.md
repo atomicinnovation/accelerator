@@ -2808,6 +2808,17 @@ table, `:493-587`)
 >   which kills at every store operation); `every_not_promoted_reason_has_a_create_outcome`
 >   (the mapping is an exhaustive `match`); the vanished-draft, incomplete
 >   restore and concurrent-sync create outcomes.
+>   Three more are covered by existing tests rather than written:
+>   `two_clean_rollbacks_rewind_the_record_and_the_next_promotion_creates_no_new_issue`
+>   by `a_retirement_failure_rolls_back_and_leaves_a_promotion_record_holding_the_key`
+>   (both attempts fail, the record is rewound, and the next promotion
+>   creates nothing);
+>   `a_promotion_killed_mid_rewrites_before_to_resumes_without_a_new_issue`
+>   by `a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote`,
+>   which kills at every store operation; and
+>   `a_create_killed_after_sending_leaves_a_draft_that_promotion_refuses_as_a_possible_duplicate`
+>   by the same test's kill between the create and its recorded key, which
+>   resumes as `possible-duplicate`.
 
 ### Success Criteria:
 
@@ -3152,7 +3163,7 @@ each reason keyword to the frozen `keyword_exit_codes` oracle.
 #### Automated Verification:
 
 - [x] `cd cli && cargo test -p work promotion`
-- [x] `cd cli && cargo test -p work-adapters --test promotion --test sync_create`
+- [x] `cd cli && cargo test -p work-adapters --test promotion --test sync_create --test sync_settled`
 - [x] `cd cli && cargo test -p accelerator-work`
 - [x] `cd cli && cargo test -p accelerator-work --test cli_surface`
 - [x] `mise run public-api:update && mise run public-api:check`

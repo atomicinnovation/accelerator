@@ -10,7 +10,7 @@ result: "partial"
 parent: "work-item:0230"
 target: "plan:2026-09-26-0230-tracker-owned-work-item-id-generation"
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
-last_updated: "2026-09-29T15:44:45+00:00"
+last_updated: "2026-09-29T23:05:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -21,8 +21,8 @@ Every phase's code changes are in place, and the full local CI mirror passes.
 The result is `partial` for two reasons. First, the tracker contract suite
 has not run, because it needs live Jira and Linear tenants. Second, eleven
 manual checks are still open, most of which also need a live tenant. The
-code review found three defects worth fixing before merge (P1–P3), and all
-three are now fixed. The lower-severity findings (P4–P9) are still open.
+code review's findings (P1–P9) and the plan-bookkeeping gaps are all
+fixed, apart from three small leftovers recorded under P6, P5 and P9.
 
 ### Implementation Status
 
@@ -47,9 +47,9 @@ tests.
 
 ### Automated Verification Results
 
-✓ `mise run` (the full default task) exits 0 with the P1–P3 fixes and the
-remaining P2 sites fixed. It covers 4,036 CLI unit tests (1 skipped) plus
-every integration, e2e, docs and tasks lane. Before the fixes it also
+✓ `mise run` (the full default task) exits 0 with every fix applied. It
+covers 4,051 CLI unit tests (1 skipped, 1 reported leaky) plus every
+integration, e2e, docs and tasks lane. Before the fixes it also
 exited 0 on `6b815050`, over 4,025 CLI unit tests.
 ✓ Every per-phase `cargo test`, `public-api:check`, `pup:check`,
 `test:integration:conformance` and `test:integration:skill-invocation`
@@ -93,23 +93,23 @@ without them, `cargo test -p jira-client --test contract` fails with `NoSite`.
 
 #### Deviations from Plan:
 
-- **Missing Phase 6 tests.** Three planned tests do not exist, and no
-  implementation note names them:
-  - `two_clean_rollbacks_rewind_the_record_and_the_next_promotion_creates_no_new_issue`
-  - `a_promotion_killed_mid_rewrites_before_to_resumes_without_a_new_issue`
-    (arguably covered by the per-operation kill test)
-  - `a_create_killed_after_sending_leaves_a_draft_that_promotion_refuses_as_a_possible_duplicate`
-
+- **Unwritten Phase 6 tests.** Three planned tests were never written, and
+  existing tests cover each; the plan's implementation notes now say which.
+  `two_clean_rollbacks_…` is covered by
+  `a_retirement_failure_rolls_back_and_leaves_a_promotion_record_holding_the_key`.
+  `a_promotion_killed_mid_rewrites_…` and `a_create_killed_after_sending_…`
+  are covered by
+  `a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote`,
+  which kills at every store operation. Separately,
   `rerunning_a_create_sends_no_second_create_at_any_record_stage` covers
-  `Attempted` and `Created`, but not `RemoteKept` or `Retiring`
-  (`cli/work-cli/src/create.rs:2119`).
-- **Stale success criteria (Phase 7).** The sync promotion tests live in
-  `work-adapters/tests/sync_settled.rs`, as a note records. The phase's
-  success-criteria command `--test sync_create` therefore does not run
-  them.
-- **Shared hierarchy walk (Phase 8).** `child_index` stays private in
-  `cli/work-cli/src/list.rs:359`. Key Discoveries planned to move it into
-  `work` for 0291.
+  `Attempted` and `Created`, but not `RemoteKept` or `Retiring`.
+- **Phase 7 success criteria (fixed).** The command ran `--test
+  sync_create` only, while the promotion tests live in `sync_settled`. It
+  now runs both.
+- **Shared hierarchy walk (fixed).** `work list`'s private `child_index` is
+  replaced by `work::hierarchy::children_of`, as Key Discoveries planned for
+  0291. It returns child positions, so two items sharing an ID stay two
+  children.
 - **Documented deviations.** The following are recorded in the plan's
   implementation notes and are equivalent or improvements:
   - `SettlementPorts` in place of extending `SyncPorts`;
@@ -121,9 +121,9 @@ without them, `cargo test -p jira-client --test contract` fails with `NoSite`.
 
 #### Potential Issues:
 
-Ranked most severe first. Failing tests reproduced P1–P3, and all three
-are fixed. I confirmed P4 by reading the code. P5–P9 come from the review
-agents and are plausible, but I have not reproduced them.
+Ranked most severe first. A failing test reproduced every code finding
+before its fix, except P4, a skill-text correction confirmed by reading the
+code. All are fixed.
 
 1. **P1: the identity pass plans over the corpus from before
    reconciliation** (confirmed). `settle_identities` finishes interrupted
@@ -171,44 +171,65 @@ agents and are plausible, but I have not reproduced them.
    although resolution elsewhere ignores case. **Fixed:** the comparison
    now ignores case, and
    `adopting_the_recorded_key_in_another_case_resumes_onto_it` covers it.
-4. **P4: the extract skill contradicts the CLI on empty paths**
-   (confirmed). `skills/work/extract-work-items/SKILL.md:640` says an
-   empty path appears only on legacy `created-unwritten`. `create-batch`
-   also prints one for `pending` from a legacy slug marker and for a
-   journalled `created-unwritten` under `{tracker}`
-   (`cli/work-cli/src/create_batch.rs:328-339`, `:434-439`).
-5. **P5: the batch journal matches by title across batches.** A later,
-   unrelated batch within 30 days whose entry shares a title, such as "Add
-   tests", is claimed and never created
-   (`cli/work-cli/src/batch_journal.rs:101-103`).
-6. **P6: a mid-pass stop loses the applied count.** `run_settled` maps any
-   `settle_identities` error to `failed(0)`
-   (`cli/work-adapters/src/sync/settled_run.rs:115`). A `RetirementIncomplete`
-   after earlier promotions or key changes landed therefore drops both the
-   `identity-applied-before-refusal` note and those rows.
-7. **P7: the rerun guard is racy.** `pending_create` runs before the create
-   lock is taken (`cli/work-cli/src/create.rs:1259` vs `:598`), so two
-   concurrent identical `create --push` runs can both send.
-8. **P8: several failures are swallowed silently.**
-   - `resolve_with` uses `.files().unwrap_or_default()`
-     (`cli/work-cli/src/resolve.rs:127`).
-   - `corpus_carries_external_id` treats a listing failure as "not
-     carried" (`cli/work-cli/src/create.rs:322`).
-   - `reconcile_promotions` and `keys_held_by_promotions` `.flatten()` away
-     unreadable records, where the plan requires a warning
-     (`identity_settlement.rs:291`, `:365`).
-9. **P9: minor.**
-   - `link_external_id` read-modify-writes without a lock
-     (`cli/work-cli/src/sync_author.rs:222`).
-   - An unknown create outcome whose record re-save fails reports
-     `local-save` (exit 0) instead of `loud-terminal`
-     (`cli/work-adapters/src/promotion.rs:539`).
-   - `promote.rs:174` hardcodes `IdOwnership::Tracker` without checking
-     `id_pattern`.
-   - A `Conflicting` resolution surfaces as `E_PROMOTE_NOT_A_DRAFT`
-     (`cli/work-cli/src/promote.rs:133`).
-   - Recovery directories left by a failure before the lock step are never
-     swept (`cli/corpus-adapters/src/recovery.rs:181`).
+4. **P4: the extract skill contradicted the CLI on empty paths**
+   (fixed). The skill said an empty path appears only on legacy
+   `created-unwritten`, but `create-batch` also prints one for `pending`
+   from a legacy slug marker and for a journalled `created-unwritten`.
+   `skills/work/extract-work-items/SKILL.md` now names both cases and gives
+   `pending` with no draft a working recovery (`/sync-work-items`). It also
+   says that a rerun changes nothing only with `--push`.
+5. **P5: the batch journal matched by title across batches** (fixed). A
+   later, unrelated batch with an entry of the same title was claimed and
+   never created. Each journal entry now records a fingerprint of its
+   manifest's refs and titles, and the title fallback claims only entries
+   from the same batch. Covered by
+   `an_unrelated_batch_sharing_a_title_creates_its_own_item` and
+   `a_title_another_batch_recorded_is_not_claimed`. Still open: after a
+   title-matched claim, the old entry stays until the 30-day prune.
+6. **P6: a stopped pass lost the applied count** (fixed). `settle_identities`
+   now fails with a `SettlementFailure` carrying how many changes had
+   landed. Covered by
+   `a_pass_stopped_mid_way_counts_the_changes_that_landed_before_it`.
+   Still open: the landed identity rows themselves are not rendered on
+   failure; only their count reaches the `identity-applied-before-refusal`
+   note.
+7. **P7: the rerun guard ran before the create lock** (fixed). The
+   tracker-keyed create checks for a pending create while holding the
+   create lock. Covered by
+   `a_draft_written_while_a_create_waits_for_the_lock_is_e_draft_exists`.
+8. **P8: failures were swallowed silently** (fixed).
+   - `work resolve` reports an unlistable corpus as `E_RESOLVE_UNLISTABLE`
+     (exit 1), and `sync --target` fails on it instead of treating the
+     token as a remote candidate.
+   - A legacy `create --push` fails when the corpus cannot be listed,
+     rather than reusing a `created` marker's key.
+   - `work sync` and `work promote` warn about each unreadable promotion
+     record by path.
+
+   Covered by
+   `an_unlistable_corpus_is_reported_rather_than_matched_by_filename`,
+   `a_token_resolved_over_an_unlistable_corpus_fails_as_an_error`,
+   `a_created_marker_over_an_unlistable_corpus_fails_rather_than_reusing_its_key`
+   and `each_unreadable_promotion_record_is_named_in_a_warning`.
+9. **P9: minor** (fixed).
+   - `link_external_id` holds the file's write lock
+     (`a_link_waits_for_an_edit_holding_the_file_lock_and_keeps_it`).
+   - Following a moved key holds the retirement lock
+     (`following_an_external_id_holds_the_retirement_lock`).
+   - An unknown create outcome stays `possible-duplicate` even when its
+     failure detail cannot be written
+     (`an_unknown_create_outcome_stays_unknown_when_its_failure_cannot_be_noted`).
+   - `work promote` refuses a non-`{tracker}` pattern with
+     `E_PROMOTE_NOT_TRACKER_OWNED`; before the fix it promoted the draft.
+     It names both claimants of a conflicting draft ID with
+     `E_PROMOTE_CONFLICTING`.
+   - A retirement locks and verifies files before taking recovery copies,
+     so a file edited after planning leaves no directory behind
+     (`a_file_changed_after_the_snapshot_leaves_no_recovery_directory`).
+
+   Still open: a recovery copy that fails to write partway through still
+   leaves its directory. The copy store is not behind the test harness's
+   fault injection, so no failing test could drive it.
 
 ### Manual Testing Required:
 
@@ -239,10 +260,9 @@ agents and are plausible, but I have not reproduced them.
 
 ### Recommendations:
 
-- Correct the empty-path sentence in `extract-work-items/SKILL.md` (P4),
-  and scope the journal's title fallback to one manifest (P5).
-- Write the three missing Phase 6 tests, or record in the plan why the
-  per-operation kill test covers them.
-- Point Phase 7's success-criteria command at `--test sync_settled`.
 - Run the tracker contract suite and the live manual checks, then
   re-validate. The plan stays `in-progress` until then.
+- Consider the three small leftovers: rendering landed identity rows when
+  a pass stops (P6), removing a recovery directory whose copy failed to
+  write (P9), and dropping a journal entry once a title match supersedes it
+  (P5).
