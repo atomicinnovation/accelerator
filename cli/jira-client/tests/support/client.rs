@@ -47,7 +47,6 @@ pub fn client_for(
     client_with(&server.base_url(), config, &RecordingSleeper::new())
 }
 
-/// A client against `server` whose configured project is `project`.
 #[must_use]
 pub fn client_for_project(
     server: &MockHTTPServer,
