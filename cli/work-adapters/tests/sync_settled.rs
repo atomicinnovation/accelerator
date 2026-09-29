@@ -1326,6 +1326,12 @@ fn a_pass_stopped_mid_way_counts_the_changes_that_landed_before_it() {
         failure.error
     );
     assert_eq!(failure.identity_applied, 1);
+    let landed: Vec<(&str, &IdentityOutcome)> = failure
+        .identity
+        .iter()
+        .map(|row| (row.id.as_str(), &row.outcome))
+        .collect();
+    assert_eq!(landed, [("PP-760", &IdentityOutcome::Applied)]);
 }
 
 #[test]

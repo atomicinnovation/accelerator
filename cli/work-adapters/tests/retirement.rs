@@ -12,6 +12,8 @@ use corpus::lock::ExclusiveLock as _;
 use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
+use corpus::store::KeptRecovery;
+use corpus::store::RecoveryCopies;
 use corpus::store::RemoveFile;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
@@ -232,11 +234,74 @@ impl Repo {
     }
 }
 
+/// Delegates to real recovery copies, failing the `fail_write_at`th copy
+/// write, counted from zero.
+struct FaultyRecovery {
+    inner: FileRecoveryCopies,
+    fail_write_at: Option<usize>,
+    writes: Cell<usize>,
+}
+
+impl RecoveryCopies for FaultyRecovery {
+    fn exists(&self, dir: &Path) -> bool {
+        self.inner.exists(dir)
+    }
+
+    fn prepare(&self, dir: &Path) -> Result<(), StoreError> {
+        self.inner.prepare(dir)
+    }
+
+    fn write_once(
+        &self,
+        dir: &Path,
+        original: &Path,
+        bytes: &[u8],
+    ) -> Result<(), StoreError> {
+        let index = self.writes.get();
+        self.writes.set(index + 1);
+        if self.fail_write_at == Some(index) {
+            return Err(StoreError::Io {
+                path: original.display().to_string(),
+                detail: format!("injected failure at copy {index}"),
+            });
+        }
+        self.inner.write_once(dir, original, bytes)
+    }
+
+    fn mark_restore_pending(
+        &self,
+        dir: &Path,
+        unrestored: &[PathBuf],
+    ) -> Result<(), StoreError> {
+        self.inner.mark_restore_pending(dir, unrestored)
+    }
+
+    fn is_restore_pending(&self, dir: &Path) -> bool {
+        self.inner.is_restore_pending(dir)
+    }
+
+    fn mark_completed(&self, dir: &Path) -> Result<(), StoreError> {
+        self.inner.mark_completed(dir)
+    }
+
+    fn remove_dir(&self, dir: &Path) -> Result<(), StoreError> {
+        self.inner.remove_dir(dir)
+    }
+
+    fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError> {
+        self.inner.kept(parent)
+    }
+
+    fn copy_settled(&self, dir: &Path, original: &Path) -> bool {
+        self.inner.copy_settled(dir, original)
+    }
+}
+
 struct Harness<'a> {
     repo: &'a Repo,
     store: Faulty,
     locks: LockdirLock,
-    recovery: FileRecoveryCopies,
+    recovery: FaultyRecovery,
     status: Box<dyn WorkingCopyStatus>,
     roots: Vec<PathBuf>,
     work_dir: PathBuf,
@@ -252,10 +317,14 @@ impl<'a> Harness<'a> {
             repo,
             store: Faulty::new(repo.root(), fail_at),
             locks: LockdirLock::with_options(repo.work_dir(), FAST),
-            recovery: FileRecoveryCopies::new(
-                repo.state_dir(),
-                repo.path("meta"),
-            ),
+            recovery: FaultyRecovery {
+                inner: FileRecoveryCopies::new(
+                    repo.state_dir(),
+                    repo.path("meta"),
+                ),
+                fail_write_at: None,
+                writes: Cell::new(0),
+            },
             status: Box::new(EveryPath(Dirtiness::Clean)),
             roots: repo.roots(),
             work_dir: repo.work_dir(),
@@ -519,9 +588,8 @@ trait PendingRestore {
     fn prepare_for_test(&self, repo: &Repo) -> Result<(), TestError>;
 }
 
-impl PendingRestore for FileRecoveryCopies {
+impl PendingRestore for FaultyRecovery {
     fn prepare_for_test(&self, repo: &Repo) -> Result<(), TestError> {
-        use corpus::store::RecoveryCopies as _;
         let dir = promotion().recovery_dir();
         self.prepare(&dir)?;
         self.mark_restore_pending(&dir, &[repo.path(CHILD)])?;
@@ -678,6 +746,23 @@ fn a_file_changed_after_the_snapshot_leaves_no_recovery_directory(
 
     assert!(matches!(result, Err(RetirementFailure::RolledBack { .. })));
     assert!(!repo.path(RECOVERY).exists());
+    Ok(())
+}
+
+#[test]
+fn a_recovery_copy_that_fails_to_write_leaves_no_recovery_directory(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mut harness = Harness::new(&repo);
+    harness.status = Box::new(EveryPath(Dirtiness::Dirty));
+    harness.recovery.fail_write_at = Some(1);
+    let before = repo.snapshot();
+
+    let result = harness.apply(&harness.plan()?);
+
+    assert!(matches!(result, Err(RetirementFailure::RolledBack { .. })));
+    assert!(!repo.path(RECOVERY).exists());
+    assert_eq!(repo.snapshot(), before);
     Ok(())
 }
 

@@ -377,6 +377,24 @@ fn identity_line_in_state(row: &IdentityRow, state: &str) -> String {
     }
 }
 
+/// What a run that stopped before its report still prints: every identity
+/// change the pass reported, then how many had landed.
+fn stopped_run_lines(failure: &SettledRunFailure) -> Vec<String> {
+    let mut lines: Vec<String> = failure
+        .identity
+        .iter()
+        .map(standalone_identity_line)
+        .chain(failure.promotions.iter().map(promotion_line))
+        .collect();
+    if failure.identity_applied > 0 {
+        lines.push(format!(
+            "#\tnote\tidentity-applied-before-refusal\t{}",
+            failure.identity_applied
+        ));
+    }
+    lines
+}
+
 fn render_report(report: &RunReport) -> String {
     let settled_ids: BTreeSet<&str> = report
         .identity
@@ -1642,18 +1660,12 @@ pub fn run_sync(
             report_kept_recoveries(recovery);
             ExitCode::from(exit_code_for_report(&report))
         }
-        Err(SettledRunFailure {
-            error,
-            identity_applied,
-        }) => {
-            if identity_applied > 0 {
-                println!(
-                    "#\tnote\tidentity-applied-before-refusal\t\
-                     {identity_applied}"
-                );
+        Err(failure) => {
+            for line in stopped_run_lines(&failure) {
+                println!("{line}");
             }
             let (message, code) = run_error_outcome(
-                &error,
+                &failure.error,
                 &RunErrorContext {
                     config,
                     integration: &integration,
@@ -2320,6 +2332,46 @@ mod tests {
             detail: detail.to_owned(),
             outcome,
         }
+    }
+
+    #[test]
+    fn a_stopped_run_prints_the_identity_changes_that_landed_before_its_note() {
+        use work::promotion::Promotion;
+        use work_adapters::promotion::PromotionOutcome;
+        use work_adapters::promotion::PromotionRow;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+        use work_adapters::sync::settled_run::SettledRunFailure;
+
+        let promoted = PromotionRow {
+            draft: "draft-k7mq3x".to_owned(),
+            path: PathBuf::from("meta/work/drafts/draft-k7mq3x-title.md"),
+            outcome: PromotionOutcome::Promoted(Promotion::Completed(
+                ExternalId::new("ENG-43".to_owned()),
+                SyncState::Synced,
+            )),
+            details: Vec::new(),
+        };
+        let failure = SettledRunFailure {
+            error: work_adapters::sync::run::RunError::KeyedReadCapped,
+            identity_applied: 2,
+            identity: vec![identity_row(
+                "PP-760",
+                "ENG-42",
+                work::sync::IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            promotions: vec![promoted.clone()],
+        };
+
+        assert_eq!(
+            super::stopped_run_lines(&failure),
+            vec![
+                "PP-760\tkey-changed\t-\tPP-760->ENG-42".to_owned(),
+                crate::promotion_report::promotion_line(&promoted),
+                "#\tnote\tidentity-applied-before-refusal\t2".to_owned(),
+            ]
+        );
     }
 
     fn settled_report(

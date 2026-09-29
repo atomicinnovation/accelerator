@@ -411,7 +411,12 @@ pub fn apply_retirement(
     let _file_locks =
         lock_touched_files(plan, files.file_locks).map_err(rolled_back)?;
     verify_unchanged(plan, files.reader).map_err(rolled_back)?;
-    save_recovery_copies(plan, files).map_err(rolled_back)?;
+    if let Err(cause) = save_recovery_copies(plan, files) {
+        if !resumes {
+            let _ = files.recovery.remove_dir(&plan.recovery_dir);
+        }
+        return Err(rolled_back(cause));
+    }
     let steps = steps(plan);
     for (index, step) in steps.iter().enumerate() {
         if let Err(failure) = take(step, plan, files, baseline) {

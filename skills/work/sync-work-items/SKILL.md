@@ -436,8 +436,9 @@ fifth field's recovery directory) or `item` (the draft, or the promoted item a
 
 `#\tnote\tdeferred-to-next-run\tN` counts items written while the run was
 reading the remote; the next sync reconciles them. When the run is refused
-after identity changes landed, `#\tnote\tidentity-applied-before-refusal\tN`
-says so: each landed change is complete and stands.
+after identity changes landed, it still prints each identity and promotion
+row the pass reported, then `#\tnote\tidentity-applied-before-refusal\tN`:
+each landed change is complete and stands.
 
 A run that stops with `retirement-incomplete` (exit `71`) could not restore
 every file a failed retirement had written. Relay the message, which names both
