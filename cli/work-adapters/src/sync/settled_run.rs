@@ -178,7 +178,10 @@ pub fn run_settled<'a>(
     });
     let request = resumed_request.as_ref().unwrap_or(request);
     let settled = settle_identities(request, ports, settlement, resumed)
-        .map_err(failed(resumed_renames.len()))?;
+        .map_err(|stopped| SettledRunFailure {
+            error: stopped.error,
+            identity_applied: stopped.applied,
+        })?;
     let applied = settled.applied;
     let rediscovered = discovery.discover().map_err(failed(applied))?;
 

@@ -408,10 +408,10 @@ pub fn apply_retirement(
 ) -> Result<(), RetirementFailure> {
     let resumes = plan.resumes || files.recovery.exists(&plan.recovery_dir);
     let rolled_back = |cause| RetirementFailure::RolledBack { cause };
-    save_recovery_copies(plan, files).map_err(rolled_back)?;
     let _file_locks =
         lock_touched_files(plan, files.file_locks).map_err(rolled_back)?;
     verify_unchanged(plan, files.reader).map_err(rolled_back)?;
+    save_recovery_copies(plan, files).map_err(rolled_back)?;
     let steps = steps(plan);
     for (index, step) in steps.iter().enumerate() {
         if let Err(failure) = take(step, plan, files, baseline) {

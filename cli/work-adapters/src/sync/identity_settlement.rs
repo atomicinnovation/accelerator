@@ -517,6 +517,8 @@ fn follow_external_id(
             "cannot follow {old} to {new}: {item} is no longer in the corpus"
         )));
     };
+    let _lock = acquire_retirement_lock(settlement.retirement.lock)
+        .map_err(internal)?;
     let identities = corpus_identities(settlement.retirement)
         .map_err(|failure| internal(format!("{failure:?}")))?;
     let others: Vec<_> = identities
@@ -606,6 +608,32 @@ pub fn resume_interrupted(
     Ok(rows)
 }
 
+/// A pass that stopped, and how many identity changes had landed before it:
+/// each is complete in itself, so they stand.
+#[derive(Debug)]
+pub struct SettlementFailure {
+    pub error: RunError,
+    pub applied: usize,
+}
+
+const fn promoted_key(row: &PromotionRow) -> Option<&ExternalId> {
+    match &row.outcome {
+        PromotionOutcome::Promoted(
+            Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
+        ) => Some(key),
+        PromotionOutcome::Previewed | PromotionOutcome::NotPromoted { .. } => {
+            None
+        }
+    }
+}
+
+fn landed(rows: &[IdentityRow], promotions: &[PromotionRow]) -> usize {
+    rows.iter()
+        .filter(|row| row.outcome == IdentityOutcome::Applied)
+        .count()
+        + promotions.iter().filter_map(promoted_key).count()
+}
+
 /// Settles every identity change before the engine plans, following the
 /// key changes the run's one remote read revealed.
 ///
@@ -627,18 +655,25 @@ pub fn settle_identities(
     ports: &SyncPorts<'_>,
     settlement: &SettlementPorts<'_>,
     resumed: Vec<IdentityRow>,
-) -> Result<SettlementReport, RunError> {
+) -> Result<SettlementReport, SettlementFailure> {
     let mut rows = resumed;
-    let promotion_keys = keys_held_by_promotions(request, settlement)?;
+    let stopped = |rows: &[IdentityRow], promotions: &[PromotionRow]| {
+        let applied = landed(rows, promotions);
+        move |error| SettlementFailure { error, applied }
+    };
+    let promotion_keys = keys_held_by_promotions(request, settlement)
+        .map_err(stopped(&rows, &[]))?;
     let (plan, not_found, facts) =
-        detect_identity_changes(request, ports, settlement)?;
+        detect_identity_changes(request, ports, settlement)
+            .map_err(stopped(&rows, &[]))?;
     check_ceilings(
         &plan,
         &Ceilings {
             max_pulls: request.max_pulls,
             max_pushes: request.max_pushes,
         },
-    )?;
+    )
+    .map_err(stopped(&rows, &[]))?;
 
     let mut renamed = BTreeMap::new();
     let mut unsettled = BTreeSet::new();
@@ -646,7 +681,8 @@ pub fn settle_identities(
         let outcome = if request.mode == RunMode::Preview {
             IdentityOutcome::NotApplied
         } else {
-            apply_key_change(change, request, ports, settlement)?
+            apply_key_change(change, request, ports, settlement)
+                .map_err(stopped(&rows, &[]))?
         };
         match (&outcome, change) {
             (
@@ -666,28 +702,21 @@ pub fn settle_identities(
 
     let mut promotions = Vec::new();
     for planned in &plan.promotions {
-        promotions.push(if request.mode == RunMode::Preview {
+        let row = if request.mode == RunMode::Preview {
             PromotionRow::previewed(&planned.draft, planned.path.clone())
         } else {
-            promote_draft(planned, ports, settlement)?
-        });
+            promote_draft(planned, ports, settlement)
+                .map_err(stopped(&rows, &promotions))?
+        };
+        promotions.push(row);
     }
 
     let promoted_keys: Vec<ExternalId> = promotions
         .iter()
-        .filter_map(|row| match &row.outcome {
-            PromotionOutcome::Promoted(
-                Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
-            ) => Some(key.clone()),
-            PromotionOutcome::Previewed
-            | PromotionOutcome::NotPromoted { .. } => None,
-        })
+        .filter_map(promoted_key)
+        .cloned()
         .collect();
-    let applied = rows
-        .iter()
-        .filter(|row| row.outcome == IdentityOutcome::Applied)
-        .count()
-        + promoted_keys.len();
+    let applied = landed(&rows, &promotions);
     let view = SettledView::following(
         plan.key_changes
             .iter()

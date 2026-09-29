@@ -1,5 +1,6 @@
 //! The parent/child hierarchy among work items: which items form a parent
-//! cycle, and an order in which every parent precedes its children.
+//! cycle, each parent's children, and an order in which every parent
+//! precedes its children.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -77,17 +78,39 @@ pub fn cyclic_members<'a>(nodes: &[HierarchyNode<'a>]) -> BTreeSet<&'a str> {
         .collect()
 }
 
+/// Each parent's children, as their positions in `nodes`, in the order
+/// given.
+///
+/// Two nodes sharing a key stay two children. A cycle member is never listed
+/// as a child, so every walk down from a parent terminates.
+#[must_use]
+pub fn children_of<'a>(
+    nodes: &[HierarchyNode<'a>],
+) -> BTreeMap<&'a str, Vec<usize>> {
+    let cyclic = cyclic_members(nodes);
+    let mut children: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+    for (position, (key, parent)) in parent_index_in_order(nodes).enumerate() {
+        if let Some(parent) = parent.filter(|_| !cyclic.contains(key)) {
+            children.entry(parent).or_default().push(position);
+        }
+    }
+    children
+}
+
 /// Each node's parent, where that parent is itself a node.
 fn parent_index<'a>(
     nodes: &[HierarchyNode<'a>],
 ) -> BTreeMap<&'a str, Option<&'a str>> {
+    parent_index_in_order(nodes).collect()
+}
+
+fn parent_index_in_order<'a, 'n>(
+    nodes: &'n [HierarchyNode<'a>],
+) -> impl Iterator<Item = (&'a str, Option<&'a str>)> + 'n {
     let keys: BTreeSet<&str> = nodes.iter().map(|node| node.key).collect();
-    nodes
-        .iter()
-        .map(|node| {
-            (node.key, node.parent.filter(|parent| keys.contains(parent)))
-        })
-        .collect()
+    nodes.iter().map(move |node| {
+        (node.key, node.parent.filter(|parent| keys.contains(parent)))
+    })
 }
 
 #[cfg(test)]
@@ -153,6 +176,24 @@ mod tests {
         assert_eq!(
             parents_first(&nodes),
             BatchOrder::ParentsFirst(vec!["epic", "child", "orphan"])
+        );
+    }
+
+    #[test]
+    fn each_parent_lists_its_children_in_the_given_order() {
+        let nodes = [
+            node("story-b", Some("epic")),
+            node("epic", None),
+            node("story-a", Some("epic")),
+            node("orphan", Some("work-item:0042")),
+            node("a", Some("b")),
+            node("b", Some("a")),
+            node("under-the-cycle", Some("a")),
+        ];
+
+        assert_eq!(
+            children_of(&nodes),
+            BTreeMap::from([("epic", vec![0, 2]), ("a", vec![6])])
         );
     }
 }

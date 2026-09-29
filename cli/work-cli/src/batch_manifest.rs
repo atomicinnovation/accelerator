@@ -7,6 +7,8 @@ use std::path::PathBuf;
 
 use serde_json::Map;
 use serde_json::Value;
+use sha2::Digest as _;
+use sha2::Sha256;
 
 use crate::create::CreateArgs;
 
@@ -78,6 +80,30 @@ impl ManifestEntry {
 pub const E_BATCH_MANIFEST: &str = "E_BATCH_MANIFEST";
 
 const DEFAULT_STATUS: &str = "draft";
+
+/// What identifies a batch across regenerations of its manifest: its
+/// entries' refs and titles, whatever their order, bodies or other fields.
+#[must_use]
+pub fn fingerprint(entries: &[ManifestEntry]) -> String {
+    use std::fmt::Write as _;
+
+    let named: BTreeSet<(&str, &str)> = entries
+        .iter()
+        .map(|entry| (entry.reference.as_str(), entry.title.as_str()))
+        .collect();
+    let mut hasher = Sha256::new();
+    for (reference, title) in named {
+        hasher.update(reference.as_bytes());
+        hasher.update([0]);
+        hasher.update(title.as_bytes());
+        hasher.update([0]);
+    }
+    let mut hex = String::new();
+    for byte in hasher.finalize() {
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
+}
 
 /// Reads the manifest at `path`. A relative `body_file` is resolved against
 /// the manifest's own directory.

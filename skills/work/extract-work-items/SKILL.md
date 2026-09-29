@@ -637,11 +637,13 @@ before completing.
    | `pending` | `draft — already pending as <draft>; run work sync` |
 
    `<holder>` and `<recovery-dir>` come from the item's detail lines, and
-   `<draft>` is the item line's path. An empty path appears only on
-   `created-unwritten` under a legacy pattern; render the File cell as
-   `—`. After the table, relay each `Error: <ref>: …` line from stderr
-   under its item, with the recovery for its outcome. A draft's ID is the
-   `draft-` prefix of its filename.
+   `<draft>` is the item line's path. The path is empty when no local file
+   carries the item: a `created-unwritten` item, and a `pending` item whose
+   earlier create an older binary recorded without a draft. Render the File
+   cell as `—`, and a `pending` item's Outcome as `draft — already pending;
+   run work sync`. After the table, relay each `Error: <ref>: …` line from
+   stderr under its item, with the recovery for its outcome. A draft's ID
+   is the `draft-` prefix of its filename.
 
    | Keyword | Recovery |
    |---|---|
@@ -651,10 +653,11 @@ before completing.
    | `created-unwritten` | none; the next `/sync-work-items` links the issue |
    | `created-blocked` | resolve the collision stderr describes, then `accelerator work promote <draft-id>` |
    | `retirement-incomplete` | restore the paths the detail lines name, then `/sync-work-items` |
-   | `pending` | `accelerator work promote <draft-id>` or `/sync-work-items` |
+   | `pending` | `accelerator work promote <draft-id>` or `/sync-work-items`; with an empty path, `/sync-work-items` |
 
-   Never re-run `create-batch` to recover an item: every item it reported
-   already has a draft or an issue, so a rerun changes nothing for it.
+   Never re-run `create-batch` to recover an item. With `--push`, every
+   item it reported already has a draft or an issue, so a rerun changes
+   nothing for it; without `--push`, a rerun writes every item again.
 
 7. **Branch on the exit code.** 0, 4, 70, 71, 74 and 75 all mean the batch
    ran; the table above is the report. 2 means the manifest was refused

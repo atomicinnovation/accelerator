@@ -509,6 +509,27 @@ fn a_local_save_leaves_the_draft_unchanged_with_no_marker() {
 }
 
 #[test]
+fn an_unknown_create_outcome_stays_unknown_when_its_failure_cannot_be_noted() {
+    let repo = Repo::new().unwrap();
+    let tracker = fresh_tracker().failing_create(TrackerError::Terminal {
+        detail: "response lost".to_owned(),
+    });
+    let attempted_is_noted_again = 1;
+    let mut store = Store::new(repo.root());
+    store.fail_at = vec![attempted_is_noted_again];
+
+    assert_eq!(
+        promote_with(&repo, &tracker, &store),
+        Err(NotPromoted::CreateOutcomeUnknown)
+    );
+
+    let StoredRecord::Present(record) = repo.stored() else {
+        panic!("the attempted record written before sending stands");
+    };
+    assert_eq!(record.stage, PromotionStage::Attempted);
+}
+
+#[test]
 fn a_tracker_error_leaves_the_draft_unchanged_with_an_attempted_marker() {
     let repo = Repo::new().unwrap();
     let tracker = fresh_tracker().failing_create(TrackerError::Terminal {

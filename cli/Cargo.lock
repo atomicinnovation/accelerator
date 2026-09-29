@@ -206,6 +206,7 @@ dependencies = [
  "kernel",
  "linear-client",
  "serde_json",
+ "sha2",
  "store",
  "tempfile",
  "tracing",

@@ -659,6 +659,25 @@ fn a_moved_issue_updates_external_id_under_a_local_pattern() {
 }
 
 #[test]
+fn following_an_external_id_holds_the_retirement_lock() {
+    let repo = Repo::new();
+    repo.item("0230-add-search.md", "0230", Some("PP-760"));
+    let log = Log::default();
+
+    sync(
+        &repo,
+        &moved("PP-760", "ENG-42"),
+        Options {
+            ownership: IdOwnership::Local,
+            log: Some(Rc::clone(&log)),
+            ..Options::default()
+        },
+    );
+
+    assert!(log.borrow().contains(&"lock"), "{:?}", log.borrow());
+}
+
+#[test]
 fn a_moved_issue_of_a_legacy_item_keeps_its_id_under_tracker_ownership() {
     let repo = Repo::new();
     repo.item("0230-add-search.md", "0230", Some("PP-760"));
@@ -1278,6 +1297,38 @@ fn a_key_change_whose_retirement_rolled_back_is_not_imported_as_untracked() {
 }
 
 #[test]
+fn a_pass_stopped_mid_way_counts_the_changes_that_landed_before_it() {
+    let repo = Repo::new();
+    repo.item("PP-760-add-search.md", "PP-760", Some("PP-760"));
+    repo.item("PP-761-add-filters.md", "PP-761", Some("PP-761"));
+    let tracker =
+        RecordingTracker::holding(vec![held("PP-760"), held("PP-761")])
+            .moving(&key("PP-760"), &key("ENG-42"))
+            .moving(&key("PP-761"), &key("ENG-43"));
+
+    let second_retirement_removes_its_old_file = 3;
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            fail_at: Some(second_retirement_removes_its_old_file),
+            keep_failing: true,
+            ..Options::default()
+        },
+    );
+
+    assert!(repo.read("meta/work/ENG-42-add-search.md").is_some());
+    let failure = outcome.result.as_ref().err().expect("the pass stops");
+    assert!(
+        matches!(failure.error, RunError::RetirementIncomplete { .. }),
+        "{:?}",
+        failure.error
+    );
+    assert_eq!(failure.identity_applied, 1);
+}
+
+#[test]
 fn retirement_incomplete_stops_the_pass_and_the_engine() {
     let repo = Repo::new();
     moved_tracker_owned_item(&repo);
@@ -1415,6 +1466,7 @@ fn an_engine_refusal_after_applied_key_changes_notes_them() {
     );
 
     let failure = outcome.result.as_ref().err().expect("the engine refuses");
+    eprintln!("ERR {:?}", failure.error);
     assert_eq!(failure.identity_applied, 1);
     assert!(repo.read("meta/work/ENG-42-add-search.md").is_some());
 }

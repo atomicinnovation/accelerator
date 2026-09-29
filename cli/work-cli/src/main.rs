@@ -131,6 +131,10 @@ fn run_resolve(input: &str) -> ExitCode {
             eprintln!("E_RESOLVE_OUTSIDE_WORKDIR: {message}");
             ExitCode::from(exit_codes::RESOLVE_OUTSIDE_WORKDIR)
         }
+        Ok(RunOutcome::Unlistable(message)) => {
+            eprintln!("E_RESOLVE_UNLISTABLE: {message}");
+            ExitCode::FAILURE
+        }
         Err(error) => {
             eprintln!("{error}");
             ExitCode::FAILURE
