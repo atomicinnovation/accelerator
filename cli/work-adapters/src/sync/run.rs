@@ -26,6 +26,7 @@ use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
 
+use crate::create_request_fields;
 use crate::promotion::PromotionRow;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
@@ -366,11 +367,11 @@ const fn definitively_reconciled(item: &ReportedItem) -> bool {
 }
 
 fn local_title_and_body(content: &str) -> (String, String) {
-    let (frontmatter, body) =
-        crate::sync::digest::split_frontmatter_and_body(content)
-            .unwrap_or_default();
-    let title =
-        work::show::read_field_raw(&frontmatter, "title").unwrap_or_default();
+    let (_, body) = crate::sync::digest::split_frontmatter_and_body(content)
+        .unwrap_or_default();
+    let title = create_request_fields::read(content)
+        .map(|fields| fields.title)
+        .unwrap_or_default();
     (title, body)
 }
 
@@ -680,13 +681,10 @@ fn unsynced_creates<'a>(
 /// own frontmatter and body. `None` when the file is unreadable or malformed.
 fn create_inputs(path: &Path) -> Option<(String, String, String)> {
     let content = std::fs::read_to_string(path).ok()?;
-    let (frontmatter, body) =
+    let (_, body) =
         crate::sync::digest::split_frontmatter_and_body(&content).ok()?;
-    let title =
-        work::show::read_field_raw(&frontmatter, "title").unwrap_or_default();
-    let kind =
-        work::show::read_field_raw(&frontmatter, "kind").unwrap_or_default();
-    Some((title, body, kind))
+    let fields = create_request_fields::read(&content).ok()?;
+    Some((fields.title, body, fields.kind))
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action

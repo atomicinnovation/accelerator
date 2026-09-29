@@ -1728,6 +1728,43 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
 }
 
 #[test]
+fn a_created_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", r#"Say \"hi\" to C:\\temp"#)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    run_sync(
+        &ports,
+        std::slice::from_ref(&item),
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        SearchScope::default(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "one create-from-local must proceed")?;
+
+    let created: Vec<String> = tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            Call::Create { title, .. } => Some(title),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(created, [r#"Say "hi" to C:\temp"#]);
+    Ok(())
+}
+
+#[test]
 fn unpromoted_drafts_are_never_created_from_local() -> Result<(), TestError> {
     let fixture = Fixture::new()?;
     let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
@@ -1834,10 +1871,12 @@ fn a_seeded_created_marker_reuses_the_id_without_a_second_create(
     // derives (title, body, kind) from the draft's own frontmatter and split
     // body, so the digest must be computed from exactly that.
     let content = std::fs::read_to_string(&item.path)?;
-    let (frontmatter, body) =
+    let (_, body) =
         work_adapters::sync::digest::split_frontmatter_and_body(&content)?;
-    let title = work::show::read_field_raw(&frontmatter, "title").unwrap();
-    let kind = work::show::read_field_raw(&frontmatter, "kind").unwrap();
+    let work_adapters::create_request_fields::CreateRequestFields {
+        title,
+        kind,
+    } = work_adapters::create_request_fields::read(&content)?;
     let digest =
         work_adapters::sync::pending_push::request_digest(&title, &body, &kind);
     let marker = work::sync::PendingPush::Created {
@@ -1961,10 +2000,12 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
     };
 
     let content = std::fs::read_to_string(&draft.path)?;
-    let (frontmatter, body) =
+    let (_, body) =
         work_adapters::sync::digest::split_frontmatter_and_body(&content)?;
-    let title = work::show::read_field_raw(&frontmatter, "title").unwrap();
-    let kind = work::show::read_field_raw(&frontmatter, "kind").unwrap();
+    let work_adapters::create_request_fields::CreateRequestFields {
+        title,
+        kind,
+    } = work_adapters::create_request_fields::read(&content)?;
     let digest =
         work_adapters::sync::pending_push::request_digest(&title, &body, &kind);
     let marker = work::sync::PendingPush::Created {
