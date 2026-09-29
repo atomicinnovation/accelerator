@@ -5733,6 +5733,7 @@ dependencies = [
  "config",
  "corpus",
  "corpus-adapters",
+ "document",
  "graphql-test-support",
  "hex",
  "http-test-support",

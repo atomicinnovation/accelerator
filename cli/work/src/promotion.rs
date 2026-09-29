@@ -294,7 +294,9 @@ pub fn next_step(
             PromotionStep::CreateIssue
         }
         (PromotionMode::Standard, None) => standard_start(record),
-        (PromotionMode::Adopt(named), Some((key, _))) if key != named => {
+        (PromotionMode::Adopt(named), Some((key, _)))
+            if !key.as_str().eq_ignore_ascii_case(named.as_str()) =>
+        {
             PromotionStep::Stop(NotPromoted::AdoptConflictsWithRecordedKey {
                 recorded: key.clone(),
             })
@@ -598,6 +600,21 @@ mod tests {
                 "{held:?}"
             );
         }
+    }
+
+    #[test]
+    fn adopting_the_recorded_key_in_another_case_resumes_onto_it() {
+        let held = record(PromotionStage::RemoteRetitled {
+            key: key(),
+            read_back: read_back("h"),
+        });
+        let adopt_lowercase =
+            PromotionMode::Adopt(ExternalId::new("pp-900".to_owned()));
+
+        assert_eq!(
+            next_step(RecordState::Present(&held), &adopt_lowercase),
+            PromotionStep::Retire(key())
+        );
     }
 
     #[test]

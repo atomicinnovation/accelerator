@@ -1,6 +1,8 @@
 //! A whole sync run: pre-flight, the identity pass, rediscovery, then the
 //! engine over the settled corpus.
 
+use std::collections::BTreeMap;
+
 use tracker::Ceiling;
 
 use crate::sync::baseline_store::BaselineStore;
@@ -8,7 +10,9 @@ use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::identity_settlement::plannable;
+use crate::sync::identity_settlement::resume_interrupted;
 use crate::sync::identity_settlement::settle_identities;
+use crate::sync::identity_settlement::IdentityOutcome;
 use crate::sync::identity_settlement::SettlementPorts;
 use crate::sync::identity_settlement::SettlementReport;
 use crate::sync::run::preflight;
@@ -48,18 +52,17 @@ const fn remaining(ceiling: Ceiling, used: usize) -> Ceiling {
     }
 }
 
-/// The re-discovered items the run still targets: those it targeted at the
-/// start, under whatever id the identity pass gave them.
+/// The re-discovered items the run still targets: those it targeted before,
+/// under whatever id `renamed` gave them.
 fn retargeted<'a>(
     targets: &[LocalItem],
     rediscovered: &'a [LocalItem],
-    settled: &SettlementReport,
+    renamed: &BTreeMap<String, String>,
 ) -> Vec<&'a LocalItem> {
     let ids: Vec<&str> = targets
         .iter()
         .map(|target| {
-            settled
-                .renamed
+            renamed
                 .get(&target.id)
                 .map_or(target.id.as_str(), String::as_str)
         })
@@ -68,6 +71,28 @@ fn retargeted<'a>(
         .iter()
         .filter(|item| ids.contains(&item.id.as_str()))
         .collect()
+}
+
+/// `request` over `corpus`, reconciling `selection`.
+fn rescoped<'a>(
+    request: &SyncRequest<'a>,
+    corpus: &'a [LocalItem],
+    selection: ItemSelection<'a>,
+) -> SyncRequest<'a> {
+    SyncRequest {
+        corpus,
+        selection,
+        direction: request.direction,
+        strategy: request.strategy,
+        resolutions: request.resolutions,
+        max_pulls: request.max_pulls,
+        max_pushes: request.max_pushes,
+        mode: request.mode,
+        integrations_root: request.integrations_root,
+        integration: request.integration,
+        scope: request.scope.clone(),
+        promote: request.promote,
+    }
 }
 
 /// The pass's facts for the items the engine will plan, with dirtiness
@@ -111,14 +136,55 @@ pub fn run_settled<'a>(
         }
     };
     preflight(ports, request).map_err(failed(0))?;
-    let settled =
-        settle_identities(request, ports, settlement).map_err(failed(0))?;
+    let resumed =
+        resume_interrupted(request.mode, settlement).map_err(failed(0))?;
+    let resumed_renames: BTreeMap<String, String> = resumed
+        .iter()
+        .filter(|row| row.outcome == IdentityOutcome::Applied)
+        .map(|row| (row.id.clone(), row.settled_id.clone()))
+        .collect();
+    let resumed_corpus = if resumed_renames.is_empty() {
+        None
+    } else {
+        Some(
+            discovery
+                .discover()
+                .map_err(failed(resumed_renames.len()))?,
+        )
+    };
+    let resumed_targets: Vec<LocalItem> =
+        match (&resumed_corpus, &request.selection) {
+            (Some(current), ItemSelection::Targeted { items, .. }) => {
+                retargeted(items, &current.items, &resumed_renames)
+                    .into_iter()
+                    .cloned()
+                    .collect()
+            }
+            _ => Vec::new(),
+        };
+    let resumed_request = resumed_corpus.as_ref().map(|current| {
+        let selection = match &request.selection {
+            ItemSelection::Targeted { pull_ids, .. } => {
+                ItemSelection::Targeted {
+                    items: &resumed_targets,
+                    pull_ids,
+                }
+            }
+            ItemSelection::All | ItemSelection::Settled { .. } => {
+                ItemSelection::All
+            }
+        };
+        rescoped(request, &current.items, selection)
+    });
+    let request = resumed_request.as_ref().unwrap_or(request);
+    let settled = settle_identities(request, ports, settlement, resumed)
+        .map_err(failed(resumed_renames.len()))?;
     let applied = settled.applied;
     let rediscovered = discovery.discover().map_err(failed(applied))?;
 
     let (planned, deferred) = match &request.selection {
         ItemSelection::Targeted { items, .. } => plannable(
-            retargeted(items, &rediscovered.items, &settled),
+            retargeted(items, &rediscovered.items, &settled.renamed),
             &settled,
         ),
         ItemSelection::All | ItemSelection::Settled { .. } => {
@@ -135,18 +201,9 @@ pub fn run_settled<'a>(
         }
     };
     let engine_request = SyncRequest {
-        corpus: &rediscovered.items,
-        selection,
-        direction: request.direction,
-        strategy: request.strategy,
-        resolutions: request.resolutions,
         max_pulls: remaining(request.max_pulls, settled.pulls_used),
         max_pushes: remaining(request.max_pushes, settled.pushes_used),
-        mode: request.mode,
-        integrations_root: request.integrations_root,
-        integration: request.integration,
-        scope: request.scope.clone(),
-        promote: request.promote,
+        ..rescoped(request, &rediscovered.items, selection)
     };
     let SettlementReport {
         rows,

@@ -37,6 +37,7 @@ use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
 use work::sync::RequestFingerprint;
 
+use crate::create_request_fields;
 use crate::promotion_records::PromotionRecords;
 use crate::promotion_records::StoredRecord;
 use crate::remote_create::send_create;
@@ -321,14 +322,14 @@ fn read_draft(
         .read(&item.path)
         .map_err(|error| unreadable(error.to_string()))?
         .ok_or_else(|| unreadable("the draft has gone".to_owned()))?;
-    let (frontmatter, body) = digest::split_frontmatter_and_body(&content)
+    let (_, body) = digest::split_frontmatter_and_body(&content)
         .map_err(|error| unreadable(error.to_string()))?;
-    let field =
-        |key| work::show::read_field_raw(&frontmatter, key).unwrap_or_default();
+    let fields = create_request_fields::read(&content)
+        .map_err(|error| unreadable(error.to_string()))?;
     Ok(DraftContent {
         path: item.path.clone(),
-        title: field("title"),
-        kind: field("kind"),
+        title: fields.title,
+        kind: fields.kind,
         body,
         content,
     })

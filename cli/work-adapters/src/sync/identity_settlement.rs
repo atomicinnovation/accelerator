@@ -589,9 +589,28 @@ fn rekeyed(
     facts
 }
 
-/// Settles every identity change before the engine plans: finishes
-/// interrupted retirements, then follows the key changes the run's one
-/// remote read revealed.
+/// Finishes every retirement and every retiring promotion an earlier run
+/// left interrupted, before a sync reads the remote. Under preview nothing
+/// is finished.
+///
+/// # Errors
+///
+/// [`RunError::RetirementIncomplete`] when a retirement could not restore
+/// the corpus, and [`RunError::Internal`] when the records cannot be read.
+pub fn resume_interrupted(
+    mode: RunMode,
+    settlement: &SettlementPorts<'_>,
+) -> Result<Vec<IdentityRow>, RunError> {
+    let mut rows = reconcile(mode, settlement)?;
+    rows.extend(reconcile_promotions(mode, settlement)?);
+    Ok(rows)
+}
+
+/// Settles every identity change before the engine plans, following the
+/// key changes the run's one remote read revealed.
+///
+/// `resumed` are the rows [`resume_interrupted`] reported; `request` must
+/// describe the corpus as that resumption left it.
 ///
 /// Every change is decided, and every ceiling checked, before any is
 /// applied. Under preview nothing is applied.
@@ -607,9 +626,9 @@ pub fn settle_identities(
     request: &SyncRequest<'_>,
     ports: &SyncPorts<'_>,
     settlement: &SettlementPorts<'_>,
+    resumed: Vec<IdentityRow>,
 ) -> Result<SettlementReport, RunError> {
-    let mut rows = reconcile(request.mode, settlement)?;
-    rows.extend(reconcile_promotions(request.mode, settlement)?);
+    let mut rows = resumed;
     let promotion_keys = keys_held_by_promotions(request, settlement)?;
     let (plan, not_found, facts) =
         detect_identity_changes(request, ports, settlement)?;

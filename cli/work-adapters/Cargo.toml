@@ -24,6 +24,7 @@ work = { path = "../work" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
+document = { path = "../document" }
 vcs = { path = "../vcs" }
 similar = { workspace = true }
 sha2 = { workspace = true }

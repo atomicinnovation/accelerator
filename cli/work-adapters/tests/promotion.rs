@@ -17,6 +17,9 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
 use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
+use document::Mapping;
+use document::Scalar;
+use document::Yaml;
 use store::lock::LockOptions;
 use tracker::ExternalId;
 use tracker::RemoteIssue;
@@ -418,6 +421,35 @@ fn promotion_creates_the_issue_moves_the_file_and_rewrites_meta() {
     assert_eq!(repo.read(PLAN).unwrap(), "See REC-1.\n");
     let target = repo.read(TARGET).unwrap();
     assert!(!target.contains("see draft-k7mq3x."), "{target}");
+}
+
+#[test]
+fn a_title_the_frontmatter_escapes_reaches_the_tracker_as_written() {
+    let repo = Repo::new().unwrap();
+    let title = r#"Say "hi" to C:\temp"#;
+    let mut frontmatter = Mapping::new();
+    for (field, value) in
+        [("id", DRAFT_ID), ("title", title), ("kind", "story")]
+    {
+        frontmatter
+            .push(field.to_owned(), Yaml::Scalar(Scalar::String(value.into())));
+    }
+    let draft = document::render(None, &Yaml::Mapping(frontmatter)).unwrap()
+        + "\n# draft-k7mq3x: Say hi\n";
+    repo.write(DRAFT, &draft).unwrap();
+    let tracker = fresh_tracker();
+
+    promoted(&repo, &tracker).unwrap();
+
+    let sent: Vec<String> = tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            Call::Create { title, .. } => Some(title),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(sent, [title]);
 }
 
 #[test]
