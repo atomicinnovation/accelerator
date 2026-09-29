@@ -29,6 +29,7 @@ work = { path = "../work" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
+document = { path = "../document" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 similar = { workspace = true }

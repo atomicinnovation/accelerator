@@ -1010,6 +1010,43 @@ fn a_key_change_retirement_killed_after_writing_to_resumes() {
 }
 
 #[test]
+fn a_resumed_key_change_is_not_followed_again_from_the_pre_resumption_corpus() {
+    let repo = Repo::new();
+    interrupted_after_writing_to(&repo);
+    let tracker = RecordingTracker::holding(vec![held("PP-760")])
+        .moving(&key("PP-760"), &key("ENG-42"));
+
+    let outcome = sync(&repo, &tracker, Options::default());
+
+    let identity = &outcome.report().identity;
+    assert_eq!(identity.len(), 1, "{identity:?}");
+    assert_eq!(identity[0].action, IdentityAction::Resumed);
+    assert_eq!(identity[0].outcome, IdentityOutcome::Applied);
+    assert!(outcome.engine_state("ENG-42").is_some());
+}
+
+#[test]
+fn a_targeted_run_follows_its_target_through_a_resumed_retirement() {
+    let repo = Repo::new();
+    interrupted_after_writing_to(&repo);
+    let tracker = RecordingTracker::holding(vec![held("PP-760")])
+        .moving(&key("PP-760"), &key("ENG-42"));
+
+    let outcome = sync(
+        &repo,
+        &tracker,
+        Options {
+            targets: Some(vec!["PP-760"]),
+            ..Options::default()
+        },
+    );
+
+    let identity = &outcome.report().identity;
+    assert_eq!(identity.len(), 1, "{identity:?}");
+    assert!(outcome.engine_state("ENG-42").is_some());
+}
+
+#[test]
 fn a_retirement_killed_after_removing_from_is_reconciled_on_the_next_sync() {
     let repo = Repo::new();
     interrupted_after_writing_to(&repo);

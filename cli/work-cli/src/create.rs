@@ -62,6 +62,7 @@ use work::sync::RequestFingerprint;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
+use work_adapters::create_request_fields;
 use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
@@ -956,13 +957,12 @@ impl PendingCreate {
 /// The draft's own content digest: the same content digests alike
 /// whatever draft ID each copy was given.
 fn draft_content_digest(content: &str, id: &str) -> Option<String> {
-    let (frontmatter, body) =
-        digest::split_frontmatter_and_body(content).ok()?;
-    let field = |key| work::show::read_field_raw(&frontmatter, key);
+    let (_, body) = digest::split_frontmatter_and_body(content).ok()?;
+    let fields = create_request_fields::read(content).ok()?;
     Some(pending_push::content_digest(
-        &field("title")?,
+        &fields.title,
         &body,
-        &field("kind").unwrap_or_default(),
+        &fields.kind,
         id,
     ))
 }
@@ -2155,6 +2155,22 @@ mod tests {
         repo.run_args(&PushingRepo::args(false), &tracker, None);
 
         let message = pending(repo.push_through(&tracker, None));
+
+        assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_rerun_whose_title_the_frontmatter_escapes_is_e_draft_exists() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let quoted = |push| CreateArgs {
+            title: r#"Say "hi" to C:\temp"#.to_owned(),
+            ..PushingRepo::args(push)
+        };
+        repo.run_args(&quoted(false), &tracker, None);
+
+        let message = pending(repo.run_args(&quoted(true), &tracker, None));
 
         assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
         assert_eq!(creates(&tracker), 0);
