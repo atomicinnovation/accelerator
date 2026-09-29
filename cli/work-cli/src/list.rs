@@ -30,6 +30,7 @@ use work::sync::SyncState;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::frontmatter_strings::FrontmatterStrings;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::digest::split_frontmatter_and_body;
 use work_adapters::sync::digest::LazyItemDigests;
@@ -80,13 +81,26 @@ fn is_fence(line: &str) -> bool {
     line.starts_with("---") && line[3..].chars().all(char::is_whitespace)
 }
 
-fn scanned_item(identity: ItemIdentity, frontmatter: &str) -> ScannedItem {
+/// `content`'s title as written, or as it reads raw when the frontmatter is
+/// not valid YAML, so `work list` still shows a malformed item's title.
+fn title_of(content: &str, frontmatter: &str) -> Option<String> {
+    FrontmatterStrings::parse(content).map_or_else(
+        |_| read_field_raw(frontmatter, "title"),
+        |parsed| parsed.get("title").map(str::to_owned),
+    )
+}
+
+fn scanned_item(
+    identity: ItemIdentity,
+    frontmatter: &str,
+    content: &str,
+) -> ScannedItem {
     let tags = read_field_raw(frontmatter, "tags")
         .map(|raw| work::tags::parse_current_tags(&raw))
         .unwrap_or_default();
     ScannedItem {
         id: identity.id,
-        title: read_field_raw(frontmatter, "title"),
+        title: title_of(content, frontmatter),
         kind: read_field_raw(frontmatter, "kind"),
         status: read_field_raw(frontmatter, "status"),
         priority: read_field_raw(frontmatter, "priority"),
@@ -125,7 +139,11 @@ pub fn scan(work_dir: &Path) -> Result<Scan, kernel::Error> {
             }
             Frontmatter::Found(frontmatter) => {
                 if let Some(identity) = identity_of(&file) {
-                    items.push(scanned_item(identity, &frontmatter));
+                    items.push(scanned_item(
+                        identity,
+                        &frontmatter,
+                        &file.content,
+                    ));
                 }
             }
         }
@@ -874,6 +892,38 @@ mod tests {
             Some("ENG-9")
         );
         assert!(scan.items[1].external_id.is_none());
+    }
+
+    #[test]
+    fn scan_reads_a_title_the_frontmatter_escapes_as_written() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("0001.md"),
+            "---\nid: \"0001\"\ntitle: \"Say \\\"hi\\\" to C:\\\\temp\"\n\
+             ---\nbody\n",
+        )
+        .unwrap();
+
+        let scan = scan(dir.path()).expect("scan");
+
+        assert_eq!(
+            scan.items[0].title.as_deref(),
+            Some(r#"Say "hi" to C:\temp"#)
+        );
+    }
+
+    #[test]
+    fn scan_still_titles_an_item_whose_frontmatter_is_not_valid_yaml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("0001.md"),
+            "---\nid: \"0001\"\ntitle: \"Unterminated\n---\nbody\n",
+        )
+        .unwrap();
+
+        let scan = scan(dir.path()).expect("scan");
+
+        assert_eq!(scan.items[0].title.as_deref(), Some("Unterminated"));
     }
 
     #[test]

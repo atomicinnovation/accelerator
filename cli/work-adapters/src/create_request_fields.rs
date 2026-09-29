@@ -2,8 +2,8 @@
 //! as YAML so a title the renderer escaped reaches the tracker as written.
 
 use document::DocumentError;
-use document::Scalar;
-use document::Yaml;
+
+use crate::frontmatter_strings::FrontmatterStrings;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateRequestFields {
@@ -17,14 +17,8 @@ pub struct CreateRequestFields {
 ///
 /// [`DocumentError`] when the frontmatter is unterminated or not valid YAML.
 pub fn read(content: &str) -> Result<CreateRequestFields, DocumentError> {
-    let frontmatter = document::parse(content)?;
-    let field = |key| match &frontmatter {
-        Yaml::Mapping(mapping) => match mapping.get(key) {
-            Some(Yaml::Scalar(Scalar::String(value))) => value.clone(),
-            _ => String::new(),
-        },
-        Yaml::Scalar(_) | Yaml::Sequence(_) => String::new(),
-    };
+    let frontmatter = FrontmatterStrings::parse(content)?;
+    let field = |key| frontmatter.get(key).unwrap_or_default().to_owned();
     Ok(CreateRequestFields {
         title: field("title"),
         kind: field("kind"),

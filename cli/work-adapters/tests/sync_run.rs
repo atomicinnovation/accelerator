@@ -1399,6 +1399,32 @@ fn preview_lists_every_action_and_validates_push_entries_only(
 }
 
 #[test]
+fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
+) -> Result<(), TestError> {
+    let scenario = scenario(0, 1)?;
+    std::fs::write(
+        &scenario.items[0].path,
+        "---\ntitle: \"Say \\\"hi\\\" to C:\\\\temp\"\n\
+         external_id: \"ENG-100\"\n---\n\nBody text\n",
+    )?;
+
+    execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "the push must proceed within the bounds")?;
+
+    let pushed: Vec<String> = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            tracker_test_support::Call::Update { title, .. } => Some(title),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(pushed, [r#"Say "hi" to C:\temp"#]);
+    Ok(())
+}
+
+#[test]
 fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
 ) -> Result<(), TestError> {
     // The pushable fixture's frontmatter carries no `title`, so the composed
