@@ -10,7 +10,7 @@ result: "partial"
 parent: "work-item:0230"
 target: "plan:2026-09-26-0230-tracker-owned-work-item-id-generation"
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
-last_updated: "2026-09-29T10:56:29+00:00"
+last_updated: "2026-09-29T15:44:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -47,10 +47,10 @@ tests.
 
 ### Automated Verification Results
 
-✓ `mise run` (the full default task) exits 0 with the P1–P3 fixes applied.
-That covers 4,032 CLI unit tests (1 skipped, 1 reported leaky) plus every
-integration, e2e, docs and tasks lane. Before the fixes it also exited 0 on
-`6b815050`, over 4,025 CLI unit tests.
+✓ `mise run` (the full default task) exits 0 with the P1–P3 fixes and the
+remaining P2 sites fixed. It covers 4,036 CLI unit tests (1 skipped) plus
+every integration, e2e, docs and tasks lane. Before the fixes it also
+exited 0 on `6b815050`, over 4,025 CLI unit tests.
 ✓ Every per-phase `cargo test`, `public-api:check`, `pup:check`,
 `test:integration:conformance` and `test:integration:skill-invocation`
 command is covered by the full run.
@@ -153,10 +153,17 @@ agents and are plausible, but I have not reproduced them.
    parse, through `work_adapters::create_request_fields::read`.
    `a_title_the_frontmatter_escapes_reaches_the_tracker_as_written` and
    `a_rerun_whose_title_the_frontmatter_escapes_is_e_draft_exists` cover
-   it. Still open elsewhere: sync's create-from-local
-   (`cli/work-adapters/src/sync/run.rs:373`, `:686`) and `work list`
-   (`cli/work-cli/src/list.rs:89`) still read `title` through
-   `read_field_raw`.
+   it. Sync's create-from-local and push paths
+   (`cli/work-adapters/src/sync/run.rs`) and `work list`
+   (`cli/work-cli/src/list.rs`) had the same defect, and now read `title`
+   as YAML too, through
+   `work_adapters::frontmatter_strings::FrontmatterStrings`. Three tests
+   cover them:
+   `a_created_title_the_frontmatter_escapes_reaches_the_tracker_as_written`,
+   `a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written`
+   and `scan_reads_a_title_the_frontmatter_escapes_as_written`. If a file's
+   frontmatter is not valid YAML, `work list` still shows its raw title,
+   while sync treats the file as malformed.
 3. **P3: `--adopt` compares keys case-sensitively** (confirmed).
    `key != named` on `ExternalId` is an exact string comparison
    (`cli/work/src/promotion.rs:297`). `--adopt pp-900` against a recorded
@@ -232,8 +239,6 @@ agents and are plausible, but I have not reproduced them.
 
 ### Recommendations:
 
-- Move sync's create-from-local and `work list` onto the YAML title
-  reader too, the remaining sites of P2's defect.
 - Correct the empty-path sentence in `extract-work-items/SKILL.md` (P4),
   and scope the journal's title fallback to one manifest (P5).
 - Write the three missing Phase 6 tests, or record in the plan why the
