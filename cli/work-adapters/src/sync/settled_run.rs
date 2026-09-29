@@ -5,14 +5,17 @@ use std::collections::BTreeMap;
 
 use tracker::Ceiling;
 
+use crate::promotion::PromotionRow;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::identity_settlement::landed;
 use crate::sync::identity_settlement::plannable;
 use crate::sync::identity_settlement::resume_interrupted;
 use crate::sync::identity_settlement::settle_identities;
 use crate::sync::identity_settlement::IdentityOutcome;
+use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::identity_settlement::SettlementPorts;
 use crate::sync::identity_settlement::SettlementReport;
 use crate::sync::run::preflight;
@@ -37,12 +40,31 @@ pub trait CorpusDiscovery {
     fn discover(&self) -> Result<DiscoveredCorpus, RunError>;
 }
 
-/// A run that failed, and how many identity changes had already landed:
-/// each is complete in itself, so they stand.
+/// A run that failed, and the identity changes the pass reported before it:
+/// each that landed is complete in itself, so it stands.
 #[derive(Debug)]
 pub struct SettledRunFailure {
     pub error: RunError,
     pub identity_applied: usize,
+    pub identity: Vec<IdentityRow>,
+    pub promotions: Vec<PromotionRow>,
+}
+
+impl SettledRunFailure {
+    fn after(
+        identity: &[IdentityRow],
+        promotions: &[PromotionRow],
+    ) -> impl FnOnce(RunError) -> Self {
+        let identity_applied = landed(identity, promotions);
+        let identity = identity.to_vec();
+        let promotions = promotions.to_vec();
+        move |error| Self {
+            error,
+            identity_applied,
+            identity,
+            promotions,
+        }
+    }
 }
 
 const fn remaining(ceiling: Ceiling, used: usize) -> Ceiling {
@@ -129,15 +151,9 @@ pub fn run_settled<'a>(
     baseline: &mut BaselineStore<'a>,
     discovery: &dyn CorpusDiscovery,
 ) -> Result<RunReport, SettledRunFailure> {
-    let failed = |applied| {
-        move |error| SettledRunFailure {
-            error,
-            identity_applied: applied,
-        }
-    };
-    preflight(ports, request).map_err(failed(0))?;
-    let resumed =
-        resume_interrupted(request.mode, settlement).map_err(failed(0))?;
+    preflight(ports, request).map_err(SettledRunFailure::after(&[], &[]))?;
+    let resumed = resume_interrupted(request.mode, settlement)
+        .map_err(SettledRunFailure::after(&[], &[]))?;
     let resumed_renames: BTreeMap<String, String> = resumed
         .iter()
         .filter(|row| row.outcome == IdentityOutcome::Applied)
@@ -149,7 +165,7 @@ pub fn run_settled<'a>(
         Some(
             discovery
                 .discover()
-                .map_err(failed(resumed_renames.len()))?,
+                .map_err(SettledRunFailure::after(&resumed, &[]))?,
         )
     };
     let resumed_targets: Vec<LocalItem> =
@@ -181,9 +197,12 @@ pub fn run_settled<'a>(
         .map_err(|stopped| SettledRunFailure {
             error: stopped.error,
             identity_applied: stopped.applied,
+            identity: stopped.rows,
+            promotions: stopped.promotions,
         })?;
-    let applied = settled.applied;
-    let rediscovered = discovery.discover().map_err(failed(applied))?;
+    let rediscovered = discovery.discover().map_err(
+        SettledRunFailure::after(&settled.rows, &settled.promotions),
+    )?;
 
     let (planned, deferred) = match &request.selection {
         ItemSelection::Targeted { items, .. } => plannable(
@@ -217,7 +236,7 @@ pub fn run_settled<'a>(
     } = settled;
     let facts = refreshed(facts, &planned, rediscovered.status.as_ref());
     let mut report = run_with(ports, baseline, &engine_request, facts, &view)
-        .map_err(failed(applied))?;
+        .map_err(SettledRunFailure::after(&rows, &promotions))?;
     report.identity = rows;
     report.promotions = promotions;
     report.deferred = deferred;

@@ -614,6 +614,9 @@ pub fn resume_interrupted(
 pub struct SettlementFailure {
     pub error: RunError,
     pub applied: usize,
+    /// Every identity row the pass reported before it stopped.
+    pub rows: Vec<IdentityRow>,
+    pub promotions: Vec<PromotionRow>,
 }
 
 const fn promoted_key(row: &PromotionRow) -> Option<&ExternalId> {
@@ -627,7 +630,9 @@ const fn promoted_key(row: &PromotionRow) -> Option<&ExternalId> {
     }
 }
 
-fn landed(rows: &[IdentityRow], promotions: &[PromotionRow]) -> usize {
+/// How many of `rows` and `promotions` changed an item's identity.
+#[must_use]
+pub fn landed(rows: &[IdentityRow], promotions: &[PromotionRow]) -> usize {
     rows.iter()
         .filter(|row| row.outcome == IdentityOutcome::Applied)
         .count()
@@ -659,7 +664,14 @@ pub fn settle_identities(
     let mut rows = resumed;
     let stopped = |rows: &[IdentityRow], promotions: &[PromotionRow]| {
         let applied = landed(rows, promotions);
-        move |error| SettlementFailure { error, applied }
+        let rows = rows.to_vec();
+        let promotions = promotions.to_vec();
+        move |error| SettlementFailure {
+            error,
+            applied,
+            rows,
+            promotions,
+        }
     };
     let promotion_keys = keys_held_by_promotions(request, settlement)
         .map_err(stopped(&rows, &[]))?;

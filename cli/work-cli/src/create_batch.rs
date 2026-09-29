@@ -393,11 +393,13 @@ impl Batch<'_> {
         entry: &ManifestEntry,
         digest: &str,
     ) -> Result<Option<BatchItem>, String> {
-        let Some(recorded) =
-            self.workspace.journal.as_mut().and_then(|journal| {
-                journal.claim(digest, &self.fingerprint, &entry.title)
-            })
-        else {
+        let claimed = match self.workspace.journal.as_mut() {
+            Some(journal) => {
+                journal.claim(digest, &self.fingerprint, &entry.title)?
+            }
+            None => None,
+        };
+        let Some(recorded) = claimed else {
             return Ok(None);
         };
         let items = self.workspace.items()?;
