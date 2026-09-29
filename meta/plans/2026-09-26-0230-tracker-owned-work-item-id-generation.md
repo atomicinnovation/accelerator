@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-09-26-0230-tracker-owned-work-item-id-gen
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion", "work-cli", "work-adapters"]
 revision: "684c028a7a6392df438b8d6ae6f76de6fb5806a9"
 repository: "accelerator"
-last_updated: "2026-09-28T12:29:45+00:00"
+last_updated: "2026-09-29T07:44:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -474,8 +474,14 @@ details, `:183-203`)
 
 #### Manual Verification:
 
-- [ ] With networking disabled, `accelerator work create "T" task low --push`
+- [x] With networking disabled, `accelerator work create "T" task low --push`
       under a configured Jira reports `local-save` and exits 0.
+      Observed 2026-09-29 in a scratch repo with placeholder Jira
+      credentials, network denied by `sandbox-exec`: `local-save`, exit 0,
+      the file written without `external_id`, no marker left. The same
+      run's `--dry-run` failed with `E_REQ_CONNECT` (exit 70), and without
+      credentials with `E_AUTH_NO_EMAIL` (exit 74), so the save followed
+      a connection failure, not missing configuration.
 
 ---
 
@@ -789,11 +795,13 @@ provisional ID) is unrelated to `status: draft`; replace "filename is authoritat
 
 - [x] `accelerator work resolve PP-760` returns
       `meta/work/0230-tracker-owned-work-item-id-generation.md` in this repo.
-- [ ] `accelerator work list` in this repo renders the Sync column only
+- [x] `accelerator work list` in this repo renders the Sync column only
       when `last-sync.json` exists.
-      Present with this repo's Linear baseline; the absent case is covered
-      by `with_no_baseline_and_no_draft_the_sync_column_is_absent` but not
-      yet observed by hand.
+      Present with this repo's Linear baseline. The absent case was
+      observed 2026-09-29 on a scratch copy of this repo's `meta/work/`
+      and shared config: no Sync column without `last-sync.json`, and the
+      column back once this repo's `last-sync.json` was copied in (network
+      denied, no credentials, nothing on stderr).
 
 ---
 
@@ -1314,9 +1322,9 @@ the same tree everywhere), `FileCorpusStore`, `LockdirLock` and
 
 - [ ] Interrupt a scratch retirement with Ctrl-C mid-rewrite; the next
       retirement of the same item completes it.
-      Not yet possible: `work sync` reaches retirement only for a key
-      change under tracker ownership, which Phase 5 switches on. Resumption
-      is covered by
+      Phase 5 has since switched tracker ownership on, but `work sync`
+      still reaches a retirement only through a key change or a draft
+      promotion, both needing a live tracker. Resumption is covered by
       `an_interrupted_retirement_is_completed_by_the_next_retirement`.
 
 ---
@@ -2086,13 +2094,16 @@ so no later promotion can duplicate it.
 
 #### Manual Verification:
 
-- [ ] In a scratch repo configured with `{tracker}` + Linear,
+- [x] In a scratch repo configured with `{tracker}` + Linear,
       `accelerator work create "T" task low` writes a draft and
       `accelerator visualiser` starts.
       The draft half is observed (`meta/work/drafts/draft-t3xgaz-t.md`, `id`
-      and H1 agreeing); the visualiser start is covered by
-      `the_visualiser_composes_under_a_tracker_pattern` but not yet run by
-      hand.
+      and H1 agreeing). Both halves were observed again on 2026-09-29 with
+      this branch's binaries: `draft-6pmchk-t.md` with `id` and H1 agreeing,
+      then `accelerator-visualiser start` served `/` and `/api/types` with
+      200, reported `running`, and stopped cleanly. The scratch repo was
+      given `/accelerator:init`'s `.accelerator/tmp/.gitignore` sentinel,
+      without which the visualiser refuses to start.
 
 ---
 
