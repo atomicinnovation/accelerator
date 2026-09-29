@@ -5,7 +5,6 @@
 //! a presentation mapping over one source of truth, never a second one.
 
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -18,6 +17,7 @@ use work::filter::canonical_reference;
 use work::filter::strip_reference_prefix;
 use work::filter::Filter;
 use work::filter::WorkItemView;
+use work::hierarchy::children_of;
 use work::hierarchy::cyclic_members;
 use work::hierarchy::HierarchyNode;
 use work::identity::ItemIdentity;
@@ -350,7 +350,18 @@ pub fn render_hierarchy(
         })
         .collect();
     let in_cycle = cyclic_members(&nodes);
-    let children = child_index(items, &keys, &parents, &in_cycle);
+    let children: BTreeMap<String, Vec<&ScannedItem>> = children_of(&nodes)
+        .into_iter()
+        .map(|(parent, positions)| {
+            (
+                parent.to_owned(),
+                positions
+                    .into_iter()
+                    .map(|position| items[position])
+                    .collect(),
+            )
+        })
+        .collect();
 
     let mut lines = Vec::new();
     for ((item, key), parent) in items.iter().zip(&keys).zip(&parents) {
@@ -370,26 +381,6 @@ pub fn render_hierarchy(
         render_children(key, &children, labels, &mut lines, 1, scheme);
     }
     lines.join("\n")
-}
-
-/// Each parent's children, in the order given. A cycle member is never
-/// indexed as a child, so every walk down from a parent terminates.
-fn child_index<'a>(
-    items: &[&'a ScannedItem],
-    keys: &[String],
-    parents: &[Option<String>],
-    in_cycle: &BTreeSet<&str>,
-) -> BTreeMap<String, Vec<&'a ScannedItem>> {
-    let mut children: BTreeMap<String, Vec<&ScannedItem>> = BTreeMap::new();
-    for ((item, key), parent) in items.iter().zip(keys).zip(parents) {
-        if in_cycle.contains(key.as_str()) {
-            continue;
-        }
-        if let Some(parent) = parent {
-            children.entry(parent.clone()).or_default().push(item);
-        }
-    }
-    children
 }
 
 fn render_children(

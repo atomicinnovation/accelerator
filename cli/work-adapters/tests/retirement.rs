@@ -666,6 +666,22 @@ fn a_file_changed_after_the_snapshot_aborts_and_rolls_back(
 }
 
 #[test]
+fn a_file_changed_after_the_snapshot_leaves_no_recovery_directory(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let mut harness = Harness::new(&repo);
+    harness.status = Box::new(EveryPath(Dirtiness::Dirty));
+    let plan = harness.plan()?;
+    repo.write(PLAN, "edited meanwhile\n")?;
+
+    let result = harness.apply(&plan);
+
+    assert!(matches!(result, Err(RetirementFailure::RolledBack { .. })));
+    assert!(!repo.path(RECOVERY).exists());
+    Ok(())
+}
+
+#[test]
 fn an_edit_between_planning_and_applying_is_detected() -> Result<(), TestError>
 {
     let repo = Repo::new()?;

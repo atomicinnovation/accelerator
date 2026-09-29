@@ -538,13 +538,16 @@ impl Promoting<'_> {
                 Err(NotPromoted::RequestRejected { detail })
             }
             RemoteCreate::OutcomeUnknown { detail } => {
-                self.save(&self.record(
+                // The attempted record written before sending already guards
+                // against a second create; failing to add the failure detail
+                // to it must not hide that an issue may exist.
+                let _ = self.save(&self.record(
                     RequestFingerprint {
                         failure: Some(detail),
                         ..request
                     },
                     PromotionStage::Attempted,
-                ))?;
+                ));
                 Err(NotPromoted::CreateOutcomeUnknown)
             }
         }

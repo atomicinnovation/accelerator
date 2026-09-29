@@ -30,6 +30,7 @@ use work::sync::SyncDirection;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion_records::PromotionRecords;
 use work_adapters::retirement::sweep_recoveries;
 use work_adapters::retirement::RecoveryNotice;
 use work_adapters::sync::baseline;
@@ -223,6 +224,32 @@ fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
                 recovery.location(&dir).display()
             ),
         }
+    }
+}
+
+/// A warning naming each promotion record that cannot be read. Every guard
+/// already treats such a record as a promotion in flight; the warning tells
+/// a person which file to inspect.
+pub fn unreadable_promotion_record_warnings(
+    records: &dyn PromotionRecords,
+) -> Vec<String> {
+    match records.outstanding() {
+        Ok(entries) => entries
+            .into_iter()
+            .filter_map(Result::err)
+            .map(|unreadable| {
+                format!(
+                    "warning: the promotion record at {} could not be read \
+                     ({}); its draft is treated as mid-promotion until the \
+                     file is fixed or removed",
+                    unreadable.path.display(),
+                    unreadable.detail
+                )
+            })
+            .collect(),
+        Err(error) => vec![format!(
+            "warning: the promotion records could not be listed: {error}"
+        )],
     }
 }
 
@@ -597,6 +624,7 @@ enum TargetResolutionFailure {
     PushOnlyRemoteOnly(String),
     Absent(String),
     Indeterminate(String),
+    Unlistable(String),
 }
 
 impl TargetResolutionFailure {
@@ -611,7 +639,8 @@ impl TargetResolutionFailure {
             | Self::RetiredAlias(message)
             | Self::PushOnlyRemoteOnly(message)
             | Self::Absent(message)
-            | Self::Indeterminate(message) => message,
+            | Self::Indeterminate(message)
+            | Self::Unlistable(message) => message,
         }
     }
 
@@ -628,6 +657,7 @@ impl TargetResolutionFailure {
             }
             Self::OutsideWorkDir(_) => exit_codes::RESOLVE_OUTSIDE_WORKDIR,
             Self::Indeterminate(_) => exit_codes::RETRYABLE,
+            Self::Unlistable(_) => exit_codes::ERROR,
         }
     }
 }
@@ -728,6 +758,9 @@ fn resolve_targets(
             }
             RunOutcome::OutsideWorkDir(message) => {
                 failures.push(TargetResolutionFailure::OutsideWorkDir(message));
+            }
+            RunOutcome::Unlistable(message) => {
+                failures.push(TargetResolutionFailure::Unlistable(message));
             }
             RunOutcome::NotFound(_) | RunOutcome::Invalid(_) => {
                 let key =
@@ -1539,6 +1572,9 @@ pub fn run_sync(
     };
 
     sweep_kept_recoveries(recovery);
+    for warning in unreadable_promotion_record_warnings(&promotions) {
+        eprintln!("{warning}");
+    }
     match run_settled(
         &request,
         &ports,
@@ -1914,6 +1950,21 @@ mod tests {
             failures[0].exit_code(),
             exit_codes::RESOLVE_OUTSIDE_WORKDIR
         );
+    }
+
+    #[test]
+    fn a_token_resolved_over_an_unlistable_corpus_fails_as_an_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
+        let resolver =
+            |_token: &str| RunOutcome::Unlistable("unreadable".to_owned());
+
+        let failures =
+            resolve_targets(&corpus, &["PP-787".to_owned()], &resolver)
+                .expect_err("an unlistable corpus must fail the target");
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::ERROR);
     }
 
     #[test]
@@ -3293,6 +3344,30 @@ mod tests {
             "a stray write artefact is swept"
         );
         assert!(conflicts.join("0002.md").exists());
+    }
+
+    #[test]
+    fn each_unreadable_promotion_record_is_named_in_a_warning() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let record = dir.path().join("linear/pending-push/draft-k7mq3x.json");
+        std::fs::create_dir_all(record.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(&record, "{").expect("write");
+        let store = corpus_adapters::FileCorpusStore::new(dir.path());
+        let records =
+            work_adapters::promotion_records::FilePromotionRecords::new(
+                dir.path(),
+                "linear",
+                &store,
+            );
+
+        let warnings = super::unreadable_promotion_record_warnings(&records);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].contains(&record.display().to_string()),
+            "{warnings:?}"
+        );
     }
 
     #[test]

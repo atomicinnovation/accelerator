@@ -2,8 +2,8 @@
 //! became, so rerunning a batch creates only the entries it never reached.
 //!
 //! An entry is matched by its content digest, or by its title when a
-//! regenerated manifest reworded the body, never by its position, so a
-//! reordered or regenerated manifest resumes identically.
+//! regenerated manifest of the same batch reworded the body, never by its
+//! position, so a reordered or regenerated manifest resumes identically.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -21,6 +21,9 @@ const RETENTION_SECONDS: u64 = 30 * 24 * 60 * 60;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JournalEntry {
     pub content_digest: String,
+    /// The fingerprint of the manifest that recorded the entry; empty for an
+    /// entry an older binary recorded, which only its digest then matches.
+    pub batch: String,
     pub title: String,
     /// The ID the entry's item took: a draft's, a local number, or a key.
     pub id: Option<String>,
@@ -86,10 +89,11 @@ impl BatchJournal {
     }
 
     /// Claims the unclaimed entry recorded for this content, preferring
-    /// one whose digest matches over one whose title does.
+    /// one whose digest matches over one `batch` recorded under this title.
     pub fn claim(
         &mut self,
         content_digest: &str,
+        batch: &str,
         title: &str,
     ) -> Option<JournalEntry> {
         let unclaimed = |matches: &dyn Fn(&JournalEntry) -> bool| {
@@ -100,7 +104,13 @@ impl BatchJournal {
         };
         let position =
             unclaimed(&|entry| entry.content_digest == content_digest)
-                .or_else(|| unclaimed(&|entry| entry.title == title))?;
+                .or_else(|| {
+                    unclaimed(&|entry| {
+                        !entry.batch.is_empty()
+                            && entry.batch == batch
+                            && entry.title == title
+                    })
+                })?;
         self.claimed[position] = true;
         Some(self.entries[position].clone())
     }
@@ -175,6 +185,7 @@ fn ignore_everything_in(dir: &Path) -> std::io::Result<()> {
 fn render(entry: &JournalEntry) -> Value {
     json!({
         "content_digest": entry.content_digest,
+        "batch": entry.batch,
         "title": entry.title,
         "id": entry.id,
         "key": entry.key,
@@ -198,6 +209,7 @@ fn parse(text: &str) -> Option<Vec<JournalEntry>> {
             };
             Some(JournalEntry {
                 content_digest: text("content_digest")?,
+                batch: text("batch").unwrap_or_default(),
                 title: text("title")?,
                 id: text("id"),
                 key: text("key"),
@@ -214,10 +226,12 @@ mod tests {
     use super::*;
 
     const DAY: u64 = 24 * 60 * 60;
+    const BATCH: &str = "batch-one";
 
     fn entry(digest: &str, title: &str, recorded_at: u64) -> JournalEntry {
         JournalEntry {
             content_digest: digest.to_owned(),
+            batch: BATCH.to_owned(),
             title: title.to_owned(),
             id: Some("draft-k7mq3x".to_owned()),
             key: Some("PP-901".to_owned()),
@@ -235,10 +249,14 @@ mod tests {
         let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
 
         assert_eq!(
-            reopened.claim("d1", "Renamed"),
+            reopened.claim("d1", BATCH, "Renamed"),
             Some(entry("d1", "Epic", 100))
         );
-        assert_eq!(reopened.claim("d1", "Renamed"), None, "claimed once");
+        assert_eq!(
+            reopened.claim("d1", BATCH, "Renamed"),
+            None,
+            "claimed once"
+        );
     }
 
     #[test]
@@ -252,7 +270,7 @@ mod tests {
 
         assert_eq!(
             reopened
-                .claim("reworded", "Story")
+                .claim("reworded", BATCH, "Story")
                 .map(|found| found.content_digest),
             Some("d2".to_owned())
         );
@@ -270,8 +288,22 @@ mod tests {
         let mut reopened =
             BatchJournal::open(state.path(), 31 * DAY).expect("open");
 
-        assert_eq!(reopened.claim("old", "Old"), None);
-        assert!(reopened.claim("recent", "Recent").is_some());
+        assert_eq!(reopened.claim("old", BATCH, "Old"), None);
+        assert!(reopened.claim("recent", BATCH, "Recent").is_some());
+    }
+
+    #[test]
+    fn a_title_another_batch_recorded_is_not_claimed() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        journal
+            .record(entry("d1", "Add tests", 100))
+            .expect("record");
+
+        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+
+        assert_eq!(reopened.claim("d2", "batch-two", "Add tests"), None);
+        assert!(reopened.claim("d1", "batch-two", "Add tests").is_some());
     }
 
     #[test]
@@ -298,7 +330,7 @@ mod tests {
 
         let mut reopened = BatchJournal::open(state.path(), 0).expect("open");
 
-        assert_eq!(reopened.claim("d1", "Epic"), None);
+        assert_eq!(reopened.claim("d1", BATCH, "Epic"), None);
     }
 
     #[test]

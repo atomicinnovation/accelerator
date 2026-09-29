@@ -197,6 +197,7 @@ pub fn run_with(
             push: args.push,
         },
         workspace,
+        fingerprint: crate::batch_manifest::fingerprint(&entries),
         now,
         created: Vec::new(),
     };
@@ -280,6 +281,7 @@ struct Batch<'a> {
     templates: &'a dyn ReadTemplate,
     authorship: Authorship<'a>,
     workspace: BatchWorkspace,
+    fingerprint: String,
     now: u64,
     created: Vec<BatchItem>,
 }
@@ -313,6 +315,7 @@ impl Batch<'_> {
                 if let Some(journal) = journal.as_deref_mut() {
                     let recorded = journal.record(JournalEntry {
                         content_digest: digest.clone(),
+                        batch: self.fingerprint.clone(),
                         title: entry.title.clone(),
                         id: Some(draft.as_str().to_owned()),
                         key: None,
@@ -342,6 +345,7 @@ impl Batch<'_> {
         if let Some(journal) = self.workspace.journal.as_mut() {
             journal.record(JournalEntry {
                 content_digest: digest,
+                batch: self.fingerprint.clone(),
                 title: entry.title.clone(),
                 id: item.path.as_deref().and_then(id_at),
                 key: item.key.clone(),
@@ -389,11 +393,10 @@ impl Batch<'_> {
         entry: &ManifestEntry,
         digest: &str,
     ) -> Result<Option<BatchItem>, String> {
-        let Some(recorded) = self
-            .workspace
-            .journal
-            .as_mut()
-            .and_then(|journal| journal.claim(digest, &entry.title))
+        let Some(recorded) =
+            self.workspace.journal.as_mut().and_then(|journal| {
+                journal.claim(digest, &self.fingerprint, &entry.title)
+            })
         else {
             return Ok(None);
         };
@@ -1017,6 +1020,33 @@ mod tests {
         assert_eq!(items(&report)["epic"].1, "write-once");
         assert_eq!(items(&report)["epic"].2, "REC-1");
         assert_eq!(creates(&tracker), 1);
+    }
+
+    #[test]
+    fn an_unrelated_batch_sharing_a_title_creates_its_own_item() {
+        let repo = BatchRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        repo.write("first.md", "# NNNN: Add tests\n\nFor the parser.\n");
+        repo.write("second.md", "# NNNN: Add tests\n\nFor the renderer.\n");
+        reported(repo.run(
+            r#"[{"ref": "tests", "title": "Add tests", "kind": "task",
+                 "priority": "low", "body_file": "first.md"}]"#,
+            true,
+            &tracker,
+        ));
+
+        let report = reported(repo.run(
+            r#"[{"ref": "cleanup", "title": "Remove dead code",
+                 "kind": "task", "priority": "low"},
+                {"ref": "tests", "title": "Add tests", "kind": "task",
+                 "priority": "low", "body_file": "second.md"}]"#,
+            true,
+            &tracker,
+        ));
+
+        assert_eq!(items(&report)["tests"].1, "write-once");
+        assert_eq!(items(&report)["tests"].2, "REC-3");
+        assert_eq!(creates(&tracker), 3);
     }
 
     #[test]

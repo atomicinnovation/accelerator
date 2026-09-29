@@ -168,6 +168,7 @@ impl<'a> core::fmt::Debug for work::hierarchy::HierarchyNode<'a>
 pub fn work::hierarchy::HierarchyNode<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::Copy for work::hierarchy::HierarchyNode<'a>
 impl<'a> core::marker::StructuralPartialEq for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::children_of<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::map::BTreeMap<&'a str, alloc::vec::Vec<usize>>
 pub fn work::hierarchy::cyclic_members<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::set::BTreeSet<&'a str>
 pub fn work::hierarchy::parents_first<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> work::hierarchy::BatchOrder<'a>
 pub mod work::identity

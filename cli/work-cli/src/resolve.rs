@@ -43,8 +43,8 @@ impl From<IdentityMatch<'_>> for IdentityCandidate {
 }
 
 /// The outcome `main` maps to the binary's exit codes: `Resolved` → 0,
-/// `Ambiguous` and `Conflicting` → 2, `NotFound` → 3, `Invalid` → 1,
-/// `OutsideWorkDir` → 6.
+/// `Ambiguous` and `Conflicting` → 2, `NotFound` → 3, `Invalid` and
+/// `Unlistable` → 1, `OutsideWorkDir` → 6.
 #[derive(Debug)]
 pub enum RunOutcome {
     Resolved(PathBuf),
@@ -53,6 +53,8 @@ pub enum RunOutcome {
     NotFound(String),
     Invalid(String),
     OutsideWorkDir(String),
+    /// The corpus could not be listed, so no item's identity could be read.
+    Unlistable(String),
 }
 
 fn resolve_path_class(root: &Path, start: &Path, input: &str) -> RunOutcome {
@@ -109,8 +111,8 @@ pub fn canonical_work_dir(
     })
 }
 
-/// The infallible core: resolve `input` against the already resolved
-/// `scheme` and canonical `work_dir`. `Resolved` carries a canonicalised path
+/// The core: resolve `input` against the already resolved `scheme` and
+/// canonical `work_dir`. `Resolved` carries a canonicalised path
 /// so a caller can match it against an equally-canonicalised managed-item
 /// set.
 #[must_use]
@@ -124,9 +126,10 @@ pub fn resolve_with(
     if class == InputClass::Path {
         return resolve_path_class(work_dir, start, input);
     }
-    let files = FilesystemWorkItemFiles::new(work_dir)
-        .files()
-        .unwrap_or_default();
+    let files = match FilesystemWorkItemFiles::new(work_dir).files() {
+        Ok(files) => files,
+        Err(error) => return RunOutcome::Unlistable(error.to_string()),
+    };
     let identities = identities(&files);
     match resolve_identity(input, &identities) {
         IdentityResolution::Unique(item) => {
@@ -322,6 +325,38 @@ mod tests {
                     field: IdentityField::Alias,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn an_unlistable_corpus_is_reported_rather_than_matched_by_filename() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let (_dir, work_dir) = corpus();
+        item(&work_dir.join("0042-title.md"), "id: \"0042\"\n");
+        let drafts = work_dir.join("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome = resolve_with(
+            &WorkItemIdScheme::numeric(),
+            &work_dir,
+            &work_dir,
+            "0042",
+        );
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        assert!(
+            matches!(&outcome, RunOutcome::Unlistable(message)
+                if message.contains("drafts")),
+            "{outcome:?}"
         );
     }
 }

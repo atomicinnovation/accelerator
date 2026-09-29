@@ -10,6 +10,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
+use corpus::lock::ExclusiveLock as _;
+use corpus::lock::LockName;
 use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
 use corpus::IdOwnership;
@@ -219,11 +221,15 @@ fn failed(message: impl std::fmt::Display) -> kernel::Error {
 }
 
 /// Upsert `external_id` into a work item's frontmatter, preserving every other
-/// field and the body verbatim.
+/// field and the body verbatim, under the file's own write lock.
 pub fn link_external_id(
     path: &Path,
     external_id: &ExternalId,
 ) -> Result<(), kernel::Error> {
+    let work_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let _held = LockdirLock::new(work_dir)
+        .acquire(&LockName::ForFile(path.to_path_buf()))
+        .map_err(failed)?;
     let content = std::fs::read_to_string(path).map_err(failed)?;
     let mut yaml = document::parse(&content).map_err(failed)?;
     let Yaml::Mapping(mapping) = &mut yaml else {
@@ -615,6 +621,41 @@ mod tests {
         assert_eq!(identity.id, "0001");
         assert_eq!(identity.external_id.as_deref(), Some("ENG-5"));
         assert_eq!(repo.filenames(), vec!["0001-legacy.md"]);
+    }
+
+    #[test]
+    fn a_link_waits_for_an_edit_holding_the_file_lock_and_keeps_it() {
+        use corpus::lock::ExclusiveLock as _;
+
+        let repo = TrackerRepo::new();
+        let path = repo.write_item("0001-legacy.md", "id: \"0001\"\n");
+        let edited = path.clone();
+        let (locked, lock_held) = std::sync::mpsc::channel();
+        let editor = std::thread::spawn(move || {
+            let locks = corpus_adapters::LockdirLock::new(
+                edited.parent().expect("the work directory"),
+            );
+            let _held = locks
+                .acquire(&corpus::lock::LockName::ForFile(edited.clone()))
+                .expect("lock");
+            locked.send(()).expect("signal");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let content = std::fs::read_to_string(&edited).expect("read");
+            std::fs::write(
+                &edited,
+                content.replace("id: \"0001\"", "id: \"0001\"\nstatus: ready"),
+            )
+            .expect("edit");
+        });
+        lock_held.recv().expect("locked");
+
+        super::link_external_id(&path, &ExternalId::new("ENG-5".to_owned()))
+            .expect("the link lands");
+
+        editor.join().expect("joined");
+        let content = std::fs::read_to_string(&path).expect("read");
+        assert!(content.contains("status: \"ready\""), "{content}");
+        assert!(content.contains("external_id: \"ENG-5\""), "{content}");
     }
 
     fn save_promotion(repo: &TrackerRepo, stage: PromotionStage) -> PathBuf {

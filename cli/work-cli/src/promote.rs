@@ -3,6 +3,7 @@
 //! recoveries for a draft whose earlier create may have reached the tracker.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use corpus_adapters::FileCorpusStore;
@@ -10,6 +11,7 @@ use tracker::ExternalId;
 use vcs_adapters::library::InProcessProbe;
 use work::draft_id::DraftId;
 use work::identity::resolve_identity;
+use work::identity::IdentityMatch;
 use work::identity::IdentityResolution;
 use work::promotion::NotPromoted;
 use work::promotion::PromotionMode;
@@ -38,6 +40,8 @@ use crate::sync::standalone_identity_line;
 use crate::tracker_registry::TrackerRegistry;
 
 pub const E_PROMOTE_NOT_A_DRAFT: &str = "E_PROMOTE_NOT_A_DRAFT";
+pub const E_PROMOTE_NOT_TRACKER_OWNED: &str = "E_PROMOTE_NOT_TRACKER_OWNED";
+pub const E_PROMOTE_CONFLICTING: &str = "E_PROMOTE_CONFLICTING";
 
 #[derive(Debug)]
 pub enum PromoteOutcome {
@@ -63,6 +67,27 @@ fn not_a_draft(input: &str) -> PromoteOutcome {
     PromoteOutcome::NotADraft(format!(
         "{E_PROMOTE_NOT_A_DRAFT}: '{input}' names no draft; `work promote` \
          takes the draft- ID of an item in the drafts directory"
+    ))
+}
+
+fn not_tracker_owned() -> PromoteOutcome {
+    failed(exit_codes::USAGE)(format!(
+        "{E_PROMOTE_NOT_TRACKER_OWNED}: `work promote` retires a draft to the \
+         key the tracker gives it, which needs work.id_pattern \"{{tracker}}\""
+    ))
+}
+
+fn conflicting(input: &str, claims: &[IdentityMatch<'_>]) -> PromoteOutcome {
+    let claimants = claims.iter().fold(String::new(), |listing, claim| {
+        format!(
+            "{listing}\n  {} [{}]",
+            claim.item.path.display(),
+            claim.field.frontmatter_key()
+        )
+    });
+    failed(exit_codes::USAGE)(format!(
+        "{E_PROMOTE_CONFLICTING}: '{input}' is claimed by more than one \
+         item; resolve the duplicate before promoting:{claimants}"
     ))
 }
 
@@ -115,6 +140,34 @@ pub fn run(
     }
 }
 
+/// The draft `input` names and where it is, once the repository's pattern
+/// lets the tracker own IDs.
+fn tracker_owned_draft(
+    config: &dyn ConfigAccess,
+    work_dir: &Path,
+    input: &str,
+) -> Result<(DraftId, PathBuf), PromoteOutcome> {
+    let internal = failed(exit_codes::ERROR);
+    let draft = DraftId::parse(input).ok_or_else(|| not_a_draft(input))?;
+    let ownership = crate::config::resolve_scheme(config)
+        .map_err(|error| internal(error.to_string()))?
+        .ownership();
+    if ownership != corpus::IdOwnership::Tracker {
+        return Err(not_tracker_owned());
+    }
+    let files = FilesystemWorkItemFiles::new(work_dir)
+        .files()
+        .map_err(|error| internal(error.to_string()))?;
+    let items = identities(&files);
+    match resolve_identity(draft.as_str(), &items) {
+        IdentityResolution::Unique(item) => Ok((draft, item.path.clone())),
+        IdentityResolution::Conflicting(claims) => {
+            Err(conflicting(input, &claims))
+        }
+        IdentityResolution::Unmatched => Err(not_a_draft(input)),
+    }
+}
+
 fn try_run(
     start: &Path,
     config: &dyn ConfigAccess,
@@ -125,17 +178,8 @@ fn try_run(
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir = crate::config::resolve_work_dir(config, &root)
         .map_err(|error| internal(error.to_string()))?;
-    let draft = DraftId::parse(&args.draft_id)
-        .ok_or_else(|| not_a_draft(&args.draft_id))?;
-    let files = FilesystemWorkItemFiles::new(&work_dir)
-        .files()
-        .map_err(|error| internal(error.to_string()))?;
-    let items = identities(&files);
-    let IdentityResolution::Unique(item) =
-        resolve_identity(draft.as_str(), &items)
-    else {
-        return Err(not_a_draft(&args.draft_id));
-    };
+    let (draft, draft_path) =
+        tracker_owned_draft(config, &work_dir, &args.draft_id)?;
     let integration =
         crate::config::effective_nonempty(config, "work.integration")
             .map_err(|error| internal(error.to_string()))?;
@@ -165,6 +209,11 @@ fn try_run(
     let retirement = workspace.retirement_ports(&project_store, &baseline);
     let records = workspace.retirement_records(&state_store);
     let promotions = workspace.promotion_records(&integrations_store);
+    for warning in
+        crate::sync::unreadable_promotion_record_warnings(&promotions)
+    {
+        eprintln!("{warning}");
+    }
     let probe_status = || -> Box<dyn WorkingCopyStatus> {
         Box::new(VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe))
     };
@@ -194,7 +243,7 @@ fn try_run(
     let result = promote(&draft, &mode, &ports);
     let row = PromotionRow::of(
         &draft,
-        item.path.clone(),
+        draft_path,
         result,
         &ports,
         workspace.state_dir(),
@@ -551,6 +600,50 @@ mod tests {
             };
             assert!(message.starts_with("E_PROMOTE_NOT_A_DRAFT"), "{message}");
         }
+    }
+
+    #[test]
+    fn promoting_under_a_local_pattern_is_refused_before_any_create() {
+        let repo = Repo::new();
+        repo.write(
+            ".accelerator/config.md",
+            "---\nwork:\n  integration: jira\n---\n",
+        );
+        let tracker = fresh();
+
+        let outcome = repo.promote_named(DRAFT, &tracker, None, false);
+
+        let PromoteOutcome::Failed { message, code } = outcome else {
+            panic!("the promotion was not refused: {outcome:?}");
+        };
+        assert!(
+            message.starts_with("E_PROMOTE_NOT_TRACKER_OWNED"),
+            "{message}"
+        );
+        assert_eq!(code, exit_codes::USAGE);
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_draft_id_two_items_claim_is_refused_naming_both() {
+        let repo = Repo::new();
+        repo.write(
+            "meta/work/PP-900-title.md",
+            "---\nid: \"PP-900\"\naliases: [\"draft-aaaaaa\"]\n---\n\n\
+             # PP-900: Title\n",
+        );
+        let tracker = fresh();
+
+        let outcome = repo.promote_named(DRAFT, &tracker, None, false);
+
+        let PromoteOutcome::Failed { message, code } = outcome else {
+            panic!("the promotion was not refused: {outcome:?}");
+        };
+        assert!(message.starts_with("E_PROMOTE_CONFLICTING"), "{message}");
+        assert!(message.contains("PP-900-title.md"), "{message}");
+        assert!(message.contains(DRAFT_FILE), "{message}");
+        assert_eq!(code, exit_codes::USAGE);
+        assert_eq!(creates(&tracker), 0);
     }
 
     #[test]

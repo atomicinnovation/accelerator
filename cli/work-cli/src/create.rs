@@ -41,6 +41,7 @@ use work::draft_id::mint_draft_id;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
 use work::identity::linker_of;
+use work::identity::ItemIdentity;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
 use work::promotion::IntendedBaseline;
@@ -317,14 +318,18 @@ fn resolve_body(
         .replace(TITLE_PLACEHOLDER, &args.title))
 }
 
-fn corpus_carries_external_id(
-    work_dir: &Path,
+fn corpus_identities(work_dir: &Path) -> Result<Vec<ItemIdentity>, String> {
+    FilesystemWorkItemFiles::new(work_dir)
+        .files()
+        .map(|files| identities(&files))
+        .map_err(|error| error.to_string())
+}
+
+fn carries_external_id(
+    corpus: &[ItemIdentity],
     external_id: &ExternalId,
 ) -> bool {
-    let files = FilesystemWorkItemFiles::new(work_dir)
-        .files()
-        .unwrap_or_default();
-    linker_of(external_id.as_str(), &identities(&files)).is_some()
+    linker_of(external_id.as_str(), corpus).is_some()
 }
 
 fn refusal_message(
@@ -597,7 +602,17 @@ fn write_draft(
     draws: &mut dyn SuffixDraws,
     drafted: &mut dyn FnMut(&DraftId),
 ) -> Result<(DraftId, PathBuf), String> {
-    let _guard = context.lock()?;
+    let guard = context.lock()?;
+    write_draft_locked(context, store, draws, drafted, &guard)
+}
+
+fn write_draft_locked(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
+    draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
+    _held: &LockGuard,
+) -> Result<(DraftId, PathBuf), String> {
     let files = FilesystemWorkItemFiles::new(&context.work_dir)
         .files()
         .map_err(|error| error.to_string())?;
@@ -679,8 +694,8 @@ fn push_legacy_item(
         Ok(None) => MarkerState::Absent,
         Ok(Some(marker)) => MarkerState::Present(marker),
     };
-    let corpus_carries =
-        |id: &ExternalId| corpus_carries_external_id(&context.work_dir, id);
+    let corpus = corpus_identities(&context.work_dir)?;
+    let corpus_carries = |id: &ExternalId| carries_external_id(&corpus, id);
     let precondition =
         work::sync::push_precondition(&marker_state, &digest, &corpus_carries);
 
@@ -1257,6 +1272,7 @@ fn create_tracker_keyed_item(
         &integration,
         &records_store,
     );
+    let guard = context.lock()?;
     if let Some(pending) =
         pending_create(context, &records, &integrations_root, &integration)?
     {
@@ -1265,7 +1281,9 @@ fn create_tracker_keyed_item(
             existing_draft: pending.existing_draft(),
         });
     }
-    let (draft, draft_path) = write_draft(context, store, draws, drafted)?;
+    let (draft, draft_path) =
+        write_draft_locked(context, store, draws, drafted, &guard)?;
+    drop(guard);
     let Ok(tracker) = registry.resolve(&integration) else {
         return Ok(pushed(
             Some(draft_path),
@@ -1501,9 +1519,11 @@ mod tests {
         )
         .expect("write draft");
 
+        let corpus =
+            super::corpus_identities(dir.path()).expect("listable corpus");
         let carries = |key: &str| {
-            super::corpus_carries_external_id(
-                dir.path(),
+            super::carries_external_id(
+                &corpus,
                 &ExternalId::new(key.to_owned()),
             )
         };
@@ -2087,6 +2107,45 @@ mod tests {
     }
 
     #[test]
+    fn a_created_marker_over_an_unlistable_corpus_fails_rather_than_reusing_its_key(
+    ) {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        created(
+            repo.push_through(
+                &tracker,
+                Some((in_the_work_directory_itself, 2)),
+            ),
+        );
+        std::fs::write(
+            repo.path("meta/work/linked.md"),
+            format!("---\nid: \"linked\"\nexternal_id: \"{KEY}\"\n---\n"),
+        )
+        .expect("linked item");
+        let drafts = repo.path("meta/work/drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome = repo.push_through(&tracker, None);
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        let RunOutcome::Failed(message) = outcome else {
+            panic!("the push was not refused");
+        };
+        assert!(message.contains("drafts"), "{message}");
+    }
+
+    #[test]
     fn a_write_once_create_records_a_baseline_from_a_read_back() {
         let repo = PushingRepo::new();
         let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
@@ -2159,6 +2218,36 @@ mod tests {
 
         let message = pending(repo.push_through(&tracker, None));
 
+        assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_draft_written_while_a_create_waits_for_the_lock_is_e_draft_exists() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        repo.run_args(&PushingRepo::args(false), &tracker, None);
+        let concurrent_draft = repo.drafts().remove(0);
+        let content =
+            std::fs::read_to_string(&concurrent_draft).expect("draft");
+        std::fs::remove_file(&concurrent_draft).expect("remove");
+        let lock_path = repo.path("meta/work").join(LOCK_FILE_NAME);
+        let (locked, lock_held) = std::sync::mpsc::channel();
+        let concurrent = std::thread::spawn(move || {
+            let _guard = store::lock::acquire(
+                &lock_path,
+                store::lock::LockOptions::default(),
+            )
+            .expect("lock");
+            locked.send(()).expect("signal");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::fs::write(&concurrent_draft, content).expect("write");
+        });
+        lock_held.recv().expect("locked");
+
+        let message = pending(repo.push_through(&tracker, None));
+
+        concurrent.join().expect("joined");
         assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
         assert_eq!(creates(&tracker), 0);
     }
