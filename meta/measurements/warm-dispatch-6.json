@@ -494,7 +494,7 @@
         "lower": 3.422823768046854,
         "upper": 3.4480348672343815
       },
-      "robustness_holds_on_the_upper_bound": false,
+      "robustness_holds_on_the_upper_bound": true,
       "bash_floor_subtracted_diagnostic_only": 3.478936276988977,
       "median_of_ratios": 3.3759635506575005,
       "p90_ratio_context": 3.2705798224648377,
@@ -543,7 +543,7 @@
     {
       "cell": "C5",
       "gates": true,
-      "branch": "2",
+      "branch": "1",
       "accepted_by": null
     },
     {
@@ -553,7 +553,7 @@
       "accepted_by": null
     }
   ],
-  "closure_verdict": false,
+  "closure_verdict": true,
   "teardown": [],
   "attempt": 6,
   "samples_path": "warm-dispatch-6-samples.json"

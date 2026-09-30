@@ -72,6 +72,8 @@ from tasks.measure import (
     parse_term_report,
     plugin_version,
     prime_cache,
+    ratio_target_for,
+    ratio_threshold_for,
     recover_baseline,
     recovery_argv,
     sample_blocks,
@@ -1938,6 +1940,75 @@ class TestCellsAndClassification:
         )
         assert outcome.branch is Branch.NOT_APPLICABLE
         assert outcome.accepted_by == FALLBACK_ABSENT_REASON
+
+
+class TestPerPlatformRatioBudget:
+    """The ratio budget and its precision target resolve per platform.
+
+    The linux entry overrides the global 1.4 / 0.0036, and darwin falls back to
+    them, so a VM's higher dispatch-overhead ratio closes against its own budget
+    without loosening darwin's guard.
+    """
+
+    def floors(self):
+        return {"attempts": [{"bash_ms": 0.0, "true_ms": 0.0}]}
+
+    def samples(self, *, baseline, fast, fallback):
+        return {
+            Variant.BASELINE: list(baseline),
+            Variant.FAST: list(fast),
+            Variant.FALLBACK: list(fallback),
+        }
+
+    def test_the_linux_entry_overrides_the_global_budget(self):
+        entry = PLATFORM_TABLE[("Linux", "aarch64")]
+        assert ratio_threshold_for(entry) == 3.5
+        assert ratio_target_for(entry) == 0.013
+
+    def test_darwin_falls_back_to_the_global_budget(self):
+        entry = PLATFORM_TABLE[("Darwin", "arm64")]
+        assert ratio_threshold_for(entry) == RATIO_THRESHOLD
+        assert ratio_target_for(entry) == RATIO_TARGET
+
+    def test_the_linux_ratio_cells_carry_the_per_platform_budget(self):
+        cells = {
+            cell.name: cell
+            for cell in cells_for(PLATFORM_TABLE[("Linux", "aarch64")])
+        }
+        for name in ("C5", "C6"):
+            assert cells[name].threshold == 3.5
+            assert cells[name].target == 0.013
+
+    def test_the_linux_budget_closes_a_mid_range_ratio(self):
+        outcomes, _ = analyse(
+            PLATFORM_TABLE[("Linux", "aarch64")],
+            self.samples(
+                baseline=[10.0] * 40, fast=[25.0] * 40, fallback=[30.0] * 40
+            ),
+            floors=self.floors(),
+            elapsed=1.0,
+        )
+        by_cell = {outcome.cell: outcome for outcome in outcomes}
+        assert by_cell["C5"].branch is Branch.PASS
+        assert closure_verdict(outcomes)
+
+    def test_the_global_budget_fails_the_same_mid_range_ratio(self):
+        entry = replace(
+            PLATFORM_TABLE[("Linux", "aarch64")],
+            ratio_threshold_override=None,
+            ratio_target_override=None,
+        )
+        outcomes, _ = analyse(
+            entry,
+            self.samples(
+                baseline=[10.0] * 40, fast=[25.0] * 40, fallback=[30.0] * 40
+            ),
+            floors=self.floors(),
+            elapsed=1.0,
+        )
+        by_cell = {outcome.cell: outcome for outcome in outcomes}
+        assert by_cell["C5"].branch is Branch.FAIL
+        assert not closure_verdict(outcomes)
 
 
 class TestRehearsals:

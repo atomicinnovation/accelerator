@@ -812,6 +812,8 @@ class PlatformEntry:
     true_floor_ms: float
     reference_bash: str
     calibration: Calibration | None
+    ratio_threshold_override: float | None = None
+    ratio_target_override: float | None = None
 
 
 def platform_constants(

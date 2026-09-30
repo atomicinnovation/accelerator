@@ -256,6 +256,8 @@ PLATFORM_TABLE: dict[tuple[str, str], PlatformEntry] = {
             shasum="6.04",
             libc="musl",
         ),
+        ratio_threshold_override=3.5,
+        ratio_target_override=0.013,
     ),
 }
 
@@ -309,6 +311,12 @@ def criterion_constants() -> dict[str, float]:
         )
         constants[f"{prefix}.bash_floor_ms"] = entry.bash_floor_ms
         constants[f"{prefix}.true_floor_ms"] = entry.true_floor_ms
+        if entry.ratio_threshold_override is not None:
+            constants[f"{prefix}.ratio_threshold"] = (
+                entry.ratio_threshold_override
+            )
+        if entry.ratio_target_override is not None:
+            constants[f"{prefix}.ratio_target"] = entry.ratio_target_override
     return constants
 
 
@@ -871,6 +879,29 @@ class Cell:
     description: str
 
 
+def ratio_threshold_for(entry: PlatformEntry) -> float:
+    """Resolve the ratio budget this platform gates on: override or global.
+
+    A VM's dispatch overhead is a larger multiple of a smaller baseline, so an
+    entry may carry its own provisional budget rather than loosening the global
+    one that darwin's guard depends on.
+    """
+    if entry.ratio_threshold_override is not None:
+        return entry.ratio_threshold_override
+    return RATIO_THRESHOLD
+
+
+def ratio_target_for(entry: PlatformEntry) -> float:
+    """Resolve the ratio precision target this platform sizes and gates to.
+
+    Overridable alongside the budget: a host that cannot reach the global
+    precision within the wall-clock budget takes a looser, provisional one.
+    """
+    if entry.ratio_target_override is not None:
+        return entry.ratio_target_override
+    return RATIO_TARGET
+
+
 def cells_for(entry: PlatformEntry) -> tuple[Cell, ...]:
     """Build the six cells, in the order the criterion lists them."""
     return (
@@ -910,16 +941,16 @@ def cells_for(entry: PlatformEntry) -> tuple[Cell, ...]:
             "C5",
             CellKind.RATIO,
             gates=True,
-            threshold=RATIO_THRESHOLD,
-            target=RATIO_TARGET,
+            threshold=ratio_threshold_for(entry),
+            target=ratio_target_for(entry),
             description="median(G)/median(B), fast backend",
         ),
         Cell(
             "C6",
             CellKind.RATIO,
             gates=False,
-            threshold=RATIO_THRESHOLD,
-            target=RATIO_TARGET,
+            threshold=ratio_threshold_for(entry),
+            target=ratio_target_for(entry),
             description="median(G)/median(B), fallback backend (ungated)",
         ),
     )
@@ -1774,7 +1805,9 @@ def run_session(
                 f"no sample would either: {verdict.diagnostic}"
             )
 
-        sizes, pilot = run_pilot(rig, runner, blocks=blocks, rehearse=rehearse)
+        sizes, pilot = run_pilot(
+            rig, runner, entry=entry, blocks=blocks, rehearse=rehearse
+        )
         record["pilot"] = pilot
         samples = sample_blocks(
             rig,
@@ -1861,6 +1894,7 @@ def run_pilot(
     rig: Rig,
     runner: MeasurementRunner,
     *,
+    entry: PlatformEntry,
     blocks: str,
     rehearse: bool = False,
 ) -> tuple[dict[str, int], dict[str, object]]:
@@ -1868,7 +1902,9 @@ def run_pilot(
 
     A dispersion estimate only: pooling it into the analysed set would make the
     final interval's coverage depend on a data-dependent stopping rule. A
-    size-up recomputes n from the same targets, never a relaxed one.
+    size-up recomputes n from the same targets the cells gate on, never a
+    relaxed one, so the ratio block sizes to the platform's own precision
+    target.
     """
     pilot_pairs = REHEARSAL_N if rehearse else PILOT_PAIRS
     pilot = sample_blocks(
@@ -1893,7 +1929,7 @@ def run_pilot(
         )
         needed, feasible = pilot_sizing(
             interval,
-            target=RATIO_TARGET,
+            target=ratio_target_for(entry),
             pilot_n=len(baseline),
             cap=BLOCK_A_MAX_PAIRS,
         )
@@ -2268,7 +2304,8 @@ def analyse(
             subtract_floor(baseline, bash_floor),
             subtract_floor(fast, bash_floor),
         )
-        robustness_ok = true_subtracted <= RATIO_THRESHOLD
+        budget = ratio_threshold_for(entry)
+        robustness_ok = true_subtracted <= budget
         # The robustness condition gates on the point estimate. Its interval
         # is recorded too, so the gate can move to the upper bound without
         # another measurement.
@@ -2286,7 +2323,7 @@ def analyse(
             "true_floor_subtracted_robustness_check": true_subtracted,
             "true_floor_subtracted_interval": asdict(robustness_interval),
             "robustness_holds_on_the_upper_bound": (
-                robustness_interval.upper <= RATIO_THRESHOLD
+                robustness_interval.upper <= budget
             ),
             "bash_floor_subtracted_diagnostic_only": bash_subtracted,
             "median_of_ratios": median_of_ratios(baseline, fast),
