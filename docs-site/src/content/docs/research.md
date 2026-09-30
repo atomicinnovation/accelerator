@@ -6,17 +6,20 @@ title: Research CLI
 to reach the scholarly literature. `research fetch` queries OpenAlex and arXiv
 and returns normalised records, each carrying a reputation tier the CLI
 derives. `research guard` is a `PreToolUse` hook that confines the researcher
-agent to that fetch and to writing its own finding. Both are plumbing: the
-academic source profiles invoke `research fetch` through fenced command blocks
-(see [Anatomy of a skill
-invocation](internals.md#anatomy-of-a-skill-invocation)), and Claude Code runs
-`research guard` on every tool call that could run a command or write a file.
+agent to that fetch and to writing its own finding. `research topic
+outstanding` plans a `conduct` round from a topic's set on disk. All three are
+plumbing: the academic source profiles invoke `research fetch` through fenced
+command blocks (see [Anatomy of a skill
+invocation](internals.md#anatomy-of-a-skill-invocation)), `conduct` calls
+`research topic outstanding`, and Claude Code runs `research guard` on every
+tool call that could run a command or write a file.
 Running `fetch` by hand is mainly useful for reproducing what a researcher saw.
 
-| Verb    | What it does                                                           |
-|---------|------------------------------------------------------------------------|
-| `fetch` | Search or look up scholarly records, tiered, within a 100 s deadline   |
-| `guard` | Judge one hook call, blocking a researcher outside its confinement     |
+| Verb                | What it does                                                         |
+|---------------------|----------------------------------------------------------------------|
+| `fetch`             | Search or look up scholarly records, tiered, within a 100 s deadline |
+| `topic outstanding` | List a round's outstanding (focus area, profile) pairs as JSON       |
+| `guard`             | Judge one hook call, blocking a researcher outside its confinement   |
 
 See [Internals](internals.md#terminal-invocation) for how to reach
 `accelerator` at all from a terminal; everything below assumes that's set up.
@@ -342,13 +345,13 @@ pair: sets written before profiles existed hold one `findings/<nn>-<slug>.md`
 per focus area, and still count as their `web` pair. Consumers group findings
 by frontmatter, never by parsing the filename.
 
-### `corpus topic-research outstanding`
+### `research topic outstanding`
 
-`conduct` asks the corpus CLI which pairs are outstanding and where their
+`conduct` asks the research CLI which pairs are outstanding and where their
 findings go, rather than allocating paths itself:
 
 ```bash
-accelerator corpus topic-research outstanding SLUG --profiles-dir DIR
+accelerator research topic outstanding SLUG --profiles-dir DIR
 ```
 
 It prints JSON with four arrays: `items` (each outline item's `line`,

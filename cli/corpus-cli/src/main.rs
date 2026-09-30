@@ -1,6 +1,5 @@
-//! `accelerator-corpus` — the `corpus adr|metadata|linkage|frontmatter|
-//! resolve|topic-research` sub-binary, dispatched by the `accelerator`
-//! launcher.
+//! `accelerator-corpus` — the `corpus adr|metadata|linkage|frontmatter`
+//! sub-binary, dispatched by the `accelerator` launcher.
 
 mod adr;
 mod cli;
@@ -11,7 +10,6 @@ mod linkage;
 mod metadata;
 mod outcome;
 mod resolve;
-mod topic_research;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -20,6 +18,7 @@ use clap::Parser as _;
 use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::frontmatter_validation::Checks;
+use corpus_adapters::resolve::Resolution;
 use corpus_adapters::RealFs;
 
 use crate::cli::AdrAction;
@@ -29,7 +28,6 @@ use crate::cli::Command;
 use crate::cli::FrontmatterAction;
 use crate::cli::LinkageAction;
 use crate::cli::MetadataAction;
-use crate::cli::TopicResearchAction;
 use crate::outcome::Outcome;
 
 fn current_dir() -> Result<PathBuf, kernel::Error> {
@@ -133,26 +131,6 @@ fn run_frontmatter(
     }
 }
 
-fn run_topic_research(
-    action: TopicResearchAction,
-) -> Result<Outcome, kernel::Error> {
-    match action {
-        TopicResearchAction::Outstanding { slug, profiles_dir } => {
-            let cwd = current_dir()?;
-            let composed = config::compose(&cwd)?;
-            let resolve::RunOutcome::Resolved(set_root) =
-                resolve::run(&cwd, &composed, "topic-research", &slug)
-            else {
-                return Err(kernel::Error::Failed(format!(
-                    "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set \
-                     '{slug}'"
-                )));
-            };
-            topic_research::run_outstanding(&set_root, &profiles_dir, &RealFs)
-        }
-    }
-}
-
 fn report(error: &kernel::Error) -> ExitCode {
     let message = error.to_string();
     if !message.is_empty() {
@@ -174,11 +152,11 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
         Err(error) => return report(&error),
     };
     match resolve::run(&cwd, &composed, doc_type, slug) {
-        resolve::RunOutcome::Resolved(path) => {
+        Resolution::Resolved(path) => {
             println!("{}", path.display());
             ExitCode::from(exit_codes::RESOLVED)
         }
-        resolve::RunOutcome::Ambiguous(candidates) => {
+        Resolution::Ambiguous(candidates) => {
             eprintln!(
                 "E_RESOLVE_AMBIGUOUS: multiple '{doc_type}' documents match \
                  '{slug}':"
@@ -192,19 +170,19 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
             }
             ExitCode::from(exit_codes::AMBIGUOUS)
         }
-        resolve::RunOutcome::NotFound(message) => {
+        Resolution::NotFound(message) => {
             eprintln!("E_RESOLVE_NOT_FOUND: {message}");
             ExitCode::from(exit_codes::NOT_FOUND)
         }
-        resolve::RunOutcome::Invalid(message) => {
+        Resolution::Invalid(message) => {
             eprintln!("E_RESOLVE_INVALID: {message}");
             ExitCode::from(exit_codes::INVALID)
         }
-        resolve::RunOutcome::UnknownType(message) => {
+        Resolution::UnknownType(message) => {
             eprintln!("E_RESOLVE_UNKNOWN_TYPE: {message}");
             ExitCode::from(exit_codes::UNKNOWN_TYPE)
         }
-        resolve::RunOutcome::OutsideRoot(message) => {
+        Resolution::OutsideRoot(message) => {
             eprintln!("E_RESOLVE_OUTSIDE_ROOT: {message}");
             ExitCode::from(exit_codes::OUTSIDE_ROOT)
         }
@@ -218,7 +196,6 @@ fn main() -> ExitCode {
         Command::Metadata { action } => run_metadata(&action),
         Command::Linkage { action } => run_linkage(action),
         Command::Frontmatter { action } => run_frontmatter(action),
-        Command::TopicResearch { action } => run_topic_research(action),
         Command::Resolve { doc_type, slug } => {
             return run_resolve(&doc_type, &slug)
         }

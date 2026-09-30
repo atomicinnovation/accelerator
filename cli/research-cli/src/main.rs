@@ -1,5 +1,5 @@
-//! `accelerator-research` — the `research fetch` and `research guard`
-//! sub-binary, dispatched by the `accelerator` launcher.
+//! `accelerator-research` — the `research fetch|topic|guard` sub-binary,
+//! dispatched by the `accelerator` launcher.
 
 mod cli;
 mod context;
@@ -9,14 +9,18 @@ mod guard;
 mod loopback;
 mod provenance;
 mod render;
+mod topic_command;
 mod write_target;
 
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
 use config_adapters::credentials::CredentialPorts;
+use corpus_adapters::RealFs;
 use research::fetch::Clock;
 use research::fetch::FetchOutcome;
 use research::request::Endpoint;
@@ -35,6 +39,7 @@ use research_adapters::transport::HttpTransport;
 
 use crate::cli::Cli;
 use crate::cli::Command;
+use crate::cli::TopicAction;
 use crate::context::ProjectContext;
 use crate::fetch_command::ArxivAdapters;
 use crate::fetch_command::FetchPorts;
@@ -74,6 +79,12 @@ fn main() -> ExitCode {
                 },
         }) => fetch(clock, &deadline, &family, &verb, &terms, limit.as_deref()),
         Ok(Cli {
+            command:
+                Command::Topic {
+                    action: TopicAction::Outstanding { slug, profiles_dir },
+                },
+        }) => outstanding(&slug, &profiles_dir),
+        Ok(Cli {
             command: Command::Guard { .. },
         }) => guard::run(),
         Err(error) if invoked_as_guard() => {
@@ -108,14 +119,8 @@ fn fetch(
         Ok(endpoints) => endpoints,
         Err(message) => return usage(&message),
     };
-    let project = match std::env::current_dir()
-        .map_err(|error| {
-            format!("could not read the working directory: {error}")
-        })
-        .and_then(|cwd| {
-            ProjectContext::enclosing(&cwd).map_err(|error| error.to_string())
-        }) {
-        Ok(project) => project,
+    let project = match working_project() {
+        Ok((_, project)) => project,
         Err(message) => return failure(&message),
     };
     let call = match source_call(request, endpoints, &project, &clock, deadline)
@@ -132,6 +137,19 @@ fn fetch(
     match fetch_command::run(&ports, &project, deadline, &call) {
         Ok(fetched) => report(&fetched),
         Err(error) => failure(&error.to_string()),
+    }
+}
+
+fn outstanding(slug: &str, profiles_dir: &Path) -> ExitCode {
+    let plan = working_project().and_then(|(cwd, project)| {
+        topic_command::outstanding(&project, &cwd, slug, profiles_dir, &RealFs)
+    });
+    match plan {
+        Ok(plan) => {
+            println!("{plan}");
+            ExitCode::SUCCESS
+        }
+        Err(message) => failure(&message),
     }
 }
 
@@ -181,6 +199,15 @@ fn source_call(
             )
         }
     })
+}
+
+fn working_project() -> Result<(PathBuf, ProjectContext), String> {
+    let cwd = std::env::current_dir().map_err(|error| {
+        format!("could not read the working directory: {error}")
+    })?;
+    let project =
+        ProjectContext::enclosing(&cwd).map_err(|error| error.to_string())?;
+    Ok((cwd, project))
 }
 
 fn report(fetched: &Fetched) -> ExitCode {

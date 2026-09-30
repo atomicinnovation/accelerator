@@ -32,6 +32,7 @@ clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
 
 [dev-dependencies]
 http-test-support = { path = "../http-test-support" }

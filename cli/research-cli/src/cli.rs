@@ -3,6 +3,8 @@
 //! Families, verbs and the limit are taken as raw text so the domain's
 //! `FetchRequest::parse` owns every usage message.
 
+use std::path::PathBuf;
+
 use clap::Parser;
 use clap::Subcommand;
 
@@ -44,6 +46,11 @@ pub enum Command {
         #[arg(long)]
         limit: Option<String>,
     },
+    /// Conventions of a `topic-research` set.
+    Topic {
+        #[command(subcommand)]
+        action: TopicAction,
+    },
     /// Judge a `PreToolUse` hook call from stdin, confining the researcher
     /// subagent to the fetch and to finding files. Exits 2 to block.
     Guard {
@@ -53,5 +60,19 @@ pub enum Command {
         /// Accepted for parity with the launcher, which acts on it.
         #[arg(long)]
         non_blocking: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TopicAction {
+    /// The (focus area, profile) pairs a `conduct` round must still research,
+    /// each with its finding's absolute path, and every outline item's
+    /// completeness, as JSON. Read-only; fields are only ever added.
+    Outstanding {
+        /// The set's slug, set directory, or sub-document path.
+        slug: String,
+        /// The directory holding one `<name>-profile/SKILL.md` per profile.
+        #[arg(long)]
+        profiles_dir: PathBuf,
     },
 }

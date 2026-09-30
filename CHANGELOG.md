@@ -20,7 +20,7 @@
   budget-exhausted, or failing source degrades to `status: "unavailable"`
   rather than an error, and arXiv requests are paced three seconds apart
   across every process in the project.
-- **`accelerator corpus topic-research outstanding`** reports a
+- **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
   itself.

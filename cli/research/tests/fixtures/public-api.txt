@@ -738,6 +738,176 @@ pub fn research::request::WorkId::eq(&self, other: &research::request::WorkId) -
 impl core::fmt::Debug for research::request::WorkId
 pub fn research::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::request::WorkId
+pub mod research::round
+pub enum research::round::SkipReason
+pub research::round::SkipReason::NotInBrief
+pub research::round::SkipReason::NotInstalled
+impl core::clone::Clone for research::round::SkipReason
+pub fn research::round::SkipReason::clone(&self) -> research::round::SkipReason
+impl core::cmp::Eq for research::round::SkipReason
+impl core::cmp::PartialEq for research::round::SkipReason
+pub fn research::round::SkipReason::eq(&self, other: &research::round::SkipReason) -> bool
+impl core::fmt::Debug for research::round::SkipReason
+pub fn research::round::SkipReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::round::SkipReason
+impl core::marker::StructuralPartialEq for research::round::SkipReason
+pub enum research::round::Warning
+pub research::round::Warning::UnmatchedFinding
+pub research::round::Warning::UnmatchedFinding::name: alloc::string::String
+pub research::round::Warning::UnmatchedFinding::question: alloc::string::String
+pub research::round::Warning::UnseparatedProfiles
+pub research::round::Warning::UnseparatedProfiles::line: usize
+impl core::clone::Clone for research::round::Warning
+pub fn research::round::Warning::clone(&self) -> research::round::Warning
+impl core::cmp::Eq for research::round::Warning
+impl core::cmp::PartialEq for research::round::Warning
+pub fn research::round::Warning::eq(&self, other: &research::round::Warning) -> bool
+impl core::fmt::Debug for research::round::Warning
+pub fn research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::round::Warning
+pub fn research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Warning
+pub struct research::round::Finding
+impl research::round::Finding
+pub fn research::round::Finding::invalid(name: &str) -> Self
+pub fn research::round::Finding::retained(name: &str, question: &str, profile: &str) -> Self
+impl core::clone::Clone for research::round::Finding
+pub fn research::round::Finding::clone(&self) -> research::round::Finding
+impl core::cmp::Eq for research::round::Finding
+impl core::cmp::PartialEq for research::round::Finding
+pub fn research::round::Finding::eq(&self, other: &research::round::Finding) -> bool
+impl core::fmt::Debug for research::round::Finding
+pub fn research::round::Finding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Finding
+pub struct research::round::ItemStatus
+pub research::round::ItemStatus::complete: bool
+pub research::round::ItemStatus::line: usize
+pub research::round::ItemStatus::question: alloc::string::String
+impl core::clone::Clone for research::round::ItemStatus
+pub fn research::round::ItemStatus::clone(&self) -> research::round::ItemStatus
+impl core::cmp::Eq for research::round::ItemStatus
+impl core::cmp::PartialEq for research::round::ItemStatus
+pub fn research::round::ItemStatus::eq(&self, other: &research::round::ItemStatus) -> bool
+impl core::fmt::Debug for research::round::ItemStatus
+pub fn research::round::ItemStatus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::ItemStatus
+pub struct research::round::Outline
+pub research::round::Outline::items: alloc::vec::Vec<research::round::OutlineEntry>
+impl research::round::Outline
+pub fn research::round::Outline::parse(text: &str) -> Self
+impl core::clone::Clone for research::round::Outline
+pub fn research::round::Outline::clone(&self) -> research::round::Outline
+impl core::cmp::Eq for research::round::Outline
+impl core::cmp::PartialEq for research::round::Outline
+pub fn research::round::Outline::eq(&self, other: &research::round::Outline) -> bool
+impl core::default::Default for research::round::Outline
+pub fn research::round::Outline::default() -> research::round::Outline
+impl core::fmt::Debug for research::round::Outline
+pub fn research::round::Outline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Outline
+pub struct research::round::OutlineEntry
+pub research::round::OutlineEntry::item: research::round::OutlineItem
+pub research::round::OutlineEntry::line: usize
+impl core::clone::Clone for research::round::OutlineEntry
+pub fn research::round::OutlineEntry::clone(&self) -> research::round::OutlineEntry
+impl core::cmp::Eq for research::round::OutlineEntry
+impl core::cmp::PartialEq for research::round::OutlineEntry
+pub fn research::round::OutlineEntry::eq(&self, other: &research::round::OutlineEntry) -> bool
+impl core::fmt::Debug for research::round::OutlineEntry
+pub fn research::round::OutlineEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::OutlineEntry
+pub struct research::round::OutlineItem
+pub research::round::OutlineItem::question: alloc::string::String
+pub research::round::OutlineItem::ticked: bool
+impl research::round::OutlineItem
+pub fn research::round::OutlineItem::parse(line: &str) -> core::option::Option<Self>
+pub fn research::round::OutlineItem::profiles(&self) -> alloc::vec::Vec<&str>
+impl core::clone::Clone for research::round::OutlineItem
+pub fn research::round::OutlineItem::clone(&self) -> research::round::OutlineItem
+impl core::cmp::Eq for research::round::OutlineItem
+impl core::cmp::PartialEq for research::round::OutlineItem
+pub fn research::round::OutlineItem::eq(&self, other: &research::round::OutlineItem) -> bool
+impl core::fmt::Debug for research::round::OutlineItem
+pub fn research::round::OutlineItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::OutlineItem
+pub struct research::round::Pair
+pub research::round::Pair::path: alloc::string::String
+pub research::round::Pair::profile: alloc::string::String
+pub research::round::Pair::question: alloc::string::String
+impl core::clone::Clone for research::round::Pair
+pub fn research::round::Pair::clone(&self) -> research::round::Pair
+impl core::cmp::Eq for research::round::Pair
+impl core::cmp::PartialEq for research::round::Pair
+pub fn research::round::Pair::eq(&self, other: &research::round::Pair) -> bool
+impl core::fmt::Debug for research::round::Pair
+pub fn research::round::Pair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Pair
+pub struct research::round::QuarantineMarker
+impl research::round::QuarantineMarker
+pub fn research::round::QuarantineMarker::new(name: &str, question: core::option::Option<alloc::string::String>) -> Self
+impl core::clone::Clone for research::round::QuarantineMarker
+pub fn research::round::QuarantineMarker::clone(&self) -> research::round::QuarantineMarker
+impl core::cmp::Eq for research::round::QuarantineMarker
+impl core::cmp::PartialEq for research::round::QuarantineMarker
+pub fn research::round::QuarantineMarker::eq(&self, other: &research::round::QuarantineMarker) -> bool
+impl core::fmt::Debug for research::round::QuarantineMarker
+pub fn research::round::QuarantineMarker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::QuarantineMarker
+pub struct research::round::QuestionSlug(_)
+impl research::round::QuestionSlug
+pub fn research::round::QuestionSlug::as_str(&self) -> &str
+impl core::clone::Clone for research::round::QuestionSlug
+pub fn research::round::QuestionSlug::clone(&self) -> research::round::QuestionSlug
+impl core::cmp::Eq for research::round::QuestionSlug
+impl core::cmp::PartialEq for research::round::QuestionSlug
+pub fn research::round::QuestionSlug::eq(&self, other: &research::round::QuestionSlug) -> bool
+impl core::convert::From<&str> for research::round::QuestionSlug
+pub fn research::round::QuestionSlug::from(question: &str) -> Self
+impl core::fmt::Debug for research::round::QuestionSlug
+pub fn research::round::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::QuestionSlug
+pub struct research::round::Round
+pub research::round::Round::items: alloc::vec::Vec<research::round::ItemStatus>
+pub research::round::Round::pairs: alloc::vec::Vec<research::round::Pair>
+pub research::round::Round::skipped: alloc::vec::Vec<research::round::Skip>
+pub research::round::Round::warnings: alloc::vec::Vec<research::round::Warning>
+impl research::round::Round
+pub fn research::round::Round::plan(inputs: &research::round::RoundInputs) -> Self
+impl core::clone::Clone for research::round::Round
+pub fn research::round::Round::clone(&self) -> research::round::Round
+impl core::cmp::Eq for research::round::Round
+impl core::cmp::PartialEq for research::round::Round
+pub fn research::round::Round::eq(&self, other: &research::round::Round) -> bool
+impl core::fmt::Debug for research::round::Round
+pub fn research::round::Round::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Round
+pub struct research::round::RoundInputs
+pub research::round::RoundInputs::available_profiles: alloc::vec::Vec<alloc::string::String>
+pub research::round::RoundInputs::findings: alloc::vec::Vec<research::round::Finding>
+pub research::round::RoundInputs::markers: alloc::vec::Vec<research::round::QuarantineMarker>
+pub research::round::RoundInputs::outline: research::round::Outline
+pub research::round::RoundInputs::source_profiles: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::round::RoundInputs
+pub fn research::round::RoundInputs::clone(&self) -> research::round::RoundInputs
+impl core::default::Default for research::round::RoundInputs
+pub fn research::round::RoundInputs::default() -> research::round::RoundInputs
+impl core::fmt::Debug for research::round::RoundInputs
+pub fn research::round::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct research::round::Skip
+pub research::round::Skip::profile: alloc::string::String
+pub research::round::Skip::question: alloc::string::String
+pub research::round::Skip::reason: research::round::SkipReason
+impl research::round::Skip
+pub fn research::round::Skip::explanation(&self) -> alloc::string::String
+impl core::clone::Clone for research::round::Skip
+pub fn research::round::Skip::clone(&self) -> research::round::Skip
+impl core::cmp::Eq for research::round::Skip
+impl core::cmp::PartialEq for research::round::Skip
+pub fn research::round::Skip::eq(&self, other: &research::round::Skip) -> bool
+impl core::fmt::Debug for research::round::Skip
+pub fn research::round::Skip::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::round::Skip
+pub const research::round::DEFAULT_PROFILE: &str
 pub mod research::schedule
 pub struct research::schedule::Deadline
 impl research::schedule::Deadline

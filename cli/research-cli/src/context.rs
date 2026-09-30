@@ -9,6 +9,7 @@ use config::Key;
 use config_adapters::compose;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use corpus::DocTypeKey;
 
 pub struct ProjectContext {
     pub root: PathBuf,
@@ -41,5 +42,30 @@ impl ProjectContext {
         let key = Key::parse("paths.tmp")?;
         let tmp = self.config.effective_nonempty(&key, None)?.rendered();
         Ok(self.root.join(tmp).join("research"))
+    }
+}
+
+impl ProjectContext {
+    /// A document type's configured directory, relative paths resolved
+    /// against the project root.
+    ///
+    /// # Errors
+    ///
+    /// A message when the type has no configured directory or its key cannot
+    /// be resolved.
+    pub fn type_dir(&self, key: DocTypeKey) -> Result<PathBuf, String> {
+        let path_key = key.config_path_key().ok_or_else(|| {
+            format!(
+                "document type '{}' has no configured directory",
+                key.wire_str()
+            )
+        })?;
+        let raw = config::paths::resolve_with_fallback(
+            self.config.as_ref(),
+            path_key,
+            None,
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(self.root.join(raw))
     }
 }

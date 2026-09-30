@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-24T21:18:59+00:00"
+last_updated: "2026-09-30T11:06:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -30,7 +30,7 @@ exceeding it for expansion and input redirection, and its writes to finding
 files, and
 `research-topic` changes its unit of work from one finding per focus area to
 one finding per (focus area, profile), allocated by a deterministic
-`accelerator corpus topic-research outstanding` verb. The plan ends with the
+`accelerator research topic outstanding` verb. The plan ends with the
 epic's human-judged output-quality gate.
 
 ## Current State Analysis
@@ -107,7 +107,7 @@ epic's human-judged output-quality gate.
 - `openalex-profile` and `arxiv-profile` sit beside `web-profile`; `brief`
   offers all three; `outline` assigns profiles per focus area with a
   `— profiles:` suffix; `conduct` asks
-  `accelerator corpus topic-research outstanding` for the round's outstanding
+  `accelerator research topic outstanding` for the round's outstanding
   (focus area, profile) pairs and their paths, and spawns one researcher per
   pair.
 - `openalex.api_key`/`openalex.api_key_cmd` are catalogued, listed by
@@ -130,7 +130,9 @@ epic's human-judged output-quality gate.
 - The corpus crates already own the `topic-research` doc type, its slug rules,
   and frontmatter validation (`cli/corpus/src/doc_type.rs`, `slug.rs`,
   `frontmatter_validation/`), and `research-topic` already allows
-  `Bash(accelerator corpus resolve *)`.
+  `Bash(accelerator corpus resolve *)`. The corpus CLI stays general to every
+  document type, so `topic-research`-specific behaviour belongs to the
+  research crates, as work-item behaviour belongs to `cli/work*`.
 - Dispatch coherence (`tasks/shared/dispatch_coherence.py`) needs a SKILL.md
   binding for the `research` token: a `Bash(accelerator research …)` rule plus a
   fenced invocation in a numbered step. The profiles provide it.
@@ -182,7 +184,8 @@ query normalisation, identifiers, the two-stage fetch workflow, and
 confinement; `cli/research-adapters` owns reqwest, JSON/XML decoding, the
 pacing lock, and the clock; `cli/research-cli` (`accelerator-research`) is the
 composition root, mirroring `cli/design*`. Pair enumeration and path
-allocation join the corpus crates as `topic-research outstanding`. Skill prose
+allocation join the research crates as `research topic outstanding`, over
+the corpus crates' document model, as `cli/work*` builds on it. Skill prose
 follows under 0279's documented carve-out: no harness can host a failing test
 for SKILL.md behaviour, so each model-behaviour criterion becomes an attended
 manual step, and the prose is left with orchestration only.
@@ -1770,7 +1773,7 @@ profile or family.
 
 ### Overview
 
-Add `accelerator corpus topic-research outstanding`, which owns pair
+Add `accelerator research topic outstanding`, which owns pair
 enumeration, completion, and path allocation, and rework `outline`, `conduct`,
 the outputter, and templates around it. Only `web` is selectable from `brief`
 until phase 9, but a hand-edited brief already reaches the academic profiles.
@@ -1779,7 +1782,7 @@ until phase 9, but a hand-edited brief already reaches the academic profiles.
 
 #### 1. Domain rules
 
-**File**: `cli/corpus/src/topic_research/round.rs` (new), test-first
+**File**: `cli/research/src/round.rs` (new), test-first
 **Changes**:
 - `OutlineItem::parse(line)`: a checkbox, the question, and an optional
   profiles suffix introduced by `—`, `–`, or `--` before `profiles:`; an item
@@ -1836,22 +1839,26 @@ Tests cover:
 
 #### 2. Verb
 
-**Files**: `cli/corpus-cli/src/cli.rs`, `main.rs`, `topic_research.rs`
-(new; `corpus-cli` gains `serde_json`),
-`cli/corpus-adapters/src/topic_research.rs` (new)
-**Changes**: `accelerator corpus topic-research outstanding SLUG
+**Files**: `cli/research-cli/src/cli.rs`, `main.rs`, `context.rs`,
+`topic_command.rs` (new; `research-cli` gains `corpus-adapters`),
+`cli/research-adapters/src/topic_research.rs` (new; `research-adapters` gains
+`corpus` and `corpus-adapters`), `cli/corpus-adapters/src/resolve.rs` (new,
+lifted from `cli/corpus-cli/src/resolve.rs`, which delegates to it)
+**Changes**: `accelerator research topic outstanding SLUG
 --profiles-dir DIR` prints JSON:
 `{"items":[{"line":N,"question":…,"complete":bool}],"pairs":[{"question":…,"profile":…,"path":…}],"skipped":[{"question":…,"profile":…,"reason":…}],"warnings":[…]}`.
 `available_profiles` are the `<name>` of each `DIR/<name>-profile/SKILL.md`,
 found by one `profile_skill_path(dir, name)` function that the contract tests
-also use, so a new profile needs no corpus change. The adapter's
+also use, so a new profile needs no research change. The adapter's
 `read_round_inputs(set_root, profiles_dir, fs)` and
 `available_profiles(profiles_dir, fs)` run over the existing `DirReader` and
 `FileReader` ports, and a finding is retained when `validate_path` reports
 no violation and it names a `question` and `source_profile`. A missing brief
 or `source_profiles` gives `["web"]`, a missing outline gives no items, and
 a missing profiles directory fails the command with exit `1`. The slug
-resolves through `corpus resolve`'s own `topic-research` resolution. The
+resolves through `corpus resolve`'s own resolution,
+`corpus_adapters::resolve::resolve_document`, against the configured
+`topic-research` directory. The
 JSON is additive-only:
 fields may be added, never renamed or removed, and consumers ignore unknown
 fields. `path` is absolute and canonical, so
@@ -1860,7 +1867,8 @@ plan, and `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '<slug>'` on an
 unresolvable set.
 
-**File**: `cli/corpus-cli/tests/topic_research_outstanding.rs`
+**File**: `cli/research-cli/tests/topic_outstanding.rs`, over the committed
+sets in `cli/corpus-cli/tests/fixtures/`
 **Changes**:
 - golden JSON for the multi-profile fixture below: item 1 incomplete with one
   `openalex` pair at `…/findings/01-how-do-attention-heads-specialise-openalex.md`,
@@ -1898,10 +1906,10 @@ validates and the manifest counts agree with disk through the existing
 - `description` says "web and scholarly sources" and "one researcher per
   (focus area, profile)"; `argument-hint` is unchanged, since it is a usage
   synopsis with no room for either phrase. `allowed-tools` adds
-  `Bash(accelerator corpus topic-research *)` and
-  `Bash(accelerator research fetch *)`. The second is the grant the spawned
+  `Bash(accelerator research fetch *)` and
+  `Bash(accelerator research topic *)`. The first is the grant the spawned
   researchers inherit (see phase 7's baseline).
-  `cli/corpus-adapters/tests/research_agent_contract.rs` gains:
+  `cli/research-adapters/tests/profile_fetch_grants.rs` (new) holds:
   - `research_topic_grants_the_guards_permitted_command`, asserting that
     `allowed-tools` holds `Bash(` + `research::confinement::PERMITTED_PREFIX`
     + `*)`;
@@ -1916,7 +1924,7 @@ validates and the manifest counts agree with disk through the existing
   written as `- [ ] <question> — profiles: <p>, <p>`. `breadth` caps focus
   areas, not profiles.
 - **conduct**:
-  - Run `accelerator corpus topic-research outstanding SLUG --profiles-dir
+  - Run `accelerator research topic outstanding SLUG --profiles-dir
     ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles` (fenced, in a numbered
     step) and spawn one researcher per returned pair, injecting
     `${CLAUDE_PLUGIN_ROOT}/skills/research/profiles/<profile>-profile/SKILL.md`,
@@ -1963,11 +1971,12 @@ validates and the manifest counts agree with disk through the existing
 
 #### Automated Verification
 
-- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus`
-      (the binary's package is `accelerator-corpus`): 26 `round` cases, 8
-      `topic_research_outstanding` cases, 2 multi-profile goldens, and 2
-      contract cases added
-- [x] `mise run public-api:check` after `public-api:update` for `corpus`
+- [x] `cargo test --manifest-path cli/Cargo.toml -p research -p research-adapters -p accelerator-research -p corpus-adapters -p accelerator-corpus`
+      (the binaries' packages are `accelerator-research` and
+      `accelerator-corpus`): 26 `round` cases, 8 `topic_outstanding` cases,
+      2 multi-profile goldens, and 2 grant cases added
+- [x] `mise run public-api:check` after `public-api:update` for `corpus` and
+      `research`
 - [x] `mise run lint:skill-permissions:check`, `mise run lint:dispatch-coherence:check`, and `mise run test:integration:skill-invocation`
 - [x] `mise run check` and `mise run test` exit `0` — `test:e2e` run with
       `E2E_HEALTH_PORT=19187` past the same orphaned server (355 passed)
@@ -2064,7 +2073,7 @@ template's comment reads `# any of "web", "openalex", "arxiv"`.
   unconfined) and a refused binary (exit `1` on every call, with the recovery
   step); that every subagent of the configured researcher type, wherever it is
   spawned, may only run `accelerator research fetch` and write findings), the
-  `topic-research outstanding` invocation, its JSON arrays, and their
+  `research topic outstanding` invocation, its JSON arrays, and their
   additive-only rule, and an "Academic
   profiles in research-topic" section
   covering `brief`, the `— profiles:` suffix, the finding layout, and that
@@ -2081,7 +2090,7 @@ template's comment reads `# any of "web", "openalex", "arxiv"`.
   `E_TOKEN_CMD_FROM_SHARED_CONFIG`, the 0600 and untracked gates, recognised
   keys, the keyless allowance).
 - `CHANGELOG.md` `[Unreleased]` `### Added`: the `accelerator research`
-  command family, `corpus topic-research outstanding`, the academic profiles,
+  command family, `research topic outstanding`, the academic profiles,
   and the OpenAlex keys; `### Fixed`: the `_cmd_cmd` rendering; `### Security`:
   `config dump` hides `api_key` leaves, a tracked `config.local.md` is refused
   for plain token values, and the researcher's writes are confined.
@@ -2163,7 +2172,7 @@ repo on a release that carries `research fetch`.
   traversal and symlinks.
 - Launcher: offline, a corrupt cached `research` binary under
   `--non-blocking` exits `1` with the recovery step, and exits `2` without it.
-- `accelerator-corpus topic-research outstanding` against fixture sets.
+- `accelerator-research topic outstanding` against fixture sets.
 - Python: `hooks.json` registration of both groups and a smoke run through
   `bin/accelerator`; the lexer's bash and zsh differential, including
   network egress.

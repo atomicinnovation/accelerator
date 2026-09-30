@@ -9,7 +9,7 @@ status: "complete"
 result: "partial"
 target: "plan:2026-09-23-0280-academic-source-profiles"
 tags: ["research", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
-last_updated: "2026-09-24T22:34:47+00:00"
+last_updated: "2026-09-30T11:06:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -76,12 +76,17 @@ has not run, and most of phase 8's attended manual matrix remains unticked.
   `STRICTER_THAN_MEASURED` for `$` and `<`, `SHELL_BLANKS` trim, symlink walk
   below the canonical topics root; both `PreToolUse` matchers registered;
   `DispatchFailurePolicy` covers every table cell.
-- `topic-research outstanding` verb, round planning (26 cases), multi-profile
+- `research topic outstanding` verb, round planning (26 cases), multi-profile
   fixture, `research-topic` prose, outputter, templates, docs page, configure
   skill, README and CHANGELOG entries.
 
 #### Deviations from Plan:
 
+- Round planning moved from `accelerator corpus topic-research outstanding`
+  to `accelerator research topic outstanding` after validation, so the corpus
+  CLI stays general to every document type; `round` now lives in `research`,
+  its reader in `research-adapters`, and `corpus resolve`'s resolution in
+  `corpus-adapters` for both binaries. The plan is amended to match.
 - `CredentialPorts::system` takes a `Box<dyn Provenance>` rather than `root`,
   since `config-adapters` cannot depend on the VCS adapter
   (`cli/config-adapters/src/credentials.rs:39`); extra public
@@ -101,17 +106,17 @@ has not run, and most of phase 8's attended manual matrix remains unticked.
 #### Potential Issues:
 
 - `source_profiles: []` in a brief yields an empty list, not `["web"]`
-  (`cli/corpus-adapters/src/topic_research.rs:78-81`), so every pair is
+  (`cli/research-adapters/src/topic_research.rs:77-80`), so every pair is
   skipped as `NotInBrief`. The plan defaults only a missing value; decide
   whether empty should also default.
 - A question repeated in a later round with an added profile is allocated
-  only at its first item (`cli/corpus/src/topic_research/round.rs:379,398`),
+  only at its first item (`cli/research/src/round.rs:379,398`),
   so the later item's new pair is never allocated and stays incomplete.
   Matches the plan's text; latent trap.
-- `corpus-cli/src/main.rs:143-149` reports an ambiguous slug as
+- `research-cli/src/topic_command.rs:31-37` reports an ambiguous slug as
   `E_TOPIC_RESEARCH_UNRESOLVED`, dropping the candidates.
 - The allocated `path` is canonical only if the set directory itself is not
-  a symlink (`resolve.rs:73`).
+  a symlink (`cli/corpus-adapters/src/resolve.rs:67`).
 - `.MD` findings are read as markdown, but `is_finding_path` accepts only
   lowercase `.md`, so a researcher could not write one; harmless today.
 - An OAI-PMH `<error>` (for example `idDoesNotExist` while OAI lags a new

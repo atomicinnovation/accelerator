@@ -1,5 +1,5 @@
-//! `accelerator-corpus topic-research outstanding` black-box CLI coverage:
-//! the round plan a committed set yields, as the JSON `conduct` consumes.
+//! `accelerator-research topic outstanding` black-box CLI coverage: the round
+//! plan a committed set yields, as the JSON `conduct` consumes.
 
 use std::fs;
 use std::path::Path;
@@ -13,7 +13,7 @@ use serde_json::Value;
 
 type TestError = Box<dyn std::error::Error>;
 
-const BIN: &str = env!("CARGO_BIN_EXE_accelerator-corpus");
+const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const TOPICS: &str = "meta/research/topics";
 
 struct Project {
@@ -24,7 +24,7 @@ struct Project {
 impl Project {
     fn new(tag: &str) -> Result<Self, TestError> {
         let dir = tempfile::Builder::new()
-            .prefix(&format!("corpus-topic-research-{tag}-"))
+            .prefix(&format!("research-topic-{tag}-"))
             .tempdir()?;
         let root = dir.path().canonicalize()?;
         fs::create_dir_all(root.join(".git"))?;
@@ -56,7 +56,7 @@ impl Project {
     ) -> Result<Output, TestError> {
         Ok(Command::new(BIN)
             .current_dir(&self.root)
-            .args(["topic-research", "outstanding", slug, "--profiles-dir"])
+            .args(["topic", "outstanding", slug, "--profiles-dir"])
             .arg(profiles_dir)
             .output()?)
     }
@@ -80,8 +80,11 @@ impl Project {
     }
 }
 
+/// The committed topic-research sets live beside the frontmatter goldens that
+/// hold them to the schema.
 fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../corpus-cli/tests/fixtures")
 }
 
 fn installed_profiles() -> PathBuf {

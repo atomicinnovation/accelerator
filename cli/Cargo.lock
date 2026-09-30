@@ -60,7 +60,6 @@ dependencies = [
  "corpus-adapters",
  "document",
  "kernel",
- "serde_json",
  "tempfile",
  "vcs-test-support",
 ]
@@ -103,6 +102,7 @@ dependencies = [
  "config",
  "config-adapters",
  "corpus",
+ "corpus-adapters",
  "http-test-support",
  "research",
  "research-adapters",
@@ -4046,7 +4046,10 @@ version = "1.24.0-pre.73"
 name = "research-adapters"
 version = "1.24.0-pre.73"
 dependencies = [
+ "corpus",
+ "corpus-adapters",
  "http-test-support",
+ "kernel",
  "reqwest",
  "research",
  "roxmltree",

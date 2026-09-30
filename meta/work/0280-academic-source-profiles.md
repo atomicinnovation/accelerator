@@ -13,7 +13,7 @@ blocked_by: ["work-item:0277", "work-item:0279"]
 blocks: ["work-item:0283"]
 relates_to: ["work-item:0278", "work-item:0281", "work-item:0282", "work-item:0284"]
 tags: ["research", "skills", "sources", "config"]
-last_updated: "2026-09-24T12:11:42+00:00"
+last_updated: "2026-09-30T11:06:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-864"
@@ -655,6 +655,10 @@ None.
   visualiser displays tiers.
 - `research fetch` is a new dispatched sub-binary in `cli/`; follow the
   thirteen-point registration checklist in `tasks/README.md`.
+- Round planning — pair enumeration, completion, and finding-path allocation —
+  is `accelerator research topic outstanding`, in the research crates over the
+  corpus crates' document model, as `cli/work*` builds on it; the corpus CLI
+  stays general to every document type.
 - Key resolution reuses the ladder `resolve_token` implements in
   `cli/tracker-support/src/credentials.rs`, relocated to a neutral
   `config::credentials` so no research crate depends on `tracker-support`,

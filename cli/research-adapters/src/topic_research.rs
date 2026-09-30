@@ -6,18 +6,17 @@ use std::path::PathBuf;
 
 use corpus::scan::DirReader;
 use corpus::scan::FileReader;
-use corpus::topic_research::round::Finding;
-use corpus::topic_research::round::Outline;
-use corpus::topic_research::round::QuarantineMarker;
-use corpus::topic_research::round::RoundInputs;
-use corpus::topic_research::round::DEFAULT_PROFILE;
 use corpus::FrontmatterValue;
 use corpus::Mapping;
 use corpus::Scalar;
-
-use crate::document::parse;
-use crate::document::FrontmatterState;
-use crate::frontmatter_validation::validate_path;
+use corpus_adapters::frontmatter_validation::validate_path;
+use corpus_adapters::parse;
+use corpus_adapters::FrontmatterState;
+use research::round::Finding;
+use research::round::Outline;
+use research::round::QuarantineMarker;
+use research::round::RoundInputs;
+use research::round::DEFAULT_PROFILE;
 
 const PROFILE_SUFFIX: &str = "-profile";
 const QUARANTINE_SUFFIX: &str = ".invalid";

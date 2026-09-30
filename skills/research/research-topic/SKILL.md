@@ -15,8 +15,8 @@ allowed-tools:
   - Bash(accelerator corpus resolve *)
   - Bash(accelerator corpus metadata derive)
   - Bash(accelerator corpus frontmatter validate *)
-  - Bash(accelerator corpus topic-research *)
   - Bash(accelerator research fetch *)
+  - Bash(accelerator research topic *)
 ---
 
 # Research Topic
@@ -219,14 +219,14 @@ outline; `outlined` and `researching` stay unchanged; a `synthesised` or
 
 A focus area is researched once per profile its outline item names — `web`
 when it names none — and each (focus area, profile) pair is answered by its
-own finding. `accelerator corpus topic-research outstanding` owns which pairs
+own finding. `accelerator research topic outstanding` owns which pairs
 are outstanding and where their findings go; never allocate a finding path
 yourself.
 
 1. **Plan the round.** Run:
 
    ```bash
-   accelerator corpus topic-research outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles
    ```
 
    It prints JSON: `items`, each outline item's `line`, `question`, and

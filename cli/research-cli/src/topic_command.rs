@@ -1,34 +1,47 @@
-//! The `topic-research` command layer: a set's round plan rendered as the
+//! One `research topic outstanding` call: a set's round plan rendered as the
 //! JSON `research-topic`'s `conduct` consumes.
 
 use std::path::Path;
 
 use corpus::scan::DirReader;
 use corpus::scan::FileReader;
-use corpus::topic_research::round::Round;
-use corpus_adapters::topic_research::read_round_inputs;
+use corpus_adapters::resolve::resolve_document;
+use corpus_adapters::resolve::Resolution;
+use research::round::Round;
+use research_adapters::topic_research::read_round_inputs;
 use serde_json::json;
 
-use crate::outcome::Outcome;
+use crate::context::ProjectContext;
 
-/// Runs `topic-research outstanding` against the set rooted at `set_root`,
-/// which must be canonical: each pair's `path` is emitted beneath it.
+const DOC_TYPE: &str = "topic-research";
+
+/// The round plan of the set `slug` names, as one line of JSON.
 ///
 /// # Errors
 ///
-/// A [`kernel::Error`] when the set or the profiles directory cannot be read.
-pub fn run_outstanding<F: DirReader + FileReader>(
-    set_root: &Path,
+/// A message when `slug` resolves to no set, or the set or the profiles
+/// directory cannot be read.
+pub fn outstanding<F: DirReader + FileReader>(
+    project: &ProjectContext,
+    cwd: &Path,
+    slug: &str,
     profiles_dir: &Path,
     fs: &F,
-) -> Result<Outcome, kernel::Error> {
-    let round = Round::plan(&read_round_inputs(set_root, profiles_dir, fs)?);
-    Ok(Outcome {
-        stdout: format!("{}\n", render(&round, set_root)),
-        stderr: String::new(),
-    })
+) -> Result<String, String> {
+    let Resolution::Resolved(set_root) =
+        resolve_document(cwd, DOC_TYPE, slug, |key| project.type_dir(key))
+    else {
+        return Err(format!(
+            "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
+        ));
+    };
+    let inputs = read_round_inputs(&set_root, profiles_dir, fs)
+        .map_err(|error| error.to_string())?;
+    Ok(render(&Round::plan(&inputs), &set_root).to_string())
 }
 
+/// Each pair's `path` is emitted beneath `set_root`, which resolution has
+/// already made canonical.
 fn render(round: &Round, set_root: &Path) -> serde_json::Value {
     let items: Vec<_> = round
         .items
