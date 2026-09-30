@@ -1,0 +1,3 @@
+[[exception]]
+id = "GHSA-ch52-4w7c-c8xp"
+reason = "http-cache-semantics max-stale disclosure via astro; no patched release, and the static docs build serves no shared HTTP cache. review-by: 2026-11-03"
