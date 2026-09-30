@@ -2976,8 +2976,6 @@ class TestUnrecordedCalibration:
         assert "bash" in note or "shasum" in note
 
     def test_a_recorded_libc_is_pure_provenance_and_never_demotes(self):
-        # The libc identity rides in provenance rather than in an exact-match
-        # field, so it cannot make an otherwise-matching host uncalibrated.
         entry = self.entry(
             bash="GNU bash, version 5.3.15", shasum="6.02", libc="musl"
         )
