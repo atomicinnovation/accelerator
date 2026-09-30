@@ -10,19 +10,21 @@ result: "partial"
 parent: "work-item:0230"
 target: "plan:2026-09-26-0230-tracker-owned-work-item-id-generation"
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
-last_updated: "2026-09-29T23:05:19+00:00"
+last_updated: "2026-09-30T00:24:22+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
 ## Validation Report: Tracker-Owned Work Item ID Generation Implementation Plan
 
-Every phase's code changes are in place, and the full local CI mirror passes.
+Every phase's code changes are in place. The full local CI mirror passes
+apart from one visualiser end-to-end test that fails only under full load
+(see Automated Verification Results).
 The result is `partial` for two reasons. First, the tracker contract suite
 has not run, because it needs live Jira and Linear tenants. Second, eleven
 manual checks are still open, most of which also need a live tenant. The
-code review's findings (P1–P9) and the plan-bookkeeping gaps are all
-fixed, apart from three small leftovers recorded under P6, P5 and P9.
+code review's findings (P1–P9), their leftovers and the plan-bookkeeping
+gaps are all fixed.
 
 ### Implementation Status
 
@@ -47,10 +49,16 @@ tests.
 
 ### Automated Verification Results
 
-✓ `mise run` (the full default task) exits 0 with every fix applied. It
-covers 4,051 CLI unit tests (1 skipped, 1 reported leaky) plus every
-integration, e2e, docs and tasks lane. Before the fixes it also
-exited 0 on `6b815050`, over 4,025 CLI unit tests.
+⚠️ `mise run` (the full default task), with every fix applied, passes every
+lane but `test:e2e:visualiser`. That covers 4,055 CLI unit tests (1 skipped)
+and every integration, docs and tasks lane. In the last two full runs, one
+visualiser test failed, `aside-row-resolved-colours.spec.ts` ("inferred
+rows surface one row per other non-virtual doc type"), with
+`page.goto: net::ERR_ABORTED` on both attempts. Run alone, the lane passes
+all 355 tests, twice. Earlier full runs in this validation passed with the
+same visualiser code, which depends on no `work` crate. It is not proven to
+fail the same way on the parent commit under full load. Before the fixes,
+`mise run` exited 0 on `6b815050`, over 4,025 CLI unit tests.
 ✓ Every per-phase `cargo test`, `public-api:check`, `pup:check`,
 `test:integration:conformance` and `test:integration:skill-invocation`
 command is covered by the full run.
@@ -184,15 +192,18 @@ code. All are fixed.
    manifest's refs and titles, and the title fallback claims only entries
    from the same batch. Covered by
    `an_unrelated_batch_sharing_a_title_creates_its_own_item` and
-   `a_title_another_batch_recorded_is_not_claimed`. Still open: after a
-   title-matched claim, the old entry stays until the 30-day prune.
+   `a_title_another_batch_recorded_is_not_claimed`. An entry claimed by
+   title now moves to the new digest at once, so the superseded digest no
+   longer lingers
+   (`a_title_claim_moves_the_entry_to_the_reworded_digest`,
+   `a_title_claimed_entry_can_be_forgotten`).
 6. **P6: a stopped pass lost the applied count** (fixed). `settle_identities`
    now fails with a `SettlementFailure` carrying how many changes had
    landed. Covered by
    `a_pass_stopped_mid_way_counts_the_changes_that_landed_before_it`.
-   Still open: the landed identity rows themselves are not rendered on
-   failure; only their count reaches the `identity-applied-before-refusal`
-   note.
+   The failure also carries the identity and promotion rows the pass
+   reported, and `work sync` prints them before the note
+   (`a_stopped_run_prints_the_identity_changes_that_landed_before_its_note`).
 7. **P7: the rerun guard ran before the create lock** (fixed). The
    tracker-keyed create checks for a pending create while holding the
    create lock. Covered by
@@ -227,9 +238,10 @@ code. All are fixed.
      so a file edited after planning leaves no directory behind
      (`a_file_changed_after_the_snapshot_leaves_no_recovery_directory`).
 
-   Still open: a recovery copy that fails to write partway through still
-   leaves its directory. The copy store is not behind the test harness's
-   fault injection, so no failing test could drive it.
+   A fresh retirement whose recovery copies fail to write removes the
+   directory it prepared
+   (`a_recovery_copy_that_fails_to_write_leaves_no_recovery_directory`,
+   driven by a fault-injecting recovery store added to the test harness).
 
 ### Manual Testing Required:
 
@@ -262,7 +274,5 @@ code. All are fixed.
 
 - Run the tracker contract suite and the live manual checks, then
   re-validate. The plan stays `in-progress` until then.
-- Consider the three small leftovers: rendering landed identity rows when
-  a pass stops (P6), removing a recovery directory whose copy failed to
-  write (P9), and dropping a journal entry once a title match supersedes it
-  (P5).
+- Find out why `aside-row-resolved-colours.spec.ts` fails under full load,
+  or confirm it fails the same way on the parent commit.
