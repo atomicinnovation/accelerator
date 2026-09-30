@@ -12,9 +12,9 @@ relates_to: ["work-item:0121", "work-item:0282", "work-item:0283", "work-item:02
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/134"
 pr_number: 134
 tags: ["research", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
-revision: "c6b0d230b7bf3a55e84e52e0b35f78449ca385e8"
+revision: "aa8ede0d5e59276c275e258d1e366e5f4572ce44"
 repository: "accelerator"
-last_updated: "2026-09-24T22:52:35+00:00"
+last_updated: "2026-09-30T17:45:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -30,7 +30,7 @@ derives each record's reputation tier, and a `PreToolUse` guard confines the
 researcher's newly granted `Bash` to that command and its writes to finding
 files. `conduct`'s unit of work changes from one finding per focus area to one
 finding per (focus area, profile), allocated by a new
-`accelerator corpus topic-research outstanding` verb rather than by skill prose.
+`accelerator research topic outstanding` verb rather than by skill prose.
 
 ## Changes
 
@@ -85,9 +85,15 @@ finding per (focus area, profile), allocated by a new
   profiles per focus area with a `— profiles: web, openalex` suffix. An
   unsuffixed item is researched through `web` alone, so existing sets are
   unchanged.
-- **`conduct`** asks `accelerator corpus topic-research outstanding` for the
+- **`conduct`** asks `accelerator research topic outstanding` for the
   round's outstanding (focus area, profile) pairs and their paths, then spawns
   one researcher per pair writing `findings/<nn>-<slug>-<profile>.md`.
+- **Round planning lives in the research crates**, not the corpus CLI, which
+  stays general to every document type: `research::round` holds the domain
+  rules, `research_adapters::topic_research` reads a set from disk, and
+  `accelerator-research` serves the verb, building on the corpus document
+  model as `cli/work*` does. `corpus resolve`'s slug and path resolution moves
+  from `corpus-cli` into `corpus_adapters::resolve` so both binaries share it.
 - **`agents/researcher.md`** gains `Bash`; `research-topic`'s `allowed-tools`
   grant the fetch, with a documented project allow rule as the fallback.
 - **Templates** (`topic-research-brief`, `-outline`, `-finding`) and the
@@ -129,10 +135,10 @@ finding per (focus area, profile), allocated by a new
 
 ## Testing
 
-- [x] Bare `mise run` at validation: every leaf green except
-      `test:e2e:visualiser`, which failed in global setup on a stale
-      `.e2e-port` from an orphaned server in another workspace; re-run with
-      `E2E_HEALTH_PORT=19187 mise run test:e2e`: 355 passed, 1 skipped
+- [x] Bare `mise run` exits `0` at the head of the stack, after the move of
+      round planning to `research topic outstanding`
+- [x] `accelerator-research`'s `topic_outstanding` suite (8 cases) runs the
+      moved verb against the committed fixture sets
 - [x] Live: `research fetch openalex search 'graph neural networks' --limit 2`
       returns tiered records keyless
 - [x] Live: `research fetch arxiv lookup 2608.21129` returns `tier-3`,
@@ -157,11 +163,11 @@ finding per (focus area, profile), allocated by a new
 
 ## Notes for Reviewers
 
-- **Size**: ~28k lines across 193 files, most of it the three research crates
+- **Size**: ~29k lines across 195 files, most of it the three research crates
   and their tests. Suggested reading order: `cli/research/src` (tier,
   classify, schedule, fetch, confinement), then `research-adapters`
-  (transport, pacing, confirmations), then `research-cli/src/guard.rs`, then
-  the `research-topic` SKILL.md.
+  (transport, pacing, confirmations), then `research-cli/src/guard.rs` and
+  `topic_command.rs`, then the `research-topic` SKILL.md.
 - **Confinement is not fail-closed**: if the `research` binary cannot be
   resolved or fails integrity, the guard reports on stderr and the call
   proceeds unconfined, with Claude Code's permission rules as the backstop.
@@ -174,10 +180,10 @@ finding per (focus area, profile), allocated by a new
   checks compare against the original scheme rather than requiring `https`.
 - **Open decisions from validation**:
   - `source_profiles: []` in a brief yields no pairs rather than defaulting to
-    `["web"]` (`cli/corpus-adapters/src/topic_research.rs:78-81`).
+    `["web"]` (`cli/research-adapters/src/topic_research.rs:77-80`).
   - A question repeated in a later round with an added profile only allocates
     at its first item, so the new pair stays incomplete
-    (`cli/corpus/src/topic_research/round.rs:379,398`).
+    (`cli/research/src/round.rs:379,398`).
   - An OAI-PMH `<error>` (e.g. `idDoesNotExist` while OAI lags a new listing)
     fails the whole arXiv call with exit `1`.
 - **CI**: the Linux lane now installs `zsh` for the lexer differential, via
