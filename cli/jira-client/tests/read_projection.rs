@@ -8,7 +8,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::jql::Search;
 use serde_json::Value;
 use support::client::{brief, client_for, PROJECT};
@@ -27,7 +27,7 @@ fn search_over(project: &str) -> Search {
 
 #[test]
 fn search_detailed_merges_a_complete_walk_and_posts_the_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // A page with no cursor completes the walk in one request.
     server.route(
         RequestKey::post(SEARCH),
@@ -75,7 +75,7 @@ fn search_detailed_merges_a_complete_walk_and_posts_the_body() {
 
 #[test]
 fn search_detailed_paginates_to_the_cap_and_reports_a_cap_hit() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page offers another cursor, so only the discovery cap ends the
     // walk: the merged envelope is marked truncated and carries the resume
     // cursor.
@@ -122,7 +122,7 @@ fn search_detailed_paginates_to_the_cap_and_reports_a_cap_hit() {
 
 #[test]
 fn a_page_token_adds_the_cursor_to_the_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {
@@ -150,7 +150,7 @@ fn a_page_token_adds_the_cursor_to_the_body() {
 
 #[test]
 fn compose_search_jql_returns_the_audit_string() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, brief());
     let jql = client
         .compose_search_jql(&search_over(PROJECT))
@@ -161,7 +161,7 @@ fn compose_search_jql_returns_the_audit_string() {
 
 #[test]
 fn an_uncomposable_search_is_refused_before_the_wire() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, brief());
     let neither = Search::default();
 
@@ -174,7 +174,7 @@ fn an_uncomposable_search_is_refused_before_the_wire() {
 
 #[test]
 fn show_detailed_returns_the_raw_issue_and_carries_the_queries() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let issue = r#"{"key":"ENG-42","fields":{"summary":"a bug"}}"#;
     server.route(
         RequestKey::get(&format!("{ISSUE}/ENG-42")),
@@ -204,7 +204,7 @@ fn show_detailed_returns_the_raw_issue_and_carries_the_queries() {
 
 #[test]
 fn show_detailed_surfaces_a_status_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(&format!("{ISSUE}/ENG-9")),
         Route::Status(404),

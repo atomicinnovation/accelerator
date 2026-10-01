@@ -5,7 +5,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::SurfaceError;
 use serde_json::Value;
 use support::client::client_for;
@@ -22,7 +22,7 @@ fn json_route(body: &str) -> Route {
 
 #[test]
 fn add_comment_sends_the_mutation_with_the_issue_id_and_markdown_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -53,7 +53,7 @@ fn add_comment_sends_the_mutation_with_the_issue_id_and_markdown_body() {
 
 #[test]
 fn a_response_carrying_errors_is_a_typed_failure() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route("{\"errors\":[{\"message\":\"nope\"}]}"),

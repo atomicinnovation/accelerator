@@ -9,14 +9,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use http_test_support::{MockServer, RequestKey, Route, UNMATCHED_STATUS};
+use http_test_support::{MockHTTPServer, RequestKey, Route, UNMATCHED_STATUS};
 
 struct Response {
     status: u16,
     body: Vec<u8>,
 }
 
-fn connect(server: &MockServer) -> TcpStream {
+fn connect(server: &MockHTTPServer) -> TcpStream {
     let address = server.base_url().replace("http://", "");
     TcpStream::connect(address).expect("connect")
 }
@@ -71,7 +71,7 @@ fn read_head(reader: &mut BufReader<TcpStream>) -> (u16, usize) {
 }
 
 fn request(
-    server: &MockServer,
+    server: &MockHTTPServer,
     method: &str,
     target: &str,
     headers: &[(&str, &str)],
@@ -93,7 +93,7 @@ fn request(
 
 #[test]
 fn a_request_matching_no_route_returns_the_unmatched_status() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/present"), Route::Status(204));
 
     let response = request(&server, "GET", "/absent", &[], &[]);
@@ -103,7 +103,7 @@ fn a_request_matching_no_route_returns_the_unmatched_status() {
 
 #[test]
 fn a_route_registered_for_one_method_does_not_answer_another() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/issue"), Route::Status(200));
 
     let response = request(&server, "POST", "/issue", &[], b"{}");
@@ -115,7 +115,7 @@ fn a_route_registered_for_one_method_does_not_answer_another() {
 
 #[test]
 fn hits_count_exact_key_matches_only() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/a"), Route::Status(200));
     server.route(RequestKey::get("/b"), Route::Status(200));
 
@@ -129,7 +129,7 @@ fn hits_count_exact_key_matches_only() {
 
 #[test]
 fn the_accessors_report_nothing_for_a_key_never_requested() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post("/issue"), Route::Status(200));
     request(&server, "POST", "/other", &[], b"body");
 
@@ -142,7 +142,7 @@ fn the_accessors_report_nothing_for_a_key_never_requested() {
 
 #[test]
 fn the_recorded_request_is_visible_as_soon_as_the_call_returns() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post("/rest/api/3/search/jql");
     server.route(
         key.clone(),
@@ -173,7 +173,7 @@ fn the_recorded_request_is_visible_as_soon_as_the_call_returns() {
 
 #[test]
 fn headers_are_recorded_per_route_rather_than_globally() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let authorised = RequestKey::post("/graphql");
     let anonymous = RequestKey::put("/upload");
     server.route(
@@ -203,7 +203,7 @@ fn headers_are_recorded_per_route_rather_than_globally() {
 
 #[test]
 fn every_hit_body_is_recorded_in_order_while_last_body_stays_the_most_recent() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post("/graphql");
     server.route(
         key.clone(),
@@ -243,7 +243,7 @@ fn every_hit_body_is_recorded_in_order_while_last_body_stays_the_most_recent() {
 
 #[test]
 fn a_json_route_returns_its_body_verbatim() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/repos/owner/repo"),
         Route::Json {
@@ -260,7 +260,7 @@ fn a_json_route_returns_its_body_verbatim() {
 
 #[test]
 fn a_flaky_route_fails_the_stated_number_of_times_then_succeeds() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get("/asset");
     server.route(
         key.clone(),
@@ -281,7 +281,7 @@ fn a_flaky_route_fails_the_stated_number_of_times_then_succeeds() {
 
 #[test]
 fn a_stalled_route_sends_its_headers_then_withholds_the_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/slow"),
         Route::Stall(Duration::from_secs(30)),
@@ -306,7 +306,7 @@ fn a_stalled_route_sends_its_headers_then_withholds_the_body() {
 
 #[test]
 fn a_truncated_route_promises_the_whole_body_then_sends_only_a_prefix() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/asset"),
         Route::Truncated {
@@ -334,7 +334,7 @@ fn a_truncated_route_promises_the_whole_body_then_sends_only_a_prefix() {
 
 #[test]
 fn a_sequenced_route_answers_each_hit_in_turn() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post("/graphql");
     server.route(
         key.clone(),
@@ -368,7 +368,7 @@ fn a_sequenced_route_answers_each_hit_in_turn() {
 
 #[test]
 fn a_body_dependent_route_answers_from_the_request_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/echo"),
         Route::ByBody(Arc::new(|body: &[u8]| Route::Bytes {
@@ -387,7 +387,7 @@ fn a_body_dependent_route_answers_from_the_request_body() {
 
 #[test]
 fn a_body_dependent_route_can_answer_slowly() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/slow"),
         Route::ByBody(Arc::new(|_: &[u8]| Route::Delayed {
@@ -418,7 +418,7 @@ fn a_route_resolves_to_the_response_for_each_hit() {
 
 #[test]
 fn every_hit_is_stamped_with_the_instant_it_arrived() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get("/asset");
     server.route(key.clone(), Route::Status(200));
 
@@ -437,7 +437,7 @@ fn every_hit_is_stamped_with_the_instant_it_arrived() {
 
 #[test]
 fn a_delayed_route_answers_its_inner_route_after_the_delay() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/later"),
         Route::Delayed {

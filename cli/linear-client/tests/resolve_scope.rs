@@ -6,7 +6,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 use linear_client::resolution::ResolverSet;
 use serde_json::json;
 use support::catalogue::{
@@ -38,7 +38,7 @@ fn resolved_base(scope: &SearchScope) -> Option<String> {
 
 #[test]
 fn a_matching_team_key_resolves_to_the_uuid() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, brief());
 
     let resolved = client
@@ -54,7 +54,7 @@ fn a_matching_team_key_resolves_to_the_uuid() {
 
 #[test]
 fn an_unknown_team_key_is_refused_naming_it() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, brief());
 
     let error = client
@@ -71,7 +71,7 @@ fn an_unknown_team_key_is_refused_naming_it() {
 
 #[test]
 fn a_missing_team_key_is_refused() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, brief());
 
     let error = client
@@ -128,7 +128,7 @@ fn base_only(key: &str) -> EntityScope {
 
 #[test]
 fn a_base_only_scope_resolves_its_team_and_filters() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
 
     let resolved = client
@@ -141,7 +141,7 @@ fn a_base_only_scope_resolves_its_team_and_filters() {
 
 #[test]
 fn a_base_plus_additional_scope_leaves_entities_as_keys() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
     let entities = EntityScope::Keyed {
         base: Some(TEAM_KEY.to_owned()),
@@ -158,7 +158,7 @@ fn a_base_plus_additional_scope_leaves_entities_as_keys() {
 
 #[test]
 fn an_additional_only_scope_needs_no_base() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
     let entities = EntityScope::Keyed {
         base: None,
@@ -174,7 +174,7 @@ fn an_additional_only_scope_needs_no_base() {
 
 #[test]
 fn a_whole_workspace_scope_carries_validated_names() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
 
     let resolved = client
@@ -199,7 +199,7 @@ fn a_value_the_covering_base_entry_lacks_refuses_before_any_request() {
         ("assignee", "E_SEARCH_UNKNOWN_ASSIGNEE"),
         ("project", "E_SEARCH_UNKNOWN_PROJECT"),
     ] {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         let client = client_with_resolvers(&server, complete_catalogue());
 
         let error = client
@@ -225,7 +225,7 @@ fn a_value_the_covering_base_entry_lacks_refuses_before_any_request() {
 
 #[test]
 fn a_base_entry_that_does_not_cover_the_families_defers_to_completion() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(
         &server,
         resolvers(&json!({
@@ -243,7 +243,7 @@ fn a_base_entry_that_does_not_cover_the_families_defers_to_completion() {
 
 #[test]
 fn pre_flight_resolves_against_the_team_the_key_names() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
 
     client
@@ -262,7 +262,7 @@ fn pre_flight_resolves_against_the_team_the_key_names() {
 
 #[test]
 fn a_broadened_scope_never_refuses_a_value_in_pre_flight() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(&server, complete_catalogue());
 
     let resolved = client.resolve_scope(&scope(
@@ -278,7 +278,7 @@ fn a_broadened_scope_never_refuses_a_value_in_pre_flight() {
 
 #[test]
 fn the_remedy_names_a_placeholder_when_there_is_no_base_team() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_with_resolvers(
         &server,
         resolvers(&json!({

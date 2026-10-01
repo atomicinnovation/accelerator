@@ -1,5 +1,5 @@
 //! Loads a retired mock's scenario JSON and installs it on a
-//! [`MockServer`].
+//! [`MockHTTPServer`].
 //!
 //! A scenario is `{expectations?: [{method, path, consume?, response: {status,
 //! headers, body}, expect_body_contains?, capture_body?}], graphql_queries?:
@@ -19,7 +19,7 @@ use std::hash::Hash;
 use std::path::Path;
 
 use graphql_test_support::{MockGraphQLServer, ENDPOINT};
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde::Deserialize;
 
 /// A mock response.
@@ -110,7 +110,7 @@ impl Scenario {
     ///
     /// If the scenario scripts GraphQL queries, which only a
     /// [`MockGraphQLServer`] can answer.
-    pub fn install(&self, server: &MockServer) {
+    pub fn install(&self, server: &MockHTTPServer) {
         assert!(
             self.graphql_queries.is_empty(),
             "a scenario scripting GraphQL queries installs on a \
@@ -143,7 +143,7 @@ impl Scenario {
         self.install_http_calls(server.http());
     }
 
-    fn install_http_calls(&self, server: &MockServer) {
+    fn install_http_calls(&self, server: &MockHTTPServer) {
         for (key, route) in sequenced(
             self.http_calls
                 .iter()

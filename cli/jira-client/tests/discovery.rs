@@ -4,7 +4,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::SurfaceError;
 use serde_json::json;
 use support::client::client_for;
@@ -19,7 +19,7 @@ fn json_route(body: &str) -> Route {
 
 #[test]
 fn discover_site_returns_the_site_and_account_id() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/myself"),
         json_route(r#"{"accountId":"5b10ac","emailAddress":"t@x.io"}"#),
@@ -36,7 +36,7 @@ fn discover_site_returns_the_site_and_account_id() {
 
 #[test]
 fn discover_site_without_an_account_id_is_a_bad_response() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/myself"),
         json_route(r#"{"emailAddress":"t@x.io"}"#),
@@ -50,7 +50,7 @@ fn discover_site_without_an_account_id_is_a_bad_response() {
 
 #[test]
 fn discover_projects_projects_key_id_name() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/project"),
         json_route(
@@ -72,7 +72,7 @@ fn discover_projects_projects_key_id_name() {
 
 #[test]
 fn discover_fields_slugifies_and_carries_schema() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/field"),
         json_route(
@@ -100,7 +100,7 @@ fn discover_fields_slugifies_and_carries_schema() {
 
 #[test]
 fn a_non_success_status_surfaces_as_a_status_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/rest/api/3/myself"), Route::Status(401));
     let client = client_for(&server, TransportConfig::default());
 

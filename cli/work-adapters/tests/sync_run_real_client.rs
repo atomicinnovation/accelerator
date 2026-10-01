@@ -2,7 +2,7 @@
 //!
 //! `sync_run.rs` proves the engine over `RecordingTracker`; this proves the
 //! same engine reaches a live classification through `JiraClient` and
-//! `LinearClient` pointed at a `MockServer` — the seam where a `TrackerError`
+//! `LinearClient` pointed at a `MockHTTPServer` — the seam where a `TrackerError`
 //! class becomes a sync classification and a `FetchOutcome` becomes present,
 //! absent or indeterminate. The clients are built through their public
 //! constructors with a loopback base, the admission `from_config` refuses.
@@ -22,7 +22,7 @@ use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
 use graphql_test_support::MockGraphQLServer;
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use jira_client::jql::FixedResolver;
@@ -312,7 +312,7 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
         external_id: Some(ExternalId::new("ENG-1".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
@@ -373,7 +373,7 @@ fn jira_aborts_a_capped_keyed_read_and_deletes_nothing() -> Result<(), TestError
         external_id: Some(ExternalId::new("ENG-2".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page carries a cursor, so the one-page cap is hit: a fail-loud
     // truncation the run aborts on rather than degrades around.
     server.route(
@@ -448,7 +448,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
 
     // Probe the projected body on a show-only mock, then run against a fresh
     // sequence — Linear posts every operation to the one /graphql key.
-    let probe = MockServer::start();
+    let probe = MockHTTPServer::start();
     probe.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -462,7 +462,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
             .body,
     );
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Sequence(vec![
@@ -503,7 +503,7 @@ fn linear_aborts_a_capped_keyed_read_and_deletes_nothing(
         external_id: Some(ExternalId::new("ENG-2".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page reports a next page, so the one-page cap is hit: a fail-loud
     // truncation the run aborts on rather than degrades around.
     server.route(
@@ -601,7 +601,7 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         },
     ];
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
@@ -689,7 +689,7 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
 /// A keyed Linear discovery resolves the team key to the UUID, bounds the
 /// search to it, and reports the untracked issue as a planned pull.
 /// The load-bearing assertion is the captured body carrying `LINEAR_TEAM_ID` —
-/// a `MockServer` routes by method+path and does not evaluate the team filter,
+/// a `MockHTTPServer` routes by method+path and does not evaluate the team filter,
 /// so the seeded issue surfaces even with the raw key; the raw key in the body
 /// is what fails against the old, unresolved gate.
 #[test]
@@ -701,7 +701,7 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
          {{\"hasNextPage\":false,\"endCursor\":null}}}}}}}}"
     );
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -767,7 +767,7 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
 /// so "nothing was sent" is checkable only as zero requests.
 #[test]
 fn linear_discovery_with_no_key_refuses_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -939,7 +939,7 @@ impl CatalogueBackfill for RecordingBackfill {
 
 #[test]
 fn a_linear_pull_with_an_unknown_label_refuses_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = linear_client_over(
         &server.base_url(),
         TransportConfig::default(),

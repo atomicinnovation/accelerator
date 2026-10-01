@@ -10,9 +10,9 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 
-fn install(server: &MockServer, name: &str) {
+fn install(server: &MockHTTPServer, name: &str) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios")
         .join(format!("{name}.json"));
@@ -21,7 +21,7 @@ fn install(server: &MockServer, name: &str) {
 
 #[test]
 fn create_emits_the_created_keyword_and_identifier() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, "create-201");
     let dir = support::scratch(support::CONFIG);
 
@@ -52,7 +52,7 @@ fn create_emits_the_created_keyword_and_identifier() {
 
 #[test]
 fn create_with_an_unusable_identifier_fails_closed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, "create-malformed-identifier-201");
     let dir = support::scratch(support::CONFIG);
 

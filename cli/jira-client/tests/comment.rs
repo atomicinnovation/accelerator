@@ -5,7 +5,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::comment::Visibility;
 use jira_client::SurfaceError;
 use serde_json::Value;
@@ -16,14 +16,14 @@ const KEY: &str = "ENG-1";
 const COMMENT_PATH: &str = "/rest/api/3/issue/ENG-1/comment";
 const ONE_COMMENT: &str = "/rest/api/3/issue/ENG-1/comment/10001";
 
-fn body_json(server: &MockServer, key: &RequestKey) -> Value {
+fn body_json(server: &MockHTTPServer, key: &RequestKey) -> Value {
     let bytes = server.last_body(key).expect("a recorded body");
     serde_json::from_slice(&bytes).expect("the body is JSON")
 }
 
 #[test]
 fn add_posts_the_adf_body_with_no_query_when_notifying() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(COMMENT_PATH),
         Route::Json {
@@ -47,7 +47,7 @@ fn add_posts_the_adf_body_with_no_query_when_notifying() {
 
 #[test]
 fn add_carries_visibility_and_the_no_notify_query() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(COMMENT_PATH),
         Route::Json {
@@ -78,7 +78,7 @@ fn add_carries_visibility_and_the_no_notify_query() {
 
 #[test]
 fn edit_puts_to_the_comment_id_path() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::put(ONE_COMMENT),
         Route::Json {
@@ -99,7 +99,7 @@ fn edit_puts_to_the_comment_id_path() {
 
 #[test]
 fn delete_sends_delete_and_honours_no_notify() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::new("DELETE", ONE_COMMENT), Route::Status(204));
     let client = client_for(&server, TransportConfig::default());
 
@@ -117,7 +117,7 @@ fn delete_sends_delete_and_honours_no_notify() {
 
 #[test]
 fn list_follows_offset_pagination_to_the_end() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(COMMENT_PATH),
         Route::Sequence(vec![
@@ -146,7 +146,7 @@ fn list_follows_offset_pagination_to_the_end() {
 
 #[test]
 fn list_stops_at_twenty_pages_and_reports_truncation() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(COMMENT_PATH),
         Route::Json {
@@ -167,7 +167,7 @@ fn list_stops_at_twenty_pages_and_reports_truncation() {
 
 #[test]
 fn list_first_page_only_makes_one_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(COMMENT_PATH),
         Route::Json {
@@ -187,7 +187,7 @@ fn list_first_page_only_makes_one_request() {
 
 #[test]
 fn a_page_size_out_of_range_is_refused_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client.list_comments(KEY, 0, false).expect_err("refused");
@@ -198,7 +198,7 @@ fn a_page_size_out_of_range_is_refused_before_any_request() {
 
 #[test]
 fn a_non_success_status_surfaces_as_a_status_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(COMMENT_PATH), Route::Status(403));
     let client = client_for(&server, TransportConfig::default());
 

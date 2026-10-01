@@ -8,7 +8,7 @@ mod support;
 use std::time::Duration;
 
 use config::credentials::{Secret, TokenSource};
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::transport::Transport;
 use jira_client::{ClientError, Credentials};
 use reqwest::{Method, Url};
@@ -86,7 +86,7 @@ fn constructing_a_transport_installs_the_crypto_provider() {
 
 #[test]
 fn a_request_carries_its_credentials_body_and_query() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post("/rest/api/3/search/jql");
     server.route(
         key.clone(),
@@ -128,7 +128,7 @@ fn a_request_carries_its_credentials_body_and_query() {
 
 #[test]
 fn a_persistent_5xx_is_attempted_exactly_four_times() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get(MYSELF);
     server.route(key.clone(), Route::Status(503));
     let sleeper = RecordingSleeper::new();
@@ -158,7 +158,7 @@ fn a_persistent_5xx_is_attempted_exactly_four_times() {
 
 #[test]
 fn retry_after_is_honoured_as_a_duration_not_merely_as_a_trigger() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get(MYSELF);
     server.route(
         key.clone(),
@@ -207,7 +207,7 @@ fn a_transport_failure_makes_exactly_one_attempt() {
 
 #[test]
 fn an_injected_timeout_takes_effect_and_is_not_retried() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(MYSELF),
         Route::Stall(Duration::from_secs(30)),
@@ -235,7 +235,7 @@ fn an_injected_timeout_takes_effect_and_is_not_retried() {
 
 #[test]
 fn a_redirect_is_refused_rather_than_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let target = RequestKey::get("/rest/api/3/elsewhere");
     server.route(
         RequestKey::get(MYSELF),
@@ -268,7 +268,7 @@ fn a_redirect_is_refused_rather_than_followed() {
 
 #[test]
 fn a_response_beyond_the_bound_is_rejected_rather_than_buffered() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(MYSELF),
         Route::Json {
@@ -298,7 +298,7 @@ fn a_response_beyond_the_bound_is_rejected_rather_than_buffered() {
 
 #[test]
 fn a_bad_path_is_refused_before_anything_is_sent() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get("/rest/api/2/myself");
     server.route(key.clone(), Route::Status(200));
     let sleeper = RecordingSleeper::new();

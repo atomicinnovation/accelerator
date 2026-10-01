@@ -12,7 +12,7 @@ mod support;
 use std::path::Path;
 use std::path::PathBuf;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use support::client::{brief, client_with};
 use support::RecordingSleeper;
 use tracker::{ExternalId, RemoteTracker as _};
@@ -41,7 +41,7 @@ fn expected_body(name: &str) -> Result<String, TestError> {
 
 fn show_body(name: &str, key: &str) -> Result<String, TestError> {
     let payload = std::fs::read_to_string(case_dir(name)?.join("remote.json"))?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(&format!("/rest/api/3/issue/{key}")),
         Route::Json {

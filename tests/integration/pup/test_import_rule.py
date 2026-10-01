@@ -1234,7 +1234,7 @@ license = "MIT"
 path = "src/lib.rs"
 """
 
-_HTTP_TEST_SUPPORT_STUB_LIB = "pub struct MockServer;\n"
+_HTTP_TEST_SUPPORT_STUB_LIB = "pub struct MockHTTPServer;\n"
 
 _GRAPHQL_TEST_SUPPORT_LIB_VIOLATION = (
     "use std::net::TcpListener;\n\n"
@@ -1243,8 +1243,8 @@ _GRAPHQL_TEST_SUPPORT_LIB_VIOLATION = (
     "}\n"
 )
 _GRAPHQL_TEST_SUPPORT_LIB_COMPLIANT = (
-    "use http_test_support::MockServer;\n\n"
-    "pub fn mount() -> MockServer {\n    MockServer\n}\n"
+    "use http_test_support::MockHTTPServer;\n\n"
+    "pub fn mount() -> MockHTTPServer {\n    MockHTTPServer\n}\n"
 )
 
 

@@ -7,7 +7,7 @@ mod support;
 use std::sync::{Arc, Mutex};
 
 use graphql_test_support::MockGraphQLServer;
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::catalogue::{Catalogue, LiveCatalogueData};
 use linear_client::healing::CatalogueBackfill;
 use linear_client::resolution::ResolverSet;
@@ -82,7 +82,7 @@ fn search_body(identifiers: &[&str], next: Option<&str>) -> String {
 
 #[test]
 fn create_sends_the_mutation_and_returns_the_identifier() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -116,7 +116,7 @@ fn create_sends_the_mutation_and_returns_the_identifier() {
 
 #[test]
 fn a_created_identifier_that_cannot_be_written_back_is_terminal() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(
@@ -138,7 +138,7 @@ fn a_two_hundred_carrying_an_auth_error_is_retryable_on_create_and_update() {
     let body = "{\"errors\":[{\"message\":\"no\",\
                 \"extensions\":{\"type\":\"authentication error\"}}]}";
     for expectation in ["create", "update"] {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(RequestKey::post(GRAPHQL), json_route(body.to_owned()));
         let client = client_for(&server, brief());
 
@@ -161,7 +161,7 @@ fn a_two_hundred_carrying_an_auth_error_is_retryable_on_create_and_update() {
 fn a_two_hundred_carrying_an_unclassified_error_diverges_between_operations() {
     let body = "{\"errors\":[{\"message\":\"Field does not exist\"}]}";
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), json_route(body.to_owned()));
     let created = client_for(&server, brief())
         .create("t", "b\n", "")
@@ -171,7 +171,7 @@ fn a_two_hundred_carrying_an_unclassified_error_diverges_between_operations() {
         "{created}"
     );
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), json_route(body.to_owned()));
     let updated = client_for(&server, brief())
         .update(&id("ENG-1"), "t", "b\n")
@@ -184,7 +184,7 @@ fn a_two_hundred_carrying_an_unclassified_error_diverges_between_operations() {
 
 #[test]
 fn update_sends_the_mutation_with_the_identifier_and_input() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -214,7 +214,7 @@ fn update_sends_the_mutation_with_the_identifier_and_input() {
 
 #[test]
 fn show_projects_the_body_with_exactly_one_trailing_newline() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(issue_body(
@@ -237,7 +237,7 @@ fn show_projects_the_body_with_exactly_one_trailing_newline() {
 
 #[test]
 fn an_empty_string_description_projects_as_an_empty_line() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(issue_body("ENG-1", "2026-01-01T00:00:00.000Z", "\"\"")),
@@ -256,7 +256,7 @@ fn an_empty_string_description_projects_as_an_empty_line() {
 #[test]
 fn a_null_or_absent_stamp_is_not_reported() {
     for description in ["null", "\"\""] {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(
             RequestKey::post(GRAPHQL),
             json_route(format!(
@@ -275,7 +275,7 @@ fn a_null_or_absent_stamp_is_not_reported() {
 
 #[test]
 fn an_empty_request_makes_no_remote_call() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::Status(500));
     let client = client_for(&server, brief());
@@ -325,7 +325,7 @@ fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
 
 #[test]
 fn duplicate_ids_are_deduplicated() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(search_body(&["ENG-1"], None)),
@@ -341,7 +341,7 @@ fn duplicate_ids_are_deduplicated() {
 
 #[test]
 fn every_search_request_carries_an_explicit_first() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), json_route(search_body(&["ENG-1"], None)));
     let client = client_for(&server, brief());
@@ -363,7 +363,7 @@ fn every_search_request_carries_an_explicit_first() {
 
 #[test]
 fn an_unfound_in_team_id_is_absent_when_the_retrieval_completed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(search_body(&["ENG-1"], None)),
@@ -381,7 +381,7 @@ fn an_unfound_in_team_id_is_absent_when_the_retrieval_completed() {
 
 #[test]
 fn an_id_outside_the_configured_team_is_indeterminate_not_absent() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(search_body(&["ENG-1"], None)),
@@ -403,7 +403,7 @@ fn an_id_outside_the_configured_team_is_indeterminate_not_absent() {
 
 #[test]
 fn without_a_known_team_key_no_absence_can_be_proved() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(search_body(&["ENG-1"], None)),
@@ -423,7 +423,7 @@ fn without_a_known_team_key_no_absence_can_be_proved() {
 
 #[test]
 fn a_failed_search_reports_every_unfound_id_indeterminate() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), Route::Status(500));
     let client = client_for(&server, brief());
 
@@ -437,7 +437,7 @@ fn a_failed_search_reports_every_unfound_id_indeterminate() {
 
 #[test]
 fn a_stamp_absent_from_a_bulk_row_is_still_found() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(
@@ -461,7 +461,7 @@ fn a_stamp_absent_from_a_bulk_row_is_still_found() {
 
 #[test]
 fn an_unsafe_identifier_is_a_preflight_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::Status(200));
     let client = client_for(&server, brief());
@@ -476,7 +476,7 @@ fn an_unsafe_identifier_is_a_preflight_error() {
 
 #[test]
 fn a_404_shaped_read_failure_is_retryable_never_terminal() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Json {
@@ -497,7 +497,7 @@ fn the_keyed_read_uses_its_own_cap_not_the_discovery_cap() {
     // The keyed read and discovery share `page_all`, so each must be handed its
     // own cap. A low discovery cap must not truncate the keyed read: fetch_all
     // pages the three-page walk to completion and finds the id.
-    let found = MockServer::start();
+    let found = MockHTTPServer::start();
     found.route(RequestKey::post(GRAPHQL), three_pages());
     let outcome =
         client_for(&found, caps(Ceiling::Bounded(1), Ceiling::Bounded(50)))
@@ -511,7 +511,7 @@ fn the_keyed_read_uses_its_own_cap_not_the_discovery_cap() {
 
     // A low keyed-read cap truncates it: the unseen id is indeterminate, never
     // absent, even with a generous discovery cap.
-    let capped = MockServer::start();
+    let capped = MockHTTPServer::start();
     capped.route(RequestKey::post(GRAPHQL), three_pages());
     let outcome =
         client_for(&capped, caps(Ceiling::Bounded(50), Ceiling::Bounded(2)))
@@ -545,7 +545,7 @@ fn teams_body(teams: &[(&str, &str, &str)], next: Option<&str>) -> String {
 
 #[test]
 fn an_additional_team_item_reconciles_rather_than_sticking_indeterminate() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The base-team search returns ENG-1; the additional-team search returns
     // OPS-7. A base-only reconcile read would leave OPS-7 indeterminate
     // forever.
@@ -581,7 +581,7 @@ fn an_additional_team_item_reconciles_rather_than_sticking_indeterminate() {
 
 #[test]
 fn an_additional_team_item_is_provably_absent_when_its_team_read_completes() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Both team reads complete, and neither returns OPS-7, so — because OPS is
     // catalogued and thus in scope — OPS-7 is provably absent, not
     // indeterminate.
@@ -608,7 +608,7 @@ fn an_additional_team_item_is_provably_absent_when_its_team_read_completes() {
 
 #[test]
 fn fetch_all_pages_the_base_team_once_when_it_is_catalogued() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -642,7 +642,7 @@ fn fetch_all_pages_the_base_team_once_when_it_is_catalogued() {
 
 #[test]
 fn enumerate_visible_entities_paginates_to_exhaustion() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![
@@ -674,7 +674,7 @@ fn enumerate_visible_entities_paginates_to_exhaustion() {
 
 #[test]
 fn a_failed_enumeration_page_fails_loud_rather_than_returning_a_subset() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![
@@ -1104,7 +1104,7 @@ fn a_truncated_team_section_fetch_refuses_as_unconfigured() {
 
 #[test]
 fn search_refuses_an_unresolved_scope() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client =
         client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
 

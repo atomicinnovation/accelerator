@@ -3,7 +3,7 @@
 
 mod support;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use support::config_with;
@@ -29,8 +29,8 @@ const fn json(status: u16, body: String) -> Route {
     Route::Json { status, body }
 }
 
-fn server_with(key: RequestKey, route: Route) -> MockServer {
-    let server = MockServer::start();
+fn server_with(key: RequestKey, route: Route) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(key, route);
     server
 }
@@ -51,7 +51,7 @@ fn search_page() -> Route {
 }
 
 fn assert_usage_error(args: &[&str], message: &str) {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let run = fetch(&Project::new(), &server, args, &[]);
     assert_eq!(run.code, Some(2), "{args:?}: {}", run.stderr);
     assert!(
@@ -230,7 +230,7 @@ fn recorded_works_render_every_field() {
 
 #[test]
 fn a_work_is_looked_up_by_id_by_openalex_url_and_by_doi() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(peerj(), json(200, openalex_fixture("work-doi.json")));
     let doi_path = "/works/doi:10.1016/s0140-6736%2820%2930367-6";
     server.route(
@@ -407,7 +407,7 @@ fn a_retry_after_hint_replaces_the_backoff() {
 
 #[test]
 fn a_same_origin_redirect_reaches_the_surviving_work() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/works/W1"),
         Route::Redirect {
@@ -429,8 +429,8 @@ fn a_same_origin_redirect_reaches_the_surviving_work() {
 
 #[test]
 fn a_redirect_off_the_origin_fails_without_offering_the_key() {
-    let server = MockServer::start();
-    let elsewhere = MockServer::start();
+    let server = MockHTTPServer::start();
+    let elsewhere = MockHTTPServer::start();
     elsewhere.route(peerj(), json(200, openalex_fixture("work-doi.json")));
     let https = server.base_url().replacen("http://", "https://", 1);
     for (id, location) in [
@@ -460,7 +460,7 @@ fn a_redirect_off_the_origin_fails_without_offering_the_key() {
 
 #[test]
 fn a_fourth_redirect_fails() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     for hop in 1..=4 {
         server.route(
             RequestKey::get(&format!("/works/W{hop}")),

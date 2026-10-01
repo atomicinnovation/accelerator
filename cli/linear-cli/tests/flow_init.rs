@@ -13,7 +13,7 @@ use std::path::Path;
 
 use cli_test_support::Scenario;
 use graphql_test_support::MockGraphQLServer;
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 use serde_json::Value;
 
 fn scenario(name: &str) -> Scenario {
@@ -23,7 +23,7 @@ fn scenario(name: &str) -> Scenario {
     Scenario::load(&path).expect("scenario")
 }
 
-fn install(server: &MockServer, name: &str) {
+fn install(server: &MockHTTPServer, name: &str) {
     scenario(name).install(server);
 }
 
@@ -49,7 +49,7 @@ fn read_catalogue(dir: &Path) -> Value {
     serde_json::from_str(&raw).expect("catalogue is JSON")
 }
 
-fn discover(dir: &Path, server: &MockServer) -> std::process::Output {
+fn discover(dir: &Path, server: &MockHTTPServer) -> std::process::Output {
     support::run(
         dir,
         server,
@@ -73,7 +73,7 @@ const SYNCED_TEAM_Y: &str = r#"{
 
 #[test]
 fn init_verify_persists_the_viewer_without_leaking_the_token() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, "viewer-200");
     let dir = support::scratch(support::CONFIG);
 
@@ -159,7 +159,7 @@ fn init_discover_persists_the_catalogue() {
 
 #[test]
 fn init_list_teams_renders_the_teams_with_the_listed_keyword() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, "teams-200");
     let dir = support::scratch(support::CONFIG);
 

@@ -13,10 +13,10 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use support::Token;
 
-fn install(server: &MockServer, name: &str) {
+fn install(server: &MockHTTPServer, name: &str) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios")
         .join(format!("{name}.json"));
@@ -25,7 +25,7 @@ fn install(server: &MockServer, name: &str) {
 
 /// Drives `args` against a mock serving `scenario` and returns the exit code.
 fn code_for(scenario: &str, args: &[&str]) -> i32 {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, scenario);
     let dir = support::scratch(support::CONFIG);
     support::run(dir.path(), &server, args)
@@ -72,7 +72,7 @@ fn argument_validation_classes_route_before_the_wire() {
 
 #[test]
 fn a_missing_token_routes_to_no_token() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server, "viewer-200");
     let dir = support::scratch(support::CONFIG);
     let output = support::run_with(

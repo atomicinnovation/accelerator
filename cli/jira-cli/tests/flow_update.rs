@@ -8,7 +8,7 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 const SITE: &str = r#"{"site":"acme","accountId":"acc-me"}"#;
@@ -20,13 +20,13 @@ fn put(key: &str) -> RequestKey {
     RequestKey::put(&format!("/rest/api/3/issue/{key}"))
 }
 
-fn ok_server(key: &str) -> MockServer {
-    let server = MockServer::start();
+fn ok_server(key: &str) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(put(key), Route::Status(204));
     server
 }
 
-fn sent(server: &MockServer, key: &str) -> Value {
+fn sent(server: &MockHTTPServer, key: &str) -> Value {
     serde_json::from_slice(&server.last_body(&put(key)).expect("body"))
         .expect("json body")
 }

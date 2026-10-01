@@ -425,7 +425,7 @@ mod tests {
     use std::rc::Rc;
     use std::time::Duration;
 
-    use http_test_support::{MockServer, RequestKey, Route};
+    use http_test_support::{MockHTTPServer, RequestKey, Route};
 
     use super::{
         is_allowed_redirect_host, is_https, FetchError, Fetcher, StreamLimits,
@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn streams_a_body_reporting_its_length_and_digest() {
         let payload = vec![7_u8; 4096];
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(
             RequestKey::get("/asset"),
             Route::Bytes {
@@ -522,7 +522,7 @@ mod tests {
     fn a_retry_starts_from_a_fresh_sink_rather_than_appending() {
         let payload: Vec<u8> =
             (0..8192_u32).map(|byte| byte.to_le_bytes()[0]).collect();
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         let key = RequestKey::get("/asset");
         server.route(
             key.clone(),
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn a_body_larger_than_the_cap_is_refused_without_retrying() {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         let key = RequestKey::get("/asset");
         server.route(
             key.clone(),
@@ -585,7 +585,7 @@ mod tests {
 
     #[test]
     fn a_stalled_transfer_fails_within_the_total_deadline() {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(
             RequestKey::get("/asset"),
             Route::Stall(Duration::from_secs(5)),

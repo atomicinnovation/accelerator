@@ -10,11 +10,11 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 
 #[test]
 fn search_stdout_matches_the_golden() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The widened read-side projection: each issue's full `fields`
     // map — Summary/Status/Assignee — merged into the envelope with the outcome
     // stamp. No cursor, so the walk completes in one page.
@@ -36,7 +36,7 @@ fn search_stdout_matches_the_golden() {
 
 #[test]
 fn show_stdout_matches_the_golden() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/issue/ENG-42"),
         Route::Json {

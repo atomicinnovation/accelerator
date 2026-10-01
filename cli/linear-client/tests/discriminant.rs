@@ -7,7 +7,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::classify::{GraphQlError, Outcome};
 use linear_client::LinearFailure;
 use support::client::{brief, client_for};
@@ -28,7 +28,7 @@ fn json(status: u16, body: &str) -> Route {
 
 #[test]
 fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), json(401, "{}"));
 
     let client = client_for(&server, brief());
@@ -46,7 +46,7 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
 
 #[test]
 fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The mutation succeeds, but the returned identifier carries a control
     // byte the frontmatter-safety check refuses — created remotely, unwritable.
     let body = "{\"data\":{\"issueCreate\":{\"issue\":\
@@ -64,7 +64,7 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
 
 #[test]
 fn a_show_wire_failure_carries_the_granular_ratelimit_code() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json(400, r#"{"errors":[{"extensions":{"code":"RATELIMITED"}}]}"#),

@@ -10,7 +10,7 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 use serde_json::Value;
 
 fn scenario_text(name: &str) -> String {
@@ -22,7 +22,7 @@ fn scenario_text(name: &str) -> String {
 
 #[test]
 fn attach_link_posts_one_attachment_create() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     Scenario::from_json(&scenario_text("attach-link-200"))
         .expect("scenario")
         .install(&server);
@@ -55,7 +55,7 @@ fn attach_link_posts_one_attachment_create() {
 
 #[test]
 fn attach_file_uploads_then_registers_across_two_posts() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The upload URL the mock nominates is the mock itself, so the raw PUT
     // stays on loopback (admitted only under `test-loopback`).
     let text = scenario_text("attach-binary-success")

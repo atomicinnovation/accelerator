@@ -9,7 +9,7 @@ mod support;
 use std::path::Path;
 use std::time::Duration;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::upload::UPLOAD_TIMEOUT;
 use linear_client::SurfaceError;
 use serde_json::Value;
@@ -60,7 +60,7 @@ fn attachment_created() -> String {
 
 #[test]
 fn link_mode_sends_one_attachment_create() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(graphql(), json_route(attachment_created()));
     let client = client_for(&server, TransportConfig::default());
 
@@ -86,7 +86,7 @@ fn link_mode_sends_one_attachment_create() {
 
 #[test]
 fn a_non_http_link_url_is_refused() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client
@@ -102,7 +102,7 @@ fn binary_mode_makes_exactly_three_requests_and_the_put_carries_no_auth() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"attachment bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let base = server.base_url();
     server.route(
         graphql(),
@@ -150,7 +150,7 @@ fn file_upload_carries_the_sniffed_content_type_filename_and_size() {
     let root = TempDir::new().expect("a temp root");
     let png = write_file(root.path(), "logo.png", b"\x89PNG\r\n\x1a\n\x00\x00");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The PUT fails, so attachmentCreate is never sent and the last /graphql
     // body is the fileUpload request this test asserts.
     server.route(
@@ -186,7 +186,7 @@ fn an_upload_url_off_linear_app_is_refused_before_any_bytes_move() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         graphql(),
         json_route(file_upload_body(
@@ -220,7 +220,7 @@ fn a_non_https_non_loopback_upload_url_is_refused() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         graphql(),
         json_route(file_upload_body(
@@ -252,7 +252,7 @@ fn an_asset_url_on_a_foreign_host_is_refused_before_step_two() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         graphql(),
         json_route(file_upload_body(
@@ -286,7 +286,7 @@ fn a_failed_upload_diagnostic_carries_no_signed_query_string() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         graphql(),
         json_route(file_upload_body(
@@ -318,7 +318,7 @@ fn an_x_amz_header_is_forwarded_and_a_foreign_header_is_dropped() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let base = server.base_url();
     server.route(
         graphql(),
@@ -358,7 +358,7 @@ fn an_echoed_header_carrying_crlf_is_refused() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let base = server.base_url();
     server.route(
         graphql(),
@@ -387,7 +387,7 @@ fn a_redirect_response_to_the_put_is_refused_rather_than_followed() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let base = server.base_url();
     server.route(
         graphql(),
@@ -444,7 +444,7 @@ fn a_step_three_failure_after_a_successful_put_reports_an_orphaned_asset() {
     let root = TempDir::new().expect("a temp root");
     let file = write_file(root.path(), "a.txt", b"bytes");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let base = server.base_url();
     server.route(
         graphql(),
@@ -482,7 +482,7 @@ fn a_step_three_failure_after_a_successful_put_reports_an_orphaned_asset() {
 #[test]
 fn a_missing_file_is_refused() {
     let root = TempDir::new().expect("a temp root");
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client
@@ -496,7 +496,7 @@ fn a_missing_file_is_refused() {
 #[cfg(unix)]
 #[test]
 fn a_device_file_is_refused_by_the_handle_check() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client

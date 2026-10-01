@@ -3,7 +3,7 @@
 use std::net::TcpListener;
 use std::time::Duration;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use research::classify::Received;
@@ -39,7 +39,7 @@ fn received(response: Response) -> Received {
 
 #[test]
 fn a_body_that_stalls_past_the_request_budget_is_a_timeout() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(WORK), Route::Stall(Duration::from_secs(2)));
 
     let response = transport(Duration::from_millis(200))
@@ -64,7 +64,7 @@ fn a_closed_port_is_a_connection_failure() {
 
 #[test]
 fn the_status_body_and_rate_limit_headers_are_reported() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(WORK),
         Route::Headers {
@@ -97,7 +97,7 @@ fn the_status_body_and_rate_limit_headers_are_reported() {
 
 #[test]
 fn the_request_carries_its_headers_and_only_its_own_bearer() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(WORK), Route::Status(200));
     let transport = transport(Duration::from_secs(5));
     let key = ApiKey::new("sentinel-key".to_owned(), KeySource::new("env"));
@@ -122,7 +122,7 @@ fn the_request_carries_its_headers_and_only_its_own_bearer() {
 
 #[test]
 fn a_same_origin_redirect_is_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(WORK),
         Route::Redirect {
@@ -143,8 +143,8 @@ fn a_same_origin_redirect_is_followed() {
 
 #[test]
 fn a_redirect_to_another_origin_is_not_followed() {
-    let server = MockServer::start();
-    let elsewhere = MockServer::start();
+    let server = MockHTTPServer::start();
+    let elsewhere = MockHTTPServer::start();
     server.route(
         RequestKey::get(WORK),
         Route::Redirect {
@@ -165,7 +165,7 @@ fn a_redirect_to_another_origin_is_not_followed() {
 
 #[test]
 fn a_redirect_that_changes_scheme_is_not_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let https = server.base_url().replacen("http://", "https://", 1);
     server.route(
         RequestKey::get(WORK),
@@ -185,7 +185,7 @@ fn a_redirect_that_changes_scheme_is_not_followed() {
 
 #[test]
 fn a_fourth_redirect_is_not_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     for hop in 1..=4 {
         server.route(
             RequestKey::get(&format!("/works/W{hop}")),
@@ -209,7 +209,7 @@ fn a_fourth_redirect_is_not_followed() {
 
 #[test]
 fn a_body_over_eight_mebibytes_is_withheld() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(WORK),
         Route::Bytes {
@@ -229,7 +229,7 @@ fn a_body_over_eight_mebibytes_is_withheld() {
 
 #[test]
 fn a_body_of_exactly_eight_mebibytes_is_delivered() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(WORK),
         Route::Bytes {

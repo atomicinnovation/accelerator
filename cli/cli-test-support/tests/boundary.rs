@@ -9,11 +9,11 @@ use std::net::TcpStream;
 
 use cli_test_support::{parse_u8_consts, Scenario};
 use graphql_test_support::{MockGraphQLServer, ENDPOINT};
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 
 /// A raw POST over TCP, returning `(status, body)` — no HTTP client, so the
 /// test needs no TLS crypto provider for a plain-http mock.
-fn post(server: &MockServer, path: &str, body: &[u8]) -> (u16, Vec<u8>) {
+fn post(server: &MockHTTPServer, path: &str, body: &[u8]) -> (u16, Vec<u8>) {
     let address = server.base_url().replace("http://", "");
     let mut stream = TcpStream::connect(address).expect("connect");
     let head = format!(
@@ -84,7 +84,7 @@ fn the_loader_maps_a_lone_expectation_to_a_single_route() {
     )
     .expect("valid scenario");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     scenario.install(&server);
 
     let (status, body) = post(&server, "/graphql", b"{\"query\":\"x\"}");
@@ -109,7 +109,7 @@ fn the_loader_groups_a_consume_sequence_in_declaration_order() {
     )
     .expect("valid scenario");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     scenario.install(&server);
 
     assert_eq!(post(&server, "/graphql", b"a").1, b"first");
@@ -193,7 +193,7 @@ fn a_scenario_with_graphql_queries_refuses_a_plain_http_server() {
     )
     .expect("scenario");
 
-    scenario.install(&MockServer::start());
+    scenario.install(&MockHTTPServer::start());
 }
 
 #[test]

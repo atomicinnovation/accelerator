@@ -8,7 +8,7 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 const ISSUE: &str = "/rest/api/3/issue/ENG-42";
@@ -23,7 +23,7 @@ fn adf_issue() -> String {
 
 #[test]
 fn show_renders_adf_and_stamps_the_outcome() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(ISSUE),
         Route::Json {
@@ -62,7 +62,7 @@ fn show_renders_adf_and_stamps_the_outcome() {
 
 #[test]
 fn no_render_adf_leaves_the_document_intact() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(ISSUE),
         Route::Json {

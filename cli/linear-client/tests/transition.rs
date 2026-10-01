@@ -7,7 +7,7 @@ mod support;
 
 use std::collections::BTreeMap;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::catalogue::{Catalogue, TeamEntries};
 use linear_client::resolution::{
     FixedNames, NameResolver, NameUnresolved, ResolverSet, SingleResolution,
@@ -63,7 +63,7 @@ impl NameResolver for AmbiguousStates {
     }
 }
 
-fn sent_state_id(server: &MockServer, key: &RequestKey) -> Value {
+fn sent_state_id(server: &MockHTTPServer, key: &RequestKey) -> Value {
     let sent: Value =
         serde_json::from_slice(&server.last_body(key).expect("a body"))
             .expect("JSON");
@@ -77,7 +77,7 @@ fn sent_state_id(server: &MockServer, key: &RequestKey) -> Value {
 
 #[test]
 fn a_known_state_resolves_to_its_uuid_and_the_mutation_carries_it() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), updated_route());
     let client = client_with_resolvers(
@@ -110,7 +110,7 @@ fn a_state_absent_from_the_team_refuses_as_not_in_catalogue() {
     ];
 
     for (case, resolvers) in cases {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         let key = RequestKey::post(GRAPHQL);
         server.route(key.clone(), Route::Status(200));
         let client = client_with_resolvers(&server, resolvers);
@@ -129,7 +129,7 @@ fn a_state_absent_from_the_team_refuses_as_not_in_catalogue() {
 
 #[test]
 fn an_ambiguous_state_refuses_naming_the_count() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::Status(200));
     let client = client_with_resolvers(
@@ -165,7 +165,7 @@ fn two_teams() -> Value {
 
 #[test]
 fn transition_resolves_against_the_base_team_only() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), updated_route());
     let client = client_with_resolvers(&server, catalogued(&two_teams()));
@@ -186,7 +186,7 @@ fn transition_resolves_against_the_base_team_only() {
 
 #[test]
 fn an_archived_state_is_never_a_transition_target() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::Status(200));
     let client = client_with_resolvers(&server, catalogued(&two_teams()));

@@ -9,7 +9,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::filter::ConfiguredSearch;
 use serde_json::{json, Value};
 use support::catalogue::{complete_entry, resolvers, state};
@@ -44,7 +44,7 @@ fn page(nodes: &str, has_next: bool, cursor: &str) -> String {
 
 #[test]
 fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![
@@ -108,7 +108,7 @@ fn the_projection_selects_state_and_assignee_and_follows_the_cursor() {
 
 #[test]
 fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Sequence(vec![
@@ -150,7 +150,7 @@ fn the_port_search_projects_the_resolved_team_uuid_into_every_body() {
 
 #[test]
 fn an_unknown_state_filter_is_refused_rather_than_queried() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // No route registered: a wire call would 599, so a refusal must precede it.
     let client = client_with_resolvers(
         &server,

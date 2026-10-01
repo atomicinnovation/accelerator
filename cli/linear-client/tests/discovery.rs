@@ -7,7 +7,7 @@
 mod support;
 
 use graphql_test_support::MockGraphQLServer;
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::catalogue::{CatalogueSection, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
 use linear_client::SurfaceError;
@@ -24,7 +24,7 @@ fn json_route(body: &str) -> Route {
     }
 }
 
-fn sent_document(server: &MockServer) -> String {
+fn sent_document(server: &MockHTTPServer) -> String {
     let body = server
         .last_body(&RequestKey::post(GRAPHQL))
         .expect("a request body");
@@ -40,7 +40,7 @@ fn golden(name: &str) -> Value {
 
 #[test]
 fn discover_viewer_queries_the_viewer_and_matches_the_golden() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(
@@ -58,7 +58,7 @@ fn discover_viewer_queries_the_viewer_and_matches_the_golden() {
 
 #[test]
 fn discover_viewer_without_an_id_is_a_bad_response() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route("{\"data\":{\"viewer\":{\"name\":\"Ada\"}}}"),
@@ -74,7 +74,7 @@ fn discover_viewer_without_an_id_is_a_bad_response() {
 
 #[test]
 fn list_teams_queries_teams_and_returns_the_nodes() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         json_route(
@@ -187,7 +187,7 @@ fn only(sections: &[CatalogueSection]) -> SectionSet {
 }
 
 fn fetch(
-    server: &MockServer,
+    server: &MockHTTPServer,
     ids: &[&str],
     sections: &SectionSet,
 ) -> Result<SectionFetch, SurfaceError> {

@@ -11,10 +11,10 @@ use std::path::Path;
 
 use cli_test_support::Scenario;
 use graphql_test_support::MockGraphQLServer;
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
-fn install(server: &MockServer) {
+fn install(server: &MockHTTPServer) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios/search-filter-state-200.json");
     Scenario::load(&path)
@@ -24,7 +24,7 @@ fn install(server: &MockServer) {
 
 #[test]
 fn search_renders_the_envelope_with_state_and_assignee_and_audits_the_filter() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server);
     let dir = support::scratch(support::CONFIG);
 
@@ -70,7 +70,7 @@ fn search_renders_the_envelope_with_state_and_assignee_and_audits_the_filter() {
 fn search_cap_hit_exits_nonzero_with_the_truncated_envelope() {
     // Every page reports a next page, so the walk cap-hits: the search fails
     // loud with the dedicated code, still emitting the truncated envelope.
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -115,7 +115,7 @@ fn search_cap_hit_exits_nonzero_with_the_truncated_envelope() {
 
 #[test]
 fn quiet_suppresses_the_composed_filter_audit() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     install(&server);
     let dir = support::scratch(support::CONFIG);
 
@@ -209,7 +209,7 @@ fn search_by_state_stays_scoped_to_the_init_team() {
 
 #[test]
 fn search_by_unknown_assignee_refuses_without_a_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::CONFIG);
     support::seed_catalogue(dir.path());
 
@@ -272,7 +272,7 @@ fn search_against_a_legacy_catalogue_fetches_and_never_writes() {
 
 #[test]
 fn search_by_state_without_a_catalogued_team_refuses_as_no_team() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::CONFIG);
 
     let output = support::run(
@@ -308,7 +308,7 @@ fn a_text_only_search_without_a_catalogued_team_runs_workspace_wide() {
 
 #[test]
 fn search_without_any_team_exits_105() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::TEAMLESS_CONFIG);
 
     let output =

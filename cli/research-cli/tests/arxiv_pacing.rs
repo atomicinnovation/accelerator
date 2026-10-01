@@ -10,7 +10,7 @@ use std::process::Child;
 use std::time::Duration;
 use std::time::Instant;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use support::arxiv_fixture;
@@ -42,7 +42,7 @@ fn finish(child: Child) {
     );
 }
 
-fn wait_for_hits(server: &MockServer, key: &RequestKey, hits: usize) {
+fn wait_for_hits(server: &MockHTTPServer, key: &RequestKey, hits: usize) {
     let started = Instant::now();
     while server.hits(key) < hits {
         assert!(
@@ -56,7 +56,7 @@ fn wait_for_hits(server: &MockServer, key: &RequestKey, hits: usize) {
 #[test]
 fn a_second_process_waits_for_the_first_processs_response_to_finish() {
     let project = Project::new();
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         query(),
         Route::Sequence(vec![Route::Stall(STALL), feed("search-3.xml")]),
@@ -80,7 +80,7 @@ fn a_second_process_waits_for_the_first_processs_response_to_finish() {
 #[test]
 fn sequential_calls_are_spaced_three_seconds_apart() {
     let project = Project::new();
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(query(), feed("search-3.xml"));
 
     finish(spawn_in_real_time(&project, &server, &SEARCH));
@@ -93,7 +93,7 @@ fn sequential_calls_are_spaced_three_seconds_apart() {
 #[test]
 fn a_withdrawal_confirmation_is_spaced_three_seconds_after_its_search() {
     let project = Project::new();
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(query(), feed("lookup-2608.21129.xml"));
     server.route(RequestKey::get("/oai"), feed("oai-2608.21129.xml"));
 

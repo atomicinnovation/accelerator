@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use config::credentials::{Secret, TokenSource};
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use linear_client::catalogue::TeamEntries;
 use linear_client::healing::{CatalogueBackfill, NoBackfill};
 use linear_client::resolution::{FixedNames, ResolverSet};
@@ -51,7 +51,7 @@ pub fn brief() -> TransportConfig {
 
 #[must_use]
 pub fn client_for(
-    server: &MockServer,
+    server: &MockHTTPServer,
     config: TransportConfig,
 ) -> LinearClient {
     client_with(&server.base_url(), config, Some(TEAM_KEY.to_owned()))
@@ -70,7 +70,7 @@ pub fn loopback_upload() -> UploadTransport {
 /// `fetch_all` pages each and `in_scope` accepts each team's prefix.
 #[must_use]
 pub fn client_with_teams(
-    server: &MockServer,
+    server: &MockHTTPServer,
     config: TransportConfig,
     teams: &[(&str, &str)],
 ) -> LinearClient {
@@ -96,7 +96,7 @@ pub fn client_with_teams(
 /// resolution.
 #[must_use]
 pub fn client_with_resolvers(
-    server: &MockServer,
+    server: &MockHTTPServer,
     resolvers: ResolverSet,
 ) -> LinearClient {
     client_holding_into(server, resolvers, Arc::new(NoBackfill))
@@ -106,7 +106,7 @@ pub fn client_with_resolvers(
 /// `backfill`.
 #[must_use]
 pub fn client_holding_into(
-    server: &MockServer,
+    server: &MockHTTPServer,
     resolvers: ResolverSet,
     backfill: Arc<dyn CatalogueBackfill>,
 ) -> LinearClient {

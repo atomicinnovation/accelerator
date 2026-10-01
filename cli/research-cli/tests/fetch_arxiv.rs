@@ -3,7 +3,7 @@
 
 mod support;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use rustix::fs::flock;
@@ -35,8 +35,8 @@ const fn xml(status: u16, body: String) -> Route {
     }
 }
 
-fn server_with(routes: Vec<(RequestKey, Route)>) -> MockServer {
-    let server = MockServer::start();
+fn server_with(routes: Vec<(RequestKey, Route)>) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     for (key, route) in routes {
         server.route(key, route);
     }
@@ -287,7 +287,7 @@ fn a_malformed_feed_is_undecodable() {
 
 #[test]
 fn a_malformed_id_is_a_usage_error_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
 
     let run = fetch(
         &Project::new(),

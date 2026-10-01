@@ -9,7 +9,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::LinearClient;
 use support::client::{brief, client_with, TEAM_ID, TEAM_KEY};
 use tracker::CreatePreview;
@@ -96,8 +96,8 @@ fn searched() -> Route {
     )
 }
 
-fn scripted(responses: Vec<Route>) -> (MockServer, MockBackedClient) {
-    let server = MockServer::start();
+fn scripted(responses: Vec<Route>) -> (MockHTTPServer, MockBackedClient) {
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), Route::Sequence(responses));
     let client =
         client_with(&server.base_url(), brief(), Some(TEAM_KEY.to_owned()));

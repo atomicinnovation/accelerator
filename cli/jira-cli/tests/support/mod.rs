@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 
 /// The default config: jira integration, a site and email so credentials
 /// resolve from an env token, and a Jira project key the resolver reads.
@@ -68,7 +68,7 @@ pub fn assert_golden(name: &str, actual: &[u8]) {
 
 /// Runs the binary against `server` from `dir`, with the env token and the
 /// loopback API URL (the mock root) set and the token-command env scrubbed.
-pub fn run(dir: &Path, server: &MockServer, args: &[&str]) -> Output {
+pub fn run(dir: &Path, server: &MockHTTPServer, args: &[&str]) -> Output {
     run_with(dir, args, Some(&server.base_url()), &Token::Present)
 }
 

@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use config::credentials::{Secret, TokenSource};
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
 use jira_client::{Credentials, JiraClient};
@@ -38,7 +38,10 @@ pub fn brief() -> TransportConfig {
 /// A client against `server`, with the loopback base the constructor admits
 /// and configuration refuses.
 #[must_use]
-pub fn client_for(server: &MockServer, config: TransportConfig) -> JiraClient {
+pub fn client_for(
+    server: &MockHTTPServer,
+    config: TransportConfig,
+) -> JiraClient {
     client_with(&server.base_url(), config, &RecordingSleeper::new())
 }
 

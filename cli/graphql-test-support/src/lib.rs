@@ -1,6 +1,6 @@
 //! A mock GraphQL endpoint for the workspace's client tests: answers,
 //! hit counts and request bodies per operation, mounted on an
-//! `http-test-support` [`MockServer`].
+//! `http-test-support` [`MockHTTPServer`].
 //!
 //! Every operation shares one path, so a `(method, path)` route cannot tell a
 //! client's queries apart; this server reads the operation each request body
@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use http_test_support::{MockServer, RequestKey, Route, UNMATCHED_STATUS};
+use http_test_support::{MockHTTPServer, RequestKey, Route, UNMATCHED_STATUS};
 
 /// The path every operation is posted to.
 pub const ENDPOINT: &str = "/graphql";
@@ -61,7 +61,7 @@ impl Operations {
 }
 
 pub struct MockGraphQLServer {
-    http: MockServer,
+    http: MockHTTPServer,
     operations: Arc<Operations>,
 }
 
@@ -69,7 +69,7 @@ impl MockGraphQLServer {
     /// Starts an HTTP mock with the GraphQL endpoint mounted on it.
     #[must_use]
     pub fn start() -> Self {
-        let http = MockServer::start();
+        let http = MockHTTPServer::start();
         let operations = Arc::new(Operations::default());
         let responder = Arc::clone(&operations);
         http.route(
@@ -134,7 +134,7 @@ impl MockGraphQLServer {
     /// The HTTP mock the endpoint is mounted on, for what a request carries
     /// whatever its operation — its headers, or the endpoint's total hits.
     #[must_use]
-    pub const fn http(&self) -> &MockServer {
+    pub const fn http(&self) -> &MockHTTPServer {
         &self.http
     }
 }

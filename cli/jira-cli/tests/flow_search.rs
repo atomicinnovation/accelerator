@@ -8,13 +8,13 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 const SEARCH: &str = "/rest/api/3/search/jql";
 
-fn server_returning(body: &str) -> MockServer {
-    let server = MockServer::start();
+fn server_returning(body: &str) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {

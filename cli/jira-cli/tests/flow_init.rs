@@ -9,7 +9,7 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 use support::{Token, TOKEN_SENTINEL};
 
@@ -24,7 +24,7 @@ fn no_leak(output: &std::process::Output) {
 
 #[test]
 fn verify_caches_the_site_and_stamps_the_outcome() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(MYSELF),
         Route::Json {
@@ -62,7 +62,7 @@ fn verify_caches_the_site_and_stamps_the_outcome() {
 
 #[test]
 fn a_verify_failure_never_leaks_the_token() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(MYSELF), Route::Status(401));
     let dir = support::scratch(support::CONFIG);
 
@@ -73,7 +73,7 @@ fn a_verify_failure_never_leaks_the_token() {
 
 #[test]
 fn a_missing_token_never_leaks_and_maps_to_no_token() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(MYSELF), Route::Status(200));
     let dir = support::scratch(support::CONFIG);
 
