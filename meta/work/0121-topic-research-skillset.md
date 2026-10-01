@@ -5,7 +5,7 @@ title: "Topic Research Skillset"
 date: "2026-06-19T01:28:08+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "in-progress"
 kind: "epic"
 priority: "high"
 relates_to: ["work-item:0056"]
