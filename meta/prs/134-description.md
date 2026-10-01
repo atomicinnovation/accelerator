@@ -12,9 +12,9 @@ relates_to: ["work-item:0121", "work-item:0282", "work-item:0283", "work-item:02
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/134"
 pr_number: 134
 tags: ["research", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
-revision: "aa8ede0d5e59276c275e258d1e366e5f4572ce44"
+revision: "d19964a8df75d7bff3319c99392747527725b336"
 repository: "accelerator"
-last_updated: "2026-09-30T17:45:05+00:00"
+last_updated: "2026-10-01T09:05:12+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -117,6 +117,20 @@ finding per (focus area, profile), allocated by a new
   plain `token` or `api_key` is now refused with `E_TOKEN_FROM_TRACKED_FILE`
   whatever its mode, as a `token_cmd` already was.
 
+### Plugin contract tests
+
+- **Python, split by intent**: the researcher's tool grant and source-free
+  body, each academic profile only fetching, and the fetch grants on
+  `research-topic` and every skill injecting an academic profile are a
+  content scan in `tests/unit/tasks/test_research_structure.py`. Every fetch a
+  profile shows runs through the built guard in
+  `tests/integration/research/test_profile_invocations.py`. The finding
+  template is held to exactly its schema row in the conformance lane.
+- **Out of `corpus-adapters`**: the Rust `research_agent_contract.rs` goes, so
+  the corpus adapters keep no research-specific tests and drop their
+  `research` dev-dependency. Its hook-registration case was a weaker copy of
+  `tests/integration/hooks/test_research_guard_registration.py`.
+
 ### Docs and work items
 
 - A new [Research CLI](https://atomicinnovation.github.io/accelerator/research/)
@@ -139,6 +153,9 @@ finding per (focus area, profile), allocated by a new
       round planning to `research topic outstanding`
 - [x] `accelerator-research`'s `topic_outstanding` suite (8 cases) runs the
       moved verb against the committed fixture sets
+- [x] The Python contract tests (16 cases) each failed on a deliberate break
+      of the researcher grant, the `research-topic` grant, an arXiv example,
+      and the finding template
 - [x] Live: `research fetch openalex search 'graph neural networks' --limit 2`
       returns tiered records keyless
 - [x] Live: `research fetch arxiv lookup 2608.21129` returns `tier-3`,
@@ -163,7 +180,7 @@ finding per (focus area, profile), allocated by a new
 
 ## Notes for Reviewers
 
-- **Size**: ~29k lines across 195 files, most of it the three research crates
+- **Size**: ~29k lines across 196 files, most of it the three research crates
   and their tests. Suggested reading order: `cli/research/src` (tier,
   classify, schedule, fetch, confinement), then `research-adapters`
   (transport, pacing, confirmations), then `research-cli/src/guard.rs` and
