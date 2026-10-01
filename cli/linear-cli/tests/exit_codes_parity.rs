@@ -106,6 +106,24 @@ fn the_search_cap_hit_code_is_79_and_uncontested() {
 }
 
 #[test]
+fn the_search_unresolved_filter_code_is_89_and_uncontested() {
+    let rust = rust_codes();
+    assert_eq!(
+        rust.get("SEARCH_UNRESOLVED_FILTER").copied(),
+        Some(89),
+        "an unresolvable search filter value exits 89"
+    );
+    let sharers: Vec<&String> = rust
+        .iter()
+        .filter(|(name, value)| {
+            name.as_str() != "SEARCH_UNRESOLVED_FILTER" && **value == 89
+        })
+        .map(|(name, _)| name)
+        .collect();
+    assert!(sharers.is_empty(), "no other code shares 89: {sharers:?}");
+}
+
+#[test]
 fn the_allowlist_is_count_pinned_and_moves_off_the_reserved_band() {
     assert_eq!(ALLOWLIST.len(), 4, "the search remap is exactly four codes");
     for (name, value) in ALLOWLIST {

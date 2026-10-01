@@ -13,7 +13,7 @@ mod support;
 use std::time::Duration;
 use std::time::Instant;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use support::client::{client_for, credentials};
 use tracker::{ExternalId, RemoteTracker as _, TrackerError};
 use tracker_support::TransportConfig;
@@ -31,8 +31,8 @@ fn at(timeout: Duration) -> TransportConfig {
     }
 }
 
-fn stalling_server(paths: &[&str]) -> MockServer {
-    let server = MockServer::start();
+fn stalling_server(paths: &[&str]) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     for path in paths {
         server.route(
             RequestKey::get(path),
@@ -100,7 +100,7 @@ fn fetch_all_returns_ok_with_every_id_indeterminate_on_a_timeout() {
 
 #[test]
 fn a_paginated_fixture_stops_at_the_page_cap_and_reports_indeterminate() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page offers another cursor, so the cap is the only thing that
     // stops the loop.
     server.route(
@@ -134,7 +134,7 @@ fn a_paginated_fixture_stops_at_the_page_cap_and_reports_indeterminate() {
 
 #[test]
 fn the_operation_deadline_fires_while_each_request_stays_inside_its_timeout() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {
@@ -162,7 +162,7 @@ fn the_operation_deadline_fires_while_each_request_stays_inside_its_timeout() {
 
 #[test]
 fn the_default_timeout_is_thirty_seconds_and_the_cap_is_twenty_pages() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     assert_eq!(

@@ -8,13 +8,13 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 
 const TRANSITIONS: &str = "/rest/api/3/issue/ENG-1/transitions";
 
 #[test]
 fn a_transition_id_posts_directly_and_stamps_transitioned() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));
     let dir = support::scratch(support::CONFIG);
 
@@ -35,7 +35,7 @@ fn a_transition_id_posts_directly_and_stamps_transitioned() {
 
 #[test]
 fn a_missing_target_exits_before_the_wire() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::CONFIG);
     let output = support::run(dir.path(), &server, &["transition", "ENG-1"]);
     assert_eq!(

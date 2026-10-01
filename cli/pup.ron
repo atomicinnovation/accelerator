@@ -341,6 +341,25 @@
                 ),
             ],
         )),
+        // graphql-test-support is a GraphQL layer over http-test-support's
+        // server, never a second server: the stall and truncation responses
+        // every client test relies on live in exactly one place.
+        Module((
+            name: "graphql_test_support_mounts_on_http_test_support",
+            matches: Module("^graphql_test_support($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::net(::|$)",
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // work-adapters spawns no subprocess: its section-diff renders
         // in-process and its VCS identity reads through vcs-adapters' library
         // path. This crate-wide deny catches use-path std::process imports.

@@ -7,7 +7,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::classify::Outcome;
 use jira_client::mutation::{CreateFields, FieldEdit, IssueType, UpdateFields};
 use jira_client::JiraFailure;
@@ -75,7 +75,7 @@ fn json(status: u16, body: &str) -> Route {
 
 #[test]
 fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(ISSUE), json(401, "{}"));
 
     let client = client_for(&server, brief());
@@ -94,7 +94,7 @@ fn a_create_wire_failure_surfaces_the_outcome_the_exit_code_reads() {
 
 #[test]
 fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // The create succeeds, but the returned key carries a control byte the
     // frontmatter-safety check refuses — created remotely, unwritable.
     server.route(
@@ -116,7 +116,7 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
 
 #[test]
 fn an_update_wire_failure_carries_the_granular_not_found_code() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::put(&format!("{ISSUE}/ENG-1")), json(404, "{}"));
 
     let client = client_for(&server, brief());
@@ -135,7 +135,7 @@ fn an_update_wire_failure_carries_the_granular_not_found_code() {
 
 #[test]
 fn a_show_wire_failure_surfaces_the_granular_code() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(&format!("{ISSUE}/ENG-9")), json(403, "{}"));
 
     let client = client_for(&server, brief());
@@ -151,7 +151,7 @@ fn a_show_wire_failure_surfaces_the_granular_code() {
 
 #[test]
 fn the_port_create_still_collapses_to_a_tracker_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(ISSUE), json(500, "{}"));
 
     let client = client_for(&server, brief());

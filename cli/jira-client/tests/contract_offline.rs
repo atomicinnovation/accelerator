@@ -10,7 +10,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::JiraClient;
 use support::client::{brief, client_with};
 use support::RecordingSleeper;
@@ -76,8 +76,8 @@ fn issue_body(summary: &str) -> String {
 }
 
 /// A server that answers every shape the conformance set needs.
-fn conformant_server() -> MockServer {
-    let server = MockServer::start();
+fn conformant_server() -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/rest/api/3/issue"),
         Route::Json {
@@ -118,7 +118,7 @@ fn conformant_server() -> MockServer {
     server
 }
 
-fn subject(server: &MockServer) -> MockBackedClient {
+fn subject(server: &MockHTTPServer) -> MockBackedClient {
     MockBackedClient {
         client: client_with(
             &server.base_url(),
@@ -181,7 +181,7 @@ fn update_replaces_the_content_offline() {
         .expect("update succeeds");
 }
 
-fn client_with_project(server: &MockServer, project: &str) -> JiraClient {
+fn client_with_project(server: &MockHTTPServer, project: &str) -> JiraClient {
     use jira_client::jql::FixedResolver;
     use jira_client::transport::Transport;
     use tracker_support::TransportConfig;
@@ -203,8 +203,8 @@ fn client_with_project(server: &MockServer, project: &str) -> JiraClient {
     )
 }
 
-fn project_server(keys: &[&str]) -> MockServer {
-    let server = MockServer::start();
+fn project_server(keys: &[&str]) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     let entries: Vec<String> = keys
         .iter()
         .map(|key| format!("{{\"key\":\"{key}\",\"id\":\"1\",\"name\":\"n\"}}"))
@@ -252,7 +252,7 @@ fn preview_create_resolves_each_field_state() {
     );
 
     // An unconfigured project resolves to Unset with no remote call.
-    let unset = MockServer::start();
+    let unset = MockHTTPServer::start();
     let subject = MockBackedClient {
         client: client_with_project(&unset, ""),
     };
@@ -299,7 +299,7 @@ fn preview_create_issues_no_remote_create() {
 
 #[test]
 fn the_surface_error_shim_maps_a_read_failure_to_retryable() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/rest/api/3/project"), Route::Status(500));
     let error = subject(&server)
         .tracker()

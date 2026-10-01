@@ -14,6 +14,7 @@ tags: ["work", "sync", "targeting", "pull"]
 last_updated: "2026-09-09T11:52:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-871"
 ---
 
 # 0285: Targeted Pull of Remote-Only Work Items and Resolution Normalisation

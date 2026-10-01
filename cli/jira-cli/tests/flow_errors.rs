@@ -10,12 +10,12 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 
 /// Drives `show ENG-1` against a mock returning `status` and returns the exit
 /// code — the surface-flow status→code routing.
 fn show_status_code(status: u16) -> i32 {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/issue/ENG-1"),
         Route::Status(status),
@@ -43,7 +43,7 @@ fn http_status_classes_route_to_their_shared_codes() {
 /// Drives `args` against a benign mock and returns the exit code — the pre-wire
 /// argument-validation classes, which refuse before any request.
 fn arg_code(args: &[&str]) -> i32 {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get("/rest/api/3/myself"), Route::Status(200));
     let dir = support::scratch(support::CONFIG);
     support::run(dir.path(), &server, args)

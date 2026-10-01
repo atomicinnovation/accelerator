@@ -9,7 +9,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use tempfile::TempDir;
 
 use accelerator::launch::core::{
@@ -98,7 +98,7 @@ fn manifest_json(version: &str, sha256: &str, signature: &str) -> String {
 }
 
 struct Harness {
-    server: MockServer,
+    server: MockHTTPServer,
     cache: PathBuf,
     trusted: Vec<String>,
     fixture_bytes: Vec<u8>,
@@ -230,7 +230,7 @@ fn happy_harness() -> Option<Harness> {
     let manifest_sig =
         sign(&minisign, &trusted_secret, &workdir, manifest.as_bytes());
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/manifest.json"),
         Route::Bytes {

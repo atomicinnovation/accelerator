@@ -7,7 +7,7 @@ mod support;
 use std::path::Path;
 use std::path::PathBuf;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use support::client::{brief, client_for};
 use tracker::{ExternalId, RemoteTracker as _};
 
@@ -39,7 +39,7 @@ fn expected_body(case: &str) -> Result<String, TestError> {
 }
 
 fn show_body(payload: &str) -> String {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {

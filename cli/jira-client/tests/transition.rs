@@ -5,7 +5,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::transition::Target;
 use jira_client::SurfaceError;
 use serde_json::Value;
@@ -31,7 +31,7 @@ fn two_transitions() -> Route {
     )
 }
 
-fn post_body(server: &MockServer) -> Value {
+fn post_body(server: &MockHTTPServer) -> Value {
     let bytes = server
         .last_body(&RequestKey::post(TRANSITIONS))
         .expect("a recorded body");
@@ -40,7 +40,7 @@ fn post_body(server: &MockServer) -> Value {
 
 #[test]
 fn a_state_name_resolves_case_insensitively() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(TRANSITIONS), two_transitions());
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));
     let client = client_for(&server, TransportConfig::default());
@@ -60,7 +60,7 @@ fn a_state_name_resolves_case_insensitively() {
 
 #[test]
 fn a_known_transition_id_skips_the_lookup() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));
     let client = client_for(&server, TransportConfig::default());
 
@@ -74,7 +74,7 @@ fn a_known_transition_id_skips_the_lookup() {
 
 #[test]
 fn no_matching_state_is_not_found() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::get(TRANSITIONS), two_transitions());
     let client = client_for(&server, TransportConfig::default());
 
@@ -88,7 +88,7 @@ fn no_matching_state_is_not_found() {
 
 #[test]
 fn multiple_matches_are_ambiguous_and_carry_the_candidates() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(TRANSITIONS),
         lookup(
@@ -115,7 +115,7 @@ fn multiple_matches_are_ambiguous_and_carry_the_candidates() {
 
 #[test]
 fn a_comment_folds_into_update_comment_add_as_adf() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));
     let client = client_for(&server, TransportConfig::default());
 
@@ -135,7 +135,7 @@ fn a_comment_folds_into_update_comment_add_as_adf() {
 
 #[test]
 fn a_resolution_sets_the_fields_resolution() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));
     let client = client_for(&server, TransportConfig::default());
 

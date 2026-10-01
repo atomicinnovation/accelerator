@@ -1196,6 +1196,101 @@ def test_http_test_support_rule_permits_std_imports(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# --- The graphql-test-support mounting rule ---
+#
+# Driven against a workspace whose crates are literally named
+# `graphql-test-support` and `http-test-support`. The violation opens its own
+# socket rather than mounting on the HTTP mock; the compliant control imports
+# the HTTP mock it must be allowed to mount on.
+
+_GRAPHQL_TEST_SUPPORT_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["graphql-test-support", "http-test-support"]
+"""
+
+_GRAPHQL_TEST_SUPPORT_MANIFEST = """\
+[package]
+name = "graphql-test-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+http-test-support = { path = "../http-test-support" }
+"""
+
+_HTTP_TEST_SUPPORT_STUB_MANIFEST = """\
+[package]
+name = "http-test-support"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_HTTP_TEST_SUPPORT_STUB_LIB = "pub struct MockHTTPServer;\n"
+
+_GRAPHQL_TEST_SUPPORT_LIB_VIOLATION = (
+    "use std::net::TcpListener;\n\n"
+    "pub fn bind() -> std::io::Result<TcpListener> {\n"
+    '    TcpListener::bind("127.0.0.1:0")\n'
+    "}\n"
+)
+_GRAPHQL_TEST_SUPPORT_LIB_COMPLIANT = (
+    "use http_test_support::MockHTTPServer;\n\n"
+    "pub fn mount() -> MockHTTPServer {\n    MockHTTPServer\n}\n"
+)
+
+
+def _write_graphql_test_support_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_GRAPHQL_TEST_SUPPORT_WORKSPACE)
+
+    support_src = root / "graphql-test-support/src"
+    support_src.mkdir(parents=True, exist_ok=True)
+    (root / "graphql-test-support/Cargo.toml").write_text(
+        _GRAPHQL_TEST_SUPPORT_MANIFEST
+    )
+    (support_src / "lib.rs").write_text(lib_body)
+
+    http_src = root / "http-test-support/src"
+    http_src.mkdir(parents=True, exist_ok=True)
+    (root / "http-test-support/Cargo.toml").write_text(
+        _HTTP_TEST_SUPPORT_STUB_MANIFEST
+    )
+    (http_src / "lib.rs").write_text(_HTTP_TEST_SUPPORT_STUB_LIB)
+
+
+def test_graphql_test_support_rule_rejects_opening_its_own_socket(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_graphql_test_support_probe(
+        tmp_path, _GRAPHQL_TEST_SUPPORT_LIB_VIOLATION
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "graphql_test_support_mounts_on_http_test_support" in output, output
+
+
+def test_graphql_test_support_rule_permits_mounting_on_the_http_mock(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_graphql_test_support_probe(
+        tmp_path, _GRAPHQL_TEST_SUPPORT_LIB_COMPLIANT
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # --- The provider-client isolation rule ---
 #
 # jira-client must not reach up into the work domain nor across to the other

@@ -8,7 +8,7 @@ mod support;
 use std::time::Duration;
 use std::time::Instant;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use support::client::client_for;
 use tracker::{ExternalId, RemoteTracker as _, TrackerError};
 use tracker_support::TransportConfig;
@@ -26,8 +26,8 @@ fn at(timeout: Duration) -> TransportConfig {
     }
 }
 
-fn stalling() -> MockServer {
-    let server = MockServer::start();
+fn stalling() -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Stall(Duration::from_secs(30)),
@@ -78,7 +78,7 @@ fn fetch_all_returns_ok_with_every_id_indeterminate_on_a_timeout() {
 
 #[test]
 fn the_page_cap_stops_the_cursor_walk_and_reports_indeterminate() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     // Every page offers another cursor, so only the cap ends the walk.
     server.route(
@@ -104,7 +104,7 @@ fn the_page_cap_stops_the_cursor_walk_and_reports_indeterminate() {
 
 #[test]
 fn the_operation_deadline_fires_while_each_request_stays_inside_its_timeout() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Json {
@@ -133,7 +133,7 @@ fn the_operation_deadline_fires_while_each_request_stays_inside_its_timeout() {
 
 #[test]
 fn the_default_timeout_is_thirty_seconds_and_the_cap_is_twenty_pages() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     assert_eq!(

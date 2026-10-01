@@ -1,0 +1,103 @@
+{
+  "baseTeam": "t-b",
+  "labels": [
+    {
+      "archivedAt": null,
+      "id": "w-1",
+      "name": "Compliance"
+    },
+    {
+      "archivedAt": null,
+      "id": "w-2",
+      "name": "Security"
+    }
+  ],
+  "team": {
+    "id": "t-b",
+    "key": "PP",
+    "name": "Product Pod"
+  },
+  "teams": [
+    {
+      "id": "t-a",
+      "key": "OPS",
+      "name": "Ops"
+    },
+    {
+      "id": "t-b",
+      "key": "PP",
+      "labels": [
+        {
+          "archivedAt": null,
+          "id": "l-1",
+          "name": "Bug"
+        },
+        {
+          "archivedAt": null,
+          "id": "l-2",
+          "name": "Feature"
+        }
+      ],
+      "members": [
+        {
+          "active": true,
+          "displayName": "ada",
+          "email": "ada@example.com",
+          "id": "m-1",
+          "name": "ada"
+        },
+        {
+          "active": true,
+          "displayName": "grace",
+          "email": "grace@example.com",
+          "id": "m-2",
+          "name": "grace"
+        }
+      ],
+      "name": "Product Pod",
+      "projects": [
+        {
+          "archivedAt": null,
+          "id": "p-1",
+          "name": "Alpha"
+        },
+        {
+          "archivedAt": null,
+          "id": "p-2",
+          "name": "Beta"
+        }
+      ],
+      "states": [
+        {
+          "archivedAt": null,
+          "id": "s-1",
+          "name": "Todo",
+          "position": 1002,
+          "type": "unstarted"
+        },
+        {
+          "archivedAt": null,
+          "id": "s-2",
+          "name": "In Review",
+          "position": 1002.5,
+          "type": "started"
+        }
+      ],
+      "zeta": true
+    }
+  ],
+  "workflowStates": [
+    {
+      "id": "s-1",
+      "name": "Todo",
+      "position": 1002,
+      "type": "unstarted"
+    },
+    {
+      "id": "s-2",
+      "name": "In Review",
+      "position": 1002.5,
+      "type": "started"
+    }
+  ]
+}

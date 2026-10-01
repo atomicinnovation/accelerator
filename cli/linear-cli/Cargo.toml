@@ -34,5 +34,6 @@ clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 cli-test-support = { path = "../cli-test-support" }

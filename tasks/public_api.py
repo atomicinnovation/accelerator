@@ -87,6 +87,7 @@ _EXEMPT_MEMBERS = {
         " tests and by the identity semantics each caller builds on top"
     ),
     "http-test-support": _TEST_SUPPORT,
+    "graphql-test-support": _TEST_SUPPORT,
     "tracker-test-support": _TEST_SUPPORT,
     "vcs-test-support": _TEST_SUPPORT,
     "cli-test-support": _TEST_SUPPORT,

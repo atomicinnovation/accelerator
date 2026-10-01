@@ -21,10 +21,11 @@
 //! "created remotely" states a re-run must not blindly repeat — the create flow
 //! surfaces the key and steers the operator to reconcile rather than re-create.
 //!
-//! Deliberate divergence: the search flow's `SEARCH_*` codes are remapped from
+//! Deliberate divergences: the search flow's `SEARCH_*` codes are remapped from
 //! the retired `70`–`73` values to `75`–`78`, off the `70`–`74` band the
 //! dispatch layer reserves — a code in that band reaching `accelerator-work`
-//! would read as a dispatch verdict.
+//! would read as a dispatch verdict. With `75`–`79` full, the search flow's
+//! unresolved-filter code, `89`, borrows from the show flow's decade.
 
 // Every code is a declared contract the parity test reads textually; a code no
 // handler yet references is still part of the surface, not dead.
@@ -62,6 +63,7 @@ pub const SEARCH_BAD_STATE: u8 = 78;
 // credential/transport failure so a consumer can branch on it and raise the
 // cap.
 pub const SEARCH_CAP_HIT: u8 = 79;
+pub const SEARCH_UNRESOLVED_FILTER: u8 = 89;
 
 pub const SHOW_NO_KEY: u8 = 80;
 pub const SHOW_BAD_FLAG: u8 = 81;
@@ -107,15 +109,20 @@ pub const ATTACH_BAD_FLAG: u8 = 138;
 
 use linear_client::cache::CacheError;
 use linear_client::classify::{classify_errors, Outcome};
+use linear_client::filter::{UnresolvedFilter, UnresolvedFilters};
+use linear_client::resolution::FilterFamily;
 use linear_client::{ClientError, GraphQlError, LinearFailure, SurfaceError};
 
 /// The exit code for a discovery-cache write failure. A held lock maps to the
-/// shared refresh-lock code; an IO or serialisation failure is a generic error.
+/// shared refresh-lock code; an IO, serialisation or unparseable-catalogue
+/// failure is a generic error.
 #[must_use]
 pub const fn for_cache(error: &CacheError) -> u8 {
     match error {
         CacheError::LockContended { .. } => REFRESH_LOCKED,
-        CacheError::Io { .. } | CacheError::Serialise { .. } => ERROR,
+        CacheError::Io { .. }
+        | CacheError::Serialise { .. }
+        | CacheError::Unparseable { .. } => ERROR,
     }
 }
 
@@ -145,6 +152,9 @@ pub fn for_surface(error: &SurfaceError) -> u8 {
             exit_code_for_status(*status, body)
         }
         SurfaceError::BadResponse { .. } => BAD_RESPONSE,
+        SurfaceError::CatalogueTruncated { .. } => ERROR,
+        SurfaceError::SearchNeedsCatalogueTeam => SEARCH_NO_CATALOGUE,
+        SurfaceError::DeadlineExpired { .. } => CONNECT,
         SurfaceError::UnknownState { .. } => TRANSITION_STATE_NOT_IN_CATALOGUE,
         SurfaceError::AmbiguousState { .. } => TRANSITION_STATE_AMBIGUOUS,
         SurfaceError::BadLinkUrl { .. } => ATTACH_BAD_URL,
@@ -156,19 +166,34 @@ pub fn for_surface(error: &SurfaceError) -> u8 {
     }
 }
 
-/// The exit code for a client-construction or credential failure.
+/// The exit code for a client-construction, credential or filter failure.
 #[must_use]
-pub const fn for_client(error: &ClientError) -> u8 {
+pub fn for_client(error: &ClientError) -> u8 {
     match error {
         ClientError::Credential(_) => NO_TOKEN,
         ClientError::MalformedToken { .. } => TOKEN_MALFORMED,
         ClientError::NoTeam => CREATE_NO_CATALOGUE,
-        ClientError::UnknownState { .. } => SEARCH_BAD_STATE,
+        ClientError::UnresolvedFilters(refusal) => for_unresolved(refusal),
         ClientError::BadIdentifier { .. } => BAD_REQUEST,
         ClientError::Transport { .. } => CONNECT,
         ClientError::OversizedResponse { .. } => BAD_RESPONSE,
         ClientError::ConfigUnreadable { .. }
         | ClientError::TlsUnavailable { .. } => ERROR,
+    }
+}
+
+/// A refusal the catalogue alone can fix outranks one about the values, and a
+/// refusal of states alone keeps the code a bad state always exited with.
+fn for_unresolved(refusal: &UnresolvedFilters) -> u8 {
+    if refusal.iter().all(UnresolvedFilter::is_catalogue_gap) {
+        SEARCH_NO_CATALOGUE
+    } else if refusal
+        .iter()
+        .all(|entry| entry.family() == Some(FilterFamily::State))
+    {
+        SEARCH_BAD_STATE
+    } else {
+        SEARCH_UNRESOLVED_FILTER
     }
 }
 
@@ -202,7 +227,14 @@ fn exit_code_for_status(status: u16, body: &str) -> u8 {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
+    use linear_client::catalogue::{CatalogueParseError, CatalogueSection};
+    use linear_client::filter::{UnresolvedFilter, UnresolvedFilters};
+    use linear_client::resolution::{
+        CatalogueGap, FilterFamily, TeamRef, Unresolved,
+    };
+
     use super::*;
 
     fn code_for(graphql: GraphQlError) -> (u8, u8) {
@@ -232,6 +264,114 @@ mod tests {
         assert_eq!(exit_code_for_outcome(Outcome::Transport), CONNECT);
         assert_eq!(exit_code_for_outcome(Outcome::ServerError), SERVER_ERROR);
         assert_eq!(exit_code_for_outcome(Outcome::Unexpected), SERVER_ERROR);
+    }
+
+    #[test]
+    fn catalogue_truncation_maps_to_error() {
+        let error = SurfaceError::CatalogueTruncated {
+            connection: "issueLabels",
+            pages: 60,
+            remedy: "narrow the pull to fewer teams",
+        };
+
+        assert_eq!(for_surface(&error), ERROR);
+    }
+
+    #[test]
+    fn a_catalogue_fetch_past_its_deadline_maps_to_connect() {
+        let error = SurfaceError::DeadlineExpired {
+            operation: "discover team entries",
+        };
+
+        assert_eq!(for_surface(&error), CONNECT);
+    }
+
+    #[test]
+    fn an_unparseable_catalogue_maps_to_error() {
+        let error = CacheError::Unparseable {
+            path: "catalogue.json".to_owned(),
+            reason: CatalogueParseError::NotAnObject,
+        };
+
+        assert_eq!(for_cache(&error), ERROR);
+    }
+
+    fn refusal(entries: Vec<UnresolvedFilter>) -> ClientError {
+        ClientError::UnresolvedFilters(
+            UnresolvedFilters::of(entries, None).expect("an entry"),
+        )
+    }
+
+    fn value(family: FilterFamily, reason: Unresolved) -> UnresolvedFilter {
+        UnresolvedFilter::Value {
+            family,
+            value: "x".to_owned(),
+            reason,
+        }
+    }
+
+    #[test]
+    fn for_client_maps_unresolved_filters() {
+        let absent = || Unresolved::NotCatalogued {
+            section: CatalogueSection::States,
+            cause: CatalogueGap::Absent,
+        };
+        let unfetched = || Unresolved::TeamUnfetched {
+            team: TeamRef {
+                id: "t".to_owned(),
+                key: None,
+            },
+        };
+        let cases = [
+            (
+                vec![
+                    value(FilterFamily::Label, absent()),
+                    value(FilterFamily::State, unfetched()),
+                ],
+                SEARCH_NO_CATALOGUE,
+            ),
+            (
+                vec![
+                    value(FilterFamily::State, Unresolved::NotFound),
+                    value(FilterFamily::State, absent()),
+                ],
+                SEARCH_BAD_STATE,
+            ),
+            (
+                vec![
+                    value(FilterFamily::State, Unresolved::NotFound),
+                    value(FilterFamily::Label, Unresolved::NotFound),
+                ],
+                SEARCH_UNRESOLVED_FILTER,
+            ),
+            (
+                vec![UnresolvedFilter::UnknownKey {
+                    key: "colour".to_owned(),
+                }],
+                SEARCH_UNRESOLVED_FILTER,
+            ),
+        ];
+
+        for (entries, expected) in cases {
+            assert_eq!(
+                for_client(&refusal(entries.clone())),
+                expected,
+                "{entries:?}"
+            );
+        }
+        assert_eq!(
+            for_surface(&SurfaceError::SearchNeedsCatalogueTeam),
+            SEARCH_NO_CATALOGUE
+        );
+    }
+
+    #[test]
+    fn no_team_still_exits_105_for_every_flow() {
+        assert_eq!(for_client(&ClientError::NoTeam), CREATE_NO_CATALOGUE);
+        assert_eq!(
+            for_surface(&SurfaceError::Client(ClientError::NoTeam)),
+            CREATE_NO_CATALOGUE
+        );
     }
 
     #[test]

@@ -8,13 +8,13 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 const ISSUE: &str = "/rest/api/3/issue";
 
-fn created(body: &str) -> MockServer {
-    let server = MockServer::start();
+fn created(body: &str) -> MockHTTPServer {
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(ISSUE),
         Route::Json {

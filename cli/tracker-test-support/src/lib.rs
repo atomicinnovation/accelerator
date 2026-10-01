@@ -50,6 +50,10 @@ pub enum Call {
     Search {
         scope: SearchScope,
     },
+    ResolveScope {
+        scope: SearchScope,
+    },
+    EnumerateVisibleEntities,
     PreviewCreate {
         kind: String,
     },
@@ -70,6 +74,7 @@ pub struct RecordingTracker {
     create_failure: Option<(TrackerError, bool)>,
     preview_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
+    rewrites_scope_filters: bool,
     search_failure: Option<TrackerError>,
     /// The entities `enumerate_visible_entities` reports, for driving the
     /// broadened-scope resolver.
@@ -98,6 +103,7 @@ impl RecordingTracker {
             create_failure: None,
             preview_failure: None,
             scope_refusal: None,
+            rewrites_scope_filters: false,
             search_failure: None,
             visible_entities: Vec::new(),
             enumerate_failure: None,
@@ -189,10 +195,27 @@ impl RecordingTracker {
         self
     }
 
-    /// A tracker whose `search` fails transiently with `error`, so the
-    /// discovery-failure report path can be driven without a real client. The
-    /// error must be `Retryable` or `Terminal` — the port contract forbids any
-    /// other class on a read.
+    /// A tracker whose `resolve_scope` resolves every filter value, as a
+    /// provider that turns configured names into ids does, so a test can tell
+    /// the resolved scope from the configured one wherever it is used.
+    #[must_use]
+    pub const fn rewriting_scope_filters(mut self) -> Self {
+        self.rewrites_scope_filters = true;
+        self
+    }
+
+    /// A tracker whose `search` refuses on configuration with `detail`.
+    #[must_use]
+    pub fn refusing_search_as_unconfigured(self, detail: &str) -> Self {
+        self.failing_search(TrackerError::Unconfigured {
+            detail: detail.to_owned(),
+        })
+    }
+
+    /// A tracker whose `search` fails with `error`, so the discovery-failure
+    /// and discovery-refusal report paths can be driven without a real client.
+    /// The error must be `Retryable` or `Unconfigured` — the port contract
+    /// forbids `Terminal` on a read.
     #[must_use]
     pub fn failing_search(mut self, error: TrackerError) -> Self {
         self.search_failure = Some(error);
@@ -430,14 +453,25 @@ impl RemoteTracker for RecordingTracker {
         &self,
         scope: &SearchScope,
     ) -> Result<SearchScope, ScopeError> {
-        self.scope_refusal
-            .clone()
-            .map_or_else(|| Ok(scope.clone()), Err)
+        self.calls.borrow_mut().push(Call::ResolveScope {
+            scope: scope.clone(),
+        });
+        if let Some(refusal) = &self.scope_refusal {
+            return Err(refusal.clone());
+        }
+        let mut resolved = scope.clone();
+        if self.rewrites_scope_filters {
+            for (_, value) in &mut resolved.filters {
+                *value = format!("resolved:{value}");
+            }
+        }
+        Ok(resolved)
     }
 
     fn enumerate_visible_entities(
         &self,
     ) -> Result<Vec<VisibleEntity>, TrackerError> {
+        self.calls.borrow_mut().push(Call::EnumerateVisibleEntities);
         if let Some(error) = &self.enumerate_failure {
             return Err(error.clone());
         }
@@ -628,5 +662,66 @@ mod tests {
             .fetch_all(&[ExternalId::new("REC-1".to_owned())])
             .expect("fetch_all never fails against this fake");
         assert_eq!(outcome.found.len(), 1);
+    }
+
+    #[test]
+    fn records_resolve_then_enumerate_in_order() {
+        let tracker = RecordingTracker::holding(Vec::new());
+        let scope = SearchScope {
+            entities: tracker::EntityScope::WholeWorkspace,
+            filters: vec![("label".to_owned(), "bug".to_owned())],
+        };
+
+        tracker
+            .resolve_scope(&scope)
+            .expect("the fake accepts the scope");
+        tracker
+            .enumerate_visible_entities()
+            .expect("the fake enumerates");
+
+        assert_eq!(
+            tracker.calls(),
+            vec![Call::ResolveScope { scope }, Call::EnumerateVisibleEntities,]
+        );
+    }
+
+    #[test]
+    fn a_rewriting_tracker_resolves_every_filter_value() {
+        let tracker =
+            RecordingTracker::holding(Vec::new()).rewriting_scope_filters();
+        let scope = SearchScope {
+            entities: tracker::EntityScope::WholeWorkspace,
+            filters: vec![
+                ("label".to_owned(), "bug".to_owned()),
+                ("state".to_owned(), "Todo".to_owned()),
+            ],
+        };
+
+        let resolved = tracker.resolve_scope(&scope).expect("resolved");
+
+        assert_eq!(
+            resolved.filters,
+            vec![
+                ("label".to_owned(), "resolved:bug".to_owned()),
+                ("state".to_owned(), "resolved:Todo".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_search_refused_as_unconfigured_carries_its_detail() {
+        let tracker = RecordingTracker::holding(Vec::new())
+            .refusing_search_as_unconfigured("unknown label");
+        let scope = SearchScope {
+            entities: tracker::EntityScope::WholeWorkspace,
+            filters: Vec::new(),
+        };
+
+        assert_eq!(
+            tracker.search(&scope),
+            Err(TrackerError::Unconfigured {
+                detail: "unknown label".to_owned()
+            })
+        );
     }
 }

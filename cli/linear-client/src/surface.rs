@@ -30,6 +30,26 @@ pub enum SurfaceError {
         body: String,
     },
 
+    #[error(
+        "E_CATALOGUE_TRUNCATED: {connection} ran past its ceiling of {pages} \
+         pages, so the catalogue would be incomplete; {remedy}"
+    )]
+    CatalogueTruncated {
+        connection: &'static str,
+        pages: usize,
+        remedy: &'static str,
+    },
+
+    #[error(
+        "E_SEARCH_NO_TEAM: search filters resolve against the catalogue's \
+         base team, and there is none; run /accelerator:init-linear, or search \
+         by --text alone"
+    )]
+    SearchNeedsCatalogueTeam,
+
+    #[error("E_REQ_DEADLINE: {operation} ran past its deadline; retry")]
+    DeadlineExpired { operation: &'static str },
+
     #[error("E_REQ_BAD_RESPONSE: {operation}: {reason}")]
     BadResponse {
         operation: &'static str,

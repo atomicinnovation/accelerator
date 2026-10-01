@@ -193,10 +193,12 @@ dependencies = [
  "corpus",
  "corpus-adapters",
  "document",
+ "graphql-test-support",
  "http-test-support",
  "jira-client",
  "kernel",
  "linear-client",
+ "serde_json",
  "store",
  "tempfile",
  "tracing",
@@ -744,6 +746,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 name = "cli-test-support"
 version = "1.24.0-pre.73"
 dependencies = [
+ "graphql-test-support",
  "http-test-support",
  "serde",
  "serde_json",
@@ -2260,6 +2263,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphql-test-support"
+version = "1.24.0-pre.73"
+dependencies = [
+ "http-test-support",
+ "serde_json",
+]
+
+[[package]]
 name = "hash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3060,6 +3071,7 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
+ "graphql-test-support",
  "http-test-support",
  "kernel",
  "linear-client",
@@ -3079,10 +3091,12 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "graphql-test-support",
  "http-test-support",
  "remote-projection",
  "reqwest",
  "rustls",
+ "serde",
  "serde_json",
  "store",
  "tempfile",
@@ -5694,6 +5708,7 @@ version = "1.24.0-pre.73"
 dependencies = [
  "config",
  "corpus",
+ "graphql-test-support",
  "hex",
  "http-test-support",
  "jira-client",

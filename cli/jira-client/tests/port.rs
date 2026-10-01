@@ -4,7 +4,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::JiraClient;
 use serde_json::Value;
 use support::client::{brief, client_for, PROJECT};
@@ -90,7 +90,7 @@ fn search_page(keys: &[&str], cursor: Option<&str>) -> String {
 
 #[test]
 fn create_posts_the_issue_and_returns_its_key() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(ISSUE);
     server.route(
         key.clone(),
@@ -119,7 +119,7 @@ fn create_posts_the_issue_and_returns_its_key() {
 
 #[test]
 fn create_with_no_kind_uses_the_default_issue_type() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(ISSUE);
     server.route(
         key.clone(),
@@ -142,7 +142,7 @@ fn create_with_no_kind_uses_the_default_issue_type() {
 
 #[test]
 fn a_create_whose_key_cannot_be_written_back_is_terminal() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(ISSUE),
         Route::Json {
@@ -165,7 +165,7 @@ fn a_create_whose_key_cannot_be_written_back_is_terminal() {
 #[test]
 fn a_rejected_create_is_retryable_and_a_lost_one_is_terminal() {
     for (status, terminal) in [(400, false), (401, false), (503, true)] {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(RequestKey::post(ISSUE), Route::Status(status));
         let client = client_for(&server, brief());
 
@@ -183,7 +183,7 @@ fn a_rejected_create_is_retryable_and_a_lost_one_is_terminal() {
 
 #[test]
 fn update_puts_the_whole_content_and_returns_nothing() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::put("/rest/api/3/issue/ENG-42");
     server.route(key.clone(), Route::Status(204));
     let client = client_for(&server, brief());
@@ -201,7 +201,7 @@ fn update_puts_the_whole_content_and_returns_nothing() {
 
 #[test]
 fn show_projects_the_body_with_exactly_one_trailing_newline() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/issue/ENG-42"),
         Route::Json {
@@ -225,7 +225,7 @@ fn show_projects_the_body_with_exactly_one_trailing_newline() {
 #[test]
 fn a_blank_absent_or_null_stamp_is_not_reported() {
     for stamp in ["null", "\"\""] {
-        let server = MockServer::start();
+        let server = MockHTTPServer::start();
         server.route(
             RequestKey::get("/rest/api/3/issue/ENG-1"),
             Route::Json {
@@ -249,7 +249,7 @@ fn a_blank_absent_or_null_stamp_is_not_reported() {
 
 #[test]
 fn a_404_on_show_is_retryable_not_an_absence() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get("/rest/api/3/issue/ENG-404"),
         Route::Status(404),
@@ -269,7 +269,7 @@ fn a_404_on_show_is_retryable_not_an_absence() {
 
 #[test]
 fn an_empty_request_makes_no_remote_call() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(key.clone(), Route::Status(500));
     let client = client_for(&server, brief());
@@ -284,7 +284,7 @@ fn an_empty_request_makes_no_remote_call() {
 
 #[test]
 fn duplicate_ids_are_deduplicated_before_composition() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -308,7 +308,7 @@ fn duplicate_ids_are_deduplicated_before_composition() {
 
 #[test]
 fn the_key_clause_is_the_sole_filter() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -338,7 +338,7 @@ fn the_key_clause_is_the_sole_filter() {
 
 #[test]
 fn a_hostile_identifier_leaves_one_bounded_clause() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -365,7 +365,7 @@ fn a_hostile_identifier_leaves_one_bounded_clause() {
 
 #[test]
 fn an_unembeddable_identifier_is_a_preflight_error() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(key.clone(), Route::Status(200));
     let client = client_for(&server, brief());
@@ -380,7 +380,7 @@ fn an_unembeddable_identifier_is_a_preflight_error() {
 
 #[test]
 fn an_unfound_key_is_absent_when_the_retrieval_completed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {
@@ -401,7 +401,7 @@ fn an_unfound_key_is_absent_when_the_retrieval_completed() {
 
 #[test]
 fn a_failed_chunk_reports_its_keys_indeterminate_never_absent() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(SEARCH), Route::Status(500));
     let client = client_for(&server, brief());
 
@@ -418,7 +418,7 @@ fn a_failed_chunk_reports_its_keys_indeterminate_never_absent() {
 
 #[test]
 fn the_cursor_is_followed_until_it_is_absent() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -439,7 +439,7 @@ fn the_cursor_is_followed_until_it_is_absent() {
 
 #[test]
 fn a_stamp_absent_from_a_bulk_row_is_still_found() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(SEARCH),
         Route::Json {
@@ -462,7 +462,7 @@ fn a_stamp_absent_from_a_bulk_row_is_still_found() {
 
 #[test]
 fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::get("/rest/api/3/issue/OWNER%2FREPO-1");
     server.route(
         key.clone(),
@@ -482,7 +482,7 @@ fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
 
 #[test]
 fn a_traversal_bearing_identifier_is_refused_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let target = RequestKey::get("/rest/api/3/mypermissions");
     server.route(target.clone(), Route::Status(200));
     let client = client_for(&server, brief());
@@ -502,7 +502,7 @@ fn a_traversal_bearing_identifier_is_refused_before_any_request() {
 
 #[test]
 fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -543,7 +543,7 @@ fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
 
 #[test]
 fn a_hostile_filter_value_stays_contained_in_its_clause() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(SEARCH);
     server.route(
         key.clone(),
@@ -579,7 +579,7 @@ fn a_hostile_filter_value_stays_contained_in_its_clause() {
 
 #[test]
 fn a_configured_discovery_cap_truncates_where_the_default_completes() {
-    let capped = MockServer::start();
+    let capped = MockHTTPServer::start();
     capped.route(RequestKey::post(SEARCH), three_pages());
     let discovery =
         client_for(&capped, caps(Ceiling::Bounded(2), Ceiling::Bounded(50)))
@@ -592,7 +592,7 @@ fn a_configured_discovery_cap_truncates_where_the_default_completes() {
     );
     assert_eq!(capped.hits(&RequestKey::post(SEARCH)), 2);
 
-    let uncapped = MockServer::start();
+    let uncapped = MockHTTPServer::start();
     uncapped.route(RequestKey::post(SEARCH), three_pages());
     let discovery =
         client_for(&uncapped, caps(Ceiling::Bounded(50), Ceiling::Bounded(50)))
@@ -607,7 +607,7 @@ fn a_configured_discovery_cap_truncates_where_the_default_completes() {
 
 #[test]
 fn unlimited_discovery_never_truncates_a_walk_a_small_cap_would() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(RequestKey::post(SEARCH), three_pages());
     let discovery =
         client_for(&server, caps(Ceiling::Unlimited, Ceiling::Bounded(50)))
@@ -624,7 +624,7 @@ fn unlimited_discovery_never_truncates_a_walk_a_small_cap_would() {
 fn the_keyed_read_cap_is_independent_of_the_discovery_cap() {
     // A low discovery cap must not truncate the keyed read: fetch_all uses the
     // keyed-read cap, so a three-page walk completes and the id is found.
-    let found = MockServer::start();
+    let found = MockHTTPServer::start();
     found.route(RequestKey::post(SEARCH), three_pages());
     let outcome =
         client_for(&found, caps(Ceiling::Bounded(1), Ceiling::Bounded(50)))
@@ -639,7 +639,7 @@ fn the_keyed_read_cap_is_independent_of_the_discovery_cap() {
 
     // A low keyed-read cap truncates the keyed read: the unseen id is
     // indeterminate, never absent, even with a generous discovery cap.
-    let capped = MockServer::start();
+    let capped = MockHTTPServer::start();
     capped.route(RequestKey::post(SEARCH), three_pages());
     let outcome =
         client_for(&capped, caps(Ceiling::Bounded(50), Ceiling::Bounded(2)))
@@ -654,7 +654,7 @@ fn the_keyed_read_cap_is_independent_of_the_discovery_cap() {
 
 #[test]
 fn the_page_cap_and_chunk_size_are_the_transcribed_ones() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client: JiraClient = client_for(&server, brief());
 
     assert_eq!(

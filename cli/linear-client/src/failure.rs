@@ -1,5 +1,5 @@
 //! The structured failure a fallible port operation surfaces before it
-//! collapses to the port's two-class [`TrackerError`].
+//! collapses to one of the port's [`TrackerError`] classes.
 //!
 //! It carries the classifier's [`Outcome`] and [`Operation`] discriminant, or
 //! the distinct post-create "created remotely but unwritable" case, so the CLI

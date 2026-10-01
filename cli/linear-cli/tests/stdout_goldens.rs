@@ -13,10 +13,10 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 
 fn drive(scenario: &str, args: &[&str]) -> Vec<u8> {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios")
         .join(format!("{scenario}.json"));

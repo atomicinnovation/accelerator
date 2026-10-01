@@ -15,7 +15,7 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use common::{MockServer, Route};
+use common::{MockHTTPServer, Route};
 use sha2::{Digest as _, Sha256};
 use tempfile::TempDir;
 
@@ -249,7 +249,7 @@ fn manifest_json(
 }
 
 struct Harness {
-    server: MockServer,
+    server: MockHTTPServer,
     cache: PathBuf,
     trusted: String,
     archive_sha: String,
@@ -321,7 +321,7 @@ fn happy_harness(minisign: &Path) -> Harness {
         sign(minisign, &secret, workdir.path(), manifest.as_bytes());
 
     let archive_bytes = archive.clone();
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
     server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
     let asset = format!("/accelerator-{ARTIFACT}-{HOST_PLATFORM}.tar.gz");
@@ -1569,7 +1569,7 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
     let manifest_sig =
         sign(&minisign, &secret, workdir.path(), manifest.as_bytes());
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
     server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
     for platform in platforms {

@@ -47,6 +47,7 @@ vcs-test-support = { path = "../vcs-test-support" }
 jira-client = { path = "../jira-client" }
 linear-client = { path = "../linear-client" }
 tracker-support = { path = "../tracker-support" }
+graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 reqwest = { workspace = true }
 hex = { workspace = true }

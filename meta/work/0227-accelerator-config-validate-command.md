@@ -9,11 +9,12 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0276"
+blocked_by: ["work-item:0292"]
 relates_to: ["work-item:0221", "work-item:0226"]
 tags: ["config", "validation", "cli", "correctness"]
-last_updated: "2026-09-05T00:00:00+00:00"
+last_updated: "2026-09-22T07:45:50+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0276 (Rust CLI Consolidation and Hardening): post-migration evolution of the cli/ Rust workspace, gathered from the audit of work items numbered above 0136."
+last_updated_note: "Added blocked_by 0292 (Linear pull filters): config validate must extend to the new project key and the per-tracker accepted-set split it introduces."
 schema_version: 1
 external_id: "PP-757"
 ---

@@ -9,7 +9,7 @@ mod support;
 use std::time::Duration;
 
 use config::credentials::{Secret, TokenSource};
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use linear_client::transport::Transport;
 use linear_client::{ClientError, Credentials};
 use reqwest::Url;
@@ -101,7 +101,7 @@ fn constructing_a_transport_installs_the_crypto_provider() {
 
 #[test]
 fn a_request_carries_its_token_document_and_variables() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -132,7 +132,7 @@ fn a_request_carries_its_token_document_and_variables() {
 
 #[test]
 fn a_persistent_5xx_is_attempted_exactly_four_times() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::Status(503));
     let sleeper = RecordingSleeper::new();
@@ -156,7 +156,7 @@ fn a_persistent_5xx_is_attempted_exactly_four_times() {
 
 #[test]
 fn a_rate_limited_400_retries_and_carries_retry_after_as_a_duration() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -188,7 +188,7 @@ fn a_rate_limited_400_retries_and_carries_retry_after_as_a_duration() {
 
 #[test]
 fn a_two_hundred_carrying_errors_is_never_retried() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -214,7 +214,7 @@ fn a_two_hundred_carrying_errors_is_never_retried() {
 
 #[test]
 fn a_four_hundred_that_is_not_rate_limited_is_not_retried() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(
         key.clone(),
@@ -246,7 +246,7 @@ fn a_transport_failure_makes_exactly_one_attempt() {
 
 #[test]
 fn an_injected_timeout_takes_effect() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Stall(Duration::from_secs(30)),
@@ -267,7 +267,7 @@ fn an_injected_timeout_takes_effect() {
 
 #[test]
 fn a_redirect_is_refused_rather_than_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let target = RequestKey::post("/elsewhere");
     server.route(
         RequestKey::post(GRAPHQL),
@@ -294,7 +294,7 @@ fn a_redirect_is_refused_rather_than_followed() {
 
 #[test]
 fn a_response_beyond_the_bound_is_rejected_rather_than_buffered() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Json {
@@ -324,7 +324,7 @@ fn a_response_beyond_the_bound_is_rejected_rather_than_buffered() {
 
 #[test]
 fn a_non_json_body_is_reported_as_such_rather_than_as_a_transport_failure() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(GRAPHQL),
         Route::Bytes {

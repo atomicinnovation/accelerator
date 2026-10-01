@@ -7,7 +7,7 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 fn comment_path(key: &str) -> String {
@@ -16,7 +16,7 @@ fn comment_path(key: &str) -> String {
 
 #[test]
 fn add_posts_the_comment_and_stamps_added() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(&comment_path("ENG-1")),
         Route::Json {
@@ -42,7 +42,7 @@ fn add_posts_the_comment_and_stamps_added() {
 
 #[test]
 fn list_reshapes_the_envelope() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::get(&comment_path("ENG-1")),
         Route::Json {
@@ -72,7 +72,7 @@ fn list_reshapes_the_envelope() {
 
 #[test]
 fn delete_is_silent_on_success() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("DELETE", "/rest/api/3/issue/ENG-1/comment/c-1"),
         Route::Status(204),
@@ -90,7 +90,7 @@ fn delete_is_silent_on_success() {
 
 #[test]
 fn a_missing_body_exits_before_the_wire() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::CONFIG);
     let output =
         support::run(dir.path(), &server, &["comment", "add", "ENG-1"]);
@@ -99,7 +99,7 @@ fn a_missing_body_exits_before_the_wire() {
 
 #[test]
 fn a_bad_visibility_exits_before_the_wire() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let dir = support::scratch(support::CONFIG);
     let output = support::run(
         dir.path(),

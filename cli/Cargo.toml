@@ -30,6 +30,7 @@ members = [
     "tracker",
     "tracker-test-support",
     "http-test-support",
+    "graphql-test-support",
     "tracker-support",
     "cli-test-support",
     "jira-client",

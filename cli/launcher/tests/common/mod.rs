@@ -39,12 +39,12 @@ struct Shared {
     stop: AtomicBool,
 }
 
-pub struct MockServer {
+pub struct MockHTTPServer {
     port: u16,
     shared: Arc<Shared>,
 }
 
-impl MockServer {
+impl MockHTTPServer {
     /// Bind an ephemeral loopback port and start serving in a background thread.
     pub fn start() -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock");
@@ -107,7 +107,7 @@ impl MockServer {
     }
 }
 
-impl Drop for MockServer {
+impl Drop for MockHTTPServer {
     fn drop(&mut self) {
         self.shared.stop.store(true, Ordering::SeqCst);
     }

@@ -236,3 +236,35 @@ fn there_is_no_site_or_email_in_linears_auth_band() {
     assert_eq!(keys.value.to_string(), "linear.token");
     assert_eq!(keys.command.to_string(), "linear.token_cmd");
 }
+
+#[test]
+fn the_credential_team_falls_back_to_the_base_entry_then_the_legacy_team() {
+    let root = workspace();
+    let integrations = root.path().join("integrations");
+    std::fs::create_dir_all(integrations.join("linear")).expect("the dir");
+    let catalogue = integrations.join("linear/catalogue.json");
+    let config = FixedConfig::new();
+
+    std::fs::write(
+        &catalogue,
+        r#"{"baseTeam": "t-base",
+            "teams": [{"id": "t-base", "key": "BASE", "name": "Base"}],
+            "team": {"id": "t-stale", "key": "STALE", "name": "Stale"}}"#,
+    )
+    .expect("write a converged catalogue");
+    let (team, _) = resolve_team(&config, &integrations).expect("resolves");
+    let key = team_key(&config, &integrations).expect("resolves");
+    assert_eq!(team, "t-base");
+    assert_eq!(key.as_deref(), Some("BASE"));
+
+    std::fs::write(
+        &catalogue,
+        r#"{"team": {"id": "t-legacy", "key": "LEG"},
+            "teams": [{"id": "t-other", "key": "OTH", "name": "Other"}]}"#,
+    )
+    .expect("write a legacy catalogue");
+    let (team, _) = resolve_team(&config, &integrations).expect("resolves");
+    let key = team_key(&config, &integrations).expect("resolves");
+    assert_eq!(team, "t-legacy");
+    assert_eq!(key.as_deref(), Some("LEG"));
+}

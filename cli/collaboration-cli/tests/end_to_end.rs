@@ -10,7 +10,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -38,7 +38,7 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
 
 fn run(
     dir: &Path,
-    server: &MockServer,
+    server: &MockHTTPServer,
     args: &[&str],
 ) -> Result<Output, TestError> {
     Ok(
@@ -75,7 +75,7 @@ fn pull_request_json(number: u64) -> String {
 #[test]
 fn base_repo_prints_owner_slash_repo_on_success() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
         Route::Json {
@@ -106,7 +106,7 @@ fn base_repo_prints_owner_slash_repo_on_success() -> Result<(), TestError> {
 #[test]
 fn base_repo_reports_a_repository_lookup_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
         Route::Json {
@@ -127,7 +127,7 @@ fn base_repo_reports_a_repository_lookup_failure() -> Result<(), TestError> {
 #[test]
 fn update_body_succeeds() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
         Route::Json {
@@ -177,7 +177,7 @@ fn update_body_succeeds() -> Result<(), TestError> {
 #[test]
 fn update_body_reports_a_patch_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
         Route::Json {
@@ -230,7 +230,7 @@ fn update_body_reports_a_patch_failure() -> Result<(), TestError> {
 #[test]
 fn update_body_with_a_missing_body_file_exits_two() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let missing = repo.path().join("does-not-exist.md");
 
     let output = run(
@@ -254,7 +254,7 @@ fn update_body_with_a_missing_body_file_exits_two() -> Result<(), TestError> {
 fn base_repo_with_no_pull_number_is_a_clap_usage_error() -> Result<(), TestError>
 {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
 
     let output = run(repo.path(), &server, &["pr", "base-repo"])?;
     assert!(!output.status.success());
@@ -266,7 +266,7 @@ fn base_repo_with_no_pull_number_is_a_clap_usage_error() -> Result<(), TestError
 fn update_body_with_no_body_file_flag_is_a_clap_usage_error(
 ) -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
 
     let output = run(repo.path(), &server, &["pr", "update-body", "42"])?;
     assert!(!output.status.success());
@@ -284,7 +284,7 @@ fn no_origin_remote_configured_exits_two() -> Result<(), TestError> {
         .current_dir(dir.path())
         .status()?;
     assert!(status.success());
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
 
     let output = run(dir.path(), &server, &["pr", "base-repo", "42"])?;
     assert_eq!(output.status.code(), Some(2));

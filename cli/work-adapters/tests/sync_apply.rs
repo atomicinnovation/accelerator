@@ -19,6 +19,7 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
@@ -270,6 +271,38 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         .calls()
         .iter()
         .any(|call| call == &format!("write:{BASELINE_PATH}")));
+    Ok(())
+}
+
+#[test]
+fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
+    let fake = Fake::default();
+    fake.seed_file(Path::new(ITEM_PATH), item_content());
+    fake.fail_update(TrackerError::Unconfigured {
+        detail: "no team in scope carries label \"typo\"".to_owned(),
+    });
+
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+    let external_id = ExternalId::new("ENG-1".to_owned());
+    let error = {
+        let mut applier =
+            ItemApplier::new(&fake, &fake, &mut store, 1_700_000_000);
+        applier
+            .push(&PushRequest {
+                id: "0001",
+                external_id: &external_id,
+                title: "Title",
+                body: "Body text\n",
+                file_path: Path::new(ITEM_PATH),
+            })
+            .expect_err("the tracker refused the push")
+    };
+
+    assert_eq!(error.class(), Some(FailureClass::Unconfigured));
+    assert!(error.to_string().contains("no team in scope carries label"));
+    let (baseline, _) = store.load()?;
+    assert!(baseline.get("0001").is_none());
     Ok(())
 }
 

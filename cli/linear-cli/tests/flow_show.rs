@@ -9,7 +9,7 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use serde_json::Value;
 
 fn scenario(name: &str) -> Scenario {
@@ -21,7 +21,7 @@ fn scenario(name: &str) -> Scenario {
 
 #[test]
 fn show_renders_the_issue_with_the_found_keyword() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     scenario("show-issue-200").install(&server);
     let dir = support::scratch(support::CONFIG);
 

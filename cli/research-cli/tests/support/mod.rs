@@ -10,7 +10,7 @@ use std::process::Child;
 use std::process::Command;
 use std::process::Stdio;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use vcs_test_support::hermetic::Hermetic;
 
 pub const SELECT: &str = "select=id,doi,display_name,type,authorships,\
@@ -156,7 +156,7 @@ impl Run {
 /// clock, with every OpenAlex key variable cleared unless `env` sets it.
 pub fn fetch(
     project: &Project,
-    server: &MockServer,
+    server: &MockHTTPServer,
     args: &[&str],
     env: &[(&str, &str)],
 ) -> Run {
@@ -185,7 +185,7 @@ pub fn fetch(
 /// so its waits really pass.
 pub fn spawn_in_real_time(
     project: &Project,
-    server: &MockServer,
+    server: &MockHTTPServer,
     args: &[&str],
 ) -> Child {
     command(project, server, args)
@@ -195,7 +195,11 @@ pub fn spawn_in_real_time(
         .expect("spawn accelerator-research")
 }
 
-fn command(project: &Project, server: &MockServer, args: &[&str]) -> Command {
+fn command(
+    project: &Project,
+    server: &MockHTTPServer,
+    args: &[&str],
+) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-research"));
     command
         .arg("fetch")

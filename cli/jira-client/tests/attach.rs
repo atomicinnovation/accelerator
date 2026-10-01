@@ -8,7 +8,7 @@ mod support;
 use std::fs;
 use std::path::Path;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::SurfaceError;
 use support::client::client_for;
 use tempfile::TempDir;
@@ -29,7 +29,7 @@ fn attach_sends_multipart_with_the_no_check_token_and_one_part_per_file() {
     let one = write(root.path(), "a.txt", b"alpha");
     let two = write(root.path(), "b.txt", b"beta");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(ATTACH),
         Route::Json {
@@ -63,7 +63,7 @@ fn attach_sends_multipart_with_the_no_check_token_and_one_part_per_file() {
 #[test]
 fn a_missing_file_is_refused() {
     let root = TempDir::new().expect("a temp root");
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let missing = root.path().join("absent.txt");
@@ -81,7 +81,7 @@ fn a_path_outside_the_root_is_refused() {
     let outside_dir = TempDir::new().expect("a second temp dir");
     let outside = write(outside_dir.path(), "secret.txt", b"leak");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client
@@ -98,7 +98,7 @@ fn a_directory_is_refused_by_the_handle_check() {
     let dir = root.path().join("subdir");
     fs::create_dir(&dir).expect("the directory is created");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client
@@ -116,7 +116,7 @@ fn a_symlink_to_a_device_is_refused() {
     std::os::unix::fs::symlink("/dev/null", &link)
         .expect("the symlink is created");
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client

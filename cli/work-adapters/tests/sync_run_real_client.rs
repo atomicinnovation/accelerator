@@ -2,7 +2,7 @@
 //!
 //! `sync_run.rs` proves the engine over `RecordingTracker`; this proves the
 //! same engine reaches a live classification through `JiraClient` and
-//! `LinearClient` pointed at a `MockServer` — the seam where a `TrackerError`
+//! `LinearClient` pointed at a `MockHTTPServer` — the seam where a `TrackerError`
 //! class becomes a sync classification and a `FetchOutcome` becomes present,
 //! absent or indeterminate. The clients are built through their public
 //! constructors with a loopback base, the admission `from_config` refuses.
@@ -12,6 +12,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use config::credentials::Secret;
@@ -19,15 +21,24 @@ use config::credentials::TokenSource;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
-use http_test_support::MockServer;
+use graphql_test_support::MockGraphQLServer;
+use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport as JiraTransport;
 use jira_client::Credentials as JiraCredentials;
 use jira_client::JiraClient;
-use linear_client::filter::FixedStates;
-use linear_client::filter::FixedTeam;
+use linear_client::cache::LinearCache;
+use linear_client::cache::SystemFilesystem;
+use linear_client::catalogue::Catalogue;
+use linear_client::catalogue::CatalogueUpdate;
+use linear_client::catalogue::LiveCatalogueData;
+use linear_client::catalogue::TeamEntries;
+use linear_client::healing::CatalogueBackfill;
+use linear_client::healing::NoBackfill;
+use linear_client::resolution::FixedNames;
+use linear_client::resolution::ResolverSet;
 use linear_client::transport::Transport as LinearTransport;
 use linear_client::Credentials as LinearCredentials;
 use linear_client::{LinearClient, UploadTransport};
@@ -172,6 +183,23 @@ fn jira_client(base: &str, config: TransportConfig) -> JiraClient {
 }
 
 fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
+    linear_client_over(
+        base,
+        config,
+        ResolverSet::new(
+            Box::new(FixedNames::default()),
+            TeamEntries::keyed(&[(LINEAR_TEAM_KEY, LINEAR_TEAM_ID)]),
+        ),
+        Arc::new(NoBackfill),
+    )
+}
+
+fn linear_client_over(
+    base: &str,
+    config: TransportConfig,
+    resolvers: ResolverSet,
+    backfill: Arc<dyn CatalogueBackfill>,
+) -> LinearClient {
     let transport = LinearTransport::new(
         Url::parse(&format!("{base}/graphql")).expect("an endpoint"),
         LinearCredentials {
@@ -184,15 +212,12 @@ fn linear_client(base: &str, config: TransportConfig) -> LinearClient {
         Box::new(NoJitter),
     )
     .expect("the linear transport builds");
-    let mut team_map = std::collections::BTreeMap::new();
-    team_map.insert(LINEAR_TEAM_KEY.to_owned(), LINEAR_TEAM_ID.to_owned());
-    let teams = FixedTeam(team_map);
     LinearClient::new(
         transport,
         UploadTransport::production().expect("the upload transport builds"),
         Some(LINEAR_TEAM_KEY.to_owned()),
-        Box::new(teams),
-        Box::new(FixedStates::default()),
+        resolvers,
+        backfill,
     )
 }
 
@@ -287,7 +312,7 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
         external_id: Some(ExternalId::new("ENG-1".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
@@ -348,7 +373,7 @@ fn jira_aborts_a_capped_keyed_read_and_deletes_nothing() -> Result<(), TestError
         external_id: Some(ExternalId::new("ENG-2".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page carries a cursor, so the one-page cap is hit: a fail-loud
     // truncation the run aborts on rather than degrades around.
     server.route(
@@ -423,7 +448,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
 
     // Probe the projected body on a show-only mock, then run against a fresh
     // sequence — Linear posts every operation to the one /graphql key.
-    let probe = MockServer::start();
+    let probe = MockHTTPServer::start();
     probe.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -437,7 +462,7 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
             .body,
     );
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Sequence(vec![
@@ -478,7 +503,7 @@ fn linear_aborts_a_capped_keyed_read_and_deletes_nothing(
         external_id: Some(ExternalId::new("ENG-2".to_owned())),
     };
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     // Every page reports a next page, so the one-page cap is hit: a fail-loud
     // truncation the run aborts on rather than degrades around.
     server.route(
@@ -576,7 +601,7 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
         },
     ];
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/rest/api/3/search/jql"),
         Route::Json {
@@ -664,7 +689,7 @@ fn jira_builds_a_dossier_per_conflict_with_values_bound_to_each_side(
 /// A keyed Linear discovery resolves the team key to the UUID, bounds the
 /// search to it, and reports the untracked issue as a planned pull.
 /// The load-bearing assertion is the captured body carrying `LINEAR_TEAM_ID` —
-/// a `MockServer` routes by method+path and does not evaluate the team filter,
+/// a `MockHTTPServer` routes by method+path and does not evaluate the team filter,
 /// so the seeded issue surfaces even with the raw key; the raw key in the body
 /// is what fails against the old, unresolved gate.
 #[test]
@@ -676,7 +701,7 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
          {{\"hasNextPage\":false,\"endCursor\":null}}}}}}}}"
     );
 
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -742,7 +767,7 @@ fn linear_discovery_bounds_the_search_to_the_resolved_team_uuid() {
 /// so "nothing was sent" is checkable only as zero requests.
 #[test]
 fn linear_discovery_with_no_key_refuses_before_any_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post("/graphql"),
         Route::Json {
@@ -780,4 +805,316 @@ fn linear_discovery_with_no_key_refuses_before_any_request() {
         0,
         "a pre-flight config refusal must send nothing"
     );
+}
+
+const OPS_TEAM_ID: &str = "ops-uuid";
+const SECTION_OPERATIONS: [&str; 6] = [
+    "TeamIdentities",
+    "TeamStates",
+    "TeamLabels",
+    "WorkspaceLabels",
+    "TeamMembers",
+    "TeamProjects",
+];
+
+fn catalogue_resolvers(catalogue: &serde_json::Value) -> ResolverSet {
+    Catalogue::from_text(&catalogue.to_string()).resolver_set()
+}
+
+fn complete_base() -> serde_json::Value {
+    serde_json::json!({
+        "baseTeam": LINEAR_TEAM_ID,
+        "labels": [{ "id": "wl-sec", "name": "Security" }],
+        "teams": [{
+            "id": LINEAR_TEAM_ID, "key": LINEAR_TEAM_KEY, "name": "Eng",
+            "states": [{ "id": "s-eng-ip", "name": "In Progress",
+                         "type": "started", "position": 1 }],
+            "labels": [{ "id": "l-eng-bug", "name": "Bug" }],
+            "members": [{ "id": "u-ann", "name": "Ann Lee",
+                          "displayName": "ann", "email": "ann@x.io",
+                          "active": true }],
+            "projects": [{ "id": "p-alpha", "name": "Alpha" }]
+        }]
+    })
+}
+
+fn legacy_base() -> serde_json::Value {
+    serde_json::json!({
+        "team": { "id": LINEAR_TEAM_ID, "key": LINEAR_TEAM_KEY, "name": "Eng" },
+        "workflowStates": [{ "id": "s-eng-ip", "name": "In Progress",
+                             "type": "started", "position": 1 }]
+    })
+}
+
+fn connection(root: &str, nodes: &serde_json::Value) -> Route {
+    Route::Json {
+        status: 200,
+        body: serde_json::json!({ "data": { root: {
+            "nodes": nodes,
+            "pageInfo": { "hasNextPage": false, "endCursor": null }
+        } } })
+        .to_string(),
+    }
+}
+
+fn serve_issues(server: &MockGraphQLServer) {
+    server.answer("issues", connection("issues", &serde_json::json!([])));
+}
+
+fn sent_issue_filter(server: &MockGraphQLServer) -> serde_json::Value {
+    let body = server.last_body("issues").expect("an issues request");
+    let sent: serde_json::Value =
+        serde_json::from_slice(&body).expect("JSON body");
+    sent["variables"]["filter"].clone()
+}
+
+fn section_requests(server: &MockGraphQLServer) -> usize {
+    SECTION_OPERATIONS
+        .iter()
+        .map(|operation| server.hits(operation))
+        .sum()
+}
+
+fn base_scope(filters: &[(&str, &str)]) -> tracker::SearchScope {
+    tracker::SearchScope {
+        entities: tracker::EntityScope::Keyed {
+            base: Some(LINEAR_TEAM_KEY.to_owned()),
+            additional: Vec::new(),
+        },
+        filters: filters
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+            .collect(),
+    }
+}
+
+fn discover(
+    client: &LinearClient,
+    scope: tracker::SearchScope,
+) -> Result<RunReport, work_adapters::sync::run::RunError> {
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(""));
+    execute(
+        client,
+        &spy,
+        &[],
+        SyncDirection::Bidirectional,
+        scope,
+        RunMode::Preview,
+    )
+}
+
+fn serve_label_fetch(server: &MockGraphQLServer) {
+    server.answer(
+        "TeamIdentities",
+        connection(
+            "teams",
+            &serde_json::json!([{ "id": LINEAR_TEAM_ID,
+                                  "key": LINEAR_TEAM_KEY, "name": "Eng" }]),
+        ),
+    );
+    server.answer(
+        "TeamLabels",
+        connection(
+            "issueLabels",
+            &serde_json::json!([{ "id": "l-eng-bug", "name": "Bug",
+                                  "archivedAt": null,
+                                  "team": { "id": LINEAR_TEAM_ID } }]),
+        ),
+    );
+    server.answer(
+        "WorkspaceLabels",
+        connection("issueLabels", &serde_json::json!([])),
+    );
+}
+
+#[derive(Default)]
+struct RecordingBackfill(Mutex<Vec<LiveCatalogueData>>);
+
+impl CatalogueBackfill for RecordingBackfill {
+    fn hold(&self, live: LiveCatalogueData) {
+        self.0.lock().expect("unpoisoned").push(live);
+    }
+}
+
+#[test]
+fn a_linear_pull_with_an_unknown_label_refuses_before_any_request() {
+    let server = MockHTTPServer::start();
+    let client = linear_client_over(
+        &server.base_url(),
+        TransportConfig::default(),
+        catalogue_resolvers(&complete_base()),
+        Arc::new(NoBackfill),
+    );
+
+    let error = discover(&client, base_scope(&[("label", "typo")]))
+        .err()
+        .expect("an unknown label refuses the run");
+
+    let work_adapters::sync::run::RunError::DiscoveryUnconfigured { detail } =
+        error
+    else {
+        panic!("a filter refusal is DiscoveryUnconfigured: {error:?}");
+    };
+    assert!(detail.contains("E_SEARCH_UNKNOWN_LABEL"), "{detail}");
+    assert_eq!(server.hits(&RequestKey::post("/graphql")), 0);
+}
+
+#[test]
+fn a_linear_pull_sends_seeded_label_assignee_state_and_project_ids() {
+    let server = MockGraphQLServer::start();
+    serve_issues(&server);
+    let client = linear_client_over(
+        &server.base_url(),
+        TransportConfig::default(),
+        catalogue_resolvers(&complete_base()),
+        Arc::new(NoBackfill),
+    );
+
+    discover(
+        &client,
+        base_scope(&[
+            ("label", "Bug"),
+            ("assignee", "ann@x.io"),
+            ("state", "In Progress"),
+            ("project", "Alpha"),
+        ]),
+    )
+    .expect("every value resolves");
+
+    let filter = sent_issue_filter(&server);
+    assert_eq!(filter["labels"]["id"]["eq"], "l-eng-bug");
+    assert_eq!(filter["assignee"]["id"]["eq"], "u-ann");
+    assert_eq!(filter["state"]["id"]["eq"], "s-eng-ip");
+    assert_eq!(filter["project"]["id"]["eq"], "p-alpha");
+    assert!(!filter.to_string().contains("name"), "{filter}");
+    assert_eq!(section_requests(&server), 0);
+}
+
+#[test]
+fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
+    let server = MockGraphQLServer::start();
+    serve_issues(&server);
+    server.answer(
+        "TeamEnumeration",
+        connection(
+            "teams",
+            &serde_json::json!([
+                { "id": LINEAR_TEAM_ID, "key": LINEAR_TEAM_KEY, "name": "Eng" },
+                { "id": OPS_TEAM_ID, "key": "OPS", "name": "Ops" }
+            ]),
+        ),
+    );
+    server.answer(
+        "TeamIdentities",
+        connection(
+            "teams",
+            &serde_json::json!([{ "id": OPS_TEAM_ID, "key": "OPS",
+                                  "name": "Ops" }]),
+        ),
+    );
+    server.answer(
+        "TeamStates",
+        connection(
+            "workflowStates",
+            &serde_json::json!([{ "id": "s-ops-ip", "name": "In Progress",
+                                  "type": "started", "position": 1,
+                                  "archivedAt": null,
+                                  "team": { "id": OPS_TEAM_ID } }]),
+        ),
+    );
+    let client = linear_client_over(
+        &server.base_url(),
+        TransportConfig::default(),
+        catalogue_resolvers(&complete_base()),
+        Arc::new(NoBackfill),
+    );
+
+    discover(
+        &client,
+        tracker::SearchScope {
+            entities: tracker::EntityScope::WholeWorkspace,
+            filters: vec![("state".to_owned(), "In Progress".to_owned())],
+        },
+    )
+    .expect("every team carries the state");
+
+    assert_eq!(server.hits("TeamStates"), 1);
+    assert_eq!(
+        sent_issue_filter(&server)["state"]["id"]["in"],
+        serde_json::json!(["s-eng-ip", "s-ops-ip"])
+    );
+}
+
+#[test]
+fn a_linear_pull_against_a_legacy_catalogue_fetches_and_succeeds() {
+    let server = MockGraphQLServer::start();
+    serve_issues(&server);
+    serve_label_fetch(&server);
+    let client = linear_client_over(
+        &server.base_url(),
+        TransportConfig::default(),
+        catalogue_resolvers(&legacy_base()),
+        Arc::new(NoBackfill),
+    );
+
+    discover(&client, base_scope(&[("label", "Bug")]))
+        .expect("the fetched labels resolve the value");
+
+    assert_eq!(
+        sent_issue_filter(&server)["labels"]["id"]["eq"],
+        "l-eng-bug"
+    );
+    assert_eq!(server.hits("TeamLabels"), 1);
+}
+
+#[test]
+fn a_later_pull_after_recording_makes_no_section_fetch() -> Result<(), TestError>
+{
+    let root = tempfile::tempdir()?;
+    let state_dir = root.path().join("linear");
+    std::fs::create_dir_all(&state_dir)?;
+    std::fs::write(
+        state_dir.join("catalogue.json"),
+        legacy_base().to_string(),
+    )?;
+    let first = MockGraphQLServer::start();
+    serve_issues(&first);
+    serve_label_fetch(&first);
+    let backfill = Arc::new(RecordingBackfill::default());
+    let client = linear_client_over(
+        &first.base_url(),
+        TransportConfig::default(),
+        Catalogue::load(root.path()).resolver_set(),
+        backfill.clone(),
+    );
+    discover(&client, base_scope(&[("label", "Bug")]))
+        .expect("the first pull fetches and resolves");
+    let filesystem = SystemFilesystem::new(root.path().to_path_buf());
+    let cache = LinearCache::new(&filesystem, state_dir);
+    for live in backfill.0.lock().expect("unpoisoned").drain(..) {
+        cache.record_team_entries(&CatalogueUpdate {
+            base_team: None,
+            entries: live.entries,
+            workspace_labels: live.workspace_labels,
+        })?;
+    }
+
+    let second = MockGraphQLServer::start();
+    serve_issues(&second);
+    let rebuilt = linear_client_over(
+        &second.base_url(),
+        TransportConfig::default(),
+        Catalogue::load(root.path()).resolver_set(),
+        Arc::new(NoBackfill),
+    );
+    discover(&rebuilt, base_scope(&[("label", "Bug")]))
+        .expect("the recorded labels resolve the value");
+
+    assert_eq!(section_requests(&second), 0);
+    assert_eq!(
+        sent_issue_filter(&second)["labels"]["id"]["eq"],
+        "l-eng-bug"
+    );
+    Ok(())
 }

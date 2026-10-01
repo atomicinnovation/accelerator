@@ -6,7 +6,7 @@
 
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::mutation::{CreateFields, FieldEdit, IssueType, UpdateFields};
 use serde_json::{json, Map, Value};
 use support::client::{brief, client_for};
@@ -22,14 +22,14 @@ fn empty() -> Map<String, Value> {
     Map::new()
 }
 
-fn sent(server: &MockServer, key: &RequestKey) -> Value {
+fn sent(server: &MockHTTPServer, key: &RequestKey) -> Value {
     serde_json::from_slice(&server.last_body(key).expect("a body"))
         .expect("JSON")
 }
 
 #[test]
 fn create_maps_every_field_into_the_rest_payload() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(ISSUE);
     server.route(
         key.clone(),
@@ -76,7 +76,7 @@ fn create_maps_every_field_into_the_rest_payload() {
 
 #[test]
 fn create_omits_unset_optional_fields() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::post(ISSUE);
     server.route(
         key.clone(),
@@ -114,7 +114,7 @@ fn create_omits_unset_optional_fields() {
 
 #[test]
 fn update_sets_fields_and_incremental_channels_together() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::put("/rest/api/3/issue/ENG-5");
     server.route(key.clone(), Route::Status(204));
     let client = client_for(&server, brief());
@@ -165,7 +165,7 @@ fn update_sets_fields_and_incremental_channels_together() {
 
 #[test]
 fn update_replaces_all_labels_through_the_fields_channel() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let key = RequestKey::put("/rest/api/3/issue/ENG-5");
     server.route(key.clone(), Route::Status(204));
     let client = client_for(&server, brief());

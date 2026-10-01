@@ -7,9 +7,9 @@
 
 use collaboration::ForgeApiError;
 use github::OctocrabClient;
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 
-fn base_uri(server: &MockServer) -> http::Uri {
+fn base_uri(server: &MockHTTPServer) -> http::Uri {
     server.base_url().parse().expect("base uri")
 }
 
@@ -65,7 +65,7 @@ fn pull_request_json(number: u64) -> String {
 
 #[tokio::test]
 async fn repository_reports_no_parent_for_a_non_fork() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {
@@ -83,7 +83,7 @@ async fn repository_reports_no_parent_for_a_non_fork() {
 
 #[tokio::test]
 async fn repository_reports_the_parent_of_a_fork() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let parent = parent_repository_json("upstream-owner", "upstream-repo");
     server.route(
         RequestKey::new("GET", "/repos/fork-owner/fork-repo"),
@@ -102,7 +102,7 @@ async fn repository_reports_the_parent_of_a_fork() {
 
 #[tokio::test]
 async fn repository_lookup_failure_surfaces_status_and_message() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {
@@ -138,7 +138,7 @@ async fn repository_lookup_transport_failure_is_reported() {
 
 #[tokio::test]
 async fn confirm_pull_request_exists_succeeds_for_a_present_pr() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo/pulls/42"),
         Route::Json {
@@ -157,7 +157,7 @@ async fn confirm_pull_request_exists_succeeds_for_a_present_pr() {
 
 #[tokio::test]
 async fn confirm_pull_request_exists_reports_a_404_as_failed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo/pulls/42"),
         Route::Json {
@@ -183,7 +183,7 @@ async fn confirm_pull_request_exists_reports_a_404_as_failed() {
 
 #[tokio::test]
 async fn update_body_succeeds() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("PATCH", "/repos/owner/repo/pulls/42"),
         Route::Json {
@@ -202,7 +202,7 @@ async fn update_body_succeeds() {
 
 #[tokio::test]
 async fn update_body_reports_a_patch_failure() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("PATCH", "/repos/owner/repo/pulls/42"),
         Route::Json {
@@ -228,7 +228,7 @@ async fn update_body_reports_a_patch_failure() {
 
 #[tokio::test]
 async fn a_redirect_response_is_not_followed() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo"),
         Route::Redirect {
@@ -248,7 +248,7 @@ async fn a_redirect_response_is_not_followed() {
 
 #[tokio::test]
 async fn the_configured_token_reaches_the_outbound_request() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::new("GET", "/repos/owner/repo"),
         Route::Json {

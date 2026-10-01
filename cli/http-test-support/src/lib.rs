@@ -61,6 +61,48 @@ pub enum Route {
     /// promised length (exercises a broken-transfer retry). A `sent` past the
     /// body's length sends the whole body.
     Truncated { body: Vec<u8>, sent: usize },
+    /// Wait this long, then answer with `route` — a slow but successful
+    /// response, for a deadline that spans several requests.
+    Delayed { delay: Duration, route: Box<Route> },
+    /// Whatever this function answers for the request body — the seam a
+    /// protocol layered over HTTP routes through when the path alone cannot
+    /// tell its requests apart. The answer is sent as given, so it must
+    /// already be one response rather than a per-hit route.
+    ByBody(Responder),
+}
+
+/// Answers a request from its body; see [`Route::ByBody`].
+pub type Responder = Arc<dyn Fn(&[u8]) -> Route + Send + Sync>;
+
+impl Route {
+    /// The response this route gives on its `index`th hit, counting from
+    /// zero. The last entry of a sequence repeats rather than falling through
+    /// to the unmatched status, which would turn one missing entry into a
+    /// confusing 599.
+    #[must_use]
+    pub fn for_hit(self, index: usize) -> Self {
+        match self {
+            Self::Sequence(responses) => {
+                let last = responses.len().saturating_sub(1);
+                responses
+                    .get(index.min(last))
+                    .cloned()
+                    .unwrap_or(Self::Status(UNMATCHED_STATUS))
+            }
+            Self::FlakyThenOk { fail_times, body } => {
+                if index < fail_times {
+                    Self::Status(500)
+                } else {
+                    Self::Bytes { status: 200, body }
+                }
+            }
+            Self::Delayed { delay, route } => Self::Delayed {
+                delay,
+                route: Box::new(route.for_hit(index)),
+            },
+            other => other,
+        }
+    }
 }
 
 /// The routing and recording key: a method and a path, with any query string
@@ -116,12 +158,12 @@ struct Shared {
     stop: AtomicBool,
 }
 
-pub struct MockServer {
+pub struct MockHTTPServer {
     port: u16,
     shared: Arc<Shared>,
 }
 
-impl MockServer {
+impl MockHTTPServer {
     /// Binds an ephemeral loopback port and starts serving in a background
     /// thread.
     #[must_use]
@@ -237,7 +279,7 @@ impl MockServer {
     }
 }
 
-impl Drop for MockServer {
+impl Drop for MockHTTPServer {
     fn drop(&mut self) {
         self.shared.stop.store(true, Ordering::SeqCst);
     }
@@ -331,28 +373,27 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     } = read_request(&mut reader)?;
     // Record before any response byte is written: the retry-count assertions
     // read this the instant the client call returns.
-    let index = {
-        let mut records = shared.records.lock().expect("records");
-        let record = records.entry(key.clone()).or_default();
-        record.all.push(Received {
+    let index = record(
+        shared,
+        &key,
+        Received {
             arrived: Instant::now(),
             query,
             headers,
-            body,
-        });
-        record.hits += 1;
-        let index = record.hits - 1;
-        drop(records);
-        index
-    };
-
+            body: body.clone(),
+        },
+    );
     let route = shared
         .routes
         .lock()
         .expect("routes")
         .get(&key)
         .cloned()
-        .map(|route| resolve(route, index));
+        .map(|route| match route.for_hit(index) {
+            Route::ByBody(answer) => answer(&body),
+            response => response,
+        })
+        .map(after_any_delay);
     let response = match route {
         Some(Route::Json { status, body }) => http_response(
             status,
@@ -377,15 +418,13 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         Some(Route::Redirect { status, location }) => {
             http_response(status, &[("Location", location.as_str())], &[])
         }
-        Some(Route::FlakyThenOk { fail_times, body }) => {
-            if index < fail_times {
-                http_response(500, &[], &[])
-            } else {
-                http_response(200, &[], &body)
-            }
+        Some(
+            Route::FlakyThenOk { .. } | Route::Sequence(_) | Route::ByBody(_),
+        ) => {
+            unreachable!("a route resolves to one response before dispatch")
         }
-        Some(Route::Sequence(_)) => {
-            unreachable!("resolve flattens a sequence before dispatch")
+        Some(Route::Delayed { .. }) => {
+            unreachable!("after_any_delay unwraps delays before dispatch")
         }
         Some(Route::Stall(delay)) => {
             // Promise a body in the headers, flush them, then stall without
@@ -418,17 +457,22 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Picks the response for this hit, so a sequence behaves like the API it
-/// stands in for. The last entry repeats rather than falling through to the
-/// unmatched status, which would turn one missing entry into a confusing 599.
-fn resolve(route: Route, index: usize) -> Route {
+/// Records the request and returns how many requests to its key preceded it.
+fn record(shared: &Shared, key: &RequestKey, received: Received) -> usize {
+    let mut records = shared.records.lock().expect("records");
+    let record = records.entry(key.clone()).or_default();
+    record.all.push(received);
+    record.hits += 1;
+    let preceding = record.hits - 1;
+    drop(records);
+    preceding
+}
+
+fn after_any_delay(route: Route) -> Route {
     match route {
-        Route::Sequence(responses) => {
-            let last = responses.len().saturating_sub(1);
-            responses
-                .get(index.min(last))
-                .cloned()
-                .unwrap_or(Route::Status(UNMATCHED_STATUS))
+        Route::Delayed { delay, route } => {
+            thread::sleep(delay);
+            after_any_delay(*route)
         }
         other => other,
     }

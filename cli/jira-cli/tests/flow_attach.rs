@@ -7,14 +7,14 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use http_test_support::{MockServer, RequestKey, Route};
+use http_test_support::{MockHTTPServer, RequestKey, Route};
 use serde_json::Value;
 
 const ATTACHMENTS: &str = "/rest/api/3/issue/ENG-1/attachments";
 
 #[test]
 fn a_file_is_attached_and_stamps_the_outcome() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(ATTACHMENTS),
         Route::Json {
@@ -45,7 +45,7 @@ fn a_file_is_attached_and_stamps_the_outcome() {
 
 #[test]
 fn a_missing_file_is_refused() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     server.route(
         RequestKey::post(ATTACHMENTS),
         Route::Json {

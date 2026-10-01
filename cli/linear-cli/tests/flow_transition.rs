@@ -9,10 +9,10 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::{MockServer, RequestKey};
+use http_test_support::{MockHTTPServer, RequestKey};
 use serde_json::Value;
 
-fn install(server: &MockServer) {
+fn install(server: &MockHTTPServer) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios/transition-update-200.json");
     Scenario::load(&path).expect("scenario").install(server);
@@ -20,10 +20,16 @@ fn install(server: &MockServer) {
 
 #[test]
 fn transition_resolves_the_state_and_posts_the_stateid() {
-    let server = MockServer::start();
+    for seed in [support::seed_catalogue, support::seed_legacy_catalogue] {
+        transitions_over(seed);
+    }
+}
+
+fn transitions_over(seed: fn(&Path)) {
+    let server = MockHTTPServer::start();
     install(&server);
     let dir = support::scratch(support::CONFIG);
-    support::seed_catalogue(dir.path());
+    seed(dir.path());
 
     let output = support::run(
         dir.path(),

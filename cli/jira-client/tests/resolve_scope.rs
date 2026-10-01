@@ -6,7 +6,7 @@
 
 mod support;
 
-use http_test_support::MockServer;
+use http_test_support::MockHTTPServer;
 use support::client::client_for;
 use tracker::EntityScope;
 use tracker::RemoteTracker;
@@ -32,7 +32,7 @@ const fn whole_workspace() -> SearchScope {
 
 #[test]
 fn a_scoped_project_passes_through_unchanged() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let resolved = client
@@ -57,7 +57,7 @@ fn a_scoped_project_passes_through_unchanged() {
 
 #[test]
 fn a_whole_workspace_scope_passes_through_unchanged() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let resolved = client
@@ -69,7 +69,7 @@ fn a_whole_workspace_scope_passes_through_unchanged() {
 
 #[test]
 fn an_unscoped_run_is_refused_with_e_jql_no_project() {
-    let server = MockServer::start();
+    let server = MockHTTPServer::start();
     let client = client_for(&server, TransportConfig::default());
 
     let error = client

@@ -34,6 +34,8 @@ clap = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+serde_json = { workspace = true }
 tempfile = { workspace = true }
+graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
