@@ -6,6 +6,7 @@
 
 mod support;
 
+use graphql_test_support::MockGraphQLServer;
 use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::catalogue::{CatalogueSection, SectionSet};
 use linear_client::discovery::{SectionFetch, TeamEntryFetch};
@@ -93,7 +94,7 @@ fn list_teams_queries_teams_and_returns_the_nodes() {
 
 #[test]
 fn team_enumeration_stays_unbounded() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     let pages: Vec<Route> = (1..=70)
         .map(|index| {
             json_route(&format!(
@@ -105,11 +106,8 @@ fn team_enumeration_stays_unbounded() {
             ))
         })
         .collect();
-    server.route(
-        RequestKey::graphql("TeamEnumeration"),
-        Route::Sequence(pages),
-    );
-    let client = client_for(&server, TransportConfig::default());
+    server.answer("TeamEnumeration", Route::Sequence(pages));
+    let client = client_for(server.http(), TransportConfig::default());
 
     let teams = client.list_teams().expect("listing succeeds");
 
@@ -144,12 +142,9 @@ fn identity(id: &str) -> Value {
     json!({ "id": id, "key": id.to_uppercase(), "name": format!("Team {id}") })
 }
 
-fn serve_identities(server: &MockServer, ids: &[&str]) {
+fn serve_identities(server: &MockGraphQLServer, ids: &[&str]) {
     let nodes: Vec<Value> = ids.iter().map(|id| identity(id)).collect();
-    server.route(
-        RequestKey::graphql(IDENTITIES),
-        page("teams", &Value::Array(nodes), None),
-    );
+    server.answer(IDENTITIES, page("teams", &Value::Array(nodes), None));
 }
 
 fn state(id: &str, team: &str) -> Value {
@@ -201,9 +196,9 @@ fn fetch(
         .fetch_team_entries(&ids, sections)
 }
 
-fn sent_queries(server: &MockServer, operation: &str) -> Vec<Value> {
+fn sent_queries(server: &MockGraphQLServer, operation: &str) -> Vec<Value> {
     server
-        .bodies(&RequestKey::graphql(operation))
+        .bodies(operation)
         .iter()
         .map(|body| serde_json::from_slice(body).expect("JSON"))
         .collect()
@@ -269,18 +264,18 @@ fn section_cases() -> Vec<SectionCase> {
 fn fetching_team_entries_pages_each_section_to_exhaustion() {
     let golden = golden("team-entries.golden.json");
     for case in section_cases() {
-        let server = MockServer::start();
+        let server = MockGraphQLServer::start();
         serve_identities(&server, &["t-a"]);
         let [first, second] = &case.pages;
-        server.route(
-            RequestKey::graphql(case.operation),
+        server.answer(
+            case.operation,
             Route::Sequence(vec![
                 page(case.root, first, Some("cursor-1")),
                 page(case.root, second, None),
             ]),
         );
 
-        let fetched = fetch(&server, &["t-a"], &only(&[case.section]))
+        let fetched = fetch(server.http(), &["t-a"], &only(&[case.section]))
             .unwrap_or_else(|error| panic!("{}: {error}", case.golden_key));
 
         let sent = sent_queries(&server, case.operation);
@@ -308,30 +303,19 @@ fn each_section_query_sends_its_page_sizes() {
         (WORKSPACE_LABELS, "issueLabels(first: 250"),
         (IDENTITIES, "teams(first: 250"),
     ];
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page("workflowStates", &json!([state("s-1", "t-a")]), None),
     );
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(WORKSPACE_LABELS),
-        page("issueLabels", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(MEMBERS),
-        page("users", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(PROJECTS),
-        page("projects", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
+    server.answer(WORKSPACE_LABELS, page("issueLabels", &json!([]), None));
+    server.answer(MEMBERS, page("users", &json!([]), None));
+    server.answer(PROJECTS, page("projects", &json!([]), None));
 
-    fetch(&server, &["t-a"], &SectionSet::all()).expect("the fetch succeeds");
+    fetch(server.http(), &["t-a"], &SectionSet::all())
+        .expect("the fetch succeeds");
 
     for (operation, prefix) in expected {
         let sent = sent_queries(&server, operation);
@@ -342,23 +326,20 @@ fn each_section_query_sends_its_page_sizes() {
 
 #[test]
 fn fetching_team_entries_filters_by_the_requested_team_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a", "t-b"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page(
             "workflowStates",
             &json!([state("s-1", "t-a"), state("s-2", "t-b")]),
             None,
         ),
     );
-    server.route(
-        RequestKey::graphql(PROJECTS),
-        page("projects", &json!([]), None),
-    );
+    server.answer(PROJECTS, page("projects", &json!([]), None));
 
     fetch(
-        &server,
+        server.http(),
         &["t-a", "t-b"],
         &only(&[CatalogueSection::States, CatalogueSection::Projects]),
     )
@@ -376,30 +357,19 @@ fn fetching_team_entries_filters_by_the_requested_team_ids() {
 
 #[test]
 fn fetching_team_entries_requests_archived_and_disabled_entities() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page("workflowStates", &json!([state("s-1", "t-a")]), None),
     );
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(WORKSPACE_LABELS),
-        page("issueLabels", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(MEMBERS),
-        page("users", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(PROJECTS),
-        page("projects", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
+    server.answer(WORKSPACE_LABELS, page("issueLabels", &json!([]), None));
+    server.answer(MEMBERS, page("users", &json!([]), None));
+    server.answer(PROJECTS, page("projects", &json!([]), None));
 
-    fetch(&server, &["t-a"], &SectionSet::all()).expect("the fetch succeeds");
+    fetch(server.http(), &["t-a"], &SectionSet::all())
+        .expect("the fetch succeeds");
 
     for (operation, flag) in [
         (IDENTITIES, "includeArchived: true"),
@@ -417,30 +387,27 @@ fn fetching_team_entries_requests_archived_and_disabled_entities() {
 
 #[test]
 fn fetching_only_the_requested_sections() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page("workflowStates", &json!([state("s-1", "t-a")]), None),
     );
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a"],
         &only(&[CatalogueSection::States, CatalogueSection::Labels]),
     )
     .expect("the fetch succeeds");
 
-    assert_eq!(server.hits(&RequestKey::graphql(IDENTITIES)), 1);
-    assert_eq!(server.hits(&RequestKey::graphql(STATES)), 1);
-    assert_eq!(server.hits(&RequestKey::graphql(LABELS)), 1);
-    assert_eq!(server.hits(&RequestKey::graphql(MEMBERS)), 0);
-    assert_eq!(server.hits(&RequestKey::graphql(PROJECTS)), 0);
-    assert_eq!(server.hits(&RequestKey::graphql(WORKSPACE_LABELS)), 0);
+    assert_eq!(server.hits(IDENTITIES), 1);
+    assert_eq!(server.hits(STATES), 1);
+    assert_eq!(server.hits(LABELS), 1);
+    assert_eq!(server.hits(MEMBERS), 0);
+    assert_eq!(server.hits(PROJECTS), 0);
+    assert_eq!(server.hits(WORKSPACE_LABELS), 0);
     let entry = &fetched.entries[0];
     assert!(entry.members.is_none() && entry.projects.is_none());
     assert!(fetched.workspace_labels.is_none());
@@ -448,10 +415,10 @@ fn fetching_only_the_requested_sections() {
 
 #[test]
 fn fetching_team_entries_threads_the_end_cursor() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         Route::Sequence(vec![
             page(
                 "workflowStates",
@@ -462,7 +429,7 @@ fn fetching_team_entries_threads_the_end_cursor() {
         ]),
     );
 
-    fetch(&server, &["t-a"], &only(&[CatalogueSection::States]))
+    fetch(server.http(), &["t-a"], &only(&[CatalogueSection::States]))
         .expect("the fetch succeeds");
 
     let sent = sent_queries(&server, STATES);
@@ -472,10 +439,10 @@ fn fetching_team_entries_threads_the_end_cursor() {
 
 #[test]
 fn a_page_two_failure_fails_the_whole_fetch() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(LABELS),
+    server.answer(
+        LABELS,
         Route::Sequence(vec![
             page(
                 "issueLabels",
@@ -486,8 +453,9 @@ fn a_page_two_failure_fails_the_whole_fetch() {
         ]),
     );
 
-    let error = fetch(&server, &["t-a"], &only(&[CatalogueSection::Labels]))
-        .expect_err("a failed page fails the fetch");
+    let error =
+        fetch(server.http(), &["t-a"], &only(&[CatalogueSection::Labels]))
+            .expect_err("a failed page fails the fetch");
 
     assert!(
         matches!(error, SurfaceError::GraphQlErrors { .. }),
@@ -497,16 +465,19 @@ fn a_page_two_failure_fails_the_whole_fetch() {
 
 #[test]
 fn a_team_returned_with_no_states_is_a_bad_response() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a", "t-b"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page("workflowStates", &json!([state("s-1", "t-a")]), None),
     );
 
-    let error =
-        fetch(&server, &["t-a", "t-b"], &only(&[CatalogueSection::States]))
-            .expect_err("a team with no states is refused");
+    let error = fetch(
+        server.http(),
+        &["t-a", "t-b"],
+        &only(&[CatalogueSection::States]),
+    )
+    .expect_err("a team with no states is refused");
 
     assert!(matches!(error, SurfaceError::BadResponse { .. }), "{error}");
     assert!(error.to_string().contains("t-b"), "{error}");
@@ -514,19 +485,19 @@ fn a_team_returned_with_no_states_is_a_bad_response() {
 
 #[test]
 fn a_node_shared_by_two_requested_teams_appears_in_both_entries() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a", "t-b"]);
-    server.route(
-        RequestKey::graphql(MEMBERS),
+    server.answer(
+        MEMBERS,
         page("users", &json!([member("m-1", &["t-a", "t-b"])]), None),
     );
-    server.route(
-        RequestKey::graphql(PROJECTS),
+    server.answer(
+        PROJECTS,
         page("projects", &json!([project("p-1", &["t-a", "t-b"])]), None),
     );
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a", "t-b"],
         &only(&[CatalogueSection::Members, CatalogueSection::Projects]),
     )
@@ -541,10 +512,10 @@ fn a_node_shared_by_two_requested_teams_appears_in_both_entries() {
 
 #[test]
 fn a_node_for_an_unrequested_team_is_dropped() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(MEMBERS),
+    server.answer(
+        MEMBERS,
         page(
             "users",
             &json!([member("m-1", &["t-a", "t-z"]), member("m-2", &["t-z"])]),
@@ -552,8 +523,9 @@ fn a_node_for_an_unrequested_team_is_dropped() {
         ),
     );
 
-    let fetched = fetch(&server, &["t-a"], &only(&[CatalogueSection::Members]))
-        .expect("the fetch succeeds");
+    let fetched =
+        fetch(server.http(), &["t-a"], &only(&[CatalogueSection::Members]))
+            .expect("the fetch succeeds");
 
     assert_eq!(fetched.entries.len(), 1);
     let members = fetched.entries[0].members.as_ref().expect("members");
@@ -563,17 +535,18 @@ fn a_node_for_an_unrequested_team_is_dropped() {
 
 #[test]
 fn a_nested_team_connection_past_one_page_fails_loud() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
     let mut crowded = project("p-1", &["t-a"]);
     crowded["teams"] = nested_teams(&["t-a"], true);
-    server.route(
-        RequestKey::graphql(PROJECTS),
-        page("projects", &json!([crowded]), None),
-    );
+    server.answer(PROJECTS, page("projects", &json!([crowded]), None));
 
-    let error = fetch(&server, &["t-a"], &only(&[CatalogueSection::Projects]))
-        .expect_err("an overflowing nested connection is never truncated");
+    let error = fetch(
+        server.http(),
+        &["t-a"],
+        &only(&[CatalogueSection::Projects]),
+    )
+    .expect_err("an overflowing nested connection is never truncated");
 
     assert!(
         matches!(
@@ -589,15 +562,15 @@ fn a_nested_team_connection_past_one_page_fails_loud() {
 
 #[test]
 fn a_requested_team_absent_from_the_response_is_reported_unreturned() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page("workflowStates", &json!([state("s-1", "t-a")]), None),
     );
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a", "t-gone"],
         &only(&[CatalogueSection::States]),
     )
@@ -610,19 +583,13 @@ fn a_requested_team_absent_from_the_response_is_reported_unreturned() {
 
 #[test]
 fn a_present_team_with_no_labels_or_projects_gets_empty_sections() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
-    server.route(
-        RequestKey::graphql(PROJECTS),
-        page("projects", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
+    server.answer(PROJECTS, page("projects", &json!([]), None));
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a"],
         &only(&[CatalogueSection::Labels, CatalogueSection::Projects]),
     )
@@ -638,43 +605,40 @@ fn a_present_team_with_no_labels_or_projects_gets_empty_sections() {
 
 #[test]
 fn the_identity_lookup_pages_past_one_page_of_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     let ids: Vec<String> =
         (0..300).map(|index| format!("t-{index:03}")).collect();
     let first: Vec<Value> = ids[..250].iter().map(|id| identity(id)).collect();
     let second: Vec<Value> = ids[250..].iter().map(|id| identity(id)).collect();
-    server.route(
-        RequestKey::graphql(IDENTITIES),
+    server.answer(
+        IDENTITIES,
         Route::Sequence(vec![
             page("teams", &Value::Array(first), Some("cursor-1")),
             page("teams", &Value::Array(second), None),
         ]),
     );
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
     let requested: Vec<&str> = ids.iter().map(String::as_str).collect();
 
-    let fetched =
-        fetch(&server, &requested, &only(&[CatalogueSection::Labels]))
-            .expect("the fetch succeeds");
+    let fetched = fetch(
+        server.http(),
+        &requested,
+        &only(&[CatalogueSection::Labels]),
+    )
+    .expect("the fetch succeeds");
 
-    assert_eq!(server.hits(&RequestKey::graphql(IDENTITIES)), 2);
+    assert_eq!(server.hits(IDENTITIES), 2);
     assert_eq!(fetched.entries.len(), 300);
     assert!(fetched.unreturned.is_empty());
 }
 
 #[test]
 fn the_identity_lookup_includes_archived_teams() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
 
-    fetch(&server, &["t-a"], &only(&[CatalogueSection::Labels]))
+    fetch(server.http(), &["t-a"], &only(&[CatalogueSection::Labels]))
         .expect("the fetch succeeds");
 
     let sent = sent_queries(&server, IDENTITIES);
@@ -685,10 +649,10 @@ fn the_identity_lookup_includes_archived_teams() {
 
 #[test]
 fn workspace_labels_are_a_section_of_the_same_fetch() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
-    server.route(
-        RequestKey::graphql(WORKSPACE_LABELS),
+    server.answer(
+        WORKSPACE_LABELS,
         page(
             "issueLabels",
             &json!([{ "id": "w-1", "name": "Security", "archivedAt": null }]),
@@ -697,13 +661,13 @@ fn workspace_labels_are_a_section_of_the_same_fetch() {
     );
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a"],
         &only(&[CatalogueSection::WorkspaceLabels]),
     )
     .expect("the fetch succeeds");
 
-    assert_eq!(server.hits(&RequestKey::graphql(WORKSPACE_LABELS)), 1);
+    assert_eq!(server.hits(WORKSPACE_LABELS), 1);
     let document = sent_queries(&server, WORKSPACE_LABELS)[0]["query"]
         .as_str()
         .expect("a document")
@@ -716,10 +680,10 @@ fn workspace_labels_are_a_section_of_the_same_fetch() {
 
 #[test]
 fn an_expired_fetch_deadline_sends_no_request() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a"]);
     let client = client_for(
-        &server,
+        server.http(),
         TransportConfig {
             deadline: std::time::Duration::ZERO,
             ..TransportConfig::default()
@@ -734,30 +698,27 @@ fn an_expired_fetch_deadline_sends_no_request() {
         matches!(error, SurfaceError::DeadlineExpired { .. }),
         "{error}"
     );
-    assert_eq!(server.hits(&RequestKey::post(GRAPHQL)), 0);
+    assert_eq!(server.http().hits(&RequestKey::post(GRAPHQL)), 0);
 }
 
 #[test]
 fn one_deadline_spans_every_section_of_a_fetch() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     let slow = |route: Route| Route::Delayed {
         delay: std::time::Duration::from_millis(300),
         route: Box::new(route),
     };
-    server.route(
-        RequestKey::graphql(IDENTITIES),
+    server.answer(
+        IDENTITIES,
         slow(page("teams", &json!([identity("t-a")]), None)),
     );
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         slow(page("workflowStates", &json!([state("s-1", "t-a")]), None)),
     );
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
     let client = client_for(
-        &server,
+        server.http(),
         TransportConfig {
             deadline: std::time::Duration::from_millis(450),
             ..TransportConfig::default()
@@ -775,20 +736,18 @@ fn one_deadline_spans_every_section_of_a_fetch() {
         matches!(error, SurfaceError::DeadlineExpired { .. }),
         "{error}"
     );
-    assert_eq!(server.hits(&RequestKey::graphql(LABELS)), 0);
+    assert_eq!(server.hits(LABELS), 0);
 }
 
 #[test]
 fn a_team_returned_but_not_requested_gets_no_entry() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a", "t-extra"]);
-    server.route(
-        RequestKey::graphql(LABELS),
-        page("issueLabels", &json!([]), None),
-    );
+    server.answer(LABELS, page("issueLabels", &json!([]), None));
 
-    let fetched = fetch(&server, &["t-a"], &only(&[CatalogueSection::Labels]))
-        .expect("the fetch succeeds");
+    let fetched =
+        fetch(server.http(), &["t-a"], &only(&[CatalogueSection::Labels]))
+            .expect("the fetch succeeds");
 
     let ids: Vec<&str> = fetched
         .entries
@@ -800,10 +759,10 @@ fn a_team_returned_but_not_requested_gets_no_entry() {
 
 #[test]
 fn fetching_several_teams_makes_one_pass_per_section() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &["t-a", "t-b", "t-c"]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         page(
             "workflowStates",
             &json!([
@@ -814,22 +773,22 @@ fn fetching_several_teams_makes_one_pass_per_section() {
             None,
         ),
     );
-    server.route(
-        RequestKey::graphql(MEMBERS),
+    server.answer(
+        MEMBERS,
         page("users", &json!([member("u-1", &["t-a", "t-c"])]), None),
     );
 
     let fetched = fetch(
-        &server,
+        server.http(),
         &["t-a", "t-b", "t-c"],
         &only(&[CatalogueSection::States, CatalogueSection::Members]),
     )
     .expect("the fetch succeeds");
 
     assert_eq!(fetched.entries.len(), 3);
-    assert_eq!(server.hits(&RequestKey::graphql(IDENTITIES)), 1);
-    assert_eq!(server.hits(&RequestKey::graphql(STATES)), 1);
-    assert_eq!(server.hits(&RequestKey::graphql(MEMBERS)), 1);
+    assert_eq!(server.hits(IDENTITIES), 1);
+    assert_eq!(server.hits(STATES), 1);
+    assert_eq!(server.hits(MEMBERS), 1);
 }
 
 const TEAM_OF_IDENTIFIER: &str = "TeamOfIdentifier";
@@ -849,22 +808,17 @@ fn team_of_identifier_resolves_the_issues_current_team() {
         ("OLD-7", "t-renamed", "NEW"),
         ("ARC-2", "t-archived", "ARC"),
     ] {
-        let server = MockServer::start();
-        server.route(
-            RequestKey::graphql(TEAM_OF_IDENTIFIER),
-            issue_team(id, key),
-        );
+        let server = MockGraphQLServer::start();
+        server.answer(TEAM_OF_IDENTIFIER, issue_team(id, key));
 
-        let team = client_for(&server, TransportConfig::default())
+        let team = client_for(server.http(), TransportConfig::default())
             .team_of_identifier(identifier)
             .expect("the lookup succeeds")
             .expect("the issue exists");
 
         assert_eq!((team.id.as_str(), team.key.as_str()), (id, key));
         let sent: Value = serde_json::from_slice(
-            &server
-                .last_body(&RequestKey::graphql(TEAM_OF_IDENTIFIER))
-                .expect("a lookup"),
+            &server.last_body(TEAM_OF_IDENTIFIER).expect("a lookup"),
         )
         .expect("JSON");
         assert_eq!(sent["variables"]["id"], identifier);
@@ -873,9 +827,9 @@ fn team_of_identifier_resolves_the_issues_current_team() {
 
 #[test]
 fn an_identifier_linear_cannot_find_is_none() {
-    let server = MockServer::start();
-    server.route(
-        RequestKey::graphql(TEAM_OF_IDENTIFIER),
+    let server = MockGraphQLServer::start();
+    server.answer(
+        TEAM_OF_IDENTIFIER,
         Route::Json {
             status: 400,
             body: json!({
@@ -889,7 +843,7 @@ fn an_identifier_linear_cannot_find_is_none() {
         },
     );
 
-    let team = client_for(&server, TransportConfig::default())
+    let team = client_for(server.http(), TransportConfig::default())
         .team_of_identifier("PROJ-12")
         .expect("a missing issue is not a failure");
 
@@ -898,9 +852,9 @@ fn an_identifier_linear_cannot_find_is_none() {
 
 #[test]
 fn any_other_lookup_failure_is_an_error() {
-    let server = MockServer::start();
-    server.route(
-        RequestKey::graphql(TEAM_OF_IDENTIFIER),
+    let server = MockGraphQLServer::start();
+    server.answer(
+        TEAM_OF_IDENTIFIER,
         Route::Json {
             status: 400,
             body: json!({
@@ -912,7 +866,7 @@ fn any_other_lookup_failure_is_an_error() {
     );
     let unreachable = client_with("http://127.0.0.1:9", brief(), None);
 
-    assert!(client_for(&server, TransportConfig::default())
+    assert!(client_for(server.http(), TransportConfig::default())
         .team_of_identifier("PP-1")
         .is_err());
     assert!(unreachable.team_of_identifier("PP-1").is_err());

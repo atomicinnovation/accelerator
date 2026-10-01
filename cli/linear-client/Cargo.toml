@@ -32,6 +32,7 @@ tracker-support = { path = "../tracker-support" }
 
 [dev-dependencies]
 config-adapters = { path = "../config-adapters" }
+graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
 remote-projection = { path = "../remote-projection" }

@@ -8,6 +8,7 @@ use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::TcpStream;
 
 use cli_test_support::{parse_u8_consts, Scenario};
+use graphql_test_support::{MockGraphQLServer, ENDPOINT};
 use http_test_support::{MockServer, RequestKey};
 
 /// A raw POST over TCP, returning `(status, body)` — no HTTP client, so the
@@ -119,34 +120,90 @@ fn the_loader_groups_a_consume_sequence_in_declaration_order() {
     );
 }
 
+fn query(server: &MockGraphQLServer, operation: &str) -> (u16, Vec<u8>) {
+    post(
+        server.http(),
+        ENDPOINT,
+        format!("{{\"query\":\"query {operation} {{ id }}\"}}").as_bytes(),
+    )
+}
+
 #[test]
-fn a_scenario_operation_keys_both_its_route_and_its_body_expectation() {
+fn a_scenario_answers_each_graphql_query_by_its_operation() {
     let scenario = Scenario::from_json(
-        r#"{"expectations": [
-            {"method": "POST", "path": "/graphql", "operation": "TeamStates",
-             "response": {"status": 200, "body": "{\"states\":true}"},
+        r#"{"graphql_queries": [
+            {"operation": "TeamStates",
+             "response": {"status": 200, "body": "states"},
              "expect_body_contains": "workflowStates"},
-            {"method": "POST", "path": "/graphql",
-             "response": {"status": 200, "body": "{\"plain\":true}"}}
+            {"operation": "TeamLabels",
+             "response": {"status": 200, "body": "labels-1"}},
+            {"operation": "TeamLabels",
+             "response": {"status": 200, "body": "labels-2"}}
         ]}"#,
     )
     .expect("scenario");
-    let server = MockServer::start();
-    scenario.install(&server);
+    let server = MockGraphQLServer::start();
+    scenario.install_graphql(&server);
 
-    let (status, body) = post(
-        &server,
-        "/graphql",
-        br#"{"query":"query TeamStates { workflowStates { nodes { id } } }"}"#,
-    );
-
-    assert_eq!(status, 200);
-    assert_eq!(body, br#"{"states":true}"#);
+    assert_eq!(query(&server, "TeamLabels"), (200, b"labels-1".to_vec()));
+    assert_eq!(query(&server, "TeamStates"), (200, b"states".to_vec()));
+    assert_eq!(query(&server, "TeamLabels"), (200, b"labels-2".to_vec()));
     assert_eq!(
-        scenario.body_expectations(),
-        vec![(
-            RequestKey::graphql("TeamStates"),
-            "workflowStates".to_owned()
-        )]
+        scenario.query_body_expectations(),
+        vec![("TeamStates".to_owned(), "workflowStates".to_owned())]
     );
+    assert!(scenario.body_expectations().is_empty());
+}
+
+#[test]
+fn a_graphql_scenario_installs_its_http_calls_beside_the_endpoint() {
+    let scenario = Scenario::from_json(
+        r#"{"expectations": [
+                {"method": "PUT", "path": "/upload",
+                 "response": {"status": 200, "body": "stored"}}],
+            "graphql_queries": [
+                {"operation": "Viewer",
+                 "response": {"status": 200, "body": "viewer"}}]}"#,
+    )
+    .expect("scenario");
+    let server = MockGraphQLServer::start();
+    scenario.install_graphql(&server);
+
+    assert_eq!(query(&server, "Viewer"), (200, b"viewer".to_vec()));
+    assert_eq!(server.http().hits(&RequestKey::put("/upload")), 0);
+}
+
+#[test]
+fn a_graphql_query_expectation_refuses_http_call_fields() {
+    let parsed = Scenario::from_json(
+        r#"{"graphql_queries": [
+            {"operation": "Viewer", "method": "POST", "path": "/graphql",
+             "response": {"status": 200, "body": "viewer"}}]}"#,
+    );
+
+    assert!(parsed.is_err());
+}
+
+#[test]
+#[should_panic(expected = "MockGraphQLServer")]
+fn a_scenario_with_graphql_queries_refuses_a_plain_http_server() {
+    let scenario = Scenario::from_json(
+        r#"{"graphql_queries": [{"operation": "Viewer",
+            "response": {"status": 200, "body": "viewer"}}]}"#,
+    )
+    .expect("scenario");
+
+    scenario.install(&MockServer::start());
+}
+
+#[test]
+#[should_panic(expected = "/graphql")]
+fn a_graphql_scenario_refuses_an_http_call_to_the_endpoint() {
+    let scenario = Scenario::from_json(
+        r#"{"expectations": [{"method": "POST", "path": "/graphql",
+            "response": {"status": 200, "body": "plain"}}]}"#,
+    )
+    .expect("scenario");
+
+    scenario.install_graphql(&MockGraphQLServer::start());
 }

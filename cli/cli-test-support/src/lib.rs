@@ -4,7 +4,7 @@
 //! `linear-cli` and `jira-cli`: the `exit_codes.rs` textual parser (so a parity
 //! test reads the constants the same way in both crates) and the scenario-JSON
 //! loader that turns a retired mock's expectation set into
-//! `http-test-support` routes.
+//! `http-test-support` routes and `graphql-test-support` answers.
 
 pub mod exit_codes;
 pub mod scenario;

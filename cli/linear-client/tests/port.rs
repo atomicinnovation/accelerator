@@ -6,6 +6,7 @@ mod support;
 
 use std::sync::{Arc, Mutex};
 
+use graphql_test_support::MockGraphQLServer;
 use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::catalogue::{Catalogue, LiveCatalogueData};
 use linear_client::healing::CatalogueBackfill;
@@ -289,10 +290,10 @@ fn an_empty_request_makes_no_remote_call() {
 
 #[test]
 fn a_flat_filter_bag_groups_same_key_values_into_one_in_clause() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let client = client_with_resolvers(
-        &server,
+        server.http(),
         resolvers(&json!({
             "baseTeam": TEAM_ID,
             "labels": [],
@@ -711,18 +712,13 @@ const SECTION_OPERATIONS: [&str; 6] = [
 
 const OPS_ID: &str = "ops-uuid";
 
-fn serve_issues(server: &MockServer) {
-    server.route(
-        RequestKey::graphql(ISSUES),
-        json_route(search_body(&[], None)),
-    );
+fn serve_issues(server: &MockGraphQLServer) {
+    server.answer(ISSUES, json_route(search_body(&[], None)));
 }
 
-fn sent_filter(server: &MockServer) -> Value {
+fn sent_filter(server: &MockGraphQLServer) -> Value {
     let sent: Value = serde_json::from_slice(
-        &server
-            .last_body(&RequestKey::graphql(ISSUES))
-            .expect("an issues request"),
+        &server.last_body(ISSUES).expect("an issues request"),
     )
     .expect("JSON");
     sent["variables"]["filter"].clone()
@@ -766,18 +762,15 @@ fn connection(root: &str, nodes: &Value, next: Option<&str>) -> Route {
     )
 }
 
-fn serve_identities(server: &MockServer, teams: &[(&str, &str)]) {
+fn serve_identities(server: &MockGraphQLServer, teams: &[(&str, &str)]) {
     let nodes: Vec<Value> = teams
         .iter()
         .map(|(id, key)| json!({ "id": id, "key": key, "name": key }))
         .collect();
-    server.route(
-        RequestKey::graphql(IDENTITIES),
-        connection("teams", &Value::Array(nodes), None),
-    );
+    server.answer(IDENTITIES, connection("teams", &Value::Array(nodes), None));
 }
 
-fn serve_states(server: &MockServer, states: &[(&str, &str, &str)]) {
+fn serve_states(server: &MockGraphQLServer, states: &[(&str, &str, &str)]) {
     let nodes: Vec<Value> = states
         .iter()
         .map(|(id, name, team)| {
@@ -786,18 +779,16 @@ fn serve_states(server: &MockServer, states: &[(&str, &str, &str)]) {
                     "team": { "id": team } })
         })
         .collect();
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         connection("workflowStates", &Value::Array(nodes), None),
     );
 }
 
-fn section_hits(server: &MockServer) -> Vec<(&'static str, usize)> {
+fn section_hits(server: &MockGraphQLServer) -> Vec<(&'static str, usize)> {
     SECTION_OPERATIONS
         .iter()
-        .map(|operation| {
-            (*operation, server.hits(&RequestKey::graphql(operation)))
-        })
+        .map(|operation| (*operation, server.hits(operation)))
         .filter(|(_, hits)| *hits > 0)
         .collect()
 }
@@ -833,10 +824,10 @@ fn catalogue_with(teams: &[Value]) -> ResolverSet {
 
 #[test]
 fn search_completes_state_for_each_covered_scoped_team() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let client = client_with_resolvers(
-        &server,
+        server.http(),
         catalogue_with(&[
             eng_with_state(),
             complete_entry(
@@ -862,12 +853,14 @@ fn search_completes_state_for_each_covered_scoped_team() {
 
 #[test]
 fn search_fetches_an_uncovered_team_and_includes_its_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
-    let client =
-        client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
+    let client = client_with_resolvers(
+        server.http(),
+        catalogue_with(&[eng_with_state()]),
+    );
 
     client
         .search(&scope_over(&[OPS_ID], &[("state", "In Progress")]))
@@ -878,12 +871,12 @@ fn search_fetches_an_uncovered_team_and_includes_its_ids() {
 
 #[test]
 fn search_fetches_an_incomplete_synced_team_and_includes_its_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
     let client = client_with_resolvers(
-        &server,
+        server.http(),
         catalogue_with(&[eng_with_state(), entry(OPS_ID, "OPS", &json!({}))]),
     );
 
@@ -896,12 +889,14 @@ fn search_fetches_an_incomplete_synced_team_and_includes_its_ids() {
 
 #[test]
 fn covered_and_uncovered_teams_both_contribute() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
-    let client =
-        client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
+    let client = client_with_resolvers(
+        server.http(),
+        catalogue_with(&[eng_with_state()]),
+    );
 
     client
         .search(&scope_over(&[TEAM_ID, OPS_ID], &[("state", "In Progress")]))
@@ -912,9 +907,7 @@ fn covered_and_uncovered_teams_both_contribute() {
         json!(["s-eng-ip", "s-ops-ip"])
     );
     let identities: Value = serde_json::from_slice(
-        &server
-            .last_body(&RequestKey::graphql(IDENTITIES))
-            .expect("an identity lookup"),
+        &server.last_body(IDENTITIES).expect("an identity lookup"),
     )
     .expect("JSON");
     assert_eq!(
@@ -926,12 +919,14 @@ fn covered_and_uncovered_teams_both_contribute() {
 
 #[test]
 fn search_fetches_only_the_sections_the_configured_families_need() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
-    let client =
-        client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
+    let client = client_with_resolvers(
+        server.http(),
+        catalogue_with(&[eng_with_state()]),
+    );
 
     client
         .search(&scope_over(&[OPS_ID], &[("state", "In Progress")]))
@@ -942,10 +937,10 @@ fn search_fetches_only_the_sections_the_configured_families_need() {
 
 #[test]
 fn a_legacy_base_entry_filtered_on_state_needs_no_fetch() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let client = client_with_resolvers(
-        &server,
+        server.http(),
         resolvers(&json!({
             "team": { "id": TEAM_ID, "key": TEAM_KEY, "name": "Engineering" },
             "workflowStates": [
@@ -965,11 +960,11 @@ fn a_legacy_base_entry_filtered_on_state_needs_no_fetch() {
 
 #[test]
 fn nothing_is_fetched_when_every_scoped_team_is_covered() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let backfill = Arc::new(RecordingBackfill::default());
     let client = client_holding_into(
-        &server,
+        server.http(),
         catalogue_with(&[eng_with_state()]),
         backfill.clone(),
     );
@@ -984,9 +979,9 @@ fn nothing_is_fetched_when_every_scoped_team_is_covered() {
 
 #[test]
 fn nothing_is_fetched_without_filters() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
-    let client = client_with_resolvers(&server, catalogue_with(&[]));
+    let client = client_with_resolvers(server.http(), catalogue_with(&[]));
 
     client
         .search(&SearchScope {
@@ -1004,9 +999,11 @@ fn nothing_is_fetched_without_filters() {
 
 #[test]
 fn search_refuses_a_family_left_with_no_ids_without_paging() {
-    let server = MockServer::start();
-    let client =
-        client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
+    let server = MockGraphQLServer::start();
+    let client = client_with_resolvers(
+        server.http(),
+        catalogue_with(&[eng_with_state()]),
+    );
 
     let error = client
         .search(&scope_over(&[TEAM_ID], &[("state", "Nope")]))
@@ -1017,18 +1014,18 @@ fn search_refuses_a_family_left_with_no_ids_without_paging() {
     };
     assert!(detail.starts_with("pull filters could not be resolved:"));
     assert!(detail.contains("E_SEARCH_UNKNOWN_STATE"), "{detail}");
-    assert_eq!(server.hits(&RequestKey::graphql(ISSUES)), 0);
+    assert_eq!(server.hits(ISSUES), 0);
 }
 
 #[test]
 fn fetched_entries_are_held_exactly_once() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
     let backfill = Arc::new(RecordingBackfill::default());
     let client = client_holding_into(
-        &server,
+        server.http(),
         catalogue_with(&[eng_with_state()]),
         backfill.clone(),
     );
@@ -1050,12 +1047,12 @@ fn fetched_entries_are_held_exactly_once() {
 
 #[test]
 fn a_later_section_failure_holds_nothing() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_identities(&server, &[(OPS_ID, "OPS")]);
     serve_states(&server, &[("s-ops-ip", "In Progress", OPS_ID)]);
-    server.route(
-        RequestKey::graphql(LABELS),
+    server.answer(
+        LABELS,
         Route::Json {
             status: 500,
             body: "{}".to_owned(),
@@ -1063,7 +1060,7 @@ fn a_later_section_failure_holds_nothing() {
     );
     let backfill = Arc::new(RecordingBackfill::default());
     let client = client_holding_into(
-        &server,
+        server.http(),
         catalogue_with(&[eng_with_state()]),
         backfill.clone(),
     );
@@ -1077,19 +1074,21 @@ fn a_later_section_failure_holds_nothing() {
 
     assert!(matches!(error, TrackerError::Retryable { .. }), "{error:?}");
     assert!(backfill.held().is_empty());
-    assert_eq!(server.hits(&RequestKey::graphql(ISSUES)), 0);
+    assert_eq!(server.hits(ISSUES), 0);
 }
 
 #[test]
 fn a_truncated_team_section_fetch_refuses_as_unconfigured() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_identities(&server, &[(OPS_ID, "OPS")]);
-    server.route(
-        RequestKey::graphql(STATES),
+    server.answer(
+        STATES,
         connection("workflowStates", &json!([]), Some("more")),
     );
-    let client =
-        client_with_resolvers(&server, catalogue_with(&[eng_with_state()]));
+    let client = client_with_resolvers(
+        server.http(),
+        catalogue_with(&[eng_with_state()]),
+    );
 
     let error = client
         .search(&scope_over(&[OPS_ID], &[("state", "In Progress")]))
@@ -1129,10 +1128,10 @@ fn a_label_filter_fetches_workspace_labels_only_when_the_catalogue_lacks_them()
     for (workspace_labels, expected_fetches) in
         [(None, 1), (Some(json!([])), 0)]
     {
-        let server = MockServer::start();
+        let server = MockGraphQLServer::start();
         serve_issues(&server);
-        server.route(
-            RequestKey::graphql(WORKSPACE_LABELS),
+        server.answer(
+            WORKSPACE_LABELS,
             connection("issueLabels", &json!([]), None),
         );
         let mut catalogue = json!({
@@ -1144,7 +1143,8 @@ fn a_label_filter_fetches_workspace_labels_only_when_the_catalogue_lacks_them()
         if let Some(labels) = workspace_labels {
             catalogue["labels"] = labels;
         }
-        let client = client_with_resolvers(&server, resolvers(&catalogue));
+        let client =
+            client_with_resolvers(server.http(), resolvers(&catalogue));
 
         client
             .search(&scope_over(&[TEAM_ID], &[("label", "Bug")]))

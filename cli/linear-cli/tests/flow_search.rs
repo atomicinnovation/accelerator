@@ -10,6 +10,7 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
+use graphql_test_support::MockGraphQLServer;
 use http_test_support::{MockServer, RequestKey, Route};
 use serde_json::Value;
 
@@ -132,9 +133,9 @@ fn quiet_suppresses_the_composed_filter_audit() {
     );
 }
 
-fn serve_issues(server: &MockServer) {
-    server.route(
-        RequestKey::graphql("issues"),
+fn serve_issues(server: &MockGraphQLServer) {
+    server.answer(
+        "issues",
         Route::Json {
             status: 200,
             body: "{\"data\":{\"issues\":{\"nodes\":[],\"pageInfo\":\
@@ -144,10 +145,8 @@ fn serve_issues(server: &MockServer) {
     );
 }
 
-fn sent_filter(server: &MockServer) -> Value {
-    let body = server
-        .last_body(&RequestKey::graphql("issues"))
-        .expect("an issues request");
+fn sent_filter(server: &MockGraphQLServer) -> Value {
+    let body = server.last_body("issues").expect("an issues request");
     let sent: Value = serde_json::from_slice(&body).expect("JSON");
     sent["variables"]["filter"].clone()
 }
@@ -164,13 +163,16 @@ fn connection(root: &str, nodes: &str) -> Route {
 
 #[test]
 fn search_by_label_sends_label_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let dir = support::scratch(support::CONFIG);
     support::seed_catalogue(dir.path());
 
-    let output =
-        support::run(dir.path(), &server, &["search", "--label", "infra"]);
+    let output = support::run(
+        dir.path(),
+        server.http(),
+        &["search", "--label", "infra"],
+    );
 
     assert!(
         output.status.success(),
@@ -184,14 +186,14 @@ fn search_by_label_sends_label_ids() {
 
 #[test]
 fn search_by_state_stays_scoped_to_the_init_team() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let dir = support::scratch(support::CONFIG);
     support::seed_catalogue(dir.path());
 
     let output = support::run(
         dir.path(),
-        &server,
+        server.http(),
         &["search", "--state", "In Progress"],
     );
 
@@ -222,34 +224,34 @@ fn search_by_unknown_assignee_refuses_without_a_request() {
 
 #[test]
 fn search_against_a_legacy_catalogue_fetches_and_never_writes() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
-    server.route(
-        RequestKey::graphql("TeamIdentities"),
+    server.answer(
+        "TeamIdentities",
         connection(
             "teams",
             "[{\"id\":\"team-uuid\",\"key\":\"BLA\",\"name\":\"Bla\"}]",
         ),
     );
-    server.route(
-        RequestKey::graphql("TeamLabels"),
+    server.answer(
+        "TeamLabels",
         connection(
             "issueLabels",
             "[{\"id\":\"label-infra-uuid\",\"name\":\"infra\",\
               \"team\":{\"id\":\"team-uuid\"}}]",
         ),
     );
-    server.route(
-        RequestKey::graphql("WorkspaceLabels"),
-        connection("issueLabels", "[]"),
-    );
+    server.answer("WorkspaceLabels", connection("issueLabels", "[]"));
     let dir = support::scratch(support::CONFIG);
     support::seed_legacy_catalogue(dir.path());
     let before = std::fs::read(dir.path().join(support::CATALOGUE))
         .expect("the seeded catalogue");
 
-    let output =
-        support::run(dir.path(), &server, &["search", "--label", "infra"]);
+    let output = support::run(
+        dir.path(),
+        server.http(),
+        &["search", "--label", "infra"],
+    );
 
     assert!(
         output.status.success(),
@@ -260,7 +262,7 @@ fn search_against_a_legacy_catalogue_fetches_and_never_writes() {
         sent_filter(&server)["labels"]["id"]["eq"],
         "label-infra-uuid"
     );
-    assert_eq!(server.hits(&RequestKey::graphql("TeamLabels")), 1);
+    assert_eq!(server.hits("TeamLabels"), 1);
     assert_eq!(
         std::fs::read(dir.path().join(support::CATALOGUE)).expect("catalogue"),
         before,
@@ -287,12 +289,12 @@ fn search_by_state_without_a_catalogued_team_refuses_as_no_team() {
 
 #[test]
 fn a_text_only_search_without_a_catalogued_team_runs_workspace_wide() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let dir = support::scratch(support::CONFIG);
 
     let output =
-        support::run(dir.path(), &server, &["search", "--text", "bug"]);
+        support::run(dir.path(), server.http(), &["search", "--text", "bug"]);
 
     assert!(
         output.status.success(),

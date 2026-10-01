@@ -6,7 +6,7 @@
 
 mod support;
 
-use http_test_support::MockServer;
+use http_test_support::{MockServer, RequestKey};
 use linear_client::resolution::ResolverSet;
 use serde_json::json;
 use support::catalogue::{
@@ -219,7 +219,7 @@ fn a_value_the_covering_base_entry_lacks_refuses_before_any_request() {
             "{}",
             error.detail
         );
-        assert!(server.unmatched().is_empty());
+        assert_eq!(server.hits(&RequestKey::post("/graphql")), 0);
     }
 }
 

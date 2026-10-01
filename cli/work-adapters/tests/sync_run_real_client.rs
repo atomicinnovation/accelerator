@@ -21,6 +21,7 @@ use config::credentials::TokenSource;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use graphql_test_support::MockGraphQLServer;
 use http_test_support::MockServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
@@ -856,26 +857,21 @@ fn connection(root: &str, nodes: &serde_json::Value) -> Route {
     }
 }
 
-fn serve_issues(server: &MockServer) {
-    server.route(
-        RequestKey::graphql("issues"),
-        connection("issues", &serde_json::json!([])),
-    );
+fn serve_issues(server: &MockGraphQLServer) {
+    server.answer("issues", connection("issues", &serde_json::json!([])));
 }
 
-fn sent_issue_filter(server: &MockServer) -> serde_json::Value {
-    let body = server
-        .last_body(&RequestKey::graphql("issues"))
-        .expect("an issues request");
+fn sent_issue_filter(server: &MockGraphQLServer) -> serde_json::Value {
+    let body = server.last_body("issues").expect("an issues request");
     let sent: serde_json::Value =
         serde_json::from_slice(&body).expect("JSON body");
     sent["variables"]["filter"].clone()
 }
 
-fn section_requests(server: &MockServer) -> usize {
+fn section_requests(server: &MockGraphQLServer) -> usize {
     SECTION_OPERATIONS
         .iter()
-        .map(|operation| server.hits(&RequestKey::graphql(operation)))
+        .map(|operation| server.hits(operation))
         .sum()
 }
 
@@ -908,17 +904,17 @@ fn discover(
     )
 }
 
-fn serve_label_fetch(server: &MockServer) {
-    server.route(
-        RequestKey::graphql("TeamIdentities"),
+fn serve_label_fetch(server: &MockGraphQLServer) {
+    server.answer(
+        "TeamIdentities",
         connection(
             "teams",
             &serde_json::json!([{ "id": LINEAR_TEAM_ID,
                                   "key": LINEAR_TEAM_KEY, "name": "Eng" }]),
         ),
     );
-    server.route(
-        RequestKey::graphql("TeamLabels"),
+    server.answer(
+        "TeamLabels",
         connection(
             "issueLabels",
             &serde_json::json!([{ "id": "l-eng-bug", "name": "Bug",
@@ -926,8 +922,8 @@ fn serve_label_fetch(server: &MockServer) {
                                   "team": { "id": LINEAR_TEAM_ID } }]),
         ),
     );
-    server.route(
-        RequestKey::graphql("WorkspaceLabels"),
+    server.answer(
+        "WorkspaceLabels",
         connection("issueLabels", &serde_json::json!([])),
     );
 }
@@ -966,7 +962,7 @@ fn a_linear_pull_with_an_unknown_label_refuses_before_any_request() {
 
 #[test]
 fn a_linear_pull_sends_seeded_label_assignee_state_and_project_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     let client = linear_client_over(
         &server.base_url(),
@@ -997,10 +993,10 @@ fn a_linear_pull_sends_seeded_label_assignee_state_and_project_ids() {
 
 #[test]
 fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
-    server.route(
-        RequestKey::graphql("TeamEnumeration"),
+    server.answer(
+        "TeamEnumeration",
         connection(
             "teams",
             &serde_json::json!([
@@ -1009,16 +1005,16 @@ fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
             ]),
         ),
     );
-    server.route(
-        RequestKey::graphql("TeamIdentities"),
+    server.answer(
+        "TeamIdentities",
         connection(
             "teams",
             &serde_json::json!([{ "id": OPS_TEAM_ID, "key": "OPS",
                                   "name": "Ops" }]),
         ),
     );
-    server.route(
-        RequestKey::graphql("TeamStates"),
+    server.answer(
+        "TeamStates",
         connection(
             "workflowStates",
             &serde_json::json!([{ "id": "s-ops-ip", "name": "In Progress",
@@ -1043,7 +1039,7 @@ fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
     )
     .expect("every team carries the state");
 
-    assert_eq!(server.hits(&RequestKey::graphql("TeamStates")), 1);
+    assert_eq!(server.hits("TeamStates"), 1);
     assert_eq!(
         sent_issue_filter(&server)["state"]["id"]["in"],
         serde_json::json!(["s-eng-ip", "s-ops-ip"])
@@ -1052,7 +1048,7 @@ fn a_whole_workspace_state_pull_sends_every_scoped_teams_ids() {
 
 #[test]
 fn a_linear_pull_against_a_legacy_catalogue_fetches_and_succeeds() {
-    let server = MockServer::start();
+    let server = MockGraphQLServer::start();
     serve_issues(&server);
     serve_label_fetch(&server);
     let client = linear_client_over(
@@ -1069,7 +1065,7 @@ fn a_linear_pull_against_a_legacy_catalogue_fetches_and_succeeds() {
         sent_issue_filter(&server)["labels"]["id"]["eq"],
         "l-eng-bug"
     );
-    assert_eq!(server.hits(&RequestKey::graphql("TeamLabels")), 1);
+    assert_eq!(server.hits("TeamLabels"), 1);
 }
 
 #[test]
@@ -1082,7 +1078,7 @@ fn a_later_pull_after_recording_makes_no_section_fetch() -> Result<(), TestError
         state_dir.join("catalogue.json"),
         legacy_base().to_string(),
     )?;
-    let first = MockServer::start();
+    let first = MockGraphQLServer::start();
     serve_issues(&first);
     serve_label_fetch(&first);
     let backfill = Arc::new(RecordingBackfill::default());
@@ -1104,7 +1100,7 @@ fn a_later_pull_after_recording_makes_no_section_fetch() -> Result<(), TestError
         })?;
     }
 
-    let second = MockServer::start();
+    let second = MockGraphQLServer::start();
     serve_issues(&second);
     let rebuilt = linear_client_over(
         &second.base_url(),

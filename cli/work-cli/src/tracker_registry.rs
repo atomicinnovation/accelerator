@@ -313,7 +313,8 @@ mod tests {
     use std::collections::HashMap;
 
     use ::config::{ConfigError, Key, Level, Resolved, Scalar, Value};
-    use http_test_support::{MockServer, RequestKey, Route};
+    use graphql_test_support::MockGraphQLServer;
+    use http_test_support::{RequestKey, Route};
     use linear_client::cache::{LinearCache, SystemFilesystem};
     use linear_client::healing::{FetchUnavailable, SyncedTeams};
     use serde_json::json;
@@ -387,7 +388,7 @@ mod tests {
         }
     }
 
-    fn serve_every_section_of_ops(server: &MockServer) {
+    fn serve_every_section_of_ops(server: &MockGraphQLServer) {
         let ops = json!({ "nodes": [{ "id": "t-ops" }],
                           "pageInfo": { "hasNextPage": false } });
         for (operation, root, nodes) in [
@@ -423,15 +424,9 @@ mod tests {
                          "archivedAt": null, "teams": ops }]),
             ),
         ] {
-            server.route(
-                RequestKey::graphql(operation),
-                connection(root, &nodes),
-            );
+            server.answer(operation, connection(root, &nodes));
         }
-        server.route(
-            RequestKey::graphql("issues"),
-            connection("issues", &json!([])),
-        );
+        server.answer("issues", connection("issues", &json!([])));
     }
 
     fn seeded_root() -> tempfile::TempDir {
@@ -459,7 +454,7 @@ mod tests {
 
     #[test]
     fn a_client_from_resolve_holds_into_the_buffer_healing_reads() {
-        let server = MockServer::start();
+        let server = MockGraphQLServer::start();
         serve_every_section_of_ops(&server);
         let root = seeded_root();
         let config = linear_config();
@@ -492,7 +487,7 @@ mod tests {
                 .collect(),
             })
             .expect("the search fetches OPS and completes");
-        let requests = server.hits(&RequestKey::post("/graphql"));
+        let requests = server.http().hits(&RequestKey::post("/graphql"));
         let filesystem = SystemFilesystem::new(root.path().to_path_buf());
         let cache = LinearCache::new(
             &filesystem,
@@ -506,7 +501,7 @@ mod tests {
         let outcome = healing.heal(&SyncedTeams::default(), &no_fetch, &cache);
 
         assert_eq!(outcome.recorded, vec!["OPS"]);
-        assert_eq!(server.hits(&RequestKey::post("/graphql")), requests);
+        assert_eq!(server.http().hits(&RequestKey::post("/graphql")), requests);
     }
 
     #[test]

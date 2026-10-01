@@ -12,14 +12,23 @@ mod support;
 use std::path::Path;
 
 use cli_test_support::Scenario;
-use http_test_support::MockServer;
+use graphql_test_support::MockGraphQLServer;
+use http_test_support::{MockServer, RequestKey};
 use serde_json::Value;
 
-fn install(server: &MockServer, name: &str) {
+fn scenario(name: &str) -> Scenario {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/scenarios")
         .join(format!("{name}.json"));
-    Scenario::load(&path).expect("scenario").install(server);
+    Scenario::load(&path).expect("scenario")
+}
+
+fn install(server: &MockServer, name: &str) {
+    scenario(name).install(server);
+}
+
+fn install_graphql(server: &MockGraphQLServer, name: &str) {
+    scenario(name).install_graphql(server);
 }
 
 fn state_file(dir: &Path, name: &str) -> std::path::PathBuf {
@@ -101,13 +110,13 @@ fn init_verify_persists_the_viewer_without_leaking_the_token() {
 
 #[test]
 fn init_discover_persists_the_catalogue() {
-    let server = MockServer::start();
-    install(&server, "team-states-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
     let dir = support::scratch(support::CONFIG);
 
     let output = support::run(
         dir.path(),
-        &server,
+        server.http(),
         &["init", "discover", "--team-id", "team-x-uuid"],
     );
 
@@ -176,12 +185,12 @@ fn init_list_teams_renders_the_teams_with_the_listed_keyword() {
 
 #[test]
 fn init_discover_writes_complete_entries_for_base_and_synced_teams() {
-    let server = MockServer::start();
-    install(&server, "team-states-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
     let dir = support::scratch(support::CONFIG);
     seed_catalogue(dir.path(), SYNCED_TEAM_Y);
 
-    let output = discover(dir.path(), &server);
+    let output = discover(dir.path(), server.http());
 
     assert!(
         output.status.success(),
@@ -198,8 +207,7 @@ fn init_discover_writes_complete_entries_for_base_and_synced_teams() {
         }
     }
     assert_eq!(catalogue["labels"][0]["name"], "Security");
-    let sent = server
-        .bodies(&http_test_support::RequestKey::graphql("TeamIdentities"));
+    let sent = server.bodies("TeamIdentities");
     let request: Value = serde_json::from_slice(&sent[0]).expect("JSON");
     assert_eq!(
         request["variables"]["ids"],
@@ -223,12 +231,12 @@ fn init_discover_writes_complete_entries_for_base_and_synced_teams() {
 
 #[test]
 fn init_discover_never_catalogues_other_visible_teams() {
-    let server = MockServer::start();
-    install(&server, "team-states-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
     let dir = support::scratch(support::CONFIG);
     seed_catalogue(dir.path(), SYNCED_TEAM_Y);
 
-    let output = discover(dir.path(), &server);
+    let output = discover(dir.path(), server.http());
 
     assert!(
         output.status.success(),
@@ -243,12 +251,12 @@ fn init_discover_never_catalogues_other_visible_teams() {
 
 #[test]
 fn init_discover_writes_nothing_when_a_fetch_fails() {
-    let server = MockServer::start();
-    install(&server, "team-entries-failing-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-entries-failing-200");
     let dir = support::scratch(support::CONFIG);
     seed_catalogue(dir.path(), SYNCED_TEAM_Y);
 
-    let output = discover(dir.path(), &server);
+    let output = discover(dir.path(), server.http());
 
     assert!(!output.status.success());
     let raw = std::fs::read_to_string(state_file(dir.path(), "catalogue.json"))
@@ -258,13 +266,13 @@ fn init_discover_writes_nothing_when_a_fetch_fails() {
 
 #[test]
 fn init_discover_refuses_a_damaged_catalogue_naming_the_recovery() {
-    let server = MockServer::start();
-    install(&server, "team-states-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
     let dir = support::scratch(support::CONFIG);
     let damaged = "<<<<<<< ours\n{}\n=======\n{}\n>>>>>>> theirs\n";
     seed_catalogue(dir.path(), damaged);
 
-    let output = discover(dir.path(), &server);
+    let output = discover(dir.path(), server.http());
 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -274,16 +282,13 @@ fn init_discover_refuses_a_damaged_catalogue_naming_the_recovery() {
     let raw = std::fs::read_to_string(state_file(dir.path(), "catalogue.json"))
         .expect("the catalogue is still there");
     assert_eq!(raw, damaged);
-    assert_eq!(
-        server.hits(&http_test_support::RequestKey::post("/graphql")),
-        0
-    );
+    assert_eq!(server.http().hits(&RequestKey::post("/graphql")), 0);
 }
 
 #[test]
 fn init_discover_notes_a_legacy_file_without_teams() {
-    let server = MockServer::start();
-    install(&server, "team-states-200");
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
     let dir = support::scratch(support::CONFIG);
     seed_catalogue(
         dir.path(),
@@ -291,7 +296,7 @@ fn init_discover_notes_a_legacy_file_without_teams() {
             "workflowStates": []}"#,
     );
 
-    let output = discover(dir.path(), &server);
+    let output = discover(dir.path(), server.http());
 
     assert!(
         output.status.success(),

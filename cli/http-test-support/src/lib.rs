@@ -1,8 +1,7 @@
 //! A minimal std-only HTTP/1.1 mock server for the workspace's client tests:
 //! per-`(method, path)` responses, hit counts, and the request bodies,
 //! query strings and headers a test needs to assert an outbound request was
-//! built as intended. A GraphQL endpoint can also be routed per operation
-//! ([`RequestKey::graphql`]), since every operation shares one path.
+//! built as intended.
 //!
 //! Deliberately hand-rolled rather than built on `wiremock`, `mockito` or
 //! `httpmock`: none of them can hold a connection open after promising a body
@@ -65,16 +64,53 @@ pub enum Route {
     /// Wait this long, then answer with `route` — a slow but successful
     /// response, for a deadline that spans several requests.
     Delayed { delay: Duration, route: Box<Route> },
+    /// Whatever this function answers for the request body — the seam a
+    /// protocol layered over HTTP routes through when the path alone cannot
+    /// tell its requests apart. The answer is sent as given, so it must
+    /// already be one response rather than a per-hit route.
+    ByBody(Responder),
+}
+
+/// Answers a request from its body; see [`Route::ByBody`].
+pub type Responder = Arc<dyn Fn(&[u8]) -> Route + Send + Sync>;
+
+impl Route {
+    /// The response this route gives on its `index`th hit, counting from
+    /// zero. The last entry of a sequence repeats rather than falling through
+    /// to the unmatched status, which would turn one missing entry into a
+    /// confusing 599.
+    #[must_use]
+    pub fn for_hit(self, index: usize) -> Self {
+        match self {
+            Self::Sequence(responses) => {
+                let last = responses.len().saturating_sub(1);
+                responses
+                    .get(index.min(last))
+                    .cloned()
+                    .unwrap_or(Self::Status(UNMATCHED_STATUS))
+            }
+            Self::FlakyThenOk { fail_times, body } => {
+                if index < fail_times {
+                    Self::Status(500)
+                } else {
+                    Self::Bytes { status: 200, body }
+                }
+            }
+            Self::Delayed { delay, route } => Self::Delayed {
+                delay,
+                route: Box::new(route.for_hit(index)),
+            },
+            other => other,
+        }
+    }
 }
 
 /// The routing and recording key: a method and a path, with any query string
-/// held separately so a test can assert on it, and optionally the GraphQL
-/// operation the request body names.
+/// held separately so a test can assert on it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RequestKey {
     pub method: String,
     pub path: String,
-    pub operation: Option<String>,
 }
 
 impl RequestKey {
@@ -83,22 +119,6 @@ impl RequestKey {
         Self {
             method: method.to_ascii_uppercase(),
             path: path.to_owned(),
-            operation: None,
-        }
-    }
-
-    /// `POST /graphql` carrying this operation: the name a named query
-    /// declares, or the first root field of an anonymous one.
-    #[must_use]
-    pub fn graphql(operation: &str) -> Self {
-        Self::post("/graphql").with_operation(operation)
-    }
-
-    #[must_use]
-    pub fn with_operation(self, operation: &str) -> Self {
-        Self {
-            operation: Some(operation.to_owned()),
-            ..self
         }
     }
 
@@ -135,8 +155,6 @@ struct Record {
 struct Shared {
     routes: Mutex<HashMap<RequestKey, Route>>,
     records: Mutex<HashMap<RequestKey, Record>>,
-    served: Mutex<HashMap<RequestKey, usize>>,
-    unmatched: Mutex<Vec<RequestKey>>,
     stop: AtomicBool,
 }
 
@@ -156,8 +174,6 @@ impl MockServer {
         let shared = Arc::new(Shared {
             routes: Mutex::new(HashMap::new()),
             records: Mutex::new(HashMap::new()),
-            served: Mutex::new(HashMap::new()),
-            unmatched: Mutex::new(Vec::new()),
             stop: AtomicBool::new(false),
         });
         let server_shared = Arc::clone(&shared);
@@ -177,13 +193,6 @@ impl MockServer {
             .lock()
             .expect("routes")
             .insert(key, route);
-    }
-
-    /// Every request no route answered, in arrival order, keyed on its
-    /// operation where its body names one.
-    #[must_use]
-    pub fn unmatched(&self) -> Vec<RequestKey> {
-        self.shared.unmatched.lock().expect("unmatched").clone()
     }
 
     /// How many requests exactly matching `key` were received.
@@ -273,30 +282,6 @@ impl MockServer {
 impl Drop for MockServer {
     fn drop(&mut self) {
         self.shared.stop.store(true, Ordering::SeqCst);
-        if thread::panicking() || !self.routes_any_operation() {
-            return;
-        }
-        let unmatched: Vec<String> = self
-            .unmatched()
-            .into_iter()
-            .filter_map(|key| key.operation)
-            .collect();
-        assert!(
-            unmatched.is_empty(),
-            "the mock server answered no route for these operations: {}",
-            unmatched.join(", ")
-        );
-    }
-}
-
-impl MockServer {
-    fn routes_any_operation(&self) -> bool {
-        self.shared
-            .routes
-            .lock()
-            .expect("routes")
-            .keys()
-            .any(|key| key.operation.is_some())
     }
 }
 
@@ -368,11 +353,7 @@ fn read_request(
     }
 
     Ok(Incoming {
-        key: RequestKey {
-            method,
-            path,
-            operation: None,
-        },
+        key: RequestKey { method, path },
         query,
         headers,
         body,
@@ -390,22 +371,29 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         headers,
         body,
     } = read_request(&mut reader)?;
-    let operation_key = operation_name(&body)
-        .map(|operation| key.clone().with_operation(&operation));
     // Record before any response byte is written: the retry-count assertions
     // read this the instant the client call returns.
-    let received = Received {
-        arrived: Instant::now(),
-        query,
-        headers,
-        body,
-    };
-    if let Some(operation_key) = &operation_key {
-        record(shared, operation_key, received.clone());
-    }
-    record(shared, &key, received);
-    let route =
-        serve_route(shared, &key, operation_key.as_ref()).map(after_any_delay);
+    let index = record(
+        shared,
+        &key,
+        Received {
+            arrived: Instant::now(),
+            query,
+            headers,
+            body: body.clone(),
+        },
+    );
+    let route = shared
+        .routes
+        .lock()
+        .expect("routes")
+        .get(&key)
+        .cloned()
+        .map(|route| match route.for_hit(index) {
+            Route::ByBody(answer) => answer(&body),
+            response => response,
+        })
+        .map(after_any_delay);
     let response = match route {
         Some(Route::Json { status, body }) => http_response(
             status,
@@ -430,8 +418,10 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         Some(Route::Redirect { status, location }) => {
             http_response(status, &[("Location", location.as_str())], &[])
         }
-        Some(Route::FlakyThenOk { .. } | Route::Sequence(_)) => {
-            unreachable!("resolve flattens per-hit routes before dispatch")
+        Some(
+            Route::FlakyThenOk { .. } | Route::Sequence(_) | Route::ByBody(_),
+        ) => {
+            unreachable!("a route resolves to one response before dispatch")
         }
         Some(Route::Delayed { .. }) => {
             unreachable!("after_any_delay unwraps delays before dispatch")
@@ -467,96 +457,15 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     Ok(())
 }
 
-fn record(shared: &Shared, key: &RequestKey, received: Received) {
+/// Records the request and returns how many requests to its key preceded it.
+fn record(shared: &Shared, key: &RequestKey, received: Received) -> usize {
     let mut records = shared.records.lock().expect("records");
     let record = records.entry(key.clone()).or_default();
     record.all.push(received);
     record.hits += 1;
+    let preceding = record.hits - 1;
     drop(records);
-}
-
-/// The route answering this request — its operation's when one is
-/// registered, else its plain key's — resolved against the number of
-/// requests that route has already served.
-fn serve_route(
-    shared: &Shared,
-    key: &RequestKey,
-    operation_key: Option<&RequestKey>,
-) -> Option<Route> {
-    let routes = shared.routes.lock().expect("routes");
-    let chosen = operation_key
-        .filter(|operation_key| routes.contains_key(*operation_key))
-        .or_else(|| routes.contains_key(key).then_some(key));
-    let Some(chosen) = chosen else {
-        drop(routes);
-        let unmatched = operation_key.unwrap_or(key).clone();
-        shared.unmatched.lock().expect("unmatched").push(unmatched);
-        return None;
-    };
-    let route = routes.get(chosen).cloned();
-    drop(routes);
-    let mut served = shared.served.lock().expect("served");
-    let count = served.entry(chosen.clone()).or_default();
-    let index = *count;
-    *count += 1;
-    drop(served);
-    route.map(|route| resolve(route, index))
-}
-
-/// The operation a GraphQL request body names: the declared name of a named
-/// operation, else the first root field of an anonymous one.
-fn operation_name(body: &[u8]) -> Option<String> {
-    let request: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let document = request.get("query")?.as_str()?.trim_start();
-    let declared = ["query", "mutation", "subscription"]
-        .iter()
-        .find_map(|keyword| document.strip_prefix(keyword))
-        .and_then(|rest| leading_name(rest.trim_start()));
-    declared.or_else(|| {
-        let (_, selection) = document.split_once('{')?;
-        leading_name(selection.trim_start())
-    })
-}
-
-fn leading_name(text: &str) -> Option<String> {
-    let name: String = text
-        .chars()
-        .take_while(|character| {
-            character.is_ascii_alphanumeric() || *character == '_'
-        })
-        .collect();
-    let starts_a_name = name
-        .chars()
-        .next()
-        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_');
-    starts_a_name.then_some(name)
-}
-
-/// Picks the response for this hit, so a sequence behaves like the API it
-/// stands in for. The last entry repeats rather than falling through to the
-/// unmatched status, which would turn one missing entry into a confusing 599.
-fn resolve(route: Route, index: usize) -> Route {
-    match route {
-        Route::Sequence(responses) => {
-            let last = responses.len().saturating_sub(1);
-            responses
-                .get(index.min(last))
-                .cloned()
-                .unwrap_or(Route::Status(UNMATCHED_STATUS))
-        }
-        Route::FlakyThenOk { fail_times, body } => {
-            if index < fail_times {
-                Route::Status(500)
-            } else {
-                Route::Bytes { status: 200, body }
-            }
-        }
-        Route::Delayed { delay, route } => Route::Delayed {
-            delay,
-            route: Box::new(resolve(*route, index)),
-        },
-        other => other,
-    }
+    preceding
 }
 
 fn after_any_delay(route: Route) -> Route {
