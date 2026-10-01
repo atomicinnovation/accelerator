@@ -381,7 +381,7 @@ depends = ["build:cli:dev"]
 run = "invoke test.integration.hooks"
 
 [tasks."test:integration:research"]
-description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample)"
+description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
 depends = ["build:cli:dev"]
 run = "invoke test.integration.research"
 

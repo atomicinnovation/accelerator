@@ -9,7 +9,7 @@ status: "complete"
 result: "partial"
 target: "plan:2026-09-23-0280-academic-source-profiles"
 tags: ["research", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
-last_updated: "2026-09-30T11:06:15+00:00"
+last_updated: "2026-10-01T08:58:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -87,6 +87,15 @@ has not run, and most of phase 8's attended manual matrix remains unticked.
   CLI stays general to every document type; `round` now lives in `research`,
   its reader in `research-adapters`, and `corpus resolve`'s resolution in
   `corpus-adapters` for both binaries. The plan is amended to match.
+- The Rust `research_agent_contract.rs` in `corpus-adapters` and
+  `profile_fetch_grants.rs` in `research-adapters` became Python after
+  validation, split by intent: skill and agent content in
+  `tests/unit/tasks/test_research_structure.py`, profile invocations against
+  the built guard in `tests/integration/research/test_profile_invocations.py`,
+  and the finding template against its schema row in
+  `tests/integration/conformance/test_conformance.py`. The hook-registration
+  case was dropped as a weaker copy of
+  `tests/integration/hooks/test_research_guard_registration.py`.
 - `CredentialPorts::system` takes a `Box<dyn Provenance>` rather than `root`,
   since `config-adapters` cannot depend on the VCS adapter
   (`cli/config-adapters/src/credentials.rs:39`); extra public

@@ -855,7 +855,6 @@ dependencies = [
  "kernel",
  "rand 0.9.5",
  "regex",
- "research",
  "rustix",
  "serde_json",
  "store",

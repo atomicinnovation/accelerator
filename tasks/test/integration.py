@@ -113,7 +113,8 @@ def research(context: Context) -> None:
 
     Runs the measured baseline, the lexer-boundary rows, and a fixed-seed
     sample of mutants through the compiled accelerator-research built by the
-    build:cli:dev dependency.
+    build:cli:dev dependency, and every fetch the academic profiles show
+    through the same guard.
     """
     context.run(_RESEARCH_DIFFERENTIAL)
 

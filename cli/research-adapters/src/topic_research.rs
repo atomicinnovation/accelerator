@@ -21,9 +21,7 @@ use research::round::DEFAULT_PROFILE;
 const PROFILE_SUFFIX: &str = "-profile";
 const QUARANTINE_SUFFIX: &str = ".invalid";
 
-/// Where the skill defining profile `name` lives under a profiles directory.
-#[must_use]
-pub fn profile_skill_path(profiles_dir: &Path, name: &str) -> PathBuf {
+fn profile_skill_path(profiles_dir: &Path, name: &str) -> PathBuf {
     profiles_dir
         .join(format!("{name}{PROFILE_SUFFIX}"))
         .join("SKILL.md")

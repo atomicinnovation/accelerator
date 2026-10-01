@@ -487,3 +487,30 @@ def test_contract_is_sourced_not_reencoded() -> None:
     # rather than being hard-coded here.
     assert SCHEMA, "templates-schema.tsv yielded no rows"
     assert _base_fields(), "print-schema base_fields bank is empty"
+
+
+def _tsv_row(template: str) -> dict[str, str]:
+    """The `templates-schema.tsv` row for `template`, which, unlike
+    `SCHEMA`, tells apart the kinds a multi-kind type declares."""
+    header, *rows = SCHEMA_TSV.read_text(encoding="utf-8").splitlines()
+    columns = header.split("\t")
+    for line in rows:
+        row = dict(zip(columns, line.split("\t"), strict=True))
+        if row["template"] == template:
+            return row
+    raise AssertionError(f"templates-schema.tsv has no row for {template}")
+
+
+def test_the_finding_template_declares_exactly_its_schema_row() -> None:
+    # The finding outputter is excluded from the emitter check, so the
+    # template it delegates to is held to its row here, with no extra keys.
+    row = _tsv_row("topic-research-finding.md")
+    expected = {
+        *_base_fields(),
+        "producer",
+        "status",
+        "kind",
+        *row["extras"].split(),
+        *row["typed_linkage_keys"].split(),
+    }
+    assert _template_keys("topic-research-finding.md") == expected

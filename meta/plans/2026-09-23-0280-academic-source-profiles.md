@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-09-0277-single-round-web-research-engine", "plan:2026
 tags: ["research", "skills", "sources", "config", "cli", "hooks", "openalex", "arxiv"]
 revision: "30b8831c7a036d5d81838c753c22c3dcce45611a"
 repository: "accelerator"
-last_updated: "2026-09-30T11:06:15+00:00"
+last_updated: "2026-10-01T08:58:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1028,9 +1028,10 @@ advances the shared recording clock by its declared duration and records the
   the recorded timeout equal to 100 s less the virtual time already spent;
 - an environment key set: it wins, and the runner is never called.
 
-`cli/corpus-adapters/tests/research_agent_contract.rs` gains
-`the_openalex_profile_never_instructs_web_fetching`. The profile's
-guard-parity test lands with the guard in phase 7.
+`tests/unit/tasks/test_research_structure.py` holds the OpenAlex profile to
+the fetch: it grants the fetch and no web tool, mentions a web tool only to
+forbid it, and runs only its own fetch. The profile's guard-parity test lands
+with the guard in phase 7.
 
 ### Success Criteria
 
@@ -1231,8 +1232,8 @@ in which a 3 s retry backoff is followed by no further pacing wait;
   least three seconds after the first hit; separately two
   sequential calls land at least three seconds apart; a withdrawn search's
   search and OAI hits land at least three seconds apart.
-- `research_agent_contract.rs` gains the no-`WebFetch` assertion for
-  `arxiv-profile`, sharing one helper with `openalex-profile`'s.
+- `test_research_structure.py` parametrises the same assertions over
+  `arxiv-profile`.
 
 ### Success Criteria
 
@@ -1582,14 +1583,15 @@ own exit `2` reaches Claude Code directly.
 directs — every other value you need is already injected." The body names no
 profile or family.
 
-**File**: `cli/corpus-adapters/tests/research_agent_contract.rs`
+**File**: `tests/unit/tasks/test_research_structure.py`
 **Changes**:
-- rewrite the tool-set pin to `{WebSearch, WebFetch, Write, Read, Bash}`;
-- add `bash_is_granted_only_beside_the_registered_research_guard`, asserting
-  that `hooks/hooks.json`'s `PreToolUse` `Bash` group and the write-tools
-  group each hold the guard command;
-- add `the_researcher_body_names_no_source_family` (no `openalex`, `arxiv`,
+- pin the researcher's tool set to `{WebSearch, WebFetch, Write, Read, Bash}`;
+- `test_the_researcher_body_names_no_source_family` (no `openalex`, `arxiv`,
   `web-profile`).
+
+`tests/integration/hooks/test_research_guard_registration.py` asserts that
+`hooks/hooks.json`'s `PreToolUse` `Bash` group and the write-tools group each
+register the guard command exactly once.
 
 #### 6. Tests
 
@@ -1676,12 +1678,12 @@ profile or family.
 - `cli/corpus/src/topic_research/finding_path.rs` (new module, test-first)
   for `is_finding_path`: `findings` not the immediate parent, a leading-dot
   name, a non-`.md` name.
-- `cli/corpus-adapters/tests/research_agent_contract.rs` gains
-  `every_profile_invocation_passes_the_guard`, which runs each fenced
+- `tests/integration/research/test_profile_invocations.py` holds
+  `test_every_profile_invocation_passes_the_guard`, which runs each fenced
   `accelerator research fetch` example in `openalex-profile` and
-  `arxiv-profile`, and the apostrophe example, through
-  `research::confinement::command_decision`. `corpus-adapters` takes
-  `research` as a dev-dependency for it.
+  `arxiv-profile`, and the apostrophe example, through the built guard as a
+  researcher's `Bash` call, beside a control that the guard blocks `ls` in
+  the same setup.
 - `cli/research-cli/tests/guard.rs` wiring cases:
   - one allowed and one blocked command; one allowed and one blocked write;
   - `<topics>/s/findings/new/../../../../.accelerator/config.md` blocked;
@@ -1746,7 +1748,8 @@ profile or family.
       `corpus` diff showing only `topic_research::is_finding_path` and the
       `research` diff only the `confinement` module
 - [x] `uv run pytest tests/integration/hooks` and
-      `mise run test:integration:research`
+      `mise run test:integration:research`, which also runs
+      `test_profile_invocations.py`
 - [x] `mise run check` and `mise run test` exit `0` — `test:e2e` run with
       `E2E_HEALTH_PORT=19187` past the same orphaned server (355 passed);
       `test:unit` (3,690 cli tests) and `test:integration` exit `0`
@@ -1909,16 +1912,15 @@ validates and the manifest counts agree with disk through the existing
   `Bash(accelerator research fetch *)` and
   `Bash(accelerator research topic *)`. The first is the grant the spawned
   researchers inherit (see phase 7's baseline).
-  `cli/research-adapters/tests/profile_fetch_grants.rs` (new) holds:
-  - `research_topic_grants_the_guards_permitted_command`, asserting that
-    `allowed-tools` holds `Bash(` + `research::confinement::PERMITTED_PREFIX`
-    + `*)`;
-  - `every_skill_injecting_an_academic_profile_grants_its_fetch`, asserting
-    that any SKILL.md referencing a profile that invokes
-    `accelerator research fetch` carries the same rule. A skill references a
-    profile when it holds that profile's `profile_skill_path`, by name or
-    through the `<profile>` placeholder `conduct` injects with; the test
-    fails if no skill references one, so it cannot pass vacuously.
+  `tests/unit/tasks/test_research_structure.py` holds:
+  - `test_research_topic_grants_the_fetch_its_researchers_inherit`, asserting
+    that `allowed-tools` holds `Bash(accelerator research fetch *)`;
+  - `test_every_skill_injecting_an_academic_profile_grants_the_fetch`,
+    asserting that any SKILL.md referencing a profile whose skill grants the
+    fetch carries the same rule. A skill references a profile when it holds
+    that profile's `<name>-profile/SKILL.md` path, by name or through the
+    `<profile>` placeholder `conduct` injects with; the test fails if no
+    skill references one, so it cannot pass vacuously.
 - **outline**: each focus area gets one or more profiles chosen from the
   nature of its question, always a subset of the brief's `source_profiles`,
   written as `- [ ] <question> — profiles: <p>, <p>`. `breadth` caps focus
@@ -1974,7 +1976,9 @@ validates and the manifest counts agree with disk through the existing
 - [x] `cargo test --manifest-path cli/Cargo.toml -p research -p research-adapters -p accelerator-research -p corpus-adapters -p accelerator-corpus`
       (the binaries' packages are `accelerator-research` and
       `accelerator-corpus`): 26 `round` cases, 8 `topic_outstanding` cases,
-      2 multi-profile goldens, and 2 grant cases added
+      and 2 multi-profile goldens added
+- [x] `uv run pytest tests/unit/tasks/test_research_structure.py`: the 2
+      grant cases
 - [x] `mise run public-api:check` after `public-api:update` for `corpus` and
       `research`
 - [x] `mise run lint:skill-permissions:check`, `mise run lint:dispatch-coherence:check`, and `mise run test:integration:skill-invocation`
