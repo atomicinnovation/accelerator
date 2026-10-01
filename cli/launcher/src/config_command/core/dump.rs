@@ -315,6 +315,9 @@ fn work_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
     })
 }
 
+const CREDENTIAL_LEAVES: [&str; 4] =
+    ["token", "token_cmd", "api_key", "api_key_cmd"];
+
 fn extra_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
     let Some(value) = config_get(config, key, None)?.filter(|v| !v.is_empty())
     else {
@@ -325,7 +328,7 @@ fn extra_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
         });
     };
     let leaf = key.rsplit('.').next().unwrap_or(key);
-    let cell = if leaf == "token" || leaf == "token_cmd" {
+    let cell = if CREDENTIAL_LEAVES.contains(&leaf) {
         Cell::Hidden
     } else {
         Cell::Value(value)

@@ -134,11 +134,11 @@ pub const ATTACH_NO_FILES: u8 = 131;
 pub const ATTACH_FILE_MISSING: u8 = 132;
 pub const ATTACH_BAD_FLAG: u8 = 133;
 
+use config::credentials::CredentialError;
 use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
 use jira_client::classify::Outcome;
 use jira_client::{ClientError, JiraFailure, SurfaceError};
-use tracker_support::CredentialError;
 
 /// The exit code for a structured port-op failure (`create`/`update`). A wire
 /// outcome maps to its granular code; the post-create unwritable case is
@@ -204,6 +204,7 @@ pub const fn for_credential(error: &CredentialError) -> u8 {
         CredentialError::NoToken { .. }
         | CredentialError::TokenCmdFromSharedConfig { .. }
         | CredentialError::TokenCmdFromTrackedFile { .. }
+        | CredentialError::TokenFromTrackedFile { .. }
         | CredentialError::MalformedToken { .. } => NO_TOKEN,
         CredentialError::TokenCmdFailed { .. }
         | CredentialError::TokenCmdTimedOut { .. } => TOKEN_CMD_FAILED,
@@ -255,7 +256,29 @@ const fn exit_code_for_status(status: u16) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
+
+    #[test]
+    fn a_tracked_personal_token_or_command_is_no_token() {
+        let path = PathBuf::from(".accelerator/config.local.md");
+
+        assert_eq!(
+            for_credential(&CredentialError::TokenFromTrackedFile {
+                key: "jira.token".to_owned(),
+                path: path.clone(),
+            }),
+            NO_TOKEN
+        );
+        assert_eq!(
+            for_credential(&CredentialError::TokenCmdFromTrackedFile {
+                key: "jira.token_cmd".to_owned(),
+                path,
+            }),
+            NO_TOKEN
+        );
+    }
 
     #[test]
     fn every_outcome_maps_to_its_pinned_code() {

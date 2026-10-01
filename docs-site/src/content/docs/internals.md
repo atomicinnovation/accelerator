@@ -291,8 +291,12 @@ warning on stderr. So does a cached copy that could not be *read*. But a cached
 copy that fails its checksum or signature check and cannot then be refetched is
 reported as confirmed tampering — a `cached copy failed verification` message
 with the probe error nested inside it — which `--fail-safe` never swallows: it
-exits 2, and for the `PreToolUse` guard that blocks the tool call rather than
-letting it through.
+exits 2, and for the git guard that blocks the tool call rather than letting it
+through. The research guard also passes `--non-blocking`, under which that
+refusal exits 1 instead, so a research guard that cannot start never blocks
+every tool call. Either way the message ends with its recovery step: delete the
+named cached binary and its `.minisig`, or set the subcommand's
+`ACCELERATOR_<SUB>_BIN` override.
 
 A cache directory can therefore only be kept read-only for a fixed set of
 subcommands at a fixed version. Make it writable and exec-capable, run every

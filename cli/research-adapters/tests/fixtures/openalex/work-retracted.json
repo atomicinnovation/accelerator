@@ -1,0 +1,1583 @@
+{
+ "id": "https://openalex.org/W3046275966",
+ "doi": "https://doi.org/10.1016/s0140-6736(20)30367-6",
+ "display_name": "Dementia prevention, intervention, and care: 2020 report of the Lancet Commission",
+ "type": "article",
+ "authorships": [
+  {
+   "author_position": "first",
+   "author": {
+    "id": "https://openalex.org/A5068994533",
+    "display_name": "Gill Livingston",
+    "orcid": "https://orcid.org/0000-0001-6741-5516",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-6741-5516"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": true,
+   "raw_author_name": "Gill Livingston",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK. Electronic address: g.livingston@ucl.ac.uk",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK. Electronic address: g.livingston@ucl.ac.uk",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5074999126",
+    "display_name": "Jonathan D. Huntley",
+    "orcid": "https://orcid.org/0000-0001-6304-6231",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-6304-6231"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Jonathan Huntley",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5084818858",
+    "display_name": "Andrew Sommerlad",
+    "orcid": "https://orcid.org/0000-0002-8895-7055",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-8895-7055"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Andrew Sommerlad",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5107927449",
+    "display_name": "David Ames",
+    "orcid": null,
+    "observed_orcids": []
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I1320473756",
+     "display_name": "The Royal Melbourne Hospital",
+     "ror": "https://ror.org/005bvs909",
+     "country_code": "AU",
+     "type": "funder",
+     "lineage": [
+      "https://openalex.org/I1320473756",
+      "https://openalex.org/I4210158168"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I165779595",
+     "display_name": "The University of Melbourne",
+     "ror": "https://ror.org/01ej9dk98",
+     "country_code": "AU",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I165779595"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I4210086544",
+     "display_name": "National Ageing Research Institute",
+     "ror": "https://ror.org/00200ya62",
+     "country_code": "AU",
+     "type": "nonprofit",
+     "lineage": [
+      "https://openalex.org/I4210086544"
+     ]
+    }
+   ],
+   "countries": [
+    "AU"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "David Ames",
+   "raw_affiliation_strings": [
+    "National Ageing Research Institute and Academic Unit for Psychiatry of Old Age, University of Melbourne, Royal Melbourne Hospital, Parkville, VIC, Australia"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "National Ageing Research Institute and Academic Unit for Psychiatry of Old Age, University of Melbourne, Royal Melbourne Hospital, Parkville, VIC, Australia",
+     "institution_ids": [
+      "https://openalex.org/I1320473756",
+      "https://openalex.org/I165779595",
+      "https://openalex.org/I4210086544"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5032708452",
+    "display_name": "Clive G. Ballard",
+    "orcid": "https://orcid.org/0000-0003-0022-5632",
+    "observed_orcids": [
+     "https://orcid.org/0000-0003-0022-5632"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I23923803",
+     "display_name": "University of Exeter",
+     "ror": "https://ror.org/03yghzc09",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I23923803"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Clive Ballard",
+   "raw_affiliation_strings": [
+    "University of Exeter, Exeter, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "University of Exeter, Exeter, UK",
+     "institution_ids": [
+      "https://openalex.org/I23923803"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5034164760",
+    "display_name": "Sube Banerjee",
+    "orcid": "https://orcid.org/0000-0002-8083-7649",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-8083-7649"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I897542642",
+     "display_name": "University of Plymouth",
+     "ror": "https://ror.org/008n7pv89",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I897542642"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Sube Banerjee",
+   "raw_affiliation_strings": [
+    "Faculty of Health: Medicine, Dentistry and Human Sciences, University of Plymouth, Plymouth, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Faculty of Health: Medicine, Dentistry and Human Sciences, University of Plymouth, Plymouth, UK",
+     "institution_ids": [
+      "https://openalex.org/I897542642"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5085651175",
+    "display_name": "Carol Brayne",
+    "orcid": "https://orcid.org/0000-0001-5307-663X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-5307-663X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I241749",
+     "display_name": "University of Cambridge",
+     "ror": "https://ror.org/013meh722",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I241749"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Carol Brayne",
+   "raw_affiliation_strings": [
+    "Cambridge Institute of Public Health, University of Cambridge, Cambridge, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Cambridge Institute of Public Health, University of Cambridge, Cambridge, UK",
+     "institution_ids": [
+      "https://openalex.org/I241749"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5027171288",
+    "display_name": "Alistair S. Burns",
+    "orcid": "https://orcid.org/0000-0002-9837-0645",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-9837-0645"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I28407311",
+     "display_name": "University of Manchester",
+     "ror": "https://ror.org/027m9bs27",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I28407311"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Alistair Burns",
+   "raw_affiliation_strings": [
+    "Department of Old Age Psychiatry, University of Manchester, Manchester, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Old Age Psychiatry, University of Manchester, Manchester, UK",
+     "institution_ids": [
+      "https://openalex.org/I28407311"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5056389726",
+    "display_name": "Jiska Cohen‐Mansfield",
+    "orcid": "https://orcid.org/0000-0003-0209-7304",
+    "observed_orcids": [
+     "https://orcid.org/0000-0003-0209-7304"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I16391192",
+     "display_name": "Tel Aviv University",
+     "ror": "https://ror.org/04mhzgx49",
+     "country_code": "IL",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I16391192"
+     ]
+    }
+   ],
+   "countries": [
+    "IL"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Jiska Cohen-Mansfield",
+   "raw_affiliation_strings": [
+    "Department of Health Promotion, School of Public Health, Sackler Faculty of Medicine, Tel Aviv University, Tel Aviv, Israel; Heczeg Institute on Aging, Tel Aviv University, Tel Aviv, Israel; Minerva Center for Interdisciplinary Study of End of Life, Tel Aviv University, Tel Aviv, Israel",
+    "Department of Health Promotion, School of Public Health, Sackler Faculty of Medicine, Tel Aviv University, Tel Aviv, Israel",
+    "Heczeg Institute on Aging, Tel Aviv University, Tel Aviv, Israel",
+    "Minerva Center for Interdisciplinary Study of End of Life, Tel Aviv University, Tel Aviv, Israel"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Health Promotion, School of Public Health, Sackler Faculty of Medicine, Tel Aviv University, Tel Aviv, Israel; Heczeg Institute on Aging, Tel Aviv University, Tel Aviv, Israel; Minerva Center for Interdisciplinary Study of End of Life, Tel Aviv University, Tel Aviv, Israel",
+     "institution_ids": [
+      "https://openalex.org/I16391192"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Department of Health Promotion, School of Public Health, Sackler Faculty of Medicine, Tel Aviv University, Tel Aviv, Israel",
+     "institution_ids": [
+      "https://openalex.org/I16391192"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Heczeg Institute on Aging, Tel Aviv University, Tel Aviv, Israel",
+     "institution_ids": [
+      "https://openalex.org/I16391192"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Minerva Center for Interdisciplinary Study of End of Life, Tel Aviv University, Tel Aviv, Israel",
+     "institution_ids": [
+      "https://openalex.org/I16391192"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5002983308",
+    "display_name": "Claudia Cooper",
+    "orcid": "https://orcid.org/0000-0002-2777-7616",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-2777-7616"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Claudia Cooper",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5081739897",
+    "display_name": "Sergi G. Costafreda",
+    "orcid": "https://orcid.org/0000-0001-6914-086X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-6914-086X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Sergi G Costafreda",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5102922229",
+    "display_name": "Amit Dias",
+    "orcid": "https://orcid.org/0000-0001-9686-8143",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-9686-8143"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I238597064",
+     "display_name": "Goa Medical College",
+     "ror": "https://ror.org/0030d2559",
+     "country_code": "IN",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I238597064"
+     ]
+    }
+   ],
+   "countries": [
+    "IN"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Amit Dias",
+   "raw_affiliation_strings": [
+    "Department of Preventive and Social Medicine, Goa Medical College, Goa, India"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Preventive and Social Medicine, Goa Medical College, Goa, India",
+     "institution_ids": [
+      "https://openalex.org/I238597064"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5018836358",
+    "display_name": "Nick C. Fox",
+    "orcid": "https://orcid.org/0000-0002-6660-657X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-6660-657X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I1340918713",
+     "display_name": "University College London Hospitals NHS Foundation Trust",
+     "ror": "https://ror.org/042fqyp44",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I1340918713"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I4210126463",
+     "display_name": "UK Dementia Research Institute",
+     "ror": "https://ror.org/02wedp412",
+     "country_code": "GB",
+     "type": "facility",
+     "lineage": [
+      "https://openalex.org/I4210126463"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I4210151618",
+     "display_name": "National Hospital for Neurology and Neurosurgery",
+     "ror": "https://ror.org/048b34d51",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I1340918713",
+      "https://openalex.org/I4210151618"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Nick Fox",
+   "raw_affiliation_strings": [
+    "Dementia Research Centre, UK Dementia Research Institute, University College London, London, UK; Institute of Neurology, National Hospital for Neurology and Neurosurgery, University College London Hospitals NHS Foundation Trust, London, UK",
+    "Dementia Research Centre, UK Dementia Research Institute, University College London, London, UK",
+    "Institute of Neurology, National Hospital for Neurology and Neurosurgery, University College London Hospitals NHS Foundation Trust, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Dementia Research Centre, UK Dementia Research Institute, University College London, London, UK; Institute of Neurology, National Hospital for Neurology and Neurosurgery, University College London Hospitals NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I1340918713",
+      "https://openalex.org/I4210126463",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Dementia Research Centre, UK Dementia Research Institute, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I4210126463",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Institute of Neurology, National Hospital for Neurology and Neurosurgery, University College London Hospitals NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I1340918713",
+      "https://openalex.org/I4210151618",
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5002018234",
+    "display_name": "Laura N. Gitlin",
+    "orcid": "https://orcid.org/0000-0003-2869-473X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0003-2869-473X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I145311948",
+     "display_name": "Johns Hopkins University",
+     "ror": "https://ror.org/00za53h95",
+     "country_code": "US",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I145311948"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Laura N Gitlin",
+   "raw_affiliation_strings": [
+    "Center for Innovative Care in Aging, Johns Hopkins University, Baltimore, MA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Center for Innovative Care in Aging, Johns Hopkins University, Baltimore, MA, USA",
+     "institution_ids": [
+      "https://openalex.org/I145311948"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5043071365",
+    "display_name": "Robert Howard",
+    "orcid": "https://orcid.org/0000-0002-3071-2338",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-3071-2338"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Robert Howard",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5080007900",
+    "display_name": "Helen C. Kales",
+    "orcid": "https://orcid.org/0000-0002-2032-370X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-2032-370X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I84218800",
+     "display_name": "University of California, Davis",
+     "ror": "https://ror.org/05rrcem69",
+     "country_code": "US",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I84218800"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Helen C Kales",
+   "raw_affiliation_strings": [
+    "Department of Psychiatry and Behavioral Sciences, UC Davis School of Medicine, University of California, Sacramento, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Psychiatry and Behavioral Sciences, UC Davis School of Medicine, University of California, Sacramento, CA, USA",
+     "institution_ids": [
+      "https://openalex.org/I84218800"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5030837922",
+    "display_name": "Mika Kivimäki",
+    "orcid": "https://orcid.org/0000-0002-4699-5627",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-4699-5627"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Mika Kivimäki",
+   "raw_affiliation_strings": [
+    "Department of Epidemiology and Public Health, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Epidemiology and Public Health, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5108394469",
+    "display_name": "Eric B. Larson",
+    "orcid": "https://orcid.org/0000-0003-4782-5360",
+    "observed_orcids": [
+     "https://orcid.org/0000-0003-4782-5360"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I150117356",
+     "display_name": "Kaiser Permanente Washington Health Research Institute",
+     "ror": "https://ror.org/0027frf26",
+     "country_code": "US",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I150117356"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Eric B Larson",
+   "raw_affiliation_strings": [
+    "Kaiser Permanente Washington Health Research Institute, Seattle, WA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Kaiser Permanente Washington Health Research Institute, Seattle, WA, USA",
+     "institution_ids": [
+      "https://openalex.org/I150117356"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5026755583",
+    "display_name": "Adesola O. Ogunniyi",
+    "orcid": "https://orcid.org/0000-0002-2946-8956",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-2946-8956"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I2800598127",
+     "display_name": "University College Hospital, Ibadan",
+     "ror": "https://ror.org/022yvqh08",
+     "country_code": "NG",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I2800598127"
+     ]
+    }
+   ],
+   "countries": [
+    "NG"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Adesola Ogunniyi",
+   "raw_affiliation_strings": [
+    "University College Hospital, Ibadan, Nigeria"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "University College Hospital, Ibadan, Nigeria",
+     "institution_ids": [
+      "https://openalex.org/I2800598127"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5004318968",
+    "display_name": "Vasiliki Orgeta",
+    "orcid": "https://orcid.org/0000-0001-8643-5061",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-8643-5061"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Vasiliki Orgeta",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5075011135",
+    "display_name": "Karen A. Ritchie",
+    "orcid": "https://orcid.org/0000-0002-0688-8982",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-0688-8982"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I154526488",
+     "display_name": "Inserm",
+     "ror": "https://ror.org/02vjkv261",
+     "country_code": "FR",
+     "type": "government",
+     "lineage": [
+      "https://openalex.org/I154526488"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I19894307",
+     "display_name": "Université de Montpellier",
+     "ror": "https://ror.org/051escj72",
+     "country_code": "FR",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I19894307"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I4210086651",
+     "display_name": "Neuropsychiatrie : Recherche Epidemiologique et Clinique",
+     "ror": "https://ror.org/0022kfb81",
+     "country_code": "FR",
+     "type": "facility",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I1294671590",
+      "https://openalex.org/I183935753",
+      "https://openalex.org/I19894307",
+      "https://openalex.org/I4210086651",
+      "https://openalex.org/I4210137371",
+      "https://openalex.org/I4210139971"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I98677209",
+     "display_name": "University of Edinburgh",
+     "ror": "https://ror.org/01nrxwf90",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I98677209"
+     ]
+    }
+   ],
+   "countries": [
+    "FR",
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Karen Ritchie",
+   "raw_affiliation_strings": [
+    "Inserm, Unit 1061, Neuropsychiatry: Epidemiological and Clinical Research, La Colombière Hospital, University of Montpellier, Montpellier, France; Centre for Clinical Brain Sciences, University of Edinburgh, Edinburgh, UK",
+    "Centre for Clinical Brain Sciences, University of Edinburgh, Edinburgh, UK",
+    "Inserm, Unit 1061, Neuropsychiatry: Epidemiological and Clinical Research, La Colombière Hospital, University of Montpellier, Montpellier, France"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Inserm, Unit 1061, Neuropsychiatry: Epidemiological and Clinical Research, La Colombière Hospital, University of Montpellier, Montpellier, France; Centre for Clinical Brain Sciences, University of Edinburgh, Edinburgh, UK",
+     "institution_ids": [
+      "https://openalex.org/I154526488",
+      "https://openalex.org/I4210086651"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Centre for Clinical Brain Sciences, University of Edinburgh, Edinburgh, UK",
+     "institution_ids": [
+      "https://openalex.org/I98677209"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Inserm, Unit 1061, Neuropsychiatry: Epidemiological and Clinical Research, La Colombière Hospital, University of Montpellier, Montpellier, France",
+     "institution_ids": [
+      "https://openalex.org/I154526488",
+      "https://openalex.org/I19894307",
+      "https://openalex.org/I4210086651"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5006205778",
+    "display_name": "Kenneth J. Rockwood",
+    "orcid": "https://orcid.org/0000-0002-6674-995X",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-6674-995X"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I129902397",
+     "display_name": "Dalhousie University",
+     "ror": "https://ror.org/01e6qks80",
+     "country_code": "CA",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I129902397"
+     ]
+    }
+   ],
+   "countries": [
+    "CA"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Kenneth Rockwood",
+   "raw_affiliation_strings": [
+    "Centre for the Health Care of Elderly People, Geriatric Medicine Dalhousie University, Halifax, NS, Canada"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Centre for the Health Care of Elderly People, Geriatric Medicine Dalhousie University, Halifax, NS, Canada",
+     "institution_ids": [
+      "https://openalex.org/I129902397"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5018087286",
+    "display_name": "Elizabeth L Sampson",
+    "orcid": "https://orcid.org/0000-0001-8929-7362",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-8929-7362"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I167573124",
+     "display_name": "Barnet Enfield and Haringey Mental Health Trust",
+     "ror": "https://ror.org/00d2v4e22",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I167573124"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Elizabeth L Sampson",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Barnet, Enfield, and Haringey Mental Health Trust, London, UK",
+    "Barnet, Enfield, and Haringey Mental Health Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Barnet, Enfield, and Haringey Mental Health Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I167573124",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Barnet, Enfield, and Haringey Mental Health Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I167573124"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5020841594",
+    "display_name": "Quincy Miles Samus",
+    "orcid": "https://orcid.org/0000-0001-8218-7769",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-8218-7769"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I145311948",
+     "display_name": "Johns Hopkins University",
+     "ror": "https://ror.org/00za53h95",
+     "country_code": "US",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I145311948"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Quincy Samus",
+   "raw_affiliation_strings": [
+    "Department of Psychiatry and Behavioral Sciences, Johns Hopkins University, Baltimore, MA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Psychiatry and Behavioral Sciences, Johns Hopkins University, Baltimore, MA, USA",
+     "institution_ids": [
+      "https://openalex.org/I145311948"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5059020389",
+    "display_name": "Lon S. S. Schneider",
+    "orcid": "https://orcid.org/0000-0002-4636-6150",
+    "observed_orcids": [
+     "https://orcid.org/0000-0002-4636-6150"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I1174212",
+     "display_name": "University of Southern California",
+     "ror": "https://ror.org/03taz7m60",
+     "country_code": "US",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I1174212"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Lon S Schneider",
+   "raw_affiliation_strings": [
+    "Department of Psychiatry and the Behavioural Sciences and Department of Neurology, Keck School of Medicine, Leonard Davis School of Gerontology of the University of Southern California, Los Angeles, CA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department of Psychiatry and the Behavioural Sciences and Department of Neurology, Keck School of Medicine, Leonard Davis School of Gerontology of the University of Southern California, Los Angeles, CA, USA",
+     "institution_ids": [
+      "https://openalex.org/I1174212"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5007726770",
+    "display_name": "Geir Selbæk",
+    "orcid": "https://orcid.org/0000-0001-6511-8219",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-6511-8219"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I1281400175",
+     "display_name": "Oslo University Hospital",
+     "ror": "https://ror.org/00j9c2840",
+     "country_code": "NO",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I1281400175"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I184942183",
+     "display_name": "University of Oslo",
+     "ror": "https://ror.org/01xtthb56",
+     "country_code": "NO",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I184942183"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I2802281627",
+     "display_name": "Sykehuset i Vestfold",
+     "ror": "https://ror.org/04a0aep16",
+     "country_code": "NO",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I2802281627"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I4405267267",
+     "display_name": "Norwegian National Centre for Ageing and Health",
+     "ror": "https://ror.org/01yb29m74",
+     "country_code": "NO",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I4405267267"
+     ]
+    }
+   ],
+   "countries": [
+    "NO"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Geir Selbæk",
+   "raw_affiliation_strings": [
+    "Norwegian National Advisory Unit on Ageing and Health, Vestfold Hospital Trust, Tønsberg, Norway; Institute of Clinical Medicine, Faculty of Medicine, University of Oslo, Oslo, Norway; Geriatric Department, Oslo University Hospital, Oslo, Norway",
+    "Geriatric Department, Oslo University Hospital, Oslo, Norway",
+    "Institute of Clinical Medicine, Faculty of Medicine, University of Oslo, Oslo, Norway",
+    "Norwegian National Advisory Unit on Ageing and Health, Vestfold Hospital Trust, Tønsberg, Norway"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Norwegian National Advisory Unit on Ageing and Health, Vestfold Hospital Trust, Tønsberg, Norway; Institute of Clinical Medicine, Faculty of Medicine, University of Oslo, Oslo, Norway; Geriatric Department, Oslo University Hospital, Oslo, Norway",
+     "institution_ids": [
+      "https://openalex.org/I1281400175",
+      "https://openalex.org/I2802281627",
+      "https://openalex.org/I4405267267"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Geriatric Department, Oslo University Hospital, Oslo, Norway",
+     "institution_ids": [
+      "https://openalex.org/I1281400175"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Institute of Clinical Medicine, Faculty of Medicine, University of Oslo, Oslo, Norway",
+     "institution_ids": [
+      "https://openalex.org/I184942183"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Norwegian National Advisory Unit on Ageing and Health, Vestfold Hospital Trust, Tønsberg, Norway",
+     "institution_ids": [
+      "https://openalex.org/I2802281627"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5036095173",
+    "display_name": "Linda L Teri",
+    "orcid": "https://orcid.org/0000-0001-7127-8905",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-7127-8905"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I201448701",
+     "display_name": "University of Washington",
+     "ror": "https://ror.org/00cvxb145",
+     "country_code": "US",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I201448701"
+     ]
+    }
+   ],
+   "countries": [
+    "US"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Linda Teri",
+   "raw_affiliation_strings": [
+    "Department Psychosocial and Community Health, School of Nursing, University of Washington, Seattle, WA, USA"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Department Psychosocial and Community Health, School of Nursing, University of Washington, Seattle, WA, USA",
+     "institution_ids": [
+      "https://openalex.org/I201448701"
+     ]
+    }
+   ]
+  },
+  {
+   "author_position": "last",
+   "author": {
+    "id": "https://openalex.org/A5086247322",
+    "display_name": "Naaheed Mukadam",
+    "orcid": "https://orcid.org/0000-0001-8635-9521",
+    "observed_orcids": [
+     "https://orcid.org/0000-0001-8635-9521"
+    ]
+   },
+   "institutions": [
+    {
+     "id": "https://openalex.org/I45129253",
+     "display_name": "University College London",
+     "ror": "https://ror.org/02jx3x895",
+     "country_code": "GB",
+     "type": "education",
+     "lineage": [
+      "https://openalex.org/I124357947",
+      "https://openalex.org/I45129253"
+     ]
+    },
+    {
+     "id": "https://openalex.org/I95630760",
+     "display_name": "Camden and Islington NHS Foundation Trust",
+     "ror": "https://ror.org/03ekq2173",
+     "country_code": "GB",
+     "type": "healthcare",
+     "lineage": [
+      "https://openalex.org/I95630760"
+     ]
+    }
+   ],
+   "countries": [
+    "GB"
+   ],
+   "is_corresponding": false,
+   "raw_author_name": "Naaheed Mukadam",
+   "raw_affiliation_strings": [
+    "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+    "Camden and Islington NHS Foundation Trust, London, UK",
+    "Division of Psychiatry, University College London, London, UK"
+   ],
+   "raw_orcid": null,
+   "affiliations": [
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK; Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253",
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Camden and Islington NHS Foundation Trust, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I95630760"
+     ]
+    },
+    {
+     "raw_affiliation_string": "Division of Psychiatry, University College London, London, UK",
+     "institution_ids": [
+      "https://openalex.org/I45129253"
+     ]
+    }
+   ]
+  }
+ ],
+ "primary_location": {
+  "id": "doi:10.1016/s0140-6736(20)30367-6",
+  "is_oa": true,
+  "landing_page_url": "https://doi.org/10.1016/s0140-6736(20)30367-6",
+  "pdf_url": "http://www.thelancet.com/article/S0140673620303676/pdf",
+  "source": {
+   "id": "https://openalex.org/S49861241",
+   "display_name": "The Lancet",
+   "issn_l": "0099-5355",
+   "issn": [
+    "0099-5355",
+    "0140-6736",
+    "1474-547X"
+   ],
+   "is_oa": false,
+   "is_in_doaj": false,
+   "is_core": true,
+   "listed_in": [
+    "cwts-core",
+    "doyens",
+    "jufo-3",
+    "ki-jl-3",
+    "medline",
+    "norway-2"
+   ],
+   "host_organization": "https://openalex.org/P4310320990",
+   "host_organization_name": "Elsevier BV",
+   "host_organization_lineage": [
+    "https://openalex.org/P4310320990"
+   ],
+   "host_organization_lineage_names": [
+    "Elsevier BV"
+   ],
+   "type": "journal"
+  },
+  "license": null,
+  "license_id": null,
+  "version": "publishedVersion",
+  "is_accepted": true,
+  "is_published": true,
+  "raw_source_name": "The Lancet",
+  "raw_type": "journal-article"
+ },
+ "is_retracted": true,
+ "abstract_inverted_index": null
+}

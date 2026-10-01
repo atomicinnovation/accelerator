@@ -10,7 +10,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-08T11:42:24+00:00"
+last_updated: "2026-09-23T16:23:42+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-867"
@@ -44,6 +44,9 @@ round's `breadth` budget, which continues to bound focus areas only.
   configured depth.
 - No human intervention between levels.
 - A finding's recursion does not consume the round's `breadth` budget.
+- Recursion stays within the finding's source profile: every deeper level of a
+  finding runs with the same injected profile, and the finding keeps its
+  `source_profile`.
 
 ## Acceptance Criteria
 
@@ -52,6 +55,9 @@ round's `breadth` budget, which continues to bound focus areas only.
       intervention between levels, narrowing by halving at each descent and
       stopping at the configured depth; a finding's recursion does not consume
       the round's `breadth` budget, which continues to bound focus areas only.
+- [ ] Given an `openalex` finding at `depth: 2`, then every level of its
+      recursion uses the `openalex` profile and the finding's
+      `source_profile` is `openalex`.
 
 ## Open Questions
 
@@ -60,7 +66,9 @@ round's `breadth` budget, which continues to bound focus areas only.
 ## Dependencies
 
 - Blocked by: 0280 (the output-quality gate must validate the premise before the
-  token-multiplying recursion lands — recorded on 0280's `blocks`), 0282 (needs
+  token-multiplying recursion lands — recorded on 0280's `blocks`; this item
+  unblocks on 0280's recorded gate sign-off with all four judgements passing,
+  not on 0280's merge), 0282 (needs
   the `depth` knob — recorded on 0282's `blocks`).
 
 ## Assumptions
@@ -69,9 +77,10 @@ round's `breadth` budget, which continues to bound focus areas only.
 
 ## Technical Notes
 
-- The worst case per round is `breadth` focus areas each expanded to at most the
-  `depth`-bounded halving series; recursion happens inside a finding, not
-  alongside it.
+- A finding is one per (focus area, source profile) since 0280, so a round runs
+  up to `breadth × |source_profiles|` researchers. The worst case per round is
+  that many findings each expanded to at most the `depth`-bounded halving
+  series; recursion happens inside a finding, not alongside it.
 
 ## Drafting Notes
 

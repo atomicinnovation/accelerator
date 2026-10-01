@@ -1,1 +1,2 @@
 msrv = "1.90.0"
+doc-valid-idents = ["OpenAlex", ".."]

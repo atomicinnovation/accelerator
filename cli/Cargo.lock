@@ -95,6 +95,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "accelerator-research"
+version = "1.24.0-pre.73"
+dependencies = [
+ "clap",
+ "config",
+ "config-adapters",
+ "corpus",
+ "corpus-adapters",
+ "http-test-support",
+ "research",
+ "research-adapters",
+ "rustix",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "vcs",
+ "vcs-adapters",
+ "vcs-test-support",
+]
+
+[[package]]
 name = "accelerator-vcs"
 version = "1.24.0-pre.73"
 dependencies = [
@@ -2832,6 +2853,7 @@ name = "jira-client"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
+ "config-adapters",
  "corpus",
  "corpus-adapters",
  "hex",
@@ -3054,6 +3076,7 @@ name = "linear-client"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
+ "config-adapters",
  "corpus",
  "corpus-adapters",
  "http-test-support",
@@ -4015,6 +4038,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "research"
+version = "1.24.0-pre.73"
+
+[[package]]
+name = "research-adapters"
+version = "1.24.0-pre.73"
+dependencies = [
+ "corpus",
+ "corpus-adapters",
+ "http-test-support",
+ "kernel",
+ "reqwest",
+ "research",
+ "roxmltree",
+ "rustix",
+ "rustls",
+ "serde",
+ "serde_json",
+ "store",
+ "tempfile",
+]
+
+[[package]]
 name = "resolv-conf"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4039,6 +4085,15 @@ name = "rle-decode-fast"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
+
+[[package]]
+name = "roxmltree"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "rust-embed"
@@ -4991,7 +5046,6 @@ name = "tracker-support"
 version = "1.24.0-pre.73"
 dependencies = [
  "config",
- "tempfile",
  "tracker",
 ]
 
@@ -5638,6 +5692,7 @@ dependencies = [
 name = "work-adapters"
 version = "1.24.0-pre.73"
 dependencies = [
+ "config",
  "corpus",
  "hex",
  "http-test-support",

@@ -7,7 +7,7 @@ author: "{author from VCS}"
 producer: "research-topic"
 status: "draft"                               # draft | complete
 kind: "brief"                                 # (type, kind) discriminator
-source_profiles: ["web"]                      # the source families this research draws on
+source_profiles: ["web"]                      # any of "web", "openalex", "arxiv"
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                    # typed-linkage ref: "work-item:NNNN" or ""
 relates_to: []                                # typed-linkage list: ["topic-research:NNNN", ...] or []

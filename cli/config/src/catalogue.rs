@@ -1,6 +1,9 @@
 //! The recognised-key catalogue and its defaults, modelled as domain data.
 
+use crate::error::ConfigError;
+use crate::key::Key;
 use crate::node::Scalar;
+use crate::service::ConfigAccess;
 use crate::service::Value;
 
 pub const AGENT_PREFIX: &str = "accelerator:";
@@ -141,6 +144,8 @@ pub const EXTRA_KEYS: &[&str] = &[
     "linear.token_cmd",
     "github.token",
     "github.token_cmd",
+    "openalex.api_key",
+    "openalex.api_key_cmd",
     "visualiser.editor",
     "visualiser.editor_project",
     "visualiser.binary",
@@ -269,6 +274,27 @@ pub fn default_for(key: &str) -> Option<Value> {
     None
 }
 
+/// Resolves `agents.<name>` to its configured override, else to `<name>`
+/// under [`AGENT_PREFIX`].
+///
+/// An explicit-empty override coalesces to the prefixed default, as does a
+/// name outside [`AGENT_KEYS`], which carries no catalogue default.
+///
+/// # Errors
+///
+/// A [`ConfigError`] when the name is malformed or a config level cannot be
+/// read.
+pub fn agent_name(
+    config: &dyn ConfigAccess,
+    name: &str,
+) -> Result<String, ConfigError> {
+    let key = Key::parse(&format!("agents.{name}"))?;
+    Ok(config
+        .effective_nonempty(&key, None)?
+        .configured_value()
+        .unwrap_or_else(|| format!("{AGENT_PREFIX}{name}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -376,6 +402,12 @@ mod tests {
     fn extra_keys_declares_the_github_credential_keys() {
         assert!(EXTRA_KEYS.contains(&"github.token"));
         assert!(EXTRA_KEYS.contains(&"github.token_cmd"));
+    }
+
+    #[test]
+    fn extra_keys_declares_the_openalex_credential_keys() {
+        assert!(EXTRA_KEYS.contains(&"openalex.api_key"));
+        assert!(EXTRA_KEYS.contains(&"openalex.api_key_cmd"));
     }
 
     #[test]

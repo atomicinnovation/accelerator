@@ -45,6 +45,19 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator vcs guard --format=hook --fail-safe"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator research guard --fail-safe --non-blocking"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/accelerator research guard --fail-safe --non-blocking"
           }
         ]
       }

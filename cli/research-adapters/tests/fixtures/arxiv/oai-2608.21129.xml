@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+    <responseDate>2026-09-23T16:42:04Z</responseDate>
+                <request verb="GetRecord" identifier="oai:arXiv.org:2608.21129" metadataPrefix="arXivRaw">http://oaipmh.arxiv.org/oai</request>
+
+
+    <GetRecord>
+                <record>
+                <header>
+        <identifier>oai:arXiv.org:2608.21129</identifier>
+        <datestamp>2026-08-25</datestamp>
+            <setSpec>physics:astro-ph:EP</setSpec>
+            <setSpec>physics:astro-ph:IM</setSpec>
+    </header>
+
+            <metadata>
+                        <arXivRaw xmlns="http://arxiv.org/OAI/arXivRaw/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://arxiv.org/OAI/arXivRaw/ https://oaipmh.arxiv.org/OAI/arXivRaw.xsd">
+        <id>2608.21129</id>
+        <submitter>Qingtian Liu</submitter>
+            <version version="v1">
+                <date>Fri, 21 Aug 2026 14:06:59 GMT</date>
+                <size>337kb</size>
+            </version>
+            <version version="v2">
+                <date>Mon, 24 Aug 2026 04:57:13 GMT</date>
+                <size>0kb</size>
+                    <source_type>I</source_type>
+            </version>
+        <title>Transit Searches for Habitable-Zone Exoplanets with Artificial Intelligence</title>
+        <authors>Qingtian Liu</authors>
+        <categories>astro-ph.EP astro-ph.IM</categories>
+            <comments>This paper has been withdrawn by the authors for administrative reasons related to our institutional research policy</comments>
+            <license>http://arxiv.org/licenses/nonexclusive-distrib/1.0/</license>
+            <abstract>Searching for Earth-sized planets in stellar habitable zones ultimately means finding a small number of very shallow, widely separated transits in noisy light curves. Around Sun-like stars, habitable-zone planets generally have long orbital periods, so a finite observing baseline may record only a few transits. At the same time, intrinsic stellar variability, instrumental systematics, and data gaps can obscure these weak events or produce transit-like brightness changes. This review examines recent progress in AI-assisted light-curve preprocessing, weak-signal searches, candidate vetting, and parameter inference, and considers the potential roles of pretraining and multimodal models. Taken together, the studies reviewed here show that AI has practical value in making large-scale light-curve analysis more efficient, recovering more signals at low signal-to-noise ratios in some injection tests, and reducing the number of targets requiring manual review. This review concludes that combining AI with physical modeling, statistical inference, and follow-up observations provides a practical route to improve both the discovery efficiency and the reliability of habitable-zone candidate studies.</abstract>
+    </arXivRaw>
+
+            </metadata>
+        </record>
+
+    </GetRecord>
+</OAI-PMH>

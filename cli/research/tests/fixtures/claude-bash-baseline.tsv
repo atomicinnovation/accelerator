@@ -1,0 +1,91 @@
+# Claude Code's own verdict on each command under the allow rule
+# Bash(./probe *), measured by tasks/probe/claude_permissions.py. One column
+# per measured release. Escapes: ⏎ newline, ⇥ tab, ␍ carriage return,
+# ⍽ no-break space, ␋ vertical tab, ␌ form feed.
+command	2.1.281	2.1.144
+./probe a && touch smuggled	denied	denied
+./probe a || touch smuggled	denied	denied
+./probe a; touch smuggled	denied	denied
+./probe a | touch smuggled	denied	denied
+./probe a & touch smuggled	denied	denied
+./probe a⏎touch smuggled	denied	denied
+./probe https://example.org/?a=1&b=2	denied	allowed
+./probe a >smuggled	denied	denied
+./probe a >>smuggled	denied	denied
+./probe a >|smuggled	denied	denied
+./probe a &>smuggled	denied	denied
+./probe a >/dev/nullx	denied	denied
+./probe a <<EOF⏎x⏎EOF	denied	denied
+./probe $(touch smuggled)	denied	denied
+./probe `touch smuggled`	denied	denied
+./probe <(touch smuggled)	denied	denied
+./probe =(touch smuggled)	denied	denied
+./probe "$(touch smuggled)"	denied	denied
+./probe "`touch smuggled`"	denied	denied
+./probe ${HOME}	denied	denied
+./probe {a,b}	denied	denied
+./probe (a)	denied	denied
+./probe a)	denied	denied
+./probe *(e:'touch smuggled':)	denied	denied
+./probe $'a\x3btouch smuggled'	denied	denied
+./probe $"a"	denied	denied
+./probe 'a\'; touch smuggled	denied	denied
+./probe x#;touch smuggled	denied	denied
+./probe a # c⏎touch smuggled	denied	denied
+./probe a # it's⏎touch smuggled	denied	denied
+FOO=1 ./probe a	denied	denied
+./probe $[1+1]	denied	denied
+./probe $[a[`touch smuggled`]]	denied	denied
+./probe "$[a[\$(touch smuggled)]]"	denied	denied
+./probe a␍#;touch smuggled	denied	denied
+./probe a\ #;touch smuggled	denied	denied
+./probe a # b \⏎touch smuggled	denied	denied
+./probe a >&smuggled	denied	denied
+./probe a 2>&1&touch smuggled	denied	denied
+./probe a >&-	denied	denied
+./probe a <>smuggled	denied	denied
+./probe a >/dev/null"x"	denied	denied
+./probe a⇥#;touch smuggled	allowed	allowed
+./probe search 'alzheimer s progression' --limit 10	allowed	allowed
+./probe lookup W2741809807	allowed	allowed
+./probe a\⏎b	denied	denied
+./probe "$\⏎(touch smuggled)"	denied	denied
+./probe $\⏎'a'	denied	denied
+./probe a <\⏎<smuggled	denied	denied
+./probe $HOME[x]	denied	denied
+./probe "$HOME[x]"	denied	denied
+./probe $HOME:h	denied	denied
+./probe "$HOME:h"	denied	denied
+./probe a >/dev/null	allowed	allowed
+./probe a >>/dev/null	allowed	allowed
+./probe a 2>>/dev/null	allowed	allowed
+./probe x2>/dev/null	allowed	allowed
+./probe a >&2	allowed	allowed
+./probe a 1>&2	allowed	allowed
+./probe a 2>&12	allowed	allowed
+./probe https://x.org:8080/a	allowed	allowed
+./probe $HOME	allowed	denied
+./probe $HOME/x	allowed	denied
+./probe "$HOME"	allowed	denied
+./probe 'a;b|c&d⏎touch smuggled'	allowed	allowed
+./probe "a;b|c&d⏎touch smuggled"	allowed	allowed
+./probe 'https://example.org/?a=1&b=2#f'	allowed	allowed
+./probe ~	allowed	allowed
+./probe *	allowed	allowed
+./probe ?	allowed	allowed
+./probe [p]	allowed	allowed
+./probe # comment	allowed	allowed
+./probe #; touch smuggled	allowed	allowed
+./probe < file	allowed	allowed
+./probe <<< x	allowed	allowed
+./probe a 2>/dev/null	allowed	allowed
+./probe a > /dev/null	allowed	allowed
+./probe a 2>&1	allowed	allowed
+./probe a=b	allowed	allowed
+./probe 100%	allowed	allowed
+./probe a!	allowed	allowed
+./probe a^b	allowed	allowed
+./probe https://example.org/a%20b?c=d	allowed	allowed
+./probe a\; touch smuggled	allowed	allowed
+./probe 'unterminated	allowed	allowed
+./probe "unterminated	allowed	allowed

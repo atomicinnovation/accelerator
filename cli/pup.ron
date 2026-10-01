@@ -39,6 +39,9 @@
         )),
         // The whole config crate is domain (no adapter modules live in it), so
         // the rule matches the crate root rather than enumerating module names.
+        // The deny keeps the credential ladder behind its ports: the
+        // filesystem, process, and environment modules sit inside the
+        // permitted std, and the deny wins on overlap.
         Module((
             name: "config_domain_imports_only_permitted",
             matches: Module("^config($|::)"),
@@ -49,7 +52,9 @@
                         "^kernel::Error(::|$)",
                         "^crate(::|$)",
                     ]),
-                    denied: None,
+                    denied: Some([
+                        "^std::(fs|process|env)(::|$)",
+                    ]),
                     severity: Error,
                 ),
             ],
@@ -83,6 +88,58 @@
                         "^crate(::|$)",
                     ]),
                     denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // The whole research crate is domain (no adapter modules live in it);
+        // HTTP, JSON and XML decoding, the pacing lock and the clock live in
+        // research-adapters, injected through ports.
+        Module((
+            name: "research_domain_imports_only_permitted",
+            matches: Module("^research($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: Some([
+                        "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
+                        "^crate(::|$)",
+                    ]),
+                    denied: None,
+                    severity: Error,
+                ),
+            ],
+        )),
+        // research-adapters' decoders turn response bytes into the domain's
+        // typed inputs and nothing more, so none of them may spawn.
+        Module((
+            name: "research_adapters_decoders_spawn_nothing",
+            matches: Module(
+                "^research_adapters::(openalex_json|arxiv_xml)($|::)"
+            ),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
+        // Credential resolution lives in config; tracker-support is policy the
+        // tracker clients share, and research is not a tracker.
+        Module((
+            name: "research_never_reaches_tracker_support",
+            matches: Module(
+                "^(research|research_adapters|accelerator_research)($|::)"
+            ),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^tracker_support(::|$)",
+                    ]),
                     severity: Error,
                 ),
             ],
@@ -168,9 +225,8 @@
             ],
         )),
         // tracker-support carries the policy both provider clients share —
-        // credentials, retry schedule, identifier safety, transport bounds.
-        // It runs the credential helper, so std::process is deliberately
-        // permitted; what it must never grow is a transport of its own,
+        // retry schedule, identifier safety, transport bounds. It spawns
+        // nothing, and what it must never grow is a transport of its own,
         // which is what would let provider specifics follow.
         Module((
             name: "tracker_support_carries_policy_not_transport",
@@ -179,6 +235,7 @@
                 RestrictImports(
                     allowed_only: None,
                     denied: Some([
+                        "^std::process(::|$)",
                         "^reqwest(::|$)",
                         "^hyper(::|$)",
                         "^tokio(::|$)",

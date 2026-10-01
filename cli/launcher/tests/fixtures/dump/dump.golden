@@ -79,6 +79,8 @@
 | `linear.token_cmd` | *(not set)* | default |
 | `github.token` | *(not set)* | default |
 | `github.token_cmd` | *(not set)* | default |
+| `openalex.api_key` | *(set — hidden)* | team (.accelerator/config.md) |
+| `openalex.api_key_cmd` | *(set — hidden)* | team (.accelerator/config.md) |
 | `visualiser.editor` | *(not set)* | default |
 | `visualiser.editor_project` | *(not set)* | default |
 | `visualiser.binary` | *(not set)* | default |

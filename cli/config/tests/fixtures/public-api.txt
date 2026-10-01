@@ -16,8 +16,159 @@ pub const config::catalogue::TEMPLATE_KEYS: &[&str]
 pub const config::catalogue::VISUALISER_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::WORK_INTEGRATION_VALUES: &[&str]
 pub const config::catalogue::WORK_KEYS: &[(&str, config::catalogue::Default)]
+pub fn config::catalogue::agent_name(config: &dyn config::service::ConfigAccess, name: &str) -> core::result::Result<alloc::string::String, config::error::ConfigError>
 pub fn config::catalogue::default_for(key: &str) -> core::option::Option<config::service::Value>
 pub fn config::catalogue::is_valid_work_integration(value: &str) -> bool
+pub mod config::credentials
+pub enum config::credentials::CredentialError
+pub config::credentials::CredentialError::ConfigUnreadable
+pub config::credentials::CredentialError::ConfigUnreadable::detail: alloc::string::String
+pub config::credentials::CredentialError::ConfigUnreadable::key: alloc::string::String
+pub config::credentials::CredentialError::LocalPermsInsecure
+pub config::credentials::CredentialError::LocalPermsInsecure::mode: u32
+pub config::credentials::CredentialError::LocalPermsInsecure::path: std::path::PathBuf
+pub config::credentials::CredentialError::MalformedToken
+pub config::credentials::CredentialError::MalformedToken::key: alloc::string::String
+pub config::credentials::CredentialError::NoToken
+pub config::credentials::CredentialError::NoToken::key: alloc::string::String
+pub config::credentials::CredentialError::TokenCmdFailed
+pub config::credentials::CredentialError::TokenCmdFailed::detail: alloc::string::String
+pub config::credentials::CredentialError::TokenCmdFailed::key: alloc::string::String
+pub config::credentials::CredentialError::TokenCmdFromSharedConfig
+pub config::credentials::CredentialError::TokenCmdFromSharedConfig::key: alloc::string::String
+pub config::credentials::CredentialError::TokenCmdFromTrackedFile
+pub config::credentials::CredentialError::TokenCmdFromTrackedFile::key: alloc::string::String
+pub config::credentials::CredentialError::TokenCmdFromTrackedFile::path: std::path::PathBuf
+pub config::credentials::CredentialError::TokenCmdTimedOut
+pub config::credentials::CredentialError::TokenCmdTimedOut::after: core::time::Duration
+pub config::credentials::CredentialError::TokenCmdTimedOut::key: alloc::string::String
+pub config::credentials::CredentialError::TokenFromTrackedFile
+pub config::credentials::CredentialError::TokenFromTrackedFile::key: alloc::string::String
+pub config::credentials::CredentialError::TokenFromTrackedFile::path: std::path::PathBuf
+impl core::clone::Clone for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::clone(&self) -> config::credentials::CredentialError
+impl core::cmp::Eq for config::credentials::CredentialError
+impl core::cmp::PartialEq for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::eq(&self, other: &config::credentials::CredentialError) -> bool
+impl core::error::Error for config::credentials::CredentialError
+impl core::fmt::Debug for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::credentials::CredentialError
+pub fn config::credentials::CredentialError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::CredentialError
+pub enum config::credentials::FileState
+pub config::credentials::FileState::Absent
+pub config::credentials::FileState::File
+pub config::credentials::FileState::File::mode: u32
+pub config::credentials::FileState::Other
+pub config::credentials::FileState::Symlink
+impl core::clone::Clone for config::credentials::FileState
+pub fn config::credentials::FileState::clone(&self) -> config::credentials::FileState
+impl core::cmp::Eq for config::credentials::FileState
+impl core::cmp::PartialEq for config::credentials::FileState
+pub fn config::credentials::FileState::eq(&self, other: &config::credentials::FileState) -> bool
+impl core::fmt::Debug for config::credentials::FileState
+pub fn config::credentials::FileState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::credentials::FileState
+impl core::marker::StructuralPartialEq for config::credentials::FileState
+pub enum config::credentials::TokenCommandFailure
+pub config::credentials::TokenCommandFailure::CouldNotRun(alloc::string::String)
+pub config::credentials::TokenCommandFailure::Failed(alloc::string::String)
+pub config::credentials::TokenCommandFailure::TimedOut
+impl core::clone::Clone for config::credentials::TokenCommandFailure
+pub fn config::credentials::TokenCommandFailure::clone(&self) -> config::credentials::TokenCommandFailure
+impl core::cmp::Eq for config::credentials::TokenCommandFailure
+impl core::cmp::PartialEq for config::credentials::TokenCommandFailure
+pub fn config::credentials::TokenCommandFailure::eq(&self, other: &config::credentials::TokenCommandFailure) -> bool
+impl core::fmt::Debug for config::credentials::TokenCommandFailure
+pub fn config::credentials::TokenCommandFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::TokenCommandFailure
+pub enum config::credentials::TokenSource
+pub config::credentials::TokenSource::Env
+pub config::credentials::TokenSource::EnvCommand
+pub config::credentials::TokenSource::Personal
+pub config::credentials::TokenSource::PersonalCommand
+pub config::credentials::TokenSource::Shared
+impl core::clone::Clone for config::credentials::TokenSource
+pub fn config::credentials::TokenSource::clone(&self) -> config::credentials::TokenSource
+impl core::cmp::Eq for config::credentials::TokenSource
+impl core::cmp::PartialEq for config::credentials::TokenSource
+pub fn config::credentials::TokenSource::eq(&self, other: &config::credentials::TokenSource) -> bool
+impl core::fmt::Debug for config::credentials::TokenSource
+pub fn config::credentials::TokenSource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::credentials::TokenSource
+impl core::marker::StructuralPartialEq for config::credentials::TokenSource
+pub struct config::credentials::CommandPolicy
+pub config::credentials::CommandPolicy::max_output_bytes: usize
+pub config::credentials::CommandPolicy::timeout: core::time::Duration
+pub config::credentials::CommandPolicy::working_directory: std::path::PathBuf
+impl config::credentials::CommandPolicy
+pub const config::credentials::CommandPolicy::DEFAULT_TIMEOUT: core::time::Duration
+pub const fn config::credentials::CommandPolicy::rooted_at(working_directory: std::path::PathBuf) -> Self
+impl core::clone::Clone for config::credentials::CommandPolicy
+pub fn config::credentials::CommandPolicy::clone(&self) -> config::credentials::CommandPolicy
+impl core::cmp::Eq for config::credentials::CommandPolicy
+impl core::cmp::PartialEq for config::credentials::CommandPolicy
+pub fn config::credentials::CommandPolicy::eq(&self, other: &config::credentials::CommandPolicy) -> bool
+impl core::fmt::Debug for config::credentials::CommandPolicy
+pub fn config::credentials::CommandPolicy::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::CommandPolicy
+pub struct config::credentials::CredentialContext<'a>
+pub config::credentials::CredentialContext::command: config::credentials::CommandPolicy
+pub config::credentials::CredentialContext::commands: &'a dyn config::credentials::TokenCommandRunner
+pub config::credentials::CredentialContext::config: &'a dyn config::service::ConfigAccess
+pub config::credentials::CredentialContext::environment: &'a dyn config::credentials::Environment
+pub config::credentials::CredentialContext::files: &'a dyn config::credentials::FileFacts
+pub config::credentials::CredentialContext::insecure_marker: std::path::PathBuf
+pub config::credentials::CredentialContext::personal_config: std::path::PathBuf
+pub config::credentials::CredentialContext::provenance: &'a dyn config::credentials::Provenance
+pub struct config::credentials::ResolvedToken
+pub config::credentials::ResolvedToken::source: config::credentials::TokenSource
+pub config::credentials::ResolvedToken::value: config::credentials::Secret
+impl core::clone::Clone for config::credentials::ResolvedToken
+pub fn config::credentials::ResolvedToken::clone(&self) -> config::credentials::ResolvedToken
+impl core::cmp::Eq for config::credentials::ResolvedToken
+impl core::cmp::PartialEq for config::credentials::ResolvedToken
+pub fn config::credentials::ResolvedToken::eq(&self, other: &config::credentials::ResolvedToken) -> bool
+impl core::fmt::Debug for config::credentials::ResolvedToken
+pub fn config::credentials::ResolvedToken::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::ResolvedToken
+pub struct config::credentials::Secret(_)
+impl config::credentials::Secret
+pub fn config::credentials::Secret::expose(&self) -> &str
+pub const fn config::credentials::Secret::new(value: alloc::string::String) -> Self
+impl core::clone::Clone for config::credentials::Secret
+pub fn config::credentials::Secret::clone(&self) -> config::credentials::Secret
+impl core::cmp::Eq for config::credentials::Secret
+impl core::cmp::PartialEq for config::credentials::Secret
+pub fn config::credentials::Secret::eq(&self, other: &config::credentials::Secret) -> bool
+impl core::fmt::Debug for config::credentials::Secret
+pub fn config::credentials::Secret::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::Secret
+pub struct config::credentials::TokenKeys
+pub config::credentials::TokenKeys::command: config::key::Key
+pub config::credentials::TokenKeys::env: &'static str
+pub config::credentials::TokenKeys::env_command: &'static str
+pub config::credentials::TokenKeys::value: config::key::Key
+impl core::clone::Clone for config::credentials::TokenKeys
+pub fn config::credentials::TokenKeys::clone(&self) -> config::credentials::TokenKeys
+impl core::cmp::Eq for config::credentials::TokenKeys
+impl core::cmp::PartialEq for config::credentials::TokenKeys
+pub fn config::credentials::TokenKeys::eq(&self, other: &config::credentials::TokenKeys) -> bool
+impl core::fmt::Debug for config::credentials::TokenKeys
+pub fn config::credentials::TokenKeys::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::credentials::TokenKeys
+pub const config::credentials::INSECURE_MARKER_RELATIVE: &str
+pub trait config::credentials::Environment
+pub fn config::credentials::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>
+pub trait config::credentials::FileFacts
+pub fn config::credentials::FileFacts::inspect(&self, path: &std::path::Path) -> core::result::Result<config::credentials::FileState, alloc::string::String>
+pub trait config::credentials::Provenance
+pub fn config::credentials::Provenance::is_tracked(&self, path: &std::path::Path) -> bool
+pub trait config::credentials::TokenCommandRunner
+pub fn config::credentials::TokenCommandRunner::run(&self, command: &str, policy: &config::credentials::CommandPolicy) -> core::result::Result<alloc::string::String, config::credentials::TokenCommandFailure>
+pub fn config::credentials::refuse_tracked_source(provenance: &dyn config::credentials::Provenance, path: &std::path::Path, key: &str) -> core::result::Result<(), config::credentials::CredentialError>
+pub fn config::credentials::resolve_token(context: &config::credentials::CredentialContext<'_>, keys: &config::credentials::TokenKeys) -> core::result::Result<config::credentials::ResolvedToken, config::credentials::CredentialError>
 pub mod config::error
 #[non_exhaustive] pub enum config::error::ConfigError
 pub config::error::ConfigError::Invalid

@@ -8,6 +8,7 @@ mod support;
 
 use std::time::Duration;
 
+use config::credentials::{Secret, TokenSource};
 use http_test_support::{MockServer, RequestKey, Route};
 use linear_client::transport::Transport;
 use linear_client::{ClientError, Credentials};
@@ -15,7 +16,7 @@ use reqwest::Url;
 use serde_json::json;
 use serde_json::Value;
 use support::{NoJitter, RecordingSleeper};
-use tracker_support::{Secret, TokenSource, TransportConfig};
+use tracker_support::TransportConfig;
 
 const GRAPHQL: &str = "/graphql";
 const QUERY: &str = "query { viewer { id } }";

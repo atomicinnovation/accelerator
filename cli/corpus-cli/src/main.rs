@@ -18,6 +18,7 @@ use clap::Parser as _;
 use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::frontmatter_validation::Checks;
+use corpus_adapters::resolve::Resolution;
 use corpus_adapters::RealFs;
 
 use crate::cli::AdrAction;
@@ -151,11 +152,11 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
         Err(error) => return report(&error),
     };
     match resolve::run(&cwd, &composed, doc_type, slug) {
-        resolve::RunOutcome::Resolved(path) => {
+        Resolution::Resolved(path) => {
             println!("{}", path.display());
             ExitCode::from(exit_codes::RESOLVED)
         }
-        resolve::RunOutcome::Ambiguous(candidates) => {
+        Resolution::Ambiguous(candidates) => {
             eprintln!(
                 "E_RESOLVE_AMBIGUOUS: multiple '{doc_type}' documents match \
                  '{slug}':"
@@ -169,19 +170,19 @@ fn run_resolve(doc_type: &str, slug: &str) -> ExitCode {
             }
             ExitCode::from(exit_codes::AMBIGUOUS)
         }
-        resolve::RunOutcome::NotFound(message) => {
+        Resolution::NotFound(message) => {
             eprintln!("E_RESOLVE_NOT_FOUND: {message}");
             ExitCode::from(exit_codes::NOT_FOUND)
         }
-        resolve::RunOutcome::Invalid(message) => {
+        Resolution::Invalid(message) => {
             eprintln!("E_RESOLVE_INVALID: {message}");
             ExitCode::from(exit_codes::INVALID)
         }
-        resolve::RunOutcome::UnknownType(message) => {
+        Resolution::UnknownType(message) => {
             eprintln!("E_RESOLVE_UNKNOWN_TYPE: {message}");
             ExitCode::from(exit_codes::UNKNOWN_TYPE)
         }
-        resolve::RunOutcome::OutsideRoot(message) => {
+        Resolution::OutsideRoot(message) => {
             eprintln!("E_RESOLVE_OUTSIDE_ROOT: {message}");
             ExitCode::from(exit_codes::OUTSIDE_ROOT)
         }

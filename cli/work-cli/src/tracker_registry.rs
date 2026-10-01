@@ -3,17 +3,15 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use config::credentials::CommandPolicy;
+use config::credentials::Provenance;
 use config::ConfigAccess;
+use config_adapters::credentials::project_credential_context;
+use config_adapters::credentials::CredentialPorts;
 use jira_client::JiraClient;
 use linear_client::LinearClient;
 use tracker::RemoteTracker;
-use tracker_support::CommandPolicy;
-use tracker_support::CredentialContext;
-use tracker_support::Environment;
-use tracker_support::Provenance;
-use tracker_support::SystemEnvironment;
 use tracker_support::TransportConfig;
-use tracker_support::INSECURE_MARKER_RELATIVE;
 use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs_adapters::library::InProcessProbe;
@@ -111,23 +109,6 @@ impl Provenance for VcsProvenance {
     }
 }
 
-/// Everything the credential ladder reads, assembled from the repository root.
-fn credential_context<'a>(
-    config: &'a dyn ConfigAccess,
-    environment: &'a dyn Environment,
-    provenance: &'a dyn Provenance,
-    root: &Path,
-) -> CredentialContext<'a> {
-    CredentialContext {
-        environment,
-        config,
-        provenance,
-        personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(INSECURE_MARKER_RELATIVE),
-        command: CommandPolicy::rooted_at(root.to_path_buf()),
-    }
-}
-
 /// The production registry. `jira` and `linear` resolve real clients from
 /// configuration; `trello` and `github-issues` report not-available; everything
 /// else falls to `Unrecognised`.
@@ -190,13 +171,14 @@ impl TrackerRegistry for ConfiguredTrackers<'_> {
         &self,
         name: &str,
     ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
-        let environment = SystemEnvironment;
-        let provenance = VcsProvenance::discovered(self.root.clone());
-        let context = credential_context(
-            self.config,
-            &environment,
-            &provenance,
+        let ports = CredentialPorts::system(Box::new(
+            VcsProvenance::discovered(self.root.clone()),
+        ));
+        let context = project_credential_context(
             &self.root,
+            &ports,
+            self.config,
+            CommandPolicy::DEFAULT_TIMEOUT,
         );
         match name {
             "" => Err(SelectionError::Unset),

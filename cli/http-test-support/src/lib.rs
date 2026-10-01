@@ -19,7 +19,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// The status returned for a request matching no registered route, chosen
 /// outside the range any route registers so a mis-keyed registration fails
@@ -96,8 +96,9 @@ impl RequestKey {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct Received {
+    arrived: Instant,
     query: Option<String>,
     headers: HashMap<String, String>,
     body: Vec<u8>,
@@ -161,6 +162,21 @@ impl MockServer {
             .expect("records")
             .get(key)
             .map_or(0, |record| record.hits)
+    }
+
+    /// When each request matching `key` arrived, in arrival order — the
+    /// spacing a paced client's tests assert on.
+    #[must_use]
+    pub fn hit_instants(&self, key: &RequestKey) -> Vec<Instant> {
+        self.shared
+            .records
+            .lock()
+            .expect("records")
+            .get(key)
+            .map(|record| {
+                record.all.iter().map(|received| received.arrived).collect()
+            })
+            .unwrap_or_default()
     }
 
     /// The body of the most recent request matching `key`, or `None` if no
@@ -319,6 +335,7 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
         let mut records = shared.records.lock().expect("records");
         let record = records.entry(key.clone()).or_default();
         record.all.push(Received {
+            arrived: Instant::now(),
             query,
             headers,
             body,

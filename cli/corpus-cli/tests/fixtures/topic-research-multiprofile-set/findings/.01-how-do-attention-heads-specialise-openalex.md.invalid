@@ -1,0 +1,29 @@
+---
+type: "topic-research"
+id: "01-how-do-attention-heads-specialise-openalex"
+title: "Finding: How do attention heads specialise?"
+date: "2026-09-24T00:00:00+00:00"
+author: "Fixture Author"
+producer: "research-topic"
+status: "draft"
+kind: "finding"
+round: 1
+question: "How do attention heads specialise?"
+source_profile: "openalex"
+tags: ["research", "topic-research", "finding"]
+last_updated: "2026-09-24T00:00:00+00:00"
+last_updated_by: "Fixture Author"
+schema_version: 1
+---
+
+# Finding: How do attention heads specialise?
+
+## Question
+How do attention heads specialise?
+
+## Findings
+This finding failed validation with a non-terminal status and was
+quarantined aside, so its pair is researched again.
+
+## Sources
+- [Example Retracted Study](https://doi.org/10.0000/example) — tier-3 (retracted) — Example Journal

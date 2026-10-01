@@ -78,6 +78,7 @@ pub enum ResolutionError {
     },
     CorruptCacheAndRefetchFailed {
         asset: String,
+        cached: PathBuf,
         detail: String,
     },
     Cache {
@@ -146,11 +147,23 @@ impl Display for ResolutionError {
                 "unsupported manifest schema_version {found} (supported up to \
                  {supported})"
             ),
-            Self::CorruptCacheAndRefetchFailed { asset, detail } => write!(
-                formatter,
-                "{asset}: cached copy failed verification and a clean copy \
-                 could not be re-fetched: {detail}"
-            ),
+            Self::CorruptCacheAndRefetchFailed {
+                asset,
+                cached,
+                detail,
+            } => {
+                let cached = cached.display();
+                write!(
+                    formatter,
+                    "{asset}: cached copy failed verification and a clean \
+                     copy could not be re-fetched: {detail}; delete {cached} \
+                     and {cached}.minisig so the next call fetches a verified \
+                     copy"
+                )?;
+                derive_override_var(asset).map_or(Ok(()), |variable| {
+                    write!(formatter, ", or set {variable}")
+                })
+            }
             Self::Cache { path, detail } => {
                 write!(formatter, "cache error at {}: {detail}", path.display())
             }
@@ -214,30 +227,67 @@ impl From<ResolutionError> for kernel::Error {
 /// before the separator and ignored after it or if absent.
 #[must_use]
 pub fn forwarded_fail_safe(args: &[OsString]) -> bool {
-    for arg in args {
-        if arg == "--" {
-            return false;
-        }
-        if arg == "--fail-safe" {
-            return true;
-        }
-    }
-    false
+    forwarded(args, "--fail-safe")
 }
 
-/// Whether a `kernel::Error` from resolving/exec'ing an external subcommand
-/// should be swallowed (exit 0) given the subcommand's forwarded `args`.
-///
-/// An explicit allowlist, not a `Refusal` exclusion: only `Failed`
-/// (availability-class failures) are swallowable. `kernel::Error` also has a
-/// `LogFilter` variant, unrelated to external-dispatch resolution, that an
-/// exclusion-based predicate would swallow too.
+/// Whether `--non-blocking` appears in `args` before any `--` separator,
+/// scanned as [`forwarded_fail_safe`] scans its token.
 #[must_use]
-pub fn swallow_under_fail_safe(
-    error: &kernel::Error,
-    args: &[OsString],
-) -> bool {
-    forwarded_fail_safe(args) && matches!(error, kernel::Error::Failed(_))
+pub fn forwarded_non_blocking(args: &[OsString]) -> bool {
+    forwarded(args, "--non-blocking")
+}
+
+fn forwarded(args: &[OsString], token: &str) -> bool {
+    args.iter()
+        .take_while(|arg| *arg != "--")
+        .any(|arg| arg == token)
+}
+
+/// How a failed external dispatch exits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchFailureExit {
+    /// Exit `0` with only a log diagnostic.
+    Swallowed,
+    /// Report the error on stderr and exit with this code.
+    Reported(u8),
+}
+
+/// The launcher tokens a dispatch forwarded, deciding how its failure exits.
+///
+/// `--fail-safe` swallows availability failures only. `--non-blocking`
+/// reports an integrity refusal with exit `1` rather than `2`, because a
+/// `PreToolUse` hook reads `2` as a block and a hook that cannot start must
+/// not block every tool call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DispatchFailurePolicy {
+    fail_safe: bool,
+    non_blocking: bool,
+}
+
+impl DispatchFailurePolicy {
+    #[must_use]
+    pub fn forwarded_in(args: &[OsString]) -> Self {
+        Self {
+            fail_safe: forwarded_fail_safe(args),
+            non_blocking: forwarded_non_blocking(args),
+        }
+    }
+
+    /// An explicit allowlist rather than a `Refusal` exclusion:
+    /// `kernel::Error` also has a `LogFilter` variant, unrelated to
+    /// dispatch, that an exclusion would swallow too.
+    #[must_use]
+    pub const fn exit_for(&self, error: &kernel::Error) -> DispatchFailureExit {
+        match error {
+            kernel::Error::Failed(_) if self.fail_safe => {
+                DispatchFailureExit::Swallowed
+            }
+            kernel::Error::Refusal(_) if !self.non_blocking => {
+                DispatchFailureExit::Reported(2)
+            }
+            _ => DispatchFailureExit::Reported(1),
+        }
+    }
 }
 
 /// Resolves a sub-binary name to an executable path — a driven port.
@@ -390,9 +440,10 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        consumes_trees, derive_override_var, forwarded_fail_safe, run_external,
-        swallow_under_fail_safe, tree_var, ExecBinary, ExternalCommand,
-        ResolutionError, ResolveBinary, LAUNCHER_PATH_VAR,
+        consumes_trees, derive_override_var, forwarded_fail_safe,
+        forwarded_non_blocking, run_external, tree_var, DispatchFailureExit,
+        DispatchFailurePolicy, ExecBinary, ExternalCommand, ResolutionError,
+        ResolveBinary, LAUNCHER_PATH_VAR,
     };
 
     fn command(name: &str, args: &[&str]) -> ExternalCommand {
@@ -524,6 +575,7 @@ mod tests {
             },
             ResolutionError::CorruptCacheAndRefetchFailed {
                 asset: "a".to_owned(),
+                cached: PathBuf::from("/cache/a"),
                 detail: "d".to_owned(),
             },
         ];
@@ -608,32 +660,103 @@ mod tests {
     }
 
     #[test]
-    fn swallow_under_fail_safe_swallows_failed_when_forwarded() {
-        let args = [OsString::from("--fail-safe")];
-        let error = kernel::Error::Failed("unreachable host".to_owned());
-        assert!(swallow_under_fail_safe(&error, &args));
+    fn forwarded_non_blocking_is_read_like_fail_safe() {
+        assert!(forwarded_non_blocking(&[
+            OsString::from("guard"),
+            OsString::from("--non-blocking"),
+        ]));
+        assert!(!forwarded_non_blocking(&[
+            OsString::from("guard"),
+            OsString::from("--"),
+            OsString::from("--non-blocking"),
+        ]));
+        assert!(!forwarded_non_blocking(&[OsString::from("guard")]));
+    }
+
+    fn policy(tokens: &[&str]) -> DispatchFailurePolicy {
+        let args: Vec<OsString> =
+            tokens.iter().copied().map(OsString::from).collect();
+        DispatchFailurePolicy::forwarded_in(&args)
+    }
+
+    fn unavailable() -> kernel::Error {
+        kernel::Error::Failed("unreachable host".to_owned())
+    }
+
+    fn refused() -> kernel::Error {
+        kernel::Error::Refusal("tampered binary".to_owned())
     }
 
     #[test]
-    fn swallow_under_fail_safe_never_swallows_failed_when_not_forwarded() {
-        let args = [OsString::from("detect")];
-        let error = kernel::Error::Failed("unreachable host".to_owned());
-        assert!(!swallow_under_fail_safe(&error, &args));
+    fn an_availability_failure_is_swallowed_only_under_fail_safe() {
+        let cases: [(&[&str], DispatchFailureExit); 4] = [
+            (&[], DispatchFailureExit::Reported(1)),
+            (&["--fail-safe"], DispatchFailureExit::Swallowed),
+            (&["--non-blocking"], DispatchFailureExit::Reported(1)),
+            (
+                &["--fail-safe", "--non-blocking"],
+                DispatchFailureExit::Swallowed,
+            ),
+        ];
+        for (tokens, exit) in cases {
+            assert_eq!(
+                policy(tokens).exit_for(&unavailable()),
+                exit,
+                "{tokens:?}"
+            );
+        }
     }
 
     #[test]
-    fn swallow_under_fail_safe_never_swallows_refusal() {
-        let args = [OsString::from("--fail-safe")];
-        let error = kernel::Error::Refusal("tampered binary".to_owned());
-        assert!(!swallow_under_fail_safe(&error, &args));
+    fn an_integrity_refusal_blocks_unless_non_blocking() {
+        let cases: [(&[&str], DispatchFailureExit); 4] = [
+            (&[], DispatchFailureExit::Reported(2)),
+            (&["--fail-safe"], DispatchFailureExit::Reported(2)),
+            (&["--non-blocking"], DispatchFailureExit::Reported(1)),
+            (
+                &["--fail-safe", "--non-blocking"],
+                DispatchFailureExit::Reported(1),
+            ),
+        ];
+        for (tokens, exit) in cases {
+            assert_eq!(policy(tokens).exit_for(&refused()), exit, "{tokens:?}");
+        }
     }
 
     #[test]
-    fn swallow_under_fail_safe_never_swallows_log_filter() {
-        let args = [OsString::from("--fail-safe")];
+    fn non_blocking_after_the_separator_is_ignored() {
+        assert_eq!(
+            policy(&["--fail-safe", "--", "--non-blocking"])
+                .exit_for(&refused()),
+            DispatchFailureExit::Reported(2)
+        );
+    }
+
+    #[test]
+    fn a_log_filter_error_is_never_swallowed() {
         let error =
             kernel::Error::LogFilter("bogus=level is not a level".to_owned());
-        assert!(!swallow_under_fail_safe(&error, &args));
+        assert_eq!(
+            policy(&["--fail-safe", "--non-blocking"]).exit_for(&error),
+            DispatchFailureExit::Reported(1)
+        );
+    }
+
+    #[test]
+    fn a_corrupt_cache_refusal_ends_with_its_recovery_step() {
+        let error = ResolutionError::CorruptCacheAndRefetchFailed {
+            asset: "research".to_owned(),
+            cached: PathBuf::from("/cache/research-1.0.0-abc"),
+            detail: "unreachable".to_owned(),
+        };
+        assert!(
+            error.to_string().ends_with(
+                "; delete /cache/research-1.0.0-abc and \
+                 /cache/research-1.0.0-abc.minisig so the next call fetches \
+                 a verified copy, or set ACCELERATOR_RESEARCH_BIN"
+            ),
+            "{error}"
+        );
     }
 
     #[test]

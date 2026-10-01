@@ -6,8 +6,8 @@
 //! is reproduced because codes 25, 27 and 29 are re-exited verbatim by the
 //! transport and appear in the update mapper's retryable clause.
 
+use config::credentials::CredentialError;
 use thiserror::Error;
-use tracker_support::CredentialError;
 
 #[derive(Debug, Error)]
 pub enum ClientError {

@@ -1,0 +1,79 @@
+# The research guard's verdict on each lexer-boundary command, beyond the
+# measured baseline. Same escapes as claude-bash-baseline.tsv.
+command	verdict
+accelerator research fetch $HOME	block
+accelerator research fetch "$HOME"	block
+accelerator research fetch $HOME/x	block
+accelerator research fetch $0[x]	block
+accelerator research fetch "$0[x]"	block
+accelerator research fetch $@[x]	block
+accelerator research fetch $=HOME[x]	block
+accelerator research fetch $#HOME[x]	block
+accelerator research fetch $~HOME:h	block
+accelerator research fetch < file	block
+accelerator research fetch <<< x	block
+accelerator research fetch </dev/tcp/example.org/80	block
+accelerator research fetch x<y	block
+accelerator research fetch '$HOME'	pass
+accelerator research fetch \$HOME	pass
+accelerator research fetch '<'	pass
+accelerator research fetch 'a\' b	pass
+accelerator research fetch x\;touch smuggled	pass
+accelerator research fetch \$(touch smuggled)	block
+accelerator research fetch "\"; touch smuggled"	pass
+accelerator research fetch 'unterminated	pass
+accelerator research fetch "unterminated	pass
+accelerator research fetch $'a'	block
+accelerator research fetch $"a"	block
+accelerator research fetch "`touch smuggled`"	block
+accelerator research fetch >/dev/null	pass
+accelerator research fetch > /dev/null	pass
+accelerator research fetch >>/dev/null	pass
+accelerator research fetch >/dev/nullx	block
+accelerator research fetch >|smuggled	block
+accelerator research fetch &>smuggled	block
+accelerator research fetch 2>&1	pass
+accelerator research fetch >&2	pass
+accelerator research fetch 2>&12	pass
+accelerator research fetch x#;touch smuggled	block
+accelerator research fetch x # it's⏎touch smuggled #'	block
+accelerator research fetch x #; touch smuggled	pass
+accelerator research fetch x⇥#; touch smuggled	pass
+accelerator research fetch x␍#;touch smuggled	block
+accelerator research fetch x⍽#;touch smuggled	block
+accelerator research fetch x\ #;touch smuggled	block
+accelerator research fetch 'a'#;touch smuggled	block
+accelerator research fetch x # a \⏎touch smuggled	block
+accelerator research fetch $[1+1]	block
+accelerator research fetch $[a[\`touch smuggled\`]]	block
+accelerator research fetch "$[a[\$(touch smuggled)]]"	block
+accelerator research fetch >&smuggled	block
+accelerator research fetch >&1x	block
+accelerator research fetch >&-	block
+accelerator research fetch 2>&1&touch smuggled	block
+accelerator research fetch 1>&2>smuggled	block
+accelerator research fetch <>smuggled	block
+accelerator research fetch >/dev/null"x"	block
+accelerator research fetch 2>>/dev/null	pass
+accelerator research fetch x2>/dev/null	pass
+accelerator research fetch a\⏎b	block
+accelerator research fetch "$\⏎(touch smuggled)"	block
+accelerator research fetch $\⏎'\'' ; touch smuggled #'	block
+accelerator research fetch a\␍⏎touch smuggled	block
+accelerator research fetch 'a\⏎b'	pass
+accelerator research fetch $HOME[x]	block
+accelerator research fetch "$HOME[\$(touch smuggled)]"	block
+accelerator research fetch $HOME:h	block
+accelerator research fetch "$HOME:h"	block
+accelerator research fetch https://x.org:8080/a	pass
+accelerator research fetch a⏎	pass
+accelerator research fetch >&2␍	block
+accelerator research fetch 2>&1␋	block
+accelerator research fetch 2>&12␌	block
+accelerator research fetch >/dev/null⍽	block
+accelerator research fetch a␍	pass
+accelerator research fetch a\	pass
+accelerator research fetch a # trailing comment	pass
+accelerator research fetch	block
+accelerator research fetchx a	block
+FOO=1 accelerator research fetch a	block

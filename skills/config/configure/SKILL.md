@@ -143,6 +143,7 @@ Available agents and their roles:
 | `documents-locator`       | Discovers relevant documents in meta/ directory            |
 | `documents-analyser`      | Deep-dives on research topics in documents                 |
 | `web-search-researcher`   | Researches topics via web search                           |
+| `researcher`              | Researches one `research-topic` focus area through a profile |
 
 \```yaml
 ---
@@ -161,6 +162,13 @@ Only list agents you want to override. Unlisted agents use their defaults.
 Unrecognised keys produce a warning to stderr and are ignored. Override
 values can be any agent name — the plugin does not validate values since
 the override may reference a user-defined agent outside the plugin.
+
+**Warning — `researcher` is confined.** A `PreToolUse` hook confines every
+subagent of the configured `researcher` type, wherever it is spawned: it may
+only run `accelerator research fetch` and write finding files under the
+research topics directory. Point `researcher` at a dedicated agent, never at
+one used for other work, or that work will be blocked. The agent needs
+`Bash` for the academic profiles.
 
 ### review
 
@@ -327,7 +335,7 @@ the per-round cost guard.
 
 `depth` has no behavioural effect yet — recursive deepening is not yet available.
 A resolved depth above 1 prints a notice and still conducts one researcher per
-focus area.
+(focus area, profile).
 
 Example configuration:
 
@@ -901,6 +909,66 @@ for Jira.
 Only `linear.team_id`, `linear.team_key`, `linear.token` and
 `linear.token_cmd` are recognised.
 Other `linear.*` keys are not consumed by any plugin script.
+
+### openalex
+
+Configure access to OpenAlex, the scholarly source behind
+`/accelerator:research-topic`'s `openalex` profile. A key is optional: without
+one, `accelerator research fetch openalex` runs on OpenAlex's keyless daily
+allowance, which a research round can spend quickly, and `conduct` reports the
+spent pairs with a configure-a-key next step. There are no team-shared keys.
+
+#### Personal settings (do not commit)
+
+Both key settings are personal and **must live exclusively in
+`config.local.md`**, which is gitignored:
+
+| Key           | Default | Description                                               |
+|---------------|---------|-----------------------------------------------------------|
+| `api_key`     | (empty) | Plaintext API key (discouraged — prefer `api_key_cmd`)    |
+| `api_key_cmd` | (empty) | Shell command whose stdout is the key                     |
+
+The key resolves through this chain (first non-empty wins):
+
+1. `ACCELERATOR_OPENALEX_API_KEY` env var.
+2. `ACCELERATOR_OPENALEX_API_KEY_CMD` env var (run via `bash -c`, stdout
+   trimmed).
+3. `config.local.md` `openalex.api_key`.
+4. `config.local.md` `openalex.api_key_cmd`.
+5. `config.md` `openalex.api_key` *(only when `config.local.md` does not
+   exist)*.
+
+`openalex.api_key_cmd` is **never** consumed from the team-shared `config.md`
+file: a committed command is a supply-chain command-injection sink. When the
+chain reaches `config.md` and finds one, the fetch is refused with
+`E_TOKEN_CMD_FROM_SHARED_CONFIG: openalex.api_key_cmd in config.md refused —
+move it to config.local.md`. Two further gates guard `config.local.md`:
+
+- a file looser than `0600` is refused with `E_LOCAL_PERMS_INSECURE`
+  (override with `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` plus a committed
+  `.accelerator/allow-insecure-local` marker);
+- a file tracked by version control is refused, whatever its mode, when it
+  supplies `openalex.api_key` (`E_TOKEN_FROM_TRACKED_FILE`) or
+  `openalex.api_key_cmd` (`E_TOKEN_CMD_FROM_TRACKED_FILE`); untrack it. A
+  tracked file supplying neither leaves the fetch keyless.
+
+The key command runs under the fetch's 100 s deadline. The key is sent as an
+`Authorization: Bearer` header, never in a URL, and `accelerator config dump`
+hides both settings.
+
+Example `config.local.md` (preferred form, using a password manager):
+
+\```yaml
+---
+openalex:
+  api_key_cmd: "op read op://Work/OpenAlex/api-key"
+---
+\```
+
+#### Recognised keys
+
+Only `openalex.api_key` and `openalex.api_key_cmd` are recognised. Other
+`openalex.*` keys are not consumed by any plugin script.
 
 ### templates
 

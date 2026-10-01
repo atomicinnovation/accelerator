@@ -1,0 +1,758 @@
+{
+ "id": "https://openalex.org/W2144634347",
+ "doi": null,
+ "display_name": "Molecular Cloning: A Laboratory Manual",
+ "type": "article",
+ "authorships": [
+  {
+   "author_position": "first",
+   "author": {
+    "id": "https://openalex.org/A5112152140",
+    "display_name": "Joseph Sambrook",
+    "orcid": null
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "raw_author_name": "Joseph Sambrook",
+   "raw_affiliation_strings": [],
+   "raw_orcid": null,
+   "affiliations": []
+  },
+  {
+   "author_position": "middle",
+   "author": {
+    "id": "https://openalex.org/A5047742196",
+    "display_name": "Elisabeth Fritsch",
+    "orcid": null
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "raw_author_name": "Elisabeth Fritsch",
+   "raw_affiliation_strings": [],
+   "raw_orcid": null,
+   "affiliations": []
+  },
+  {
+   "author_position": "last",
+   "author": {
+    "id": "https://openalex.org/A5091116725",
+    "display_name": "Tom Maniatis",
+    "orcid": "https://orcid.org/0000-0002-2722-8633"
+   },
+   "institutions": [],
+   "countries": [],
+   "is_corresponding": false,
+   "raw_author_name": "Tom Maniatis",
+   "raw_affiliation_strings": [],
+   "raw_orcid": "https://orcid.org/0000-0002-2722-8633",
+   "affiliations": []
+  }
+ ],
+ "primary_location": {
+  "id": "pmh:oai:bibmed.ucla.edu.ve:T070000058197/0",
+  "is_oa": false,
+  "landing_page_url": "http://bibmed.ucla.edu.ve/cgi-win/be_alex.exe?Acceso=T070000058197/0&Nombrebd=bmucla",
+  "pdf_url": null,
+  "source": {
+   "id": "https://openalex.org/S7407064131",
+   "display_name": "UCLA - Biblioteca de Ciencias de la Salud",
+   "issn_l": null,
+   "issn": null,
+   "is_oa": false,
+   "is_in_doaj": false,
+   "is_core": false,
+   "listed_in": [],
+   "host_organization": "https://openalex.org/I19325673",
+   "host_organization_name": "Universidad Centroccidental Lisandro Alvarado",
+   "host_organization_lineage": [
+    "https://openalex.org/I19325673"
+   ],
+   "host_organization_lineage_names": [],
+   "type": "repository"
+  },
+  "license": null,
+  "license_id": null,
+  "version": "submittedVersion",
+  "is_accepted": false,
+  "is_published": false,
+  "raw_source_name": null,
+  "raw_type": null
+ },
+ "is_retracted": false,
+ "abstract_inverted_index": {
+  "Molecular": [
+   0,
+   26
+  ],
+  "Cloning": [
+   1
+  ],
+  "has": [
+   2,
+   19,
+   120
+  ],
+  "served": [
+   3
+  ],
+  "as": [
+   4,
+   130,
+   212
+  ],
+  "the": [
+   5,
+   31,
+   40,
+   47,
+   64,
+   98,
+   111,
+   118,
+   131,
+   146,
+   159,
+   233,
+   245,
+   275
+  ],
+  "foundation": [
+   6
+  ],
+  "of": [
+   7,
+   53,
+   92,
+   97,
+   114,
+   163,
+   232,
+   235,
+   247,
+   253,
+   264,
+   270,
+   278
+  ],
+  "technical": [
+   8
+  ],
+  "expertise": [
+   9
+  ],
+  "in": [
+   10,
+   137
+  ],
+  "labs": [
+   11
+  ],
+  "worldwide": [
+   12
+  ],
+  "for": [
+   13,
+   63,
+   205,
+   250
+  ],
+  "30": [
+   14
+  ],
+  "years.": [
+   15
+  ],
+  "No": [
+   16
+  ],
+  "other": [
+   17,
+   84
+  ],
+  "manual": [
+   18
+  ],
+  "been": [
+   20,
+   121,
+   150
+  ],
+  "so": [
+   21,
+   24
+  ],
+  "popular,": [
+   22
+  ],
+  "or": [
+   23
+  ],
+  "influential.": [
+   25
+  ],
+  "Cloning,": [
+   27
+  ],
+  "Fourth": [
+   28
+  ],
+  "Edition,": [
+   29
+  ],
+  "by": [
+   30,
+   174,
+   238
+  ],
+  "celebrated": [
+   32
+  ],
+  "founding": [
+   33
+  ],
+  "author": [
+   34
+  ],
+  "Joe": [
+   35
+  ],
+  "Sambrook": [
+   36
+  ],
+  "and": [
+   37,
+   51,
+   56,
+   60,
+   83,
+   89,
+   135,
+   139,
+   156,
+   161,
+   168,
+   183,
+   189,
+   191,
+   195,
+   219,
+   226,
+   255,
+   257,
+   273
+  ],
+  "new": [
+   38,
+   176,
+   201
+  ],
+  "co-author,": [
+   39
+  ],
+  "distinguished": [
+   41
+  ],
+  "HHMI": [
+   42
+  ],
+  "investigator": [
+   43
+  ],
+  "Michael": [
+   44
+  ],
+  "Green,": [
+   45
+  ],
+  "preserves": [
+   46
+  ],
+  "highly": [
+   48
+  ],
+  "praised": [
+   49
+  ],
+  "detail": [
+   50
+  ],
+  "clarity": [
+   52
+  ],
+  "previous": [
+   54
+  ],
+  "editions": [
+   55
+  ],
+  "includes": [
+   57,
+   203
+  ],
+  "specific": [
+   58
+  ],
+  "chapters": [
+   59,
+   144,
+   177
+  ],
+  "protocols": [
+   61
+  ],
+  "commissioned": [
+   62
+  ],
+  "book": [
+   65
+  ],
+  "from": [
+   66,
+   145
+  ],
+  "expert": [
+   67
+  ],
+  "practitioners": [
+   68
+  ],
+  "at": [
+   69
+  ],
+  "Yale,": [
+   70
+  ],
+  "U": [
+   71
+  ],
+  "Mass,": [
+   72
+  ],
+  "Rockefeller": [
+   73
+  ],
+  "University,": [
+   74,
+   82
+  ],
+  "Texas": [
+   75
+  ],
+  "Tech,": [
+   76
+  ],
+  "Cold": [
+   77
+  ],
+  "Spring": [
+   78
+  ],
+  "Harbor": [
+   79
+  ],
+  "Laboratory,": [
+   80
+  ],
+  "Washington": [
+   81
+  ],
+  "leading": [
+   85
+  ],
+  "institutions.": [
+   86
+  ],
+  "The": [
+   87,
+   200
+  ],
+  "theoretical": [
+   88
+  ],
+  "historical": [
+   90
+  ],
+  "underpinnings": [
+   91
+  ],
+  "techniques": [
+   93,
+   225
+  ],
+  "are": [
+   94,
+   172
+  ],
+  "prominent": [
+   95
+  ],
+  "features": [
+   96
+  ],
+  "presentation": [
+   99
+  ],
+  "throughout,": [
+   100
+  ],
+  "information": [
+   101
+  ],
+  "that": [
+   102
+  ],
+  "does": [
+   103
+  ],
+  "much": [
+   104
+  ],
+  "to": [
+   105,
+   124,
+   152,
+   158
+  ],
+  "help": [
+   106
+  ],
+  "trouble-shoot": [
+   107
+  ],
+  "experimental": [
+   108
+  ],
+  "problems.": [
+   109
+  ],
+  "For": [
+   110
+  ],
+  "fourth": [
+   112,
+   276
+  ],
+  "edition": [
+   113,
+   148,
+   277
+  ],
+  "this": [
+   115
+  ],
+  "classic": [
+   116
+  ],
+  "work,": [
+   117
+  ],
+  "content": [
+   119,
+   202
+  ],
+  "entirely": [
+   122
+  ],
+  "recast": [
+   123
+  ],
+  "include": [
+   125
+  ],
+  "nucleic-acid": [
+   126
+  ],
+  "based": [
+   127
+  ],
+  "methods": [
+   128,
+   204
+  ],
+  "selected": [
+   129
+  ],
+  "most": [
+   132
+  ],
+  "widely": [
+   133
+  ],
+  "used": [
+   134
+  ],
+  "valuable": [
+   136
+  ],
+  "molecular": [
+   138
+  ],
+  "cellular": [
+   140,
+   209
+  ],
+  "biology": [
+   141
+  ],
+  "laboratories.": [
+   142
+  ],
+  "Core": [
+   143
+  ],
+  "third": [
+   147
+  ],
+  "have": [
+   149
+  ],
+  "revised": [
+   151
+  ],
+  "feature": [
+   153
+  ],
+  "current": [
+   154
+  ],
+  "strategies": [
+   155
+  ],
+  "approaches": [
+   157
+  ],
+  "preparation": [
+   160
+  ],
+  "cloning": [
+   162
+  ],
+  "nucleic": [
+   164
+  ],
+  "acids,": [
+   165
+  ],
+  "gene": [
+   166
+  ],
+  "transfer,": [
+   167
+  ],
+  "expression": [
+   169,
+   260
+  ],
+  "analysis.": [
+   170
+  ],
+  "They": [
+   171
+  ],
+  "augmented": [
+   173
+  ],
+  "12": [
+   175
+  ],
+  "which": [
+   178
+  ],
+  "show": [
+   179
+  ],
+  "how": [
+   180,
+   192
+  ],
+  "DNA,": [
+   181
+  ],
+  "RNA,": [
+   182
+  ],
+  "proteins": [
+   184,
+   256
+  ],
+  "should": [
+   185
+  ],
+  "be": [
+   186,
+   198
+  ],
+  "prepared,": [
+   187
+  ],
+  "evaluated,": [
+   188
+  ],
+  "manipulated,": [
+   190
+  ],
+  "data": [
+   193,
+   236
+  ],
+  "generation": [
+   194
+  ],
+  "analysis": [
+   196,
+   221
+  ],
+  "can": [
+   197
+  ],
+  "handled.": [
+   199
+  ],
+  "studying": [
+   206
+  ],
+  "interactions": [
+   207
+  ],
+  "between": [
+   208
+  ],
+  "components,": [
+   210
+  ],
+  "such": [
+   211
+  ],
+  "microarrays,": [
+   213
+  ],
+  "next-generation": [
+   214
+  ],
+  "sequencing": [
+   215
+  ],
+  "technologies,": [
+   216
+  ],
+  "RNA": [
+   217
+  ],
+  "interference,": [
+   218
+  ],
+  "epigenetic": [
+   220
+  ],
+  "using": [
+   222
+  ],
+  "DNA": [
+   223
+  ],
+  "methylation": [
+   224
+  ],
+  "chromatin": [
+   227
+  ],
+  "immunoprecipitation.": [
+   228
+  ],
+  "To": [
+   229
+  ],
+  "make": [
+   230
+  ],
+  "sense": [
+   231
+  ],
+  "wealth": [
+   234
+  ],
+  "produced": [
+   237
+  ],
+  "these": [
+   239
+  ],
+  "techniques,": [
+   240
+  ],
+  "a": [
+   241
+  ],
+  "bioinformatics": [
+   242
+  ],
+  "chapter": [
+   243
+  ],
+  "describes": [
+   244
+  ],
+  "use": [
+   246
+  ],
+  "analytical": [
+   248
+  ],
+  "tools": [
+   249
+  ],
+  "comparing": [
+   251
+  ],
+  "sequences": [
+   252
+  ],
+  "genes": [
+   254
+  ],
+  "identifying": [
+   258
+  ],
+  "common": [
+   259
+  ],
+  "patterns": [
+   261
+  ],
+  "among": [
+   262
+  ],
+  "sets": [
+   263
+  ],
+  "genes.": [
+   265
+  ],
+  "Building": [
+   266
+  ],
+  "on": [
+   267
+  ],
+  "thirty": [
+   268
+  ],
+  "years": [
+   269
+  ],
+  "trust,": [
+   271
+  ],
+  "reliability,": [
+   272
+  ],
+  "authority,": [
+   274
+  ],
+  "Mol": [
+   279
+  ]
+ }
+}

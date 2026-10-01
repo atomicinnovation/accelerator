@@ -373,7 +373,9 @@ mod tests {
     use std::ffi::OsString;
     use std::time::Duration;
 
-    use crate::launch::core::{swallow_under_fail_safe, ResolutionError};
+    use crate::launch::core::{
+        DispatchFailureExit, DispatchFailurePolicy, ResolutionError,
+    };
 
     use super::{Discrepancy, EnsureCause, ErrorClass, TreeError, TreeReport};
 
@@ -558,7 +560,9 @@ mod tests {
         for (error, class) in one_of_each() {
             let kernel_error =
                 kernel::Error::from(ResolutionError::Tree(error));
-            let swallowed = swallow_under_fail_safe(&kernel_error, &args);
+            let swallowed = DispatchFailurePolicy::forwarded_in(&args)
+                .exit_for(&kernel_error)
+                == DispatchFailureExit::Swallowed;
             assert_eq!(
                 swallowed,
                 class == ErrorClass::Failed,

@@ -14,6 +14,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use config::credentials::Secret;
+use config::credentials::TokenSource;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
@@ -33,9 +35,7 @@ use reqwest::Url;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use tracker_support::Jitter;
-use tracker_support::Secret;
 use tracker_support::Sleeper;
-use tracker_support::TokenSource;
 use tracker_support::TransportConfig;
 use work::sync::Dirtiness;
 use work::sync::Resolution;

@@ -45,11 +45,7 @@ pub fn assemble(
     })
 }
 
-/// Resolves a single `agents.<name>` to its config override.
-///
-/// An explicit-empty value coalesces to the prefixed default, as does any name
-/// with no config override — including one outside `AGENT_KEYS`, which carries
-/// no catalogue default.
+/// Resolves a single `agents.<name>` through [`catalogue::agent_name`].
 ///
 /// # Errors
 ///
@@ -59,13 +55,8 @@ pub fn resolve(
     config: &dyn ConfigAccess,
     name: &str,
 ) -> Result<ScalarView, ConfigError> {
-    let key = Key::parse(&format!("agents.{name}"))?;
-    let value = config
-        .effective_nonempty(&key, None)?
-        .configured_value()
-        .unwrap_or_else(|| format!("{}{name}", catalogue::AGENT_PREFIX));
     Ok(ScalarView {
-        value,
+        value: catalogue::agent_name(config, name)?,
         warnings: Vec::new(),
     })
 }

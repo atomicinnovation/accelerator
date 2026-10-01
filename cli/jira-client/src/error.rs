@@ -1,14 +1,14 @@
 //! The client's error taxonomy, and how it converts outward.
 //!
 //! Four error types are in play across the three layers:
-//! `tracker_support::CredentialError`, this crate's [`ClientError`], the
+//! `config::credentials::CredentialError`, this crate's [`ClientError`], the
 //! port's `tracker::TrackerError`, and the composition root's
 //! `SelectionError`. [`ClientError`] deliberately keeps its structure rather
 //! than flattening into a string, so a caller can still tell a missing site
 //! from a failed credential helper from a shared-config refusal.
 
+use config::credentials::CredentialError;
 use thiserror::Error;
-use tracker_support::CredentialError;
 
 #[derive(Debug, Error)]
 pub enum ClientError {

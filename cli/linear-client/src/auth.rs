@@ -12,13 +12,13 @@
 
 use std::path::Path;
 
+use config::credentials::CredentialContext;
+use config::credentials::Secret;
+use config::credentials::TokenKeys;
+use config::credentials::TokenSource;
 use config::ConfigAccess;
 use config::Key;
 use config::Resolved;
-use tracker_support::CredentialContext;
-use tracker_support::Secret;
-use tracker_support::TokenKeys;
-use tracker_support::TokenSource;
 
 use crate::error::ClientError;
 
@@ -63,7 +63,7 @@ pub fn resolve_credentials(
     context: &CredentialContext<'_>,
     integrations_root: &Path,
 ) -> Result<Credentials, ClientError> {
-    let resolved = tracker_support::resolve_token(context, &token_keys()?)?;
+    let resolved = config::credentials::resolve_token(context, &token_keys()?)?;
     validate_token(resolved.value.expose())?;
     let (team_id, _) = resolve_team(context.config, integrations_root)?;
     Ok(Credentials {

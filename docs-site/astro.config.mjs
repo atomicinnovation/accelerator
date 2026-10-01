@@ -125,6 +125,7 @@ export default defineConfig({
             'reference/meta-directory',
             'internals',
             'corpus',
+            'research',
           ],
         },
       ],

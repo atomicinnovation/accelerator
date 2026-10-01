@@ -19,31 +19,32 @@
 //! - a `token_cmd` in the shared config is **refused** rather than warned
 //!   about and skipped — a silently-ignored credential source is worse than
 //!   a loud one
-//! - a `token_cmd` whose provenance file is VCS-tracked is refused: a
-//!   repository-relative `config.local.md` can simply be committed, and
-//!   `.gitignore` does not apply to an already-tracked file, so a hostile
-//!   repository could otherwise supply a command a fresh clone executes
+//! - a personal `token` or `token_cmd` whose provenance file is VCS-tracked
+//!   is refused: a repository-relative `config.local.md` can be committed,
+//!   and `.gitignore` does not apply to an already-tracked file, so
+//!   a hostile repository could otherwise supply a command a fresh clone
+//!   executes, and a committed value is a leaked credential
 //! - the helper runs under a wall-clock timeout, an output cap, a scrubbed
 //!   environment and a defined working directory, so the one deliberately
 //!   executed foreign code path is no more privileged than it needs to be
 //! - its output is never folded into an error, and [`Secret`] and
 //!   [`CredentialError`] both redact under `Debug`
+//!
+//! The ladder is pure policy: the environment, the filesystem facts, the VCS
+//! provenance, and the helper run all arrive through ports, whose production
+//! adapters live in `config-adapters`.
 
 use std::error::Error;
-use std::ffi::OsString;
 use std::fmt;
-use std::io::Read as _;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
 use std::time::Duration;
-use std::time::Instant;
 
-use config::ConfigAccess;
-use config::Key;
-use config::Level;
-use config::Resolved;
+use crate::render::render_value;
+use crate::service::ConfigAccess;
+use crate::service::Resolved;
+use crate::Key;
+use crate::Level;
 
 /// A credential value that never renders itself.
 #[derive(Clone, PartialEq, Eq)]
@@ -98,15 +99,6 @@ pub trait Environment {
     fn read(&self, name: &str) -> Option<String>;
 }
 
-/// The production environment.
-pub struct SystemEnvironment;
-
-impl Environment for SystemEnvironment {
-    fn read(&self, name: &str) -> Option<String> {
-        std::env::var(name).ok()
-    }
-}
-
 /// Whether a file is tracked by the repository's VCS — the property that
 /// decides whether a command-valued or allowlist-valued key may be honoured.
 pub trait Provenance {
@@ -122,14 +114,60 @@ pub struct CommandPolicy {
 }
 
 impl CommandPolicy {
+    pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
     #[must_use]
     pub const fn rooted_at(working_directory: PathBuf) -> Self {
         Self {
-            timeout: Duration::from_secs(30),
+            timeout: Self::DEFAULT_TIMEOUT,
             max_output_bytes: 64 * 1024,
             working_directory,
         }
     }
+}
+
+/// What a path is, as the permissions gate needs to know it.
+///
+/// A dangling symlink is [`FileState::Absent`]: the ladder treats a personal
+/// config that cannot be opened as one that does not exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileState {
+    Absent,
+    Symlink,
+    File { mode: u32 },
+    Other,
+}
+
+/// Filesystem facts, injected so the ladder names no filesystem.
+pub trait FileFacts {
+    /// # Errors
+    ///
+    /// A rendered reason when the path's facts cannot be read.
+    fn inspect(&self, path: &Path) -> Result<FileState, String>;
+}
+
+/// Why a credential helper produced no token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenCommandFailure {
+    CouldNotRun(String),
+    Failed(String),
+    TimedOut,
+}
+
+/// Runs a credential helper, injected so the ladder spawns no process.
+///
+/// The helper's stdout never reaches a failure: only the trailing newline is
+/// trimmed from what it printed.
+pub trait TokenCommandRunner {
+    /// # Errors
+    ///
+    /// [`TokenCommandFailure`] when the helper cannot run, fails, or outlives
+    /// the policy's timeout.
+    fn run(
+        &self,
+        command: &str,
+        policy: &CommandPolicy,
+    ) -> Result<String, TokenCommandFailure>;
 }
 
 /// Repo-relative path of the insecure-local override marker.
@@ -140,6 +178,8 @@ pub struct CredentialContext<'a> {
     pub environment: &'a dyn Environment,
     pub config: &'a dyn ConfigAccess,
     pub provenance: &'a dyn Provenance,
+    pub files: &'a dyn FileFacts,
+    pub commands: &'a dyn TokenCommandRunner,
     pub personal_config: PathBuf,
     pub insecure_marker: PathBuf,
     pub command: CommandPolicy,
@@ -156,6 +196,7 @@ pub enum CredentialError {
     TokenCmdTimedOut { key: String, after: Duration },
     TokenCmdFromSharedConfig { key: String },
     TokenCmdFromTrackedFile { key: String, path: PathBuf },
+    TokenFromTrackedFile { key: String, path: PathBuf },
     LocalPermsInsecure { path: PathBuf, mode: u32 },
     MalformedToken { key: String },
     ConfigUnreadable { key: String, detail: String },
@@ -170,23 +211,30 @@ impl fmt::Display for CredentialError {
                  in .accelerator/config.local.md"
             ),
             Self::TokenCmdFailed { key, detail } => {
-                write!(formatter, "E_TOKEN_CMD_FAILED: {key}_cmd {detail}")
+                write!(formatter, "E_TOKEN_CMD_FAILED: {key} {detail}")
             }
             Self::TokenCmdTimedOut { key, after } => write!(
                 formatter,
-                "E_TOKEN_CMD_FAILED: {key}_cmd did not finish within {}s",
+                "E_TOKEN_CMD_FAILED: {key} did not finish within {}s",
                 after.as_secs()
             ),
             Self::TokenCmdFromSharedConfig { key } => write!(
                 formatter,
-                "E_TOKEN_CMD_FROM_SHARED_CONFIG: {key}_cmd in config.md \
+                "E_TOKEN_CMD_FROM_SHARED_CONFIG: {key} in config.md \
                  refused — move it to config.local.md"
             ),
             Self::TokenCmdFromTrackedFile { key, path } => write!(
                 formatter,
-                "E_TOKEN_CMD_FROM_TRACKED_FILE: {key}_cmd comes from {}, \
+                "E_TOKEN_CMD_FROM_TRACKED_FILE: {key} comes from {}, \
                  which is tracked by version control — a command a clone \
                  would run is refused",
+                path.display()
+            ),
+            Self::TokenFromTrackedFile { key, path } => write!(
+                formatter,
+                "E_TOKEN_FROM_TRACKED_FILE: {key} in {} refused — the file \
+                 is tracked by version control, so every clone carries the \
+                 credential; untrack it",
                 path.display()
             ),
             Self::LocalPermsInsecure { path, mode } => write!(
@@ -223,6 +271,9 @@ impl fmt::Debug for CredentialError {
             Self::TokenCmdFromTrackedFile { key, .. } => {
                 ("TokenCmdFromTrackedFile", key.as_str())
             }
+            Self::TokenFromTrackedFile { key, .. } => {
+                ("TokenFromTrackedFile", key.as_str())
+            }
             Self::LocalPermsInsecure { .. } => ("LocalPermsInsecure", ""),
             Self::MalformedToken { key } => ("MalformedToken", key.as_str()),
             Self::ConfigUnreadable { key, .. } => {
@@ -250,20 +301,16 @@ pub fn resolve_token(
 
     if let Some(command) = nonempty(context.environment.read(keys.env_command))
     {
-        let value = run_token_command(
-            &command,
-            &context.command,
-            &key_name(&keys.command),
-        )?;
+        let value =
+            run_token_command(context, &command, &key_name(&keys.command))?;
         return accept(value, TokenSource::EnvCommand, &key_name(&keys.value));
     }
 
-    if context.personal_config.exists() {
-        refuse_insecure_personal_config(context)?;
-
+    if personal_config_exists(context)? {
         if let Some(value) =
             level_value(context.config, &keys.value, Level::Personal)?
         {
+            refuse_tracked_value(context, &key_name(&keys.value))?;
             return accept(
                 value,
                 TokenSource::Personal,
@@ -279,11 +326,8 @@ pub fn resolve_token(
                 &context.personal_config,
                 &key_name(&keys.command),
             )?;
-            let value = run_token_command(
-                &command,
-                &context.command,
-                &key_name(&keys.command),
-            )?;
+            let value =
+                run_token_command(context, &command, &key_name(&keys.command))?;
             return accept(
                 value,
                 TokenSource::PersonalCommand,
@@ -334,6 +378,19 @@ pub fn refuse_tracked_source(
     Ok(())
 }
 
+fn refuse_tracked_value(
+    context: &CredentialContext<'_>,
+    key: &str,
+) -> Result<(), CredentialError> {
+    if context.provenance.is_tracked(&context.personal_config) {
+        return Err(CredentialError::TokenFromTrackedFile {
+            key: key.to_owned(),
+            path: context.personal_config.clone(),
+        });
+    }
+    Ok(())
+}
+
 fn accept(
     value: String,
     source: TokenSource,
@@ -370,53 +427,42 @@ fn level_value(
         }
     })?;
     Ok(match resolved {
-        Resolved::Found(value) => nonempty(Some(config::render_value(&value))),
+        Resolved::Found(value) => nonempty(Some(render_value(&value))),
         Resolved::Absent => None,
     })
 }
 
-/// The mode-0600 gate on the personal config file, with an override:
-/// `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
+/// Whether the personal config exists, behind the mode-0600 gate, with an
+/// override: `ACCELERATOR_ALLOW_INSECURE_LOCAL=1` counts only when
 /// `.accelerator/allow-insecure-local` is a regular, non-symlink, VCS-tracked
 /// file.
-fn refuse_insecure_personal_config(
+fn personal_config_exists(
     context: &CredentialContext<'_>,
-) -> Result<(), CredentialError> {
+) -> Result<bool, CredentialError> {
     let path = &context.personal_config;
-    let facts = std::fs::symlink_metadata(path).map_err(|error| {
+    let state = context.files.inspect(path).map_err(|detail| {
         CredentialError::ConfigUnreadable {
             key: path.display().to_string(),
-            detail: error.to_string(),
+            detail,
         }
     })?;
-    if facts.file_type().is_symlink() {
-        return Err(CredentialError::LocalPermsInsecure {
-            path: path.clone(),
-            mode: 0,
-        });
-    }
-    let mode = file_mode(&facts);
-    if mode.trailing_zeros() >= 6 {
-        return Ok(());
-    }
-    if insecure_override_allowed(context) {
-        return Ok(());
+    let mode = match state {
+        FileState::Absent => return Ok(false),
+        FileState::Symlink | FileState::Other => {
+            return Err(CredentialError::LocalPermsInsecure {
+                path: path.clone(),
+                mode: 0,
+            })
+        }
+        FileState::File { mode } => mode,
+    };
+    if mode.trailing_zeros() >= 6 || insecure_override_allowed(context) {
+        return Ok(true);
     }
     Err(CredentialError::LocalPermsInsecure {
         path: path.clone(),
         mode,
     })
-}
-
-#[cfg(unix)]
-fn file_mode(facts: &std::fs::Metadata) -> u32 {
-    use std::os::unix::fs::MetadataExt as _;
-    facts.mode() & 0o7777
-}
-
-#[cfg(not(unix))]
-const fn file_mode(_facts: &std::fs::Metadata) -> u32 {
-    0o600
 }
 
 fn insecure_override_allowed(context: &CredentialContext<'_>) -> bool {
@@ -426,94 +472,36 @@ fn insecure_override_allowed(context: &CredentialContext<'_>) -> bool {
         return false;
     }
     let marker = &context.insecure_marker;
-    std::fs::symlink_metadata(marker).is_ok_and(|facts| {
-        facts.file_type().is_file() && context.provenance.is_tracked(marker)
-    })
+    matches!(context.files.inspect(marker), Ok(FileState::File { .. }))
+        && context.provenance.is_tracked(marker)
 }
 
-/// Runs a credential helper under [`CommandPolicy`].
-///
-/// The helper's stdout never reaches an error, its stderr is discarded, and
-/// only the trailing newline is trimmed from what it printed.
 fn run_token_command(
+    context: &CredentialContext<'_>,
     command: &str,
-    policy: &CommandPolicy,
     key: &str,
 ) -> Result<String, CredentialError> {
-    let scrubbed: Vec<(String, OsString)> = ["PATH", "HOME", "TERM"]
-        .iter()
-        .filter_map(|name| {
-            std::env::var_os(name).map(|value| ((*name).to_owned(), value))
-        })
-        .collect();
-
-    let mut child = Command::new("bash")
-        .arg("-c")
-        .arg(command)
-        .current_dir(&policy.working_directory)
-        .env_clear()
-        .envs(scrubbed)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|error| CredentialError::TokenCmdFailed {
-            key: key.to_owned(),
-            detail: format!("could not be run: {error}"),
-        })?;
-
-    let stdout = child.stdout.take();
-    let cap = policy.max_output_bytes;
-    let reader = std::thread::spawn(move || {
-        let mut captured = Vec::new();
-        if let Some(stream) = stdout {
-            let mut bounded = stream.take(cap as u64);
-            let _ = bounded.read_to_end(&mut captured);
-        }
-        captured
-    });
-
-    let deadline = Instant::now() + policy.timeout;
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) => {
-                if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break Err(CredentialError::TokenCmdTimedOut {
-                        key: key.to_owned(),
-                        after: policy.timeout,
-                    });
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
-            Err(error) => {
-                break Err(CredentialError::TokenCmdFailed {
+    context
+        .commands
+        .run(command, &context.command)
+        .map_err(|failure| match failure {
+            TokenCommandFailure::CouldNotRun(detail) => {
+                CredentialError::TokenCmdFailed {
                     key: key.to_owned(),
-                    detail: format!("could not be awaited: {error}"),
-                })
+                    detail: format!("could not be run: {detail}"),
+                }
             }
-        }
-    };
-
-    let captured = reader.join().unwrap_or_default();
-    let status = status?;
-
-    if !status.success() {
-        return Err(CredentialError::TokenCmdFailed {
-            key: key.to_owned(),
-            detail: format!("exited with {status}"),
-        });
-    }
-
-    let printed = String::from_utf8(captured).map_err(|_| {
-        CredentialError::TokenCmdFailed {
-            key: key.to_owned(),
-            detail: "produced non-UTF-8 output".to_owned(),
-        }
-    })?;
-    Ok(printed
-        .strip_suffix('\n')
-        .map_or_else(|| printed.clone(), str::to_owned))
+            TokenCommandFailure::Failed(detail) => {
+                CredentialError::TokenCmdFailed {
+                    key: key.to_owned(),
+                    detail,
+                }
+            }
+            TokenCommandFailure::TimedOut => {
+                CredentialError::TokenCmdTimedOut {
+                    key: key.to_owned(),
+                    after: context.command.timeout,
+                }
+            }
+        })
 }

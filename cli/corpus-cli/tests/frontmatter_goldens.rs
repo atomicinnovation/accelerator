@@ -425,6 +425,14 @@ fn topic_research_quarantine_set() -> PathBuf {
         .join("tests/fixtures/topic-research-quarantine-set")
 }
 
+/// The committed multi-profile set — one focus area answered on the web with
+/// its `openalex` finding quarantined, another answered by an empty arXiv
+/// finding — so per-profile findings share their focus area's `<nn>`.
+fn topic_research_multiprofile_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-multiprofile-set")
+}
+
 /// A bare-integer frontmatter field (e.g. `round_count: 2`), or `None` when the
 /// key is absent. Matches the key with its colon, so `round:` never captures
 /// `round_count:`.
@@ -576,6 +584,52 @@ fn the_committed_topic_research_multiround_set_counts_agree_with_disk(
         finding_count, round_count,
         "the fixture must keep file count and highest round divergent so this \
          guard distinguishes a max(round) derivation from a file count"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_multiprofile_set_validates_clean(
+) -> Result<(), TestError> {
+    let set = topic_research_multiprofile_set();
+    let files = [
+        set.join("manifest.md"),
+        set.join("brief.md"),
+        set.join("outline.md"),
+        set.join("findings/01-how-do-attention-heads-specialise-web.md"),
+        set.join("findings/02-what-limits-long-context-attention-arxiv.md"),
+    ];
+    let dir = tempdir("topic-multiprofile-clean")?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let mut args = vec!["frontmatter".to_owned(), "validate".to_owned()];
+    for file in &files {
+        args.push("--file".to_owned());
+        args.push(file.to_str().ok_or("non-utf8")?.to_owned());
+    }
+    let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = run(&root, &borrowed)?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_multiprofile_set_counts_agree_with_disk(
+) -> Result<(), TestError> {
+    let set = topic_research_multiprofile_set();
+    let findings = set.join("findings");
+    let manifest = fs::read_to_string(set.join("manifest.md"))?;
+
+    assert_eq!(
+        int_field(&manifest, "round_count").ok_or("no count")?,
+        highest_round(&findings, true)?
+    );
+    assert_eq!(
+        usize::try_from(
+            int_field(&manifest, "finding_count").ok_or("no count")?
+        )?,
+        visible_finding_count(&findings)?,
+        "the quarantined openalex finding must not be counted"
     );
     Ok(())
 }

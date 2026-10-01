@@ -7,6 +7,7 @@ mod support;
 
 use std::path::Path;
 
+use config::credentials::{CredentialError, TokenSource};
 use linear_client::auth::{
     resolve_credentials, resolve_team, team_key, token_keys, validate_token,
     TeamSource,
@@ -14,7 +15,6 @@ use linear_client::auth::{
 use linear_client::ClientError;
 use support::{context, FixedConfig, FixedEnvironment, FixedProvenance};
 use tempfile::TempDir;
-use tracker_support::{CredentialError, TokenSource};
 
 const TEAM: &str = "5c9f2a1b-0000-4000-8000-000000000001";
 

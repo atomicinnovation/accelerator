@@ -6,6 +6,7 @@
 //! its closure. Those concerns live in the `config-adapters` crate.
 
 pub mod catalogue;
+pub mod credentials;
 pub mod error;
 pub mod identifier;
 pub mod key;

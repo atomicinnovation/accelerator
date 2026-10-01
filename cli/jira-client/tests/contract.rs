@@ -25,16 +25,17 @@
 
 #![allow(clippy::expect_used, clippy::panic)]
 
+use config::credentials::{CommandPolicy, CredentialContext};
+use config_adapters::credentials::{
+    BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
+};
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport;
 use jira_client::JiraClient;
 use tracker::ExternalId;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
-use tracker_support::{
-    ClockJitter, CommandPolicy, CredentialContext, SystemEnvironment,
-    SystemSleeper, TransportConfig,
-};
+use tracker_support::{ClockJitter, SystemSleeper, TransportConfig};
 use tracker_test_support::contract::{run_all, ContractSubject};
 use tracker_test_support::seed::{
     guard_target, representative_records, run_seed, ScratchAllowlist,
@@ -44,7 +45,7 @@ use tracker_test_support::seed::{
 /// provenance question arises.
 struct NothingTracked;
 
-impl tracker_support::Provenance for NothingTracked {
+impl config::credentials::Provenance for NothingTracked {
     fn is_tracked(&self, _path: &std::path::Path) -> bool {
         false
     }
@@ -101,8 +102,11 @@ fn live_client() -> LiveClient {
         environment: &environment,
         config: service.as_ref(),
         provenance: &provenance,
+        files: &SystemFileFacts,
+        commands: &BashTokenCommandRunner,
         personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root.join(tracker_support::INSECURE_MARKER_RELATIVE),
+        insecure_marker: root
+            .join(config::credentials::INSECURE_MARKER_RELATIVE),
         command: CommandPolicy::rooted_at(root.clone()),
     };
     let credentials = jira_client::resolve_credentials(&context).expect(

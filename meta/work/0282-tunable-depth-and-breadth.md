@@ -5,13 +5,13 @@ title: "Tunable Depth and Breadth"
 date: "2026-09-08T11:42:24+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
 blocks: ["work-item:0283"]
 tags: ["research", "skills", "config"]
-last_updated: "2026-09-20T21:33:00+00:00"
+last_updated: "2026-09-22T21:39:36+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-866"
@@ -20,7 +20,7 @@ external_id: "PP-866"
 # 0282: Tunable Depth and Breadth
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
@@ -144,9 +144,9 @@ output-quality gate; only 0283 carries the 0280 edge.
 - Independent of 0280 — unlike 0283, this knob does not token-multiply, so it
   does not depend on the 0280 output-quality gate. Only 0283 carries that edge.
   There is a light build-level coupling, though: 0280 (the academic-sources
-  slice) also registers a `research.*` key (`research.contact_email`) touching
-  the same key-count test, `dump.golden`, and `public-api.txt`, so whichever of
-  0282 and 0280 lands second reconciles those files for the other's key.
+  slice) also registers config keys (`openalex.api_key`,
+  `openalex.api_key_cmd`) touching the same key-count test, `dump.golden`, and
+  `public-api.txt`; 0282 landed first, so 0280 reconciles those files.
 
 ## Assumptions
 

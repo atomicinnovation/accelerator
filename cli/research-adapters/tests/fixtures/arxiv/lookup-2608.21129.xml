@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/yfqRSlwBRW4tg0m7nIytuBUII7k</id>
+  <title>arXiv Query: search_query=&amp;id_list=2608.21129&amp;start=0&amp;max_results=10</title>
+  <updated>2026-09-24T15:56:45Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=2608.21129" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2608.21129v2</id>
+    <title>Transit Searches for Habitable-Zone Exoplanets with Artificial Intelligence</title>
+    <updated>2026-08-24T04:57:13Z</updated>
+    <link href="https://arxiv.org/abs/2608.21129v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2608.21129v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Searching for Earth-sized planets in stellar habitable zones ultimately means finding a small number of very shallow, widely separated transits in noisy light curves. Around Sun-like stars, habitable-zone planets generally have long orbital periods, so a finite observing baseline may record only a few transits. At the same time, intrinsic stellar variability, instrumental systematics, and data gaps can obscure these weak events or produce transit-like brightness changes. This review examines recent progress in AI-assisted light-curve preprocessing, weak-signal searches, candidate vetting, and parameter inference, and considers the potential roles of pretraining and multimodal models. Taken together, the studies reviewed here show that AI has practical value in making large-scale light-curve analysis more efficient, recovering more signals at low signal-to-noise ratios in some injection tests, and reducing the number of targets requiring manual review. This review concludes that combining AI with physical modeling, statistical inference, and follow-up observations provides a practical route to improve both the discovery efficiency and the reliability of habitable-zone candidate studies.</summary>
+    <category term="astro-ph.EP" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="astro-ph.IM" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-08-21T14:06:59Z</published>
+    <arxiv:comment>This paper has been withdrawn by the authors for administrative reasons related to our institutional research policy</arxiv:comment>
+    <arxiv:primary_category term="astro-ph.EP"/>
+    <author>
+      <name>Qingtian Liu</name>
+    </author>
+  </entry>
+</feed>
