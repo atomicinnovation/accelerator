@@ -1,0 +1,560 @@
+{
+  "blocks": "AB",
+  "gating": true,
+  "preconditions": {
+    "violations": [],
+    "concurrent_sessions": [],
+    "accelerator_env_keys": [],
+    "dev_launcher_marker": false,
+    "plugin_root": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system",
+    "plugin_version": "1.24.0-pre.73",
+    "jj": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d",
+    "jj_pin": "0.43.0",
+    "driving_session_pid": 89991,
+    "fixture": "/tmp/accelerator-measure-07xaq9hu/fixture",
+    "fixture_depth": 4,
+    "stdin_envelope": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git status\"}}",
+    "expected_reason": "This is a pure jujutsu repository. Use jj instead of git status. Equivalent: jj status",
+    "baseline_commit": "2cfbf81e2e7b4934e868bd42c69374c335b05317",
+    "warm_cache_gaps": [],
+    "recovered_digests": {
+      "bin/vcs-guard": "3dc02b9ab1c5b6865c4f17116a558bceb383a517f2769de269366c45974ac2bb",
+      "scripts/vcs-common.sh": "e929f943726134b254a5539ccd673f3f2b154e9ed3093a60ba131e52f04a924a"
+    }
+  },
+  "quietness": {
+    "loadavg": [
+      1.00390625,
+      0.4912109375,
+      0.19482421875
+    ],
+    "cpu_count": 12,
+    "cpu_count_rung": "process-cpu-count",
+    "power": {
+      "cat": "no reading from cat /sys/class/power_supply/AC/online",
+      "head": "no reading from head -n1 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+      "grep": "no reading from grep -h  /sys/class/power_supply/BAT0/status"
+    }
+  },
+  "tools": {
+    "fast": {
+      "awk": {
+        "target": "/usr/bin/mawk",
+        "version": "mawk 1.3.4 20240123"
+      },
+      "bash": {
+        "target": "/usr/bin/bash",
+        "version": "GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)"
+      },
+      "cat": {
+        "target": "/usr/bin/cat",
+        "version": "cat (GNU coreutils) 9.4"
+      },
+      "chmod": {
+        "target": "/usr/bin/chmod",
+        "version": "chmod (GNU coreutils) 9.4"
+      },
+      "cp": {
+        "target": "/usr/bin/cp",
+        "version": "cp (GNU coreutils) 9.4"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.5.0 (aarch64-unknown-linux-gnu) libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.0 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.10"
+      },
+      "date": {
+        "target": "/usr/bin/date",
+        "version": "date (GNU coreutils) 9.4"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "dirname (GNU coreutils) 9.4"
+      },
+      "git": {
+        "target": "/usr/bin/git",
+        "version": "git version 2.43.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (GNU grep) 3.11"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "head (GNU coreutils) 9.4"
+      },
+      "jj": {
+        "target": "/home/tobyclemson.guest/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/home/tobyclemson.guest/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/usr/bin/kill",
+        "version": "kill from procps-ng 4.0.4"
+      },
+      "mkdir": {
+        "target": "/usr/bin/mkdir",
+        "version": "mkdir (GNU coreutils) 9.4"
+      },
+      "mv": {
+        "target": "/usr/bin/mv",
+        "version": "mv (GNU coreutils) 9.4"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "readlink (GNU coreutils) 9.4"
+      },
+      "realpath": {
+        "target": "/usr/bin/realpath",
+        "version": "realpath (GNU coreutils) 9.4"
+      },
+      "rm": {
+        "target": "/usr/bin/rm",
+        "version": "rm (GNU coreutils) 9.4"
+      },
+      "rmdir": {
+        "target": "/usr/bin/rmdir",
+        "version": "rmdir (GNU coreutils) 9.4"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "/tmp/accelerator-measure-07xaq9hu/farm-fast/sed (GNU sed) 4.9"
+      },
+      "sha256sum": {
+        "target": "/usr/bin/sha256sum",
+        "version": "sha256sum (GNU coreutils) 9.4"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.04"
+      },
+      "sleep": {
+        "target": "/usr/bin/sleep",
+        "version": "sleep (GNU coreutils) 9.4"
+      },
+      "timeout": {
+        "target": "/usr/bin/timeout",
+        "version": "timeout (GNU coreutils) 9.4"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "true (GNU coreutils) 9.4"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "uname (GNU coreutils) 9.4"
+      },
+      "wget": {
+        "target": "/usr/bin/wget",
+        "version": "GNU Wget 1.21.4 built on linux-gnu."
+      }
+    },
+    "fallback": {
+      "awk": {
+        "target": "/usr/bin/mawk",
+        "version": "mawk 1.3.4 20240123"
+      },
+      "bash": {
+        "target": "/usr/bin/bash",
+        "version": "GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)"
+      },
+      "cat": {
+        "target": "/usr/bin/cat",
+        "version": "cat (GNU coreutils) 9.4"
+      },
+      "chmod": {
+        "target": "/usr/bin/chmod",
+        "version": "chmod (GNU coreutils) 9.4"
+      },
+      "cp": {
+        "target": "/usr/bin/cp",
+        "version": "cp (GNU coreutils) 9.4"
+      },
+      "curl": {
+        "target": "/usr/bin/curl",
+        "version": "curl 8.5.0 (aarch64-unknown-linux-gnu) libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.0 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.10"
+      },
+      "date": {
+        "target": "/usr/bin/date",
+        "version": "date (GNU coreutils) 9.4"
+      },
+      "dirname": {
+        "target": "/usr/bin/dirname",
+        "version": "dirname (GNU coreutils) 9.4"
+      },
+      "git": {
+        "target": "/usr/bin/git",
+        "version": "git version 2.43.0"
+      },
+      "grep": {
+        "target": "/usr/bin/grep",
+        "version": "grep (GNU grep) 3.11"
+      },
+      "head": {
+        "target": "/usr/bin/head",
+        "version": "head (GNU coreutils) 9.4"
+      },
+      "jj": {
+        "target": "/home/tobyclemson.guest/.local/share/mise/installs/jj/0.43.0/jj",
+        "version": "jj 0.43.0-89f62ede8c1c611eaf134c0c49252efd65c7945d"
+      },
+      "jq": {
+        "target": "/home/tobyclemson.guest/.local/share/mise/installs/jq/1.7.1/jq",
+        "version": "jq-1.7.1"
+      },
+      "kill": {
+        "target": "/usr/bin/kill",
+        "version": "kill from procps-ng 4.0.4"
+      },
+      "mkdir": {
+        "target": "/usr/bin/mkdir",
+        "version": "mkdir (GNU coreutils) 9.4"
+      },
+      "mv": {
+        "target": "/usr/bin/mv",
+        "version": "mv (GNU coreutils) 9.4"
+      },
+      "readlink": {
+        "target": "/usr/bin/readlink",
+        "version": "readlink (GNU coreutils) 9.4"
+      },
+      "realpath": {
+        "target": "/usr/bin/realpath",
+        "version": "realpath (GNU coreutils) 9.4"
+      },
+      "rm": {
+        "target": "/usr/bin/rm",
+        "version": "rm (GNU coreutils) 9.4"
+      },
+      "rmdir": {
+        "target": "/usr/bin/rmdir",
+        "version": "rmdir (GNU coreutils) 9.4"
+      },
+      "sed": {
+        "target": "/usr/bin/sed",
+        "version": "/tmp/accelerator-measure-07xaq9hu/farm-fallback/sed (GNU sed) 4.9"
+      },
+      "shasum": {
+        "target": "/usr/bin/shasum",
+        "version": "6.04"
+      },
+      "sleep": {
+        "target": "/usr/bin/sleep",
+        "version": "sleep (GNU coreutils) 9.4"
+      },
+      "timeout": {
+        "target": "/usr/bin/timeout",
+        "version": "timeout (GNU coreutils) 9.4"
+      },
+      "true": {
+        "target": "/usr/bin/true",
+        "version": "true (GNU coreutils) 9.4"
+      },
+      "uname": {
+        "target": "/usr/bin/uname",
+        "version": "uname (GNU coreutils) 9.4"
+      },
+      "wget": {
+        "target": "/usr/bin/wget",
+        "version": "GNU Wget 1.21.4 built on linux-gnu."
+      }
+    }
+  },
+  "build": {
+    "target_triple": "aarch64-unknown-linux-musl",
+    "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+    "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+    "musl_linker": "aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "cross_target_runner": "",
+    "musl_tools": "1.2.4-2",
+    "mise": "unknown"
+  },
+  "interpreter": {
+    "executable": "/Users/tobyclemson/Code/organisations/atomic/company/accelerator/workspaces/visualisation-system/.venv/bin/python3",
+    "version": "3.14.4 (main, Apr 14 2026, 14:25:48) [Clang 22.1.3 ]",
+    "clock": "namespace(implementation='clock_gettime(CLOCK_MONOTONIC)', monotonic=True, adjustable=False, resolution=1e-09)",
+    "seed": 20260813
+  },
+  "host": {
+    "system": "Linux",
+    "machine": "aarch64",
+    "release": "6.8.0-117-generic",
+    "platform": "Linux-6.8.0-117-generic-aarch64-with-glibc2.39"
+  },
+  "dirname_spawns": 1,
+  "calibration": {
+    "observed": {
+      "chip": "-",
+      "bash": "GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)",
+      "shasum": "6.04"
+    },
+    "recorded": {
+      "session": "0217",
+      "chip": "-",
+      "bash": "GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)",
+      "shasum": "6.04",
+      "libc": "musl"
+    },
+    "unconfirmed": [],
+    "holds": true,
+    "note": "calibrated"
+  },
+  "floors_pre": {
+    "when": "pre",
+    "attempts": [
+      {
+        "bash_ms": 0.40092599999752565,
+        "true_ms": 0.24928749999730826
+      }
+    ],
+    "holds": true
+  },
+  "warm_up": {
+    "valid": true,
+    "diagnostic": "",
+    "elapsed_ms": 29.81247899998607
+  },
+  "pilot": {
+    "block_a": {
+      "achieved_upper_distance": 0.02512689521792888,
+      "required": 9744,
+      "feasible": false
+    },
+    "block_b": {
+      "achieved_upper_distance": 0.14466199999674245,
+      "required": 200,
+      "feasible": true
+    },
+    "sizes": {
+      "block_a_pairs": 1700,
+      "block_b_samples": 900
+    },
+    "discarded": {
+      "B": 200,
+      "G-fast": 200,
+      "G-fallback": 200
+    }
+  },
+  "floors_post": {
+    "when": "post",
+    "attempts": [
+      {
+        "bash_ms": 0.3954230000147163,
+        "true_ms": 0.23580350003271633
+      }
+    ],
+    "holds": true
+  },
+  "dispersion": {
+    "B": {
+      "n": 1700,
+      "minimum": 7.732253999961358,
+      "median": 8.90133450002395,
+      "p90": 9.889525300013704,
+      "iqr": 0.7770877500377082
+    },
+    "G-fast": {
+      "n": 1700,
+      "minimum": 27.97116400000732,
+      "median": 29.97330549996491,
+      "p90": 32.34448189998034,
+      "iqr": 2.007342750047769
+    },
+    "G-fallback": {
+      "n": 900,
+      "minimum": 35.50832499996659,
+      "median": 37.192363000002615,
+      "p90": 39.33353339998007,
+      "iqr": 1.715819000025931
+    }
+  },
+  "terms": {
+    "terms": {
+      "cache::find": {
+        "point": 0.0107,
+        "lower": 0.0087,
+        "upper": 0.0137
+      },
+      "reverify": {
+        "point": 13.6655,
+        "lower": 13.4303,
+        "upper": 14.4024
+      },
+      "verifier::sha256_hex": {
+        "point": 3.8345,
+        "lower": 3.7882,
+        "upper": 4.1498
+      },
+      "TrustedKeys::verifies": {
+        "point": 7.9655,
+        "lower": 7.6765,
+        "upper": 8.2163
+      },
+      "bash startup": {
+        "point": 0.40092599999752565,
+        "lower": 0.40092599999752565,
+        "upper": 0.40092599999752565
+      },
+      "two sha256_file calls": {
+        "point": 1.3519950000215886,
+        "lower": 1.3519950000215886,
+        "upper": 1.3519950000215886
+      },
+      "shim minisign-verify of the launcher": {
+        "point": 8.322407500003237,
+        "lower": 8.322407500003237,
+        "upper": 8.322407500003237
+      },
+      "launcher startup net of the fork floor": {
+        "point": 0.09914000003163892,
+        "lower": 0.09914000003163892,
+        "upper": 0.09914000003163892
+      },
+      "vcs exec and guard work net of the fork floor": {
+        "point": 0.12833350001528743,
+        "lower": 0.12833350001528743,
+        "upper": 0.12833350001528743
+      }
+    },
+    "summed": [
+      "bash startup",
+      "two sha256_file calls",
+      "shim minisign-verify of the launcher",
+      "launcher startup net of the fork floor",
+      "cache::find",
+      "reverify",
+      "vcs exec and guard work net of the fork floor"
+    ],
+    "sub_operations_not_summed": [
+      "verifier::sha256_hex",
+      "TrustedKeys::verifies"
+    ],
+    "cache_root_entries": 42,
+    "cache_root_bytes": 142723044,
+    "asset_bytes": 11681232,
+    "residual": {
+      "total": 23.97900200006928,
+      "signed_residual": -5.994303499895629,
+      "absolute_residual": 5.994303499895629,
+      "band": 1.5,
+      "closed": false,
+      "remeasure": true
+    },
+    "digest_backend_cross_check": {
+      "absolute_under_the_gating_backend_ms": 1.3519950000215886,
+      "fallback_backend_ms": 15.603333499967675,
+      "delta_ms": 14.251338499946087,
+      "implied_per_call_difference_ms": 7.125669249973043,
+      "role": "the delta is a cross-check on the direct measurement, not a substitute for it: it carries twice the per-call difference between the backends, not the absolute cost the budget needs"
+    },
+    "observed_median_ms": 29.97330549996491,
+    "cross_checked_fraction": 0.800011930619309,
+    "uncross_checked_fraction": 0.19998806938069102
+  },
+  "analysis": {
+    "intervals": {
+      "C1": {
+        "point": 29.97330549996491,
+        "lower": 29.865199499994333,
+        "upper": 30.08969600000455
+      },
+      "C2": {
+        "point": 32.34448189998034,
+        "lower": 32.1816018224969,
+        "upper": 32.46476359997246
+      },
+      "C3": {
+        "point": 37.192363000002615,
+        "lower": 37.09133000000975,
+        "upper": 37.309079999999994
+      },
+      "C4": {
+        "point": 39.33353339998007,
+        "lower": 39.107092500023555,
+        "upper": 39.58930999999666
+      },
+      "C5": {
+        "point": 3.367282231656867,
+        "lower": 3.3548552606692943,
+        "upper": 3.379264661927517
+      },
+      "C6": {
+        "point": 4.178290682133397,
+        "lower": 4.156604589944298,
+        "upper": 4.1992380261828535
+      }
+    },
+    "ratios": {
+      "raw_gates": 3.367282231656867,
+      "true_floor_subtracted_robustness_check": 3.435489659253593,
+      "true_floor_subtracted_interval": {
+        "point": 3.435489659253593,
+        "lower": 3.422823768046854,
+        "upper": 3.4480348672343815
+      },
+      "robustness_holds_on_the_upper_bound": true,
+      "bash_floor_subtracted_diagnostic_only": 3.478936276988977,
+      "median_of_ratios": 3.3759635506575005,
+      "p90_ratio_context": 3.2705798224648377,
+      "drift_first_third": 3.371845089556933,
+      "drift_last_third": 3.3700048970766745,
+      "drift": {
+        "observed": -0.0018401924802584624,
+        "band": 0.028909886336226064,
+        "quantile": 0.95,
+        "permutations": 2000,
+        "significance": 0.913,
+        "holds": true,
+        "holds_under_superseded_constant": true,
+        "superseded_band": 0.005
+      },
+      "drift_holds": true
+    },
+    "validity": "valid",
+    "elapsed_s": 124.07711036800004
+  },
+  "cells": [
+    {
+      "cell": "C1",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C2",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C3",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C4",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C5",
+      "gates": true,
+      "branch": "1",
+      "accepted_by": null
+    },
+    {
+      "cell": "C6",
+      "gates": false,
+      "branch": "2",
+      "accepted_by": null
+    }
+  ],
+  "closure_verdict": true,
+  "teardown": [],
+  "attempt": 6,
+  "samples_path": "warm-dispatch-6-samples.json"
+}

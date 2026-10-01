@@ -271,6 +271,21 @@ deliberately **not** under `bin/`, which is the launcher's live cache root whose
 entry set is itself an integrity witness. Delete it by hand only as a last
 resort; `mise run measure:teardown` is the supported path.
 
+**linux-arm64 is a calibrated platform too.** Run it on a native aarch64 guest
+(a Colima `vz` VM on a darwin-arm64 host, or bare metal), never an emulated one,
+which invalidates every timing figure. The dispatch-latency figures need only
+the same tool set as darwin; the `verifier::sha256_hex` throughput decomposition
+additionally needs the musl cross-target toolchain — `musl-tools` for `musl-gcc`,
+`CARGO_BUILD_TARGET=aarch64-unknown-linux-musl`, and
+`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc` — because that one term
+is built in-session while the warm-dispatch artefact itself is fetched, not
+built. Its ceilings and its ratio budget are **VM-scoped and provisional**
+pending a bare-metal or CI-hosted aarch64 confirmation. Its dispatch-overhead
+ratio is a larger multiple than darwin's — the linux shell baseline is far
+faster, so the same dispatch cost is a larger multiple of it — so `linux-arm64`
+carries its own `ratio_threshold`/`ratio_target` rather than the global 1.4 /
+0.0036, leaving darwin's tighter guard untouched.
+
 **Before a real run, rehearse.** `mise run measure:warm-dispatch -- --rehearse`
 drives the whole path — recovery, fixture, both farms, floors, pilot, sampling,
 the composition budget and teardown — at a token sample count, records the
@@ -308,6 +323,11 @@ criterion *text*; this block and that function are authoritative for the
 *numbers*. Every constant below appears in the function
 and every number in the function appears below, so the two cannot drift.
 
+The `darwin-arm64` ceilings are bare-metal figures. The `linux-arm64` ceilings
+are VM-scoped and provisional — taken on a native aarch64 guest under
+virtualisation — pending a bare-metal or CI-hosted aarch64 confirmation that may
+tighten them.
+
 - `RESAMPLES` = 10000
 - `CONFIDENCE` = 0.95
 - `RATIO_THRESHOLD` = 1.4
@@ -333,6 +353,14 @@ and every number in the function appears below, so the two cannot drift.
 - `darwin-arm64.p90_ceiling_fallback_ms` = 80
 - `darwin-arm64.bash_floor_ms` = 7.8
 - `darwin-arm64.true_floor_ms` = 1.95
+- `linux-arm64.median_ceiling_fast_ms` = 40
+- `linux-arm64.p90_ceiling_fast_ms` = 50
+- `linux-arm64.median_ceiling_fallback_ms` = 50
+- `linux-arm64.p90_ceiling_fallback_ms` = 60
+- `linux-arm64.bash_floor_ms` = 0.78
+- `linux-arm64.true_floor_ms` = 0.45
+- `linux-arm64.ratio_threshold` = 3.5
+- `linux-arm64.ratio_target` = 0.013
 
 ### The Rust nightly lane
 
