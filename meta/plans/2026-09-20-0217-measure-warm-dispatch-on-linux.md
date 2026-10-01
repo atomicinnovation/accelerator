@@ -5,7 +5,7 @@ title: "Measure Warm Dispatch on Linux Implementation Plan"
 date: "2026-09-20T20:46:56+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0217"
 parent: "work-item:0217"
 derived_from: ["codebase-research:2026-09-20-0217-measure-warm-dispatch-on-linux"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement", "work-ite
 tags: ["cli", "launcher", "performance", "measurement", "calibration"]
 revision: "0f4ced25f0eb414b0b072aa9f054631943b929f8"
 repository: "accelerator"
-last_updated: "2026-09-21T21:55:44+00:00"
+last_updated: "2026-10-01T09:24:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
