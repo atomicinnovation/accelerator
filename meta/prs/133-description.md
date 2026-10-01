@@ -12,9 +12,9 @@ relates_to: ["work-item:0294"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/133"
 pr_number: 133
 tags: ["linear", "pull-filters", "catalogue", "sync"]
-revision: "832fc3a25a46224f764c932b2760268a5cdd6583"
+revision: "e1ccb90f9a908c2a1b1397943f87faf79f6a37fc"
 repository: "accelerator"
-last_updated: "2026-09-24T18:52:11+00:00"
+last_updated: "2026-10-01T09:31:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -81,9 +81,20 @@ used to match only the init team's state.
 - **Standalone `accelerator linear search`** scopes `--label` and
   `--assignee` to the init team, as `--state` already was. An unknown or
   ambiguous value exits 89, and a missing catalogue team exits 77.
-- **Test harness** (`http-test-support`, `cli-test-support`). GraphQL routes
-  are keyed on the operation name, unmatched operations panic on drop, and
-  `Route::Delayed` serves slow responses.
+- **Test harness** (`http-test-support`, `graphql-test-support`,
+  `cli-test-support`).
+  - `MockServer` stays a pure HTTP mock keyed on method and path. It gains
+    `Route::Delayed` for slow responses and `Route::ByBody`, a route
+    answered from the request body.
+  - A new `graphql-test-support` crate provides `MockGraphQLServer`, which
+    mounts on a `MockServer` through `Route::ByBody`. It answers, counts and
+    records each operation independently, and panics on drop when any
+    operation went unanswered. A `pup.ron` rule stops it opening its own
+    socket.
+  - Scenario expectations split into `HttpCallExpectation` and
+    `GraphQLQueryExpectation`. The second is listed under a scenario's
+    `graphql_queries` and carries only an operation, its response and an
+    optional body substring.
 - **Docs and changelog.** The `init-linear`, `search-linear-issues`,
   `sync-work-items` and `configure` skills are updated, and `CHANGELOG.md`
   gains `Added`, `Changed`, `Migrations` and `Security` entries.
@@ -110,8 +121,8 @@ used to match only the init team's state.
 
 - [x] Full local CI mirror: `mise run` exits 0. That covers format, lint,
   types, the docs lane, and every test suite.
-- [x] Real-client sync tests against `MockServer`. Ids are on the wire for
-  every scope shape, including whole-workspace. A legacy catalogue fetches
+- [x] Real-client sync tests against `MockGraphQLServer`. Ids are on the
+  wire for every scope shape, including whole-workspace. A legacy catalogue fetches
   and succeeds, and a rebuilt client makes no section fetch.
 - [x] Binary-level tests. An unknown Linear `label` exits 74, and a Linear
   `project` filter reaches resolution. A Jira `project` filter fails before
