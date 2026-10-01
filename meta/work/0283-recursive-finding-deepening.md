@@ -10,7 +10,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-27T18:09:29+00:00"
+last_updated: "2026-10-01T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-867"
@@ -60,7 +60,7 @@ and paths but never holds research content.
 ## Requirements
 
 - **Level orchestration.** At `depth > 1`, `conduct` spawns one researcher per
-  missing node that `corpus topic-research outstanding` derives from the notes
+  missing node that `research topic outstanding` derives from the notes
   on disk, re-running `outstanding` after every batch; fresh runs and resumes
   take the same path. Levels are barriered within a pair, not across pairs:
   `outstanding` reports a pair's level-`L` nodes only once every level-`L − 1`
@@ -141,7 +141,7 @@ and paths but never holds research content.
   rejected. The `composer` agent may write only `<set>/findings/<stem>.md`,
   never under `.levels/`.
 - **Resume.** A pair stays outstanding until its finding validates.
-  `corpus topic-research outstanding` takes the resolved depth (`--depth N`)
+  `research topic outstanding` takes the resolved depth (`--depth N`)
   and reports two categories of pair. A pair with missing nodes lists them: a
   pair with no validated `1.md` — none, or only `.1.md.invalid` — has missing
   node `1`; otherwise its missing nodes are the capped, deduplicated
@@ -371,8 +371,8 @@ and paths but never holds research content.
   beneath this. A focus area's worst case is that times its profile count.
 - Walkers of `findings/`: the visualiser indexer
   (`cli/visualiser/server/src/file_driver.rs:258`) never lists inside
-  `findings/`; `corpus topic-research outstanding`
-  (`cli/corpus-adapters/src/topic_research.rs:92`) lists flat and ignores
+  `findings/`; `research topic outstanding`
+  (`cli/research-adapters/src/topic_research.rs:89`) lists flat and ignores
   non-`.md` names; the researcher write guard
   (`cli/corpus/src/topic_research/finding_path.rs:5`, via
   `cli/research-cli/src/write_target.rs:85`) accepts only
@@ -382,7 +382,7 @@ and paths but never holds research content.
 - The notes directory name must never end in `.md`: `outstanding` would read it
   as a broken finding and consume an index.
 - Index allocation: `Planner::index_for`
-  (`cli/corpus/src/topic_research/round.rs:434`) reuses an index only from a
+  (`cli/research/src/round.rs:434`) reuses an index only from a
   retained finding or a quarantine marker, and `highest` counts only those;
   `read_findings` skips non-`.md` names. Without index retention a pair whose
   focus area composed nothing is reallocated `highest + 1` once a later focus
@@ -453,7 +453,7 @@ and paths but never holds research content.
 - To modify: `skills/research/research-topic/SKILL.md` (`conduct`),
   `agents/researcher.md`, `skills/research/outputters/`,
   `templates/topic-research-finding.md`, `skills/config/configure/SKILL.md`,
-  `cli/corpus/src/topic_research/round.rs` (missing nodes, cap, dedupe, index
+  `cli/research/src/round.rs` (missing nodes, cap, dedupe, index
   retention), `cli/corpus/src/topic_research/finding_path.rs` and
   `cli/research-cli/src/guard.rs` (write guard), `cli/config/src/catalogue.rs`
   (`research.topic.concurrency`, `composer` agent key) and its key-count test,
