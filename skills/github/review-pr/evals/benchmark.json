@@ -1,0 +1,287 @@
+{
+  "metadata": {
+    "skill_name": "review-pr",
+    "timestamp": "2026-10-02T13:00:38Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "menu-offers-local-fix",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "The menu lists six numbered options",
+          "passed": true,
+          "evidence": "Menu lists six numbered options 1-6"
+        },
+        {
+          "text": "One option offers to work through the findings and fix them on the PR's branch",
+          "passed": true,
+          "evidence": "Option 6: 'Work through the findings and fix them on this branch?'"
+        },
+        {
+          "text": "The fix option states that nothing will be posted to GitHub",
+          "passed": true,
+          "evidence": "Option 6 says '(nothing is posted to GitHub)'"
+        },
+        {
+          "text": "The menu still offers to post the review, change the verdict, edit or remove inline comments, discuss findings, and re-run lenses",
+          "passed": true,
+          "evidence": "Options 1-5 unchanged: post, change verdict, edit/remove comments, discuss, re-run lenses"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "local-fix-setup",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "Detects that the current branch main differs from the PR's head branch feature/order-totals",
+          "passed": true,
+          "evidence": "'You're currently on main, but PR #4242's branch is feature/order-totals'"
+        },
+        {
+          "text": "Offers to switch to feature/order-totals before working on any finding",
+          "passed": true,
+          "evidence": "Switch question (Yes, switch / No, stay) asked before any finding"
+        },
+        {
+          "text": "Asks for a commit strategy with options to commit after each finding, commit at the end, and not commit",
+          "passed": true,
+          "evidence": "Commit strategy question with the three options"
+        },
+        {
+          "text": "The commit strategy question is asked before any finding is presented",
+          "passed": true,
+          "evidence": "Commit strategy asked before any finding is presented; only the count line precedes it"
+        },
+        {
+          "text": "States that there are 5 findings to work through, including the deferred inline comments and the general finding",
+          "passed": true,
+          "evidence": "Opening line: 'I'll work through 5 findings on feature/order-totals'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "local-fix-ordering-and-presentation",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8
+      },
+      "expectations": [
+        {
+          "text": "The first finding presented is the critical correctness finding about quantity, labelled as finding 1 of 5",
+          "passed": true,
+          "evidence": "'Finding 1 of 5: Order total ignores line-item quantity' presented first"
+        },
+        {
+          "text": "The second finding presented is the major code-quality finding about magic numbers, labelled as finding 2 of 5",
+          "passed": true,
+          "evidence": "'Finding 2 of 5: Bulk discount threshold and rate are magic numbers'"
+        },
+        {
+          "text": "Each presented finding shows its lens, severity, and location (src/order_total.py with a line number)",
+          "passed": true,
+          "evidence": "Lens, Severity and Location src/order_total.py:13 and :14-15 shown"
+        },
+        {
+          "text": "The analysis of the first finding is based on reading src/order_total.py, not only the diff",
+          "passed": true,
+          "evidence": "'Reading the current src/order_total.py on feature/order-totals, line 13 is still total += item.price'"
+        },
+        {
+          "text": "Each presented finding includes a proposed change",
+          "passed": true,
+          "evidence": "Both findings carry a Proposed change diff"
+        },
+        {
+          "text": "The user is asked whether to apply, skip, or discuss each finding",
+          "passed": true,
+          "evidence": "Options: Apply this fix / Skip this finding / Discuss first"
+        },
+        {
+          "text": "The edit for the first finding changes only the accumulation to multiply price by quantity and does not touch the discount or the function name",
+          "passed": true,
+          "evidence": "Edit replaces only line 13; 'No other lines changed'"
+        },
+        {
+          "text": "A commit is proposed after the first finding that stages src/order_total.py by name and does not bulk-add files",
+          "passed": true,
+          "evidence": "git add src/order_total.py only; 'by name; no bulk add'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "local-fix-skip-stop-summary",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8
+      },
+      "expectations": [
+        {
+          "text": "The skip of finding 2 is recorded with the reason \"intentional\" and the loop moves on to finding 3",
+          "passed": true,
+          "evidence": "Skipped with reason 'intentional', then 'Moving to finding 3 of 5'"
+        },
+        {
+          "text": "No finding is worked on after the user says \"stop here\"",
+          "passed": true,
+          "evidence": "'stop here' acted on that turn; findings 4 and 5 never presented"
+        },
+        {
+          "text": "The summary reports 1 finding applied",
+          "passed": true,
+          "evidence": "'1 applied'"
+        },
+        {
+          "text": "The summary reports 1 finding skipped",
+          "passed": true,
+          "evidence": "'1 skipped'"
+        },
+        {
+          "text": "The summary reports 3 findings unaddressed or remaining",
+          "passed": true,
+          "evidence": "'3 unaddressed of 5 findings'"
+        },
+        {
+          "text": "The summary reports the commits created",
+          "passed": true,
+          "evidence": "'1 commits created' with abc1234 listed"
+        },
+        {
+          "text": "The user is offered to push the unpushed commit with exactly two options: push now or skip",
+          "passed": true,
+          "evidence": "Push question: Yes, push now / No, skip"
+        },
+        {
+          "text": "The response states that nothing was posted to the PR on GitHub",
+          "passed": true,
+          "evidence": "'Nothing was posted to PR #4242.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "eval_name": "local-fix-never-posts",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "commands.md contains no gh api call to a pulls/{number}/reviews endpoint",
+          "passed": true,
+          "evidence": "Only git add/commit/log/push commands"
+        },
+        {
+          "text": "commands.md contains no gh api call to a comments endpoint",
+          "passed": true,
+          "evidence": "No comments endpoint"
+        },
+        {
+          "text": "commands.md contains no gh pr comment and no gh pr review",
+          "passed": true,
+          "evidence": "No gh pr comment or gh pr review"
+        },
+        {
+          "text": "files-written.md does not include review-payload.json",
+          "passed": true,
+          "evidence": "files-written.md lists only src/order_total.py and tests/test_order_total.py"
+        },
+        {
+          "text": "commands.md stages files by name and never uses git add -A or git add .",
+          "passed": true,
+          "evidence": "Every git add names files explicitly"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "eval_name": "local-fix-left-side-finding",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "States that the code the finding refers to (round_cents) no longer exists in src/order_total.py on the branch",
+          "passed": true,
+          "evidence": "'The round_cents helper ... was deleted by this PR'; current file holds only LineItem and calc"
+        },
+        {
+          "text": "Offers to skip the finding as already resolved",
+          "passed": true,
+          "evidence": "Option 1 'Skip as already resolved'"
+        },
+        {
+          "text": "Does not propose adding round_cents back or adding new rounding code to src/order_total.py as the default action",
+          "passed": true,
+          "evidence": "No edit proposed; rounding is offered only behind 'Fix it anyway'"
+        },
+        {
+          "text": "Labels the finding as finding 5 of 5",
+          "passed": true,
+          "evidence": "Headed 'Finding 5 of 5'"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  }
+}

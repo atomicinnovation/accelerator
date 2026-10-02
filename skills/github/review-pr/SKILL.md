@@ -565,7 +565,7 @@ inline comments), but the persistent artifact retains everything.
 
 ### Step 5: Present the Review
 
-Present a two-part preview showing exactly what will be posted to the PR:
+Present a two-part preview showing exactly what would be posted to the PR:
 
 **Part 1: Review summary** (will become the review's body):
 
@@ -604,6 +604,7 @@ The review is ready. Would you like to:
 3. Edit or remove specific inline comments before posting?
 4. Discuss any findings in more detail?
 5. Re-run specific lenses with adjusted focus?
+6. Work through the findings and fix them on this branch? (nothing is posted to GitHub)
 ```
 
 **When the user chooses to post** (option 1):
@@ -670,6 +671,113 @@ stale commit):
   3. **REQUEST_CHANGES** — request changes before merge
 - Update the summary body and re-present the preview
 
+**When the user chooses to fix findings locally** (option 6):
+
+This mode serves authors polishing their own PR before asking colleagues for
+review. The review stays private: nothing is posted to GitHub.
+
+Start by gathering the findings (step 3) and telling the user, before any
+question:
+```
+I'll work through {M} findings on `{headRefName}`, most severe first. Nothing
+will be posted to PR #{number}.
+```
+
+1. **Check the branch**: Compare the current branch (from the session's VCS
+   context) with the PR's `headRefName` from Step 1. If they differ, tell the
+   user and use the `AskUserQuestion` tool with two options:
+   1. **Yes, switch to the PR branch** — switch to `{headRefName}` before
+      fixing anything
+   2. **No, stay on the current branch** — fix the findings where you are
+
+   If the working copy has uncommitted changes, say so before continuing —
+   they would end up mixed into the fixes.
+
+2. **Choose a commit strategy**: Use the `AskUserQuestion` tool with three
+   options:
+   1. **Commit after each finding** — offer a commit as each fix lands
+   2. **Commit at the end** — offer one commit once the loop finishes
+   3. **Don't commit** — leave every fix uncommitted in the working copy
+
+3. **List the findings**: Take every inline comment — including those
+   deferred to "Additional Findings" by the inline cap — and every general
+   finding. Order them by severity (critical > major > minor > suggestion),
+   then by confidence (high > medium > low). {M} is the number of findings
+   in this list.
+
+4. **Work through each finding** in that order:
+
+   **4a. Verify the finding** against the current code on the branch, not
+   only the diff: read the file at the finding's path (for a general
+   finding, the code it concerns). A finding with `side: "LEFT"` describes
+   the old version of the file, so the code it names may no longer exist.
+   If the code is gone or no longer matches what the finding describes, say
+   so and use the `AskUserQuestion` tool with two options:
+   1. **Skip as already resolved** — record it as skipped and move on
+   2. **Fix it anyway** — propose a change against the current code
+
+   **4b. Present the finding**:
+   ```
+   ### Finding {N} of {M}: {title}
+   **Lens**: {lens} | **Severity**: {emoji} {severity} | **Confidence**: {confidence}
+   **Location**: `{path}:{line}` (or "general")
+
+   **Analysis**: {what reading the current code shows, and whether the
+   finding holds}
+
+   **Proposed change**: {the exact change you will make}
+   ```
+
+   Then use the `AskUserQuestion` tool with three options:
+   1. **Apply this fix** — make the proposed change now
+   2. **Skip this finding** — leave it unaddressed and move on
+   3. **Discuss first** — talk it through before deciding
+
+   Discussing does not advance to the next finding; once the discussion
+   settles, present the (possibly revised) proposed change and ask again. On
+   skip, ask in plain text for an optional reason and record it.
+
+   **4c. Apply the fix** with the Edit/Write tools, reading the surrounding
+   code first. Change only what the finding asked for — don't refactor
+   nearby code or fold in other findings.
+
+   **4d. Commit** according to the chosen strategy:
+   - **Commit after each finding**: show the files modified and a suggested
+     commit message, and commit once the user confirms.
+   - **Commit at the end**: track the modified files until the wrap-up.
+   - **Don't commit**: leave the change in the working copy.
+
+   When committing, follow the `commit` skill pattern using the appropriate
+   VCS commands for this repository (refer to the session's VCS context),
+   staging the modified files by name.
+
+   **4e. Move on**:
+   ```
+   Finding {N} {applied | skipped}. Moving to finding {N+1} of {M}...
+   ```
+
+5. **Honour interrupts**: At any point the user can say "skip" (record the
+   current finding as skipped and move to the next) or "stop here" (go
+   straight to the wrap-up, leaving the remaining findings unaddressed).
+   Act on either on the turn it arrives.
+
+6. **Wrap up** once every finding is handled or the user stops:
+   - If the strategy is **Commit at the end** and fixes were applied, offer
+     to commit them now, showing the files and a suggested message.
+   - Present the summary:
+     ```
+     ## Local Fix Summary
+
+     {applied} applied, {skipped} skipped, {unaddressed} unaddressed of {M}
+     findings; {commit_count} commits created.
+
+     Changes are on branch `{headRefName}`. Nothing was posted to PR #{number}.
+     ```
+   - If there are unpushed commits, use the `AskUserQuestion` tool with two
+     options:
+     1. **Yes, push now** — push the commits to the remote
+     2. **No, skip** — leave the commits unpushed
+
 ## Important Guidelines
 
 1. **Read the diff before doing anything else** — you need complete context to
@@ -722,6 +830,10 @@ stale commit):
     `:yellow_circle:`, `:blue_circle:`, or `:white_check_mark:`. Shortcodes
     are not rendered in markdown and will appear as literal text.
 
+12. **Fixing locally never touches GitHub** — in the local fix loop, never
+    call the reviews or comments APIs; the review stays private to the
+    author.
+
 ## What NOT to Do
 
 - Don't skip writing the review artifact — always persist to
@@ -740,7 +852,10 @@ stale commit):
 - Don't present raw agent output — always aggregate and curate into the
   structured format
 - Don't run lenses that clearly aren't relevant
-- Don't modify any code — this is a read-only review
+- Don't modify any code unless the user chooses to fix findings locally,
+  and then only one confirmed finding at a time
+- Don't add co-author information or Claude attribution to commits
+- When staging files, always add specific files by name — never bulk-add
 
 ## Relationship to Other Commands
 

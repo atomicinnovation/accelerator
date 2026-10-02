@@ -1,0 +1,25 @@
+diff --git a/src/order_total.py b/src/order_total.py
+--- a/src/order_total.py
++++ b/src/order_total.py
+@@ -7,17 +7,10 @@
+     quantity: int
+ 
+ 
+-def subtotal(items: list[LineItem]) -> float:
++def calc(items: list[LineItem]) -> float:
+     total = 0.0
+     for item in items:
+-        total = total + item.price * item.quantity
++        total += item.price
++    if total > 100:
++        total = total * 0.9
+     return total
+-
+-
+-def apply_discount(total: float) -> float:
+-    return total
+-
+-
+-def round_cents(value: float) -> float:
+-    rounded = round(value, 2)
+-    return rounded

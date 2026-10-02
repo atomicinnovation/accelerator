@@ -49,11 +49,14 @@ plugin is installed.
 4. **Inspect the preview.** You are shown the summary body and every
    inline comment before anything is posted. From here you can post the
    review, change the verdict, edit or remove comments, discuss
-   findings, or re-run lenses.
+   findings, re-run lenses, or fix the findings yourself.
 
-5. **Post (or keep it local).** Posting submits a real GitHub review
-   via `gh`. Either way, the full review — summary, inline comments,
-   and per-lens results — is persisted to
+5. **Post, fix locally, or keep it local.** Posting submits a real
+   GitHub review via `gh`. Choosing to fix locally walks you through
+   each finding — verify, fix, commit — on the PR's branch without
+   posting anything, which is useful for polishing your own PR before
+   requesting review. Either way, the full review — summary, inline
+   comments, and per-lens results — is persisted to
    `meta/reviews/prs/<number>-review-<N>.md`, so review history
    survives the conversation.
 

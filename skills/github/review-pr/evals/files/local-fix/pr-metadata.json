@@ -1,0 +1,8 @@
+{
+  "number": 4242,
+  "url": "https://github.com/example-org/shop/pull/4242",
+  "title": "Add order total calculation",
+  "state": "OPEN",
+  "headRefName": "feature/order-totals",
+  "baseRefName": "main"
+}

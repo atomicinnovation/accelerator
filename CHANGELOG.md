@@ -4,6 +4,11 @@
 
 ### Added
 
+- **`/review-pr` can fix its findings locally instead of posting them.** A
+  sixth post-review action works through every finding one at a time on the
+  PR's branch — verify, fix, commit per your chosen strategy — without posting
+  the review or any comment to GitHub. Useful for polishing your own PR before
+  asking for review.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a
