@@ -778,6 +778,30 @@ will be posted to PR #{number}.
      1. **Yes, push now** — push the commits to the remote
      2. **No, skip** — leave the commits unpushed
 
+7. **Record the outcome** in the review artifact written in Step 4.10,
+   `{pr reviews directory}/{number}-review-{N}.md`. Append this section to
+   the end of the file, leaving everything above it untouched:
+   ```markdown
+   ## Local Resolution — {date}
+
+   | # | Finding | Location | Lens | Severity | Outcome |
+   |---|---------|----------|------|----------|---------|
+   | {N} | {title} | `{path}:{line}` or general | {lens} | {severity} | {outcome} |
+   ```
+   Write one row per finding, in the order they were presented. `{date}` is
+   the date part of `Current Date/Time (UTC):` from
+   `accelerator corpus metadata derive`. `{outcome}` is one of:
+   - `applied ({short commit id})` — fixed and committed
+   - `applied (uncommitted)` — fixed but not committed
+   - `skipped: {reason}` — or plain `skipped` when no reason was given
+   - `unaddressed` — never reached because the user stopped early
+
+   Then update the frontmatter: set `last_updated` to that
+   `Current Date/Time (UTC):` value and `last_updated_by` to the author
+   resolved per `create-work-item/SKILL.md:578-580`. Leave every other
+   frontmatter field unchanged — the verdict and status describe the review,
+   not what was done about it.
+
 ## Important Guidelines
 
 1. **Read the diff before doing anything else** — you need complete context to
@@ -808,8 +832,9 @@ will be posted to PR #{number}.
    The `{tmp directory}/pr-review-{number}/` directory contains ephemeral
    working data (diff, changed-files, PR description, commits, head SHA,
    repo info, review payload JSON) used during the review session. The review
-   itself (summary, inline comments, per-lens results) is persisted separately
-   to `{pr reviews directory}/{number}-review-{N}.md`.
+   itself (summary, inline comments, per-lens results, and the Local
+   Resolution section once a local fix pass runs) is persisted separately to
+   `{pr reviews directory}/{number}-review-{N}.md`.
 
 8. **Handle API errors gracefully** — if the review post fails due to invalid
    line references, identify the problematic comments and offer to retry

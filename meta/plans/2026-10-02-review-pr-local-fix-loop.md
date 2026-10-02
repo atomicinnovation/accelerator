@@ -339,14 +339,14 @@ ids 7–9 keeping `pass_rate.mean >= 0.9`.
 
 #### Automated Verification:
 
-- [ ] Eval structure guard passes with ids 1–9: `mise run test:unit`
-- [ ] Frontmatter conformance passes for review-pr: `mise run test:integration`
-- [ ] Read-only CI set passes: `mise run check`
+- [x] Eval structure guard passes with ids 1–9: `mise run test:unit`
+- [x] Frontmatter conformance passes for review-pr: `mise run test:integration`
+- [x] Read-only CI set passes: `mise run check`
 - [ ] Full local CI mirror is green: `mise run`
 
 #### Manual Verification:
 
-- [ ] Evals 7–9 ran red against the Phase 1 skill
+- [x] Evals 7–9 ran red against the Phase 1 skill
 - [ ] After a real local fix pass, the review file shows a correct Local
       Resolution table and `accelerator corpus frontmatter validate --file
       <review>` reports no errors

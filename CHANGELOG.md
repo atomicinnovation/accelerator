@@ -8,7 +8,8 @@
   sixth post-review action works through every finding one at a time on the
   PR's branch — verify, fix, commit per your chosen strategy — without posting
   the review or any comment to GitHub. Useful for polishing your own PR before
-  asking for review.
+  asking for review. The outcome of each finding is appended to the review
+  file under **Local Resolution**.
 - **`research-topic` researches the scholarly literature as well as the web.**
   New `openalex` and `arxiv` source profiles sit beside `web`: `brief` offers
   all three, `outline` assigns each focus area one or more profiles with a

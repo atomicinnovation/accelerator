@@ -1,14 +1,17 @@
 {
   "metadata": {
     "skill_name": "review-pr",
-    "timestamp": "2026-10-02T13:00:38Z",
+    "timestamp": "2026-10-02T13:48:32Z",
     "evals_run": [
       1,
       2,
       3,
       4,
       5,
-      6
+      6,
+      7,
+      8,
+      9
     ],
     "runs_per_configuration": 1
   },
@@ -28,22 +31,22 @@
         {
           "text": "The menu lists six numbered options",
           "passed": true,
-          "evidence": "Menu lists six numbered options 1-6"
+          "evidence": "Options numbered 1. through 6. in menu.md"
         },
         {
           "text": "One option offers to work through the findings and fix them on the PR's branch",
           "passed": true,
-          "evidence": "Option 6: 'Work through the findings and fix them on this branch?'"
+          "evidence": "6. Work through the findings and fix them on this branch?"
         },
         {
           "text": "The fix option states that nothing will be posted to GitHub",
           "passed": true,
-          "evidence": "Option 6 says '(nothing is posted to GitHub)'"
+          "evidence": "(nothing is posted to GitHub)"
         },
         {
           "text": "The menu still offers to post the review, change the verdict, edit or remove inline comments, discuss findings, and re-run lenses",
           "passed": true,
-          "evidence": "Options 1-5 unchanged: post, change verdict, edit/remove comments, discuss, re-run lenses"
+          "evidence": "1. Post the review? 2. Change the verdict? 3. Edit or remove... 4. Discuss... 5. Re-run specific lenses"
         }
       ],
       "notes": []
@@ -63,27 +66,27 @@
         {
           "text": "Detects that the current branch main differs from the PR's head branch feature/order-totals",
           "passed": true,
-          "evidence": "'You're currently on main, but PR #4242's branch is feature/order-totals'"
+          "evidence": "response.md: \"You're currently on `main`, but PR #4242's branch is `feature/order-totals`.\""
         },
         {
           "text": "Offers to switch to feature/order-totals before working on any finding",
           "passed": true,
-          "evidence": "Switch question (Yes, switch / No, stay) asked before any finding"
+          "evidence": "response.md: \"Switch to the PR branch before fixing anything?\" with \"Yes, switch to the PR branch\" option"
         },
         {
           "text": "Asks for a commit strategy with options to commit after each finding, commit at the end, and not commit",
           "passed": true,
-          "evidence": "Commit strategy question with the three options"
+          "evidence": "\"1. Commit after each finding ... 2. Commit at the end ... 3. Don't commit\""
         },
         {
           "text": "The commit strategy question is asked before any finding is presented",
           "passed": true,
-          "evidence": "Commit strategy asked before any finding is presented; only the count line precedes it"
+          "evidence": "response.md ends at the commit question with \"(Waiting for your answer.)\"; no finding shown before it"
         },
         {
           "text": "States that there are 5 findings to work through, including the deferred inline comments and the general finding",
           "passed": true,
-          "evidence": "Opening line: 'I'll work through 5 findings on feature/order-totals'"
+          "evidence": "response.md: \"I'll work through 5 findings\"; fixture has 2 inline + 2 deferred + 1 general = 5"
         }
       ],
       "notes": []
@@ -103,42 +106,42 @@
         {
           "text": "The first finding presented is the critical correctness finding about quantity, labelled as finding 1 of 5",
           "passed": true,
-          "evidence": "'Finding 1 of 5: Order total ignores line-item quantity' presented first"
+          "evidence": "### Finding 1 of 5: Order total ignores line-item quantity / **Lens**: correctness | **Severity**: 🔴 critical"
         },
         {
           "text": "The second finding presented is the major code-quality finding about magic numbers, labelled as finding 2 of 5",
           "passed": true,
-          "evidence": "'Finding 2 of 5: Bulk discount threshold and rate are magic numbers'"
+          "evidence": "### Finding 2 of 5: Bulk discount threshold and rate are magic numbers / code-quality | 🟡 major"
         },
         {
           "text": "Each presented finding shows its lens, severity, and location (src/order_total.py with a line number)",
           "passed": true,
-          "evidence": "Lens, Severity and Location src/order_total.py:13 and :14-15 shown"
+          "evidence": "**Location**: `src/order_total.py:13` and **Location**: `src/order_total.py:14-15`, each with Lens and Severity"
         },
         {
           "text": "The analysis of the first finding is based on reading src/order_total.py, not only the diff",
           "passed": true,
-          "evidence": "'Reading the current src/order_total.py on feature/order-totals, line 13 is still total += item.price'"
+          "evidence": "Reading the current `src/order_total.py` on `feature/order-totals`, line 13 is still `total += item.price`"
         },
         {
           "text": "Each presented finding includes a proposed change",
           "passed": true,
-          "evidence": "Both findings carry a Proposed change diff"
+          "evidence": "Both findings have **Proposed change** with diff blocks (quantity multiply; named constants)"
         },
         {
           "text": "The user is asked whether to apply, skip, or discuss each finding",
           "passed": true,
-          "evidence": "Options: Apply this fix / Skip this finding / Discuss first"
+          "evidence": "1. **Apply this fix** ... 2. **Skip this finding** ... 3. **Discuss first** (shown for both findings)"
         },
         {
           "text": "The edit for the first finding changes only the accumulation to multiply price by quantity and does not touch the discount or the function name",
           "passed": true,
-          "evidence": "Edit replaces only line 13; 'No other lines changed'"
+          "evidence": "old_string: `total += item.price` new_string: `total += item.price * item.quantity` Nothing else in the file changed."
         },
         {
           "text": "A commit is proposed after the first finding that stages src/order_total.py by name and does not bulk-add files",
           "passed": true,
-          "evidence": "git add src/order_total.py only; 'by name; no bulk add'"
+          "evidence": "Shall I commit this? ... git add src/order_total.py"
         }
       ],
       "notes": []
@@ -158,42 +161,42 @@
         {
           "text": "The skip of finding 2 is recorded with the reason \"intentional\" and the loop moves on to finding 3",
           "passed": true,
-          "evidence": "Skipped with reason 'intentional', then 'Moving to finding 3 of 5'"
+          "evidence": "behavior.md: \"recorded with that reason, as outcome `skipped: intentional`... Moving to finding 3 of 5\""
         },
         {
           "text": "No finding is worked on after the user says \"stop here\"",
           "passed": true,
-          "evidence": "'stop here' acted on that turn; findings 4 and 5 never presented"
+          "evidence": "behavior.md: \"None... finding 3 was not applied or skipped, and no further finding (3, 4 or 5) was worked on\""
         },
         {
           "text": "The summary reports 1 finding applied",
           "passed": true,
-          "evidence": "'1 applied'"
+          "evidence": "summary.md: \"1 applied, 1 skipped, 3 unaddressed of 5 findings\""
         },
         {
           "text": "The summary reports 1 finding skipped",
           "passed": true,
-          "evidence": "'1 skipped'"
+          "evidence": "summary.md: \"1 applied, 1 skipped, 3 unaddressed of 5 findings\""
         },
         {
           "text": "The summary reports 3 findings unaddressed or remaining",
           "passed": true,
-          "evidence": "'3 unaddressed of 5 findings'"
+          "evidence": "summary.md: \"3 unaddressed of 5 findings\""
         },
         {
           "text": "The summary reports the commits created",
           "passed": true,
-          "evidence": "'1 commits created' with abc1234 listed"
+          "evidence": "summary.md: \"1 commits created\" and \"1 unpushed commit on `feature/order-totals` (abc1234)\""
         },
         {
           "text": "The user is offered to push the unpushed commit with exactly two options: push now or skip",
           "passed": true,
-          "evidence": "Push question: Yes, push now / No, skip"
+          "evidence": "summary.md: \"1. **Yes, push now**\" / \"2. **No, skip**\" - only two options"
         },
         {
           "text": "The response states that nothing was posted to the PR on GitHub",
           "passed": true,
-          "evidence": "'Nothing was posted to PR #4242.'"
+          "evidence": "summary.md: \"Nothing was posted to PR #4242.\""
         }
       ],
       "notes": []
@@ -213,27 +216,27 @@
         {
           "text": "commands.md contains no gh api call to a pulls/{number}/reviews endpoint",
           "passed": true,
-          "evidence": "Only git add/commit/log/push commands"
+          "evidence": "commands.md has only git add/commit/log/push lines; no 'gh api' at all"
         },
         {
           "text": "commands.md contains no gh api call to a comments endpoint",
           "passed": true,
-          "evidence": "No comments endpoint"
+          "evidence": "No gh commands in commands.md; last line is 'git push origin feature/order-totals'"
         },
         {
           "text": "commands.md contains no gh pr comment and no gh pr review",
           "passed": true,
-          "evidence": "No gh pr comment or gh pr review"
+          "evidence": "No 'gh pr' lines; only git commands listed"
         },
         {
           "text": "files-written.md does not include review-payload.json",
           "passed": true,
-          "evidence": "files-written.md lists only src/order_total.py and tests/test_order_total.py"
+          "evidence": "files-written.md lists src/order_total.py, tests/test_order_total.py, meta/reviews/prs/4242-review-1.md"
         },
         {
           "text": "commands.md stages files by name and never uses git add -A or git add .",
           "passed": true,
-          "evidence": "Every git add names files explicitly"
+          "evidence": "'git add src/order_total.py tests/test_order_total.py'; no 'git add -A' or 'git add .'"
         }
       ],
       "notes": []
@@ -253,22 +256,147 @@
         {
           "text": "States that the code the finding refers to (round_cents) no longer exists in src/order_total.py on the branch",
           "passed": true,
-          "evidence": "'The round_cents helper ... was deleted by this PR'; current file holds only LineItem and calc"
+          "evidence": "\"I read the current `src/order_total.py` on `feature/order-totals`: the `round_cents` helper no longer exists.\""
         },
         {
           "text": "Offers to skip the finding as already resolved",
           "passed": true,
-          "evidence": "Option 1 'Skip as already resolved'"
+          "evidence": "\"1. **Skip as already resolved** — record it as skipped and move on\""
         },
         {
           "text": "Does not propose adding round_cents back or adding new rounding code to src/order_total.py as the default action",
           "passed": true,
-          "evidence": "No edit proposed; rounding is offered only behind 'Fix it anyway'"
+          "evidence": "Option 1 (first/default) is skip; \"Fix it anyway\" is only option 2 and proposes no concrete rounding code"
         },
         {
           "text": "Labels the finding as finding 5 of 5",
           "passed": true,
-          "evidence": "Headed 'Finding 5 of 5'"
+          "evidence": "\"### Finding 5 of 5: Removed `round_cents` used float rounding\" (fixture has 2+2+1 = 5 findings)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "eval_name": "local-resolution-appended",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7
+      },
+      "expectations": [
+        {
+          "text": "outputs/4242-review-1.md ends with a section headed '## Local Resolution' followed by the date 2026-10-02",
+          "passed": true,
+          "evidence": "Final section: \"## Local Resolution — 2026-10-02\" followed only by the table"
+        },
+        {
+          "text": "The Local Resolution section has one row per finding, 5 rows in total, in the order the findings were presented",
+          "passed": true,
+          "evidence": "Rows 1-5 match the presentation order in behavior.md: quantity, magic numbers, empty-order test, calc, round_cents"
+        },
+        {
+          "text": "Each row shows the finding title, its location (src/order_total.py with a line number, or general), its lens, and its severity",
+          "passed": true,
+          "evidence": "\"| 3 | No test covers an empty order | general | test-coverage | major | unaddressed |\"; other rows use `src/order_total.py:N`"
+        },
+        {
+          "text": "The row for 'Order total ignores line-item quantity' records it as applied with commit abc1234",
+          "passed": true,
+          "evidence": "\"| 1 | Order total ignores line-item quantity | `src/order_total.py:13` | correctness | critical | applied (abc1234) |\""
+        },
+        {
+          "text": "The row for 'Bulk discount threshold and rate are magic numbers' records it as skipped with the reason 'intentional'",
+          "passed": true,
+          "evidence": "\"... | code-quality | major | skipped: intentional |\""
+        },
+        {
+          "text": "The rows for the remaining three findings record them as unaddressed",
+          "passed": true,
+          "evidence": "Rows 3, 4, 5 each end \"| unaddressed |\""
+        },
+        {
+          "text": "Every section of the original artifact body (summary, Inline Comments, Per-Lens Results) is unchanged",
+          "passed": true,
+          "evidence": "diff vs fixture: only frontmatter last_updated changed and the appended section after line 168; body identical"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "eval_name": "local-resolution-frontmatter",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5
+      },
+      "expectations": [
+        {
+          "text": "last_updated in outputs/4242-review-1.md is 2026-10-02T15:00:00+00:00",
+          "passed": true,
+          "evidence": "last_updated: \"2026-10-02T15:00:00+00:00\""
+        },
+        {
+          "text": "last_updated_by in outputs/4242-review-1.md is Jane Author",
+          "passed": true,
+          "evidence": "last_updated_by: \"Jane Author\""
+        },
+        {
+          "text": "verdict is still REQUEST_CHANGES, status is still complete, review_number is still 1, and target is still pr:4242",
+          "passed": true,
+          "evidence": "verdict: \"REQUEST_CHANGES\"; status: \"complete\"; review_number: 1; target: \"pr:4242\""
+        },
+        {
+          "text": "date and author are unchanged from the fixture",
+          "passed": true,
+          "evidence": "date: \"2026-10-01T09:30:00+00:00\", author: \"Jane Author\" in both; diff shows only line 16 changed"
+        },
+        {
+          "text": "frontmatter-diff.md lists no changed field other than last_updated and last_updated_by",
+          "passed": true,
+          "evidence": "Changed table has only \"| last_updated | ... |\"; last_updated_by listed under Unchanged (same value)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "eval_name": "local-resolution-no-commit-strategy",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4
+      },
+      "expectations": [
+        {
+          "text": "outputs/4242-review-1.md contains a Local Resolution section",
+          "passed": true,
+          "evidence": "## Local Resolution — 2026-10-02"
+        },
+        {
+          "text": "The row for 'Order total ignores line-item quantity' records it as 'applied (uncommitted)'",
+          "passed": true,
+          "evidence": "| 1 | Order total ignores line-item quantity | `src/order_total.py:13` | correctness | critical | applied (uncommitted) |"
+        },
+        {
+          "text": "The rows for the other four findings record them as unaddressed",
+          "passed": true,
+          "evidence": "Rows 2-5 (magic numbers, empty order test, `calc` name, round_cents) each end with \"| unaddressed |\""
+        },
+        {
+          "text": "No commit command is run",
+          "passed": true,
+          "evidence": "behavior.md: \"Commit strategy was \\\"Don't commit\\\", so no `git add` / `git commit`.\" ; \"0 commits created\""
         }
       ],
       "notes": []
