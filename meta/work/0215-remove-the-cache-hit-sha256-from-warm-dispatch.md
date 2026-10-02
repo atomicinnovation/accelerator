@@ -5,14 +5,14 @@ title: "Remove the cache-hit sha256 from warm dispatch"
 date: "2026-08-17T20:36:49+00:00"
 author: "Toby Clemson"
 producer: "implement-plan"
-status: "draft"
+status: "abandoned"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-relates_to: ["work-item:0189", "work-item:0191", "work-item:0216"]
+relates_to: ["work-item:0189", "work-item:0191", "work-item:0216", "work-item:0217"]
 tags: ["cli", "launcher", "performance", "bootstrap"]
-last_updated: "2026-09-12T19:33:17+00:00"
+last_updated: "2026-10-02T10:02:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-744"
@@ -21,7 +21,7 @@ external_id: "PP-744"
 # 0215: Remove the cache-hit sha256 from warm dispatch
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Abandoned
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -72,6 +72,10 @@ rather than a clean `Cache` error.
 
 ## Acceptance Criteria
 
+*(Not met, and left unticked deliberately. This item is abandoned, superseded by
+0216: the warm-path digest it set out to remove is now sub-millisecond on every
+shipped target, so the removal is not being carried out. See Notes.)*
+
 - [ ] The warm dispatch computes the sub-binary's sha256 at most once, evidenced
       by a before/after decomposition from `mise run measure:warm-dispatch`.
 - [ ] **A cache entry whose filename disagrees with its content is still
@@ -112,6 +116,10 @@ rather than a clean `Cache` error.
 - `cli/launcher/src/launch/outbound/resolve/cache.rs:51-73`
 - `cli/launcher/src/launch/outbound/resolve/mod.rs:90-109` — `reverify`
 - `meta/measurements/warm-dispatch-3.json` — the measured term set
+- Superseded by: `meta/work/0216-close-the-sha2-hardware-intrinsics-gap.md`
+  (made the warm-path digest cheap, collapsing this item's latency case), with
+  the musl confirmation in
+  `meta/work/0217-measure-warm-dispatch-on-linux.md`
 
 ## Notes
 
@@ -131,3 +139,14 @@ rather than a clean `Cache` error.
   expensive on that target and 0215 becomes the load-bearing fallback there.
   Hold 0215 until 0217 reports; the parallel-scheduling bar against 0216 is
   cleared now that 0216 is done.
+- **2026-10-02 — abandoned, superseded by 0216.** 0217 resolved the one open
+  contingency above: it measured `aarch64-unknown-linux-musl`
+  `verifier::sha256_hex` at 3047 MB/s
+  (`meta/measurements/warm-dispatch-6.json`), clear of the ~555 MB/s soft band,
+  so the ARMv8 SHA-2 hardware backend engages on musl as it does on darwin and
+  the AC 7 fallback never fires. With the digest cheap on every shipped target,
+  0215's latency case is gone across the board. The item is closed rather than
+  pursued on its residual architectural merit (one fewer hash on the warm path):
+  retaining the now-sub-millisecond cache-hit digest also retains the
+  name/version binding that Acceptance Criterion 2 turned on, which a removal
+  would have had to replace. Status set to abandoned.
