@@ -76,24 +76,20 @@ impl BashCommandRunner {
         }
     }
 
-    /// Whether the repository could not have chosen `raw`: an absolute path
-    /// that exists outside every root, judged both as written and resolved.
-    fn outside_the_repository(&self, raw: &str) -> bool {
-        let written = Path::new(raw);
-        if raw.is_empty()
-            || written.is_relative()
-            || self.roots.contains(written)
-        {
-            return false;
-        }
-        std::fs::canonicalize(written)
-            .is_ok_and(|resolved| !self.roots.contains(&resolved))
+    /// Whether the repository could have chosen `path`: anything but an
+    /// absolute path that exists outside every root, judged both as written
+    /// and resolved.
+    fn inside_the_repository(&self, path: &Path) -> bool {
+        path.is_relative()
+            || self.roots.contains(path)
+            || std::fs::canonicalize(path)
+                .map_or(true, |resolved| self.roots.contains(&resolved))
     }
 
     fn search_path(&self) -> Vec<String> {
         self.parent.read("PATH").map_or_else(Vec::new, |path| {
             path.split(':')
-                .filter(|entry| self.outside_the_repository(entry))
+                .filter(|entry| !self.inside_the_repository(Path::new(entry)))
                 .map(str::to_owned)
                 .collect()
         })
@@ -114,7 +110,7 @@ impl BashCommandRunner {
                     self.parent.read(name)
                 }?;
                 let locator = LOCATOR_VARIABLES.contains(name);
-                (!locator || self.outside_the_repository(&value))
+                (!locator || !self.inside_the_repository(Path::new(&value)))
                     .then_some((*name, value))
             })
             .collect()
@@ -126,11 +122,6 @@ impl BashCommandRunner {
             .filter_map(|base| fresh_directory_in(base).ok())
             .find(|directory| !self.inside_the_repository(directory.path()))
             .ok_or(StartFailure::NoWorkingDirectoryOutsideTheRepository)
-    }
-
-    fn inside_the_repository(&self, path: &Path) -> bool {
-        std::fs::canonicalize(path)
-            .map_or(true, |resolved| self.roots.contains(&resolved))
     }
 }
 
