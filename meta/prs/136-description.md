@@ -12,9 +12,9 @@ relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
-revision: "fb2bc199e0ca7df90cbeeb0be737c4b46f89de1b"
+revision: "0f547eb4da0695568f4c4b9ab190d2b8ffdc9e0c"
 repository: "accelerator"
-last_updated: "2026-10-03T18:12:19+00:00"
+last_updated: "2026-10-03T21:26:56+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -46,9 +46,8 @@ today's single-researcher shape, now stamped `depth: 1`.
   They move out of `corpus::topic_research`, so `corpus` stays generic over
   document types and `research` keeps its std-only pup rule with no `corpus`
   dependency.
-- **`question.rs`** — question normalisation, now after Unicode
-  compatibility folding (`unicode-normalization`, `unicode-properties`, both
-  exact-pinned).
+- **`question.rs`** — question normalisation, now after NFKC
+  compatibility folding, behind a `UnicodeText` port.
 - **`pinned_indexes.rs`** — a `.levels/` directory holds its `<nn>` index,
   keyed on the question of its `1.md` or `.1.md.invalid`, so a resumed pair
   keeps its stem.
@@ -67,6 +66,11 @@ today's single-researcher shape, now stamped `depth: 1`.
   missing. A new `end-run` verb removes the ledger.
 - **`finding_count` / `round_count`** count only top-level `<nn>-*.md`
   findings; `.levels/` is never read by `synthesise`.
+- **`UnicodeTables`** — implements `UnicodeText` from one ICU4X release
+  (`icu_normalizer`, `icu_properties`, both exact-pinned `=2.2.0`): NFKC,
+  the hidden general categories and `Default_Ignorable_Code_Point`. Both
+  crates and their compiled data were already in the build through
+  `idna_adapter`, so there is no hand-copied Unicode table to keep in step.
 - **Generic `corpus` ports** — `DirectoryProbe` lets the round reader spot
   `.levels/` directories, and `FileRemove` lets `end-run` delete the ledger.
   `corpus-adapters` implements both; a removal escaping the store root is
@@ -131,10 +135,13 @@ today's single-researcher shape, now stamped `depth: 1`.
 
 - [x] `mise run check` exits 0 on the branch tip
 - [x] Full `mise run` (default task) exits 0 on the branch tip after the
-      set layout's move into `research`: 4429 CLI tests, 2611 frontend tests
+      switch to ICU4X: 4429 CLI tests, 2611 frontend tests
       and 355 visualiser e2e specs pass, alongside the tree derivation, caps,
       dedupe, lineage ordering, level barrier, index retention, run ledger,
       guard role and profile contract suites
+- [x] ICU4X agrees with the replaced `unicode-properties` categories and
+      hand-copied ignorable table on all 1,112,064 scalar values, and with
+      `unicode-normalization`'s NFKC on every single scalar value
 - [x] `mise run test:integration:pup` passes (90 tests) with `research`'s
       domain rule back to std and `kernel::Error` only; `public-api:check`
       pins the moved items under `research`
