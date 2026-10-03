@@ -12,9 +12,9 @@ relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
-revision: "57d6945f005fc61f9b0b1ad66a97f33133ac924e"
+revision: "fb2bc199e0ca7df90cbeeb0be737c4b46f89de1b"
 repository: "accelerator"
-last_updated: "2026-10-03T18:05:13+00:00"
+last_updated: "2026-10-03T18:12:19+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -40,13 +40,15 @@ today's single-researcher shape, now stamped `depth: 1`.
   follow-up cap 4 at level 1 then `ceil(parent / 2)`, trim-then-dedupe in
   lineage order against the pair question, shallower nodes and earlier
   siblings, level barrier within a pair, pruning on `follow_ups: []`.
-- **`finding_path.rs`, `stem.rs`, `lineage.rs`** and **`question.rs`** —
-  indexed finding stems, well-formed lineages (`L` then `L − 1` positive
-  positions) and question normalisation, now after Unicode compatibility
-  folding (`unicode-normalization`, `unicode-properties`, both
-  exact-pinned). The set-layout path checks move here from
-  `corpus::topic_research`, so `corpus` stays free of document-type layout
-  and `research` keeps its std-only pup rule with no `corpus` dependency.
+- **`stem.rs`, `lineage.rs`, `finding_path.rs`** — the topic-research set
+  layout: indexed `[a-z0-9-]` finding stems, well-formed lineages (`L` then
+  `L − 1` positive positions), and the finding and level-note path checks.
+  They move out of `corpus::topic_research`, so `corpus` stays generic over
+  document types and `research` keeps its std-only pup rule with no `corpus`
+  dependency.
+- **`question.rs`** — question normalisation, now after Unicode
+  compatibility folding (`unicode-normalization`, `unicode-properties`, both
+  exact-pinned).
 - **`pinned_indexes.rs`** — a `.levels/` directory holds its `<nn>` index,
   keyed on the question of its `1.md` or `.1.md.invalid`, so a resumed pair
   keeps its stem.
@@ -65,12 +67,22 @@ today's single-researcher shape, now stamped `depth: 1`.
   missing. A new `end-run` verb removes the ledger.
 - **`finding_count` / `round_count`** count only top-level `<nn>-*.md`
   findings; `.levels/` is never read by `synthesise`.
+- **Generic `corpus` ports** — `DirectoryProbe` lets the round reader spot
+  `.levels/` directories, and `FileRemove` lets `end-run` delete the ledger.
+  `corpus-adapters` implements both; a removal escaping the store root is
+  refused. The repository ignores `**/.conduct-run.json`, as the changelog
+  recommends to users.
 
 ### Schema and templates
 
 - **`templates-schema.tsv` retired** — `SCHEMA` is the one source of schema
   rows; `print-schema` emits every row under `rows` in place of its
   `optional_extras` bank.
+- **Per-row extras** — each `SchemaRow` splits `required_extras` from
+  `optional_extras`, replacing the global `OPTIONAL_EXTRAS` bank (`migrate`'s
+  m0007 follows). `follow_ups: []` is exempt from the empty-placeholder
+  check, and `Violation::schema_key` lets `outstanding` name a failing note's
+  key without echoing one taken from the untrusted file.
 - **`topic-research-level-note.md`** — new `kind: level-note` row with
   `level`, `depth`, `follow_ups`; findings gain optional `depth` (legacy
   findings read as `depth: 1`).
@@ -119,10 +131,13 @@ today's single-researcher shape, now stamped `depth: 1`.
 
 - [x] `mise run check` exits 0 on the branch tip
 - [x] Full `mise run` (default task) exits 0 on the branch tip after the
-      rebase onto main: 4429 CLI tests, 2611 frontend tests and 355
-      visualiser e2e specs pass, alongside the tree derivation, caps, dedupe,
-      lineage ordering, level barrier, index retention, run ledger, guard
-      role and profile contract suites
+      set layout's move into `research`: 4429 CLI tests, 2611 frontend tests
+      and 355 visualiser e2e specs pass, alongside the tree derivation, caps,
+      dedupe, lineage ordering, level barrier, index retention, run ledger,
+      guard role and profile contract suites
+- [x] `mise run test:integration:pup` passes (90 tests) with `research`'s
+      domain rule back to std and `kernel::Error` only; `public-api:check`
+      pins the moved items under `research`
 - [x] 21 unit tests cover the audit ignores: severity threshold, per-advisory
       suppression, lapsed review-by dates, malformed entries, and the
       repository's own ignore list parsing
@@ -145,7 +160,8 @@ today's single-researcher shape, now stamped `depth: 1`.
 - ⚠️ **Deepened sets need every collaborator on this version.** An older
   plugin reports `.levels/` notes as an unknown kind and researches the pair
   again under a new stem.
-- **`is_finding_path` narrows** to an indexed `[a-z0-9-]` stem, so a
+- **`is_finding_path` narrows and moves** to
+  `research::finding_path`: it admits only an indexed `[a-z0-9-]` stem, so a
   hand-named finding is now refused to a confined agent.
 - 🔒 **Accepted residual risk** — the guard confines each role by path
   shape, not by assigned path, so a compromised researcher could forge
@@ -167,6 +183,6 @@ today's single-researcher shape, now stamped `depth: 1`.
   navigation of level notes (0278, 0284), eval coverage of the orchestration
   contracts (0161), re-measuring the guard's 50 ms p95 budget under
   recursion.
-- Suggested reading order: `cli/research/src/tree.rs`, then
-  `run_ledger.rs` / `spawn_window.rs`, then `cli/research/src/confinement.rs`,
-  then `skills/research/research-topic/SKILL.md`.
+- Suggested reading order: `cli/research/src/stem.rs` / `lineage.rs`, then
+  `tree.rs`, then `run_ledger.rs` / `spawn_window.rs`, then
+  `confinement.rs`, then `skills/research/research-topic/SKILL.md`.
