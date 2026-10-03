@@ -8,7 +8,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::scan::FileReader;
-use corpus::topic_research::Stem;
 use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus::StoreError;
@@ -20,6 +19,7 @@ use research::run_ledger::RunId;
 use research::run_ledger::RunLedger;
 use research::spawn_window::Attempts;
 use research::spawn_window::SpawnRef;
+use research::stem::Stem;
 use research::tree::Digest;
 use research::tree::NoteRef;
 use serde_json::json;
@@ -230,10 +230,9 @@ mod tests {
     use std::path::PathBuf;
 
     use corpus::scan::FileReader;
-    use corpus::topic_research::Lineage;
-    use corpus::topic_research::Stem;
     use corpus::AtomicWrite;
     use corpus::StoreError;
+    use research::lineage::Lineage;
     use research::pinned_indexes::PinnedIndexes;
     use research::question::NormalisedQuestion;
     use research::run_ledger::PendingBatch;
@@ -241,6 +240,7 @@ mod tests {
     use research::run_ledger::RunLedger;
     use research::spawn_window::Attempts;
     use research::spawn_window::SpawnRef;
+    use research::stem::Stem;
     use research::tree::Digest;
     use research::tree::NoteRef;
     use serde_json::json;

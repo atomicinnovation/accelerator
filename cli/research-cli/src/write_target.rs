@@ -5,12 +5,12 @@ use std::io::ErrorKind;
 use std::path::Component;
 use std::path::Path;
 
-use corpus::topic_research::is_finding_path;
-use corpus::topic_research::is_level_note_path;
 use research::confinement::PathRejection;
 use research::confinement::TopicFile;
 use research::confinement::TopicLayout;
 use research::confinement::TopicsRelativePath;
+use research::finding_path::is_finding_path;
+use research::finding_path::is_level_note_path;
 
 /// Resolves `path` against `cwd` and places it below `topics`, refusing a
 /// `.` or `..` component and any symlink below the topics directory.

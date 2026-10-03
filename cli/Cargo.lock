@@ -4082,9 +4082,6 @@ dependencies = [
 [[package]]
 name = "research"
 version = "1.24.0-pre.73"
-dependencies = [
- "corpus",
-]
 
 [[package]]
 name = "research-adapters"

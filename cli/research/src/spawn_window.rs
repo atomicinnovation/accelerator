@@ -5,14 +5,14 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::lineage::Lineage;
 use crate::round::Pair;
 use crate::round::Round;
 use crate::round::Stage;
+use crate::stem::Stem;
 use crate::tree::Digest;
 use crate::tree::NoteRef;
 use crate::tree::NoteRejection;
-use corpus::topic_research::Lineage;
-use corpus::topic_research::Stem;
 
 /// One agent `conduct` spawns: a pair's researcher or composer, or the
 /// researcher of one node in a pair's tree.
@@ -219,16 +219,16 @@ mod tests {
     use super::Attempts;
     use super::SpawnRef;
     use super::Unaccepted;
+    use crate::lineage::Lineage;
     use crate::pinned_indexes::PinnedIndexes;
     use crate::round::Pair;
     use crate::round::Round;
     use crate::round::Stage;
+    use crate::stem::Stem;
     use crate::tree::Digest;
     use crate::tree::Node;
     use crate::tree::NoteRef;
     use crate::tree::NoteRejection;
-    use corpus::topic_research::Lineage;
-    use corpus::topic_research::Stem;
 
     fn spawn(text: &str) -> SpawnRef {
         SpawnRef::parse(text).expect("a spawn ref")

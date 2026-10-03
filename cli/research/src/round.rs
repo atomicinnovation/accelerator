@@ -6,9 +6,11 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::lineage::Lineage;
 use crate::pinned_indexes::PinnedIndexes;
 use crate::question::NormalisedQuestion;
 use crate::question::UnicodeText;
+use crate::stem::Stem;
 use crate::tree::derive;
 use crate::tree::Depth;
 use crate::tree::Digest;
@@ -17,8 +19,6 @@ use crate::tree::Node;
 use crate::tree::NoteRef;
 use crate::tree::TreeState;
 use crate::tree::Trim;
-use corpus::topic_research::Lineage;
-use corpus::topic_research::Stem;
 
 /// The profile an outline item is researched through when it names none.
 pub const DEFAULT_PROFILE: &str = "web";
@@ -715,9 +715,11 @@ mod tests {
     use super::SkipReason;
     use super::Stage;
     use super::Warning;
+    use crate::lineage::Lineage;
     use crate::pinned_indexes::PinnedIndexes;
     use crate::question::FakeUnicode;
     use crate::question::NormalisedQuestion;
+    use crate::stem::Stem;
     use crate::tree::Depth;
     use crate::tree::Digest;
     use crate::tree::LevelNote;
@@ -725,8 +727,6 @@ mod tests {
     use crate::tree::NoteRef;
     use crate::tree::NoteRejection;
     use crate::tree::Trim;
-    use corpus::topic_research::Lineage;
-    use corpus::topic_research::Stem;
 
     const DIGEST: Digest = Digest::new([9; 32]);
 

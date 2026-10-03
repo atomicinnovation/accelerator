@@ -1664,7 +1664,7 @@ def test_linear_client_io_rule_permits_a_filesystem_free_upload(
 _DOMAIN_RULES = [
     ("corpus", "corpus_domain_imports_only_permitted", ()),
     ("vcs", "vcs_domain_imports_only_permitted", ()),
-    ("research", "research_domain_imports_only_permitted", ("corpus",)),
+    ("research", "research_domain_imports_only_permitted", ()),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
     (
         "migrate",

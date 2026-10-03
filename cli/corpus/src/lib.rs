@@ -17,7 +17,6 @@ pub mod resolve;
 pub mod scan;
 pub mod slug;
 pub mod store;
-pub mod topic_research;
 pub mod typed_ref;
 pub mod value;
 pub mod work_item_id;

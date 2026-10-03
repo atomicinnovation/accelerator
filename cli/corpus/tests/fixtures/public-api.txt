@@ -552,54 +552,6 @@ pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core:
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
-pub mod corpus::topic_research
-pub struct corpus::topic_research::Lineage
-impl corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::child(&self, position: core::num::nonzero::NonZeroU32) -> Self
-pub const fn corpus::topic_research::Lineage::level(&self) -> u32
-pub fn corpus::topic_research::Lineage::parent(&self) -> core::option::Option<Self>
-pub fn corpus::topic_research::Lineage::parse(text: &str) -> core::option::Option<Self>
-pub const fn corpus::topic_research::Lineage::root() -> Self
-impl core::clone::Clone for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::clone(&self) -> corpus::topic_research::Lineage
-impl core::cmp::Eq for corpus::topic_research::Lineage
-impl core::cmp::Ord for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::cmp(&self, other: &corpus::topic_research::Lineage) -> core::cmp::Ordering
-impl core::cmp::PartialEq for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::eq(&self, other: &corpus::topic_research::Lineage) -> bool
-impl core::cmp::PartialOrd for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::partial_cmp(&self, other: &corpus::topic_research::Lineage) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for corpus::topic_research::Lineage
-pub fn corpus::topic_research::Lineage::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for corpus::topic_research::Lineage
-pub struct corpus::topic_research::Stem
-impl corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::admits_profile(profile: &str) -> bool
-pub fn corpus::topic_research::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
-pub const fn corpus::topic_research::Stem::index(&self) -> u32
-pub fn corpus::topic_research::Stem::parse(text: &str) -> core::option::Option<Self>
-impl core::clone::Clone for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::clone(&self) -> corpus::topic_research::Stem
-impl core::cmp::Eq for corpus::topic_research::Stem
-impl core::cmp::Ord for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::cmp(&self, other: &corpus::topic_research::Stem) -> core::cmp::Ordering
-impl core::cmp::PartialEq for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::eq(&self, other: &corpus::topic_research::Stem) -> bool
-impl core::cmp::PartialOrd for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::partial_cmp(&self, other: &corpus::topic_research::Stem) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for corpus::topic_research::Stem
-pub fn corpus::topic_research::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for corpus::topic_research::Stem
-pub fn corpus::topic_research::is_finding_path(relative: &str) -> bool
-pub fn corpus::topic_research::is_level_note_path(relative: &str) -> bool
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
 pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)

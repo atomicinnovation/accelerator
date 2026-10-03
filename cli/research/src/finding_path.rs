@@ -1,8 +1,8 @@
 //! Which paths below the research topics directory name a finding or a
 //! level note.
 
-use crate::topic_research::Lineage;
-use crate::topic_research::Stem;
+use crate::lineage::Lineage;
+use crate::stem::Stem;
 
 /// Whether `relative`, a `/`-separated path below the topics directory, is
 /// exactly `<set>/findings/<stem>.md` with a visible set.

@@ -7,13 +7,13 @@ use std::fmt;
 use std::num::NonZeroU32;
 use std::num::NonZeroUsize;
 
+use crate::lineage::Lineage;
 use crate::question::plain_question_breach;
 use crate::question::NormalisedQuestion;
 use crate::question::PlainQuestionRule;
 use crate::question::UnicodeText;
 use crate::question::LONGEST_PLAIN_QUESTION;
-use corpus::topic_research::Lineage;
-use corpus::topic_research::Stem;
+use crate::stem::Stem;
 
 pub const STARTING_FOLLOW_UP_CAP: u32 = 4;
 
@@ -512,11 +512,11 @@ mod tests {
     use super::Node;
     use super::NoteRejection;
     use super::TreeState;
+    use crate::lineage::Lineage;
     use crate::question::FakeUnicode;
     use crate::question::PlainQuestionRule;
     use crate::round::QuestionSlug;
-    use corpus::topic_research::Lineage;
-    use corpus::topic_research::Stem;
+    use crate::stem::Stem;
 
     const PAIR: &str = "P?";
 

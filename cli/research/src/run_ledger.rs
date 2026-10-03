@@ -220,6 +220,7 @@ mod tests {
     use super::PendingBatch;
     use super::RunId;
     use super::RunLedger;
+    use crate::lineage::Lineage;
     use crate::pinned_indexes::PinnedIndexes;
     use crate::question::FakeUnicode;
     use crate::question::NormalisedQuestion;
@@ -231,10 +232,9 @@ mod tests {
     use crate::spawn_window::Attempts;
     use crate::spawn_window::SpawnRef;
     use crate::spawn_window::Window;
+    use crate::stem::Stem;
     use crate::tree::Digest;
     use crate::tree::NoteRef;
-    use corpus::topic_research::Lineage;
-    use corpus::topic_research::Stem;
 
     const SEEN: Digest = Digest::new([1; 32]);
     const CHANGED: Digest = Digest::new([2; 32]);

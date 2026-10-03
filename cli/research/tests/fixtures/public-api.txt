@@ -416,6 +416,33 @@ pub trait research::fetch::Transport
 pub fn research::fetch::Transport::send(&self, request: &research::request::UpstreamRequest) -> research::classify::Response
 pub fn research::fetch::fetch_arxiv(fetch: &research::fetch::ArxivFetch<'_>, ports: &research::fetch::ArxivPorts<'_>, deadline: &research::schedule::Deadline) -> research::fetch::FetchOutcome
 pub fn research::fetch::fetch_openalex(fetch: &research::fetch::OpenAlexFetch<'_>, ports: &research::fetch::OpenAlexPorts<'_>, deadline: &research::schedule::Deadline) -> research::fetch::FetchOutcome
+pub mod research::finding_path
+pub fn research::finding_path::is_finding_path(relative: &str) -> bool
+pub fn research::finding_path::is_level_note_path(relative: &str) -> bool
+pub mod research::lineage
+pub struct research::lineage::Lineage
+impl research::lineage::Lineage
+pub fn research::lineage::Lineage::child(&self, position: core::num::nonzero::NonZeroU32) -> Self
+pub const fn research::lineage::Lineage::level(&self) -> u32
+pub fn research::lineage::Lineage::parent(&self) -> core::option::Option<Self>
+pub fn research::lineage::Lineage::parse(text: &str) -> core::option::Option<Self>
+pub const fn research::lineage::Lineage::root() -> Self
+impl core::clone::Clone for research::lineage::Lineage
+pub fn research::lineage::Lineage::clone(&self) -> research::lineage::Lineage
+impl core::cmp::Eq for research::lineage::Lineage
+impl core::cmp::Ord for research::lineage::Lineage
+pub fn research::lineage::Lineage::cmp(&self, other: &research::lineage::Lineage) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::lineage::Lineage
+pub fn research::lineage::Lineage::eq(&self, other: &research::lineage::Lineage) -> bool
+impl core::cmp::PartialOrd for research::lineage::Lineage
+pub fn research::lineage::Lineage::partial_cmp(&self, other: &research::lineage::Lineage) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::lineage::Lineage
+pub fn research::lineage::Lineage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::lineage::Lineage
+pub fn research::lineage::Lineage::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::lineage::Lineage
+pub fn research::lineage::Lineage::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::lineage::Lineage
 pub mod research::openalex
 pub struct research::openalex::Location
 pub research::openalex::Location::source: core::option::Option<research::openalex::Source>
@@ -837,7 +864,7 @@ pub fn research::round::SkipReason::fmt(&self, f: &mut core::fmt::Formatter<'_>)
 impl core::marker::Copy for research::round::SkipReason
 impl core::marker::StructuralPartialEq for research::round::SkipReason
 pub enum research::round::Stage
-pub research::round::Stage::Compose(alloc::vec::Vec<corpus::topic_research::lineage::Lineage>)
+pub research::round::Stage::Compose(alloc::vec::Vec<research::lineage::Lineage>)
 pub research::round::Stage::Deepen(alloc::vec::Vec<research::tree::Node>)
 pub research::round::Stage::Research
 impl core::clone::Clone for research::round::Stage
@@ -935,10 +962,10 @@ pub research::round::Pair::path: alloc::string::String
 pub research::round::Pair::profile: alloc::string::String
 pub research::round::Pair::question: alloc::string::String
 pub research::round::Pair::stage: research::round::Stage
-pub research::round::Pair::stem: corpus::topic_research::stem::Stem
+pub research::round::Pair::stem: research::stem::Stem
 impl research::round::Pair
-pub fn research::round::Pair::level_note_id(&self, lineage: &corpus::topic_research::lineage::Lineage, set_slug: &str) -> alloc::string::String
-pub fn research::round::Pair::level_note_path(&self, lineage: &corpus::topic_research::lineage::Lineage) -> alloc::string::String
+pub fn research::round::Pair::level_note_id(&self, lineage: &research::lineage::Lineage, set_slug: &str) -> alloc::string::String
+pub fn research::round::Pair::level_note_path(&self, lineage: &research::lineage::Lineage) -> alloc::string::String
 impl core::clone::Clone for research::round::Pair
 pub fn research::round::Pair::clone(&self) -> research::round::Pair
 impl core::cmp::Eq for research::round::Pair
@@ -948,7 +975,7 @@ impl core::fmt::Debug for research::round::Pair
 pub fn research::round::Pair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::round::Pair
 pub struct research::round::PairTrim
-pub research::round::PairTrim::stem: corpus::topic_research::stem::Stem
+pub research::round::PairTrim::stem: research::stem::Stem
 pub research::round::PairTrim::trim: research::tree::Trim
 impl core::clone::Clone for research::round::PairTrim
 pub fn research::round::PairTrim::clone(&self) -> research::round::PairTrim
@@ -986,7 +1013,7 @@ pub fn research::round::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_
 impl core::marker::StructuralPartialEq for research::round::QuestionSlug
 pub struct research::round::Round
 pub research::round::Round::accepted_notes: alloc::collections::btree::map::BTreeMap<research::tree::NoteRef, research::tree::Digest>
-pub research::round::Round::answered: alloc::collections::btree::set::BTreeSet<corpus::topic_research::stem::Stem>
+pub research::round::Round::answered: alloc::collections::btree::set::BTreeSet<research::stem::Stem>
 pub research::round::Round::indexes: research::pinned_indexes::PinnedIndexes
 pub research::round::Round::items: alloc::vec::Vec<research::round::ItemStatus>
 pub research::round::Round::pairs: alloc::vec::Vec<research::round::Pair>
@@ -1021,7 +1048,7 @@ impl core::fmt::Debug for research::round::RoundInputs
 pub fn research::round::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct research::round::ShallowerPair
 pub research::round::ShallowerPair::depth: research::tree::Depth
-pub research::round::ShallowerPair::stem: corpus::topic_research::stem::Stem
+pub research::round::ShallowerPair::stem: research::stem::Stem
 impl core::clone::Clone for research::round::ShallowerPair
 pub fn research::round::ShallowerPair::clone(&self) -> research::round::ShallowerPair
 impl core::cmp::Eq for research::round::ShallowerPair
@@ -1143,7 +1170,7 @@ pub fn research::schedule::RetrySchedule::wait_before(retry: research::schedule:
 pub mod research::spawn_window
 pub enum research::spawn_window::SpawnRef
 pub research::spawn_window::SpawnRef::Node(research::tree::NoteRef)
-pub research::spawn_window::SpawnRef::Pair(corpus::topic_research::stem::Stem)
+pub research::spawn_window::SpawnRef::Pair(research::stem::Stem)
 impl research::spawn_window::SpawnRef
 pub fn research::spawn_window::SpawnRef::parse(text: &str) -> core::option::Option<Self>
 impl core::clone::Clone for research::spawn_window::SpawnRef
@@ -1163,7 +1190,7 @@ impl core::hash::Hash for research::spawn_window::SpawnRef
 pub fn research::spawn_window::SpawnRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::spawn_window::SpawnRef
 pub struct research::spawn_window::Attempts
-pub research::spawn_window::Attempts::answered_seen: alloc::collections::btree::set::BTreeSet<corpus::topic_research::stem::Stem>
+pub research::spawn_window::Attempts::answered_seen: alloc::collections::btree::set::BTreeSet<research::stem::Stem>
 pub research::spawn_window::Attempts::attempted: alloc::collections::btree::set::BTreeSet<research::spawn_window::SpawnRef>
 pub research::spawn_window::Attempts::just_acknowledged: alloc::collections::btree::set::BTreeSet<research::spawn_window::SpawnRef>
 pub research::spawn_window::Attempts::notes_seen: alloc::collections::btree::map::BTreeMap<research::tree::NoteRef, research::tree::Digest>
@@ -1204,6 +1231,29 @@ impl core::fmt::Debug for research::spawn_window::Window
 pub fn research::spawn_window::Window::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::spawn_window::Window
 pub fn research::spawn_window::window(round: research::round::Round, limit: core::option::Option<usize>, attempts: core::option::Option<&research::spawn_window::Attempts>) -> research::spawn_window::Window
+pub mod research::stem
+pub struct research::stem::Stem
+impl research::stem::Stem
+pub fn research::stem::Stem::admits_profile(profile: &str) -> bool
+pub fn research::stem::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
+pub const fn research::stem::Stem::index(&self) -> u32
+pub fn research::stem::Stem::parse(text: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::stem::Stem
+pub fn research::stem::Stem::clone(&self) -> research::stem::Stem
+impl core::cmp::Eq for research::stem::Stem
+impl core::cmp::Ord for research::stem::Stem
+pub fn research::stem::Stem::cmp(&self, other: &research::stem::Stem) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::stem::Stem
+pub fn research::stem::Stem::eq(&self, other: &research::stem::Stem) -> bool
+impl core::cmp::PartialOrd for research::stem::Stem
+pub fn research::stem::Stem::partial_cmp(&self, other: &research::stem::Stem) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::stem::Stem
+pub fn research::stem::Stem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::stem::Stem
+pub fn research::stem::Stem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::stem::Stem
+pub fn research::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::stem::Stem
 pub mod research::tier
 pub const fn research::tier::arxiv_tier(withdrawn: bool) -> research::record::Tier
 pub fn research::tier::openalex_tier(work: &research::openalex::Work) -> research::record::Tier
@@ -1231,7 +1281,7 @@ impl core::fmt::Display for research::tree::NoteRejection
 pub fn research::tree::NoteRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::tree::NoteRejection
 pub enum research::tree::TreeState
-pub research::tree::TreeState::Complete(alloc::vec::Vec<corpus::topic_research::lineage::Lineage>)
+pub research::tree::TreeState::Complete(alloc::vec::Vec<research::lineage::Lineage>)
 pub research::tree::TreeState::Growing(alloc::vec::Vec<research::tree::Node>)
 impl core::clone::Clone for research::tree::TreeState
 pub fn research::tree::TreeState::clone(&self) -> research::tree::TreeState
@@ -1293,10 +1343,10 @@ impl core::marker::StructuralPartialEq for research::tree::Digest
 pub struct research::tree::LevelNote
 pub research::tree::LevelNote::digest: research::tree::Digest
 pub research::tree::LevelNote::follow_ups: alloc::vec::Vec<alloc::string::String>
-pub research::tree::LevelNote::lineage: corpus::topic_research::lineage::Lineage
+pub research::tree::LevelNote::lineage: research::lineage::Lineage
 pub research::tree::LevelNote::question: alloc::string::String
 impl research::tree::LevelNote
-pub fn research::tree::LevelNote::from_frontmatter(lineage: corpus::topic_research::lineage::Lineage, fields: research::tree::LevelNoteFields<'_>, unicode: &dyn research::question::UnicodeText) -> core::result::Result<Self, research::tree::NoteRejection>
+pub fn research::tree::LevelNote::from_frontmatter(lineage: research::lineage::Lineage, fields: research::tree::LevelNoteFields<'_>, unicode: &dyn research::question::UnicodeText) -> core::result::Result<Self, research::tree::NoteRejection>
 impl core::clone::Clone for research::tree::LevelNote
 pub fn research::tree::LevelNote::clone(&self) -> research::tree::LevelNote
 impl core::cmp::Eq for research::tree::LevelNote
@@ -1322,11 +1372,11 @@ impl<'a> core::marker::Copy for research::tree::LevelNoteFields<'a>
 impl<'a> core::marker::StructuralPartialEq for research::tree::LevelNoteFields<'a>
 pub struct research::tree::LevelsDirectory
 impl research::tree::LevelsDirectory
-pub const fn research::tree::LevelsDirectory::new(stem: corpus::topic_research::stem::Stem, root_question: core::option::Option<alloc::string::String>, notes: alloc::vec::Vec<research::tree::LevelNote>, rejected: alloc::collections::btree::map::BTreeMap<corpus::topic_research::lineage::Lineage, research::tree::NoteRejection>) -> Self
+pub const fn research::tree::LevelsDirectory::new(stem: research::stem::Stem, root_question: core::option::Option<alloc::string::String>, notes: alloc::vec::Vec<research::tree::LevelNote>, rejected: alloc::collections::btree::map::BTreeMap<research::lineage::Lineage, research::tree::NoteRejection>) -> Self
 pub fn research::tree::LevelsDirectory::notes(&self) -> &[research::tree::LevelNote]
-pub const fn research::tree::LevelsDirectory::rejected(&self) -> &alloc::collections::btree::map::BTreeMap<corpus::topic_research::lineage::Lineage, research::tree::NoteRejection>
+pub const fn research::tree::LevelsDirectory::rejected(&self) -> &alloc::collections::btree::map::BTreeMap<research::lineage::Lineage, research::tree::NoteRejection>
 pub fn research::tree::LevelsDirectory::root_question(&self) -> core::option::Option<&str>
-pub const fn research::tree::LevelsDirectory::stem(&self) -> &corpus::topic_research::stem::Stem
+pub const fn research::tree::LevelsDirectory::stem(&self) -> &research::stem::Stem
 impl core::clone::Clone for research::tree::LevelsDirectory
 pub fn research::tree::LevelsDirectory::clone(&self) -> research::tree::LevelsDirectory
 impl core::cmp::Eq for research::tree::LevelsDirectory
@@ -1338,7 +1388,7 @@ impl core::marker::StructuralPartialEq for research::tree::LevelsDirectory
 pub struct research::tree::Node
 pub research::tree::Node::cap: u32
 pub research::tree::Node::known_questions: alloc::vec::Vec<alloc::string::String>
-pub research::tree::Node::lineage: corpus::topic_research::lineage::Lineage
+pub research::tree::Node::lineage: research::lineage::Lineage
 pub research::tree::Node::question: alloc::string::String
 pub research::tree::Node::rejected: core::option::Option<research::tree::NoteRejection>
 impl core::clone::Clone for research::tree::Node
@@ -1350,8 +1400,8 @@ impl core::fmt::Debug for research::tree::Node
 pub fn research::tree::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::tree::Node
 pub struct research::tree::NoteRef
-pub research::tree::NoteRef::lineage: corpus::topic_research::lineage::Lineage
-pub research::tree::NoteRef::stem: corpus::topic_research::stem::Stem
+pub research::tree::NoteRef::lineage: research::lineage::Lineage
+pub research::tree::NoteRef::stem: research::stem::Stem
 impl core::clone::Clone for research::tree::NoteRef
 pub fn research::tree::NoteRef::clone(&self) -> research::tree::NoteRef
 impl core::cmp::Eq for research::tree::NoteRef
@@ -1370,7 +1420,7 @@ pub fn research::tree::NoteRef::hash<__H: core::hash::Hasher>(&self, state: &mut
 impl core::marker::StructuralPartialEq for research::tree::NoteRef
 pub struct research::tree::Trim
 pub research::tree::Trim::cap: u32
-pub research::tree::Trim::lineage: corpus::topic_research::lineage::Lineage
+pub research::tree::Trim::lineage: research::lineage::Lineage
 pub research::tree::Trim::recorded: u32
 impl research::tree::Trim
 pub const fn research::tree::Trim::trimmed(&self) -> u32
