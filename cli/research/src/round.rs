@@ -3,7 +3,22 @@
 //! outstanding pair's finding is written.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
+
+use crate::pinned_indexes::PinnedIndexes;
+use crate::question::NormalisedQuestion;
+use crate::question::UnicodeText;
+use crate::tree::derive;
+use crate::tree::Depth;
+use crate::tree::Digest;
+use crate::tree::LevelsDirectory;
+use crate::tree::Node;
+use crate::tree::NoteRef;
+use crate::tree::TreeState;
+use crate::tree::Trim;
+use corpus::topic_research::Lineage;
+use corpus::topic_research::Stem;
 
 /// The profile an outline item is researched through when it names none.
 pub const DEFAULT_PROFILE: &str = "web";
@@ -150,6 +165,7 @@ impl From<&str> for QuestionSlug {
 pub struct Finding {
     name: String,
     answers: Option<Answer>,
+    depth: Option<Depth>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,6 +183,7 @@ impl Finding {
                 question: question.to_owned(),
                 profile: profile.to_owned(),
             }),
+            depth: None,
         }
     }
 
@@ -175,7 +192,20 @@ impl Finding {
         Self {
             name: name.to_owned(),
             answers: None,
+            depth: None,
         }
+    }
+
+    /// The finding as stamped with the depth it was researched to; an
+    /// unstamped finding reads as depth 1.
+    #[must_use]
+    pub const fn with_depth(mut self, depth: Depth) -> Self {
+        self.depth = Some(depth);
+        self
+    }
+
+    fn stem(&self) -> Option<Stem> {
+        self.name.strip_suffix(".md").and_then(Stem::parse)
     }
 }
 
@@ -206,6 +236,9 @@ pub struct RoundInputs {
     pub source_profiles: Vec<String>,
     /// The profiles with an installed `<name>-profile` skill.
     pub available_profiles: Vec<String>,
+    pub levels: Vec<LevelsDirectory>,
+    pub depth: Depth,
+    pub pins: PinnedIndexes,
 }
 
 /// The plan for one `conduct` round.
@@ -215,6 +248,13 @@ pub struct Round {
     pub pairs: Vec<Pair>,
     pub skipped: Vec<Skip>,
     pub warnings: Vec<Warning>,
+    pub accepted_notes: BTreeMap<NoteRef, Digest>,
+    /// The stems of the pairs whose finding is retained.
+    pub answered: BTreeSet<Stem>,
+    pub shallower: Vec<ShallowerPair>,
+    pub trims: Vec<PairTrim>,
+    /// The index each focus area with an outstanding pair was planned at.
+    pub indexes: PinnedIndexes,
 }
 
 /// Whether an outline item is complete: it has at least one eligible pair,
@@ -232,7 +272,61 @@ pub struct ItemStatus {
 pub struct Pair {
     pub question: String,
     pub profile: String,
+    pub stem: Stem,
     pub path: String,
+    pub stage: Stage,
+}
+
+impl Pair {
+    #[must_use]
+    pub fn level_note_path(&self, lineage: &Lineage) -> String {
+        format!("findings/{}.levels/{lineage}.md", self.stem)
+    }
+
+    /// Scoped by `set_slug`, because stems repeat across sets and level-note
+    /// ids must be unique across the corpus.
+    #[must_use]
+    pub fn level_note_id(&self, lineage: &Lineage, set_slug: &str) -> String {
+        format!("{set_slug}.{}.{lineage}", self.stem)
+    }
+}
+
+/// What a pair needs next: one researcher for its finding, researchers for
+/// its tree's missing nodes, or the composer over its complete tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Stage {
+    Research,
+    Deepen(Vec<Node>),
+    Compose(Vec<Lineage>),
+}
+
+/// An answered pair whose finding was researched to less than the requested
+/// depth, which `conduct` does not deepen again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShallowerPair {
+    pub stem: Stem,
+    pub depth: Depth,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairTrim {
+    pub stem: Stem,
+    pub trim: Trim,
+}
+
+impl fmt::Display for PairTrim {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "level note {}.levels/{} records {} follow-ups, over its cap of \
+             {}; trimmed {}",
+            self.stem,
+            self.trim.lineage,
+            self.trim.recorded,
+            self.trim.cap,
+            self.trim.trimmed()
+        )
+    }
 }
 
 /// A pair `conduct` cannot research.
@@ -268,6 +362,7 @@ impl Skip {
 pub enum Warning {
     UnseparatedProfiles { line: usize },
     UnmatchedFinding { name: String, question: String },
+    IndexesExhausted { question: String },
 }
 
 impl fmt::Display for Warning {
@@ -283,14 +378,13 @@ impl fmt::Display for Warning {
                 "finding {name} answers '{question}', which no outline item \
                  asks"
             ),
+            Self::IndexesExhausted { question } => write!(
+                f,
+                "no finding index is left to allocate to '{question}', so it \
+                 is not planned"
+            ),
         }
     }
-}
-
-/// Questions compare after trimming and collapsing runs of whitespace, so a
-/// reflowed outline still matches its findings.
-fn normalised(question: &str) -> String {
-    question.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn index_of(name: &str) -> Option<u32> {
@@ -303,27 +397,40 @@ fn index_of(name: &str) -> Option<u32> {
 
 impl Round {
     #[must_use]
-    pub fn plan(inputs: &RoundInputs) -> Self {
-        Planner::new(inputs).plan()
+    pub fn plan(inputs: &RoundInputs, unicode: &dyn UnicodeText) -> Self {
+        Planner::new(inputs, unicode).plan()
     }
 }
 
 struct AnsweredPair<'a> {
-    question: String,
+    question: NormalisedQuestion,
     profile: &'a str,
     index: Option<u32>,
+    stem: Option<Stem>,
+    depth: Depth,
+}
+
+/// A quarantine marker or a `.levels` directory: a name that holds an index,
+/// for the question it names when it names one.
+struct IndexHolder {
+    index: u32,
+    question: Option<NormalisedQuestion>,
 }
 
 struct Planner<'a> {
     inputs: &'a RoundInputs,
+    unicode: &'a dyn UnicodeText,
     answered: Vec<AnsweredPair<'a>>,
-    next_index: u32,
-    allocated: BTreeMap<String, Option<u32>>,
+    holders: Vec<IndexHolder>,
+    next_index: Option<u32>,
+    allocated: BTreeMap<NormalisedQuestion, Option<u32>>,
 }
 
 impl<'a> Planner<'a> {
-    fn new(inputs: &'a RoundInputs) -> Self {
-        let answered = inputs
+    fn new(inputs: &'a RoundInputs, unicode: &'a dyn UnicodeText) -> Self {
+        let normalised =
+            |question: &str| NormalisedQuestion::of(question, unicode);
+        let answered: Vec<AnsweredPair<'a>> = inputs
             .findings
             .iter()
             .filter_map(|finding| {
@@ -331,23 +438,41 @@ impl<'a> Planner<'a> {
                     question: normalised(&answer.question),
                     profile: answer.profile.as_str(),
                     index: index_of(&finding.name),
+                    stem: finding.stem(),
+                    depth: finding.depth.unwrap_or_default(),
                 })
             })
             .collect();
+        let markers = inputs.markers.iter().filter_map(|marker| {
+            Some(IndexHolder {
+                index: index_of(&marker.name)?,
+                question: marker.question.as_deref().map(normalised),
+            })
+        });
+        let levels = inputs.levels.iter().map(|directory| IndexHolder {
+            index: directory.stem().index(),
+            question: directory.root_question().map(normalised),
+        });
+        let holders: Vec<IndexHolder> = markers.chain(levels).collect();
         let highest = inputs
             .findings
             .iter()
-            .map(|finding| &finding.name)
-            .chain(inputs.markers.iter().map(|marker| &marker.name))
-            .filter_map(|name| index_of(name))
-            .max()
-            .unwrap_or(0);
+            .filter_map(|finding| index_of(&finding.name))
+            .chain(holders.iter().map(|holder| holder.index))
+            .chain(inputs.pins.indexes())
+            .max();
         Self {
             inputs,
+            unicode,
             answered,
-            next_index: highest + 1,
+            holders,
+            next_index: highest.map_or(Some(1), |index| index.checked_add(1)),
             allocated: BTreeMap::new(),
         }
+    }
+
+    fn normalised(&self, question: &str) -> NormalisedQuestion {
+        NormalisedQuestion::of(question, self.unicode)
     }
 
     fn plan(mut self) -> Round {
@@ -356,6 +481,15 @@ impl<'a> Planner<'a> {
             pairs: Vec::new(),
             skipped: Vec::new(),
             warnings: Vec::new(),
+            accepted_notes: self.accepted_notes(),
+            answered: self
+                .answered
+                .iter()
+                .filter_map(|pair| pair.stem.clone())
+                .collect(),
+            shallower: Vec::new(),
+            trims: Vec::new(),
+            indexes: PinnedIndexes::default(),
         };
         for entry in &self.inputs.outline.items {
             if entry.item.suffix == ProfilesSuffix::Unseparated {
@@ -371,11 +505,32 @@ impl<'a> Planner<'a> {
             });
         }
         round.warnings.extend(self.unmatched_findings());
+        for (question, index) in &self.allocated {
+            if let Some(index) = index {
+                round.indexes.pin(question.clone(), *index);
+            }
+        }
         round
     }
 
+    fn accepted_notes(&self) -> BTreeMap<NoteRef, Digest> {
+        self.inputs
+            .levels
+            .iter()
+            .flat_map(|directory| {
+                directory.notes().iter().map(|note| {
+                    let at = NoteRef {
+                        stem: directory.stem().clone(),
+                        lineage: note.lineage.clone(),
+                    };
+                    (at, note.digest)
+                })
+            })
+            .collect()
+    }
+
     fn plan_item(&mut self, item: &OutlineItem, round: &mut Round) -> bool {
-        let question = normalised(&item.question);
+        let question = self.normalised(&item.question);
         let first_sighting = !self.allocated.contains_key(&question);
         let mut eligible = 0;
         let mut outstanding = Vec::new();
@@ -391,27 +546,83 @@ impl<'a> Planner<'a> {
                 continue;
             }
             eligible += 1;
-            if !self.is_answered(&question, profile) {
-                outstanding.push(profile);
+            match self.answer(&question, profile) {
+                Some(answer) if first_sighting => {
+                    round.shallower.extend(self.shallower(answer));
+                }
+                Some(_) => {}
+                None => outstanding.push(profile),
             }
         }
         if first_sighting {
-            let index =
-                (!outstanding.is_empty()).then(|| self.index_for(&question));
+            let index = if outstanding.is_empty() {
+                None
+            } else {
+                self.index_for(&question)
+            };
+            if !outstanding.is_empty() && index.is_none() {
+                round.warnings.push(Warning::IndexesExhausted {
+                    question: item.question.clone(),
+                });
+            }
             self.allocated.insert(question, index);
             if let Some(index) = index {
                 let slug = QuestionSlug::from(item.question.as_str());
-                round.pairs.extend(outstanding.iter().map(|profile| Pair {
-                    question: item.question.clone(),
-                    profile: (*profile).to_owned(),
-                    path: format!(
-                        "findings/{index:02}-{}-{profile}.md",
-                        slug.as_str()
-                    ),
-                }));
+                for profile in outstanding.iter().copied() {
+                    let Some(stem) =
+                        Stem::allocated(index, slug.as_str(), profile)
+                    else {
+                        continue;
+                    };
+                    let stage = self.stage_for(&stem, &item.question, round);
+                    round.pairs.push(Pair {
+                        question: item.question.clone(),
+                        profile: profile.to_owned(),
+                        path: format!("findings/{stem}.md"),
+                        stem,
+                        stage,
+                    });
+                }
             }
         }
         eligible > 0 && outstanding.is_empty()
+    }
+
+    fn stage_for(
+        &self,
+        stem: &Stem,
+        question: &str,
+        round: &mut Round,
+    ) -> Stage {
+        let directory = self
+            .inputs
+            .levels
+            .iter()
+            .find(|directory| directory.stem() == stem);
+        if directory.is_none() && self.inputs.depth == Depth::default() {
+            return Stage::Research;
+        }
+        let derivation =
+            derive(question, directory, self.inputs.depth, self.unicode);
+        round
+            .trims
+            .extend(derivation.trims.into_iter().map(|trim| PairTrim {
+                stem: stem.clone(),
+                trim,
+            }));
+        match derivation.state {
+            TreeState::Growing(nodes) => Stage::Deepen(nodes),
+            TreeState::Complete(lineages) => Stage::Compose(lineages),
+        }
+    }
+
+    fn shallower(&self, answer: &AnsweredPair<'_>) -> Option<ShallowerPair> {
+        (answer.depth < self.inputs.depth).then(|| {
+            answer.stem.clone().map(|stem| ShallowerPair {
+                stem,
+                depth: answer.depth,
+            })
+        })?
     }
 
     fn ineligibility(&self, profile: &str) -> Option<SkipReason> {
@@ -425,58 +636,62 @@ impl<'a> Planner<'a> {
         }
     }
 
-    fn is_answered(&self, question: &str, profile: &str) -> bool {
+    fn answer(
+        &self,
+        question: &NormalisedQuestion,
+        profile: &str,
+    ) -> Option<&AnsweredPair<'a>> {
         self.answered
             .iter()
-            .any(|pair| pair.question == question && pair.profile == profile)
+            .find(|pair| pair.question == *question && pair.profile == profile)
     }
 
-    fn index_for(&mut self, question: &str) -> u32 {
-        let retained = self
-            .answered
-            .iter()
-            .filter(|pair| pair.question == question)
-            .filter_map(|pair| pair.index)
-            .min();
-        let quarantined = || {
-            self.inputs
-                .markers
+    fn index_for(&mut self, question: &NormalisedQuestion) -> Option<u32> {
+        let retained = || {
+            self.answered
                 .iter()
-                .filter(|marker| {
-                    marker
-                        .question
-                        .as_deref()
-                        .is_some_and(|named| normalised(named) == question)
-                })
-                .filter_map(|marker| index_of(&marker.name))
+                .filter(|pair| pair.question == *question)
+                .filter_map(|pair| pair.index)
                 .min()
         };
-        retained.or_else(quarantined).unwrap_or_else(|| {
-            let index = self.next_index;
-            self.next_index += 1;
-            index
-        })
+        let held = || {
+            self.holders
+                .iter()
+                .filter(|holder| holder.question.as_ref() == Some(question))
+                .map(|holder| holder.index)
+                .min()
+        };
+        self.inputs
+            .pins
+            .index_for(question)
+            .or_else(retained)
+            .or_else(held)
+            .or_else(|| {
+                let index = self.next_index?;
+                self.next_index = index.checked_add(1);
+                Some(index)
+            })
     }
 
     fn unmatched_findings(&self) -> Vec<Warning> {
-        let asked: Vec<String> = self
+        let asked: Vec<NormalisedQuestion> = self
             .inputs
             .outline
             .items
             .iter()
-            .map(|entry| normalised(&entry.item.question))
+            .map(|entry| self.normalised(&entry.item.question))
             .collect();
         self.inputs
             .findings
             .iter()
             .filter_map(|finding| {
                 let answer = finding.answers.as_ref()?;
-                (!asked.contains(&normalised(&answer.question))).then(|| {
-                    Warning::UnmatchedFinding {
+                (!asked.contains(&self.normalised(&answer.question))).then(
+                    || Warning::UnmatchedFinding {
                         name: finding.name.clone(),
                         question: answer.question.clone(),
-                    }
-                })
+                    },
+                )
             })
             .collect()
     }
@@ -484,16 +699,104 @@ impl<'a> Planner<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::Finding;
     use super::Outline;
     use super::OutlineItem;
     use super::Pair;
+    use super::PairTrim;
     use super::QuarantineMarker;
     use super::QuestionSlug;
     use super::Round;
     use super::RoundInputs;
+    use super::ShallowerPair;
     use super::Skip;
     use super::SkipReason;
+    use super::Stage;
+    use super::Warning;
+    use crate::pinned_indexes::PinnedIndexes;
+    use crate::question::FakeUnicode;
+    use crate::question::NormalisedQuestion;
+    use crate::tree::Depth;
+    use crate::tree::Digest;
+    use crate::tree::LevelNote;
+    use crate::tree::LevelsDirectory;
+    use crate::tree::NoteRef;
+    use crate::tree::NoteRejection;
+    use crate::tree::Trim;
+    use corpus::topic_research::Lineage;
+    use corpus::topic_research::Stem;
+
+    const DIGEST: Digest = Digest::new([9; 32]);
+
+    fn plan(inputs: &RoundInputs) -> Round {
+        Round::plan(inputs, &FakeUnicode)
+    }
+
+    fn lineage(text: &str) -> Lineage {
+        Lineage::parse(text).unwrap_or_else(Lineage::root)
+    }
+
+    fn depth(levels: u32) -> Depth {
+        Depth::new(levels).unwrap_or_default()
+    }
+
+    fn stems(round: &Round) -> Vec<String> {
+        round
+            .pairs
+            .iter()
+            .map(|pair| pair.stem.to_string())
+            .collect()
+    }
+
+    fn note(at: &str, question: &str, follow_ups: &[&str]) -> LevelNote {
+        LevelNote {
+            lineage: lineage(at),
+            question: question.to_owned(),
+            follow_ups: follow_ups.iter().map(|&f| f.to_owned()).collect(),
+            digest: DIGEST,
+        }
+    }
+
+    fn levels(
+        stem: &str,
+        root_question: Option<&str>,
+        notes: Vec<LevelNote>,
+    ) -> Vec<LevelsDirectory> {
+        Stem::parse(stem)
+            .map(|stem| {
+                LevelsDirectory::new(
+                    stem,
+                    root_question.map(str::to_owned),
+                    notes,
+                    BTreeMap::new(),
+                )
+            })
+            .into_iter()
+            .collect()
+    }
+
+    fn pins(entries: &[(&str, u32)]) -> PinnedIndexes {
+        let mut pins = PinnedIndexes::default();
+        for (question, index) in entries {
+            pins.pin(NormalisedQuestion::of(question, &FakeUnicode), *index);
+        }
+        pins
+    }
+
+    fn stage(round: &Round) -> Option<&Stage> {
+        round.pairs.first().map(|pair| &pair.stage)
+    }
+
+    fn deepened(round: &Round) -> Vec<String> {
+        match stage(round) {
+            Some(Stage::Deepen(nodes)) => {
+                nodes.iter().map(|node| node.lineage.to_string()).collect()
+            }
+            _ => Vec::new(),
+        }
+    }
 
     fn outline(lines: &[&str]) -> Outline {
         Outline::parse(&lines.join("\n"))
@@ -518,6 +821,9 @@ mod tests {
                 "openalex".into(),
                 "arxiv".into(),
             ],
+            levels: Vec::new(),
+            depth: Depth::default(),
+            pins: PinnedIndexes::default(),
         }
     }
 
@@ -564,7 +870,7 @@ mod tests {
     #[test]
     fn an_unseparated_profiles_suffix_is_a_warning_and_defaults_to_web() {
         let outline = outline(&["# O", "- [ ] Why? profiles: arxiv"]);
-        let round = Round::plan(&inputs(outline));
+        let round = plan(&inputs(outline));
         assert_eq!(round.items[0].question, "Why? profiles: arxiv");
         assert_eq!(
             paths(&round),
@@ -621,9 +927,8 @@ mod tests {
 
     #[test]
     fn a_fresh_multi_profile_item_shares_one_index() {
-        let round = Round::plan(&inputs(outline(&[
-            "- [ ] How? — profiles: web, openalex",
-        ])));
+        let round =
+            plan(&inputs(outline(&["- [ ] How? — profiles: web, openalex"])));
         assert_eq!(
             paths(&round),
             vec![
@@ -636,7 +941,7 @@ mod tests {
 
     #[test]
     fn two_fresh_items_take_consecutive_indices() {
-        let round = Round::plan(&inputs(outline(&["- [ ] A?", "- [ ] B?"])));
+        let round = plan(&inputs(outline(&["- [ ] A?", "- [ ] B?"])));
         assert_eq!(
             paths(&round),
             vec![
@@ -656,7 +961,7 @@ mod tests {
             retained("01-a-web.md", "A?", "web"),
             retained("03-b-web.md", "B?", "web"),
         ];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(
             paths(&round),
             vec![("openalex", "findings/03-b-openalex.md")]
@@ -673,7 +978,7 @@ mod tests {
             ".04-c-web.md.invalid",
             Some("C?".into()),
         )];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(paths(&round), vec![("web", "findings/04-c-web.md")]);
     }
 
@@ -682,7 +987,7 @@ mod tests {
         let mut inputs = inputs(outline(&["- [ ] New?"]));
         inputs.markers =
             vec![QuarantineMarker::new(".02-old-web.md.invalid", None)];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(paths(&round), vec![("web", "findings/03-new-web.md")]);
     }
 
@@ -690,7 +995,7 @@ mod tests {
     fn an_invalid_finding_holds_its_index_but_leaves_its_pair_outstanding() {
         let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
         inputs.findings = vec![Finding::invalid("01-a-web.md")];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(
             paths(&round),
             vec![
@@ -704,7 +1009,7 @@ mod tests {
     fn a_profile_outside_the_brief_is_skipped() {
         let mut inputs = inputs(outline(&["- [ ] A? — profiles: web, arxiv"]));
         inputs.source_profiles = vec!["web".into()];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(paths(&round), vec![("web", "findings/01-a-web.md")]);
         assert_eq!(
             round.skipped,
@@ -724,7 +1029,7 @@ mod tests {
     fn a_profile_with_no_skill_is_skipped() {
         let mut inputs = inputs(outline(&["- [ ] A? — profiles: crossref"]));
         inputs.source_profiles.push("crossref".into());
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(round.pairs.is_empty());
         assert_eq!(
             round.skipped[0].explanation(),
@@ -736,7 +1041,7 @@ mod tests {
     fn an_item_whose_pairs_are_all_skipped_is_never_complete() {
         let mut inputs = inputs(outline(&["- [x] A? — profiles: arxiv"]));
         inputs.source_profiles = vec!["web".into()];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(!round.items[0].complete);
     }
 
@@ -745,7 +1050,7 @@ mod tests {
         let mut inputs = inputs(outline(&["- [ ] A? — profiles: web, arxiv"]));
         inputs.source_profiles = vec!["web".into()];
         inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(round.items[0].complete);
     }
 
@@ -758,7 +1063,7 @@ mod tests {
             "What is the first focus area?",
             "web",
         )];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(round.pairs.is_empty());
         assert!(round.items[0].complete);
         assert!(round.warnings.is_empty());
@@ -766,7 +1071,7 @@ mod tests {
 
     #[test]
     fn a_non_latin_question_is_allocated_a_focus_area_slug() {
-        let round = Round::plan(&inputs(outline(&["- [ ] 注意力机制？"])));
+        let round = plan(&inputs(outline(&["- [ ] 注意力机制？"])));
         assert_eq!(
             paths(&round),
             vec![("web", "findings/01-focus-area-web.md")]
@@ -779,7 +1084,7 @@ mod tests {
             inputs(outline(&["- [ ] How   do heads\tspecialise?"]));
         inputs.findings =
             vec![retained("01-x.md", " How do heads specialise? ", "web")];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(round.items[0].complete);
         assert!(round.warnings.is_empty());
     }
@@ -789,7 +1094,7 @@ mod tests {
         let mut inputs = inputs(outline(&["- [ ] How do heads specialise?"]));
         inputs.findings =
             vec![retained("01-x.md", "How do the heads specialise?", "web")];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert!(!round.items[0].complete);
         assert_eq!(
             paths(&round),
@@ -811,30 +1116,395 @@ mod tests {
             retained("05-a-web.md", "A?", "web"),
             retained("02-a-openalex.md", "A?", "openalex"),
         ];
-        let round = Round::plan(&inputs);
+        let round = plan(&inputs);
         assert_eq!(paths(&round), vec![("arxiv", "findings/02-a-arxiv.md")]);
     }
 
     #[test]
     fn a_ticked_item_that_is_newly_incomplete_reports_incomplete() {
-        let round = Round::plan(&inputs(outline(&[
-            "- [x] A? — profiles: web, openalex",
-        ])));
+        let round =
+            plan(&inputs(outline(&["- [x] A? — profiles: web, openalex"])));
         assert!(!round.items[0].complete);
         assert_eq!(round.pairs.len(), 2);
     }
 
     #[test]
     fn a_question_repeated_across_rounds_is_allocated_once() {
-        let round = Round::plan(&inputs(outline(&["- [ ] A?", "- [ ] A?"])));
+        let round = plan(&inputs(outline(&["- [ ] A?", "- [ ] A?"])));
         assert_eq!(round.items.len(), 2);
         assert_eq!(
             round.pairs,
-            vec![Pair {
-                question: "A?".into(),
-                profile: "web".into(),
-                path: "findings/01-a-web.md".into(),
+            Stem::parse("01-a-web")
+                .map(|stem| Pair {
+                    question: "A?".into(),
+                    profile: "web".into(),
+                    stem,
+                    path: "findings/01-a-web.md".into(),
+                    stage: Stage::Research,
+                })
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn a_pair_without_levels_at_depth_one_is_researched_directly() {
+        let round = plan(&inputs(outline(&["- [ ] A?"])));
+        assert_eq!(stems(&round), ["01-a-web"]);
+        assert_eq!(stage(&round), Some(&Stage::Research));
+        assert!(round.trims.is_empty());
+        assert!(round.shallower.is_empty());
+    }
+
+    #[test]
+    fn a_pair_at_depth_two_with_no_levels_deepens_from_its_root() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(2);
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["01-a-web"]);
+        assert_eq!(deepened(&round), ["1"]);
+    }
+
+    #[test]
+    fn a_pair_whose_tree_is_complete_awaits_only_composition() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(2);
+        inputs.levels = levels(
+            "01-a-web",
+            Some("A?"),
+            vec![note("1", "A?", &["B?"]), note("2-1", "B?", &["C?"])],
+        );
+        let round = plan(&inputs);
+        assert_eq!(
+            stage(&round),
+            Some(&Stage::Compose(vec![lineage("1"), lineage("2-1")]))
+        );
+    }
+
+    #[test]
+    fn a_pair_at_depth_one_with_a_root_note_composes_from_it() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.levels =
+            levels("01-a-web", Some("A?"), vec![note("1", "A?", &["B?"])]);
+        let round = plan(&inputs);
+        assert_eq!(stage(&round), Some(&Stage::Compose(vec![lineage("1")])));
+    }
+
+    #[test]
+    fn a_levels_directory_without_a_root_at_depth_one_deepens_its_root() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.levels = levels("01-a-web", Some("A?"), Vec::new());
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["01-a-web"]);
+        assert_eq!(deepened(&round), ["1"]);
+    }
+
+    #[test]
+    fn a_levels_directory_holds_its_index_through_its_root_note() {
+        let mut inputs = inputs(outline(&["- [ ] Z?", "- [ ] A?"]));
+        inputs.levels =
+            levels("04-a-web", Some("A?"), vec![note("1", "A?", &[])]);
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["05-z-web", "04-a-web"]);
+    }
+
+    #[test]
+    fn a_levels_directory_holds_its_index_through_a_quarantined_root_note() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.levels = levels("04-a-web", Some("A?"), Vec::new());
+        assert_eq!(stems(&plan(&inputs)), ["04-a-web"]);
+    }
+
+    #[test]
+    fn a_levels_directory_holds_its_index_through_an_unaccepted_root_note() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.levels = Stem::parse("04-a-web")
+            .map(|stem| {
+                LevelsDirectory::new(
+                    stem,
+                    Some("A?".into()),
+                    Vec::new(),
+                    BTreeMap::from([(
+                        Lineage::root(),
+                        NoteRejection::WrongKind,
+                    )]),
+                )
+            })
+            .into_iter()
+            .collect();
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["04-a-web"]);
+        let Some(Stage::Deepen(nodes)) = stage(&round) else {
+            return assert_eq!(stage(&round), None, "a deepen stage");
+        };
+        assert_eq!(nodes[0].rejected, Some(NoteRejection::WrongKind));
+    }
+
+    #[test]
+    fn every_profile_of_a_focus_area_resumes_at_the_index_its_levels_directory_holds(
+    ) {
+        let mut inputs =
+            inputs(outline(&["- [ ] A? — profiles: web, openalex"]));
+        inputs.levels = levels("04-a-web", Some("A?"), Vec::new());
+        assert_eq!(stems(&plan(&inputs)), ["04-a-web", "04-a-openalex"]);
+    }
+
+    #[test]
+    fn a_levels_directory_without_a_root_note_holds_its_index_only_against_new_allocations(
+    ) {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        inputs.levels = levels("04-a-web", None, Vec::new());
+        assert_eq!(stems(&plan(&inputs)), ["05-a-web", "06-b-web"]);
+    }
+
+    #[test]
+    fn the_lowest_index_a_marker_or_levels_directory_holds_wins() {
+        let mut inputs =
+            inputs(outline(&["- [ ] A? — profiles: web, openalex"]));
+        inputs.markers = vec![QuarantineMarker::new(
+            ".06-a-web.md.invalid",
+            Some("A?".into()),
+        )];
+        inputs.levels = levels("04-a-openalex", Some("A?"), Vec::new());
+        assert_eq!(stems(&plan(&inputs)), ["04-a-web", "04-a-openalex"]);
+        inputs.markers = vec![QuarantineMarker::new(
+            ".02-a-web.md.invalid",
+            Some("A?".into()),
+        )];
+        assert_eq!(stems(&plan(&inputs)), ["02-a-web", "02-a-openalex"]);
+    }
+
+    #[test]
+    fn an_index_at_the_ceiling_never_overflows_allocation() {
+        let mut inputs = inputs(outline(&["- [ ] M?", "- [ ] N?"]));
+        inputs.levels = levels("4294967295-x-web", None, Vec::new());
+        let round = plan(&inputs);
+        assert!(round.pairs.is_empty());
+        assert_eq!(
+            round.warnings,
+            vec![
+                Warning::IndexesExhausted {
+                    question: "M?".into()
+                },
+                Warning::IndexesExhausted {
+                    question: "N?".into()
+                },
+            ]
+        );
+        assert!(round.warnings[0].to_string().contains("'M?'"));
+
+        inputs.levels = levels("4294967294-x-web", None, Vec::new());
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["4294967295-m-web"]);
+        assert_eq!(
+            round.warnings,
+            vec![Warning::IndexesExhausted {
+                question: "N?".into()
             }]
+        );
+    }
+
+    #[test]
+    fn a_new_focus_area_never_takes_an_index_a_levels_directory_holds() {
+        let mut inputs = inputs(outline(&["- [ ] New?"]));
+        inputs.levels = levels("02-old-web", Some("Old?"), Vec::new());
+        assert_eq!(stems(&plan(&inputs)), ["03-new-web"]);
+    }
+
+    #[test]
+    fn a_pair_with_a_retained_finding_is_never_deepened() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(3);
+        inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
+        inputs.levels =
+            levels("01-a-web", Some("A?"), vec![note("1", "A?", &["B?"])]);
+        let round = plan(&inputs);
+        assert!(round.pairs.is_empty());
+        assert!(round.items[0].complete);
+    }
+
+    #[test]
+    fn a_retained_finding_below_the_requested_depth_is_reported_shallower() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(3);
+        inputs.findings =
+            vec![retained("01-a-web.md", "A?", "web").with_depth(depth(2))];
+        let round = plan(&inputs);
+        assert_eq!(
+            round.shallower,
+            Stem::parse("01-a-web")
+                .map(|stem| ShallowerPair {
+                    stem,
+                    depth: depth(2)
+                })
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn a_legacy_finding_is_reported_shallower_than_depth_two() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(2);
+        inputs.findings = vec![retained("01-a-web.md", "A?", "web")];
+        let round = plan(&inputs);
+        assert_eq!(round.shallower.len(), 1);
+        assert_eq!(round.shallower[0].depth, Depth::default());
+        inputs.depth = Depth::default();
+        assert!(plan(&inputs).shallower.is_empty());
+    }
+
+    #[test]
+    fn a_retained_finding_at_the_requested_depth_is_not_reported_shallower() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] A?"]));
+        inputs.depth = depth(3);
+        inputs.findings =
+            vec![retained("01-a-web.md", "A?", "web").with_depth(depth(3))];
+        assert!(plan(&inputs).shallower.is_empty());
+        inputs.findings =
+            vec![retained("01-a-web.md", "A?", "web").with_depth(depth(1))];
+        assert_eq!(plan(&inputs).shallower.len(), 1);
+    }
+
+    #[test]
+    fn a_failed_pairs_stem_survives_a_later_pair_writing_within_a_run() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        inputs.findings = vec![retained("02-b-web.md", "B?", "web")];
+        assert_eq!(stems(&plan(&inputs)), ["03-a-web"]);
+        inputs.pins = pins(&[("A?", 1), ("B?", 2)]);
+        assert_eq!(stems(&plan(&inputs)), ["01-a-web"]);
+    }
+
+    #[test]
+    fn a_pair_keeps_its_stem_when_its_root_note_records_another_question() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(2);
+        inputs.levels =
+            levels("01-a-web", Some("Other?"), vec![note("1", "Other?", &[])]);
+        assert_eq!(stems(&plan(&inputs)), ["02-a-web"]);
+        inputs.pins = pins(&[("A?", 1)]);
+        let round = plan(&inputs);
+        assert_eq!(stems(&round), ["01-a-web"]);
+        let Some(Stage::Deepen(nodes)) = stage(&round) else {
+            return assert_eq!(stage(&round), None, "a deepen stage");
+        };
+        assert_eq!(
+            nodes[0].rejected,
+            Some(NoteRejection::QuestionDisagreesWithCandidate)
+        );
+    }
+
+    #[test]
+    fn a_new_focus_area_never_takes_a_pinned_index() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] New?"]));
+        inputs.pins = pins(&[("A?", 5)]);
+        assert_eq!(stems(&plan(&inputs)), ["05-a-web", "06-new-web"]);
+    }
+
+    #[test]
+    fn a_round_records_the_index_each_planned_focus_area_holds() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?", "- [ ] C?"]));
+        inputs.findings = vec![retained("02-b-web.md", "B?", "web")];
+        let round = plan(&inputs);
+        assert_eq!(round.indexes, pins(&[("A?", 3), ("C?", 4)]));
+    }
+
+    #[test]
+    fn a_round_lists_its_accepted_notes_and_answered_stems() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        inputs.findings = vec![
+            retained("02-b-web.md", "B?", "web"),
+            Finding::invalid("03-c-web.md"),
+        ];
+        inputs.levels =
+            levels("01-a-web", Some("A?"), vec![note("1", "A?", &["X?"])]);
+        let round = plan(&inputs);
+        let accepted: Vec<(String, Digest)> = round
+            .accepted_notes
+            .iter()
+            .map(|(at, digest): (&NoteRef, &Digest)| (at.to_string(), *digest))
+            .collect();
+        assert_eq!(accepted, vec![("01-a-web:1".to_owned(), DIGEST)]);
+        let answered: Vec<String> =
+            round.answered.iter().map(ToString::to_string).collect();
+        assert_eq!(answered, ["02-b-web"]);
+    }
+
+    #[test]
+    fn trims_name_the_pair_stem_and_lineage() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(2);
+        inputs.levels = levels(
+            "01-a-web",
+            Some("A?"),
+            vec![note("1", "A?", &["B?", "C?", "D?", "E?", "F?"])],
+        );
+        let round = plan(&inputs);
+        assert_eq!(
+            round.trims,
+            Stem::parse("01-a-web")
+                .map(|stem| PairTrim {
+                    stem,
+                    trim: Trim {
+                        lineage: Lineage::root(),
+                        recorded: 5,
+                        cap: 4
+                    },
+                })
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            round.trims[0].to_string(),
+            "level note 01-a-web.levels/1 records 5 follow-ups, over its cap \
+             of 4; trimmed 1"
+        );
+    }
+
+    #[test]
+    fn known_questions_render_candidate_text_not_a_notes_own_question() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.depth = depth(3);
+        inputs.levels =
+            levels("01-a-web", Some("A?"), vec![note("1", "  A?\n", &["B?"])]);
+        let round = plan(&inputs);
+        let Some(Stage::Deepen(nodes)) = stage(&round) else {
+            return assert_eq!(stage(&round), None, "a deepen stage");
+        };
+        assert_eq!(nodes[0].lineage, lineage("2-1"));
+        assert_eq!(nodes[0].known_questions, ["A?", "B?"]);
+    }
+
+    #[test]
+    fn a_finding_answers_an_outline_item_equal_under_compatibility_folding() {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.findings = vec![retained("01-a-web.md", "A\u{FF1F}", "web")];
+        let round = plan(&inputs);
+        assert!(round.items[0].complete);
+        assert!(round.pairs.is_empty());
+        assert!(round.warnings.is_empty());
+    }
+
+    #[test]
+    fn a_pairs_level_note_path_and_id_share_its_stem_and_lineage() {
+        let round = plan(&inputs(outline(&["- [ ] A?"])));
+        let at = lineage("3-2-1");
+        let paths: Vec<(String, String)> = round
+            .pairs
+            .iter()
+            .map(|pair| {
+                (
+                    pair.level_note_path(&at),
+                    pair.level_note_id(&at, "attention"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            paths,
+            vec![(
+                "findings/01-a-web.levels/3-2-1.md".to_owned(),
+                "attention.01-a-web.3-2-1".to_owned()
+            )]
         );
     }
 }

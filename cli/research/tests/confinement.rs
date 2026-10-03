@@ -1,22 +1,28 @@
+#![allow(clippy::expect_used)]
+
 use std::error::Error;
 use std::path::Path;
 
 use research::confinement::command_decision;
-use research::confinement::confined_researcher;
+use research::confinement::confined_agent;
 use research::confinement::decide;
 use research::confinement::Action;
 use research::confinement::Block;
+use research::confinement::ConfinedAgent;
+use research::confinement::Confinement;
 use research::confinement::Construct;
 use research::confinement::Decision;
-use research::confinement::FindingsScope;
 use research::confinement::InternalFailure;
 use research::confinement::PathRejection;
 use research::confinement::Refusal;
-use research::confinement::Researcher;
-use research::confinement::Researchers;
+use research::confinement::Role;
 use research::confinement::ToolCall;
+use research::confinement::TopicFile;
+use research::confinement::TopicLayout;
 use research::confinement::TopicsRelativePath;
 use research::confinement::WriteRefusal;
+use research::confinement::DEFAULT_COMPOSER;
+use research::confinement::DEFAULT_RESEARCHER;
 use research::confinement::PERMITTED_PREFIX;
 use research::confinement::STRICTER_THAN_MEASURED;
 
@@ -60,24 +66,45 @@ fn release(column: &str) -> Vec<u32> {
         .collect()
 }
 
+fn confined(agent_type: &str, confinement: &Confinement) -> ConfinedAgent {
+    confinement
+        .identify(agent_type)
+        .expect("the agent type is confined")
+}
+
+fn researcher() -> ConfinedAgent {
+    confined(DEFAULT_RESEARCHER, &Confinement::default())
+}
+
+fn composer() -> ConfinedAgent {
+    confined(DEFAULT_COMPOSER, &Confinement::default())
+}
+
 fn command(text: &str) -> Decision {
-    decide(&Action::Command(text.to_owned()), &NoFindings)
+    decide(
+        &Action::Command(text.to_owned()),
+        &researcher(),
+        &Layout(None),
+    )
 }
 
-struct NoFindings;
+struct Layout(Option<TopicFile>);
 
-impl FindingsScope for NoFindings {
-    fn contains(&self, _target: &TopicsRelativePath) -> bool {
-        false
+impl TopicLayout for Layout {
+    fn classify(&self, _target: &TopicsRelativePath) -> Option<TopicFile> {
+        self.0
     }
 }
 
-struct EveryPath;
+fn write_to(agent: &ConfinedAgent, file: Option<TopicFile>) -> Decision {
+    let target = TopicsRelativePath::new("s/findings/01-x-web.md".to_owned());
+    decide(&Action::Write(Ok(target)), agent, &Layout(file))
+}
 
-impl FindingsScope for EveryPath {
-    fn contains(&self, _target: &TopicsRelativePath) -> bool {
-        true
-    }
+fn outside_scope() -> Decision {
+    Decision::Block(Block::Write(WriteRefusal::OutsideScope(
+        TopicsRelativePath::new("s/findings/01-x-web.md".to_owned()),
+    )))
 }
 
 #[test]
@@ -206,86 +233,160 @@ fn each_construct_is_named_by_what_blocked_it() {
 }
 
 #[test]
-fn a_write_inside_the_findings_scope_passes() {
-    let target = TopicsRelativePath::new("s/findings/01-x-web.md".to_owned());
+fn a_researcher_may_write_a_finding_or_a_level_note() {
+    let researcher = researcher();
     assert_eq!(
-        decide(&Action::Write(Ok(target)), &EveryPath),
+        write_to(&researcher, Some(TopicFile::Finding)),
         Decision::Pass
     );
+    assert_eq!(
+        write_to(&researcher, Some(TopicFile::LevelNote)),
+        Decision::Pass
+    );
+    assert_eq!(write_to(&researcher, None), outside_scope());
 }
 
 #[test]
-fn a_write_outside_the_findings_scope_is_blocked() {
-    let target = TopicsRelativePath::new("s/brief.md".to_owned());
+fn a_composer_may_write_a_finding_but_never_a_level_note() {
+    let composer = composer();
     assert_eq!(
-        decide(&Action::Write(Ok(target.clone())), &NoFindings),
-        Decision::Block(Block::Write(WriteRefusal::OutsideFindings(target)))
+        write_to(&composer, Some(TopicFile::Finding)),
+        Decision::Pass
     );
+    assert_eq!(
+        write_to(&composer, Some(TopicFile::LevelNote)),
+        outside_scope()
+    );
+    assert_eq!(write_to(&composer, None), outside_scope());
+}
+
+#[test]
+fn a_composer_may_run_no_command_not_even_the_fetch() {
+    for text in ["ls", "accelerator research fetch arxiv search 'x'"] {
+        assert_eq!(
+            decide(
+                &Action::Command(text.to_owned()),
+                &composer(),
+                &Layout(Some(TopicFile::Finding))
+            ),
+            Decision::Block(Block::NoCommands),
+            "{text:?}"
+        );
+    }
 }
 
 #[test]
 fn a_rejected_write_path_is_blocked_whatever_the_scope() {
-    assert_eq!(
-        decide(&Action::Write(Err(PathRejection::DotComponent)), &EveryPath),
-        Decision::Block(Block::Write(WriteRefusal::Rejected(
-            PathRejection::DotComponent
-        )))
-    );
+    for agent in [researcher(), composer()] {
+        assert_eq!(
+            decide(
+                &Action::Write(Err(PathRejection::DotComponent)),
+                &agent,
+                &Layout(Some(TopicFile::Finding))
+            ),
+            Decision::Block(Block::Write(WriteRefusal::Rejected(
+                PathRejection::DotComponent
+            )))
+        );
+    }
 }
 
 #[test]
 fn an_unreadable_call_is_blocked() {
-    assert_eq!(
-        decide(&Action::Unreadable, &EveryPath),
-        Decision::Block(Block::Unreadable)
-    );
+    for agent in [researcher(), composer()] {
+        assert_eq!(
+            decide(
+                &Action::Unreadable,
+                &agent,
+                &Layout(Some(TopicFile::Finding))
+            ),
+            Decision::Block(Block::Unreadable)
+        );
+    }
 }
 
 fn subagent(agent_type: &str) -> ToolCall {
     ToolCall::new(Some("a1".to_owned()), Some(agent_type.to_owned()))
 }
 
+fn role_of(agent_type: &str, confinement: &Confinement) -> Option<Role> {
+    confined_agent(&subagent(agent_type), confinement).map(|agent| agent.role())
+}
+
 #[test]
-fn only_a_researcher_subagent_is_confined() {
-    let researchers = Researchers::with_configured("custom:researcher");
+fn only_a_confined_subagent_is_confined() {
+    let confinement = Confinement::default()
+        .with_researcher("custom:researcher")
+        .with_composer("custom:composer");
+    for (agent_type, role) in [
+        ("accelerator:researcher", Some(Role::Researcher)),
+        ("custom:researcher", Some(Role::Researcher)),
+        ("accelerator:composer", Some(Role::Composer)),
+        ("custom:composer", Some(Role::Composer)),
+        ("accelerator:reviewer", None),
+        ("", None),
+    ] {
+        assert_eq!(role_of(agent_type, &confinement), role, "{agent_type:?}");
+    }
+}
+
+#[test]
+fn the_default_composer_and_a_configured_composer_are_confined() {
+    let confinement = Confinement::default().with_composer("custom:composer");
     assert_eq!(
-        confined_researcher(&subagent("accelerator:researcher"), &researchers),
-        Some(Researcher::Default)
+        confined("accelerator:composer", &confinement).to_string(),
+        "accelerator:composer"
     );
     assert_eq!(
-        confined_researcher(&subagent("custom:researcher"), &researchers),
-        Some(Researcher::Configured("custom:researcher".to_owned()))
+        confined("custom:composer", &confinement).to_string(),
+        "custom:composer (agents.composer)"
+    );
+    assert_eq!(role_of("custom:composer", &Confinement::default()), None);
+}
+
+#[test]
+fn a_name_configured_for_both_roles_is_confined_as_the_researcher() {
+    let confinement = Confinement::default()
+        .with_researcher("custom:agent")
+        .with_composer("custom:agent");
+    assert_eq!(
+        role_of("custom:agent", &confinement),
+        Some(Role::Researcher)
     );
     assert_eq!(
-        confined_researcher(&subagent("accelerator:reviewer"), &researchers),
-        None
+        confined("custom:agent", &confinement).to_string(),
+        "custom:agent (agents.researcher)"
     );
-    assert_eq!(confined_researcher(&subagent(""), &researchers), None);
 }
 
 #[test]
 fn a_call_without_an_agent_id_is_the_main_thread() {
-    let researchers = Researchers::default_only();
     for agent_id in [None, Some(String::new())] {
         let call =
             ToolCall::new(agent_id, Some("accelerator:researcher".to_owned()));
         assert!(!call.is_subagent());
-        assert_eq!(confined_researcher(&call, &researchers), None);
+        assert_eq!(confined_agent(&call, &Confinement::default()), None);
     }
 }
 
 #[test]
 fn a_configured_default_name_matches_as_the_default() {
-    let researchers = Researchers::with_configured("accelerator:researcher");
+    let confinement = Confinement::default()
+        .with_researcher(DEFAULT_COMPOSER)
+        .with_composer(DEFAULT_RESEARCHER);
     assert_eq!(
-        confined_researcher(&subagent("accelerator:researcher"), &researchers),
-        Some(Researcher::Default)
+        confined(DEFAULT_RESEARCHER, &confinement).to_string(),
+        DEFAULT_RESEARCHER
+    );
+    assert_eq!(
+        confined(DEFAULT_COMPOSER, &confinement).to_string(),
+        DEFAULT_COMPOSER
     );
 }
 
-fn refusal(researcher: &Researcher, block: &Block) -> String {
+fn refusal(agent: &ConfinedAgent, block: &Block) -> String {
     Refusal {
-        researcher,
+        agent,
         topics: "/p/meta/research/topics",
         block,
     }
@@ -294,44 +395,79 @@ fn refusal(researcher: &Researcher, block: &Block) -> String {
 
 #[test]
 fn refusals_carry_a_coded_cause_specific_reason() {
-    let default = Researcher::Default;
+    let researcher = researcher();
     assert_eq!(
-        refusal(&default, &Block::WrongCommand),
+        refusal(&researcher, &Block::WrongCommand),
         "E_RESEARCH_GUARD_COMMAND: accelerator:researcher may run only \
          'accelerator research fetch …'"
     );
     assert_eq!(
-        refusal(&default, &Block::Syntax(Construct::Separator)),
+        refusal(&researcher, &Block::Syntax(Construct::Separator)),
         "E_RESEARCH_GUARD_SYNTAX: command contains a ';' separator — pass \
          the query as one single-quoted argument"
     );
     assert_eq!(
-        refusal(&default, &Block::Unreadable),
+        refusal(&researcher, &Block::Unreadable),
         "E_RESEARCH_GUARD_UNREADABLE: accelerator:researcher tool call has \
          no readable command or path"
+    );
+    assert_eq!(
+        refusal(&composer(), &Block::NoCommands),
+        "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no commands"
     );
 }
 
 #[test]
-fn a_configured_researcher_is_named_with_its_key() {
-    let configured = Researcher::Configured("custom:researcher".to_owned());
+fn a_configured_agent_is_named_with_its_key() {
+    let confinement = Confinement::default()
+        .with_researcher("custom:researcher")
+        .with_composer("custom:composer");
     assert_eq!(
-        refusal(&configured, &Block::WrongCommand),
+        refusal(
+            &confined("custom:researcher", &confinement),
+            &Block::WrongCommand
+        ),
         "E_RESEARCH_GUARD_COMMAND: custom:researcher (agents.researcher) may \
          run only 'accelerator research fetch …'"
+    );
+    assert_eq!(
+        refusal(
+            &confined("custom:composer", &confinement),
+            &Block::NoCommands
+        ),
+        "E_RESEARCH_GUARD_COMMAND: custom:composer (agents.composer) may run \
+         no commands"
     );
 }
 
 #[test]
 fn every_write_refusal_names_its_cause() {
-    let prefix = "E_RESEARCH_GUARD_WRITE: accelerator:researcher may write \
-                  only /p/meta/research/topics/<set>/findings/<name>.md — ";
+    let topics = "/p/meta/research/topics";
+    let finding = format!("{topics}/<set>/findings/<nn>-<name>.md");
+    let level_note =
+        format!("{topics}/<set>/findings/<nn>-<name>.levels/<lineage>.md");
+    let prefixes = [
+        (
+            researcher(),
+            format!(
+                "E_RESEARCH_GUARD_WRITE: accelerator:researcher may write \
+                 only {finding} or {level_note} — "
+            ),
+        ),
+        (
+            composer(),
+            format!(
+                "E_RESEARCH_GUARD_WRITE: accelerator:composer may write \
+                 only {finding} — "
+            ),
+        ),
+    ];
     let cases = [
         (
-            WriteRefusal::OutsideFindings(TopicsRelativePath::new(
+            WriteRefusal::OutsideScope(TopicsRelativePath::new(
                 "s/brief.md".to_owned(),
             )),
-            "'s/brief.md' is not a finding",
+            "'s/brief.md' is outside that scope",
         ),
         (
             WriteRefusal::Rejected(PathRejection::NotUnderTopics),
@@ -352,11 +488,13 @@ fn every_write_refusal_names_its_cause() {
             "a path component that could not be inspected",
         ),
     ];
-    for (write, cause) in cases {
-        assert_eq!(
-            refusal(&Researcher::Default, &Block::Write(write)),
-            format!("{prefix}{cause}")
-        );
+    for (agent, prefix) in &prefixes {
+        for (write, cause) in &cases {
+            assert_eq!(
+                refusal(agent, &Block::Write(write.clone())),
+                format!("{prefix}{cause}")
+            );
+        }
     }
 }
 
@@ -387,8 +525,13 @@ fn every_construct_describes_itself() {
 #[test]
 fn an_internal_failure_blocks_with_its_own_code() {
     assert_eq!(
-        InternalFailure(&Researcher::Default).to_string(),
+        InternalFailure(&researcher()).to_string(),
         "E_RESEARCH_GUARD_INTERNAL: accelerator:researcher tool call \
+         blocked — the guard failed while judging it"
+    );
+    assert_eq!(
+        InternalFailure(&composer()).to_string(),
+        "E_RESEARCH_GUARD_INTERNAL: accelerator:composer tool call \
          blocked — the guard failed while judging it"
     );
 }

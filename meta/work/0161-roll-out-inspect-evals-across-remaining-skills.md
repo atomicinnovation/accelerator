@@ -69,6 +69,10 @@ real-failure history rather than attempting the whole catalogue at once.
 ## Dependencies
 
 - Blocked by: work item 0160 (the Inspect tier and migration must land first).
+- Related: 0283 defers eval coverage of `research-topic` `conduct`'s recursion
+  contracts here — spawn batching, cap and known-question injection,
+  follow-up ordering, and the composer's standalone-prose shape. Those evals
+  wait on 0283 landing and drop if 0283 is descoped.
 
 ## Technical Notes
 

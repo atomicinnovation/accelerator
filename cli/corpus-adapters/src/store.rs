@@ -9,7 +9,7 @@ use std::fs;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
-use corpus::{AtomicWrite, Record, RecordStore, StoreError};
+use corpus::{AtomicWrite, FileRemove, Record, RecordStore, StoreError};
 use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::jsonl::{compose_record, remove_prefix};
@@ -126,6 +126,19 @@ impl AtomicWrite for FileCorpusStore {
     }
 }
 
+impl FileRemove for FileCorpusStore {
+    fn remove(&self, path: &Path) -> Result<(), StoreError> {
+        store::ensure_contained(path, &self.bounds())
+            .map_err(to_store_error)?;
+        match fs::remove_file(path) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                Err(io(path, &error))
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
 impl RecordStore for FileCorpusStore {
     fn append_record(
         &self,
@@ -186,7 +199,9 @@ impl RecordStore for FileCorpusStore {
 mod tests {
     use std::fs;
 
-    use corpus::{AtomicWrite, Outcome, Record, RecordStore, StoreError};
+    use corpus::{
+        AtomicWrite, FileRemove, Outcome, Record, RecordStore, StoreError,
+    };
     use tempfile::TempDir;
 
     use super::FileCorpusStore;
@@ -325,6 +340,39 @@ mod tests {
             .replace_locked(&target, b"blocked");
         assert!(matches!(result, Err(StoreError::LockTimeout { .. })));
         drop(held);
+        Ok(())
+    }
+
+    #[test]
+    fn a_removal_through_the_port_deletes_the_file() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("ledger.json");
+        fs::write(&target, b"{}")?;
+        FileCorpusStore::new(dir.path()).remove(&target)?;
+        assert!(!target.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn removing_an_absent_file_succeeds() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        FileCorpusStore::new(dir.path())
+            .remove(&dir.path().join("ledger.json"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn a_removal_escaping_the_root_through_a_symlink_is_refused(
+    ) -> Result<(), TestError> {
+        let root = TempDir::new()?;
+        let elsewhere = TempDir::new()?;
+        let outside = elsewhere.path().join("ledger.json");
+        fs::write(&outside, b"{}")?;
+        std::os::unix::fs::symlink(elsewhere.path(), root.path().join("sub"))?;
+        let result = FileCorpusStore::new(root.path())
+            .remove(&root.path().join("sub").join("ledger.json"));
+        assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
+        assert!(outside.exists());
         Ok(())
     }
 }

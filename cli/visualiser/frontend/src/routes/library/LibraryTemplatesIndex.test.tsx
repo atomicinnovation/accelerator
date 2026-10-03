@@ -92,6 +92,12 @@ describe("glyphKeyForTemplate", () => {
     );
   });
 
+  it("maps the level-note template to the topic-research glyph, not notes", () => {
+    expect(glyphKeyForTemplate("topic-research-level-note")).toBe(
+      "topic-research",
+    );
+  });
+
   it("falls back to a matching stem inside compound template names", () => {
     expect(glyphKeyForTemplate("codebase-research")).toBe("codebase-research");
     expect(glyphKeyForTemplate("feature-plan")).toBe("plans");

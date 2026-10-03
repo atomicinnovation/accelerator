@@ -108,6 +108,9 @@ umbrella doc type and nested indexing.
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes this page consumes. If this page is built before 0280 lands,
   0280 owns updating it.
+- Related: 0283 adds `findings/<stem>.levels/` directories of `kind:
+  level-note` documents; the page enumerates only top-level `<nn>-*.md`
+  findings and excludes level notes.
 
 ## Assumptions
 

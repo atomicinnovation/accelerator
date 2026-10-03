@@ -62,6 +62,7 @@ dependencies = [
  "corpus-adapters",
  "document",
  "kernel",
+ "serde_json",
  "tempfile",
  "vcs-test-support",
 ]
@@ -109,6 +110,7 @@ dependencies = [
  "corpus",
  "corpus-adapters",
  "http-test-support",
+ "rand 0.9.5",
  "research",
  "research-adapters",
  "rustix",
@@ -4080,6 +4082,9 @@ dependencies = [
 [[package]]
 name = "research"
 version = "1.24.0-pre.73"
+dependencies = [
+ "corpus",
+]
 
 [[package]]
 name = "research-adapters"
@@ -4096,8 +4101,11 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha2",
  "store",
  "tempfile",
+ "unicode-normalization",
+ "unicode-properties",
 ]
 
 [[package]]
@@ -5159,6 +5167,12 @@ checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-properties"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7df058c713841ad818f1dc5d3fd88063241cc61f49f5fbea4b951e8cf5a8d71d"
 
 [[package]]
 name = "unicode-width"

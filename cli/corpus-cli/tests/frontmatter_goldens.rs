@@ -433,6 +433,42 @@ fn topic_research_multiprofile_set() -> PathBuf {
         .join("tests/fixtures/topic-research-multiprofile-set")
 }
 
+/// The committed deepened set — one `depth: 2` finding beside its
+/// `.levels/` tree of a root note and two leaf notes.
+fn topic_research_deepened_set() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/topic-research-deepened-set")
+}
+
+const DEEPENED_SET_SLUG: &str = "example-deepened-subject";
+
+fn copy_tree(from: &Path, to: &Path) -> Result<(), TestError> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+/// A corpus root holding a copy of the deepened set at its configured
+/// topic-research location, so a whole-corpus validate walks it.
+fn corpus_with_deepened_set(
+    tag: &str,
+) -> Result<(tempfile::TempDir, PathBuf, PathBuf), TestError> {
+    let dir = tempdir(tag)?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    let set = root.join("meta/research/topics").join(DEEPENED_SET_SLUG);
+    copy_tree(&topic_research_deepened_set(), &set)?;
+    Ok((dir, root, set))
+}
+
 /// A bare-integer frontmatter field (e.g. `round_count: 2`), or `None` when the
 /// key is absent. Matches the key with its colon, so `round:` never captures
 /// `round_count:`.
@@ -453,6 +489,9 @@ fn highest_round(
     let mut highest = 0;
     for entry in fs::read_dir(findings)? {
         let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            continue;
+        }
         let name = entry.file_name();
         let name = name.to_str().ok_or("non-utf8")?;
         if exclude_invalid && name.starts_with('.') {
@@ -474,9 +513,10 @@ fn visible_finding_count(findings: &Path) -> Result<usize, TestError> {
         let path = entry.path();
         let name = entry.file_name();
         let name = name.to_str().ok_or("non-utf8")?;
-        let is_markdown = path
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
+        let is_markdown = entry.file_type()?.is_file()
+            && path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
         if !name.starts_with('.') && is_markdown {
             count += 1;
         }
@@ -630,6 +670,61 @@ fn the_committed_topic_research_multiprofile_set_counts_agree_with_disk(
         )?,
         visible_finding_count(&findings)?,
         "the quarantined openalex finding must not be counted"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_deepened_set_validates_clean(
+) -> Result<(), TestError> {
+    let (_dir, root, _set) = corpus_with_deepened_set("topic-deepened-clean")?;
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert!(output.status.success(), "{}", stderr(&output));
+    Ok(())
+}
+
+#[test]
+fn the_committed_topic_research_deepened_set_counts_only_top_level_findings(
+) -> Result<(), TestError> {
+    let set = topic_research_deepened_set();
+    let findings = set.join("findings");
+    let manifest = fs::read_to_string(set.join("manifest.md"))?;
+
+    assert_eq!(int_field(&manifest, "finding_count"), Some(1));
+    assert_eq!(visible_finding_count(&findings)?, 1);
+    assert_eq!(
+        int_field(&manifest, "round_count").ok_or("no count")?,
+        highest_round(&findings, true)?
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_level_note_fails_whole_corpus_validation_naming_it(
+) -> Result<(), TestError> {
+    let (_dir, root, set) = corpus_with_deepened_set("topic-deepened-bad")?;
+    let note = set.join("findings/01-first-focus-web.levels/2-1.md");
+    let content = fs::read_to_string(&note)?;
+    let blanked = content
+        .lines()
+        .map(|line| {
+            if line.starts_with("question:") {
+                "question: \"\""
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_ne!(blanked, content.trim_end());
+    fs::write(&note, blanked)?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+    assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("01-first-focus-web.levels/2-1.md"),
+        "{}",
+        stderr(&output)
     );
     Ok(())
 }
@@ -895,19 +990,68 @@ fn two_topic_sets_sharing_a_constant_manifest_id_collide(
     Ok(())
 }
 
-#[test]
-fn print_schema_emits_the_three_banks() -> Result<(), TestError> {
-    let dir = tempdir("print-schema")?;
+fn print_schema(tag: &str) -> Result<serde_json::Value, TestError> {
+    let dir = tempdir(tag)?;
     let root = canonical_root(&dir)?;
     repo(&root)?;
     let output = run(&root, &["frontmatter", "print-schema"])?;
     assert!(output.status.success(), "{}", stderr(&output));
-    let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("\"base_fields\":[\"type\""), "{stdout}");
-    assert!(
-        stdout.contains("\"provenance_fields\":[\"revision\""),
-        "{stdout}"
+    Ok(serde_json::from_slice(&output.stdout)?)
+}
+
+#[test]
+fn print_schema_emits_the_two_banks() -> Result<(), TestError> {
+    let schema = print_schema("print-schema-banks")?;
+    assert_eq!(schema["base_fields"][0], "type");
+    assert_eq!(schema["provenance_fields"][0], "revision");
+    assert!(schema.get("optional_extras").is_none(), "{schema}");
+    Ok(())
+}
+
+#[test]
+fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
+    let schema = print_schema("print-schema-rows")?;
+    let rows = schema["rows"].as_array().ok_or("rows is not an array")?;
+    assert_eq!(rows.len(), 19);
+    let row_for = |template: &str| {
+        rows.iter()
+            .find(|row| row["template"] == template)
+            .ok_or_else(|| format!("no {template} row"))
+    };
+    assert_eq!(
+        row_for("topic-research-finding.md")?,
+        &serde_json::json!({
+            "template": "topic-research-finding.md",
+            "linkage_type": "topic-research",
+            "kind": "finding",
+            "code_state_anchored": false,
+            "required_extras": ["round", "question", "source_profile"],
+            "optional_extras": ["depth"],
+            "status_vocab": ["complete"],
+            "forbidden_own_id_keys": [],
+            "typed_linkage_keys": ["parent", "relates_to"],
+        })
     );
-    assert!(stdout.contains("\"optional_extras\":"), "{stdout}");
+    assert_eq!(
+        row_for("topic-research-level-note.md")?,
+        &serde_json::json!({
+            "template": "topic-research-level-note.md",
+            "linkage_type": "topic-research",
+            "kind": "level-note",
+            "code_state_anchored": false,
+            "required_extras": [
+                "round",
+                "question",
+                "source_profile",
+                "level",
+                "depth",
+                "follow_ups",
+            ],
+            "optional_extras": [],
+            "status_vocab": ["complete"],
+            "forbidden_own_id_keys": [],
+            "typed_linkage_keys": ["parent", "relates_to"],
+        })
+    );
     Ok(())
 }

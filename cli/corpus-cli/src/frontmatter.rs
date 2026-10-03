@@ -102,28 +102,53 @@ pub fn run_validate<W: CorpusWalker + FileReader>(
     })
 }
 
-/// Runs `frontmatter print-schema`: the three cross-cutting schema banks as a
-/// single-line JSON object, so a non-Rust consumer sources them from the one
-/// Rust definition rather than a hand-synced copy.
+/// Runs `frontmatter print-schema`: the two cross-cutting schema banks and
+/// every schema row as a single-line JSON object, so a non-Rust consumer
+/// sources them from the one Rust definition rather than a hand-synced copy.
 #[must_use]
 pub fn run_print_schema() -> Outcome {
     use corpus::frontmatter_validation::schema;
-    let array = |items: &[&str]| -> String {
-        let quoted: Vec<String> =
-            items.iter().map(|item| format!("\"{item}\"")).collect();
-        format!("[{}]", quoted.join(","))
-    };
+    let rows: Vec<serde_json::Value> =
+        schema::SCHEMA.iter().map(row_json).collect();
     let stdout = format!(
-        "{{\"base_fields\":{},\"provenance_fields\":{},\
-         \"optional_extras\":{}}}\n",
-        array(&schema::BASE_FIELDS),
-        array(&schema::PROVENANCE_FIELDS),
-        array(&schema::OPTIONAL_EXTRAS),
+        "{}\n",
+        serde_json::json!({
+            "base_fields": schema::BASE_FIELDS,
+            "provenance_fields": schema::PROVENANCE_FIELDS,
+            "rows": rows,
+        })
     );
     Outcome {
         stdout,
         stderr: String::new(),
     }
+}
+
+fn row_json(
+    row: &corpus::frontmatter_validation::schema::SchemaRow,
+) -> serde_json::Value {
+    let corpus::frontmatter_validation::schema::SchemaRow {
+        template,
+        linkage_type,
+        kind,
+        code_state_anchored,
+        required_extras,
+        optional_extras,
+        status_vocab,
+        forbidden_own_id_keys,
+        typed_linkage_keys,
+    } = row;
+    serde_json::json!({
+        "template": template,
+        "linkage_type": linkage_type,
+        "kind": kind,
+        "code_state_anchored": code_state_anchored,
+        "required_extras": required_extras,
+        "optional_extras": optional_extras,
+        "status_vocab": status_vocab,
+        "forbidden_own_id_keys": forbidden_own_id_keys,
+        "typed_linkage_keys": typed_linkage_keys,
+    })
 }
 
 #[cfg(test)]

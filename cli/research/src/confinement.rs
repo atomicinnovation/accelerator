@@ -1,5 +1,6 @@
-//! Confining the researcher subagent: it may run only the research fetch,
-//! and write only finding files.
+//! Confining the research subagents. The researcher may run only the
+//! research fetch, and write only findings and level notes; the composer may
+//! run nothing, and write only findings.
 //!
 //! The command rule follows Claude Code's own matching of a `Bash(… *)`
 //! allow rule, as measured release by release, and is stricter for the
@@ -12,6 +13,8 @@ use std::fmt::Formatter;
 pub const PERMITTED_PREFIX: &str = "accelerator research fetch ";
 
 pub const DEFAULT_RESEARCHER: &str = "accelerator:researcher";
+
+pub const DEFAULT_COMPOSER: &str = "accelerator:composer";
 
 /// Only what the shell itself discards around a command. A wider trim would
 /// drop a trailing carriage return the shell keeps as part of a word, such
@@ -53,60 +56,117 @@ impl ToolCall {
     }
 }
 
-/// The agent names confined as the researcher: always the plugin's own, and
-/// any name `agents.researcher` configures.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Researchers {
-    configured: Option<String>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Role {
+    Researcher,
+    Composer,
 }
 
-impl Researchers {
-    pub const fn default_only() -> Self {
-        Self { configured: None }
-    }
-
-    pub fn with_configured(name: &str) -> Self {
-        Self {
-            configured: Some(name.to_owned()),
+impl Role {
+    pub const fn may_write(self, file: TopicFile) -> bool {
+        match (self, file) {
+            (Self::Researcher, TopicFile::Finding | TopicFile::LevelNote)
+            | (Self::Composer, TopicFile::Finding) => true,
+            (Self::Composer, TopicFile::LevelNote) => false,
         }
     }
 
-    pub fn identify(&self, agent_type: &str) -> Option<Researcher> {
-        if agent_type == DEFAULT_RESEARCHER {
-            Some(Researcher::Default)
-        } else if self.configured.as_deref() == Some(agent_type) {
-            Some(Researcher::Configured(agent_type.to_owned()))
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Researcher {
-    Default,
-    Configured(String),
-}
-
-impl Display for Researcher {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    const fn default_name(self) -> &'static str {
         match self {
-            Self::Default => formatter.write_str(DEFAULT_RESEARCHER),
-            Self::Configured(name) => {
-                write!(formatter, "{name} (agents.researcher)")
+            Self::Researcher => DEFAULT_RESEARCHER,
+            Self::Composer => DEFAULT_COMPOSER,
+        }
+    }
+
+    const fn agent_key(self) -> &'static str {
+        match self {
+            Self::Researcher => "agents.researcher",
+            Self::Composer => "agents.composer",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfinedAgent {
+    role: Role,
+    configured_as: Option<String>,
+}
+
+impl ConfinedAgent {
+    pub const fn role(&self) -> Role {
+        self.role
+    }
+}
+
+impl Display for ConfinedAgent {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match &self.configured_as {
+            None => formatter.write_str(self.role.default_name()),
+            Some(name) => {
+                write!(formatter, "{name} ({})", self.role.agent_key())
             }
         }
     }
 }
 
-/// The researcher a call must be confined as, if any. The main thread and
-/// every other subagent go unconfined.
-pub fn confined_researcher(
+/// The agent names confined to each role: always the plugin's own, and any
+/// name `agents.researcher` or `agents.composer` configures.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Confinement {
+    researcher: Option<String>,
+    composer: Option<String>,
+}
+
+impl Confinement {
+    #[must_use]
+    pub fn with_researcher(self, name: &str) -> Self {
+        Self {
+            researcher: Some(name.to_owned()),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn with_composer(self, name: &str) -> Self {
+        Self {
+            composer: Some(name.to_owned()),
+            ..self
+        }
+    }
+
+    /// A name configured for both roles is confined as the researcher, the
+    /// wider scope a misconfiguration most plausibly intends.
+    pub fn identify(&self, agent_type: &str) -> Option<ConfinedAgent> {
+        let by_default = [Role::Researcher, Role::Composer]
+            .into_iter()
+            .find(|role| role.default_name() == agent_type)
+            .map(|role| ConfinedAgent {
+                role,
+                configured_as: None,
+            });
+        by_default.or_else(|| {
+            [
+                (Role::Researcher, &self.researcher),
+                (Role::Composer, &self.composer),
+            ]
+            .into_iter()
+            .find(|(_, name)| name.as_deref() == Some(agent_type))
+            .map(|(role, _)| ConfinedAgent {
+                role,
+                configured_as: Some(agent_type.to_owned()),
+            })
+        })
+    }
+}
+
+/// The agent a call must be confined as, if any. The main thread and every
+/// other subagent go unconfined.
+pub fn confined_agent(
     call: &ToolCall,
-    researchers: &Researchers,
-) -> Option<Researcher> {
+    confinement: &Confinement,
+) -> Option<ConfinedAgent> {
     if call.is_subagent() {
-        researchers.identify(call.agent_type())
+        confinement.identify(call.agent_type())
     } else {
         None
     }
@@ -138,9 +198,14 @@ pub enum PathRejection {
     Uninspectable,
 }
 
-/// Which paths below the topics directory are findings.
-pub trait FindingsScope {
-    fn contains(&self, target: &TopicsRelativePath) -> bool;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopicFile {
+    Finding,
+    LevelNote,
+}
+
+pub trait TopicLayout {
+    fn classify(&self, target: &TopicsRelativePath) -> Option<TopicFile>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,6 +224,7 @@ pub enum Decision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
     WrongCommand,
+    NoCommands,
     Syntax(Construct),
     Write(WriteRefusal),
     Unreadable,
@@ -166,7 +232,7 @@ pub enum Block {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WriteRefusal {
-    OutsideFindings(TopicsRelativePath),
+    OutsideScope(TopicsRelativePath),
     Rejected(PathRejection),
 }
 
@@ -209,16 +275,27 @@ impl Display for Construct {
     }
 }
 
-pub fn decide(action: &Action, findings: &dyn FindingsScope) -> Decision {
+pub fn decide(
+    action: &Action,
+    agent: &ConfinedAgent,
+    layout: &dyn TopicLayout,
+) -> Decision {
     match action {
-        Action::Command(command) => {
-            command_decision(command.trim_matches(SHELL_BLANKS))
-        }
-        Action::Write(Ok(target)) if findings.contains(target) => {
+        Action::Command(command) => match agent.role {
+            Role::Researcher => {
+                command_decision(command.trim_matches(SHELL_BLANKS))
+            }
+            Role::Composer => Decision::Block(Block::NoCommands),
+        },
+        Action::Write(Ok(target))
+            if layout
+                .classify(target)
+                .is_some_and(|file| agent.role.may_write(file)) =>
+        {
             Decision::Pass
         }
         Action::Write(Ok(target)) => Decision::Block(Block::Write(
-            WriteRefusal::OutsideFindings(target.clone()),
+            WriteRefusal::OutsideScope(target.clone()),
         )),
         Action::Write(Err(rejection)) => Decision::Block(Block::Write(
             WriteRefusal::Rejected(rejection.clone()),
@@ -414,37 +491,52 @@ impl Lexer {
     }
 }
 
-/// Why a confined call was blocked, as the researcher reads it.
+/// Why a confined call was blocked, as the confined agent reads it.
 pub struct Refusal<'a> {
-    pub researcher: &'a Researcher,
+    pub agent: &'a ConfinedAgent,
     pub topics: &'a str,
     pub block: &'a Block,
 }
 
 impl Display for Refusal<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        let researcher = self.researcher;
+        let agent = self.agent;
         match self.block {
             Block::WrongCommand => write!(
                 formatter,
-                "E_RESEARCH_GUARD_COMMAND: {researcher} may run only \
+                "E_RESEARCH_GUARD_COMMAND: {agent} may run only \
                  '{PERMITTED_PREFIX}…'"
+            ),
+            Block::NoCommands => write!(
+                formatter,
+                "E_RESEARCH_GUARD_COMMAND: {agent} may run no commands"
             ),
             Block::Syntax(construct) => write!(
                 formatter,
                 "E_RESEARCH_GUARD_SYNTAX: command contains {construct} — \
                  pass the query as one single-quoted argument"
             ),
-            Block::Write(refusal) => write!(
-                formatter,
-                "E_RESEARCH_GUARD_WRITE: {researcher} may write only \
-                 {}/<set>/findings/<name>.md — ",
-                self.topics
-            )
-            .and_then(|()| self.write_cause(refusal, formatter)),
+            Block::Write(refusal) => {
+                write!(
+                    formatter,
+                    "E_RESEARCH_GUARD_WRITE: {agent} may write only \
+                     {}/<set>/findings/<nn>-<name>.md",
+                    self.topics
+                )?;
+                if agent.role.may_write(TopicFile::LevelNote) {
+                    write!(
+                        formatter,
+                        " or {}/<set>/findings/<nn>-<name>.levels/\
+                         <lineage>.md",
+                        self.topics
+                    )?;
+                }
+                formatter.write_str(" — ")?;
+                self.write_cause(refusal, formatter)
+            }
             Block::Unreadable => write!(
                 formatter,
-                "E_RESEARCH_GUARD_UNREADABLE: {researcher} tool call has no \
+                "E_RESEARCH_GUARD_UNREADABLE: {agent} tool call has no \
                  readable command or path"
             ),
         }
@@ -458,8 +550,8 @@ impl Refusal<'_> {
         formatter: &mut Formatter<'_>,
     ) -> fmt::Result {
         match refusal {
-            WriteRefusal::OutsideFindings(target) => {
-                write!(formatter, "'{}' is not a finding", target.as_str())
+            WriteRefusal::OutsideScope(target) => {
+                write!(formatter, "'{}' is outside that scope", target.as_str())
             }
             WriteRefusal::Rejected(PathRejection::NotUnderTopics) => {
                 write!(formatter, "not under {}", self.topics)
@@ -478,7 +570,7 @@ impl Refusal<'_> {
 
 /// The reason given when the guard itself fails while judging a confined
 /// call, which must block rather than let the call through.
-pub struct InternalFailure<'a>(pub &'a Researcher);
+pub struct InternalFailure<'a>(pub &'a ConfinedAgent);
 
 impl Display for InternalFailure<'_> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {

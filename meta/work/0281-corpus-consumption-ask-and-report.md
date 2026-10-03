@@ -94,6 +94,9 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
   the tier suffixes these verbs read. If this item is built before 0280 lands,
   0280 owns updating it.
+- Related: 0283 adds `findings/<stem>.levels/` directories of `kind:
+  level-note` documents; these verbs read only top-level `<nn>-*.md` findings
+  and never `.levels/`.
 
 ## Assumptions
 

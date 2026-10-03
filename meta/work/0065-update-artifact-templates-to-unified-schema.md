@@ -74,8 +74,8 @@ Reconciliation against the Context's twelve types: twelve artifact types plus `n
 ### Topic-research set templates (registered by work item 0277)
 
 Not part of this story's nine templates. The single-round web research engine
-(0277) adds the `topic-research` set type, whose five `(type, kind)`-keyed
-templates are pinned here only so the schema-TSV cross-check sees one
+(0277) adds the `topic-research` set type, whose `(type, kind)`-keyed
+templates are pinned here only so the schema cross-check sees one
 authoritative template set. Their field contracts live with 0277 and ADR-0067.
 
 | Template file | Artifact `type` | `kind` | `schema_version` | Provenance bundle? | Per-kind extras (beyond base) |
@@ -83,8 +83,9 @@ authoritative template set. Their field contracts live with 0277 and ADR-0067.
 | `topic-research-manifest.md` | `topic-research` | `manifest` | 1 | no | `slug`, `research_status`, `round_count`, `finding_count`, `primary` |
 | `topic-research-brief.md` | `topic-research` | `brief` | 1 | no | `source_profiles` |
 | `topic-research-outline.md` | `topic-research` | `outline` | 1 | no | (none) |
-| `topic-research-finding.md` | `topic-research` | `finding` | 1 | no | `round`, `question`, `source_profile` |
+| `topic-research-finding.md` | `topic-research` | `finding` | 1 | no | `round`, `question`, `source_profile`, optional `depth` |
 | `topic-research-synthesis.md` | `topic-research` | `synthesis` | 1 | no | `rounds_covered` |
+| `topic-research-level-note.md` | `topic-research` | `level-note` | 1 | no | `round`, `question`, `source_profile`, `level`, `depth`, `follow_ups` |
 
 ## Acceptance Criteria
 

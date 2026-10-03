@@ -221,15 +221,25 @@ accelerator research guard --fail-safe --non-blocking < hook-input.json
 
 `hooks/hooks.json` registers the guard under `PreToolUse` for `Bash` and for
 `Write|Edit|MultiEdit|NotebookEdit`, so it runs on every such call in every
-session. It judges only a subagent whose type is `accelerator:researcher` or
-the name configured as `agents.researcher`; every other call passes untouched,
-before any config is read. For the researcher it blocks, by exiting `2`:
+session. It judges only a subagent confined to one of two roles: the
+researcher, whose type is `accelerator:researcher` or the name configured as
+`agents.researcher`, and the composer, whose type is `accelerator:composer` or
+the name configured as `agents.composer`. A name configured for both roles is
+confined as the researcher. Every other call passes untouched, before any
+config is read. For the researcher the guard blocks, by exiting `2`:
 
 - a command other than `accelerator research fetch …`, or one carrying shell
   syntax that could run anything else;
-- a write anywhere but `<research_topics>/<set>/findings/<name>.md`, including
-  through a `..` component or a symlink;
+- a write anywhere but an indexed finding,
+  `<research_topics>/<set>/findings/<nn>-<name>.md`, or a level note,
+  `<research_topics>/<set>/findings/<nn>-<name>.levels/<lineage>.md`,
+  including through a `..` component or a symlink;
 - a call whose command or path cannot be read.
+
+For the composer it blocks every command, the fetch included, every write but
+an indexed finding, and a call whose command or path cannot be read. A
+finding's `<nn>-<name>` stem is ASCII digits, a `-`, then lowercase ASCII
+letters, digits and `-`.
 
 :::caution
 The guard keys on the agent type, not on who spawned it. Every subagent of the
@@ -276,15 +286,15 @@ the two constructs above.
 
 | Code                          | Cause                                                              |
 |-------------------------------|--------------------------------------------------------------------|
-| `E_RESEARCH_GUARD_COMMAND`    | A command other than `accelerator research fetch …`               |
+| `E_RESEARCH_GUARD_COMMAND`    | A researcher command other than `accelerator research fetch …`, or any composer command, the fetch included |
 | `E_RESEARCH_GUARD_SYNTAX`     | A construct that could run anything else, named in the message     |
-| `E_RESEARCH_GUARD_WRITE`      | A write outside the findings directory, with its cause             |
-| `E_RESEARCH_GUARD_UNREADABLE` | A researcher call with no readable command or path                 |
-| `E_RESEARCH_GUARD_INTERNAL`   | The guard itself failed while judging a researcher call            |
+| `E_RESEARCH_GUARD_WRITE`      | A write outside the role's scope, with its cause: an indexed finding for both roles, plus a level note for the researcher |
+| `E_RESEARCH_GUARD_UNREADABLE` | A confined agent's call with no readable command or path           |
+| `E_RESEARCH_GUARD_INTERNAL`   | The guard itself failed while judging a confined agent's call      |
 
-Each message names the matched agent type, adding `(agents.researcher)` when
-it matched the configured name. A researcher reads a block as a call to
-correct, not the end of its work.
+Each message names the matched agent type, adding `(agents.researcher)` or
+`(agents.composer)` when it matched a configured name. A confined agent reads
+a block as a call to correct, not the end of its work.
 
 ### Granting the fetch
 
@@ -321,8 +331,8 @@ guard.
 | Nothing; the researcher runs unconfined         | The `research` binary could not be fetched   | Restore network access to the release host                |
 | A non-blocking hook error (exit `1`) on every `Bash` and write call | The cached binary failed its signature check | Delete the named cached binary and its `.minisig`, or set `ACCELERATOR_RESEARCH_BIN` |
 
-In both cases Claude Code's own permission rules still apply, and the
-researcher can no longer write outside `findings/` to induce either failure. A
+In both cases Claude Code's own permission rules still apply, and a confined
+agent's call can no longer write outside `findings/` to induce either failure. A
 guard panic on a crafted command blocks instead, with
 `E_RESEARCH_GUARD_INTERNAL`.
 
@@ -350,14 +360,19 @@ the researcher agent follows: `web-profile` (web search and fetch),
 - **`conduct`** spawns one researcher per outstanding (focus area, profile)
   pair, and ticks an item only once every one of its eligible pairs has a
   valid finding. A pair whose profile is not in the brief, or not installed,
-  is skipped and reported.
+  is skipped and reported. At `depth` above 1, a pair is researched as a tree
+  of level notes under `findings/<stem>.levels/`, each node recording the
+  follow-up questions the next level researches, and the `composer` agent
+  then writes the pair's one finding from those notes.
 
 Each pair's finding lives at `findings/<nn>-<question-slug>-<profile>.md`,
 where every profile of one focus area shares its `<nn>`. The finding's
 `question` and `source_profile` frontmatter, not its filename, identify the
 pair: sets written before profiles existed hold one `findings/<nn>-<slug>.md`
 per focus area, and still count as their `web` pair. Consumers group findings
-by frontmatter, never by parsing the filename.
+by frontmatter, never by parsing the filename. Consumers read only the
+top-level `findings/*.md`: a `<stem>.levels/` directory holds working notes,
+never findings.
 
 ### `research topic outstanding`
 
@@ -372,8 +387,52 @@ It prints JSON with four arrays: `items` (each outline item's `line`,
 `question`, and `complete`), `pairs` (each outstanding pair's `question`,
 `profile`, and absolute `path`), `skipped` (with a `reason`), and `warnings`.
 The JSON is additive-only: fields may be added, never renamed or removed, and
-consumers ignore fields they do not know. It is read-only, and exits `1` with
+consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+
+`--depth N` researches each pair as a tree of level notes under
+`findings/<stem>.levels/`. It defaults to `1` and is never read from
+`research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
+The JSON then also carries:
+
+- `depth`, the depth planned for;
+- each pair's `stage`: `research` (one researcher writes the finding),
+  `deepen` (its missing `nodes`, each with `lineage`, `level`, `question`,
+  `cap`, `id`, absolute `path`, `known_questions`, and a `rejected` reason
+  when the note on disk was refused) or `compose` (the `notes` the
+  composer reads, as absolute paths in lineage order);
+- a `spawn` ref on every `research` or `compose` pair and every node;
+- `trims`, one `{stem, lineage, recorded, cap}` per note that recorded more
+  follow-ups than its cap, each also printed to stderr as a `warning:` line;
+- `shallower`, each answered pair whose finding was researched below
+  `--depth`, which is not deepened again;
+- `remaining`, the spawns held back by `--limit N`, and `unaccepted`, each
+  `{spawn, rejected}` a run attempted that is still outstanding.
+
+The run flags exist for `conduct`. `--start` begins a run and returns its
+`run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
+as spawned. During a run the JSON also carries `run`, `batch` (the number the
+next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
+findings nobody was asked to write, or whose content changed).
+`accelerator research topic end-run SLUG --run ID` removes the run's
+ledger when the run finishes.
+
+It is read-only unless `--start` or `--run` is given; a run records its
+ledger in `<set>/.conduct-run.json`, which `end-run` removes. A leftover
+ledger means a run was interrupted, and is safe to delete; consider ignoring
+`**/.conduct-run.json`. A person clears a leftover ledger by deleting it or
+by re-running `conduct`.
+
+Each exit code below exits `1`:
+
+| Code | Cause | Recovery |
+|---|---|---|
+| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_LIMIT` | `--limit` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_RUN` | a malformed `--run`, or `--start` with `--run` | pass the id `--start` returned |
+| `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
+| `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
+| `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
 
 ## Local development
 

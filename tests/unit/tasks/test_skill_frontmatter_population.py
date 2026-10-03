@@ -96,6 +96,7 @@ NON_EMITTER_TEMPLATE_CONSUMERS: tuple[str, ...] = (
 # excused.
 INJECTED_OUTPUT_CONTRACTS: tuple[str, ...] = (
     "skills/research/outputters/finding-outputter/SKILL.md",
+    "skills/research/outputters/level-note-outputter/SKILL.md",
 )
 
 _DISCOVERY_PATTERNS: tuple[re.Pattern[str], ...] = (

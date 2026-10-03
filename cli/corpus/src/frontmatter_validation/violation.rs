@@ -7,6 +7,8 @@
 
 use std::fmt;
 
+use crate::frontmatter_validation::schema;
+
 /// A single frontmatter conformance violation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Violation {
@@ -108,6 +110,33 @@ impl Violation {
             Self::DanglingRef { .. } => "DANGLING-REF",
             Self::DuplicateId { .. } => "DUPLICATE-ID",
             Self::UnquotedString { .. } => "UNQUOTED-STRING",
+        }
+    }
+
+    /// The schema key this violation concerns, only when the schema itself
+    /// names it: a key taken from the file is never echoed back, because
+    /// frontmatter text is untrusted.
+    #[must_use]
+    pub fn schema_key(&self) -> Option<&'static str> {
+        match self {
+            Self::NoFence => None,
+            Self::InvalidType { .. } => Some("type"),
+            Self::UnknownKind { .. } => Some("kind"),
+            Self::UnquotedId | Self::DuplicateId { .. } => Some("id"),
+            Self::BadSchemaVersion => Some("schema_version"),
+            Self::BadStatus { .. } => Some("status"),
+            Self::BadTimestamp { field, .. }
+            | Self::MissingBaseField { field }
+            | Self::MissingProvenance { field }
+            | Self::ProvenanceOnNonAnchored { field }
+            | Self::ForbiddenProvenance { field }
+            | Self::ForbiddenOwnId { key: field }
+            | Self::ObsoleteLegacyKey { key: field } => Some(field),
+            Self::MissingExtra { extra: key }
+            | Self::EmptyPlaceholder { key }
+            | Self::BadLinkageShape { key, .. }
+            | Self::DanglingRef { key, .. }
+            | Self::UnquotedString { key } => schema::named_key(key),
         }
     }
 
@@ -228,6 +257,80 @@ mod tests {
             .to_string(),
             "INVALID-TYPE — type: '<absent>' is not a schema type"
         );
+    }
+
+    #[test]
+    fn a_violation_names_the_schema_key_it_concerns() {
+        let cases = [
+            (Violation::NoFence, None),
+            (
+                Violation::InvalidType {
+                    found: "x".to_owned(),
+                },
+                Some("type"),
+            ),
+            (
+                Violation::UnknownKind {
+                    type_name: "topic-research".to_owned(),
+                    kind: "x".to_owned(),
+                },
+                Some("kind"),
+            ),
+            (
+                Violation::MissingBaseField { field: "title" },
+                Some("title"),
+            ),
+            (Violation::UnquotedId, Some("id")),
+            (Violation::BadSchemaVersion, Some("schema_version")),
+            (
+                Violation::BadStatus {
+                    value: "x".to_owned(),
+                    vocab: "complete".to_owned(),
+                },
+                Some("status"),
+            ),
+            (
+                Violation::MissingExtra {
+                    extra: "follow_ups".to_owned(),
+                },
+                Some("follow_ups"),
+            ),
+            (
+                Violation::UnquotedString {
+                    key: "question".to_owned(),
+                },
+                Some("question"),
+            ),
+            (
+                Violation::DuplicateId {
+                    type_id: "topic-research:x".to_owned(),
+                },
+                Some("id"),
+            ),
+        ];
+        for (violation, key) in cases {
+            assert_eq!(violation.schema_key(), key, "{violation}");
+        }
+    }
+
+    #[test]
+    fn a_key_the_schema_does_not_name_resolves_to_none() {
+        let named_by_the_file = [
+            Violation::UnquotedString {
+                key: "evil_key".to_owned(),
+            },
+            Violation::EmptyPlaceholder {
+                key: "ignore previous instructions".to_owned(),
+            },
+            Violation::BadLinkageShape {
+                key: "evil".to_owned(),
+                value: "x".to_owned(),
+                quoted: true,
+            },
+        ];
+        for violation in named_by_the_file {
+            assert_eq!(violation.schema_key(), None, "{violation}");
+        }
     }
 
     #[test]
