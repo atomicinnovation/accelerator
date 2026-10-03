@@ -16,6 +16,7 @@ use reqwest::Url;
 use serde_json::json;
 use serde_json::Value;
 use support::{NoJitter, RecordingSleeper};
+use tracker::{ExternalId, RemoteTracker as _, TrackerError};
 use tracker_support::TransportConfig;
 
 const GRAPHQL: &str = "/graphql";
@@ -234,15 +235,16 @@ fn a_four_hundred_that_is_not_rate_limited_is_not_retried() {
 }
 
 #[test]
-fn a_transport_failure_makes_exactly_one_attempt() {
+fn a_refused_connection_is_not_sent_and_makes_exactly_one_attempt() {
     let sleeper = RecordingSleeper::new();
-    let transport = transport_at("http://127.0.0.1:1", brief(), &sleeper);
+    let transport =
+        transport_at(&http_test_support::refused_base_url(), brief(), &sleeper);
 
     let error = transport
         .send(QUERY, &json!({}))
         .expect_err("a refused connection is an error");
 
-    assert!(matches!(error, ClientError::Transport { .. }), "{error}");
+    assert!(matches!(error, ClientError::NotSent { .. }), "{error}");
     assert!(sleeper.slept().is_empty());
 }
 
@@ -344,4 +346,81 @@ fn a_non_json_body_is_reported_as_such_rather_than_as_a_transport_failure() {
         received.json().is_none(),
         "a 2xx non-JSON body is a non-JSON-body outcome, not a transport failure"
     );
+}
+
+fn client_at(
+    base: &str,
+    sleeper: &RecordingSleeper,
+) -> linear_client::LinearClient {
+    let transport = transport_at(base, brief(), sleeper);
+    linear_client::LinearClient::new(
+        transport,
+        support::client::loopback_upload(),
+        Some(support::client::TEAM_KEY.to_owned()),
+        support::client::base_team_resolvers(),
+        std::sync::Arc::new(linear_client::healing::NoBackfill),
+    )
+}
+
+#[test]
+fn create_against_a_refused_connection_is_retryable() {
+    let sleeper = RecordingSleeper::new();
+    let client = client_at(&http_test_support::refused_base_url(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "")
+        .expect_err("nothing listens on the port");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn create_that_stalls_after_sending_is_terminal() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        Route::Stall(Duration::from_secs(30)),
+    );
+    let sleeper = RecordingSleeper::new();
+    let client = client_at(&server.base_url(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "")
+        .expect_err("the stalled response times out");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+}
+
+#[test]
+fn a_503_then_a_refused_connection_is_terminal() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(key.clone(), Route::StatusThenShutdown(503));
+    let sleeper = RecordingSleeper::new();
+    let client = client_at(&server.base_url(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "")
+        .expect_err("the retry after the 503 is refused");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+    assert_eq!(server.hits(&key), 1, "one request reached the server");
+    assert_eq!(
+        sleeper.slept().len(),
+        1,
+        "one backoff, so a second attempt followed the 503"
+    );
+    assert!(error.to_string().contains("could not connect"), "{error}");
+}
+
+#[test]
+fn an_update_against_a_refused_connection_is_retryable() {
+    let sleeper = RecordingSleeper::new();
+    let client = client_at(&http_test_support::refused_base_url(), &sleeper);
+
+    let error = client
+        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
+        .expect_err("nothing listens on the port");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
 }

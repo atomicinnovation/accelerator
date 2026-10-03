@@ -30,6 +30,7 @@ pub enum WriteError {
     NotWritable { path: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
+    AlreadyExists { path: String },
     Io { path: String, detail: String },
     InsecurePermissions { path: String, mode: u32 },
 }
@@ -48,6 +49,9 @@ impl std::fmt::Display for WriteError {
                 formatter,
                 "refusing to write through an unsafe path '{path}'"
             ),
+            Self::AlreadyExists { path } => {
+                write!(formatter, "'{path}' already exists")
+            }
             Self::Io { path, detail } => {
                 write!(formatter, "I/O error on '{path}': {detail}")
             }
@@ -101,6 +105,35 @@ pub fn atomic_write(
     let target = parent.join(file_name);
     let staged = stage(&parent, &target, bytes, mode)?;
     persist(staged, &target)
+}
+
+/// Atomic creation that never replaces: a reader sees either no file or the
+/// whole new one, and an existing target is left untouched.
+///
+/// # Errors
+/// Returns [`WriteError::AlreadyExists`] when the target exists, or any error
+/// [`atomic_write`] returns.
+pub fn atomic_create(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+) -> Result<(), WriteError> {
+    let parent = ensure_contained(path, bounds)?;
+    fs::create_dir_all(&parent).map_err(|error| io(&parent, &error))?;
+    let file_name = path.file_name().ok_or_else(|| unsafe_path(path))?;
+    let target = parent.join(file_name);
+    let staged = stage(&parent, &target, bytes, mode)?;
+    staged.persist_noclobber(&target).map_err(|error| {
+        if error.error.kind() == ErrorKind::AlreadyExists {
+            WriteError::AlreadyExists {
+                path: show(&target),
+            }
+        } else {
+            classify_persist_error(&target, &error.error)
+        }
+    })?;
+    sync_parent_dir(&target)
 }
 
 /// Resolves `path` against `bounds` and returns the canonical directory a temp
@@ -332,9 +365,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        atomic_write, classify_persist_error, ensure_contained, read_within,
-        require_owner_only_permissions, stage, NewFileMode, WriteBounds,
-        WriteError,
+        atomic_create, atomic_write, classify_persist_error, ensure_contained,
+        read_within, require_owner_only_permissions, stage, NewFileMode,
+        WriteBounds, WriteError,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -734,6 +767,39 @@ mod tests {
         assert!(rendered.contains(&path.display().to_string()));
         assert!(rendered.contains("644"));
         assert!(rendered.contains(&format!("chmod 600 {}", path.display())));
+        Ok(())
+    }
+
+    #[test]
+    fn atomic_create_writes_an_absent_target() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("item.md");
+        atomic_create(
+            &target,
+            b"new",
+            &bounds(dir.path(), dir.path()),
+            NewFileMode::Set(0o644),
+        )?;
+        assert_eq!(fs::read(&target)?, b"new");
+        assert_eq!(mode_of(&target)?, 0o644);
+        Ok(())
+    }
+
+    #[test]
+    fn atomic_create_refuses_an_existing_target_and_leaves_no_temp(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let target = dir.path().join("item.md");
+        fs::write(&target, b"theirs")?;
+        let result = atomic_create(
+            &target,
+            b"ours",
+            &bounds(dir.path(), dir.path()),
+            NewFileMode::Set(0o644),
+        );
+        assert!(matches!(result, Err(WriteError::AlreadyExists { .. })));
+        assert_eq!(fs::read(&target)?, b"theirs");
+        assert_eq!(temp_names(dir.path())?, vec!["item.md".to_owned()]);
         Ok(())
     }
 }

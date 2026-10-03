@@ -15,12 +15,14 @@ const SUBCOMMANDS: &[&str] = &[
     "show",
     "diff",
     "create",
+    "create-batch",
     "update",
     "link-external-id",
     "canonicalise-id",
     "next-number",
     "list",
     "sync",
+    "promote",
 ];
 
 fn help(args: &[&str]) -> Result<String, TestError> {

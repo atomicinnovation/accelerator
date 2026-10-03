@@ -99,9 +99,12 @@ Three structural findings frame the scoping work:
   hard error), and the broadened discovery deduplicates and reconciles in stable
   order. See 0229.
 - **Tracker-owned ID generation** — optionally let a configured tracker mint the
-  work-item ID (stub-create remote, adopt its identifier locally so `id ==
-  external_id`), and codify the `id`-immutability boundary: immutable once synced,
-  provisional-and-rewritable before first push. The largest and least urgent
+  work-item ID (create the remote issue first and adopt its key locally so
+  `id == external_id`); write offline creations as random `draft-` items that
+  sync promotes; retire replaced IDs into `aliases`; follow keys the tracker
+  changes. Codify the `id`-immutability boundary: immutable once synced
+  except when the tracker itself changes the key (the old key kept in
+  `aliases`), provisional-and-rewritable before first push. The largest and least urgent
   child.
 
 ## Design
@@ -188,9 +191,13 @@ surface uses each tracker's vocabulary.
 
 - What is the conflict-resolution policy when local and remote values diverge on a
   mapped field (status/kind/priority)?
-- Under tracker-owned ID generation, how is offline / tracker-unreachable creation
-  handled — block creation, or mint a provisional `key`-prefixed ID and rewrite it
-  on first push (relaxing `id` immutability for unsynced items only)?
+
+Resolved during review of 0230 (2026-09-25):
+
+- *Under tracker-owned ID generation, how is offline / tracker-unreachable
+  creation handled?* — neither blocked nor `key`-prefixed: the item is written
+  as a `draft-` item with a random six-character suffix, which sync promotes
+  to its tracker ID, retiring the draft ID into `aliases` (0230).
 
 Resolved during refinement (2026-08-30):
 

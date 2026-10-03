@@ -21,7 +21,7 @@ pub const SCHEMA: [SchemaRow; 18] = [
         linkage_type: "work-item",
         kind: "",
         code_state_anchored: false,
-        extras: &["kind", "priority", "external_id"],
+        extras: &["kind", "priority", "external_id", "aliases"],
         status_vocab: &[
             "draft",
             "ready",
@@ -302,8 +302,9 @@ pub const LINKAGE_SOURCE_TYPES: [&str; 15] = [
 /// Per-type `extras` that are legitimately omitted when empty, so a
 /// present-but-empty value is not additionally required. `work_item_id` is
 /// the transitional foreign-ref alias.
-pub const OPTIONAL_EXTRAS: [&str; 6] = [
+pub const OPTIONAL_EXTRAS: [&str; 7] = [
     "external_id",
+    "aliases",
     "reviewer",
     "pr_url",
     "merge_commit",

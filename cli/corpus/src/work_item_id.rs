@@ -38,6 +38,15 @@ impl WorkItemIdScheme {
         }
     }
 
+    #[must_use]
+    pub fn ownership(&self) -> IdOwnership {
+        if self.id_pattern == TRACKER_TOKEN {
+            IdOwnership::Tracker
+        } else {
+            IdOwnership::Local
+        }
+    }
+
     /// True iff `token` is exactly a canonical work-item-ID under this scheme:
     /// the correct project prefix (if any) and the exact configured digit width
     /// (or any non-empty digit run when the width is unspecified).
@@ -203,6 +212,31 @@ pub fn is_key_token(token: &str) -> bool {
     KEY_TOKEN_SPELLINGS.contains(&token)
 }
 
+/// The sole-token pattern under which the tracker owns each work item's `id`.
+pub const TRACKER_TOKEN: &str = "{tracker}";
+
+/// Who sets a work item's `id`: the repository, from its pattern, or the
+/// tracker, whose key the `id` then equals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdOwnership {
+    Local,
+    Tracker,
+}
+
+/// True iff `token` is shaped like a Jira key or Linear identifier:
+/// `[A-Za-z][A-Za-z0-9_]*-[0-9]+`.
+#[must_use]
+pub fn is_tracker_key(token: &str) -> bool {
+    let Some((prefix, number)) = token.rsplit_once('-') else {
+        return false;
+    };
+    let mut prefix_chars = prefix.chars();
+    prefix_chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && prefix_chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !number.is_empty()
+        && number.chars().all(|c| c.is_ascii_digit())
+}
+
 /// True iff `pattern` references the local ID prefix token in any recognised
 /// spelling.
 ///
@@ -210,7 +244,14 @@ pub fn is_key_token(token: &str) -> bool {
 /// a false positive cannot spuriously reject a valid config.
 #[must_use]
 pub fn references_key(pattern: &str) -> bool {
+    tokens_of(pattern).iter().any(|token| is_key_token(token))
+}
+
+/// The inner text of each `{...}` token in `pattern`, skipping escaped
+/// `{{` / `}}` literals and malformed tokens.
+fn tokens_of(pattern: &str) -> Vec<String> {
     let chars: Vec<char> = pattern.chars().collect();
+    let mut tokens = Vec::new();
     let mut i = 0;
     while i < chars.len() {
         let next = chars.get(i + 1).copied();
@@ -226,10 +267,7 @@ pub fn references_key(pattern: &str) -> bool {
             {
                 let close = i + 1 + offset;
                 if chars[close] == '}' {
-                    let token: String = chars[i + 1..close].iter().collect();
-                    if is_key_token(&token) {
-                        return true;
-                    }
+                    tokens.push(chars[i + 1..close].iter().collect());
                     i = close + 1;
                     continue;
                 }
@@ -237,7 +275,56 @@ pub fn references_key(pattern: &str) -> bool {
         }
         i += 1;
     }
-    false
+    tokens
+}
+
+/// A `work.id_pattern` that breaks a rule of the `{tracker}` token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdPatternError {
+    TrackerNotSoleToken,
+    TrackerNeedsJiraOrLinear,
+}
+
+impl std::fmt::Display for IdPatternError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TrackerNotSoleToken => formatter.write_str(
+                "`{tracker}` must be the only token in `work.id_pattern`",
+            ),
+            Self::TrackerNeedsJiraOrLinear => formatter.write_str(
+                "`{tracker}` requires `work.integration` to be `jira` or \
+                 `linear`",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for IdPatternError {}
+
+/// Checks the `{tracker}` rules: the token stands alone, and only under an
+/// integration whose keys can serve as `id`s.
+///
+/// # Errors
+///
+/// The first [`IdPatternError`] rule `pattern` breaks.
+pub fn validate_id_pattern(
+    pattern: &str,
+    supports_tracker_ids: bool,
+) -> Result<(), IdPatternError> {
+    let tracker_inner = &TRACKER_TOKEN[1..TRACKER_TOKEN.len() - 1];
+    let references_tracker = tokens_of(pattern)
+        .iter()
+        .any(|token| token == tracker_inner);
+    if !references_tracker {
+        return Ok(());
+    }
+    if pattern != TRACKER_TOKEN {
+        return Err(IdPatternError::TrackerNotSoleToken);
+    }
+    if !supports_tracker_ids {
+        return Err(IdPatternError::TrackerNeedsJiraOrLinear);
+    }
+    Ok(())
 }
 
 /// The zero-pad width the canonical form uses: the `{number:0Nd}` segment's
@@ -277,8 +364,80 @@ fn is_project_prefixed(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_key_token, references_key, IdScan, IdScanner, WorkItemIdScheme,
+        is_key_token, is_tracker_key, references_key, validate_id_pattern,
+        IdOwnership, IdPatternError, IdScan, IdScanner, WorkItemIdScheme,
+        TRACKER_TOKEN,
     };
+
+    fn scheme_of(id_pattern: &str) -> WorkItemIdScheme {
+        WorkItemIdScheme {
+            id_pattern: id_pattern.to_owned(),
+            key: None,
+        }
+    }
+
+    #[test]
+    fn tracker_alone_with_jira_or_linear_is_valid() {
+        assert_eq!(validate_id_pattern(TRACKER_TOKEN, true), Ok(()));
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn tracker_with_another_token_fails_naming_the_only_token_rule() {
+        for pattern in ["{tracker}-{number:04d}", "x{tracker}", "{tracker} "] {
+            assert_eq!(
+                validate_id_pattern(pattern, true),
+                Err(IdPatternError::TrackerNotSoleToken),
+                "{pattern}"
+            );
+        }
+        assert_eq!(
+            IdPatternError::TrackerNotSoleToken.to_string(),
+            "`{tracker}` must be the only token in `work.id_pattern`"
+        );
+    }
+
+    #[test]
+    fn tracker_without_jira_or_linear_fails_naming_the_integration_rule() {
+        assert_eq!(
+            validate_id_pattern(TRACKER_TOKEN, false),
+            Err(IdPatternError::TrackerNeedsJiraOrLinear)
+        );
+        assert_eq!(
+            IdPatternError::TrackerNeedsJiraOrLinear.to_string(),
+            "`{tracker}` requires `work.integration` to be `jira` or `linear`"
+        );
+    }
+
+    #[test]
+    #[allow(clippy::literal_string_with_formatting_args)]
+    fn a_pattern_without_tracker_is_valid_under_any_integration() {
+        assert_eq!(validate_id_pattern("{number:04d}", false), Ok(()));
+        assert_eq!(validate_id_pattern("{{tracker}}{number}", false), Ok(()));
+    }
+
+    #[test]
+    fn a_tracker_scheme_reports_tracker_ownership() {
+        assert_eq!(scheme_of(TRACKER_TOKEN).ownership(), IdOwnership::Tracker);
+        assert_eq!(WorkItemIdScheme::numeric().ownership(), IdOwnership::Local);
+    }
+
+    #[test]
+    fn jira_and_linear_keys_are_tracker_keys_in_either_case() {
+        assert!(is_tracker_key("PP-760"));
+        assert!(is_tracker_key("eng-42"));
+        assert!(is_tracker_key("MY_PROJ-7"));
+    }
+
+    #[test]
+    fn a_non_key_token_is_not_a_tracker_key() {
+        assert!(!is_tracker_key("0230"));
+        assert!(!is_tracker_key("PP-"));
+        assert!(!is_tracker_key("-760"));
+        assert!(!is_tracker_key("1PP-760"));
+        assert!(!is_tracker_key("PP-76a"));
+        assert!(!is_tracker_key("draft-k7mq3x"));
+    }
 
     #[test]
     fn is_key_token_accepts_both_spellings() {

@@ -281,6 +281,7 @@ fn execute(
         mode,
         integrations_root: &integrations_root,
         integration: "jira",
+        promote: true,
         scope,
     };
     run(&ports, &mut store, &request)

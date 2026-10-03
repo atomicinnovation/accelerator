@@ -381,6 +381,58 @@
         "Written file's work_item_id is the value returned by that invocation (0043)",
         "Written file's body H1 begins with '# 0043:'"
       ]
+    },
+    {
+      "id": 33,
+      "name": "tracker_pattern_created_blocked_relays_holder_and_promote_remedy",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. The user accepted the push. Simulate the `accelerator work create ... --push` call exiting 4 with this stdout:\n\nmeta/work/drafts/draft-k7mq3x-dark-mode.md\ncreated-blocked\tENG-42\n\nand this stderr:\n\nError: meta/work/0017-dark-mode.md already carries ENG-42; if it is the same issue, delete the draft or merge it into meta/work/0017-dark-mode.md, otherwise fix meta/work/0017-dark-mode.md, then `work promote draft-k7mq3x`\n\nSave to outputs/:\n- response.md: exactly what you tell the user.",
+      "expected_output": "The response says the Linear issue ENG-42 exists, the draft was kept at meta/work/drafts/draft-k7mq3x-dark-mode.md, names meta/work/0017-dark-mode.md as the item already carrying ENG-42, and tells the user to resolve the collision then run `accelerator work promote draft-k7mq3x`. It does not suggest re-running the create.",
+      "files": [],
+      "expectations": [
+        "The response states the remote issue ENG-42 exists",
+        "The response names meta/work/0017-dark-mode.md as the holder",
+        "The response tells the user to run work promote draft-k7mq3x after resolving the collision",
+        "The response does not suggest re-running the create"
+      ]
+    },
+    {
+      "id": 34,
+      "name": "tracker_pattern_loud_terminal_offers_adopt_or_create",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. The user accepted the push. Simulate the `accelerator work create ... --push` call exiting 71 with this stdout:\n\nmeta/work/drafts/draft-k7mq3x-dark-mode.md\nloud-terminal\t\n\nSave to outputs/:\n- response.md: exactly what you tell the user.",
+      "expected_output": "The response says a remote issue may already exist, the item is kept as the draft meta/work/drafts/draft-k7mq3x-dark-mode.md, and tells the user to check the tracker, then run `accelerator work promote draft-k7mq3x --adopt <KEY>` if the issue exists or `accelerator work promote draft-k7mq3x --create` otherwise. It does not suggest re-running the create.",
+      "files": [],
+      "expectations": [
+        "The response warns that a remote issue may already exist",
+        "The response offers work promote draft-k7mq3x --adopt <KEY> when the issue exists",
+        "The response offers work promote draft-k7mq3x --create otherwise",
+        "The response does not suggest re-running the create"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "tracker_pattern_push_gate_decline_reads_save_as_draft",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. The user approved the draft of a story titled \"Dark mode\" (kind story, priority medium) and you are at Step 5. The `accelerator work create \"Dark mode\" story medium --push --dry-run --body-file <body-tmp>` preview exits 0 printing:\n\nlinear\t(no user-resolvable type/project fields)\n\nPresent the push offer. The user picks the decline option. Simulate the resulting `accelerator work create` call printing this one stdout line and exiting 0:\n\nmeta/work/drafts/draft-k7mq3x-dark-mode.md\n\nSave to outputs/:\n- push-offer.md: the exact AskUserQuestion options you present, labels and descriptions.\n- commands.md: every `accelerator` command you run in Step 5, in order, in full.\n- response.md: exactly what you tell the user at the end.",
+      "expected_output": "The decline option is labelled 'No, save as draft'. accelerator work next-number is never called. After the decline, accelerator work create runs without --push. The confirmation names the draft path meta/work/drafts/draft-k7mq3x-dark-mode.md and says it is a draft that /sync-work-items promotes.",
+      "files": [],
+      "expectations": [
+        "The decline option's label reads 'No, save as draft'",
+        "commands.md shows no call to accelerator work next-number",
+        "After the decline, commands.md shows accelerator work create without --push",
+        "The response names meta/work/drafts/draft-k7mq3x-dark-mode.md as a draft that /sync-work-items promotes later"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "tracker_pattern_preview_failure_saves_a_draft",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. The user approved the draft of a story titled \"Dark mode\" (kind story, priority medium) and you are at Step 5. The `accelerator work create \"Dark mode\" story medium --push --dry-run --body-file <body-tmp>` preview exits 70 with stderr:\n\nError: could not resolve the create preview against 'linear': connection refused\n\nTell the user, offering what the skill offers. The user answers: \"Just save it now.\" Simulate the resulting `accelerator work create` call printing this one stdout line and exiting 0:\n\nmeta/work/drafts/draft-p4t9wz-dark-mode.md\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run in Step 5, in order, in full.\n- response.md: everything you tell the user in Step 5, in order.",
+      "expected_output": "The skill tells the user the preview could not be resolved (tracker unreachable) and offers to save now or retry. On 'save now' it runs accelerator work create without --push and never calls next-number nor writes with the Write tool. The confirmation names the draft path meta/work/drafts/draft-p4t9wz-dark-mode.md.",
+      "files": [],
+      "expectations": [
+        "The response says the tracker could not be reached and offers to save now or retry the preview",
+        "commands.md shows accelerator work create without --push after the user chose to save",
+        "commands.md shows no call to accelerator work next-number and no file written by hand",
+        "The response names meta/work/drafts/draft-p4t9wz-dark-mode.md as a draft"
+      ]
     }
   ]
 }

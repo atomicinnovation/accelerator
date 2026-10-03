@@ -27,9 +27,9 @@ accelerator:web-search-researcher.
 
 The reads above inform how you parse the filter argument. `accelerator work
 list` owns the sync-status rendering itself: it adds the Sync column only when
-`work.integration` names a tracker and a `last-sync.json` baseline exists, and
-degrades to presence-only when the remote is unreachable — you do not branch on
-the integration here.
+a `last-sync.json` baseline exists for the configured `work.integration` or
+some listed item is a draft, and degrades to presence-only when the remote is
+unreachable — you do not branch on the integration here.
 
 ## Work Item Template
 
@@ -132,23 +132,29 @@ accelerator work list \
 The CLI does everything the previous scan/filter/render steps did, so there
 is nothing to reconstruct in prose:
 
-- **Scan and validity.** It reads every `*.md` file in the work directory,
-  treats a file as a work item only when it has closed frontmatter and a
-  non-empty `id` (or legacy `work_item_id`), silently excludes non-items,
-  and warns `"<filename>: skipped — no frontmatter"` /
-  `"… unclosed frontmatter"` on malformed files. The filename prefix stays
-  the authoritative displayed ID.
+- **Scan and validity.** It reads every `*.md` file in the work directory
+  and in its `drafts/` subdirectory, treats a file as a work item only when
+  it has closed frontmatter and a non-empty `id` (or legacy `work_item_id`),
+  silently excludes non-items, and warns
+  `"<filename>: skipped — no frontmatter"` / `"… unclosed frontmatter"` on
+  malformed files. The frontmatter `id` is the displayed ID.
+- **Drafts.** A draft item lives in `drafts/` under a provisional
+  `draft-xxxxxx` ID because no tracker has confirmed it yet. Being a draft
+  item is unrelated to `status: draft`: a draft item can carry any status,
+  and a `status: draft` item need not be a draft item.
 - **Filter.** Each flag is applied as a conjunct; `--parent` canonicalises
   both sides (short and long ID forms compare equal); the title term is a
   case-insensitive substring. The CLI prints the interpreted filter and
   match count itself (`Filter: status=draft (3 matches)`, `Children of 0042
   (2 matches)`, or `All work items (29 total)`).
-- **Sync column.** When `work.integration` names a tracker and a
-  `last-sync.json` baseline exists, it appends a **Sync** column carrying
-  the five-state label vocabulary (`🟢 synced`, `⚪ unsynced`,
-  `🔵 locally modified`, `🟣 remotely modified`, `🔴 conflict`), driven by one
-  bulk remote read through the shared classifier. With no integration or no
-  baseline it renders presence-only and omits the column; if the remote is
+- **Sync column.** It appends a **Sync** column when a `last-sync.json`
+  baseline exists for the configured `work.integration` or any listed item
+  is a draft, and omits it otherwise. A draft item always reads `🟠 draft`.
+  With a baseline, every other item carries the five-state label vocabulary
+  (`🟢 synced`, `⚪ unsynced`, `🔵 locally modified`, `🟣 remotely modified`,
+  `🔴 conflict`), driven by one bulk remote read through the shared
+  classifier; without one it carries the presence-only label (`🟢 synced`
+  when it has an `external_id`, else `⚪ unsynced`). If the remote is
   unreachable it degrades to presence-only and still exits 0 — never
   retrying or hanging.
 - **Hierarchy.** `--hierarchy` renders the parent/child tree with Unicode
@@ -192,10 +198,10 @@ emitted. Do not re-echo the filter or re-render the table.
   must not crash the listing — warn using the resolved filename and
   continue. Warning phrasing should match `work show`'s own errors:
   "no frontmatter" / "unclosed frontmatter".
-- **Filename is authoritative**: the ID extracted from the filename is
-  the work item ID, even if the `id` field (or `work_item_id` on
-  legacy files) in frontmatter differs. This applies to both legacy
-  bare-number filenames and project-coded filenames.
+- **Frontmatter `id` is authoritative**: the `id` field (or
+  `work_item_id` on legacy files) is the work item ID, even if the
+  filename prefix differs. This applies to legacy bare-number,
+  project-coded, tracker-keyed and draft items alike.
 - **Hierarchy safety**: hierarchy rendering must terminate in bounded
   time even if parent cycles exist. Detect cycles and render affected
   work items flat with a marker.

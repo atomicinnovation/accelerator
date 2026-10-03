@@ -105,6 +105,9 @@ impl RemoteTimestamp {
 /// What a tracker reports about one issue, in full.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteIssue {
+    /// The key the tracker holds the issue under now, which differs from the
+    /// requested one when the issue has moved to another project or team.
+    pub key: ExternalId,
     /// The tracker's own last-modified stamp, stored as `remote_updated_at`
     /// in the sync baseline. The two names refer to one value.
     pub updated: RemoteTimestamp,
@@ -131,10 +134,19 @@ pub struct RemoteIssue {
     pub body: String,
 }
 
+/// Whether a keyed read found the issue, as opposed to failing to read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Located {
+    /// The issue, under whatever key the tracker now holds it.
+    Found(RemoteIssue),
+    /// The tracker answered that no issue has the requested key.
+    NotFound,
+}
+
 /// A failure reported by a remote tracker.
 ///
-/// Three classes, and closed: `#[non_exhaustive]` is absent so that adding a
-/// fourth is a compile-breaking change for every consumer.
+/// Four classes, and closed: `#[non_exhaustive]` is absent so that adding a
+/// fifth is a compile-breaking change for every consumer.
 ///
 /// The classes divide on two questions. The first is **could a remote change
 /// have happened?** That makes classification operation-scoped, not a property
@@ -148,6 +160,7 @@ pub struct RemoteIssue {
 /// | `Retryable` | no | a retry |
 /// | `Terminal` | yes | a human checking the remote |
 /// | `Unconfigured` | no | a configuration change |
+/// | `Rejected` | no | a changed request |
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackerError {
     /// No remote change occurred, provably.
@@ -196,6 +209,17 @@ pub enum TrackerError {
         /// What is misconfigured and how to fix it, for a human.
         detail: String,
     },
+    /// The client refused the request before sending it, because the
+    /// request itself is invalid — a body that cannot be converted, a path
+    /// that cannot be composed. Nothing reached the tracker, but a retry
+    /// would fail identically, so only changing the request clears it.
+    ///
+    /// Only mutating calls produce it; a read refused this way is
+    /// `Retryable`, like every other read failure.
+    Rejected {
+        /// What was invalid about the request, for a human.
+        detail: String,
+    },
 }
 
 impl TrackerError {
@@ -209,7 +233,8 @@ impl TrackerError {
         match self {
             Self::Retryable { detail }
             | Self::Terminal { detail }
-            | Self::Unconfigured { detail } => detail,
+            | Self::Unconfigured { detail }
+            | Self::Rejected { detail } => detail,
         }
     }
 }
@@ -230,6 +255,11 @@ impl Display for TrackerError {
                 formatter,
                 "tracker call refused on configuration, and nothing was sent: \
                  {detail}"
+            ),
+            Self::Rejected { detail } => write!(
+                formatter,
+                "tracker call rejected before anything was sent, and only a \
+                 changed request clears it: {detail}"
             ),
         }
     }
@@ -277,9 +307,11 @@ pub struct FetchOutcome {
     /// missing from a complete retrieval reads as absence, so filtering out the
     /// null-stamped entries reports a live issue as deleted.
     pub found: Vec<(ExternalId, RemoteTimestamp)>,
-    /// Provably gone from the tracker. Only ever drawn from a complete
-    /// retrieval, so empty whenever `completeness` is not
-    /// [`Completeness::Complete`].
+    /// Provably not found under the requested key. Only ever drawn from a
+    /// complete retrieval, so empty whenever `completeness` is not
+    /// [`Completeness::Complete`]. Not found is not deleted: the issue may
+    /// have moved to another key, and [`RemoteTracker::locate`] is the
+    /// authority on which.
     pub absent: Vec<ExternalId>,
     /// Not accounted for, and the retrieval could not prove why.
     pub indeterminate: Vec<ExternalId>,
@@ -592,6 +624,8 @@ pub trait RemoteTracker {
     /// protocol makes the rejection provable. A remote create is not
     /// idempotent, so once the request may have been *applied* the failure is
     /// [`TrackerError::Terminal`]: a repeat would duplicate the issue.
+    /// [`TrackerError::Rejected`] when the client refused the request as
+    /// invalid before sending it.
     fn create(
         &self,
         title: &str,
@@ -609,7 +643,8 @@ pub trait RemoteTracker {
     /// [`TrackerError::Retryable`] only when it is provable that nothing was
     /// modified; otherwise [`TrackerError::Terminal`]. The operation is
     /// idempotent, so the hazard is not duplication but not knowing whether it
-    /// landed.
+    /// landed. [`TrackerError::Rejected`] when the client refused the request
+    /// as invalid before sending it.
     ///
     /// The two operations' provable sets are **not nested in either
     /// direction** for at least one provider — each is narrower than the other
@@ -625,10 +660,8 @@ pub trait RemoteTracker {
     /// Reads one remote issue in full, including its projected body.
     ///
     /// Absence is not discoverable here — a `RemoteIssue` or an error are the
-    /// only outcomes. Establish that an id is gone with `fetch_all`, whose
-    /// partition distinguishes provable absence from an unproven miss, and do
-    /// not build a retry loop around a `show` that may be reading a deleted
-    /// issue.
+    /// only outcomes. Establish that an id is gone with `locate`, and do not
+    /// build a retry loop around a `show` that may be reading a deleted issue.
     ///
     /// # Errors
     ///
@@ -640,6 +673,19 @@ pub trait RemoteTracker {
     /// deleted issue fails here indefinitely, so the caller degrades to
     /// presence-only rather than looping.
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError>;
+
+    /// Reads one remote issue, distinguishing a definitive not-found from a
+    /// failed read — the authority on whether an issue `fetch_all` could not
+    /// find under its key has moved or is missing.
+    ///
+    /// A moved issue is found: the returned [`RemoteIssue::key`] is its new
+    /// key.
+    ///
+    /// # Errors
+    ///
+    /// Only [`TrackerError::Retryable`], for a read that failed without the
+    /// tracker answering whether the issue exists.
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError>;
 
     /// Reads the requested issues in bulk, partitioned by what the retrieval
     /// could establish.
@@ -768,4 +814,11 @@ pub trait RemoteTracker {
         title: &str,
         body: &str,
     ) -> ValidationOutcome;
+}
+
+/// True iff the integration's issue keys are stable, unique, file-safe
+/// identifiers a work item can take as its `id`.
+#[must_use]
+pub fn supports_tracker_owned_ids(integration: &str) -> bool {
+    matches!(integration, "jira" | "linear")
 }

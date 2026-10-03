@@ -1,11 +1,11 @@
-//! The error taxonomy: three classes, closed, held against the dispatch codes
+//! The error taxonomy: four classes, closed, held against the dispatch codes
 //! the remote-tracker protocol defines.
 //!
-//! The taxonomy is an independent frozen oracle inlined here: 70, 71 and 74
-//! are the three classes the port expresses, and 72/73 resolve above it at the
-//! composition root selecting the client from `work.integration`. 74 is also
-//! raised there, when the selected client is unconfigured. Which class a given
-//! wire condition maps to is operation-scoped — see `TrackerError`'s doc
+//! The taxonomy is an independent frozen oracle inlined here: 70, 71, 74 and
+//! 75 are the four classes the port expresses, and 72/73 resolve above it at
+//! the composition root selecting the client from `work.integration`. 74 is
+//! also raised there, when the selected client is unconfigured. Which class a
+//! given wire condition maps to is operation-scoped — see `TrackerError`'s doc
 //! comment.
 
 use std::error::Error;
@@ -27,7 +27,7 @@ struct DispatchCode {
     resolution: Resolution,
 }
 
-const fn recorded_codes() -> [DispatchCode; 5] {
+const fn recorded_codes() -> [DispatchCode; 6] {
     [
         DispatchCode {
             name: "E_DISPATCH_RETRYABLE",
@@ -53,6 +53,11 @@ const fn recorded_codes() -> [DispatchCode; 5] {
             name: "E_DISPATCH_UNCONFIGURED",
             number: "74",
             resolution: Resolution::Class("Unconfigured"),
+        },
+        DispatchCode {
+            name: "E_DISPATCH_REJECTED",
+            number: "75",
+            resolution: Resolution::Class("Rejected"),
         },
     ]
 }
@@ -86,6 +91,12 @@ const fn unconfigured() -> TrackerError {
     }
 }
 
+const fn rejected() -> TrackerError {
+    TrackerError::Rejected {
+        detail: String::new(),
+    }
+}
+
 #[test]
 fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
     let recorded = recorded_codes();
@@ -93,6 +104,7 @@ fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
         ("E_DISPATCH_RETRYABLE", "70", retryable()),
         ("E_DISPATCH_TERMINAL", "71", terminal()),
         ("E_DISPATCH_UNCONFIGURED", "74", unconfigured()),
+        ("E_DISPATCH_REJECTED", "75", rejected()),
     ] {
         let code = recorded
             .iter()
@@ -117,14 +129,14 @@ fn each_dispatch_code_maps_onto_the_class_it_names() -> Result<(), TestError> {
 }
 
 #[test]
-fn exactly_three_dispatch_codes_reach_the_port() {
+fn exactly_four_dispatch_codes_reach_the_port() {
     let mapped = recorded_codes()
         .iter()
         .filter(|code| matches!(code.resolution, Resolution::Class(_)))
         .count();
     assert_eq!(
-        mapped, 3,
-        "the port expresses three classes; every other code must be recorded \
+        mapped, 4,
+        "the port expresses four classes; every other code must be recorded \
          as resolving above it"
     );
 }
@@ -137,6 +149,7 @@ fn each_class_routes_to_a_distinct_outcome() {
         TrackerError::Retryable { .. } => "retry",
         TrackerError::Terminal { .. } => "surface",
         TrackerError::Unconfigured { .. } => "reconfigure",
+        TrackerError::Rejected { .. } => "change the request",
     };
     assert_eq!(
         outcome(TrackerError::Retryable {
@@ -151,6 +164,7 @@ fn each_class_routes_to_a_distinct_outcome() {
         "surface"
     );
     assert_eq!(outcome(unconfigured()), "reconfigure");
+    assert_eq!(outcome(rejected()), "change the request");
 }
 
 #[test]
@@ -199,5 +213,22 @@ fn an_unconfigured_read_carries_its_detail_and_displays_as_a_configuration_fault
     assert_eq!(
         error.into_detail(),
         "linear: no team in scope carries label \"typo\""
+    );
+}
+
+#[test]
+fn a_rejected_failure_says_nothing_was_sent_and_the_request_must_change() {
+    let error = TrackerError::Rejected {
+        detail: "jira create: the body cannot be converted to ADF".to_owned(),
+    };
+
+    assert_eq!(
+        error.to_string(),
+        "tracker call rejected before anything was sent, and only a changed \
+         request clears it: jira create: the body cannot be converted to ADF"
+    );
+    assert_eq!(
+        error.into_detail(),
+        "jira create: the body cannot be converted to ADF"
     );
 }

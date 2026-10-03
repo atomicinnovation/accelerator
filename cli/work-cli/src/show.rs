@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use work::own_identity::own_identity_alias;
+use work::own_identity::own_identity_fallback_field;
 use work::show::read_field_raw;
 
 pub enum RunOutcome {
@@ -51,8 +51,8 @@ fn run_field(content: &str, field: &str) -> RunOutcome {
     if let Some(value) = read_field_raw(&frontmatter, field) {
         return RunOutcome::FieldValue(value);
     }
-    if let Some(alias) = own_identity_alias(field) {
-        if let Some(value) = read_field_raw(&frontmatter, alias) {
+    if let Some(fallback) = own_identity_fallback_field(field) {
+        if let Some(value) = read_field_raw(&frontmatter, fallback) {
             return RunOutcome::FieldValue(value);
         }
     }

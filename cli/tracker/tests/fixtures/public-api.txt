@@ -59,6 +59,17 @@ pub fn tracker::FieldResolution::eq(&self, other: &tracker::FieldResolution) -> 
 impl core::fmt::Debug for tracker::FieldResolution
 pub fn tracker::FieldResolution::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::FieldResolution
+pub enum tracker::Located
+pub tracker::Located::Found(tracker::RemoteIssue)
+pub tracker::Located::NotFound
+impl core::clone::Clone for tracker::Located
+pub fn tracker::Located::clone(&self) -> tracker::Located
+impl core::cmp::Eq for tracker::Located
+impl core::cmp::PartialEq for tracker::Located
+pub fn tracker::Located::eq(&self, other: &tracker::Located) -> bool
+impl core::fmt::Debug for tracker::Located
+pub fn tracker::Located::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for tracker::Located
 pub enum tracker::RemoteTimestamp
 pub tracker::RemoteTimestamp::NotRead
 pub tracker::RemoteTimestamp::NotReported
@@ -75,6 +86,8 @@ impl core::fmt::Debug for tracker::RemoteTimestamp
 pub fn tracker::RemoteTimestamp::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for tracker::RemoteTimestamp
 pub enum tracker::TrackerError
+pub tracker::TrackerError::Rejected
+pub tracker::TrackerError::Rejected::detail: alloc::string::String
 pub tracker::TrackerError::Retryable
 pub tracker::TrackerError::Retryable::detail: alloc::string::String
 pub tracker::TrackerError::Terminal
@@ -170,6 +183,7 @@ impl core::marker::Copy for tracker::FilterSchema
 impl core::marker::StructuralPartialEq for tracker::FilterSchema
 pub struct tracker::RemoteIssue
 pub tracker::RemoteIssue::body: alloc::string::String
+pub tracker::RemoteIssue::key: tracker::ExternalId
 pub tracker::RemoteIssue::updated: tracker::RemoteTimestamp
 impl core::clone::Clone for tracker::RemoteIssue
 pub fn tracker::RemoteIssue::clone(&self) -> tracker::RemoteIssue
@@ -224,9 +238,11 @@ pub trait tracker::RemoteTracker
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::enumerate_visible_entities(&self) -> core::result::Result<alloc::vec::Vec<tracker::VisibleEntity>, tracker::TrackerError>
 pub fn tracker::RemoteTracker::fetch_all(&self, ids: &[tracker::ExternalId]) -> core::result::Result<tracker::FetchOutcome, tracker::TrackerError>
+pub fn tracker::RemoteTracker::locate(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::Located, tracker::TrackerError>
 pub fn tracker::RemoteTracker::preview_create(&self, kind: &str) -> core::result::Result<tracker::CreatePreview, tracker::TrackerError>
 pub fn tracker::RemoteTracker::resolve_scope(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::SearchScope, tracker::ScopeError>
 pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::Discovery, tracker::TrackerError>
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
 pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>
 pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> tracker::ValidationOutcome
+pub fn tracker::supports_tracker_owned_ids(integration: &str) -> bool

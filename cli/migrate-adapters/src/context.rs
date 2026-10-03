@@ -368,7 +368,7 @@ fn realign_one_baseline(
     let reader = corpus_adapters::fs::RealFs;
     let store_dir = baseline_path.parent().unwrap_or_else(|| Path::new("."));
     let writer = corpus_adapters::FileCorpusStore::new(store_dir);
-    let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
+    let store = work_adapters::sync::baseline_store::BaselineStore::new(
         baseline_path.to_path_buf(),
         &reader,
         &writer,

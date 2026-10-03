@@ -9,7 +9,7 @@ use work::sync::PushOutcome;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_ROWS: usize = 13;
+const EXPECTED_ROWS: usize = 14;
 
 fn outcome(raw: &str) -> PushOutcome {
     match raw {
@@ -17,6 +17,8 @@ fn outcome(raw: &str) -> PushOutcome {
         "retry" => PushOutcome::Retry,
         "local-save" => PushOutcome::LocalSave,
         "loud-terminal" => PushOutcome::LoudTerminal,
+        "rejected" => PushOutcome::Rejected,
+        "created-unwritten" => PushOutcome::CreatedUnwritten,
         other => panic!("unrecognised outcome: {other}"),
     }
 }

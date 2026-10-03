@@ -46,6 +46,7 @@ fn every_committed_stamp_survives_a_round_trip_byte_identically(
 ) -> Result<(), TestError> {
     for stamp in stamps()? {
         let issue = RemoteIssue {
+            key: tracker::ExternalId::new("ENG-1".to_owned()),
             updated: RemoteTimestamp::Reported(stamp.clone()),
             body: String::new(),
         };

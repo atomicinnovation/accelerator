@@ -4,6 +4,12 @@ from pathlib import Path
 
 from invoke import Context, Exit, task
 
+from tasks.shared.npm_audit import (
+    UnreadableAuditReportError,
+    accepted_advisory_ids,
+    advisories_in,
+    blocking_advisories,
+)
 from tasks.shared.paths import DOCS_SITE, REPO_ROOT
 from tasks.shared.skill_pages import (
     DOCS_GENERATED_RELATIVE,
@@ -11,6 +17,8 @@ from tasks.shared.skill_pages import (
     generate_pages,
     output_path,
 )
+
+AUDIT_EXCEPTIONS = DOCS_SITE / "audit-exceptions.toml"
 
 
 @task
@@ -32,18 +40,35 @@ def preview(context: Context) -> None:
 
 
 @task
-def audit_check(context: Context) -> None:
-    """Fail on high/critical npm advisories in the docs-site tree."""
+def audit_check(context: Context, exceptions_file: str | None = None) -> None:
+    """Fail on high/critical npm advisories in the docs-site tree.
+
+    Advisories listed in docs-site/audit-exceptions.toml are accepted.
+    """
     result = context.run(
-        f"npm --prefix {DOCS_SITE} audit --audit-level=high", warn=True
+        f"npm --prefix {DOCS_SITE} audit --json", warn=True, hide="out"
     )
-    if result.exited != 0:
+    try:
+        advisories = advisories_in(result.stdout)
+    except UnreadableAuditReportError as e:
+        raise Exit(f"npm audit produced no readable report: {e}", code=1) from e
+    accepted = accepted_advisory_ids(
+        Path(exceptions_file) if exceptions_file else AUDIT_EXCEPTIONS
+    )
+    blocking = blocking_advisories(advisories, accepted)
+    if blocking:
+        listing = "\n".join(f"  - {a.describe()}" for a in blocking)
         raise Exit(
-            "npm audit reported high or critical advisories — run "
-            "`mise run docs:audit:fix` for the non-breaking subset, then "
-            "resolve the rest by hand",
+            f"npm audit reported high or critical advisories:\n{listing}\n"
+            "Run `mise run docs:audit:fix` for the non-breaking subset, "
+            "then resolve the rest by hand or record an exception in "
+            f"{AUDIT_EXCEPTIONS.relative_to(REPO_ROOT).as_posix()}",
             code=1,
         )
+    print(
+        f"npm audit OK: none blocking ({len(advisories)} reported, "
+        f"{len(accepted)} excepted)"
+    )
 
 
 @task

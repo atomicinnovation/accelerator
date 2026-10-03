@@ -57,7 +57,7 @@ case  work-item-sync-baseline    case-linear-empty-description
 case  work-item-sync-baseline    case-linear-markdown
 case  work-item-sync-baseline    case-padded-fence
 
-hash  cli/work/tests/fixtures/work-item-push-decide.golden  d6ff68ddb8239b665fde76e2c4162ff05e56c25e546e45d78388d29a7f57fd7b
+hash  cli/work/tests/fixtures/work-item-push-decide.golden  d8788217b2bc47e3f13e9bfba8d76bebe75f98f0443f90ead44f246f2b100d4c
 hash  cli/work/tests/fixtures/work-item-sync-classify.json  52bbddd91778cc268ed72974ddf066f4b205ac43c3449527c9dd330f58c94c7a
 hash  cli/work/tests/fixtures/work-item-sync-decide.golden  a55622e0540ce6563faf58ff37761576568d92e449f7d87f7f82e0d1dbc7aa3f
 hash  cli/work/tests/fixtures/work-item-sync-label.golden  e1ffab46cb6e396dcc5d59db31d9056c44fa7d90d4588d44be96e53698c2f921

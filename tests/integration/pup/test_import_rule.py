@@ -627,6 +627,100 @@ def test_vcs_library_rule_rejects_a_grouped_import(tmp_path: Path) -> None:
     assert "vcs_adapters_library_reads_in_process" in output, output
 
 
+# The work-adapters filesystem rule is driven against a crate literally named
+# `work-adapters` with a `filesystem` module, under the shipped cli/pup.ron.
+# The compliant control imports `kernel::Error`, the discovery port's error
+# type, so a narrowing of the allowance back to std/work/crate makes it fail.
+
+_WORK_ADAPTERS_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["work-adapters", "kernel", "vcs"]
+"""
+
+_WORK_ADAPTERS_MANIFEST = """\
+[package]
+name = "work-adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+kernel = { path = "../kernel" }
+vcs = { path = "../vcs" }
+"""
+
+_VCS_MANIFEST = """\
+[package]
+name = "vcs"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_WORK_ADAPTERS_LIB = "pub mod filesystem;\n"
+_VCS_LIB = "pub struct Probe;\n"
+
+_FILESYSTEM_IMPORTS_VCS = (
+    "use vcs::Probe;\n\npub fn make() -> Probe {\n    Probe\n}\n"
+)
+_FILESYSTEM_IMPORTS_KERNEL_ERROR = (
+    "use kernel::Error;\n\npub fn make() -> Option<Error> {\n    None\n}\n"
+)
+
+
+def _write_work_adapters_filesystem_probe(
+    root: Path, filesystem_body: str
+) -> None:
+    (root / "Cargo.toml").write_text(_WORK_ADAPTERS_WORKSPACE)
+
+    adapters_src = root / "work-adapters/src"
+    adapters_src.mkdir(parents=True, exist_ok=True)
+    (root / "work-adapters/Cargo.toml").write_text(_WORK_ADAPTERS_MANIFEST)
+    (adapters_src / "lib.rs").write_text(_WORK_ADAPTERS_LIB)
+    (adapters_src / "filesystem.rs").write_text(filesystem_body)
+
+    kernel_src = root / "kernel/src"
+    kernel_src.mkdir(parents=True, exist_ok=True)
+    (root / "kernel/Cargo.toml").write_text(_KERNEL_MANIFEST)
+    (kernel_src / "lib.rs").write_text(_KERNEL_LIB)
+    (kernel_src / "logging.rs").write_text(_KERNEL_LOGGING)
+
+    vcs_src = root / "vcs/src"
+    vcs_src.mkdir(parents=True, exist_ok=True)
+    (root / "vcs/Cargo.toml").write_text(_VCS_MANIFEST)
+    (vcs_src / "lib.rs").write_text(_VCS_LIB)
+
+
+def test_work_adapters_filesystem_rule_rejects_importing_vcs(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_work_adapters_filesystem_probe(tmp_path, _FILESYSTEM_IMPORTS_VCS)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is not allowed" in output, output
+    assert "work_adapters_filesystem_reads_in_process" in output, output
+
+
+def test_work_adapters_filesystem_rule_permits_kernel_error(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_work_adapters_filesystem_probe(
+        tmp_path, _FILESYSTEM_IMPORTS_KERNEL_ERROR
+    )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 # The tracker domain rule is driven against a workspace whose crates are
 # literally named `tracker` and `work`, so the shipped `^tracker($|::)` regex is
 # exercised directly. The violation is the one the crate exists to prevent: a

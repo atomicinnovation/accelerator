@@ -29,6 +29,7 @@ work = { path = "../work" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
+document = { path = "../document" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 similar = { workspace = true }
@@ -37,10 +38,12 @@ time = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 config = { path = "../config" }
 tempfile = { workspace = true }
+corpus-adapters = { path = "../corpus-adapters" }
 remote-projection = { path = "../remote-projection" }
 tracker-test-support = { path = "../tracker-test-support" }
 vcs-test-support = { path = "../vcs-test-support" }

@@ -377,8 +377,8 @@
             ],
         )),
         // Confines work-adapters' pure-read filesystem module to its
-        // std/work/crate import set — a tighter allow-list than the crate-wide
-        // zero-spawn deny above, same shape as
+        // std/kernel::Error/work/crate import set — a tighter allow-list than
+        // the crate-wide zero-spawn deny above, same shape as
         // vcs_adapters_library_reads_in_process below. The paired std::process
         // deny overlaps the crate-wide rule but is kept so this rule states the
         // module's whole boundary on its own.
@@ -389,6 +389,7 @@
                 RestrictImports(
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
+                        "^kernel::Error(::|$)",
                         "^work(::|$)",
                         "^crate(::|$)",
                     ]),

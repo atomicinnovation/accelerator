@@ -316,7 +316,7 @@ fn an_already_written_external_id_refuses_and_writes_no_second_file(
     write_marker(&marker_path(repo.path(), "", slug), &marker)?;
     fs::write(
         repo.path().join("meta/work/0001-existing.md"),
-        "---\nexternal_id: \"ENG-9\"\n---\nBody\n",
+        "---\nid: \"0001\"\nexternal_id: \"ENG-9\"\n---\nBody\n",
     )?;
 
     let body_file = repo.path().join("body.txt");

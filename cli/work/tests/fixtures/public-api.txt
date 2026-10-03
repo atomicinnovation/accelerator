@@ -48,6 +48,70 @@ pub fn work::create::VcsIdentityProbe::current_user_name(&self) -> core::option:
 pub fn work::create::assert_matches_template_schema(template_frontmatter_keys: &[alloc::string::String]) -> core::result::Result<(), work::create::SchemaDrift>
 pub fn work::create::compose_frontmatter(inputs: &work::create::CreateInputs<'_>) -> alloc::vec::Vec<(alloc::string::String, work::create::FieldValue)>
 pub fn work::create::resolve_author(explicit: core::option::Option<&str>, probe: &dyn work::create::VcsIdentityProbe) -> core::result::Result<alloc::string::String, alloc::string::String>
+pub mod work::create_batch
+pub enum work::create_batch::BatchKeyword
+pub work::create_batch::BatchKeyword::Declined
+pub work::create_batch::BatchKeyword::Pending
+pub work::create_batch::BatchKeyword::Pushed(work::sync::push_decide::PushOutcome)
+impl work::create_batch::BatchKeyword
+pub const fn work::create_batch::BatchKeyword::exit_code(self) -> u8
+pub const fn work::create_batch::BatchKeyword::keyword(self) -> &'static str
+impl core::clone::Clone for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::clone(&self) -> work::create_batch::BatchKeyword
+impl core::cmp::Eq for work::create_batch::BatchKeyword
+impl core::cmp::PartialEq for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::eq(&self, other: &work::create_batch::BatchKeyword) -> bool
+impl core::fmt::Debug for work::create_batch::BatchKeyword
+pub fn work::create_batch::BatchKeyword::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::create_batch::BatchKeyword
+impl core::marker::StructuralPartialEq for work::create_batch::BatchKeyword
+pub mod work::dirtiness
+pub enum work::dirtiness::Dirtiness
+pub work::dirtiness::Dirtiness::Clean
+pub work::dirtiness::Dirtiness::Dirty
+pub work::dirtiness::Dirtiness::Unknown
+impl core::clone::Clone for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::clone(&self) -> work::dirtiness::Dirtiness
+impl core::cmp::Eq for work::dirtiness::Dirtiness
+impl core::cmp::PartialEq for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::eq(&self, other: &work::dirtiness::Dirtiness) -> bool
+impl core::fmt::Debug for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::dirtiness::Dirtiness
+impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
+pub mod work::draft_id
+pub struct work::draft_id::DraftId(_)
+impl work::draft_id::DraftId
+pub const work::draft_id::DraftId::PREFIX: &'static str
+pub fn work::draft_id::DraftId::as_str(&self) -> &str
+pub fn work::draft_id::DraftId::parse(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::clone(&self) -> work::draft_id::DraftId
+impl core::cmp::Eq for work::draft_id::DraftId
+impl core::cmp::PartialEq for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::eq(&self, other: &work::draft_id::DraftId) -> bool
+impl core::fmt::Debug for work::draft_id::DraftId
+pub fn work::draft_id::DraftId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::draft_id::DraftId
+pub struct work::draft_id::DraftIdExhausted
+pub work::draft_id::DraftIdExhausted::attempts: usize
+impl core::clone::Clone for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::clone(&self) -> work::draft_id::DraftIdExhausted
+impl core::cmp::Eq for work::draft_id::DraftIdExhausted
+impl core::cmp::PartialEq for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::eq(&self, other: &work::draft_id::DraftIdExhausted) -> bool
+impl core::error::Error for work::draft_id::DraftIdExhausted
+impl core::fmt::Debug for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::draft_id::DraftIdExhausted
+pub fn work::draft_id::DraftIdExhausted::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::draft_id::DraftIdExhausted
+impl core::marker::StructuralPartialEq for work::draft_id::DraftIdExhausted
+pub const work::draft_id::ALPHABET: &[u8; 32]
+pub trait work::draft_id::SuffixDraws
+pub fn work::draft_id::SuffixDraws::draw(&mut self) -> [u8; 6]
+pub fn work::draft_id::mint_draft_id(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity]) -> core::result::Result<work::draft_id::DraftId, work::draft_id::DraftIdExhausted>
+pub fn work::draft_id::mint_draft_ids(draws: &mut dyn work::draft_id::SuffixDraws, items: &[work::identity::ItemIdentity], count: usize) -> core::result::Result<alloc::vec::Vec<work::draft_id::DraftId>, work::draft_id::DraftIdExhausted>
 pub mod work::filter
 pub struct work::filter::Filter
 pub work::filter::Filter::kind: core::option::Option<alloc::string::String>
@@ -80,6 +144,88 @@ pub fn work::filter::WorkItemView<'a>::fmt(&self, f: &mut core::fmt::Formatter<'
 impl<'a> core::marker::Copy for work::filter::WorkItemView<'a>
 pub fn work::filter::canonical_reference(raw: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> alloc::string::String
 pub fn work::filter::strip_reference_prefix(raw: &str) -> &str
+pub mod work::hierarchy
+pub enum work::hierarchy::BatchOrder<'a>
+pub work::hierarchy::BatchOrder::Cycle(alloc::vec::Vec<&'a str>)
+pub work::hierarchy::BatchOrder::ParentsFirst(alloc::vec::Vec<&'a str>)
+impl<'a> core::clone::Clone for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::clone(&self) -> work::hierarchy::BatchOrder<'a>
+impl<'a> core::cmp::Eq for work::hierarchy::BatchOrder<'a>
+impl<'a> core::cmp::PartialEq for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::eq(&self, other: &work::hierarchy::BatchOrder<'a>) -> bool
+impl<'a> core::fmt::Debug for work::hierarchy::BatchOrder<'a>
+pub fn work::hierarchy::BatchOrder<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::hierarchy::BatchOrder<'a>
+pub struct work::hierarchy::HierarchyNode<'a>
+pub work::hierarchy::HierarchyNode::key: &'a str
+pub work::hierarchy::HierarchyNode::parent: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::clone(&self) -> work::hierarchy::HierarchyNode<'a>
+impl<'a> core::cmp::Eq for work::hierarchy::HierarchyNode<'a>
+impl<'a> core::cmp::PartialEq for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::eq(&self, other: &work::hierarchy::HierarchyNode<'a>) -> bool
+impl<'a> core::fmt::Debug for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::HierarchyNode<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::hierarchy::HierarchyNode<'a>
+impl<'a> core::marker::StructuralPartialEq for work::hierarchy::HierarchyNode<'a>
+pub fn work::hierarchy::children_of<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::map::BTreeMap<&'a str, alloc::vec::Vec<usize>>
+pub fn work::hierarchy::cyclic_members<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> alloc::collections::btree::set::BTreeSet<&'a str>
+pub fn work::hierarchy::parents_first<'a>(nodes: &[work::hierarchy::HierarchyNode<'a>]) -> work::hierarchy::BatchOrder<'a>
+pub mod work::identity
+pub enum work::identity::IdentityField
+pub work::identity::IdentityField::Alias
+pub work::identity::IdentityField::ExternalId
+pub work::identity::IdentityField::Id
+impl work::identity::IdentityField
+pub const fn work::identity::IdentityField::frontmatter_key(self) -> &'static str
+impl core::clone::Clone for work::identity::IdentityField
+pub fn work::identity::IdentityField::clone(&self) -> work::identity::IdentityField
+impl core::cmp::Eq for work::identity::IdentityField
+impl core::cmp::PartialEq for work::identity::IdentityField
+pub fn work::identity::IdentityField::eq(&self, other: &work::identity::IdentityField) -> bool
+impl core::fmt::Debug for work::identity::IdentityField
+pub fn work::identity::IdentityField::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::identity::IdentityField
+impl core::marker::StructuralPartialEq for work::identity::IdentityField
+pub enum work::identity::IdentityResolution<'a>
+pub work::identity::IdentityResolution::Conflicting(alloc::vec::Vec<work::identity::IdentityMatch<'a>>)
+pub work::identity::IdentityResolution::Unique(&'a work::identity::ItemIdentity)
+pub work::identity::IdentityResolution::Unmatched
+impl<'a> core::clone::Clone for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::clone(&self) -> work::identity::IdentityResolution<'a>
+impl<'a> core::cmp::Eq for work::identity::IdentityResolution<'a>
+impl<'a> core::cmp::PartialEq for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::eq(&self, other: &work::identity::IdentityResolution<'a>) -> bool
+impl<'a> core::fmt::Debug for work::identity::IdentityResolution<'a>
+pub fn work::identity::IdentityResolution<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::identity::IdentityResolution<'a>
+pub struct work::identity::IdentityMatch<'a>
+pub work::identity::IdentityMatch::field: work::identity::IdentityField
+pub work::identity::IdentityMatch::item: &'a work::identity::ItemIdentity
+impl<'a> core::clone::Clone for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::clone(&self) -> work::identity::IdentityMatch<'a>
+impl<'a> core::cmp::Eq for work::identity::IdentityMatch<'a>
+impl<'a> core::cmp::PartialEq for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::eq(&self, other: &work::identity::IdentityMatch<'a>) -> bool
+impl<'a> core::fmt::Debug for work::identity::IdentityMatch<'a>
+pub fn work::identity::IdentityMatch<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for work::identity::IdentityMatch<'a>
+pub struct work::identity::ItemIdentity
+pub work::identity::ItemIdentity::aliases: alloc::vec::Vec<alloc::string::String>
+pub work::identity::ItemIdentity::external_id: core::option::Option<alloc::string::String>
+pub work::identity::ItemIdentity::id: alloc::string::String
+pub work::identity::ItemIdentity::path: std::path::PathBuf
+impl core::clone::Clone for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::clone(&self) -> work::identity::ItemIdentity
+impl core::cmp::Eq for work::identity::ItemIdentity
+impl core::cmp::PartialEq for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::eq(&self, other: &work::identity::ItemIdentity) -> bool
+impl core::fmt::Debug for work::identity::ItemIdentity
+pub fn work::identity::ItemIdentity::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::identity::ItemIdentity
+pub fn work::identity::holder_of<'a>(candidate: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<work::identity::IdentityMatch<'a>>
+pub fn work::identity::linker_of<'a>(key: &str, items: &'a [work::identity::ItemIdentity]) -> core::option::Option<&'a work::identity::ItemIdentity>
+pub fn work::identity::resolve_identity<'a>(token: &str, items: &'a [work::identity::ItemIdentity]) -> work::identity::IdentityResolution<'a>
 pub mod work::next_number
 pub enum work::next_number::AllocationError
 pub work::next_number::AllocationError::MissingKey
@@ -104,7 +250,195 @@ pub fn work::normalise::filter_frontmatter_keys(frontmatter_raw: &str) -> alloc:
 pub fn work::normalise::trim_lines(content: &str) -> alloc::string::String
 pub mod work::own_identity
 pub fn work::own_identity::is_work_item_file(id: core::option::Option<&str>, work_item_id: core::option::Option<&str>) -> bool
-pub fn work::own_identity::own_identity_alias(field: &str) -> core::option::Option<&'static str>
+pub fn work::own_identity::own_identity_fallback_field(field: &str) -> core::option::Option<&'static str>
+pub mod work::promotion
+pub enum work::promotion::NotPromoted
+pub work::promotion::NotPromoted::AdoptConflictsWithRecordedKey
+pub work::promotion::NotPromoted::AdoptConflictsWithRecordedKey::recorded: tracker::ExternalId
+pub work::promotion::NotPromoted::AdoptedIssueMissing(tracker::ExternalId)
+pub work::promotion::NotPromoted::CreateOutcomeUnknown
+pub work::promotion::NotPromoted::EarlierAttemptUnconfirmed
+pub work::promotion::NotPromoted::ReadBackFailed(tracker::ExternalId)
+pub work::promotion::NotPromoted::RecordUnwritable
+pub work::promotion::NotPromoted::RecordUnwritable::detail: alloc::string::String
+pub work::promotion::NotPromoted::RecordUnwritable::key: core::option::Option<tracker::ExternalId>
+pub work::promotion::NotPromoted::Refused(work::retirement::RetirementRefusal)
+pub work::promotion::NotPromoted::RequestRejected
+pub work::promotion::NotPromoted::RequestRejected::detail: alloc::string::String
+pub work::promotion::NotPromoted::RetirementFailed(work::retirement::RetirementFailure)
+pub work::promotion::NotPromoted::TrackerUnreachable
+impl work::promotion::NotPromoted
+pub const fn work::promotion::NotPromoted::exit_code(&self, issue_exists: bool) -> u8
+pub const fn work::promotion::NotPromoted::keyword(&self) -> &'static str
+impl core::clone::Clone for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::clone(&self) -> work::promotion::NotPromoted
+impl core::cmp::Eq for work::promotion::NotPromoted
+impl core::cmp::PartialEq for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::eq(&self, other: &work::promotion::NotPromoted) -> bool
+impl core::fmt::Debug for work::promotion::NotPromoted
+pub fn work::promotion::NotPromoted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::NotPromoted
+pub enum work::promotion::Promotion
+pub work::promotion::Promotion::AlreadyDone(tracker::ExternalId)
+pub work::promotion::Promotion::Completed(tracker::ExternalId, work::sync::state::SyncState)
+impl core::clone::Clone for work::promotion::Promotion
+pub fn work::promotion::Promotion::clone(&self) -> work::promotion::Promotion
+impl core::cmp::Eq for work::promotion::Promotion
+impl core::cmp::PartialEq for work::promotion::Promotion
+pub fn work::promotion::Promotion::eq(&self, other: &work::promotion::Promotion) -> bool
+impl core::fmt::Debug for work::promotion::Promotion
+pub fn work::promotion::Promotion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::Promotion
+pub enum work::promotion::PromotionMode
+pub work::promotion::PromotionMode::Adopt(tracker::ExternalId)
+pub work::promotion::PromotionMode::CreateAcceptingDuplicate
+pub work::promotion::PromotionMode::Standard
+impl core::clone::Clone for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::clone(&self) -> work::promotion::PromotionMode
+impl core::cmp::Eq for work::promotion::PromotionMode
+impl core::cmp::PartialEq for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::eq(&self, other: &work::promotion::PromotionMode) -> bool
+impl core::fmt::Debug for work::promotion::PromotionMode
+pub fn work::promotion::PromotionMode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionMode
+pub enum work::promotion::PromotionStage
+pub work::promotion::PromotionStage::Attempted
+pub work::promotion::PromotionStage::Created
+pub work::promotion::PromotionStage::Created::created_remote_hash: core::option::Option<alloc::string::String>
+pub work::promotion::PromotionStage::Created::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteKept
+pub work::promotion::PromotionStage::RemoteKept::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteKept::reason: work::promotion::RemoteKeptReason
+pub work::promotion::PromotionStage::RemoteRetitled
+pub work::promotion::PromotionStage::RemoteRetitled::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteRetitled::read_back: work::promotion::ReadBack
+pub work::promotion::PromotionStage::Retiring
+pub work::promotion::PromotionStage::Retiring::baseline: work::promotion::IntendedBaseline
+pub work::promotion::PromotionStage::Retiring::before: alloc::boxed::Box<work::promotion::PromotionStage>
+pub work::promotion::PromotionStage::Retiring::key: tracker::ExternalId
+pub work::promotion::PromotionStage::Retiring::recovery_dir: std::path::PathBuf
+impl work::promotion::PromotionStage
+pub const fn work::promotion::PromotionStage::key(&self) -> core::option::Option<&tracker::ExternalId>
+impl core::clone::Clone for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::clone(&self) -> work::promotion::PromotionStage
+impl core::cmp::Eq for work::promotion::PromotionStage
+impl core::cmp::PartialEq for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::eq(&self, other: &work::promotion::PromotionStage) -> bool
+impl core::fmt::Debug for work::promotion::PromotionStage
+pub fn work::promotion::PromotionStage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionStage
+pub enum work::promotion::PromotionStep
+pub work::promotion::PromotionStep::CreateIssue
+pub work::promotion::PromotionStep::Finish
+pub work::promotion::PromotionStep::Retire(tracker::ExternalId)
+pub work::promotion::PromotionStep::RetitleRemote(tracker::ExternalId)
+pub work::promotion::PromotionStep::Stop(work::promotion::NotPromoted)
+pub work::promotion::PromotionStep::VerifyThenAdopt(tracker::ExternalId)
+impl core::clone::Clone for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::clone(&self) -> work::promotion::PromotionStep
+impl core::cmp::Eq for work::promotion::PromotionStep
+impl core::cmp::PartialEq for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::eq(&self, other: &work::promotion::PromotionStep) -> bool
+impl core::fmt::Debug for work::promotion::PromotionStep
+pub fn work::promotion::PromotionStep::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionStep
+pub enum work::promotion::RecordState<'a>
+pub work::promotion::RecordState::Absent
+pub work::promotion::RecordState::Present(&'a work::promotion::PromotionRecord)
+pub work::promotion::RecordState::Unreadable
+impl<'a> core::clone::Clone for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::clone(&self) -> work::promotion::RecordState<'a>
+impl<'a> core::cmp::Eq for work::promotion::RecordState<'a>
+impl<'a> core::cmp::PartialEq for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::eq(&self, other: &work::promotion::RecordState<'a>) -> bool
+impl<'a> core::fmt::Debug for work::promotion::RecordState<'a>
+pub fn work::promotion::RecordState<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::promotion::RecordState<'a>
+impl<'a> core::marker::StructuralPartialEq for work::promotion::RecordState<'a>
+pub enum work::promotion::RemoteHash
+pub work::promotion::RemoteHash::Known(work::promotion::ReadBack)
+pub work::promotion::RemoteHash::Unknown
+impl core::clone::Clone for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::clone(&self) -> work::promotion::RemoteHash
+impl core::cmp::Eq for work::promotion::RemoteHash
+impl core::cmp::PartialEq for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::eq(&self, other: &work::promotion::RemoteHash) -> bool
+impl core::fmt::Debug for work::promotion::RemoteHash
+pub fn work::promotion::RemoteHash::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::RemoteHash
+pub enum work::promotion::RemoteKeptReason
+pub work::promotion::RemoteKeptReason::Edited
+pub work::promotion::RemoteKeptReason::Edited::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::NoHash
+pub work::promotion::RemoteKeptReason::NoHash::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::UpdateFailed
+pub work::promotion::RemoteKeptReason::UpdateFailed::read_back: work::promotion::ReadBack
+pub work::promotion::RemoteKeptReason::UserNamedAdopt
+pub work::promotion::RemoteKeptReason::UserNamedAdopt::read_back: work::promotion::ReadBack
+impl work::promotion::RemoteKeptReason
+pub const fn work::promotion::RemoteKeptReason::read_back(&self) -> &work::promotion::ReadBack
+impl core::clone::Clone for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::clone(&self) -> work::promotion::RemoteKeptReason
+impl core::cmp::Eq for work::promotion::RemoteKeptReason
+impl core::cmp::PartialEq for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::eq(&self, other: &work::promotion::RemoteKeptReason) -> bool
+impl core::fmt::Debug for work::promotion::RemoteKeptReason
+pub fn work::promotion::RemoteKeptReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::RemoteKeptReason
+pub enum work::promotion::Retitling
+pub work::promotion::Retitling::Keep(work::promotion::RemoteKeptReason)
+pub work::promotion::Retitling::Retitle
+impl core::clone::Clone for work::promotion::Retitling
+pub fn work::promotion::Retitling::clone(&self) -> work::promotion::Retitling
+impl core::cmp::Eq for work::promotion::Retitling
+impl core::cmp::PartialEq for work::promotion::Retitling
+pub fn work::promotion::Retitling::eq(&self, other: &work::promotion::Retitling) -> bool
+impl core::fmt::Debug for work::promotion::Retitling
+pub fn work::promotion::Retitling::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::Retitling
+pub struct work::promotion::IntendedBaseline
+pub work::promotion::IntendedBaseline::local_hash: alloc::string::String
+pub work::promotion::IntendedBaseline::remote_hash: work::promotion::RemoteHash
+impl work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::next_sync(&self, promoted_digest: &str) -> work::sync::state::SyncState
+impl core::clone::Clone for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::clone(&self) -> work::promotion::IntendedBaseline
+impl core::cmp::Eq for work::promotion::IntendedBaseline
+impl core::cmp::PartialEq for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::eq(&self, other: &work::promotion::IntendedBaseline) -> bool
+impl core::fmt::Debug for work::promotion::IntendedBaseline
+pub fn work::promotion::IntendedBaseline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::IntendedBaseline
+pub struct work::promotion::PromotionRecord
+pub work::promotion::PromotionRecord::content_digest: alloc::string::String
+pub work::promotion::PromotionRecord::draft_id: work::draft_id::DraftId
+pub work::promotion::PromotionRecord::request: work::sync::push_precondition::RequestFingerprint
+pub work::promotion::PromotionRecord::stage: work::promotion::PromotionStage
+impl core::clone::Clone for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::clone(&self) -> work::promotion::PromotionRecord
+impl core::cmp::Eq for work::promotion::PromotionRecord
+impl core::cmp::PartialEq for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::eq(&self, other: &work::promotion::PromotionRecord) -> bool
+impl core::fmt::Debug for work::promotion::PromotionRecord
+pub fn work::promotion::PromotionRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::PromotionRecord
+pub struct work::promotion::ReadBack
+pub work::promotion::ReadBack::hash: alloc::string::String
+pub work::promotion::ReadBack::updated: tracker::RemoteTimestamp
+impl core::clone::Clone for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::clone(&self) -> work::promotion::ReadBack
+impl core::cmp::Eq for work::promotion::ReadBack
+impl core::cmp::PartialEq for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::eq(&self, other: &work::promotion::ReadBack) -> bool
+impl core::fmt::Debug for work::promotion::ReadBack
+pub fn work::promotion::ReadBack::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::ReadBack
+pub const work::promotion::ID_PLACEHOLDER: &str
+pub fn work::promotion::intended_baseline(disposition: &work::promotion::PromotionStage, draft_digest: &str, promoted_digest: &str, read_back_matches_promoted: bool) -> core::option::Option<work::promotion::IntendedBaseline>
+pub fn work::promotion::next_step(record: work::promotion::RecordState<'_>, mode: &work::promotion::PromotionMode) -> work::promotion::PromotionStep
+pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Option<&str>, read_back_hash: &str, read_back_matches_draft: bool) -> bool
+pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
+pub fn work::promotion::without_ids(text: &str, ids: &[&str]) -> alloc::string::String
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
@@ -159,6 +493,158 @@ pub trait work::resolve::DirectoryLister
 pub fn work::resolve::DirectoryLister::filenames(&self) -> alloc::vec::Vec<alloc::string::String>
 pub fn work::resolve::classify_input(input: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> work::resolve::InputClass
 pub fn work::resolve::resolve(input: &str, class: work::resolve::SearchClass, scheme: &corpus::work_item_id::WorkItemIdScheme, lister: &dyn work::resolve::DirectoryLister) -> work::resolve::ResolveOutcome
+pub mod work::retirement
+pub enum work::retirement::RetirementCauseKind
+pub work::retirement::RetirementCauseKind::ChangedSinceSnapshot
+pub work::retirement::RetirementCauseKind::Store(corpus::store::StoreError)
+pub work::retirement::RetirementCauseKind::TargetAppeared
+impl core::clone::Clone for work::retirement::RetirementCauseKind
+pub fn work::retirement::RetirementCauseKind::clone(&self) -> work::retirement::RetirementCauseKind
+impl core::cmp::Eq for work::retirement::RetirementCauseKind
+impl core::cmp::PartialEq for work::retirement::RetirementCauseKind
+pub fn work::retirement::RetirementCauseKind::eq(&self, other: &work::retirement::RetirementCauseKind) -> bool
+impl core::fmt::Debug for work::retirement::RetirementCauseKind
+pub fn work::retirement::RetirementCauseKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementCauseKind
+pub enum work::retirement::RetirementFailure
+pub work::retirement::RetirementFailure::RestoreIncomplete
+pub work::retirement::RetirementFailure::RestoreIncomplete::cause: work::retirement::RetirementCause
+pub work::retirement::RetirementFailure::RestoreIncomplete::unrestored: alloc::vec::Vec<std::path::PathBuf>
+pub work::retirement::RetirementFailure::RolledBack
+pub work::retirement::RetirementFailure::RolledBack::cause: work::retirement::RetirementCause
+impl work::retirement::RetirementFailure
+pub const fn work::retirement::RetirementFailure::keyword(&self) -> &'static str
+pub fn work::retirement::RetirementFailure::message(&self, retirement: &work::retirement::Retirement<'_>, recovery_location: &std::path::Path) -> alloc::string::String
+impl core::clone::Clone for work::retirement::RetirementFailure
+pub fn work::retirement::RetirementFailure::clone(&self) -> work::retirement::RetirementFailure
+impl core::cmp::Eq for work::retirement::RetirementFailure
+impl core::cmp::PartialEq for work::retirement::RetirementFailure
+pub fn work::retirement::RetirementFailure::eq(&self, other: &work::retirement::RetirementFailure) -> bool
+impl core::fmt::Debug for work::retirement::RetirementFailure
+pub fn work::retirement::RetirementFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementFailure
+pub enum work::retirement::RetirementRefusal
+pub work::retirement::RetirementRefusal::IdTaken
+pub work::retirement::RetirementRefusal::IdTaken::field: work::identity::IdentityField
+pub work::retirement::RetirementRefusal::IdTaken::holder: std::path::PathBuf
+pub work::retirement::RetirementRefusal::ItemNotFound(alloc::string::String)
+pub work::retirement::RetirementRefusal::KeyLinked
+pub work::retirement::RetirementRefusal::KeyLinked::holder: std::path::PathBuf
+pub work::retirement::RetirementRefusal::TargetExists(std::path::PathBuf)
+impl work::retirement::RetirementRefusal
+pub const fn work::retirement::RetirementRefusal::keyword(&self) -> &'static str
+pub fn work::retirement::RetirementRefusal::message(&self, retirement: &work::retirement::Retirement<'_>) -> alloc::string::String
+impl core::clone::Clone for work::retirement::RetirementRefusal
+pub fn work::retirement::RetirementRefusal::clone(&self) -> work::retirement::RetirementRefusal
+impl core::cmp::Eq for work::retirement::RetirementRefusal
+impl core::cmp::PartialEq for work::retirement::RetirementRefusal
+pub fn work::retirement::RetirementRefusal::eq(&self, other: &work::retirement::RetirementRefusal) -> bool
+impl core::fmt::Debug for work::retirement::RetirementRefusal
+pub fn work::retirement::RetirementRefusal::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementRefusal
+pub struct work::retirement::BaselineRename
+pub work::retirement::BaselineRename::from: alloc::string::String
+pub work::retirement::BaselineRename::to: alloc::string::String
+impl core::clone::Clone for work::retirement::BaselineRename
+pub fn work::retirement::BaselineRename::clone(&self) -> work::retirement::BaselineRename
+impl core::cmp::Eq for work::retirement::BaselineRename
+impl core::cmp::PartialEq for work::retirement::BaselineRename
+pub fn work::retirement::BaselineRename::eq(&self, other: &work::retirement::BaselineRename) -> bool
+impl core::fmt::Debug for work::retirement::BaselineRename
+pub fn work::retirement::BaselineRename::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::BaselineRename
+pub struct work::retirement::CorpusFile
+pub work::retirement::CorpusFile::content: alloc::string::String
+pub work::retirement::CorpusFile::dirtiness: work::dirtiness::Dirtiness
+pub work::retirement::CorpusFile::path: std::path::PathBuf
+impl core::clone::Clone for work::retirement::CorpusFile
+pub fn work::retirement::CorpusFile::clone(&self) -> work::retirement::CorpusFile
+impl core::cmp::Eq for work::retirement::CorpusFile
+impl core::cmp::PartialEq for work::retirement::CorpusFile
+pub fn work::retirement::CorpusFile::eq(&self, other: &work::retirement::CorpusFile) -> bool
+impl core::fmt::Debug for work::retirement::CorpusFile
+pub fn work::retirement::CorpusFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::CorpusFile
+pub struct work::retirement::FileRewrite
+pub work::retirement::FileRewrite::content: alloc::string::String
+pub work::retirement::FileRewrite::original: alloc::string::String
+pub work::retirement::FileRewrite::path: std::path::PathBuf
+impl core::clone::Clone for work::retirement::FileRewrite
+pub fn work::retirement::FileRewrite::clone(&self) -> work::retirement::FileRewrite
+impl core::cmp::Eq for work::retirement::FileRewrite
+impl core::cmp::PartialEq for work::retirement::FileRewrite
+pub fn work::retirement::FileRewrite::eq(&self, other: &work::retirement::FileRewrite) -> bool
+impl core::fmt::Debug for work::retirement::FileRewrite
+pub fn work::retirement::FileRewrite::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::FileRewrite
+pub struct work::retirement::Retirement<'a>
+pub work::retirement::Retirement::new_external_id: core::option::Option<&'a str>
+pub work::retirement::Retirement::new_id: &'a str
+pub work::retirement::Retirement::old_id: &'a str
+impl work::retirement::Retirement<'_>
+pub fn work::retirement::Retirement<'_>::recovery_dir(&self) -> std::path::PathBuf
+impl<'a> core::clone::Clone for work::retirement::Retirement<'a>
+pub fn work::retirement::Retirement<'a>::clone(&self) -> work::retirement::Retirement<'a>
+impl<'a> core::cmp::Eq for work::retirement::Retirement<'a>
+impl<'a> core::cmp::PartialEq for work::retirement::Retirement<'a>
+pub fn work::retirement::Retirement<'a>::eq(&self, other: &work::retirement::Retirement<'a>) -> bool
+impl<'a> core::fmt::Debug for work::retirement::Retirement<'a>
+pub fn work::retirement::Retirement<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::retirement::Retirement<'a>
+impl<'a> core::marker::StructuralPartialEq for work::retirement::Retirement<'a>
+pub struct work::retirement::RetirementCause
+pub work::retirement::RetirementCause::kind: work::retirement::RetirementCauseKind
+pub work::retirement::RetirementCause::path: std::path::PathBuf
+impl core::clone::Clone for work::retirement::RetirementCause
+pub fn work::retirement::RetirementCause::clone(&self) -> work::retirement::RetirementCause
+impl core::cmp::Eq for work::retirement::RetirementCause
+impl core::cmp::PartialEq for work::retirement::RetirementCause
+pub fn work::retirement::RetirementCause::eq(&self, other: &work::retirement::RetirementCause) -> bool
+impl core::fmt::Debug for work::retirement::RetirementCause
+pub fn work::retirement::RetirementCause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::retirement::RetirementCause
+pub fn work::retirement::RetirementCause::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementCause
+pub struct work::retirement::RetirementPlan
+pub work::retirement::RetirementPlan::baseline_rename: work::retirement::BaselineRename
+pub work::retirement::RetirementPlan::from: std::path::PathBuf
+pub work::retirement::RetirementPlan::from_original: core::option::Option<alloc::string::String>
+pub work::retirement::RetirementPlan::recovery: alloc::vec::Vec<std::path::PathBuf>
+pub work::retirement::RetirementPlan::recovery_dir: std::path::PathBuf
+pub work::retirement::RetirementPlan::resumes: bool
+pub work::retirement::RetirementPlan::retired_item: core::option::Option<alloc::string::String>
+pub work::retirement::RetirementPlan::rewrites: alloc::vec::Vec<work::retirement::FileRewrite>
+pub work::retirement::RetirementPlan::to: std::path::PathBuf
+impl work::retirement::RetirementPlan
+pub const fn work::retirement::RetirementPlan::leaves_corpus_unchanged(&self) -> bool
+impl core::clone::Clone for work::retirement::RetirementPlan
+pub fn work::retirement::RetirementPlan::clone(&self) -> work::retirement::RetirementPlan
+impl core::cmp::Eq for work::retirement::RetirementPlan
+impl core::cmp::PartialEq for work::retirement::RetirementPlan
+pub fn work::retirement::RetirementPlan::eq(&self, other: &work::retirement::RetirementPlan) -> bool
+impl core::fmt::Debug for work::retirement::RetirementPlan
+pub fn work::retirement::RetirementPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementPlan
+pub struct work::retirement::RetirementRecord
+pub work::retirement::RetirementRecord::new: alloc::string::String
+pub work::retirement::RetirementRecord::new_external_id: core::option::Option<alloc::string::String>
+pub work::retirement::RetirementRecord::old: alloc::string::String
+pub work::retirement::RetirementRecord::recovery_dir: std::path::PathBuf
+impl work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::of(retirement: &work::retirement::Retirement<'_>) -> Self
+pub fn work::retirement::RetirementRecord::retirement(&self) -> work::retirement::Retirement<'_>
+impl core::clone::Clone for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::clone(&self) -> work::retirement::RetirementRecord
+impl core::cmp::Eq for work::retirement::RetirementRecord
+impl core::cmp::PartialEq for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::eq(&self, other: &work::retirement::RetirementRecord) -> bool
+impl core::fmt::Debug for work::retirement::RetirementRecord
+pub fn work::retirement::RetirementRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::retirement::RetirementRecord
+pub const work::retirement::RECOVERY_PARENT: &str
+pub const work::retirement::RETIREMENT_INCOMPLETE: &str
+pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
+pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
 pub enum work::section_diff::SectionName
 pub work::section_diff::SectionName::Frontmatter
@@ -248,15 +734,15 @@ pub enum work::sync::decide::Dirtiness
 pub work::sync::decide::Dirtiness::Clean
 pub work::sync::decide::Dirtiness::Dirty
 pub work::sync::decide::Dirtiness::Unknown
-impl core::clone::Clone for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::clone(&self) -> work::sync::decide::Dirtiness
-impl core::cmp::Eq for work::sync::decide::Dirtiness
-impl core::cmp::PartialEq for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::eq(&self, other: &work::sync::decide::Dirtiness) -> bool
-impl core::fmt::Debug for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::sync::decide::Dirtiness
-impl core::marker::StructuralPartialEq for work::sync::decide::Dirtiness
+impl core::clone::Clone for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::clone(&self) -> work::dirtiness::Dirtiness
+impl core::cmp::Eq for work::dirtiness::Dirtiness
+impl core::cmp::PartialEq for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::eq(&self, other: &work::dirtiness::Dirtiness) -> bool
+impl core::fmt::Debug for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::dirtiness::Dirtiness
+impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
 pub enum work::sync::decide::Resolution
 pub work::sync::decide::Resolution::AcceptRemote
 pub work::sync::decide::Resolution::PushLocal
@@ -283,11 +769,53 @@ impl core::fmt::Debug for work::sync::decide::SyncDirection
 pub fn work::sync::decide::SyncDirection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::decide::SyncDirection
 impl core::marker::StructuralPartialEq for work::sync::decide::SyncDirection
-pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::sync::decide::Dirtiness) -> work::sync::decide::Action
+pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
+pub mod work::sync::identity
+pub enum work::sync::identity::IdentityAction
+pub work::sync::identity::IdentityAction::KeyChanged
+pub work::sync::identity::IdentityAction::NotFound
+pub work::sync::identity::IdentityAction::Resumed
+impl work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::clone(&self) -> work::sync::identity::IdentityAction
+impl core::cmp::Eq for work::sync::identity::IdentityAction
+impl core::cmp::PartialEq for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::eq(&self, other: &work::sync::identity::IdentityAction) -> bool
+impl core::fmt::Debug for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::identity::IdentityAction
+impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
+pub mod work::sync::key_change
+pub enum work::sync::key_change::KeyChange
+pub work::sync::key_change::KeyChange::FollowExternalId
+pub work::sync::key_change::KeyChange::FollowExternalId::item: alloc::string::String
+pub work::sync::key_change::KeyChange::FollowExternalId::new: tracker::ExternalId
+pub work::sync::key_change::KeyChange::FollowExternalId::old: tracker::ExternalId
+pub work::sync::key_change::KeyChange::RetireKey
+pub work::sync::key_change::KeyChange::RetireKey::item: alloc::string::String
+pub work::sync::key_change::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::key_change::KeyChange::RetireKey::old: tracker::ExternalId
+impl work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::item(&self) -> &str
+pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
+impl core::clone::Clone for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
+impl core::cmp::Eq for work::sync::key_change::KeyChange
+impl core::cmp::PartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_change::KeyChange) -> bool
+impl core::fmt::Debug for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub mod work::sync::label
 pub enum work::sync::label::RenderableState
 pub work::sync::label::RenderableState::Conflict
+pub work::sync::label::RenderableState::Draft
 pub work::sync::label::RenderableState::LocallyModified
 pub work::sync::label::RenderableState::RemotelyModified
 pub work::sync::label::RenderableState::Synced
@@ -323,7 +851,7 @@ pub struct work::sync::plan::PlanInput<'a>
 pub work::sync::plan::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::plan::PlanInput::baseline_timestamp: u64
 pub work::sync::plan::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
-pub work::sync::plan::PlanInput::dirty: work::sync::decide::Dirtiness
+pub work::sync::plan::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::plan::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
 pub work::sync::plan::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
 pub work::sync::plan::PlanInput::id: alloc::string::String
@@ -351,11 +879,16 @@ pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_
 pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
 pub mod work::sync::push_decide
 pub enum work::sync::push_decide::PushOutcome
+pub work::sync::push_decide::PushOutcome::CreatedBlocked
+pub work::sync::push_decide::PushOutcome::CreatedUnwritten
 pub work::sync::push_decide::PushOutcome::LocalSave
 pub work::sync::push_decide::PushOutcome::LoudTerminal
+pub work::sync::push_decide::PushOutcome::Rejected
+pub work::sync::push_decide::PushOutcome::RetirementIncomplete
 pub work::sync::push_decide::PushOutcome::Retry
 pub work::sync::push_decide::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::exit_code(self) -> u8
 pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
 impl core::clone::Clone for work::sync::push_decide::PushOutcome
 pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome
@@ -477,15 +1010,53 @@ pub enum work::sync::Dirtiness
 pub work::sync::Dirtiness::Clean
 pub work::sync::Dirtiness::Dirty
 pub work::sync::Dirtiness::Unknown
-impl core::clone::Clone for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::clone(&self) -> work::sync::decide::Dirtiness
-impl core::cmp::Eq for work::sync::decide::Dirtiness
-impl core::cmp::PartialEq for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::eq(&self, other: &work::sync::decide::Dirtiness) -> bool
-impl core::fmt::Debug for work::sync::decide::Dirtiness
-pub fn work::sync::decide::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for work::sync::decide::Dirtiness
-impl core::marker::StructuralPartialEq for work::sync::decide::Dirtiness
+impl core::clone::Clone for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::clone(&self) -> work::dirtiness::Dirtiness
+impl core::cmp::Eq for work::dirtiness::Dirtiness
+impl core::cmp::PartialEq for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::eq(&self, other: &work::dirtiness::Dirtiness) -> bool
+impl core::fmt::Debug for work::dirtiness::Dirtiness
+pub fn work::dirtiness::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::dirtiness::Dirtiness
+impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
+pub enum work::sync::IdentityAction
+pub work::sync::IdentityAction::KeyChanged
+pub work::sync::IdentityAction::NotFound
+pub work::sync::IdentityAction::Resumed
+impl work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::from_keyword(raw: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::clone(&self) -> work::sync::identity::IdentityAction
+impl core::cmp::Eq for work::sync::identity::IdentityAction
+impl core::cmp::PartialEq for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::eq(&self, other: &work::sync::identity::IdentityAction) -> bool
+impl core::fmt::Debug for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::sync::identity::IdentityAction
+pub fn work::sync::identity::IdentityAction::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::identity::IdentityAction
+impl core::marker::StructuralPartialEq for work::sync::identity::IdentityAction
+pub enum work::sync::KeyChange
+pub work::sync::KeyChange::FollowExternalId
+pub work::sync::KeyChange::FollowExternalId::item: alloc::string::String
+pub work::sync::KeyChange::FollowExternalId::new: tracker::ExternalId
+pub work::sync::KeyChange::FollowExternalId::old: tracker::ExternalId
+pub work::sync::KeyChange::RetireKey
+pub work::sync::KeyChange::RetireKey::item: alloc::string::String
+pub work::sync::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::KeyChange::RetireKey::old: tracker::ExternalId
+impl work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::item(&self) -> &str
+pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
+impl core::clone::Clone for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
+impl core::cmp::Eq for work::sync::key_change::KeyChange
+impl core::cmp::PartialEq for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_change::KeyChange) -> bool
+impl core::fmt::Debug for work::sync::key_change::KeyChange
+pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
 pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
@@ -505,11 +1076,16 @@ impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
 pub enum work::sync::PushOutcome
+pub work::sync::PushOutcome::CreatedBlocked
+pub work::sync::PushOutcome::CreatedUnwritten
 pub work::sync::PushOutcome::LocalSave
 pub work::sync::PushOutcome::LoudTerminal
+pub work::sync::PushOutcome::Rejected
+pub work::sync::PushOutcome::RetirementIncomplete
 pub work::sync::PushOutcome::Retry
 pub work::sync::PushOutcome::WriteOnce
 impl work::sync::push_decide::PushOutcome
+pub const fn work::sync::push_decide::PushOutcome::exit_code(self) -> u8
 pub const fn work::sync::push_decide::PushOutcome::keyword(self) -> &'static str
 impl core::clone::Clone for work::sync::push_decide::PushOutcome
 pub fn work::sync::push_decide::PushOutcome::clone(&self) -> work::sync::push_decide::PushOutcome
@@ -561,6 +1137,7 @@ impl core::marker::Copy for work::sync::classify::RemotePresence
 impl core::marker::StructuralPartialEq for work::sync::classify::RemotePresence
 pub enum work::sync::RenderableState
 pub work::sync::RenderableState::Conflict
+pub work::sync::RenderableState::Draft
 pub work::sync::RenderableState::LocallyModified
 pub work::sync::RenderableState::RemotelyModified
 pub work::sync::RenderableState::Synced
@@ -647,7 +1224,7 @@ pub struct work::sync::PlanInput<'a>
 pub work::sync::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::PlanInput::baseline_timestamp: u64
 pub work::sync::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
-pub work::sync::PlanInput::dirty: work::sync::decide::Dirtiness
+pub work::sync::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
 pub work::sync::PlanInput::facts: work::sync::plan::RemoteFacts<'a>
 pub work::sync::PlanInput::id: alloc::string::String
@@ -697,7 +1274,8 @@ pub trait work::sync::RunClock
 pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
 pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
-pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::sync::decide::Dirtiness) -> work::sync::decide::Action
+pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
+pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
@@ -783,3 +1361,21 @@ impl core::marker::StructuralPartialEq for work::update::UpdateError
 pub const work::update::LIST_FIELDS: &[&str]
 pub fn work::update::mutate_list(current: &[alloc::string::String], action: work::update::ListAction, value: &str) -> work::update::ListMutation
 pub fn work::update::validate_set_key(key: &str) -> core::result::Result<(), work::update::UpdateError>
+pub mod work::work_item_files
+pub struct work::work_item_files::WorkItemFile
+pub work::work_item_files::WorkItemFile::content: alloc::string::String
+pub work::work_item_files::WorkItemFile::path: std::path::PathBuf
+impl core::clone::Clone for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::clone(&self) -> work::work_item_files::WorkItemFile
+impl core::cmp::Eq for work::work_item_files::WorkItemFile
+impl core::cmp::PartialEq for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::eq(&self, other: &work::work_item_files::WorkItemFile) -> bool
+impl core::fmt::Debug for work::work_item_files::WorkItemFile
+pub fn work::work_item_files::WorkItemFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::work_item_files::WorkItemFile
+pub const work::work_item_files::DRAFTS_DIRECTORY: &str
+pub trait work::work_item_files::WorkItemFiles
+pub fn work::work_item_files::WorkItemFiles::canonical(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
+pub fn work::work_item_files::WorkItemFiles::files(&self) -> core::result::Result<alloc::vec::Vec<work::work_item_files::WorkItemFile>, kernel::Error>
+pub fn work::work_item_files::identities(files: &[work::work_item_files::WorkItemFile]) -> alloc::vec::Vec<work::identity::ItemIdentity>
+pub fn work::work_item_files::identity_of(file: &work::work_item_files::WorkItemFile) -> core::option::Option<work::identity::ItemIdentity>

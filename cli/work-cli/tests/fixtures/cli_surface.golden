@@ -1,5 +1,5 @@
 === accelerator-work --help ===
-The `accelerator-work` command-line surface: work-item lifecycle primitives (`create`, `show`, `resolve`, `diff`, `update`) plus small utility subcommands used by the skills that orchestrate them
+The `accelerator-work` command-line surface: work-item lifecycle primitives (`create`, `create-batch`, `show`, `resolve`, `diff`, `update`, `sync`, `promote`) plus small utility subcommands used by the skills that orchestrate them
 
 Usage: accelerator-work <COMMAND>
 
@@ -9,12 +9,14 @@ Commands:
   show              Print a work item: the whole file, or a single frontmatter field
   diff              Show a per-section diff between two work-item-shaped files, for conflict-resolution review. `local` is the `-` side, `remote` is the `+` side
   create            Atomically create a new work item under the configured pattern, self-allocating its own ID
+  create-batch      Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took
   update            Atomically apply field/tag/list-field edits to an existing work item's frontmatter
   link-external-id  Write an already-created remote id into a local draft's `external_id` frontmatter field (upsert)
   canonicalise-id   Canonicalise a work-item ID under the configured pattern (zero-pads a bare number, prepends the default project when the pattern needs one)
   next-number       Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
   list              List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
   sync              Reconcile local work items with the configured remote tracker (`work.integration`)
+  promote           Promote one draft onto an issue the tracker creates for it, under `work.id_pattern: "{tracker}"`: the draft ID is retired to the tracker key across `meta/`, as `work sync` does for every draft
   help              Print this message or the help of the given subcommand(s)
 
 Options:
@@ -89,9 +91,36 @@ Options:
       --author <AUTHOR>              The author. Falls back to the current VCS identity when omitted
       --producer <PRODUCER>          The producer name recorded in the frontmatter [default: accelerator-work]
       --body-file <BODY_FILE>        A file whose content becomes the body (with `NNNN` and the title placeholder substituted), instead of the template's own skeleton body
-      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist — see `exit_codes` for the 70/71 contract). The file is written either way
+      --push                         Push the new item to the configured remote tracker before writing it locally. On a retryable failure the create is retried once, then the item is saved unsynced; a terminal failure is reported and the item saved unsynced (a remote issue may already exist); a rejected request is reported, exits 75 and the item saved unsynced (nothing was sent) — see `exit_codes` for the 70/71/75 contract. The file is written either way
       --dry-run                      Preview the fields a `--push` create would resolve against the configured tracker, then exit without writing a file or creating a remote issue. Prints one tab-separated line the create skill parses; exits 70 when the tracker is unreachable (the preview could not be resolved), so the caller can distinguish an unreachable tracker from an unresolvable configured value (reported as an `unresolvable` source on the line, exit 0)
   -h, --help                         Print help
+
+=== accelerator-work create-batch --help ===
+Create every item a JSON manifest describes, parents first, each as `create` would, linking each child's `parent` to the ID its parent took.
+
+Prints one `<ref>\t<path>\t<keyword>\t<key>` line per item, then a `#\tdetail\t<ref>\t<source>\t<path>[\t<recovery-dir>]` line for each path a `created-blocked` or `retirement-incomplete` item names. The keywords are `create --push`'s, plus `declined` (created without a push) and `pending` (an earlier create of the same content awaits promotion; the path is its draft). A pushed batch records each entry in a journal under `.accelerator/state/`, so a rerun creates only the entries it never reached.
+
+Exits with the item code of greatest precedence (see `exit_codes`), `pending` counting as 4 and `declined` as 0; a refused manifest or a parent cycle exits 2 before anything is written.
+
+Usage: accelerator-work create-batch [OPTIONS] --manifest <MANIFEST>
+
+Options:
+      --manifest <MANIFEST>
+          The JSON manifest: an array of entries, each with `ref`, `title`, `kind` and `priority`, and optionally `status`, `body_file` (relative to the manifest), `tags`, `blocks`, `blocked_by`, `relates_to`, `derived_from`, `source` and `parent` — either `{"ref": "<ref>"}` naming another entry, or a typed reference to an existing item
+
+      --push
+          Push every item to the configured remote tracker, as `create --push` does for one
+
+      --author <AUTHOR>
+          The author. Falls back to the current VCS identity when omitted
+
+      --producer <PRODUCER>
+          The producer name recorded in each item's frontmatter
+          
+          [default: accelerator-work]
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 === accelerator-work update --help ===
 Atomically apply field/tag/list-field edits to an existing work item's frontmatter
@@ -107,7 +136,7 @@ Options:
       --remove-tag <REMOVE_TAGS>  A tag to remove; repeatable
       --append <APPENDS>          A `KEY=VALUE` pair appending `VALUE` to list-typed field `KEY` (`blocks`, `blocked_by`, `derived_from`, `relates_to`); repeatable
       --remove <REMOVES>          A `KEY=VALUE` pair removing `VALUE` from list-typed field `KEY`; repeatable
-      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged) or 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict)
+      --push                      Replace the item's remote issue with its whole rendered content before writing the edit locally. Refused when the item has no `external_id` — see `create --push` for an unsynced item. Unlike `create --push`, a failed push leaves the local file untouched: exit 70 (retryable, unchanged), 71 (terminal, baseline entry cleared so the next `sync` reconciles it as a conflict) or 75 (rejected before sending, unchanged)
   -h, --help                      Print help
 
 === accelerator-work link-external-id --help ===
@@ -134,14 +163,23 @@ Options:
   -h, --help  Print help
 
 === accelerator-work next-number --help ===
-Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number
+Print the next N sequential IDs the configured pattern would allocate. Display-only: never writes a file or commits a number.
+
+Under `work.id_pattern: "{tracker}"` the IDs are provisional draft IDs, for items written under `meta/work/drafts/`; `work create` places a draft there itself.
 
 Usage: accelerator-work next-number [OPTIONS]
 
 Options:
-      --project <PROJECT>  The project code, when the configured pattern needs one
-      --count <COUNT>      How many sequential IDs to print [default: 1]
-  -h, --help               Print help
+      --project <PROJECT>
+          The project code, when the configured pattern needs one
+
+      --count <COUNT>
+          How many sequential IDs to print
+          
+          [default: 1]
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 === accelerator-work list --help ===
 List work items from the configured directory, filtered and rendered as a table — or as a parent/child tree with `--hierarchy`. Carries a sync-status column when `work.integration` names a tracker. Read-only: never writes a file and never contacts the remote to mutate it
@@ -163,9 +201,9 @@ Options:
 === accelerator-work sync --help ===
 Reconcile local work items with the configured remote tracker (`work.integration`).
 
-A run may author **new** artefacts on both sides beyond updating existing ones: it creates remote issues from unsynced local drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote issues into new local files (bounded by `--max-pulls`, counted as pulls). Untracked discovery is scoped to the configured project, and a run that would exceed either bound refuses with zero writes (exit 5).
+A run may author **new** artefacts on both sides beyond updating existing ones: it creates remote issues from unsynced local drafts (bounded by `--max-pushes`, counted as pushes) and pulls untracked remote issues into new local files (bounded by `--max-pulls`, counted as pulls). Untracked discovery is scoped to the configured project, and a run that would exceed either bound refuses with zero writes (exit 5). Under `work.id_pattern: "{tracker}"` it first promotes every draft onto an issue the tracker creates for it, each counted as a push, unless `--no-promote` is given; a draft left unpromoted exits by its reason, as `work promote` does.
 
-Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 1 an internal error; 2 a usage error; 3 a `--target` matched no local id, path, or `external_id`; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a `--target` path lies outside the work directory; 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
+Exit codes: 0 clean; 4 items await a human (unresolved conflicts, skipped-dirty pulls, remote-absent or indeterminate items); 70 a read failed or every per-item failure was retryable; 71 any per-item failure was terminal; 75 a per-item request was rejected before sending, so it must change (ranked below 4 and above 74); 1 an internal error; 2 a usage error; 3 a `--target` matched no local id, path, or `external_id`; 5 refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a `--target` path lies outside the work directory; 72 the configured tracker is recognised but has no client built yet; 73 work.integration is unset or names an unrecognised tracker; 74 the configured tracker is wired but its configuration or credentials are missing (nothing was sent). The report on stdout is authoritative: check it for `unresolved` lines regardless of exit code, since a 71 run may also carry conflicts.
 
 Usage: accelerator-work sync [OPTIONS]
 
@@ -194,8 +232,32 @@ Options:
       --allow-unbounded
           Acknowledge an unbounded broadened pull. `<tracker>.pull.max_items: unlimited` combined with a broadened scope (`all_*`, or a non-empty `additional_*`) is refused fail-safe unless this is set, since the whole discovered set would be mass-created with no write bound. The work skill prompts and re-runs with this flag; set a finite `max_items` to avoid it
 
+      --no-promote
+          Leave drafts as they are. Under `work.id_pattern: "{tracker}"` a run otherwise promotes every draft it reconciles onto an issue the tracker creates for it, counting each promotion as a push
+
       --target <TARGETS>
           Reconcile only this work item; repeatable. Accepts a local id (0042), a remote tracker key / `external_id` (PP-787), or a file path. Naming any target suppresses untracked-remote discovery
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+=== accelerator-work promote --help ===
+Promote one draft onto an issue the tracker creates for it, under `work.id_pattern: "{tracker}"`: the draft ID is retired to the tracker key across `meta/`, as `work sync` does for every draft.
+
+Prints the same `<draft-id>\t<action>\t<state>\t<detail>` row and `#\tdetail` lines as `work sync`, and exits with the same code for each reason a draft is not promoted (see `exit_codes`). A draft promoted already prints `already-promoted` and exits 0.
+
+Usage: accelerator-work promote [OPTIONS] <DRAFT_ID>
+
+Arguments:
+  <DRAFT_ID>
+          The draft's ID (`draft-xxxxxx`)
+
+Options:
+      --adopt <KEY>
+          Adopt this existing issue as the draft's instead of creating one, after confirming the tracker holds it. The issue is never rewritten. For a draft whose earlier create may have reached the tracker
+
+      --create
+          Create a new issue even though an earlier create may already have reached the tracker, accepting the risk of a duplicate
 
   -h, --help
           Print help (see a summary with '-h')

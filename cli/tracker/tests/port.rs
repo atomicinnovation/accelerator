@@ -9,6 +9,7 @@ use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -104,6 +105,13 @@ impl RemoteTracker for FixedTracker {
             })
     }
 
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        Ok(self
+            .issue(id)
+            .cloned()
+            .map_or(Located::NotFound, Located::Found))
+    }
+
     fn fetch_all(
         &self,
         ids: &[ExternalId],
@@ -189,6 +197,7 @@ const JIRA_STAMP: &str = "2026-07-09T08:00:00.000+0000";
 
 fn issue(stamp: &str, body: &str) -> RemoteIssue {
     RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported(stamp.to_owned()),
         body: body.to_owned(),
     }
@@ -222,8 +231,9 @@ fn all_four_operations_are_reachable_through_a_trait_object() {
         .expect("the fake fetches");
     assert_eq!(
         outcome.found,
-        vec![(id, RemoteTimestamp::Reported(JIRA_STAMP.to_owned()))]
+        vec![(id.clone(), RemoteTimestamp::Reported(JIRA_STAMP.to_owned()))]
     );
+    assert!(matches!(tracker.locate(&id), Ok(Located::Found(_))));
 }
 
 /// A compile-time echo of the surface pin, on the stable lane.
@@ -237,7 +247,7 @@ fn every_public_field_is_accounted_for() {
     let tracker = FixedTracker::holding(known());
     let id = ExternalId::new("ENG-1".to_owned());
 
-    let RemoteIssue { updated, body } =
+    let RemoteIssue { key, updated, body } =
         tracker.show(&id).expect("the fake holds ENG-1");
     let FetchOutcome {
         found,
@@ -246,6 +256,7 @@ fn every_public_field_is_accounted_for() {
         completeness,
     } = tracker.fetch_all(&[id]).expect("the fake fetches");
 
+    assert_eq!(key.as_str(), "ENG-1");
     assert_eq!(updated.reported(), Some(JIRA_STAMP));
     assert!(!body.is_empty());
     assert_eq!(found.len(), 1);

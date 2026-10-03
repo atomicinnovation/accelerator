@@ -12,12 +12,17 @@ pub mod evidence;
 pub mod seed;
 
 use std::cell::RefCell;
+use std::sync::Arc;
+use std::sync::Condvar;
+use std::sync::Mutex;
+use std::sync::PoisonError;
 
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -44,6 +49,9 @@ pub enum Call {
     Show {
         id: ExternalId,
     },
+    Locate {
+        id: ExternalId,
+    },
     FetchAll {
         ids: Vec<ExternalId>,
     },
@@ -64,14 +72,71 @@ pub enum Call {
     },
 }
 
+#[derive(Debug, Default)]
+struct ParkState {
+    parked: bool,
+    released: bool,
+}
+
+/// Holds a parked `create` until released. Clones share one parking spot.
+#[derive(Debug, Clone, Default)]
+pub struct ParkHandle(Arc<(Mutex<ParkState>, Condvar)>);
+
+impl ParkHandle {
+    fn park(&self) {
+        let (state, signal) = &*self.0;
+        state.lock().unwrap_or_else(PoisonError::into_inner).parked = true;
+        signal.notify_all();
+        let held = state.lock().unwrap_or_else(PoisonError::into_inner);
+        drop(
+            signal
+                .wait_while(held, |parking| !parking.released)
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// Blocks until a `create` has parked.
+    pub fn wait_parked(&self) {
+        let (state, signal) = &*self.0;
+        let held = state.lock().unwrap_or_else(PoisonError::into_inner);
+        drop(
+            signal
+                .wait_while(held, |parking| !parking.parked)
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// Lets the parked `create`, and any later one, continue.
+    pub fn release(&self) {
+        let (state, signal) = &*self.0;
+        state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .released = true;
+        signal.notify_all();
+    }
+}
+
 /// A `RemoteTracker` fake that records every call it receives and can be
 /// configured to fail in the shapes the sync engine must survive.
 pub struct RecordingTracker {
     issues: RefCell<Vec<(ExternalId, RemoteIssue)>>,
     unprovable: Vec<ExternalId>,
     show_failures: Vec<(ExternalId, TrackerError)>,
+    /// Keys an issue was once held under, each paired with the key it moved
+    /// to: `show` and `locate` follow them, as Jira does, and `fetch_all`
+    /// does not.
+    moves: Vec<(ExternalId, ExternalId)>,
+    /// Issues `fetch_all` finds under their held key but `show` answers
+    /// under another — a move landing between the two reads.
+    shown_under: Vec<(ExternalId, ExternalId)>,
+    not_found: Vec<ExternalId>,
+    locate_failures: Vec<(ExternalId, TrackerError)>,
     update_failures: Vec<(ExternalId, TrackerError)>,
     create_failure: Option<(TrackerError, bool)>,
+    /// How many creates fail before the rest succeed; `None` fails every one.
+    create_failures_left: RefCell<Option<usize>>,
+    park: Option<ParkHandle>,
     preview_failure: Option<TrackerError>,
     scope_refusal: Option<ScopeError>,
     rewrites_scope_filters: bool,
@@ -99,8 +164,14 @@ impl RecordingTracker {
             issues: RefCell::new(issues),
             unprovable: Vec::new(),
             show_failures: Vec::new(),
+            moves: Vec::new(),
+            shown_under: Vec::new(),
+            not_found: Vec::new(),
+            locate_failures: Vec::new(),
             update_failures: Vec::new(),
             create_failure: None,
+            create_failures_left: RefCell::new(None),
+            park: None,
             preview_failure: None,
             scope_refusal: None,
             rewrites_scope_filters: false,
@@ -163,6 +234,22 @@ impl RecordingTracker {
         self
     }
 
+    /// Fails only the first create with `error`; later creates succeed.
+    #[must_use]
+    pub fn failing_create_once(mut self, error: TrackerError) -> Self {
+        self.create_failure = Some((error, false));
+        self.create_failures_left = RefCell::new(Some(1));
+        self
+    }
+
+    /// Parks the next `create` until the returned handle releases it, so a
+    /// test can hold one promotion mid-flight while another contends.
+    pub fn parking_create(&mut self) -> ParkHandle {
+        let handle = ParkHandle::default();
+        self.park = Some(handle.clone());
+        handle
+    }
+
     /// The terminal-failure-that-in-fact-succeeded shape: the issue is
     /// recorded as created, then the call reports `error`.
     #[must_use]
@@ -184,6 +271,50 @@ impl RecordingTracker {
     #[must_use]
     pub fn failing_show(mut self, id: ExternalId, error: TrackerError) -> Self {
         self.show_failures.push((id, error));
+        self
+    }
+
+    /// Moves the issue held under `old` to `new`: `fetch_all` no longer finds
+    /// `old`, while `show` and `locate` answer `old` with the issue under
+    /// `new`.
+    #[must_use]
+    pub fn moving(self, old: &ExternalId, new: &ExternalId) -> Self {
+        for (held, _) in self.issues.borrow_mut().iter_mut() {
+            if held == old {
+                *held = new.clone();
+            }
+        }
+        let mut tracker = self;
+        tracker.moves.push((old.clone(), new.clone()));
+        tracker
+    }
+
+    /// `fetch_all` still finds the issue under `held`, but `show` answers it
+    /// under `shown`.
+    #[must_use]
+    pub fn showing_under(
+        mut self,
+        held: &ExternalId,
+        shown: &ExternalId,
+    ) -> Self {
+        self.shown_under.push((held.clone(), shown.clone()));
+        self
+    }
+
+    /// `locate(id)` answers that no issue has the key.
+    #[must_use]
+    pub fn not_found(mut self, id: &ExternalId) -> Self {
+        self.not_found.push(id.clone());
+        self
+    }
+
+    #[must_use]
+    pub fn failing_locate(
+        mut self,
+        id: &ExternalId,
+        error: TrackerError,
+    ) -> Self {
+        self.locate_failures.push((id.clone(), error));
         self
     }
 
@@ -307,7 +438,27 @@ impl RecordingTracker {
             .borrow()
             .iter()
             .find(|(known, _)| known == id)
-            .map(|(_, issue)| issue.clone())
+            .map(|(known, issue)| RemoteIssue {
+                key: known.clone(),
+                ..issue.clone()
+            })
+    }
+
+    fn current_key(&self, requested: &ExternalId) -> ExternalId {
+        self.moves
+            .iter()
+            .find(|(old, _)| old == requested)
+            .map_or_else(|| requested.clone(), |(_, new)| new.clone())
+    }
+
+    fn read(&self, id: &ExternalId) -> Option<RemoteIssue> {
+        let mut issue = self.issue(&self.current_key(id))?;
+        if let Some((_, shown)) =
+            self.shown_under.iter().find(|(held, _)| held == id)
+        {
+            issue.key = shown.clone();
+        }
+        Some(issue)
     }
 
     fn allocate_id(&self) -> ExternalId {
@@ -331,12 +482,27 @@ impl RemoteTracker for RecordingTracker {
             kind: kind.to_owned(),
         });
 
-        if let Some((error, also_creates)) = &self.create_failure {
+        if let Some(park) = &self.park {
+            park.park();
+        }
+
+        let fails = self.create_failure.is_some()
+            && self
+                .create_failures_left
+                .borrow()
+                .is_none_or(|left| left > 0);
+        if let Some(left) = self.create_failures_left.borrow_mut().as_mut() {
+            *left = left.saturating_sub(1);
+        }
+        if let Some((error, also_creates)) =
+            self.create_failure.as_ref().filter(|_| fails)
+        {
             if *also_creates {
                 let id = self.allocate_id();
                 self.issues.borrow_mut().push((
-                    id,
+                    id.clone(),
                     RemoteIssue {
+                        key: id,
                         updated: RemoteTimestamp::NotReported,
                         body: format!("{title}\n{body}"),
                     },
@@ -349,6 +515,7 @@ impl RemoteTracker for RecordingTracker {
         self.issues.borrow_mut().push((
             id.clone(),
             RemoteIssue {
+                key: id.clone(),
                 updated: RemoteTimestamp::NotReported,
                 body: format!("{title}\n{body}"),
             },
@@ -395,8 +562,28 @@ impl RemoteTracker for RecordingTracker {
             return Err(error.clone());
         }
 
-        self.issue(id).ok_or_else(|| TrackerError::Retryable {
+        self.read(id).ok_or_else(|| TrackerError::Retryable {
             detail: format!("fake: show {id} failed, connection refused"),
+        })
+    }
+
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        self.calls
+            .borrow_mut()
+            .push(Call::Locate { id: id.clone() });
+
+        if let Some((_, error)) =
+            self.locate_failures.iter().find(|(known, _)| known == id)
+        {
+            return Err(error.clone());
+        }
+        if self.not_found.contains(id) {
+            return Ok(Located::NotFound);
+        }
+        self.read(id).map(Located::Found).ok_or_else(|| {
+            TrackerError::Retryable {
+                detail: format!("fake: locate {id} failed, connection refused"),
+            }
         })
     }
 
@@ -551,6 +738,7 @@ mod tests {
 
     fn issue(stamp: &str, body: &str) -> RemoteIssue {
         RemoteIssue {
+            key: ExternalId::new("REC-1".to_owned()),
             updated: RemoteTimestamp::Reported(stamp.to_owned()),
             body: body.to_owned(),
         }

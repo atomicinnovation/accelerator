@@ -101,6 +101,18 @@ const TABLE: &[Row] = &[
         update_retryable: false,
         note: "any other status",
     },
+    Row {
+        outcome: Outcome::NotSent,
+        create_retryable: true,
+        update_retryable: true,
+        note: "a connect or DNS failure before the request left the client",
+    },
+    Row {
+        outcome: Outcome::RequestInvalid,
+        create_retryable: false,
+        update_retryable: false,
+        note: "refused before sending, and a retry would fail identically",
+    },
 ];
 
 #[test]
@@ -145,6 +157,8 @@ fn the_table_covers_every_outcome_variant() {
         Outcome::ServerError,
         Outcome::Transport,
         Outcome::Unexpected,
+        Outcome::NotSent,
+        Outcome::RequestInvalid,
     ] {
         // An empty exhaustive match: a new `Outcome` variant fails to compile
         // here, forcing a witness and a table row for it.
@@ -155,7 +169,9 @@ fn the_table_covers_every_outcome_variant() {
             | Outcome::BadRequest(_)
             | Outcome::ServerError
             | Outcome::Transport
-            | Outcome::Unexpected => {}
+            | Outcome::Unexpected
+            | Outcome::NotSent
+            | Outcome::RequestInvalid => {}
         }
         assert!(present(&witness), "no row covers {witness:?}");
     }
@@ -281,4 +297,30 @@ fn a_classification_names_the_provider_and_operation() {
 fn a_body_with_no_errors_carries_none_whatever_its_shape() {
     let value: Value = json!({"data": {"issue": null}});
     assert!(!carries_errors(&value));
+}
+
+#[test]
+fn a_create_that_was_never_sent_is_retryable() {
+    let error = classify(Outcome::NotSent, Operation::Create, "refused");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn a_create_whose_transport_failed_after_sending_is_terminal() {
+    let error = classify(Outcome::Transport, Operation::Create, "timed out");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+}
+
+#[test]
+fn a_payload_that_cannot_be_serialised_is_rejected() {
+    for operation in [Operation::Create, Operation::Update] {
+        let error = classify(Outcome::RequestInvalid, operation, "bad payload");
+
+        assert!(
+            matches!(error, TrackerError::Rejected { .. }),
+            "{operation:?}: {error}"
+        );
+    }
 }

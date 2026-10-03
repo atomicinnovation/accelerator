@@ -1,20 +1,27 @@
-//! Adapter/binary wiring for `work create`: allocates the next ID under a
-//! per-directory lock, derives metadata, composes the frontmatter via
-//! `work::create::compose_frontmatter`, and performs one atomic write.
+//! Adapter/binary wiring for `work create`: places the new item, composes
+//! its frontmatter via `work::create::compose_frontmatter`, and dispatches to
+//! one of three creation strategies: a locally numbered item (optionally
+//! pushed), a draft, or under `{tracker}` a draft promoted onto the issue the
+//! tracker creates for it.
 
 use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
+use corpus::store::ExclusiveCreate;
+use corpus::store::RemoveFile;
 use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
+use corpus::IdOwnership;
 use corpus_adapters::compile_scan_regex;
 use corpus_adapters::lock::acquire;
+use corpus_adapters::lock::LockGuard;
 use corpus_adapters::lock::LockOptions;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::RealFs;
 use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
@@ -22,24 +29,61 @@ use document::Yaml;
 use tracker::CreatePreview;
 use tracker::ExternalId;
 use tracker::FieldResolution;
-use tracker::TrackerError;
+use tracker::RemoteTracker;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
 use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::FieldValue;
 use work::create::TypedLinkage;
+use work::draft_id::mint_draft_id;
+use work::draft_id::DraftId;
+use work::draft_id::SuffixDraws;
+use work::identity::linker_of;
+use work::identity::ItemIdentity;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
+use work::promotion::IntendedBaseline;
+use work::promotion::NotPromoted;
+use work::promotion::Promotion;
+use work::promotion::PromotionMode;
+use work::promotion::PromotionStage;
+use work::promotion::ReadBack;
+use work::promotion::RemoteHash;
+use work::promotion::ID_PLACEHOLDER as PROMOTION_PLACEHOLDER;
 use work::resolve::DirectoryLister;
+use work::retirement::RetirementFailure;
+use work::retirement::RetirementRefusal;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
 use work::sync::PushOutcome;
 use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
+use work::work_item_files::identities;
+use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
+use work_adapters::create_request_fields;
+use work_adapters::draft_id::RandomSuffixDraws;
+use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion::promote;
+use work_adapters::promotion::Detail;
+use work_adapters::promotion::PromotionOutcome;
+use work_adapters::promotion::PromotionPorts;
+use work_adapters::promotion::PromotionRow;
+use work_adapters::promotion_records::FilePromotionRecords;
+use work_adapters::promotion_records::PromotionRecords;
+use work_adapters::remote_create::send_create;
+use work_adapters::remote_create::CreateRequest;
+use work_adapters::remote_create::RemoteCreate;
+use work_adapters::sync::baseline;
+use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::created_baseline::record_created_baseline;
+use work_adapters::sync::digest;
+use work_adapters::sync::pending_push;
+use work_adapters::sync::pending_push::Marker;
 
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
@@ -47,6 +91,7 @@ use crate::config::resolve_scheme;
 use crate::config::resolve_work_dir;
 use crate::config::templates_dir;
 use crate::exit_codes;
+use crate::identity_workspace::IdentityWorkspace;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
 
@@ -77,11 +122,19 @@ pub struct CreateArgs {
 pub struct PushReport {
     pub outcome: PushOutcome,
     pub external_id: Option<String>,
+    /// What stderr tells the user beside the keyword: a rejected request's
+    /// cause, a blocking item and its remedy, or the paths to restore.
+    pub cause: Option<String>,
+    /// The blocking item, or each path to restore, for a caller that
+    /// reports them as data.
+    pub details: Vec<Detail>,
 }
 
 pub enum RunOutcome {
+    /// `path` is a file that exists, or `None` when an issue was created but
+    /// no local file carries it.
     Created {
-        path: PathBuf,
+        path: Option<PathBuf>,
         push: Option<PushReport>,
     },
     Previewed(String),
@@ -89,8 +142,15 @@ pub enum RunOutcome {
         message: String,
         code: u8,
     },
+    /// A create of the same content is already pending; nothing was sent.
+    Pending(String),
     Failed(String),
 }
+
+/// The file store every creation strategy writes items through.
+pub trait CreationStore: AtomicWrite + ExclusiveCreate + RemoveFile {}
+
+impl<T: AtomicWrite + ExclusiveCreate + RemoveFile> CreationStore for T {}
 
 const SLUG_MAX_LEN: usize = 60;
 
@@ -257,34 +317,18 @@ fn resolve_body(
         .replace(TITLE_PLACEHOLDER, &args.title))
 }
 
-fn corpus_carries_external_id(
-    work_dir: &Path,
+fn corpus_identities(work_dir: &Path) -> Result<Vec<ItemIdentity>, String> {
+    FilesystemWorkItemFiles::new(work_dir)
+        .files()
+        .map(|files| identities(&files))
+        .map_err(|error| error.to_string())
+}
+
+fn carries_external_id(
+    corpus: &[ItemIdentity],
     external_id: &ExternalId,
 ) -> bool {
-    let Ok(entries) = std::fs::read_dir(work_dir) else {
-        return false;
-    };
-    entries.filter_map(Result::ok).any(|entry| {
-        let path = entry.path();
-        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("md") {
-            return false;
-        }
-        let Ok(content) = std::fs::read_to_string(&path) else {
-            return false;
-        };
-        let Ok((frontmatter, _)) =
-            work_adapters::sync::digest::split_frontmatter_and_body(&content)
-        else {
-            return false;
-        };
-        work::show::read_field_raw(&frontmatter, "external_id").is_some_and(
-            |raw| {
-                raw.trim_matches(|c: char| {
-                    c.is_ascii_whitespace() || c == '"' || c == '\''
-                }) == external_id.as_str()
-            },
-        )
-    })
+    linker_of(external_id.as_str(), corpus).is_some()
 }
 
 fn refusal_message(
@@ -341,7 +385,7 @@ fn refusal_message(
     }
 }
 
-const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
+pub const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     match error {
         SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
         SelectionError::Unconfigured { .. } => exit_codes::UNCONFIGURED,
@@ -413,46 +457,6 @@ fn preview_push(
     }
 }
 
-enum CreateRetryOutcome {
-    Created(ExternalId),
-    Exhausted,
-    Terminal(String),
-}
-
-/// Drives the create call with the retryable/terminal policy `push_decide`
-/// owns: a `70` (retryable) failure is retried once, then the item is saved
-/// unsynced; a `71` (terminal) failure is never retried — a remote issue may
-/// already exist. The retry count is bounded by `push_decide` returning
-/// `Retry` only on the first attempt.
-fn drive_create_retry<F>(mut attempt_create: F) -> CreateRetryOutcome
-where
-    F: FnMut() -> Result<ExternalId, TrackerError>,
-{
-    let mut attempt: u8 = 1;
-    loop {
-        match attempt_create() {
-            Ok(external_id) => return CreateRetryOutcome::Created(external_id),
-            Err(error) => {
-                let code = exit_codes::for_tracker_error(&error);
-                match work::sync::push_decide(code, attempt, false) {
-                    PushOutcome::Retry => attempt += 1,
-                    PushOutcome::LocalSave => {
-                        return CreateRetryOutcome::Exhausted
-                    }
-                    PushOutcome::LoudTerminal => {
-                        return CreateRetryOutcome::Terminal(
-                            error.into_detail(),
-                        )
-                    }
-                    PushOutcome::WriteOnce => {
-                        unreachable!("a non-zero code never yields WriteOnce")
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn attempted_at_epoch() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -460,66 +464,258 @@ fn attempted_at_epoch() -> u64 {
         .unwrap_or_default()
 }
 
-struct PushExecution {
-    outcome: PushOutcome,
-    external_id: Option<String>,
-    marker_to_delete_after_write: Option<PathBuf>,
+/// Everything a creation strategy needs that does not depend on the ID the
+/// new item takes.
+struct CreationContext<'a> {
+    args: &'a CreateArgs,
+    config: &'a dyn ConfigAccess,
+    scheme: corpus::WorkItemIdScheme,
+    root: PathBuf,
+    work_dir: PathBuf,
+    template: ::config::ResolvedTemplate,
+    author: String,
+    date: String,
 }
 
-#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-fn execute_push(
-    integrations_root: &Path,
-    integration: &str,
-    slug: &str,
-    args: &CreateArgs,
-    body: &str,
-    work_dir: &Path,
-    registry: &dyn TrackerRegistry,
-) -> Result<PushExecution, String> {
-    let marker_path = work_adapters::sync::pending_push::path(
-        integrations_root,
-        integration,
-        slug,
-    );
-    let marker_store =
-        FileCorpusStore::new(marker_path.parent().unwrap_or(integrations_root));
-    let marker_content = std::fs::read_to_string(&marker_path).ok();
-    let parsed =
-        work_adapters::sync::pending_push::read(marker_content.as_deref());
-    let digest = work_adapters::sync::pending_push::request_digest(
-        &args.title,
-        body,
-        &args.kind,
-    );
+impl CreationContext<'_> {
+    fn body(&self, id: &str) -> Result<String, String> {
+        resolve_body(self.args, &self.template, id)
+    }
 
+    fn content(
+        &self,
+        id: &str,
+        external_id: Option<&str>,
+    ) -> Result<String, String> {
+        let args = self.args;
+        let inputs = CreateInputs {
+            id,
+            title: &args.title,
+            kind: &args.kind,
+            priority: &args.priority,
+            status: &args.status,
+            linkage: TypedLinkage {
+                parent: args.parent.as_deref(),
+                blocks: &args.blocks,
+                blocked_by: &args.blocked_by,
+                derived_from: &args.derived_from,
+                relates_to: &args.relates_to,
+                source: args.source.as_deref(),
+            },
+            tags: &args.tags,
+            author: &self.author,
+            producer: &args.producer,
+            date: &self.date,
+            external_id,
+        };
+        Ok(format!(
+            "{}{}",
+            render_frontmatter(&inputs)?,
+            self.body(id)?
+        ))
+    }
+
+    fn slug(&self) -> String {
+        slugify(&self.args.title)
+    }
+
+    fn lock(&self) -> Result<LockGuard, String> {
+        acquire(&self.work_dir.join(LOCK_FILE_NAME), LockOptions::default())
+            .map_err(|error| {
+                format!(
+                    "could not acquire the work-item creation lock: {error}"
+                )
+            })
+    }
+
+    fn pending_push_location(&self) -> Result<(PathBuf, String), String> {
+        let integration = effective_nonempty(self.config, "work.integration")
+            .map_err(|error| error.to_string())?;
+        let integrations_root =
+            crate::sync::integrations_dir(self.config, &self.root)
+                .map_err(|error| error.to_string())?;
+        Ok((integrations_root, integration))
+    }
+}
+
+/// What a creation strategy left on disk, and what became of its push.
+pub struct CreationOutcome {
+    pub path: Option<PathBuf>,
+    pub push: Option<PushReport>,
+}
+
+impl CreationOutcome {
+    const fn unpushed(path: PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            push: None,
+        }
+    }
+}
+
+fn pushed(
+    path: Option<PathBuf>,
+    outcome: PushOutcome,
+    key: Option<&ExternalId>,
+    cause: Option<String>,
+) -> CreationOutcome {
+    CreationOutcome {
+        path,
+        push: Some(PushReport {
+            outcome,
+            external_id: key.map(|key| key.as_str().to_owned()),
+            cause,
+            details: Vec::new(),
+        }),
+    }
+}
+
+fn refuse_to_overwrite(target: &Path) -> Result<(), String> {
+    if target.exists() {
+        return Err(format!(
+            "refusing to overwrite an existing file: {}",
+            target.display()
+        ));
+    }
+    Ok(())
+}
+
+fn write_new(
+    store: &dyn CreationStore,
+    target: &Path,
+    content: &str,
+) -> Result<(), String> {
+    let dir = target.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(dir).map_err(|error| {
+        format!("could not create {}: {error}", dir.display())
+    })?;
+    refuse_to_overwrite(target)?;
+    AtomicWrite::write(store, target, content.as_bytes())
+        .map_err(|error| error.to_string())
+}
+
+/// Writes the draft under the create lock, minting an ID no item holds.
+fn write_draft(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
+    draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
+) -> Result<(DraftId, PathBuf), String> {
+    let guard = context.lock()?;
+    write_draft_locked(context, store, draws, drafted, &guard)
+}
+
+fn write_draft_locked(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
+    draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
+    _held: &LockGuard,
+) -> Result<(DraftId, PathBuf), String> {
+    let files = FilesystemWorkItemFiles::new(&context.work_dir)
+        .files()
+        .map_err(|error| error.to_string())?;
+    let draft = mint_draft_id(draws, &identities(&files))
+        .map_err(|error| error.to_string())?;
+    let target = drafts_dir(&context.work_dir).join(format!(
+        "{}-{}.md",
+        draft.as_str(),
+        context.slug()
+    ));
+    write_new(store, &target, &context.content(draft.as_str(), None)?)?;
+    drafted(&draft);
+    Ok((draft, target))
+}
+
+fn save_draft(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
+    draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
+) -> Result<CreationOutcome, String> {
+    let (_, path) = write_draft(context, store, draws, drafted)?;
+    Ok(CreationOutcome::unpushed(path))
+}
+
+/// A legacy push's result: the key it obtained, if any, the tracker it
+/// reached, and the marker to spend once the item carries the key.
+struct LegacyPush {
+    outcome: PushOutcome,
+    key: Option<ExternalId>,
+    cause: Option<String>,
+    tracker: Option<Box<dyn RemoteTracker>>,
+    marker: Option<PathBuf>,
+}
+
+impl LegacyPush {
+    const fn without_issue(
+        outcome: PushOutcome,
+        cause: Option<String>,
+    ) -> Self {
+        Self {
+            outcome,
+            key: None,
+            cause,
+            tracker: None,
+            marker: None,
+        }
+    }
+}
+
+fn write_marker(
+    store: &FileCorpusStore,
+    path: &Path,
+    marker: &PendingPush,
+) -> Result<(), String> {
+    AtomicWrite::write(store, path, pending_push::render(marker).as_bytes())
+        .map_err(|error| error.to_string())
+}
+
+/// Pushes a locally numbered item through its slug-named `pending_push`
+/// marker, whose recovery rules older binaries share.
+fn push_legacy_item(
+    context: &CreationContext<'_>,
+    body: &str,
+    registry: &dyn TrackerRegistry,
+) -> Result<LegacyPush, String> {
+    let args = context.args;
+    let (integrations_root, integration) = context.pending_push_location()?;
+    let marker_path =
+        pending_push::path(&integrations_root, &integration, &context.slug());
+    let marker_store = FileCorpusStore::new(
+        marker_path.parent().unwrap_or(&integrations_root),
+    );
+    let marker_content = std::fs::read_to_string(&marker_path).ok();
+    let parsed = pending_push::read(marker_content.as_deref());
+    let digest = pending_push::request_digest(&args.title, body, &args.kind);
     let marker_state = match &parsed {
         Err(_) => MarkerState::Unreadable,
         Ok(None) => MarkerState::Absent,
         Ok(Some(marker)) => MarkerState::Present(marker),
     };
-    let corpus_carries =
-        |id: &ExternalId| corpus_carries_external_id(work_dir, id);
+    let corpus = corpus_identities(&context.work_dir)?;
+    let corpus_carries = |id: &ExternalId| carries_external_id(&corpus, id);
     let precondition =
         work::sync::push_precondition(&marker_state, &digest, &corpus_carries);
 
+    let tracker_for_read_back = || registry.resolve(&integration).ok();
     match precondition {
         PushPrecondition::Refuse(reason) => Err(refusal_message(
             reason,
             &marker_path,
             parsed.ok().flatten().as_ref(),
         )),
-        PushPrecondition::ReuseId(external_id) => Ok(PushExecution {
+        PushPrecondition::ReuseId(key) => Ok(LegacyPush {
             outcome: PushOutcome::WriteOnce,
-            external_id: Some(external_id.as_str().to_owned()),
-            marker_to_delete_after_write: Some(marker_path),
+            key: Some(key),
+            cause: None,
+            tracker: tracker_for_read_back(),
+            marker: Some(marker_path),
         }),
         PushPrecondition::Proceed => {
-            work_adapters::sync::pending_push::prepare_dir(
-                integrations_root,
-                integration,
-            )
-            .map_err(|error| error.to_string())?;
-            let tracker = match registry.resolve(integration) {
+            pending_push::prepare_dir(&integrations_root, &integration)
+                .map_err(|error| error.to_string())?;
+            let tracker = match registry.resolve(&integration) {
                 Ok(tracker) => tracker,
                 Err(error) => {
                     let outcome = work::sync::push_decide(
@@ -527,92 +723,622 @@ fn execute_push(
                         1,
                         false,
                     );
-                    return Ok(PushExecution {
-                        outcome,
-                        external_id: None,
-                        marker_to_delete_after_write: None,
-                    });
+                    return Ok(LegacyPush::without_issue(outcome, None));
                 }
             };
-
             let fingerprint = RequestFingerprint {
                 title: args.title.clone(),
                 digest,
                 attempted_at: attempted_at_epoch(),
                 failure: None,
             };
-            let attempted = PendingPush::Attempted {
-                request: fingerprint.clone(),
-            };
-            AtomicWrite::write(
+            write_marker(
                 &marker_store,
                 &marker_path,
-                work_adapters::sync::pending_push::render(&attempted)
-                    .as_bytes(),
+                &PendingPush::Attempted {
+                    request: fingerprint.clone(),
+                },
+            )?;
+            send_legacy_create(
+                &CreateRequest {
+                    title: &args.title,
+                    body,
+                    kind: &args.kind,
+                },
+                tracker,
+                &marker_store,
+                marker_path,
+                fingerprint,
             )
-            .map_err(|error| error.to_string())?;
-
-            match drive_create_retry(|| {
-                tracker.create(&args.title, body, &args.kind)
-            }) {
-                CreateRetryOutcome::Created(external_id) => {
-                    let created = PendingPush::Created {
-                        request: fingerprint,
-                        external_id: external_id.clone(),
-                    };
-                    AtomicWrite::write(
-                        &marker_store,
-                        &marker_path,
-                        work_adapters::sync::pending_push::render(&created)
-                            .as_bytes(),
-                    )
-                    .map_err(|error| error.to_string())?;
-                    Ok(PushExecution {
-                        outcome: PushOutcome::WriteOnce,
-                        external_id: Some(external_id.as_str().to_owned()),
-                        marker_to_delete_after_write: Some(marker_path),
-                    })
-                }
-                CreateRetryOutcome::Exhausted => {
-                    std::fs::remove_file(&marker_path).ok();
-                    Ok(PushExecution {
-                        outcome: PushOutcome::LocalSave,
-                        external_id: None,
-                        marker_to_delete_after_write: None,
-                    })
-                }
-                CreateRetryOutcome::Terminal(detail) => {
-                    let failed = PendingPush::Attempted {
-                        request: RequestFingerprint {
-                            failure: Some(detail),
-                            ..fingerprint
-                        },
-                    };
-                    AtomicWrite::write(
-                        &marker_store,
-                        &marker_path,
-                        work_adapters::sync::pending_push::render(&failed)
-                            .as_bytes(),
-                    )
-                    .map_err(|error| error.to_string())?;
-                    Ok(PushExecution {
-                        outcome: PushOutcome::LoudTerminal,
-                        external_id: None,
-                        marker_to_delete_after_write: None,
-                    })
-                }
-            }
         }
     }
 }
 
-fn try_run(
-    start: &Path,
-    config: &dyn ConfigAccess,
-    templates: &dyn ReadTemplate,
-    args: &CreateArgs,
+/// Sends the create and records its outcome in the marker: the key once
+/// created, the failure when the outcome is unknown, and nothing once no
+/// issue can exist.
+fn send_legacy_create(
+    request: &CreateRequest<'_>,
+    tracker: Box<dyn RemoteTracker>,
+    marker_store: &FileCorpusStore,
+    marker_path: PathBuf,
+    fingerprint: RequestFingerprint,
+) -> Result<LegacyPush, String> {
+    match send_create(request, tracker.as_ref()) {
+        RemoteCreate::Created(key) => {
+            write_marker(
+                marker_store,
+                &marker_path,
+                &PendingPush::Created {
+                    request: fingerprint,
+                    external_id: key.clone(),
+                },
+            )?;
+            Ok(LegacyPush {
+                outcome: PushOutcome::WriteOnce,
+                key: Some(key),
+                cause: None,
+                tracker: Some(tracker),
+                marker: Some(marker_path),
+            })
+        }
+        RemoteCreate::TrackerUnreachable => {
+            std::fs::remove_file(&marker_path).ok();
+            Ok(LegacyPush::without_issue(PushOutcome::LocalSave, None))
+        }
+        RemoteCreate::Rejected { detail } => {
+            std::fs::remove_file(&marker_path).ok();
+            Ok(LegacyPush::without_issue(
+                PushOutcome::Rejected,
+                Some(detail),
+            ))
+        }
+        RemoteCreate::OutcomeUnknown { detail } => {
+            write_marker(
+                marker_store,
+                &marker_path,
+                &PendingPush::Attempted {
+                    request: RequestFingerprint {
+                        failure: Some(detail),
+                        ..fingerprint
+                    },
+                },
+            )?;
+            Ok(LegacyPush::without_issue(PushOutcome::LoudTerminal, None))
+        }
+    }
+}
+
+fn read_back_of(tracker: &dyn RemoteTracker, key: &ExternalId) -> RemoteHash {
+    tracker.show(key).map_or(RemoteHash::Unknown, |issue| {
+        RemoteHash::Known(ReadBack {
+            hash: digest::remote_body(&issue.body),
+            updated: issue.updated,
+        })
+    })
+}
+
+fn baseline_path(context: &CreationContext<'_>) -> Result<PathBuf, String> {
+    let (integrations_root, integration) = context.pending_push_location()?;
+    Ok(baseline::path(&integrations_root, &integration))
+}
+
+/// Records what the item and its new issue look like now, so the next sync
+/// classifies the pair as synced.
+fn record_baseline_after_create(
+    context: &CreationContext<'_>,
+    item_id: &str,
+    written: &str,
+    remote: RemoteHash,
+) -> Result<(), String> {
+    let path = baseline_path(context)?;
+    let dir = path.parent().unwrap_or(&context.root).to_path_buf();
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let writer = FileCorpusStore::new(&dir);
+    let store = BaselineStore::new(path, &RealFs, &writer);
+    record_created_baseline(
+        item_id,
+        &IntendedBaseline {
+            remote_hash: remote,
+            local_hash: digest::local(written)
+                .map_err(|error| error.to_string())?,
+        },
+        &store,
+        attempted_at_epoch(),
+    )
+    .map_err(|error| error.to_string())
+}
+
+/// Writes a locally numbered item, pushing it first when asked. The write
+/// is retried once, because once an issue exists a failed write leaves it
+/// carried by no item.
+fn create_local_item(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
     registry: &dyn TrackerRegistry,
-) -> Result<(PathBuf, Option<PushReport>), String> {
+) -> Result<CreationOutcome, String> {
+    let _guard = context.lock()?;
+    let project = context
+        .args
+        .project
+        .clone()
+        .or_else(|| context.scheme.key.clone());
+    let id =
+        allocate_id(&context.scheme, &context.work_dir, project.as_deref())?;
+    let target = context.work_dir.join(format!("{id}-{}.md", context.slug()));
+    refuse_to_overwrite(&target)?;
+
+    if !context.args.push {
+        write_new(store, &target, &context.content(&id, None)?)?;
+        return Ok(CreationOutcome::unpushed(target));
+    }
+    let push = push_legacy_item(context, &context.body(&id)?, registry)?;
+    let item =
+        context.content(&id, push.key.as_ref().map(ExternalId::as_str))?;
+    let written = write_new(store, &target, &item)
+        .or_else(|_| write_new(store, &target, &item));
+    let Some(key) = push.key else {
+        written?;
+        return Ok(pushed(Some(target), push.outcome, None, push.cause));
+    };
+    if written.is_err() {
+        return Ok(pushed(
+            None,
+            PushOutcome::CreatedUnwritten,
+            Some(&key),
+            None,
+        ));
+    }
+    let remote = push
+        .tracker
+        .as_deref()
+        .map_or(RemoteHash::Unknown, |tracker| read_back_of(tracker, &key));
+    record_baseline_after_create(context, &id, &item, remote)?;
+    if let Some(marker) = push.marker {
+        std::fs::remove_file(marker).ok();
+    }
+    Ok(pushed(
+        Some(target),
+        PushOutcome::WriteOnce,
+        Some(&key),
+        None,
+    ))
+}
+
+/// How an earlier create of the same content is still pending.
+enum PendingCreate {
+    Record {
+        draft: DraftId,
+        stage: PromotionStage,
+        draft_path: Option<PathBuf>,
+    },
+    UnreadableRecord {
+        path: PathBuf,
+        draft_path: PathBuf,
+    },
+    LegacyMarker(PathBuf),
+    Draft(PathBuf),
+}
+
+impl PendingCreate {
+    /// The draft the earlier create left, where one still exists.
+    fn existing_draft(&self) -> Option<PathBuf> {
+        match self {
+            Self::Record { draft_path, .. } => draft_path.clone(),
+            Self::UnreadableRecord { draft_path, .. }
+            | Self::Draft(draft_path) => Some(draft_path.clone()),
+            Self::LegacyMarker(_) => None,
+        }
+    }
+
+    fn message(&self, title: &str) -> String {
+        match self {
+            Self::Record {
+                draft,
+                stage: PromotionStage::Attempted,
+                ..
+            } => format!(
+                "E_PUSH_PENDING: {draft} records a create of this content whose \
+                 outcome is unknown; if the tracker has its issue run `work \
+                 promote {draft} --adopt <KEY>`, otherwise `work promote \
+                 {draft} --create`",
+                draft = draft.as_str()
+            ),
+            Self::Record { draft, .. } => format!(
+                "E_PUSH_PENDING: {draft} is already being promoted onto its \
+                 issue; run `work promote {draft}` or `work sync` to finish it",
+                draft = draft.as_str()
+            ),
+            Self::UnreadableRecord { path, .. } => format!(
+                "E_PUSH_PENDING: {} could not be read and may record a create \
+                 of this content; inspect it before creating again",
+                path.display()
+            ),
+            Self::LegacyMarker(path) => format!(
+                "E_PUSH_PENDING: {} records an earlier create titled '{title}'; \
+                 check the tracker for an issue titled '{title}' first, then \
+                 inspect or remove the named marker",
+                path.display()
+            ),
+            Self::Draft(path) => format!(
+                "E_DRAFT_EXISTS: {} already holds this content; run `work \
+                 promote <draft>` or `work sync`",
+                path.display()
+            ),
+        }
+    }
+}
+
+/// The draft's own content digest: the same content digests alike
+/// whatever draft ID each copy was given.
+fn draft_content_digest(content: &str, id: &str) -> Option<String> {
+    let (_, body) = digest::split_frontmatter_and_body(content).ok()?;
+    let fields = create_request_fields::read(content).ok()?;
+    Some(pending_push::content_digest(
+        &fields.title,
+        &body,
+        &fields.kind,
+        id,
+    ))
+}
+
+/// Finds an earlier create of the same content still pending, so a rerun
+/// after a tracker error, a kill or an unwritten create never sends a
+/// second create.
+fn pending_create(
+    context: &CreationContext<'_>,
+    records: &dyn PromotionRecords,
+    integrations_root: &Path,
+    integration: &str,
+) -> Result<Option<PendingCreate>, String> {
+    let (_, placeholder_body) = digest::split_frontmatter_and_body(
+        &context.content(PROMOTION_PLACEHOLDER, None)?,
+    )
+    .map_err(|error| error.to_string())?;
+    let wanted = pending_push::content_digest(
+        &context.args.title,
+        &placeholder_body,
+        &context.args.kind,
+        PROMOTION_PLACEHOLDER,
+    );
+    let files = FilesystemWorkItemFiles::new(&context.work_dir)
+        .files()
+        .map_err(|error| error.to_string())?;
+    let drafts: Vec<(DraftId, &Path, &str)> = files
+        .iter()
+        .filter_map(|file| {
+            let identity = work::work_item_files::identity_of(file)?;
+            let draft = DraftId::parse(&identity.id)?;
+            Some((draft, file.path.as_path(), file.content.as_str()))
+        })
+        .collect();
+    let draft_path = |wanted: &DraftId| {
+        drafts
+            .iter()
+            .find(|(draft, _, _)| draft == wanted)
+            .map(|(_, path, _)| path.to_path_buf())
+    };
+
+    for entry in records.outstanding().map_err(|error| error.to_string())? {
+        match entry {
+            Ok(record) if record.content_digest == wanted => {
+                return Ok(Some(PendingCreate::Record {
+                    draft_path: draft_path(&record.draft_id),
+                    draft: record.draft_id,
+                    stage: record.stage,
+                }));
+            }
+            Ok(_) => {}
+            Err(unreadable) => {
+                let live_draft = unreadable
+                    .path
+                    .file_stem()
+                    .and_then(std::ffi::OsStr::to_str)
+                    .and_then(DraftId::parse)
+                    .and_then(|draft| draft_path(&draft));
+                if let Some(draft_path) = live_draft {
+                    return Ok(Some(PendingCreate::UnreadableRecord {
+                        path: unreadable.path,
+                        draft_path,
+                    }));
+                }
+            }
+        }
+    }
+    let markers = pending_push::outstanding(integrations_root, integration)
+        .map_err(|error| error.to_string())?;
+    for (path, marker) in markers.into_iter().flatten() {
+        if let Marker::Legacy(
+            PendingPush::Attempted { request }
+            | PendingPush::Created { request, .. },
+        ) = marker
+        {
+            if request.title == context.args.title {
+                return Ok(Some(PendingCreate::LegacyMarker(path)));
+            }
+        }
+    }
+    Ok(drafts
+        .iter()
+        .find(|(draft, _, content)| {
+            draft_content_digest(content, draft.as_str()).as_deref()
+                == Some(wanted.as_str())
+        })
+        .map(|(_, path, _)| PendingCreate::Draft(path.to_path_buf())))
+}
+
+pub fn blocked_remedy(
+    refusal: &RetirementRefusal,
+    key: &ExternalId,
+    draft: &DraftId,
+) -> String {
+    let draft = draft.as_str();
+    match refusal {
+        RetirementRefusal::IdTaken { holder, .. }
+        | RetirementRefusal::KeyLinked { holder } => format!(
+            "{holder} already carries {key}; if it is the same issue, delete \
+             the draft or merge it into {holder}, otherwise fix {holder}, \
+             then `work promote {draft}`",
+            holder = holder.display()
+        ),
+        RetirementRefusal::TargetExists(path) => format!(
+            "move {} aside, then `work promote {draft}`",
+            path.display()
+        ),
+        RetirementRefusal::ItemNotFound(_) => {
+            format!("the draft {draft} is gone; the issue {key} is unlinked")
+        }
+    }
+}
+
+fn existing(paths: &[&Path]) -> Option<PathBuf> {
+    paths
+        .iter()
+        .find(|path| path.exists())
+        .map(|path| path.to_path_buf())
+}
+
+/// A retirement that could not restore every path: the path line names
+/// whichever of the draft and the target exists, and stderr the paths to
+/// restore.
+fn incomplete_outcome(
+    failure: &RetirementFailure,
+    context: &CreationContext<'_>,
+    draft: &DraftId,
+    draft_path: &Path,
+    key: Option<&ExternalId>,
+) -> CreationOutcome {
+    let target = key.map(|key| {
+        context
+            .work_dir
+            .join(format!("{}-{}.md", key.as_str(), context.slug()))
+    });
+    let mut candidates = vec![draft_path];
+    if let Some(target) = &target {
+        candidates.push(target);
+    }
+    let cause = key.map(|key| {
+        let retirement = work::retirement::Retirement {
+            old_id: draft.as_str(),
+            new_id: key.as_str(),
+            new_external_id: Some(key.as_str()),
+        };
+        failure.message(
+            &retirement,
+            &context
+                .root
+                .join(crate::sync::STATE_DIR)
+                .join(retirement.recovery_dir()),
+        )
+    });
+    pushed(
+        existing(&candidates),
+        PushOutcome::RetirementIncomplete,
+        key,
+        cause,
+    )
+}
+
+/// The create outcome a draft left unpromoted reports.
+pub const fn create_outcome_of(reason: &NotPromoted) -> PushOutcome {
+    match reason {
+        NotPromoted::TrackerUnreachable
+        | NotPromoted::RecordUnwritable { key: None, .. } => {
+            PushOutcome::LocalSave
+        }
+        NotPromoted::CreateOutcomeUnknown
+        | NotPromoted::EarlierAttemptUnconfirmed => PushOutcome::LoudTerminal,
+        NotPromoted::RequestRejected { .. } => PushOutcome::Rejected,
+        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_))
+        | NotPromoted::ReadBackFailed(_)
+        | NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
+            ..
+        })
+        | NotPromoted::RecordUnwritable { key: Some(_), .. } => {
+            PushOutcome::CreatedUnwritten
+        }
+        NotPromoted::Refused(_)
+        | NotPromoted::AdoptedIssueMissing(_)
+        | NotPromoted::AdoptConflictsWithRecordedKey { .. } => {
+            PushOutcome::CreatedBlocked
+        }
+        NotPromoted::RetirementFailed(
+            RetirementFailure::RestoreIncomplete { .. },
+        ) => PushOutcome::RetirementIncomplete,
+    }
+}
+
+/// Maps a promotion's row onto the create outcome the skills read.
+fn promotion_outcome(
+    row: PromotionRow,
+    context: &CreationContext<'_>,
+    draft: &DraftId,
+) -> CreationOutcome {
+    let (reason, key) = match row.outcome {
+        PromotionOutcome::Promoted(
+            Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
+        ) => {
+            let path = FilesystemWorkItemFiles::new(&context.work_dir)
+                .files()
+                .ok()
+                .and_then(|files| {
+                    identities(&files)
+                        .into_iter()
+                        .find(|item| item.id.eq_ignore_ascii_case(key.as_str()))
+                })
+                .map_or_else(
+                    || {
+                        context.work_dir.join(format!(
+                            "{}-{}.md",
+                            key.as_str(),
+                            context.slug()
+                        ))
+                    },
+                    |item| item.path,
+                );
+            return pushed(
+                Some(path),
+                PushOutcome::WriteOnce,
+                Some(&key),
+                None,
+            );
+        }
+        PromotionOutcome::Previewed => {
+            unreachable!("a create never previews its promotion")
+        }
+        PromotionOutcome::NotPromoted { reason, held_key } => {
+            (reason, held_key)
+        }
+    };
+    let draft_path = row.path;
+    let outcome = create_outcome_of(&reason);
+    let shown_key = match outcome {
+        PushOutcome::CreatedUnwritten | PushOutcome::CreatedBlocked => {
+            key.as_ref()
+        }
+        _ => None,
+    };
+    let mut created = match reason {
+        NotPromoted::RetirementFailed(
+            failure @ RetirementFailure::RestoreIncomplete { .. },
+        ) => incomplete_outcome(
+            &failure,
+            context,
+            draft,
+            &draft_path,
+            key.as_ref(),
+        ),
+        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_)) => {
+            pushed(None, outcome, shown_key, None)
+        }
+        NotPromoted::Refused(refusal) => {
+            let remedy =
+                key.as_ref().map(|key| blocked_remedy(&refusal, key, draft));
+            pushed(Some(draft_path), outcome, shown_key, remedy)
+        }
+        NotPromoted::RequestRejected { detail }
+        | NotPromoted::RecordUnwritable { detail, .. } => {
+            pushed(Some(draft_path), outcome, shown_key, Some(detail))
+        }
+        _ => pushed(Some(draft_path), outcome, shown_key, None),
+    };
+    if let Some(report) = created.push.as_mut() {
+        if matches!(
+            report.outcome,
+            PushOutcome::CreatedBlocked | PushOutcome::RetirementIncomplete
+        ) {
+            report.details = row.details;
+        }
+    }
+    created
+}
+
+/// Under `{tracker}` with `--push`: writes a draft, then promotes it, so an
+/// interrupted create always leaves a draft its record belongs to.
+fn create_tracker_keyed_item(
+    context: &CreationContext<'_>,
+    store: &dyn CreationStore,
+    draws: &mut dyn SuffixDraws,
+    drafted: &mut dyn FnMut(&DraftId),
+    registry: &dyn TrackerRegistry,
+) -> Result<CreationOutcome, CreateFailure> {
+    let (integrations_root, integration) = context.pending_push_location()?;
+    std::fs::create_dir_all(&integrations_root)
+        .map_err(|error| error.to_string())?;
+    let records_store = FileCorpusStore::new(&integrations_root);
+    let records = FilePromotionRecords::new(
+        &integrations_root,
+        &integration,
+        &records_store,
+    );
+    let guard = context.lock()?;
+    if let Some(pending) =
+        pending_create(context, &records, &integrations_root, &integration)?
+    {
+        return Err(CreateFailure::Pending {
+            message: pending.message(&context.args.title),
+            existing_draft: pending.existing_draft(),
+        });
+    }
+    let (draft, draft_path) =
+        write_draft_locked(context, store, draws, drafted, &guard)?;
+    drop(guard);
+    let Ok(tracker) = registry.resolve(&integration) else {
+        return Ok(pushed(
+            Some(draft_path),
+            PushOutcome::LocalSave,
+            None,
+            None,
+        ));
+    };
+
+    let workspace = IdentityWorkspace::open(
+        context.config,
+        &context.root,
+        &context.work_dir,
+        &integrations_root,
+        &integration,
+    )?;
+    let baseline = workspace.baseline(store);
+    let retirement = workspace.retirement_ports(store, &baseline);
+    let ports = PromotionPorts {
+        tracker: tracker.as_ref(),
+        retirement: &retirement,
+        records: &records,
+    };
+    let result = promote(&draft, &PromotionMode::Standard, &ports);
+    let row = PromotionRow::of(
+        &draft,
+        draft_path,
+        result,
+        &ports,
+        workspace.state_dir(),
+    );
+    Ok(promotion_outcome(row, context, &draft))
+}
+
+/// Why a create wrote nothing: an earlier create of the same content is
+/// still pending, or something failed.
+pub enum CreateFailure {
+    Pending {
+        message: String,
+        existing_draft: Option<PathBuf>,
+    },
+    Failed(String),
+}
+
+impl From<String> for CreateFailure {
+    fn from(message: String) -> Self {
+        Self::Failed(message)
+    }
+}
+
+fn creation_context<'a>(
+    start: &Path,
+    config: &'a dyn ConfigAccess,
+    templates: &dyn ReadTemplate,
+    args: &'a CreateArgs,
+) -> Result<CreationContext<'a>, String> {
     let scheme = resolve_scheme(config).map_err(|error| error.to_string())?;
     let root = config_adapters::FileConfigStore::discover_root(start);
     let work_dir =
@@ -620,16 +1346,12 @@ fn try_run(
     std::fs::create_dir_all(&work_dir).map_err(|error| {
         format!("could not create the work-item directory: {error}")
     })?;
-
-    let lockdir = work_dir.join(LOCK_FILE_NAME);
-    let _guard =
-        acquire(&lockdir, LockOptions::default()).map_err(|error| {
-            format!("could not acquire the work-item creation lock: {error}")
-        })?;
-
-    let project = args.project.clone().or_else(|| scheme.key.clone());
-    let id = allocate_id(&scheme, &work_dir, project.as_deref())?;
-
+    if scheme.ownership() == IdOwnership::Tracker && args.project.is_some() {
+        return Err(allocation_message(
+            &AllocationError::ProjectUnused,
+            &scheme.id_pattern,
+        ));
+    }
     let metadata = derive_at(
         &root,
         FilenameTimestampFormat::DateTimeUnderscored,
@@ -638,77 +1360,59 @@ fn try_run(
     .map_err(|error| error.to_string())?;
     let author =
         resolve_author(args.author.as_deref(), &VcsBackedIdentityProbe)?;
-    let resolved_template = resolve_and_check_template(config, templates)?;
-    let body = resolve_body(args, &resolved_template, &id)?;
+    let template = resolve_and_check_template(config, templates)?;
+    Ok(CreationContext {
+        args,
+        config,
+        scheme,
+        root,
+        work_dir,
+        template,
+        author,
+        date: metadata.datetime_utc,
+    })
+}
 
-    let slug = slugify(&args.title);
-    let target = work_dir.join(format!("{id}-{slug}.md"));
-    if target.exists() {
-        return Err(format!(
-            "refusing to overwrite an existing file: {}",
-            target.display()
-        ));
+/// Creates one item through the strategy its ID ownership and `--push`
+/// select, calling `drafted` as soon as a draft is on disk.
+///
+/// # Errors
+///
+/// [`CreateFailure::Pending`] when an earlier create of the same content
+/// is still pending, otherwise [`CreateFailure::Failed`].
+pub fn create_item(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    templates: &dyn ReadTemplate,
+    args: &CreateArgs,
+    seams: &mut Seams<'_>,
+    drafted: &mut dyn FnMut(&DraftId),
+) -> Result<CreationOutcome, CreateFailure> {
+    let context = creation_context(start, config, templates, args)?;
+    let store = (seams.store_at)(&context.root);
+    match (context.scheme.ownership(), args.push) {
+        (IdOwnership::Local, _) => {
+            Ok(create_local_item(&context, store.as_ref(), seams.registry)?)
+        }
+        (IdOwnership::Tracker, false) => {
+            Ok(save_draft(&context, store.as_ref(), seams.draws, drafted)?)
+        }
+        (IdOwnership::Tracker, true) => create_tracker_keyed_item(
+            &context,
+            store.as_ref(),
+            seams.draws,
+            drafted,
+            seams.registry,
+        ),
     }
+}
 
-    let (external_id, push_report, marker_to_delete_after_write) = if args.push
-    {
-        let integration = effective_nonempty(config, "work.integration")
-            .map_err(|error| error.to_string())?;
-        let integrations_root = crate::sync::integrations_dir(config, &root)
-            .map_err(|error| error.to_string())?;
-        let execution = execute_push(
-            &integrations_root,
-            &integration,
-            &slug,
-            args,
-            &body,
-            &work_dir,
-            registry,
-        )?;
-        (
-            execution.external_id.clone(),
-            Some(PushReport {
-                outcome: execution.outcome,
-                external_id: execution.external_id,
-            }),
-            execution.marker_to_delete_after_write,
-        )
-    } else {
-        (None, None, None)
-    };
-
-    let inputs = CreateInputs {
-        id: &id,
-        title: &args.title,
-        kind: &args.kind,
-        priority: &args.priority,
-        status: &args.status,
-        linkage: TypedLinkage {
-            parent: args.parent.as_deref(),
-            blocks: &args.blocks,
-            blocked_by: &args.blocked_by,
-            derived_from: &args.derived_from,
-            relates_to: &args.relates_to,
-            source: args.source.as_deref(),
-        },
-        tags: &args.tags,
-        author: &author,
-        producer: &args.producer,
-        date: &metadata.datetime_utc,
-        external_id: external_id.as_deref(),
-    };
-    let frontmatter_block = render_frontmatter(&inputs)?;
-
-    let content = format!("{frontmatter_block}{body}");
-    let store = FileCorpusStore::new(&work_dir);
-    AtomicWrite::write(&store, &target, content.as_bytes())
-        .map_err(|error| error.to_string())?;
-
-    if let Some(marker_path) = marker_to_delete_after_write {
-        std::fs::remove_file(&marker_path).ok();
-    }
-
-    Ok((target, push_report))
+/// What `run` takes from its caller beyond the request: the tracker, the
+/// store items are written through, and the source of draft suffixes.
+pub struct Seams<'a> {
+    pub registry: &'a dyn TrackerRegistry,
+    pub store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
+    pub draws: &'a mut dyn SuffixDraws,
 }
 
 /// # Errors
@@ -722,31 +1426,66 @@ pub fn run(
     args: &CreateArgs,
     registry: &dyn TrackerRegistry,
 ) -> RunOutcome {
+    let store_at = |root: &Path| -> Box<dyn CreationStore> {
+        Box::new(FileCorpusStore::new(root))
+    };
+    run_with(
+        start,
+        config,
+        templates,
+        args,
+        &mut Seams {
+            registry,
+            store_at: &store_at,
+            draws: &mut RandomSuffixDraws,
+        },
+    )
+}
+
+#[must_use]
+pub fn run_with(
+    start: &Path,
+    config: &dyn ConfigAccess,
+    templates: &dyn ReadTemplate,
+    args: &CreateArgs,
+    seams: &mut Seams<'_>,
+) -> RunOutcome {
     if args.dry_run {
         let integration = match effective_nonempty(config, "work.integration") {
             Ok(value) => value,
             Err(error) => return RunOutcome::Failed(error.to_string()),
         };
-        return preview_push(&integration, &args.kind, registry);
+        return preview_push(&integration, &args.kind, seams.registry);
     }
-    match try_run(start, config, templates, args, registry) {
-        Ok((path, push)) => RunOutcome::Created { path, push },
-        Err(message) => RunOutcome::Failed(message),
+    match create_item(start, config, templates, args, seams, &mut |_| {}) {
+        Ok(CreationOutcome { path, push }) => {
+            RunOutcome::Created { path, push }
+        }
+        Err(CreateFailure::Pending { message, .. }) => {
+            RunOutcome::Pending(message)
+        }
+        Err(CreateFailure::Failed(message)) => RunOutcome::Failed(message),
     }
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
-    use std::cell::Cell;
     use std::cell::RefCell;
 
     use tracker::CreatePreview;
     use tracker::FieldResolution;
     use tracker::RemoteTracker;
+    use tracker::TrackerError;
     use tracker_test_support::RecordingTracker;
 
     use super::*;
+    use std::rc::Rc;
+
+    use crate::test_support::FakeConfig;
+    use crate::test_support::Faults;
+    use crate::test_support::PluginWorkItemTemplate;
+    use crate::test_support::StubRegistry;
 
     fn retryable() -> TrackerError {
         TrackerError::Retryable {
@@ -760,56 +1499,35 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_retryable_create_is_retried_once_then_succeeds() {
-        let calls = Cell::new(0u8);
-        let outcome = drive_create_retry(|| {
-            let seen = calls.get();
-            calls.set(seen + 1);
-            if seen == 0 {
-                Err(retryable())
-            } else {
-                Ok(ExternalId::new("ENG-1".to_owned()))
-            }
-        });
-        assert_eq!(calls.get(), 2);
-        assert!(matches!(
-            outcome,
-            CreateRetryOutcome::Created(id) if id.as_str() == "ENG-1"
-        ));
+    fn rejected() -> TrackerError {
+        TrackerError::Rejected {
+            detail: "jira create: the body has a table".to_owned(),
+        }
     }
 
     #[test]
-    fn two_retryable_creates_exhaust_and_save_locally() {
-        let calls = Cell::new(0u8);
-        let outcome = drive_create_retry(|| {
-            calls.set(calls.get() + 1);
-            Err::<ExternalId, _>(retryable())
-        });
-        assert_eq!(calls.get(), 2, "the retry is bounded to one re-attempt");
-        assert!(matches!(outcome, CreateRetryOutcome::Exhausted));
-    }
+    fn the_push_duplicate_check_sees_external_ids_in_drafts() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let drafts = dir.path().join("drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts dir");
+        std::fs::write(
+            drafts.join("draft-k7mq3x-title.md"),
+            "---\nid: \"draft-k7mq3x\"\nexternal_id: \"ENG-42\"\n---\n",
+        )
+        .expect("write draft");
 
-    #[test]
-    fn a_terminal_create_is_never_retried() {
-        let calls = Cell::new(0u8);
-        let outcome = drive_create_retry(|| {
-            calls.set(calls.get() + 1);
-            Err::<ExternalId, _>(terminal())
-        });
-        assert_eq!(calls.get(), 1, "a terminal failure is never retried");
-        assert!(matches!(outcome, CreateRetryOutcome::Terminal(_)));
-    }
+        let corpus =
+            super::corpus_identities(dir.path()).expect("listable corpus");
+        let carries = |key: &str| {
+            super::carries_external_id(
+                &corpus,
+                &ExternalId::new(key.to_owned()),
+            )
+        };
 
-    #[test]
-    fn a_first_attempt_success_is_not_retried() {
-        let calls = Cell::new(0u8);
-        let outcome = drive_create_retry(|| {
-            calls.set(calls.get() + 1);
-            Ok(ExternalId::new("ENG-2".to_owned()))
-        });
-        assert_eq!(calls.get(), 1);
-        assert!(matches!(outcome, CreateRetryOutcome::Created(_)));
+        assert!(carries("ENG-42"));
+        assert!(carries("eng-42"));
+        assert!(!carries("ENG-43"));
     }
 
     #[test]
@@ -893,6 +1611,757 @@ mod tests {
                 assert!(line.ends_with("GONE\tunresolvable"), "{line}");
             }
             _ => panic!("an unresolvable project must still preview at exit 0"),
+        }
+    }
+
+    struct PushingRepo {
+        root: tempfile::TempDir,
+        config: FakeConfig,
+    }
+
+    impl PushingRepo {
+        fn new() -> Self {
+            Self::configured(&[
+                ("work.integration", "jira"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn tracker_owned() -> Self {
+            Self::configured(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", "linear"),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn configured(pairs: &[(&str, &str)]) -> Self {
+            let root = tempfile::tempdir().expect("tempdir");
+            std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+            let config = FakeConfig(
+                pairs
+                    .iter()
+                    .map(|(key, value)| {
+                        ((*key).to_owned(), (*value).to_owned())
+                    })
+                    .collect(),
+            );
+            Self { root, config }
+        }
+
+        fn create(&self, tracker: RecordingTracker) -> RunOutcome {
+            self.create_pushing(true, tracker)
+        }
+
+        fn create_pushing(
+            &self,
+            push: bool,
+            tracker: RecordingTracker,
+        ) -> RunOutcome {
+            self.create_with(&Self::args(push), tracker)
+        }
+
+        fn args(push: bool) -> CreateArgs {
+            CreateArgs {
+                title: "A tabled idea".to_owned(),
+                kind: "task".to_owned(),
+                priority: "low".to_owned(),
+                status: "draft".to_owned(),
+                parent: None,
+                tags: Vec::new(),
+                blocks: Vec::new(),
+                blocked_by: Vec::new(),
+                derived_from: Vec::new(),
+                relates_to: Vec::new(),
+                source: None,
+                project: None,
+                author: Some("A Tester".to_owned()),
+                producer: "create-work-item".to_owned(),
+                body_file: None,
+                push,
+                dry_run: false,
+            }
+        }
+
+        fn create_with(
+            &self,
+            args: &CreateArgs,
+            tracker: RecordingTracker,
+        ) -> RunOutcome {
+            run(
+                self.root.path(),
+                &self.config,
+                &PluginWorkItemTemplate,
+                args,
+                &FixedRegistry::holding(tracker),
+            )
+        }
+
+        fn marker(&self) -> PathBuf {
+            work_adapters::sync::pending_push::path(
+                &self.root.path().join("integrations"),
+                "jira",
+                "a-tabled-idea",
+            )
+        }
+    }
+
+    #[test]
+    fn a_rejected_push_is_rejected_exits_75_and_leaves_no_marker() {
+        let repo = PushingRepo::new();
+
+        let outcome = repo.create(
+            RecordingTracker::holding(Vec::new()).failing_create(rejected()),
+        );
+
+        let RunOutcome::Created {
+            push: Some(report), ..
+        } = outcome
+        else {
+            panic!("a rejected push still creates the local item");
+        };
+        assert_eq!(report.outcome, PushOutcome::Rejected);
+        assert_eq!(report.outcome.exit_code(), exit_codes::REJECTED);
+        assert_eq!(
+            report.cause.as_deref(),
+            Some("jira create: the body has a table")
+        );
+        assert!(!repo.marker().exists(), "no issue can exist");
+    }
+
+    #[test]
+    fn a_rejected_legacy_create_still_writes_the_unsynced_file_and_prints_its_path(
+    ) {
+        let repo = PushingRepo::new();
+
+        let outcome = repo.create(
+            RecordingTracker::holding(Vec::new()).failing_create(rejected()),
+        );
+
+        let RunOutcome::Created {
+            path: Some(path), ..
+        } = outcome
+        else {
+            panic!("a rejected push still creates the local item");
+        };
+        let written = std::fs::read_to_string(&path).expect("the file exists");
+        assert!(
+            path.ends_with("meta/work/0001-a-tabled-idea.md"),
+            "{}",
+            path.display()
+        );
+        assert!(!written.contains("external_id"), "{written}");
+    }
+
+    #[test]
+    fn create_without_push_under_tracker_writes_a_draft() {
+        let repo = PushingRepo::tracker_owned();
+
+        let outcome =
+            repo.create_pushing(false, RecordingTracker::holding(Vec::new()));
+
+        let RunOutcome::Created {
+            path: Some(path),
+            push: None,
+        } = outcome
+        else {
+            panic!("an offline create under {{tracker}} writes a draft");
+        };
+        let written = std::fs::read_to_string(&path).expect("the draft exists");
+        let identity = work::work_item_files::identity_of(
+            &work::work_item_files::WorkItemFile {
+                path: path.clone(),
+                content: written.clone(),
+            },
+        )
+        .expect("the draft has an id");
+        let id = identity.id;
+        assert!(
+            work::draft_id::DraftId::parse(&id)
+                .is_some_and(|draft| draft.as_str() == id),
+            "{id}"
+        );
+        assert_eq!(
+            path,
+            repo.root
+                .path()
+                .join("meta/work/drafts")
+                .join(format!("{id}-a-tabled-idea.md"))
+        );
+        assert!(
+            written.contains(&format!("\n# {id}: A tabled idea\n")),
+            "{written}"
+        );
+        assert_eq!(identity.external_id, None);
+        assert!(!repo.marker().exists(), "no push was attempted");
+    }
+
+    #[test]
+    fn create_with_project_under_tracker_is_e_pattern_key_unused() {
+        let repo = PushingRepo::tracker_owned();
+        let args = CreateArgs {
+            project: Some("ENG".to_owned()),
+            ..PushingRepo::args(false)
+        };
+
+        let outcome =
+            repo.create_with(&args, RecordingTracker::holding(Vec::new()));
+
+        let RunOutcome::Failed(message) = outcome else {
+            panic!("--project names no token under {{tracker}}");
+        };
+        assert!(message.starts_with("E_PATTERN_KEY_UNUSED: "), "{message}");
+    }
+
+    fn in_the_work_directory_itself(path: &Path) -> bool {
+        path.parent().is_some_and(|dir| dir.ends_with("meta/work"))
+            && path.extension().is_some_and(|extension| extension == "md")
+    }
+
+    const KEY: &str = "REC-1";
+
+    /// Which store operations fail, and how many times.
+    type Failing = Option<(fn(&Path) -> bool, usize)>;
+
+    impl PushingRepo {
+        fn tracker_owned_on(integration: &str) -> Self {
+            Self::configured(&[
+                ("work.id_pattern", "{tracker}"),
+                ("work.integration", integration),
+                ("paths.integrations", "integrations"),
+            ])
+        }
+
+        fn push_through(
+            &self,
+            tracker: &Rc<RecordingTracker>,
+            failing: Failing,
+        ) -> RunOutcome {
+            self.run_args(&Self::args(true), tracker, failing)
+        }
+
+        fn run_args(
+            &self,
+            args: &CreateArgs,
+            tracker: &Rc<RecordingTracker>,
+            failing: Failing,
+        ) -> RunOutcome {
+            let (applies, left) = failing.unwrap_or((|_| false, 0));
+            let store_at = move |root: &Path| -> Box<dyn CreationStore> {
+                Box::new(Faults {
+                    inner: FileCorpusStore::new(root),
+                    applies,
+                    left: std::cell::Cell::new(left),
+                })
+            };
+            run_with(
+                self.root.path(),
+                &self.config,
+                &PluginWorkItemTemplate,
+                args,
+                &mut Seams {
+                    registry: &StubRegistry(Rc::clone(tracker)),
+                    store_at: &store_at,
+                    draws: &mut RandomSuffixDraws,
+                },
+            )
+        }
+
+        fn path(&self, relative: &str) -> PathBuf {
+            self.root.path().join(relative)
+        }
+
+        fn drafts(&self) -> Vec<PathBuf> {
+            std::fs::read_dir(self.path("meta/work/drafts"))
+                .map(|entries| {
+                    entries.flatten().map(|entry| entry.path()).collect()
+                })
+                .unwrap_or_default()
+        }
+
+        fn records_dir(&self) -> PathBuf {
+            self.path("integrations/linear/pending-push")
+        }
+
+        fn records(&self) -> Vec<PathBuf> {
+            std::fs::read_dir(self.records_dir())
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .map(|entry| entry.path())
+                        .filter(|path| {
+                            path.extension().is_some_and(|ext| ext == "json")
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        }
+
+        fn baseline(&self, integration: &str) -> String {
+            std::fs::read_to_string(
+                self.path(&format!(
+                    "integrations/{integration}/last-sync.json"
+                )),
+            )
+            .unwrap_or_default()
+        }
+    }
+
+    fn created(outcome: RunOutcome) -> (Option<PathBuf>, PushReport) {
+        match outcome {
+            RunOutcome::Created {
+                path,
+                push: Some(report),
+            } => (path, report),
+            RunOutcome::Failed(message) | RunOutcome::Pending(message) => {
+                panic!("the create failed: {message}")
+            }
+            _ => panic!("the create pushed nothing"),
+        }
+    }
+
+    fn pending(outcome: RunOutcome) -> String {
+        match outcome {
+            RunOutcome::Pending(message) => message,
+            RunOutcome::Failed(message) => panic!("failed: {message}"),
+            _ => panic!("the rerun was not refused as pending"),
+        }
+    }
+
+    fn creates(tracker: &RecordingTracker) -> usize {
+        tracker
+            .calls()
+            .iter()
+            .filter(|call| {
+                matches!(call, tracker_test_support::Call::Create { .. })
+            })
+            .count()
+    }
+
+    #[test]
+    fn a_reachable_tracker_create_writes_an_item_keyed_by_the_tracker() {
+        for integration in ["linear", "jira"] {
+            let repo = PushingRepo::tracker_owned_on(integration);
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            let (path, report) = created(repo.push_through(&tracker, None));
+
+            let path = path.expect("the item exists");
+            assert_eq!(report.outcome, PushOutcome::WriteOnce);
+            assert_eq!(report.external_id.as_deref(), Some(KEY));
+            assert_eq!(path, repo.path("meta/work/REC-1-a-tabled-idea.md"));
+            let written = std::fs::read_to_string(&path).expect("read");
+            let identity = work::work_item_files::identity_of(
+                &work::work_item_files::WorkItemFile {
+                    path: path.clone(),
+                    content: written.clone(),
+                },
+            )
+            .expect("identity");
+            assert_eq!(identity.id, KEY, "{integration}");
+            assert_eq!(identity.external_id.as_deref(), Some(KEY));
+            assert!(
+                written.contains("\n# REC-1: A tabled idea\n"),
+                "{written}"
+            );
+            assert!(repo.drafts().is_empty(), "the draft is gone");
+            assert!(repo.baseline(integration).contains(KEY));
+        }
+    }
+
+    #[test]
+    fn the_draft_exists_when_the_create_is_sent() {
+        let repo = PushingRepo::tracker_owned();
+        let mut recording = RecordingTracker::holding(Vec::new());
+        let park = recording.parking_create();
+        let tracker = Rc::new(recording);
+        let drafts_dir = repo.path("meta/work/drafts");
+        let watcher = std::thread::spawn(move || {
+            park.wait_parked();
+            let seen = std::fs::read_dir(&drafts_dir)
+                .map(|entries| entries.flatten().count())
+                .unwrap_or_default();
+            park.release();
+            seen
+        });
+
+        created(repo.push_through(&tracker, None));
+
+        assert_eq!(watcher.join().expect("joined"), 1);
+    }
+
+    #[test]
+    fn the_remote_description_is_updated_to_carry_the_tracker_key_h1() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        created(repo.push_through(&tracker, None));
+
+        let remote = tracker
+            .show(&ExternalId::new(KEY.to_owned()))
+            .expect("held");
+        assert!(
+            remote.body.contains("# REC-1: A tabled idea"),
+            "{}",
+            remote.body
+        );
+    }
+
+    #[test]
+    fn a_local_save_leaves_the_draft_and_no_marker() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(
+            RecordingTracker::holding(Vec::new()).failing_create(retryable()),
+        );
+
+        let (path, report) = created(repo.push_through(&tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::LocalSave);
+        assert_eq!(path, repo.drafts().first().cloned());
+        assert!(repo.records().is_empty());
+    }
+
+    #[test]
+    fn a_tracker_error_leaves_the_draft_and_an_attempted_marker_named_after_it()
+    {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(
+            RecordingTracker::holding(Vec::new()).failing_create(terminal()),
+        );
+
+        let (path, report) = created(repo.push_through(&tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::LoudTerminal);
+        let draft = path.expect("the draft");
+        let draft_id = draft
+            .file_name()
+            .and_then(std::ffi::OsStr::to_str)
+            .map(|name| name[..12].to_owned())
+            .expect("a draft name");
+        assert_eq!(
+            repo.records(),
+            vec![repo.records_dir().join(format!("{draft_id}.json"))],
+            "the_marker_is_named_after_the_draft_id_not_the_slug"
+        );
+    }
+
+    #[test]
+    fn a_failed_retirement_is_retried_once_and_succeeds_as_write_once() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) =
+            created(repo.push_through(
+                &tracker,
+                Some((in_the_work_directory_itself, 1)),
+            ));
+
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+        assert_eq!(path, Some(repo.path("meta/work/REC-1-a-tabled-idea.md")));
+    }
+
+    #[test]
+    fn two_failed_retirements_leave_the_draft_and_a_promotion_record_holding_the_key(
+    ) {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) =
+            created(repo.push_through(
+                &tracker,
+                Some((in_the_work_directory_itself, 2)),
+            ));
+
+        assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
+        assert_eq!(report.outcome.exit_code(), exit_codes::TERMINAL);
+        assert_eq!(report.external_id.as_deref(), Some(KEY));
+        assert_eq!(path, repo.drafts().first().cloned());
+        let records = repo.records();
+        assert_eq!(records.len(), 1);
+        let record = std::fs::read_to_string(&records[0]).expect("record");
+        assert!(record.contains("\"external_id\":\"REC-1\""), "{record}");
+    }
+
+    #[test]
+    fn a_legacy_pattern_create_whose_local_write_fails_twice_is_created_unwritten(
+    ) {
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) =
+            created(repo.push_through(
+                &tracker,
+                Some((in_the_work_directory_itself, 2)),
+            ));
+
+        assert_eq!(
+            path, None,
+            "a_legacy_created_unwritten_prints_an_empty_line_one"
+        );
+        assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
+        assert_eq!(report.external_id.as_deref(), Some(KEY));
+        assert!(repo.marker().exists(), "the created marker holds the key");
+    }
+
+    #[test]
+    fn a_created_marker_over_an_unlistable_corpus_fails_rather_than_reusing_its_key(
+    ) {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        created(
+            repo.push_through(
+                &tracker,
+                Some((in_the_work_directory_itself, 2)),
+            ),
+        );
+        std::fs::write(
+            repo.path("meta/work/linked.md"),
+            format!("---\nid: \"linked\"\nexternal_id: \"{KEY}\"\n---\n"),
+        )
+        .expect("linked item");
+        let drafts = repo.path("meta/work/drafts");
+        std::fs::create_dir_all(&drafts).expect("drafts");
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod");
+
+        let outcome = repo.push_through(&tracker, None);
+
+        std::fs::set_permissions(
+            &drafts,
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .expect("chmod back");
+        let RunOutcome::Failed(message) = outcome else {
+            panic!("the push was not refused");
+        };
+        assert!(message.contains("drafts"), "{message}");
+    }
+
+    #[test]
+    fn a_write_once_create_records_a_baseline_from_a_read_back() {
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) = created(repo.push_through(&tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+        let written =
+            std::fs::read_to_string(path.expect("written")).expect("read");
+        let baseline = repo.baseline("jira");
+        assert!(baseline.contains("\"0001\""), "{baseline}");
+        assert!(
+            baseline.contains(&digest::local(&written).expect("digest")),
+            "{baseline}"
+        );
+        assert!(!repo.marker().exists());
+    }
+
+    #[test]
+    fn a_legacy_pattern_create_still_names_its_marker_by_slug() {
+        let repo = PushingRepo::new();
+        let tracker = Rc::new(
+            RecordingTracker::holding(Vec::new()).failing_create(terminal()),
+        );
+
+        let (_, report) = created(repo.push_through(&tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::LoudTerminal);
+        assert!(repo.marker().exists());
+    }
+
+    #[test]
+    fn rerunning_a_create_sends_no_second_create_at_any_record_stage() {
+        let repo = PushingRepo::tracker_owned();
+        let crashed = Rc::new(
+            RecordingTracker::holding(Vec::new())
+                .creating_then_failing(terminal()),
+        );
+        created(repo.push_through(&crashed, None));
+        let rerun = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let message = pending(repo.push_through(&rerun, None));
+
+        assert!(message.starts_with("E_PUSH_PENDING: draft-"), "{message}");
+        assert!(message.contains("--adopt <KEY>"), "{message}");
+        assert_eq!(creates(&rerun), 0);
+        assert_eq!(
+            repo.drafts().len(),
+            1,
+            "rerunning_a_create_after_a_crash_leaves_the_first_draft_visible"
+        );
+
+        let retitled = Rc::new(
+            RecordingTracker::holding(Vec::new())
+                .failing_show(ExternalId::new(KEY.to_owned()), retryable()),
+        );
+        let other = PushingRepo::tracker_owned();
+        let (_, report) = created(other.push_through(&retitled, None));
+        assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
+        let again = pending(other.push_through(&retitled, None));
+        assert!(again.contains("work promote"), "{again}");
+        assert_eq!(creates(&retitled), 1);
+    }
+
+    #[test]
+    fn a_rerun_matching_an_existing_draft_is_e_draft_exists() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        repo.run_args(&PushingRepo::args(false), &tracker, None);
+
+        let message = pending(repo.push_through(&tracker, None));
+
+        assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_draft_written_while_a_create_waits_for_the_lock_is_e_draft_exists() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        repo.run_args(&PushingRepo::args(false), &tracker, None);
+        let concurrent_draft = repo.drafts().remove(0);
+        let content =
+            std::fs::read_to_string(&concurrent_draft).expect("draft");
+        std::fs::remove_file(&concurrent_draft).expect("remove");
+        let lock_path = repo.path("meta/work").join(LOCK_FILE_NAME);
+        let (locked, lock_held) = std::sync::mpsc::channel();
+        let concurrent = std::thread::spawn(move || {
+            let _guard = corpus_adapters::acquire(
+                &lock_path,
+                corpus_adapters::LockOptions::default(),
+            )
+            .expect("lock");
+            locked.send(()).expect("signal");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            std::fs::write(&concurrent_draft, content).expect("write");
+        });
+        lock_held.recv().expect("locked");
+
+        let message = pending(repo.push_through(&tracker, None));
+
+        concurrent.join().expect("joined");
+        assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_rerun_whose_title_the_frontmatter_escapes_is_e_draft_exists() {
+        let repo = PushingRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let quoted = |push| CreateArgs {
+            title: r#"Say "hi" to C:\temp"#.to_owned(),
+            ..PushingRepo::args(push)
+        };
+        repo.run_args(&quoted(false), &tracker, None);
+
+        let message = pending(repo.run_args(&quoted(true), &tracker, None));
+
+        assert!(message.starts_with("E_DRAFT_EXISTS: "), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn an_attempted_record_for_a_different_request_does_not_block_a_tracker_create(
+    ) {
+        let repo = PushingRepo::tracker_owned();
+        let crashed = Rc::new(
+            RecordingTracker::holding(Vec::new()).failing_create(terminal()),
+        );
+        created(repo.push_through(&crashed, None));
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let other = CreateArgs {
+            title: "Something else".to_owned(),
+            ..PushingRepo::args(true)
+        };
+
+        let (_, report) = created(repo.run_args(&other, &tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::WriteOnce);
+    }
+
+    #[test]
+    fn a_legacy_marker_blocks_a_same_titled_tracker_create() {
+        let repo = PushingRepo::tracker_owned();
+        let marker = pending_push::path(
+            &repo.path("integrations"),
+            "linear",
+            "a-tabled-idea",
+        );
+        std::fs::create_dir_all(marker.parent().expect("dir")).expect("dir");
+        std::fs::write(
+            &marker,
+            pending_push::render(&PendingPush::Attempted {
+                request: RequestFingerprint {
+                    title: "A tabled idea".to_owned(),
+                    digest: "old".to_owned(),
+                    attempted_at: 1,
+                    failure: None,
+                },
+            }),
+        )
+        .expect("marker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let message = pending(repo.push_through(&tracker, None));
+
+        assert!(message.contains("check the tracker"), "{message}");
+        assert_eq!(creates(&tracker), 0);
+    }
+
+    #[test]
+    fn a_collision_after_a_create_is_created_blocked_naming_the_holder() {
+        let repo = PushingRepo::tracker_owned();
+        std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
+        std::fs::write(
+            repo.path("meta/work/0002-holder.md"),
+            "---\nid: \"0002\"\naliases: [\"REC-1\"]\n---\n\n# 0002: Holder\n",
+        )
+        .expect("holder");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let (path, report) = created(repo.push_through(&tracker, None));
+
+        assert_eq!(report.outcome, PushOutcome::CreatedBlocked);
+        assert_eq!(report.outcome.exit_code(), exit_codes::UNRESOLVED);
+        assert_eq!(report.external_id.as_deref(), Some(KEY));
+        assert_eq!(path, repo.drafts().first().cloned());
+        let cause = report.cause.expect("a remedy");
+        assert!(cause.contains("0002-holder.md"), "{cause}");
+        assert!(cause.contains("work promote draft-"), "{cause}");
+    }
+
+    #[test]
+    fn a_tracker_create_leaves_legacy_items_byte_identical() {
+        let repo = PushingRepo::tracker_owned();
+        std::fs::create_dir_all(repo.path("meta/work")).expect("work dir");
+        let legacy = [
+            ("meta/work/0042-a.md", "---\nid: \"0042\"\n---\n\n# 0042: A\n"),
+            (
+                "meta/work/ACC-0042-b.md",
+                "---\nid: \"ACC-0042\"\n---\n\n# ACC-0042: B\n",
+            ),
+            (
+                "meta/work/0230-c.md",
+                "---\nid: \"0230\"\nexternal_id: \"PP-760\"\n---\n\n# 0230: C\n",
+            ),
+        ];
+        for (path, content) in legacy {
+            std::fs::write(repo.path(path), content).expect("legacy");
+        }
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        created(repo.push_through(&tracker, None));
+
+        for (path, content) in legacy {
+            assert_eq!(
+                std::fs::read_to_string(repo.path(path)).expect("read"),
+                content
+            );
         }
     }
 }

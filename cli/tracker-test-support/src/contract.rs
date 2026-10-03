@@ -147,6 +147,40 @@ pub fn create_then_show_round_trips_property(subject: &dyn ContractSubject) {
         !issue.body.is_empty(),
         "a freshly created issue must project a non-empty body"
     );
+    assert_eq!(
+        issue.key, created,
+        "show must report the key the issue was created under"
+    );
+}
+
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn locate_finds_a_created_issue(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    locate_finds_a_created_issue_property(subject);
+    Ok(())
+}
+
+/// See [`create_then_show_round_trips_property`].
+pub fn locate_finds_a_created_issue_property(subject: &dyn ContractSubject) {
+    let tracker = subject.tracker();
+    let created = tracker
+        .create("Contract title", "Contract body\n", "")
+        .expect("create must succeed for a conformant implementation");
+    let located = tracker
+        .locate(&created)
+        .expect("locate must succeed immediately after create");
+    assert!(
+        matches!(
+            located,
+            tracker::Located::Found(ref issue) if issue.key == created
+        ),
+        "locate must find a just-created issue under the key it was \
+         created under: {located:?}"
+    );
 }
 
 /// # Errors
@@ -275,8 +309,11 @@ pub fn a_failing_read_is_retryable_property(subject: &dyn ContractSubject) {
         .show(&id)
         .expect_err("the configured id must fail to read");
     assert!(
-        !matches!(error, TrackerError::Terminal { .. }),
-        "a read must never be classified terminal"
+        !matches!(
+            error,
+            TrackerError::Terminal { .. } | TrackerError::Rejected { .. }
+        ),
+        "a read must never be classified terminal or rejected"
     );
 }
 
@@ -475,12 +512,13 @@ pub fn run_all(
     ids: &[ExternalId],
 ) -> Result<usize, ContractGateError> {
     create_then_show_round_trips(subject)?;
+    locate_finds_a_created_issue(subject)?;
     update_replaces_whole_content(subject)?;
     fetch_all_partitions_totally(subject, ids)?;
     preview_create_makes_no_mutation(subject)?;
     validate_update_reports_outcome(subject)?;
 
-    Ok(5)
+    Ok(6)
 }
 
 /// Run the full conformance set against a live subject, timing each property,
@@ -516,6 +554,9 @@ pub fn timed_conformance(
 
     records.push(run("create_then_show_round_trips", 1, &|| {
         create_then_show_round_trips_property(subject);
+    }));
+    records.push(run("locate_finds_a_created_issue", 1, &|| {
+        locate_finds_a_created_issue_property(subject);
     }));
     records.push(run("update_replaces_whole_content", 1, &|| {
         update_replaces_whole_content_property(subject);
@@ -568,6 +609,9 @@ mod tests {
         vec![
             ("create_then_show_round_trips", |subject| {
                 super::create_then_show_round_trips(subject)
+            }),
+            ("locate_finds_a_created_issue", |subject| {
+                super::locate_finds_a_created_issue(subject)
             }),
             ("update_replaces_whole_content", |subject| {
                 super::update_replaces_whole_content(subject)

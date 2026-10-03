@@ -5,6 +5,8 @@
 pub mod classify;
 pub mod clock;
 pub mod decide;
+pub mod identity;
+pub mod key_change;
 pub mod label;
 pub mod plan;
 pub mod push_decide;
@@ -23,6 +25,9 @@ pub use crate::sync::decide::Action;
 pub use crate::sync::decide::Dirtiness;
 pub use crate::sync::decide::Resolution;
 pub use crate::sync::decide::SyncDirection;
+pub use crate::sync::identity::IdentityAction;
+pub use crate::sync::key_change::decide_key_change;
+pub use crate::sync::key_change::KeyChange;
 pub use crate::sync::label::classify_external_id;
 pub use crate::sync::label::label;
 pub use crate::sync::label::RenderableState;

@@ -168,6 +168,7 @@ fn baseline_document(entries: &[String]) -> String {
 
 fn issue(body: &str) -> RemoteIssue {
     RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
         updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
         body: body.to_owned(),
     }
@@ -245,6 +246,7 @@ fn run_sync(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope,
     };
     run(&sync_ports, &mut store, &request)
@@ -291,6 +293,7 @@ fn run_sync_targeted(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope,
     };
     run(&sync_ports, &mut store, &request)
@@ -336,6 +339,7 @@ fn run_sync_targeted_pull(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request)
@@ -383,6 +387,7 @@ fn run_at(
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     run(&sync_ports, &mut store, &request)
@@ -982,6 +987,7 @@ fn planned_writes_over_bound_refuse_before_any_create_from_remote(
         holding.push((
             external.clone(),
             RemoteIssue {
+                key: external.clone(),
                 updated: stamp.clone(),
                 body: "Title\nRemote body\n".to_owned(),
             },
@@ -1371,6 +1377,7 @@ fn a_mixed_run_writes_the_targeted_union_and_no_non_targeted_item(
         (
             a_external.clone(),
             RemoteIssue {
+                key: a_external.clone(),
                 updated: stamp_moved,
                 body: "Title\nRemote body\n".to_owned(),
             },
@@ -1628,6 +1635,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
             mode: RunMode::Apply,
             integrations_root: fixture.dir.path(),
             integration: "jira",
+            promote: true,
             scope: SearchScope::default(),
         };
         let report = run(&sync_ports, &mut store, &request).map_err(|_| {
@@ -1720,6 +1728,82 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
 }
 
 #[test]
+fn a_created_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", r#"Say \"hi\" to C:\\temp"#)?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    run_sync(
+        &ports,
+        std::slice::from_ref(&item),
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        SearchScope::default(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "one create-from-local must proceed")?;
+
+    let created: Vec<String> = tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            Call::Create { title, .. } => Some(title),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(created, [r#"Say "hi" to C:\temp"#]);
+    Ok(())
+}
+
+#[test]
+fn unpromoted_drafts_are_never_created_from_local() -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let draft = fixture.unsynced_item("draft-k7mq3x", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new());
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let ports = Ports {
+        tracker: &tracker,
+        author: &author,
+        spy: &fixture.spy,
+    };
+
+    let report = run_sync(
+        &ports,
+        std::slice::from_ref(&draft),
+        fixture.dir.path(),
+        SyncDirection::Bidirectional,
+        SearchScope::default(),
+        25,
+        25,
+        RunMode::Apply,
+    )
+    .map_err(|_| "a run over a draft must not refuse")?;
+
+    assert!(
+        !tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Create { .. })),
+        "a draft is promoted, never created from local"
+    );
+    assert!(author.linked.borrow().is_empty());
+    assert!(!report
+        .reported
+        .iter()
+        .any(|item| item.planned.action == Action::CreateFromLocal));
+    Ok(())
+}
+
+#[test]
 fn create_from_local_writes_the_marker_before_the_create(
 ) -> Result<(), TestError> {
     let fixture = Fixture::new()?;
@@ -1765,6 +1849,7 @@ fn create_from_local_writes_the_marker_before_the_create(
         mode: RunMode::Apply,
         integrations_root: fixture.dir.path(),
         integration: "jira",
+        promote: true,
         scope: SearchScope::default(),
     };
     let _ = run(&sync_ports, &mut store, &request);
@@ -1786,10 +1871,12 @@ fn a_seeded_created_marker_reuses_the_id_without_a_second_create(
     // derives (title, body, kind) from the draft's own frontmatter and split
     // body, so the digest must be computed from exactly that.
     let content = std::fs::read_to_string(&item.path)?;
-    let (frontmatter, body) =
+    let (_, body) =
         work_adapters::sync::digest::split_frontmatter_and_body(&content)?;
-    let title = work::show::read_field_raw(&frontmatter, "title").unwrap();
-    let kind = work::show::read_field_raw(&frontmatter, "kind").unwrap();
+    let work_adapters::create_request_fields::CreateRequestFields {
+        title,
+        kind,
+    } = work_adapters::create_request_fields::read(&content)?;
     let digest =
         work_adapters::sync::pending_push::request_digest(&title, &body, &kind);
     let marker = work::sync::PendingPush::Created {
@@ -1913,10 +2000,12 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
     };
 
     let content = std::fs::read_to_string(&draft.path)?;
-    let (frontmatter, body) =
+    let (_, body) =
         work_adapters::sync::digest::split_frontmatter_and_body(&content)?;
-    let title = work::show::read_field_raw(&frontmatter, "title").unwrap();
-    let kind = work::show::read_field_raw(&frontmatter, "kind").unwrap();
+    let work_adapters::create_request_fields::CreateRequestFields {
+        title,
+        kind,
+    } = work_adapters::create_request_fields::read(&content)?;
     let digest =
         work_adapters::sync::pending_push::request_digest(&title, &body, &kind);
     let marker = work::sync::PendingPush::Created {
@@ -1980,6 +2069,127 @@ fn a_targeted_create_from_local_still_sees_a_non_targeted_double_bind(
     assert!(
         matches!(create.outcome, ItemOutcome::Failed(_)),
         "a refused double-bind reports the create as failed"
+    );
+    Ok(())
+}
+
+/// A create-from-local run whose markers and baseline live on disk, so a test
+/// can assert which marker the run leaves behind.
+fn run_create_from_local_on_disk(
+    fixture: &Fixture,
+    item: &LocalItem,
+    tracker: &RecordingTracker,
+) -> RunReport {
+    let author = RecordingAuthor::new(fixture.dir.path());
+    let real = RealWrite;
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let sync_ports = SyncPorts {
+        tracker,
+        status: &status,
+        writer: &real,
+        clock: &clock,
+        author: &author,
+    };
+    let baseline_path = fixture.dir.path().join("last-sync.json");
+    std::fs::write(&baseline_path, baseline_document(&[]))
+        .expect("seed the baseline");
+    let reader = RealRead;
+    let mut store = BaselineStore::new(baseline_path, &reader, &real);
+    let resolutions: BTreeMap<String, Resolution> = BTreeMap::new();
+    let request = SyncRequest {
+        corpus: std::slice::from_ref(item),
+        selection: ItemSelection::All,
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions: &resolutions,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode: RunMode::Apply,
+        integrations_root: fixture.dir.path(),
+        integration: "jira",
+        promote: true,
+        scope: SearchScope::default(),
+    };
+    run(&sync_ports, &mut store, &request).expect("the run proceeds")
+}
+
+fn create_from_local_failure(
+    report: &RunReport,
+) -> &work_adapters::sync::apply::ApplyError {
+    report
+        .reported
+        .iter()
+        .find_map(|item| match &item.outcome {
+            ItemOutcome::Failed(error)
+                if item.planned.action == Action::CreateFromLocal =>
+            {
+                Some(error)
+            }
+            _ => None,
+        })
+        .expect("the create-from-local failed")
+}
+
+#[test]
+fn an_unreachable_tracker_leaves_no_marker_for_a_local_create(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Retryable {
+            detail: "jira create: could not connect".to_owned(),
+        },
+    );
+
+    let report = run_create_from_local_on_disk(&fixture, &item, &tracker);
+
+    let marker_path = work_adapters::sync::pending_push::path(
+        fixture.dir.path(),
+        "jira",
+        "0001",
+    );
+    assert!(
+        !marker_path.exists(),
+        "no issue exists, so no marker remains"
+    );
+    assert_eq!(
+        create_from_local_failure(&report).class(),
+        Some(work_adapters::sync::apply::FailureClass::Retryable)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_rejected_create_leaves_no_marker_and_reports_its_cause(
+) -> Result<(), TestError> {
+    let fixture = Fixture::new()?;
+    let item = fixture.unsynced_item("0001", "Draft one")?;
+    let tracker = RecordingTracker::holding(Vec::new()).failing_create(
+        TrackerError::Rejected {
+            detail: "jira create: the body has a table".to_owned(),
+        },
+    );
+
+    let report = run_create_from_local_on_disk(&fixture, &item, &tracker);
+
+    let marker_path = work_adapters::sync::pending_push::path(
+        fixture.dir.path(),
+        "jira",
+        "0001",
+    );
+    assert!(
+        !marker_path.exists(),
+        "no issue exists, so no marker remains"
+    );
+    let failure = create_from_local_failure(&report);
+    assert_eq!(
+        failure.class(),
+        Some(work_adapters::sync::apply::FailureClass::Rejected)
+    );
+    assert!(
+        failure.to_string().contains("the body has a table"),
+        "{failure}"
     );
     Ok(())
 }
@@ -2067,6 +2277,13 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
 
     fn show(&self, _id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
         Ok(issue("Draft one\nBody"))
+    }
+
+    fn locate(
+        &self,
+        id: &ExternalId,
+    ) -> Result<tracker::Located, TrackerError> {
+        self.show(id).map(tracker::Located::Found)
     }
 
     fn fetch_all(

@@ -112,6 +112,45 @@
         "The enriched draft's Drafting Notes section does not contain explanations of why the work item type or priority was chosen",
         "If an Assumptions section is present in the enriched draft, it contains scope-changing interpretations (not the same content that is already reflected in Requirements or Acceptance Criteria)"
       ]
+    },
+    {
+      "id": 8,
+      "name": "extract_under_tracker_makes_one_push_offer_and_calls_create_batch",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Three candidates were approved in Step 3, in this order: an epic \"Search overhaul\" (priority high) and two stories under it, \"Typo-tolerant search\" (priority medium) and \"Search analytics\" (priority low). The source document is meta/research/codebase/2026-09-01-search.md. The author resolves to \"Ada Lovelace\". You are at Step 4.\n\nCarry out Step 4. Present the push offer; the user declines. Simulate `accelerator work create-batch` exiting 0 with this stdout:\n\nsearch-overhaul\tmeta/work/drafts/draft-a1b2c3-search-overhaul.md\tdeclined\t\ntypo-tolerant-search\tmeta/work/drafts/draft-d4e5f6-typo-tolerant-search.md\tdeclined\t\nsearch-analytics\tmeta/work/drafts/draft-g7h8j9-search-analytics.md\tdeclined\t\n\nSave to outputs/:\n- manifest.json: the manifest you pass to create-batch.\n- push-offer.md: every push offer you present, with its options.\n- commands.md: every `accelerator` command you run in Step 4, in order, in full.\n- summary.md: the summary you print.",
+      "expected_output": "Exactly one push offer is made for the whole batch. The manifest has three entries, the two stories carrying parent {\"ref\": <epic ref>}. One accelerator work create-batch --manifest call is made without --push, with no next-number call and no Write-tool file writes. The summary renders each item as 'draft — push declined'.",
+      "files": [],
+      "expectations": [
+        "push-offer.md contains exactly one push offer covering all three items",
+        "manifest.json has three entries and both stories' parent is {\"ref\": \"<the epic's ref>\"}",
+        "commands.md shows exactly one accelerator work create-batch --manifest call, without --push, and no accelerator work next-number call",
+        "summary.md renders all three items with the outcome 'draft — push declined'"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "extract_under_tracker_renders_the_four_0230_outcome_strings_in_order",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Four candidates were approved in Step 3, in this order: \"Alpha\", \"Beta\", \"Gamma\" and \"Delta\" (all stories, priority medium, no parents). The author resolves to \"Ada Lovelace\". You are at Step 4. Present the push offer; the user accepts. Simulate `accelerator work create-batch ... --push` exiting 71 with this stdout:\n\nalpha\tmeta/work/ENG-901-alpha.md\twrite-once\tENG-901\nbeta\tmeta/work/drafts/draft-b2c3d4-beta.md\tlocal-save\t\ngamma\tmeta/work/drafts/draft-c3d4e5-gamma.md\tloud-terminal\t\ndelta\tmeta/work/drafts/draft-d4e5f6-delta.md\tcreated-unwritten\tENG-904\n\nSave to outputs/:\n- summary.md: the summary table you print and anything you tell the user after it.",
+      "expected_output": "The summary table has rows in order alpha, beta, gamma, delta with outcomes 'created ENG-901', 'draft — tracker unreachable', 'draft — remote issue may exist', 'created ENG-904 — local write failed', each with its file. For gamma it tells the user to check the tracker and run work promote draft-c3d4e5 --adopt <KEY> or --create.",
+      "files": [],
+      "expectations": [
+        "The rows appear in the order Alpha, Beta, Gamma, Delta",
+        "The outcomes read exactly 'created ENG-901', 'draft — tracker unreachable', 'draft — remote issue may exist' and 'created ENG-904 — local write failed'",
+        "Each row's File cell names the path from its line",
+        "For Gamma the response offers accelerator work promote draft-c3d4e5 --adopt <KEY> if the issue exists, otherwise --create, and does not suggest re-running the batch"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "extract_under_tracker_renders_rejected_created_blocked_and_pending_from_detail_lines",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Three candidates were approved in Step 3, in this order: \"Alpha\", \"Beta\" and \"Gamma\" (all stories, priority medium, no parents). The author resolves to \"Ada Lovelace\". You are at Step 4. Present the push offer; the user accepts. Simulate `accelerator work create-batch ... --push` exiting 4 with this stdout:\n\nalpha\tmeta/work/drafts/draft-a1a1a1-alpha.md\trejected\t\nbeta\tmeta/work/drafts/draft-b2b2b2-beta.md\tcreated-blocked\tENG-902\ngamma\tmeta/work/drafts/draft-c3c3c3-gamma.md\tpending\t\n#\tdetail\tbeta\tholder\tmeta/work/0017-beta.md\n\nand this stderr:\n\nError: alpha: linear create: the body has an unsupported table\nError: beta: meta/work/0017-beta.md already carries ENG-902; if it is the same issue, delete the draft or merge it into meta/work/0017-beta.md, otherwise fix meta/work/0017-beta.md, then `work promote draft-b2b2b2`\nError: gamma: E_DRAFT_EXISTS: meta/work/drafts/draft-c3c3c3-gamma.md already holds this content; run `work promote <draft>` or `work sync`\n\nSave to outputs/:\n- summary.md: the summary table you print and anything you tell the user after it.",
+      "expected_output": "Rows in order alpha, beta, gamma: 'draft — request rejected'; 'created ENG-902 — blocked by meta/work/0017-beta.md; resolve it, then promote' (holder from the detail line); 'draft — already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'. The rejected cause is relayed.",
+      "files": [],
+      "expectations": [
+        "Alpha's outcome reads 'draft — request rejected' and its stderr cause (the unsupported table) is relayed",
+        "Beta's outcome reads 'created ENG-902 — blocked by meta/work/0017-beta.md; resolve it, then promote', taking the holder from the detail line",
+        "Gamma's outcome reads 'draft — already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'",
+        "The response does not suggest re-running the batch"
+      ]
     }
   ]
 }

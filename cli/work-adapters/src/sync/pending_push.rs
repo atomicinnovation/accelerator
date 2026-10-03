@@ -4,12 +4,43 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use serde_json::json;
+use serde_json::Map;
 use serde_json::Value;
 use sha2::Digest as _;
 use sha2::Sha256;
 use tracker::ExternalId;
+use tracker::RemoteTimestamp;
+use work::draft_id::DraftId;
+use work::promotion::without_ids;
+use work::promotion::IntendedBaseline;
+use work::promotion::PromotionRecord;
+use work::promotion::PromotionStage;
+use work::promotion::ReadBack;
+use work::promotion::RemoteHash;
+use work::promotion::RemoteKeptReason;
 use work::sync::PendingPush;
 use work::sync::RequestFingerprint;
+
+const PROMOTION_SCHEMA: u64 = 2;
+
+/// A file in the pending-push directory: a legacy marker a create names by
+/// its slug or item id, or a promotion record named by its draft ID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Marker {
+    Legacy(PendingPush),
+    Promotion(PromotionRecord),
+}
+
+/// One pending-push file: readable, with its path, or reported unreadable.
+pub type MarkerEntry = Result<(PathBuf, Marker), UnreadableMarker>;
+
+/// A marker file that exists but could not be read or understood.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnreadableMarker {
+    pub path: PathBuf,
+    pub detail: String,
+}
 
 #[derive(Debug)]
 pub enum MarkerError {
@@ -85,6 +116,24 @@ pub fn request_digest(title: &str, body: &str, kind: &str) -> String {
         let _ = write!(hex, "{byte:02x}");
     }
     hex
+}
+
+/// The request digest of `body` with `id` normalised back to the template
+/// placeholder, so two requests for one content digest alike whatever ID
+/// each was given.
+#[must_use]
+pub fn content_digest(title: &str, body: &str, kind: &str, id: &str) -> String {
+    request_digest(title, &without_ids(body, &[id]), kind)
+}
+
+/// `<integrations>/<integration>/pending-push/<draft-id>.json`.
+#[must_use]
+pub fn record_path(
+    integrations_dir: &Path,
+    integration: &str,
+    draft: &DraftId,
+) -> PathBuf {
+    path(integrations_dir, integration, draft.as_str())
 }
 
 fn fingerprint_from(
@@ -182,18 +231,258 @@ pub fn render(marker: &PendingPush) -> String {
     format!("{}\n", Value::Object(object))
 }
 
-/// Enumerates every outstanding marker under `<integrations>/<integration>/
-/// pending-push/`.
+fn text(
+    object: &Map<String, Value>,
+    field: &str,
+) -> Result<String, MarkerError> {
+    object
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| MarkerError::Malformed(format!("missing '{field}'")))
+}
+
+fn optional_text(object: &Map<String, Value>, field: &str) -> Option<String> {
+    object.get(field).and_then(Value::as_str).map(str::to_owned)
+}
+
+fn key_of(object: &Map<String, Value>) -> Result<ExternalId, MarkerError> {
+    text(object, "external_id").map(ExternalId::new)
+}
+
+/// A read-back as `<prefix>_hash` and `<prefix>_updated_at`, the stamp
+/// persisted as the sync baseline persists it: reported, or null.
+fn read_back_from(
+    object: &Map<String, Value>,
+    prefix: &str,
+) -> Result<ReadBack, MarkerError> {
+    Ok(ReadBack {
+        hash: text(object, &format!("{prefix}_hash"))?,
+        updated: optional_text(object, &format!("{prefix}_updated_at"))
+            .map_or(RemoteTimestamp::NotRead, RemoteTimestamp::Reported),
+    })
+}
+
+fn put_read_back(
+    object: &mut Map<String, Value>,
+    prefix: &str,
+    read_back: &ReadBack,
+) {
+    object.insert(format!("{prefix}_hash"), json!(read_back.hash));
+    object.insert(
+        format!("{prefix}_updated_at"),
+        json!(read_back.updated.reported()),
+    );
+}
+
+fn kept_reason(
+    object: &Map<String, Value>,
+) -> Result<RemoteKeptReason, MarkerError> {
+    let read_back = read_back_from(object, "read_back")?;
+    match text(object, "reason")?.as_str() {
+        "edited" => Ok(RemoteKeptReason::Edited { read_back }),
+        "user-named-adopt" => {
+            Ok(RemoteKeptReason::UserNamedAdopt { read_back })
+        }
+        "update-failed" => Ok(RemoteKeptReason::UpdateFailed { read_back }),
+        "no-hash" => Ok(RemoteKeptReason::NoHash { read_back }),
+        other => Err(MarkerError::Malformed(format!(
+            "unrecognised remote-kept reason: {other}"
+        ))),
+    }
+}
+
+const fn reason_keyword(reason: &RemoteKeptReason) -> &'static str {
+    match reason {
+        RemoteKeptReason::Edited { .. } => "edited",
+        RemoteKeptReason::UserNamedAdopt { .. } => "user-named-adopt",
+        RemoteKeptReason::UpdateFailed { .. } => "update-failed",
+        RemoteKeptReason::NoHash { .. } => "no-hash",
+    }
+}
+
+fn baseline_from(
+    value: Option<&Value>,
+) -> Result<IntendedBaseline, MarkerError> {
+    let object = value.and_then(Value::as_object).ok_or_else(|| {
+        MarkerError::Malformed("missing 'baseline'".to_owned())
+    })?;
+    let remote_hash = if object.get("remote_hash").is_some_and(Value::is_null) {
+        RemoteHash::Unknown
+    } else {
+        RemoteHash::Known(read_back_from(object, "remote")?)
+    };
+    Ok(IntendedBaseline {
+        remote_hash,
+        local_hash: text(object, "local_hash")?,
+    })
+}
+
+fn stage_from(
+    object: &Map<String, Value>,
+) -> Result<PromotionStage, MarkerError> {
+    match text(object, "kind")?.as_str() {
+        "attempted" => Ok(PromotionStage::Attempted),
+        "created" => Ok(PromotionStage::Created {
+            key: key_of(object)?,
+            created_remote_hash: optional_text(object, "created_remote_hash"),
+        }),
+        "remote-retitled" => Ok(PromotionStage::RemoteRetitled {
+            key: key_of(object)?,
+            read_back: read_back_from(object, "remote")?,
+        }),
+        "remote-kept" => Ok(PromotionStage::RemoteKept {
+            key: key_of(object)?,
+            reason: kept_reason(object)?,
+        }),
+        "retiring" => {
+            let before =
+                object.get("before").and_then(Value::as_object).ok_or_else(
+                    || MarkerError::Malformed("missing 'before'".to_owned()),
+                )?;
+            Ok(PromotionStage::Retiring {
+                key: key_of(object)?,
+                baseline: baseline_from(object.get("baseline"))?,
+                recovery_dir: PathBuf::from(text(object, "recovery_dir")?),
+                before: Box::new(stage_from(before)?),
+            })
+        }
+        other => Err(MarkerError::Malformed(format!(
+            "unrecognised promotion stage: {other}"
+        ))),
+    }
+}
+
+fn stage_fields(stage: &PromotionStage) -> Map<String, Value> {
+    let mut object = Map::new();
+    let mut put = |field: &str, value: Value| {
+        object.insert(field.to_owned(), value);
+    };
+    let key = |key: &ExternalId| Value::String(key.as_str().to_owned());
+    match stage {
+        PromotionStage::Attempted => put("kind", json!("attempted")),
+        PromotionStage::Created {
+            key: created,
+            created_remote_hash,
+        } => {
+            put("kind", json!("created"));
+            put("external_id", key(created));
+            put("created_remote_hash", json!(created_remote_hash));
+        }
+        PromotionStage::RemoteRetitled {
+            key: retitled,
+            read_back,
+        } => {
+            put("kind", json!("remote-retitled"));
+            put("external_id", key(retitled));
+            put_read_back(&mut object, "remote", read_back);
+        }
+        PromotionStage::RemoteKept { key: kept, reason } => {
+            put("kind", json!("remote-kept"));
+            put("external_id", key(kept));
+            put("reason", json!(reason_keyword(reason)));
+            put_read_back(&mut object, "read_back", reason.read_back());
+        }
+        PromotionStage::Retiring {
+            key: retiring,
+            baseline,
+            recovery_dir,
+            before,
+        } => {
+            put("kind", json!("retiring"));
+            put("external_id", key(retiring));
+            let mut encoded = Map::new();
+            match &baseline.remote_hash {
+                RemoteHash::Known(read_back) => {
+                    put_read_back(&mut encoded, "remote", read_back);
+                }
+                RemoteHash::Unknown => {
+                    encoded.insert("remote_hash".to_owned(), Value::Null);
+                }
+            }
+            encoded.insert("local_hash".to_owned(), json!(baseline.local_hash));
+            put("baseline", Value::Object(encoded));
+            put("recovery_dir", json!(recovery_dir.display().to_string()));
+            put("before", Value::Object(stage_fields(before)));
+        }
+    }
+    object
+}
+
+/// Renders a promotion record. Its `Attempted` and `Created` stages keep a
+/// legacy marker's `kind` and fields, so an older binary still reads them.
+#[must_use]
+pub fn render_record(record: &PromotionRecord) -> String {
+    let mut object = stage_fields(&record.stage);
+    let request = &record.request;
+    object.insert("schema".to_owned(), json!(PROMOTION_SCHEMA));
+    object.insert("draft_id".to_owned(), json!(record.draft_id.as_str()));
+    object.insert("content_digest".to_owned(), json!(record.content_digest));
+    object.insert("title".to_owned(), json!(request.title));
+    object.insert("digest".to_owned(), json!(request.digest));
+    object.insert("attempted_at".to_owned(), json!(request.attempted_at));
+    object.insert("failure".to_owned(), json!(request.failure));
+    format!("{}\n", Value::Object(object))
+}
+
+fn record_from(
+    object: &Map<String, Value>,
+) -> Result<PromotionRecord, MarkerError> {
+    let draft = text(object, "draft_id")?;
+    Ok(PromotionRecord {
+        draft_id: DraftId::parse(&draft).ok_or_else(|| {
+            MarkerError::Malformed(format!("not a draft ID: {draft}"))
+        })?,
+        request: fingerprint_from(object).ok_or_else(|| {
+            MarkerError::Malformed(
+                "missing or malformed fingerprint fields".to_owned(),
+            )
+        })?,
+        content_digest: text(object, "content_digest")?,
+        stage: stage_from(object)?,
+    })
+}
+
+/// Parses any pending-push file: a promotion record when it carries its
+/// schema, a legacy marker otherwise.
 ///
 /// # Errors
 ///
-/// [`MarkerError::Io`] when the directory exists but cannot be read;
-/// [`MarkerError::Malformed`] when a marker file cannot be parsed. A
-/// missing directory yields an empty list, not an error.
+/// [`MarkerError::Malformed`] when `content` is present but neither.
+pub fn read_marker(
+    content: Option<&str>,
+) -> Result<Option<Marker>, MarkerError> {
+    let Some(raw) = content else {
+        return Ok(None);
+    };
+    let value: Value = serde_json::from_str(raw)
+        .map_err(|error| MarkerError::Malformed(error.to_string()))?;
+    let object = value.as_object().ok_or_else(|| {
+        MarkerError::Malformed("not a JSON object".to_owned())
+    })?;
+    match object.get("schema").map(Value::as_u64) {
+        None => read(Some(raw)).map(|marker| marker.map(Marker::Legacy)),
+        Some(Some(PROMOTION_SCHEMA)) => {
+            record_from(object).map(|record| Some(Marker::Promotion(record)))
+        }
+        Some(_) => Err(MarkerError::Malformed(
+            "unsupported pending-push schema".to_owned(),
+        )),
+    }
+}
+
+/// Enumerates every marker under `<integrations>/<integration>/
+/// pending-push/`, each one readable or reported unreadable, so one bad
+/// file hides none of the others.
+///
+/// # Errors
+///
+/// [`MarkerError::Io`] when the directory exists but cannot be listed. A
+/// missing directory yields an empty list.
 pub fn outstanding(
     integrations_dir: &Path,
     integration: &str,
-) -> Result<Vec<(PathBuf, PendingPush)>, MarkerError> {
+) -> Result<Vec<MarkerEntry>, MarkerError> {
     let dir = integrations_dir.join(integration).join("pending-push");
     let entries = match std::fs::read_dir(&dir) {
         Ok(entries) => entries,
@@ -202,34 +491,60 @@ pub fn outstanding(
         }
         Err(error) => return Err(MarkerError::Io(error.to_string())),
     };
-
-    let mut markers = Vec::new();
-    for entry in entries {
-        let entry =
-            entry.map_err(|error| MarkerError::Io(error.to_string()))?;
-        let path = entry.path();
-        if path.extension().and_then(std::ffi::OsStr::to_str) != Some("json") {
-            continue;
-        }
-        let content = std::fs::read_to_string(&path)
-            .map_err(|error| MarkerError::Io(error.to_string()))?;
-        if let Some(marker) = read(Some(&content))? {
-            markers.push((path, marker));
-        }
-    }
-    Ok(markers)
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension().and_then(std::ffi::OsStr::to_str) == Some("json")
+        })
+        .collect();
+    paths.sort();
+    Ok(paths
+        .into_iter()
+        .filter_map(|path| {
+            let unreadable = |detail: String| UnreadableMarker {
+                path: path.clone(),
+                detail,
+            };
+            let read = std::fs::read_to_string(&path)
+                .map_err(|error| unreadable(error.to_string()))
+                .and_then(|content| {
+                    read_marker(Some(&content))
+                        .map_err(|error| unreadable(error.to_string()))
+                });
+            match read {
+                Ok(Some(marker)) => Some(Ok((path.clone(), marker))),
+                Ok(None) => None,
+                Err(unreadable) => Some(Err(unreadable)),
+            }
+        })
+        .collect())
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::path::PathBuf;
+
+    use super::content_digest;
     use super::outstanding;
     use super::path;
     use super::prepare_dir;
     use super::read;
+    use super::read_marker;
     use super::render;
+    use super::render_record;
     use super::request_digest;
+    use super::Marker;
     use tracker::ExternalId;
+    use tracker::RemoteTimestamp;
+    use work::draft_id::DraftId;
+    use work::promotion::IntendedBaseline;
+    use work::promotion::PromotionRecord;
+    use work::promotion::PromotionStage;
+    use work::promotion::ReadBack;
+    use work::promotion::RemoteHash;
+    use work::promotion::RemoteKeptReason;
     use work::sync::PendingPush;
     use work::sync::RequestFingerprint;
 
@@ -353,6 +668,230 @@ mod tests {
 
         let markers = outstanding(dir.path(), "jira").expect("no error");
         assert_eq!(markers.len(), 1);
-        assert_eq!(markers[0].1, marker);
+        assert_eq!(
+            markers[0].as_ref().expect("readable").1,
+            Marker::Legacy(marker)
+        );
+    }
+
+    fn key() -> ExternalId {
+        ExternalId::new("PP-900".to_owned())
+    }
+
+    fn promotion(stage: PromotionStage) -> PromotionRecord {
+        PromotionRecord {
+            draft_id: DraftId::parse("draft-k7mq3x").expect("draft id"),
+            request: fingerprint(),
+            content_digest: content_digest(
+                "Fix flaky test",
+                "# draft-k7mq3x: Fix flaky test\n",
+                "story",
+                "draft-k7mq3x",
+            ),
+            stage,
+        }
+    }
+
+    fn every_stage() -> Vec<PromotionStage> {
+        let retitled = PromotionStage::RemoteRetitled {
+            key: key(),
+            read_back: ReadBack {
+                hash: "after".to_owned(),
+                updated: RemoteTimestamp::Reported("2026-09-28".to_owned()),
+            },
+        };
+        let kept = |reason| PromotionStage::RemoteKept { key: key(), reason };
+        let read_back_hash = || ReadBack {
+            hash: "r".to_owned(),
+            updated: RemoteTimestamp::NotRead,
+        };
+        vec![
+            PromotionStage::Attempted,
+            PromotionStage::Created {
+                key: key(),
+                created_remote_hash: Some("created".to_owned()),
+            },
+            PromotionStage::Created {
+                key: key(),
+                created_remote_hash: None,
+            },
+            retitled.clone(),
+            kept(RemoteKeptReason::Edited {
+                read_back: read_back_hash(),
+            }),
+            kept(RemoteKeptReason::UserNamedAdopt {
+                read_back: read_back_hash(),
+            }),
+            kept(RemoteKeptReason::UpdateFailed {
+                read_back: read_back_hash(),
+            }),
+            kept(RemoteKeptReason::NoHash {
+                read_back: read_back_hash(),
+            }),
+            PromotionStage::Retiring {
+                key: key(),
+                baseline: IntendedBaseline {
+                    remote_hash: RemoteHash::Known(ReadBack {
+                        hash: "after".to_owned(),
+                        updated: RemoteTimestamp::Reported("t".to_owned()),
+                    }),
+                    local_hash: "promoted".to_owned(),
+                },
+                recovery_dir: PathBuf::from(
+                    "retirement-recovery/draft-k7mq3x--PP-900",
+                ),
+                before: Box::new(retitled),
+            },
+            PromotionStage::Retiring {
+                key: key(),
+                baseline: IntendedBaseline {
+                    remote_hash: RemoteHash::Unknown,
+                    local_hash: "draft".to_owned(),
+                },
+                recovery_dir: PathBuf::from("x"),
+                before: Box::new(kept(RemoteKeptReason::Edited {
+                    read_back: read_back_hash(),
+                })),
+            },
+        ]
+    }
+
+    #[test]
+    fn a_created_marker_without_a_remote_hash_still_reads() {
+        let record = promotion(PromotionStage::Created {
+            key: key(),
+            created_remote_hash: None,
+        });
+        let rendered = render_record(&record);
+        assert!(
+            rendered.contains("\"created_remote_hash\":null"),
+            "{rendered}"
+        );
+        assert_eq!(
+            read_marker(Some(&rendered)).expect("reads"),
+            Some(Marker::Promotion(record))
+        );
+    }
+
+    #[test]
+    fn the_promotion_record_round_trips_at_every_stage() {
+        for stage in every_stage() {
+            let record = promotion(stage);
+            let rendered = render_record(&record);
+            assert!(rendered.contains("\"schema\":2"), "{rendered}");
+            assert_eq!(
+                read_marker(Some(&rendered)).expect("reads"),
+                Some(Marker::Promotion(record)),
+                "{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_content_digest_is_independent_of_the_substituted_id() {
+        let digest = |id: &str| {
+            content_digest(
+                "T",
+                &format!("# {id}: T\n\nSee {id}.\n"),
+                "task",
+                id,
+            )
+        };
+        assert_eq!(digest("draft-k7mq3x"), digest("draft-p2r9zz"));
+        assert_ne!(
+            digest("draft-k7mq3x"),
+            content_digest(
+                "T",
+                "# draft-k7mq3x: T\n\nOther.\n",
+                "task",
+                "draft-k7mq3x"
+            )
+        );
+    }
+
+    #[test]
+    fn request_digest_is_unchanged_so_a_legacy_created_marker_still_reuses_its_id(
+    ) {
+        assert_eq!(
+            request_digest("Fix flaky test", "Body\n", "story"),
+            "4d280d2cb8ceccb4c38794a92dca8ef9d03a9560bf7573282a6d086d09a0aa47"
+        );
+    }
+
+    #[test]
+    fn a_legacy_marker_and_every_promotion_stage_coexist_in_one_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let pending = prepare_dir(dir.path(), "linear").expect("prepared");
+        let legacy = PendingPush::Attempted {
+            request: fingerprint(),
+        };
+        std::fs::write(pending.join("fix-flaky-test.json"), render(&legacy))
+            .expect("write legacy");
+        let records: Vec<PromotionRecord> =
+            every_stage().into_iter().map(promotion).collect();
+        for (index, record) in records.iter().enumerate() {
+            std::fs::write(
+                pending.join(format!("record-{index:02}.json")),
+                render_record(record),
+            )
+            .expect("write record");
+        }
+
+        let listed: Vec<Marker> = outstanding(dir.path(), "linear")
+            .expect("listed")
+            .into_iter()
+            .map(|entry| entry.expect("readable").1)
+            .collect();
+
+        assert!(listed.contains(&Marker::Legacy(legacy)));
+        for record in records {
+            assert!(listed.contains(&Marker::Promotion(record)));
+        }
+    }
+
+    #[test]
+    fn an_unreadable_marker_is_reported_and_the_others_still_enumerate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let pending = prepare_dir(dir.path(), "linear").expect("prepared");
+        std::fs::write(pending.join("draft-k7mq3x.json"), "{").expect("torn");
+        let record = promotion(PromotionStage::Attempted);
+        std::fs::write(
+            pending.join("draft-p2r9zz.json"),
+            render_record(&record),
+        )
+        .expect("write");
+
+        let listed = outstanding(dir.path(), "linear").expect("listed");
+
+        assert_eq!(listed.len(), 2);
+        let unreadable = listed[0].as_ref().expect_err("the torn file");
+        assert_eq!(unreadable.path, pending.join("draft-k7mq3x.json"));
+        assert_eq!(
+            listed[1].as_ref().expect("readable").1,
+            Marker::Promotion(record)
+        );
+    }
+
+    #[test]
+    fn attempted_and_created_promotion_records_read_as_legacy_markers_to_the_old_reader(
+    ) {
+        let attempted = render_record(&promotion(PromotionStage::Attempted));
+        assert_eq!(
+            read(Some(&attempted)).expect("reads"),
+            Some(PendingPush::Attempted {
+                request: fingerprint()
+            })
+        );
+        let created = render_record(&promotion(PromotionStage::Created {
+            key: key(),
+            created_remote_hash: Some("h".to_owned()),
+        }));
+        assert_eq!(
+            read(Some(&created)).expect("reads"),
+            Some(PendingPush::Created {
+                request: fingerprint(),
+                external_id: key(),
+            })
+        );
     }
 }

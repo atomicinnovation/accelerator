@@ -1,25 +1,42 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use work::sync::PendingPush;
+use work_adapters::sync::pending_push::Marker;
 
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
+use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
-use corpus_adapters::RealFs;
+use corpus_adapters::FileRecoveryCopies;
 use tracker::ExternalId;
+use work::draft_id::DraftId;
+use work::identity::IdentityField;
+use work::retirement::RECOVERY_PARENT;
+use work::retirement::RETIREMENT_INCOMPLETE;
 use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
 use work::sync::SyncDirection;
+use work::work_item_files::identity_of;
+use work::work_item_files::WorkItemFiles;
+use work_adapters::filesystem::FilesystemWorkItemFiles;
+use work_adapters::promotion_records::PromotionRecords;
+use work_adapters::retirement::sweep_recoveries;
+use work_adapters::retirement::RecoveryNotice;
 use work_adapters::sync::baseline;
-use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::create::canonical_external_key;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
+use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::identity_settlement::IdentityOutcome;
+use work_adapters::sync::identity_settlement::IdentityRow;
+use work_adapters::sync::identity_settlement::SettlementPorts;
 use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::ConflictDossier;
 use work_adapters::sync::run::DiscoveryStatus;
@@ -31,12 +48,21 @@ use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
+use work_adapters::sync::settled_run::run_settled;
+use work_adapters::sync::settled_run::CorpusDiscovery;
+use work_adapters::sync::settled_run::DiscoveredCorpus;
+use work_adapters::sync::settled_run::SettledRunFailure;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
 
 use crate::cli::SyncArgs;
 use crate::exit_codes;
 use crate::finaliser::FinishedRun;
 use crate::finaliser::RunFinaliser;
+use crate::identity_workspace::IdentityWorkspace;
+use crate::promotion_report::detail_lines;
+use crate::promotion_report::promotion_exit;
+use crate::promotion_report::promotion_line;
+use crate::resolve::IdentityCandidate;
 use crate::resolve::RunOutcome;
 use crate::tracker_registry::SelectionError;
 use crate::tracker_registry::TrackerRegistry;
@@ -73,13 +99,31 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
     ) else {
         return;
     };
-    for (path, marker) in markers {
+    for entry in markers {
+        let (path, marker) = match entry {
+            Ok(readable) => readable,
+            Err(unreadable) => {
+                eprintln!(
+                    "warning: {} could not be read ({}); a create or \
+                     promotion it recorded may have partially applied",
+                    unreadable.path.display(),
+                    unreadable.detail
+                );
+                continue;
+            }
+        };
         let (request, external_id) = match &marker {
-            work::sync::PendingPush::Attempted { request } => (request, None),
-            work::sync::PendingPush::Created {
+            Marker::Legacy(PendingPush::Attempted { request }) => {
+                (request, None)
+            }
+            Marker::Legacy(PendingPush::Created {
                 request,
                 external_id,
-            } => (request, Some(external_id.as_str())),
+            }) => (request, Some(external_id.as_str())),
+            Marker::Promotion(record) => (
+                &record.request,
+                record.stage.key().map(tracker::ExternalId::as_str),
+            ),
         };
         eprintln!(
             "warning: {} names a pending push for '{}' attempted at {}{}{}",
@@ -98,42 +142,128 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
     }
 }
 
-fn discover_items(work_dir: &Path) -> Vec<LocalItem> {
-    let Ok(entries) = std::fs::read_dir(work_dir) else {
-        return Vec::new();
-    };
-    let mut items: Vec<LocalItem> = entries
-        .filter_map(std::result::Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension().and_then(std::ffi::OsStr::to_str) == Some("md")
-        })
-        .filter_map(|path| {
-            let content = std::fs::read_to_string(&path).ok()?;
-            let (frontmatter, _) =
-                work_adapters::sync::digest::split_frontmatter_and_body(
-                    &content,
-                )
-                .ok()?;
-            let id = work::show::read_field_raw(&frontmatter, "id")?;
-            let external_id =
-                work::show::read_field_raw(&frontmatter, "external_id")
-                    .filter(|raw| {
-                        !raw.trim_matches(|c: char| {
-                            c.is_ascii_whitespace() || c == '"' || c == '\''
-                        })
-                        .is_empty()
-                    })
-                    .map(ExternalId::new);
-            Some(LocalItem {
-                id,
-                path,
-                external_id,
-            })
+fn discover_items(work_dir: &Path) -> Result<Vec<LocalItem>, kernel::Error> {
+    let files = FilesystemWorkItemFiles::new(work_dir).files()?;
+    let mut items: Vec<LocalItem> = files
+        .iter()
+        .filter_map(identity_of)
+        .map(|identity| LocalItem {
+            id: identity.id,
+            path: identity.path,
+            external_id: identity.external_id.map(ExternalId::new),
         })
         .collect();
     items.sort_by(|a, b| a.id.cmp(&b.id));
-    items
+    Ok(items)
+}
+
+/// Where retirement records and recovery copies live, relative to the
+/// repository root.
+pub const STATE_DIR: &str = ".accelerator/state";
+
+/// Every configured document directory, so a retirement rewrites references
+/// across the same tree `corpus frontmatter validate` walks.
+pub fn corpus_roots(
+    config: &dyn ConfigAccess,
+    repo_root: &Path,
+) -> Result<Vec<PathBuf>, ::config::ConfigError> {
+    Ok(::config::paths::doc_type_dirs(config)?
+        .into_iter()
+        .map(|resolved| repo_root.join(resolved.dir))
+        .collect())
+}
+
+struct WorkDirDiscovery<'a> {
+    work_dir: &'a Path,
+    root: &'a Path,
+}
+
+impl CorpusDiscovery for WorkDirDiscovery<'_> {
+    fn discover(&self) -> Result<DiscoveredCorpus, RunError> {
+        Ok(DiscoveredCorpus {
+            items: discover_items(self.work_dir).map_err(RunError::Internal)?,
+            status: Box::new(VcsWorkingCopyStatus::probed_from(self.root)),
+        })
+    }
+}
+
+/// Clears recovery copies nobody needs any more and warns about every
+/// restore still waiting for a person.
+fn sweep_kept_recoveries(recovery: &FileRecoveryCopies) {
+    let notices = match sweep_recoveries(recovery) {
+        Ok(notices) => notices,
+        Err(error) => {
+            eprintln!("warning: recovery copies could not be checked: {error}");
+            return;
+        }
+    };
+    for notice in notices {
+        match notice {
+            RecoveryNotice::StillPending { dir, unrestored } => {
+                let paths =
+                    unrestored.iter().fold(String::new(), |listing, path| {
+                        listing + "\n  " + &path.display().to_string()
+                    });
+                eprintln!(
+                    "warning: {RETIREMENT_INCOMPLETE}: these paths still differ \
+                     from their recovery copies in {}:{paths}\ncompare each path \
+                     with its recovery copy and merge, then delete the copy",
+                    recovery.location(&dir).display()
+                );
+            }
+            RecoveryNotice::Cleared { dir } => eprintln!(
+                "note: every path an incomplete restore left has been dealt \
+                 with; removed {}",
+                recovery.location(&dir).display()
+            ),
+        }
+    }
+}
+
+/// A warning naming each promotion record that cannot be read. Every guard
+/// already treats such a record as a promotion in flight; the warning tells
+/// a person which file to inspect.
+pub fn unreadable_promotion_record_warnings(
+    records: &dyn PromotionRecords,
+) -> Vec<String> {
+    match records.outstanding() {
+        Ok(entries) => entries
+            .into_iter()
+            .filter_map(Result::err)
+            .map(|unreadable| {
+                format!(
+                    "warning: the promotion record at {} could not be read \
+                     ({}); its draft is treated as mid-promotion until the \
+                     file is fixed or removed",
+                    unreadable.path.display(),
+                    unreadable.detail
+                )
+            })
+            .collect(),
+        Err(error) => vec![format!(
+            "warning: the promotion records could not be listed: {error}"
+        )],
+    }
+}
+
+/// Notes each retirement that completed after an incomplete restore; its
+/// copies stay for reference until the next run removes them.
+fn report_kept_recoveries(recovery: &FileRecoveryCopies) {
+    use corpus::store::RecoveryCopies as _;
+
+    let Ok(kept) = recovery.kept(Path::new(RECOVERY_PARENT)) else {
+        return;
+    };
+    for kept in kept {
+        if kept.state == corpus::store::KeptState::Completed {
+            eprintln!(
+                "note: the retirement whose restore was incomplete has since \
+                 completed; its recovery copies remain in {} for reference \
+                 and are removed on the next sync",
+                recovery.location(&kept.dir).display()
+            );
+        }
+    }
 }
 
 fn parse_resolutions(
@@ -200,10 +330,81 @@ fn discovery_line(discovery: &DiscoveryStatus) -> String {
     }
 }
 
+/// The state an identity row shows: the engine's state for the item under
+/// its settled id, or the state the identity change itself implies.
+fn identity_state(row: &IdentityRow, report: &RunReport) -> String {
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == row.settled_id)
+        .map_or_else(
+            || match row.action {
+                work::sync::IdentityAction::NotFound => {
+                    work::sync::SyncState::RemoteAbsent.to_string()
+                }
+                work::sync::IdentityAction::KeyChanged
+                | work::sync::IdentityAction::Resumed => "-".to_owned(),
+            },
+            |item| item.planned.state.to_string(),
+        )
+}
+
+fn identity_line(row: &IdentityRow, report: &RunReport) -> String {
+    identity_line_in_state(row, &identity_state(row, report))
+}
+
+/// An identity row reported with no engine run beside it to take a state
+/// from, as `work promote` reports the retirements it finishes first.
+pub fn standalone_identity_line(row: &IdentityRow) -> String {
+    identity_line_in_state(row, "-")
+}
+
+fn identity_line_in_state(row: &IdentityRow, state: &str) -> String {
+    match &row.outcome {
+        IdentityOutcome::Refused(reason) | IdentityOutcome::Failed(reason) => {
+            format!("{}\tfailed\t{state}\t{}", row.id, single_line(reason))
+        }
+        IdentityOutcome::Applied | IdentityOutcome::NotApplied => {
+            format!("{}\t{}\t{state}\t{}", row.id, row.action, row.detail)
+        }
+    }
+}
+
+/// What a run that stopped before its report still prints: every identity
+/// change the pass reported, then how many had landed.
+fn stopped_run_lines(failure: &SettledRunFailure) -> Vec<String> {
+    let mut lines: Vec<String> = failure
+        .identity
+        .iter()
+        .map(standalone_identity_line)
+        .chain(failure.promotions.iter().map(promotion_line))
+        .collect();
+    if failure.identity_applied > 0 {
+        lines.push(format!(
+            "#\tnote\tidentity-applied-before-refusal\t{}",
+            failure.identity_applied
+        ));
+    }
+    lines
+}
+
 fn render_report(report: &RunReport) -> String {
-    let mut lines = Vec::new();
+    let settled_ids: BTreeSet<&str> = report
+        .identity
+        .iter()
+        .map(|row| row.settled_id.as_str())
+        .collect();
+    let mut lines: Vec<String> = report
+        .identity
+        .iter()
+        .map(|row| identity_line(row, report))
+        .chain(report.promotions.iter().map(promotion_line))
+        .collect();
     let mut synced_count = 0usize;
     for item in &report.reported {
+        if settled_ids.contains(item.planned.id.as_str()) {
+            continue;
+        }
         if matches!(item.planned.state, work::sync::SyncState::Synced) {
             synced_count += 1;
             continue;
@@ -221,6 +422,9 @@ fn render_report(report: &RunReport) -> String {
                     Some(
                         work_adapters::sync::apply::FailureClass::Unconfigured,
                     ) => "unconfigured",
+                    Some(
+                        work_adapters::sync::apply::FailureClass::Rejected,
+                    ) => "rejected",
                     None => "-",
                 },
             ),
@@ -236,54 +440,79 @@ fn render_report(report: &RunReport) -> String {
     let summary_needed = synced_count > 0 || lines.is_empty();
     lines.sort();
     lines.push(discovery_line(&report.discovery));
+    let mut promotions: Vec<_> = report.promotions.iter().collect();
+    promotions.sort_by(|left, right| left.draft.cmp(&right.draft));
+    lines.extend(promotions.into_iter().flat_map(detail_lines));
+    if report.deferred > 0 {
+        lines.push(format!(
+            "#\tnote\tdeferred-to-next-run\t{}",
+            report.deferred
+        ));
+    }
     if summary_needed {
         lines.push(format!("#\tsummary\tsynced\t{synced_count}"));
     }
     lines.join("\n")
 }
 
-fn exit_code_for_report(report: &RunReport) -> u8 {
-    let any_terminal = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Terminal)
-        )
-    });
-    let any_retryable = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Retryable)
-        )
-    });
-    let any_unconfigured = report.reported.iter().any(|item| {
-        matches!(
-            item.outcome,
-            ItemOutcome::Failed(ref error)
-                if error.class() == Some(work_adapters::sync::apply::FailureClass::Unconfigured)
-        )
-    });
-    let awaiting_human = report.awaiting_human().next().is_some();
-
-    if any_terminal {
-        exit_codes::TERMINAL
-    } else if awaiting_human {
-        exit_codes::UNRESOLVED
-    } else if any_unconfigured {
-        exit_codes::UNCONFIGURED
-    } else if any_retryable
-        || report.read_failure.is_some()
-        || matches!(report.discovery, DiscoveryStatus::Failed { .. })
-    {
-        exit_codes::RETRYABLE
-    } else {
-        exit_codes::CLEAN
+/// Where one run yields several outcomes, the most severe wins:
+/// `71 > 1 > 4 > 75 > 74 > 70 > 0`.
+pub const fn severity(code: u8) -> u8 {
+    match code {
+        exit_codes::TERMINAL => 6,
+        exit_codes::ERROR => 5,
+        exit_codes::UNRESOLVED => 4,
+        exit_codes::REJECTED => 3,
+        exit_codes::UNCONFIGURED => 2,
+        exit_codes::RETRYABLE => 1,
+        _ => 0,
     }
+}
+
+const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
+    match class {
+        work_adapters::sync::apply::FailureClass::Terminal => {
+            exit_codes::TERMINAL
+        }
+        work_adapters::sync::apply::FailureClass::Retryable => {
+            exit_codes::RETRYABLE
+        }
+        work_adapters::sync::apply::FailureClass::Unconfigured => {
+            exit_codes::UNCONFIGURED
+        }
+        work_adapters::sync::apply::FailureClass::Rejected => {
+            exit_codes::REJECTED
+        }
+    }
+}
+
+fn exit_code_for_report(report: &RunReport) -> u8 {
+    let failures =
+        report
+            .reported
+            .iter()
+            .filter_map(|item| match &item.outcome {
+                ItemOutcome::Failed(error) => error.class().map(failure_code),
+                ItemOutcome::Applied | ItemOutcome::NotApplied => None,
+            });
+    let awaiting_human = (report.awaiting_human().next().is_some()
+        || report.identity.iter().any(IdentityRow::awaits_human))
+    .then_some(exit_codes::UNRESOLVED);
+    let read_failed = (report.read_failure.is_some()
+        || matches!(report.discovery, DiscoveryStatus::Failed { .. }))
+    .then_some(exit_codes::RETRYABLE);
+    failures
+        .chain(awaiting_human)
+        .chain(read_failed)
+        .chain(report.promotions.iter().map(promotion_exit))
+        .max_by_key(|&code| severity(code))
+        .unwrap_or(exit_codes::CLEAN)
 }
 
 fn id_is_token_safe(scheme: &WorkItemIdScheme, id: &str) -> bool {
     scheme.is_canonical_id_token(id)
+        || (scheme.ownership() == IdOwnership::Tracker
+            && (corpus::is_tracker_key(id) || DraftId::parse(id).is_some()))
 }
 
 fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
@@ -402,9 +631,11 @@ enum TargetResolutionFailure {
     AmbiguousLocal(String),
     AmbiguousExternal(String),
     LocalCollision(String),
+    RetiredAlias(String),
     PushOnlyRemoteOnly(String),
     Absent(String),
     Indeterminate(String),
+    Unlistable(String),
 }
 
 impl TargetResolutionFailure {
@@ -416,9 +647,11 @@ impl TargetResolutionFailure {
             | Self::AmbiguousLocal(message)
             | Self::AmbiguousExternal(message)
             | Self::LocalCollision(message)
+            | Self::RetiredAlias(message)
             | Self::PushOnlyRemoteOnly(message)
             | Self::Absent(message)
-            | Self::Indeterminate(message) => message,
+            | Self::Indeterminate(message)
+            | Self::Unlistable(message) => message,
         }
     }
 
@@ -428,60 +661,77 @@ impl TargetResolutionFailure {
             | Self::AmbiguousLocal(_)
             | Self::AmbiguousExternal(_)
             | Self::LocalCollision(_)
+            | Self::RetiredAlias(_)
             | Self::PushOnlyRemoteOnly(_) => exit_codes::USAGE,
             Self::Unmanaged(_) | Self::Absent(_) => {
                 exit_codes::RESOLVE_NOT_FOUND
             }
             Self::OutsideWorkDir(_) => exit_codes::RESOLVE_OUTSIDE_WORKDIR,
             Self::Indeterminate(_) => exit_codes::RETRYABLE,
+            Self::Unlistable(_) => exit_codes::ERROR,
         }
     }
 }
 
-fn external_id_index(
-    corpus: &[LocalItem],
-) -> BTreeMap<String, Vec<&LocalItem>> {
-    let mut index: BTreeMap<String, Vec<&LocalItem>> = BTreeMap::new();
-    for item in corpus {
-        if let Some(external) = &item.external_id {
-            index
-                .entry(canonical_external_key(external))
-                .or_default()
-                .push(item);
-        }
-    }
-    index
-}
-
-/// The other local file a dual-shape token collides with: the token is
-/// `local_match`'s local id and simultaneously a *different* file's
-/// `external_id`. A genuine local/local collision, decidable entirely from the
-/// corpus, so the caller can name both files without any remote call.
-fn colliding_file<'a>(
-    index: &BTreeMap<String, Vec<&'a LocalItem>>,
+/// The failure for a token that more than one item's identity names, told
+/// apart by the fields that name it.
+fn identity_conflict(
     token: &str,
-    local_match: &LocalItem,
-) -> Option<&'a LocalItem> {
-    let key = canonical_external_key(&ExternalId::new(token.to_owned()));
-    index
-        .get(&key)?
+    candidates: &[IdentityCandidate],
+) -> TargetResolutionFailure {
+    let named_by = |field: IdentityField| {
+        candidates
+            .iter()
+            .filter(move |candidate| candidate.field == field)
+    };
+    let local = named_by(IdentityField::Id).next();
+    let linked = local.and_then(|local| {
+        named_by(IdentityField::ExternalId)
+            .find(|candidate| candidate.path != local.path)
+    });
+    if let (Some(local), Some(linked)) = (local, linked) {
+        return TargetResolutionFailure::LocalCollision(format!(
+            "'{token}' is the local id of {} and also the external_id \
+             recorded by {}; re-run with the path of the file you intended",
+            local.path.display(),
+            linked.path.display()
+        ));
+    }
+    if let Some(retiring) = named_by(IdentityField::Alias).next() {
+        return TargetResolutionFailure::RetiredAlias(format!(
+            "'{token}' is an id retired by {} and is also claimed by another \
+             item; re-run with the path of the file you intended",
+            retiring.path.display()
+        ));
+    }
+    if candidates
         .iter()
-        .find(|item| item.id != local_match.id)
-        .copied()
+        .all(|candidate| candidate.field == IdentityField::ExternalId)
+    {
+        return TargetResolutionFailure::AmbiguousExternal(format!(
+            "'{token}' matches more than one item's external_id; re-run \
+             with a local id or a path"
+        ));
+    }
+    ambiguous_local(token)
+}
+
+fn ambiguous_local(token: &str) -> TargetResolutionFailure {
+    TargetResolutionFailure::AmbiguousLocal(format!(
+        "'{token}' is an ambiguous local id; re-run with a full id or a path"
+    ))
 }
 
 /// Resolves each `--target` token to a local item or a remote candidate,
-/// accumulating every failure so one run names all offenders. Local resolution
-/// wins; a token that resolves locally to `NotFound`/`Invalid` cascades to the
-/// `external_id` index, and a token that matches nothing locally becomes a
-/// remote candidate rather than an abort. An ambiguous or out-of-directory
-/// local outcome still fails.
+/// accumulating every failure so one run names all offenders. A token that
+/// no item's identity or filename names becomes a remote candidate rather
+/// than an abort. An ambiguous, conflicting or out-of-directory local
+/// outcome still fails.
 fn resolve_targets(
     corpus: &[LocalItem],
     targets: &[String],
     resolver: &dyn Fn(&str) -> RunOutcome,
 ) -> Result<ResolvedTargets, Vec<TargetResolutionFailure>> {
-    let index = external_id_index(corpus);
     let mut matched: Vec<&LocalItem> = Vec::new();
     let mut remote_candidates: Vec<ExternalId> = Vec::new();
     let mut candidate_keys = std::collections::BTreeSet::new();
@@ -504,18 +754,7 @@ fn resolve_targets(
                         .unwrap_or(false)
                 });
                 match local_match {
-                    Some(item) => match colliding_file(&index, token, item) {
-                        Some(other) => failures.push(
-                            TargetResolutionFailure::LocalCollision(format!(
-                                "'{token}' is the local id of {} and also \
-                                 the external_id recorded by {}; re-run with \
-                                 the path of the file you intended",
-                                item.path.display(),
-                                other.path.display()
-                            )),
-                        ),
-                        None => matched.push(item),
-                    },
+                    Some(item) => matched.push(item),
                     None => failures.push(TargetResolutionFailure::Unmanaged(
                         format!(
                             "'{token}' resolves to a file that is not a \
@@ -524,34 +763,21 @@ fn resolve_targets(
                     )),
                 }
             }
-            RunOutcome::Ambiguous(_) => {
-                failures.push(TargetResolutionFailure::AmbiguousLocal(
-                    format!(
-                    "'{token}' is an ambiguous local id; re-run with a full \
-                     id or a path"
-                ),
-                ));
+            RunOutcome::Ambiguous(_) => failures.push(ambiguous_local(token)),
+            RunOutcome::Conflicting(candidates) => {
+                failures.push(identity_conflict(token, &candidates));
             }
             RunOutcome::OutsideWorkDir(message) => {
                 failures.push(TargetResolutionFailure::OutsideWorkDir(message));
             }
+            RunOutcome::Unlistable(message) => {
+                failures.push(TargetResolutionFailure::Unlistable(message));
+            }
             RunOutcome::NotFound(_) | RunOutcome::Invalid(_) => {
                 let key =
                     canonical_external_key(&ExternalId::new(token.to_owned()));
-                match index.get(&key).map(Vec::as_slice) {
-                    Some([one]) => matched.push(one),
-                    None | Some([]) => {
-                        if candidate_keys.insert(key) {
-                            remote_candidates
-                                .push(ExternalId::new(token.clone()));
-                        }
-                    }
-                    Some(_) => failures.push(
-                        TargetResolutionFailure::AmbiguousExternal(format!(
-                            "'{token}' matches more than one item's \
-                             external_id; re-run with a local id or a path"
-                        )),
-                    ),
+                if candidate_keys.insert(key) {
+                    remote_candidates.push(ExternalId::new(token.clone()));
                 }
             }
         }
@@ -1045,6 +1271,69 @@ fn refusal_message(
     )
 }
 
+/// What a failed run's message needs to name the limits and caps it hit.
+struct RunErrorContext<'a> {
+    config: &'a dyn ConfigAccess,
+    integration: &'a str,
+    max_pulls_source: Option<::config::Level>,
+    max_pushes_source: Option<::config::Level>,
+}
+
+/// The message and exit code for a run that stopped before reporting.
+fn run_error_outcome(
+    error: &RunError,
+    context: &RunErrorContext<'_>,
+) -> (String, u8) {
+    match error {
+        RunError::Refused {
+            pulls,
+            pushes,
+            max_pulls,
+            max_pushes,
+            new_local_files,
+            new_remote_issues,
+        } => (
+            refusal_message(
+                context.integration,
+                *pulls,
+                *pushes,
+                *max_pulls,
+                *max_pushes,
+                *new_local_files,
+                *new_remote_issues,
+                context.max_pulls_source,
+                context.max_pushes_source,
+            ),
+            exit_codes::REFUSED_BULK_OVERWRITE,
+        ),
+        RunError::DiscoveryIncomplete {
+            found,
+            completeness,
+        } => (
+            discovery_incomplete_message(
+                context.config,
+                context.integration,
+                *found,
+                *completeness,
+            ),
+            exit_codes::REFUSED_BULK_OVERWRITE,
+        ),
+        RunError::DiscoveryUnconfigured { detail } => (
+            format!("refused: discovery is unconfigured — {detail}"),
+            exit_codes::UNCONFIGURED,
+        ),
+        RunError::KeyedReadCapped => (
+            keyed_read_capped_message(context.config, context.integration),
+            exit_codes::KEYED_READ_CAPPED,
+        ),
+        RunError::RetirementIncomplete { message } => {
+            (message.clone(), exit_codes::TERMINAL)
+        }
+        RunError::Read(error) => (error.to_string(), exit_codes::RETRYABLE),
+        RunError::Internal(error) => (error.to_string(), exit_codes::ERROR),
+    }
+}
+
 /// # Errors
 ///
 /// Never returns `Err`; every failure is reported through the exit code.
@@ -1111,7 +1400,13 @@ pub fn run_sync(
         }
     };
 
-    let items = discover_items(&work_dir);
+    let items = match discover_items(&work_dir) {
+        Ok(items) => items,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
 
     let scheme = match crate::config::resolve_scheme(config) {
         Ok(scheme) => scheme,
@@ -1175,33 +1470,57 @@ pub fn run_sync(
         }
     };
 
-    let baseline_path = baseline::path(&integrations_root, &integration);
+    let workspace = match IdentityWorkspace::open(
+        config,
+        &repo_root,
+        &work_dir,
+        &integrations_root,
+        &integration,
+    ) {
+        Ok(workspace) => workspace,
+        Err(message) => {
+            eprintln!("{message}");
+            return ExitCode::from(exit_codes::ERROR);
+        }
+    };
+    let baseline_path = workspace.baseline_path();
     let baseline_dir = baseline_path.parent().unwrap_or(&integrations_root);
-    // The integration's state directory holds the baseline, the conflict
-    // dossiers, and the pending-push markers. On a never-synced integration it
-    // does not exist yet, and the atomic-write containment check canonicalises
-    // this directory as its trusted root, so the first baseline write fails
-    // unless it is present. Create it up-front rather than relying on a later
-    // write to author it.
-    if let Err(error) = std::fs::create_dir_all(baseline_dir) {
-        eprintln!(
-            "could not create the integration state directory {}: {error}",
-            baseline_dir.display()
-        );
-        return ExitCode::from(exit_codes::ERROR);
-    }
-    let file_reader = RealFs;
     let corpus_store = FileCorpusStore::new(baseline_dir);
-    let mut baseline_store =
-        BaselineStore::new(baseline_path, &file_reader, &corpus_store);
-    let status = VcsWorkingCopyStatus::probed_from(&root);
+    let project_store = FileCorpusStore::new(&repo_root);
+    let state_store = FileCorpusStore::new(workspace.state_dir());
+    let integrations_store = FileCorpusStore::new(&integrations_root);
+    let mut baseline_store = workspace.baseline(&corpus_store);
+    let retirement_baseline = workspace.baseline(&corpus_store);
+    let retirement =
+        workspace.retirement_ports(&project_store, &retirement_baseline);
+    let records = workspace.retirement_records(&state_store);
+    let promotions = workspace.promotion_records(&integrations_store);
+    let probe_status = || -> Box<dyn WorkingCopyStatus> {
+        Box::new(VcsWorkingCopyStatus::probed_from(&repo_root))
+    };
+    let settlement = SettlementPorts {
+        retirement: &retirement,
+        records: &records,
+        promotions: &promotions,
+        ownership: scheme.ownership(),
+        state_dir: workspace.state_dir(),
+        probe_status: &probe_status,
+    };
+    let recovery = workspace.recovery();
+    let discovery = WorkDirDiscovery {
+        work_dir: &work_dir,
+        root: &repo_root,
+    };
     let clock = SystemClock;
-    let author =
-        crate::sync_author::ConfiguredLocalAuthor::new(config, root, work_dir);
+    let author = crate::sync_author::ConfiguredLocalAuthor::new(
+        config,
+        root,
+        work_dir.clone(),
+    );
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
-        status: &status,
+        status: workspace.status(),
         writer: &corpus_store,
         clock: &clock,
         author: &author,
@@ -1265,9 +1584,20 @@ pub fn run_sync(
         integrations_root: &integrations_root,
         integration: &integration,
         scope,
+        promote: !args.no_promote,
     };
 
-    match work_adapters::sync::run::run(&ports, &mut baseline_store, &request) {
+    sweep_kept_recoveries(recovery);
+    for warning in unreadable_promotion_record_warnings(&promotions) {
+        eprintln!("{warning}");
+    }
+    match run_settled(
+        &request,
+        &ports,
+        &settlement,
+        &mut baseline_store,
+        &discovery,
+    ) {
         Ok(report) => {
             if let work_adapters::sync::baseline::Degradation::Unparseable {
                 detail,
@@ -1325,62 +1655,25 @@ pub fn run_sync(
                 &mut std::io::stderr(),
             );
             warn_outstanding_pushes(&integrations_root, &integration);
+            report_kept_recoveries(recovery);
             ExitCode::from(exit_code_for_report(&report))
         }
-        Err(RunError::Refused {
-            pulls,
-            pushes,
-            max_pulls,
-            max_pushes,
-            new_local_files,
-            new_remote_issues,
-        }) => {
-            eprintln!(
-                "{}",
-                refusal_message(
-                    &integration,
-                    pulls,
-                    pushes,
-                    max_pulls,
-                    max_pushes,
-                    new_local_files,
-                    new_remote_issues,
+        Err(failure) => {
+            for line in stopped_run_lines(&failure) {
+                println!("{line}");
+            }
+            let (message, code) = run_error_outcome(
+                &failure.error,
+                &RunErrorContext {
+                    config,
+                    integration: &integration,
                     max_pulls_source,
                     max_pushes_source,
-                )
+                },
             );
-            ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
-        }
-        Err(RunError::DiscoveryIncomplete {
-            found,
-            completeness,
-        }) => {
-            eprintln!(
-                "{}",
-                discovery_incomplete_message(
-                    config,
-                    &integration,
-                    found,
-                    completeness,
-                )
-            );
-            ExitCode::from(exit_codes::REFUSED_BULK_OVERWRITE)
-        }
-        Err(RunError::DiscoveryUnconfigured { detail }) => {
-            eprintln!("refused: discovery is unconfigured — {detail}");
-            ExitCode::from(exit_codes::UNCONFIGURED)
-        }
-        Err(RunError::KeyedReadCapped) => {
-            eprintln!("{}", keyed_read_capped_message(config, &integration));
-            ExitCode::from(exit_codes::KEYED_READ_CAPPED)
-        }
-        Err(RunError::Read(error)) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::RETRYABLE)
-        }
-        Err(RunError::Internal(error)) => {
-            eprintln!("{error}");
-            ExitCode::from(exit_codes::ERROR)
+            eprintln!("{message}");
+            report_kept_recoveries(recovery);
+            ExitCode::from(code)
         }
     }
 }
@@ -1458,28 +1751,169 @@ mod tests {
         item.path.canonicalize().expect("canonicalise item path")
     }
 
+    struct RealCorpus {
+        _dir: tempfile::TempDir,
+        work_dir: PathBuf,
+    }
+
+    impl RealCorpus {
+        fn new() -> Self {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let work_dir =
+                dir.path().canonicalize().expect("canonical work dir");
+            std::fs::create_dir_all(work_dir.join("drafts"))
+                .expect("drafts dir");
+            Self {
+                _dir: dir,
+                work_dir,
+            }
+        }
+
+        fn item(&self, relative: &str, frontmatter: &str) -> &Self {
+            std::fs::write(
+                self.work_dir.join(relative),
+                format!("---\n{frontmatter}---\n\n# Title\n"),
+            )
+            .expect("write item");
+            self
+        }
+
+        fn items(&self) -> Vec<LocalItem> {
+            super::discover_items(&self.work_dir).expect("discover items")
+        }
+
+        fn resolve(&self, targets: &[&str]) -> ResolveResult {
+            let resolver = |token: &str| {
+                crate::resolve::resolve_with(
+                    &scheme(),
+                    &self.work_dir,
+                    &self.work_dir,
+                    token,
+                )
+            };
+            let targets: Vec<String> =
+                targets.iter().map(|&target| target.to_owned()).collect();
+            resolve_targets(&self.items(), &targets, &resolver)
+        }
+    }
+
+    type ResolveResult =
+        Result<super::ResolvedTargets, Vec<TargetResolutionFailure>>;
+
+    fn only_failure(result: ResolveResult) -> TargetResolutionFailure {
+        let Err(mut failures) = result else {
+            unreachable!("the target must fail")
+        };
+        assert_eq!(failures.len(), 1, "{failures:?}");
+        failures.remove(0)
+    }
+
+    fn matched_ids(result: ResolveResult) -> Vec<String> {
+        result
+            .expect("the targets resolve")
+            .items
+            .into_iter()
+            .map(|item| item.id)
+            .collect()
+    }
+
     #[test]
-    fn a_local_local_collision_is_a_usage_error_naming_both_files() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let local = target_item(dir.path(), "0001", None);
-        let remote_holder = target_item(dir.path(), "0002", Some("0001"));
-        let corpus = vec![local, remote_holder];
-        let local_path = canonical(&corpus[0]);
-        let resolver = |_token: &str| RunOutcome::Resolved(local_path.clone());
+    fn a_target_that_is_one_items_id_and_anothers_external_id_is_a_local_collision(
+    ) {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\n")
+            .item("0002-b.md", "id: \"0002\"\nexternal_id: \"0001\"\n");
 
-        let failures =
-            resolve_targets(&corpus, &["0001".to_owned()], &resolver)
-                .expect_err("a local/local collision must abort");
+        let failure = only_failure(corpus.resolve(&["0001"]));
 
-        assert_eq!(failures.len(), 1);
-        assert!(matches!(
-            failures[0],
-            TargetResolutionFailure::LocalCollision(_)
-        ));
-        assert_eq!(failures[0].exit_code(), exit_codes::USAGE);
-        let message = failures[0].message();
-        assert!(message.contains("0001.md"), "names file A: {message}");
-        assert!(message.contains("0002.md"), "names file B: {message}");
+        assert!(
+            matches!(failure, TargetResolutionFailure::LocalCollision(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+        let message = failure.message();
+        assert!(message.contains("0001-a.md"), "names file A: {message}");
+        assert!(message.contains("0002-b.md"), "names file B: {message}");
+    }
+
+    #[test]
+    fn a_target_that_is_several_items_external_id_is_ambiguous_external() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\nexternal_id: \"PP-1\"\n")
+            .item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-1\"\n");
+
+        let failure = only_failure(corpus.resolve(&["PP-1"]));
+
+        assert!(
+            matches!(failure, TargetResolutionFailure::AmbiguousExternal(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+    }
+
+    #[test]
+    fn a_target_matching_an_alias_names_the_retiring_item() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\nexternal_id: \"ENG-42\"\n")
+            .item("ENG-7-b.md", "id: \"ENG-7\"\naliases: [\"ENG-42\"]\n");
+
+        let failure = only_failure(corpus.resolve(&["ENG-42"]));
+
+        assert!(
+            matches!(failure, TargetResolutionFailure::RetiredAlias(_)),
+            "{failure:?}"
+        );
+        assert_eq!(failure.exit_code(), exit_codes::USAGE);
+        let message = failure.message();
+        assert!(message.contains("ENG-42"), "names the alias: {message}");
+        assert!(
+            message.contains("ENG-7-b.md"),
+            "names the retiring item: {message}"
+        );
+    }
+
+    #[test]
+    fn a_lowercase_key_target_resolves_its_item() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(matched_ids(corpus.resolve(&["pp-787"])), vec!["0002"]);
+    }
+
+    #[test]
+    fn a_remote_id_token_matches_through_the_items_external_id() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(matched_ids(corpus.resolve(&["PP-787"])), vec!["0002"]);
+    }
+
+    #[test]
+    fn two_tokens_naming_one_item_de_duplicate_to_a_single_entry() {
+        let corpus = RealCorpus::new();
+        corpus.item("0002-b.md", "id: \"0002\"\nexternal_id: \"PP-787\"\n");
+
+        assert_eq!(
+            matched_ids(corpus.resolve(&["0002", "PP-787"])),
+            vec!["0002"],
+            "the same item named twice collapses to a single slice entry"
+        );
+    }
+
+    #[test]
+    fn sync_discovery_includes_drafts() {
+        let corpus = RealCorpus::new();
+        corpus
+            .item("0001-a.md", "id: \"0001\"\n")
+            .item("drafts/draft-k7mq3x-b.md", "id: \"draft-k7mq3x\"\n");
+
+        let ids: Vec<String> =
+            corpus.items().into_iter().map(|item| item.id).collect();
+
+        assert_eq!(ids, vec!["0001", "draft-k7mq3x"]);
     }
 
     #[test]
@@ -1529,18 +1963,18 @@ mod tests {
     }
 
     #[test]
-    fn a_remote_id_token_matches_through_the_external_id_index() {
+    fn a_token_resolved_over_an_unlistable_corpus_fails_as_an_error() {
         let dir = tempfile::tempdir().expect("tempdir");
         let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
         let resolver =
-            |_token: &str| RunOutcome::Invalid("not local".to_owned());
+            |_token: &str| RunOutcome::Unlistable("unreadable".to_owned());
 
-        let matched =
+        let failures =
             resolve_targets(&corpus, &["PP-787".to_owned()], &resolver)
-                .expect("the remote id resolves through the index");
+                .expect_err("an unlistable corpus must fail the target");
 
-        assert_eq!(matched.items.len(), 1);
-        assert_eq!(matched.items[0].id, "0002");
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].exit_code(), exit_codes::ERROR);
     }
 
     #[test]
@@ -1577,34 +2011,6 @@ mod tests {
             1,
             "two spellings of one issue fold to a single candidate"
         );
-    }
-
-    #[test]
-    fn two_tokens_naming_one_item_de_duplicate_to_a_single_entry() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let corpus = vec![target_item(dir.path(), "0002", Some("PP-787"))];
-        let item_path = canonical(&corpus[0]);
-        let resolver = move |token: &str| {
-            if token == "0002" {
-                RunOutcome::Resolved(item_path.clone())
-            } else {
-                RunOutcome::Invalid("not local".to_owned())
-            }
-        };
-
-        let matched = resolve_targets(
-            &corpus,
-            &["0002".to_owned(), "PP-787".to_owned()],
-            &resolver,
-        )
-        .expect("both tokens resolve to the one item");
-
-        assert_eq!(
-            matched.items.len(),
-            1,
-            "the same item named twice collapses to a single slice entry"
-        );
-        assert_eq!(matched.items[0].id, "0002");
     }
 
     #[test]
@@ -1845,6 +2251,9 @@ mod tests {
     #[test]
     fn render_report_sorts_fixed_width_ids_numerically() {
         let report = RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
             reported: vec![
                 reported("0001", SyncState::LocallyModified, Action::Push),
                 reported("0002", SyncState::RemotelyModified, Action::Pull),
@@ -1889,6 +2298,9 @@ mod tests {
     #[test]
     fn render_report_emits_the_summary_row_for_an_empty_corpus() {
         let report = RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
             reported: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -1904,8 +2316,322 @@ mod tests {
         );
     }
 
+    fn identity_row(
+        id: &str,
+        settled_id: &str,
+        action: work::sync::IdentityAction,
+        detail: &str,
+        outcome: work_adapters::sync::identity_settlement::IdentityOutcome,
+    ) -> work_adapters::sync::identity_settlement::IdentityRow {
+        work_adapters::sync::identity_settlement::IdentityRow {
+            id: id.to_owned(),
+            settled_id: settled_id.to_owned(),
+            action,
+            detail: detail.to_owned(),
+            outcome,
+        }
+    }
+
+    #[test]
+    fn a_stopped_run_prints_the_identity_changes_that_landed_before_its_note() {
+        use work::promotion::Promotion;
+        use work_adapters::promotion::PromotionOutcome;
+        use work_adapters::promotion::PromotionRow;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+        use work_adapters::sync::settled_run::SettledRunFailure;
+
+        let promoted = PromotionRow {
+            draft: "draft-k7mq3x".to_owned(),
+            path: PathBuf::from("meta/work/drafts/draft-k7mq3x-title.md"),
+            outcome: PromotionOutcome::Promoted(Promotion::Completed(
+                ExternalId::new("ENG-43".to_owned()),
+                SyncState::Synced,
+            )),
+            details: Vec::new(),
+        };
+        let failure = SettledRunFailure {
+            error: work_adapters::sync::run::RunError::KeyedReadCapped,
+            identity_applied: 2,
+            identity: vec![identity_row(
+                "PP-760",
+                "ENG-42",
+                work::sync::IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            promotions: vec![promoted.clone()],
+        };
+
+        assert_eq!(
+            super::stopped_run_lines(&failure),
+            vec![
+                "PP-760\tkey-changed\t-\tPP-760->ENG-42".to_owned(),
+                crate::promotion_report::promotion_line(&promoted),
+                "#\tnote\tidentity-applied-before-refusal\t2".to_owned(),
+            ]
+        );
+    }
+
+    fn settled_report(
+        identity: Vec<work_adapters::sync::identity_settlement::IdentityRow>,
+        reported: Vec<ReportedItem>,
+    ) -> RunReport {
+        RunReport {
+            identity,
+            reported,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        }
+    }
+
+    #[test]
+    fn a_key_change_row_renders_old_and_new_keys() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "ENG-42",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("ENG-42", SyncState::LocallyModified, Action::Push)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.lines().any(|line| line
+                == "PP-760\tkey-changed\tlocally-modified\tPP-760->ENG-42"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn a_not_found_row_is_a_four_column_record() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-76",
+                "PP-76",
+                IdentityAction::NotFound,
+                "PP-76",
+                IdentityOutcome::NotApplied,
+            )],
+            vec![reported("PP-76", SyncState::RemoteAbsent, Action::Noop)],
+        );
+
+        let rendered = render_report(&report);
+
+        let line = rendered
+            .lines()
+            .find(|line| line.starts_with("PP-76\t"))
+            .expect("a row for the item");
+        assert_eq!(line, "PP-76\tnot-found\tremote-absent\tPP-76");
+        assert_eq!(line.split('\t').count(), 4);
+    }
+
+    #[test]
+    fn each_id_appears_in_one_report_row() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "0230",
+                "0230",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("0230", SyncState::LocallyModified, Action::Push)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert_eq!(
+            rendered
+                .lines()
+                .filter(|line| line.starts_with("0230\t"))
+                .count(),
+            1,
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn key_changed_rows_survive_synced_row_suppression() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "0230",
+                "0230",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Applied,
+            )],
+            vec![reported("0230", SyncState::Synced, Action::Noop)],
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains("0230\tkey-changed\tsynced\tPP-760->ENG-42"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+    }
+
+    #[test]
+    fn a_refused_identity_row_renders_as_failed_with_its_reason() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "PP-760",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Refused(
+                    "cannot retire PP-760 for ENG-42: ENG-7-other.md\nholds it"
+                        .to_owned(),
+                ),
+            )],
+            Vec::new(),
+        );
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains(
+                "PP-760\tfailed\t-\tcannot retire PP-760 for ENG-42: \
+                 ENG-7-other.md holds it"
+            ),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn a_key_change_collision_exits_unresolved() {
+        use work::sync::IdentityAction;
+        use work_adapters::sync::identity_settlement::IdentityOutcome;
+
+        let report = settled_report(
+            vec![identity_row(
+                "PP-760",
+                "PP-760",
+                IdentityAction::KeyChanged,
+                "PP-760->ENG-42",
+                IdentityOutcome::Refused("collision".to_owned()),
+            )],
+            Vec::new(),
+        );
+
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            exit_codes::UNRESOLVED
+        );
+    }
+
+    #[test]
+    fn deferred_items_are_noted() {
+        let report = RunReport {
+            deferred: 2,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert!(
+            render_report(&report).contains("#\tnote\tdeferred-to-next-run\t2"),
+        );
+    }
+
+    #[test]
+    fn an_incomplete_restore_names_both_ids_every_unrestored_path_the_recovery_directory_and_the_remedy(
+    ) {
+        use work::retirement::Retirement;
+        use work::retirement::RetirementCause;
+        use work::retirement::RetirementCauseKind;
+        use work::retirement::RetirementFailure;
+        use work_adapters::sync::run::RunError;
+
+        struct NoConfig;
+
+        impl ::config::ConfigAccess for NoConfig {
+            fn get(
+                &self,
+                _key: &::config::Key,
+                _level: Option<::config::Level>,
+            ) -> Result<::config::Resolved, ::config::ConfigError> {
+                Ok(::config::Resolved::Absent)
+            }
+
+            fn set(
+                &self,
+                _key: &::config::Key,
+                _value: &str,
+                _level: ::config::Level,
+            ) -> Result<(), ::config::ConfigError> {
+                unreachable!("reporting a failure never writes config")
+            }
+        }
+
+        let retirement = Retirement {
+            old_id: "PP-760",
+            new_id: "ENG-42",
+            new_external_id: Some("ENG-42"),
+        };
+        let recovery = Path::new(
+            "/repo/.accelerator/state/retirement-recovery/PP-760--ENG-42",
+        );
+        let failure = RetirementFailure::RestoreIncomplete {
+            cause: RetirementCause {
+                path: PathBuf::from("/repo/meta/work/ENG-42-a.md"),
+                kind: RetirementCauseKind::ChangedSinceSnapshot,
+            },
+            unrestored: vec![
+                PathBuf::from("/repo/meta/plans/plan.md"),
+                PathBuf::from("/repo/meta/work/0001-child.md"),
+            ],
+        };
+        let error = RunError::RetirementIncomplete {
+            message: failure.message(&retirement, recovery),
+        };
+
+        let (message, code) = super::run_error_outcome(
+            &error,
+            &super::RunErrorContext {
+                config: &NoConfig,
+                integration: "linear",
+                max_pulls_source: None,
+                max_pushes_source: None,
+            },
+        );
+
+        assert_eq!(code, exit_codes::TERMINAL);
+        for expected in [
+            "retirement-incomplete",
+            "PP-760",
+            "ENG-42",
+            "/repo/meta/plans/plan.md",
+            "/repo/meta/work/0001-child.md",
+            "/repo/.accelerator/state/retirement-recovery/PP-760--ENG-42",
+            "restore these paths from version control",
+        ] {
+            assert!(message.contains(expected), "{expected}: {message}");
+        }
+    }
+
     fn report_with(discovery: DiscoveryStatus) -> RunReport {
         RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
             reported: Vec::new(),
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -1913,6 +2639,407 @@ mod tests {
             dossiers: Vec::new(),
             discovery,
             keyed_read_budget_limited: false,
+        }
+    }
+
+    mod promotion_rows {
+        use std::path::PathBuf;
+
+        use tracker::ExternalId;
+        use work::identity::IdentityField;
+        use work::promotion::NotPromoted;
+        use work::promotion::Promotion;
+        use work::retirement::RetirementCause;
+        use work::retirement::RetirementCauseKind;
+        use work::retirement::RetirementFailure;
+        use work::retirement::RetirementRefusal;
+        use work::sync::Action;
+        use work::sync::SyncState;
+        use work_adapters::promotion::Detail;
+        use work_adapters::promotion::DetailSource;
+        use work_adapters::promotion::PromotionOutcome;
+        use work_adapters::promotion::PromotionRow;
+        use work_adapters::sync::run::DiscoveryStatus;
+        use work_adapters::sync::run::RunReport;
+
+        use super::super::exit_code_for_report;
+        use super::super::render_report;
+        use super::report_with;
+        use super::reported;
+        use crate::exit_codes;
+
+        fn key() -> ExternalId {
+            ExternalId::new("PP-900".to_owned())
+        }
+
+        fn draft_path(draft: &str) -> PathBuf {
+            PathBuf::from(format!("meta/work/drafts/{draft}-title.md"))
+        }
+
+        fn row(draft: &str, outcome: PromotionOutcome) -> PromotionRow {
+            PromotionRow {
+                draft: draft.to_owned(),
+                path: draft_path(draft),
+                outcome,
+                details: Vec::new(),
+            }
+        }
+
+        fn not_promoted(draft: &str, reason: NotPromoted) -> PromotionRow {
+            PromotionRow {
+                details: vec![Detail {
+                    source: DetailSource::Item,
+                    path: draft_path(draft),
+                }],
+                ..row(
+                    draft,
+                    PromotionOutcome::NotPromoted {
+                        reason,
+                        held_key: None,
+                    },
+                )
+            }
+        }
+
+        fn promoting(rows: Vec<PromotionRow>) -> RunReport {
+            RunReport {
+                promotions: rows,
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            }
+        }
+
+        fn lines(report: &RunReport) -> Vec<String> {
+            render_report(report).lines().map(str::to_owned).collect()
+        }
+
+        #[test]
+        fn a_not_promoted_draft_is_reported_with_its_reason() {
+            let report = promoting(vec![not_promoted(
+                "draft-aaaaaa",
+                NotPromoted::TrackerUnreachable,
+            )]);
+
+            assert!(lines(&report).contains(
+                &"draft-aaaaaa\tnot-promoted\tunsynced\ttracker-unreachable"
+                    .to_owned()
+            ));
+        }
+
+        #[test]
+        fn promotion_rows_are_four_column_records() {
+            let report = promoting(vec![
+                row("draft-aaaaaa", PromotionOutcome::Previewed),
+                row(
+                    "draft-bbbbbb",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        key(),
+                        SyncState::Synced,
+                    )),
+                ),
+                row(
+                    "draft-cccccc",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        ExternalId::new("PP-901".to_owned()),
+                        SyncState::LocallyModified,
+                    )),
+                ),
+                row(
+                    "draft-dddddd",
+                    PromotionOutcome::Promoted(Promotion::AlreadyDone(
+                        ExternalId::new("PP-902".to_owned()),
+                    )),
+                ),
+            ]);
+
+            let rendered = lines(&report);
+
+            for expected in [
+                "draft-aaaaaa\tpromote\tunsynced\t-",
+                "draft-bbbbbb\tpromoted\tsynced\tPP-900",
+                "draft-cccccc\tpromoted\tlocally-modified\tPP-901",
+                "draft-dddddd\talready-promoted\tsynced\tPP-902",
+            ] {
+                assert!(
+                    rendered.contains(&expected.to_owned()),
+                    "{expected} in {rendered:?}"
+                );
+            }
+        }
+
+        #[test]
+        fn detail_lines_trail_the_report_and_carry_their_row_id() {
+            let mut report = promoting(vec![
+                not_promoted("draft-bbbbbb", NotPromoted::TrackerUnreachable),
+                not_promoted(
+                    "draft-aaaaaa",
+                    NotPromoted::Refused(RetirementRefusal::KeyLinked {
+                        holder: PathBuf::from("meta/work/0002-legacy.md"),
+                    }),
+                ),
+            ]);
+            report.promotions[1].details = vec![Detail {
+                source: DetailSource::Holder,
+                path: PathBuf::from("meta/work/0002-legacy.md"),
+            }];
+            report.reported = vec![reported(
+                "0001",
+                SyncState::LocallyModified,
+                Action::Push,
+            )];
+
+            let rendered = lines(&report);
+
+            let first_hash = rendered
+                .iter()
+                .position(|line| line.starts_with('#'))
+                .unwrap();
+            assert!(
+                rendered[first_hash..]
+                    .iter()
+                    .all(|line| line.starts_with('#')),
+                "{rendered:?}"
+            );
+            let details: Vec<&String> = rendered
+                .iter()
+                .filter(|line| line.starts_with("#\tdetail\t"))
+                .collect();
+            assert_eq!(
+                details,
+                vec![
+                    "#\tdetail\tdraft-aaaaaa\tholder\tmeta/work/0002-legacy.md",
+                    "#\tdetail\tdraft-bbbbbb\titem\t\
+                     meta/work/drafts/draft-bbbbbb-title.md",
+                ]
+            );
+        }
+
+        #[test]
+        fn an_adopt_that_will_conflict_reports_promoted_conflict_with_a_detail_line(
+        ) {
+            let report = promoting(vec![PromotionRow {
+                details: vec![Detail {
+                    source: DetailSource::Item,
+                    path: PathBuf::from("meta/work/PP-900-title.md"),
+                }],
+                ..row(
+                    "draft-aaaaaa",
+                    PromotionOutcome::Promoted(Promotion::Completed(
+                        key(),
+                        SyncState::Conflict,
+                    )),
+                )
+            }]);
+
+            let rendered = lines(&report);
+
+            assert!(rendered.contains(
+                &"draft-aaaaaa\tpromoted\tconflict\tPP-900".to_owned()
+            ));
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\titem\tmeta/work/PP-900-title.md"
+                    .to_owned()
+            ));
+        }
+
+        #[test]
+        fn a_path_to_restore_names_vcs_or_its_recovery_directory() {
+            let mut report = promoting(vec![not_promoted(
+                "draft-aaaaaa",
+                NotPromoted::TrackerUnreachable,
+            )]);
+            report.promotions[0].details = vec![
+                Detail {
+                    source: DetailSource::Vcs,
+                    path: PathBuf::from("meta/plans/a.md"),
+                },
+                Detail {
+                    source: DetailSource::Recovery {
+                        location: PathBuf::from(".accelerator/state/r"),
+                    },
+                    path: PathBuf::from("meta/plans/b.md"),
+                },
+            ];
+
+            let rendered = lines(&report);
+
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\tvcs\tmeta/plans/a.md".to_owned()
+            ));
+            assert!(rendered.contains(
+                &"#\tdetail\tdraft-aaaaaa\trecovery\tmeta/plans/b.md\t\
+                  .accelerator/state/r"
+                    .to_owned()
+            ));
+        }
+
+        fn cause() -> RetirementCause {
+            RetirementCause {
+                path: PathBuf::from("meta/work/x.md"),
+                kind: RetirementCauseKind::ChangedSinceSnapshot,
+            }
+        }
+
+        fn every_reason() -> Vec<NotPromoted> {
+            let holder = PathBuf::from("meta/work/0001-holder.md");
+            vec![
+                NotPromoted::TrackerUnreachable,
+                NotPromoted::CreateOutcomeUnknown,
+                NotPromoted::RequestRejected {
+                    detail: String::new(),
+                },
+                NotPromoted::EarlierAttemptUnconfirmed,
+                NotPromoted::Refused(RetirementRefusal::IdTaken {
+                    holder: holder.clone(),
+                    field: IdentityField::Id,
+                }),
+                NotPromoted::Refused(RetirementRefusal::KeyLinked {
+                    holder: holder.clone(),
+                }),
+                NotPromoted::Refused(RetirementRefusal::TargetExists(holder)),
+                NotPromoted::Refused(RetirementRefusal::ItemNotFound(
+                    "draft-aaaaaa".to_owned(),
+                )),
+                NotPromoted::AdoptedIssueMissing(key()),
+                NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() },
+                NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
+                    cause: cause(),
+                }),
+                NotPromoted::RetirementFailed(
+                    RetirementFailure::RestoreIncomplete {
+                        cause: cause(),
+                        unrestored: Vec::new(),
+                    },
+                ),
+                NotPromoted::ReadBackFailed(key()),
+                NotPromoted::RecordUnwritable {
+                    key: Some(key()),
+                    detail: String::new(),
+                },
+                NotPromoted::RecordUnwritable {
+                    key: None,
+                    detail: String::new(),
+                },
+            ]
+        }
+
+        #[test]
+        fn every_not_promoted_reason_is_reported_under_its_keyword() {
+            for reason in every_reason() {
+                let keyword = reason.keyword();
+                let report =
+                    promoting(vec![not_promoted("draft-aaaaaa", reason)]);
+
+                assert!(
+                    lines(&report).contains(&format!(
+                        "draft-aaaaaa\tnot-promoted\tunsynced\t{keyword}"
+                    )),
+                    "{keyword}"
+                );
+            }
+        }
+
+        fn exit_for(reasons: Vec<NotPromoted>) -> u8 {
+            exit_code_for_report(&promoting(
+                reasons
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, reason)| {
+                        not_promoted(&format!("draft-{index:06}"), reason)
+                    })
+                    .collect(),
+            ))
+        }
+
+        #[test]
+        fn exit_code_reflects_not_promoted_drafts() {
+            let unreachable = || NotPromoted::TrackerUnreachable;
+            let duplicate = || NotPromoted::EarlierAttemptUnconfirmed;
+            let rejected = || NotPromoted::RequestRejected {
+                detail: String::new(),
+            };
+            let incomplete = || {
+                NotPromoted::RetirementFailed(
+                    RetirementFailure::RestoreIncomplete {
+                        cause: cause(),
+                        unrestored: Vec::new(),
+                    },
+                )
+            };
+            for (reasons, expected) in [
+                (vec![unreachable()], exit_codes::RETRYABLE),
+                (vec![rejected(), unreachable()], exit_codes::REJECTED),
+                (
+                    vec![duplicate(), rejected(), unreachable()],
+                    exit_codes::UNRESOLVED,
+                ),
+                (
+                    vec![incomplete(), duplicate(), rejected()],
+                    exit_codes::TERMINAL,
+                ),
+                (
+                    vec![NotPromoted::AdoptedIssueMissing(key())],
+                    exit_codes::UNRESOLVED,
+                ),
+            ] {
+                assert_eq!(exit_for(reasons.clone()), expected, "{reasons:?}");
+            }
+        }
+
+        #[test]
+        fn a_promoted_draft_leaves_the_exit_clean() {
+            let report = promoting(vec![row(
+                "draft-aaaaaa",
+                PromotionOutcome::Promoted(Promotion::Completed(
+                    key(),
+                    SyncState::Conflict,
+                )),
+            )]);
+
+            assert_eq!(exit_code_for_report(&report), exit_codes::CLEAN);
+        }
+
+        /// `create` reports an unreachable tracker, an earlier unconfirmed
+        /// create and an unwritable first record as saving a draft or a loud
+        /// terminal; `exit_codes` documents each difference.
+        const DOCUMENTED_DIFFERENCES: &[&str] = &[
+            "tracker-unreachable",
+            "possible-duplicate",
+            "record-unwritable",
+        ];
+
+        #[test]
+        fn each_outcome_exits_alike_from_every_command_or_is_documented() {
+            for reason in every_reason() {
+                let from_create =
+                    crate::create::create_outcome_of(&reason).exit_code();
+                let from_sync = reason.exit_code(true);
+                let documented = DOCUMENTED_DIFFERENCES
+                    .contains(&reason.keyword())
+                    && !matches!(
+                        reason,
+                        NotPromoted::RecordUnwritable { key: Some(_), .. }
+                    );
+                assert!(
+                    from_create == from_sync || documented,
+                    "{} exits {from_create} from create and {from_sync} from \
+                     sync",
+                    reason.keyword()
+                );
+            }
+        }
+
+        #[test]
+        fn drafts_skipped_by_no_promote_do_not_affect_the_exit_code() {
+            let report = RunReport {
+                reported: vec![reported(
+                    "draft-aaaaaa",
+                    SyncState::Unsynced,
+                    Action::Noop,
+                )],
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            };
+
+            assert_eq!(exit_code_for_report(&report), exit_codes::CLEAN);
         }
     }
 
@@ -1972,6 +3099,9 @@ mod tests {
     #[test]
     fn render_report_renders_an_unconfigured_failure() {
         let report = RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
             reported: vec![failed(
                 "0001",
                 SyncState::LocallyModified,
@@ -1982,6 +3112,58 @@ mod tests {
 
         assert!(render_report(&report)
             .contains("0001\tfailed\tlocally-modified\tunconfigured"));
+    }
+
+    fn rejected(detail: &str) -> TrackerError {
+        TrackerError::Rejected {
+            detail: detail.to_owned(),
+        }
+    }
+
+    #[test]
+    fn a_rejected_create_from_local_renders_a_rejected_failed_row() {
+        let report = RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
+            reported: vec![failed(
+                "0001",
+                SyncState::Unsynced,
+                rejected("jira create: the body has a table"),
+            )],
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        };
+
+        assert!(
+            render_report(&report).contains("0001\tfailed\tunsynced\trejected")
+        );
+    }
+
+    #[test]
+    fn sync_exit_code_ranks_rejected_between_awaiting_human_and_unconfigured() {
+        let awaiting = || reported("0001", SyncState::Conflict, Action::Prompt);
+        let rejection =
+            || failed("0002", SyncState::Unsynced, rejected("bad body"));
+        let refused =
+            || failed("0003", SyncState::LocallyModified, unconfigured(""));
+        let exit_for = |items: Vec<ReportedItem>| {
+            super::exit_code_for_report(&RunReport {
+                identity: Vec::new(),
+                promotions: Vec::new(),
+                deferred: 0,
+                reported: items,
+                ..report_with(DiscoveryStatus::Ran { found: 0 })
+            })
+        };
+
+        assert_eq!(
+            exit_for(vec![awaiting(), rejection(), refused()]),
+            super::exit_codes::UNRESOLVED
+        );
+        assert_eq!(
+            exit_for(vec![rejection(), refused()]),
+            super::exit_codes::REJECTED
+        );
     }
 
     #[test]
@@ -2009,6 +3191,9 @@ mod tests {
         };
         let exit_for = |items: Vec<ReportedItem>| {
             super::exit_code_for_report(&RunReport {
+                identity: Vec::new(),
+                promotions: Vec::new(),
+                deferred: 0,
                 reported: items,
                 ..report_with(DiscoveryStatus::Ran { found: 0 })
             })
@@ -2066,6 +3251,56 @@ mod tests {
         assert!(!super::id_is_token_safe(&scheme, "0001; rm -rf ~"));
         assert!(!super::id_is_token_safe(&scheme, "1"));
         assert!(!super::id_is_token_safe(&scheme, ""));
+    }
+
+    fn tracker_scheme() -> WorkItemIdScheme {
+        WorkItemIdScheme {
+            id_pattern: corpus::TRACKER_TOKEN.to_owned(),
+            key: None,
+        }
+    }
+
+    #[test]
+    fn a_conflict_dossier_is_written_for_a_tracker_keyed_item() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dossiers = vec![
+            conflict_dossier("ENG-42", false),
+            conflict_dossier("MY_PROJ-7", false),
+            conflict_dossier("0230", false),
+            conflict_dossier("../ENG-1", false),
+        ];
+
+        super::persist_dossiers(
+            &dossiers,
+            dir.path(),
+            &tracker_scheme(),
+            &ok_render,
+        );
+
+        assert_eq!(
+            md_files(dir.path()),
+            vec!["0230.md", "ENG-42.md", "MY_PROJ-7.md"]
+        );
+    }
+
+    #[test]
+    fn a_conflict_dossier_is_written_for_a_draft() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        super::persist_dossiers(
+            &[conflict_dossier("draft-k7mq3x", false)],
+            dir.path(),
+            &tracker_scheme(),
+            &ok_render,
+        );
+
+        assert_eq!(md_files(dir.path()), vec!["draft-k7mq3x.md"]);
+    }
+
+    #[test]
+    fn a_tracker_key_is_not_token_safe_under_a_local_pattern() {
+        assert!(!super::id_is_token_safe(&scheme(), "ENG-42"));
+        assert!(!super::id_is_token_safe(&scheme(), "draft-k7mq3x"));
     }
 
     fn md_files(dir: &std::path::Path) -> Vec<String> {
@@ -2162,6 +3397,30 @@ mod tests {
     }
 
     #[test]
+    fn each_unreadable_promotion_record_is_named_in_a_warning() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let record = dir.path().join("linear/pending-push/draft-k7mq3x.json");
+        std::fs::create_dir_all(record.parent().expect("parent"))
+            .expect("mkdir");
+        std::fs::write(&record, "{").expect("write");
+        let store = corpus_adapters::FileCorpusStore::new(dir.path());
+        let records =
+            work_adapters::promotion_records::FilePromotionRecords::new(
+                dir.path(),
+                "linear",
+                &store,
+            );
+
+        let warnings = super::unreadable_promotion_record_warnings(&records);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].contains(&record.display().to_string()),
+            "{warnings:?}"
+        );
+    }
+
+    #[test]
     fn a_fail_closed_prepare_writes_nothing_and_clears_nothing() {
         use std::os::unix::fs::PermissionsExt as _;
 
@@ -2221,8 +3480,7 @@ mod tests {
     use crate::finaliser::FinishedRun;
     use crate::finaliser::NoFinaliser;
     use crate::finaliser::RunFinaliser;
-    use crate::tracker_registry::SelectionError;
-    use crate::tracker_registry::TrackerRegistry;
+    use crate::test_support::StubRegistry;
 
     /// A tracker whose `fetch_all` fails pre-flight — the whole-call `Err` path
     /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
@@ -2260,6 +3518,13 @@ mod tests {
             unimplemented!("not exercised by the fetch_all failure path")
         }
 
+        fn locate(
+            &self,
+            _id: &ExternalId,
+        ) -> Result<tracker::Located, TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
         fn search(
             &self,
             _scope: &tracker::SearchScope,
@@ -2295,90 +3560,6 @@ mod tests {
             _body: &str,
         ) -> tracker::ValidationOutcome {
             unimplemented!("not exercised by the fetch_all failure path")
-        }
-    }
-
-    /// Shares one `RecordingTracker` between the registry (which hands the
-    /// engine a `Box<dyn RemoteTracker>`) and the test (which inspects the call
-    /// log afterwards), since the box is moved into `run_sync`.
-    struct SharedTracker(Rc<RecordingTracker>);
-
-    impl RemoteTracker for SharedTracker {
-        fn create(
-            &self,
-            title: &str,
-            body: &str,
-            kind: &str,
-        ) -> Result<ExternalId, TrackerError> {
-            self.0.create(title, body, kind)
-        }
-
-        fn update(
-            &self,
-            id: &ExternalId,
-            title: &str,
-            body: &str,
-        ) -> Result<(), TrackerError> {
-            self.0.update(id, title, body)
-        }
-
-        fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
-            self.0.show(id)
-        }
-
-        fn fetch_all(
-            &self,
-            ids: &[ExternalId],
-        ) -> Result<tracker::FetchOutcome, TrackerError> {
-            self.0.fetch_all(ids)
-        }
-
-        fn search(
-            &self,
-            scope: &tracker::SearchScope,
-        ) -> Result<tracker::Discovery, TrackerError> {
-            self.0.search(scope)
-        }
-
-        fn resolve_scope(
-            &self,
-            scope: &tracker::SearchScope,
-        ) -> Result<tracker::SearchScope, tracker::ScopeError> {
-            self.0.resolve_scope(scope)
-        }
-
-        fn enumerate_visible_entities(
-            &self,
-        ) -> Result<Vec<tracker::VisibleEntity>, tracker::TrackerError>
-        {
-            self.0.enumerate_visible_entities()
-        }
-
-        fn preview_create(
-            &self,
-            kind: &str,
-        ) -> Result<tracker::CreatePreview, TrackerError> {
-            self.0.preview_create(kind)
-        }
-
-        fn validate_update(
-            &self,
-            id: &ExternalId,
-            title: &str,
-            body: &str,
-        ) -> tracker::ValidationOutcome {
-            self.0.validate_update(id, title, body)
-        }
-    }
-
-    struct StubRegistry(Rc<RecordingTracker>);
-
-    impl TrackerRegistry for StubRegistry {
-        fn resolve(
-            &self,
-            _name: &str,
-        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
-            Ok(Box::new(SharedTracker(Rc::clone(&self.0))))
         }
     }
 
@@ -2436,6 +3617,7 @@ mod tests {
             max_pulls: None,
             max_pushes: None,
             allow_unbounded: false,
+            no_promote: false,
             targets,
         }
     }
@@ -2461,6 +3643,148 @@ mod tests {
         .expect("compose the test config");
         let registry = StubRegistry(Rc::clone(tracker));
         super::run_sync(dir, &composed.service, args, &registry, finaliser)
+    }
+
+    fn tracker_sync_repo_with_a_draft() -> tempfile::TempDir {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            "---\nwork:\n  integration: jira\n  id_pattern: \"{tracker}\"\n---\n",
+        )
+        .expect("write config");
+        std::fs::create_dir_all(dir.path().join("meta/work/drafts"))
+            .expect("mkdir");
+        std::fs::write(
+            dir.path().join("meta/work/drafts/draft-aaaaaa-title.md"),
+            "---\nid: \"draft-aaaaaa\"\ntitle: \"Title\"\nkind: \"task\"\n\
+             ---\n\n# draft-aaaaaa: Title\n",
+        )
+        .expect("write draft");
+        dir
+    }
+
+    fn creates(tracker: &RecordingTracker) -> usize {
+        tracker
+            .calls()
+            .iter()
+            .filter(|call| matches!(call, Call::Create { .. }))
+            .count()
+    }
+
+    #[test]
+    fn no_promote_maps_onto_the_sync_request() {
+        for (no_promote, expected_creates) in [(false, 1), (true, 0)] {
+            let dir = tracker_sync_repo_with_a_draft();
+            let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+            drive_sync(
+                dir.path(),
+                &tracker,
+                &SyncArgs {
+                    no_promote,
+                    ..sync_args(Vec::new())
+                },
+            );
+
+            assert_eq!(creates(&tracker), expected_creates, "{no_promote}");
+        }
+    }
+
+    #[test]
+    fn no_promote_exits_zero_with_drafts_pending() {
+        let dir = tracker_sync_repo_with_a_draft();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(
+            dir.path(),
+            &tracker,
+            &SyncArgs {
+                no_promote: true,
+                ..sync_args(Vec::new())
+            },
+        );
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        assert!(dir
+            .path()
+            .join("meta/work/drafts/draft-aaaaaa-title.md")
+            .exists());
+    }
+
+    #[test]
+    fn an_unreachable_tracker_leaves_the_draft_and_exits_retryable() {
+        let dir = tracker_sync_repo_with_a_draft();
+        let tracker =
+            Rc::new(RecordingTracker::holding(Vec::new()).failing_create(
+                TrackerError::Retryable {
+                    detail: "connection refused".to_owned(),
+                },
+            ));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::from(exit_codes::RETRYABLE));
+        assert!(dir
+            .path()
+            .join("meta/work/drafts/draft-aaaaaa-title.md")
+            .exists());
+    }
+
+    #[test]
+    fn a_create_then_sync_reports_synced() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let composed = config_adapters::compose(
+            dir.path(),
+            config_adapters::LegacyPolicy::Reject,
+        )
+        .expect("compose the test config");
+        let templates = composed.store.with_plugin_root(Some(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        ));
+        let created = crate::create::run(
+            dir.path(),
+            &composed.service,
+            &templates,
+            &crate::create::CreateArgs {
+                title: "Round trip".to_owned(),
+                kind: "task".to_owned(),
+                priority: "low".to_owned(),
+                status: "ready".to_owned(),
+                parent: None,
+                tags: Vec::new(),
+                blocks: Vec::new(),
+                blocked_by: Vec::new(),
+                derived_from: Vec::new(),
+                relates_to: Vec::new(),
+                source: None,
+                project: None,
+                author: Some("A Tester".to_owned()),
+                producer: "create-work-item".to_owned(),
+                body_file: None,
+                push: true,
+                dry_run: false,
+            },
+            &StubRegistry(Rc::clone(&tracker)),
+        );
+        assert!(matches!(
+            created,
+            crate::create::RunOutcome::Created { path: Some(_), .. }
+        ));
+        let calls_after_create = tracker.calls().len();
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        let mutated =
+            tracker.calls()[calls_after_create..].iter().any(|call| {
+                matches!(call, Call::Create { .. } | Call::Update { .. })
+            });
+        assert!(
+            !mutated,
+            "a synced item pushes nothing: {:?}",
+            tracker.calls()
+        );
     }
 
     /// Keeps what the run handed it, and can report a failure of its own.
@@ -2598,6 +3922,7 @@ mod tests {
 
     fn issue(body: &str) -> RemoteIssue {
         RemoteIssue {
+            key: ExternalId::new("ENG-1".to_owned()),
             updated: tracker::RemoteTimestamp::Reported(
                 "2026-01-01T00:00:00Z".to_owned(),
             ),

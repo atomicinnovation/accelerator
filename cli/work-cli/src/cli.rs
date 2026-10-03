@@ -7,8 +7,9 @@ use clap::Parser;
 use clap::Subcommand;
 
 /// The `accelerator-work` command-line surface: work-item lifecycle
-/// primitives (`create`, `show`, `resolve`, `diff`, `update`) plus small
-/// utility subcommands used by the skills that orchestrate them.
+/// primitives (`create`, `create-batch`, `show`, `resolve`, `diff`,
+/// `update`, `sync`, `promote`) plus small utility subcommands used by the
+/// skills that orchestrate them.
 #[derive(Parser)]
 #[command(name = "accelerator-work", disable_version_flag = true)]
 pub struct Cli {
@@ -52,6 +53,23 @@ pub enum Command {
     /// Atomically create a new work item under the configured pattern,
     /// self-allocating its own ID.
     Create(Box<CreateArgs>),
+    /// Create every item a JSON manifest describes, parents first, each as
+    /// `create` would, linking each child's `parent` to the ID its parent
+    /// took.
+    ///
+    /// Prints one `<ref>\t<path>\t<keyword>\t<key>` line per item, then a
+    /// `#\tdetail\t<ref>\t<source>\t<path>[\t<recovery-dir>]` line for
+    /// each path a `created-blocked` or `retirement-incomplete` item names.
+    /// The keywords are `create --push`'s, plus `declined` (created without
+    /// a push) and `pending` (an earlier create of the same content awaits
+    /// promotion; the path is its draft). A pushed batch records each entry
+    /// in a journal under `.accelerator/state/`, so a rerun creates only the
+    /// entries it never reached.
+    ///
+    /// Exits with the item code of greatest precedence (see `exit_codes`),
+    /// `pending` counting as 4 and `declined` as 0; a refused manifest or a
+    /// parent cycle exits 2 before anything is written.
+    CreateBatch(Box<CreateBatchArgs>),
     /// Atomically apply field/tag/list-field edits to an existing work
     /// item's frontmatter.
     Update(Box<UpdateArgs>),
@@ -72,6 +90,10 @@ pub enum Command {
     },
     /// Print the next N sequential IDs the configured pattern would
     /// allocate. Display-only: never writes a file or commits a number.
+    ///
+    /// Under `work.id_pattern: "{tracker}"` the IDs are provisional draft
+    /// IDs, for items written under `meta/work/drafts/`; `work create` places
+    /// a draft there itself.
     NextNumber {
         /// The project code, when the configured pattern needs one.
         #[arg(long)]
@@ -95,11 +117,17 @@ pub enum Command {
     /// remote issues into new local files (bounded by `--max-pulls`, counted
     /// as pulls). Untracked discovery is scoped to the configured project, and
     /// a run that would exceed either bound refuses with zero writes (exit 5).
+    /// Under `work.id_pattern: "{tracker}"` it first promotes every draft
+    /// onto an issue the tracker creates for it, each counted as a push,
+    /// unless `--no-promote` is given; a draft left unpromoted exits by its
+    /// reason, as `work promote` does.
     ///
     /// Exit codes: 0 clean; 4 items await a human (unresolved conflicts,
     /// skipped-dirty pulls, remote-absent or indeterminate items); 70 a
     /// read failed or every per-item failure was retryable; 71 any
-    /// per-item failure was terminal; 1 an internal error; 2 a usage
+    /// per-item failure was terminal; 75 a per-item request was rejected
+    /// before sending, so it must change (ranked below 4 and above 74); 1
+    /// an internal error; 2 a usage
     /// error; 3 a `--target` matched no local id, path, or `external_id`; 5
     /// refused (would exceed --max-pulls/--max-pushes, zero writes); 6 a
     /// `--target` path lies outside the work directory; 72 the configured
@@ -110,6 +138,15 @@ pub enum Command {
     /// authoritative: check it for `unresolved` lines regardless of exit
     /// code, since a 71 run may also carry conflicts.
     Sync(Box<SyncArgs>),
+    /// Promote one draft onto an issue the tracker creates for it, under
+    /// `work.id_pattern: "{tracker}"`: the draft ID is retired to the
+    /// tracker key across `meta/`, as `work sync` does for every draft.
+    ///
+    /// Prints the same `<draft-id>\t<action>\t<state>\t<detail>` row and
+    /// `#\tdetail` lines as `work sync`, and exits with the same code for
+    /// each reason a draft is not promoted (see `exit_codes`). A draft
+    /// promoted already prints `already-promoted` and exits 0.
+    Promote(Box<PromoteArgs>),
 }
 
 fn parse_key_value(raw: &str) -> Result<(String, String), String> {
@@ -189,8 +226,9 @@ pub struct UpdateArgs {
     /// before writing the edit locally. Refused when the item has no
     /// `external_id` — see `create --push` for an unsynced item. Unlike
     /// `create --push`, a failed push leaves the local file untouched:
-    /// exit 70 (retryable, unchanged) or 71 (terminal, baseline entry
-    /// cleared so the next `sync` reconciles it as a conflict).
+    /// exit 70 (retryable, unchanged), 71 (terminal, baseline entry
+    /// cleared so the next `sync` reconciles it as a conflict) or 75
+    /// (rejected before sending, unchanged).
     #[arg(long)]
     pub push: bool,
 }
@@ -247,8 +285,10 @@ pub struct CreateArgs {
     /// Push the new item to the configured remote tracker before writing
     /// it locally. On a retryable failure the create is retried once, then
     /// the item is saved unsynced; a terminal failure is reported and the
-    /// item saved unsynced (a remote issue may already exist — see
-    /// `exit_codes` for the 70/71 contract). The file is written either way.
+    /// item saved unsynced (a remote issue may already exist); a rejected
+    /// request is reported, exits 75 and the item saved unsynced (nothing
+    /// was sent) — see `exit_codes` for the 70/71/75 contract. The file is
+    /// written either way.
     #[arg(long)]
     pub push: bool,
     /// Preview the fields a `--push` create would resolve against the
@@ -260,6 +300,29 @@ pub struct CreateArgs {
     /// source on the line, exit 0).
     #[arg(long)]
     pub dry_run: bool,
+}
+
+/// `work create-batch`'s flags, boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+pub struct CreateBatchArgs {
+    /// The JSON manifest: an array of entries, each with `ref`, `title`,
+    /// `kind` and `priority`, and optionally `status`, `body_file`
+    /// (relative to the manifest), `tags`, `blocks`, `blocked_by`,
+    /// `relates_to`, `derived_from`, `source` and `parent` — either
+    /// `{"ref": "<ref>"}` naming another entry, or a typed reference to an
+    /// existing item.
+    #[arg(long)]
+    pub manifest: PathBuf,
+    /// Push every item to the configured remote tracker, as `create --push`
+    /// does for one.
+    #[arg(long)]
+    pub push: bool,
+    /// The author. Falls back to the current VCS identity when omitted.
+    #[arg(long)]
+    pub author: Option<String>,
+    /// The producer name recorded in each item's frontmatter.
+    #[arg(long, default_value = "accelerator-work")]
+    pub producer: String,
 }
 
 /// `work sync`'s flags, boxed for the same reason as [`CreateArgs`].
@@ -306,6 +369,11 @@ pub struct SyncArgs {
     /// finite `max_items` to avoid it.
     #[arg(long)]
     pub allow_unbounded: bool,
+    /// Leave drafts as they are. Under `work.id_pattern: "{tracker}"` a run
+    /// otherwise promotes every draft it reconciles onto an issue the
+    /// tracker creates for it, counting each promotion as a push.
+    #[arg(long)]
+    pub no_promote: bool,
     /// Reconcile only this work item; repeatable. Accepts a local id
     /// (0042), a remote tracker key / `external_id` (PP-787), or a file
     /// path. Naming any target suppresses untracked-remote discovery.
@@ -313,15 +381,48 @@ pub struct SyncArgs {
     pub targets: Vec<String>,
 }
 
+/// `work promote`'s arguments, boxed for the same reason as [`CreateArgs`].
+#[derive(Args)]
+pub struct PromoteArgs {
+    /// The draft's ID (`draft-xxxxxx`).
+    pub draft_id: String,
+    /// Adopt this existing issue as the draft's instead of creating one,
+    /// after confirming the tracker holds it. The issue is never rewritten.
+    /// For a draft whose earlier create may have reached the tracker.
+    #[arg(long, value_name = "KEY", conflicts_with = "create")]
+    pub adopt: Option<String>,
+    /// Create a new issue even though an earlier create may already have
+    /// reached the tracker, accepting the risk of a duplicate.
+    #[arg(long)]
+    pub create: bool,
+}
+
 #[cfg(test)]
 mod tests {
+    use clap::Parser as _;
+
     use super::parse_ceiling;
+    use super::Cli;
     use tracker::Ceiling;
 
     #[test]
     fn a_non_negative_integer_including_zero_parses_to_a_bound() {
         assert_eq!(parse_ceiling("25"), Ok(Ceiling::Bounded(25)));
         assert_eq!(parse_ceiling("0"), Ok(Ceiling::Bounded(0)));
+    }
+
+    #[test]
+    fn adopt_and_create_are_mutually_exclusive() {
+        let parsed = Cli::try_parse_from([
+            "accelerator-work",
+            "promote",
+            "draft-aaaaaa",
+            "--adopt",
+            "PP-900",
+            "--create",
+        ]);
+
+        assert!(parsed.is_err());
     }
 
     #[test]

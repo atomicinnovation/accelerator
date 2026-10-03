@@ -167,6 +167,7 @@ fn pullable(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"{local_hash}\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
         body: projected_body().to_owned(),
     };
@@ -197,6 +198,7 @@ fn pushable(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
         body: projected_body().to_owned(),
     };
@@ -272,6 +274,7 @@ fn request<'a>(
         mode,
         integrations_root,
         integration: "jira",
+        promote: true,
         scope: tracker::SearchScope::default(),
     }
 }
@@ -446,6 +449,7 @@ fn run_with<'a>(
         mode: RunMode::Apply,
         integrations_root: dir,
         integration: "jira",
+        promote: true,
         scope: tracker::SearchScope::default(),
     };
     run(&ports, &mut store, &request)
@@ -481,6 +485,7 @@ fn a_targeted_run_does_not_bury_a_non_targeted_local_edit(
         (
             a_external.clone(),
             RemoteIssue {
+                key: a_external.clone(),
                 updated: RemoteTimestamp::Reported(STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
@@ -603,6 +608,7 @@ fn a_cap_hit_keyed_read_aborts_the_sync_with_zero_writes(
     let spy = Spy::default();
     spy.seed(BASELINE_PATH, &baseline_document(&[entry.to_owned()]));
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
         body: projected_body().to_owned(),
     };
@@ -944,6 +950,7 @@ fn a_plan_one_over_the_pull_bound_is_refused() -> Result<(), TestError> {
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
         | RunError::DiscoveryUnconfigured { .. }
+        | RunError::RetirementIncomplete { .. }
         | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
@@ -1071,6 +1078,7 @@ fn an_over_bound_push_count_is_refused() -> Result<(), TestError> {
         | RunError::Internal(_)
         | RunError::DiscoveryIncomplete { .. }
         | RunError::DiscoveryUnconfigured { .. }
+        | RunError::RetirementIncomplete { .. }
         | RunError::KeyedReadCapped => {
             panic!("expected Refused, got a read or internal failure")
         }
@@ -1151,8 +1159,9 @@ fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
             external_id: Some(external.clone()),
         }],
         tracker: RecordingTracker::holding(vec![(
-            external,
+            external.clone(),
             RemoteIssue {
+                key: external,
                 updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
@@ -1216,6 +1225,7 @@ fn conflicting(
         "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"stale\"}}"
     );
     let issue = RemoteIssue {
+        key: external.clone(),
         updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
         body: remote_body.to_owned(),
     };
@@ -1330,8 +1340,9 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
             external_id: Some(external.clone()),
         }],
         tracker: RecordingTracker::holding(vec![(
-            external,
+            external.clone(),
             RemoteIssue {
+                key: external,
                 updated: RemoteTimestamp::Reported(MOVED_STAMP.to_owned()),
                 body: projected_body().to_owned(),
             },
@@ -1384,6 +1395,32 @@ fn preview_lists_every_action_and_validates_push_entries_only(
             item.planned
         );
     }
+    Ok(())
+}
+
+#[test]
+fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
+) -> Result<(), TestError> {
+    let scenario = scenario(0, 1)?;
+    std::fs::write(
+        &scenario.items[0].path,
+        "---\ntitle: \"Say \\\"hi\\\" to C:\\\\temp\"\n\
+         external_id: \"ENG-100\"\n---\n\nBody text\n",
+    )?;
+
+    execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "the push must proceed within the bounds")?;
+
+    let pushed: Vec<String> = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            tracker_test_support::Call::Update { title, .. } => Some(title),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(pushed, [r#"Say "hi" to C:\temp"#]);
     Ok(())
 }
 
