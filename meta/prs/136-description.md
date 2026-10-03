@@ -12,9 +12,9 @@ relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
-revision: "980a436f63307c3ff1f1d66d15e1016c091cc769"
+revision: "57d6945f005fc61f9b0b1ad66a97f33133ac924e"
 repository: "accelerator"
-last_updated: "2026-10-03T16:01:19+00:00"
+last_updated: "2026-10-03T18:05:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -40,13 +40,13 @@ today's single-researcher shape, now stamped `depth: 1`.
   follow-up cap 4 at level 1 then `ceil(parent / 2)`, trim-then-dedupe in
   lineage order against the pair question, shallower nodes and earlier
   siblings, level barrier within a pair, pruning on `follow_ups: []`.
-- **`finding_path.rs`, `stem.rs`, `lineage.rs`** (in `corpus`'s set layout)
-  and **`question.rs`** — indexed finding stems, well-formed lineages (`L`
-  then `L − 1` positive positions) and question normalisation, now after
-  Unicode compatibility folding (`unicode-normalization`,
-  `unicode-properties`, both exact-pinned). `research` now imports `corpus`
-  for `Stem` and `Lineage`, as `work` does for its id scheme, and its pup
-  rule admits it.
+- **`finding_path.rs`, `stem.rs`, `lineage.rs`** and **`question.rs`** —
+  indexed finding stems, well-formed lineages (`L` then `L − 1` positive
+  positions) and question normalisation, now after Unicode compatibility
+  folding (`unicode-normalization`, `unicode-properties`, both
+  exact-pinned). The set-layout path checks move here from
+  `corpus::topic_research`, so `corpus` stays free of document-type layout
+  and `research` keeps its std-only pup rule with no `corpus` dependency.
 - **`pinned_indexes.rs`** — a `.levels/` directory holds its `<nn>` index,
   keyed on the question of its `1.md` or `.1.md.invalid`, so a resumed pair
   keeps its stem.
