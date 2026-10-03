@@ -1,9 +1,11 @@
 //! Black-box tests of the compiled `accelerator config` read surface.
 //!
-//! Each test builds a throwaway workspace under `CARGO_TARGET_TMPDIR` carrying a
-//! `.git` boundary marker, so root discovery is bounded inside the fixture
-//! rather than escaping into the real working tree. Byte-exact assertions
-//! compare `output.stdout` directly, never through `from_utf8_lossy`.
+//! Each test builds a throwaway git repository, so root discovery is bounded
+//! inside the fixture rather than escaping into the real working tree, and
+//! the session-start tracking check asks about a real checkout. Every run
+//! points `ACCELERATOR_VCS_BIN` at the fixture binary, so none reaches the
+//! network for the `vcs` sub-binary. Byte-exact assertions compare
+//! `output.stdout` directly, never through `from_utf8_lossy`.
 
 use std::error::Error;
 use std::ffi::OsStr;
@@ -14,14 +16,22 @@ use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tempfile::TempDir;
+use vcs_test_support::hermetic::Hermetic;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// A throwaway workspace with a `.git` boundary marker. Owns the `TempDir`
-/// guard so the directory is removed when the fixture drops; `root` mirrors the
-/// guard's path so field access stays a plain `PathBuf`.
+/// A freshly initialised git repository inside a guard directory that also
+/// holds the hermetic git config, so the repository root stays clean.
+fn repository() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().join("repo");
+    fs::create_dir_all(&root)?;
+    Hermetic::rooted_at(guard.path())?.git(&["init", "--quiet"], &root)?;
+    Ok((guard, root))
+}
+
 struct Fixture {
     root: PathBuf,
     _guard: TempDir,
@@ -29,10 +39,7 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Result<Self, Box<dyn Error>> {
-        let guard =
-            tempfile::Builder::new().prefix("config-read-").tempdir()?;
-        let root = guard.path().to_path_buf();
-        fs::create_dir_all(root.join(".git"))?;
+        let (guard, root) = repository()?;
         Ok(Self {
             root,
             _guard: guard,
@@ -68,13 +75,27 @@ impl Fixture {
     }
 }
 
-fn run_in(cwd: &Path, args: &[&str]) -> Result<Output, Box<dyn Error>> {
+const TRACKING_ANSWER: &str = "ACCELERATOR_FIXTURE_VCS_TRACKING";
+
+/// The launcher at `cwd`, isolated from the caller's environment, with the
+/// `vcs` sub-binary impersonated by the fixture answering `untracked`.
+fn accelerator(cwd: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.current_dir(cwd);
     command.env_remove("ACCELERATOR_LOG");
-    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    command.env_remove(TRACKING_ANSWER);
+    command.env(
+        "ACCELERATOR_VCS_BIN",
+        env!("CARGO_BIN_EXE_accelerator-fixture"),
+    );
+    command
+}
+
+fn run_in(cwd: &Path, args: &[&str]) -> Result<Output, Box<dyn Error>> {
+    let mut command = accelerator(cwd);
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
     command.args(args);
     Ok(command.output()?)
 }
@@ -101,14 +122,11 @@ impl Deref for Workspace {
     }
 }
 
-/// Materializes a committed fixture into a fresh temp workspace: its `config.md`
-/// (and `config.local.md`, if present) copied under `.accelerator/`, with a
-/// `.git` boundary marker so root discovery stops inside the workspace.
+/// Materializes a committed fixture into a fresh repository: its `config.md`
+/// (and `config.local.md`, if present) copied under `.accelerator/`.
 fn workspace(name: &str) -> Result<Workspace, Box<dyn Error>> {
     let src = PathBuf::from(FIXTURES).join(name);
-    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
-    let root = guard.path().to_path_buf();
-    fs::create_dir_all(root.join(".git"))?;
+    let (guard, root) = repository()?;
     fs::create_dir_all(root.join(".accelerator"))?;
     for name in ["config.md", "config.local.md"] {
         let file = src.join(name);
@@ -1104,9 +1122,7 @@ fn dump_hides_credential_values() -> TestResult {
 
 #[test]
 fn dump_of_an_unconfigured_repo_prints_nothing() -> TestResult {
-    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
-    let root = guard.path().to_path_buf();
-    fs::create_dir_all(root.join(".git"))?;
+    let (_guard, root) = repository()?;
     let output = run_in(&root, &["config", "dump"])?;
     assert!(output.stdout.is_empty());
     assert_eq!(code(&output), 0);
@@ -1450,9 +1466,7 @@ fn summary_hook_keeps_the_unrecognised_skill_warning_off_stdout() -> TestResult
     // A workspace carrying config (so the summary block is emitted) and a skill
     // directory whose name matches no plugin skill, plus a plugin root
     // advertising a single known skill so the warning actually fires.
-    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
-    let root = guard.path().to_path_buf();
-    fs::create_dir_all(root.join(".git"))?;
+    let (_guard, root) = repository()?;
     fs::create_dir_all(root.join(".accelerator/skills/bogus-skill"))?;
     fs::write(
         root.join(".accelerator/config.md"),
@@ -1469,11 +1483,7 @@ fn summary_hook_keeps_the_unrecognised_skill_warning_off_stdout() -> TestResult
         "---\nname: create-plan\n---\n",
     )?;
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
-    command.current_dir(&root);
-    command.env_remove("ACCELERATOR_LOG");
-    command.env_remove("ACCELERATOR_CACHE_DIR");
-    command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    let mut command = accelerator(&root);
     command.env("ACCELERATOR_PLUGIN_ROOT", &plugin);
     command.args(["config", "summary", "--format", "hook"]);
     let output = command.output()?;
@@ -1513,11 +1523,7 @@ fn run_with_plugin_root(
     root: &OsStr,
     args: &[&str],
 ) -> Result<Output, Box<dyn Error>> {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
-    command.current_dir(cwd);
-    command.env_remove("ACCELERATOR_LOG");
-    command.env_remove("ACCELERATOR_CACHE_DIR");
-    command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
+    let mut command = accelerator(cwd);
     command.env("ACCELERATOR_PLUGIN_ROOT", root);
     command.args(args);
     Ok(command.output()?)
@@ -2836,5 +2842,190 @@ fn init_is_idempotent() -> TestResult {
         1,
         "the root rule must not be duplicated"
     );
+    Ok(())
+}
+
+const TEAM_TOKEN_CMD: &str = "---\njira:\n  token_cmd: echo team\n---\n";
+const LOCAL: &str = "---\npaths:\n  work: mine\n---\n";
+
+/// The two hook fields a `SessionStart` envelope carries.
+struct Envelope {
+    context: String,
+    system_message: Option<String>,
+}
+
+fn session_start(output: &Output) -> Result<Envelope, Box<dyn Error>> {
+    let stdout = std::str::from_utf8(&output.stdout)?;
+    assert_eq!(stdout.lines().count(), 1, "one JSON line: {stdout}");
+    let envelope: serde_json::Value = serde_json::from_str(stdout)?;
+    let context = envelope["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .ok_or("no additionalContext")?
+        .to_owned();
+    let system_message = envelope["systemMessage"].as_str().map(str::to_owned);
+    Ok(Envelope {
+        context,
+        system_message,
+    })
+}
+
+fn summary_hook(
+    fixture: &Fixture,
+    answer: Option<&str>,
+) -> Result<Output, Box<dyn Error>> {
+    let mut command = accelerator(&fixture.root);
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
+    if let Some(answer) = answer {
+        command.env(TRACKING_ANSWER, answer);
+    }
+    command.args(["config", "summary", "--format", "hook"]);
+    Ok(command.output()?)
+}
+
+fn assert_in_both_fields(envelope: &Envelope, needle: &str) {
+    assert!(
+        envelope.context.contains(needle),
+        "{needle} missing from additionalContext: {}",
+        envelope.context
+    );
+    assert!(
+        envelope
+            .system_message
+            .as_deref()
+            .is_some_and(|message| message.contains(needle)),
+        "{needle} missing from systemMessage: {:?}",
+        envelope.system_message
+    );
+}
+
+#[test]
+fn a_team_consent_key_is_warned_about_in_both_hook_fields() -> TestResult {
+    let fixture = Fixture::new()?.team(TEAM_TOKEN_CMD)?;
+
+    let output = summary_hook(&fixture, None)?;
+
+    assert_eq!(code(&output), 0);
+    let envelope = session_start(&output)?;
+    assert_in_both_fields(&envelope, "jira.token_cmd");
+    assert_in_both_fields(&envelope, ".accelerator/config.local.md");
+    Ok(())
+}
+
+#[test]
+fn a_tracked_personal_file_is_warned_about_in_both_hook_fields() -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+
+    let output = summary_hook(&fixture, Some("tracked"))?;
+
+    assert_eq!(code(&output), 0);
+    assert_in_both_fields(&session_start(&output)?, "E_CONSENT_KEY_TRACKED");
+    Ok(())
+}
+
+#[test]
+fn a_vcs_binary_that_fails_or_hangs_leaves_the_tracking_unknown() -> TestResult
+{
+    for answer in ["fail", "hang"] {
+        let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+
+        let output = summary_hook(&fixture, Some(answer))?;
+
+        assert_eq!(code(&output), 0, "{answer}");
+        assert_in_both_fields(
+            &session_start(&output)?,
+            "E_CONSENT_KEY_TRACKING_UNKNOWN",
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_vcs_override_naming_a_missing_file_does_not_silence_the_warning(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+    let mut command = accelerator(&fixture.root);
+    command.env_remove("ACCELERATOR_PLUGIN_ROOT");
+    command.env("ACCELERATOR_VCS_BIN", fixture.root.join("no-such-vcs"));
+    command.args(["config", "summary", "--format", "hook"]);
+
+    let output = command.output()?;
+
+    assert_eq!(code(&output), 0);
+    assert_in_both_fields(
+        &session_start(&output)?,
+        "E_CONSENT_KEY_TRACKING_UNKNOWN",
+    );
+    Ok(())
+}
+
+#[test]
+fn an_untracked_personal_file_and_no_team_consent_key_warn_of_nothing(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+    let plain = fixture.run(&["config", "summary"])?;
+
+    let output = summary_hook(&fixture, None)?;
+
+    let envelope = session_start(&output)?;
+    assert_eq!(envelope.system_message, None);
+    assert_eq!(
+        format!("{}\n", envelope.context).as_bytes(),
+        plain.stdout.as_slice()
+    );
+    Ok(())
+}
+
+#[test]
+fn consent_warnings_share_the_envelope_while_the_skill_warning_stays_on_stderr(
+) -> TestResult {
+    let fixture = Fixture::new()?.team(TEAM_TOKEN_CMD)?;
+    fs::create_dir_all(fixture.root.join(".accelerator/skills/bogus-skill"))?;
+    fs::write(
+        fixture
+            .root
+            .join(".accelerator/skills/bogus-skill/context.md"),
+        "some context\n",
+    )?;
+    let plugin = fixture.root.join("plugin");
+    fs::create_dir_all(plugin.join("skills/create-plan"))?;
+    fs::write(
+        plugin.join("skills/create-plan/SKILL.md"),
+        "---\nname: create-plan\n---\n",
+    )?;
+    let mut command = accelerator(&fixture.root);
+    command.env("ACCELERATOR_PLUGIN_ROOT", &plugin);
+    command.args(["config", "summary", "--format", "hook"]);
+
+    let output = command.output()?;
+
+    assert_eq!(code(&output), 0);
+    let envelope = session_start(&output)?;
+    assert_in_both_fields(&envelope, "E_CONSENT_KEY_TEAM_LEVEL");
+    assert!(!envelope.context.contains("does not match"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("does not match any known skill name"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_insecure_personal_file_is_warned_about_beside_the_consent_warnings(
+) -> TestResult {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let fixture = Fixture::new()?.team(TEAM_TOKEN_CMD)?.local(LOCAL)?;
+    fs::set_permissions(
+        fixture.root.join(".accelerator/config.local.md"),
+        fs::Permissions::from_mode(0o644),
+    )?;
+
+    let output = summary_hook(&fixture, None)?;
+
+    assert_eq!(code(&output), 0);
+    let envelope = session_start(&output)?;
+    assert_in_both_fields(&envelope, "E_LOCAL_PERMS_INSECURE");
+    assert_in_both_fields(&envelope, "E_CONSENT_KEY_TEAM_LEVEL");
     Ok(())
 }

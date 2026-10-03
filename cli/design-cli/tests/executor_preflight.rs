@@ -191,3 +191,42 @@ fn an_unset_plugin_root_downgrades_rather_than_hard_failing(
     );
     Ok(())
 }
+
+/// The executor composes its configuration twice before the downgrade, and
+/// an insecure personal config is reported once across both.
+#[cfg(unix)]
+#[test]
+fn an_insecure_personal_config_is_reported_once() -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let work = tempfile::tempdir()?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(repo.join(".git"))?;
+    fs::create_dir_all(repo.join(".accelerator"))?;
+    let personal = repo.join(".accelerator/config.local.md");
+    fs::write(&personal, "---\npaths:\n  tmp: mine\n---\n")?;
+    fs::set_permissions(&personal, fs::Permissions::from_mode(0o644))?;
+    let empty_bin = work.path().join("bin");
+    fs::create_dir_all(&empty_bin)?;
+
+    let output = executor(
+        &["ping"],
+        &repo,
+        &[("PATH", &empty_bin.display().to_string())],
+    );
+
+    assert_eq!(code_of(&output), 3, "{}", stderr_of(&output));
+    assert_eq!(
+        stderr_of(&output)
+            .matches("warning: E_LOCAL_PERMS_INSECURE")
+            .count(),
+        1,
+        "{}",
+        stderr_of(&output)
+    );
+    assert!(
+        !repo.join("mine").exists(),
+        "the ignored paths.tmp was used"
+    );
+    Ok(())
+}

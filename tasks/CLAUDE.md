@@ -12,4 +12,6 @@
 - Registering a new dispatched sub-binary is a thirteen-point surface — see
   `tasks/README.md#registering-a-dispatched-sub-binary` before adding one.
   Registering a plain library crate is a smaller surface — see
-  `tasks/README.md#registering-a-library-crate`.
+  `tasks/README.md#registering-a-library-crate`. Adding a subcommand to an
+  existing sub-binary is smaller still — see
+  `tasks/README.md#adding-a-subcommand-to-an-existing-sub-binary`.

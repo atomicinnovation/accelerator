@@ -7,23 +7,29 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::time::Duration;
 
-use config::credentials::{
-    refuse_tracked_source, resolve_token, CommandPolicy, CredentialContext,
-    CredentialError, Environment, FileFacts, FileState, Provenance,
-    ResolvedToken, TokenCommandFailure, TokenCommandRunner, TokenKeys,
-    TokenSource, INSECURE_MARKER_RELATIVE,
+use config::catalogue::BASE_COMMAND_ENVIRONMENT;
+use config::consent::{
+    CommandExecution, CommandFailure, CommandPolicy, CommandRunner,
+    ConfigFileTracking, FailureCause, ProvenanceContext, Refusal, Rejection,
+    Runner, StartFailure, Tracking,
 };
-use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+use config::credentials::{
+    resolve_token, CredentialContext, CredentialError, Environment,
+    ResolvedToken, TokenKeys, TokenSource,
+};
+use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
 
 const SENTINEL: &str = "s3cr3t-sentinel-value";
 const PERSONAL: &str = "/project/.accelerator/config.local.md";
-const MARKER: &str = "/project/.accelerator/allow-insecure-local";
 
 struct FixedConfig {
     personal: BTreeMap<String, String>,
     team: BTreeMap<String, String>,
+    personal_file: PersonalFile,
+    personal_fails: bool,
 }
 
 impl config::ConfigAccess for FixedConfig {
@@ -33,6 +39,12 @@ impl config::ConfigAccess for FixedConfig {
         level: Option<Level>,
     ) -> Result<Resolved, ConfigError> {
         let map = match level {
+            Some(Level::Personal) if self.personal_fails => {
+                return Err(ConfigError::Io {
+                    path: PERSONAL.to_owned(),
+                    detail: "boom".to_owned(),
+                })
+            }
             Some(Level::Personal) => &self.personal,
             Some(Level::Team) => &self.team,
             None => unreachable!("the ladder always names a level"),
@@ -50,6 +62,22 @@ impl config::ConfigAccess for FixedConfig {
     ) -> Result<(), ConfigError> {
         unreachable!("the ladder never writes")
     }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &self.personal_file
+    }
+}
+
+struct FixedTracking(RefCell<BTreeMap<PathBuf, Tracking>>);
+
+impl ConfigFileTracking for FixedTracking {
+    fn tracking(&self, path: &Path) -> Tracking {
+        self.0
+            .borrow()
+            .get(path)
+            .copied()
+            .unwrap_or(Tracking::Untracked)
+    }
 }
 
 struct FixedEnvironment(BTreeMap<String, String>);
@@ -60,44 +88,22 @@ impl Environment for FixedEnvironment {
     }
 }
 
-struct FixedProvenance(Vec<PathBuf>);
-
-impl Provenance for FixedProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        self.0.iter().any(|tracked| tracked == path)
-    }
-}
-
-struct RecordingFiles {
-    states: BTreeMap<PathBuf, Result<FileState, String>>,
-    inspected: RefCell<Vec<PathBuf>>,
-}
-
-impl FileFacts for RecordingFiles {
-    fn inspect(&self, path: &Path) -> Result<FileState, String> {
-        self.inspected.borrow_mut().push(path.to_path_buf());
-        self.states
-            .get(path)
-            .cloned()
-            .unwrap_or(Ok(FileState::Absent))
-    }
-}
-
+#[derive(Clone)]
 struct ScriptedRunner {
-    outcome: Result<String, TokenCommandFailure>,
-    runs: RefCell<Vec<(String, CommandPolicy)>>,
+    outcome: Rc<RefCell<Result<String, CommandFailure>>>,
+    runs: Rc<RefCell<Vec<(String, CommandPolicy)>>>,
 }
 
-impl TokenCommandRunner for ScriptedRunner {
+impl CommandRunner for ScriptedRunner {
     fn run(
         &self,
         command: &str,
         policy: &CommandPolicy,
-    ) -> Result<String, TokenCommandFailure> {
+    ) -> Result<String, CommandFailure> {
         self.runs
             .borrow_mut()
             .push((command.to_owned(), policy.clone()));
-        self.outcome.clone()
+        self.outcome.borrow().clone()
     }
 }
 
@@ -106,30 +112,30 @@ impl TokenCommandRunner for ScriptedRunner {
 struct Ladder {
     config: FixedConfig,
     environment: FixedEnvironment,
-    provenance: FixedProvenance,
-    files: RecordingFiles,
-    runner: ScriptedRunner,
-    command: CommandPolicy,
+    tracking: FixedTracking,
+    script: ScriptedRunner,
+    runner: Runner,
+    timeout: Duration,
 }
 
 impl Ladder {
     fn new() -> Self {
+        let script = ScriptedRunner {
+            outcome: Rc::new(RefCell::new(Ok("from-helper".to_owned()))),
+            runs: Rc::new(RefCell::new(Vec::new())),
+        };
         Self {
             config: FixedConfig {
                 personal: BTreeMap::new(),
                 team: BTreeMap::new(),
+                personal_file: PersonalFile::Absent,
+                personal_fails: false,
             },
             environment: FixedEnvironment(BTreeMap::new()),
-            provenance: FixedProvenance(Vec::new()),
-            files: RecordingFiles {
-                states: BTreeMap::new(),
-                inspected: RefCell::new(Vec::new()),
-            },
-            runner: ScriptedRunner {
-                outcome: Ok("from-helper".to_owned()),
-                runs: RefCell::new(Vec::new()),
-            },
-            command: CommandPolicy::rooted_at(PathBuf::from("/project")),
+            tracking: FixedTracking(RefCell::new(BTreeMap::new())),
+            script: script.clone(),
+            runner: Runner::new(Box::new(script)),
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
         }
     }
 
@@ -150,43 +156,60 @@ impl Ladder {
         self
     }
 
-    fn file(mut self, path: &str, state: Result<FileState, String>) -> Self {
-        self.files.states.insert(PathBuf::from(path), state);
+    fn personal_file(mut self, mode: u32) -> Self {
+        self.config.personal_file = if mode.trailing_zeros() >= 6 {
+            PersonalFile::Readable
+        } else {
+            PersonalFile::Ignored {
+                path: PathBuf::from(PERSONAL),
+                mode,
+            }
+        };
         self
     }
 
-    fn personal_file(self, mode: u32) -> Self {
-        self.file(PERSONAL, Ok(FileState::File { mode }))
+    fn tracked(self, path: &str) -> Self {
+        self.tracking_of(path, Tracking::Tracked)
     }
 
-    fn tracked(mut self, path: &str) -> Self {
-        self.provenance.0.push(PathBuf::from(path));
+    fn tracking_of(self, path: &str, answer: Tracking) -> Self {
+        self.tracking
+            .0
+            .borrow_mut()
+            .insert(PathBuf::from(path), answer);
         self
     }
 
-    fn helper(mut self, outcome: Result<String, TokenCommandFailure>) -> Self {
-        self.runner.outcome = outcome;
+    const fn failing_personal_read(mut self) -> Self {
+        self.config.personal_fails = true;
+        self
+    }
+
+    fn helper(self, outcome: Result<String, CommandFailure>) -> Self {
+        *self.script.outcome.borrow_mut() = outcome;
         self
     }
 
     fn resolve(&self) -> Result<ResolvedToken, CredentialError> {
         resolve_token(
             &CredentialContext {
-                environment: &self.environment,
-                config: &self.config,
-                provenance: &self.provenance,
-                files: &self.files,
-                commands: &self.runner,
-                personal_config: PathBuf::from(PERSONAL),
-                insecure_marker: PathBuf::from(MARKER),
-                command: self.command.clone(),
+                provenance: ProvenanceContext {
+                    config: &self.config,
+                    tracking: &self.tracking,
+                    environment: &self.environment,
+                    personal_config: PathBuf::from(PERSONAL),
+                },
+                execution: CommandExecution {
+                    runner: &self.runner,
+                    timeout: self.timeout,
+                },
             },
             &keys(),
         )
     }
 
     fn helper_runs(&self) -> Vec<String> {
-        self.runner
+        self.script
             .runs
             .borrow()
             .iter()
@@ -196,12 +219,29 @@ impl Ladder {
 }
 
 fn keys() -> TokenKeys {
-    TokenKeys {
-        env: "ACCELERATOR_JIRA_TOKEN",
-        env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
-        value: Key::parse("jira.token").expect("jira.token parses"),
-        command: Key::parse("jira.token_cmd").expect("jira.token_cmd parses"),
-    }
+    TokenKeys::declared("jira.token", "jira.token_cmd")
+        .expect("jira's token keys are declared")
+}
+
+fn codes(refusals: &[Refusal]) -> Vec<String> {
+    refusals
+        .iter()
+        .map(|refusal| {
+            refusal
+                .to_string()
+                .split(':')
+                .next()
+                .unwrap_or_default()
+                .to_owned()
+        })
+        .collect()
+}
+
+fn rejection(error: CredentialError) -> Rejection {
+    let CredentialError::Consent(rejection) = error else {
+        panic!("expected a consent rejection, got {error:?}");
+    };
+    rejection
 }
 
 #[test]
@@ -215,6 +255,7 @@ fn the_environment_token_wins_over_every_configured_source() {
 
     assert_eq!(resolved.value.expose(), "from-env");
     assert_eq!(resolved.source, TokenSource::Env);
+    assert!(resolved.notice.is_none());
 }
 
 #[test]
@@ -229,19 +270,26 @@ fn the_environment_command_is_a_second_environment_source() {
     assert_eq!(resolved.value.expose(), "from-env-cmd");
     assert_eq!(resolved.source, TokenSource::EnvCommand);
     assert_eq!(ladder.helper_runs(), ["print-env-token"]);
+    assert_eq!(
+        resolved
+            .notice
+            .expect("an environment command notices")
+            .to_string(),
+        "notice: jira.token_cmd taken from ACCELERATOR_JIRA_TOKEN_CMD"
+    );
 }
 
 #[test]
 fn the_helper_runs_under_the_contexts_command_policy() {
     let mut ladder =
         Ladder::new().env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token");
-    ladder.command.timeout = Duration::from_secs(7);
+    ladder.timeout = Duration::from_secs(7);
 
     ladder.resolve().expect("the environment command resolves");
 
-    let runs = ladder.runner.runs.borrow();
-    assert_eq!(runs[0].1.timeout, Duration::from_secs(7));
-    assert_eq!(runs[0].1.working_directory, PathBuf::from("/project"));
+    let runs = ladder.script.runs.borrow();
+    assert_eq!(runs[0].1.timeout(), Duration::from_secs(7));
+    assert_eq!(runs[0].1.admitted_environment(), BASE_COMMAND_ENVIRONMENT);
 }
 
 #[test]
@@ -270,6 +318,7 @@ fn the_personal_command_outranks_the_shared_value() {
 
     assert_eq!(resolved.value.expose(), "from-personal-cmd");
     assert_eq!(resolved.source, TokenSource::PersonalCommand);
+    assert!(resolved.refusals.is_empty());
 }
 
 #[test]
@@ -296,17 +345,49 @@ fn a_present_personal_file_with_no_token_does_not_fall_through_to_shared() {
 }
 
 #[test]
-fn a_shared_token_command_is_refused_rather_than_ignored() {
+fn a_team_command_beside_a_present_personal_file_and_nothing_else_is_fatal() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .team("jira.token_cmd", "print-shared-token");
+
+    let rejection = rejection(ladder.resolve().expect_err("nothing usable"));
+
+    assert!(
+        rejection
+            .fatal
+            .to_string()
+            .starts_with("E_CONSENT_KEY_TEAM_LEVEL: jira.token_cmd"),
+        "{}",
+        rejection.fatal
+    );
+    assert!(rejection.warnings.is_empty());
+    assert!(ladder.helper_runs().is_empty());
+}
+
+#[test]
+fn a_team_command_beside_a_personal_token_warns_and_resolves_the_token() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .personal("jira.token", "from-personal")
+        .team("jira.token_cmd", "print-shared-token");
+
+    let resolved = ladder.resolve().expect("the personal token resolves");
+
+    assert_eq!(resolved.value.expose(), "from-personal");
+    assert_eq!(codes(&resolved.refusals), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+    assert!(ladder.helper_runs().is_empty());
+}
+
+#[test]
+fn a_team_command_beside_a_team_token_and_no_personal_file_resolves_it() {
     let ladder = Ladder::new()
         .team("jira.token_cmd", "print-shared-token")
         .team("jira.token", "from-shared");
 
-    let error = ladder.resolve().expect_err("a shared token_cmd is refused");
+    let resolved = ladder.resolve().expect("the team token resolves");
 
-    assert!(matches!(
-        error,
-        CredentialError::TokenCmdFromSharedConfig { .. }
-    ));
+    assert_eq!(resolved.value.expose(), "from-shared");
+    assert_eq!(codes(&resolved.refusals), ["E_CONSENT_KEY_TEAM_LEVEL"]);
     assert!(ladder.helper_runs().is_empty());
 }
 
@@ -331,13 +412,31 @@ fn a_personal_command_from_a_tracked_file_is_refused_before_it_runs() {
         .personal("jira.token_cmd", "print-personal-token")
         .tracked(PERSONAL);
 
-    let error = ladder.resolve().expect_err("a tracked file is refused");
+    let rejection = rejection(ladder.resolve().expect_err("tracked"));
 
-    assert!(matches!(
-        error,
-        CredentialError::TokenCmdFromTrackedFile { ref key, .. }
-            if key == "jira.token_cmd"
-    ));
+    assert!(
+        rejection.fatal.to_string().starts_with(&format!(
+            "E_CONSENT_KEY_TRACKED: jira.token_cmd in {PERSONAL} is refused"
+        )),
+        "{}",
+        rejection.fatal
+    );
+    assert!(ladder.helper_runs().is_empty());
+}
+
+#[test]
+fn a_personal_command_whose_tracking_is_unknown_is_refused() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .personal("jira.token_cmd", "print-personal-token")
+        .tracking_of(PERSONAL, Tracking::Unknown);
+
+    let rejection = rejection(ladder.resolve().expect_err("unknown"));
+
+    assert_eq!(
+        codes(&[rejection.fatal]),
+        ["E_CONSENT_KEY_TRACKING_UNKNOWN"]
+    );
     assert!(ladder.helper_runs().is_empty());
 }
 
@@ -346,23 +445,59 @@ fn a_personal_value_from_a_tracked_file_is_refused() {
     let ladder = Ladder::new()
         .personal_file(0o600)
         .personal("jira.token", "from-personal")
-        .personal("jira.token_cmd", "print-personal-token")
         .tracked(PERSONAL);
 
-    let error = ladder.resolve().expect_err("a tracked value is refused");
+    let rejection = rejection(ladder.resolve().expect_err("tracked"));
 
-    assert!(matches!(
-        error,
-        CredentialError::TokenFromTrackedFile { ref key, .. }
-            if key == "jira.token"
-    ));
     assert!(
-        error.to_string().starts_with(&format!(
-            "E_TOKEN_FROM_TRACKED_FILE: jira.token in {PERSONAL} refused"
+        rejection.fatal.to_string().starts_with(&format!(
+            "E_TOKEN_FROM_TRACKED_FILE: jira.token in {PERSONAL} is refused"
         )),
-        "{error}"
+        "{}",
+        rejection.fatal
     );
+    assert!(matches!(
+        rejection.fatal,
+        Refusal::PlaintextFromUntrustedFile { .. }
+    ));
     assert!(ladder.helper_runs().is_empty());
+}
+
+#[test]
+fn a_personal_value_whose_tracking_is_unknown_is_refused_with_the_hint() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .personal("jira.token", "from-personal")
+        .tracking_of(PERSONAL, Tracking::Unknown);
+
+    let rejection = rejection(ladder.resolve().expect_err("unknown"));
+
+    assert_eq!(
+        codes(std::slice::from_ref(&rejection.fatal)),
+        ["E_TOKEN_FROM_TRACKED_FILE"]
+    );
+    assert!(
+        rejection
+            .fatal
+            .to_string()
+            .ends_with("set ACCELERATOR_JIRA_TOKEN in the environment"),
+        "{}",
+        rejection.fatal
+    );
+}
+
+#[test]
+fn a_tracked_personal_token_beside_a_team_command_is_fatal_and_warns() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .personal("jira.token", "from-personal")
+        .team("jira.token_cmd", "print-shared-token")
+        .tracked(PERSONAL);
+
+    let rejection = rejection(ladder.resolve().expect_err("tracked"));
+
+    assert_eq!(codes(&[rejection.fatal]), ["E_TOKEN_FROM_TRACKED_FILE"]);
+    assert_eq!(codes(&rejection.warnings), ["E_CONSENT_KEY_TEAM_LEVEL"]);
 }
 
 #[test]
@@ -380,13 +515,62 @@ fn an_environment_token_never_consults_a_tracked_personal_file() {
         .env("ACCELERATOR_JIRA_TOKEN", "from-env")
         .personal_file(0o600)
         .personal("jira.token", "from-personal")
+        .failing_personal_read()
         .tracked(PERSONAL);
 
     let resolved = ladder.resolve().expect("the environment resolves");
 
     assert_eq!(resolved.source, TokenSource::Env);
-    assert!(ladder.files.inspected.borrow().is_empty());
+    assert!(resolved.refusals.is_empty());
     assert!(ladder.helper_runs().is_empty());
+}
+
+#[test]
+fn an_environment_command_skips_provenance_but_runs_under_the_policy() {
+    let ladder = Ladder::new()
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+        .personal_file(0o600)
+        .failing_personal_read()
+        .tracked(PERSONAL)
+        .helper(Ok("from-env-cmd".to_owned()));
+
+    let resolved = ladder.resolve().expect("the environment command resolves");
+
+    assert_eq!(resolved.value.expose(), "from-env-cmd");
+    assert_eq!(
+        ladder.script.runs.borrow()[0].1.admitted_environment(),
+        BASE_COMMAND_ENVIRONMENT
+    );
+}
+
+#[test]
+fn a_failing_environment_command_falls_through_to_a_personal_token() {
+    let ladder = Ladder::new()
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+        .personal_file(0o600)
+        .personal("jira.token", "from-personal")
+        .helper(Err(CommandFailure::Failed(FailureCause::Exited(1))));
+
+    let resolved = ladder.resolve().expect("the personal token resolves");
+
+    assert_eq!(resolved.value.expose(), "from-personal");
+    assert_eq!(codes(&resolved.refusals), ["E_TOKEN_CMD_FAILED"]);
+    assert!(resolved.notice.is_none());
+}
+
+#[test]
+fn a_timed_out_personal_command_beside_a_team_command_is_fatal_and_warns() {
+    let ladder = Ladder::new()
+        .personal_file(0o600)
+        .personal("jira.token_cmd", "print-personal-token")
+        .team("jira.token_cmd", "print-shared-token")
+        .helper(Err(CommandFailure::TimedOut));
+
+    let rejection = rejection(ladder.resolve().expect_err("timed out"));
+
+    assert_eq!(codes(&[rejection.fatal]), ["E_COMMAND_TIMED_OUT"]);
+    assert_eq!(codes(&rejection.warnings), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+    assert_eq!(ladder.helper_runs(), ["print-personal-token"]);
 }
 
 #[test]
@@ -401,222 +585,275 @@ fn an_untracked_owner_only_personal_file_resolves() {
 }
 
 #[test]
-fn an_allowlist_value_from_a_tracked_file_is_held_to_the_same_rule() {
-    let personal = PathBuf::from(PERSONAL);
-    let tracked = FixedProvenance(vec![personal.clone()]);
-
-    let error =
-        refuse_tracked_source(&tracked, &personal, "jira.allowed_sites")
-            .expect_err("an allowlist entry from a tracked file is refused");
-
-    assert!(
-        error.to_string().starts_with(&format!(
-            "E_TOKEN_CMD_FROM_TRACKED_FILE: jira.allowed_sites comes from \
-             {PERSONAL}"
-        )),
-        "{error}"
-    );
-    assert!(
-        refuse_tracked_source(
-            &FixedProvenance(Vec::new()),
-            &personal,
-            "jira.allowed_sites"
-        )
-        .is_ok(),
-        "an untracked provenance file is accepted"
-    );
-}
-
-#[test]
-fn a_personal_config_looser_than_0600_is_refused() {
+fn an_ignored_personal_config_with_no_environment_token_is_refused() {
     let ladder = Ladder::new()
         .personal_file(0o644)
         .personal("jira.token", "from-file");
 
-    let error = ladder.resolve().expect_err("a readable file is refused");
+    let rejection = rejection(ladder.resolve().expect_err("ignored"));
 
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-    assert!(error.to_string().contains("chmod 600"), "{error}");
+    assert!(matches!(
+        rejection.fatal,
+        Refusal::InsecurePersonalFile { .. }
+    ));
+    assert!(rejection.fatal.to_string().contains("chmod 600"));
 }
 
 #[test]
-fn the_insecure_override_needs_both_the_variable_and_a_tracked_marker() {
-    let untracked = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
+fn an_ignored_personal_config_never_lets_the_team_token_through() {
+    let ladder = Ladder::new()
         .personal_file(0o644)
-        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
-        .personal("jira.token", "from-file");
-    assert!(
-        matches!(
-            untracked.resolve(),
-            Err(CredentialError::LocalPermsInsecure { .. })
-        ),
-        "an untracked marker does not unlock the override"
-    );
-
-    let tracked = untracked.tracked(MARKER);
-    let resolved = tracked
-        .resolve()
-        .expect("a tracked marker plus the variable honours the override");
-    assert_eq!(resolved.value.expose(), "from-file");
-}
-
-#[test]
-fn a_symlinked_personal_config_is_refused_even_under_the_override() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
-        .file(PERSONAL, Ok(FileState::Symlink))
-        .file(MARKER, Ok(FileState::File { mode: 0o644 }))
-        .tracked(MARKER)
-        .personal("jira.token", "from-file");
-
-    let error = ladder.resolve().expect_err("a symlink is refused");
-
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-}
-
-#[test]
-fn a_personal_config_that_is_not_a_regular_file_is_refused() {
-    let ladder = Ladder::new()
-        .file(PERSONAL, Ok(FileState::Other))
-        .personal("jira.token", "from-file");
-
-    let error = ladder.resolve().expect_err("a directory is refused");
-
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-}
-
-#[test]
-fn an_uninspectable_personal_config_is_unreadable() {
-    let ladder = Ladder::new()
-        .file(PERSONAL, Err("permission denied".to_owned()))
         .team("jira.token", "from-shared");
 
-    let error = ladder.resolve().expect_err("an unreadable file is refused");
-
-    assert!(matches!(error, CredentialError::ConfigUnreadable { .. }));
-}
-
-#[test]
-fn a_symlinked_marker_does_not_unlock_the_override() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_ALLOW_INSECURE_LOCAL", "1")
-        .personal_file(0o644)
-        .file(MARKER, Ok(FileState::Symlink))
-        .tracked(MARKER)
-        .personal("jira.token", "from-file");
-
-    let error = ladder.resolve().expect_err("a symlinked marker is refused");
-
-    assert!(matches!(error, CredentialError::LocalPermsInsecure { .. }));
-}
-
-#[test]
-fn the_marker_path_lives_under_accelerator() {
-    assert_eq!(
-        INSECURE_MARKER_RELATIVE,
-        ".accelerator/allow-insecure-local"
+    let rejection = rejection(
+        ladder
+            .resolve()
+            .expect_err("a team token is not used beside an ignored file"),
     );
+    assert_eq!(codes(&[rejection.fatal]), ["E_LOCAL_PERMS_INSECURE"]);
+
+    let resolved = ladder
+        .env("ACCELERATOR_JIRA_TOKEN", "from-env")
+        .resolve()
+        .expect("the environment still resolves beside an ignored file");
+    assert_eq!(resolved.value.expose(), "from-env");
+    assert_eq!(resolved.source, TokenSource::Env);
+}
+
+#[test]
+fn an_ignored_personal_config_is_recorded_once_beside_a_team_command() {
+    let ladder = Ladder::new()
+        .personal_file(0o644)
+        .personal("jira.token_cmd", "print-personal-token")
+        .team("jira.token_cmd", "print-shared-token");
+
+    let rejection = rejection(ladder.resolve().expect_err("ignored"));
+
+    assert_eq!(codes(&[rejection.fatal]), ["E_LOCAL_PERMS_INSECURE"]);
+    assert_eq!(codes(&rejection.warnings), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+    assert!(ladder.helper_runs().is_empty());
 }
 
 #[test]
 fn a_token_carrying_a_control_character_is_refused() {
     let ladder = Ladder::new().env("ACCELERATOR_JIRA_TOKEN", "abc\r\ndef");
 
-    let error = ladder.resolve().expect_err("a header-injecting token");
+    let rejection = rejection(ladder.resolve().expect_err("malformed"));
 
-    assert!(matches!(error, CredentialError::MalformedToken { .. }));
-}
-
-#[test]
-fn a_failing_helper_names_the_command_key_once() {
-    let ladder = Ladder::new()
-        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::Failed(
-            "exited with exit status: 3".to_owned(),
-        )));
-
-    let error = ladder.resolve().expect_err("a failing helper");
-
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd exited with exit status: 3"
-        ),
-        "{error}"
+    assert_eq!(
+        rejection.fatal.to_string(),
+        "E_TOKEN_MALFORMED: jira.token yielded a value carrying a control \
+         character"
     );
 }
 
 #[test]
-fn a_helper_that_cannot_run_names_the_command_key_once() {
+fn a_malformed_environment_token_falls_through_to_a_valid_personal_one() {
     let ladder = Ladder::new()
-        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::CouldNotRun(
-            "no such file".to_owned(),
-        )));
+        .env("ACCELERATOR_JIRA_TOKEN", "abc\u{1}def")
+        .personal_file(0o600)
+        .personal("jira.token", "from-personal");
 
-    let error = ladder.resolve().expect_err("an unrunnable helper");
+    let resolved = ladder.resolve().expect("the personal token resolves");
 
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd could not be run: no such file"
-        ),
-        "{error}"
-    );
+    assert_eq!(resolved.value.expose(), "from-personal");
+    assert_eq!(codes(&resolved.refusals), ["E_TOKEN_MALFORMED"]);
 }
 
 #[test]
-fn a_timed_out_helper_names_the_command_key_once_and_the_policy_timeout() {
+fn a_helper_printing_a_control_character_is_malformed() {
+    let ladder = Ladder::new()
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+        .helper(Ok("tok\u{1}".to_owned()));
+
+    let rejection = rejection(ladder.resolve().expect_err("malformed"));
+
+    assert_eq!(codes(&[rejection.fatal]), ["E_TOKEN_MALFORMED"]);
+}
+
+#[test]
+fn a_failing_helper_is_refused_with_its_cause() {
+    let key = config::catalogue::declared("jira.token_cmd").unwrap();
+    for (failure, cause) in [
+        (
+            CommandFailure::Failed(FailureCause::Exited(3)),
+            FailureCause::Exited(3),
+        ),
+        (
+            CommandFailure::Failed(FailureCause::CouldNotStart(
+                StartFailure::NoBashOnPath,
+            )),
+            FailureCause::CouldNotStart(StartFailure::NoBashOnPath),
+        ),
+    ] {
+        let ladder = Ladder::new()
+            .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+            .helper(Err(failure));
+
+        let error = ladder.resolve().expect_err("a failing helper");
+
+        assert_eq!(
+            error,
+            CredentialError::Consent(Rejection::alone(
+                Refusal::CommandFailed { key, cause }
+            ))
+        );
+    }
+}
+
+#[test]
+fn a_timed_out_helper_names_the_command_key_and_the_timeout() {
     let mut ladder = Ladder::new()
         .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
-        .helper(Err(TokenCommandFailure::TimedOut));
-    ladder.command.timeout = Duration::from_secs(9);
+        .helper(Err(CommandFailure::TimedOut));
+    ladder.timeout = Duration::from_secs(9);
 
     let error = ladder.resolve().expect_err("a hanging helper");
 
-    assert!(matches!(
-        error,
-        CredentialError::TokenCmdTimedOut { after, .. }
-            if after == Duration::from_secs(9)
-    ));
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FAILED: jira.token_cmd did not finish within 9s"
-        ),
-        "{error}"
+    assert_eq!(
+        error.to_string(),
+        "E_COMMAND_TIMED_OUT: jira.token_cmd did not finish within 9s"
     );
 }
 
 #[test]
-fn a_shared_token_command_refusal_names_the_command_key_once() {
-    let ladder = Ladder::new().team("jira.token_cmd", "print-shared-token");
+fn an_oversized_helper_output_is_refused() {
+    let ladder = Ladder::new()
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "print-env-token")
+        .helper(Err(CommandFailure::OutputExceeded));
 
-    let error = ladder.resolve().expect_err("a shared token_cmd is refused");
+    let error = ladder.resolve().expect_err("an oversized helper");
 
-    assert!(
-        error.to_string().starts_with(
-            "E_TOKEN_CMD_FROM_SHARED_CONFIG: jira.token_cmd in config.md \
-             refused"
-        ),
-        "{error}"
+    assert_eq!(
+        error.to_string(),
+        "E_COMMAND_OUTPUT_EXCEEDED: jira.token_cmd printed more than 65536 \
+         bytes"
     );
 }
 
 #[test]
-fn a_tracked_personal_command_refusal_names_the_command_key_once() {
+fn a_failed_personal_read_aborts_carrying_the_team_refusal() {
     let ladder = Ladder::new()
         .personal_file(0o600)
-        .personal("jira.token_cmd", "print-personal-token")
-        .tracked(PERSONAL);
+        .failing_personal_read()
+        .team("jira.token_cmd", "print-shared-token");
 
-    let error = ladder.resolve().expect_err("a tracked file is refused");
+    let error = ladder.resolve().expect_err("an unreadable personal level");
 
-    assert!(
-        error.to_string().starts_with(&format!(
-            "E_TOKEN_CMD_FROM_TRACKED_FILE: jira.token_cmd comes from \
-             {PERSONAL}"
-        )),
-        "{error}"
-    );
+    let CredentialError::ConfigUnreadable(aborted) = &error else {
+        panic!("expected an aborted resolution, got {error:?}");
+    };
+    assert!(matches!(aborted.error, ConfigError::Io { .. }));
+    assert_eq!(codes(error.warnings()), ["E_CONSENT_KEY_TEAM_LEVEL"]);
+}
+
+fn failing_env_command(ladder: Ladder, failure: CommandFailure) -> Ladder {
+    ladder
+        .env("ACCELERATOR_JIRA_TOKEN_CMD", "cmd")
+        .helper(Err(failure))
+}
+
+/// Every refusal code, with and without a usable value left: with one it is
+/// a warning on the resolved token, without one it is the fatal refusal. A
+/// distrusted personal file refuses every later personal rung, so its codes
+/// have no row in which a value remains.
+#[test]
+fn every_refusal_is_a_warning_beside_a_usable_value_and_fatal_without_one() {
+    type Arrange = fn(Ladder) -> Ladder;
+    let rows: [(&str, Arrange, Option<Arrange>); 9] = [
+        (
+            "E_CONSENT_KEY_TEAM_LEVEL",
+            |ladder| ladder.team("jira.token_cmd", "shared"),
+            Some(|ladder| {
+                ladder
+                    .team("jira.token_cmd", "shared")
+                    .personal("jira.token", "usable")
+            }),
+        ),
+        (
+            "E_CONSENT_KEY_TRACKED",
+            |ladder| {
+                ladder.personal("jira.token_cmd", "mine").tracked(PERSONAL)
+            },
+            None,
+        ),
+        (
+            "E_CONSENT_KEY_TRACKING_UNKNOWN",
+            |ladder| {
+                ladder
+                    .personal("jira.token_cmd", "mine")
+                    .tracking_of(PERSONAL, Tracking::Unknown)
+            },
+            None,
+        ),
+        (
+            "E_TOKEN_FROM_TRACKED_FILE",
+            |ladder| ladder.personal("jira.token", "mine").tracked(PERSONAL),
+            None,
+        ),
+        (
+            "E_TOKEN_CMD_FAILED",
+            |ladder| {
+                failing_env_command(
+                    ladder,
+                    CommandFailure::Failed(FailureCause::Exited(2)),
+                )
+            },
+            Some(|ladder| {
+                failing_env_command(
+                    ladder,
+                    CommandFailure::Failed(FailureCause::Exited(2)),
+                )
+                .personal("jira.token", "usable")
+            }),
+        ),
+        (
+            "E_COMMAND_TIMED_OUT",
+            |ladder| failing_env_command(ladder, CommandFailure::TimedOut),
+            Some(|ladder| {
+                failing_env_command(ladder, CommandFailure::TimedOut)
+                    .personal("jira.token", "usable")
+            }),
+        ),
+        (
+            "E_COMMAND_OUTPUT_EXCEEDED",
+            |ladder| {
+                failing_env_command(ladder, CommandFailure::OutputExceeded)
+            },
+            Some(|ladder| {
+                failing_env_command(ladder, CommandFailure::OutputExceeded)
+                    .personal("jira.token", "usable")
+            }),
+        ),
+        (
+            "E_TOKEN_MALFORMED",
+            |ladder| ladder.env("ACCELERATOR_JIRA_TOKEN", "a\u{1}b"),
+            Some(|ladder| {
+                ladder
+                    .env("ACCELERATOR_JIRA_TOKEN", "a\u{1}b")
+                    .personal("jira.token", "usable")
+            }),
+        ),
+        (
+            "E_LOCAL_PERMS_INSECURE",
+            |ladder| ladder.personal_file(0o644),
+            None,
+        ),
+    ];
+    for (code, refused, usable) in rows {
+        let error = refused(Ladder::new().personal_file(0o600))
+            .resolve()
+            .expect_err(code);
+        assert_eq!(codes(&[rejection(error).fatal]), [code]);
+
+        if let Some(usable) = usable {
+            let resolved = usable(Ladder::new().personal_file(0o600))
+                .resolve()
+                .expect(code);
+            assert_eq!(resolved.value.expose(), "usable", "{code}");
+            assert_eq!(codes(&resolved.refusals), [code]);
+        }
+    }
 }
 
 #[test]

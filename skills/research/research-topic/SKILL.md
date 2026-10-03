@@ -149,7 +149,9 @@ Suggest `openalex` and `arxiv` alongside `web` when the subject is scholarly.
 When the user chooses `openalex`, recommend configuring an OpenAlex API key
 (`openalex.api_key_cmd` in `.accelerator/config.local.md`, through
 `/accelerator:configure`): without one, research runs on OpenAlex's small
-keyless daily allowance. Record the chosen subset as `source_profiles`,
+keyless daily allowance. A key command in the shared `.accelerator/config.md`
+is refused with `E_CONSENT_KEY_TEAM_LEVEL`, and the fetch then fails rather
+than going keyless unless another rung supplies a key. Record the chosen subset as `source_profiles`,
 defaulting to `["web"]` when the user expresses no preference.
 
 **Refuse if `meta/research/topics/<slug>/` already exists.** Name the exact

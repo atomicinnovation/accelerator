@@ -664,6 +664,41 @@ would sign the vendored verify shim and advertise it in the manifest. Both
 listed in the manifest but never dispatched. All three constraints are enforced
 by the dispatch guard.
 
+## Adding a subcommand to an existing sub-binary
+
+A new subcommand of an already-dispatched token owes much less, because the
+token, its manifest entry and its release staging exist already. `vcs
+tracking` is the worked example.
+
+- **Dispatch coherence.** No action. The guard binds tokens, not
+  subcommands, so the new subcommand is covered by its token's existing skill
+  binding or `SKILL_EXEMPT_SUBBINARIES` entry.
+- **`VCS_SUBCOMMANDS`** (`tasks/lint/skill_cli_refs.py`), for a `vcs`
+  subcommand only. A test pins it against the clap `Command` enum, so the
+  build fails until the new name is added. **[PR]**
+- **Bash permission rules.** A skill that invokes the new subcommand through
+  the `!` preprocessor needs a `Bash(...)` rule that covers it. A rule scoped
+  to another subcommand of the same token does not. **No action when** only
+  the launcher or a hook runs it.
+- **The public-API fixture.** A subcommand usually lives in the binary crate,
+  which is exempt from pinning. A type it adds to a pinned domain crate moves
+  that crate's snapshot, so regenerate it with `mise run public-api:update`
+  after reading the diff.
+- **Output the launcher captures.** When the launcher runs the subcommand as
+  a captured child instead of `exec`ing it, the output is a contract between
+  two binaries released together. Put the rendered type in `kernel`, which
+  both sides already depend on and which carries no VCS or config libraries,
+  with `Display` for the sub-binary and `FromStr` for the launcher. Add a
+  contract test in the sub-binary's `tests/` that parses the real
+  subcommand's stdout through that `FromStr`, so a renamed token fails there
+  and not silently in the launcher. `kernel::TrackingAnswer` and
+  `cli/vcs-cli/tests/tracking.rs` are the pattern.
+- **The launcher's test fixture.** `accelerator-fixture` impersonates a
+  captured subcommand, rendering through the same `kernel` type, and every
+  launcher test that reaches the capture points `ACCELERATOR_<TOKEN>_BIN` at
+  it. Without that, a test resolves the real sub-binary from the release
+  host.
+
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
@@ -722,6 +757,11 @@ owes five things. `cli/tracker/` is the worked example.
   snapshot.
 
 Then run `mise run deny:check`.
+
+One placement rule decides where a new config adapter goes: it belongs in
+`cli/consent-adapters` only when it needs VCS. A VCS-free adapter stays in
+`cli/config-adapters`, whose dependents include the launcher and the
+visualiser server, so `gix` and `jj-lib` stay out of both.
 
 ## CI job → local command
 

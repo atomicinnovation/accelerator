@@ -1,5 +1,5 @@
 //! Test doubles the client's own seams need: a fixed config and environment,
-//! a provenance answer, and the clock and jitter the retry suites assert as
+//! a tracking answer, and the clock and jitter the retry suites assert as
 //! data rather than by wall clock.
 
 #![allow(dead_code, clippy::expect_used)]
@@ -13,16 +13,21 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-use config::credentials::{
-    CommandPolicy, CredentialContext, Environment, Provenance,
+use config::consent::{
+    CommandExecution, CommandPolicy, ConfigFileTracking, ProvenanceContext,
+    RepositoryRoots, Runner, Tracking,
 };
-use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
-use config_adapters::credentials::{BashTokenCommandRunner, SystemFileFacts};
+use config::credentials::{CredentialContext, Environment};
+use config::{ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value};
+use config_adapters::credentials::{BashCommandRunner, SystemEnvironment};
 use tracker_support::{Jitter, Sleeper};
 
+/// A personal value implies a readable personal file; a config with none has
+/// no personal file at all.
 pub struct FixedConfig {
     personal: BTreeMap<String, String>,
     team: BTreeMap<String, String>,
+    personal_file: PersonalFile,
 }
 
 impl FixedConfig {
@@ -31,12 +36,24 @@ impl FixedConfig {
         Self {
             personal: BTreeMap::new(),
             team: BTreeMap::new(),
+            personal_file: PersonalFile::Absent,
         }
     }
 
     #[must_use]
     pub fn with_personal(mut self, key: &str, value: &str) -> Self {
         self.personal.insert(key.to_owned(), value.to_owned());
+        self.personal_file = PersonalFile::Readable;
+        self
+    }
+
+    #[must_use]
+    pub fn with_ignored_personal_file(mut self, path: &Path) -> Self {
+        self.personal.clear();
+        self.personal_file = PersonalFile::Ignored {
+            path: path.to_path_buf(),
+            mode: 0o644,
+        };
         self
     }
 
@@ -73,6 +90,10 @@ impl config::ConfigAccess for FixedConfig {
     ) -> Result<(), ConfigError> {
         unreachable!("the client never writes config")
     }
+
+    fn personal_file(&self) -> &PersonalFile {
+        &self.personal_file
+    }
 }
 
 pub struct FixedEnvironment(BTreeMap<String, String>);
@@ -96,15 +117,19 @@ impl Environment for FixedEnvironment {
     }
 }
 
-pub struct FixedProvenance {
+/// What the VCS answers about every file: tracked when named, untracked
+/// otherwise, or unknown for all.
+pub struct FixedTracking {
     tracked: Vec<PathBuf>,
+    answer_for_all: Option<Tracking>,
 }
 
-impl FixedProvenance {
+impl FixedTracking {
     #[must_use]
     pub const fn nothing_tracked() -> Self {
         Self {
             tracked: Vec::new(),
+            answer_for_all: None,
         }
     }
 
@@ -112,13 +137,36 @@ impl FixedProvenance {
     pub fn tracking(path: &Path) -> Self {
         Self {
             tracked: vec![path.to_path_buf()],
+            answer_for_all: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn everything_tracked() -> Self {
+        Self {
+            tracked: Vec::new(),
+            answer_for_all: Some(Tracking::Tracked),
+        }
+    }
+
+    #[must_use]
+    pub const fn unknown() -> Self {
+        Self {
+            tracked: Vec::new(),
+            answer_for_all: Some(Tracking::Unknown),
         }
     }
 }
 
-impl Provenance for FixedProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        self.tracked.iter().any(|tracked| tracked == path)
+impl ConfigFileTracking for FixedTracking {
+    fn tracking(&self, path: &Path) -> Tracking {
+        self.answer_for_all.unwrap_or_else(|| {
+            if self.tracked.iter().any(|tracked| tracked == path) {
+                Tracking::Tracked
+            } else {
+                Tracking::Untracked
+            }
+        })
     }
 }
 
@@ -126,19 +174,32 @@ impl Provenance for FixedProvenance {
 pub fn context<'a>(
     environment: &'a dyn Environment,
     config: &'a dyn config::ConfigAccess,
-    provenance: &'a dyn Provenance,
+    tracking: &'a FixedTracking,
     root: &Path,
 ) -> CredentialContext<'a> {
     CredentialContext {
-        environment,
-        config,
-        provenance,
-        files: &SystemFileFacts,
-        commands: &BashTokenCommandRunner,
-        personal_config: root.join("config.local.md"),
-        insecure_marker: root.join("allow-insecure-local"),
-        command: CommandPolicy::rooted_at(root.to_path_buf()),
+        provenance: ProvenanceContext {
+            config,
+            tracking,
+            environment,
+            personal_config: root.join("config.local.md"),
+        },
+        execution: CommandExecution {
+            runner: runner_rooted_at(root),
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
+        },
     }
+}
+
+/// A real runner judging `root` as the repository. Leaked, because a context
+/// borrows its runner for as long as the test holds it.
+#[must_use]
+pub fn runner_rooted_at(root: &Path) -> &'static Runner {
+    Box::leak(Box::new(Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(vec![root.to_path_buf()]),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )))))
 }
 
 /// Records what it was asked to sleep for, and never waits: the retry

@@ -5,8 +5,10 @@
 //! port's `tracker::TrackerError`, and the composition root's
 //! `SelectionError`. [`ClientError`] deliberately keeps its structure rather
 //! than flattening into a string, so a caller can still tell a missing site
-//! from a failed credential helper from a shared-config refusal.
+//! from a failed credential helper from a consent refusal.
 
+use config::consent::Refusal;
+use config::consent::Rejection;
 use config::credentials::CredentialError;
 use thiserror::Error;
 
@@ -23,12 +25,15 @@ pub enum ClientError {
     NoProject,
     #[error("E_AUTH_NO_EMAIL: jira.email is not configured")]
     NoEmail,
-    #[error(
-        "E_ALLOWED_SITES_FROM_SHARED_CONFIG: jira.allowed_sites in \
-         config.md is refused — a credential destination a clone would \
-         inherit; move it to config.local.md"
-    )]
-    AllowlistFromSharedConfig,
+    #[error("{}", .0.fatal)]
+    Consent(Rejection),
+    /// A failure met after consent refusals that were only warnings, which
+    /// the caller still reports before the failure itself.
+    #[error("{error}")]
+    WithWarnings {
+        error: Box<ClientError>,
+        warnings: Vec<Refusal>,
+    },
     #[error("{0}")]
     Credential(#[from] CredentialError),
     #[error("{reason}")]
@@ -48,4 +53,38 @@ pub enum ClientError {
     ConfigUnreadable { key: String, detail: String },
     #[error("the TLS stack could not be initialised: {detail}")]
     TlsUnavailable { detail: String },
+}
+
+impl ClientError {
+    /// This failure, carrying `warnings` for the caller to report first.
+    #[must_use]
+    pub fn with_warnings(self, warnings: Vec<Refusal>) -> Self {
+        if warnings.is_empty() {
+            return self;
+        }
+        Self::WithWarnings {
+            error: Box::new(self),
+            warnings,
+        }
+    }
+
+    /// The failure itself, beneath any warnings it carries.
+    #[must_use]
+    pub fn cause(&self) -> &Self {
+        match self {
+            Self::WithWarnings { error, .. } => error.cause(),
+            other => other,
+        }
+    }
+
+    /// Every refusal to report as a warning before this failure.
+    #[must_use]
+    pub fn warnings(&self) -> &[Refusal] {
+        match self {
+            Self::WithWarnings { warnings, .. } => warnings,
+            Self::Consent(rejection) => &rejection.warnings,
+            Self::Credential(credential) => credential.warnings(),
+            _ => &[],
+        }
+    }
 }

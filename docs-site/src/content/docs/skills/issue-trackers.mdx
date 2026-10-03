@@ -60,8 +60,10 @@ jira:
 ```
 
 The default project key reuses `work.default_project_code`; set
-`work.integration: jira` to enable auto-scoping. See `/configure help`
-for the full credential resolution chain and `token_cmd` examples.
+`work.integration: jira` to enable auto-scoping. A `token_cmd` belongs in
+`config.local.md` only: one in the shared `config.md` is refused with
+`E_CONSENT_KEY_TEAM_LEVEL`. See `/configure help` for the full credential
+resolution chain, its refusal codes and `token_cmd` examples.
 
 Jira Cloud stores rich text as Atlassian Document Format (ADF);
 Accelerator converts bidirectionally — reading skills render ADF to
@@ -88,7 +90,12 @@ linear:
 ---
 ```
 
-`.accelerator/config.local.md` must be mode `0600` or stricter.
+`.accelerator/config.local.md` must be mode `0600` or stricter; otherwise it
+is not read, with an `E_LOCAL_PERMS_INSECURE` warning, writers refuse, and it
+is fatal only when nothing usable remains. A `token_cmd` is honoured only
+from the environment or an untracked `config.local.md`: one in the shared
+`config.md` is refused with `E_CONSENT_KEY_TEAM_LEVEL`, as a `warning:` when
+another credential resolves and fatally when none does.
 [`init-linear`](../reference/skills/integrations/linear/init-linear.md)
 fixes the workspace to a single team and caches that team with its
 workflow states — `catalogue.json` is committed and team-shared,

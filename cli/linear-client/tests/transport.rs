@@ -26,6 +26,8 @@ fn credentials() -> Credentials {
         token: Secret::new("lin_api_secret".to_owned()),
         team_id: "team-1".to_owned(),
         source: TokenSource::Env,
+        refusals: Vec::new(),
+        notice: None,
     }
 }
 

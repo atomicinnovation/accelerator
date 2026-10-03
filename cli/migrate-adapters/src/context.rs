@@ -9,8 +9,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use config::ConfigAccess as _;
-use config::ConfigService;
+use config::ConfigError;
 use config::Key;
+use config_adapters::Composed;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus::doc_type::DocTypeKey;
@@ -28,25 +29,40 @@ use crate::merge_move::merge_move;
 
 pub struct FileMigrationContext {
     root: PathBuf,
-    config: ConfigService<FileConfigStore, FileConfigStore>,
+    composed: Composed,
     fresh_mode: u32,
     index: OnceCell<FileCorpusIndex>,
     manifest: FileManifestStore,
 }
 
 impl FileMigrationContext {
-    #[must_use]
-    pub fn new(root: impl Into<PathBuf>) -> Self {
+    /// # Errors
+    ///
+    /// [`ConfigError::Io`] when the personal config's metadata cannot be read.
+    pub fn new(root: impl Into<PathBuf>) -> Result<Self, ConfigError> {
         let root = root.into();
-        let store =
-            FileConfigStore::at(&root).with_legacy_policy(LegacyPolicy::Allow);
-        Self {
-            config: ConfigService::new(store.clone(), store),
+        let composed = Composed::over(
+            FileConfigStore::at(&root).with_legacy_policy(LegacyPolicy::Allow),
+        )?;
+        composed.report_ignored_personal_file();
+        Ok(Self {
+            composed,
             fresh_mode: 0o666 & !store::current_umask(),
             index: OnceCell::new(),
             manifest: FileManifestStore::new(&root),
             root,
-        }
+        })
+    }
+
+    /// For a run that migrates: its writes would outlive the fix to an
+    /// ignored personal config.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::InsecurePersonalFile`] when the personal config is
+    /// ignored.
+    pub fn require_readable_personal_file(&self) -> Result<(), ConfigError> {
+        self.composed.require_readable_personal_file()
     }
 
     fn bounds(&self) -> WriteBounds<'_> {
@@ -72,7 +88,7 @@ impl FileMigrationContext {
 
 impl MigrationContext for FileMigrationContext {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-        config::paths::doc_type_dirs(&self.config)
+        config::paths::doc_type_dirs(&self.composed.service)
             .map(|dirs| {
                 dirs.into_iter()
                     .map(|dir| DocTypeDir {
@@ -134,7 +150,8 @@ impl MigrationContext for FileMigrationContext {
         let key = Key::parse(key)
             .map_err(|error| MigrationError::new(error.to_string()))?;
         let resolution = self
-            .config
+            .composed
+            .service
             .effective(&key, None)
             .map_err(|error| MigrationError::new(error.to_string()))?;
         Ok(Some(resolution.rendered()))
@@ -147,7 +164,8 @@ impl MigrationContext for FileMigrationContext {
         let key = Key::parse(key)
             .map_err(|error| MigrationError::new(error.to_string()))?;
         let resolution = self
-            .config
+            .composed
+            .service
             .effective(&key, None)
             .map_err(|error| MigrationError::new(error.to_string()))?;
         Ok(resolution.configured_value())
@@ -443,7 +461,7 @@ mod tests {
     fn a_write_records_the_path_once_even_across_two_write_points(
     ) -> Result<(), TestError> {
         let dir = TempDir::new()?;
-        let ctx = FileMigrationContext::new(dir.path());
+        let ctx = FileMigrationContext::new(dir.path())?;
 
         ctx.write(&dir.path().join("meta/work/a.md"), "one")?;
         ctx.write(&dir.path().join("meta/work/a.md"), "two")?;

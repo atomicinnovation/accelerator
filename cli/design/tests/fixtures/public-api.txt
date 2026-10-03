@@ -91,6 +91,22 @@ pub trait design::cue_phrase_audit::CuePhraseMatcher
 pub fn design::cue_phrase_audit::CuePhraseMatcher::matches(&self, text: &str) -> bool
 pub fn design::cue_phrase_audit::audit(document: &str, matcher: &dyn design::cue_phrase_audit::CuePhraseMatcher) -> alloc::vec::Vec<design::cue_phrase_audit::UncuedSection>
 pub mod design::executor
+pub mod design::executor::daemon_browser
+pub enum design::executor::daemon_browser::DaemonBrowser
+pub design::executor::daemon_browser::DaemonBrowser::Bundled
+pub design::executor::daemon_browser::DaemonBrowser::Custom(std::path::PathBuf)
+impl design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::chosen_by(hatch: &design::runtime::browser_path::HatchDecision) -> Self
+impl core::clone::Clone for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::clone(&self) -> design::executor::daemon_browser::DaemonBrowser
+impl core::cmp::Eq for design::executor::daemon_browser::DaemonBrowser
+impl core::cmp::PartialEq for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::eq(&self, other: &design::executor::daemon_browser::DaemonBrowser) -> bool
+impl core::fmt::Debug for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for design::executor::daemon_browser::DaemonBrowser
 pub mod design::executor::daemon_identity
 pub enum design::executor::daemon_identity::ObservedDaemon
 pub design::executor::daemon_identity::ObservedDaemon::Absent
@@ -309,6 +325,21 @@ pub fn design::executor::reuse::Reuse::fmt(&self, f: &mut core::fmt::Formatter<'
 impl core::marker::Copy for design::executor::reuse::Reuse
 impl core::marker::StructuralPartialEq for design::executor::reuse::Reuse
 pub const fn design::executor::reuse::evaluate(recorded: design::executor::daemon_identity::RecordedState, observed: design::executor::daemon_identity::ObservedDaemon) -> design::executor::reuse::Reuse
+pub enum design::executor::DaemonBrowser
+pub design::executor::DaemonBrowser::Bundled
+pub design::executor::DaemonBrowser::Custom(std::path::PathBuf)
+impl design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::chosen_by(hatch: &design::runtime::browser_path::HatchDecision) -> Self
+impl core::clone::Clone for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::clone(&self) -> design::executor::daemon_browser::DaemonBrowser
+impl core::cmp::Eq for design::executor::daemon_browser::DaemonBrowser
+impl core::cmp::PartialEq for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::eq(&self, other: &design::executor::daemon_browser::DaemonBrowser) -> bool
+impl core::fmt::Debug for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for design::executor::daemon_browser::DaemonBrowser
+pub fn design::executor::daemon_browser::DaemonBrowser::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for design::executor::daemon_browser::DaemonBrowser
 pub enum design::executor::LauncherError
 pub design::executor::LauncherError::AnotherLauncherRunning
 pub design::executor::LauncherError::DaemonStartTimeout
@@ -562,6 +593,7 @@ pub fn design::runtime::bootstrap::classify_bootstrap_log(lines: &[&str]) -> des
 pub mod design::runtime::browser_path
 pub struct design::runtime::browser_path::HatchDecision
 pub design::runtime::browser_path::HatchDecision::browser: core::option::Option<std::path::PathBuf>
+pub design::runtime::browser_path::HatchDecision::notice: core::option::Option<alloc::string::String>
 pub design::runtime::browser_path::HatchDecision::warnings: alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for design::runtime::browser_path::HatchDecision
 pub fn design::runtime::browser_path::HatchDecision::clone(&self) -> design::runtime::browser_path::HatchDecision
@@ -571,7 +603,6 @@ pub fn design::runtime::browser_path::HatchDecision::eq(&self, other: &design::r
 impl core::fmt::Debug for design::runtime::browser_path::HatchDecision
 pub fn design::runtime::browser_path::HatchDecision::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for design::runtime::browser_path::HatchDecision
-pub fn design::runtime::browser_path::vet(chosen: core::option::Option<&str>, team_level_present: bool, repo_root: &std::path::Path, canonicalise: &dyn core::ops::function::Fn(&std::path::Path) -> core::option::Option<std::path::PathBuf>) -> design::runtime::browser_path::HatchDecision
 pub mod design::runtime::downgrade
 pub enum design::runtime::downgrade::DowngradeReason
 pub design::runtime::downgrade::DowngradeReason::ArtifactUnavailable

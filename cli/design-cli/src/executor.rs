@@ -18,6 +18,7 @@ use design::executor::forwardable;
 use design::executor::launch::LaunchFailure;
 use design::executor::launch::Launcher;
 use design::executor::ports::PathResolution as _;
+use design::executor::DaemonBrowser;
 use design::runtime::availability;
 use design::runtime::availability::BrowserOutcome;
 use design::runtime::availability::Resolution;
@@ -69,12 +70,17 @@ const BROWSER_EXECUTABLE_VAR: &str = "ACCELERATOR_DESIGN_BROWSER_EXECUTABLE";
 /// within-crawl retries without stranding the next crawl.
 const MARKER_TTL_SECONDS: u64 = 300;
 
-/// Everything resolved from the repository before the runtime is.
+/// Where the caller is, before the browser is known.
+struct Located {
+    cwd: PathBuf,
+    repository_root: PathBuf,
+}
+
+/// Everything resolved from the repository and the browser before the runtime
+/// is.
 struct Resolved {
     paths: HostPaths,
     state_dir: PathBuf,
-    repository_root: PathBuf,
-    cwd: PathBuf,
 }
 
 /// The runtime the daemon runs against, resolved together so program and
@@ -118,21 +124,26 @@ pub fn run(
         }
     };
 
-    let resolved = match resolve() {
-        Ok(resolved) => resolved,
+    let located = match locate() {
+        Ok(located) => located,
         Err(failure) => return report(failure),
     };
 
-    let hatch = match crate::config::resolve_browser_hatch(
-        &resolved.cwd,
-        &resolved.repository_root,
-    ) {
+    let hatch = match crate::config::browser_hatch(&located.cwd) {
         Ok(hatch) => hatch,
         Err(failure) => return report(failure),
     };
     for warning in &hatch.warnings {
         eprintln!("warning: {warning}");
     }
+    if let Some(notice) = &hatch.notice {
+        eprintln!("{notice}");
+    }
+
+    let resolved = match resolve(&located, &hatch) {
+        Ok(resolved) => resolved,
+        Err(failure) => return report(failure),
+    };
 
     let markers = MarkerStore::in_state_dir(&resolved.state_dir);
     let session = current_session();
@@ -359,8 +370,7 @@ fn act_on(
     }
 }
 
-/// The state directory and the repository, from where the caller is.
-fn resolve() -> Result<Resolved, LaunchFailure> {
+fn locate() -> Result<Located, LaunchFailure> {
     let cwd = std::env::current_dir().map_err(|error| {
         LaunchFailure::Failed(kernel::Error::Failed(format!(
             "could not read the current directory: {error}"
@@ -371,16 +381,28 @@ fn resolve() -> Result<Resolved, LaunchFailure> {
         return Err(LaunchFailure::Envelope(LauncherError::NoRepo));
     };
 
-    let tmp_relative = crate::config::resolve_tmp_dir(&cwd)?;
-    let state_dir =
-        HostPaths::state_dir_for(&facts.root, Path::new(&tmp_relative));
+    Ok(Located {
+        cwd,
+        repository_root: facts.root,
+    })
+}
+
+/// The state directory of the daemon running the browser the hatch chose.
+fn resolve(
+    located: &Located,
+    hatch: &design::runtime::browser_path::HatchDecision,
+) -> Result<Resolved, LaunchFailure> {
+    let tmp_relative = crate::config::resolve_tmp_dir(&located.cwd)?;
+    let state_dir = HostPaths::state_dir_for(
+        &located.repository_root,
+        Path::new(&tmp_relative),
+        &DaemonBrowser::chosen_by(hatch),
+    )?;
     create_state_dir(&state_dir)?;
 
     Ok(Resolved {
         paths: HostPaths::new(state_dir.clone()),
         state_dir,
-        repository_root: facts.root,
-        cwd,
     })
 }
 
@@ -417,12 +439,55 @@ fn launch(
         .bootstrap_log()
         .map_err(LaunchFailure::Failed)?;
 
-    let vendored = ResolvedRuntime {
-        node: runtime.driver.join(NODE_BASENAME),
-        namespace_root: runtime.driver.clone(),
-        browser_executable: runtime.browser_executable.clone(),
+    let environment = runtime_environment(resolved, runtime);
+    let clock = MonotonicClock::default();
+    let state = StateDirectory::new(resolved.state_dir.clone());
+    let diagnostics = BootstrapLog {
+        path: bootstrap_log.clone(),
     };
-    let environment = vec![
+    let lock = FileLock::open(&resolved.state_dir.join("launcher.lock"))
+        .map_err(LaunchFailure::Failed)?;
+    let spawner = daemon_spawner(resolved, runtime, &runner, &bootstrap_log);
+    let client = ExecClient {
+        program: ResolvedRuntime::from(runtime).node,
+        leading_arguments: vec![runner.display().to_string()],
+        environment,
+    };
+
+    let launcher = Launcher {
+        clock: &clock,
+        probe: &HostProbe,
+        state: &state,
+        lock: &lock,
+        spawner: &spawner,
+        control: &HostControl,
+        diagnostics: &diagnostics,
+        bootstrap_log: bootstrap_log.display().to_string(),
+    };
+
+    let mut forwarded = vec![command.to_owned()];
+    forwarded.extend_from_slice(arguments);
+    launcher.launch(&forwarded, Box::new(client))
+}
+
+impl From<&Runtime> for ResolvedRuntime {
+    fn from(runtime: &Runtime) -> Self {
+        Self {
+            node: runtime.driver.join(NODE_BASENAME),
+            namespace_root: runtime.driver.clone(),
+            browser_executable: runtime.browser_executable.clone(),
+        }
+    }
+}
+
+/// What the daemon and the client both learn of the runtime and the state
+/// directory.
+fn runtime_environment(
+    resolved: &Resolved,
+    runtime: &Runtime,
+) -> Vec<(String, String)> {
+    let vendored = ResolvedRuntime::from(runtime);
+    vec![
         (
             STATE_DIR_VAR.to_owned(),
             resolved.state_dir.display().to_string(),
@@ -443,46 +508,26 @@ fn launch(
             BROWSER_EXECUTABLE_VAR.to_owned(),
             vendored.browser_executable.display().to_string(),
         ),
-    ];
+    ]
+}
 
-    let clock = MonotonicClock::default();
-    let state = StateDirectory::new(resolved.state_dir.clone());
-    let diagnostics = BootstrapLog {
-        path: bootstrap_log.clone(),
-    };
-    let lock = FileLock::open(&resolved.state_dir.join("launcher.lock"))
-        .map_err(LaunchFailure::Failed)?;
-    let spawner = DaemonSpawner {
-        program: vendored.node.clone(),
+fn daemon_spawner(
+    resolved: &Resolved,
+    runtime: &Runtime,
+    runner: &Path,
+    bootstrap_log: &Path,
+) -> DaemonSpawner {
+    DaemonSpawner {
+        program: ResolvedRuntime::from(runtime).node,
         arguments: vec![
             runner.display().to_string(),
             DAEMON_COMMAND.to_owned(),
             "--state-dir".to_owned(),
             resolved.state_dir.display().to_string(),
         ],
-        bootstrap_log: bootstrap_log.clone(),
-        environment: environment.clone(),
-    };
-    let client = ExecClient {
-        program: vendored.node,
-        leading_arguments: vec![runner.display().to_string()],
-        environment,
-    };
-
-    let launcher = Launcher {
-        clock: &clock,
-        probe: &HostProbe,
-        state: &state,
-        lock: &lock,
-        spawner: &spawner,
-        control: &HostControl,
-        diagnostics: &diagnostics,
-        bootstrap_log: bootstrap_log.display().to_string(),
-    };
-
-    let mut forwarded = vec![command.to_owned()];
-    forwarded.extend_from_slice(arguments);
-    launcher.launch(&forwarded, Box::new(client))
+        bootstrap_log: bootstrap_log.to_path_buf(),
+        environment: runtime_environment(resolved, runtime),
+    }
 }
 
 /// The tree path the launcher exported for an artifact on the warm path.
@@ -530,11 +575,174 @@ fn report(failure: LaunchFailure) -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use design::executor::forwardable;
-    use design::Allowances;
+    #![allow(clippy::unwrap_used)]
 
+    use std::cell::RefCell;
+    use std::os::unix::fs::symlink;
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use design::executor::forwardable;
+    use design::runtime::availability::BrowserOutcome;
+    use design::runtime::availability::Runtime;
+    use design::runtime::browser_path::HatchDecision;
+    use design::Allowances;
+    use design_adapters::process::DaemonSpawner;
+
+    use super::daemon_spawner;
     use super::merge_allowances;
+    use super::resolve;
+    use super::resolve_browser;
+    use super::Ensured;
+    use super::Located;
+    use super::BROWSER_EXECUTABLE_VAR;
+    use super::CHROMIUM_SHELL;
     use super::DAEMON_COMMAND;
+
+    struct Project {
+        work: tempfile::TempDir,
+        repository_root: PathBuf,
+    }
+
+    impl Project {
+        fn new() -> Self {
+            let work = tempfile::tempdir().unwrap();
+            let repository_root = work.path().join("repo");
+            std::fs::create_dir_all(repository_root.join(".git")).unwrap();
+            Self {
+                work,
+                repository_root,
+            }
+        }
+
+        fn outside_symlink_to_chrome(&self) -> PathBuf {
+            let chrome = self.work.path().join("outside/real/chrome");
+            std::fs::create_dir_all(chrome.parent().unwrap()).unwrap();
+            std::fs::write(&chrome, "").unwrap();
+            let link = self.work.path().join("outside/chrome");
+            symlink(&chrome, &link).unwrap();
+            link
+        }
+
+        fn state_dir(&self, hatch: &HatchDecision) -> PathBuf {
+            self.resolved(hatch).state_dir
+        }
+
+        fn resolved(&self, hatch: &HatchDecision) -> super::Resolved {
+            resolve(
+                &Located {
+                    cwd: self.repository_root.clone(),
+                    repository_root: self.repository_root.clone(),
+                },
+                hatch,
+            )
+            .unwrap_or_else(|_| unreachable!("the project resolves"))
+        }
+
+        fn spawner_for(&self, hatch: &HatchDecision) -> DaemonSpawner {
+            let ensured = RefCell::new(Ensured {
+                browser_tree: Some(self.work.path().join("browser-tree")),
+            });
+            let (BrowserOutcome::Hatch(browser_executable)
+            | BrowserOutcome::Bundled(browser_executable)) =
+                resolve_browser(hatch, &ensured)
+            else {
+                unreachable!("a browser tree is ensured");
+            };
+            let runtime = Runtime {
+                driver: self.work.path().join("driver-tree"),
+                browser_executable,
+            };
+            let resolved = self.resolved(hatch);
+            let bootstrap_log = resolved.state_dir.join("server.bootstrap.log");
+            daemon_spawner(
+                &resolved,
+                &runtime,
+                Path::new("/plugin/run.js"),
+                &bootstrap_log,
+            )
+        }
+    }
+
+    fn hatch(browser: Option<PathBuf>) -> HatchDecision {
+        HatchDecision {
+            browser,
+            warnings: Vec::new(),
+            notice: None,
+        }
+    }
+
+    fn browser_executable(spawner: &DaemonSpawner) -> Option<&str> {
+        spawner
+            .environment
+            .iter()
+            .find(|(name, _)| name == BROWSER_EXECUTABLE_VAR)
+            .map(|(_, value)| value.as_str())
+    }
+
+    fn slot(spawner: &DaemonSpawner) -> String {
+        let state_dir = spawner
+            .arguments
+            .iter()
+            .skip_while(|argument| *argument != "--state-dir")
+            .nth(1)
+            .unwrap();
+        Path::new(state_dir)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn executors_with_different_hatches_resolve_different_state_directories() {
+        let project = Project::new();
+        let chrome =
+            project.outside_symlink_to_chrome().canonicalize().unwrap();
+
+        assert_ne!(
+            project.state_dir(&hatch(None)),
+            project.state_dir(&hatch(Some(chrome.clone())))
+        );
+        assert_eq!(
+            project.state_dir(&hatch(Some(chrome.clone()))),
+            project.state_dir(&hatch(Some(chrome)))
+        );
+        assert_eq!(
+            project.state_dir(&hatch(None)),
+            project.state_dir(&hatch(None))
+        );
+    }
+
+    #[test]
+    fn an_outside_symlink_hatch_spawns_its_canonical_target_in_a_custom_slot() {
+        let project = Project::new();
+        let target =
+            project.outside_symlink_to_chrome().canonicalize().unwrap();
+
+        let spawner = project.spawner_for(&hatch(Some(target.clone())));
+
+        assert_eq!(browser_executable(&spawner), target.to_str());
+        assert!(slot(&spawner).starts_with("custom-"), "{}", slot(&spawner));
+    }
+
+    #[test]
+    fn a_refused_hatch_spawns_the_bundled_browser_in_the_bundled_slot() {
+        let project = Project::new();
+
+        let spawner = project.spawner_for(&hatch(None));
+
+        assert_eq!(
+            browser_executable(&spawner),
+            project
+                .work
+                .path()
+                .join("browser-tree")
+                .join(CHROMIUM_SHELL)
+                .to_str()
+        );
+        assert_eq!(slot(&spawner), "bundled");
+    }
 
     /// The forwarding allowlist must reject the runner's own internal
     /// subcommand, because arguments are forwarded verbatim.

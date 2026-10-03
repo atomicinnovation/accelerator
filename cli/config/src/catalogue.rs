@@ -127,30 +127,153 @@ pub fn is_valid_work_integration(value: &str) -> bool {
     value.is_empty() || WORK_INTEGRATION_VALUES.contains(&value)
 }
 
+/// Who may supply a key's value.
+///
+/// A consent key holds a value only the user may supply: a team-level value,
+/// or one read from a VCS-tracked `config.local.md`, is refused. The path and
+/// command kinds add value checks on top of that provenance rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Trust {
+    Open,
+    Consent,
+    PathConsent,
+    CommandConsent {
+        admitted_environment: &'static [&'static str],
+    },
+}
+
+/// An integration or tool key read ad-hoc by its own consumer.
+///
+/// `overrides` are the environment variables that override the value, in
+/// precedence order. They are distinct from a command key's
+/// `admitted_environment`, which is what reaches the command's process.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ExtraKey {
+    pub name: &'static str,
+    pub trust: Trust,
+    pub overrides: &'static [&'static str],
+    pub recovery: Option<&'static str>,
+}
+
+impl ExtraKey {
+    const fn open(name: &'static str) -> Self {
+        Self::overridden(name, Trust::Open, &[])
+    }
+
+    const fn overridden(
+        name: &'static str,
+        trust: Trust,
+        overrides: &'static [&'static str],
+    ) -> Self {
+        Self {
+            name,
+            trust,
+            overrides,
+            recovery: None,
+        }
+    }
+
+    /// The route out of a refusal: `recovery` when the key names one, else
+    /// its own first override.
+    #[must_use]
+    pub fn recovery_hint(&self) -> Option<&'static str> {
+        self.recovery.or_else(|| self.overrides.first().copied())
+    }
+}
+
+/// The variables every command-valued key's process receives when the parent
+/// sets them.
+pub const BASE_COMMAND_ENVIRONMENT: &[&str] = &[
+    "PATH",
+    "HOME",
+    "TERM",
+    "XDG_CONFIG_HOME",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+];
+
+const BASE_COMMAND: Trust = Trust::CommandConsent {
+    admitted_environment: &[],
+};
+
 /// Integration and tool keys read ad-hoc by their own consumers.
 ///
 /// They carry no catalogue default — an unset key means the consumer's own
 /// default applies — so `dump` surfaces them by presence only.
-pub const EXTRA_KEYS: &[&str] = &[
-    "jira.allowed_sites",
-    "jira.site",
-    "jira.email",
-    "jira.token",
-    "jira.token_cmd",
-    "jira.project_key",
-    "linear.team_id",
-    "linear.team_key",
-    "linear.token",
-    "linear.token_cmd",
-    "github.token",
-    "github.token_cmd",
-    "openalex.api_key",
-    "openalex.api_key_cmd",
-    "visualiser.editor",
-    "visualiser.editor_project",
-    "visualiser.binary",
-    "design.browser_path",
+pub const EXTRA_KEYS: &[ExtraKey] = &[
+    ExtraKey::overridden(
+        "jira.allowed_sites",
+        Trust::Consent,
+        &["ACCELERATOR_JIRA_ALLOWED_SITES"],
+    ),
+    ExtraKey::open("jira.site"),
+    ExtraKey::open("jira.email"),
+    ExtraKey::overridden(
+        "jira.token",
+        Trust::Open,
+        &["ACCELERATOR_JIRA_TOKEN"],
+    ),
+    ExtraKey::overridden(
+        "jira.token_cmd",
+        BASE_COMMAND,
+        &["ACCELERATOR_JIRA_TOKEN_CMD"],
+    ),
+    ExtraKey::open("jira.project_key"),
+    ExtraKey::open("linear.team_id"),
+    ExtraKey::open("linear.team_key"),
+    ExtraKey::overridden(
+        "linear.token",
+        Trust::Open,
+        &["ACCELERATOR_LINEAR_TOKEN"],
+    ),
+    ExtraKey::overridden(
+        "linear.token_cmd",
+        BASE_COMMAND,
+        &["ACCELERATOR_LINEAR_TOKEN_CMD"],
+    ),
+    ExtraKey::overridden(
+        "github.token",
+        Trust::Open,
+        &["GH_TOKEN", "GITHUB_TOKEN"],
+    ),
+    ExtraKey {
+        name: "github.token_cmd",
+        trust: Trust::CommandConsent {
+            admitted_environment: &["GH_HOST", "GH_CONFIG_DIR"],
+        },
+        overrides: &[],
+        recovery: Some("GH_TOKEN"),
+    },
+    ExtraKey::overridden(
+        "openalex.api_key",
+        Trust::Open,
+        &["ACCELERATOR_OPENALEX_API_KEY"],
+    ),
+    ExtraKey::overridden(
+        "openalex.api_key_cmd",
+        BASE_COMMAND,
+        &["ACCELERATOR_OPENALEX_API_KEY_CMD"],
+    ),
+    ExtraKey::open("visualiser.editor"),
+    ExtraKey::open("visualiser.editor_project"),
+    ExtraKey::open("visualiser.binary"),
+    ExtraKey::overridden(
+        "design.browser_path",
+        Trust::PathConsent,
+        &["ACCELERATOR_DESIGN_BROWSER_PATH"],
+    ),
 ];
+
+/// The catalogue's descriptor for an extra key, or `None` when undeclared.
+#[must_use]
+pub fn declared(name: &str) -> Option<&'static ExtraKey> {
+    EXTRA_KEYS.iter().find(|key| key.name == name)
+}
+
+/// Every key only the user may supply.
+pub fn consent_keys() -> impl Iterator<Item = &'static ExtraKey> {
+    EXTRA_KEYS.iter().filter(|key| key.trust != Trust::Open)
+}
 
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.max_inline_comments", Default::Scalar("10")),
@@ -298,8 +421,9 @@ pub fn agent_name(
 #[cfg(test)]
 mod tests {
     use super::{
-        default_for, AGENT_KEYS, DOC_TYPES, EXTRA_KEYS, PATH_KEYS,
-        RESEARCH_KEYS, REVIEW_KEYS, TEMPLATE_KEYS, VISUALISER_KEYS, WORK_KEYS,
+        consent_keys, declared, default_for, Trust, AGENT_KEYS, DOC_TYPES,
+        EXTRA_KEYS, PATH_KEYS, RESEARCH_KEYS, REVIEW_KEYS, TEMPLATE_KEYS,
+        VISUALISER_KEYS, WORK_KEYS,
     };
     use crate::node::Scalar;
     use crate::service::Value;
@@ -339,8 +463,115 @@ mod tests {
 
     #[test]
     fn extra_keys_declares_the_tracker_scope_keys() {
-        assert!(EXTRA_KEYS.contains(&"jira.project_key"));
-        assert!(EXTRA_KEYS.contains(&"linear.team_key"));
+        assert!(is_extra("jira.project_key"));
+        assert!(is_extra("linear.team_key"));
+    }
+
+    fn is_extra(name: &str) -> bool {
+        EXTRA_KEYS.iter().any(|key| key.name == name)
+    }
+
+    #[test]
+    fn consent_keys_are_exactly_the_six_user_only_keys() {
+        let names: Vec<&str> = consent_keys().map(|key| key.name).collect();
+        assert_eq!(
+            names,
+            [
+                "jira.allowed_sites",
+                "jira.token_cmd",
+                "linear.token_cmd",
+                "github.token_cmd",
+                "openalex.api_key_cmd",
+                "design.browser_path",
+            ]
+        );
+    }
+
+    #[test]
+    fn each_consent_key_declares_its_kind() {
+        let trust = |name| declared(name).map(|key| key.trust);
+        assert_eq!(trust("jira.allowed_sites"), Some(Trust::Consent));
+        assert_eq!(trust("design.browser_path"), Some(Trust::PathConsent));
+        for name in
+            ["jira.token_cmd", "linear.token_cmd", "openalex.api_key_cmd"]
+        {
+            assert_eq!(
+                trust(name),
+                Some(Trust::CommandConsent {
+                    admitted_environment: &[]
+                }),
+                "{name} admits only the base environment"
+            );
+        }
+        assert_eq!(
+            trust("github.token_cmd"),
+            Some(Trust::CommandConsent {
+                admitted_environment: &["GH_HOST", "GH_CONFIG_DIR"]
+            })
+        );
+    }
+
+    #[test]
+    fn visualiser_editor_is_open() {
+        assert_eq!(
+            declared("visualiser.editor").map(|key| key.trust),
+            Some(Trust::Open)
+        );
+    }
+
+    #[test]
+    fn every_key_pins_its_overrides_and_recovery() {
+        let expected: &[(&str, &[&str], Option<&str>)] = &[
+            (
+                "jira.allowed_sites",
+                &["ACCELERATOR_JIRA_ALLOWED_SITES"],
+                None,
+            ),
+            ("jira.site", &[], None),
+            ("jira.email", &[], None),
+            ("jira.token", &["ACCELERATOR_JIRA_TOKEN"], None),
+            ("jira.token_cmd", &["ACCELERATOR_JIRA_TOKEN_CMD"], None),
+            ("jira.project_key", &[], None),
+            ("linear.team_id", &[], None),
+            ("linear.team_key", &[], None),
+            ("linear.token", &["ACCELERATOR_LINEAR_TOKEN"], None),
+            ("linear.token_cmd", &["ACCELERATOR_LINEAR_TOKEN_CMD"], None),
+            ("github.token", &["GH_TOKEN", "GITHUB_TOKEN"], None),
+            ("github.token_cmd", &[], Some("GH_TOKEN")),
+            ("openalex.api_key", &["ACCELERATOR_OPENALEX_API_KEY"], None),
+            (
+                "openalex.api_key_cmd",
+                &["ACCELERATOR_OPENALEX_API_KEY_CMD"],
+                None,
+            ),
+            ("visualiser.editor", &[], None),
+            ("visualiser.editor_project", &[], None),
+            ("visualiser.binary", &[], None),
+            (
+                "design.browser_path",
+                &["ACCELERATOR_DESIGN_BROWSER_PATH"],
+                None,
+            ),
+        ];
+        let actual: Vec<(&str, &[&str], Option<&str>)> = EXTRA_KEYS
+            .iter()
+            .map(|key| (key.name, key.overrides, key.recovery))
+            .collect();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn a_recovery_hint_falls_back_to_the_first_override() {
+        let hint =
+            |name| declared(name).and_then(super::ExtraKey::recovery_hint);
+        assert_eq!(hint("jira.token_cmd"), Some("ACCELERATOR_JIRA_TOKEN_CMD"));
+        assert_eq!(hint("github.token_cmd"), Some("GH_TOKEN"));
+        assert_eq!(hint("jira.site"), None);
+    }
+
+    #[test]
+    fn an_undeclared_name_has_no_descriptor() {
+        assert!(declared("no.such.key").is_none());
     }
 
     #[test]
@@ -400,21 +631,21 @@ mod tests {
 
     #[test]
     fn extra_keys_declares_the_github_credential_keys() {
-        assert!(EXTRA_KEYS.contains(&"github.token"));
-        assert!(EXTRA_KEYS.contains(&"github.token_cmd"));
+        assert!(is_extra("github.token"));
+        assert!(is_extra("github.token_cmd"));
     }
 
     #[test]
     fn extra_keys_declares_the_openalex_credential_keys() {
-        assert!(EXTRA_KEYS.contains(&"openalex.api_key"));
-        assert!(EXTRA_KEYS.contains(&"openalex.api_key_cmd"));
+        assert!(is_extra("openalex.api_key"));
+        assert!(is_extra("openalex.api_key_cmd"));
     }
 
     #[test]
     fn extra_keys_declares_the_design_browser_path_hatch() {
         // Presence-only, no catalogue default — the executor reads it ad-hoc
         // from the personal level.
-        assert!(EXTRA_KEYS.contains(&"design.browser_path"));
+        assert!(is_extra("design.browser_path"));
     }
 
     #[test]

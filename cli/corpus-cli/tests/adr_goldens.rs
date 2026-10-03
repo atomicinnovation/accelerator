@@ -357,3 +357,38 @@ mod read_status {
         Ok(())
     }
 }
+
+#[cfg(unix)]
+mod insecure_personal_config {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt as _;
+
+    use super::{repo, run, stderr, stdout, tempdir, TestError};
+
+    #[test]
+    fn a_reader_runs_on_team_values_with_one_warning() -> Result<(), TestError>
+    {
+        let dir = tempdir("insecure")?;
+        repo(dir.path())?;
+        fs::create_dir_all(dir.path().join(".accelerator"))?;
+        let personal = dir.path().join(".accelerator/config.local.md");
+        fs::write(&personal, "---\npaths:\n  decisions: mine\n---\n")?;
+        fs::set_permissions(&personal, fs::Permissions::from_mode(0o644))?;
+        fs::create_dir_all(dir.path().join("meta/decisions"))?;
+        fs::write(dir.path().join("meta/decisions/ADR-0007-x.md"), "")?;
+
+        let output = run(dir.path(), &["adr", "next-number"])?;
+
+        assert!(output.status.success(), "{}", stderr(&output));
+        assert_eq!(stdout(&output), "0008\n");
+        assert_eq!(
+            stderr(&output)
+                .matches("warning: E_LOCAL_PERMS_INSECURE")
+                .count(),
+            1,
+            "{}",
+            stderr(&output)
+        );
+        Ok(())
+    }
+}

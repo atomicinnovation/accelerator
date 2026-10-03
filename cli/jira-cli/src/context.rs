@@ -13,14 +13,12 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use config::credentials::CommandPolicy;
+use config::consent::CommandPolicy;
 use config::credentials::CredentialContext;
-use config::credentials::Provenance;
 use config::ConfigAccess;
 use config::Key;
 use config_adapters::compose;
 use config_adapters::credentials::project_credential_context;
-use config_adapters::credentials::CredentialPorts;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use jira_client::auth::base_url;
@@ -34,9 +32,15 @@ use jira_client::JiraClient;
 use tracker_support::ClockJitter;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
-use vcs::VcsKind;
-use vcs::VcsProbe as _;
-use vcs_adapters::library::InProcessProbe;
+
+/// Whether a command writes, to the project tree or to the tracker. A writer
+/// refuses to run beside an ignored personal config: its routing keys would
+/// silently come from the team file, and its writes would outlive the fix.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Intent {
+    Read,
+    Write,
+}
 
 /// Why a client could not be built, mapped to an exit code by the caller.
 pub enum ContextError {
@@ -83,32 +87,6 @@ fn is_loopback(url: &Url) -> bool {
     )
 }
 
-struct VcsProvenance {
-    root: PathBuf,
-    kind: VcsKind,
-}
-
-impl VcsProvenance {
-    fn discovered(root: PathBuf) -> Self {
-        let kind = InProcessProbe.kind(&root);
-        Self { root, kind }
-    }
-}
-
-impl Provenance for VcsProvenance {
-    fn is_tracked(&self, path: &Path) -> bool {
-        let Ok(relpath) = path.strip_prefix(&self.root) else {
-            return false;
-        };
-        let Some(relpath) = relpath.to_str() else {
-            return false;
-        };
-        InProcessProbe
-            .is_tracked(&self.root, relpath, self.kind)
-            .unwrap_or(false)
-    }
-}
-
 fn integrations_dir(
     config: &dyn ConfigAccess,
     root: &Path,
@@ -144,7 +122,7 @@ pub struct Built {
 ///
 /// [`ContextError`] for a bad override, an unreadable config, or a client that
 /// cannot be constructed.
-pub fn build_client() -> Result<Built, ContextError> {
+pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let start = std::env::current_dir().map_err(|error| {
         ContextError::Config(format!(
             "could not read the working directory: {error}"
@@ -152,13 +130,17 @@ pub fn build_client() -> Result<Built, ContextError> {
     })?;
     let composed = compose(&start, LegacyPolicy::Reject)
         .map_err(|error| ContextError::Config(error.to_string()))?;
+    composed.report_ignored_personal_file();
+    if intent == Intent::Write {
+        composed
+            .require_readable_personal_file()
+            .map_err(|error| ContextError::Config(error.to_string()))?;
+    }
     let service: &dyn ConfigAccess = &composed.service;
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let ports = CredentialPorts::system(Box::new(VcsProvenance::discovered(
-        root.clone(),
-    )));
+    let ports = consent_adapters::credential_ports(&root, &start);
     let context = project_credential_context(
         &root,
         &ports,
@@ -205,19 +187,24 @@ fn build_with_override(
 ) -> Result<JiraClient, ClientError> {
     let mut credentials = resolve_credentials(context)?;
     credentials.base = endpoint;
-    let project = project_code(context.config)?;
+    let refusals = credentials.refusals.clone();
+    let notices = credentials.notices.clone();
+    let warned = |error: ClientError| error.with_warnings(refusals.clone());
+    let project = project_code(context.provenance.config).map_err(warned)?;
     let transport = Transport::new(
         credentials,
         transport_config,
         Box::new(SystemSleeper),
         Box::new(ClockJitter),
-    )?;
+    )
+    .map_err(warned)?;
     Ok(JiraClient::new(
         transport,
         project,
         Box::new(FixedResolver::new()),
         Box::new(FixedResolver::new()),
-    ))
+    )
+    .reporting(refusals, notices))
 }
 
 #[cfg(test)]

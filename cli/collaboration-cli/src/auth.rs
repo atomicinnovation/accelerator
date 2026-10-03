@@ -5,195 +5,90 @@
 //! than in the domain/adapters crate: this is authentication plumbing, not
 //! `collaboration`'s core PR-helper business logic.
 
-use std::process::Command;
+use config::consent;
+use config::consent::Refusal;
+use config::credentials::resolve_token;
+use config::credentials::CredentialContext;
+use config::credentials::CredentialError;
+use config::credentials::Secret;
+use config::credentials::TokenKeys;
 
-use config::{ConfigAccess, Key, Level, Resolved};
-
-pub enum TokenSource {
-    GhTokenEnv,
-    GithubTokenEnv,
-    Config,
-    ConfigCmd,
-}
-
-pub struct ResolvedToken {
-    pub value: String,
-    /// Which precedence step resolved the token — asserted per-branch by
-    /// this module's own tests; not yet read by any caller.
-    #[allow(dead_code)]
-    pub source: TokenSource,
-}
-
-/// Resolves the `github.token` credential.
-///
-/// Precedence: `GH_TOKEN`, then `GITHUB_TOKEN`, then the `github.token`
-/// config value, then `github.token_cmd` output (executed via `bash -c`) —
-/// env-first, matching `jira-auth.sh`/`linear-auth.sh`'s own precedence
-/// order, so an ambient env var reliably escapes a stale or over-broad
-/// on-filesystem config value rather than being shadowed by it. A
-/// `token_cmd` configured in the shared/team config file (rather than
-/// local overrides) is rejected with a clear error — mirroring
-/// `jira`/`linear`'s shared-config `token_cmd` ban — rather than silently
-/// executed.
+/// Resolves `github.token` through the credential ladder every tracker
+/// climbs, printing the notice and warnings it met on stderr.
 ///
 /// # Errors
 ///
-/// `kernel::Error::Refusal` when nothing resolves, or when a shared-config
-/// `token_cmd` is present.
+/// `kernel::Error::Refusal` when nothing usable resolves, and
+/// `kernel::Error::Failed` when a config level cannot be read.
 pub fn resolve_github_token(
-    config: &dyn ConfigAccess,
-) -> Result<ResolvedToken, kernel::Error> {
-    if let Some(value) = nonempty_env("GH_TOKEN") {
-        return Ok(ResolvedToken {
-            value,
-            source: TokenSource::GhTokenEnv,
-        });
-    }
-
-    if let Some(value) = nonempty_env("GITHUB_TOKEN") {
-        return Ok(ResolvedToken {
-            value,
-            source: TokenSource::GithubTokenEnv,
-        });
-    }
-
-    if let Some(value) = nonempty_config_value(config)? {
-        return Ok(ResolvedToken {
-            value,
-            source: TokenSource::Config,
-        });
-    }
-
-    if nonempty_level_value(config, Level::Team, "github.token_cmd")?.is_some()
-    {
-        return Err(kernel::Error::Refusal(
-            "github.token_cmd must not be set in the shared \
-             .accelerator/config.md — move it to .accelerator/config.local.md"
-                .to_owned(),
-        ));
-    }
-
-    if let Some(cmd) =
-        nonempty_level_value(config, Level::Personal, "github.token_cmd")?
-    {
-        return Ok(ResolvedToken {
-            value: run_token_cmd(&cmd)?,
-            source: TokenSource::ConfigCmd,
-        });
-    }
-
-    Err(kernel::Error::Refusal(
-        "no github.token configured: set github.token or \
-         github.token_cmd in .accelerator/config.local.md, or export \
-         GH_TOKEN/GITHUB_TOKEN"
-            .to_owned(),
-    ))
-}
-
-fn nonempty_config_value(
-    config: &dyn ConfigAccess,
-) -> Result<Option<String>, kernel::Error> {
-    let key = parse_key("github.token")?;
-    let resolution = config
-        .effective(&key, None)
+    context: &CredentialContext<'_>,
+) -> Result<Secret, kernel::Error> {
+    let keys = TokenKeys::declared("github.token", "github.token_cmd")
         .map_err(|error| kernel::Error::Failed(error.to_string()))?;
-    Ok(resolution
-        .configured_value()
-        .filter(|value| !value.is_empty()))
-}
-
-fn nonempty_level_value(
-    config: &dyn ConfigAccess,
-    level: Level,
-    key: &str,
-) -> Result<Option<String>, kernel::Error> {
-    let parsed = parse_key(key)?;
-    let resolved = config
-        .get(&parsed, Some(level))
-        .map_err(|error| kernel::Error::Failed(error.to_string()))?;
-    Ok(match resolved {
-        Resolved::Found(value) => {
-            let rendered = config::render_value(&value);
-            (!rendered.is_empty()).then_some(rendered)
+    match resolve_token(context, &keys) {
+        Ok(resolved) => {
+            if let Some(notice) = &resolved.notice {
+                eprintln!("{notice}");
+            }
+            report_warnings(&resolved.refusals);
+            Ok(resolved.value)
         }
-        Resolved::Absent => None,
-    })
-}
-
-fn nonempty_env(name: &str) -> Option<String> {
-    std::env::var(name).ok().filter(|value| !value.is_empty())
-}
-
-fn parse_key(key: &str) -> Result<Key, kernel::Error> {
-    Key::parse(key).map_err(|error| kernel::Error::Failed(error.to_string()))
-}
-
-/// Runs `cmd` via `bash -c`, returning its trimmed stdout.
-///
-/// # Errors
-///
-/// `kernel::Error::Refusal` when the command cannot be run or exits
-/// non-zero.
-fn run_token_cmd(cmd: &str) -> Result<String, kernel::Error> {
-    let output =
-        Command::new("bash")
-            .arg("-c")
-            .arg(cmd)
-            .output()
-            .map_err(|error| {
-                kernel::Error::Refusal(format!(
-                    "github.token_cmd could not be run: {error}"
-                ))
-            })?;
-    if !output.status.success() {
-        return Err(kernel::Error::Refusal(format!(
-            "github.token_cmd exited with {}",
-            output.status
-        )));
+        Err(CredentialError::NoToken { .. }) => Err(kernel::Error::Refusal(
+            "no github.token configured: set github.token or \
+                 github.token_cmd in .accelerator/config.local.md, or export \
+                 GH_TOKEN/GITHUB_TOKEN"
+                .to_owned(),
+        )),
+        Err(CredentialError::Consent(rejection)) => {
+            report_warnings(&rejection.warnings);
+            Err(kernel::Error::Refusal(rejection.fatal.to_string()))
+        }
+        Err(error @ CredentialError::ConfigUnreadable(_)) => {
+            report_warnings(error.warnings());
+            Err(kernel::Error::Failed(error.to_string()))
+        }
     }
-    let token = String::from_utf8(output.stdout).map_err(|error| {
-        kernel::Error::Refusal(format!(
-            "github.token_cmd produced non-UTF-8 output: {error}"
-        ))
-    })?;
-    Ok(token.trim().to_owned())
+}
+
+fn report_warnings(warnings: &[Refusal]) {
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
+    }
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
+    use std::cell::RefCell;
     use std::collections::BTreeMap;
-    use std::sync::Mutex;
+    use std::path::Path;
+    use std::path::PathBuf;
+    use std::rc::Rc;
 
-    use config::{ConfigError, Key, Level, Resolved, Scalar, Value};
+    use config::catalogue::BASE_COMMAND_ENVIRONMENT;
+    use config::consent::CommandExecution;
+    use config::consent::CommandFailure;
+    use config::consent::CommandPolicy;
+    use config::consent::CommandRunner;
+    use config::consent::ConfigFileTracking;
+    use config::consent::ProvenanceContext;
+    use config::consent::Runner;
+    use config::consent::Tracking;
+    use config::credentials::CredentialContext;
+    use config::credentials::Environment;
+    use config::credentials::Secret;
+    use config::{
+        ConfigError, Key, Level, PersonalFile, Resolved, Scalar, Value,
+    };
 
-    use super::{resolve_github_token, TokenSource};
+    use super::resolve_github_token;
+
+    const PERSONAL: &str = "/project/.accelerator/config.local.md";
 
     struct FixedConfig {
         personal: BTreeMap<&'static str, &'static str>,
         team: BTreeMap<&'static str, &'static str>,
-    }
-
-    impl FixedConfig {
-        fn new() -> Self {
-            Self {
-                personal: BTreeMap::new(),
-                team: BTreeMap::new(),
-            }
-        }
-
-        fn with_personal(
-            mut self,
-            key: &'static str,
-            value: &'static str,
-        ) -> Self {
-            self.personal.insert(key, value);
-            self
-        }
-
-        fn with_team(mut self, key: &'static str, value: &'static str) -> Self {
-            self.team.insert(key, value);
-            self
-        }
+        personal_file: PersonalFile,
     }
 
     impl config::ConfigAccess for FixedConfig {
@@ -206,7 +101,7 @@ mod tests {
                 Some(Level::Personal) => &self.personal,
                 Some(Level::Team) => &self.team,
                 None => {
-                    unreachable!("this fake always passes an explicit level")
+                    unreachable!("the ladder always names a level")
                 }
             };
             Ok(map.get(key.to_string().as_str()).map_or(
@@ -227,165 +122,298 @@ mod tests {
         ) -> Result<(), ConfigError> {
             unreachable!("resolve_github_token never writes")
         }
+
+        fn personal_file(&self) -> &PersonalFile {
+            &self.personal_file
+        }
     }
 
-    // A process-wide lock: GH_TOKEN/GITHUB_TOKEN env mutation is process
-    // state, so tests touching them must not interleave.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    struct FixedEnvironment(BTreeMap<&'static str, &'static str>);
 
-    fn with_env<T>(
-        vars: &[(&str, Option<&str>)],
-        body: impl FnOnce() -> T,
-    ) -> T {
-        let _guard = ENV_LOCK
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let previous: Vec<(&str, Option<String>)> = vars
-            .iter()
-            .map(|(name, _)| (*name, std::env::var(name).ok()))
-            .collect();
-        for (name, value) in vars {
-            match value {
-                Some(value) => std::env::set_var(name, value),
-                None => std::env::remove_var(name),
+    impl Environment for FixedEnvironment {
+        fn read(&self, name: &str) -> Option<String> {
+            self.0.get(name).map(|value| (*value).to_owned())
+        }
+    }
+
+    struct FixedTracking(Tracking);
+
+    impl ConfigFileTracking for FixedTracking {
+        fn tracking(&self, _path: &Path) -> Tracking {
+            self.0
+        }
+    }
+
+    #[derive(Clone)]
+    struct RecordingRunner {
+        runs: Rc<RefCell<Vec<(String, CommandPolicy)>>>,
+    }
+
+    impl CommandRunner for RecordingRunner {
+        fn run(
+            &self,
+            command: &str,
+            policy: &CommandPolicy,
+        ) -> Result<String, CommandFailure> {
+            self.runs
+                .borrow_mut()
+                .push((command.to_owned(), policy.clone()));
+            Ok(format!("from {command}"))
+        }
+    }
+
+    struct Github {
+        config: FixedConfig,
+        environment: FixedEnvironment,
+        tracking: FixedTracking,
+        recording: RecordingRunner,
+        runner: Runner,
+    }
+
+    impl Github {
+        fn new() -> Self {
+            let recording = RecordingRunner {
+                runs: Rc::new(RefCell::new(Vec::new())),
+            };
+            Self {
+                config: FixedConfig {
+                    personal: BTreeMap::new(),
+                    team: BTreeMap::new(),
+                    personal_file: PersonalFile::Absent,
+                },
+                environment: FixedEnvironment(BTreeMap::new()),
+                tracking: FixedTracking(Tracking::Untracked),
+                runner: Runner::new(Box::new(recording.clone())),
+                recording,
             }
         }
-        let result = body();
-        for (name, value) in previous {
-            match value {
-                Some(value) => std::env::set_var(name, value),
-                None => std::env::remove_var(name),
-            }
+
+        fn env(mut self, name: &'static str, value: &'static str) -> Self {
+            self.environment.0.insert(name, value);
+            self
         }
-        result
+
+        fn personal(mut self, key: &'static str, value: &'static str) -> Self {
+            self.config.personal.insert(key, value);
+            self.config.personal_file = PersonalFile::Readable;
+            self
+        }
+
+        fn present_personal_file(mut self) -> Self {
+            self.config.personal_file = PersonalFile::Readable;
+            self
+        }
+
+        fn ignored_personal_file(mut self) -> Self {
+            self.config.personal_file = PersonalFile::Ignored {
+                path: PathBuf::from(PERSONAL),
+                mode: 0o644,
+            };
+            self
+        }
+
+        fn team(mut self, key: &'static str, value: &'static str) -> Self {
+            self.config.team.insert(key, value);
+            self
+        }
+
+        const fn tracked(mut self) -> Self {
+            self.tracking = FixedTracking(Tracking::Tracked);
+            self
+        }
+
+        fn resolve(&self) -> Result<Secret, kernel::Error> {
+            resolve_github_token(&CredentialContext {
+                provenance: ProvenanceContext {
+                    config: &self.config,
+                    tracking: &self.tracking,
+                    environment: &self.environment,
+                    personal_config: PathBuf::from(PERSONAL),
+                },
+                execution: CommandExecution {
+                    runner: &self.runner,
+                    timeout: CommandPolicy::DEFAULT_TIMEOUT,
+                },
+            })
+        }
+
+        fn commands(&self) -> Vec<String> {
+            self.recording
+                .runs
+                .borrow()
+                .iter()
+                .map(|(command, _)| command.clone())
+                .collect()
+        }
+    }
+
+    fn token(resolved: Result<Secret, kernel::Error>) -> String {
+        match resolved {
+            Ok(secret) => secret.expose().to_owned(),
+            Err(error) => panic!("expected a token, got {error}"),
+        }
+    }
+
+    fn refusal(resolved: Result<Secret, kernel::Error>) -> String {
+        match resolved {
+            Err(kernel::Error::Refusal(message)) => message,
+            Err(error) => panic!("expected a refusal, got {error}"),
+            Ok(_) => panic!("expected a refusal, got a token"),
+        }
     }
 
     #[test]
-    fn gh_token_env_resolves_when_no_config_is_present(
-    ) -> Result<(), kernel::Error> {
-        with_env(
-            &[("GH_TOKEN", Some("gh-env-token")), ("GITHUB_TOKEN", None)],
-            || {
-                let config = FixedConfig::new();
-                let resolved = resolve_github_token(&config)?;
-                assert_eq!(resolved.value, "gh-env-token");
-                assert!(matches!(resolved.source, TokenSource::GhTokenEnv));
-                Ok(())
-            },
-        )
+    fn gh_token_wins_over_github_token_and_every_configured_source() {
+        let github = Github::new()
+            .env("GH_TOKEN", "gh-env")
+            .env("GITHUB_TOKEN", "github-env")
+            .personal("github.token", "personal")
+            .personal("github.token_cmd", "gh auth token");
+
+        assert_eq!(token(github.resolve()), "gh-env");
+        assert!(github.commands().is_empty());
     }
 
     #[test]
-    fn github_token_env_resolves_when_gh_token_is_absent(
-    ) -> Result<(), kernel::Error> {
-        with_env(
-            &[
-                ("GH_TOKEN", None),
-                ("GITHUB_TOKEN", Some("github-env-token")),
-            ],
-            || {
-                let config = FixedConfig::new();
-                let resolved = resolve_github_token(&config)?;
-                assert_eq!(resolved.value, "github-env-token");
-                assert!(matches!(resolved.source, TokenSource::GithubTokenEnv));
-                Ok(())
-            },
-        )
+    fn github_token_resolves_when_gh_token_is_absent() {
+        let github = Github::new().env("GITHUB_TOKEN", "github-env");
+
+        assert_eq!(token(github.resolve()), "github-env");
     }
 
     #[test]
-    fn an_env_token_takes_precedence_over_a_configured_token(
-    ) -> Result<(), kernel::Error> {
-        with_env(
-            &[("GH_TOKEN", Some("gh-env-token")), ("GITHUB_TOKEN", None)],
-            || {
-                let config = FixedConfig::new()
-                    .with_personal("github.token", "personal-token");
-                let resolved = resolve_github_token(&config)?;
-                assert_eq!(resolved.value, "gh-env-token");
-                assert!(matches!(resolved.source, TokenSource::GhTokenEnv));
-                Ok(())
-            },
-        )
+    fn a_personal_token_outranks_a_personal_command() {
+        let github = Github::new()
+            .personal("github.token", "personal")
+            .personal("github.token_cmd", "gh auth token");
+
+        assert_eq!(token(github.resolve()), "personal");
+        assert!(github.commands().is_empty());
     }
 
     #[test]
-    fn an_env_token_takes_precedence_over_a_personal_token_cmd(
-    ) -> Result<(), kernel::Error> {
-        with_env(
-            &[
-                ("GH_TOKEN", Some("gh-env-token")),
-                ("GITHUB_TOKEN", Some("github-env-token")),
-            ],
-            || {
-                let config = FixedConfig::new()
-                    .with_personal("github.token_cmd", "printf should-not-run");
-                let resolved = resolve_github_token(&config)?;
-                assert_eq!(resolved.value, "gh-env-token");
-                assert!(matches!(resolved.source, TokenSource::GhTokenEnv));
-                Ok(())
-            },
-        )
+    fn a_personal_command_runs_under_the_github_policy() {
+        let github =
+            Github::new().personal("github.token_cmd", "gh auth token");
+
+        assert_eq!(token(github.resolve()), "from gh auth token");
+        let runs = github.recording.runs.borrow();
+        assert_eq!(runs[0].1.timeout(), CommandPolicy::DEFAULT_TIMEOUT);
+        assert_eq!(
+            runs[0].1.admitted_environment(),
+            [BASE_COMMAND_ENVIRONMENT, &["GH_HOST", "GH_CONFIG_DIR"]].concat()
+        );
     }
 
     #[test]
-    fn a_configured_token_resolves_when_no_env_var_is_set(
-    ) -> Result<(), kernel::Error> {
-        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
-            let config = FixedConfig::new()
-                .with_personal("github.token", "personal-token");
-            let resolved = resolve_github_token(&config)?;
-            assert_eq!(resolved.value, "personal-token");
-            assert!(matches!(resolved.source, TokenSource::Config));
-            Ok(())
-        })
+    fn a_personal_command_wins_over_a_team_token() {
+        let github = Github::new()
+            .personal("github.token_cmd", "gh auth token")
+            .team("github.token", "team");
+
+        assert_eq!(token(github.resolve()), "from gh auth token");
     }
 
     #[test]
-    fn a_personal_token_cmd_resolves_when_no_token_is_configured(
-    ) -> Result<(), kernel::Error> {
-        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
-            let config = FixedConfig::new()
-                .with_personal("github.token_cmd", "printf cmd-token");
-            let resolved = resolve_github_token(&config)?;
-            assert_eq!(resolved.value, "cmd-token");
-            assert!(matches!(resolved.source, TokenSource::ConfigCmd));
-            Ok(())
-        })
+    fn a_team_command_beside_a_team_token_and_no_personal_file_uses_the_token()
+    {
+        let github = Github::new()
+            .team("github.token_cmd", "gh auth token")
+            .team("github.token", "team");
+
+        assert_eq!(token(github.resolve()), "team");
+        assert!(github.commands().is_empty());
     }
 
     #[test]
-    fn a_shared_token_cmd_is_banned_even_when_no_other_source_resolves(
-    ) -> Result<(), kernel::Error> {
-        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
-            let config = FixedConfig::new()
-                .with_team("github.token_cmd", "printf shared-token");
-            let result = resolve_github_token(&config);
-            assert!(matches!(result, Err(kernel::Error::Refusal(_))));
-            Ok(())
-        })
+    fn a_team_token_beside_a_present_personal_file_is_not_used() {
+        let github = Github::new()
+            .present_personal_file()
+            .team("github.token", "team");
+
+        let message = refusal(github.resolve());
+
+        assert!(
+            message.starts_with("no github.token configured"),
+            "{message}"
+        );
     }
 
     #[test]
-    fn nothing_configured_is_a_refusal() -> Result<(), kernel::Error> {
-        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
-            let config = FixedConfig::new();
-            let result = resolve_github_token(&config);
-            assert!(matches!(result, Err(kernel::Error::Refusal(_))));
-            Ok(())
-        })
+    fn a_team_command_alone_is_refused_at_team_level() {
+        let github = Github::new().team("github.token_cmd", "gh auth token");
+
+        let message = refusal(github.resolve());
+
+        assert!(
+            message.starts_with("E_CONSENT_KEY_TEAM_LEVEL: github.token_cmd"),
+            "{message}"
+        );
+        assert!(github.commands().is_empty());
     }
 
     #[test]
-    fn a_configured_token_takes_precedence_over_a_personal_token_cmd(
-    ) -> Result<(), kernel::Error> {
-        with_env(&[("GH_TOKEN", None), ("GITHUB_TOKEN", None)], || {
-            let config = FixedConfig::new()
-                .with_personal("github.token", "personal-token")
-                .with_personal("github.token_cmd", "printf should-not-run");
-            let resolved = resolve_github_token(&config)?;
-            assert_eq!(resolved.value, "personal-token");
-            Ok(())
-        })
+    fn a_tracked_personal_command_is_refused_before_it_runs() {
+        let github = Github::new()
+            .personal("github.token_cmd", "gh auth token")
+            .tracked();
+
+        let message = refusal(github.resolve());
+
+        assert!(
+            message.starts_with("E_CONSENT_KEY_TRACKED: github.token_cmd"),
+            "{message}"
+        );
+        assert!(github.commands().is_empty());
+    }
+
+    #[test]
+    fn a_tracked_personal_token_is_refused() {
+        let github =
+            Github::new().personal("github.token", "personal").tracked();
+
+        let message = refusal(github.resolve());
+
+        assert!(
+            message.starts_with("E_TOKEN_FROM_TRACKED_FILE: github.token"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn an_ignored_personal_file_never_lets_a_team_token_through() {
+        let github = Github::new()
+            .team("github.token", "team")
+            .ignored_personal_file();
+
+        let message = refusal(github.resolve());
+
+        assert!(message.starts_with("E_LOCAL_PERMS_INSECURE"), "{message}");
+    }
+
+    #[test]
+    fn an_env_token_resolves_beside_an_ignored_personal_file() {
+        let github = Github::new()
+            .env("GH_TOKEN", "gh-env")
+            .team("github.token", "team")
+            .ignored_personal_file();
+
+        assert_eq!(token(github.resolve()), "gh-env");
+    }
+
+    #[test]
+    fn a_token_carrying_a_control_character_is_malformed() {
+        let github = Github::new().env("GH_TOKEN", "a\u{1}b");
+
+        let message = refusal(github.resolve());
+
+        assert!(message.starts_with("E_TOKEN_MALFORMED"), "{message}");
+    }
+
+    #[test]
+    fn nothing_configured_is_a_refusal_naming_the_routes() {
+        let message = refusal(Github::new().resolve());
+
+        assert!(message.contains("GH_TOKEN/GITHUB_TOKEN"), "{message}");
     }
 }

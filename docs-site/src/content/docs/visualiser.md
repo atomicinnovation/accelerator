@@ -126,6 +126,11 @@ pre-release version.
 | `ACCELERATOR_VISUALISER_EDITOR_PROJECT`    | One-shot override of `visualiser.editor_project`                                                          |
 | `ACCELERATOR_VISUALISER_RELEASES_URL`      | Alternative HTTPS mirror for air-gapped or self-hosted installs                                           |
 
+`visualiser.editor` is not a
+[consent key](reference/skills/config/configure.md#consent-keys), so a team
+value in `config.md` applies: the browser follows the link it builds, and
+nothing in Accelerator spawns it.
+
 The `ACCELERATOR_VISUALISER_RELEASES_URL` mirror must be HTTPS. A localhost
 exemption (`127.0.0.1`, `::1`, `localhost`) accepts HTTP for integration
 testing; any other plaintext URL is rejected by the launcher.

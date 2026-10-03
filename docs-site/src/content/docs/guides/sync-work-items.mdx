@@ -50,7 +50,10 @@ both directions.
 
 2. **Store credentials in the local config file.** Tokens belong in
    `.accelerator/config.local.md` (gitignored), never the shared
-   config — ideally via a command rather than a literal value:
+   config — ideally via a command rather than a literal value. A
+   `token_cmd` in the shared config, or in a `config.local.md` that version
+   control tracks, is refused with an `E_CONSENT_KEY_*` code: a `warning:`
+   when another credential resolves, fatal when none does:
 
    <Tabs syncKey="tracker">
 

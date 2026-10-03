@@ -7,7 +7,6 @@ mod fetch_command;
 mod guard;
 #[cfg(feature = "test-loopback")]
 mod loopback;
-mod provenance;
 mod render;
 mod topic_command;
 mod write_target;
@@ -19,7 +18,6 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
-use config_adapters::credentials::CredentialPorts;
 use corpus_adapters::RealFs;
 use research::fetch::Clock;
 use research::fetch::FetchOutcome;
@@ -46,7 +44,6 @@ use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::SourceCall;
-use crate::provenance::VcsProvenance;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -67,7 +64,8 @@ const USAGE: u8 = 2;
 
 fn main() -> ExitCode {
     let clock = selected_clock();
-    let deadline = Deadline::starting(clock.now(), CALL_BUDGET, REQUEST_BUDGET);
+    let deadline =
+        Deadline::starting(clock.now(), selected_call_budget(), REQUEST_BUDGET);
     match Cli::try_parse() {
         Ok(Cli {
             command:
@@ -130,9 +128,10 @@ fn fetch(
     };
     let ports = FetchPorts {
         clock,
-        credentials: CredentialPorts::system(Box::new(
-            VcsProvenance::discovered(project.root.clone()),
-        )),
+        credentials: consent_adapters::credential_ports(
+            &project.root,
+            &project.root,
+        ),
     };
     match fetch_command::run(&ports, &project, deadline, &call) {
         Ok(fetched) => report(&fetched),
@@ -244,6 +243,16 @@ fn selected_clock() -> Rc<dyn Clock> {
 #[cfg(not(feature = "test-loopback"))]
 fn selected_clock() -> Rc<dyn Clock> {
     Rc::new(SystemClock)
+}
+
+#[cfg(feature = "test-loopback")]
+fn selected_call_budget() -> Duration {
+    loopback::call_budget().unwrap_or(CALL_BUDGET)
+}
+
+#[cfg(not(feature = "test-loopback"))]
+const fn selected_call_budget() -> Duration {
+    CALL_BUDGET
 }
 
 struct Endpoints {

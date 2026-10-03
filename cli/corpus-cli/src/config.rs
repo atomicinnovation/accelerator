@@ -9,11 +9,12 @@ use std::path::PathBuf;
 use config::ConfigAccess;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use config_adapters::ScreenedStore;
 use corpus::DocTypeKey;
 
 /// The composed configuration service plus the discovered project root.
 pub struct Composed {
-    pub service: config::ConfigService<FileConfigStore, FileConfigStore>,
+    pub service: config::ConfigService<ScreenedStore, FileConfigStore>,
     pub project_root: PathBuf,
 }
 
@@ -29,6 +30,7 @@ pub struct Composed {
 pub fn compose(cwd: &Path) -> Result<Composed, kernel::Error> {
     let project_root = FileConfigStore::discover_root(cwd);
     let composed = config_adapters::compose(cwd, LegacyPolicy::Reject)?;
+    composed.report_ignored_personal_file();
     Ok(Composed {
         service: composed.service,
         project_root,

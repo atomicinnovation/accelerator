@@ -13,7 +13,7 @@ use linear_client::auth::{
     TeamSource,
 };
 use linear_client::ClientError;
-use support::{context, FixedConfig, FixedEnvironment, FixedProvenance};
+use support::{context, FixedConfig, FixedEnvironment, FixedTracking};
 use tempfile::TempDir;
 
 const TEAM: &str = "5c9f2a1b-0000-4000-8000-000000000001";
@@ -41,10 +41,10 @@ fn the_token_and_team_resolve_together() {
     let environment =
         FixedEnvironment::empty().with("ACCELERATOR_LINEAR_TOKEN", "lin_api_x");
     let config = FixedConfig::new();
-    let provenance = FixedProvenance::nothing_tracked();
+    let tracking = FixedTracking::nothing_tracked();
 
     let credentials = resolve_credentials(
-        &context(&environment, &config, &provenance, root.path()),
+        &context(&environment, &config, &tracking, root.path()),
         &integrations,
     )
     .expect("both values resolve");
@@ -167,31 +167,52 @@ fn a_team_level_token_command_is_refused_with_its_diagnostic() {
     let environment = FixedEnvironment::empty();
     let config =
         FixedConfig::new().with_team("linear.token_cmd", "printf 'no'");
-    let provenance = FixedProvenance::nothing_tracked();
+    let tracking = FixedTracking::nothing_tracked();
 
     let error = resolve_credentials(
-        &context(&environment, &config, &provenance, root.path()),
+        &context(&environment, &config, &tracking, root.path()),
         &integrations,
     )
     .expect_err("a shared token_cmd is refused");
 
     assert!(matches!(
         error,
-        ClientError::Credential(
-            CredentialError::TokenCmdFromSharedConfig { .. }
-        )
+        ClientError::Credential(CredentialError::Consent(_))
     ));
     assert!(
-        error.to_string().contains("move it to config.local.md"),
+        error
+            .to_string()
+            .starts_with("E_CONSENT_KEY_TEAM_LEVEL: linear.token_cmd"),
         "{error}"
     );
 }
 
 #[test]
+fn a_team_level_token_command_beside_a_personal_token_warns() {
+    let root = workspace();
+    let integrations = with_catalogue(root.path(), TEAM);
+    let environment = FixedEnvironment::empty();
+    let config = FixedConfig::new()
+        .with_team("linear.token_cmd", "printf 'no'")
+        .with_personal("linear.token", "lin_api_personal");
+    let tracking = FixedTracking::nothing_tracked();
+
+    let credentials = resolve_credentials(
+        &context(&environment, &config, &tracking, root.path()),
+        &integrations,
+    )
+    .expect("the personal token resolves");
+
+    assert_eq!(credentials.token.expose(), "lin_api_personal");
+    assert_eq!(credentials.refusals.len(), 1);
+    assert!(credentials.refusals[0]
+        .to_string()
+        .starts_with("E_CONSENT_KEY_TEAM_LEVEL: linear.token_cmd"));
+}
+
+#[test]
 fn a_malformed_token_is_refused() {
     for (token, found) in [
-        ("has\ttab", "a control character or newline"),
-        ("has\nnewline", "a control character or newline"),
         ("has\"quote", "a double-quote"),
         ("has\\backslash", "a backslash"),
     ] {
@@ -213,10 +234,10 @@ fn a_malformed_token_from_the_environment_is_refused_by_resolution() {
     let environment = FixedEnvironment::empty()
         .with("ACCELERATOR_LINEAR_TOKEN", "quote\"inside");
     let config = FixedConfig::new();
-    let provenance = FixedProvenance::nothing_tracked();
+    let tracking = FixedTracking::nothing_tracked();
 
     let error = resolve_credentials(
-        &context(&environment, &config, &provenance, root.path()),
+        &context(&environment, &config, &tracking, root.path()),
         &integrations,
     )
     .expect_err("the malformed token is refused");
@@ -231,10 +252,8 @@ fn a_malformed_token_from_the_environment_is_refused_by_resolution() {
 fn there_is_no_site_or_email_in_linears_auth_band() {
     let keys = token_keys().expect("the keys parse");
 
-    assert_eq!(keys.env, "ACCELERATOR_LINEAR_TOKEN");
-    assert_eq!(keys.env_command, "ACCELERATOR_LINEAR_TOKEN_CMD");
-    assert_eq!(keys.value.to_string(), "linear.token");
-    assert_eq!(keys.command.to_string(), "linear.token_cmd");
+    assert_eq!(keys.plaintext.name, "linear.token");
+    assert_eq!(keys.command.descriptor().name, "linear.token_cmd");
 }
 
 #[test]

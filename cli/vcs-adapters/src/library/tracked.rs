@@ -20,10 +20,42 @@ use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
 use crate::library::Error;
 
+/// Under `core.ignorecase`, an entry differing only in ASCII case counts,
+/// as it does for git on a case-insensitive filesystem.
 pub(super) fn git_is_tracked(
     root: &Path,
     relpath: &str,
 ) -> Result<bool, Error> {
+    let (repository, index) = open_git_index(root)?;
+    let ignore_case = repository
+        .config_snapshot()
+        .boolean("core.ignorecase")
+        .unwrap_or(false);
+    if !ignore_case {
+        return Ok(index.entry_by_path(relpath.into()).is_some());
+    }
+    let lookup = index.prepare_icase_backing();
+    Ok(index
+        .entry_by_path_icase(relpath.into(), true, &lookup)
+        .is_some())
+}
+
+/// Whether the index holds any entry beneath `directory`, repo-relative and
+/// slash-separated. An exact-path query cannot see a tracked directory.
+pub(super) fn git_tracks_any_under(
+    root: &Path,
+    directory: &str,
+) -> Result<bool, Error> {
+    let (_, index) = open_git_index(root)?;
+    let prefix = format!("{}/", directory.trim_end_matches('/'));
+    Ok(index
+        .prefixed_entries(prefix.as_str().into())
+        .is_some_and(|entries| !entries.is_empty()))
+}
+
+fn open_git_index(
+    root: &Path,
+) -> Result<(gix::Repository, gix::worktree::Index), Error> {
     let repository = gix::open(root).map_err(|error| Error::Git {
         path: root.to_path_buf(),
         source: Box::new(error),
@@ -34,7 +66,7 @@ pub(super) fn git_is_tracked(
         path: root.to_path_buf(),
         source: Box::new(error),
     })?;
-    Ok(index.entry_by_path(relpath.into()).is_some())
+    Ok((repository, index))
 }
 
 pub(super) fn jj_is_tracked(root: &Path, relpath: &str) -> Result<bool, Error> {
@@ -91,4 +123,39 @@ pub(super) fn jj_is_tracked(root: &Path, relpath: &str) -> Result<bool, Error> {
             source: Box::new(error),
         })?;
     Ok(value.is_present())
+}
+
+#[cfg(all(test, feature = "bash-parity"))]
+mod tests {
+    use std::fs;
+
+    use vcs_test_support::hermetic::Hermetic;
+
+    use super::git_tracks_any_under;
+
+    type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn a_prefix_query_sees_only_entries_beneath_the_directory(
+    ) -> Result<(), TestError> {
+        vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+        let work = tempfile::Builder::new()
+            .prefix("vcs-tracks-under-")
+            .tempdir()?;
+        let env = Hermetic::rooted_at(work.path())?;
+        let root = work.path().join("repo");
+        fs::create_dir_all(root.join("sub/.jj"))?;
+        fs::create_dir_all(root.join("sub/.jjx"))?;
+        env.git(&["init", "--quiet"], &root)?;
+        fs::write(root.join("sub/.jjx/file"), "x\n")?;
+        env.git(&["add", "sub/.jjx/file"], &root)?;
+
+        assert!(!git_tracks_any_under(&root, "sub/.jj")?);
+
+        fs::write(root.join("sub/.jj/file"), "x\n")?;
+        env.git(&["add", "--force", "sub/.jj/file"], &root)?;
+
+        assert!(git_tracks_any_under(&root, "sub/.jj")?);
+        Ok(())
+    }
 }

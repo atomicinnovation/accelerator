@@ -1,5 +1,5 @@
-//! `accelerator-vcs` — the `vcs detect|status|log|root|guard` sub-binary,
-//! dispatched by the `accelerator` launcher.
+//! `accelerator-vcs` — the `vcs detect|status|log|root|guard|tracking`
+//! sub-binary, dispatched by the `accelerator` launcher.
 
 mod cli;
 mod detect;
@@ -8,8 +8,10 @@ mod log;
 mod report;
 mod root;
 mod status;
+mod tracking;
 
 use std::io::Read as _;
+use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser as _;
@@ -44,6 +46,11 @@ fn run_status() -> Result<(), kernel::Error> {
 fn run_log() -> Result<(), kernel::Error> {
     let probe = InProcessProbe;
     println!("{}", log::run(&current_dir()?, &probe));
+    Ok(())
+}
+
+fn run_tracking(path: &Path) -> Result<(), kernel::Error> {
+    println!("{}", tracking::run(path, vcs_adapters::file_tracking)?);
     Ok(())
 }
 
@@ -105,6 +112,7 @@ fn main() -> ExitCode {
         Command::Status { fail_safe: _ } => run_status(),
         Command::Log { fail_safe: _ } => run_log(),
         Command::Root => run_root(),
+        Command::Tracking { path } => run_tracking(&path),
         Command::Guard {
             format: _,
             fail_safe,

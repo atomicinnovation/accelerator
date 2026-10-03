@@ -103,7 +103,7 @@ never the key.
 | `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed |
 | `E_RESEARCH_UNDECODABLE`          | 1    | A response the CLI could not parse                           |
 | `E_RESEARCH_TRANSPORT`            | 1    | The HTTP client could not start                              |
-| `E_TOKEN_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
+| `E_TOKEN_*`, `E_COMMAND_*`, `E_CONSENT_KEY_*`, `E_LOCAL_PERMS_INSECURE` | 1 | The key could not be resolved safely; see [Credentials](#credentials) |
 
 ### Retries and deadlines
 
@@ -173,29 +173,43 @@ An OpenAlex API key is optional. Without one, requests run on OpenAlex's
 keyless daily allowance, which a research round can spend quickly; with one,
 it is sent as `Authorization: Bearer`, never in a URL, and never appears in
 output or errors. The key resolves through the same ladder as the tracker
-tokens, first non-empty wins:
+tokens. The first rung that yields a usable value wins; a failed command or
+refused value is reported as a `warning:` and the chain continues:
 
 1. `ACCELERATOR_OPENALEX_API_KEY`
-2. `ACCELERATOR_OPENALEX_API_KEY_CMD`, run with its stdout trimmed
+2. `ACCELERATOR_OPENALEX_API_KEY_CMD`, run in a fresh temporary directory
+   outside the repository, with a scrubbed environment and a filtered `PATH`,
+   its output capped at 65,536 bytes and its stdout trimmed — see the
+   command runner in [`/accelerator:configure`](reference/skills/config/configure.md)
 3. `openalex.api_key` in `.accelerator/config.local.md`
 4. `openalex.api_key_cmd` in `.accelerator/config.local.md`
 5. `openalex.api_key` in `.accelerator/config.md`, only when
    `config.local.md` does not exist
 
-The key command runs under whatever remains of the 100 s deadline. Refusals,
-each exiting `1` before any request:
+The key command runs under whatever remains of the 100 s deadline. Each
+refusal is a `warning:` when a later rung supplies a key. When none does, the
+first refusal exits `1` before any request, and the rest are printed as
+warnings:
 
 | Code                             | Refuses                                                        |
 |----------------------------------|----------------------------------------------------------------|
-| `E_TOKEN_CMD_FROM_SHARED_CONFIG` | `openalex.api_key_cmd` in the shared `config.md`               |
-| `E_TOKEN_FROM_TRACKED_FILE`      | `openalex.api_key` in a `config.local.md` tracked by version control |
-| `E_TOKEN_CMD_FROM_TRACKED_FILE`  | `openalex.api_key_cmd` in a tracked `config.local.md`          |
-| `E_LOCAL_PERMS_INSECURE`         | A `config.local.md` looser than `0600`                         |
-| `E_TOKEN_CMD_FAILED`             | A key command that failed or outlasted the deadline            |
+| `E_CONSENT_KEY_TEAM_LEVEL`       | `openalex.api_key_cmd` in the shared `config.md`               |
+| `E_TOKEN_FROM_TRACKED_FILE`      | `openalex.api_key` in a `config.local.md` tracked by version control, or whose tracking status cannot be determined |
+| `E_CONSENT_KEY_TRACKED`          | `openalex.api_key_cmd` in a tracked `config.local.md`          |
+| `E_CONSENT_KEY_TRACKING_UNKNOWN` | `openalex.api_key_cmd` in a `config.local.md` whose tracking status cannot be determined |
+| `E_LOCAL_PERMS_INSECURE`         | A `config.local.md` looser than `0600` or a symlink — not read, with a warning; fatal only when nothing usable remains |
+| `E_TOKEN_CMD_FAILED`             | A key command that could not start or exited non-zero          |
+| `E_COMMAND_TIMED_OUT`            | A key command that outlasted the deadline                      |
+| `E_COMMAND_OUTPUT_EXCEEDED`      | A key command that printed more than 65,536 bytes across stdout and stderr |
 | `E_TOKEN_MALFORMED`              | A key carrying a control character                             |
 
+The [consent keys](reference/skills/config/configure.md#consent-keys)
+reference gives each code's remedy.
+
 A tracked `config.local.md` that supplies neither key leaves the call
-keyless. `accelerator config dump` hides both keys. See
+keyless. A shared `openalex.api_key_cmd` does not: beside a `config.local.md`
+that sets no key, the call fails with `E_CONSENT_KEY_TEAM_LEVEL` rather than
+going keyless. `accelerator config dump` hides both keys. See
 [`/accelerator:configure`](reference/skills/config/configure.md) for the
 settings reference.
 

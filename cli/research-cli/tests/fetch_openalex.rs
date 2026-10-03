@@ -594,6 +594,97 @@ fn a_personal_config_without_a_key_leaves_the_call_keyless() {
 }
 
 #[test]
+fn a_personal_config_without_a_key_beside_a_shared_key_command_is_refused() {
+    assert_refused(
+        &Project::new()
+            .personal_config("---\n---\n", 0o600)
+            .shared_config(&config_with("  api_key_cmd: printf k\n")),
+        "E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd",
+    );
+}
+
+#[test]
+fn a_shared_key_command_beside_a_personal_key_warns_and_fetches() {
+    let server = server_with(works(), search_page());
+    let project = Project::new()
+        .personal_config(&config_with("  api_key: mine\n"), 0o600)
+        .shared_config(&config_with("  api_key_cmd: printf k\n"));
+
+    let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(
+        run.stderr.contains(
+            "warning: E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd"
+        ),
+        "{}",
+        run.stderr
+    );
+}
+
+#[test]
+fn an_environment_key_resolves_beside_an_insecure_personal_config() {
+    let server = server_with(works(), search_page());
+    let project = Project::new()
+        .personal_config(&config_with("  api_key: mine\n"), 0o644);
+
+    let run = fetch(
+        &project,
+        &server,
+        &["openalex", "search", "x"],
+        &[("ACCELERATOR_OPENALEX_API_KEY", "env")],
+    );
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("warning: E_LOCAL_PERMS_INSECURE"),
+        "{}",
+        run.stderr
+    );
+}
+
+#[test]
+fn a_tracked_personal_key_command_beside_a_shared_one_is_fatal_and_warns() {
+    let project = Project::under_git()
+        .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
+        .shared_config(&config_with("  api_key_cmd: printf shared\n"))
+        .track_personal_config();
+
+    assert_refused(
+        &project,
+        "warning: E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd",
+    );
+    assert_refused(&project, "E_CONSENT_KEY_TRACKED: openalex.api_key_cmd");
+}
+
+#[test]
+fn a_personal_key_command_runs_outside_the_project_in_a_fresh_directory() {
+    let server = server_with(works(), search_page());
+    let record = tempfile::tempdir().expect("a record directory");
+    let recorded = record.path().join("cwd");
+    let project = Project::new().personal_config(
+        &config_with(&format!(
+            "  api_key_cmd: pwd > {} && printf k\n",
+            recorded.display()
+        )),
+        0o600,
+    );
+
+    let run = fetch(&project, &server, &["openalex", "search", "x"], &[]);
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let cwd = std::path::PathBuf::from(
+        std::fs::read_to_string(&recorded)
+            .expect("the helper recorded its directory")
+            .trim(),
+    );
+    assert!(!cwd.starts_with(
+        project.root().canonicalize().expect("the project resolves")
+    ));
+    assert!(!cwd.exists(), "{} outlived the run", cwd.display());
+}
+
+#[test]
 fn no_key_anywhere_leaves_the_call_keyless() {
     assert_eq!(authorization(&Project::new(), &[]), None);
 }
@@ -609,10 +700,37 @@ fn a_shared_key_command_is_refused_before_any_request() {
     assert_eq!(run.code, Some(1));
     assert!(
         run.stderr
-            .contains("E_TOKEN_CMD_FROM_SHARED_CONFIG: openalex.api_key_cmd"),
+            .contains("E_CONSENT_KEY_TEAM_LEVEL: openalex.api_key_cmd"),
         "{}",
         run.stderr
     );
+    assert_eq!(server.hits(&works()), 0);
+}
+
+#[test]
+fn a_hanging_key_command_times_out_within_the_budget_left() {
+    let server = server_with(works(), search_page());
+    let project = Project::new().personal_config(
+        &config_with("  api_key_cmd: sleep 60 & wait\n"),
+        0o600,
+    );
+    let started = std::time::Instant::now();
+
+    let run = fetch(
+        &project,
+        &server,
+        &["openalex", "search", "x"],
+        &[("ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS", "5000")],
+    );
+
+    assert_eq!(run.code, Some(1), "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("E_COMMAND_TIMED_OUT: openalex.api_key_cmd"),
+        "{}",
+        run.stderr
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
     assert_eq!(server.hits(&works()), 0);
 }
 
@@ -651,7 +769,7 @@ fn a_tracked_personal_config_supplying_a_key_is_refused() {
         &Project::under_git()
             .personal_config(&config_with("  api_key_cmd: printf k\n"), 0o600)
             .track_personal_config(),
-        "E_TOKEN_CMD_FROM_TRACKED_FILE: openalex.api_key_cmd",
+        "E_CONSENT_KEY_TRACKED: openalex.api_key_cmd",
     );
 }
 

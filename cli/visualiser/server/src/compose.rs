@@ -36,10 +36,25 @@ pub struct Params {
     pub host: String,
 }
 
+/// Logs an ignored personal config once per process, however many times the
+/// server composes.
+pub(crate) fn report_ignored_personal_file(
+    composed: &config_adapters::Composed,
+) {
+    if let Some(refusal) =
+        config::consent::Refusal::for_personal_file(composed.personal_file())
+    {
+        kernel::render::report_personal_file_once(|| {
+            tracing::warn!(%refusal, "personal config ignored");
+        });
+    }
+}
+
 /// Build the runtime [`Config`] by discovering the project root from `cwd` and
 /// resolving every config-derived field through `ConfigService::effective`.
 pub fn load(params: Params) -> Result<Config, ComposeError> {
     let composed = config_adapters::compose(&params.cwd, LegacyPolicy::Reject)?;
+    report_ignored_personal_file(&composed);
     let store = composed
         .store
         .with_plugin_root(Some(params.plugin_root.clone()));

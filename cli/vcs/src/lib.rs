@@ -9,6 +9,7 @@ pub mod log;
 pub mod mode;
 pub mod origin_remote;
 pub mod status;
+pub mod tracking;
 
 use std::path::Path;
 use std::path::PathBuf;

@@ -15,10 +15,11 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use config::credentials::{CommandPolicy, CredentialContext};
-use config_adapters::credentials::{
-    BashTokenCommandRunner, SystemEnvironment, SystemFileFacts,
+use config::consent::{
+    CommandExecution, CommandPolicy, RepositoryRoots, Runner,
 };
+use config::credentials::CredentialContext;
+use config_adapters::credentials::{BashCommandRunner, SystemEnvironment};
 use linear_client::catalogue::TeamEntries;
 use linear_client::resolution::FixedNames;
 use linear_client::resolution::ResolverSet;
@@ -37,9 +38,9 @@ use tracker_test_support::seed::{
 /// question arises.
 struct NothingTracked;
 
-impl config::credentials::Provenance for NothingTracked {
-    fn is_tracked(&self, _path: &Path) -> bool {
-        false
+impl config::consent::ConfigFileTracking for NothingTracked {
+    fn tracking(&self, _path: &Path) -> config::consent::Tracking {
+        config::consent::Tracking::Untracked
     }
 }
 
@@ -110,6 +111,11 @@ impl ContractSubject for LiveClient {
 
 fn live_client() -> LiveClient {
     let environment = SystemEnvironment;
+    let runner = Runner::new(Box::new(BashCommandRunner::new(
+        RepositoryRoots::complete(Vec::new()),
+        Box::new(SystemEnvironment),
+        std::env::temp_dir(),
+    )));
     let provenance = NothingTracked;
     let config = EnvironmentOnlyConfig;
     let root = std::env::current_dir().expect("a working directory");
@@ -119,15 +125,16 @@ fn live_client() -> LiveClient {
             PathBuf::from,
         );
     let context = CredentialContext {
-        environment: &environment,
-        config: &config,
-        provenance: &provenance,
-        files: &SystemFileFacts,
-        commands: &BashTokenCommandRunner,
-        personal_config: root.join(".accelerator/config.local.md"),
-        insecure_marker: root
-            .join(config::credentials::INSECURE_MARKER_RELATIVE),
-        command: CommandPolicy::rooted_at(root.clone()),
+        provenance: config::consent::ProvenanceContext {
+            config: &config,
+            tracking: &provenance,
+            environment: &environment,
+            personal_config: root.join(".accelerator/config.local.md"),
+        },
+        execution: CommandExecution {
+            runner: &runner,
+            timeout: CommandPolicy::DEFAULT_TIMEOUT,
+        },
     };
     let credentials =
         linear_client::resolve_credentials(&context, &integrations).expect(

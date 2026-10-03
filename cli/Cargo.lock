@@ -27,6 +27,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracker-support",
+ "vcs-test-support",
  "vergen",
  "vergen-gitcl",
 ]
@@ -39,6 +40,7 @@ dependencies = [
  "collaboration",
  "config",
  "config-adapters",
+ "consent-adapters",
  "github",
  "http",
  "http-test-support",
@@ -71,12 +73,14 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "consent-adapters",
  "design",
  "design-adapters",
  "kernel",
  "serde_json",
  "tempfile",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -101,6 +105,7 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "consent-adapters",
  "corpus",
  "corpus-adapters",
  "http-test-support",
@@ -159,6 +164,7 @@ dependencies = [
  "hex",
  "http-body-util",
  "humantime",
+ "kernel",
  "libc",
  "mime_guess",
  "nix",
@@ -190,6 +196,7 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
+ "consent-adapters",
  "corpus",
  "corpus-adapters",
  "document",
@@ -806,6 +813,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 name = "config"
 version = "1.24.0-pre.73"
 dependencies = [
+ "config",
  "kernel",
  "tempfile",
 ]
@@ -816,8 +824,24 @@ version = "1.24.0-pre.73"
 dependencies = [
  "config",
  "document",
+ "dunce",
+ "kernel",
+ "libc",
+ "rustix",
+ "signal-hook",
  "store",
  "tempfile",
+]
+
+[[package]]
+name = "consent-adapters"
+version = "1.24.0-pre.73"
+dependencies = [
+ "config",
+ "config-adapters",
+ "tempfile",
+ "vcs",
+ "vcs-adapters",
 ]
 
 [[package]]
@@ -2848,6 +2872,7 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
+ "consent-adapters",
  "http-test-support",
  "jira-client",
  "kernel",
@@ -3071,6 +3096,7 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
+ "consent-adapters",
  "graphql-test-support",
  "http-test-support",
  "kernel",
@@ -4455,6 +4481,16 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "signal-hook"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2a0c28ca5908dbdbcd52e6fdaa00358ab88637f8ab33e1f188dd510eb44b53d"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
 
 [[package]]
 name = "signal-hook-registry"

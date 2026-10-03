@@ -2,6 +2,67 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Credential commands run under a hardened runner.** `jira.token_cmd`,
+  `linear.token_cmd`, `openalex.api_key_cmd` and their `ACCELERATOR_*_CMD`
+  overrides now run in a fresh temporary directory outside the repository
+  rather than at the project root, and see only `PATH`, `HOME`, `TERM`,
+  `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS`. A helper
+  that needs anything else can set a static value inline
+  (`env VAR=… cmd`), run from a wrapper script, or, for a value that exists
+  only in your session (`SSH_AUTH_SOCK`, `OP_SESSION_*`, STS credentials), be
+  replaced by exporting the resolved credential as `ACCELERATOR_JIRA_TOKEN`,
+  `ACCELERATOR_LINEAR_TOKEN`, `ACCELERATOR_OPENALEX_API_KEY` or `GH_TOKEN`.
+- **`PATH` entries that are relative, empty, missing or inside the repository
+  are dropped** before a credential command runs, so call a helper by an
+  absolute path outside the repository.
+- **Output over 65,536 bytes is refused** with `E_COMMAND_OUTPUT_EXCEEDED`,
+  where it used to be truncated and accepted. stdout and stderr count towards
+  the cap together.
+- **A timed-out credential command reports `E_COMMAND_TIMED_OUT`** instead of
+  `E_TOKEN_CMD_FAILED`, which now means only a command that could not start or
+  exited non-zero. Jira exits 25 for all three.
+- **Interactive credential helpers are unsupported.** A helper that prompts on
+  `/dev/tty` fails or times out, because the command has no controlling
+  terminal in the foreground.
+- **A helper's leftover processes are stopped.** Anything a credential command
+  leaves running in its process group, such as a caching agent, receives
+  `SIGTERM` once the command exits, then `SIGKILL` after a grace period of up to
+  a second.
+- **Ctrl-C, `SIGTERM` or `SIGHUP` during a credential command** sends its
+  process group `SIGTERM`, then `SIGKILL` after the grace period, and never
+  `SIGINT` directly, so a helper that traps `INT` to clean up should trap
+  `TERM`.
+- **Trimming strips all surrounding whitespace** from a credential command's
+  output, so a token ending in `\r` is now accepted where it used to be
+  malformed.
+- **Command-key refusal codes are renamed.** A team-level `jira.token_cmd`,
+  `linear.token_cmd`, `openalex.api_key_cmd` or `github.token_cmd` reports
+  `E_CONSENT_KEY_TEAM_LEVEL` where it reported
+  `E_TOKEN_CMD_FROM_SHARED_CONFIG`. A command from a tracked `config.local.md`
+  reports `E_CONSENT_KEY_TRACKED` where it reported
+  `E_TOKEN_CMD_FROM_TRACKED_FILE`, and `E_CONSENT_KEY_TRACKING_UNKNOWN` when
+  the tracking status cannot be determined.
+- **OpenAlex no longer goes keyless beside a team `api_key_cmd`.** With a
+  `config.local.md` that sets no key, a shared `openalex.api_key_cmd` now fails
+  the fetch with `E_CONSENT_KEY_TEAM_LEVEL` instead of leaving it keyless.
+- **`github.token_cmd` runs under the hardened runner**, with `GH_HOST` and
+  `GH_CONFIG_DIR` admitted beside the base environment, where it used to run
+  as a bare `bash -c` with the full environment and no timeout.
+- **GitHub checks where its personal credentials come from.** A personal
+  `github.token_cmd` or `github.token` from a `config.local.md` that is
+  tracked, or whose tracking cannot be determined, is refused
+  (`E_CONSENT_KEY_TRACKED`, `E_CONSENT_KEY_TRACKING_UNKNOWN` or
+  `E_TOKEN_FROM_TRACKED_FILE`), where GitHub had no tracked-file check before.
+- **GitHub's precedence matches the trackers'.** A personal `github.token_cmd`
+  now wins over a team `github.token`, which is used only when
+  `config.local.md` does not exist.
+- **linear-cli exit codes follow the fatal refusal.** With nothing else
+  usable, it exits 25 for a failed, timed-out or oversized token command, 27
+  for a token carrying a control character, and 29 for an insecure
+  `config.local.md`, where all three used to exit 24.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -78,6 +139,23 @@
   caveats are documented under Terminal Invocation in the
   [Internals](https://atomicinnovation.github.io/accelerator/internals/) page.
 
+- **`ACCELERATOR_JIRA_ALLOWED_SITES` supplies the Jira allowlist from the
+  environment.** Entries are split on commas and whitespace.
+- **A `notice:` line reports a consent key taken from the environment.** It
+  names the variable that decided the value, and for `jira.allowed_sites` the
+  value itself.
+- **Session start warns about consent keys.** The `SessionStart` summary
+  names every consent key set in `.accelerator/config.md` and a
+  `config.local.md` that is tracked by version control or whose tracking
+  cannot be determined, in both the start-of-session message and the session
+  context. The tracking check runs through the `vcs` sub-binary. In the first
+  session after an upgrade, if that binary cannot be fetched in time, the
+  check is noted in the session context as skipped rather than warned about.
+- **A consent keys reference.** `/accelerator:configure` lists the six
+  consent keys, the rule they share, and every refusal code they can report
+  with its remedy. The configuration, research, collaboration and visualiser
+  docs link to it.
+
 ### Changed
 
 - **`catalogue.json` now records each synced team's states, labels, members
@@ -108,6 +186,33 @@
   exits 89 instead of returning an empty result, and `--state` with no
   catalogued team exits 77 instead of 78. A `--text`-only search with no
   catalogued team still runs workspace-wide.
+
+- **A credential refusal falls through to the next source.** A failing
+  `ACCELERATOR_*_TOKEN_CMD`, a refused command, or a token carrying a control
+  character is now reported as a `warning:` and the next credential is tried,
+  instead of failing at once. It is fatal only when nothing usable remains.
+  GitHub now rejects a token carrying a control character too.
+- **An undeterminable tracking status refuses personal credentials.** When
+  whether `config.local.md` is tracked cannot be determined, its token
+  commands and plaintext tokens are refused, each naming the environment
+  variable that still works (`GH_TOKEN` for GitHub). It used to be treated as
+  untracked.
+- **The `notice:` line covers command keys.** A token command taken from the
+  environment prints `notice: <key> taken from <variable>`, and never prints
+  the command.
+- **A GitHub personal `token_cmd` beside a team `token_cmd` now runs**, with
+  an `E_CONSENT_KEY_TEAM_LEVEL` warning. It used to exit 2.
+- **`ACCELERATOR_DESIGN_BROWSER_PATH` prints a `notice:` line** naming the
+  path, and a refused environment value falls through to the personal
+  `design.browser_path` with a warning.
+- **The Playwright daemon's state is kept per browser.** Each browser's
+  daemon has its own slot beneath `inventory-design-playwright/`, `bundled`
+  or `custom-<digest>`, so changing `design.browser_path` spawns a daemon for
+  the new browser and leaves the previous one to idle out. A symlinked
+  `inventory-design-playwright` directory or slot now fails the launch,
+  naming the path, which can be removed when no crawl is running; a symlinked
+  tmp base is still supported. State files an earlier version left directly
+  under `inventory-design-playwright/` are no longer read and can be deleted.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
@@ -187,6 +292,38 @@
   policy-refused destination, folded into the existing cross-origin skip; the
   `same_origin` field's definition is restated accordingly in `PROTOCOL.md`.
 
+- **A team-level `jira.allowed_sites` warns rather than fails when the site
+  needs no allowlist.** Beside an `*.atlassian.net` site it now warns with
+  `E_CONSENT_KEY_TEAM_LEVEL` and continues; beside any other site it fails
+  with exit 24 instead of 1.
+- **The allowlist's refusal codes are renamed.** A tracked personal
+  `jira.allowed_sites` reports `E_CONSENT_KEY_TRACKED` (or
+  `E_CONSENT_KEY_TRACKING_UNKNOWN` when tracking cannot be determined) instead
+  of `E_TOKEN_CMD_FROM_TRACKED_FILE`, and a team-level one reports
+  `E_CONSENT_KEY_TEAM_LEVEL` instead of `E_ALLOWED_SITES_FROM_SHARED_CONFIG`.
+  Beside an `*.atlassian.net` site a tracked personal allowlist now warns
+  where it used to fail. Scripts matching stderr need updating.
+- **An insecure `config.local.md` is ignored with a warning instead of
+  failing everything.** A symlinked personal config, or one looser than
+  `0600`, used to fail every command and the `SessionStart` hook. Its values
+  are now not used: team values and the `ACCELERATOR_*` overrides still
+  resolve, each command warns once with `E_LOCAL_PERMS_INSECURE`, and it fails
+  with that code only when nothing usable remains. Commands that write still
+  refuse: `migrate`, `work create`/`update`/`sync`, the Jira and Linear
+  commands that write to the tracker or to config, `config set` and
+  `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
+  instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
+  and its marker no longer have any effect.
+
+### Removed
+
+- **`ACCELERATOR_ALLOW_INSECURE_LOCAL` and the
+  `.accelerator/allow-insecure-local` marker.** Neither has had any effect
+  since an insecure `config.local.md` began to be ignored with a warning, and
+  both are now gone from the code. An existing marker is inert and can be
+  deleted. On a filesystem that cannot honour file modes, supply personal
+  values through the `ACCELERATOR_*` environment overrides.
+
 ### Fixed
 
 - **Credential errors name the command key once.** A refused or failing token
@@ -226,6 +363,28 @@
   fails with `E_TOKEN_FROM_TRACKED_FILE`, whatever its mode, as a
   `token_cmd` already did: every clone of the repository carries the
   credential.
+- **A failed tracking query refuses a personal `jira.allowed_sites`.** When
+  a VCS is detected but cannot say whether `config.local.md` is tracked, the
+  allowlist is refused with `E_CONSENT_KEY_TRACKING_UNKNOWN` rather than
+  admitted, and `.accelerator/` in a subdirectory of a checkout is now
+  checked against the enclosing repository.
+- **A committed team plaintext token is never used while `config.local.md`
+  exists**, including when that file is ignored as insecure.
+- **`design.browser_path` must be an absolute path outside the repository.**
+  A relative value is refused with `E_EXECUTABLE_PATH_RELATIVE`. A value whose
+  canonical target, followed through every symlink, is inside the config
+  root, the current workspace or the main repository, or cannot be shown to
+  be outside them, is refused with `E_EXECUTABLE_PATH_INSIDE_REPOSITORY`. The
+  crawler warns and uses the bundled browser, and launches an admitted value's
+  canonical target.
+- **A team-level `design.browser_path` is always reported.** It warns with
+  `E_CONSENT_KEY_TEAM_LEVEL` even beside a personal value, which used to hide
+  the warning, and a personal value from a `config.local.md` that is tracked,
+  or whose tracking cannot be determined, is refused.
+- **A Playwright daemon runs only the browser it was spawned for.** A daemon
+  started with one browser is never reused once `design.browser_path`
+  admits another, so a changed or refused value takes effect on the next
+  crawl rather than when the running daemon idles out.
 - **The `research-topic` researcher is confined.** A `PreToolUse` hook,
   `accelerator research guard`, limits every subagent of the configured
   researcher type to running `accelerator research fetch` and writing finding

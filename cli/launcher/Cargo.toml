@@ -40,7 +40,7 @@ flate2 = { workspace = true }
 # resolver needs flock, openat with O_NOFOLLOW, fstatat and utimensat, and
 # depending on a transitive edge is the coupling the workspace's pin discipline
 # exists to prevent.
-rustix = { workspace = true }
+rustix = { workspace = true, features = ["event"] }
 # The generation suffix is drawn from the platform CSPRNG. "Fresh by
 # construction" is what removes the rename-collision branch when a materialised
 # tree is published, and this repository has already been bitten by pid reuse in
@@ -57,3 +57,4 @@ toml = { workspace = true }
 time = { workspace = true }
 tempfile = { workspace = true }
 http-test-support = { path = "../http-test-support" }
+vcs-test-support = { path = "../vcs-test-support" }

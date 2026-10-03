@@ -12,9 +12,7 @@
 use std::process::Command;
 
 /// The environment variables the credential ladders read, so a scrubbed child
-/// cannot resolve a real client from an inherited token. The four token names
-/// come from each client's `token_keys`; the insecure-local override is the
-/// fifth rung's gate and has no `TokenKeys` field of its own.
+/// cannot resolve a real client from an inherited token.
 #[must_use]
 pub fn provider_env_vars() -> Vec<String> {
     let mut vars = Vec::new();
@@ -22,10 +20,10 @@ pub fn provider_env_vars() -> Vec<String> {
         jira_client::auth::token_keys().expect("jira token keys parse"),
         linear_client::auth::token_keys().expect("linear token keys parse"),
     ] {
-        vars.push(keys.env.to_owned());
-        vars.push(keys.env_command.to_owned());
+        for key in [keys.plaintext, keys.command.descriptor()] {
+            vars.extend(key.overrides.iter().map(|name| (*name).to_owned()));
+        }
     }
-    vars.push("ACCELERATOR_ALLOW_INSECURE_LOCAL".to_owned());
     vars
 }
 

@@ -22,6 +22,7 @@
     "astro-rehype-relative-markdown-links": {
       "astro": "$astro"
     },
+    "devalue": "^5.9.3",
     "svgo": "^4.1.0",
     "js-yaml": "^4.3.2",
     "gray-matter": {

@@ -7,11 +7,12 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use config::consent;
+use config::consent::Refusal;
 use config::credentials::resolve_token;
 use config::credentials::CredentialError;
 use config::credentials::TokenKeys;
 use config::credentials::TokenSource;
-use config::Key;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::credentials::CredentialPorts;
 use research::classify::Response;
@@ -180,36 +181,46 @@ fn resolve_key(
         project.config.as_ref(),
         deadline.remaining(ports.clock.now()),
     );
-    match resolve_token(&context, &openalex_keys()) {
-        Ok(resolved) => Ok(Some(ApiKey::new(
-            resolved.value.expose().to_owned(),
-            key_source(resolved.source),
-        ))),
+    let keys = openalex_keys();
+    match resolve_token(&context, &keys) {
+        Ok(resolved) => {
+            if let Some(notice) = &resolved.notice {
+                eprintln!("{notice}");
+            }
+            report_warnings(&resolved.refusals);
+            Ok(Some(ApiKey::new(
+                resolved.value.expose().to_owned(),
+                key_source(&keys, resolved.source),
+            )))
+        }
         Err(CredentialError::NoToken { .. }) => Ok(None),
-        Err(error) => Err(error),
+        Err(error) => {
+            report_warnings(error.warnings());
+            Err(error)
+        }
     }
 }
-const ENV_KEY: &str = "ACCELERATOR_OPENALEX_API_KEY";
-const ENV_KEY_COMMAND: &str = "ACCELERATOR_OPENALEX_API_KEY_CMD";
 
-fn openalex_keys() -> TokenKeys {
-    TokenKeys {
-        env: ENV_KEY,
-        env_command: ENV_KEY_COMMAND,
-        value: catalogued("openalex.api_key"),
-        command: catalogued("openalex.api_key_cmd"),
+fn report_warnings(warnings: &[Refusal]) {
+    for warning in consent::reportable(warnings) {
+        eprintln!("warning: {warning}");
     }
 }
 
 #[allow(clippy::expect_used)]
-fn catalogued(key: &str) -> Key {
-    Key::parse(key).expect("a catalogued key parses")
+fn openalex_keys() -> TokenKeys {
+    TokenKeys::declared("openalex.api_key", "openalex.api_key_cmd")
+        .expect("OpenAlex's key and key command are declared")
 }
 
-fn key_source(source: TokenSource) -> KeySource {
+fn key_source(keys: &TokenKeys, source: TokenSource) -> KeySource {
+    let first_override =
+        |key: &'static config::catalogue::ExtraKey| -> &'static str {
+            key.overrides.first().copied().unwrap_or(key.name)
+        };
     KeySource::new(match source {
-        TokenSource::Env => ENV_KEY,
-        TokenSource::EnvCommand => ENV_KEY_COMMAND,
+        TokenSource::Env => first_override(keys.plaintext),
+        TokenSource::EnvCommand => first_override(keys.command.descriptor()),
         TokenSource::Personal => "openalex.api_key in config.local.md",
         TokenSource::PersonalCommand => {
             "openalex.api_key_cmd in config.local.md"
@@ -253,14 +264,16 @@ mod tests {
     use std::time::Instant;
     use std::time::SystemTime;
 
-    use config::credentials::CommandPolicy;
+    use config::consent::CommandFailure;
+    use config::consent::CommandPolicy;
+    use config::consent::CommandRunner;
+    use config::consent::ConfigFileTracking;
+    use config::consent::Refusal;
+    use config::consent::Rejection;
+    use config::consent::Runner;
+    use config::consent::Tracking;
     use config::credentials::CredentialError;
     use config::credentials::Environment;
-    use config::credentials::FileFacts;
-    use config::credentials::FileState;
-    use config::credentials::Provenance;
-    use config::credentials::TokenCommandFailure;
-    use config::credentials::TokenCommandRunner;
     use config::ConfigError;
     use config::Key;
     use config::Level;
@@ -296,7 +309,6 @@ mod tests {
     use crate::context::ProjectContext;
 
     const ROOT: &str = "/project";
-    const PERSONAL: &str = "/project/.accelerator/config.local.md";
 
     const fn secs(seconds: u64) -> Duration {
         Duration::from_secs(seconds)
@@ -350,19 +362,9 @@ mod tests {
 
     struct UntrackedPersonalFile;
 
-    impl FileFacts for UntrackedPersonalFile {
-        fn inspect(&self, path: &Path) -> Result<FileState, String> {
-            Ok(if path == Path::new(PERSONAL) {
-                FileState::File { mode: 0o600 }
-            } else {
-                FileState::Absent
-            })
-        }
-    }
-
-    impl Provenance for UntrackedPersonalFile {
-        fn is_tracked(&self, _path: &Path) -> bool {
-            false
+    impl ConfigFileTracking for UntrackedPersonalFile {
+        fn tracking(&self, _path: &Path) -> Tracking {
+            Tracking::Untracked
         }
     }
 
@@ -374,16 +376,16 @@ mod tests {
         timeouts: Rc<RefCell<Vec<Duration>>>,
     }
 
-    impl TokenCommandRunner for SlowKeyCommand {
+    impl CommandRunner for SlowKeyCommand {
         fn run(
             &self,
             _command: &str,
             policy: &CommandPolicy,
-        ) -> Result<String, TokenCommandFailure> {
-            self.timeouts.borrow_mut().push(policy.timeout);
-            if self.takes > policy.timeout {
-                self.clock.advance(policy.timeout);
-                return Err(TokenCommandFailure::TimedOut);
+        ) -> Result<String, CommandFailure> {
+            self.timeouts.borrow_mut().push(policy.timeout());
+            if self.takes > policy.timeout() {
+                self.clock.advance(policy.timeout());
+                return Err(CommandFailure::TimedOut);
             }
             self.clock.advance(self.takes);
             Ok("command-key".to_owned())
@@ -549,13 +551,12 @@ mod tests {
                     environment: Box::new(FixedEnvironment(
                         self.environment.clone(),
                     )),
-                    files: Box::new(UntrackedPersonalFile),
-                    commands: Box::new(SlowKeyCommand {
+                    runner: Runner::new(Box::new(SlowKeyCommand {
                         clock: self.clock.clone(),
                         takes: self.key_command_takes,
                         timeouts: self.timeouts.clone(),
-                    }),
-                    provenance: Box::new(UntrackedPersonalFile),
+                    })),
+                    tracking: Box::new(UntrackedPersonalFile),
                 },
             };
             let project = ProjectContext {
@@ -644,7 +645,13 @@ mod tests {
 
         let refusal = call.run().expect_err("a refusal");
 
-        assert!(matches!(refusal, CredentialError::TokenCmdTimedOut { .. }));
+        assert!(matches!(
+            refusal,
+            CredentialError::Consent(Rejection {
+                fatal: Refusal::CommandTimedOut { .. },
+                ..
+            })
+        ));
         assert_eq!(*call.timeouts.borrow(), [secs(88)]);
         assert!(call.bearers.borrow().is_empty());
     }

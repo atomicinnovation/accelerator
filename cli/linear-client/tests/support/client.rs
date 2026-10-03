@@ -38,6 +38,8 @@ pub fn credentials() -> Credentials {
         token: Secret::new("lin_api_secret".to_owned()),
         team_id: TEAM_ID.to_owned(),
         source: TokenSource::Env,
+        refusals: Vec::new(),
+        notice: None,
     }
 }
 

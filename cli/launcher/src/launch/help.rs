@@ -62,7 +62,10 @@ pub fn recognised_keys() -> String {
         ("Research", defaulted(catalogue::RESEARCH_KEYS)),
         ("Agents", agents.iter().map(String::as_str).collect()),
         ("Visualiser", defaulted(catalogue::VISUALISER_KEYS)),
-        ("Integrations and tools", catalogue::EXTRA_KEYS.to_vec()),
+        (
+            "Integrations and tools",
+            catalogue::EXTRA_KEYS.iter().map(|key| key.name).collect(),
+        ),
     ];
     let mut block = String::from("Recognised keys:\n");
     for (heading, keys) in groups {

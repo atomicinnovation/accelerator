@@ -23,7 +23,9 @@ from tasks.shared.sources import repo_root
 
 # Pinned against the clap `Command` enum in cli/vcs-cli/src/cli.rs by a
 # cross-language test; not compile-enforced from this side.
-VCS_SUBCOMMANDS = frozenset({"detect", "status", "log", "root", "guard"})
+VCS_SUBCOMMANDS = frozenset(
+    {"detect", "status", "log", "root", "guard", "tracking"}
+)
 
 _VCS_REFERENCE = re.compile(rf"{re.escape(LAUNCHER)} vcs ([a-z][a-z0-9-]*)")
 

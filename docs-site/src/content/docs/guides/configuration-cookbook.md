@@ -140,9 +140,12 @@ jira:
 ```
 
 Credentials are personal — put them in `.accelerator/config.local.md`,
-never the shared file. That file must be mode `0600` or stricter and not
-a symlink, or every value in it is refused on read — see [Config
-Files](../configuration.md#config-files):
+never the shared file. A `token_cmd` in the shared file is refused with
+`E_CONSENT_KEY_TEAM_LEVEL`, as a `warning:` when another credential resolves
+and fatally when none does. The personal file must be mode `0600` or
+stricter and not a symlink, or it is not read, with an
+`E_LOCAL_PERMS_INSECURE` warning: writers refuse, and it is fatal only when
+nothing usable remains — see [Config Files](../configuration.md#config-files):
 
 ```yaml
 ---

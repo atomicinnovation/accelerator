@@ -3,6 +3,8 @@
 
 use std::collections::BTreeSet;
 
+use config::consent::Notice;
+use config::consent::Refusal;
 use config::credentials::CredentialContext;
 use remote_projection::Integration;
 use remote_projection::Op;
@@ -74,6 +76,8 @@ pub struct JiraClient {
     project: String,
     accounts: Box<dyn AccountResolver>,
     fields: Box<dyn FieldResolver>,
+    refusals: Vec<Refusal>,
+    notices: Vec<Notice>,
 }
 
 impl JiraClient {
@@ -89,7 +93,32 @@ impl JiraClient {
             project,
             accounts,
             fields,
+            refusals: Vec::new(),
+            notices: Vec::new(),
         }
+    }
+
+    /// The consent refusals and notice met while resolving the credentials,
+    /// for the caller to report.
+    #[must_use]
+    pub fn reporting(
+        mut self,
+        refusals: Vec<Refusal>,
+        notices: Vec<Notice>,
+    ) -> Self {
+        self.refusals = refusals;
+        self.notices = notices;
+        self
+    }
+
+    #[must_use]
+    pub fn refusals(&self) -> &[Refusal] {
+        &self.refusals
+    }
+
+    #[must_use]
+    pub fn notices(&self) -> &[Notice] {
+        &self.notices
     }
 
     /// Builds a client from configuration.
@@ -107,19 +136,25 @@ impl JiraClient {
         transport_config: TransportConfig,
     ) -> Result<Self, ClientError> {
         let credentials = resolve_credentials(context)?;
-        let project = crate::auth::project_code(context.config)?;
+        let refusals = credentials.refusals.clone();
+        let notices = credentials.notices.clone();
+        let warned = |error: ClientError| error.with_warnings(refusals.clone());
+        let project = crate::auth::project_code(context.provenance.config)
+            .map_err(warned)?;
         let transport = Transport::new(
             credentials,
             transport_config,
             Box::new(SystemSleeper),
             Box::new(ClockJitter),
-        )?;
+        )
+        .map_err(warned)?;
         Ok(Self::new(
             transport,
             project,
             Box::new(FixedResolver::new()),
             Box::new(FixedResolver::new()),
-        ))
+        )
+        .reporting(refusals, notices))
     }
 
     #[must_use]

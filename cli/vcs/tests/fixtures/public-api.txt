@@ -181,6 +181,33 @@ impl core::fmt::Debug for vcs::status::StatusReport
 pub fn vcs::status::StatusReport::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::status::StatusReport
 pub fn vcs::status::render(report: &vcs::status::StatusReport) -> alloc::string::String
+pub mod vcs::tracking
+pub enum vcs::tracking::FileTracking
+pub vcs::tracking::FileTracking::Tracked
+pub vcs::tracking::FileTracking::Unknown
+pub vcs::tracking::FileTracking::Untracked
+impl vcs::tracking::FileTracking
+pub fn vcs::tracking::FileTracking::combine(answers: impl core::iter::traits::collect::IntoIterator<Item = Self>) -> Self
+impl core::clone::Clone for vcs::tracking::FileTracking
+pub fn vcs::tracking::FileTracking::clone(&self) -> vcs::tracking::FileTracking
+impl core::cmp::Eq for vcs::tracking::FileTracking
+impl core::cmp::PartialEq for vcs::tracking::FileTracking
+pub fn vcs::tracking::FileTracking::eq(&self, other: &vcs::tracking::FileTracking) -> bool
+impl core::fmt::Debug for vcs::tracking::FileTracking
+pub fn vcs::tracking::FileTracking::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for vcs::tracking::FileTracking
+impl core::marker::StructuralPartialEq for vcs::tracking::FileTracking
+pub struct vcs::tracking::RootsAnswer
+pub vcs::tracking::RootsAnswer::complete: bool
+pub vcs::tracking::RootsAnswer::roots: alloc::vec::Vec<std::path::PathBuf>
+impl core::clone::Clone for vcs::tracking::RootsAnswer
+pub fn vcs::tracking::RootsAnswer::clone(&self) -> vcs::tracking::RootsAnswer
+impl core::cmp::Eq for vcs::tracking::RootsAnswer
+impl core::cmp::PartialEq for vcs::tracking::RootsAnswer
+pub fn vcs::tracking::RootsAnswer::eq(&self, other: &vcs::tracking::RootsAnswer) -> bool
+impl core::fmt::Debug for vcs::tracking::RootsAnswer
+pub fn vcs::tracking::RootsAnswer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::tracking::RootsAnswer
 pub enum vcs::VcsKind
 pub vcs::VcsKind::Git
 pub vcs::VcsKind::Jj

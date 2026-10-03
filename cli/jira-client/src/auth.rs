@@ -5,7 +5,8 @@
 //! token is *sent*, so it is validated as a credential destination: absolute
 //! `https`, no userinfo, no query, no fragment, default port, and a host
 //! matching `*.atlassian.net` at a label boundary or listed exactly in
-//! `jira.allowed_sites`.
+//! `jira.allowed_sites`. The repository proposes the site; only the user may
+//! widen where the token goes, so the allowlist is a consent key.
 //!
 //! Suffix matching would accept `atlassian.net.evil.com` and
 //! `evil-atlassian.net`, so the host must match at a label boundary. Hosts
@@ -17,14 +18,19 @@
 //! working — and the absolute-URL form exists for the self-hosted tenants
 //! `jira.allowed_sites` is for.
 
-use config::credentials::refuse_tracked_source;
+use config::consent;
+use config::consent::ConsentKey;
+use config::consent::Notice;
+use config::consent::Refusal;
+use config::consent::Rejection;
+use config::consent::Usable;
 use config::credentials::CredentialContext;
+use config::credentials::CredentialError;
 use config::credentials::Secret;
 use config::credentials::TokenKeys;
 use config::credentials::TokenSource;
 use config::ConfigAccess;
 use config::Key;
-use config::Level;
 use config::Resolved;
 use reqwest::Url;
 
@@ -32,27 +38,28 @@ use crate::error::ClientError;
 
 const CLOUD_SUFFIX: &str = ".atlassian.net";
 
-/// Everything one authenticated Jira request needs.
+const ALLOWED_SITES: &str = "jira.allowed_sites";
+
+/// Everything one authenticated Jira request needs, and the consent refusals
+/// and notice met while resolving it, for the caller to report.
 #[derive(Debug, Clone)]
 pub struct Credentials {
     pub base: Url,
     pub email: String,
     pub token: Secret,
     pub source: TokenSource,
+    pub refusals: Vec<Refusal>,
+    pub notices: Vec<Notice>,
 }
 
-/// The environment names and config keys Jira's token climbs.
+/// The config keys Jira's token climbs.
 ///
 /// # Errors
 ///
-/// [`ClientError::ConfigUnreadable`] if a key spelling stops parsing.
+/// [`ClientError::ConfigUnreadable`] if the catalogue stops declaring them.
 pub fn token_keys() -> Result<TokenKeys, ClientError> {
-    Ok(TokenKeys {
-        env: "ACCELERATOR_JIRA_TOKEN",
-        env_command: "ACCELERATOR_JIRA_TOKEN_CMD",
-        value: key("jira.token")?,
-        command: key("jira.token_cmd")?,
-    })
+    TokenKeys::declared("jira.token", "jira.token_cmd")
+        .map_err(|error| unreadable("jira.token", &error))
 }
 
 /// Resolves the site, email and token a Jira client authenticates with.
@@ -63,20 +70,107 @@ pub fn token_keys() -> Result<TokenKeys, ClientError> {
 pub fn resolve_credentials(
     context: &CredentialContext<'_>,
 ) -> Result<Credentials, ClientError> {
-    let site =
-        configured(context.config, "jira.site")?.ok_or(ClientError::NoSite)?;
-    let allowed = allowed_sites(context)?;
-    let base = base_url(&site, &allowed)?;
-    let email = configured(context.config, "jira.email")?
-        .ok_or(ClientError::NoEmail)?;
-    let resolved = config::credentials::resolve_token(context, &token_keys()?)?;
+    let config = context.provenance.config;
+    let site = configured(config, "jira.site")?.ok_or(ClientError::NoSite)?;
+    let destination = admitted_destination(context, &site)?;
+    let warned =
+        |error: ClientError| error.with_warnings(destination.warnings.clone());
+    let email = configured(config, "jira.email")
+        .and_then(|email| email.ok_or(ClientError::NoEmail))
+        .map_err(warned)?;
+    let resolved = token_keys().map_err(warned)?;
+    let resolved = config::credentials::resolve_token(context, &resolved)
+        .map_err(|error| {
+            beside_allowlist_warnings(error, destination.warnings.clone())
+        })?;
 
     Ok(Credentials {
-        base,
+        base: destination.base,
         email,
         token: resolved.value,
         source: resolved.source,
+        refusals: [destination.warnings, resolved.refusals].concat(),
+        notices: destination
+            .notice
+            .into_iter()
+            .chain(resolved.notice)
+            .collect(),
     })
+}
+
+/// A token failure, reporting the allowlist's warnings before the token's own.
+fn beside_allowlist_warnings(
+    error: CredentialError,
+    allowlist_warnings: Vec<Refusal>,
+) -> ClientError {
+    match error {
+        CredentialError::Consent(rejection) => {
+            ClientError::Consent(Rejection {
+                fatal: rejection.fatal,
+                warnings: [allowlist_warnings, rejection.warnings].concat(),
+            })
+        }
+        other => {
+            let warnings =
+                [allowlist_warnings, other.warnings().to_vec()].concat();
+            ClientError::Credential(other).with_warnings(warnings)
+        }
+    }
+}
+
+/// The base URL the token may be sent to, and the allowlist's warnings.
+struct Destination {
+    base: Url,
+    warnings: Vec<Refusal>,
+    notice: Option<Notice>,
+}
+
+/// Admits `site` by the default `*.atlassian.net` rule or a consented
+/// allowlist. A refused allowlist is fatal only when the default rule does
+/// not admit the site.
+fn admitted_destination(
+    context: &CredentialContext<'_>,
+    site: &str,
+) -> Result<Destination, ClientError> {
+    let key = ConsentKey::declared(ALLOWED_SITES)
+        .map_err(|error| unreadable(ALLOWED_SITES, &error))?;
+    let consented = consent::resolve(&context.provenance, &key)
+        .map_err(|aborted| {
+            unreadable(ALLOWED_SITES, &aborted.error)
+                .with_warnings(aborted.warnings)
+        })?
+        .map(|rendered| allowlist(&rendered));
+    let default_admits = base_url(site, &[]).is_ok();
+    match consented.or_fallback(default_admits.then(Vec::new)) {
+        Usable::Value {
+            value,
+            warnings,
+            notice,
+        } => match base_url(site, &value) {
+            Ok(base) => Ok(Destination {
+                base,
+                warnings,
+                notice,
+            }),
+            Err(error) => Err(error.with_warnings(warnings)),
+        },
+        Usable::Refused(rejection) => Err(ClientError::Consent(rejection)),
+        Usable::Absent => base_url(site, &[]).map(|base| Destination {
+            base,
+            warnings: Vec::new(),
+            notice: None,
+        }),
+    }
+}
+
+fn allowlist(rendered: &str) -> Vec<String> {
+    rendered
+        .trim_matches(|character| character == '[' || character == ']')
+        .split([',', ' ', '\t'])
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect()
 }
 
 /// Resolves `jira.site` to the base URL requests are sent to.
@@ -153,33 +247,6 @@ fn is_cloud_subdomain(site: &str) -> bool {
         && !site.ends_with('-')
 }
 
-/// Reads `jira.allowed_sites`, which widens the set of hosts the token may be
-/// sent to and is therefore held to the same trust rules as `token_cmd`.
-fn allowed_sites(
-    context: &CredentialContext<'_>,
-) -> Result<Vec<String>, ClientError> {
-    let key = key("jira.allowed_sites")?;
-    if level_value(context.config, &key, Level::Team)?.is_some() {
-        return Err(ClientError::AllowlistFromSharedConfig);
-    }
-    let Some(rendered) = level_value(context.config, &key, Level::Personal)?
-    else {
-        return Ok(Vec::new());
-    };
-    refuse_tracked_source(
-        context.provenance,
-        &context.personal_config,
-        "jira.allowed_sites",
-    )?;
-    Ok(rendered
-        .trim_matches(|character| character == '[' || character == ']')
-        .split([',', ' ', '\t'])
-        .map(str::trim)
-        .filter(|entry| !entry.is_empty())
-        .map(str::to_ascii_lowercase)
-        .collect())
-}
-
 /// The Jira project a `create` targets, from the integration-owned
 /// `jira.project_key` scope key.
 ///
@@ -223,20 +290,6 @@ fn configured(
     Ok(rendered(&resolved))
 }
 
-fn level_value(
-    config: &dyn ConfigAccess,
-    key: &Key,
-    level: Level,
-) -> Result<Option<String>, ClientError> {
-    let resolved = config.get(key, Some(level)).map_err(|error| {
-        ClientError::ConfigUnreadable {
-            key: key.to_string(),
-            detail: error.to_string(),
-        }
-    })?;
-    Ok(rendered(&resolved))
-}
-
 fn rendered(resolved: &Resolved) -> Option<String> {
     match resolved {
         Resolved::Found(value) => {
@@ -248,10 +301,14 @@ fn rendered(resolved: &Resolved) -> Option<String> {
 }
 
 fn key(name: &str) -> Result<Key, ClientError> {
-    Key::parse(name).map_err(|error| ClientError::ConfigUnreadable {
+    Key::parse(name).map_err(|error| unreadable(name, &error))
+}
+
+fn unreadable(name: &str, error: &config::ConfigError) -> ClientError {
+    ClientError::ConfigUnreadable {
         key: name.to_owned(),
         detail: error.to_string(),
-    })
+    }
 }
 
 #[cfg(test)]

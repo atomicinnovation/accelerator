@@ -6,14 +6,18 @@
 //! environment, filesystem, and helper-process ports. The `config` core sees
 //! only the `Node` tree and the port traits these adapters hand it.
 
+mod command_runner;
 mod compose;
 mod document;
 mod render;
+mod screen;
 mod store;
 
 pub mod credentials;
 pub mod legacy;
+pub mod paths;
 
 pub use compose::{compose, Composed};
 pub use render::{render_resolved, render_value, ABSENT_SENTINEL};
+pub use screen::ScreenedStore;
 pub use store::{plugin_root_from_env, FileConfigStore, LegacyPolicy};

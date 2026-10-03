@@ -18,8 +18,14 @@ path = "tests/fixtures/config_adapters_fixture.rs"
 
 [dependencies]
 config = { path = "../config" }
+kernel = { path = "../kernel" }
 document = { path = "../document" }
 store = { path = "../store" }
+dunce = { workspace = true }
+tempfile = { workspace = true }
+rustix = { workspace = true, features = ["event"] }
+libc = { workspace = true }
+signal-hook = { workspace = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
+config = { path = "../config", features = ["test-support"] }

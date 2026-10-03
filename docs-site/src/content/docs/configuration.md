@@ -15,19 +15,37 @@ for paste-able examples of common customisations, see the
 | `.accelerator/config.md`          | Team-shared (committed) | Shared project context and settings |
 | `.accelerator/config.local.md`    | Personal (gitignored)   | Personal overrides and preferences  |
 
-Local settings override team settings for the same key. Markdown bodies from
+Local settings override team settings for the same key, except for the six
+consent keys, which are never read from the team file. Markdown bodies from
 both files are concatenated (team context first, then personal).
 
 The personal file (`.accelerator/config.local.md`) must be mode `0600` or
-stricter and must not be a symlink, or it — and every value in it — is
-refused on read. This applies to the whole file, not just credential keys
-like `github.token`, since a personal config file is treated as
-sensitive-by-convention as a whole (matching how SSH keys or `.netrc` are
-handled). The remedy is `chmod 600 .accelerator/config.local.md`; there is
-no bypass. A file created via `accelerator config set` (which always
-writes personal-level values at `0600`) already satisfies this — the check
-can only trip on external tampering (a manual `chmod`, a tarball restore,
-a stray umask elsewhere).
+stricter and must not be a symlink. Otherwise it is ignored with an
+`E_LOCAL_PERMS_INSECURE` warning: none of its values are used, since a
+personal config file is treated as sensitive-by-convention as a whole
+(matching how SSH keys or `.netrc` are handled). Team values in `config.md`
+and the `ACCELERATOR_*` environment overrides still resolve, and a command
+fails with `E_LOCAL_PERMS_INSECURE` only when nothing usable remains.
+Commands that write — `migrate`, `work create`/`update`/`sync`, the Jira and
+Linear commands that write to the tracker, `config set` and
+`config templates eject --force`/`reset --confirm` — refuse outright, because
+their writes would outlive the fix.
+
+The remedy is `chmod 600 .accelerator/config.local.md`. On a filesystem that
+cannot honour file modes, keep team values in `config.md` and secrets in the
+`ACCELERATOR_*` overrides, and move `config.local.md` aside to run a command
+that writes. A file created via `accelerator config set` (which always writes
+personal-level values at `0600`) already satisfies this — the check can only
+trip on external tampering (a manual `chmod`, a tarball restore, a stray umask
+elsewhere).
+
+A consent key holds a value only you may supply: a credential command, the
+Jira hostname allowlist, or the design crawler's browser. It is read only from
+its `ACCELERATOR_*` environment override or from a `config.local.md` that is
+readable and not tracked by version control. A value in `config.md` is always
+refused, as a warning when a usable value remains and fatally when none does.
+The [consent keys](reference/skills/config/configure.md#consent-keys)
+reference lists the six keys and every refusal code with its remedy.
 
 ## File Format
 
@@ -104,6 +122,18 @@ walks you through gathering project context and writes the config file for you.
 
 - A `SessionStart` hook detects config files and injects a summary into the
   session context
+- The same summary warns about consent keys: a key such as
+  `jira.token_cmd` set in `config.md`, and a `config.local.md` that version
+  control tracks or whose tracking cannot be determined. Each warning reaches
+  both you, as the start-of-session message, and the session context.
+- The tracking check asks the `vcs` sub-binary. In the first session after an
+  upgrade, if the binary is not yet cached and cannot be fetched within a few
+  seconds, because the network is slow or offline, the check is noted as
+  skipped rather than warned about. It runs from the next session, and every
+  command that reads a consent key still checks tracking itself on every run.
+- Setting `ACCELERATOR_VCS_BIN` makes the session-start check run that binary
+  without verifying it, as every dispatch does, so an environment that sets
+  it can suppress this warning, though not the commands' own refusals
 - Skills read project context at invocation time via the `!` preprocessor
 - Config changes take effect on the next skill invocation (no session restart
   needed for skills); the SessionStart summary updates on session restart

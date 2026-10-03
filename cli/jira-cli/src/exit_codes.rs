@@ -134,6 +134,8 @@ pub const ATTACH_NO_FILES: u8 = 131;
 pub const ATTACH_FILE_MISSING: u8 = 132;
 pub const ATTACH_BAD_FLAG: u8 = 133;
 
+use config::consent::Refusal;
+use config::consent::RefusalReason;
 use config::credentials::CredentialError;
 use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
@@ -157,7 +159,7 @@ pub const fn for_failure(failure: &JiraFailure) -> u8 {
 /// The exit code for a surface-flow failure (`search`/`show`/`comment`/
 /// `transition`/`attach`/`init`/`fields`).
 #[must_use]
-pub const fn for_surface(error: &SurfaceError) -> u8 {
+pub fn for_surface(error: &SurfaceError) -> u8 {
     match error {
         SurfaceError::Client(client) => for_client(client),
         SurfaceError::Adf(adf) => for_adf(adf),
@@ -173,24 +175,39 @@ pub const fn for_surface(error: &SurfaceError) -> u8 {
     }
 }
 
-/// The exit code for a client-construction or credential failure.
+/// The exit code for a client-construction or credential failure, decided
+/// by the failure beneath any warnings it carries.
 #[must_use]
-pub const fn for_client(error: &ClientError) -> u8 {
-    match error {
+pub fn for_client(error: &ClientError) -> u8 {
+    match error.cause() {
         ClientError::NoSite => AUTH_NO_SITE,
         ClientError::BadSite { .. } => BAD_SITE,
         ClientError::NoProject => CREATE_NO_PROJECT,
         ClientError::NoEmail => AUTH_NO_EMAIL,
         ClientError::Credential(credential) => for_credential(credential),
+        ClientError::Consent(rejection) => for_refusal(&rejection.fatal),
         ClientError::BadJql { .. } => JQL_NO_PROJECT,
         ClientError::BadIdentifier { .. } | ClientError::BadPath { .. } => {
             REQ_BAD_PATH
         }
         ClientError::Transport { .. } => REQ_CONNECT,
         ClientError::OversizedResponse { .. } => REQ_BAD_RESPONSE,
-        ClientError::AllowlistFromSharedConfig
-        | ClientError::ConfigUnreadable { .. }
-        | ClientError::TlsUnavailable { .. } => ERROR,
+        ClientError::ConfigUnreadable { .. }
+        | ClientError::TlsUnavailable { .. }
+        | ClientError::WithWarnings { .. } => ERROR,
+    }
+}
+
+/// The exit code for a consent refusal that left nothing usable, mapped onto
+/// the frozen codes rather than adding any.
+#[must_use]
+pub const fn for_refusal(refusal: &Refusal) -> u8 {
+    match refusal.reason() {
+        RefusalReason::Provenance
+        | RefusalReason::Malformed
+        | RefusalReason::Value => NO_TOKEN,
+        RefusalReason::PersonalFile => LOCAL_PERMS_INSECURE,
+        RefusalReason::Command => TOKEN_CMD_FAILED,
     }
 }
 
@@ -201,15 +218,9 @@ pub const fn for_client(error: &ClientError) -> u8 {
 #[must_use]
 pub const fn for_credential(error: &CredentialError) -> u8 {
     match error {
-        CredentialError::NoToken { .. }
-        | CredentialError::TokenCmdFromSharedConfig { .. }
-        | CredentialError::TokenCmdFromTrackedFile { .. }
-        | CredentialError::TokenFromTrackedFile { .. }
-        | CredentialError::MalformedToken { .. } => NO_TOKEN,
-        CredentialError::TokenCmdFailed { .. }
-        | CredentialError::TokenCmdTimedOut { .. } => TOKEN_CMD_FAILED,
-        CredentialError::LocalPermsInsecure { .. } => LOCAL_PERMS_INSECURE,
-        CredentialError::ConfigUnreadable { .. } => ERROR,
+        CredentialError::NoToken { .. } => NO_TOKEN,
+        CredentialError::Consent(rejection) => for_refusal(&rejection.fatal),
+        CredentialError::ConfigUnreadable(_) => ERROR,
     }
 }
 
@@ -257,26 +268,125 @@ const fn exit_code_for_status(status: u16) -> u8 {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::time::Duration;
+
+    use config::consent::{
+        CommandPolicy, Distrust, FailureCause, Rejection, StartFailure,
+    };
 
     use super::*;
 
-    #[test]
-    fn a_tracked_personal_token_or_command_is_no_token() {
-        let path = PathBuf::from(".accelerator/config.local.md");
+    fn allowlist() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.allowed_sites")
+            .unwrap_or_else(|| unreachable!("the allowlist is declared"))
+    }
 
+    fn token() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.token")
+            .unwrap_or_else(|| unreachable!("the token is declared"))
+    }
+
+    fn token_cmd() -> &'static config::catalogue::ExtraKey {
+        config::catalogue::declared("jira.token_cmd")
+            .unwrap_or_else(|| unreachable!("the token command is declared"))
+    }
+
+    #[test]
+    fn a_credential_consent_error_exits_by_its_fatal_refusal() {
+        let timed_out = CredentialError::Consent(Rejection::alone(
+            Refusal::CommandTimedOut {
+                key: token_cmd(),
+                after: Duration::from_secs(30),
+            },
+        ));
+
+        assert_eq!(for_credential(&timed_out), TOKEN_CMD_FAILED);
+    }
+
+    #[test]
+    fn every_consent_refusal_maps_to_a_frozen_code() {
+        let key = allowlist();
+        let path = PathBuf::from(".accelerator/config.local.md");
+        let rows = [
+            (Refusal::TeamLevel { key }, NO_TOKEN),
+            (
+                Refusal::UntrustedPersonalFile {
+                    key,
+                    path: path.clone(),
+                    distrust: Distrust::Tracked,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::UntrustedPersonalFile {
+                    key,
+                    path: path.clone(),
+                    distrust: Distrust::Unknown,
+                },
+                NO_TOKEN,
+            ),
+            (
+                Refusal::InsecurePersonalFile { path, mode: 0o644 },
+                LOCAL_PERMS_INSECURE,
+            ),
+            (
+                Refusal::CommandFailed {
+                    key: token_cmd(),
+                    cause: FailureCause::Exited(3),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandFailed {
+                    key: token_cmd(),
+                    cause: FailureCause::CouldNotStart(
+                        StartFailure::NoBashOnPath,
+                    ),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandTimedOut {
+                    key: token_cmd(),
+                    after: Duration::from_secs(30),
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::CommandOutputExceeded {
+                    key: token_cmd(),
+                    limit: CommandPolicy::OUTPUT_LIMIT,
+                },
+                TOKEN_CMD_FAILED,
+            ),
+            (
+                Refusal::PlaintextFromUntrustedFile {
+                    key: token(),
+                    path: PathBuf::from(".accelerator/config.local.md"),
+                    distrust: Distrust::Unknown,
+                },
+                NO_TOKEN,
+            ),
+            (Refusal::MalformedToken { key: token() }, NO_TOKEN),
+        ];
+        for (refusal, code) in rows {
+            assert_eq!(for_refusal(&refusal), code, "{refusal}");
+        }
+    }
+
+    #[test]
+    fn a_consent_client_error_exits_by_its_fatal_refusal() {
+        let key = allowlist();
+        let error =
+            ClientError::Consent(Rejection::alone(Refusal::TeamLevel { key }));
+
+        assert_eq!(for_client(&error), NO_TOKEN);
         assert_eq!(
-            for_credential(&CredentialError::TokenFromTrackedFile {
-                key: "jira.token".to_owned(),
-                path: path.clone(),
-            }),
-            NO_TOKEN
-        );
-        assert_eq!(
-            for_credential(&CredentialError::TokenCmdFromTrackedFile {
-                key: "jira.token_cmd".to_owned(),
-                path,
-            }),
-            NO_TOKEN
+            for_client(
+                &ClientError::NoEmail
+                    .with_warnings(vec![Refusal::TeamLevel { key }])
+            ),
+            AUTH_NO_EMAIL
         );
     }
 

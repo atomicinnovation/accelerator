@@ -72,6 +72,59 @@ pub fn run(dir: &Path, server: &MockHTTPServer, args: &[&str]) -> Output {
     run_with(dir, args, Some(&server.base_url()), &Token::Present)
 }
 
+pub fn run_env(
+    dir: &Path,
+    server: &MockHTTPServer,
+    args: &[&str],
+    environment: &[(&str, &str)],
+) -> Output {
+    let mut command =
+        command(dir, args, Some(&server.base_url()), &Token::Present);
+    command.envs(environment.iter().copied());
+    command.output().expect("run accelerator-jira")
+}
+
+/// As [`run_env`], with the env token present or absent.
+pub fn run_env_with(
+    dir: &Path,
+    server: &MockHTTPServer,
+    args: &[&str],
+    environment: &[(&str, &str)],
+    token: &Token,
+) -> Output {
+    let mut command = command(dir, args, Some(&server.base_url()), token);
+    command.envs(environment.iter().copied());
+    command.output().expect("run accelerator-jira")
+}
+
+/// Makes `dir` a git repository whose index holds its
+/// `.accelerator/config.local.md`, so the personal file reads as tracked.
+pub fn track_personal(dir: &Path) {
+    for args in [
+        &["init", "--quiet"][..],
+        &["add", "--force", ".accelerator/config.local.md"][..],
+    ] {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+}
+
+#[cfg(unix)]
+pub fn write_personal_config(dir: &Path, content: &str, mode: u32) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let path = dir.join(".accelerator/config.local.md");
+    std::fs::write(&path, content).expect("write the personal config");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))
+        .expect("chmod the personal config");
+}
+
 /// Runs the binary with an explicit `ACCELERATOR_JIRA_API_URL` (or none) and a
 /// present or absent token — the seam and missing-credential paths.
 pub fn run_with(
@@ -80,6 +133,17 @@ pub fn run_with(
     api_url: Option<&str>,
     token: &Token,
 ) -> Output {
+    command(dir, args, api_url, token)
+        .output()
+        .expect("run accelerator-jira")
+}
+
+fn command(
+    dir: &Path,
+    args: &[&str],
+    api_url: Option<&str>,
+    token: &Token,
+) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-jira"));
     command
         .args(args)
@@ -103,5 +167,6 @@ pub fn run_with(
             command.env_remove("ACCELERATOR_JIRA_API_URL");
         }
     }
-    command.output().expect("run accelerator-jira")
+    command.env_remove("ACCELERATOR_JIRA_ALLOWED_SITES");
+    command
 }

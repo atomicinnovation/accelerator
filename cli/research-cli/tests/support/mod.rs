@@ -212,7 +212,6 @@ fn command(
         .env_remove("ACCELERATOR_RESEARCH_TEST_CLOCK_EPOCH")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY")
         .env_remove("ACCELERATOR_OPENALEX_API_KEY_CMD")
-        .env_remove("ACCELERATOR_ALLOW_INSECURE_LOCAL")
         .stdin(Stdio::null());
     command
 }

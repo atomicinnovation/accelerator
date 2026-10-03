@@ -12,6 +12,8 @@
 
 use std::path::Path;
 
+use config::consent::Notice;
+use config::consent::Refusal;
 use config::credentials::CredentialContext;
 use config::credentials::Secret;
 use config::credentials::TokenKeys;
@@ -24,12 +26,15 @@ use crate::catalogue::read_catalogue;
 use crate::catalogue::TeamEntry;
 use crate::error::ClientError;
 
-/// Everything one authenticated Linear request needs.
+/// Everything one authenticated Linear request needs, and the consent
+/// refusals and notice met while resolving it, for the caller to report.
 #[derive(Debug, Clone)]
 pub struct Credentials {
     pub token: Secret,
     pub team_id: String,
     pub source: TokenSource,
+    pub refusals: Vec<Refusal>,
+    pub notice: Option<Notice>,
 }
 
 /// Where a team id came from, asserted by the resolution tests.
@@ -39,18 +44,14 @@ pub enum TeamSource {
     Catalogue,
 }
 
-/// The environment names and config keys Linear's token climbs.
+/// The config keys Linear's token climbs.
 ///
 /// # Errors
 ///
-/// [`ClientError::ConfigUnreadable`] if a key spelling stops parsing.
+/// [`ClientError::ConfigUnreadable`] if the catalogue stops declaring them.
 pub fn token_keys() -> Result<TokenKeys, ClientError> {
-    Ok(TokenKeys {
-        env: "ACCELERATOR_LINEAR_TOKEN",
-        env_command: "ACCELERATOR_LINEAR_TOKEN_CMD",
-        value: key("linear.token")?,
-        command: key("linear.token_cmd")?,
-    })
+    TokenKeys::declared("linear.token", "linear.token_cmd")
+        .map_err(|error| unreadable("linear.token", &error))
 }
 
 /// Resolves the token and team a Linear client authenticates with.
@@ -67,11 +68,14 @@ pub fn resolve_credentials(
 ) -> Result<Credentials, ClientError> {
     let resolved = config::credentials::resolve_token(context, &token_keys()?)?;
     validate_token(resolved.value.expose())?;
-    let (team_id, _) = resolve_team(context.config, integrations_root)?;
+    let (team_id, _) =
+        resolve_team(context.provenance.config, integrations_root)?;
     Ok(Credentials {
         token: resolved.value,
         team_id,
         source: resolved.source,
+        refusals: resolved.refusals,
+        notice: resolved.notice,
     })
 }
 
@@ -140,22 +144,17 @@ fn catalogued_base_team(
     Some(field(catalogue.base_entry()?)).filter(|value| !value.is_empty())
 }
 
-/// The malformed-token check.
+/// Linear's own malformed-token check, beyond the shared ladder's refusal of
+/// a control character.
 ///
-/// A control byte is already refused by the shared ladder; the double-quote and
-/// backslash are Linear's own additions. They are reproduced rather than
-/// dropped: the code they raise is re-exited verbatim by the transport and
-/// appears in the update mapper's retryable clause.
+/// The double-quote and backslash are reproduced rather than dropped: the
+/// code they raise is re-exited verbatim by the transport and appears in the
+/// update mapper's retryable clause.
 ///
 /// # Errors
 ///
 /// [`ClientError::MalformedToken`] naming the offending byte.
 pub fn validate_token(token: &str) -> Result<(), ClientError> {
-    if token.chars().any(char::is_control) {
-        return Err(ClientError::MalformedToken {
-            found: "a control character or newline".to_owned(),
-        });
-    }
     if token.contains('"') {
         return Err(ClientError::MalformedToken {
             found: "a double-quote".to_owned(),
@@ -190,10 +189,14 @@ fn configured(
 }
 
 fn key(name: &str) -> Result<Key, ClientError> {
-    Key::parse(name).map_err(|error| ClientError::ConfigUnreadable {
+    Key::parse(name).map_err(|error| unreadable(name, &error))
+}
+
+fn unreadable(name: &str, error: &config::ConfigError) -> ClientError {
+    ClientError::ConfigUnreadable {
         key: name.to_owned(),
         detail: error.to_string(),
-    })
+    }
 }
 
 /// The frontmatter-safety check every identifier entering a request goes

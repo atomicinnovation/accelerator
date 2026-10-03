@@ -39,20 +39,37 @@ failure, or a GitHub API error).
 
 ## Authentication
 
-Both subcommands authenticate with a personal access token, resolved in
-this order:
+Both subcommands authenticate with a personal access token, resolved through
+the same ladder as the `jira`/`linear` tokens. The first rung that yields a
+usable value wins; a failed command or refused value is reported as a
+`warning:` and the chain continues:
 
 1. The `GH_TOKEN` environment variable.
 2. The `GITHUB_TOKEN` environment variable.
-3. The `github.token` config value.
-4. The `github.token_cmd` config value's output, executed via `bash -c` —
-   personal config only; a `token_cmd` in the shared, committed
-   `.accelerator/config.md` is refused rather than executed.
+3. `github.token` in `.accelerator/config.local.md`.
+4. `github.token_cmd` in `.accelerator/config.local.md`, run by the
+   command runner described in
+   [`/accelerator:configure`](reference/skills/config/configure.md).
+5. `github.token` in the shared `.accelerator/config.md`, only when
+   `config.local.md` does not exist.
 
-This precedence (environment first, config last) matches the `jira`/`linear`
-integrations' own credential resolvers: an ambient env var reliably escapes
-a stale or over-broad on-filesystem config value rather than being shadowed
-by it. Configure a token with:
+An ambient env var reliably escapes a stale or over-broad on-filesystem
+config value rather than being shadowed by it. `github.token_cmd` is a
+consent key: only you may supply a command that runs on your machine. These
+refusals exit 2 when nothing else resolves, and are warnings otherwise:
+
+| Code                             | Refuses                                                        |
+|----------------------------------|----------------------------------------------------------------|
+| `E_CONSENT_KEY_TEAM_LEVEL`       | `github.token_cmd` in the shared `config.md`                   |
+| `E_CONSENT_KEY_TRACKED`          | `github.token_cmd` in a `config.local.md` tracked by version control |
+| `E_CONSENT_KEY_TRACKING_UNKNOWN` | `github.token_cmd` in a `config.local.md` whose tracking status cannot be determined |
+| `E_TOKEN_FROM_TRACKED_FILE`      | `github.token` in a tracked or undeterminable `config.local.md` |
+| `E_TOKEN_MALFORMED`              | A token carrying a control character                           |
+
+When the tracking status cannot be determined, the refusal names `GH_TOKEN`
+as the route that still works. The
+[consent keys](reference/skills/config/configure.md#consent-keys) reference
+gives each code's remedy. Configure a token with:
 
 ```bash
 accelerator config set github.token <token>          # personal, .accelerator/config.local.md
@@ -60,8 +77,10 @@ accelerator config set github.token_cmd '<command>'   # personal only — never 
 ```
 
 The personal config file (`.accelerator/config.local.md`) must be mode
-0600 or stricter and not a symlink, or every read of it — not just
-`github.token` — is refused; see
+0600 or stricter and not a symlink. Otherwise it is not read, an
+`E_LOCAL_PERMS_INSECURE` warning says so, a team `github.token` is not used
+in its place, `GH_TOKEN` still works, and the command fails with that code (exit 2) unless `GH_TOKEN` or
+`GITHUB_TOKEN` supplies a token; see
 [Configuration](configuration.md#config-files).
 
 ## Local development

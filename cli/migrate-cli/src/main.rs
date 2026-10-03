@@ -159,7 +159,7 @@ fn run_list(
     root: &Path,
     ledger_store: &FileLedgerStore,
 ) -> Result<(), kernel::Error> {
-    let ctx = FileMigrationContext::new(root);
+    let ctx = FileMigrationContext::new(root)?;
     let session_logs = FileSessionLogFactory::new(root);
     let entries = migrate::registry::registry();
     let applied = ledger_store.applied()?;
@@ -219,7 +219,8 @@ fn run_default(
             ))
         })?;
 
-    let ctx = FileMigrationContext::new(root);
+    let ctx = FileMigrationContext::new(root)?;
+    ctx.require_readable_personal_file()?;
     let manifest_store = FileManifestStore::new(root);
     let working_copy = VcsWorkingCopy::new(root, vcs_kind(root));
     let session_log_decisions = session_log_decision_count(root);

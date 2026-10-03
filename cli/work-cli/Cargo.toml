@@ -27,6 +27,7 @@ store = { path = "../store" }
 document = { path = "../document" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
+consent-adapters = { path = "../consent-adapters" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
