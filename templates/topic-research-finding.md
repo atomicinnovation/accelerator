@@ -8,6 +8,7 @@ producer: "research-topic"
 status: "complete"                            # complete
 kind: "finding"                               # (type, kind) discriminator
 round: 1
+depth: 1
 question: "{focus area question}"
 source_profile: "{source profile}"
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)

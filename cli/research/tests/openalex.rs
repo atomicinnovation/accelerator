@@ -1,12 +1,12 @@
 #![allow(clippy::expect_used)]
 
-use research::openalex::abstract_from_inverted_index;
-use research::openalex::normalise;
-use research::openalex::Location;
-use research::openalex::Source;
-use research::openalex::Work;
-use research::record::Tier;
-use research::record::VenueSignals;
+use research::sources::openalex::abstract_from_inverted_index;
+use research::sources::openalex::normalise;
+use research::sources::openalex::Location;
+use research::sources::openalex::Source;
+use research::sources::openalex::Work;
+use research::sources::record::Tier;
+use research::sources::record::VenueSignals;
 
 fn index(pairs: &[(&str, &[usize])]) -> Vec<(String, Vec<usize>)> {
     pairs

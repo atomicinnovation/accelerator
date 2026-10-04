@@ -5,10 +5,12 @@ use std::io::ErrorKind;
 use std::path::Component;
 use std::path::Path;
 
-use corpus::topic_research::is_finding_path;
-use research::confinement::FindingsScope;
 use research::confinement::PathRejection;
+use research::confinement::TopicFile;
+use research::confinement::TopicLayout;
 use research::confinement::TopicsRelativePath;
+use research::topic::layout::finding_path::is_finding_path;
+use research::topic::layout::finding_path::is_level_note_path;
 
 /// Resolves `path` against `cwd` and places it below `topics`, refusing a
 /// `.` or `..` component and any symlink below the topics directory.
@@ -79,11 +81,19 @@ fn relative_text(below: &Path) -> Result<String, PathRejection> {
         .map(|segments| segments.join("/"))
 }
 
-/// The corpus's own rule for which topics-relative paths are findings.
-pub struct CorpusFindings;
+/// The corpus's own rule for which topics-relative paths are findings and
+/// which are level notes.
+pub struct CorpusLayout;
 
-impl FindingsScope for CorpusFindings {
-    fn contains(&self, target: &TopicsRelativePath) -> bool {
-        is_finding_path(target.as_str())
+impl TopicLayout for CorpusLayout {
+    fn classify(&self, target: &TopicsRelativePath) -> Option<TopicFile> {
+        let path = target.as_str();
+        if is_finding_path(path) {
+            Some(TopicFile::Finding)
+        } else if is_level_note_path(path) {
+            Some(TopicFile::LevelNote)
+        } else {
+            None
+        }
     }
 }

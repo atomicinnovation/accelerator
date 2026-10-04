@@ -95,6 +95,16 @@ regex = "1"
 # the section-diff goldens assert its unified-diff output byte-for-byte, so a
 # formatting change in a new release must arrive as a deliberate re-bless.
 similar = "=2.7.0"
+# Unicode data for the plain-question gate: NFKC, general categories and
+# default-ignorable code points. Exact-pinned as a pair from one ICU4X release
+# so all three share a Unicode version. Both are already in the lock, with the
+# same compiled data, through idna_adapter.
+icu_normalizer = { version = "=2.2.0", default-features = false, features = [
+    "compiled_data",
+] }
+icu_properties = { version = "=2.2.0", default-features = false, features = [
+    "compiled_data",
+] }
 # Read-only XML trees for arXiv's Atom and OAI-PMH responses. Its default
 # parsing refuses a DTD, so no entity expansion reaches the decoder.
 roxmltree = "0.21"

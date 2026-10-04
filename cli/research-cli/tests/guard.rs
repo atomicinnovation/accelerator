@@ -11,6 +11,7 @@ use serde_json::Value;
 
 const BINARY: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const RESEARCHER: &str = "accelerator:researcher";
+const COMPOSER: &str = "accelerator:composer";
 const FETCH: &str = "accelerator research fetch arxiv search 'attention heads'";
 
 struct Project {
@@ -158,6 +159,7 @@ fn write(project: &Project, agent_type: Option<&str>, path: &str) -> Verdict {
 }
 
 const FINDING: &str = "meta/research/topics/s/findings/01-x-web.md";
+const LEVELS: &str = "meta/research/topics/s/findings/03-a-web.levels";
 
 #[test]
 fn the_researcher_may_run_the_fetch() {
@@ -220,7 +222,7 @@ fn a_relative_path_resolves_against_the_hook_cwd() {
         Some(RESEARCHER),
         "meta/research/topics/s/brief.md",
     )
-    .assert_blocks("'s/brief.md' is not a finding");
+    .assert_blocks("'s/brief.md' is outside that scope");
 }
 
 #[test]
@@ -283,7 +285,7 @@ fn a_configured_topics_directory_replaces_the_default() {
     let project = Project::new()
         .config("---\npaths:\n  research_topics: docs/topics\n---\n");
     project.mkdir("docs/topics/s/findings");
-    write(&project, Some(RESEARCHER), "docs/topics/s/findings/x.md")
+    write(&project, Some(RESEARCHER), "docs/topics/s/findings/01-x.md")
         .assert_passes_silently();
     write(&project, Some(RESEARCHER), FINDING).assert_blocks("not under");
 }
@@ -292,26 +294,155 @@ fn a_configured_topics_directory_replaces_the_default() {
 fn notebook_and_edit_writes_are_judged_by_their_paths() {
     let project = Project::new();
     let config = project.at(".accelerator/config.md");
-    guard(
-        &project.root,
-        &call(
+    for agent_type in [RESEARCHER, COMPOSER] {
+        guard(
             &project.root,
-            Some(RESEARCHER),
-            "NotebookEdit",
-            &json!({ "notebook_path": config, "new_source": "x" }),
-        ),
-    )
-    .assert_blocks("E_RESEARCH_GUARD_WRITE");
-    guard(
-        &project.root,
-        &call(
+            &call(
+                &project.root,
+                Some(agent_type),
+                "NotebookEdit",
+                &json!({ "notebook_path": config, "new_source": "x" }),
+            ),
+        )
+        .assert_blocks(&format!("E_RESEARCH_GUARD_WRITE: {agent_type}"));
+        guard(
             &project.root,
+            &call(
+                &project.root,
+                Some(agent_type),
+                "Edit",
+                &json!({
+                    "file_path": config,
+                    "old_string": "a",
+                    "new_string": "b",
+                }),
+            ),
+        )
+        .assert_blocks(&format!("E_RESEARCH_GUARD_WRITE: {agent_type}"));
+    }
+}
+
+#[test]
+fn every_work_item_level_note_path_is_judged_for_the_researcher() {
+    let project = Project::new();
+    project.mkdir(LEVELS);
+    for note in ["1.md", "3-2-1.md"] {
+        write(
+            &project,
             Some(RESEARCHER),
-            "Edit",
-            &json!({ "file_path": config, "old_string": "a", "new_string": "b" }),
-        ),
+            &project.at(&format!("{LEVELS}/{note}")),
+        )
+        .assert_passes_silently();
+    }
+    for note in [
+        "2.md",
+        "2-1-1.md",
+        "2-0.md",
+        "2-a.md",
+        "0.md",
+        ".2-1.md.invalid",
+        "2-1.txt",
+        "2-1/x.md",
+        "1.levels/1.md",
+    ] {
+        write(
+            &project,
+            Some(RESEARCHER),
+            &project.at(&format!("{LEVELS}/{note}")),
+        )
+        .assert_blocks("is outside that scope");
+    }
+    for path in [
+        "meta/research/topics/s/findings/a-web.levels/1.md",
+        "meta/research/topics/s/findings/03-A.levels/1.md",
+        "meta/research/topics/s/findings/03-a b.levels/1.md",
+    ] {
+        write(&project, Some(RESEARCHER), &project.at(path))
+            .assert_blocks("is outside that scope");
+    }
+}
+
+#[test]
+fn the_composer_writes_only_findings() {
+    let project = Project::new();
+    project.mkdir(LEVELS);
+    write(
+        &project,
+        Some(COMPOSER),
+        &project.at("meta/research/topics/s/findings/03-a-web.md"),
     )
-    .assert_blocks("E_RESEARCH_GUARD_WRITE");
+    .assert_passes_silently();
+    for path in [
+        format!("{LEVELS}/1.md"),
+        "meta/research/topics/s/findings/.03-a-web.md.invalid".to_owned(),
+    ] {
+        write(&project, Some(COMPOSER), &project.at(&path)).assert_blocks(
+            "E_RESEARCH_GUARD_WRITE: accelerator:composer may write only",
+        );
+    }
+}
+
+#[test]
+fn the_composer_is_blocked_from_every_command() {
+    let project = Project::new();
+    for command in ["ls", FETCH] {
+        bash(&project, Some(COMPOSER), command).assert_blocks(
+            "E_RESEARCH_GUARD_COMMAND: accelerator:composer may run no \
+             commands",
+        );
+    }
+}
+
+#[test]
+fn a_configured_composer_is_confined_under_its_configured_name() {
+    let project = Project::new()
+        .config("---\nagents:\n  composer: custom:composer\n---\n");
+    bash(&project, Some("custom:composer"), FETCH)
+        .assert_blocks("custom:composer (agents.composer) may run no commands");
+    bash(&project, Some(COMPOSER), FETCH)
+        .assert_blocks("accelerator:composer may run no commands");
+}
+
+#[test]
+fn a_first_write_into_a_new_levels_directory_is_admitted() {
+    let project = Project::new();
+    project.mkdir("meta/research/topics/s/findings");
+    write(
+        &project,
+        Some(RESEARCHER),
+        &project.at(&format!("{LEVELS}/1.md")),
+    )
+    .assert_passes_silently();
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_levels_directory_is_blocked() {
+    let project = Project::new();
+    project.mkdir("meta/research/topics/s/findings");
+    std::os::unix::fs::symlink(
+        project.root.join(".accelerator"),
+        project.root.join(LEVELS),
+    )
+    .expect("symlink");
+    write(
+        &project,
+        Some(RESEARCHER),
+        &project.at(&format!("{LEVELS}/1.md")),
+    )
+    .assert_blocks("a symlink at '03-a-web.levels'");
+}
+
+#[test]
+fn a_dot_dot_escape_from_a_levels_directory_is_blocked() {
+    let project = Project::new();
+    project.mkdir(LEVELS);
+    write(
+        &project,
+        Some(RESEARCHER),
+        &project.at(&format!("{LEVELS}/../../../../../.accelerator/config.md")),
+    )
+    .assert_blocks("a '.' or '..' component");
 }
 
 #[test]
@@ -330,7 +461,7 @@ fn a_researcher_write_without_a_path_is_unreadable() {
 }
 
 #[test]
-fn every_call_not_from_a_researcher_passes() {
+fn every_call_not_from_a_confined_agent_passes() {
     let project = Project::new();
     for agent_type in [None, Some(""), Some("accelerator:reviewer")] {
         bash(&project, agent_type, "ls").assert_passes_silently();
@@ -422,6 +553,13 @@ fn an_unparseable_config_still_confines_the_default_researcher() {
     let project = Project::new().unparseable_config();
     bash(&project, Some(RESEARCHER), "ls")
         .assert_blocks("E_RESEARCH_GUARD_COMMAND");
+}
+
+#[test]
+fn an_unparseable_config_still_confines_the_default_composer() {
+    let project = Project::new().unparseable_config();
+    bash(&project, Some(COMPOSER), "ls")
+        .assert_blocks("E_RESEARCH_GUARD_COMMAND: accelerator:composer");
 }
 
 #[test]

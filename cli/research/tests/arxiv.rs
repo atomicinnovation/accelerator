@@ -1,12 +1,12 @@
 #![allow(clippy::expect_used)]
 
-use research::arxiv::is_withdrawal_candidate;
-use research::arxiv::latest_version_withdrawn;
-use research::arxiv::normalise;
-use research::arxiv::Entry;
-use research::arxiv::RawVersion;
-use research::record::Tier;
-use research::record::VenueSignals;
+use research::sources::arxiv::is_withdrawal_candidate;
+use research::sources::arxiv::latest_version_withdrawn;
+use research::sources::arxiv::normalise;
+use research::sources::arxiv::Entry;
+use research::sources::arxiv::RawVersion;
+use research::sources::record::Tier;
+use research::sources::record::VenueSignals;
 
 fn entry() -> Entry {
     Entry {

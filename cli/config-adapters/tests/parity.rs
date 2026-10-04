@@ -84,6 +84,7 @@ fn the_research_knobs_resolve_personal_over_team() {
     let dir = dir.path().to_path_buf();
     assert_eq!(rendered(&dir, "research.topic.breadth"), "2");
     assert_eq!(rendered(&dir, "research.topic.depth"), "3");
+    assert_eq!(rendered(&dir, "research.topic.concurrency"), "6");
 }
 
 #[test]

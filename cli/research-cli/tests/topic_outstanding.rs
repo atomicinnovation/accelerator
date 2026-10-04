@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Output;
 
-use corpus::topic_research::is_finding_path;
+use research::topic::layout::finding_path::is_finding_path;
+use research::topic::layout::finding_path::is_level_note_path;
 use serde_json::json;
 use serde_json::Value;
 
@@ -59,6 +60,50 @@ impl Project {
             .args(["topic", "outstanding", slug, "--profiles-dir"])
             .arg(profiles_dir)
             .output()?)
+    }
+
+    fn run(&self, args: &[&str]) -> Result<Output, TestError> {
+        Ok(Command::new(BIN)
+            .current_dir(&self.root)
+            .arg("topic")
+            .args(args)
+            .output()?)
+    }
+
+    fn outstanding_with(&self, args: &[&str]) -> Result<Output, TestError> {
+        let profiles = installed_profiles();
+        let mut all = vec![
+            "outstanding",
+            "s",
+            "--profiles-dir",
+            profiles.to_str().ok_or("non-utf8")?,
+        ];
+        all.extend_from_slice(args);
+        self.run(&all)
+    }
+
+    fn plan_with(&self, args: &[&str]) -> Result<(Value, String), TestError> {
+        let output = self.outstanding_with(args)?;
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        assert!(output.status.success(), "{stderr}");
+        Ok((serde_json::from_slice(&output.stdout)?, stderr))
+    }
+
+    fn write_note(
+        &self,
+        stem: &str,
+        lineage: &str,
+        question: &str,
+        follow_ups: &[&str],
+    ) -> Result<(), TestError> {
+        self.write(
+            &note_path(stem, lineage),
+            &level_note(stem, lineage, question, follow_ups),
+        )
+    }
+
+    fn ledger(&self) -> PathBuf {
+        self.set("s").join(".conduct-run.json")
     }
 
     fn plan(&self, slug: &str) -> Result<Value, TestError> {
@@ -120,7 +165,17 @@ fn item(line: u64, question: &str, complete: bool) -> Value {
 }
 
 fn pair(question: &str, profile: &str, path: &str) -> Value {
-    json!({"question": question, "profile": profile, "path": path})
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or_default();
+    json!({
+        "question": question,
+        "profile": profile,
+        "path": path,
+        "stage": "single_pass",
+        "spawn": stem,
+    })
 }
 
 const HEADS: &str = "How do attention heads specialise?";
@@ -152,6 +207,11 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             )],
             "skipped": [],
             "warnings": [],
+            "depth": 1,
+            "remaining": 0,
+            "unfinished": [],
+            "trims": [],
+            "shallow": [],
         })
     );
     Ok(())
@@ -181,6 +241,11 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             )],
             "skipped": [],
             "warnings": [],
+            "depth": 1,
+            "remaining": 0,
+            "unfinished": [],
+            "trims": [],
+            "shallow": [],
         })
     );
     Ok(())
@@ -340,5 +405,852 @@ fn every_allocated_path_is_a_finding_path_the_guard_admits(
         }
     }
     assert_eq!(checked, 4);
+    Ok(())
+}
+
+fn note_path(stem: &str, lineage: &str) -> String {
+    format!("{TOPICS}/s/findings/{stem}.levels/{lineage}.md")
+}
+
+fn level_note_with(stem: &str, lineage: &str, fields: &str) -> String {
+    format!(
+        "---\ntype: \"topic-research\"\nid: \"s.{stem}.{lineage}\"\n\
+         title: \"A note\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
+         author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
+         status: \"complete\"\nkind: \"level-note\"\nround: 1\n\
+         source_profile: \"web\"\ndepth: 3\n{fields}\
+         tags: [\"research\"]\n\
+         last_updated: \"2026-09-27T00:00:00+00:00\"\n\
+         last_updated_by: \"Fixture Author\"\nschema_version: 1\n---\n\n\
+         # A note\n"
+    )
+}
+
+fn level_note(
+    stem: &str,
+    lineage: &str,
+    question: &str,
+    follow_ups: &[&str],
+) -> String {
+    let level = lineage.split('-').next().unwrap_or("1");
+    level_note_with(
+        stem,
+        lineage,
+        &format!(
+            "question: {}\nlevel: {level}\nfollow_ups: {}\n",
+            json!(question),
+            json!(follow_ups)
+        ),
+    )
+}
+
+fn finding(stem: &str, question: &str, depth: &str) -> String {
+    format!(
+        "---\ntype: \"topic-research\"\nid: \"{stem}\"\n\
+         title: \"A\"\ndate: \"2026-09-27T00:00:00+00:00\"\n\
+         author: \"Fixture Author\"\nproducer: \"research-topic\"\n\
+         status: \"complete\"\nkind: \"finding\"\nround: 1\n\
+         question: {}\nsource_profile: \"web\"\n{depth}\
+         tags: [\"research\"]\n\
+         last_updated: \"2026-09-27T00:00:00+00:00\"\n\
+         last_updated_by: \"Fixture Author\"\nschema_version: 1\n---\n",
+        json!(question)
+    )
+}
+
+fn absolute(project: &Project, relative: &str) -> Result<String, TestError> {
+    Ok(project
+        .root
+        .join(relative)
+        .to_str()
+        .ok_or("non-utf8")?
+        .to_owned())
+}
+
+fn nodes_of(pair: &Value) -> Result<Vec<Value>, TestError> {
+    Ok(pair["nodes"].as_array().ok_or("no nodes")?.clone())
+}
+
+fn lineages_of(plan: &Value) -> Result<Vec<String>, TestError> {
+    let mut lineages = Vec::new();
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        for node in nodes_of(pair)? {
+            lineages
+                .push(node["lineage"].as_str().ok_or("lineage")?.to_owned());
+        }
+    }
+    Ok(lineages)
+}
+
+fn a_set() -> Result<Project, TestError> {
+    small_set("deepen", "- [ ] A?")
+}
+
+fn seeded_over_cap_tree(project: &Project) -> Result<(), TestError> {
+    let level_two = ["B1?", "B2?", "B3?", "B4?", "B5?", "B6?"];
+    project.write_note("01-a-web", "1", "A?", &level_two)?;
+    for (position, question) in (1..=4).zip(level_two) {
+        let follow_ups: Vec<String> =
+            (1..=3).map(|k| format!("C{position}{k}?")).collect();
+        let follow_ups: Vec<&str> =
+            follow_ups.iter().map(String::as_str).collect();
+        project.write_note(
+            "01-a-web",
+            &format!("2-{position}"),
+            question,
+            &follow_ups,
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_seeded_tree_over_its_caps_reports_the_eight_level_three_lineages(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    seeded_over_cap_tree(&project)?;
+
+    let (plan, stderr) = project.plan_with(&["--depth", "3"])?;
+
+    assert_eq!(
+        lineages_of(&plan)?,
+        [
+            "3-1-1", "3-1-2", "3-2-1", "3-2-2", "3-3-1", "3-3-2", "3-4-1",
+            "3-4-2",
+        ]
+    );
+    let trims: Vec<&str> = stderr
+        .lines()
+        .filter(|l| l.starts_with("warning: "))
+        .collect();
+    assert_eq!(
+        trims,
+        [
+            "warning: level note 01-a-web.levels/1 records 6 follow-ups, \
+             over its cap of 4; trimmed 2",
+            "warning: level note 01-a-web.levels/2-1 records 3 follow-ups, \
+             over its cap of 2; trimmed 1",
+            "warning: level note 01-a-web.levels/2-2 records 3 follow-ups, \
+             over its cap of 2; trimmed 1",
+            "warning: level note 01-a-web.levels/2-3 records 3 follow-ups, \
+             over its cap of 2; trimmed 1",
+            "warning: level note 01-a-web.levels/2-4 records 3 follow-ups, \
+             over its cap of 2; trimmed 1",
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_missing_level_two_note_holds_back_level_three() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?", "C?"])?;
+    project.write_note("01-a-web", "2-1", "B?", &["X?"])?;
+
+    let (plan, _) = project.plan_with(&["--depth", "3"])?;
+
+    assert_eq!(
+        plan["pairs"],
+        json!([{
+            "question": "A?",
+            "profile": "web",
+            "path": absolute(&project, &format!("{TOPICS}/s/findings/01-a-web.md"))?,
+            "stage": "research_nodes",
+            "nodes": [{
+                "lineage": "2-2",
+                "level": 2,
+                "question": "C?",
+                "cap": 2,
+                "id": "s.01-a-web.2-2",
+                "path": absolute(&project, &note_path("01-a-web", "2-2"))?,
+                "known_questions": ["A?", "B?", "C?"],
+                "spawn": "01-a-web:2-2",
+            }],
+        }])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_refused_note_is_reported_on_its_node_with_its_reason(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+    project.write(
+        &note_path("01-a-web", "2-1"),
+        &level_note_with(
+            "01-a-web",
+            "2-1",
+            "question: \"B?\"\nlevel: 1\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2"])?;
+
+    let nodes = nodes_of(&plan["pairs"][0])?;
+    assert_eq!(nodes[0]["lineage"], json!("2-1"));
+    assert_eq!(
+        nodes[0]["rejected"],
+        json!("level does not match its lineage")
+    );
+    Ok(())
+}
+
+#[test]
+fn a_schema_invalid_note_is_reported_with_its_first_violation_code(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write(
+        &note_path("01-a-web", "1"),
+        &level_note_with("01-a-web", "1", "question: \"A?\"\nlevel: 1\n"),
+    )?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2"])?;
+
+    let nodes = nodes_of(&plan["pairs"][0])?;
+    assert_eq!(nodes[0]["lineage"], json!("1"));
+    assert_eq!(
+        nodes[0]["rejected"],
+        json!("fails validation: MISSING-EXTRA on follow_ups")
+    );
+    Ok(())
+}
+
+#[test]
+fn trims_are_reported_in_the_json_and_on_stderr() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note(
+        "01-a-web",
+        "1",
+        "A?",
+        &["B?", "C?", "D?", "E?", "F?"],
+    )?;
+
+    let (plan, stderr) = project.plan_with(&["--depth", "2"])?;
+
+    assert_eq!(
+        plan["trims"],
+        json!([{"stem": "01-a-web", "lineage": "1", "recorded": 5, "cap": 4}])
+    );
+    assert_eq!(
+        stderr,
+        "warning: level note 01-a-web.levels/1 records 5 follow-ups, over \
+         its cap of 4; trimmed 1\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_complete_tree_is_reported_for_composition_with_its_note_paths(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+    project.write_note("01-a-web", "2-1", "B?", &[])?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2"])?;
+
+    assert_eq!(
+        plan["pairs"],
+        json!([{
+            "question": "A?",
+            "profile": "web",
+            "path": absolute(&project, &format!("{TOPICS}/s/findings/01-a-web.md"))?,
+            "stage": "compose",
+            "notes": [
+                absolute(&project, &note_path("01-a-web", "1"))?,
+                absolute(&project, &note_path("01-a-web", "2-1"))?,
+            ],
+            "spawn": "01-a-web",
+        }])
+    );
+    Ok(())
+}
+
+fn spawns_of(plan: &Value) -> Result<Vec<String>, TestError> {
+    let mut spawns = Vec::new();
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        if let Some(nodes) = pair["nodes"].as_array() {
+            for node in nodes {
+                spawns.push(node["spawn"].as_str().ok_or("spawn")?.to_owned());
+            }
+        } else {
+            spawns.push(pair["spawn"].as_str().ok_or("spawn")?.to_owned());
+        }
+    }
+    Ok(spawns)
+}
+
+#[test]
+fn a_quarantined_root_note_keeps_its_pairs_index_when_a_focus_area_is_appended(
+) -> Result<(), TestError> {
+    let project = small_set("held", "- [ ] A?\n- [ ] B?")?;
+    project.write(
+        &format!("{TOPICS}/s/findings/03-a-web.levels/.1.md.invalid"),
+        &level_note("03-a-web", "1", "A?", &[]),
+    )?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2"])?;
+
+    assert_eq!(spawns_of(&plan)?, ["03-a-web:1", "04-b-web:1"]);
+    Ok(())
+}
+
+#[test]
+fn a_pair_left_only_as_a_levels_directory_resumes_at_its_index(
+) -> Result<(), TestError> {
+    let project = small_set("resumed", "- [ ] A?\n- [ ] B?")?;
+    project.write_note("03-a-web", "1", "A?", &["X?"])?;
+    project.write_note("04-b-web", "1", "B?", &[])?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2"])?;
+
+    assert_eq!(spawns_of(&plan)?, ["03-a-web:2-1", "04-b-web"]);
+    assert_eq!(plan["pairs"][1]["stage"], json!("compose"));
+    Ok(())
+}
+
+#[test]
+fn depth_one_composes_from_the_root_note_alone() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+
+    let (plan, _) = project.plan_with(&[])?;
+
+    assert_eq!(plan["depth"], json!(1));
+    assert_eq!(plan["pairs"][0]["stage"], json!("compose"));
+    assert_eq!(
+        plan["pairs"][0]["notes"],
+        json!([absolute(&project, &note_path("01-a-web", "1"))?])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write(
+        &format!("{TOPICS}/s/findings/01-a-web.md"),
+        &finding("01-a-web", "A?", ""),
+    )?;
+
+    for (depth, shallow) in [
+        ("3", json!([{"stem": "01-a-web", "depth": 1}])),
+        ("1", json!([])),
+    ] {
+        let (plan, _) = project.plan_with(&["--depth", depth])?;
+
+        assert_eq!(
+            plan,
+            json!({
+                "items": [item(6, "A?", true)],
+                "pairs": [],
+                "skipped": [],
+                "warnings": [],
+                "depth": depth.parse::<u32>()?,
+                "remaining": 0,
+                "unfinished": [],
+                "trims": [],
+                "shallow": shallow,
+            }),
+            "--depth {depth}"
+        );
+    }
+    Ok(())
+}
+
+fn assert_exits_1(output: &Output, stderr: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stderr).trim_end(), stderr);
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn an_invalid_depth_exits_1() -> Result<(), TestError> {
+    let project = a_set()?;
+    for depth in ["0", "-1", "many", "99999999999"] {
+        assert_exits_1(
+            &project.outstanding_with(&["--depth", depth])?,
+            &format!(
+                "E_TOPIC_RESEARCH_DEPTH: --depth must be a positive integer, \
+                 got '{depth}'"
+            ),
+        );
+    }
+    Ok(())
+}
+
+fn every_node(plan: &Value) -> Result<Vec<Value>, TestError> {
+    let mut nodes = Vec::new();
+    for pair in plan["pairs"].as_array().ok_or("no pairs")? {
+        nodes.extend(nodes_of(pair)?);
+    }
+    Ok(nodes)
+}
+
+#[test]
+fn every_allocated_level_note_path_is_one_the_guard_admits(
+) -> Result<(), TestError> {
+    let project = small_set("note-shape", "- [ ] A?\n- [ ] 注意力？")?;
+    seeded_over_cap_tree(&project)?;
+    let topics = project.root.join(TOPICS);
+
+    let (plan, _) = project.plan_with(&["--depth", "3"])?;
+
+    let nodes = every_node(&plan)?;
+    assert_eq!(nodes.len(), 9);
+    for node in nodes {
+        let path = PathBuf::from(node["path"].as_str().ok_or("no path")?);
+        let relative = path.strip_prefix(&topics)?;
+        assert!(
+            is_level_note_path(relative.to_str().ok_or("non-utf8")?),
+            "{}",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_allocated_level_note_id_is_set_scoped_and_matches_its_path(
+) -> Result<(), TestError> {
+    let project = small_set("note-id", "- [ ] A?\n- [ ] B?")?;
+    seeded_over_cap_tree(&project)?;
+
+    let (plan, _) = project.plan_with(&["--depth", "3"])?;
+
+    let nodes = every_node(&plan)?;
+    assert_eq!(nodes.len(), 9);
+    for node in nodes {
+        let path = PathBuf::from(node["path"].as_str().ok_or("no path")?);
+        let lineage =
+            path.file_stem().and_then(|s| s.to_str()).ok_or("lineage")?;
+        let levels = path
+            .parent()
+            .and_then(Path::file_name)
+            .and_then(|name| name.to_str())
+            .ok_or("levels")?;
+        let stem = levels.strip_suffix(".levels").ok_or("not levels")?;
+        assert_eq!(node["id"], json!(format!("s.{stem}.{lineage}")));
+        assert_eq!(node["lineage"], json!(lineage));
+    }
+    Ok(())
+}
+
+#[test]
+fn a_limited_plan_offers_the_first_spawns_and_counts_the_rest(
+) -> Result<(), TestError> {
+    let project = small_set("limited", "- [ ] A?\n- [ ] B?\n- [ ] C?")?;
+
+    let (plan, _) = project.plan_with(&["--depth", "2", "--limit", "2"])?;
+
+    assert_eq!(spawns_of(&plan)?, ["01-a-web:1", "02-b-web:1"]);
+    assert_eq!(plan["remaining"], json!(1));
+    Ok(())
+}
+
+fn started(
+    project: &Project,
+    args: &[&str],
+) -> Result<(Value, String), TestError> {
+    let mut all = vec!["--start"];
+    all.extend_from_slice(args);
+    let (plan, _) = project.plan_with(&all)?;
+    let run = plan["run"].as_str().ok_or("no run")?.to_owned();
+    Ok((plan, run))
+}
+
+fn continued(
+    project: &Project,
+    run: &str,
+    args: &[&str],
+) -> Result<Value, TestError> {
+    let mut all = vec!["--run", run];
+    all.extend_from_slice(args);
+    Ok(project.plan_with(&all)?.0)
+}
+
+#[test]
+fn an_attempted_node_left_invalid_is_reported_unfinished_on_the_next_plan_of_its_run(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    project.write(
+        &note_path("01-a-web", "1"),
+        &level_note_with("01-a-web", "1", "question: \"A?\"\nlevel: 1\n"),
+    )?;
+
+    let plan = continued(&project, &run, &["--depth", "2", "--spawned", "0"])?;
+
+    assert_eq!(plan["pairs"], json!([]));
+    assert_eq!(
+        plan["unfinished"],
+        json!([{
+            "spawn": "01-a-web:1",
+            "rejected": "fails validation: MISSING-EXTRA on follow_ups",
+        }])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_plan_without_start_or_run_writes_no_ledger() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    project.plan_with(&["--depth", "2", "--limit", "1"])?;
+
+    assert!(!project.ledger().exists());
+    Ok(())
+}
+
+#[test]
+fn a_started_run_returns_its_minted_id_and_first_batch() -> Result<(), TestError>
+{
+    let project = a_set()?;
+
+    let (plan, run) = started(&project, &["--depth", "2"])?;
+
+    assert!(
+        !run.is_empty()
+            && run
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
+        "{run}"
+    );
+    assert_eq!(plan["batch"], json!(0));
+    assert_eq!(plan["unexpected"], json!([]));
+    assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
+    assert!(project.ledger().exists());
+    Ok(())
+}
+
+fn replaced_warning(run: &str) -> String {
+    format!(
+        "replaced the ledger of run {run}; if that run is still going it \
+         stops at its next batch, and notes its last batch writes may show \
+         as unexpected"
+    )
+}
+
+#[test]
+fn starting_over_a_stale_ledger_replaces_it_with_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, first) = started(&project, &[])?;
+
+    let output = project.outstanding_with(&["--start"])?;
+
+    let plan: Value = serde_json::from_slice(&output.stdout)?;
+    assert_ne!(plan["run"], json!(first));
+    assert_eq!(plan["warnings"], json!([replaced_warning(&first)]));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!("warning: {}\n", replaced_warning(&first))
+    );
+    let stored: Value =
+        serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
+    assert_eq!(stored["run"], plan["run"]);
+    Ok(())
+}
+
+#[test]
+fn starting_over_a_corrupt_ledger_replaces_it_with_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    fs::write(project.ledger(), "{")?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["warnings"],
+        json!([
+            "replaced a corrupt run ledger; if its run is still going it \
+             stops at its next batch, and notes its last batch writes may \
+             show as unexpected"
+        ])
+    );
+    Ok(())
+}
+
+fn superseded(run: &str, owner: &str) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN_SUPERSEDED: run {run} was superseded by run \
+         {owner}; another conduct run now owns this set, so let it finish"
+    )
+}
+
+#[test]
+fn continuing_a_superseded_run_exits_1_naming_the_owner(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, first) = started(&project, &[])?;
+    let (_, second) = started(&project, &[])?;
+
+    assert_exits_1(
+        &project.outstanding_with(&["--run", &first])?,
+        &superseded(&first, &second),
+    );
+    Ok(())
+}
+
+#[test]
+fn a_superseded_continuation_leaves_the_owners_ledger_bytes_unchanged(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, first) = started(&project, &[])?;
+    started(&project, &[])?;
+    let before = fs::read(project.ledger())?;
+
+    let output =
+        project.outstanding_with(&["--run", &first, "--spawned", "0"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(fs::read(project.ledger())?, before);
+    Ok(())
+}
+
+#[test]
+fn a_repeated_plan_without_spawned_re_offers_the_same_batch(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (first, run) = started(&project, &["--depth", "2"])?;
+
+    let again = continued(&project, &run, &["--depth", "2"])?;
+
+    assert_eq!(spawns_of(&again)?, spawns_of(&first)?);
+    assert_eq!(again["batch"], json!(0));
+    Ok(())
+}
+
+#[test]
+fn spawned_acknowledges_the_batch_and_offers_the_next() -> Result<(), TestError>
+{
+    let project = a_set()?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+
+    let next = continued(&project, &run, &["--depth", "2", "--spawned", "0"])?;
+
+    assert_eq!(spawns_of(&next)?, ["01-a-web:2-1"]);
+    assert_eq!(next["batch"], json!(1));
+    assert_eq!(next["unexpected"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn the_rendered_batch_is_the_number_the_next_spawned_must_pass(
+) -> Result<(), TestError> {
+    let project = small_set("batch", "- [ ] A?\n- [ ] B?")?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    project.write_note("01-a-web", "1", "A?", &[])?;
+
+    let changed = continued(&project, &run, &["--depth", "2"])?;
+    assert_eq!(changed["batch"], json!(1));
+    assert_eq!(spawns_of(&changed)?, ["01-a-web", "02-b-web:1"]);
+
+    let stale = continued(&project, &run, &["--depth", "2", "--spawned", "0"])?;
+    assert_eq!(stale["batch"], json!(1));
+    assert_eq!(spawns_of(&stale)?, ["01-a-web", "02-b-web:1"]);
+
+    let acknowledged =
+        continued(&project, &run, &["--depth", "2", "--spawned", "1"])?;
+    assert_eq!(acknowledged["batch"], json!(2));
+    assert_eq!(spawns_of(&acknowledged)?, Vec::<String>::new());
+    Ok(())
+}
+
+#[test]
+fn a_run_keeps_a_failed_pairs_stem_after_a_later_pair_writes(
+) -> Result<(), TestError> {
+    let project = small_set("pinned", "- [ ] A?\n- [ ] B?")?;
+    let (first, run) = started(&project, &[])?;
+    assert_eq!(spawns_of(&first)?, ["01-a-web", "02-b-web"]);
+    project.write(
+        &format!("{TOPICS}/s/findings/02-b-web.md"),
+        &finding("02-b-web", "B?", "depth: 1\n"),
+    )?;
+
+    let next = continued(&project, &run, &["--spawned", "0"])?;
+
+    assert_eq!(
+        next["unfinished"],
+        json!([{"spawn": "01-a-web", "rejected": null}])
+    );
+    assert_eq!(next["unexpected"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_resumed_run_does_not_report_notes_present_at_start_as_unexpected(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+
+    let (plan, run) = started(&project, &["--depth", "2"])?;
+    let again = continued(&project, &run, &["--depth", "2"])?;
+
+    assert_eq!(plan["unexpected"], json!([]));
+    assert_eq!(again["unexpected"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_note_written_mid_run_without_being_offered_is_reported_unexpected(
+) -> Result<(), TestError> {
+    let project = small_set("forged", "- [ ] A?\n- [ ] B?")?;
+    let (first, run) = started(&project, &["--depth", "2", "--limit", "1"])?;
+    assert_eq!(spawns_of(&first)?, ["01-a-web:1"]);
+    project.write_note("01-a-web", "1", "A?", &[])?;
+    project.write_note("02-b-web", "1", "B?", &[])?;
+
+    let next = continued(
+        &project,
+        &run,
+        &["--depth", "2", "--limit", "1", "--spawned", "0"],
+    )?;
+
+    assert_eq!(next["unexpected"], json!(["02-b-web:1"]));
+    Ok(())
+}
+
+#[test]
+fn an_accepted_note_overwritten_mid_run_is_reported_unexpected(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write_note("01-a-web", "1", "A?", &["B?"])?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    project.write_note("01-a-web", "1", "A?", &["C?"])?;
+
+    let next = continued(&project, &run, &["--depth", "2"])?;
+
+    assert_eq!(next["unexpected"], json!(["01-a-web:1"]));
+    Ok(())
+}
+
+#[test]
+fn a_ledger_write_failure_exits_1_and_prints_no_plan() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let project = a_set()?;
+    let set = project.set("s");
+    fs::set_permissions(&set, fs::Permissions::from_mode(0o555))?;
+
+    let output = project.outstanding_with(&["--start"]);
+    fs::set_permissions(&set, fs::Permissions::from_mode(0o755))?;
+    let output = output?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let ledger = project.ledger();
+    assert!(
+        stderr.starts_with(&format!(
+            "E_TOPIC_RESEARCH_RUN_LEDGER: could not write {}: ",
+            ledger.display()
+        )),
+        "{stderr}"
+    );
+    assert!(output.stdout.is_empty());
+    assert!(!ledger.exists());
+    Ok(())
+}
+
+fn no_usable_ledger(run: &str) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_RUN_LEDGER: no usable ledger for run {run}; re-run \
+         conduct to start a fresh run"
+    )
+}
+
+#[test]
+fn continuing_with_a_corrupt_ledger_exits_1() -> Result<(), TestError> {
+    let project = a_set()?;
+    assert_exits_1(
+        &project.outstanding_with(&["--run", "r1"])?,
+        &no_usable_ledger("r1"),
+    );
+
+    fs::write(project.ledger(), "{")?;
+
+    assert_exits_1(
+        &project.outstanding_with(&["--run", "r1"])?,
+        &no_usable_ledger("r1"),
+    );
+    Ok(())
+}
+
+#[test]
+fn end_run_deletes_only_its_own_ledger_and_tolerates_absence(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, run) = started(&project, &[])?;
+
+    assert_exits_1(
+        &project.run(&["end-run", "s", "--run", "other"])?,
+        &superseded("other", &run),
+    );
+    assert!(project.ledger().exists());
+
+    for _ in 0..2 {
+        let output = project.run(&["end-run", "s", "--run", &run])?;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(output.stdout.is_empty());
+        assert!(!project.ledger().exists());
+    }
+    Ok(())
+}
+
+#[test]
+fn a_malformed_limit_or_run_exits_1() -> Result<(), TestError> {
+    let project = a_set()?;
+    let limit = |value: &str| {
+        format!(
+            "E_TOPIC_RESEARCH_LIMIT: --limit must be a positive integer, got \
+             '{value}'"
+        )
+    };
+    let cases: [(&[&str], String); 8] = [
+        (&["--limit", "0"], limit("0")),
+        (&["--limit", "-1"], limit("-1")),
+        (&["--limit", "many"], limit("many")),
+        (
+            &["--run", "a b"],
+            "E_TOPIC_RESEARCH_RUN: --run must be 1 to 64 letters, digits, \
+             '_' or '-', got 'a b'"
+                .to_owned(),
+        ),
+        (
+            &["--start", "--run", "x"],
+            "E_TOPIC_RESEARCH_RUN: --start and --run cannot be combined"
+                .to_owned(),
+        ),
+        (
+            &["--spawned", "1"],
+            "E_TOPIC_RESEARCH_SPAWNED: --spawned needs --run".to_owned(),
+        ),
+        (
+            &["--start", "--spawned", "1"],
+            "E_TOPIC_RESEARCH_SPAWNED: --spawned needs --run".to_owned(),
+        ),
+        (
+            &["--run", "x", "--spawned", "many"],
+            "E_TOPIC_RESEARCH_SPAWNED: --spawned must be a non-negative \
+             integer, got 'many'"
+                .to_owned(),
+        ),
+    ];
+    for (args, stderr) in cases {
+        assert_exits_1(&project.outstanding_with(args)?, &stderr);
+    }
+    assert!(!project.ledger().exists());
     Ok(())
 }

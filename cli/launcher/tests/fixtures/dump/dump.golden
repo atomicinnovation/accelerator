@@ -15,6 +15,7 @@
 | `review.work_item_revise_major_count` | `2` | default |
 | `research.topic.breadth` | `8` | default |
 | `research.topic.depth` | `1` | default |
+| `research.topic.concurrency` | `24` | default |
 | `agents.reviewer` | `my-reviewer` | team (.accelerator/config.md) |
 | `agents.browser-analyser` | `accelerator:browser-analyser` | default |
 | `agents.browser-locator` | `accelerator:browser-locator` | default |
@@ -25,6 +26,7 @@
 | `agents.documents-analyser` | `accelerator:documents-analyser` | default |
 | `agents.web-search-researcher` | `accelerator:web-search-researcher` | default |
 | `agents.researcher` | `accelerator:researcher` | default |
+| `agents.composer` | `accelerator:composer` | default |
 | `paths.plans` | `meta/plans` | default |
 | `paths.research_codebase` | `meta/research/codebase` | default |
 | `paths.decisions` | `meta/decisions` | default |

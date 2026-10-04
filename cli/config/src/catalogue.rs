@@ -306,6 +306,7 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
 pub const RESEARCH_KEYS: &[(&str, Default)] = &[
     ("research.topic.breadth", Default::Scalar("8")),
     ("research.topic.depth", Default::Scalar("1")),
+    ("research.topic.concurrency", Default::Scalar("24")),
 ];
 
 /// Built-in review lens names for code reviews (pr and plan modes).
@@ -345,6 +346,7 @@ pub const AGENT_KEYS: &[&str] = &[
     "documents-analyser",
     "web-search-researcher",
     "researcher",
+    "composer",
 ];
 
 /// Visualiser keys that carry a catalogue default.
@@ -429,7 +431,7 @@ mod tests {
     use crate::service::Value;
 
     #[test]
-    fn the_catalogue_holds_sixty_five_keys_across_seven_groups() {
+    fn the_catalogue_holds_sixty_seven_keys_across_seven_groups() {
         let count = PATH_KEYS.len()
             + TEMPLATE_KEYS.len()
             + WORK_KEYS.len()
@@ -437,7 +439,7 @@ mod tests {
             + RESEARCH_KEYS.len()
             + AGENT_KEYS.len()
             + VISUALISER_KEYS.len();
-        assert_eq!(count, 65);
+        assert_eq!(count, 67);
         assert_eq!(DOC_TYPES.len(), 14);
     }
 
@@ -450,6 +452,10 @@ mod tests {
         assert_eq!(
             default_for("research.topic.depth"),
             Some(Value::Scalar(Scalar::String("1".to_owned())))
+        );
+        assert_eq!(
+            default_for("research.topic.concurrency"),
+            Some(Value::Scalar(Scalar::String("24".to_owned())))
         );
     }
 

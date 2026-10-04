@@ -21,6 +21,7 @@ config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

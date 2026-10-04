@@ -1,8 +1,8 @@
-//! The cross-cutting facts the corpus `templates-schema.tsv` alone does not
-//! carry: the own-identity key per type (distinct from a type's *forbidden*
-//! own-id keys — the rename this drives always pre-empts the drop rule from
-//! ever seeing the same key), the legacy type-alias fold, and the
-//! typed-linkage key vocabulary/cardinality.
+//! The cross-cutting facts the corpus `SCHEMA` alone does not carry: the
+//! own-identity key per type (distinct from a type's *forbidden* own-id keys —
+//! the rename this drives always pre-empts the drop rule from ever seeing the
+//! same key), the legacy type-alias fold, and the typed-linkage key
+//! vocabulary/cardinality.
 
 /// The legacy own-identity key a type renames into `id:` — `work-item`/`adr`
 /// only. Distinct from

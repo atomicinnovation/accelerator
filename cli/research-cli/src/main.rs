@@ -7,6 +7,7 @@ mod fetch_command;
 mod guard;
 #[cfg(feature = "test-loopback")]
 mod loopback;
+mod plan_wording;
 mod render;
 mod topic_command;
 mod write_target;
@@ -18,12 +19,17 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use clap::Parser as _;
+use corpus::Clock as _;
+use corpus::FilenameTimestampFormat;
+use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
-use research::fetch::Clock;
-use research::fetch::FetchOutcome;
-use research::request::Endpoint;
-use research::request::FetchRequest;
-use research::schedule::Deadline;
+use corpus_adapters::SystemClock as CorpusClock;
+use research::conduct::ledger::RunId;
+use research::sources::fetch::Clock;
+use research::sources::fetch::FetchOutcome;
+use research::sources::request::Endpoint;
+use research::sources::request::FetchRequest;
+use research::sources::schedule::Deadline;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
@@ -44,6 +50,10 @@ use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
 use crate::fetch_command::SourceCall;
+use crate::topic_command::OutstandingFlags;
+use crate::topic_command::Printed;
+use crate::topic_command::RunFlag;
+use crate::topic_command::RunMode;
 
 // The test-only loopback feature must never reach a release binary: the compile
 // guard rests on `[profile.release]` keeping debug-assertions off, and a
@@ -77,11 +87,8 @@ fn main() -> ExitCode {
                 },
         }) => fetch(clock, &deadline, &family, &verb, &terms, limit.as_deref()),
         Ok(Cli {
-            command:
-                Command::Topic {
-                    action: TopicAction::Outstanding { slug, profiles_dir },
-                },
-        }) => outstanding(&slug, &profiles_dir),
+            command: Command::Topic { action },
+        }) => topic(action),
         Ok(Cli {
             command: Command::Guard { .. },
         }) => guard::run(),
@@ -139,17 +146,79 @@ fn fetch(
     }
 }
 
-fn outstanding(slug: &str, profiles_dir: &Path) -> ExitCode {
-    let plan = working_project().and_then(|(cwd, project)| {
-        topic_command::outstanding(&project, &cwd, slug, profiles_dir, &RealFs)
-    });
-    match plan {
-        Ok(plan) => {
-            println!("{plan}");
+fn topic(action: TopicAction) -> ExitCode {
+    let printed = match action {
+        TopicAction::Outstanding {
+            slug,
+            profiles_dir,
+            depth,
+            limit,
+            start,
+            run,
+            spawned,
+        } => OutstandingFlags::parse(
+            &depth,
+            limit.as_deref(),
+            start,
+            run.as_deref(),
+            spawned.as_deref(),
+        )
+        .and_then(|flags| outstanding(&slug, &profiles_dir, flags)),
+        TopicAction::EndRun { slug, run } => {
+            topic_command::parse_run(&run).and_then(|run| end_run(&slug, &run))
+        }
+    };
+    match printed {
+        Ok(printed) => {
+            eprint!("{}", printed.stderr);
+            print!("{}", printed.stdout);
             ExitCode::SUCCESS
         }
         Err(message) => failure(&message),
     }
+}
+
+fn outstanding(
+    slug: &str,
+    profiles_dir: &Path,
+    flags: OutstandingFlags,
+) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    let mode = match flags.run {
+        RunFlag::Query => RunMode::Query,
+        RunFlag::Start => RunMode::Start(minted_run()?),
+        RunFlag::Continue { run, spawned } => {
+            RunMode::Continue { run, spawned }
+        }
+    };
+    topic_command::run_outstanding(
+        &set_root,
+        profiles_dir,
+        flags.depth,
+        flags.limit,
+        mode,
+        &RealFs,
+        &FileCorpusStore::new(&set_root),
+    )
+}
+
+fn end_run(slug: &str, run: &RunId) -> Result<Printed, String> {
+    let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    topic_command::run_end_run(
+        &set_root,
+        run,
+        &RealFs,
+        &FileCorpusStore::new(&set_root),
+    )
+}
+
+fn minted_run() -> Result<RunId, String> {
+    let clock = CorpusClock::try_new().map_err(|error| error.to_string())?;
+    let timestamp =
+        clock.filename_timestamp(FilenameTimestampFormat::DateTimeUnderscored);
+    Ok(RunId::mint(&timestamp, rand::random()))
 }
 
 /// Builds only the asked source's adapters, so an OpenAlex call never reads

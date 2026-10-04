@@ -221,7 +221,7 @@ pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     check_forbidden_own_id(&entries, row, &mut violations);
     check_obsolete_legacy_keys(&entries, &mut violations);
     check_required_extras(&entries, row, &mut violations);
-    check_empty_placeholders(&entries, &mut violations);
+    check_empty_placeholders(&entries, row, &mut violations);
     check_linkage_shape(&entries, row, &mut violations);
     check_canonical_quoting(&entries, row, &mut violations);
     violations
@@ -373,10 +373,7 @@ fn check_required_extras(
     row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
-    for extra in row.extras {
-        if schema::OPTIONAL_EXTRAS.contains(extra) {
-            continue;
-        }
+    for extra in row.required_extras {
         if !is_present(entries, extra) {
             violations.push(Violation::MissingExtra {
                 extra: (*extra).to_owned(),
@@ -385,15 +382,21 @@ fn check_required_extras(
     }
 }
 
+const WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"];
+
 fn check_empty_placeholders(
     entries: &[(String, String)],
+    row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
     for (key, value) in entries {
-        if key == "tags" {
+        if WHOLLY_EXEMPT_KEYS.contains(&key.as_str()) {
             continue;
         }
-        if value == "\"\"" || value == "[]" {
+        let is_empty_string = value == "\"\"";
+        let is_forbidden_empty_list =
+            value == "[]" && !row.empty_list_extras.contains(&key.as_str());
+        if is_empty_string || is_forbidden_empty_list {
             violations.push(Violation::EmptyPlaceholder { key: key.clone() });
         }
     }
@@ -755,8 +758,7 @@ mod tests {
     }
 
     #[test]
-    fn an_optional_extra_absent_is_not_required() {
-        // reviewer is optional on a plan.
+    fn a_plan_without_reviewer_is_valid() {
         let violations = validate_file(
             "type: plan\nid: \"x\"\ntitle: t\ndate: \"2026-01-01T00:00:00Z\"\n\
              author: a\ntags: []\nlast_updated: \"2026-01-01T00:00:00Z\"\n\
@@ -766,6 +768,24 @@ mod tests {
         assert!(!violations
             .iter()
             .any(|v| matches!(v, Violation::MissingExtra { .. })));
+    }
+
+    #[test]
+    fn a_work_item_without_external_id_is_valid() {
+        assert!(!minimal_valid_work_item().contains("external_id"));
+        assert!(validate_file(&minimal_valid_work_item()).is_empty());
+    }
+
+    #[test]
+    fn a_review_without_reviewer_is_valid() {
+        let violations = validate_file(
+            "type: \"plan-review\"\nid: \"x-review-1\"\ntitle: \"t\"\n\
+             date: \"2026-01-01T00:00:00Z\"\nauthor: \"a\"\ntags: []\n\
+             last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: \"a\"\n\
+             schema_version: 1\nstatus: \"complete\"\nverdict: \"approve\"\n\
+             lenses: [\"correctness\"]\nreview_number: 1\nreview_pass: 1\n",
+        );
+        assert_eq!(violations, Vec::new());
     }
 
     #[test]
@@ -795,6 +815,116 @@ mod tests {
         assert!(!validate_file(&minimal_valid_work_item())
             .iter()
             .any(|v| matches!(v, Violation::EmptyPlaceholder { .. })));
+    }
+
+    fn topic_research_document(kind: &str, extras: &[&str]) -> String {
+        let mut lines = vec![
+            "type: \"topic-research\"".to_owned(),
+            "id: \"attention.01-a-web\"".to_owned(),
+            "title: \"Question\"".to_owned(),
+            "date: \"2026-01-01T00:00:00+00:00\"".to_owned(),
+            "author: \"Toby\"".to_owned(),
+            "tags: []".to_owned(),
+            "last_updated: \"2026-01-01T00:00:00+00:00\"".to_owned(),
+            "last_updated_by: \"Toby\"".to_owned(),
+            "schema_version: 1".to_owned(),
+            "status: \"complete\"".to_owned(),
+            format!("kind: \"{kind}\""),
+        ];
+        lines.extend(extras.iter().map(|extra| (*extra).to_owned()));
+        lines.join("\n")
+    }
+
+    fn level_note_with(extras: &[&str]) -> String {
+        let mut all = vec![
+            "round: 1",
+            "question: \"Question\"",
+            "source_profile: \"web\"",
+            "level: 1",
+        ];
+        all.extend_from_slice(extras);
+        topic_research_document("level-note", &all)
+    }
+
+    #[test]
+    fn a_finding_without_depth_is_valid() {
+        let finding = topic_research_document(
+            "finding",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"web\"",
+            ],
+        );
+        assert_eq!(validate_file(&finding), Vec::new());
+    }
+
+    #[test]
+    fn a_level_note_without_depth_is_missing_an_extra() {
+        let note = level_note_with(&["follow_ups: []"]);
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::MissingExtra {
+                extra: "depth".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn follow_ups_is_exempt_from_empty_placeholder() {
+        let note = level_note_with(&["depth: 2", "follow_ups: []"]);
+        assert_eq!(validate_file(&note), Vec::new());
+    }
+
+    #[test]
+    fn an_empty_list_is_a_placeholder_where_its_row_does_not_permit_one() {
+        let finding = topic_research_document(
+            "finding",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"web\"",
+                "follow_ups: []",
+            ],
+        );
+        assert_eq!(
+            validate_file(&finding),
+            vec![Violation::EmptyPlaceholder {
+                key: "follow_ups".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn an_empty_source_profile_is_still_a_placeholder() {
+        let note = topic_research_document(
+            "level-note",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"\"",
+                "level: 1",
+                "depth: 2",
+                "follow_ups: []",
+            ],
+        );
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::EmptyPlaceholder {
+                key: "source_profile".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn an_empty_string_follow_ups_is_still_a_placeholder() {
+        let note = level_note_with(&["depth: 2", "follow_ups: \"\""]);
+        assert_eq!(
+            validate_file(&note),
+            vec![Violation::EmptyPlaceholder {
+                key: "follow_ups".to_owned()
+            }]
+        );
     }
 
     #[test]

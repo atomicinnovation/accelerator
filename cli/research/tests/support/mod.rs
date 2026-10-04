@@ -7,23 +7,23 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use research::arxiv::Entry;
-use research::arxiv::RawVersion;
-use research::classify::Received;
-use research::classify::Response;
-use research::fetch::ArxivDecoder;
-use research::fetch::Attempted;
-use research::fetch::Clock;
-use research::fetch::ConfirmationCache;
-use research::fetch::DecodeFailure;
-use research::fetch::OpenAlexDecoder;
-use research::fetch::PacingGate;
-use research::fetch::Transport;
-use research::fetch::Unavailable;
-use research::openalex::Work;
-use research::request::ArxivId;
-use research::request::UpstreamRequest;
-use research::schedule::Deadline;
+use research::sources::arxiv::Entry;
+use research::sources::arxiv::RawVersion;
+use research::sources::classify::Received;
+use research::sources::classify::Response;
+use research::sources::fetch::ArxivDecoder;
+use research::sources::fetch::Attempted;
+use research::sources::fetch::Clock;
+use research::sources::fetch::ConfirmationCache;
+use research::sources::fetch::DecodeFailure;
+use research::sources::fetch::OpenAlexDecoder;
+use research::sources::fetch::PacingGate;
+use research::sources::fetch::Transport;
+use research::sources::fetch::Unavailable;
+use research::sources::openalex::Work;
+use research::sources::request::ArxivId;
+use research::sources::request::UpstreamRequest;
+use research::sources::schedule::Deadline;
 
 pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)

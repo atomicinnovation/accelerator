@@ -9,8 +9,8 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use research::fetch::Clock;
-use research::request::Endpoint;
+use research::sources::fetch::Clock;
+use research::sources::request::Endpoint;
 
 const OPENALEX_API_URL: &str = "ACCELERATOR_OPENALEX_API_URL";
 const ARXIV_API_URL: &str = "ACCELERATOR_ARXIV_API_URL";

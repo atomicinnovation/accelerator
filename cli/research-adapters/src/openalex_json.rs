@@ -6,11 +6,11 @@
 
 use std::collections::BTreeMap;
 
-use research::fetch::DecodeFailure;
-use research::fetch::OpenAlexDecoder;
-use research::openalex::Location;
-use research::openalex::Source;
-use research::openalex::Work;
+use research::sources::fetch::DecodeFailure;
+use research::sources::fetch::OpenAlexDecoder;
+use research::sources::openalex::Location;
+use research::sources::openalex::Source;
+use research::sources::openalex::Work;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 

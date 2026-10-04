@@ -736,10 +736,7 @@ fn required_extras_backfill(
         return Vec::new();
     };
     let mut result = Vec::new();
-    for &extra in row.extras {
-        if fm_schema::OPTIONAL_EXTRAS.contains(&extra) {
-            continue;
-        }
+    for &extra in row.required_extras {
         let current = get(content, extra);
         if current.is_some_and(|value| !is_empty_value(&value)) {
             continue;
@@ -1203,15 +1200,7 @@ mod tests {
 
         let required_for = |linkage_type: &str| -> Vec<&'static str> {
             fm_schema::row_for(linkage_type, "")
-                .map(|row| {
-                    row.extras
-                        .iter()
-                        .copied()
-                        .filter(|extra| {
-                            !fm_schema::OPTIONAL_EXTRAS.contains(extra)
-                        })
-                        .collect()
-                })
+                .map(|row| row.required_extras.to_vec())
                 .unwrap_or_default()
         };
 

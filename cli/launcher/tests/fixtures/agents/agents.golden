@@ -14,3 +14,4 @@ spawning agents via the Agent/Task tool.
 - **documents analyser agent**: accelerator:documents-analyser
 - **web search researcher agent**: accelerator:web-search-researcher
 - **researcher agent**: accelerator:researcher
+- **composer agent**: accelerator:composer

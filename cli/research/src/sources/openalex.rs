@@ -4,12 +4,12 @@
 //! Work types and source types are open sets upstream, so they stay strings
 //! and are only ever read through the predicates here.
 
-use crate::record::excerpt;
-use crate::record::Record;
-use crate::record::VenueSignals;
-use crate::request::Doi;
-use crate::request::WorkId;
-use crate::tier::openalex_tier;
+use crate::sources::record::excerpt;
+use crate::sources::record::Record;
+use crate::sources::record::VenueSignals;
+use crate::sources::request::Doi;
+use crate::sources::request::WorkId;
+use crate::sources::tier::openalex_tier;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Work {

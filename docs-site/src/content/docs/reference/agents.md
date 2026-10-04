@@ -1,7 +1,7 @@
 ---
 title: Agents
-description: Reference for the nine subagents Accelerator skills spawn, and
-  the locator/analyser split behind them.
+description: Reference for the subagents Accelerator skills spawn, and the
+  locator/analyser split behind them.
 ---
 
 Accelerator skills delegate exploratory work to subagents defined in
@@ -117,3 +117,22 @@ fetches promising sources, and returns findings with citations. Used
 when a task needs current information beyond the codebase.
 
 **Tools:** WebSearch, WebFetch, TodoWrite, Read, Grep, Glob, LS
+
+### researcher
+
+Researches one `research-topic` focus area through an injected source
+profile. `conduct` spawns one per (focus area, profile) pair at depth 1, and
+one per tree node at depth above 1, injecting the profile, an outputter (a
+finding or a level note), the question and the single path to write. A
+`PreToolUse` hook confines it to running `accelerator research fetch` and
+writing findings and level notes. See [Research CLI](../research.md).
+
+**Tools:** WebSearch, WebFetch, Write, Read, Bash
+
+### composer
+
+Composes one `research-topic` finding from a pair's level notes once its
+tree is complete, citing only the sources the notes record. It fetches
+nothing, and the same hook lets it write only findings and run no command.
+
+**Tools:** Read, Write

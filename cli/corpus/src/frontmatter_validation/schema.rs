@@ -1,27 +1,38 @@
-//! The per-type schema table (mirrors `templates-schema.tsv`) and the
-//! cross-cutting emission rules. Pure data — no filesystem, no regex.
+//! The per-type schema table and the cross-cutting emission rules. Pure
+//! data — no filesystem, no regex.
 
-/// One `templates-schema.tsv` row, keyed by the `(type, kind)` pair
+/// One schema row, keyed by the `(type, kind)` pair
 /// [`crate::DocTypeKey::linkage_type_name`] plus the artifact `kind`
 /// discriminator (empty for a type-level default row).
+///
+/// `template` names the `templates/` skeleton the row's documents are
+/// emitted from.
 pub struct SchemaRow {
+    pub template: &'static str,
     pub linkage_type: &'static str,
     pub kind: &'static str,
     pub code_state_anchored: bool,
-    pub extras: &'static [&'static str],
+    pub required_extras: &'static [&'static str],
+    /// Per-type keys legitimately omitted when empty, so a present-but-empty
+    /// value is not additionally required.
+    pub optional_extras: &'static [&'static str],
+    /// Extras whose empty list is a value in its own right rather than an
+    /// unfilled placeholder.
+    pub empty_list_extras: &'static [&'static str],
     pub status_vocab: &'static [&'static str],
     pub forbidden_own_id_keys: &'static [&'static str],
     pub typed_linkage_keys: &'static [&'static str],
 }
 
-/// Mirrors `templates-schema.tsv` row for row. A `corpus` test
-/// asserts the two agree.
-pub const SCHEMA: [SchemaRow; 18] = [
+pub const SCHEMA: [SchemaRow; 19] = [
     SchemaRow {
+        template: "work-item.md",
         linkage_type: "work-item",
         kind: "",
         code_state_anchored: false,
-        extras: &["kind", "priority", "external_id"],
+        required_extras: &["kind", "priority"],
+        optional_extras: &["external_id"],
+        empty_list_extras: &[],
         status_vocab: &[
             "draft",
             "ready",
@@ -42,10 +53,13 @@ pub const SCHEMA: [SchemaRow; 18] = [
         ],
     },
     SchemaRow {
+        template: "plan.md",
         linkage_type: "plan",
         kind: "",
         code_state_anchored: true,
-        extras: &["reviewer"],
+        required_extras: &[],
+        optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["draft", "ready", "in-progress", "done", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &[
@@ -57,28 +71,37 @@ pub const SCHEMA: [SchemaRow; 18] = [
         ],
     },
     SchemaRow {
+        template: "validation.md",
         linkage_type: "plan-validation",
         kind: "",
         code_state_anchored: false,
-        extras: &["result"],
+        required_extras: &["result"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
     },
     SchemaRow {
+        template: "pr-description.md",
         linkage_type: "pr-description",
         kind: "",
         code_state_anchored: true,
-        extras: &["pr_url", "pr_number", "merge_commit"],
+        required_extras: &["pr_number"],
+        optional_extras: &["pr_url", "merge_commit"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title"],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "adr.md",
         linkage_type: "adr",
         kind: "",
         code_state_anchored: false,
-        extras: &["decision_makers"],
+        required_extras: &[],
+        optional_extras: &["decision_makers"],
+        empty_list_extras: &[],
         status_vocab: &[
             "proposed",
             "accepted",
@@ -90,28 +113,35 @@ pub const SCHEMA: [SchemaRow; 18] = [
         typed_linkage_keys: &["parent", "supersedes", "relates_to"],
     },
     SchemaRow {
+        template: "codebase-research.md",
         linkage_type: "codebase-research",
         kind: "",
         code_state_anchored: true,
-        extras: &["topic"],
+        required_extras: &["topic"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "rca.md",
         linkage_type: "issue-research",
         kind: "",
         code_state_anchored: true,
-        extras: &["topic"],
+        required_extras: &["topic"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "design-inventory.md",
         linkage_type: "design-inventory",
         kind: "",
         code_state_anchored: true,
-        extras: &[
+        required_extras: &[
             "source",
             "source_kind",
             "source_location",
@@ -119,78 +149,80 @@ pub const SCHEMA: [SchemaRow; 18] = [
             "sequence",
             "screenshots_incomplete",
         ],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "design-gap.md",
         linkage_type: "design-gap",
         kind: "",
         code_state_anchored: false,
-        extras: &["current_inventory", "target_inventory"],
+        required_extras: &["current_inventory", "target_inventory"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "accepted"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "plan-review.md",
         linkage_type: "plan-review",
         kind: "",
         code_state_anchored: false,
-        extras: &[
-            "reviewer",
-            "verdict",
-            "lenses",
-            "review_number",
-            "review_pass",
-        ],
+        required_extras: &["verdict", "lenses", "review_number", "review_pass"],
+        optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
     },
     SchemaRow {
+        template: "work-item-review.md",
         linkage_type: "work-item-review",
         kind: "",
         code_state_anchored: false,
-        extras: &[
-            "reviewer",
-            "verdict",
-            "lenses",
-            "review_number",
-            "review_pass",
-        ],
+        required_extras: &["verdict", "lenses", "review_number", "review_pass"],
+        optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
     },
     SchemaRow {
+        template: "pr-review.md",
         linkage_type: "pr-review",
         kind: "",
         code_state_anchored: false,
-        extras: &[
-            "reviewer",
-            "verdict",
-            "lenses",
-            "review_number",
-            "pr_number",
-        ],
+        required_extras: &["verdict", "lenses", "review_number", "pr_number"],
+        optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title", "review_pass"],
         typed_linkage_keys: &["parent", "target", "relates_to"],
     },
     SchemaRow {
+        template: "note.md",
         linkage_type: "note",
         kind: "",
         code_state_anchored: true,
-        extras: &["topic"],
+        required_extras: &["topic"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["captured"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "topic-research-manifest.md",
         linkage_type: "topic-research",
         kind: "manifest",
         code_state_anchored: false,
-        extras: &["slug", "round_count", "finding_count", "primary"],
+        required_extras: &["slug", "round_count", "finding_count", "primary"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &[
             "briefed",
             "outlined",
@@ -202,42 +234,83 @@ pub const SCHEMA: [SchemaRow; 18] = [
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "topic-research-brief.md",
         linkage_type: "topic-research",
         kind: "brief",
         code_state_anchored: false,
-        extras: &["source_profiles"],
+        required_extras: &["source_profiles"],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "topic-research-outline.md",
         linkage_type: "topic-research",
         kind: "outline",
         code_state_anchored: false,
-        extras: &[],
+        required_extras: &[],
+        optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "topic-research-finding.md",
         linkage_type: "topic-research",
         kind: "finding",
         code_state_anchored: false,
-        extras: &["round", "question", "source_profile"],
+        required_extras: &["round", "question", "source_profile"],
+        optional_extras: &["depth"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
     SchemaRow {
+        template: "topic-research-synthesis.md",
         linkage_type: "topic-research",
         kind: "synthesis",
         code_state_anchored: false,
-        extras: &["rounds_covered"],
+        required_extras: &["rounds_covered"],
+        optional_extras: &[],
+        empty_list_extras: &[],
+        status_vocab: &["complete"],
+        forbidden_own_id_keys: &[],
+        typed_linkage_keys: &["parent", "relates_to"],
+    },
+    SchemaRow {
+        template: "topic-research-level-note.md",
+        linkage_type: "topic-research",
+        kind: "level-note",
+        code_state_anchored: false,
+        required_extras: &[
+            "round",
+            "question",
+            "source_profile",
+            "level",
+            "depth",
+            "follow_ups",
+        ],
+        optional_extras: &[],
+        empty_list_extras: &["follow_ups"],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
     },
 ];
+
+impl SchemaRow {
+    /// Every per-type key the row names, required first.
+    pub fn all_extras(&self) -> impl Iterator<Item = &'static str> {
+        self.required_extras
+            .iter()
+            .chain(self.optional_extras)
+            .copied()
+    }
+}
 
 /// The row for a resolved `(type, kind)` pair, preferring an exact
 /// kind-specific row and falling back to the type-level default row
@@ -297,24 +370,32 @@ pub const LINKAGE_SOURCE_TYPES: [&str; 15] = [
     "topic-research",
 ];
 
-/// Mirrors `FM_OPTIONAL_EXTRAS`.
-///
-/// Per-type `extras` that are legitimately omitted when empty, so a
-/// present-but-empty value is not additionally required. `work_item_id` is
-/// the transitional foreign-ref alias.
-pub const OPTIONAL_EXTRAS: [&str; 6] = [
-    "external_id",
-    "reviewer",
-    "pr_url",
-    "merge_commit",
-    "decision_makers",
-    "work_item_id",
-];
-
 /// Fully-obsolete legacy linkage keys, forbidden on every
 /// typed/type-inferable document.
 pub const OBSOLETE_LEGACY_KEYS: [&str; 3] =
     ["ticket", "ticket_id", "research_status"];
+
+/// `name` as the schema's own `'static` key, when any schema row, base field
+/// or reserved key names it.
+#[must_use]
+pub fn named_key(name: &str) -> Option<&'static str> {
+    let row_keys = SCHEMA.iter().flat_map(|row| {
+        row.required_extras
+            .iter()
+            .chain(row.optional_extras)
+            .chain(row.forbidden_own_id_keys)
+            .chain(row.typed_linkage_keys)
+    });
+    BASE_FIELDS
+        .iter()
+        .chain(&PROVENANCE_FIELDS)
+        .chain(&FORBIDDEN_PROVENANCE_FIELDS)
+        .chain(&OBSOLETE_LEGACY_KEYS)
+        .chain(&["kind", "status", "producer"])
+        .chain(row_keys)
+        .copied()
+        .find(|key| *key == name)
+}
 
 #[cfg(test)]
 mod tests {
@@ -383,13 +464,45 @@ mod tests {
     }
 
     #[test]
-    fn eighteen_rows_are_present() {
-        assert_eq!(SCHEMA.len(), 18);
+    fn every_empty_list_extra_is_an_extra_of_its_row() {
+        for row in &SCHEMA {
+            for extra in row.empty_list_extras {
+                assert!(
+                    row.required_extras.contains(extra)
+                        || row.optional_extras.contains(extra),
+                    "{}/{}: {extra}",
+                    row.linkage_type,
+                    row.kind
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn only_a_level_note_may_record_an_empty_list() {
+        let permitting: Vec<(&str, &[&str])> = SCHEMA
+            .iter()
+            .filter(|row| !row.empty_list_extras.is_empty())
+            .map(|row| (row.kind, row.empty_list_extras))
+            .collect();
+        assert_eq!(permitting, [("level-note", &["follow_ups"][..])]);
+    }
+
+    #[test]
+    fn nineteen_rows_are_present() {
+        assert_eq!(SCHEMA.len(), 19);
     }
 
     #[test]
     fn topic_research_kinds_each_resolve_to_a_distinct_row() {
-        for kind in ["manifest", "brief", "outline", "finding", "synthesis"] {
+        for kind in [
+            "manifest",
+            "brief",
+            "outline",
+            "finding",
+            "synthesis",
+            "level-note",
+        ] {
             let resolved = row_for("topic-research", kind).map(|row| row.kind);
             assert_eq!(resolved, Some(kind), "topic-research/{kind}");
         }
@@ -412,7 +525,7 @@ mod tests {
             }
             let default = row_for(row.linkage_type, "");
             let clashes = default.is_some_and(|type_default| {
-                type_default.extras.contains(&row.kind)
+                type_default.all_extras().any(|extra| extra == row.kind)
             });
             assert!(
                 !clashes,
@@ -431,56 +544,66 @@ mod tests {
         Ok(())
     }
 
-    const TEMPLATES_SCHEMA_TSV: &str = include_str!("templates-schema.tsv");
+    #[test]
+    fn every_row_names_a_distinct_template() {
+        let mut templates: Vec<&str> =
+            SCHEMA.iter().map(|row| row.template).collect();
+        assert!(templates.iter().all(|name| {
+            std::path::Path::new(name)
+                .extension()
+                .is_some_and(|extension| extension == "md")
+        }));
+        templates.sort_unstable();
+        templates.dedup();
+        assert_eq!(templates.len(), SCHEMA.len());
+    }
 
     #[test]
-    fn every_row_matches_templates_schema_tsv(
+    fn a_finding_row_holds_depth_as_optional_and_a_level_note_row_requires_it(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines = TEMPLATES_SCHEMA_TSV.lines();
-        lines.next().ok_or("missing header")?;
-
-        let mut seen = 0;
-        for line in lines {
-            let columns: Vec<&str> = line.split('\t').collect();
-            let [_template, type_name, kind, anchored, extras, status_vocab, forbidden, linkkeys] =
-                columns.as_slice()
-            else {
-                return Err(format!("unexpected column count: {line}").into());
-            };
-            let kind = if *kind == "-" { "" } else { *kind };
-            let row = row_for(type_name, kind).ok_or_else(|| {
-                format!("no SCHEMA row for ({type_name}, {kind})")
-            })?;
-
-            assert_eq!(row.kind, kind, "{type_name}");
-            assert_eq!(
-                row.code_state_anchored,
-                *anchored == "yes",
-                "{type_name}"
-            );
-            assert_eq!(
-                row.extras.join(" "),
-                if *extras == "-" { "" } else { extras },
-                "{type_name}"
-            );
-            assert_eq!(
-                row.status_vocab.join(" | "),
-                *status_vocab,
-                "{type_name}"
-            );
-            assert_eq!(
-                row.forbidden_own_id_keys.join(" "),
-                if *forbidden == "-" { "" } else { forbidden },
-                "{type_name}"
-            );
-            assert_eq!(
-                row.typed_linkage_keys.join(" "),
-                *linkkeys,
-                "{type_name}"
-            );
-            seen += 1;
-        }
-        assert_eq!(seen, SCHEMA.len());
+        let finding =
+            row_for("topic-research", "finding").ok_or("finding row")?;
+        assert!(finding.optional_extras.contains(&"depth"));
+        assert!(!finding.required_extras.contains(&"depth"));
+        let note =
+            row_for("topic-research", "level-note").ok_or("level-note row")?;
+        assert!(note.required_extras.contains(&"depth"));
         Ok(())
+    }
+
+    #[test]
+    fn every_formerly_global_optional_extra_is_optional_on_exactly_its_rows() {
+        let expected = [
+            ("decision_makers", "adr"),
+            ("external_id", "work-item"),
+            ("merge_commit", "pr-description"),
+            ("pr_url", "pr-description"),
+            ("reviewer", "plan"),
+            ("reviewer", "plan-review"),
+            ("reviewer", "pr-review"),
+            ("reviewer", "work-item-review"),
+        ];
+        let formerly_global: Vec<&str> =
+            expected.iter().map(|(extra, _)| *extra).collect();
+        let mut optional: Vec<(&str, &str)> = SCHEMA
+            .iter()
+            .flat_map(|row| {
+                row.optional_extras
+                    .iter()
+                    .map(move |extra| (*extra, row.linkage_type))
+            })
+            .filter(|(extra, _)| formerly_global.contains(extra))
+            .collect();
+        optional.sort_unstable();
+        assert_eq!(optional, expected);
+        for row in &SCHEMA {
+            for extra in row.optional_extras {
+                assert!(
+                    !row.required_extras.contains(extra),
+                    "{} requires its optional {extra}",
+                    row.linkage_type
+                );
+            }
+        }
     }
 }

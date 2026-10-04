@@ -113,19 +113,24 @@ pub mod corpus::frontmatter_validation
 pub mod corpus::frontmatter_validation::schema
 pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
-pub corpus::frontmatter_validation::schema::SchemaRow::extras: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::empty_list_extras: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::forbidden_own_id_keys: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::kind: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::linkage_type: &'static str
+pub corpus::frontmatter_validation::schema::SchemaRow::optional_extras: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::required_extras: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::status_vocab: &'static [&'static str]
+pub corpus::frontmatter_validation::schema::SchemaRow::template: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::typed_linkage_keys: &'static [&'static str]
+impl corpus::frontmatter_validation::schema::SchemaRow
+pub fn corpus::frontmatter_validation::schema::SchemaRow::all_extras(&self) -> impl core::iter::traits::iterator::Iterator<Item = &'static str>
 pub const corpus::frontmatter_validation::schema::BASE_FIELDS: [&str; 9]
 pub const corpus::frontmatter_validation::schema::FORBIDDEN_PROVENANCE_FIELDS: [&str; 2]
 pub const corpus::frontmatter_validation::schema::LINKAGE_SOURCE_TYPES: [&str; 15]
 pub const corpus::frontmatter_validation::schema::OBSOLETE_LEGACY_KEYS: [&str; 3]
-pub const corpus::frontmatter_validation::schema::OPTIONAL_EXTRAS: [&str; 6]
 pub const corpus::frontmatter_validation::schema::PROVENANCE_FIELDS: [&str; 2]
-pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 18]
+pub const corpus::frontmatter_validation::schema::SCHEMA: [corpus::frontmatter_validation::schema::SchemaRow; 19]
+pub fn corpus::frontmatter_validation::schema::named_key(name: &str) -> core::option::Option<&'static str>
 pub fn corpus::frontmatter_validation::schema::row_for(linkage_type: &str, kind: &str) -> core::option::Option<&'static corpus::frontmatter_validation::schema::SchemaRow>
 pub mod corpus::frontmatter_validation::shape
 pub fn corpus::frontmatter_validation::shape::is_well_formed(inner: &str) -> bool
@@ -162,12 +167,8 @@ pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingPr
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingTemplateFile
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::MissingTemplateFile::template: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck
-pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck::tsv: alloc::string::String
+pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck::schema: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaCrossCheck::work_item: alloc::string::String
-pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount
-pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount::found: usize
-pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaFieldCount::line: usize
-pub corpus::frontmatter_validation::template_shape::TemplateViolation::SchemaNoRows
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey::key: alloc::string::String
 pub corpus::frontmatter_validation::template_shape::TemplateViolation::UnknownLinkageKey::template: alloc::string::String
@@ -194,29 +195,10 @@ pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::fmt(&s
 impl core::fmt::Display for corpus::frontmatter_validation::template_shape::TemplateViolation
 pub fn corpus::frontmatter_validation::template_shape::TemplateViolation::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::template_shape::TemplateViolation
-pub struct corpus::frontmatter_validation::template_shape::TemplateRow
-pub corpus::frontmatter_validation::template_shape::TemplateRow::code_state_anchored: bool
-pub corpus::frontmatter_validation::template_shape::TemplateRow::doc_type: alloc::string::String
-pub corpus::frontmatter_validation::template_shape::TemplateRow::extras: alloc::vec::Vec<alloc::string::String>
-pub corpus::frontmatter_validation::template_shape::TemplateRow::forbidden_own_id_keys: alloc::vec::Vec<alloc::string::String>
-pub corpus::frontmatter_validation::template_shape::TemplateRow::kind: alloc::string::String
-pub corpus::frontmatter_validation::template_shape::TemplateRow::status_vocab: alloc::string::String
-pub corpus::frontmatter_validation::template_shape::TemplateRow::template: alloc::string::String
-pub corpus::frontmatter_validation::template_shape::TemplateRow::typed_linkage_keys: alloc::vec::Vec<alloc::string::String>
-impl core::clone::Clone for corpus::frontmatter_validation::template_shape::TemplateRow
-pub fn corpus::frontmatter_validation::template_shape::TemplateRow::clone(&self) -> corpus::frontmatter_validation::template_shape::TemplateRow
-impl core::cmp::Eq for corpus::frontmatter_validation::template_shape::TemplateRow
-impl core::cmp::PartialEq for corpus::frontmatter_validation::template_shape::TemplateRow
-pub fn corpus::frontmatter_validation::template_shape::TemplateRow::eq(&self, other: &corpus::frontmatter_validation::template_shape::TemplateRow) -> bool
-impl core::fmt::Debug for corpus::frontmatter_validation::template_shape::TemplateRow
-pub fn corpus::frontmatter_validation::template_shape::TemplateRow::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::template_shape::TemplateRow
-pub const corpus::frontmatter_validation::template_shape::TEMPLATES_SCHEMA_TSV: &str
-pub fn corpus::frontmatter_validation::template_shape::cross_check(schema_ref_templates: &[alloc::string::String], tsv_templates: &[alloc::string::String]) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
+pub fn corpus::frontmatter_validation::template_shape::cross_check(schema_ref_templates: &[alloc::string::String]) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
 pub fn corpus::frontmatter_validation::template_shape::extract_frontmatter(text: &str) -> alloc::string::String
-pub fn corpus::frontmatter_validation::template_shape::parse_schema_tsv(content: &str) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateRow>, corpus::frontmatter_validation::template_shape::TemplateViolation>
 pub fn corpus::frontmatter_validation::template_shape::schema_reference_templates(content: &str) -> alloc::vec::Vec<alloc::string::String>
-pub fn corpus::frontmatter_validation::template_shape::validate_template(row: &corpus::frontmatter_validation::template_shape::TemplateRow, frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
+pub fn corpus::frontmatter_validation::template_shape::validate_template(row: &corpus::frontmatter_validation::schema::SchemaRow, frontmatter: &str) -> alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>
 pub mod corpus::frontmatter_validation::violation
 pub enum corpus::frontmatter_validation::violation::Violation
 pub corpus::frontmatter_validation::violation::Violation::BadLinkageShape
@@ -262,6 +244,7 @@ pub corpus::frontmatter_validation::violation::Violation::UnquotedString
 pub corpus::frontmatter_validation::violation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+pub fn corpus::frontmatter_validation::violation::Violation::schema_key(&self) -> core::option::Option<&'static str>
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
 pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
 impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
@@ -316,6 +299,7 @@ pub corpus::frontmatter_validation::Violation::UnquotedString
 pub corpus::frontmatter_validation::Violation::UnquotedString::key: alloc::string::String
 impl corpus::frontmatter_validation::violation::Violation
 pub const fn corpus::frontmatter_validation::violation::Violation::code(&self) -> &'static str
+pub fn corpus::frontmatter_validation::violation::Violation::schema_key(&self) -> core::option::Option<&'static str>
 impl core::clone::Clone for corpus::frontmatter_validation::violation::Violation
 pub fn corpus::frontmatter_validation::violation::Violation::clone(&self) -> corpus::frontmatter_validation::violation::Violation
 impl core::cmp::Eq for corpus::frontmatter_validation::violation::Violation
@@ -524,6 +508,8 @@ pub trait corpus::scan::CorpusWalker
 pub fn corpus::scan::CorpusWalker::walk_markdown(&self, roots: &[std::path::PathBuf]) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
 pub trait corpus::scan::DirReader
 pub fn corpus::scan::DirReader::list(&self, dir: &std::path::Path) -> core::result::Result<core::option::Option<alloc::vec::Vec<alloc::string::String>>, kernel::Error>
+pub trait corpus::scan::DirectoryProbe
+pub fn corpus::scan::DirectoryProbe::is_dir(&self, path: &std::path::Path) -> bool
 pub trait corpus::scan::FileReader
 pub fn corpus::scan::FileReader::read(&self, path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
 pub mod corpus::slug
@@ -562,11 +548,11 @@ pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatte
 impl core::marker::StructuralPartialEq for corpus::store::StoreError
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::store::FileRemove
+pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
-pub mod corpus::topic_research
-pub fn corpus::topic_research::is_finding_path(relative: &str) -> bool
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
 pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)
@@ -896,6 +882,8 @@ pub fn corpus::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -
 pub trait corpus::Clock
 pub fn corpus::Clock::filename_timestamp(&self, format: corpus::metadata::FilenameTimestampFormat) -> alloc::string::String
 pub fn corpus::Clock::now_utc_iso(&self) -> alloc::string::String
+pub trait corpus::FileRemove
+pub fn corpus::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::RecordStore

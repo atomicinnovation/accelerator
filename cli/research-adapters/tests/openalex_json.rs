@@ -1,10 +1,10 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
-use research::fetch::DecodeFailure;
-use research::fetch::OpenAlexDecoder as _;
-use research::openalex::Location;
-use research::openalex::Source;
-use research::openalex::Work;
+use research::sources::fetch::DecodeFailure;
+use research::sources::fetch::OpenAlexDecoder as _;
+use research::sources::openalex::Location;
+use research::sources::openalex::Source;
+use research::sources::openalex::Work;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
 
 fn fixture(name: &str) -> Vec<u8> {

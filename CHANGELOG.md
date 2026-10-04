@@ -85,6 +85,27 @@
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
   itself.
+- **`research topic outstanding` plans deepened research.** `--depth N`
+  reports each pair's `stage`, the level-note `nodes` it still needs or the
+  `notes` its composer reads, `trims` and `shallow` findings; `--limit`,
+  `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
+  and the new `end-run` verb closes one. A run keeps a transient
+  `<set>/.conduct-run.json`, removed on completion and safe to delete after an
+  interrupted run; consider adding `**/.conduct-run.json` to your
+  `.gitignore`.
+- **`research-topic` deepens each finding recursively at `depth` above 1.**
+  `conduct` researches each (focus area, profile) pair as a tree: every node
+  writes a level note under `findings/<stem>.levels/` recording up to 4, then
+  2, then 1 follow-up questions per node, which the next level researches,
+  and a new fetch-less `composer` agent writes the pair's one finding from
+  the notes. A pair costs up to 5×, 13× or 21× the researchers at depths 2, 3
+  and 4. A deepened set (one with `.levels/` directories) needs every
+  collaborator on this version or later: an older plugin reports its notes
+  as an unknown kind and researches the pair again under a new stem.
+- **`research.topic.concurrency` and `conduct --concurrency N` cap how many
+  agents `research-topic`'s `conduct` spawns at once** (default 24). `conduct`
+  spawns its outstanding pairs in batches of at most that many, waiting on
+  each batch before the next.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
@@ -214,6 +235,28 @@
   tmp base is still supported. State files an earlier version left directly
   under `inventory-design-playwright/` are no longer read and can be deleted.
 
+- **`accelerator corpus frontmatter print-schema` emits every schema row.** It
+  drops its `optional_extras` bank and gains `rows`, one object per schema row
+  carrying its template, extras (required, optional, and those whose empty
+  list is a value, separately), status vocabulary and linkage keys.
+
+- **`accelerator research topic outstanding` matches questions after
+  Unicode compatibility folding.** Questions that differ only by forms such as
+  fullwidth punctuation are treated as the same, so a finding for `A？`
+  answers the outline item `A?`.
+
+- **The research guard admits only an indexed finding stem, and confines a
+  `composer` role beside the researcher.** A confined write must name
+  `findings/<nn>-<name>.md`, whose stem is ASCII digits, a `-`, then only
+  `[a-z0-9-]`. The researcher may also write level notes,
+  `findings/<nn>-<name>.levels/<lineage>.md`. The composer
+  (`accelerator:composer`, or the name `agents.composer` configures) may
+  write findings only and run no commands, the fetch included.
+
+- **A configured `research.topic.depth` above 1 takes effect.** It was
+  dormant until now: a team or personal `depth: 3` runs up to 13 researchers
+  and a composer per (focus area, profile) after upgrading.
+
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved
   across levels (no `--level`) returns its built-in catalogue default rather
@@ -325,6 +368,14 @@
   values through the `ACCELERATOR_*` environment overrides.
 
 ### Fixed
+
+- **Web researchers write nothing when fetching is denied.** A researcher on
+  the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
+  that has neither tool, now writes no finding or level note and reports
+  "fetch denied by permissions", as `openalex` and `arxiv` researchers do.
+  Before, it wrote a document from memory that `conduct` accepted as
+  research. The profile also no longer lets a focus question license
+  fetching a URL a page asks for.
 
 - **Credential errors name the command key once.** A refused or failing token
   command reported `jira.token_cmd_cmd`; it now names `jira.token_cmd`.
