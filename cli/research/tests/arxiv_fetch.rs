@@ -2,23 +2,23 @@
 
 mod support;
 
-use research::arxiv::Entry;
-use research::classify::ClientRejection;
-use research::classify::FetchError;
-use research::classify::Reason;
-use research::fetch::fetch_arxiv;
-use research::fetch::ArxivFetch;
-use research::fetch::ArxivPorts;
-use research::fetch::FetchOutcome;
-use research::fetch::Unavailable;
-use research::record::Record;
-use research::record::Tier;
-use research::request::ArxivId;
-use research::request::ArxivQuery;
-use research::request::ArxivRequest;
-use research::request::Endpoint;
-use research::request::Family;
-use research::request::Limit;
+use research::sources::arxiv::Entry;
+use research::sources::classify::ClientRejection;
+use research::sources::classify::FetchError;
+use research::sources::classify::Reason;
+use research::sources::fetch::fetch_arxiv;
+use research::sources::fetch::ArxivFetch;
+use research::sources::fetch::ArxivPorts;
+use research::sources::fetch::FetchOutcome;
+use research::sources::fetch::Unavailable;
+use research::sources::record::Record;
+use research::sources::record::Tier;
+use research::sources::request::ArxivId;
+use research::sources::request::ArxivQuery;
+use research::sources::request::ArxivRequest;
+use research::sources::request::Endpoint;
+use research::sources::request::Family;
+use research::sources::request::Limit;
 
 use support::body;
 use support::secs;

@@ -1,11 +1,11 @@
 //! arXiv feed entries and `arXivRaw` versions as the decoder hands them
 //! over, the withdrawal rules, and the record each entry becomes.
 
-use crate::record::excerpt;
-use crate::record::Record;
-use crate::record::VenueSignals;
-use crate::request::ArxivId;
-use crate::tier::arxiv_tier;
+use crate::sources::record::excerpt;
+use crate::sources::record::Record;
+use crate::sources::record::VenueSignals;
+use crate::sources::request::ArxivId;
+use crate::sources::tier::arxiv_tier;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Entry {

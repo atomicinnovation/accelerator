@@ -18,21 +18,22 @@ use corpus_adapters::frontmatter_validation::validate_path;
 use corpus_adapters::frontmatter_validation::validate_text;
 use corpus_adapters::parse;
 use corpus_adapters::FrontmatterState;
-use research::lineage::Lineage;
-use research::pinned_indexes::PinnedIndexes;
-use research::question::UnicodeText;
-use research::round::Finding;
-use research::round::Outline;
-use research::round::QuarantineMarker;
-use research::round::RoundInputs;
-use research::round::DEFAULT_PROFILE;
-use research::stem::Stem;
-use research::tree::Depth;
-use research::tree::Digest;
-use research::tree::LevelNote;
-use research::tree::LevelNoteFields;
-use research::tree::LevelsDirectory;
-use research::tree::NoteRejection;
+use research::topic::claims::ClaimedIndexes;
+use research::topic::claims::IndexClaim;
+use research::topic::evidence::Digest;
+use research::topic::evidence::Finding;
+use research::topic::evidence::LevelNote;
+use research::topic::evidence::LevelNoteFields;
+use research::topic::evidence::LevelsDirectory;
+use research::topic::evidence::NoteRejection;
+use research::topic::layout::lineage::Lineage;
+use research::topic::layout::stem::Stem;
+use research::topic::outline::Outline;
+use research::topic::outline::Pair;
+use research::topic::outline::DEFAULT_PROFILE;
+use research::topic::plan::RoundInputs;
+use research::topic::question::UnicodeText;
+use research::topic::tree::Depth;
 use sha2::Digest as _;
 use sha2::Sha256;
 
@@ -125,7 +126,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     set_root: &Path,
     profiles_dir: &Path,
     depth: Depth,
-    pins: PinnedIndexes,
+    claims: ClaimedIndexes,
     fs: &F,
     unicode: &dyn UnicodeText,
 ) -> Result<RoundReading, kernel::Error> {
@@ -142,12 +143,12 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
         inputs: RoundInputs {
             outline,
             findings: listing.findings,
-            markers: listing.markers,
+            quarantined: listing.quarantined,
             source_profiles,
             available_profiles: profiles.names,
             levels: listing.levels,
             depth,
-            pins,
+            claims,
         },
         warnings: profiles
             .unallocatable
@@ -159,7 +160,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
 
 struct FindingsListing {
     findings: Vec<Finding>,
-    markers: Vec<QuarantineMarker>,
+    quarantined: Vec<IndexClaim>,
     levels: Vec<LevelsDirectory>,
 }
 
@@ -172,7 +173,7 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     names.sort();
     let mut listing = FindingsListing {
         findings: Vec::new(),
-        markers: Vec::new(),
+        quarantined: Vec::new(),
         levels: Vec::new(),
     };
     for name in names {
@@ -182,14 +183,20 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
                 let question = fs
                     .read(&path)?
                     .and_then(|text| string(&frontmatter(&text)?, "question"));
-                listing.markers.push(QuarantineMarker::new(&name, question));
+                listing.quarantined.extend(IndexClaim::quarantined(
+                    &name,
+                    question.as_deref(),
+                    unicode,
+                ));
             }
         } else if let Some(stem) = levels_stem(&name, &path, fs) {
             listing
                 .levels
                 .push(read_levels_directory(&path, stem, fs, unicode)?);
         } else if is_markdown(&path) {
-            listing.findings.push(read_finding(&path, &name, fs)?);
+            listing
+                .findings
+                .push(read_finding(&path, &name, fs, unicode)?);
         }
     }
     Ok(listing)
@@ -213,6 +220,7 @@ fn read_finding<F: FileReader>(
     path: &Path,
     name: &str,
     fs: &F,
+    unicode: &dyn UnicodeText,
 ) -> Result<Finding, kernel::Error> {
     if !validate_path(path, fs)?.is_empty() {
         return Ok(Finding::invalid(name));
@@ -227,7 +235,7 @@ fn read_finding<F: FileReader>(
     ) else {
         return Ok(Finding::invalid(name));
     };
-    let finding = Finding::retained(name, &question, &profile);
+    let finding = Finding::retained(name, Pair { question, profile }, unicode);
     Ok(match stamped_depth(&fields) {
         Some(depth) => finding.with_depth(depth),
         None => finding,
@@ -383,14 +391,15 @@ mod tests {
     use corpus::scan::DirReader;
     use corpus::scan::DirectoryProbe;
     use corpus::scan::FileReader;
-    use research::lineage::Lineage;
-    use research::pinned_indexes::PinnedIndexes;
-    use research::stem::Stem;
-    use research::tree::Depth;
-    use research::tree::Digest;
-    use research::tree::LevelNote;
-    use research::tree::LevelsDirectory;
-    use research::tree::NoteRejection;
+    use research::topic::claims::ClaimedIndexes;
+    use research::topic::evidence::Digest;
+    use research::topic::evidence::LevelNote;
+    use research::topic::evidence::LevelsDirectory;
+    use research::topic::evidence::NoteRejection;
+    use research::topic::layout::lineage::Lineage;
+    use research::topic::layout::stem::Stem;
+    use research::topic::plan::RoundPlan;
+    use research::topic::tree::Depth;
     use sha2::Digest as _;
     use sha2::Sha256;
 
@@ -501,7 +510,7 @@ mod tests {
             Path::new(SET),
             Path::new(PROFILES),
             Depth::new(3).ok_or("depth")?,
-            PinnedIndexes::default(),
+            ClaimedIndexes::default(),
             fs,
             &UnicodeTables,
         )?
@@ -689,11 +698,12 @@ mod tests {
             ),
         );
 
-        let rejection = rejection_at(&fs, "1")?.ok_or("no rejection")?;
-
         assert_eq!(
-            rejection.to_string(),
-            "fails validation: BAD-STATUS on status"
+            rejection_at(&fs, "1")?,
+            Some(NoteRejection::FailsValidation {
+                code: "BAD-STATUS",
+                field: Some("status"),
+            })
         );
         Ok(())
     }
@@ -763,7 +773,7 @@ mod tests {
             Path::new(SET),
             Path::new(PROFILES),
             Depth::default(),
-            PinnedIndexes::default(),
+            ClaimedIndexes::default(),
             &fs,
             &UnicodeTables,
         )?;
@@ -794,22 +804,22 @@ mod tests {
                  ---\n"
             )
         };
-        for (field, shallower) in [("depth: 3\n", false), ("", true)] {
+        for (field, shallow) in [("depth: 3\n", false), ("", true)] {
             let fs = set_with(StubFs::default())
                 .with_file("/set/findings/01-a-web.md", &finding(field));
             let inputs = read_round_inputs(
                 Path::new(SET),
                 Path::new(PROFILES),
                 Depth::new(3).ok_or("depth")?,
-                PinnedIndexes::default(),
+                ClaimedIndexes::default(),
                 &fs,
                 &UnicodeTables,
             )?
             .inputs;
 
-            let round = research::round::Round::plan(&inputs, &UnicodeTables);
+            let plan = RoundPlan::of(&inputs, &UnicodeTables);
 
-            assert_eq!(!round.shallower.is_empty(), shallower, "{field:?}");
+            assert_eq!(!plan.shallow.is_empty(), shallow, "{field:?}");
         }
         Ok(())
     }

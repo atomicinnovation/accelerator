@@ -1,9 +1,9 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
-use research::arxiv::Entry;
-use research::arxiv::RawVersion;
-use research::fetch::ArxivDecoder as _;
-use research::fetch::DecodeFailure;
+use research::sources::arxiv::Entry;
+use research::sources::arxiv::RawVersion;
+use research::sources::fetch::ArxivDecoder as _;
+use research::sources::fetch::DecodeFailure;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 
 fn fixture(name: &str) -> Vec<u8> {

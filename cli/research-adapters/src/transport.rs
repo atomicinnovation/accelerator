@@ -13,10 +13,10 @@ use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use reqwest::redirect;
 use reqwest::Url;
-use research::classify::Received;
-use research::classify::Response;
-use research::fetch::Transport;
-use research::request::UpstreamRequest;
+use research::sources::classify::Received;
+use research::sources::classify::Response;
+use research::sources::fetch::Transport;
+use research::sources::request::UpstreamRequest;
 
 const MAX_REDIRECTS: usize = 3;
 const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;

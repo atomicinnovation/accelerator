@@ -1,7 +1,7 @@
 //! Reputation tiers, derived from venue signals alone.
 
-use crate::openalex::Work;
-use crate::record::Tier;
+use crate::sources::openalex::Work;
+use crate::sources::record::Tier;
 
 /// The first matching rule wins: retraction, then peer-reviewed publication,
 /// then an early version, else the lowest tier.

@@ -1,11 +1,11 @@
-use research::arxiv;
-use research::arxiv::Entry;
-use research::openalex::Location;
-use research::openalex::Source;
-use research::openalex::Work;
-use research::record::Tier;
-use research::tier::arxiv_tier;
-use research::tier::openalex_tier;
+use research::sources::arxiv;
+use research::sources::arxiv::Entry;
+use research::sources::openalex::Location;
+use research::sources::openalex::Source;
+use research::sources::openalex::Work;
+use research::sources::record::Tier;
+use research::sources::tier::arxiv_tier;
+use research::sources::tier::openalex_tier;
 
 struct Venue {
     source_type: &'static str,

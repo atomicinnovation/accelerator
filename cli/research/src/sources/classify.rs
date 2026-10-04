@@ -4,9 +4,9 @@
 use std::fmt;
 use std::time::Duration;
 
-use crate::request::Family;
-use crate::request::KeySource;
-use crate::request::Verb;
+use crate::sources::request::Family;
+use crate::sources::request::KeySource;
+use crate::sources::request::Verb;
 
 /// One attempt's result as the transport observed it. A connection failure
 /// or timeout is an outcome to classify, not an error.

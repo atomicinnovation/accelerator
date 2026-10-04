@@ -12,7 +12,7 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use research::fetch::Clock;
+use research::sources::fetch::Clock;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::scratch::ScratchDir;
 

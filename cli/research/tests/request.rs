@@ -1,21 +1,21 @@
 #![allow(clippy::expect_used)]
 
-use research::request::ApiKey;
-use research::request::ArxivId;
-use research::request::ArxivQuery;
-use research::request::ArxivRequest;
-use research::request::Doi;
-use research::request::Endpoint;
-use research::request::Family;
-use research::request::FetchRequest;
-use research::request::KeySource;
-use research::request::Limit;
-use research::request::OpenAlexId;
-use research::request::OpenAlexQuery;
-use research::request::OpenAlexRequest;
-use research::request::RequestError;
-use research::request::UpstreamRequest;
-use research::request::Verb;
+use research::sources::request::ApiKey;
+use research::sources::request::ArxivId;
+use research::sources::request::ArxivQuery;
+use research::sources::request::ArxivRequest;
+use research::sources::request::Doi;
+use research::sources::request::Endpoint;
+use research::sources::request::Family;
+use research::sources::request::FetchRequest;
+use research::sources::request::KeySource;
+use research::sources::request::Limit;
+use research::sources::request::OpenAlexId;
+use research::sources::request::OpenAlexQuery;
+use research::sources::request::OpenAlexRequest;
+use research::sources::request::RequestError;
+use research::sources::request::UpstreamRequest;
+use research::sources::request::Verb;
 
 fn terms(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()

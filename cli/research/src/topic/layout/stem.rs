@@ -48,6 +48,24 @@ impl Stem {
     pub const fn index(&self) -> u32 {
         self.index
     }
+
+    /// The index a `findings/` entry's name leads with, whether or not the
+    /// name is a stem, so a hand-named or quarantined file still holds its
+    /// index against new allocations.
+    #[must_use]
+    pub fn index_of(name: &str) -> Option<u32> {
+        let (digits, _) = name.trim_start_matches('.').split_once('-')?;
+        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        digits.parse().ok()
+    }
+
+    /// The set-relative path of the finding this stem names.
+    #[must_use]
+    pub fn finding_path(&self) -> String {
+        format!("findings/{self}.md")
+    }
 }
 
 impl Display for Stem {
@@ -109,6 +127,24 @@ mod tests {
         assert_eq!(
             Stem::parse("4294967295-a").as_ref().map(Stem::index),
             Some(u32::MAX)
+        );
+    }
+
+    #[test]
+    fn any_findings_entry_leading_with_digits_holds_that_index() {
+        assert_eq!(Stem::index_of("04-c-web.md"), Some(4));
+        assert_eq!(Stem::index_of(".04-c-web.md.invalid"), Some(4));
+        assert_eq!(Stem::index_of("07-Hand Named.md"), Some(7));
+        for name in ["x.md", "-x.md", "0x-a.md", "4294967296-a.md", ""] {
+            assert_eq!(Stem::index_of(name), None, "{name:?}");
+        }
+    }
+
+    #[test]
+    fn a_stem_names_its_finding_beneath_findings() {
+        assert_eq!(
+            Stem::parse("03-a-web").map(|stem| stem.finding_path()),
+            Some("findings/03-a-web.md".to_owned())
         );
     }
 

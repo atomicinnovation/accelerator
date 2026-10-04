@@ -5,7 +5,7 @@ use icu_properties::props::DefaultIgnorableCodePoint;
 use icu_properties::props::GeneralCategory;
 use icu_properties::CodePointMapData;
 use icu_properties::CodePointSetData;
-use research::question::UnicodeText;
+use research::topic::question::UnicodeText;
 
 /// NFKC folding, and the general categories and default-ignorable code
 /// points that render as nothing or as a line break.
@@ -35,9 +35,9 @@ impl UnicodeText for UnicodeTables {
 
 #[cfg(test)]
 mod tests {
-    use research::question::plain_question_breach;
-    use research::question::PlainQuestionRule;
-    use research::question::UnicodeText;
+    use research::topic::question::plain_question_breach;
+    use research::topic::question::PlainQuestionRule;
+    use research::topic::question::UnicodeText;
 
     use super::UnicodeTables;
 

@@ -9,8 +9,8 @@ use research::confinement::PathRejection;
 use research::confinement::TopicFile;
 use research::confinement::TopicLayout;
 use research::confinement::TopicsRelativePath;
-use research::finding_path::is_finding_path;
-use research::finding_path::is_level_note_path;
+use research::topic::layout::finding_path::is_finding_path;
+use research::topic::layout::finding_path::is_level_note_path;
 
 /// Resolves `path` against `cwd` and places it below `topics`, refusing a
 /// `.` or `..` component and any symlink below the topics directory.

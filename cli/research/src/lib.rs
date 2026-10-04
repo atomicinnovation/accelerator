@@ -1,25 +1,12 @@
-//! The research bounded context: asking scholarly sources for works,
-//! deriving each work's reputation tier deterministically, and planning which
-//! (focus area, profile) pairs a topic's `conduct` round researches.
+//! The research bounded context: asking scholarly sources for works and
+//! deriving each work's reputation tier, planning which (focus area, profile)
+//! pairs a topic's `conduct` round researches, coordinating the agents a
+//! `conduct` run spawns, and confining those agents.
 //!
 //! Pure logic only. HTTP, JSON and XML decoding, the pacing lock and the
 //! clock live behind ports implemented in `research-adapters`.
 
-pub mod arxiv;
-pub mod classify;
+pub mod conduct;
 pub mod confinement;
-pub mod fetch;
-pub mod finding_path;
-pub mod lineage;
-pub mod openalex;
-pub mod pinned_indexes;
-pub mod question;
-pub mod record;
-pub mod request;
-pub mod round;
-pub mod run_ledger;
-pub mod schedule;
-pub mod spawn_window;
-pub mod stem;
-pub mod tier;
-pub mod tree;
+pub mod sources;
+pub mod topic;

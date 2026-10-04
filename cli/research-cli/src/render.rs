@@ -1,11 +1,11 @@
 //! What a call prints: compact JSON on stdout for records and unavailability,
 //! and one non-secret stderr line for a call that did not deliver.
 
-use research::fetch::Cause;
-use research::fetch::FetchOutcome;
-use research::record::Record;
-use research::record::VenueSignals;
-use research::request::Family;
+use research::sources::fetch::Cause;
+use research::sources::fetch::FetchOutcome;
+use research::sources::record::Record;
+use research::sources::record::VenueSignals;
+use research::sources::request::Family;
 use serde::Serialize;
 
 use crate::fetch_command::Fetched;

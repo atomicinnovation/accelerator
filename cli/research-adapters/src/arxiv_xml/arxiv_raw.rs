@@ -1,7 +1,7 @@
 //! The OAI-PMH `arXivRaw` record whose version history shows a withdrawal.
 
-use research::arxiv::RawVersion;
-use research::fetch::DecodeFailure;
+use research::sources::arxiv::RawVersion;
+use research::sources::fetch::DecodeFailure;
 use roxmltree::Document;
 use roxmltree::Node;
 

@@ -7,10 +7,10 @@
 mod arxiv_raw;
 mod atom;
 
-use research::arxiv::Entry;
-use research::arxiv::RawVersion;
-use research::fetch::ArxivDecoder;
-use research::fetch::DecodeFailure;
+use research::sources::arxiv::Entry;
+use research::sources::arxiv::RawVersion;
+use research::sources::fetch::ArxivDecoder;
+use research::sources::fetch::DecodeFailure;
 use roxmltree::Document;
 use roxmltree::Node;
 

@@ -1,9 +1,9 @@
 use std::time::Duration;
 use std::time::Instant;
 
-use research::schedule::Deadline;
-use research::schedule::RetryNumber;
-use research::schedule::RetrySchedule;
+use research::sources::schedule::Deadline;
+use research::sources::schedule::RetryNumber;
+use research::sources::schedule::RetrySchedule;
 
 const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)

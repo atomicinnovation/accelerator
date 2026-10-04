@@ -1,16 +1,16 @@
 use std::time::Duration;
 
-use research::classify::arxiv;
-use research::classify::openalex;
-use research::classify::ClientRejection;
-use research::classify::FetchError;
-use research::classify::Reason;
-use research::classify::Received;
-use research::classify::Response;
-use research::classify::Verdict;
-use research::request::Family;
-use research::request::KeySource;
-use research::request::Verb;
+use research::sources::classify::arxiv;
+use research::sources::classify::openalex;
+use research::sources::classify::ClientRejection;
+use research::sources::classify::FetchError;
+use research::sources::classify::Reason;
+use research::sources::classify::Received;
+use research::sources::classify::Response;
+use research::sources::classify::Verdict;
+use research::sources::request::Family;
+use research::sources::request::KeySource;
+use research::sources::request::Verb;
 
 fn status(code: u16) -> Response {
     Response::Received(Received::status(code))

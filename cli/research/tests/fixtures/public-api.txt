@@ -1,137 +1,148 @@
 pub mod research
-pub mod research::arxiv
-pub struct research::arxiv::Entry
-pub research::arxiv::Entry::authors: alloc::vec::Vec<alloc::string::String>
-pub research::arxiv::Entry::comment: core::option::Option<alloc::string::String>
-pub research::arxiv::Entry::doi: core::option::Option<alloc::string::String>
-pub research::arxiv::Entry::id: alloc::string::String
-pub research::arxiv::Entry::journal_ref: core::option::Option<alloc::string::String>
-pub research::arxiv::Entry::primary_category: core::option::Option<alloc::string::String>
-pub research::arxiv::Entry::summary: core::option::Option<alloc::string::String>
-pub research::arxiv::Entry::title: alloc::string::String
-impl research::arxiv::Entry
-pub fn research::arxiv::Entry::arxiv_id(&self) -> core::option::Option<research::request::ArxivId>
-pub fn research::arxiv::Entry::is_withdrawal_candidate(&self) -> bool
-impl core::clone::Clone for research::arxiv::Entry
-pub fn research::arxiv::Entry::clone(&self) -> research::arxiv::Entry
-impl core::cmp::Eq for research::arxiv::Entry
-impl core::cmp::PartialEq for research::arxiv::Entry
-pub fn research::arxiv::Entry::eq(&self, other: &research::arxiv::Entry) -> bool
-impl core::default::Default for research::arxiv::Entry
-pub fn research::arxiv::Entry::default() -> research::arxiv::Entry
-impl core::fmt::Debug for research::arxiv::Entry
-pub fn research::arxiv::Entry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::arxiv::Entry
-pub struct research::arxiv::RawVersion
-pub research::arxiv::RawVersion::size: alloc::string::String
-pub research::arxiv::RawVersion::source_type: core::option::Option<alloc::string::String>
-impl core::clone::Clone for research::arxiv::RawVersion
-pub fn research::arxiv::RawVersion::clone(&self) -> research::arxiv::RawVersion
-impl core::cmp::Eq for research::arxiv::RawVersion
-impl core::cmp::PartialEq for research::arxiv::RawVersion
-pub fn research::arxiv::RawVersion::eq(&self, other: &research::arxiv::RawVersion) -> bool
-impl core::default::Default for research::arxiv::RawVersion
-pub fn research::arxiv::RawVersion::default() -> research::arxiv::RawVersion
-impl core::fmt::Debug for research::arxiv::RawVersion
-pub fn research::arxiv::RawVersion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::arxiv::RawVersion
-pub fn research::arxiv::is_withdrawal_candidate(comment: &str) -> bool
-pub fn research::arxiv::latest_version_withdrawn(versions: &[research::arxiv::RawVersion]) -> bool
-pub fn research::arxiv::normalise(entry: &research::arxiv::Entry, withdrawn: bool) -> core::option::Option<research::record::Record>
-pub mod research::classify
-pub enum research::classify::ClientRejection
-pub research::classify::ClientRejection::ErrorFeed(alloc::string::String)
-pub research::classify::ClientRejection::Redirect(u16)
-pub research::classify::ClientRejection::Status(u16)
-impl core::clone::Clone for research::classify::ClientRejection
-pub fn research::classify::ClientRejection::clone(&self) -> research::classify::ClientRejection
-impl core::cmp::Eq for research::classify::ClientRejection
-impl core::cmp::PartialEq for research::classify::ClientRejection
-pub fn research::classify::ClientRejection::eq(&self, other: &research::classify::ClientRejection) -> bool
-impl core::fmt::Debug for research::classify::ClientRejection
-pub fn research::classify::ClientRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::classify::ClientRejection
-pub enum research::classify::FetchError
-pub research::classify::FetchError::ClientError
-pub research::classify::FetchError::ClientError::family: research::request::Family
-pub research::classify::FetchError::ClientError::rejection: research::classify::ClientRejection
-pub research::classify::FetchError::KeyRejected(research::request::KeySource)
-pub research::classify::FetchError::Unauthenticated
-pub research::classify::FetchError::UndecodableResponse(research::request::Family)
-impl core::clone::Clone for research::classify::FetchError
-pub fn research::classify::FetchError::clone(&self) -> research::classify::FetchError
-impl core::cmp::Eq for research::classify::FetchError
-impl core::cmp::PartialEq for research::classify::FetchError
-pub fn research::classify::FetchError::eq(&self, other: &research::classify::FetchError) -> bool
-impl core::error::Error for research::classify::FetchError
-impl core::fmt::Debug for research::classify::FetchError
-pub fn research::classify::FetchError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::classify::FetchError
-pub fn research::classify::FetchError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::classify::FetchError
-pub enum research::classify::Reason
-pub research::classify::Reason::BudgetExhausted
-pub research::classify::Reason::RateLimited
-pub research::classify::Reason::UpstreamError
-impl research::classify::Reason
-pub const fn research::classify::Reason::code(self) -> &'static str
-impl core::clone::Clone for research::classify::Reason
-pub fn research::classify::Reason::clone(&self) -> research::classify::Reason
-impl core::cmp::Eq for research::classify::Reason
-impl core::cmp::PartialEq for research::classify::Reason
-pub fn research::classify::Reason::eq(&self, other: &research::classify::Reason) -> bool
-impl core::fmt::Debug for research::classify::Reason
-pub fn research::classify::Reason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::classify::Reason
-impl core::marker::StructuralPartialEq for research::classify::Reason
-pub enum research::classify::Response
-pub research::classify::Response::ConnectionFailed
-pub research::classify::Response::Received(research::classify::Received)
-pub research::classify::Response::TimedOut
-impl core::clone::Clone for research::classify::Response
-pub fn research::classify::Response::clone(&self) -> research::classify::Response
-impl core::cmp::Eq for research::classify::Response
-impl core::cmp::PartialEq for research::classify::Response
-pub fn research::classify::Response::eq(&self, other: &research::classify::Response) -> bool
-impl core::fmt::Debug for research::classify::Response
-pub fn research::classify::Response::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::classify::Response
-pub enum research::classify::Verdict
-pub research::classify::Verdict::Deliver(alloc::vec::Vec<u8>)
-pub research::classify::Verdict::Empty
-pub research::classify::Verdict::Fail(research::classify::FetchError)
-pub research::classify::Verdict::Retry
-pub research::classify::Verdict::Retry::reason: research::classify::Reason
-pub research::classify::Verdict::Retry::retry_after: core::option::Option<core::time::Duration>
-pub research::classify::Verdict::Unavailable(research::classify::Reason)
-impl core::clone::Clone for research::classify::Verdict
-pub fn research::classify::Verdict::clone(&self) -> research::classify::Verdict
-impl core::cmp::Eq for research::classify::Verdict
-impl core::cmp::PartialEq for research::classify::Verdict
-pub fn research::classify::Verdict::eq(&self, other: &research::classify::Verdict) -> bool
-impl core::fmt::Debug for research::classify::Verdict
-pub fn research::classify::Verdict::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::classify::Verdict
-pub struct research::classify::Received
-pub research::classify::Received::body: alloc::vec::Vec<u8>
-pub research::classify::Received::rate_limit_credits_required: core::option::Option<u64>
-pub research::classify::Received::rate_limit_remaining: core::option::Option<u64>
-pub research::classify::Received::retry_after: core::option::Option<core::time::Duration>
-pub research::classify::Received::status: u16
-impl research::classify::Received
-pub fn research::classify::Received::status(status: u16) -> Self
-impl core::clone::Clone for research::classify::Received
-pub fn research::classify::Received::clone(&self) -> research::classify::Received
-impl core::cmp::Eq for research::classify::Received
-impl core::cmp::PartialEq for research::classify::Received
-pub fn research::classify::Received::eq(&self, other: &research::classify::Received) -> bool
-impl core::default::Default for research::classify::Received
-pub fn research::classify::Received::default() -> research::classify::Received
-impl core::fmt::Debug for research::classify::Received
-pub fn research::classify::Received::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::classify::Received
-pub fn research::classify::arxiv(response: research::classify::Response) -> research::classify::Verdict
-pub fn research::classify::openalex(response: research::classify::Response, verb: research::request::Verb, key: core::option::Option<&research::request::KeySource>) -> research::classify::Verdict
+pub mod research::conduct
+pub mod research::conduct::ledger
+pub struct research::conduct::ledger::RunId(_)
+impl research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunId::mint(timestamp: &str, suffix: u32) -> Self
+pub fn research::conduct::ledger::RunId::parse(text: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunId::clone(&self) -> research::conduct::ledger::RunId
+impl core::cmp::Eq for research::conduct::ledger::RunId
+impl core::cmp::PartialEq for research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunId::eq(&self, other: &research::conduct::ledger::RunId) -> bool
+impl core::fmt::Debug for research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::ledger::RunId
+pub struct research::conduct::ledger::RunLedger
+impl research::conduct::ledger::RunLedger
+pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::topic::claims::ClaimedIndexes
+pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
+pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory) -> Self
+pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
+pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
+pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
+impl core::clone::Clone for research::conduct::ledger::RunLedger
+pub fn research::conduct::ledger::RunLedger::clone(&self) -> research::conduct::ledger::RunLedger
+impl core::cmp::Eq for research::conduct::ledger::RunLedger
+impl core::cmp::PartialEq for research::conduct::ledger::RunLedger
+pub fn research::conduct::ledger::RunLedger::eq(&self, other: &research::conduct::ledger::RunLedger) -> bool
+impl core::fmt::Debug for research::conduct::ledger::RunLedger
+pub fn research::conduct::ledger::RunLedger::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::ledger::RunLedger
+pub struct research::conduct::ledger::Superseded
+pub research::conduct::ledger::Superseded::by: research::conduct::ledger::RunId
+impl core::clone::Clone for research::conduct::ledger::Superseded
+pub fn research::conduct::ledger::Superseded::clone(&self) -> research::conduct::ledger::Superseded
+impl core::cmp::Eq for research::conduct::ledger::Superseded
+impl core::cmp::PartialEq for research::conduct::ledger::Superseded
+pub fn research::conduct::ledger::Superseded::eq(&self, other: &research::conduct::ledger::Superseded) -> bool
+impl core::fmt::Debug for research::conduct::ledger::Superseded
+pub fn research::conduct::ledger::Superseded::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::ledger::Superseded
+pub mod research::conduct::memory
+pub struct research::conduct::memory::PendingBatch
+impl research::conduct::memory::PendingBatch
+pub fn research::conduct::memory::PendingBatch::acknowledge(&mut self, spawned: u32) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub const fn research::conduct::memory::PendingBatch::new(number: u32, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> Self
+pub const fn research::conduct::memory::PendingBatch::number(&self) -> u32
+pub fn research::conduct::memory::PendingBatch::replace(&mut self, spawns: alloc::vec::Vec<research::conduct::spawn::SpawnRef>) -> alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub fn research::conduct::memory::PendingBatch::spawns(&self) -> &[research::conduct::spawn::SpawnRef]
+impl core::clone::Clone for research::conduct::memory::PendingBatch
+pub fn research::conduct::memory::PendingBatch::clone(&self) -> research::conduct::memory::PendingBatch
+impl core::cmp::Eq for research::conduct::memory::PendingBatch
+impl core::cmp::PartialEq for research::conduct::memory::PendingBatch
+pub fn research::conduct::memory::PendingBatch::eq(&self, other: &research::conduct::memory::PendingBatch) -> bool
+impl core::default::Default for research::conduct::memory::PendingBatch
+pub fn research::conduct::memory::PendingBatch::default() -> research::conduct::memory::PendingBatch
+impl core::fmt::Debug for research::conduct::memory::PendingBatch
+pub fn research::conduct::memory::PendingBatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::PendingBatch
+pub struct research::conduct::memory::RunMemory
+pub research::conduct::memory::RunMemory::attempted: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
+pub research::conduct::memory::RunMemory::just_acknowledged: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
+pub research::conduct::memory::RunMemory::pending: research::conduct::memory::PendingBatch
+pub research::conduct::memory::RunMemory::seen: research::conduct::observed::Observed
+impl research::conduct::memory::RunMemory
+pub fn research::conduct::memory::RunMemory::excuses(&self, spawn: &research::conduct::spawn::SpawnRef) -> bool
+impl core::clone::Clone for research::conduct::memory::RunMemory
+pub fn research::conduct::memory::RunMemory::clone(&self) -> research::conduct::memory::RunMemory
+impl core::cmp::Eq for research::conduct::memory::RunMemory
+impl core::cmp::PartialEq for research::conduct::memory::RunMemory
+pub fn research::conduct::memory::RunMemory::eq(&self, other: &research::conduct::memory::RunMemory) -> bool
+impl core::default::Default for research::conduct::memory::RunMemory
+pub fn research::conduct::memory::RunMemory::default() -> research::conduct::memory::RunMemory
+impl core::fmt::Debug for research::conduct::memory::RunMemory
+pub fn research::conduct::memory::RunMemory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::memory::RunMemory
+pub mod research::conduct::observed
+pub struct research::conduct::observed::Observed
+pub research::conduct::observed::Observed::answered: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
+pub research::conduct::observed::Observed::notes: alloc::collections::btree::map::BTreeMap<research::topic::layout::note_ref::NoteRef, research::topic::evidence::Digest>
+impl research::conduct::observed::Observed
+pub fn research::conduct::observed::Observed::absorb(&mut self, other: &Self)
+pub fn research::conduct::observed::Observed::of(inputs: &research::topic::plan::RoundInputs) -> Self
+impl core::clone::Clone for research::conduct::observed::Observed
+pub fn research::conduct::observed::Observed::clone(&self) -> research::conduct::observed::Observed
+impl core::cmp::Eq for research::conduct::observed::Observed
+impl core::cmp::PartialEq for research::conduct::observed::Observed
+pub fn research::conduct::observed::Observed::eq(&self, other: &research::conduct::observed::Observed) -> bool
+impl core::default::Default for research::conduct::observed::Observed
+pub fn research::conduct::observed::Observed::default() -> research::conduct::observed::Observed
+impl core::fmt::Debug for research::conduct::observed::Observed
+pub fn research::conduct::observed::Observed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::observed::Observed
+pub mod research::conduct::spawn
+pub enum research::conduct::spawn::SpawnRef
+pub research::conduct::spawn::SpawnRef::Node(research::topic::layout::note_ref::NoteRef)
+pub research::conduct::spawn::SpawnRef::Pair(research::topic::layout::stem::Stem)
+impl research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::parse(text: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::clone(&self) -> research::conduct::spawn::SpawnRef
+impl core::cmp::Eq for research::conduct::spawn::SpawnRef
+impl core::cmp::Ord for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::cmp(&self, other: &research::conduct::spawn::SpawnRef) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::eq(&self, other: &research::conduct::spawn::SpawnRef) -> bool
+impl core::cmp::PartialOrd for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::partial_cmp(&self, other: &research::conduct::spawn::SpawnRef) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::conduct::spawn::SpawnRef
+pub fn research::conduct::spawn::SpawnRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::conduct::spawn::SpawnRef
+pub mod research::conduct::window
+pub struct research::conduct::window::UnfinishedSpawn
+pub research::conduct::window::UnfinishedSpawn::rejected: core::option::Option<research::topic::evidence::NoteRejection>
+pub research::conduct::window::UnfinishedSpawn::spawn: research::conduct::spawn::SpawnRef
+impl core::clone::Clone for research::conduct::window::UnfinishedSpawn
+pub fn research::conduct::window::UnfinishedSpawn::clone(&self) -> research::conduct::window::UnfinishedSpawn
+impl core::cmp::Eq for research::conduct::window::UnfinishedSpawn
+impl core::cmp::PartialEq for research::conduct::window::UnfinishedSpawn
+pub fn research::conduct::window::UnfinishedSpawn::eq(&self, other: &research::conduct::window::UnfinishedSpawn) -> bool
+impl core::fmt::Debug for research::conduct::window::UnfinishedSpawn
+pub fn research::conduct::window::UnfinishedSpawn::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::window::UnfinishedSpawn
+pub struct research::conduct::window::Window
+pub research::conduct::window::Window::offered: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub research::conduct::window::Window::pairs: alloc::vec::Vec<research::topic::plan::OutstandingPair>
+pub research::conduct::window::Window::remaining: usize
+pub research::conduct::window::Window::unexpected: alloc::vec::Vec<research::conduct::spawn::SpawnRef>
+pub research::conduct::window::Window::unfinished: alloc::vec::Vec<research::conduct::window::UnfinishedSpawn>
+impl core::clone::Clone for research::conduct::window::Window
+pub fn research::conduct::window::Window::clone(&self) -> research::conduct::window::Window
+impl core::cmp::Eq for research::conduct::window::Window
+impl core::cmp::PartialEq for research::conduct::window::Window
+pub fn research::conduct::window::Window::eq(&self, other: &research::conduct::window::Window) -> bool
+impl core::fmt::Debug for research::conduct::window::Window
+pub fn research::conduct::window::Window::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::window::Window
+pub fn research::conduct::window::window(plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, limit: core::option::Option<usize>, memory: core::option::Option<&research::conduct::memory::RunMemory>) -> research::conduct::window::Window
 pub mod research::confinement
 pub enum research::confinement::Action
 pub research::confinement::Action::Command(alloc::string::String)
@@ -315,1123 +326,1116 @@ pub fn research::confinement::TopicLayout::classify(&self, target: &research::co
 pub fn research::confinement::command_decision(command: &str) -> research::confinement::Decision
 pub fn research::confinement::confined_agent(call: &research::confinement::ToolCall, confinement: &research::confinement::Confinement) -> core::option::Option<research::confinement::ConfinedAgent>
 pub fn research::confinement::decide(action: &research::confinement::Action, agent: &research::confinement::ConfinedAgent, layout: &dyn research::confinement::TopicLayout) -> research::confinement::Decision
-pub mod research::fetch
-pub enum research::fetch::Cause
-pub research::fetch::Cause::LockContention
-impl research::fetch::Cause
-pub const fn research::fetch::Cause::code(self) -> &'static str
-impl core::clone::Clone for research::fetch::Cause
-pub fn research::fetch::Cause::clone(&self) -> research::fetch::Cause
-impl core::cmp::Eq for research::fetch::Cause
-impl core::cmp::PartialEq for research::fetch::Cause
-pub fn research::fetch::Cause::eq(&self, other: &research::fetch::Cause) -> bool
-impl core::fmt::Debug for research::fetch::Cause
-pub fn research::fetch::Cause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::fetch::Cause
-impl core::marker::StructuralPartialEq for research::fetch::Cause
-pub enum research::fetch::DecodeFailure
-pub research::fetch::DecodeFailure::ErrorFeed(alloc::string::String)
-pub research::fetch::DecodeFailure::Undecodable
-impl core::clone::Clone for research::fetch::DecodeFailure
-pub fn research::fetch::DecodeFailure::clone(&self) -> research::fetch::DecodeFailure
-impl core::cmp::Eq for research::fetch::DecodeFailure
-impl core::cmp::PartialEq for research::fetch::DecodeFailure
-pub fn research::fetch::DecodeFailure::eq(&self, other: &research::fetch::DecodeFailure) -> bool
-impl core::fmt::Debug for research::fetch::DecodeFailure
-pub fn research::fetch::DecodeFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::fetch::DecodeFailure
-pub enum research::fetch::FetchOutcome
-pub research::fetch::FetchOutcome::Failed(research::classify::FetchError)
-pub research::fetch::FetchOutcome::Records(alloc::vec::Vec<research::record::Record>)
-pub research::fetch::FetchOutcome::Unavailable(research::fetch::Unavailable)
-impl core::clone::Clone for research::fetch::FetchOutcome
-pub fn research::fetch::FetchOutcome::clone(&self) -> research::fetch::FetchOutcome
-impl core::cmp::Eq for research::fetch::FetchOutcome
-impl core::cmp::PartialEq for research::fetch::FetchOutcome
-pub fn research::fetch::FetchOutcome::eq(&self, other: &research::fetch::FetchOutcome) -> bool
-impl core::fmt::Debug for research::fetch::FetchOutcome
-pub fn research::fetch::FetchOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::fetch::FetchOutcome
-pub struct research::fetch::ArxivFetch<'a>
-pub research::fetch::ArxivFetch::api: &'a research::request::Endpoint
-pub research::fetch::ArxivFetch::oai: &'a research::request::Endpoint
-pub research::fetch::ArxivFetch::request: &'a research::request::ArxivRequest
-pub struct research::fetch::ArxivPorts<'a>
-pub research::fetch::ArxivPorts::clock: &'a dyn research::fetch::Clock
-pub research::fetch::ArxivPorts::confirmations: &'a dyn research::fetch::ConfirmationCache
-pub research::fetch::ArxivPorts::decoder: &'a dyn research::fetch::ArxivDecoder
-pub research::fetch::ArxivPorts::gate: &'a dyn research::fetch::PacingGate
-pub research::fetch::ArxivPorts::transport: &'a dyn research::fetch::Transport
-pub struct research::fetch::Attempted
-pub research::fetch::Attempted::defer_until: core::option::Option<std::time::SystemTime>
-impl core::clone::Clone for research::fetch::Attempted
-pub fn research::fetch::Attempted::clone(&self) -> research::fetch::Attempted
-impl core::cmp::Eq for research::fetch::Attempted
-impl core::cmp::PartialEq for research::fetch::Attempted
-pub fn research::fetch::Attempted::eq(&self, other: &research::fetch::Attempted) -> bool
-impl core::fmt::Debug for research::fetch::Attempted
-pub fn research::fetch::Attempted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::fetch::Attempted
-impl core::marker::StructuralPartialEq for research::fetch::Attempted
-pub struct research::fetch::OpenAlexFetch<'a>
-pub research::fetch::OpenAlexFetch::api: &'a research::request::Endpoint
-pub research::fetch::OpenAlexFetch::key: core::option::Option<&'a research::request::ApiKey>
-pub research::fetch::OpenAlexFetch::request: &'a research::request::OpenAlexRequest
-pub struct research::fetch::OpenAlexPorts<'a>
-pub research::fetch::OpenAlexPorts::clock: &'a dyn research::fetch::Clock
-pub research::fetch::OpenAlexPorts::decoder: &'a dyn research::fetch::OpenAlexDecoder
-pub research::fetch::OpenAlexPorts::gate: &'a dyn research::fetch::PacingGate
-pub research::fetch::OpenAlexPorts::transport: &'a dyn research::fetch::Transport
-pub struct research::fetch::Unavailable
-impl research::fetch::Unavailable
-pub const fn research::fetch::Unavailable::cause(self) -> core::option::Option<research::fetch::Cause>
-pub const fn research::fetch::Unavailable::lock_contention() -> Self
-pub const fn research::fetch::Unavailable::new(reason: research::classify::Reason) -> Self
-pub const fn research::fetch::Unavailable::reason(self) -> research::classify::Reason
-impl core::clone::Clone for research::fetch::Unavailable
-pub fn research::fetch::Unavailable::clone(&self) -> research::fetch::Unavailable
-impl core::cmp::Eq for research::fetch::Unavailable
-impl core::cmp::PartialEq for research::fetch::Unavailable
-pub fn research::fetch::Unavailable::eq(&self, other: &research::fetch::Unavailable) -> bool
-impl core::fmt::Debug for research::fetch::Unavailable
-pub fn research::fetch::Unavailable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::fetch::Unavailable
-impl core::marker::StructuralPartialEq for research::fetch::Unavailable
-pub trait research::fetch::ArxivDecoder
-pub fn research::fetch::ArxivDecoder::entries(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::arxiv::Entry>, research::fetch::DecodeFailure>
-pub fn research::fetch::ArxivDecoder::raw_versions(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::arxiv::RawVersion>, research::fetch::DecodeFailure>
-pub trait research::fetch::Clock
-pub fn research::fetch::Clock::now(&self) -> std::time::Instant
-pub fn research::fetch::Clock::sleep(&self, duration: core::time::Duration)
-pub fn research::fetch::Clock::wall_now(&self) -> std::time::SystemTime
-pub trait research::fetch::ConfirmationCache
-pub fn research::fetch::ConfirmationCache::recall(&self, entry: &research::request::ArxivId) -> core::option::Option<bool>
-pub fn research::fetch::ConfirmationCache::record(&self, entry: &research::request::ArxivId, withdrawn: bool)
-pub trait research::fetch::OpenAlexDecoder
-pub fn research::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::openalex::Work, research::fetch::DecodeFailure>
-pub fn research::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::openalex::Work>, research::fetch::DecodeFailure>
-pub trait research::fetch::PacingGate
-pub fn research::fetch::PacingGate::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::fetch::Attempted, deadline: &research::schedule::Deadline) -> core::result::Result<(), research::fetch::Unavailable>
-pub trait research::fetch::Transport
-pub fn research::fetch::Transport::send(&self, request: &research::request::UpstreamRequest) -> research::classify::Response
-pub fn research::fetch::fetch_arxiv(fetch: &research::fetch::ArxivFetch<'_>, ports: &research::fetch::ArxivPorts<'_>, deadline: &research::schedule::Deadline) -> research::fetch::FetchOutcome
-pub fn research::fetch::fetch_openalex(fetch: &research::fetch::OpenAlexFetch<'_>, ports: &research::fetch::OpenAlexPorts<'_>, deadline: &research::schedule::Deadline) -> research::fetch::FetchOutcome
-pub mod research::finding_path
-pub fn research::finding_path::is_finding_path(relative: &str) -> bool
-pub fn research::finding_path::is_level_note_path(relative: &str) -> bool
-pub mod research::lineage
-pub struct research::lineage::Lineage
-impl research::lineage::Lineage
-pub fn research::lineage::Lineage::child(&self, position: core::num::nonzero::NonZeroU32) -> Self
-pub const fn research::lineage::Lineage::level(&self) -> u32
-pub fn research::lineage::Lineage::parent(&self) -> core::option::Option<Self>
-pub fn research::lineage::Lineage::parse(text: &str) -> core::option::Option<Self>
-pub const fn research::lineage::Lineage::root() -> Self
-impl core::clone::Clone for research::lineage::Lineage
-pub fn research::lineage::Lineage::clone(&self) -> research::lineage::Lineage
-impl core::cmp::Eq for research::lineage::Lineage
-impl core::cmp::Ord for research::lineage::Lineage
-pub fn research::lineage::Lineage::cmp(&self, other: &research::lineage::Lineage) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::lineage::Lineage
-pub fn research::lineage::Lineage::eq(&self, other: &research::lineage::Lineage) -> bool
-impl core::cmp::PartialOrd for research::lineage::Lineage
-pub fn research::lineage::Lineage::partial_cmp(&self, other: &research::lineage::Lineage) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::lineage::Lineage
-pub fn research::lineage::Lineage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::lineage::Lineage
-pub fn research::lineage::Lineage::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::lineage::Lineage
-pub fn research::lineage::Lineage::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::lineage::Lineage
-pub mod research::openalex
-pub struct research::openalex::Location
-pub research::openalex::Location::source: core::option::Option<research::openalex::Source>
-pub research::openalex::Location::version: core::option::Option<alloc::string::String>
-impl core::clone::Clone for research::openalex::Location
-pub fn research::openalex::Location::clone(&self) -> research::openalex::Location
-impl core::cmp::Eq for research::openalex::Location
-impl core::cmp::PartialEq for research::openalex::Location
-pub fn research::openalex::Location::eq(&self, other: &research::openalex::Location) -> bool
-impl core::default::Default for research::openalex::Location
-pub fn research::openalex::Location::default() -> research::openalex::Location
-impl core::fmt::Debug for research::openalex::Location
-pub fn research::openalex::Location::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::openalex::Location
-pub struct research::openalex::Source
-pub research::openalex::Source::display_name: core::option::Option<alloc::string::String>
-pub research::openalex::Source::is_core: bool
-pub research::openalex::Source::listed_in: alloc::vec::Vec<alloc::string::String>
-pub research::openalex::Source::source_type: core::option::Option<alloc::string::String>
-impl core::clone::Clone for research::openalex::Source
-pub fn research::openalex::Source::clone(&self) -> research::openalex::Source
-impl core::cmp::Eq for research::openalex::Source
-impl core::cmp::PartialEq for research::openalex::Source
-pub fn research::openalex::Source::eq(&self, other: &research::openalex::Source) -> bool
-impl core::default::Default for research::openalex::Source
-pub fn research::openalex::Source::default() -> research::openalex::Source
-impl core::fmt::Debug for research::openalex::Source
-pub fn research::openalex::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::openalex::Source
-pub struct research::openalex::Work
-pub research::openalex::Work::abstract_inverted_index: core::option::Option<alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<usize>)>>
-pub research::openalex::Work::authors: alloc::vec::Vec<alloc::string::String>
-pub research::openalex::Work::doi: core::option::Option<alloc::string::String>
-pub research::openalex::Work::id: alloc::string::String
-pub research::openalex::Work::is_retracted: bool
-pub research::openalex::Work::primary_location: core::option::Option<research::openalex::Location>
-pub research::openalex::Work::title: core::option::Option<alloc::string::String>
-pub research::openalex::Work::work_type: alloc::string::String
-impl core::clone::Clone for research::openalex::Work
-pub fn research::openalex::Work::clone(&self) -> research::openalex::Work
-impl core::cmp::Eq for research::openalex::Work
-impl core::cmp::PartialEq for research::openalex::Work
-pub fn research::openalex::Work::eq(&self, other: &research::openalex::Work) -> bool
-impl core::default::Default for research::openalex::Work
-pub fn research::openalex::Work::default() -> research::openalex::Work
-impl core::fmt::Debug for research::openalex::Work
-pub fn research::openalex::Work::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::openalex::Work
-pub fn research::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
-pub fn research::openalex::normalise(work: &research::openalex::Work) -> core::option::Option<research::record::Record>
-pub mod research::pinned_indexes
-pub struct research::pinned_indexes::PinnedIndexes(_)
-impl research::pinned_indexes::PinnedIndexes
-pub fn research::pinned_indexes::PinnedIndexes::index_for(&self, question: &research::question::NormalisedQuestion) -> core::option::Option<u32>
-pub fn research::pinned_indexes::PinnedIndexes::indexes(&self) -> impl core::iter::traits::iterator::Iterator<Item = u32> + '_
-pub fn research::pinned_indexes::PinnedIndexes::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&research::question::NormalisedQuestion, u32)>
-pub fn research::pinned_indexes::PinnedIndexes::pin(&mut self, question: research::question::NormalisedQuestion, index: u32)
-pub fn research::pinned_indexes::PinnedIndexes::pin_all(&mut self, other: &Self)
-impl core::clone::Clone for research::pinned_indexes::PinnedIndexes
-pub fn research::pinned_indexes::PinnedIndexes::clone(&self) -> research::pinned_indexes::PinnedIndexes
-impl core::cmp::Eq for research::pinned_indexes::PinnedIndexes
-impl core::cmp::PartialEq for research::pinned_indexes::PinnedIndexes
-pub fn research::pinned_indexes::PinnedIndexes::eq(&self, other: &research::pinned_indexes::PinnedIndexes) -> bool
-impl core::default::Default for research::pinned_indexes::PinnedIndexes
-pub fn research::pinned_indexes::PinnedIndexes::default() -> research::pinned_indexes::PinnedIndexes
-impl core::fmt::Debug for research::pinned_indexes::PinnedIndexes
-pub fn research::pinned_indexes::PinnedIndexes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::pinned_indexes::PinnedIndexes
-pub mod research::question
-pub enum research::question::PlainQuestionRule
-pub research::question::PlainQuestionRule::HiddenCharacter
-pub research::question::PlainQuestionRule::Link
-pub research::question::PlainQuestionRule::TooLong
-impl core::clone::Clone for research::question::PlainQuestionRule
-pub fn research::question::PlainQuestionRule::clone(&self) -> research::question::PlainQuestionRule
-impl core::cmp::Eq for research::question::PlainQuestionRule
-impl core::cmp::PartialEq for research::question::PlainQuestionRule
-pub fn research::question::PlainQuestionRule::eq(&self, other: &research::question::PlainQuestionRule) -> bool
-impl core::fmt::Debug for research::question::PlainQuestionRule
-pub fn research::question::PlainQuestionRule::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::question::PlainQuestionRule
-impl core::marker::StructuralPartialEq for research::question::PlainQuestionRule
-pub struct research::question::NormalisedQuestion(_)
-impl research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::as_str(&self) -> &str
-pub fn research::question::NormalisedQuestion::of(question: &str, unicode: &dyn research::question::UnicodeText) -> Self
-impl core::clone::Clone for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::clone(&self) -> research::question::NormalisedQuestion
-impl core::cmp::Eq for research::question::NormalisedQuestion
-impl core::cmp::Ord for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::cmp(&self, other: &research::question::NormalisedQuestion) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::eq(&self, other: &research::question::NormalisedQuestion) -> bool
-impl core::cmp::PartialOrd for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::partial_cmp(&self, other: &research::question::NormalisedQuestion) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::question::NormalisedQuestion
-pub fn research::question::NormalisedQuestion::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::question::NormalisedQuestion
-pub const research::question::LONGEST_PLAIN_QUESTION: usize
-pub trait research::question::UnicodeText
-pub fn research::question::UnicodeText::fold(&self, text: &str) -> alloc::string::String
-pub fn research::question::UnicodeText::is_hidden(&self, character: char) -> bool
-pub fn research::question::plain_question_breach(text: &str, unicode: &dyn research::question::UnicodeText) -> core::option::Option<research::question::PlainQuestionRule>
-pub mod research::record
-pub enum research::record::Tier
-pub research::record::Tier::One
-pub research::record::Tier::Three
-pub research::record::Tier::Two
-impl core::clone::Clone for research::record::Tier
-pub fn research::record::Tier::clone(&self) -> research::record::Tier
-impl core::cmp::Eq for research::record::Tier
-impl core::cmp::PartialEq for research::record::Tier
-pub fn research::record::Tier::eq(&self, other: &research::record::Tier) -> bool
-impl core::fmt::Debug for research::record::Tier
-pub fn research::record::Tier::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::record::Tier
-pub fn research::record::Tier::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::record::Tier
-impl core::marker::StructuralPartialEq for research::record::Tier
-pub enum research::record::VenueSignals
-pub research::record::VenueSignals::Arxiv
-pub research::record::VenueSignals::Arxiv::doi: core::option::Option<alloc::string::String>
-pub research::record::VenueSignals::Arxiv::journal_ref: core::option::Option<alloc::string::String>
-pub research::record::VenueSignals::OpenAlex
-pub research::record::VenueSignals::OpenAlex::is_core: core::option::Option<bool>
-pub research::record::VenueSignals::OpenAlex::is_retracted: bool
-pub research::record::VenueSignals::OpenAlex::listed_in: alloc::vec::Vec<alloc::string::String>
-pub research::record::VenueSignals::OpenAlex::source_type: core::option::Option<alloc::string::String>
-pub research::record::VenueSignals::OpenAlex::version: core::option::Option<alloc::string::String>
-pub research::record::VenueSignals::OpenAlex::work_type: alloc::string::String
-impl core::clone::Clone for research::record::VenueSignals
-pub fn research::record::VenueSignals::clone(&self) -> research::record::VenueSignals
-impl core::cmp::Eq for research::record::VenueSignals
-impl core::cmp::PartialEq for research::record::VenueSignals
-pub fn research::record::VenueSignals::eq(&self, other: &research::record::VenueSignals) -> bool
-impl core::fmt::Debug for research::record::VenueSignals
-pub fn research::record::VenueSignals::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::record::VenueSignals
-pub struct research::record::Record
-impl research::record::Record
-pub fn research::record::Record::abstract_excerpt(&self) -> core::option::Option<&str>
-pub fn research::record::Record::authors(&self) -> &[alloc::string::String]
-pub const fn research::record::Record::retracted(&self) -> bool
-pub const fn research::record::Record::tier(&self) -> research::record::Tier
-pub fn research::record::Record::title(&self) -> core::option::Option<&str>
-pub fn research::record::Record::url(&self) -> &str
-pub fn research::record::Record::venue(&self) -> core::option::Option<&str>
-pub const fn research::record::Record::venue_signals(&self) -> &research::record::VenueSignals
-pub const fn research::record::Record::withdrawn(&self) -> bool
-impl core::clone::Clone for research::record::Record
-pub fn research::record::Record::clone(&self) -> research::record::Record
-impl core::cmp::Eq for research::record::Record
-impl core::cmp::PartialEq for research::record::Record
-pub fn research::record::Record::eq(&self, other: &research::record::Record) -> bool
-impl core::fmt::Debug for research::record::Record
-pub fn research::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::record::Record
-pub mod research::request
-pub enum research::request::ArxivRequest
-pub research::request::ArxivRequest::Lookup(research::request::ArxivId)
-pub research::request::ArxivRequest::Search
-pub research::request::ArxivRequest::Search::limit: research::request::Limit
-pub research::request::ArxivRequest::Search::query: research::request::ArxivQuery
-impl research::request::ArxivRequest
-pub const fn research::request::ArxivRequest::limit(&self) -> research::request::Limit
-pub fn research::request::ArxivRequest::upstream(&self, api: &research::request::Endpoint) -> research::request::UpstreamRequest
-pub const fn research::request::ArxivRequest::verb(&self) -> research::request::Verb
-impl core::clone::Clone for research::request::ArxivRequest
-pub fn research::request::ArxivRequest::clone(&self) -> research::request::ArxivRequest
-impl core::cmp::Eq for research::request::ArxivRequest
-impl core::cmp::PartialEq for research::request::ArxivRequest
-pub fn research::request::ArxivRequest::eq(&self, other: &research::request::ArxivRequest) -> bool
-impl core::fmt::Debug for research::request::ArxivRequest
-pub fn research::request::ArxivRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::ArxivRequest
-pub enum research::request::Family
-pub research::request::Family::Arxiv
-pub research::request::Family::OpenAlex
-impl research::request::Family
-pub const fn research::request::Family::code(self) -> &'static str
-pub fn research::request::Family::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-impl core::clone::Clone for research::request::Family
-pub fn research::request::Family::clone(&self) -> research::request::Family
-impl core::cmp::Eq for research::request::Family
-impl core::cmp::PartialEq for research::request::Family
-pub fn research::request::Family::eq(&self, other: &research::request::Family) -> bool
-impl core::fmt::Debug for research::request::Family
-pub fn research::request::Family::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::request::Family
-pub fn research::request::Family::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::request::Family
-impl core::marker::StructuralPartialEq for research::request::Family
-pub enum research::request::FetchRequest
-pub research::request::FetchRequest::Arxiv(research::request::ArxivRequest)
-pub research::request::FetchRequest::OpenAlex(research::request::OpenAlexRequest)
-impl research::request::FetchRequest
-pub const fn research::request::FetchRequest::family(&self) -> research::request::Family
-pub fn research::request::FetchRequest::parse(family: &str, verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::request::RequestError>
-pub const fn research::request::FetchRequest::verb(&self) -> research::request::Verb
-impl core::clone::Clone for research::request::FetchRequest
-pub fn research::request::FetchRequest::clone(&self) -> research::request::FetchRequest
-impl core::cmp::Eq for research::request::FetchRequest
-impl core::cmp::PartialEq for research::request::FetchRequest
-pub fn research::request::FetchRequest::eq(&self, other: &research::request::FetchRequest) -> bool
-impl core::fmt::Debug for research::request::FetchRequest
-pub fn research::request::FetchRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::FetchRequest
-pub enum research::request::OpenAlexId
-pub research::request::OpenAlexId::Doi(research::request::Doi)
-pub research::request::OpenAlexId::Work(research::request::WorkId)
-impl research::request::OpenAlexId
-pub fn research::request::OpenAlexId::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-impl core::clone::Clone for research::request::OpenAlexId
-pub fn research::request::OpenAlexId::clone(&self) -> research::request::OpenAlexId
-impl core::cmp::Eq for research::request::OpenAlexId
-impl core::cmp::PartialEq for research::request::OpenAlexId
-pub fn research::request::OpenAlexId::eq(&self, other: &research::request::OpenAlexId) -> bool
-impl core::fmt::Debug for research::request::OpenAlexId
-pub fn research::request::OpenAlexId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::OpenAlexId
-pub enum research::request::OpenAlexRequest
-pub research::request::OpenAlexRequest::Lookup(research::request::OpenAlexId)
-pub research::request::OpenAlexRequest::Search
-pub research::request::OpenAlexRequest::Search::limit: research::request::Limit
-pub research::request::OpenAlexRequest::Search::query: research::request::OpenAlexQuery
-impl research::request::OpenAlexRequest
-pub const fn research::request::OpenAlexRequest::limit(&self) -> research::request::Limit
-pub fn research::request::OpenAlexRequest::upstream(&self, api: &research::request::Endpoint, key: core::option::Option<&research::request::ApiKey>) -> research::request::UpstreamRequest
-pub const fn research::request::OpenAlexRequest::verb(&self) -> research::request::Verb
-impl core::clone::Clone for research::request::OpenAlexRequest
-pub fn research::request::OpenAlexRequest::clone(&self) -> research::request::OpenAlexRequest
-impl core::cmp::Eq for research::request::OpenAlexRequest
-impl core::cmp::PartialEq for research::request::OpenAlexRequest
-pub fn research::request::OpenAlexRequest::eq(&self, other: &research::request::OpenAlexRequest) -> bool
-impl core::fmt::Debug for research::request::OpenAlexRequest
-pub fn research::request::OpenAlexRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::OpenAlexRequest
-pub enum research::request::RequestError
-pub research::request::RequestError::EmptyQuery
-pub research::request::RequestError::LimitOutOfRange(alloc::string::String)
-pub research::request::RequestError::MalformedArxivId(alloc::string::String)
-pub research::request::RequestError::MalformedOpenAlexId(alloc::string::String)
-pub research::request::RequestError::MissingId
-pub research::request::RequestError::MissingQuery
-pub research::request::RequestError::UnknownFamily(alloc::string::String)
-pub research::request::RequestError::UnknownVerb(alloc::string::String)
-impl core::clone::Clone for research::request::RequestError
-pub fn research::request::RequestError::clone(&self) -> research::request::RequestError
-impl core::cmp::Eq for research::request::RequestError
-impl core::cmp::PartialEq for research::request::RequestError
-pub fn research::request::RequestError::eq(&self, other: &research::request::RequestError) -> bool
-impl core::error::Error for research::request::RequestError
-impl core::fmt::Debug for research::request::RequestError
-pub fn research::request::RequestError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::request::RequestError
-pub fn research::request::RequestError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::RequestError
-pub enum research::request::Verb
-pub research::request::Verb::Lookup
-pub research::request::Verb::Search
-impl research::request::Verb
-pub const fn research::request::Verb::code(self) -> &'static str
-pub fn research::request::Verb::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-impl core::clone::Clone for research::request::Verb
-pub fn research::request::Verb::clone(&self) -> research::request::Verb
-impl core::cmp::Eq for research::request::Verb
-impl core::cmp::PartialEq for research::request::Verb
-pub fn research::request::Verb::eq(&self, other: &research::request::Verb) -> bool
-impl core::fmt::Debug for research::request::Verb
-pub fn research::request::Verb::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::request::Verb
-impl core::marker::StructuralPartialEq for research::request::Verb
-pub struct research::request::ApiKey
-impl research::request::ApiKey
-pub const fn research::request::ApiKey::new(secret: alloc::string::String, source: research::request::KeySource) -> Self
-pub const fn research::request::ApiKey::source(&self) -> &research::request::KeySource
-impl core::clone::Clone for research::request::ApiKey
-pub fn research::request::ApiKey::clone(&self) -> research::request::ApiKey
-impl core::fmt::Debug for research::request::ApiKey
-pub fn research::request::ApiKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct research::request::ArxivId
-impl research::request::ArxivId
-pub fn research::request::ArxivId::abstract_url(&self) -> alloc::string::String
-pub fn research::request::ArxivId::from_abstract_url(url: &str) -> core::option::Option<Self>
-pub fn research::request::ArxivId::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-pub fn research::request::ArxivId::unversioned(&self) -> &str
-pub const fn research::request::ArxivId::version(&self) -> core::option::Option<u32>
-impl core::clone::Clone for research::request::ArxivId
-pub fn research::request::ArxivId::clone(&self) -> research::request::ArxivId
-impl core::cmp::Eq for research::request::ArxivId
-impl core::cmp::PartialEq for research::request::ArxivId
-pub fn research::request::ArxivId::eq(&self, other: &research::request::ArxivId) -> bool
-impl core::fmt::Debug for research::request::ArxivId
-pub fn research::request::ArxivId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::request::ArxivId
-pub fn research::request::ArxivId::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::request::ArxivId
-pub struct research::request::ArxivQuery(_)
-impl research::request::ArxivQuery
-pub fn research::request::ArxivQuery::as_str(&self) -> &str
-pub fn research::request::ArxivQuery::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-impl core::clone::Clone for research::request::ArxivQuery
-pub fn research::request::ArxivQuery::clone(&self) -> research::request::ArxivQuery
-impl core::cmp::Eq for research::request::ArxivQuery
-impl core::cmp::PartialEq for research::request::ArxivQuery
-pub fn research::request::ArxivQuery::eq(&self, other: &research::request::ArxivQuery) -> bool
-impl core::fmt::Debug for research::request::ArxivQuery
-pub fn research::request::ArxivQuery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::ArxivQuery
-pub struct research::request::Doi(_)
-impl research::request::Doi
-pub fn research::request::Doi::encoded(&self) -> alloc::string::String
-pub fn research::request::Doi::parse(raw: &str) -> core::option::Option<Self>
-pub fn research::request::Doi::url(&self) -> alloc::string::String
-impl core::clone::Clone for research::request::Doi
-pub fn research::request::Doi::clone(&self) -> research::request::Doi
-impl core::cmp::Eq for research::request::Doi
-impl core::cmp::PartialEq for research::request::Doi
-pub fn research::request::Doi::eq(&self, other: &research::request::Doi) -> bool
-impl core::fmt::Debug for research::request::Doi
-pub fn research::request::Doi::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::Doi
-pub struct research::request::Endpoint(_)
-impl research::request::Endpoint
-pub fn research::request::Endpoint::arxiv_api() -> Self
-pub fn research::request::Endpoint::arxiv_oai() -> Self
-pub fn research::request::Endpoint::as_str(&self) -> &str
-pub fn research::request::Endpoint::new(base: &str) -> Self
-pub fn research::request::Endpoint::openalex() -> Self
-impl core::clone::Clone for research::request::Endpoint
-pub fn research::request::Endpoint::clone(&self) -> research::request::Endpoint
-impl core::cmp::Eq for research::request::Endpoint
-impl core::cmp::PartialEq for research::request::Endpoint
-pub fn research::request::Endpoint::eq(&self, other: &research::request::Endpoint) -> bool
-impl core::fmt::Debug for research::request::Endpoint
-pub fn research::request::Endpoint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::Endpoint
-pub struct research::request::KeySource(_)
-impl research::request::KeySource
-pub fn research::request::KeySource::new(name: impl core::convert::Into<alloc::string::String>) -> Self
-impl core::clone::Clone for research::request::KeySource
-pub fn research::request::KeySource::clone(&self) -> research::request::KeySource
-impl core::cmp::Eq for research::request::KeySource
-impl core::cmp::PartialEq for research::request::KeySource
-pub fn research::request::KeySource::eq(&self, other: &research::request::KeySource) -> bool
-impl core::fmt::Debug for research::request::KeySource
-pub fn research::request::KeySource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::request::KeySource
-pub fn research::request::KeySource::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::KeySource
-pub struct research::request::Limit(_)
-impl research::request::Limit
-pub const fn research::request::Limit::get(self) -> u8
-pub fn research::request::Limit::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-pub fn research::request::Limit::records(self) -> usize
-impl core::clone::Clone for research::request::Limit
-pub fn research::request::Limit::clone(&self) -> research::request::Limit
-impl core::cmp::Eq for research::request::Limit
-impl core::cmp::PartialEq for research::request::Limit
-pub fn research::request::Limit::eq(&self, other: &research::request::Limit) -> bool
-impl core::default::Default for research::request::Limit
-pub fn research::request::Limit::default() -> Self
-impl core::fmt::Debug for research::request::Limit
-pub fn research::request::Limit::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::request::Limit
-impl core::marker::StructuralPartialEq for research::request::Limit
-pub struct research::request::OpenAlexQuery(_)
-impl research::request::OpenAlexQuery
-pub fn research::request::OpenAlexQuery::as_str(&self) -> &str
-pub fn research::request::OpenAlexQuery::parse(raw: &str) -> core::result::Result<Self, research::request::RequestError>
-impl core::clone::Clone for research::request::OpenAlexQuery
-pub fn research::request::OpenAlexQuery::clone(&self) -> research::request::OpenAlexQuery
-impl core::cmp::Eq for research::request::OpenAlexQuery
-impl core::cmp::PartialEq for research::request::OpenAlexQuery
-pub fn research::request::OpenAlexQuery::eq(&self, other: &research::request::OpenAlexQuery) -> bool
-impl core::fmt::Debug for research::request::OpenAlexQuery
-pub fn research::request::OpenAlexQuery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::OpenAlexQuery
-pub struct research::request::UpstreamRequest
-impl research::request::UpstreamRequest
-pub fn research::request::UpstreamRequest::bearer(&self) -> core::option::Option<&str>
-pub fn research::request::UpstreamRequest::headers(&self) -> &[(&'static str, alloc::string::String)]
-pub fn research::request::UpstreamRequest::url(&self) -> &str
-pub fn research::request::UpstreamRequest::withdrawal_confirmation(oai: &research::request::Endpoint, id: &research::request::ArxivId) -> Self
-impl core::clone::Clone for research::request::UpstreamRequest
-pub fn research::request::UpstreamRequest::clone(&self) -> research::request::UpstreamRequest
-impl core::cmp::Eq for research::request::UpstreamRequest
-impl core::cmp::PartialEq for research::request::UpstreamRequest
-pub fn research::request::UpstreamRequest::eq(&self, other: &research::request::UpstreamRequest) -> bool
-impl core::fmt::Debug for research::request::UpstreamRequest
-pub fn research::request::UpstreamRequest::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::UpstreamRequest
-pub struct research::request::WorkId(_)
-impl research::request::WorkId
-pub fn research::request::WorkId::as_str(&self) -> &str
-pub fn research::request::WorkId::from_openalex(raw: &str) -> core::option::Option<Self>
-pub fn research::request::WorkId::url(&self) -> alloc::string::String
-impl core::clone::Clone for research::request::WorkId
-pub fn research::request::WorkId::clone(&self) -> research::request::WorkId
-impl core::cmp::Eq for research::request::WorkId
-impl core::cmp::PartialEq for research::request::WorkId
-pub fn research::request::WorkId::eq(&self, other: &research::request::WorkId) -> bool
-impl core::fmt::Debug for research::request::WorkId
-pub fn research::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::request::WorkId
-pub mod research::round
-pub enum research::round::SkipReason
-pub research::round::SkipReason::NotInBrief
-pub research::round::SkipReason::NotInstalled
-impl core::clone::Clone for research::round::SkipReason
-pub fn research::round::SkipReason::clone(&self) -> research::round::SkipReason
-impl core::cmp::Eq for research::round::SkipReason
-impl core::cmp::PartialEq for research::round::SkipReason
-pub fn research::round::SkipReason::eq(&self, other: &research::round::SkipReason) -> bool
-impl core::fmt::Debug for research::round::SkipReason
-pub fn research::round::SkipReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::round::SkipReason
-impl core::marker::StructuralPartialEq for research::round::SkipReason
-pub enum research::round::Stage
-pub research::round::Stage::Compose(alloc::vec::Vec<research::lineage::Lineage>)
-pub research::round::Stage::Deepen(alloc::vec::Vec<research::tree::Node>)
-pub research::round::Stage::Research
-impl core::clone::Clone for research::round::Stage
-pub fn research::round::Stage::clone(&self) -> research::round::Stage
-impl core::cmp::Eq for research::round::Stage
-impl core::cmp::PartialEq for research::round::Stage
-pub fn research::round::Stage::eq(&self, other: &research::round::Stage) -> bool
-impl core::fmt::Debug for research::round::Stage
-pub fn research::round::Stage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Stage
-pub enum research::round::Warning
-pub research::round::Warning::IndexesExhausted
-pub research::round::Warning::IndexesExhausted::question: alloc::string::String
-pub research::round::Warning::UnmatchedFinding
-pub research::round::Warning::UnmatchedFinding::name: alloc::string::String
-pub research::round::Warning::UnmatchedFinding::question: alloc::string::String
-pub research::round::Warning::UnseparatedProfiles
-pub research::round::Warning::UnseparatedProfiles::line: usize
-impl core::clone::Clone for research::round::Warning
-pub fn research::round::Warning::clone(&self) -> research::round::Warning
-impl core::cmp::Eq for research::round::Warning
-impl core::cmp::PartialEq for research::round::Warning
-pub fn research::round::Warning::eq(&self, other: &research::round::Warning) -> bool
-impl core::fmt::Debug for research::round::Warning
-pub fn research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::round::Warning
-pub fn research::round::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Warning
-pub struct research::round::Finding
-impl research::round::Finding
-pub fn research::round::Finding::invalid(name: &str) -> Self
-pub fn research::round::Finding::retained(name: &str, question: &str, profile: &str) -> Self
-pub const fn research::round::Finding::with_depth(self, depth: research::tree::Depth) -> Self
-impl core::clone::Clone for research::round::Finding
-pub fn research::round::Finding::clone(&self) -> research::round::Finding
-impl core::cmp::Eq for research::round::Finding
-impl core::cmp::PartialEq for research::round::Finding
-pub fn research::round::Finding::eq(&self, other: &research::round::Finding) -> bool
-impl core::fmt::Debug for research::round::Finding
-pub fn research::round::Finding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Finding
-pub struct research::round::ItemStatus
-pub research::round::ItemStatus::complete: bool
-pub research::round::ItemStatus::line: usize
-pub research::round::ItemStatus::question: alloc::string::String
-impl core::clone::Clone for research::round::ItemStatus
-pub fn research::round::ItemStatus::clone(&self) -> research::round::ItemStatus
-impl core::cmp::Eq for research::round::ItemStatus
-impl core::cmp::PartialEq for research::round::ItemStatus
-pub fn research::round::ItemStatus::eq(&self, other: &research::round::ItemStatus) -> bool
-impl core::fmt::Debug for research::round::ItemStatus
-pub fn research::round::ItemStatus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::ItemStatus
-pub struct research::round::Outline
-pub research::round::Outline::items: alloc::vec::Vec<research::round::OutlineEntry>
-impl research::round::Outline
-pub fn research::round::Outline::parse(text: &str) -> Self
-impl core::clone::Clone for research::round::Outline
-pub fn research::round::Outline::clone(&self) -> research::round::Outline
-impl core::cmp::Eq for research::round::Outline
-impl core::cmp::PartialEq for research::round::Outline
-pub fn research::round::Outline::eq(&self, other: &research::round::Outline) -> bool
-impl core::default::Default for research::round::Outline
-pub fn research::round::Outline::default() -> research::round::Outline
-impl core::fmt::Debug for research::round::Outline
-pub fn research::round::Outline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Outline
-pub struct research::round::OutlineEntry
-pub research::round::OutlineEntry::item: research::round::OutlineItem
-pub research::round::OutlineEntry::line: usize
-impl core::clone::Clone for research::round::OutlineEntry
-pub fn research::round::OutlineEntry::clone(&self) -> research::round::OutlineEntry
-impl core::cmp::Eq for research::round::OutlineEntry
-impl core::cmp::PartialEq for research::round::OutlineEntry
-pub fn research::round::OutlineEntry::eq(&self, other: &research::round::OutlineEntry) -> bool
-impl core::fmt::Debug for research::round::OutlineEntry
-pub fn research::round::OutlineEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::OutlineEntry
-pub struct research::round::OutlineItem
-pub research::round::OutlineItem::question: alloc::string::String
-pub research::round::OutlineItem::ticked: bool
-impl research::round::OutlineItem
-pub fn research::round::OutlineItem::parse(line: &str) -> core::option::Option<Self>
-pub fn research::round::OutlineItem::profiles(&self) -> alloc::vec::Vec<&str>
-impl core::clone::Clone for research::round::OutlineItem
-pub fn research::round::OutlineItem::clone(&self) -> research::round::OutlineItem
-impl core::cmp::Eq for research::round::OutlineItem
-impl core::cmp::PartialEq for research::round::OutlineItem
-pub fn research::round::OutlineItem::eq(&self, other: &research::round::OutlineItem) -> bool
-impl core::fmt::Debug for research::round::OutlineItem
-pub fn research::round::OutlineItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::OutlineItem
-pub struct research::round::Pair
-pub research::round::Pair::path: alloc::string::String
-pub research::round::Pair::profile: alloc::string::String
-pub research::round::Pair::question: alloc::string::String
-pub research::round::Pair::stage: research::round::Stage
-pub research::round::Pair::stem: research::stem::Stem
-impl research::round::Pair
-pub fn research::round::Pair::level_note_id(&self, lineage: &research::lineage::Lineage, set_slug: &str) -> alloc::string::String
-pub fn research::round::Pair::level_note_path(&self, lineage: &research::lineage::Lineage) -> alloc::string::String
-impl core::clone::Clone for research::round::Pair
-pub fn research::round::Pair::clone(&self) -> research::round::Pair
-impl core::cmp::Eq for research::round::Pair
-impl core::cmp::PartialEq for research::round::Pair
-pub fn research::round::Pair::eq(&self, other: &research::round::Pair) -> bool
-impl core::fmt::Debug for research::round::Pair
-pub fn research::round::Pair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Pair
-pub struct research::round::PairTrim
-pub research::round::PairTrim::stem: research::stem::Stem
-pub research::round::PairTrim::trim: research::tree::Trim
-impl core::clone::Clone for research::round::PairTrim
-pub fn research::round::PairTrim::clone(&self) -> research::round::PairTrim
-impl core::cmp::Eq for research::round::PairTrim
-impl core::cmp::PartialEq for research::round::PairTrim
-pub fn research::round::PairTrim::eq(&self, other: &research::round::PairTrim) -> bool
-impl core::fmt::Debug for research::round::PairTrim
-pub fn research::round::PairTrim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::round::PairTrim
-pub fn research::round::PairTrim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::PairTrim
-pub struct research::round::QuarantineMarker
-impl research::round::QuarantineMarker
-pub fn research::round::QuarantineMarker::new(name: &str, question: core::option::Option<alloc::string::String>) -> Self
-impl core::clone::Clone for research::round::QuarantineMarker
-pub fn research::round::QuarantineMarker::clone(&self) -> research::round::QuarantineMarker
-impl core::cmp::Eq for research::round::QuarantineMarker
-impl core::cmp::PartialEq for research::round::QuarantineMarker
-pub fn research::round::QuarantineMarker::eq(&self, other: &research::round::QuarantineMarker) -> bool
-impl core::fmt::Debug for research::round::QuarantineMarker
-pub fn research::round::QuarantineMarker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::QuarantineMarker
-pub struct research::round::QuestionSlug(_)
-impl research::round::QuestionSlug
-pub fn research::round::QuestionSlug::as_str(&self) -> &str
-impl core::clone::Clone for research::round::QuestionSlug
-pub fn research::round::QuestionSlug::clone(&self) -> research::round::QuestionSlug
-impl core::cmp::Eq for research::round::QuestionSlug
-impl core::cmp::PartialEq for research::round::QuestionSlug
-pub fn research::round::QuestionSlug::eq(&self, other: &research::round::QuestionSlug) -> bool
-impl core::convert::From<&str> for research::round::QuestionSlug
-pub fn research::round::QuestionSlug::from(question: &str) -> Self
-impl core::fmt::Debug for research::round::QuestionSlug
-pub fn research::round::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::QuestionSlug
-pub struct research::round::Round
-pub research::round::Round::accepted_notes: alloc::collections::btree::map::BTreeMap<research::tree::NoteRef, research::tree::Digest>
-pub research::round::Round::answered: alloc::collections::btree::set::BTreeSet<research::stem::Stem>
-pub research::round::Round::indexes: research::pinned_indexes::PinnedIndexes
-pub research::round::Round::items: alloc::vec::Vec<research::round::ItemStatus>
-pub research::round::Round::pairs: alloc::vec::Vec<research::round::Pair>
-pub research::round::Round::shallower: alloc::vec::Vec<research::round::ShallowerPair>
-pub research::round::Round::skipped: alloc::vec::Vec<research::round::Skip>
-pub research::round::Round::trims: alloc::vec::Vec<research::round::PairTrim>
-pub research::round::Round::warnings: alloc::vec::Vec<research::round::Warning>
-impl research::round::Round
-pub fn research::round::Round::plan(inputs: &research::round::RoundInputs, unicode: &dyn research::question::UnicodeText) -> Self
-impl core::clone::Clone for research::round::Round
-pub fn research::round::Round::clone(&self) -> research::round::Round
-impl core::cmp::Eq for research::round::Round
-impl core::cmp::PartialEq for research::round::Round
-pub fn research::round::Round::eq(&self, other: &research::round::Round) -> bool
-impl core::fmt::Debug for research::round::Round
-pub fn research::round::Round::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Round
-pub struct research::round::RoundInputs
-pub research::round::RoundInputs::available_profiles: alloc::vec::Vec<alloc::string::String>
-pub research::round::RoundInputs::depth: research::tree::Depth
-pub research::round::RoundInputs::findings: alloc::vec::Vec<research::round::Finding>
-pub research::round::RoundInputs::levels: alloc::vec::Vec<research::tree::LevelsDirectory>
-pub research::round::RoundInputs::markers: alloc::vec::Vec<research::round::QuarantineMarker>
-pub research::round::RoundInputs::outline: research::round::Outline
-pub research::round::RoundInputs::pins: research::pinned_indexes::PinnedIndexes
-pub research::round::RoundInputs::source_profiles: alloc::vec::Vec<alloc::string::String>
-impl core::clone::Clone for research::round::RoundInputs
-pub fn research::round::RoundInputs::clone(&self) -> research::round::RoundInputs
-impl core::default::Default for research::round::RoundInputs
-pub fn research::round::RoundInputs::default() -> research::round::RoundInputs
-impl core::fmt::Debug for research::round::RoundInputs
-pub fn research::round::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct research::round::ShallowerPair
-pub research::round::ShallowerPair::depth: research::tree::Depth
-pub research::round::ShallowerPair::stem: research::stem::Stem
-impl core::clone::Clone for research::round::ShallowerPair
-pub fn research::round::ShallowerPair::clone(&self) -> research::round::ShallowerPair
-impl core::cmp::Eq for research::round::ShallowerPair
-impl core::cmp::PartialEq for research::round::ShallowerPair
-pub fn research::round::ShallowerPair::eq(&self, other: &research::round::ShallowerPair) -> bool
-impl core::fmt::Debug for research::round::ShallowerPair
-pub fn research::round::ShallowerPair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::ShallowerPair
-pub struct research::round::Skip
-pub research::round::Skip::profile: alloc::string::String
-pub research::round::Skip::question: alloc::string::String
-pub research::round::Skip::reason: research::round::SkipReason
-impl research::round::Skip
-pub fn research::round::Skip::explanation(&self) -> alloc::string::String
-impl core::clone::Clone for research::round::Skip
-pub fn research::round::Skip::clone(&self) -> research::round::Skip
-impl core::cmp::Eq for research::round::Skip
-impl core::cmp::PartialEq for research::round::Skip
-pub fn research::round::Skip::eq(&self, other: &research::round::Skip) -> bool
-impl core::fmt::Debug for research::round::Skip
-pub fn research::round::Skip::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::round::Skip
-pub const research::round::DEFAULT_PROFILE: &str
-pub mod research::run_ledger
-pub enum research::run_ledger::Continuation
-pub research::run_ledger::Continuation::Continued(research::run_ledger::RunLedger)
-pub research::run_ledger::Continuation::Superseded
-pub research::run_ledger::Continuation::Superseded::stored: research::run_ledger::RunId
-impl core::clone::Clone for research::run_ledger::Continuation
-pub fn research::run_ledger::Continuation::clone(&self) -> research::run_ledger::Continuation
-impl core::cmp::Eq for research::run_ledger::Continuation
-impl core::cmp::PartialEq for research::run_ledger::Continuation
-pub fn research::run_ledger::Continuation::eq(&self, other: &research::run_ledger::Continuation) -> bool
-impl core::fmt::Debug for research::run_ledger::Continuation
-pub fn research::run_ledger::Continuation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::run_ledger::Continuation
-pub struct research::run_ledger::PendingBatch
-impl research::run_ledger::PendingBatch
-pub fn research::run_ledger::PendingBatch::acknowledge(&mut self, spawned: u32) -> alloc::vec::Vec<research::spawn_window::SpawnRef>
-pub const fn research::run_ledger::PendingBatch::new(number: u32, spawns: alloc::vec::Vec<research::spawn_window::SpawnRef>) -> Self
-pub const fn research::run_ledger::PendingBatch::number(&self) -> u32
-pub fn research::run_ledger::PendingBatch::replace(&mut self, spawns: alloc::vec::Vec<research::spawn_window::SpawnRef>) -> alloc::vec::Vec<research::spawn_window::SpawnRef>
-pub fn research::run_ledger::PendingBatch::spawns(&self) -> &[research::spawn_window::SpawnRef]
-impl core::clone::Clone for research::run_ledger::PendingBatch
-pub fn research::run_ledger::PendingBatch::clone(&self) -> research::run_ledger::PendingBatch
-impl core::cmp::Eq for research::run_ledger::PendingBatch
-impl core::cmp::PartialEq for research::run_ledger::PendingBatch
-pub fn research::run_ledger::PendingBatch::eq(&self, other: &research::run_ledger::PendingBatch) -> bool
-impl core::default::Default for research::run_ledger::PendingBatch
-pub fn research::run_ledger::PendingBatch::default() -> research::run_ledger::PendingBatch
-impl core::fmt::Debug for research::run_ledger::PendingBatch
-pub fn research::run_ledger::PendingBatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::run_ledger::PendingBatch
-pub struct research::run_ledger::RunId(_)
-impl research::run_ledger::RunId
-pub fn research::run_ledger::RunId::mint(timestamp: &str, suffix: u32) -> Self
-pub fn research::run_ledger::RunId::parse(text: &str) -> core::option::Option<Self>
-impl core::clone::Clone for research::run_ledger::RunId
-pub fn research::run_ledger::RunId::clone(&self) -> research::run_ledger::RunId
-impl core::cmp::Eq for research::run_ledger::RunId
-impl core::cmp::PartialEq for research::run_ledger::RunId
-pub fn research::run_ledger::RunId::eq(&self, other: &research::run_ledger::RunId) -> bool
-impl core::fmt::Debug for research::run_ledger::RunId
-pub fn research::run_ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::run_ledger::RunId
-pub fn research::run_ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::run_ledger::RunId
-pub struct research::run_ledger::RunLedger
-impl research::run_ledger::RunLedger
-pub const fn research::run_ledger::RunLedger::attempts(&self) -> &research::spawn_window::Attempts
-pub fn research::run_ledger::RunLedger::continue_as(stored: Self, run: &research::run_ledger::RunId, spawned: core::option::Option<u32>) -> research::run_ledger::Continuation
-pub fn research::run_ledger::RunLedger::from_parts(run: research::run_ledger::RunId, pending: research::run_ledger::PendingBatch, pins: research::pinned_indexes::PinnedIndexes, attempts: research::spawn_window::Attempts) -> Self
-pub const fn research::run_ledger::RunLedger::pending(&self) -> &research::run_ledger::PendingBatch
-pub const fn research::run_ledger::RunLedger::pins(&self) -> &research::pinned_indexes::PinnedIndexes
-pub fn research::run_ledger::RunLedger::record(self, window: &research::spawn_window::Window) -> Self
-pub const fn research::run_ledger::RunLedger::run(&self) -> &research::run_ledger::RunId
-pub fn research::run_ledger::RunLedger::start(run: research::run_ledger::RunId, round: &research::round::Round) -> Self
-impl core::clone::Clone for research::run_ledger::RunLedger
-pub fn research::run_ledger::RunLedger::clone(&self) -> research::run_ledger::RunLedger
-impl core::cmp::Eq for research::run_ledger::RunLedger
-impl core::cmp::PartialEq for research::run_ledger::RunLedger
-pub fn research::run_ledger::RunLedger::eq(&self, other: &research::run_ledger::RunLedger) -> bool
-impl core::fmt::Debug for research::run_ledger::RunLedger
-pub fn research::run_ledger::RunLedger::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::run_ledger::RunLedger
-pub mod research::schedule
-pub struct research::schedule::Deadline
-impl research::schedule::Deadline
-pub fn research::schedule::Deadline::admits_attempt_after(&self, now: std::time::Instant, wait: core::time::Duration) -> bool
-pub const fn research::schedule::Deadline::per_request(&self) -> core::time::Duration
-pub fn research::schedule::Deadline::remaining(&self, now: std::time::Instant) -> core::time::Duration
-pub fn research::schedule::Deadline::starting(now: std::time::Instant, total: core::time::Duration, per_request: core::time::Duration) -> Self
-impl core::clone::Clone for research::schedule::Deadline
-pub fn research::schedule::Deadline::clone(&self) -> research::schedule::Deadline
-impl core::cmp::Eq for research::schedule::Deadline
-impl core::cmp::PartialEq for research::schedule::Deadline
-pub fn research::schedule::Deadline::eq(&self, other: &research::schedule::Deadline) -> bool
-impl core::fmt::Debug for research::schedule::Deadline
-pub fn research::schedule::Deadline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::schedule::Deadline
-impl core::marker::StructuralPartialEq for research::schedule::Deadline
-pub struct research::schedule::RetryNumber(_)
-impl research::schedule::RetryNumber
-pub const fn research::schedule::RetryNumber::first() -> Self
-pub const fn research::schedule::RetryNumber::next(self) -> Self
-impl core::clone::Clone for research::schedule::RetryNumber
-pub fn research::schedule::RetryNumber::clone(&self) -> research::schedule::RetryNumber
-impl core::cmp::Eq for research::schedule::RetryNumber
-impl core::cmp::PartialEq for research::schedule::RetryNumber
-pub fn research::schedule::RetryNumber::eq(&self, other: &research::schedule::RetryNumber) -> bool
-impl core::fmt::Debug for research::schedule::RetryNumber
-pub fn research::schedule::RetryNumber::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::schedule::RetryNumber
-impl core::marker::StructuralPartialEq for research::schedule::RetryNumber
-pub struct research::schedule::RetrySchedule
-impl research::schedule::RetrySchedule
-pub fn research::schedule::RetrySchedule::deferral_after(retry: research::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::time::Duration
-pub fn research::schedule::RetrySchedule::wait_before(retry: research::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::option::Option<core::time::Duration>
-pub mod research::spawn_window
-pub enum research::spawn_window::SpawnRef
-pub research::spawn_window::SpawnRef::Node(research::tree::NoteRef)
-pub research::spawn_window::SpawnRef::Pair(research::stem::Stem)
-impl research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::parse(text: &str) -> core::option::Option<Self>
-impl core::clone::Clone for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::clone(&self) -> research::spawn_window::SpawnRef
-impl core::cmp::Eq for research::spawn_window::SpawnRef
-impl core::cmp::Ord for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::cmp(&self, other: &research::spawn_window::SpawnRef) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::eq(&self, other: &research::spawn_window::SpawnRef) -> bool
-impl core::cmp::PartialOrd for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::partial_cmp(&self, other: &research::spawn_window::SpawnRef) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::spawn_window::SpawnRef
-pub fn research::spawn_window::SpawnRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::spawn_window::SpawnRef
-pub struct research::spawn_window::Attempts
-pub research::spawn_window::Attempts::answered_seen: alloc::collections::btree::set::BTreeSet<research::stem::Stem>
-pub research::spawn_window::Attempts::attempted: alloc::collections::btree::set::BTreeSet<research::spawn_window::SpawnRef>
-pub research::spawn_window::Attempts::just_acknowledged: alloc::collections::btree::set::BTreeSet<research::spawn_window::SpawnRef>
-pub research::spawn_window::Attempts::notes_seen: alloc::collections::btree::map::BTreeMap<research::tree::NoteRef, research::tree::Digest>
-pub research::spawn_window::Attempts::pending: alloc::collections::btree::set::BTreeSet<research::spawn_window::SpawnRef>
-impl core::clone::Clone for research::spawn_window::Attempts
-pub fn research::spawn_window::Attempts::clone(&self) -> research::spawn_window::Attempts
-impl core::cmp::Eq for research::spawn_window::Attempts
-impl core::cmp::PartialEq for research::spawn_window::Attempts
-pub fn research::spawn_window::Attempts::eq(&self, other: &research::spawn_window::Attempts) -> bool
-impl core::default::Default for research::spawn_window::Attempts
-pub fn research::spawn_window::Attempts::default() -> research::spawn_window::Attempts
-impl core::fmt::Debug for research::spawn_window::Attempts
-pub fn research::spawn_window::Attempts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::spawn_window::Attempts
-pub struct research::spawn_window::Unaccepted
-pub research::spawn_window::Unaccepted::rejected: core::option::Option<research::tree::NoteRejection>
-pub research::spawn_window::Unaccepted::spawn: research::spawn_window::SpawnRef
-impl core::clone::Clone for research::spawn_window::Unaccepted
-pub fn research::spawn_window::Unaccepted::clone(&self) -> research::spawn_window::Unaccepted
-impl core::cmp::Eq for research::spawn_window::Unaccepted
-impl core::cmp::PartialEq for research::spawn_window::Unaccepted
-pub fn research::spawn_window::Unaccepted::eq(&self, other: &research::spawn_window::Unaccepted) -> bool
-impl core::fmt::Debug for research::spawn_window::Unaccepted
-pub fn research::spawn_window::Unaccepted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::spawn_window::Unaccepted
-pub struct research::spawn_window::Window
-pub research::spawn_window::Window::offered: alloc::vec::Vec<research::spawn_window::SpawnRef>
-pub research::spawn_window::Window::remaining: usize
-pub research::spawn_window::Window::round: research::round::Round
-pub research::spawn_window::Window::unaccepted: alloc::vec::Vec<research::spawn_window::Unaccepted>
-pub research::spawn_window::Window::unexpected: alloc::vec::Vec<research::spawn_window::SpawnRef>
-impl core::clone::Clone for research::spawn_window::Window
-pub fn research::spawn_window::Window::clone(&self) -> research::spawn_window::Window
-impl core::cmp::Eq for research::spawn_window::Window
-impl core::cmp::PartialEq for research::spawn_window::Window
-pub fn research::spawn_window::Window::eq(&self, other: &research::spawn_window::Window) -> bool
-impl core::fmt::Debug for research::spawn_window::Window
-pub fn research::spawn_window::Window::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::spawn_window::Window
-pub fn research::spawn_window::window(round: research::round::Round, limit: core::option::Option<usize>, attempts: core::option::Option<&research::spawn_window::Attempts>) -> research::spawn_window::Window
-pub mod research::stem
-pub struct research::stem::Stem
-impl research::stem::Stem
-pub fn research::stem::Stem::admits_profile(profile: &str) -> bool
-pub fn research::stem::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
-pub const fn research::stem::Stem::index(&self) -> u32
-pub fn research::stem::Stem::parse(text: &str) -> core::option::Option<Self>
-impl core::clone::Clone for research::stem::Stem
-pub fn research::stem::Stem::clone(&self) -> research::stem::Stem
-impl core::cmp::Eq for research::stem::Stem
-impl core::cmp::Ord for research::stem::Stem
-pub fn research::stem::Stem::cmp(&self, other: &research::stem::Stem) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::stem::Stem
-pub fn research::stem::Stem::eq(&self, other: &research::stem::Stem) -> bool
-impl core::cmp::PartialOrd for research::stem::Stem
-pub fn research::stem::Stem::partial_cmp(&self, other: &research::stem::Stem) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::stem::Stem
-pub fn research::stem::Stem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::stem::Stem
-pub fn research::stem::Stem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::stem::Stem
-pub fn research::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::stem::Stem
-pub mod research::tier
-pub const fn research::tier::arxiv_tier(withdrawn: bool) -> research::record::Tier
-pub fn research::tier::openalex_tier(work: &research::openalex::Work) -> research::record::Tier
-pub mod research::tree
-pub enum research::tree::NoteRejection
-pub research::tree::NoteRejection::FailsValidation
-pub research::tree::NoteRejection::FailsValidation::code: &'static str
-pub research::tree::NoteRejection::FailsValidation::field: core::option::Option<&'static str>
-pub research::tree::NoteRejection::LevelDisagreesWithLineage
-pub research::tree::NoteRejection::MalformedFollowUps
-pub research::tree::NoteRejection::MissingQuestion
-pub research::tree::NoteRejection::NotAPlainQuestion
-pub research::tree::NoteRejection::NotAPlainQuestion::follow_up: core::num::nonzero::NonZeroUsize
-pub research::tree::NoteRejection::NotAPlainQuestion::rule: research::question::PlainQuestionRule
-pub research::tree::NoteRejection::QuestionDisagreesWithCandidate
-pub research::tree::NoteRejection::WrongKind
-impl core::clone::Clone for research::tree::NoteRejection
-pub fn research::tree::NoteRejection::clone(&self) -> research::tree::NoteRejection
-impl core::cmp::Eq for research::tree::NoteRejection
-impl core::cmp::PartialEq for research::tree::NoteRejection
-pub fn research::tree::NoteRejection::eq(&self, other: &research::tree::NoteRejection) -> bool
-impl core::fmt::Debug for research::tree::NoteRejection
-pub fn research::tree::NoteRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::tree::NoteRejection
-pub fn research::tree::NoteRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::NoteRejection
-pub enum research::tree::TreeState
-pub research::tree::TreeState::Complete(alloc::vec::Vec<research::lineage::Lineage>)
-pub research::tree::TreeState::Growing(alloc::vec::Vec<research::tree::Node>)
-impl core::clone::Clone for research::tree::TreeState
-pub fn research::tree::TreeState::clone(&self) -> research::tree::TreeState
-impl core::cmp::Eq for research::tree::TreeState
-impl core::cmp::PartialEq for research::tree::TreeState
-pub fn research::tree::TreeState::eq(&self, other: &research::tree::TreeState) -> bool
-impl core::fmt::Debug for research::tree::TreeState
-pub fn research::tree::TreeState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::TreeState
-pub struct research::tree::Depth(_)
-impl research::tree::Depth
-pub const fn research::tree::Depth::levels(self) -> u32
-pub const fn research::tree::Depth::new(levels: u32) -> core::option::Option<Self>
-impl core::clone::Clone for research::tree::Depth
-pub fn research::tree::Depth::clone(&self) -> research::tree::Depth
-impl core::cmp::Eq for research::tree::Depth
-impl core::cmp::Ord for research::tree::Depth
-pub fn research::tree::Depth::cmp(&self, other: &research::tree::Depth) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::tree::Depth
-pub fn research::tree::Depth::eq(&self, other: &research::tree::Depth) -> bool
-impl core::cmp::PartialOrd for research::tree::Depth
-pub fn research::tree::Depth::partial_cmp(&self, other: &research::tree::Depth) -> core::option::Option<core::cmp::Ordering>
-impl core::default::Default for research::tree::Depth
-pub fn research::tree::Depth::default() -> Self
-impl core::fmt::Debug for research::tree::Depth
-pub fn research::tree::Depth::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::tree::Depth
-impl core::marker::StructuralPartialEq for research::tree::Depth
-pub struct research::tree::Derivation
-pub research::tree::Derivation::state: research::tree::TreeState
-pub research::tree::Derivation::trims: alloc::vec::Vec<research::tree::Trim>
-impl core::clone::Clone for research::tree::Derivation
-pub fn research::tree::Derivation::clone(&self) -> research::tree::Derivation
-impl core::cmp::Eq for research::tree::Derivation
-impl core::cmp::PartialEq for research::tree::Derivation
-pub fn research::tree::Derivation::eq(&self, other: &research::tree::Derivation) -> bool
-impl core::fmt::Debug for research::tree::Derivation
-pub fn research::tree::Derivation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::Derivation
-pub struct research::tree::Digest(_)
-impl research::tree::Digest
-pub const fn research::tree::Digest::bytes(&self) -> &[u8; 32]
-pub const fn research::tree::Digest::new(bytes: [u8; 32]) -> Self
-impl core::clone::Clone for research::tree::Digest
-pub fn research::tree::Digest::clone(&self) -> research::tree::Digest
-impl core::cmp::Eq for research::tree::Digest
-impl core::cmp::Ord for research::tree::Digest
-pub fn research::tree::Digest::cmp(&self, other: &research::tree::Digest) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::tree::Digest
-pub fn research::tree::Digest::eq(&self, other: &research::tree::Digest) -> bool
-impl core::cmp::PartialOrd for research::tree::Digest
-pub fn research::tree::Digest::partial_cmp(&self, other: &research::tree::Digest) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::tree::Digest
-pub fn research::tree::Digest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::tree::Digest
-pub fn research::tree::Digest::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::Copy for research::tree::Digest
-impl core::marker::StructuralPartialEq for research::tree::Digest
-pub struct research::tree::LevelNote
-pub research::tree::LevelNote::digest: research::tree::Digest
-pub research::tree::LevelNote::follow_ups: alloc::vec::Vec<alloc::string::String>
-pub research::tree::LevelNote::lineage: research::lineage::Lineage
-pub research::tree::LevelNote::question: alloc::string::String
-impl research::tree::LevelNote
-pub fn research::tree::LevelNote::from_frontmatter(lineage: research::lineage::Lineage, fields: research::tree::LevelNoteFields<'_>, unicode: &dyn research::question::UnicodeText) -> core::result::Result<Self, research::tree::NoteRejection>
-impl core::clone::Clone for research::tree::LevelNote
-pub fn research::tree::LevelNote::clone(&self) -> research::tree::LevelNote
-impl core::cmp::Eq for research::tree::LevelNote
-impl core::cmp::PartialEq for research::tree::LevelNote
-pub fn research::tree::LevelNote::eq(&self, other: &research::tree::LevelNote) -> bool
-impl core::fmt::Debug for research::tree::LevelNote
-pub fn research::tree::LevelNote::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::LevelNote
-pub struct research::tree::LevelNoteFields<'a>
-pub research::tree::LevelNoteFields::digest: research::tree::Digest
-pub research::tree::LevelNoteFields::follow_ups: core::option::Option<&'a [alloc::string::String]>
-pub research::tree::LevelNoteFields::kind: core::option::Option<&'a str>
-pub research::tree::LevelNoteFields::level: core::option::Option<&'a str>
-pub research::tree::LevelNoteFields::question: core::option::Option<&'a str>
-impl<'a> core::clone::Clone for research::tree::LevelNoteFields<'a>
-pub fn research::tree::LevelNoteFields<'a>::clone(&self) -> research::tree::LevelNoteFields<'a>
-impl<'a> core::cmp::Eq for research::tree::LevelNoteFields<'a>
-impl<'a> core::cmp::PartialEq for research::tree::LevelNoteFields<'a>
-pub fn research::tree::LevelNoteFields<'a>::eq(&self, other: &research::tree::LevelNoteFields<'a>) -> bool
-impl<'a> core::fmt::Debug for research::tree::LevelNoteFields<'a>
-pub fn research::tree::LevelNoteFields<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for research::tree::LevelNoteFields<'a>
-impl<'a> core::marker::StructuralPartialEq for research::tree::LevelNoteFields<'a>
-pub struct research::tree::LevelsDirectory
-impl research::tree::LevelsDirectory
-pub const fn research::tree::LevelsDirectory::new(stem: research::stem::Stem, root_question: core::option::Option<alloc::string::String>, notes: alloc::vec::Vec<research::tree::LevelNote>, rejected: alloc::collections::btree::map::BTreeMap<research::lineage::Lineage, research::tree::NoteRejection>) -> Self
-pub fn research::tree::LevelsDirectory::notes(&self) -> &[research::tree::LevelNote]
-pub const fn research::tree::LevelsDirectory::rejected(&self) -> &alloc::collections::btree::map::BTreeMap<research::lineage::Lineage, research::tree::NoteRejection>
-pub fn research::tree::LevelsDirectory::root_question(&self) -> core::option::Option<&str>
-pub const fn research::tree::LevelsDirectory::stem(&self) -> &research::stem::Stem
-impl core::clone::Clone for research::tree::LevelsDirectory
-pub fn research::tree::LevelsDirectory::clone(&self) -> research::tree::LevelsDirectory
-impl core::cmp::Eq for research::tree::LevelsDirectory
-impl core::cmp::PartialEq for research::tree::LevelsDirectory
-pub fn research::tree::LevelsDirectory::eq(&self, other: &research::tree::LevelsDirectory) -> bool
-impl core::fmt::Debug for research::tree::LevelsDirectory
-pub fn research::tree::LevelsDirectory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::LevelsDirectory
-pub struct research::tree::Node
-pub research::tree::Node::cap: u32
-pub research::tree::Node::known_questions: alloc::vec::Vec<alloc::string::String>
-pub research::tree::Node::lineage: research::lineage::Lineage
-pub research::tree::Node::question: alloc::string::String
-pub research::tree::Node::rejected: core::option::Option<research::tree::NoteRejection>
-impl core::clone::Clone for research::tree::Node
-pub fn research::tree::Node::clone(&self) -> research::tree::Node
-impl core::cmp::Eq for research::tree::Node
-impl core::cmp::PartialEq for research::tree::Node
-pub fn research::tree::Node::eq(&self, other: &research::tree::Node) -> bool
-impl core::fmt::Debug for research::tree::Node
-pub fn research::tree::Node::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::Node
-pub struct research::tree::NoteRef
-pub research::tree::NoteRef::lineage: research::lineage::Lineage
-pub research::tree::NoteRef::stem: research::stem::Stem
-impl core::clone::Clone for research::tree::NoteRef
-pub fn research::tree::NoteRef::clone(&self) -> research::tree::NoteRef
-impl core::cmp::Eq for research::tree::NoteRef
-impl core::cmp::Ord for research::tree::NoteRef
-pub fn research::tree::NoteRef::cmp(&self, other: &research::tree::NoteRef) -> core::cmp::Ordering
-impl core::cmp::PartialEq for research::tree::NoteRef
-pub fn research::tree::NoteRef::eq(&self, other: &research::tree::NoteRef) -> bool
-impl core::cmp::PartialOrd for research::tree::NoteRef
-pub fn research::tree::NoteRef::partial_cmp(&self, other: &research::tree::NoteRef) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for research::tree::NoteRef
-pub fn research::tree::NoteRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for research::tree::NoteRef
-pub fn research::tree::NoteRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for research::tree::NoteRef
-pub fn research::tree::NoteRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
-impl core::marker::StructuralPartialEq for research::tree::NoteRef
-pub struct research::tree::Trim
-pub research::tree::Trim::cap: u32
-pub research::tree::Trim::lineage: research::lineage::Lineage
-pub research::tree::Trim::recorded: u32
-impl research::tree::Trim
-pub const fn research::tree::Trim::trimmed(&self) -> u32
-impl core::clone::Clone for research::tree::Trim
-pub fn research::tree::Trim::clone(&self) -> research::tree::Trim
-impl core::cmp::Eq for research::tree::Trim
-impl core::cmp::PartialEq for research::tree::Trim
-pub fn research::tree::Trim::eq(&self, other: &research::tree::Trim) -> bool
-impl core::fmt::Debug for research::tree::Trim
-pub fn research::tree::Trim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::tree::Trim
-pub const research::tree::STARTING_FOLLOW_UP_CAP: u32
-pub fn research::tree::derive(pair_question: &str, directory: core::option::Option<&research::tree::LevelsDirectory>, depth: research::tree::Depth, unicode: &dyn research::question::UnicodeText) -> research::tree::Derivation
-pub fn research::tree::follow_up_cap(level: u32) -> u32
+pub mod research::sources
+pub mod research::sources::arxiv
+pub struct research::sources::arxiv::Entry
+pub research::sources::arxiv::Entry::authors: alloc::vec::Vec<alloc::string::String>
+pub research::sources::arxiv::Entry::comment: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::doi: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::id: alloc::string::String
+pub research::sources::arxiv::Entry::journal_ref: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::primary_category: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::summary: core::option::Option<alloc::string::String>
+pub research::sources::arxiv::Entry::title: alloc::string::String
+impl research::sources::arxiv::Entry
+pub fn research::sources::arxiv::Entry::arxiv_id(&self) -> core::option::Option<research::sources::request::ArxivId>
+pub fn research::sources::arxiv::Entry::is_withdrawal_candidate(&self) -> bool
+impl core::clone::Clone for research::sources::arxiv::Entry
+pub fn research::sources::arxiv::Entry::clone(&self) -> research::sources::arxiv::Entry
+impl core::cmp::Eq for research::sources::arxiv::Entry
+impl core::cmp::PartialEq for research::sources::arxiv::Entry
+pub fn research::sources::arxiv::Entry::eq(&self, other: &research::sources::arxiv::Entry) -> bool
+impl core::default::Default for research::sources::arxiv::Entry
+pub fn research::sources::arxiv::Entry::default() -> research::sources::arxiv::Entry
+impl core::fmt::Debug for research::sources::arxiv::Entry
+pub fn research::sources::arxiv::Entry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::arxiv::Entry
+pub struct research::sources::arxiv::RawVersion
+pub research::sources::arxiv::RawVersion::size: alloc::string::String
+pub research::sources::arxiv::RawVersion::source_type: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::sources::arxiv::RawVersion
+pub fn research::sources::arxiv::RawVersion::clone(&self) -> research::sources::arxiv::RawVersion
+impl core::cmp::Eq for research::sources::arxiv::RawVersion
+impl core::cmp::PartialEq for research::sources::arxiv::RawVersion
+pub fn research::sources::arxiv::RawVersion::eq(&self, other: &research::sources::arxiv::RawVersion) -> bool
+impl core::default::Default for research::sources::arxiv::RawVersion
+pub fn research::sources::arxiv::RawVersion::default() -> research::sources::arxiv::RawVersion
+impl core::fmt::Debug for research::sources::arxiv::RawVersion
+pub fn research::sources::arxiv::RawVersion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::arxiv::RawVersion
+pub fn research::sources::arxiv::is_withdrawal_candidate(comment: &str) -> bool
+pub fn research::sources::arxiv::latest_version_withdrawn(versions: &[research::sources::arxiv::RawVersion]) -> bool
+pub fn research::sources::arxiv::normalise(entry: &research::sources::arxiv::Entry, withdrawn: bool) -> core::option::Option<research::sources::record::Record>
+pub mod research::sources::classify
+pub enum research::sources::classify::ClientRejection
+pub research::sources::classify::ClientRejection::ErrorFeed(alloc::string::String)
+pub research::sources::classify::ClientRejection::Redirect(u16)
+pub research::sources::classify::ClientRejection::Status(u16)
+impl core::clone::Clone for research::sources::classify::ClientRejection
+pub fn research::sources::classify::ClientRejection::clone(&self) -> research::sources::classify::ClientRejection
+impl core::cmp::Eq for research::sources::classify::ClientRejection
+impl core::cmp::PartialEq for research::sources::classify::ClientRejection
+pub fn research::sources::classify::ClientRejection::eq(&self, other: &research::sources::classify::ClientRejection) -> bool
+impl core::fmt::Debug for research::sources::classify::ClientRejection
+pub fn research::sources::classify::ClientRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::classify::ClientRejection
+pub enum research::sources::classify::FetchError
+pub research::sources::classify::FetchError::ClientError
+pub research::sources::classify::FetchError::ClientError::family: research::sources::request::Family
+pub research::sources::classify::FetchError::ClientError::rejection: research::sources::classify::ClientRejection
+pub research::sources::classify::FetchError::KeyRejected(research::sources::request::KeySource)
+pub research::sources::classify::FetchError::Unauthenticated
+pub research::sources::classify::FetchError::UndecodableResponse(research::sources::request::Family)
+impl core::clone::Clone for research::sources::classify::FetchError
+pub fn research::sources::classify::FetchError::clone(&self) -> research::sources::classify::FetchError
+impl core::cmp::Eq for research::sources::classify::FetchError
+impl core::cmp::PartialEq for research::sources::classify::FetchError
+pub fn research::sources::classify::FetchError::eq(&self, other: &research::sources::classify::FetchError) -> bool
+impl core::error::Error for research::sources::classify::FetchError
+impl core::fmt::Debug for research::sources::classify::FetchError
+pub fn research::sources::classify::FetchError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::classify::FetchError
+pub fn research::sources::classify::FetchError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::classify::FetchError
+pub enum research::sources::classify::Reason
+pub research::sources::classify::Reason::BudgetExhausted
+pub research::sources::classify::Reason::RateLimited
+pub research::sources::classify::Reason::UpstreamError
+impl research::sources::classify::Reason
+pub const fn research::sources::classify::Reason::code(self) -> &'static str
+impl core::clone::Clone for research::sources::classify::Reason
+pub fn research::sources::classify::Reason::clone(&self) -> research::sources::classify::Reason
+impl core::cmp::Eq for research::sources::classify::Reason
+impl core::cmp::PartialEq for research::sources::classify::Reason
+pub fn research::sources::classify::Reason::eq(&self, other: &research::sources::classify::Reason) -> bool
+impl core::fmt::Debug for research::sources::classify::Reason
+pub fn research::sources::classify::Reason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::classify::Reason
+impl core::marker::StructuralPartialEq for research::sources::classify::Reason
+pub enum research::sources::classify::Response
+pub research::sources::classify::Response::ConnectionFailed
+pub research::sources::classify::Response::Received(research::sources::classify::Received)
+pub research::sources::classify::Response::TimedOut
+impl core::clone::Clone for research::sources::classify::Response
+pub fn research::sources::classify::Response::clone(&self) -> research::sources::classify::Response
+impl core::cmp::Eq for research::sources::classify::Response
+impl core::cmp::PartialEq for research::sources::classify::Response
+pub fn research::sources::classify::Response::eq(&self, other: &research::sources::classify::Response) -> bool
+impl core::fmt::Debug for research::sources::classify::Response
+pub fn research::sources::classify::Response::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::classify::Response
+pub enum research::sources::classify::Verdict
+pub research::sources::classify::Verdict::Deliver(alloc::vec::Vec<u8>)
+pub research::sources::classify::Verdict::Empty
+pub research::sources::classify::Verdict::Fail(research::sources::classify::FetchError)
+pub research::sources::classify::Verdict::Retry
+pub research::sources::classify::Verdict::Retry::reason: research::sources::classify::Reason
+pub research::sources::classify::Verdict::Retry::retry_after: core::option::Option<core::time::Duration>
+pub research::sources::classify::Verdict::Unavailable(research::sources::classify::Reason)
+impl core::clone::Clone for research::sources::classify::Verdict
+pub fn research::sources::classify::Verdict::clone(&self) -> research::sources::classify::Verdict
+impl core::cmp::Eq for research::sources::classify::Verdict
+impl core::cmp::PartialEq for research::sources::classify::Verdict
+pub fn research::sources::classify::Verdict::eq(&self, other: &research::sources::classify::Verdict) -> bool
+impl core::fmt::Debug for research::sources::classify::Verdict
+pub fn research::sources::classify::Verdict::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::classify::Verdict
+pub struct research::sources::classify::Received
+pub research::sources::classify::Received::body: alloc::vec::Vec<u8>
+pub research::sources::classify::Received::rate_limit_credits_required: core::option::Option<u64>
+pub research::sources::classify::Received::rate_limit_remaining: core::option::Option<u64>
+pub research::sources::classify::Received::retry_after: core::option::Option<core::time::Duration>
+pub research::sources::classify::Received::status: u16
+impl research::sources::classify::Received
+pub fn research::sources::classify::Received::status(status: u16) -> Self
+impl core::clone::Clone for research::sources::classify::Received
+pub fn research::sources::classify::Received::clone(&self) -> research::sources::classify::Received
+impl core::cmp::Eq for research::sources::classify::Received
+impl core::cmp::PartialEq for research::sources::classify::Received
+pub fn research::sources::classify::Received::eq(&self, other: &research::sources::classify::Received) -> bool
+impl core::default::Default for research::sources::classify::Received
+pub fn research::sources::classify::Received::default() -> research::sources::classify::Received
+impl core::fmt::Debug for research::sources::classify::Received
+pub fn research::sources::classify::Received::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::classify::Received
+pub fn research::sources::classify::arxiv(response: research::sources::classify::Response) -> research::sources::classify::Verdict
+pub fn research::sources::classify::openalex(response: research::sources::classify::Response, verb: research::sources::request::Verb, key: core::option::Option<&research::sources::request::KeySource>) -> research::sources::classify::Verdict
+pub mod research::sources::fetch
+pub enum research::sources::fetch::Cause
+pub research::sources::fetch::Cause::LockContention
+impl research::sources::fetch::Cause
+pub const fn research::sources::fetch::Cause::code(self) -> &'static str
+impl core::clone::Clone for research::sources::fetch::Cause
+pub fn research::sources::fetch::Cause::clone(&self) -> research::sources::fetch::Cause
+impl core::cmp::Eq for research::sources::fetch::Cause
+impl core::cmp::PartialEq for research::sources::fetch::Cause
+pub fn research::sources::fetch::Cause::eq(&self, other: &research::sources::fetch::Cause) -> bool
+impl core::fmt::Debug for research::sources::fetch::Cause
+pub fn research::sources::fetch::Cause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::Cause
+impl core::marker::StructuralPartialEq for research::sources::fetch::Cause
+pub enum research::sources::fetch::DecodeFailure
+pub research::sources::fetch::DecodeFailure::ErrorFeed(alloc::string::String)
+pub research::sources::fetch::DecodeFailure::Undecodable
+impl core::clone::Clone for research::sources::fetch::DecodeFailure
+pub fn research::sources::fetch::DecodeFailure::clone(&self) -> research::sources::fetch::DecodeFailure
+impl core::cmp::Eq for research::sources::fetch::DecodeFailure
+impl core::cmp::PartialEq for research::sources::fetch::DecodeFailure
+pub fn research::sources::fetch::DecodeFailure::eq(&self, other: &research::sources::fetch::DecodeFailure) -> bool
+impl core::fmt::Debug for research::sources::fetch::DecodeFailure
+pub fn research::sources::fetch::DecodeFailure::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::fetch::DecodeFailure
+pub enum research::sources::fetch::FetchOutcome
+pub research::sources::fetch::FetchOutcome::Failed(research::sources::classify::FetchError)
+pub research::sources::fetch::FetchOutcome::Records(alloc::vec::Vec<research::sources::record::Record>)
+pub research::sources::fetch::FetchOutcome::Unavailable(research::sources::fetch::Unavailable)
+impl core::clone::Clone for research::sources::fetch::FetchOutcome
+pub fn research::sources::fetch::FetchOutcome::clone(&self) -> research::sources::fetch::FetchOutcome
+impl core::cmp::Eq for research::sources::fetch::FetchOutcome
+impl core::cmp::PartialEq for research::sources::fetch::FetchOutcome
+pub fn research::sources::fetch::FetchOutcome::eq(&self, other: &research::sources::fetch::FetchOutcome) -> bool
+impl core::fmt::Debug for research::sources::fetch::FetchOutcome
+pub fn research::sources::fetch::FetchOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::fetch::FetchOutcome
+pub struct research::sources::fetch::ArxivFetch<'a>
+pub research::sources::fetch::ArxivFetch::api: &'a research::sources::request::Endpoint
+pub research::sources::fetch::ArxivFetch::oai: &'a research::sources::request::Endpoint
+pub research::sources::fetch::ArxivFetch::request: &'a research::sources::request::ArxivRequest
+pub struct research::sources::fetch::ArxivPorts<'a>
+pub research::sources::fetch::ArxivPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::fetch::ArxivPorts::confirmations: &'a dyn research::sources::fetch::ConfirmationCache
+pub research::sources::fetch::ArxivPorts::decoder: &'a dyn research::sources::fetch::ArxivDecoder
+pub research::sources::fetch::ArxivPorts::gate: &'a dyn research::sources::fetch::PacingGate
+pub research::sources::fetch::ArxivPorts::transport: &'a dyn research::sources::fetch::Transport
+pub struct research::sources::fetch::Attempted
+pub research::sources::fetch::Attempted::defer_until: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for research::sources::fetch::Attempted
+pub fn research::sources::fetch::Attempted::clone(&self) -> research::sources::fetch::Attempted
+impl core::cmp::Eq for research::sources::fetch::Attempted
+impl core::cmp::PartialEq for research::sources::fetch::Attempted
+pub fn research::sources::fetch::Attempted::eq(&self, other: &research::sources::fetch::Attempted) -> bool
+impl core::fmt::Debug for research::sources::fetch::Attempted
+pub fn research::sources::fetch::Attempted::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::Attempted
+impl core::marker::StructuralPartialEq for research::sources::fetch::Attempted
+pub struct research::sources::fetch::OpenAlexFetch<'a>
+pub research::sources::fetch::OpenAlexFetch::api: &'a research::sources::request::Endpoint
+pub research::sources::fetch::OpenAlexFetch::key: core::option::Option<&'a research::sources::request::ApiKey>
+pub research::sources::fetch::OpenAlexFetch::request: &'a research::sources::request::OpenAlexRequest
+pub struct research::sources::fetch::OpenAlexPorts<'a>
+pub research::sources::fetch::OpenAlexPorts::clock: &'a dyn research::sources::fetch::Clock
+pub research::sources::fetch::OpenAlexPorts::decoder: &'a dyn research::sources::fetch::OpenAlexDecoder
+pub research::sources::fetch::OpenAlexPorts::gate: &'a dyn research::sources::fetch::PacingGate
+pub research::sources::fetch::OpenAlexPorts::transport: &'a dyn research::sources::fetch::Transport
+pub struct research::sources::fetch::Unavailable
+impl research::sources::fetch::Unavailable
+pub const fn research::sources::fetch::Unavailable::cause(self) -> core::option::Option<research::sources::fetch::Cause>
+pub const fn research::sources::fetch::Unavailable::lock_contention() -> Self
+pub const fn research::sources::fetch::Unavailable::new(reason: research::sources::classify::Reason) -> Self
+pub const fn research::sources::fetch::Unavailable::reason(self) -> research::sources::classify::Reason
+impl core::clone::Clone for research::sources::fetch::Unavailable
+pub fn research::sources::fetch::Unavailable::clone(&self) -> research::sources::fetch::Unavailable
+impl core::cmp::Eq for research::sources::fetch::Unavailable
+impl core::cmp::PartialEq for research::sources::fetch::Unavailable
+pub fn research::sources::fetch::Unavailable::eq(&self, other: &research::sources::fetch::Unavailable) -> bool
+impl core::fmt::Debug for research::sources::fetch::Unavailable
+pub fn research::sources::fetch::Unavailable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::Unavailable
+impl core::marker::StructuralPartialEq for research::sources::fetch::Unavailable
+pub trait research::sources::fetch::ArxivDecoder
+pub fn research::sources::fetch::ArxivDecoder::entries(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::Entry>, research::sources::fetch::DecodeFailure>
+pub fn research::sources::fetch::ArxivDecoder::raw_versions(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::RawVersion>, research::sources::fetch::DecodeFailure>
+pub trait research::sources::fetch::Clock
+pub fn research::sources::fetch::Clock::now(&self) -> std::time::Instant
+pub fn research::sources::fetch::Clock::sleep(&self, duration: core::time::Duration)
+pub fn research::sources::fetch::Clock::wall_now(&self) -> std::time::SystemTime
+pub trait research::sources::fetch::ConfirmationCache
+pub fn research::sources::fetch::ConfirmationCache::recall(&self, entry: &research::sources::request::ArxivId) -> core::option::Option<bool>
+pub fn research::sources::fetch::ConfirmationCache::record(&self, entry: &research::sources::request::ArxivId, withdrawn: bool)
+pub trait research::sources::fetch::OpenAlexDecoder
+pub fn research::sources::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::openalex::Work, research::sources::fetch::DecodeFailure>
+pub fn research::sources::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::openalex::Work>, research::sources::fetch::DecodeFailure>
+pub trait research::sources::fetch::PacingGate
+pub fn research::sources::fetch::PacingGate::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::sources::fetch::Attempted, deadline: &research::sources::schedule::Deadline) -> core::result::Result<(), research::sources::fetch::Unavailable>
+pub trait research::sources::fetch::Transport
+pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
+pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
+pub fn research::sources::fetch::fetch_openalex(fetch: &research::sources::fetch::OpenAlexFetch<'_>, ports: &research::sources::fetch::OpenAlexPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome
+pub mod research::sources::openalex
+pub struct research::sources::openalex::Location
+pub research::sources::openalex::Location::source: core::option::Option<research::sources::openalex::Source>
+pub research::sources::openalex::Location::version: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::sources::openalex::Location
+pub fn research::sources::openalex::Location::clone(&self) -> research::sources::openalex::Location
+impl core::cmp::Eq for research::sources::openalex::Location
+impl core::cmp::PartialEq for research::sources::openalex::Location
+pub fn research::sources::openalex::Location::eq(&self, other: &research::sources::openalex::Location) -> bool
+impl core::default::Default for research::sources::openalex::Location
+pub fn research::sources::openalex::Location::default() -> research::sources::openalex::Location
+impl core::fmt::Debug for research::sources::openalex::Location
+pub fn research::sources::openalex::Location::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::openalex::Location
+pub struct research::sources::openalex::Source
+pub research::sources::openalex::Source::display_name: core::option::Option<alloc::string::String>
+pub research::sources::openalex::Source::is_core: bool
+pub research::sources::openalex::Source::listed_in: alloc::vec::Vec<alloc::string::String>
+pub research::sources::openalex::Source::source_type: core::option::Option<alloc::string::String>
+impl core::clone::Clone for research::sources::openalex::Source
+pub fn research::sources::openalex::Source::clone(&self) -> research::sources::openalex::Source
+impl core::cmp::Eq for research::sources::openalex::Source
+impl core::cmp::PartialEq for research::sources::openalex::Source
+pub fn research::sources::openalex::Source::eq(&self, other: &research::sources::openalex::Source) -> bool
+impl core::default::Default for research::sources::openalex::Source
+pub fn research::sources::openalex::Source::default() -> research::sources::openalex::Source
+impl core::fmt::Debug for research::sources::openalex::Source
+pub fn research::sources::openalex::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::openalex::Source
+pub struct research::sources::openalex::Work
+pub research::sources::openalex::Work::abstract_inverted_index: core::option::Option<alloc::vec::Vec<(alloc::string::String, alloc::vec::Vec<usize>)>>
+pub research::sources::openalex::Work::authors: alloc::vec::Vec<alloc::string::String>
+pub research::sources::openalex::Work::doi: core::option::Option<alloc::string::String>
+pub research::sources::openalex::Work::id: alloc::string::String
+pub research::sources::openalex::Work::is_retracted: bool
+pub research::sources::openalex::Work::primary_location: core::option::Option<research::sources::openalex::Location>
+pub research::sources::openalex::Work::title: core::option::Option<alloc::string::String>
+pub research::sources::openalex::Work::work_type: alloc::string::String
+impl core::clone::Clone for research::sources::openalex::Work
+pub fn research::sources::openalex::Work::clone(&self) -> research::sources::openalex::Work
+impl core::cmp::Eq for research::sources::openalex::Work
+impl core::cmp::PartialEq for research::sources::openalex::Work
+pub fn research::sources::openalex::Work::eq(&self, other: &research::sources::openalex::Work) -> bool
+impl core::default::Default for research::sources::openalex::Work
+pub fn research::sources::openalex::Work::default() -> research::sources::openalex::Work
+impl core::fmt::Debug for research::sources::openalex::Work
+pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::openalex::Work
+pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
+pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work) -> core::option::Option<research::sources::record::Record>
+pub mod research::sources::record
+pub enum research::sources::record::Tier
+pub research::sources::record::Tier::One
+pub research::sources::record::Tier::Three
+pub research::sources::record::Tier::Two
+impl core::clone::Clone for research::sources::record::Tier
+pub fn research::sources::record::Tier::clone(&self) -> research::sources::record::Tier
+impl core::cmp::Eq for research::sources::record::Tier
+impl core::cmp::PartialEq for research::sources::record::Tier
+pub fn research::sources::record::Tier::eq(&self, other: &research::sources::record::Tier) -> bool
+impl core::fmt::Debug for research::sources::record::Tier
+pub fn research::sources::record::Tier::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::record::Tier
+pub fn research::sources::record::Tier::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::record::Tier
+impl core::marker::StructuralPartialEq for research::sources::record::Tier
+pub enum research::sources::record::VenueSignals
+pub research::sources::record::VenueSignals::Arxiv
+pub research::sources::record::VenueSignals::Arxiv::doi: core::option::Option<alloc::string::String>
+pub research::sources::record::VenueSignals::Arxiv::journal_ref: core::option::Option<alloc::string::String>
+pub research::sources::record::VenueSignals::OpenAlex
+pub research::sources::record::VenueSignals::OpenAlex::is_core: core::option::Option<bool>
+pub research::sources::record::VenueSignals::OpenAlex::is_retracted: bool
+pub research::sources::record::VenueSignals::OpenAlex::listed_in: alloc::vec::Vec<alloc::string::String>
+pub research::sources::record::VenueSignals::OpenAlex::source_type: core::option::Option<alloc::string::String>
+pub research::sources::record::VenueSignals::OpenAlex::version: core::option::Option<alloc::string::String>
+pub research::sources::record::VenueSignals::OpenAlex::work_type: alloc::string::String
+impl core::clone::Clone for research::sources::record::VenueSignals
+pub fn research::sources::record::VenueSignals::clone(&self) -> research::sources::record::VenueSignals
+impl core::cmp::Eq for research::sources::record::VenueSignals
+impl core::cmp::PartialEq for research::sources::record::VenueSignals
+pub fn research::sources::record::VenueSignals::eq(&self, other: &research::sources::record::VenueSignals) -> bool
+impl core::fmt::Debug for research::sources::record::VenueSignals
+pub fn research::sources::record::VenueSignals::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::record::VenueSignals
+pub struct research::sources::record::Record
+impl research::sources::record::Record
+pub fn research::sources::record::Record::abstract_excerpt(&self) -> core::option::Option<&str>
+pub fn research::sources::record::Record::authors(&self) -> &[alloc::string::String]
+pub const fn research::sources::record::Record::retracted(&self) -> bool
+pub const fn research::sources::record::Record::tier(&self) -> research::sources::record::Tier
+pub fn research::sources::record::Record::title(&self) -> core::option::Option<&str>
+pub fn research::sources::record::Record::url(&self) -> &str
+pub fn research::sources::record::Record::venue(&self) -> core::option::Option<&str>
+pub const fn research::sources::record::Record::venue_signals(&self) -> &research::sources::record::VenueSignals
+pub const fn research::sources::record::Record::withdrawn(&self) -> bool
+impl core::clone::Clone for research::sources::record::Record
+pub fn research::sources::record::Record::clone(&self) -> research::sources::record::Record
+impl core::cmp::Eq for research::sources::record::Record
+impl core::cmp::PartialEq for research::sources::record::Record
+pub fn research::sources::record::Record::eq(&self, other: &research::sources::record::Record) -> bool
+impl core::fmt::Debug for research::sources::record::Record
+pub fn research::sources::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::record::Record
+pub mod research::sources::request
+pub enum research::sources::request::ArxivRequest
+pub research::sources::request::ArxivRequest::Lookup(research::sources::request::ArxivId)
+pub research::sources::request::ArxivRequest::Search
+pub research::sources::request::ArxivRequest::Search::limit: research::sources::request::Limit
+pub research::sources::request::ArxivRequest::Search::query: research::sources::request::ArxivQuery
+impl research::sources::request::ArxivRequest
+pub const fn research::sources::request::ArxivRequest::limit(&self) -> research::sources::request::Limit
+pub fn research::sources::request::ArxivRequest::upstream(&self, api: &research::sources::request::Endpoint) -> research::sources::request::UpstreamRequest
+pub const fn research::sources::request::ArxivRequest::verb(&self) -> research::sources::request::Verb
+impl core::clone::Clone for research::sources::request::ArxivRequest
+pub fn research::sources::request::ArxivRequest::clone(&self) -> research::sources::request::ArxivRequest
+impl core::cmp::Eq for research::sources::request::ArxivRequest
+impl core::cmp::PartialEq for research::sources::request::ArxivRequest
+pub fn research::sources::request::ArxivRequest::eq(&self, other: &research::sources::request::ArxivRequest) -> bool
+impl core::fmt::Debug for research::sources::request::ArxivRequest
+pub fn research::sources::request::ArxivRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::ArxivRequest
+pub enum research::sources::request::Family
+pub research::sources::request::Family::Arxiv
+pub research::sources::request::Family::OpenAlex
+impl research::sources::request::Family
+pub const fn research::sources::request::Family::code(self) -> &'static str
+pub fn research::sources::request::Family::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::Family
+pub fn research::sources::request::Family::clone(&self) -> research::sources::request::Family
+impl core::cmp::Eq for research::sources::request::Family
+impl core::cmp::PartialEq for research::sources::request::Family
+pub fn research::sources::request::Family::eq(&self, other: &research::sources::request::Family) -> bool
+impl core::fmt::Debug for research::sources::request::Family
+pub fn research::sources::request::Family::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::request::Family
+pub fn research::sources::request::Family::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::request::Family
+impl core::marker::StructuralPartialEq for research::sources::request::Family
+pub enum research::sources::request::FetchRequest
+pub research::sources::request::FetchRequest::Arxiv(research::sources::request::ArxivRequest)
+pub research::sources::request::FetchRequest::OpenAlex(research::sources::request::OpenAlexRequest)
+impl research::sources::request::FetchRequest
+pub const fn research::sources::request::FetchRequest::family(&self) -> research::sources::request::Family
+pub fn research::sources::request::FetchRequest::parse(family: &str, verb: &str, terms: &[alloc::string::String], limit: core::option::Option<&str>) -> core::result::Result<Self, research::sources::request::RequestError>
+pub const fn research::sources::request::FetchRequest::verb(&self) -> research::sources::request::Verb
+impl core::clone::Clone for research::sources::request::FetchRequest
+pub fn research::sources::request::FetchRequest::clone(&self) -> research::sources::request::FetchRequest
+impl core::cmp::Eq for research::sources::request::FetchRequest
+impl core::cmp::PartialEq for research::sources::request::FetchRequest
+pub fn research::sources::request::FetchRequest::eq(&self, other: &research::sources::request::FetchRequest) -> bool
+impl core::fmt::Debug for research::sources::request::FetchRequest
+pub fn research::sources::request::FetchRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::FetchRequest
+pub enum research::sources::request::OpenAlexId
+pub research::sources::request::OpenAlexId::Doi(research::sources::request::Doi)
+pub research::sources::request::OpenAlexId::Work(research::sources::request::WorkId)
+impl research::sources::request::OpenAlexId
+pub fn research::sources::request::OpenAlexId::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::OpenAlexId
+pub fn research::sources::request::OpenAlexId::clone(&self) -> research::sources::request::OpenAlexId
+impl core::cmp::Eq for research::sources::request::OpenAlexId
+impl core::cmp::PartialEq for research::sources::request::OpenAlexId
+pub fn research::sources::request::OpenAlexId::eq(&self, other: &research::sources::request::OpenAlexId) -> bool
+impl core::fmt::Debug for research::sources::request::OpenAlexId
+pub fn research::sources::request::OpenAlexId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexId
+pub enum research::sources::request::OpenAlexRequest
+pub research::sources::request::OpenAlexRequest::Lookup(research::sources::request::OpenAlexId)
+pub research::sources::request::OpenAlexRequest::Search
+pub research::sources::request::OpenAlexRequest::Search::limit: research::sources::request::Limit
+pub research::sources::request::OpenAlexRequest::Search::query: research::sources::request::OpenAlexQuery
+impl research::sources::request::OpenAlexRequest
+pub const fn research::sources::request::OpenAlexRequest::limit(&self) -> research::sources::request::Limit
+pub fn research::sources::request::OpenAlexRequest::upstream(&self, api: &research::sources::request::Endpoint, key: core::option::Option<&research::sources::request::ApiKey>) -> research::sources::request::UpstreamRequest
+pub const fn research::sources::request::OpenAlexRequest::verb(&self) -> research::sources::request::Verb
+impl core::clone::Clone for research::sources::request::OpenAlexRequest
+pub fn research::sources::request::OpenAlexRequest::clone(&self) -> research::sources::request::OpenAlexRequest
+impl core::cmp::Eq for research::sources::request::OpenAlexRequest
+impl core::cmp::PartialEq for research::sources::request::OpenAlexRequest
+pub fn research::sources::request::OpenAlexRequest::eq(&self, other: &research::sources::request::OpenAlexRequest) -> bool
+impl core::fmt::Debug for research::sources::request::OpenAlexRequest
+pub fn research::sources::request::OpenAlexRequest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexRequest
+pub enum research::sources::request::RequestError
+pub research::sources::request::RequestError::EmptyQuery
+pub research::sources::request::RequestError::LimitOutOfRange(alloc::string::String)
+pub research::sources::request::RequestError::MalformedArxivId(alloc::string::String)
+pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
+pub research::sources::request::RequestError::MissingId
+pub research::sources::request::RequestError::MissingQuery
+pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
+pub research::sources::request::RequestError::UnknownVerb(alloc::string::String)
+impl core::clone::Clone for research::sources::request::RequestError
+pub fn research::sources::request::RequestError::clone(&self) -> research::sources::request::RequestError
+impl core::cmp::Eq for research::sources::request::RequestError
+impl core::cmp::PartialEq for research::sources::request::RequestError
+pub fn research::sources::request::RequestError::eq(&self, other: &research::sources::request::RequestError) -> bool
+impl core::error::Error for research::sources::request::RequestError
+impl core::fmt::Debug for research::sources::request::RequestError
+pub fn research::sources::request::RequestError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::request::RequestError
+pub fn research::sources::request::RequestError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::RequestError
+pub enum research::sources::request::Verb
+pub research::sources::request::Verb::Lookup
+pub research::sources::request::Verb::Search
+impl research::sources::request::Verb
+pub const fn research::sources::request::Verb::code(self) -> &'static str
+pub fn research::sources::request::Verb::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::Verb
+pub fn research::sources::request::Verb::clone(&self) -> research::sources::request::Verb
+impl core::cmp::Eq for research::sources::request::Verb
+impl core::cmp::PartialEq for research::sources::request::Verb
+pub fn research::sources::request::Verb::eq(&self, other: &research::sources::request::Verb) -> bool
+impl core::fmt::Debug for research::sources::request::Verb
+pub fn research::sources::request::Verb::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::request::Verb
+impl core::marker::StructuralPartialEq for research::sources::request::Verb
+pub struct research::sources::request::ApiKey
+impl research::sources::request::ApiKey
+pub const fn research::sources::request::ApiKey::new(secret: alloc::string::String, source: research::sources::request::KeySource) -> Self
+pub const fn research::sources::request::ApiKey::source(&self) -> &research::sources::request::KeySource
+impl core::clone::Clone for research::sources::request::ApiKey
+pub fn research::sources::request::ApiKey::clone(&self) -> research::sources::request::ApiKey
+impl core::fmt::Debug for research::sources::request::ApiKey
+pub fn research::sources::request::ApiKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct research::sources::request::ArxivId
+impl research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::abstract_url(&self) -> alloc::string::String
+pub fn research::sources::request::ArxivId::from_abstract_url(url: &str) -> core::option::Option<Self>
+pub fn research::sources::request::ArxivId::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::request::ArxivId::unversioned(&self) -> &str
+pub const fn research::sources::request::ArxivId::version(&self) -> core::option::Option<u32>
+impl core::clone::Clone for research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::clone(&self) -> research::sources::request::ArxivId
+impl core::cmp::Eq for research::sources::request::ArxivId
+impl core::cmp::PartialEq for research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::eq(&self, other: &research::sources::request::ArxivId) -> bool
+impl core::fmt::Debug for research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::sources::request::ArxivId
+pub struct research::sources::request::ArxivQuery(_)
+impl research::sources::request::ArxivQuery
+pub fn research::sources::request::ArxivQuery::as_str(&self) -> &str
+pub fn research::sources::request::ArxivQuery::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::ArxivQuery
+pub fn research::sources::request::ArxivQuery::clone(&self) -> research::sources::request::ArxivQuery
+impl core::cmp::Eq for research::sources::request::ArxivQuery
+impl core::cmp::PartialEq for research::sources::request::ArxivQuery
+pub fn research::sources::request::ArxivQuery::eq(&self, other: &research::sources::request::ArxivQuery) -> bool
+impl core::fmt::Debug for research::sources::request::ArxivQuery
+pub fn research::sources::request::ArxivQuery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::ArxivQuery
+pub struct research::sources::request::Doi(_)
+impl research::sources::request::Doi
+pub fn research::sources::request::Doi::encoded(&self) -> alloc::string::String
+pub fn research::sources::request::Doi::parse(raw: &str) -> core::option::Option<Self>
+pub fn research::sources::request::Doi::url(&self) -> alloc::string::String
+impl core::clone::Clone for research::sources::request::Doi
+pub fn research::sources::request::Doi::clone(&self) -> research::sources::request::Doi
+impl core::cmp::Eq for research::sources::request::Doi
+impl core::cmp::PartialEq for research::sources::request::Doi
+pub fn research::sources::request::Doi::eq(&self, other: &research::sources::request::Doi) -> bool
+impl core::fmt::Debug for research::sources::request::Doi
+pub fn research::sources::request::Doi::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::Doi
+pub struct research::sources::request::Endpoint(_)
+impl research::sources::request::Endpoint
+pub fn research::sources::request::Endpoint::arxiv_api() -> Self
+pub fn research::sources::request::Endpoint::arxiv_oai() -> Self
+pub fn research::sources::request::Endpoint::as_str(&self) -> &str
+pub fn research::sources::request::Endpoint::new(base: &str) -> Self
+pub fn research::sources::request::Endpoint::openalex() -> Self
+impl core::clone::Clone for research::sources::request::Endpoint
+pub fn research::sources::request::Endpoint::clone(&self) -> research::sources::request::Endpoint
+impl core::cmp::Eq for research::sources::request::Endpoint
+impl core::cmp::PartialEq for research::sources::request::Endpoint
+pub fn research::sources::request::Endpoint::eq(&self, other: &research::sources::request::Endpoint) -> bool
+impl core::fmt::Debug for research::sources::request::Endpoint
+pub fn research::sources::request::Endpoint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::Endpoint
+pub struct research::sources::request::KeySource(_)
+impl research::sources::request::KeySource
+pub fn research::sources::request::KeySource::new(name: impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for research::sources::request::KeySource
+pub fn research::sources::request::KeySource::clone(&self) -> research::sources::request::KeySource
+impl core::cmp::Eq for research::sources::request::KeySource
+impl core::cmp::PartialEq for research::sources::request::KeySource
+pub fn research::sources::request::KeySource::eq(&self, other: &research::sources::request::KeySource) -> bool
+impl core::fmt::Debug for research::sources::request::KeySource
+pub fn research::sources::request::KeySource::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::request::KeySource
+pub fn research::sources::request::KeySource::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::KeySource
+pub struct research::sources::request::Limit(_)
+impl research::sources::request::Limit
+pub const fn research::sources::request::Limit::get(self) -> u8
+pub fn research::sources::request::Limit::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::request::Limit::records(self) -> usize
+impl core::clone::Clone for research::sources::request::Limit
+pub fn research::sources::request::Limit::clone(&self) -> research::sources::request::Limit
+impl core::cmp::Eq for research::sources::request::Limit
+impl core::cmp::PartialEq for research::sources::request::Limit
+pub fn research::sources::request::Limit::eq(&self, other: &research::sources::request::Limit) -> bool
+impl core::default::Default for research::sources::request::Limit
+pub fn research::sources::request::Limit::default() -> Self
+impl core::fmt::Debug for research::sources::request::Limit
+pub fn research::sources::request::Limit::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::request::Limit
+impl core::marker::StructuralPartialEq for research::sources::request::Limit
+pub struct research::sources::request::OpenAlexQuery(_)
+impl research::sources::request::OpenAlexQuery
+pub fn research::sources::request::OpenAlexQuery::as_str(&self) -> &str
+pub fn research::sources::request::OpenAlexQuery::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::request::OpenAlexQuery
+pub fn research::sources::request::OpenAlexQuery::clone(&self) -> research::sources::request::OpenAlexQuery
+impl core::cmp::Eq for research::sources::request::OpenAlexQuery
+impl core::cmp::PartialEq for research::sources::request::OpenAlexQuery
+pub fn research::sources::request::OpenAlexQuery::eq(&self, other: &research::sources::request::OpenAlexQuery) -> bool
+impl core::fmt::Debug for research::sources::request::OpenAlexQuery
+pub fn research::sources::request::OpenAlexQuery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::OpenAlexQuery
+pub struct research::sources::request::UpstreamRequest
+impl research::sources::request::UpstreamRequest
+pub fn research::sources::request::UpstreamRequest::bearer(&self) -> core::option::Option<&str>
+pub fn research::sources::request::UpstreamRequest::headers(&self) -> &[(&'static str, alloc::string::String)]
+pub fn research::sources::request::UpstreamRequest::url(&self) -> &str
+pub fn research::sources::request::UpstreamRequest::withdrawal_confirmation(oai: &research::sources::request::Endpoint, id: &research::sources::request::ArxivId) -> Self
+impl core::clone::Clone for research::sources::request::UpstreamRequest
+pub fn research::sources::request::UpstreamRequest::clone(&self) -> research::sources::request::UpstreamRequest
+impl core::cmp::Eq for research::sources::request::UpstreamRequest
+impl core::cmp::PartialEq for research::sources::request::UpstreamRequest
+pub fn research::sources::request::UpstreamRequest::eq(&self, other: &research::sources::request::UpstreamRequest) -> bool
+impl core::fmt::Debug for research::sources::request::UpstreamRequest
+pub fn research::sources::request::UpstreamRequest::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::UpstreamRequest
+pub struct research::sources::request::WorkId(_)
+impl research::sources::request::WorkId
+pub fn research::sources::request::WorkId::as_str(&self) -> &str
+pub fn research::sources::request::WorkId::from_openalex(raw: &str) -> core::option::Option<Self>
+pub fn research::sources::request::WorkId::url(&self) -> alloc::string::String
+impl core::clone::Clone for research::sources::request::WorkId
+pub fn research::sources::request::WorkId::clone(&self) -> research::sources::request::WorkId
+impl core::cmp::Eq for research::sources::request::WorkId
+impl core::cmp::PartialEq for research::sources::request::WorkId
+pub fn research::sources::request::WorkId::eq(&self, other: &research::sources::request::WorkId) -> bool
+impl core::fmt::Debug for research::sources::request::WorkId
+pub fn research::sources::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::request::WorkId
+pub mod research::sources::schedule
+pub struct research::sources::schedule::Deadline
+impl research::sources::schedule::Deadline
+pub fn research::sources::schedule::Deadline::admits_attempt_after(&self, now: std::time::Instant, wait: core::time::Duration) -> bool
+pub const fn research::sources::schedule::Deadline::per_request(&self) -> core::time::Duration
+pub fn research::sources::schedule::Deadline::remaining(&self, now: std::time::Instant) -> core::time::Duration
+pub fn research::sources::schedule::Deadline::starting(now: std::time::Instant, total: core::time::Duration, per_request: core::time::Duration) -> Self
+impl core::clone::Clone for research::sources::schedule::Deadline
+pub fn research::sources::schedule::Deadline::clone(&self) -> research::sources::schedule::Deadline
+impl core::cmp::Eq for research::sources::schedule::Deadline
+impl core::cmp::PartialEq for research::sources::schedule::Deadline
+pub fn research::sources::schedule::Deadline::eq(&self, other: &research::sources::schedule::Deadline) -> bool
+impl core::fmt::Debug for research::sources::schedule::Deadline
+pub fn research::sources::schedule::Deadline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::schedule::Deadline
+impl core::marker::StructuralPartialEq for research::sources::schedule::Deadline
+pub struct research::sources::schedule::RetryNumber(_)
+impl research::sources::schedule::RetryNumber
+pub const fn research::sources::schedule::RetryNumber::first() -> Self
+pub const fn research::sources::schedule::RetryNumber::next(self) -> Self
+impl core::clone::Clone for research::sources::schedule::RetryNumber
+pub fn research::sources::schedule::RetryNumber::clone(&self) -> research::sources::schedule::RetryNumber
+impl core::cmp::Eq for research::sources::schedule::RetryNumber
+impl core::cmp::PartialEq for research::sources::schedule::RetryNumber
+pub fn research::sources::schedule::RetryNumber::eq(&self, other: &research::sources::schedule::RetryNumber) -> bool
+impl core::fmt::Debug for research::sources::schedule::RetryNumber
+pub fn research::sources::schedule::RetryNumber::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::schedule::RetryNumber
+impl core::marker::StructuralPartialEq for research::sources::schedule::RetryNumber
+pub struct research::sources::schedule::RetrySchedule
+impl research::sources::schedule::RetrySchedule
+pub fn research::sources::schedule::RetrySchedule::deferral_after(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::time::Duration
+pub fn research::sources::schedule::RetrySchedule::wait_before(retry: research::sources::schedule::RetryNumber, retry_after: core::option::Option<core::time::Duration>) -> core::option::Option<core::time::Duration>
+pub mod research::sources::tier
+pub const fn research::sources::tier::arxiv_tier(withdrawn: bool) -> research::sources::record::Tier
+pub fn research::sources::tier::openalex_tier(work: &research::sources::openalex::Work) -> research::sources::record::Tier
+pub mod research::topic
+pub mod research::topic::claims
+pub struct research::topic::claims::ClaimedIndexes(_)
+impl research::topic::claims::ClaimedIndexes
+pub fn research::topic::claims::ClaimedIndexes::claim(&mut self, question: research::topic::question::NormalisedQuestion, index: u32)
+pub fn research::topic::claims::ClaimedIndexes::claim_all(&mut self, other: &Self)
+pub fn research::topic::claims::ClaimedIndexes::index_for(&self, question: &research::topic::question::NormalisedQuestion) -> core::option::Option<u32>
+pub fn research::topic::claims::ClaimedIndexes::indexes(&self) -> impl core::iter::traits::iterator::Iterator<Item = u32> + '_
+pub fn research::topic::claims::ClaimedIndexes::iter(&self) -> impl core::iter::traits::iterator::Iterator<Item = (&research::topic::question::NormalisedQuestion, u32)>
+impl core::clone::Clone for research::topic::claims::ClaimedIndexes
+pub fn research::topic::claims::ClaimedIndexes::clone(&self) -> research::topic::claims::ClaimedIndexes
+impl core::cmp::Eq for research::topic::claims::ClaimedIndexes
+impl core::cmp::PartialEq for research::topic::claims::ClaimedIndexes
+pub fn research::topic::claims::ClaimedIndexes::eq(&self, other: &research::topic::claims::ClaimedIndexes) -> bool
+impl core::default::Default for research::topic::claims::ClaimedIndexes
+pub fn research::topic::claims::ClaimedIndexes::default() -> research::topic::claims::ClaimedIndexes
+impl core::fmt::Debug for research::topic::claims::ClaimedIndexes
+pub fn research::topic::claims::ClaimedIndexes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::claims::ClaimedIndexes
+pub struct research::topic::claims::IndexClaim
+impl research::topic::claims::IndexClaim
+pub const fn research::topic::claims::IndexClaim::index(&self) -> u32
+pub fn research::topic::claims::IndexClaim::is_for(&self, question: &research::topic::question::NormalisedQuestion) -> bool
+pub fn research::topic::claims::IndexClaim::new(index: u32, question: core::option::Option<&str>, unicode: &dyn research::topic::question::UnicodeText) -> Self
+pub fn research::topic::claims::IndexClaim::quarantined(name: &str, question: core::option::Option<&str>, unicode: &dyn research::topic::question::UnicodeText) -> core::option::Option<Self>
+impl core::clone::Clone for research::topic::claims::IndexClaim
+pub fn research::topic::claims::IndexClaim::clone(&self) -> research::topic::claims::IndexClaim
+impl core::cmp::Eq for research::topic::claims::IndexClaim
+impl core::cmp::PartialEq for research::topic::claims::IndexClaim
+pub fn research::topic::claims::IndexClaim::eq(&self, other: &research::topic::claims::IndexClaim) -> bool
+impl core::fmt::Debug for research::topic::claims::IndexClaim
+pub fn research::topic::claims::IndexClaim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::claims::IndexClaim
+pub mod research::topic::evidence
+pub enum research::topic::evidence::NoteRejection
+pub research::topic::evidence::NoteRejection::FailsValidation
+pub research::topic::evidence::NoteRejection::FailsValidation::code: &'static str
+pub research::topic::evidence::NoteRejection::FailsValidation::field: core::option::Option<&'static str>
+pub research::topic::evidence::NoteRejection::LevelDisagreesWithLineage
+pub research::topic::evidence::NoteRejection::MalformedFollowUps
+pub research::topic::evidence::NoteRejection::MissingQuestion
+pub research::topic::evidence::NoteRejection::NotAPlainQuestion
+pub research::topic::evidence::NoteRejection::NotAPlainQuestion::follow_up: core::num::nonzero::NonZeroUsize
+pub research::topic::evidence::NoteRejection::NotAPlainQuestion::rule: research::topic::question::PlainQuestionRule
+pub research::topic::evidence::NoteRejection::QuestionDisagreesWithCandidate
+pub research::topic::evidence::NoteRejection::WrongKind
+impl core::clone::Clone for research::topic::evidence::NoteRejection
+pub fn research::topic::evidence::NoteRejection::clone(&self) -> research::topic::evidence::NoteRejection
+impl core::cmp::Eq for research::topic::evidence::NoteRejection
+impl core::cmp::PartialEq for research::topic::evidence::NoteRejection
+pub fn research::topic::evidence::NoteRejection::eq(&self, other: &research::topic::evidence::NoteRejection) -> bool
+impl core::fmt::Debug for research::topic::evidence::NoteRejection
+pub fn research::topic::evidence::NoteRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::evidence::NoteRejection
+pub struct research::topic::evidence::Answer
+pub research::topic::evidence::Answer::normalised: research::topic::question::NormalisedQuestion
+pub research::topic::evidence::Answer::pair: research::topic::outline::Pair
+impl core::clone::Clone for research::topic::evidence::Answer
+pub fn research::topic::evidence::Answer::clone(&self) -> research::topic::evidence::Answer
+impl core::cmp::Eq for research::topic::evidence::Answer
+impl core::cmp::PartialEq for research::topic::evidence::Answer
+pub fn research::topic::evidence::Answer::eq(&self, other: &research::topic::evidence::Answer) -> bool
+impl core::fmt::Debug for research::topic::evidence::Answer
+pub fn research::topic::evidence::Answer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::evidence::Answer
+pub struct research::topic::evidence::Digest(_)
+impl research::topic::evidence::Digest
+pub const fn research::topic::evidence::Digest::bytes(&self) -> &[u8; 32]
+pub const fn research::topic::evidence::Digest::new(bytes: [u8; 32]) -> Self
+impl core::clone::Clone for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::clone(&self) -> research::topic::evidence::Digest
+impl core::cmp::Eq for research::topic::evidence::Digest
+impl core::cmp::Ord for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::cmp(&self, other: &research::topic::evidence::Digest) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::eq(&self, other: &research::topic::evidence::Digest) -> bool
+impl core::cmp::PartialOrd for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::partial_cmp(&self, other: &research::topic::evidence::Digest) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::topic::evidence::Digest
+pub fn research::topic::evidence::Digest::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::topic::evidence::Digest
+impl core::marker::StructuralPartialEq for research::topic::evidence::Digest
+pub struct research::topic::evidence::Finding
+impl research::topic::evidence::Finding
+pub const fn research::topic::evidence::Finding::answer(&self) -> core::option::Option<&research::topic::evidence::Answer>
+pub fn research::topic::evidence::Finding::answers(&self, question: &research::topic::question::NormalisedQuestion, profile: &str) -> bool
+pub const fn research::topic::evidence::Finding::depth(&self) -> research::topic::tree::Depth
+pub const fn research::topic::evidence::Finding::index(&self) -> core::option::Option<u32>
+pub fn research::topic::evidence::Finding::invalid(name: &str) -> Self
+pub fn research::topic::evidence::Finding::name(&self) -> &str
+pub fn research::topic::evidence::Finding::retained(name: &str, pair: research::topic::outline::Pair, unicode: &dyn research::topic::question::UnicodeText) -> Self
+pub const fn research::topic::evidence::Finding::stem(&self) -> core::option::Option<&research::topic::layout::stem::Stem>
+pub const fn research::topic::evidence::Finding::with_depth(self, depth: research::topic::tree::Depth) -> Self
+impl core::clone::Clone for research::topic::evidence::Finding
+pub fn research::topic::evidence::Finding::clone(&self) -> research::topic::evidence::Finding
+impl core::cmp::Eq for research::topic::evidence::Finding
+impl core::cmp::PartialEq for research::topic::evidence::Finding
+pub fn research::topic::evidence::Finding::eq(&self, other: &research::topic::evidence::Finding) -> bool
+impl core::fmt::Debug for research::topic::evidence::Finding
+pub fn research::topic::evidence::Finding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::evidence::Finding
+pub struct research::topic::evidence::LevelNote
+pub research::topic::evidence::LevelNote::digest: research::topic::evidence::Digest
+pub research::topic::evidence::LevelNote::follow_ups: alloc::vec::Vec<alloc::string::String>
+pub research::topic::evidence::LevelNote::lineage: research::topic::layout::lineage::Lineage
+pub research::topic::evidence::LevelNote::question: alloc::string::String
+impl research::topic::evidence::LevelNote
+pub fn research::topic::evidence::LevelNote::from_frontmatter(lineage: research::topic::layout::lineage::Lineage, fields: research::topic::evidence::LevelNoteFields<'_>, unicode: &dyn research::topic::question::UnicodeText) -> core::result::Result<Self, research::topic::evidence::NoteRejection>
+impl core::clone::Clone for research::topic::evidence::LevelNote
+pub fn research::topic::evidence::LevelNote::clone(&self) -> research::topic::evidence::LevelNote
+impl core::cmp::Eq for research::topic::evidence::LevelNote
+impl core::cmp::PartialEq for research::topic::evidence::LevelNote
+pub fn research::topic::evidence::LevelNote::eq(&self, other: &research::topic::evidence::LevelNote) -> bool
+impl core::fmt::Debug for research::topic::evidence::LevelNote
+pub fn research::topic::evidence::LevelNote::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::evidence::LevelNote
+pub struct research::topic::evidence::LevelNoteFields<'a>
+pub research::topic::evidence::LevelNoteFields::digest: research::topic::evidence::Digest
+pub research::topic::evidence::LevelNoteFields::follow_ups: core::option::Option<&'a [alloc::string::String]>
+pub research::topic::evidence::LevelNoteFields::kind: core::option::Option<&'a str>
+pub research::topic::evidence::LevelNoteFields::level: core::option::Option<&'a str>
+pub research::topic::evidence::LevelNoteFields::question: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for research::topic::evidence::LevelNoteFields<'a>
+pub fn research::topic::evidence::LevelNoteFields<'a>::clone(&self) -> research::topic::evidence::LevelNoteFields<'a>
+impl<'a> core::cmp::Eq for research::topic::evidence::LevelNoteFields<'a>
+impl<'a> core::cmp::PartialEq for research::topic::evidence::LevelNoteFields<'a>
+pub fn research::topic::evidence::LevelNoteFields<'a>::eq(&self, other: &research::topic::evidence::LevelNoteFields<'a>) -> bool
+impl<'a> core::fmt::Debug for research::topic::evidence::LevelNoteFields<'a>
+pub fn research::topic::evidence::LevelNoteFields<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for research::topic::evidence::LevelNoteFields<'a>
+impl<'a> core::marker::StructuralPartialEq for research::topic::evidence::LevelNoteFields<'a>
+pub struct research::topic::evidence::LevelsDirectory
+impl research::topic::evidence::LevelsDirectory
+pub fn research::topic::evidence::LevelsDirectory::claim(&self, unicode: &dyn research::topic::question::UnicodeText) -> research::topic::claims::IndexClaim
+pub const fn research::topic::evidence::LevelsDirectory::new(stem: research::topic::layout::stem::Stem, root_question: core::option::Option<alloc::string::String>, notes: alloc::vec::Vec<research::topic::evidence::LevelNote>, rejected: alloc::collections::btree::map::BTreeMap<research::topic::layout::lineage::Lineage, research::topic::evidence::NoteRejection>) -> Self
+pub fn research::topic::evidence::LevelsDirectory::notes(&self) -> &[research::topic::evidence::LevelNote]
+pub const fn research::topic::evidence::LevelsDirectory::rejected(&self) -> &alloc::collections::btree::map::BTreeMap<research::topic::layout::lineage::Lineage, research::topic::evidence::NoteRejection>
+pub fn research::topic::evidence::LevelsDirectory::root_question(&self) -> core::option::Option<&str>
+pub const fn research::topic::evidence::LevelsDirectory::stem(&self) -> &research::topic::layout::stem::Stem
+impl core::clone::Clone for research::topic::evidence::LevelsDirectory
+pub fn research::topic::evidence::LevelsDirectory::clone(&self) -> research::topic::evidence::LevelsDirectory
+impl core::cmp::Eq for research::topic::evidence::LevelsDirectory
+impl core::cmp::PartialEq for research::topic::evidence::LevelsDirectory
+pub fn research::topic::evidence::LevelsDirectory::eq(&self, other: &research::topic::evidence::LevelsDirectory) -> bool
+impl core::fmt::Debug for research::topic::evidence::LevelsDirectory
+pub fn research::topic::evidence::LevelsDirectory::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::evidence::LevelsDirectory
+pub mod research::topic::layout
+pub mod research::topic::layout::finding_path
+pub fn research::topic::layout::finding_path::is_finding_path(relative: &str) -> bool
+pub fn research::topic::layout::finding_path::is_level_note_path(relative: &str) -> bool
+pub mod research::topic::layout::lineage
+pub struct research::topic::layout::lineage::Lineage
+impl research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::child(&self, position: core::num::nonzero::NonZeroU32) -> Self
+pub const fn research::topic::layout::lineage::Lineage::level(&self) -> u32
+pub fn research::topic::layout::lineage::Lineage::parent(&self) -> core::option::Option<Self>
+pub fn research::topic::layout::lineage::Lineage::parse(text: &str) -> core::option::Option<Self>
+pub const fn research::topic::layout::lineage::Lineage::root() -> Self
+impl core::clone::Clone for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::clone(&self) -> research::topic::layout::lineage::Lineage
+impl core::cmp::Eq for research::topic::layout::lineage::Lineage
+impl core::cmp::Ord for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::cmp(&self, other: &research::topic::layout::lineage::Lineage) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::eq(&self, other: &research::topic::layout::lineage::Lineage) -> bool
+impl core::cmp::PartialOrd for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::partial_cmp(&self, other: &research::topic::layout::lineage::Lineage) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::topic::layout::lineage::Lineage
+pub fn research::topic::layout::lineage::Lineage::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::topic::layout::lineage::Lineage
+pub mod research::topic::layout::note_ref
+pub struct research::topic::layout::note_ref::NoteRef
+pub research::topic::layout::note_ref::NoteRef::lineage: research::topic::layout::lineage::Lineage
+pub research::topic::layout::note_ref::NoteRef::stem: research::topic::layout::stem::Stem
+impl research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::id(&self, set_slug: &str) -> alloc::string::String
+pub fn research::topic::layout::note_ref::NoteRef::path(&self) -> alloc::string::String
+impl core::clone::Clone for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::clone(&self) -> research::topic::layout::note_ref::NoteRef
+impl core::cmp::Eq for research::topic::layout::note_ref::NoteRef
+impl core::cmp::Ord for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::cmp(&self, other: &research::topic::layout::note_ref::NoteRef) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::eq(&self, other: &research::topic::layout::note_ref::NoteRef) -> bool
+impl core::cmp::PartialOrd for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::partial_cmp(&self, other: &research::topic::layout::note_ref::NoteRef) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::topic::layout::note_ref::NoteRef
+pub fn research::topic::layout::note_ref::NoteRef::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::topic::layout::note_ref::NoteRef
+pub mod research::topic::layout::slug
+pub struct research::topic::layout::slug::QuestionSlug(_)
+impl research::topic::layout::slug::QuestionSlug
+pub fn research::topic::layout::slug::QuestionSlug::as_str(&self) -> &str
+impl core::clone::Clone for research::topic::layout::slug::QuestionSlug
+pub fn research::topic::layout::slug::QuestionSlug::clone(&self) -> research::topic::layout::slug::QuestionSlug
+impl core::cmp::Eq for research::topic::layout::slug::QuestionSlug
+impl core::cmp::PartialEq for research::topic::layout::slug::QuestionSlug
+pub fn research::topic::layout::slug::QuestionSlug::eq(&self, other: &research::topic::layout::slug::QuestionSlug) -> bool
+impl core::convert::From<&str> for research::topic::layout::slug::QuestionSlug
+pub fn research::topic::layout::slug::QuestionSlug::from(question: &str) -> Self
+impl core::fmt::Debug for research::topic::layout::slug::QuestionSlug
+pub fn research::topic::layout::slug::QuestionSlug::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::layout::slug::QuestionSlug
+pub mod research::topic::layout::stem
+pub struct research::topic::layout::stem::Stem
+impl research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::admits_profile(profile: &str) -> bool
+pub fn research::topic::layout::stem::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
+pub fn research::topic::layout::stem::Stem::finding_path(&self) -> alloc::string::String
+pub const fn research::topic::layout::stem::Stem::index(&self) -> u32
+pub fn research::topic::layout::stem::Stem::index_of(name: &str) -> core::option::Option<u32>
+pub fn research::topic::layout::stem::Stem::parse(text: &str) -> core::option::Option<Self>
+impl core::clone::Clone for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::clone(&self) -> research::topic::layout::stem::Stem
+impl core::cmp::Eq for research::topic::layout::stem::Stem
+impl core::cmp::Ord for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::cmp(&self, other: &research::topic::layout::stem::Stem) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::eq(&self, other: &research::topic::layout::stem::Stem) -> bool
+impl core::cmp::PartialOrd for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::partial_cmp(&self, other: &research::topic::layout::stem::Stem) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::topic::layout::stem::Stem
+pub fn research::topic::layout::stem::Stem::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::topic::layout::stem::Stem
+pub mod research::topic::outline
+pub struct research::topic::outline::Outline
+pub research::topic::outline::Outline::items: alloc::vec::Vec<research::topic::outline::OutlineItem>
+impl research::topic::outline::Outline
+pub fn research::topic::outline::Outline::parse(text: &str) -> Self
+impl core::clone::Clone for research::topic::outline::Outline
+pub fn research::topic::outline::Outline::clone(&self) -> research::topic::outline::Outline
+impl core::cmp::Eq for research::topic::outline::Outline
+impl core::cmp::PartialEq for research::topic::outline::Outline
+pub fn research::topic::outline::Outline::eq(&self, other: &research::topic::outline::Outline) -> bool
+impl core::default::Default for research::topic::outline::Outline
+pub fn research::topic::outline::Outline::default() -> research::topic::outline::Outline
+impl core::fmt::Debug for research::topic::outline::Outline
+pub fn research::topic::outline::Outline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::outline::Outline
+pub struct research::topic::outline::OutlineItem
+pub research::topic::outline::OutlineItem::line: usize
+pub research::topic::outline::OutlineItem::question: alloc::string::String
+impl research::topic::outline::OutlineItem
+pub fn research::topic::outline::OutlineItem::names_profiles_unseparated(&self) -> bool
+pub fn research::topic::outline::OutlineItem::pair(&self, profile: &str) -> research::topic::outline::Pair
+pub fn research::topic::outline::OutlineItem::profiles(&self) -> alloc::vec::Vec<&str>
+impl core::clone::Clone for research::topic::outline::OutlineItem
+pub fn research::topic::outline::OutlineItem::clone(&self) -> research::topic::outline::OutlineItem
+impl core::cmp::Eq for research::topic::outline::OutlineItem
+impl core::cmp::PartialEq for research::topic::outline::OutlineItem
+pub fn research::topic::outline::OutlineItem::eq(&self, other: &research::topic::outline::OutlineItem) -> bool
+impl core::fmt::Debug for research::topic::outline::OutlineItem
+pub fn research::topic::outline::OutlineItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::outline::OutlineItem
+pub struct research::topic::outline::Pair
+pub research::topic::outline::Pair::profile: alloc::string::String
+pub research::topic::outline::Pair::question: alloc::string::String
+impl core::clone::Clone for research::topic::outline::Pair
+pub fn research::topic::outline::Pair::clone(&self) -> research::topic::outline::Pair
+impl core::cmp::Eq for research::topic::outline::Pair
+impl core::cmp::PartialEq for research::topic::outline::Pair
+pub fn research::topic::outline::Pair::eq(&self, other: &research::topic::outline::Pair) -> bool
+impl core::fmt::Debug for research::topic::outline::Pair
+pub fn research::topic::outline::Pair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::outline::Pair
+pub const research::topic::outline::DEFAULT_PROFILE: &str
+pub mod research::topic::plan
+pub enum research::topic::plan::SkipReason
+pub research::topic::plan::SkipReason::NotInBrief
+pub research::topic::plan::SkipReason::NotInstalled
+impl core::clone::Clone for research::topic::plan::SkipReason
+pub fn research::topic::plan::SkipReason::clone(&self) -> research::topic::plan::SkipReason
+impl core::cmp::Eq for research::topic::plan::SkipReason
+impl core::cmp::PartialEq for research::topic::plan::SkipReason
+pub fn research::topic::plan::SkipReason::eq(&self, other: &research::topic::plan::SkipReason) -> bool
+impl core::fmt::Debug for research::topic::plan::SkipReason
+pub fn research::topic::plan::SkipReason::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::plan::SkipReason
+impl core::marker::StructuralPartialEq for research::topic::plan::SkipReason
+pub enum research::topic::plan::Warning
+pub research::topic::plan::Warning::IndexesExhausted
+pub research::topic::plan::Warning::IndexesExhausted::question: alloc::string::String
+pub research::topic::plan::Warning::UnmatchedFinding
+pub research::topic::plan::Warning::UnmatchedFinding::name: alloc::string::String
+pub research::topic::plan::Warning::UnmatchedFinding::question: alloc::string::String
+pub research::topic::plan::Warning::UnseparatedProfiles
+pub research::topic::plan::Warning::UnseparatedProfiles::line: usize
+impl core::clone::Clone for research::topic::plan::Warning
+pub fn research::topic::plan::Warning::clone(&self) -> research::topic::plan::Warning
+impl core::cmp::Eq for research::topic::plan::Warning
+impl core::cmp::PartialEq for research::topic::plan::Warning
+pub fn research::topic::plan::Warning::eq(&self, other: &research::topic::plan::Warning) -> bool
+impl core::fmt::Debug for research::topic::plan::Warning
+pub fn research::topic::plan::Warning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::Warning
+pub struct research::topic::plan::ItemStatus
+pub research::topic::plan::ItemStatus::complete: bool
+pub research::topic::plan::ItemStatus::line: usize
+pub research::topic::plan::ItemStatus::question: alloc::string::String
+impl core::clone::Clone for research::topic::plan::ItemStatus
+pub fn research::topic::plan::ItemStatus::clone(&self) -> research::topic::plan::ItemStatus
+impl core::cmp::Eq for research::topic::plan::ItemStatus
+impl core::cmp::PartialEq for research::topic::plan::ItemStatus
+pub fn research::topic::plan::ItemStatus::eq(&self, other: &research::topic::plan::ItemStatus) -> bool
+impl core::fmt::Debug for research::topic::plan::ItemStatus
+pub fn research::topic::plan::ItemStatus::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::ItemStatus
+pub struct research::topic::plan::OutstandingPair
+pub research::topic::plan::OutstandingPair::pair: research::topic::outline::Pair
+pub research::topic::plan::OutstandingPair::stage: research::topic::tree::Stage
+pub research::topic::plan::OutstandingPair::stem: research::topic::layout::stem::Stem
+impl core::clone::Clone for research::topic::plan::OutstandingPair
+pub fn research::topic::plan::OutstandingPair::clone(&self) -> research::topic::plan::OutstandingPair
+impl core::cmp::Eq for research::topic::plan::OutstandingPair
+impl core::cmp::PartialEq for research::topic::plan::OutstandingPair
+pub fn research::topic::plan::OutstandingPair::eq(&self, other: &research::topic::plan::OutstandingPair) -> bool
+impl core::fmt::Debug for research::topic::plan::OutstandingPair
+pub fn research::topic::plan::OutstandingPair::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::OutstandingPair
+pub struct research::topic::plan::RoundInputs
+pub research::topic::plan::RoundInputs::available_profiles: alloc::vec::Vec<alloc::string::String>
+pub research::topic::plan::RoundInputs::claims: research::topic::claims::ClaimedIndexes
+pub research::topic::plan::RoundInputs::depth: research::topic::tree::Depth
+pub research::topic::plan::RoundInputs::findings: alloc::vec::Vec<research::topic::evidence::Finding>
+pub research::topic::plan::RoundInputs::levels: alloc::vec::Vec<research::topic::evidence::LevelsDirectory>
+pub research::topic::plan::RoundInputs::outline: research::topic::outline::Outline
+pub research::topic::plan::RoundInputs::quarantined: alloc::vec::Vec<research::topic::claims::IndexClaim>
+pub research::topic::plan::RoundInputs::source_profiles: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for research::topic::plan::RoundInputs
+pub fn research::topic::plan::RoundInputs::clone(&self) -> research::topic::plan::RoundInputs
+impl core::default::Default for research::topic::plan::RoundInputs
+pub fn research::topic::plan::RoundInputs::default() -> research::topic::plan::RoundInputs
+impl core::fmt::Debug for research::topic::plan::RoundInputs
+pub fn research::topic::plan::RoundInputs::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct research::topic::plan::RoundPlan
+pub research::topic::plan::RoundPlan::claims: research::topic::claims::ClaimedIndexes
+pub research::topic::plan::RoundPlan::items: alloc::vec::Vec<research::topic::plan::ItemStatus>
+pub research::topic::plan::RoundPlan::pairs: alloc::vec::Vec<research::topic::plan::OutstandingPair>
+pub research::topic::plan::RoundPlan::shallow: alloc::vec::Vec<research::topic::plan::ShallowFinding>
+pub research::topic::plan::RoundPlan::skipped: alloc::vec::Vec<research::topic::plan::Skip>
+pub research::topic::plan::RoundPlan::trims: alloc::vec::Vec<research::topic::tree::Trim>
+pub research::topic::plan::RoundPlan::warnings: alloc::vec::Vec<research::topic::plan::Warning>
+impl research::topic::plan::RoundPlan
+pub fn research::topic::plan::RoundPlan::of(inputs: &research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> Self
+impl core::clone::Clone for research::topic::plan::RoundPlan
+pub fn research::topic::plan::RoundPlan::clone(&self) -> research::topic::plan::RoundPlan
+impl core::cmp::Eq for research::topic::plan::RoundPlan
+impl core::cmp::PartialEq for research::topic::plan::RoundPlan
+pub fn research::topic::plan::RoundPlan::eq(&self, other: &research::topic::plan::RoundPlan) -> bool
+impl core::fmt::Debug for research::topic::plan::RoundPlan
+pub fn research::topic::plan::RoundPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::RoundPlan
+pub struct research::topic::plan::ShallowFinding
+pub research::topic::plan::ShallowFinding::depth: research::topic::tree::Depth
+pub research::topic::plan::ShallowFinding::stem: research::topic::layout::stem::Stem
+impl core::clone::Clone for research::topic::plan::ShallowFinding
+pub fn research::topic::plan::ShallowFinding::clone(&self) -> research::topic::plan::ShallowFinding
+impl core::cmp::Eq for research::topic::plan::ShallowFinding
+impl core::cmp::PartialEq for research::topic::plan::ShallowFinding
+pub fn research::topic::plan::ShallowFinding::eq(&self, other: &research::topic::plan::ShallowFinding) -> bool
+impl core::fmt::Debug for research::topic::plan::ShallowFinding
+pub fn research::topic::plan::ShallowFinding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::ShallowFinding
+pub struct research::topic::plan::Skip
+pub research::topic::plan::Skip::pair: research::topic::outline::Pair
+pub research::topic::plan::Skip::reason: research::topic::plan::SkipReason
+impl core::clone::Clone for research::topic::plan::Skip
+pub fn research::topic::plan::Skip::clone(&self) -> research::topic::plan::Skip
+impl core::cmp::Eq for research::topic::plan::Skip
+impl core::cmp::PartialEq for research::topic::plan::Skip
+pub fn research::topic::plan::Skip::eq(&self, other: &research::topic::plan::Skip) -> bool
+impl core::fmt::Debug for research::topic::plan::Skip
+pub fn research::topic::plan::Skip::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::plan::Skip
+pub mod research::topic::question
+pub enum research::topic::question::PlainQuestionRule
+pub research::topic::question::PlainQuestionRule::HiddenCharacter
+pub research::topic::question::PlainQuestionRule::Link
+pub research::topic::question::PlainQuestionRule::TooLong
+impl core::clone::Clone for research::topic::question::PlainQuestionRule
+pub fn research::topic::question::PlainQuestionRule::clone(&self) -> research::topic::question::PlainQuestionRule
+impl core::cmp::Eq for research::topic::question::PlainQuestionRule
+impl core::cmp::PartialEq for research::topic::question::PlainQuestionRule
+pub fn research::topic::question::PlainQuestionRule::eq(&self, other: &research::topic::question::PlainQuestionRule) -> bool
+impl core::fmt::Debug for research::topic::question::PlainQuestionRule
+pub fn research::topic::question::PlainQuestionRule::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::question::PlainQuestionRule
+impl core::marker::StructuralPartialEq for research::topic::question::PlainQuestionRule
+pub struct research::topic::question::NormalisedQuestion(_)
+impl research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::as_str(&self) -> &str
+pub fn research::topic::question::NormalisedQuestion::of(question: &str, unicode: &dyn research::topic::question::UnicodeText) -> Self
+impl core::clone::Clone for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::clone(&self) -> research::topic::question::NormalisedQuestion
+impl core::cmp::Eq for research::topic::question::NormalisedQuestion
+impl core::cmp::Ord for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::cmp(&self, other: &research::topic::question::NormalisedQuestion) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::eq(&self, other: &research::topic::question::NormalisedQuestion) -> bool
+impl core::cmp::PartialOrd for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::partial_cmp(&self, other: &research::topic::question::NormalisedQuestion) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::topic::question::NormalisedQuestion
+pub fn research::topic::question::NormalisedQuestion::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::topic::question::NormalisedQuestion
+pub const research::topic::question::LONGEST_PLAIN_QUESTION: usize
+pub trait research::topic::question::UnicodeText
+pub fn research::topic::question::UnicodeText::fold(&self, text: &str) -> alloc::string::String
+pub fn research::topic::question::UnicodeText::is_hidden(&self, character: char) -> bool
+pub fn research::topic::question::plain_question_breach(text: &str, unicode: &dyn research::topic::question::UnicodeText) -> core::option::Option<research::topic::question::PlainQuestionRule>
+pub mod research::topic::tree
+pub enum research::topic::tree::Stage
+pub research::topic::tree::Stage::Compose(alloc::vec::Vec<research::topic::layout::lineage::Lineage>)
+pub research::topic::tree::Stage::ResearchNodes(alloc::vec::Vec<research::topic::tree::MissingNode>)
+pub research::topic::tree::Stage::SinglePass
+impl core::clone::Clone for research::topic::tree::Stage
+pub fn research::topic::tree::Stage::clone(&self) -> research::topic::tree::Stage
+impl core::cmp::Eq for research::topic::tree::Stage
+impl core::cmp::PartialEq for research::topic::tree::Stage
+pub fn research::topic::tree::Stage::eq(&self, other: &research::topic::tree::Stage) -> bool
+impl core::fmt::Debug for research::topic::tree::Stage
+pub fn research::topic::tree::Stage::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::Stage
+pub struct research::topic::tree::Depth(_)
+impl research::topic::tree::Depth
+pub const fn research::topic::tree::Depth::levels(self) -> u32
+pub const fn research::topic::tree::Depth::new(levels: u32) -> core::option::Option<Self>
+impl core::clone::Clone for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::clone(&self) -> research::topic::tree::Depth
+impl core::cmp::Eq for research::topic::tree::Depth
+impl core::cmp::Ord for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::cmp(&self, other: &research::topic::tree::Depth) -> core::cmp::Ordering
+impl core::cmp::PartialEq for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::eq(&self, other: &research::topic::tree::Depth) -> bool
+impl core::cmp::PartialOrd for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::partial_cmp(&self, other: &research::topic::tree::Depth) -> core::option::Option<core::cmp::Ordering>
+impl core::default::Default for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::default() -> Self
+impl core::fmt::Debug for research::topic::tree::Depth
+pub fn research::topic::tree::Depth::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::topic::tree::Depth
+impl core::marker::StructuralPartialEq for research::topic::tree::Depth
+pub struct research::topic::tree::MissingNode
+pub research::topic::tree::MissingNode::known_questions: alloc::vec::Vec<alloc::string::String>
+pub research::topic::tree::MissingNode::lineage: research::topic::layout::lineage::Lineage
+pub research::topic::tree::MissingNode::question: alloc::string::String
+pub research::topic::tree::MissingNode::rejected: core::option::Option<research::topic::evidence::NoteRejection>
+impl research::topic::tree::MissingNode
+pub fn research::topic::tree::MissingNode::cap(&self) -> u32
+impl core::clone::Clone for research::topic::tree::MissingNode
+pub fn research::topic::tree::MissingNode::clone(&self) -> research::topic::tree::MissingNode
+impl core::cmp::Eq for research::topic::tree::MissingNode
+impl core::cmp::PartialEq for research::topic::tree::MissingNode
+pub fn research::topic::tree::MissingNode::eq(&self, other: &research::topic::tree::MissingNode) -> bool
+impl core::fmt::Debug for research::topic::tree::MissingNode
+pub fn research::topic::tree::MissingNode::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::MissingNode
+pub struct research::topic::tree::Trim
+pub research::topic::tree::Trim::at: research::topic::layout::note_ref::NoteRef
+pub research::topic::tree::Trim::cap: u32
+pub research::topic::tree::Trim::recorded: u32
+impl research::topic::tree::Trim
+pub const fn research::topic::tree::Trim::trimmed(&self) -> u32
+impl core::clone::Clone for research::topic::tree::Trim
+pub fn research::topic::tree::Trim::clone(&self) -> research::topic::tree::Trim
+impl core::cmp::Eq for research::topic::tree::Trim
+impl core::cmp::PartialEq for research::topic::tree::Trim
+pub fn research::topic::tree::Trim::eq(&self, other: &research::topic::tree::Trim) -> bool
+impl core::fmt::Debug for research::topic::tree::Trim
+pub fn research::topic::tree::Trim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::Trim
+pub const research::topic::tree::STARTING_FOLLOW_UP_CAP: u32
+pub fn research::topic::tree::derive(stem: &research::topic::layout::stem::Stem, pair_question: &str, directory: core::option::Option<&research::topic::evidence::LevelsDirectory>, depth: research::topic::tree::Depth, unicode: &dyn research::topic::question::UnicodeText) -> (research::topic::tree::Stage, alloc::vec::Vec<research::topic::tree::Trim>)
+pub fn research::topic::tree::follow_up_cap(level: u32) -> u32

@@ -4,8 +4,8 @@ mod support;
 
 use std::rc::Rc;
 
-use research::fetch::ConfirmationCache as _;
-use research::request::ArxivId;
+use research::sources::fetch::ConfirmationCache as _;
+use research::sources::request::ArxivId;
 use research_adapters::confirmations::FileConfirmationCache;
 use support::RecordedDiagnostics;
 use support::Scratch;

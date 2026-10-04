@@ -11,17 +11,18 @@ use corpus::scan::FileReader;
 use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus::StoreError;
-use research::pinned_indexes::PinnedIndexes;
-use research::question::NormalisedQuestion;
-use research::question::UnicodeText;
-use research::run_ledger::PendingBatch;
-use research::run_ledger::RunId;
-use research::run_ledger::RunLedger;
-use research::spawn_window::Attempts;
-use research::spawn_window::SpawnRef;
-use research::stem::Stem;
-use research::tree::Digest;
-use research::tree::NoteRef;
+use research::conduct::ledger::RunId;
+use research::conduct::ledger::RunLedger;
+use research::conduct::memory::PendingBatch;
+use research::conduct::memory::RunMemory;
+use research::conduct::observed::Observed;
+use research::conduct::spawn::SpawnRef;
+use research::topic::claims::ClaimedIndexes;
+use research::topic::evidence::Digest;
+use research::topic::layout::note_ref::NoteRef;
+use research::topic::layout::stem::Stem;
+use research::topic::question::NormalisedQuestion;
+use research::topic::question::UnicodeText;
 use serde_json::json;
 use serde_json::Map;
 use serde_json::Value;
@@ -100,32 +101,34 @@ pub fn delete_run_ledger<R: FileRemove>(
 }
 
 fn ledger_to(ledger: &RunLedger) -> Value {
-    let attempts = ledger.attempts();
+    let memory = ledger.memory();
     let spawns = |spawns: &mut dyn Iterator<Item = &SpawnRef>| -> Value {
         spawns.map(ToString::to_string).collect()
     };
-    let pins: Map<String, Value> = ledger
-        .pins()
+    let claims: Map<String, Value> = ledger
+        .claims()
         .iter()
         .map(|(question, index)| (question.as_str().to_owned(), json!(index)))
         .collect();
-    let notes_seen: Map<String, Value> = attempts
-        .notes_seen
+    let notes_seen: Map<String, Value> = memory
+        .seen
+        .notes
         .iter()
         .map(|(at, digest)| (at.to_string(), json!(hex(digest))))
         .collect();
     json!({
         "run": ledger.run().to_string(),
         "pending": {
-            "number": ledger.pending().number(),
-            "spawns": spawns(&mut ledger.pending().spawns().iter()),
+            "number": memory.pending.number(),
+            "spawns": spawns(&mut memory.pending.spawns().iter()),
         },
-        "pins": pins,
-        "attempted": spawns(&mut attempts.attempted.iter()),
-        "just_acknowledged": spawns(&mut attempts.just_acknowledged.iter()),
+        "pins": claims,
+        "attempted": spawns(&mut memory.attempted.iter()),
+        "just_acknowledged": spawns(&mut memory.just_acknowledged.iter()),
         "notes_seen": notes_seen,
-        "answered_seen": attempts
-            .answered_seen
+        "answered_seen": memory
+            .seen
+            .answered
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>(),
@@ -136,26 +139,27 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
     let pending = value.get("pending")?;
     Some(RunLedger::from_parts(
         RunId::parse(value.get("run")?.as_str()?)?,
-        PendingBatch::new(
-            number(pending.get("number")?)?,
-            spawn_list(pending.get("spawns")?)?,
-        ),
-        pins_from(value.get("pins")?, unicode)?,
-        Attempts {
+        claims_from(value.get("pins")?, unicode)?,
+        RunMemory {
+            pending: PendingBatch::new(
+                number(pending.get("number")?)?,
+                spawn_list(pending.get("spawns")?)?,
+            ),
             attempted: spawn_list(value.get("attempted")?)?
                 .into_iter()
                 .collect(),
             just_acknowledged: spawn_list(value.get("just_acknowledged")?)?
                 .into_iter()
                 .collect(),
-            notes_seen: notes_seen_from(value.get("notes_seen")?)?,
-            answered_seen: value
-                .get("answered_seen")?
-                .as_array()?
-                .iter()
-                .map(|stem| Stem::parse(stem.as_str()?))
-                .collect::<Option<BTreeSet<_>>>()?,
-            pending: BTreeSet::new(),
+            seen: Observed {
+                notes: notes_seen_from(value.get("notes_seen")?)?,
+                answered: value
+                    .get("answered_seen")?
+                    .as_array()?
+                    .iter()
+                    .map(|stem| Stem::parse(stem.as_str()?))
+                    .collect::<Option<BTreeSet<_>>>()?,
+            },
         },
     ))
 }
@@ -174,19 +178,19 @@ fn spawn_list(value: &Value) -> Option<Vec<SpawnRef>> {
 
 /// Folding is idempotent, so a key that folds to other text was never
 /// written by this store.
-fn pins_from(
+fn claims_from(
     value: &Value,
     unicode: &dyn UnicodeText,
-) -> Option<PinnedIndexes> {
-    let mut pins = PinnedIndexes::default();
+) -> Option<ClaimedIndexes> {
+    let mut claims = ClaimedIndexes::default();
     for (key, index) in value.as_object()? {
         let question = NormalisedQuestion::of(key, unicode);
         if question.as_str() != key {
             return None;
         }
-        pins.pin(question, number(index)?);
+        claims.claim(question, number(index)?);
     }
-    Some(pins)
+    Some(claims)
 }
 
 fn notes_seen_from(value: &Value) -> Option<BTreeMap<NoteRef, Digest>> {
@@ -232,17 +236,18 @@ mod tests {
     use corpus::scan::FileReader;
     use corpus::AtomicWrite;
     use corpus::StoreError;
-    use research::lineage::Lineage;
-    use research::pinned_indexes::PinnedIndexes;
-    use research::question::NormalisedQuestion;
-    use research::run_ledger::PendingBatch;
-    use research::run_ledger::RunId;
-    use research::run_ledger::RunLedger;
-    use research::spawn_window::Attempts;
-    use research::spawn_window::SpawnRef;
-    use research::stem::Stem;
-    use research::tree::Digest;
-    use research::tree::NoteRef;
+    use research::conduct::ledger::RunId;
+    use research::conduct::ledger::RunLedger;
+    use research::conduct::memory::PendingBatch;
+    use research::conduct::memory::RunMemory;
+    use research::conduct::observed::Observed;
+    use research::conduct::spawn::SpawnRef;
+    use research::topic::claims::ClaimedIndexes;
+    use research::topic::evidence::Digest;
+    use research::topic::layout::lineage::Lineage;
+    use research::topic::layout::note_ref::NoteRef;
+    use research::topic::layout::stem::Stem;
+    use research::topic::question::NormalisedQuestion;
     use serde_json::json;
 
     use super::delete_run_ledger;
@@ -305,26 +310,27 @@ mod tests {
     }
 
     fn full_ledger() -> RunLedger {
-        let mut pins = PinnedIndexes::default();
-        pins.pin(NormalisedQuestion::of("A  ?", &UnicodeTables), 3);
+        let mut claims = ClaimedIndexes::default();
+        claims.claim(NormalisedQuestion::of("A  ?", &UnicodeTables), 3);
         RunLedger::from_parts(
             RunId::parse("2026-09-27_10-00-00-7").expect("run id"),
-            PendingBatch::new(
-                2,
-                vec![spawn("03-a-web:2-1"), spawn("04-b-web")],
-            ),
-            pins,
-            Attempts {
+            claims,
+            RunMemory {
+                pending: PendingBatch::new(
+                    2,
+                    vec![spawn("03-a-web:2-1"), spawn("04-b-web")],
+                ),
                 attempted: BTreeSet::from([spawn("03-a-web:1")]),
                 just_acknowledged: BTreeSet::from([spawn("03-a-web:1")]),
-                notes_seen: BTreeMap::from([(
-                    note_ref("03-a-web", "1"),
-                    Digest::new([0xab; 32]),
-                )]),
-                answered_seen: BTreeSet::from([
-                    Stem::parse("01-c-web").expect("stem")
-                ]),
-                pending: BTreeSet::new(),
+                seen: Observed {
+                    notes: BTreeMap::from([(
+                        note_ref("03-a-web", "1"),
+                        Digest::new([0xab; 32]),
+                    )]),
+                    answered: BTreeSet::from([
+                        Stem::parse("01-c-web").expect("stem")
+                    ]),
+                },
             },
         )
     }

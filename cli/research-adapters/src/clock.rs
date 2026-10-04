@@ -4,7 +4,7 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
-use research::fetch::Clock;
+use research::sources::fetch::Clock;
 
 pub struct SystemClock;
 
@@ -26,7 +26,7 @@ impl Clock for SystemClock {
 mod tests {
     use std::time::Duration;
 
-    use research::fetch::Clock as _;
+    use research::sources::fetch::Clock as _;
 
     use super::SystemClock;
 

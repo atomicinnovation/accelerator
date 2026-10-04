@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Output;
 
-use research::finding_path::is_finding_path;
-use research::finding_path::is_level_note_path;
+use research::topic::layout::finding_path::is_finding_path;
+use research::topic::layout::finding_path::is_level_note_path;
 use serde_json::json;
 use serde_json::Value;
 

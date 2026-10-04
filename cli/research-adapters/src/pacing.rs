@@ -7,12 +7,12 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use research::classify::Reason;
-use research::fetch::Attempted;
-use research::fetch::Clock;
-use research::fetch::PacingGate;
-use research::fetch::Unavailable;
-use research::schedule::Deadline;
+use research::sources::classify::Reason;
+use research::sources::fetch::Attempted;
+use research::sources::fetch::Clock;
+use research::sources::fetch::PacingGate;
+use research::sources::fetch::Unavailable;
+use research::sources::schedule::Deadline;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
 use rustix::io::Errno;
@@ -256,9 +256,9 @@ mod tests {
     use std::time::Duration;
     use std::time::Instant;
 
-    use research::fetch::Attempted;
-    use research::fetch::PacingGate as _;
-    use research::schedule::Deadline;
+    use research::sources::fetch::Attempted;
+    use research::sources::fetch::PacingGate as _;
+    use research::sources::schedule::Deadline;
 
     use super::NoPacing;
 

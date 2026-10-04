@@ -4,8 +4,8 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use research::fetch::ConfirmationCache;
-use research::request::ArxivId;
+use research::sources::fetch::ConfirmationCache;
+use research::sources::request::ArxivId;
 use serde::Deserialize;
 use serde::Serialize;
 

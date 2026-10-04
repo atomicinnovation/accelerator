@@ -26,7 +26,7 @@ COMPOSER = REPO_ROOT / "agents/composer.md"
 LEVEL_NOTE_OUTPUTTER = (
     REPO_ROOT / "skills/research/outputters/level-note-outputter/SKILL.md"
 )
-PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/question.rs"
+PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
 PROFILES_DIR = Path("skills/research/profiles")
 

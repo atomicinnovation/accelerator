@@ -13,18 +13,19 @@ use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
-use research::round::Pair;
-use research::round::Round;
-use research::round::Stage;
-use research::run_ledger::Continuation;
-use research::run_ledger::RunId;
-use research::run_ledger::RunLedger;
-use research::spawn_window::window;
-use research::spawn_window::SpawnRef;
-use research::spawn_window::Window;
-use research::tree::Depth;
-use research::tree::Node;
-use research::tree::NoteRef;
+use research::conduct::ledger::RunId;
+use research::conduct::ledger::RunLedger;
+use research::conduct::observed::Observed;
+use research::conduct::spawn::SpawnRef;
+use research::conduct::window::window;
+use research::conduct::window::Window;
+use research::topic::layout::lineage::Lineage;
+use research::topic::layout::note_ref::NoteRef;
+use research::topic::plan::OutstandingPair;
+use research::topic::plan::RoundPlan;
+use research::topic::tree::Depth;
+use research::topic::tree::MissingNode;
+use research::topic::tree::Stage;
 use research_adapters::topic_research::read_round_inputs;
 use research_adapters::topic_research::run_ledger::delete_run_ledger;
 use research_adapters::topic_research::run_ledger::read_run_ledger;
@@ -36,6 +37,7 @@ use serde_json::json;
 use serde_json::Value;
 
 use crate::context::ProjectContext;
+use crate::plan_wording;
 
 const DOC_TYPE: &str = "topic-research";
 
@@ -225,27 +227,33 @@ where
         }
         RunMode::Query => None,
     };
-    let pins = continued
+    let claims = continued
         .as_ref()
-        .map(|ledger| ledger.pins().clone())
+        .map(|ledger| ledger.claims().clone())
         .unwrap_or_default();
     let reading = read_round_inputs(
         set_root,
         profiles_dir,
         depth,
-        pins,
+        claims,
         fs,
         &UnicodeTables,
     )
     .map_err(|error| error.to_string())?;
-    let round = Round::plan(&reading.inputs, &UnicodeTables);
+    let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
+    let observed = Observed::of(&reading.inputs);
     let ledger = match mode {
-        RunMode::Start(run) => Some(RunLedger::start(run, &round)),
+        RunMode::Start(run) => Some(RunLedger::start(run, &observed)),
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
-    let window = window(round, limit, ledger.as_ref().map(RunLedger::attempts));
-    let ledger = ledger.map(|ledger| ledger.record(&window));
+    let window = window(
+        &plan,
+        &observed,
+        limit,
+        ledger.as_ref().map(RunLedger::memory),
+    );
+    let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
     if let Some(ledger) = &ledger {
         write_run_ledger(set_root, ledger, store).map_err(|error| {
             failed(format!(
@@ -255,19 +263,19 @@ where
         })?;
     }
     let mut stderr = String::new();
-    let trims = window.round.trims.iter().map(ToString::to_string);
+    let trims = plan.trims.iter().map(plan_wording::trim);
     for warning in notices.iter().cloned().chain(trims) {
         let _ = writeln!(stderr, "warning: {warning}");
     }
-    let warnings = window
-        .round
+    let warnings = plan
         .warnings
         .iter()
-        .map(ToString::to_string)
+        .map(plan_wording::warning)
         .chain(reading.warnings.iter().map(ToString::to_string))
         .chain(notices)
         .collect();
-    let plan = Plan {
+    let rendered = PlanOutput {
+        plan: &plan,
         window: &window,
         set_root,
         depth,
@@ -275,7 +283,7 @@ where
         warnings,
     };
     Ok(Printed {
-        stdout: format!("{}\n", plan.render()),
+        stdout: format!("{}\n", rendered.render()),
         stderr,
     })
 }
@@ -318,14 +326,8 @@ fn continued_ledger<F: FileReader>(
     fs: &F,
 ) -> Result<RunLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
-        Ok(Some(stored)) => {
-            match RunLedger::continue_as(stored, run, spawned) {
-                Continuation::Continued(ledger) => Ok(ledger),
-                Continuation::Superseded { stored } => {
-                    Err(superseded(run, &stored))
-                }
-            }
-        }
+        Ok(Some(stored)) => RunLedger::continue_as(stored, run, spawned)
+            .map_err(|owner| superseded(run, &owner.by)),
         Ok(None) | Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
@@ -366,7 +368,8 @@ fn no_usable_ledger(run: &RunId) -> String {
     ))
 }
 
-struct Plan<'a> {
+struct PlanOutput<'a> {
+    plan: &'a RoundPlan,
     window: &'a Window,
     set_root: &'a Path,
     depth: Depth,
@@ -374,10 +377,10 @@ struct Plan<'a> {
     warnings: Vec<String>,
 }
 
-impl Plan<'_> {
+impl PlanOutput<'_> {
     fn render(&self) -> Value {
-        let round = &self.window.round;
-        let items: Vec<_> = round
+        let plan = self.plan;
+        let items: Vec<_> = plan
             .items
             .iter()
             .map(|item| {
@@ -388,56 +391,60 @@ impl Plan<'_> {
                 })
             })
             .collect();
-        let pairs: Vec<_> =
-            round.pairs.iter().map(|pair| self.pair(pair)).collect();
-        let skipped: Vec<_> = round
+        let pairs: Vec<_> = self
+            .window
+            .pairs
+            .iter()
+            .map(|pair| self.pair(pair))
+            .collect();
+        let skipped: Vec<_> = plan
             .skipped
             .iter()
             .map(|skip| {
                 json!({
-                    "question": skip.question,
-                    "profile": skip.profile,
-                    "reason": skip.explanation(),
+                    "question": skip.pair.question,
+                    "profile": skip.pair.profile,
+                    "reason": plan_wording::skip_reason(skip),
                 })
             })
             .collect();
         let unaccepted: Vec<_> = self
             .window
-            .unaccepted
+            .unfinished
             .iter()
-            .map(|unaccepted| {
+            .map(|unfinished| {
                 json!({
-                    "spawn": unaccepted.spawn.to_string(),
-                    "rejected": unaccepted
+                    "spawn": unfinished.spawn.to_string(),
+                    "rejected": unfinished
                         .rejected
                         .as_ref()
-                        .map(ToString::to_string),
+                        .map(plan_wording::rejection),
                 })
             })
             .collect();
-        let trims: Vec<_> = round
+        let trims: Vec<_> = plan
             .trims
             .iter()
             .map(|trim| {
                 json!({
-                    "stem": trim.stem.to_string(),
-                    "lineage": trim.trim.lineage.to_string(),
-                    "recorded": trim.trim.recorded,
-                    "cap": trim.trim.cap,
+                    "stem": trim.at.stem.to_string(),
+                    "lineage": trim.at.lineage.to_string(),
+                    "recorded": trim.recorded,
+                    "cap": trim.cap,
                 })
             })
             .collect();
-        let shallower: Vec<_> = round
-            .shallower
+        let shallower: Vec<_> = plan
+            .shallow
             .iter()
-            .map(|pair| {
+            .map(|finding| {
                 json!({
-                    "stem": pair.stem.to_string(),
-                    "depth": pair.depth.levels(),
+                    "stem": finding.stem.to_string(),
+                    "depth": finding.depth.levels(),
                 })
             })
             .collect();
-        let mut plan = json!({
+        let mut rendered = json!({
             "items": items,
             "pairs": pairs,
             "skipped": skipped,
@@ -449,27 +456,31 @@ impl Plan<'_> {
             "shallower": shallower,
         });
         if let Some(ledger) = self.ledger {
-            plan["run"] = json!(ledger.run().to_string());
-            plan["batch"] = json!(ledger.pending().number());
-            plan["unexpected"] = self
+            rendered["run"] = json!(ledger.run().to_string());
+            rendered["batch"] = json!(ledger.memory().pending.number());
+            rendered["unexpected"] = self
                 .window
                 .unexpected
                 .iter()
                 .map(ToString::to_string)
                 .collect();
         }
-        plan
+        rendered
     }
 
-    fn pair(&self, pair: &Pair) -> Value {
+    fn pair(&self, outstanding: &OutstandingPair) -> Value {
         let mut rendered = json!({
-            "question": pair.question,
-            "profile": pair.profile,
-            "path": self.absolute(&pair.path),
+            "question": outstanding.pair.question,
+            "profile": outstanding.pair.profile,
+            "path": self.absolute(&outstanding.stem.finding_path()),
         });
-        let spawn = SpawnRef::Pair(pair.stem.clone()).to_string();
-        match &pair.stage {
-            Stage::Research => {
+        let spawn = SpawnRef::Pair(outstanding.stem.clone()).to_string();
+        let note = |lineage: &Lineage| NoteRef {
+            stem: outstanding.stem.clone(),
+            lineage: lineage.clone(),
+        };
+        match &outstanding.stage {
+            Stage::SinglePass => {
                 rendered["stage"] = json!("research");
                 rendered["spawn"] = json!(spawn);
             }
@@ -477,38 +488,34 @@ impl Plan<'_> {
                 rendered["stage"] = json!("compose");
                 rendered["notes"] = lineages
                     .iter()
-                    .map(|lineage| {
-                        json!(self.absolute(&pair.level_note_path(lineage)))
-                    })
+                    .map(|lineage| json!(self.absolute(&note(lineage).path())))
                     .collect();
                 rendered["spawn"] = json!(spawn);
             }
-            Stage::Deepen(nodes) => {
+            Stage::ResearchNodes(nodes) => {
                 rendered["stage"] = json!("deepen");
-                rendered["nodes"] =
-                    nodes.iter().map(|node| self.node(pair, node)).collect();
+                rendered["nodes"] = nodes
+                    .iter()
+                    .map(|node| self.node(note(&node.lineage), node))
+                    .collect();
             }
         }
         rendered
     }
 
-    fn node(&self, pair: &Pair, node: &Node) -> Value {
-        let spawn = SpawnRef::Node(NoteRef {
-            stem: pair.stem.clone(),
-            lineage: node.lineage.clone(),
-        });
+    fn node(&self, address: NoteRef, node: &MissingNode) -> Value {
         let mut rendered = json!({
             "lineage": node.lineage.to_string(),
             "level": node.lineage.level(),
             "question": node.question,
-            "cap": node.cap,
-            "id": pair.level_note_id(&node.lineage, &self.set_slug()),
-            "path": self.absolute(&pair.level_note_path(&node.lineage)),
+            "cap": node.cap(),
+            "id": address.id(&self.set_slug()),
+            "path": self.absolute(&address.path()),
             "known_questions": node.known_questions,
-            "spawn": spawn.to_string(),
+            "spawn": SpawnRef::Node(address).to_string(),
         });
         if let Some(rejected) = &node.rejected {
-            rendered["rejected"] = json!(rejected.to_string());
+            rendered["rejected"] = json!(plan_wording::rejection(rejected));
         }
         rendered
     }

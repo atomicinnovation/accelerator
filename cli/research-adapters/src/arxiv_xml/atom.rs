@@ -1,7 +1,7 @@
 //! The Atom feed the arXiv query API answers with.
 
-use research::arxiv::Entry;
-use research::fetch::DecodeFailure;
+use research::sources::arxiv::Entry;
+use research::sources::fetch::DecodeFailure;
 use roxmltree::Document;
 use roxmltree::Node;
 
