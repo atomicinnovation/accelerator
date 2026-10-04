@@ -448,20 +448,25 @@ SchemaRow {
 
 **File**: `cli/corpus/src/frontmatter_validation/mod.rs`
 **Changes**:
-- `check_empty_placeholders` reads its exemptions from two named constants:
-  - `WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"]`, today's inline exemption;
-  - `EMPTY_LIST_PERMITTED_KEYS: [&str; 1] = ["follow_ups"]`, which allows
-    `[]` but still flags `""`.
-
-  Every exemption is then listed in one place.
+- `SchemaRow` gains `empty_list_extras`, the extras whose empty list is a
+  value in its own right. Only the level-note row sets it, to
+  `["follow_ups"]`, so `corpus` names no document type's key outside its
+  schema table.
+- `check_empty_placeholders` takes the row. It exempts `tags` wholly
+  (`WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"]`, today's inline exemption),
+  and allows `[]` but still flags `""` for the row's `empty_list_extras`.
 
 **Tests first**:
 - `a_finding_without_depth_is_valid`
 - `a_level_note_without_depth_is_missing_an_extra`
 - `follow_ups_is_exempt_from_empty_placeholder`
+- `an_empty_list_is_a_placeholder_where_its_row_does_not_permit_one` (a
+  finding's `follow_ups: []` is still flagged)
 - `an_empty_source_profile_is_still_a_placeholder` (the exemption does not
   widen)
 - `an_empty_string_follow_ups_is_still_a_placeholder` (only `[]` is exempt)
+- `every_empty_list_extra_is_an_extra_of_its_row` and
+  `only_a_level_note_may_record_an_empty_list` in `schema.rs`
 
 #### 2. Templates
 
@@ -2554,6 +2559,10 @@ is unchanged apart from the renamed wire fields below.
   - `RoundPlan` no longer snapshots the set: `Observed` does.
     `RunMemory` holds the `PendingBatch` itself rather than mirroring it,
     and `continue_as` returns `Result<RunLedger, Superseded>`.
+- **Empty lists on the schema row.** The `follow_ups` exemption from the
+  empty-placeholder check moves from a constant in `corpus`'s validator to
+  the level-note row's `empty_list_extras`, which `print-schema` also
+  emits. Another row's `follow_ups: []` is now flagged.
 - **Wording in the CLI.** The text of warnings, trims, skips and note
   rejections moves from `Display` impls in `research` to
   `cli/research-cli/src/plan_wording.rs`.

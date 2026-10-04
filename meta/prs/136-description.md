@@ -97,9 +97,11 @@ and each topic-research concept is modelled once.
   `optional_extras` bank.
 - **Per-row extras** — each `SchemaRow` splits `required_extras` from
   `optional_extras`, replacing the global `OPTIONAL_EXTRAS` bank (`migrate`'s
-  m0007 follows). `follow_ups: []` is exempt from the empty-placeholder
-  check, and `Violation::schema_key` lets `outstanding` name a failing note's
-  key without echoing one taken from the untrusted file.
+  m0007 follows). Each row also names its `empty_list_extras`, so the
+  level note's `follow_ups: []` passes the empty-placeholder check without
+  `corpus` hard-coding a topic-research key. `Violation::schema_key` lets
+  `outstanding` name a failing note's key without echoing one taken from
+  the untrusted file.
 - **`topic-research-level-note.md`** — new `kind: level-note` row with
   `level`, `depth`, `follow_ups`; findings gain optional `depth` (legacy
   findings read as `depth: 1`).

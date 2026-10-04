@@ -634,6 +634,7 @@ mod tests {
             code_state_anchored: false,
             required_extras: &[],
             optional_extras: &[],
+            empty_list_extras: &[],
             status_vocab: &["captured", "archived"],
             forbidden_own_id_keys: &[],
             typed_linkage_keys: &["parent"],

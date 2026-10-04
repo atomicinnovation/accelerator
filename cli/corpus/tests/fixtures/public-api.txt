@@ -113,6 +113,7 @@ pub mod corpus::frontmatter_validation
 pub mod corpus::frontmatter_validation::schema
 pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
+pub corpus::frontmatter_validation::schema::SchemaRow::empty_list_extras: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::forbidden_own_id_keys: &'static [&'static str]
 pub corpus::frontmatter_validation::schema::SchemaRow::kind: &'static str
 pub corpus::frontmatter_validation::schema::SchemaRow::linkage_type: &'static str

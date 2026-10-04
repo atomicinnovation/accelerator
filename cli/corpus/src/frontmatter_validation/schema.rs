@@ -16,6 +16,9 @@ pub struct SchemaRow {
     /// Per-type keys legitimately omitted when empty, so a present-but-empty
     /// value is not additionally required.
     pub optional_extras: &'static [&'static str],
+    /// Extras whose empty list is a value in its own right rather than an
+    /// unfilled placeholder.
+    pub empty_list_extras: &'static [&'static str],
     pub status_vocab: &'static [&'static str],
     pub forbidden_own_id_keys: &'static [&'static str],
     pub typed_linkage_keys: &'static [&'static str],
@@ -29,6 +32,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["kind", "priority"],
         optional_extras: &["external_id"],
+        empty_list_extras: &[],
         status_vocab: &[
             "draft",
             "ready",
@@ -55,6 +59,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: true,
         required_extras: &[],
         optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["draft", "ready", "in-progress", "done", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &[
@@ -72,6 +77,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["result"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -83,6 +89,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: true,
         required_extras: &["pr_number"],
         optional_extras: &["pr_url", "merge_commit"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title"],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -94,6 +101,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &[],
         optional_extras: &["decision_makers"],
+        empty_list_extras: &[],
         status_vocab: &[
             "proposed",
             "accepted",
@@ -111,6 +119,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: true,
         required_extras: &["topic"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -122,6 +131,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: true,
         required_extras: &["topic"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -140,6 +150,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
             "screenshots_incomplete",
         ],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "superseded"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -151,6 +162,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["current_inventory", "target_inventory"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "accepted"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -162,6 +174,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["verdict", "lenses", "review_number", "review_pass"],
         optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -173,6 +186,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["verdict", "lenses", "review_number", "review_pass"],
         optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -184,6 +198,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["verdict", "lenses", "review_number", "pr_number"],
         optional_extras: &["reviewer"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &["pr_title", "review_pass"],
         typed_linkage_keys: &["parent", "target", "relates_to"],
@@ -195,6 +210,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: true,
         required_extras: &["topic"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["captured"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -206,6 +222,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["slug", "round_count", "finding_count", "primary"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &[
             "briefed",
             "outlined",
@@ -223,6 +240,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["source_profiles"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["draft", "complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -234,6 +252,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &[],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -245,6 +264,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["round", "question", "source_profile"],
         optional_extras: &["depth"],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -256,6 +276,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
         code_state_anchored: false,
         required_extras: &["rounds_covered"],
         optional_extras: &[],
+        empty_list_extras: &[],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -274,6 +295,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
             "follow_ups",
         ],
         optional_extras: &[],
+        empty_list_extras: &["follow_ups"],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
         typed_linkage_keys: &["parent", "relates_to"],
@@ -439,6 +461,31 @@ mod tests {
         // resolve an unmatched kind — guarding the UnknownKind split.
         assert!(row_for("work-item", "").is_some());
         assert!(row_for("not-a-type", "anything").is_none());
+    }
+
+    #[test]
+    fn every_empty_list_extra_is_an_extra_of_its_row() {
+        for row in &SCHEMA {
+            for extra in row.empty_list_extras {
+                assert!(
+                    row.required_extras.contains(extra)
+                        || row.optional_extras.contains(extra),
+                    "{}/{}: {extra}",
+                    row.linkage_type,
+                    row.kind
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn only_a_level_note_may_record_an_empty_list() {
+        let permitting: Vec<(&str, &[&str])> = SCHEMA
+            .iter()
+            .filter(|row| !row.empty_list_extras.is_empty())
+            .map(|row| (row.kind, row.empty_list_extras))
+            .collect();
+        assert_eq!(permitting, [("level-note", &["follow_ups"][..])]);
     }
 
     #[test]

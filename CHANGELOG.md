@@ -237,8 +237,8 @@
 
 - **`accelerator corpus frontmatter print-schema` emits every schema row.** It
   drops its `optional_extras` bank and gains `rows`, one object per schema row
-  carrying its template, extras (required and optional separately), status
-  vocabulary and linkage keys.
+  carrying its template, extras (required, optional, and those whose empty
+  list is a value, separately), status vocabulary and linkage keys.
 
 - **`accelerator research topic outstanding` matches questions after
   Unicode compatibility folding.** Questions that differ only by forms such as

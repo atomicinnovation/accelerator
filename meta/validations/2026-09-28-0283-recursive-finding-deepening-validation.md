@@ -158,7 +158,9 @@ the Unicode data from ICU4X, and renames the `outstanding` stages
 (`research` and `deepen` become `single_pass` and `research_nodes`), its
 `unaccepted` and `shallower` fields (now `unfinished` and `shallow`), and the
 ledger's `pins`, `notes_seen` and `answered_seen` (now `claims` and
-`seen`). The evidence above records the names as they were when it was
+`seen`). The `follow_ups` empty-list exemption moves onto the level-note
+schema row, so another document's `follow_ups: []` is now flagged. The
+evidence above records the names as they were when it was
 gathered.
 
 - **Covered.** The full `mise run` exits 0 after the restructure, including

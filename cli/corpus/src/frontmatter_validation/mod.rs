@@ -221,7 +221,7 @@ pub fn validate_file(raw_frontmatter: &str) -> Vec<Violation> {
     check_forbidden_own_id(&entries, row, &mut violations);
     check_obsolete_legacy_keys(&entries, &mut violations);
     check_required_extras(&entries, row, &mut violations);
-    check_empty_placeholders(&entries, &mut violations);
+    check_empty_placeholders(&entries, row, &mut violations);
     check_linkage_shape(&entries, row, &mut violations);
     check_canonical_quoting(&entries, row, &mut violations);
     violations
@@ -384,10 +384,9 @@ fn check_required_extras(
 
 const WHOLLY_EXEMPT_KEYS: [&str; 1] = ["tags"];
 
-const EMPTY_LIST_PERMITTED_KEYS: [&str; 1] = ["follow_ups"];
-
 fn check_empty_placeholders(
     entries: &[(String, String)],
+    row: &schema::SchemaRow,
     violations: &mut Vec<Violation>,
 ) {
     for (key, value) in entries {
@@ -396,7 +395,7 @@ fn check_empty_placeholders(
         }
         let is_empty_string = value == "\"\"";
         let is_forbidden_empty_list =
-            value == "[]" && !EMPTY_LIST_PERMITTED_KEYS.contains(&key.as_str());
+            value == "[]" && !row.empty_list_extras.contains(&key.as_str());
         if is_empty_string || is_forbidden_empty_list {
             violations.push(Violation::EmptyPlaceholder { key: key.clone() });
         }
@@ -875,6 +874,25 @@ mod tests {
     fn follow_ups_is_exempt_from_empty_placeholder() {
         let note = level_note_with(&["depth: 2", "follow_ups: []"]);
         assert_eq!(validate_file(&note), Vec::new());
+    }
+
+    #[test]
+    fn an_empty_list_is_a_placeholder_where_its_row_does_not_permit_one() {
+        let finding = topic_research_document(
+            "finding",
+            &[
+                "round: 1",
+                "question: \"Question\"",
+                "source_profile: \"web\"",
+                "follow_ups: []",
+            ],
+        );
+        assert_eq!(
+            validate_file(&finding),
+            vec![Violation::EmptyPlaceholder {
+                key: "follow_ups".to_owned()
+            }]
+        );
     }
 
     #[test]
