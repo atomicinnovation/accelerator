@@ -2,7 +2,7 @@
 //! implements.
 //!
 //! `AtomicWrite` replaces a whole file atomically, `ExclusiveCreate` and
-//! `RemoveFile` move one, `RecordStore` appends, removes and reads
+//! `FileRemove` move one, `RecordStore` appends, removes and reads
 //! canonical-order JSONL, and `RecoveryCopies` keeps the pre-change bytes of a
 //! multi-file change until it lands.
 
@@ -88,12 +88,6 @@ pub trait ExclusiveCreate {
     /// [`StoreError`] when `path` already exists, the destination is not
     /// writable, or the write fails.
     fn create_new(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError>;
-}
-
-pub trait RemoveFile {
-    /// # Errors
-    /// [`StoreError`] when `path` does not exist or cannot be removed.
-    fn remove(&self, path: &Path) -> Result<(), StoreError>;
 }
 
 /// Why a recovery directory outlived the change it was made for.

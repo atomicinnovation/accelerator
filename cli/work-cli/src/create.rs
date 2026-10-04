@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus::store::ExclusiveCreate;
-use corpus::store::RemoveFile;
+use corpus::store::FileRemove;
 use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
 use corpus::IdOwnership;
@@ -149,9 +149,9 @@ pub enum RunOutcome {
 }
 
 /// The file store every creation strategy writes items through.
-pub trait CreationStore: AtomicWrite + ExclusiveCreate + RemoveFile {}
+pub trait CreationStore: AtomicWrite + ExclusiveCreate + FileRemove {}
 
-impl<T: AtomicWrite + ExclusiveCreate + RemoveFile> CreationStore for T {}
+impl<T: AtomicWrite + ExclusiveCreate + FileRemove> CreationStore for T {}
 
 const SLUG_MAX_LEN: usize = 60;
 

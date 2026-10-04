@@ -9,7 +9,7 @@ use std::fs;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
-use corpus::store::{ExclusiveCreate, RemoveFile};
+use corpus::store::ExclusiveCreate;
 use corpus::{AtomicWrite, FileRemove, Record, RecordStore, StoreError};
 use store::lock::{self, LockOptions};
 use store::{NewFileMode, WriteBounds, WriteError};
@@ -168,14 +168,6 @@ impl ExclusiveCreate for FileCorpusStore {
     }
 }
 
-impl RemoveFile for FileCorpusStore {
-    fn remove(&self, path: &Path) -> Result<(), StoreError> {
-        store::ensure_contained(path, &self.bounds())
-            .map_err(to_store_error)?;
-        fs::remove_file(path).map_err(|error| io(path, &error))
-    }
-}
-
 impl RecordStore for FileCorpusStore {
     fn append_record(
         &self,
@@ -260,7 +252,7 @@ fn validation(error: &impl ToString) -> StoreError {
 mod tests {
     use std::fs;
 
-    use corpus::store::{ExclusiveCreate, RemoveFile};
+    use corpus::store::ExclusiveCreate;
     use corpus::{
         AtomicWrite, FileRemove, Outcome, Record, RecordStore, StoreError,
     };
@@ -411,7 +403,7 @@ mod tests {
         let dir = TempDir::new()?;
         let target = dir.path().join("ledger.json");
         fs::write(&target, b"{}")?;
-        FileRemove::remove(&FileCorpusStore::new(dir.path()), &target)?;
+        FileCorpusStore::new(dir.path()).remove(&target)?;
         assert!(!target.exists());
         Ok(())
     }
@@ -419,10 +411,8 @@ mod tests {
     #[test]
     fn removing_an_absent_file_succeeds() -> Result<(), TestError> {
         let dir = TempDir::new()?;
-        FileRemove::remove(
-            &FileCorpusStore::new(dir.path()),
-            &dir.path().join("ledger.json"),
-        )?;
+        FileCorpusStore::new(dir.path())
+            .remove(&dir.path().join("ledger.json"))?;
         Ok(())
     }
 
@@ -434,10 +424,8 @@ mod tests {
         let outside = elsewhere.path().join("ledger.json");
         fs::write(&outside, b"{}")?;
         std::os::unix::fs::symlink(elsewhere.path(), root.path().join("sub"))?;
-        let result = FileRemove::remove(
-            &FileCorpusStore::new(root.path()),
-            &root.path().join("sub").join("ledger.json"),
-        );
+        let result = FileCorpusStore::new(root.path())
+            .remove(&root.path().join("sub").join("ledger.json"));
         assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
         assert!(outside.exists());
         Ok(())
@@ -523,27 +511,6 @@ mod tests {
             .map(|entry| entry.file_name())
             .collect();
         assert_eq!(names, vec![std::ffi::OsString::from("item.md")]);
-        Ok(())
-    }
-
-    #[test]
-    fn remove_deletes_the_file() -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let target = dir.path().join("item.md");
-        fs::write(&target, b"x")?;
-        RemoveFile::remove(&FileCorpusStore::new(dir.path()), &target)?;
-        assert!(!target.exists());
-        Ok(())
-    }
-
-    #[test]
-    fn remove_of_a_missing_file_reports_it() -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let result = RemoveFile::remove(
-            &FileCorpusStore::new(dir.path()),
-            &dir.path().join("absent.md"),
-        );
-        assert!(matches!(result, Err(StoreError::Io { .. })));
         Ok(())
     }
 }

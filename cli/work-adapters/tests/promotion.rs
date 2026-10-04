@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
-use corpus::store::RemoveFile;
+use corpus::store::FileRemove;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -140,7 +140,7 @@ impl ExclusiveCreate for Store {
     }
 }
 
-impl RemoveFile for Store {
+impl FileRemove for Store {
     fn remove(&self, path: &Path) -> Result<(), StoreError> {
         self.check(path)?;
         self.inner.remove(path)

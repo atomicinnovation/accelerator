@@ -11,9 +11,9 @@ use corpus::scan::CorpusWalker;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
+use corpus::store::FileRemove;
 use corpus::store::KeptState;
 use corpus::store::RecoveryCopies;
-use corpus::store::RemoveFile;
 use corpus::StoreError;
 use work::identity::ItemIdentity;
 use work::retirement::plan_retirement;
@@ -37,7 +37,7 @@ pub struct RetirementFiles<'a> {
     pub reader: &'a dyn FileReader,
     pub writer: &'a dyn AtomicWrite,
     pub creator: &'a dyn ExclusiveCreate,
-    pub remover: &'a dyn RemoveFile,
+    pub remover: &'a dyn FileRemove,
     pub file_locks: &'a dyn ExclusiveLock,
     pub recovery: &'a dyn RecoveryCopies,
 }

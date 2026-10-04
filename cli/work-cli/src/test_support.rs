@@ -6,7 +6,7 @@ use std::rc::Rc;
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus::store::ExclusiveCreate;
-use corpus::store::RemoveFile;
+use corpus::store::FileRemove;
 use corpus::AtomicWrite;
 use corpus_adapters::FileCorpusStore;
 
@@ -210,7 +210,7 @@ impl ExclusiveCreate for Faults {
     }
 }
 
-impl RemoveFile for Faults {
+impl FileRemove for Faults {
     fn remove(&self, path: &Path) -> Result<(), corpus::StoreError> {
         self.check(path)?;
         self.inner.remove(path)

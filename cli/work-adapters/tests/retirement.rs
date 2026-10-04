@@ -12,9 +12,9 @@ use corpus::lock::ExclusiveLock as _;
 use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
+use corpus::store::FileRemove;
 use corpus::store::KeptRecovery;
 use corpus::store::RecoveryCopies;
-use corpus::store::RemoveFile;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::FileRecoveryCopies;
@@ -146,7 +146,7 @@ impl ExclusiveCreate for Faulty {
     }
 }
 
-impl RemoveFile for Faulty {
+impl FileRemove for Faulty {
     fn remove(&self, path: &Path) -> Result<(), StoreError> {
         self.check(path)?;
         self.inner.remove(path)

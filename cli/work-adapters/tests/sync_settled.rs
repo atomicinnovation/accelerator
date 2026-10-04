@@ -15,7 +15,7 @@ use corpus::lock::HeldLock;
 use corpus::lock::LockName;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
-use corpus::store::RemoveFile;
+use corpus::store::FileRemove;
 use corpus::IdOwnership;
 use corpus::StoreError;
 use corpus_adapters::FileCorpusStore;
@@ -327,7 +327,7 @@ impl ExclusiveCreate for Faulty {
     }
 }
 
-impl RemoveFile for Faulty {
+impl FileRemove for Faulty {
     fn remove(&self, path: &Path) -> Result<(), StoreError> {
         self.check(path)?;
         self.inner.remove(path)

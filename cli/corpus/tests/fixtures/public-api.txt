@@ -697,8 +697,6 @@ pub fn corpus::store::RecoveryCopies::mark_restore_pending(&self, dir: &std::pat
 pub fn corpus::store::RecoveryCopies::prepare(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::remove_dir(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecoveryCopies::write_once(&self, dir: &std::path::Path, original: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
-pub trait corpus::store::RemoveFile
-pub fn corpus::store::RemoveFile::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
 pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)
