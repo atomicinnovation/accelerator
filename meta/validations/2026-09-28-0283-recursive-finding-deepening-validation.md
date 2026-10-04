@@ -9,7 +9,7 @@ status: "complete"
 result: "pass"
 target: "plan:2026-09-26-0283-recursive-finding-deepening"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-09-28T09:05:00+00:00"
+last_updated: "2026-10-04T10:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -149,3 +149,23 @@ known questions by reference is not needed.
   `curl` and two `for` loops wrapping `accelerator research fetch`. A real
   researcher's note missing `schema_version` was refused and re-researched
   on resume.
+
+### Changes after validation
+
+The plan's **Post-implementation restructure** landed after these checks. It
+regroups the `research` crate, consolidates its topic-research types, takes
+the Unicode data from ICU4X, and renames the `outstanding` stages
+(`research` and `deepen` become `single_pass` and `research_nodes`), its
+`unaccepted` and `shallower` fields (now `unfinished` and `shallow`), and the
+ledger's `pins`, `notes_seen` and `answered_seen` (now `claims` and
+`seen`). The evidence above records the names as they were when it was
+gathered.
+
+- **Covered.** The full `mise run` exits 0 after the restructure, including
+  the 40 `topic_outstanding` integration tests that pin the plan JSON and
+  the ledger codec's round-trip and field-name tests. ICU4X agrees with the
+  replaced Unicode data on all 1,112,064 scalar values.
+- **Not re-run.** The Phase 5 checks and Phase 7 steps ran against the old
+  stage and field names, and `research-topic`'s `conduct` prose now reads
+  the new ones. No attended `claude -p` run has exercised `conduct` against
+  the renamed contract.

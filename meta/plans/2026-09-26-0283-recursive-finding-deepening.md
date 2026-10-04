@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-10-04T12:00:00+00:00"
+last_updated: "2026-10-04T10:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -212,15 +212,15 @@ Each phase is test-first, and all Rust phases follow red-green-refactor.
 
 After 0280 merged, round planning moved from the corpus crates to the
 research crates, because the corpus CLI stays general to every document
-type: the planner and its tree, question and claimed-index modules live in
-`cli/research/src/topic/`, the spawn-window and run-ledger modules in
-`cli/research/src/conduct/`, the set reader and `UnicodeTables` in
-`cli/research-adapters/`, and the verb is `accelerator research topic` in
-`cli/research-cli/`. `Stem`, `Lineage` and the path predicates moved from
-`corpus`'s set layout into `research`'s (`cli/research/src/topic/layout/`),
-so `research` imports nothing from `corpus`. The skill and agent contract
-tests moved from Rust to Python. This plan names the moved locations
-throughout.
+type: the planner and its tree, question, pinned-index, spawn-window and
+run-ledger modules went to `cli/research/src/`, the set reader and
+`UnicodeTables` to `cli/research-adapters/`, and the verb became
+`accelerator research topic` in `cli/research-cli/`. The skill and agent
+contract tests moved from Rust to Python. After implementation, the
+**Post-implementation restructure** below regrouped those modules and
+renamed several types, stages and ledger fields. This plan names the
+restructured locations throughout, except where it describes the code
+before 0283.
 
 Phase 0 is a behaviour-preserving refactor with no dependency on 0283, and
 can merge on its own. Phases 1–5 leave `depth: 1` behaviour unchanged apart from the `depth: 1`
@@ -2522,6 +2522,52 @@ Implementation notes:
       after the runs.
 
 ---
+
+## Post-implementation restructure
+
+After Phase 7, the `research` crate was regrouped and its topic-research
+model consolidated so that each concept has one type and one name. Behaviour
+is unchanged apart from the renamed wire fields below.
+
+- **Set layout out of `corpus`.** `Stem`, `Lineage` and the finding and
+  level-note path predicates move from `corpus::topic_research` into
+  `research::topic::layout`, beside `NoteRef` (with its note `path()` and
+  `id()`) and `QuestionSlug`. `corpus` stays generic over document types,
+  `research` drops its `corpus` dependency, and its pup rule again admits
+  only std and `kernel::Error`.
+- **Three areas.** `research::sources` holds the `research fetch` client,
+  `research::topic` the set, its trees and the round plan
+  (`outline`, `evidence`, `claims`, `tree`, `plan`, `question`), and
+  `research::conduct` the run's coordination (`spawn`, `observed`,
+  `memory`, `window`, `ledger`). `research-adapters` mirrors it with
+  `topic` (the set reader) and `conduct::ledger` (the ledger codec).
+- **One type per concept.**
+  - A `Finding` computes its index, stem and normalised answer once, so
+    the planner's `AnsweredPair` goes. `Pair { question, profile }` is the
+    pair itself, and `OutstandingPair` the planned one.
+  - Quarantined files and `.levels/` directories both become `IndexClaim`s,
+    and the run's pinned indexes become `ClaimedIndexes`.
+  - `derive` returns the pair's `Stage` (`SinglePass`, `ResearchNodes`,
+    `Compose`) beside its trims, and decides the single-pass case itself.
+    `Trim` names its `NoteRef`. `TreeState`, `Derivation`, `Candidate` and
+    `PairTrim` go, and `Node` becomes `MissingNode`.
+  - `RoundPlan` no longer snapshots the set: `Observed` does.
+    `RunMemory` holds the `PendingBatch` itself rather than mirroring it,
+    and `continue_as` returns `Result<RunLedger, Superseded>`.
+- **Wording in the CLI.** The text of warnings, trims, skips and note
+  rejections moves from `Display` impls in `research` to
+  `cli/research-cli/src/plan_wording.rs`.
+- **Unicode data from ICU4X.** `UnicodeTables` takes NFKC, general
+  categories and `Default_Ignorable_Code_Point` from `icu_normalizer` and
+  `icu_properties` (exact-pinned `=2.2.0`, already linked through
+  `idna_adapter`), replacing `unicode-normalization`, `unicode-properties`
+  and a hand-copied ignorable table. An exhaustive comparison over all
+  1,112,064 scalar values found no difference.
+- **Wire names.** The `outstanding` stages read `single_pass`,
+  `research_nodes` and `compose`; `unaccepted` becomes `unfinished` and
+  `shallower` becomes `shallow`. The ledger stores `claims` and a
+  `seen: {notes, answered}` block. None of these had reached main. The
+  `research-topic` skill, the docs site and the changelog follow.
 
 ## Testing Strategy
 
