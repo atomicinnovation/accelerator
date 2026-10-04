@@ -1,4 +1,4 @@
-//! The run ledger a `conduct` run keeps between plans, stored beside its set.
+//! A `conduct` run's ledger, stored as JSON beside its set.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

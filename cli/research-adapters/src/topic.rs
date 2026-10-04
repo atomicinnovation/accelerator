@@ -1,8 +1,6 @@
 //! Reading a `topic-research` set from disk into the inputs its round plan
 //! is derived from.
 
-pub mod run_ledger;
-
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;

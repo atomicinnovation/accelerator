@@ -5,11 +5,12 @@
 
 pub mod arxiv_xml;
 pub mod clock;
+pub mod conduct;
 pub mod confirmations;
 pub mod diagnostics;
 pub mod openalex_json;
 pub mod pacing;
 pub mod scratch;
-pub mod topic_research;
+pub mod topic;
 pub mod transport;
 pub mod unicode_text;

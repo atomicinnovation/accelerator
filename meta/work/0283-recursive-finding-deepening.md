@@ -10,7 +10,7 @@ kind: "story"
 priority: "high"
 parent: "work-item:0121"
 tags: ["research", "skills", "deep-research"]
-last_updated: "2026-10-01T12:00:00+00:00"
+last_updated: "2026-10-04T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-867"
@@ -453,9 +453,10 @@ and paths but never holds research content.
 - To modify: `skills/research/research-topic/SKILL.md` (`conduct`),
   `agents/researcher.md`, `skills/research/outputters/`,
   `templates/topic-research-finding.md`, `skills/config/configure/SKILL.md`,
-  `cli/research/src/round.rs` (missing nodes, cap, dedupe, index
-  retention), `cli/corpus/src/topic_research/finding_path.rs` and
-  `cli/research-cli/src/guard.rs` (write guard), `cli/config/src/catalogue.rs`
+  `cli/research/src/topic/plan.rs` and `tree.rs` (missing nodes, cap,
+  dedupe, index retention), `cli/research/src/topic/layout/finding_path.rs`
+  and `cli/research-cli/src/guard.rs` (write guard),
+  `cli/config/src/catalogue.rs`
   (`research.topic.concurrency`, `composer` agent key) and its key-count test,
   `dump.golden`, `parity.rs` and `public-api.txt`
 - To create: `agents/composer.md`, a level-note outputter under

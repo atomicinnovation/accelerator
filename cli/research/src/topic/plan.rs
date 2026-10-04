@@ -799,7 +799,7 @@ mod tests {
     }
 
     #[test]
-    fn a_levels_directory_holds_its_index_through_an_unaccepted_root_note() {
+    fn a_levels_directory_holds_its_index_through_a_refused_root_note() {
         let mut inputs = inputs(outline(&["- [ ] A?"]));
         inputs.levels = Stem::parse("04-a-web")
             .map(|stem| {

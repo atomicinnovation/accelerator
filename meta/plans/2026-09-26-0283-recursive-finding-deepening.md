@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-23-0280-academic-source-profiles", "plan:2026-09-20-0
 tags: ["research", "skills", "deep-research", "cli", "hooks", "config"]
 revision: "04965c8ccafbdb2f925989312a4b4de95d33f508"
 repository: "accelerator"
-last_updated: "2026-10-01T12:00:00+00:00"
+last_updated: "2026-10-04T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -97,8 +97,8 @@ batch of spawns is capped by `concurrency`. At `depth: 1`, a pair with no
 
 - `accelerator research topic outstanding SLUG --profiles-dir DIR
   --depth N` gives every pair a `stage` field:
-  - `research`: one researcher writes the finding;
-  - `deepen`: the pair lists its missing `nodes`, each with `lineage`,
+  - `single_pass`: one researcher writes the finding;
+  - `research_nodes`: the pair lists its missing `nodes`, each with `lineage`,
     `level`, `question`, `cap`, `path` and `known_questions`;
   - `compose`: the pair lists the note paths within depth as `notes`.
 
@@ -116,9 +116,9 @@ batch of spawns is capped by `concurrency`. At `depth: 1`, a pair with no
   validate. `follow_ups: []` validates.
 - `conduct` resolves `depth` and `concurrency` and loops on `outstanding`,
   re-running it after each batch of at most `concurrency` spawns. It spawns
-  researchers for `research` pairs and `deepen` nodes, and the composer for
-  `compose` pairs. The summary names each failed node by lineage. The
-  dormant-depth notice is gone.
+  researchers for `single_pass` pairs and the nodes of `research_nodes` pairs,
+  and the composer for `compose` pairs. The summary names each failed node by
+  lineage. The dormant-depth notice is gone.
 - A misplaced `--concurrency` on `outline` is ignored with a one-line note,
   like the other misplaced flags. The work item's wording and acceptance
   criterion are amended to match (Phase 5).
@@ -212,13 +212,15 @@ Each phase is test-first, and all Rust phases follow red-green-refactor.
 
 After 0280 merged, round planning moved from the corpus crates to the
 research crates, because the corpus CLI stays general to every document
-type: the planner and its tree, question, pinned-index, spawn-window and
-run-ledger modules live in `cli/research/src/`, the set reader and
-`UnicodeTables` in `cli/research-adapters/`, and the verb is
-`accelerator research topic` in `cli/research-cli/`. `Stem`, `Lineage` and
-the path predicates stay in `corpus`'s set layout, which `research` now
-imports, as `work` does. The skill and agent contract tests moved from Rust
-to Python. This plan names the moved locations throughout.
+type: the planner and its tree, question and claimed-index modules live in
+`cli/research/src/topic/`, the spawn-window and run-ledger modules in
+`cli/research/src/conduct/`, the set reader and `UnicodeTables` in
+`cli/research-adapters/`, and the verb is `accelerator research topic` in
+`cli/research-cli/`. `Stem`, `Lineage` and the path predicates moved from
+`corpus`'s set layout into `research`'s (`cli/research/src/topic/layout/`),
+so `research` imports nothing from `corpus`. The skill and agent contract
+tests moved from Rust to Python. This plan names the moved locations
+throughout.
 
 Phase 0 is a behaviour-preserving refactor with no dependency on 0283, and
 can merge on its own. Phases 1–5 leave `depth: 1` behaviour unchanged apart from the `depth: 1`
@@ -235,7 +237,7 @@ The domain uses one term per concept:
 | level | the first number of a lineage; `1` is the root |
 | follow-up cap | 4 at level 1, then `ceil(parent / 2)` per level |
 | known questions | questions a node must not propose again |
-| stage | `research`, `deepen` or `compose` |
+| stage | `single_pass`, `research_nodes` or `compose` |
 
 ---
 
@@ -582,7 +584,7 @@ required and optional extras, plus the linkage slots.
 
 ### Overview
 
-Introduce `Lineage` and the level-note path shape in `corpus`, tighten the
+Introduce `Lineage` and the level-note path shape in `research`, tighten the
 finding path so it requires the `<nn>-` index, and generalise confinement from
 one researcher to two roles, each with its own scope and refusal text. Register
 `composer` in `AGENT_KEYS`.
@@ -591,8 +593,8 @@ one researcher to two roles, each with its own scope and refusal text. Register
 
 #### 1. `Lineage` value
 
-**File**: `cli/corpus/src/topic_research/lineage.rs` (new; `pub use` from
-`topic_research.rs`)
+**File**: `cli/research/src/topic/layout/lineage.rs` (new; a `pub mod` of
+`layout.rs`)
 **Changes**: a value type for a node's place in its pair's tree.
 
 ```rust
@@ -632,8 +634,8 @@ impl fmt::Display for Lineage;
 | `lineages_order_by_level_then_numeric_positions` | `2-2 < 2-10 < 3-1-1` |
 | `a_child_extends_its_parent` | `root().child(2) == "2-2"`, `parent` inverts it |
 
-**File**: `cli/corpus/src/topic_research/stem.rs` (new; `pub use` from
-`topic_research.rs`)
+**File**: `cli/research/src/topic/layout/stem.rs` (new; a `pub mod` of
+`layout.rs`)
 **Changes**: a value type for a pair's `<nn>-<slug>-<profile>` stem, which
 owns the stem alphabet.
 
@@ -656,18 +658,17 @@ impl fmt::Display for Stem;
 - **`parse`** accepts ASCII digits, then `-`, then a non-empty rest drawn
   from `[a-z0-9-]`. That is the alphabet the planner allocates from:
   `QuestionSlug` keeps only lowercase ASCII and digits
-  (`cli/research/src/round.rs:129-131`),
+  (`cli/research/src/topic/layout/slug.rs:18-20`),
   and a profile name is a skill name. A stem is interpolated into planner
   warnings and split from a lineage at `:` in a `SpawnRef`, so no character
   outside that alphabet may reach one.
 - **`allocated`** returns `None` for a profile outside the alphabet. It takes
-  the slug as `&str`, because `QuestionSlug` lives in `research`, which
-  imports `corpus` and not the reverse.
-- Every stem the domain carries (`Pair`, `SpawnRef`, `PairTrim`,
-  `ShallowerPair`) is a `Stem`, not a `String`. An `IndexHolder` carries
+  the slug as `&str`.
+- Every stem the domain carries (`OutstandingPair`, `SpawnRef`, `NoteRef`,
+  `ShallowFinding`) is a `Stem`, not a `String`. An `IndexClaim` carries
   only the index parsed from its name. These types arrive in Phase 3, which
-  also moves `Pair` onto `Stem`; this phase adds the type and its path
-  predicates only.
+  also moves `OutstandingPair` onto `Stem`; this phase adds the type and its
+  path predicates only.
 
 **Tests first**: `a_stem_carries_its_index_and_an_allocated_rest`, and
 `a_stem_outside_the_alphabet_is_refused`, which covers `03-A`, `03-a b`,
@@ -680,7 +681,7 @@ Also `stems_with_equal_index_but_different_digits_are_distinct`,
 
 #### 2. Path predicates
 
-**File**: `cli/corpus/src/topic_research/finding_path.rs`
+**File**: `cli/research/src/topic/layout/finding_path.rs`
 **Changes**:
 - `is_finding_path` requires that `Stem::parse` accepts the file stem.
 - Add `is_level_note_path(relative)`. It accepts exactly
@@ -863,14 +864,14 @@ passing unchanged, because every allocated stem is indexed.
 
 #### 7. Snapshots
 
-Run `mise run public-api:update`, which updates `corpus` (`Lineage`,
-`Stem`, `is_level_note_path`) and `research` (roles, `TopicLayout`).
+Run `mise run public-api:update`, which updates `research` (`Lineage`,
+`Stem`, `is_level_note_path`, roles, `TopicLayout`).
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [x] Path predicate tests pass: `cargo test -p corpus topic_research`
+- [x] Path predicate tests pass: `cargo test -p research topic::layout`
 - [x] Confinement tests pass: `cargo test -p research --test confinement`
 - [x] Guard end-to-end tests pass: `cargo test -p accelerator-research --test guard`
 - [x] Config and launcher goldens pass: `cargo test -p config -p accelerator`
@@ -899,7 +900,8 @@ in `research-adapters`, the `UnicodeTables` adapter, and its injection in
 
 #### 1. Domain types
 
-**File**: `cli/research/src/tree.rs` (new)
+**File**: `cli/research/src/topic/tree.rs` (new), with the note types in
+`topic/evidence.rs` and the plain-question rule in `topic/question.rs`
 **Changes**:
 
 ```rust
@@ -917,6 +919,7 @@ impl Default for Depth;
 
 pub fn follow_up_cap(level: u32) -> u32;
 
+// evidence.rs
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LevelNote {
     pub lineage: Lineage,
@@ -953,6 +956,7 @@ pub trait UnicodeText {
 
 pub fn plain_question_breach(text: &str, unicode: &dyn UnicodeText) -> Option<PlainQuestionRule>;
 
+// evidence.rs
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LevelNoteFields<'a> {
     pub kind: Option<&'a str>,
@@ -969,8 +973,6 @@ impl LevelNote {
         unicode: &dyn UnicodeText,
     ) -> Result<Self, NoteRejection>;
 }
-
-impl fmt::Display for NoteRejection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LevelsDirectory {
@@ -989,18 +991,22 @@ impl LevelsDirectory {
     ) -> Self;
 }
 
+// tree.rs
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Node {
+pub struct MissingNode {
     pub lineage: Lineage,
     pub question: String,
-    pub cap: u32,
     pub known_questions: Vec<String>,
     pub rejected: Option<NoteRejection>,
 }
 
+impl MissingNode {
+    pub fn cap(&self) -> u32;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trim {
-    pub lineage: Lineage,
+    pub at: NoteRef,
     pub recorded: u32,
     pub cap: u32,
 }
@@ -1009,27 +1015,17 @@ impl Trim {
     pub const fn trimmed(&self) -> u32;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TreeState {
-    Growing(Vec<Node>),
-    Complete(Vec<Lineage>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Derivation {
-    pub state: TreeState,
-    pub trims: Vec<Trim>,
-}
-
 pub fn derive(
+    stem: &Stem,
     pair_question: &str,
     directory: Option<&LevelsDirectory>,
     depth: Depth,
     unicode: &dyn UnicodeText,
-) -> Derivation;
+) -> (Stage, Vec<Trim>);
 ```
 
-- **`NoteRejection`'s `Display`** is the reason `conduct` reports:
+- **`plan_wording::rejection`** (`cli/research-cli/src/plan_wording.rs:52-87`)
+  words each `NoteRejection` as the reason `conduct` reports:
 
   | Variant | Text |
   |---|---|
@@ -1077,35 +1073,24 @@ pub fn derive(
     Deno`"), so researchers avoid the form.
   - **`UnicodeText`** is a port. `research` is a pure domain crate: its pup
     rule (`research_domain_imports_only_permitted` in `cli/pup.ron`) admits
-    only `std`, `kernel::Error`, `corpus` and `crate` imports.
+    only `std`, `kernel::Error` and `crate` imports.
     `research-adapters` implements the port as
     `UnicodeTables`:
-    - `fold` is NFKC through `unicode-normalization`, which maps `．` and
+    - `fold` is NFKC through `icu_normalizer`, which maps `．` and
       `／` to ASCII and `｡` to `。`, which the gate then maps to `.`;
     - `is_hidden` holds for Unicode general categories Cc, Cf, Co, Cn, Zl
-      and Zp (through `unicode-properties`), and for the
-      `Default_Ignorable_Code_Point` property. That covers line breaks,
+      and Zp, and for the `Default_Ignorable_Code_Point` property, both
+      through `icu_properties`. That covers line breaks,
       bidi and zero-width controls, variation selectors, U+034F, the
-      Hangul fillers and the tag block U+E0000–E007F. The property comes
-      from a constant range table copied from the Unicode data file
-      `DerivedCoreProperties.txt`, because neither crate exposes it. The
-      table carries the Unicode-3.0 licence notice and its Unicode version,
-      which is a legitimate external-constraint comment, and
-      `the_ignorable_table_matches_the_crates_unicode_version` asserts
-      that version, a `(u8, u8, u8)` constant, against
-      `unicode_normalization::UNICODE_VERSION`, which is 17.0.0 at the
-      locked 0.1.25, and against `unicode_properties::UNICODE_VERSION`.
-      `unicode-properties` 0.1.4, with only its `general-category` feature,
-      replaces `unicode-general-category`, whose latest release (1.1.0) is
-      built on Unicode 16.0.0. Both crates are pinned exactly in
-      `[workspace.dependencies]`. A `cargo update` that moves either one to
-      a new Unicode version then fails the test on purpose, and the table
-      is regenerated.
+      Hangul fillers and the tag block U+E0000–E007F. Both crates come from
+      one ICU4X release, pinned exactly as a pair at `=2.2.0` with only
+      their `compiled_data` feature, so folding, the categories and the
+      property share one Unicode version.
 
     Both crates are declared in `cli/Cargo.toml` `[workspace.dependencies]`
     with a justifying comment and taken by `research-adapters` with
-    `{ workspace = true }`. `unicode-normalization` is already in
-    `Cargo.lock` transitively.
+    `{ workspace = true }`. Both are already in `Cargo.lock` transitively,
+    through `idna_adapter`.
 
   Only follow-ups are gated. They become the next level's focus questions
   and reach the unconfined orchestrator. A note's own `question` is already
@@ -1113,20 +1098,21 @@ pub fn derive(
   question or to a follow-up that passed this gate. The whole note is
   refused rather than one entry dropped. The gate does not reject bare
   dotted names such as `Node.js`: the researcher contract, not the gate,
-  forbids a question licensing a domain. `NoteRejection`'s `Display` is the
+  forbids a question licensing a domain. `plan_wording::rejection` words the
   reason `conduct` reports.
 - **`LevelsDirectory`** carries the accepted notes and, per lineage, the
   rejection of each schema-valid note it refused. `root_question` is the
   `question` of `1.md` whenever its frontmatter parses, valid or not.
   Otherwise it comes from any dot-prefixed `.invalid` marker whose name
   begins `.1.md`, so suffixed markers count.
-- **`Node::rejected`** is the rejection of the note on disk at that lineage,
-  if any, so `conduct` can report why a node it spawned is still missing.
+- **`MissingNode::rejected`** is the rejection of the note on disk at that
+  lineage, if any, so `conduct` can report why a node it spawned is still
+  missing.
   `derive` is its only writer. It takes the whole `LevelsDirectory`, so it
   sees both the rejections recorded while reading notes and the question
   mismatches it finds itself. A `NoteRejection` is therefore any reason the
   note at a node's lineage does not count, whichever source found it.
-- **`TreeState::Complete`** carries the lineages the composer reads.
+- **`Stage::Compose`** carries the lineages the composer reads.
 - **`derive`**, level by level from 1 to `depth`:
   1. The candidates at level 1 are the root, whose question is the pair
      question.
@@ -1134,10 +1120,10 @@ pub fn derive(
      `normalised` question equals the candidate's. A note there with any
      other question leaves the candidate missing, rejected as
      `QuestionDisagreesWithCandidate`. Any missing candidate means the
-     level's missing candidates become `Growing(missing)`. The barrier
+     level's missing candidates become `ResearchNodes(missing)`. The barrier
      stops derivation there.
   3. At `depth`, or when a level has no candidates, derivation ends with
-     `Complete` of exactly the candidates reached, in lineage order. A note
+     `Compose` of exactly the candidates reached, in lineage order. A note
      at a lineage no candidate occupies is never composed.
   4. Otherwise, walk the level's notes in lineage order. Take each note's
      first `cap` follow-ups, and record a `Trim` when a note records more.
@@ -1152,14 +1138,14 @@ pub fn derive(
     deduplicated by `normalised` and kept in first-seen order. Follow-ups
     of notes at level L itself are excluded, so the list never depends on
     which siblings happened to finish first.
-- **`NormalisedQuestion`** replaces `round.rs`'s `normalised` function
-  outright, in a new `cli/research/src/question.rs`. `of` folds through
+- **`NormalisedQuestion`** replaces the planner's free `normalised` function
+  outright, in a new `cli/research/src/topic/question.rs`. `of` folds through
   `UnicodeText` and then collapses whitespace, so question equality and
   the plain-question gate fold alike. Outline matching, index retention,
-  follow-up dedupe and pinned indexes all compare `NormalisedQuestion`
-  values; none compares raw strings. It belongs to neither `round` nor
-  `tree`. The planner (`Round::plan`) and `derive` take the
-  `&dyn UnicodeText` they pass on, and `corpus-cli` injects
+  follow-up dedupe and claimed indexes all compare `NormalisedQuestion`
+  values; none compares raw strings. It belongs to neither `plan` nor
+  `tree`. The planner (`RoundPlan::of`) and `derive` take the
+  `&dyn UnicodeText` they pass on, and `accelerator-research` injects
   `UnicodeTables`. Wherever this plan says "`normalised` form", read
   `NormalisedQuestion`.
 
@@ -1168,7 +1154,7 @@ pub fn derive(
 | Test | Given | Expect |
 |---|---|---|
 | `a_depth_of_zero_is_not_a_depth` | `Depth::new(0)` | `None` |
-| `a_pair_with_no_notes_is_missing_its_root` | no notes, depth 3 | `Growing([1])`, cap 4 |
+| `a_pair_with_no_notes_is_missing_its_root` | no notes, depth 3 | `ResearchNodes([1])`, cap 4 |
 | `caps_halve_per_level_rounding_up` | levels 1–5 | 4, 2, 1, 1, 1 |
 | `an_over_cap_note_is_trimmed_to_its_first_cap_entries` | `1` ×6, `2-k` ×3, depth 3 | 8 lineages `3-k-1`, `3-k-2`; 5 trims |
 | `a_follow_up_matching_the_pair_question_is_skipped_and_siblings_keep_positions` | `1`: [pair q, B, C] | `2-2`, `2-3` |
@@ -1176,17 +1162,17 @@ pub fn derive(
 | `a_follow_up_matching_an_earlier_candidate_at_its_level_is_skipped` | `2-1`: [X], `2-2`: [X, Y] | `3-1-1`, `3-2-2` |
 | `a_follow_up_matching_a_shallower_node_is_skipped` | `2-1` records `2-2`'s question | no `3-1-1` |
 | `questions_collapse_under_normalised_whitespace` | [`B`, ` B `] | one candidate |
-| `a_level_waits_for_every_note_above_it` | `2-1`..`2-3` present, `2-4` missing, depth 3 | `Growing([2-4])` |
-| `an_empty_follow_ups_prunes_its_node` | `1`: [] , depth 3 | `Complete([1])` |
-| `limit_level_follow_ups_derive_nothing` | full tree at depth 2 with level-2 follow-ups | `Complete` |
-| `a_smaller_depth_composes_from_notes_within_it` | full depth-3 tree, depth 1 | `Complete([1])` |
-| `a_larger_depth_extends_from_limit_level_follow_ups` | full depth-2 tree, depth 3 | `Growing(level-3 nodes)` |
+| `a_level_waits_for_every_note_above_it` | `2-1`..`2-3` present, `2-4` missing, depth 3 | `ResearchNodes([2-4])` |
+| `an_empty_follow_ups_prunes_its_node` | `1`: [] , depth 3 | `Compose([1])` |
+| `limit_level_follow_ups_derive_nothing` | full tree at depth 2 with level-2 follow-ups | `Compose` |
+| `a_smaller_depth_composes_from_notes_within_it` | full depth-3 tree, depth 1 | `Compose([1])` |
+| `a_larger_depth_extends_from_limit_level_follow_ups` | full depth-2 tree, depth 3 | `ResearchNodes(level-3 nodes)` |
 | `known_questions_list_the_pair_ancestors_and_recorded_follow_ups` | `1`: [B], `2-1`: [X], depth 3 | `3-1-1` known: pair q, B, X |
 | `known_questions_ignore_follow_ups_of_notes_at_the_nodes_own_level` | `1`: [B, C], `2-1`: [X] present, `2-2` missing, depth 3 | `2-2` known: pair q, B, C (no X) |
 | `a_skipped_follow_up_is_not_backfilled_from_past_the_cap` | `1`: [pair q, B, C, D, E] | `2-2`..`2-4`, no `2-5` |
 | `a_missing_node_carries_the_rejection_of_its_note` | `2-1` rejected as `LevelDisagreesWithLineage` | `2-1` missing, `rejected` set |
-| `a_note_answering_a_different_question_is_missing` | `1`: [B], `2-1` answers X, depth 2 | `Growing([2-1])`, `QuestionDisagreesWithCandidate` |
-| `a_note_at_a_lineage_no_candidate_occupies_is_neither_composed_nor_counted` | `1`: [pair q, B] plus notes at `2-1`, `2-2` and `2-5`, depth 2 | `Complete([1, 2-2])` |
+| `a_note_answering_a_different_question_is_missing` | `1`: [B], `2-1` answers X, depth 2 | `ResearchNodes([2-1])`, `QuestionDisagreesWithCandidate` |
+| `a_note_at_a_lineage_no_candidate_occupies_is_neither_composed_nor_counted` | `1`: [pair q, B] plus notes at `2-1`, `2-2` and `2-5`, depth 2 | `Compose([1, 2-2])` |
 
 These rows run against a fake `UnicodeText` whose `is_hidden` holds for
 the listed code points, and whose `fold` maps `．` and `／` to ASCII and
@@ -1198,10 +1184,9 @@ In the table, "`NotAPlainQuestion` at n" means follow-up n with the rule
 the row's input breaks. Length rows expect `TooLong`, character rows
 `HiddenCharacter`, and URL or host rows `Link`.
 
-`from_frontmatter` gets its own table test, `every_note_rejection_names_its_cause`,
-which also pins each rejection's `Display` string above. `NotAPlainQuestion`
-carries the 1-based position of the first refused follow-up, never its
-text:
+`from_frontmatter` gets its own table test,
+`every_note_rejection_names_its_cause`. `NotAPlainQuestion` carries the
+1-based position of the first refused follow-up, never its text:
 
 | Input | Expect |
 |---|---|
@@ -1255,26 +1240,29 @@ text:
 | a follow-up `在这种背景下。A/B测试如何设计？` | `Ok` |
 | a follow-up `Vue.js和React有何不同？各自适合什么场景？` | `NotAPlainQuestion` at 1 |
 
-A separate test, `every_note_rejection_displays_its_reason`, asserts the
-`Display` text of every variant directly, including `FailsValidation` with
-and without a field, because `from_frontmatter` never builds
-`FailsValidation` or `QuestionDisagreesWithCandidate`.
+A separate test in `plan_wording.rs`,
+`every_note_rejection_reads_as_its_reason`, asserts the text of every variant
+directly, including `FailsValidation` with and without a field, because
+`from_frontmatter` never builds `FailsValidation` or
+`QuestionDisagreesWithCandidate`.
 
 #### 2. Round integration
 
-**File**: `cli/research/src/round.rs`
+**File**: `cli/research/src/topic/plan.rs`
 **Changes**:
 - `RoundInputs` gains `pub levels: Vec<LevelsDirectory>` and
   `pub depth: Depth`.
-- `Pair` gains `pub stem: Stem`, from which its `path`, level-note paths
-  and spawn ref all derive, and `pub stage: Stage`. A pair whose profile
+- `OutstandingPair` gains `pub stem: Stem`, from which its finding path,
+  level-note paths and spawn ref all derive, and `pub stage: Stage`, beside
+  its `pub pair: Pair { question, profile }`. A pair whose profile
   cannot form a `Stem` is not planned; Phase 4's adapter warns about it:
 
 ```rust
+// tree.rs
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
-    Research,
-    Deepen(Vec<Node>),
+    SinglePass,
+    ResearchNodes(Vec<MissingNode>),
     Compose(Vec<Lineage>),
 }
 ```
@@ -1283,19 +1271,22 @@ pub enum Stage {
   concern from deriving what is outstanding, and each consumer of the
   ledger gets its own value, so there is one entry point per consumer and
   no cycle between modules:
-  - `cli/research/src/pinned_indexes.rs`: the planner's input;
-  - `cli/research/src/spawn_window.rs`: the window and its input;
-  - `cli/research/src/run_ledger.rs`: composes both into the persisted
+  - `cli/research/src/topic/claims.rs`: the planner's input;
+  - `cli/research/src/conduct/window.rs`: the window, with its input in
+    `conduct/memory.rs` and `conduct/observed.rs`;
+  - `cli/research/src/conduct/ledger.rs`: composes both into the persisted
     ledger and owns the run's lifecycle.
 
-  `Digest` and `NoteRef` sit in `tree.rs` beside `LevelNote`, so no
-  module that `spawn_window` depends on depends back on it.
+  `Digest` sits in `evidence.rs` beside `LevelNote`, and `NoteRef` in
+  `topic/layout/note_ref.rs`, so no module that `conduct::window` depends
+  on depends back on it.
 
 ```rust
-// tree.rs
+// evidence.rs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Digest([u8; 32]);
 
+// layout/note_ref.rs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoteRef {
     pub stem: Stem,
@@ -1304,11 +1295,11 @@ pub struct NoteRef {
 
 impl fmt::Display for NoteRef;
 
-// pinned_indexes.rs
+// claims.rs
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct PinnedIndexes(BTreeMap<NormalisedQuestion, u32>);
+pub struct ClaimedIndexes(BTreeMap<NormalisedQuestion, u32>);
 
-// spawn_window.rs
+// conduct/spawn.rs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SpawnRef {
     Pair(Stem),
@@ -1321,41 +1312,18 @@ impl SpawnRef {
 
 impl fmt::Display for SpawnRef;
 
+// conduct/observed.rs
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Attempts {
-    pub attempted: BTreeSet<SpawnRef>,
-    pub just_acknowledged: BTreeSet<SpawnRef>,
-    pub notes_seen: BTreeMap<NoteRef, Digest>,
-    pub answered_seen: BTreeSet<Stem>,
-    pub pending: BTreeSet<SpawnRef>,
+pub struct Observed {
+    pub notes: BTreeMap<NoteRef, Digest>,
+    pub answered: BTreeSet<Stem>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unaccepted {
-    pub spawn: SpawnRef,
-    pub rejected: Option<NoteRejection>,
+impl Observed {
+    pub fn of(inputs: &RoundInputs) -> Self;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Window {
-    pub round: Round,
-    pub offered: Vec<SpawnRef>,
-    pub remaining: usize,
-    pub unaccepted: Vec<Unaccepted>,
-    pub unexpected: Vec<SpawnRef>,
-}
-
-pub fn window(round: Round, limit: Option<usize>, attempts: Option<&Attempts>) -> Window;
-
-// run_ledger.rs
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunId(String);
-
-impl RunId {
-    pub fn mint(timestamp: &str, suffix: u32) -> Self;
-    pub fn parse(text: &str) -> Option<Self>;
-}
-
+// conduct/memory.rs
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PendingBatch {
     number: u32,
@@ -1369,41 +1337,77 @@ impl PendingBatch {
     pub fn spawns(&self) -> &[SpawnRef];
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RunMemory {
+    pub pending: PendingBatch,
+    pub attempted: BTreeSet<SpawnRef>,
+    pub just_acknowledged: BTreeSet<SpawnRef>,
+    pub seen: Observed,
+}
+
+impl RunMemory {
+    pub fn excuses(&self, spawn: &SpawnRef) -> bool;
+}
+
+// conduct/window.rs
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnfinishedSpawn {
+    pub spawn: SpawnRef,
+    pub rejected: Option<NoteRejection>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Window {
+    pub pairs: Vec<OutstandingPair>,
+    pub offered: Vec<SpawnRef>,
+    pub remaining: usize,
+    pub unfinished: Vec<UnfinishedSpawn>,
+    pub unexpected: Vec<SpawnRef>,
+}
+
+pub fn window(plan: &RoundPlan, observed: &Observed, limit: Option<usize>, memory: Option<&RunMemory>) -> Window;
+
+// conduct/ledger.rs
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunId(String);
+
+impl RunId {
+    pub fn mint(timestamp: &str, suffix: u32) -> Self;
+    pub fn parse(text: &str) -> Option<Self>;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunLedger {
     run: RunId,
-    pending: PendingBatch,
-    pins: PinnedIndexes,
-    attempts: Attempts,
+    claims: ClaimedIndexes,
+    memory: RunMemory,
 }
 
-pub enum Continuation {
-    Continued(RunLedger),
-    Superseded { stored: RunId },
+pub struct Superseded {
+    pub by: RunId,
 }
 
 impl RunLedger {
-    pub fn start(run: RunId, round: &Round) -> Self;
-    pub fn continue_as(stored: Self, run: &RunId, spawned: Option<u32>) -> Continuation;
-    pub fn record(self, window: &Window) -> Self;
-    pub fn from_parts(run: RunId, pending: PendingBatch, pins: PinnedIndexes, attempts: Attempts) -> Self;
+    pub fn start(run: RunId, observed: &Observed) -> Self;
+    pub fn continue_as(stored: Self, run: &RunId, spawned: Option<u32>) -> Result<Self, Superseded>;
+    pub fn record(self, plan: &RoundPlan, observed: &Observed, window: &Window) -> Self;
+    pub fn from_parts(run: RunId, claims: ClaimedIndexes, memory: RunMemory) -> Self;
     pub fn run(&self) -> &RunId;
-    pub fn pending(&self) -> &PendingBatch;
-    pub fn pins(&self) -> &PinnedIndexes;
-    pub fn attempts(&self) -> &Attempts;
+    pub fn claims(&self) -> &ClaimedIndexes;
+    pub fn memory(&self) -> &RunMemory;
 }
 ```
 
-  - **`SpawnRef`** reads `<stem>` for a `research` or `compose` pair and
-    `<stem>:<lineage>` (a `NoteRef`) for a `deepen` node.
+  - **`SpawnRef`** reads `<stem>` for a `single_pass` or `compose` pair and
+    `<stem>:<lineage>` (a `NoteRef`) for a node of a `research_nodes` pair.
   - **`RunId::mint`** joins the filename timestamp and a random suffix as
     `<timestamp>-<suffix>`, so two runs started in the same second never
     share an id. `parse` accepts `[A-Za-z0-9_-]{1,64}`.
   - **`LevelNote`** gains `pub digest: Digest`, a SHA-256 of the note
     file's bytes. The adapter computes it through the workspace `sha2`
-    crate and passes it in as `LevelNoteFields::digest`. `Round` gains
-    `pub accepted_notes: BTreeMap<NoteRef, Digest>`, built from every
-    `LevelsDirectory` the planner reads, and `pub answered: BTreeSet<Stem>`,
+    crate and passes it in as `LevelNoteFields::digest`. `Observed::of`
+    gives `notes: BTreeMap<NoteRef, Digest>`, built from every
+    `LevelsDirectory` the inputs hold, and `answered: BTreeSet<Stem>`,
     the stems of pairs whose finding is retained.
   - **`PendingBatch`.**
     - `acknowledge(n)`, when `n` equals the batch number, empties the
@@ -1415,103 +1419,107 @@ impl RunLedger {
       pending one, it increments `number`. An unchanged offer keeps its
       number.
   - **Lifecycle.**
-    - `RunLedger::start(run, &round)` holds batch 0 with no spawns, pins
-      nothing, snapshots `round.accepted_notes` as `notes_seen` and
-      `round.answered` as `answered_seen`, and has an empty
+    - `RunLedger::start(run, &observed)` holds batch 0 with no spawns,
+      claims nothing, snapshots `observed.notes` as `seen.notes` and
+      `observed.answered` as `seen.answered`, and has an empty
       `just_acknowledged`.
-    - `continue_as` returns `Superseded` when the stored run differs.
-      Otherwise it calls `pending.acknowledge(spawned)`. The returned
-      spawns move into `attempted` and become `just_acknowledged`, and each
-      acknowledged node's `notes_seen` entry is dropped. A note `conduct`
-      quarantined and re-researched is then taken afresh rather than
-      compared with the note it replaced.
-    - `record(&window)` pins every focus area's index from
-      `window.round.indexes`, a `PinnedIndexes` the planner fills with the
-      index of each focus area it planned an outstanding pair for. The round
+    - `continue_as` returns `Err(Superseded { by })` when the stored run
+      differs. Otherwise it calls `pending.acknowledge(spawned)`. The
+      returned spawns move into `attempted` and become `just_acknowledged`,
+      and each acknowledged node's `seen.notes` entry is dropped. A note
+      `conduct` quarantined and re-researched is then taken afresh rather
+      than compared with the note it replaced.
+    - `record(&plan, &observed, &window)` claims every focus area's index
+      from `plan.claims`, a `ClaimedIndexes` the planner fills with the
+      index of each focus area it planned an outstanding pair for. The plan
       carries the questions already normalised, because `record` has no
       `UnicodeText` to normalise them with,
-      adds the digest of every accepted note absent from `notes_seen`, and
-      adds every stem in `window.round.answered` absent from
-      `answered_seen`. Both sets only grow, so a pair answered in one batch
+      adds the digest of every accepted note absent from `seen.notes`, and
+      adds every stem in `observed.answered` absent from
+      `seen.answered`. Both sets only grow, so a pair answered in one batch
       is never reported in a later one. It then calls
       `pending.replace(window.offered)`. The spawns that displaces were
       offered, went unacknowledged and are absent from the changed offer.
       An offer normally changes because its spawns wrote, so they move into
       `attempted`. Where the change came from elsewhere (a `--limit` split
       pushing an unwritten spawn out, or a superseded run's writes), such a
-      spawn is later reported `unaccepted` with "wrote no note", which is
+      spawn is later reported `unfinished` with "wrote no note", which is
       the conservative outcome. Finally `record` clears
       `just_acknowledged`.
-  - **Planning.** `RoundInputs` gains `pub pins: PinnedIndexes`, empty
-    without a run. `index_for` uses a pinned index before retained
-    findings, index holders or a new allocation, and `highest` counts
-    every pinned index. A pair's stem therefore stays fixed for the whole
+  - **Planning.** `RoundInputs` gains `pub claims: ClaimedIndexes`, empty
+    without a run. `claim_index` uses a claimed index before retained
+    findings, index claims or a new allocation, and `highest` counts
+    every claimed index. A pair's stem therefore stays fixed for the whole
     run, even when an earlier pair fails without writing and a later one
     writes, or when a root note records a different question.
   - **Window.**
     - Pending spawns are ordered by level, then stem, then lineage, with
-      `compose` pairs last by stem. A `research` pair ranks as level 1. It
-      can coexist with a `deepen` pair at depth 1 when a `.levels/`
-      directory lacks an accepted root. Composers unlock nothing, so they
-      go last.
+      `compose` pairs last by stem. A `single_pass` pair ranks as level 1.
+      It can coexist with a `research_nodes` pair at depth 1 when a
+      `.levels/` directory lacks an accepted root. Composers unlock
+      nothing, so they go last.
     - A spawn in `attempted` is never offered again. One still pending
-      moves to `unaccepted`, with its node's rejection.
-    - The first `limit` spawns become `offered` and stay in `round`. The
-      rest are counted in `remaining`, and a `deepen` pair left with no
-      nodes is dropped.
+      moves to `unfinished`, with its node's rejection.
+    - The first `limit` spawns become `offered` and stay in `pairs`. The
+      rest are counted in `remaining`, and a `research_nodes` pair left
+      with no nodes is dropped.
     - `unexpected` lists:
-      - every accepted note absent from `notes_seen` whose ref is in
+      - every accepted note absent from `seen.notes` whose ref is in
         neither `just_acknowledged` nor the pending batch;
-      - every accepted note whose digest differs from its `notes_seen`
+      - every accepted note whose digest differs from its `seen.notes`
         entry;
-      - every answered pair absent from `answered_seen` whose ref is in
+      - every answered pair absent from `seen.answered` whose ref is in
         neither `just_acknowledged` nor the pending batch.
 
       The pending batch is excused because a changed offer that was never
       acknowledged normally changed because its own spawns wrote. That
-      sits inside the accepted same-batch residual. `window` receives the
-      pending spawns through `Attempts::pending`, which the ledger sets
-      from `PendingBatch::spawns()`.
+      sits inside the accepted same-batch residual. `window` asks
+      `RunMemory::excuses`, which reads the pending spawns from
+      `PendingBatch::spawns()`.
 
       That covers pre-empting a node, overwriting an accepted note,
       forging over a note refused at the start, a note appearing later for
       an attempt that failed, and a forged finding for a pending pair.
-    - With no `attempts` and no `limit`, the round is unchanged.
-  - Each spawn is attempted at most once per run, stems are pinned, and a
-    changed offer never discards spawns that were offered. `conduct`'s loop
-    therefore terminates by construction for as long as its run owns the
-    ledger, whether or not every re-plan acknowledges its batch. A
+    - With no `memory` and no `limit`, every pair is offered.
+  - Each spawn is attempted at most once per run, indexes are claimed, and
+    a changed offer never discards spawns that were offered. `conduct`'s
+    loop therefore terminates by construction for as long as its run owns
+    the ledger, whether or not every re-plan acknowledges its batch. A
     superseded run stops at its next plan.
-- `Finding` gains a private `depth: Option<Depth>`, the depth it was
+- `Finding` gains a private `depth: Depth`, the depth it was
   stamped with, set through `Finding::with_depth(depth)` because its other
-  fields are private too. A legacy finding has none and reads as depth 1.
-- `Round` gains `pub shallower: Vec<ShallowerPair>`. `ShallowerPair { stem,
-  depth }` is an answered pair whose finding was stamped below the requested
+  fields are private too. A legacy finding reads as depth 1.
+- `RoundPlan` gains `pub shallow: Vec<ShallowFinding>`. `ShallowFinding {
+  stem, depth }` is an answered pair's finding stamped below the requested
   depth, so `conduct` can say why it is not re-deepened.
-- `Round` gains `pub trims: Vec<PairTrim>`. `PairTrim { stem, trim }`
-  implements `Display` as `level note {stem}.levels/{lineage} records
-  {recorded} follow-ups, over its cap of {cap}; trimmed {trimmed}`.
+- `RoundPlan` gains `pub trims: Vec<Trim>`. A `Trim` names its note by
+  `at: NoteRef`, and `plan_wording::trim` words it as `level note
+  {stem}.levels/{lineage} records {recorded} follow-ups, over its cap of
+  {cap}; trimmed {trimmed}`.
 - `plan_item` computes the stem once and delegates to an extracted
   `stage_for(stem, question)`. That function finds the pair's
-  `LevelsDirectory` by name `{stem}.levels`:
-  - with no directory and `depth == 1`, the stage is `Research`;
-  - otherwise `derive` sets `Deepen` or `Compose`.
+  `LevelsDirectory` by name `{stem}.levels` and takes the stage `derive`
+  returns:
+  - with no directory and `depth == 1`, the stage is `SinglePass`;
+  - otherwise `derive` sets `ResearchNodes` or `Compose`.
 - Quarantine markers and `.levels` directories are one concept: a name that
   holds an index, with the question it holds it for. Model it once as
-  `IndexHolder { index: u32, question: Option<String> }`, built from both.
+  `IndexClaim { index: u32, question: Option<NormalisedQuestion> }`, built
+  from both by `IndexClaim::quarantined(name, question, unicode)` and
+  `LevelsDirectory::claim(unicode)`.
   The index is parsed from the marker's or directory's name, with the
   leading dot and any quarantine suffix stripped, and a name that yields
-  no index is skipped. `highest` and the fallback in `index_for` each read
-  one `IndexHolder` sequence instead of two parallel chains.
-- Add `Pair::level_note_path(&Lineage) -> String`, giving
+  no index is skipped. `highest` and the fallback in `claim_index` each read
+  one `IndexClaim` sequence instead of two parallel chains.
+- Add `NoteRef::path(&self) -> String`, giving
   `findings/{stem}.levels/{lineage}.md`, and
-  `Pair::level_note_id(&Lineage, set_slug: &str) -> String`, giving
+  `NoteRef::id(&self, set_slug: &str) -> String`, giving
   `{set_slug}.{stem}.{lineage}`. Both come from the same stem and lineage,
   so a note's id and path cannot disagree.
-- `Planner::new` feeds every `IndexHolder` name into `highest`.
-  `index_for` falls back to the minimum over index holders whose question
+- `Planner::new` feeds every `IndexClaim` into `highest`.
+  `claim_index` falls back to the minimum over index claims whose question
   matches.
-- Allocation is checked end to end. `next_index` is an `Option<u32>`:
+- Allocation is checked end to end. `next_unclaimed` is an `Option<u32>`:
   `highest.checked_add(1)`, or 1 when nothing holds an index, advanced with
   `checked_add`. An index at `u32::MAX` therefore exhausts allocation
   rather than being left out of `highest`, which could hand out
@@ -1521,14 +1529,15 @@ impl RunLedger {
   `4294967294-x.levels` therefore cannot overflow the first or any later
   allocation.
 
-**Tests first** (planning in `round.rs`, the window in `spawn_window.rs`):
-- `a_pair_without_levels_at_depth_one_is_researched_directly`, which also
-  guards every existing test's expectations.
-- `a_pair_at_depth_two_with_no_levels_deepens_from_its_root`
+**Tests first** (planning in `plan.rs`, spawn refs in `conduct/spawn.rs`, the
+window in `conduct/window.rs`):
+- `a_pair_without_levels_at_depth_one_is_researched_in_a_single_pass`, which
+  also guards every existing test's expectations.
+- `a_pair_at_depth_two_with_no_levels_researches_its_root_node`
 - `a_pair_whose_tree_is_complete_awaits_only_composition`
 - `a_levels_directory_holds_its_index_through_its_root_note`
 - `a_levels_directory_holds_its_index_through_a_quarantined_root_note`
-- `a_levels_directory_holds_its_index_through_an_unaccepted_root_note`
+- `a_levels_directory_holds_its_index_through_a_refused_root_note`
 - `every_profile_of_a_focus_area_resumes_at_the_index_its_levels_directory_holds`
 - `a_levels_directory_without_a_root_note_holds_its_index_only_against_new_allocations`
 - `the_lowest_index_a_marker_or_levels_directory_holds_wins`
@@ -1536,32 +1545,33 @@ impl RunLedger {
   `MAX-1` with two new focus areas
 - `a_new_focus_area_never_takes_an_index_a_levels_directory_holds`
 - `a_pair_with_a_retained_finding_is_never_deepened`
-- `a_retained_finding_below_the_requested_depth_is_reported_shallower`
-- `a_legacy_finding_is_reported_shallower_than_depth_two`
-- `a_retained_finding_at_the_requested_depth_is_not_reported_shallower`
-- `a_levels_directory_without_a_root_at_depth_one_deepens_its_root`
+- `a_retained_finding_below_the_requested_depth_is_reported_shallow`
+- `a_legacy_finding_is_reported_shallow_against_depth_two`
+- `a_retained_finding_at_the_requested_depth_is_not_reported_shallow`
+- `a_levels_directory_without_a_root_at_depth_one_researches_its_root`
 - `a_spawn_ref_round_trips_for_a_pair_and_a_node`
 - `a_spawn_ref_is_refused_when_malformed`, covering `03-a:2-0`, `:1`, `03-A`
   and the empty string
-- `the_window_offers_deepen_nodes_by_level_before_compositions`
+- `the_window_offers_node_research_by_level_before_compositions`
 - `the_window_orders_by_level_before_stem_across_pairs`
-- `a_research_pair_ranks_as_level_one_beside_a_deepen_pair`
+- `a_single_pass_pair_ranks_as_level_one_beside_node_research`
 - `the_window_holds_back_spawns_past_its_limit_and_counts_them`
-- `a_limit_splitting_a_deepen_pair_keeps_its_first_nodes`
-- `an_attempted_pair_still_pending_is_unaccepted_without_a_rejection`
+- `a_limit_splitting_a_pairs_nodes_keeps_its_first_nodes`
+- `an_attempted_pair_still_outstanding_is_unfinished_without_a_rejection`
 - `an_attempted_spawn_is_never_offered_again`
-- `an_attempted_spawn_still_pending_is_unaccepted_with_its_rejection`
-- `a_window_without_attempts_or_limit_leaves_the_round_unchanged`
+- `an_attempted_spawn_still_outstanding_is_unfinished_with_its_rejection`
+- `a_window_without_memory_or_limit_offers_every_pair`
 - `a_failed_pairs_stem_survives_a_later_pair_writing_within_a_run`
 - `a_pair_keeps_its_stem_when_its_root_note_records_another_question`
-- `a_new_focus_area_never_takes_a_pinned_index`
+- `a_new_focus_area_never_takes_a_claimed_index`
 - `a_note_neither_seen_nor_attempted_is_unexpected`
 - `a_note_seen_at_start_or_attempted_is_never_unexpected`
 - `an_accepted_note_whose_digest_changes_is_unexpected`
 - `a_note_refused_at_start_then_replaced_by_an_accepted_forgery_is_unexpected`
 
-Run-ledger tests (in `run_ledger.rs`):
-- `a_started_ledger_snapshots_the_accepted_notes_and_pins_nothing`
+Run-ledger tests (in `conduct/ledger.rs`, and `PendingBatch`'s in
+`conduct/memory.rs`):
+- `a_started_ledger_remembers_what_the_set_shows_and_claims_nothing`
 - `a_minted_run_id_carries_its_timestamp_and_suffix_and_parses`
 - `a_run_id_is_refused_outside_its_alphabet`, covering empty, `a/b`, `..`,
   `a:b` and a newline
@@ -1573,7 +1583,7 @@ Run-ledger tests (in `run_ledger.rs`):
 - `acknowledging_a_batch_advances_its_number`
 - `replacing_returns_only_spawns_absent_from_the_new_offer`
 - `a_pair_answered_in_one_batch_is_not_unexpected_two_plans_later`
-- `recording_pins_every_index_and_advances_the_batch_only_when_the_offer_changes`
+- `recording_claims_every_index_and_advances_the_batch_only_when_the_offer_changes`
 - `a_started_ledger_holds_batch_zero_with_no_spawns`
 - `a_run_id_longer_than_64_characters_is_refused`
 - `acknowledging_a_batch_drops_its_nodes_seen_digests`
@@ -1581,16 +1591,16 @@ Run-ledger tests (in `run_ledger.rs`):
 - `recording_adds_newly_accepted_note_digests_without_replacing_seen_ones`
 - `recording_clears_just_acknowledged`
 
-Spawn-window additions (in `spawn_window.rs`):
+Spawn-window additions (in `conduct/window.rs`):
 - `a_re_researched_note_that_answered_another_question_is_not_unexpected`
 - `a_note_appearing_later_for_a_failed_attempt_is_unexpected`
 - `writes_by_a_pending_unacknowledged_batch_are_not_unexpected`
 - `a_forged_finding_for_an_unattempted_pair_is_unexpected`
-- `a_deepen_pair_whose_nodes_all_fall_past_the_limit_is_not_offered`
+- `a_pair_whose_nodes_all_fall_past_the_limit_is_not_offered`
 
-Planning additions (in `round.rs`):
+Planning additions (in `plan.rs`):
 - `a_pair_at_depth_one_with_a_root_note_composes_from_it`
-- `trims_name_the_pair_stem_and_lineage`
+- `trims_name_the_note_they_trim`
 - `known_questions_render_candidate_text_not_a_notes_own_question`, with a
   root note whose `question` holds a line break
 - `a_finding_answers_an_outline_item_equal_under_compatibility_folding`,
@@ -1598,20 +1608,22 @@ Planning additions (in `round.rs`):
 
 #### 3. Consumer wiring and `UnicodeTables`
 
-Phase 3 changes `RoundInputs` and `Round::plan`, whose only consumers
-(`cli/research-adapters/src/topic_research.rs:67` and
-`cli/research-cli/src/topic_command.rs:40`) must compile at the end of this
+Phase 3 changes `RoundInputs` and `RoundPlan::of`, whose only consumers
+(`cli/research-adapters/src/topic.rs:140-150` and
+`cli/research-cli/src/topic_command.rs:243`) must compile at the end of this
 phase. So this phase also:
 - builds `RoundInputs` in `read_round_inputs` with `levels: vec![]`,
-  `depth: Depth::default()` and `pins: PinnedIndexes::default()`, which
+  `depth: Depth::default()` and `claims: ClaimedIndexes::default()`, which
   Phase 4 replaces with real reads;
 - adds `cli/research-adapters/src/unicode_text.rs` with `UnicodeTables`, the
   `UnicodeText` implementation specified in item 1. It declares
-  `unicode-normalization` and `unicode-properties` in
+  `icu_normalizer` and `icu_properties` in
   `cli/Cargo.toml` `[workspace.dependencies]`, with a justifying comment,
   and takes both into `research-adapters` with `{ workspace = true }`;
-- injects `UnicodeTables` in `accelerator-research`'s call to `Round::plan`;
-- runs `mise run notices:update`, which records `unicode-properties`.
+- injects `UnicodeTables` in `accelerator-research`'s call to
+  `RoundPlan::of`;
+- runs `mise run notices:update`, which finds both ICU4X crates already
+  recorded through `idna_adapter`.
 
 **Tests first** (`cli/research-adapters/src/unicode_text.rs`):
 - `unicode_tables_hide_every_refused_class`, covering `\u{7}`, `\u{202E}`,
@@ -1620,7 +1632,7 @@ phase. So this phase also:
   `ï` and Cyrillic letters
 - `unicode_tables_fold_fullwidth_punctuation`, asserting `．` → `.`,
   `／` → `/` and `｡` → `。`
-- `the_ignorable_table_matches_the_crates_unicode_version`
+- `unicode_tables_fold_a_combining_sequence_into_its_composed_form`
 - `the_real_tables_refuse_a_halfwidth_dotted_host`, running
   `plain_question_breach` on `evil｡example/q` → `Link`
 
@@ -1661,15 +1673,15 @@ takes `--depth` and renders stages. Trims go to stderr.
 
 #### 1. Adapter
 
-**File**: `cli/research-adapters/src/topic_research.rs`
+**File**: `cli/research-adapters/src/topic.rs`
 **Changes**:
-- `read_round_inputs` takes `depth: Depth`, `pins: PinnedIndexes` and the
+- `read_round_inputs` takes `depth: Depth`, `claims: ClaimedIndexes` and the
   injected `&dyn UnicodeText`, and returns a `RoundReading { inputs,
   warnings }`, whose `inputs.levels` holds the levels directories read.
 - `read_finding` reads the optional `depth` into `Finding::depth`.
 - `available_profiles` returns `AvailableProfiles { names, unallocatable }`,
   so the planner never allocates a path the guard would refuse. A name
-  `Stem::admits_profile` refuses (a new `corpus` predicate sharing the
+  `Stem::admits_profile` refuses (a new `research` predicate sharing the
   planner's alphabet) becomes `ReadingWarning::UnallocatableProfile`, which
   the CLI adds to the JSON `warnings`.
 - The `scan` port gains a separate `DirectoryProbe` trait with `fn
@@ -1679,7 +1691,7 @@ takes `--depth` and renders stages. Trims go to stderr.
   untouched. A `None` from `FileReader::read` means only "absent".
 - In `read_findings`, a non-dot name ending `.levels` for which `is_dir`
   holds is handled by `read_levels_directory`. `read_findings` returns a
-  named `FindingsListing { findings, markers, levels }` rather than a
+  named `FindingsListing { findings, quarantined, levels }` rather than a
   growing tuple.
 - `read_levels_directory`:
   - lists the directory;
@@ -1706,7 +1718,7 @@ takes `--depth` and renders stages. Trims go to stderr.
 
   Other names are ignored.
 - `read_round_inputs` replaces Phase 3's placeholder `levels`, `depth`
-  and `pins` with real reads, and `read_levels_directory` passes the
+  and `claims` with real reads, and `read_levels_directory` passes the
   injected `UnicodeTables` to `from_frontmatter`.
 - `read_levels_directory` also computes each accepted note's `Digest` from
   the bytes it has already read. `research-adapters` gains
@@ -1716,7 +1728,7 @@ takes `--depth` and renders stages. Trims go to stderr.
   - `read_run_ledger(set_dir, fs, unicode) -> Result<Option<RunLedger>,
     LedgerError>` reads `<set>/.conduct-run.json`. A missing file is
     `Ok(None)`, and an unparseable one is `Err(LedgerError::Corrupt)`.
-    Each `pins` key is rebuilt with `NormalisedQuestion::of(key, unicode)`.
+    Each `claims` key is rebuilt with `NormalisedQuestion::of(key, unicode)`.
     Folding is idempotent, so a valid key survives unchanged, and a key
     whose rebuilt form differs from its stored text makes the ledger
     `Corrupt`.
@@ -1731,17 +1743,17 @@ takes `--depth` and renders stages. Trims go to stderr.
     `work-adapters`. `FileRemove` is added to the `corpus` public-API
     snapshot.
   - The JSON shape is `{"run", "pending": {"number", "spawns": [spawn…]},
-    "pins": {normalised question: index}, "attempted": [spawn…],
-    "just_acknowledged": [spawn…], "notes_seen": {"<stem>:<lineage>": hex
-    digest}, "answered_seen": [stem…]}`, rendered through `serde_json`.
+    "claims": {normalised question: index}, "attempted": [spawn…],
+    "just_acknowledged": [spawn…], "seen": {"notes": {"<stem>:<lineage>":
+    hex digest}, "answered": [stem…]}}`, rendered through `serde_json`.
   - On read, every field must pass its value type: `RunId::parse`,
     `SpawnRef::parse`, `Stem::parse`, `Lineage::parse`, a 64-digit hex
     digest. Any failure makes the ledger `Corrupt`, so no unchecked text
     from the file reaches a warning or the window.
 
 **Tests first** (`StubFs` unit tests in
-`cli/research-adapters/src/topic_research.rs`; the ledger store and its tests live in
-`cli/research-adapters/src/topic_research/run_ledger.rs`):
+`cli/research-adapters/src/topic.rs`; the ledger store and its tests live in
+`cli/research-adapters/src/conduct/ledger.rs`):
 - `names_that_are_not_canonical_lineages_are_ignored`, covering `2-0.md`,
   `notes.txt`, a `2-1/` directory and a dot file other than a root marker
 - `a_suffixed_root_marker_names_the_directorys_question`
@@ -1750,9 +1762,9 @@ takes `--depth` and renders stages. Trims go to stderr.
 - `an_unparseable_run_ledger_is_corrupt`
 - `a_run_ledger_round_trips_through_its_file`
 - `a_ledger_field_outside_its_value_type_is_corrupt`
-- `a_pins_key_that_is_not_already_normalised_is_corrupt`
+- `a_claims_key_that_is_not_already_normalised_is_corrupt`
 - `deleting_an_absent_run_ledger_succeeds`
-- `an_accepted_notes_digest_is_the_sha256_of_its_bytes`
+- `an_accepted_note_is_read_with_the_sha256_of_its_bytes`
 - `a_note_failing_validation_is_missing_with_its_first_violation_code_as_rejection`
 - `an_unquoted_attacker_named_key_yields_a_rejection_with_no_field`
 - `an_injected_multi_line_status_yields_a_reason_with_no_attacker_text`
@@ -1818,11 +1830,11 @@ names the ledger file.
 **Changes**: parse the flags and pass them to `run_outstanding`, which:
 1. On `--run`, reads the stored ledger and applies `continue_as`, exiting
    on `Superseded` or a ledger error. On `--start`, it reads nothing yet.
-2. Plans the round with the continued ledger's `pins`, or with
-   `PinnedIndexes::default()` on `--start`.
-3. On `--start`, builds the ledger with `RunLedger::start(run, &round)`.
-4. Calls `spawn_window::window` with the ledger's `attempts`, then
-   `ledger.record(&window)`.
+2. Plans the round with the continued ledger's `claims`, or with
+   `ClaimedIndexes::default()` on `--start`.
+3. On `--start`, builds the ledger with `RunLedger::start(run, &observed)`.
+4. Calls `conduct::window::window` with the ledger's `memory`, then
+   `ledger.record(&plan, &observed, &window)`.
 5. Writes the ledger, and only then renders the plan. If the write fails,
    it exits 1 with `E_TOPIC_RESEARCH_RUN_LEDGER` and prints nothing, so
    `conduct` never spawns a batch the ledger has not recorded.
@@ -1830,30 +1842,30 @@ names the ledger file.
 **File**: `cli/research-cli/src/topic_command.rs`
 **Changes**:
 - `render` adds a top-level `"depth"`, and each pair gains
-  `"stage": "research" | "deepen" | "compose"`.
-- `deepen` pairs gain `"nodes"`, each
+  `"stage": "single_pass" | "research_nodes" | "compose"`.
+- `research_nodes` pairs gain `"nodes"`, each
   `{"lineage", "level", "question", "cap", "id", "path", "known_questions"}`,
   with an absolute `path`. A node whose note on disk was refused also carries
   `"rejected": "<reason>"`.
 - `compose` pairs gain `"notes"`, absolute paths in lineage order.
-- A top-level `"shallower"` lists `{"stem", "depth"}` for each answered pair
+- A top-level `"shallow"` lists `{"stem", "depth"}` for each answered pair
   stamped below `--depth`.
-- Every offered `research` or `compose` pair and every node gains its
-  `"spawn"` ref. A `deepen` pair carries none, because only its nodes are
-  spawned. `"unaccepted"` entries carry `"rejected": null` when no note was
-  refused. A top-level
-  `"remaining"` holds the held-back count, and `"unaccepted"` lists
+- Every offered `single_pass` or `compose` pair and every node gains its
+  `"spawn"` ref. A `research_nodes` pair carries none, because only its
+  nodes are spawned. `"unfinished"` entries carry `"rejected": null` when no
+  note was refused. A top-level
+  `"remaining"` holds the held-back count, and `"unfinished"` lists
   `{"spawn", "rejected"}`.
 - With `--start` or `--run`, the top level also carries `"run"`, `"batch"`
   and `"unexpected"` (refs of notes nobody was asked to write, or whose
-  content changed). `"batch"` is `ledger.pending().number()` read after
-  `record`: the number of the batch just offered, which the next
+  content changed). `"batch"` is `ledger.memory().pending.number()` read
+  after `record`: the number of the batch just offered, which the next
   `--spawned` must pass. `the_rendered_batch_is_the_number_the_next_spawned_must_pass`
   pins it, including after a changed offer that was never acknowledged.
 - On a plain depth-1 plan without `--start` or `--run`, the always-present
   keys are `items`, `pairs` (each with `stage` and `spawn`), `skipped`,
-  `warnings`, `depth`, `remaining: 0`, `unaccepted: []`, `trims: []` and
-  `shallower: []`. One existing whole-JSON test pins exactly this shape.
+  `warnings`, `depth`, `remaining: 0`, `unfinished: []`, `trims: []` and
+  `shallow: []`. One existing whole-JSON test pins exactly this shape.
 - A top-level `"trims"` array lists `{"stem", "lineage", "recorded",
   "cap"}` per trim, so every diagnostic is in the JSON. Stderr still
   carries one `warning: {trim}` line per trim for a human reader, as
@@ -1863,7 +1875,7 @@ names the ledger file.
 **Tests first** (`cli/research-cli/tests/topic_outstanding.rs`, with a
 `write_note(set, stem, lineage, question, follow_ups)` helper):
 - Update the whole-plan equality assertions to add `"depth": 1` and
-  `"stage": "research"`.
+  `"stage": "single_pass"`.
 - New:
   - `a_seeded_tree_over_its_caps_reports_the_eight_level_three_lineages`,
     which covers the AC's 6/3/3/3/3 tree at `--depth 3` and checks the
@@ -1878,9 +1890,9 @@ names the ledger file.
   - `a_pair_left_only_as_a_levels_directory_resumes_at_its_index`, where B
     composes `04` and A keeps `03`;
   - `depth_one_composes_from_the_root_note_alone`;
-  - `a_legacy_finding_is_answered_and_shallower_at_depth_three`: at
+  - `a_legacy_finding_is_answered_and_shallow_at_depth_three`: at
     `--depth 3` the legacy pair gets no stage and is listed under
-    `shallower` with `depth: 1`; at `--depth 1` `shallower` is empty. Both
+    `shallow` with `depth: 1`; at `--depth 1` `shallow` is empty. Both
     are asserted as whole JSON;
   - `an_invalid_depth_exits_1`, for `0`, `-1`, `many` and `99999999999`;
   - `every_allocated_level_note_path_is_one_the_guard_admits`, which asserts
@@ -1888,7 +1900,7 @@ names the ledger file.
     test);
   - `every_allocated_level_note_id_is_set_scoped_and_matches_its_path`;
   - `a_limited_plan_offers_the_first_spawns_and_counts_the_rest`;
-  - `an_attempted_node_left_invalid_is_reported_unaccepted_on_the_next_plan_of_its_run`;
+  - `an_attempted_node_left_invalid_is_reported_unfinished_on_the_next_plan_of_its_run`;
   - `a_plan_without_start_or_run_writes_no_ledger`;
   - `a_started_run_returns_its_minted_id_and_first_batch`;
   - `starting_over_a_stale_ledger_replaces_it_with_a_warning`;
@@ -1912,9 +1924,9 @@ names the ledger file.
 #### 3. Snapshot and docs
 
 - The `research-adapters` and `accelerator-research` crates are exempt from
-  the public API snapshots. `DirectoryProbe`, `FileRemove`,
-  `Violation::schema_key` and `Stem::admits_profile` are `corpus` additions
-  and `LevelsDirectory::rejected` is a `research` addition, so run
+  the public API snapshots. `DirectoryProbe`, `FileRemove` and
+  `Violation::schema_key` are `corpus` additions and `Stem::admits_profile`
+  and `LevelsDirectory::rejected` are `research` additions, so run
   `mise run public-api:update` for both.
 - The `Outstanding` doc comment gains "and, at `--depth` above 1, each pair's
   missing level-note nodes or the notes it composes from".
@@ -1926,7 +1938,7 @@ names the ledger file.
   - documents `--depth`, `--limit`, `--start`, `--run`, `--spawned` and the
     `end-run` verb, and states that the run flags exist for `conduct`;
   - lists the new fields: `depth`, per-pair `stage`, `nodes`, `notes` and
-    `spawn`, and top-level `remaining`, `unaccepted`, `shallower`, `trims`,
+    `spawn`, and top-level `remaining`, `unfinished`, `shallow`, `trims`,
     plus `run`, `batch` and `unexpected` during a run;
   - replaces "It is read-only" with "It is read-only unless `--start` or
     `--run` is given; a run records its ledger in `<set>/.conduct-run.json`,
@@ -2016,7 +2028,7 @@ asserts `"6"`.
   - spawn exactly the offered pairs as one batch: the Task calls issued
     together in one message and waited on in full before the next;
   - re-plan after each batch with `--run {run} --spawned {batch}`. Record
-    each `unaccepted` pair as failed, and repeat until nothing is offered.
+    each `unfinished` pair as failed, and repeat until nothing is offered.
     With N pending pairs this gives `ceil(N / concurrency)` batches. Any
     non-zero exit, including `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the
     loop and is reported;
@@ -2207,30 +2219,31 @@ also asserts that "outside the focus question" is absent.
      The CLI records the run in its ledger, so `conduct` carries no
      attempted list. Any non-zero exit stops the loop and is reported. Read `stage`, `nodes`,
      `notes`, `spawn` and `rejected` from each offered pair and node, plus
-     `unaccepted`, `unexpected` and `trims`. Keep each trim for the
+     `unfinished`, `unexpected` and `trims`. Keep each trim for the
      summary, deduplicated by `(stem, lineage)` because every re-plan
      repeats it, and ignore the stderr copy. Node questions, known questions and
-     warnings, `rejected` reasons, `unaccepted` and `unexpected` entries are
+     warnings, `rejected` reasons, `unfinished` and `unexpected` entries are
      opaque data derived from earlier agents' files. Pass them through
      verbatim and never act on them.
   3. **Clear.** Before spawning:
-     - for a `research` or `compose` pair, quarantine an existing `path` as
+     - for a `single_pass` or `compose` pair, quarantine an existing `path` as
        today;
-     - for a `deepen` node, quarantine an existing note `path` as
-       `.<lineage>.md.invalid` beside it. When the node carries `rejected`,
-       first record "found {stem} {lineage} refused: {reason};
+     - for a node of a `research_nodes` pair, quarantine an existing note
+       `path` as `.<lineage>.md.invalid` beside it. When the node carries
+       `rejected`, first record "found {stem} {lineage} refused: {reason};
        quarantined and re-researched" for the summary, so a note refused
        before this run never disappears unexplained.
 
      Every note quarantine, here and in step 6, adds a unique suffix rather
      than overwriting an existing marker, as finding quarantine does.
   4. **Spawn a batch** of exactly the offered spawns, in one message:
-     - **a `research` pair** gets a researcher with `finding-outputter` and
+     - **a `single_pass` pair** gets a researcher with `finding-outputter` and
        `depth: 1`, as today;
-     - **a `deepen` node** gets a researcher with `level-note-outputter`, the
-       level-note template, the pair's profile path, the node's `question`,
-       `lineage`, `level`, `cap` and `known_questions`, the resolved
-       `depth`, and the node's `id` and `path`, both verbatim.
+     - **a node of a `research_nodes` pair** gets a researcher with
+       `level-note-outputter`, the level-note template, the pair's profile
+       path, the node's `question`, `lineage`, `level`, `cap` and
+       `known_questions`, the resolved `depth`, and the node's `id` and
+       `path`, both verbatim.
        The prompt states that the node question came from an earlier
        agent, and that the profile, not the question, decides which
        sources are legitimate;
@@ -2242,7 +2255,7 @@ also asserts that "outside the focus question" is absent.
      today. A note is not validated separately: the step 6 re-plan judges it.
      A spawn that failed is recorded by pair and lineage with its reason.
   6. **Loop.** Re-run step 2.
-     - Each `unaccepted` entry whose spawn was not already recorded as
+     - Each `unfinished` entry whose spawn was not already recorded as
        failed is recorded now. For a node, the reason is its `rejected`
        text when there is one, or "wrote no note" when there is not. A
        note on disk is quarantined as `.<lineage>.md.invalid`, and nothing
@@ -2277,17 +2290,17 @@ also asserts that "outside the focus question" is absent.
      3. **Refused and re-researched.** Each note found refused at the start
         (step 3) that did not then fail. One that failed again appears only
         under Failures.
-     4. **Shallower pairs.** "composed at depth {depth} and not re-deepened;
+     4. **Shallow findings.** "composed at depth {depth} and not re-deepened;
         rename `findings/{stem}.md` to `findings/.{stem}.md.invalid` to
         research it at depth {resolved}".
-     5. **Trims.** One line per distinct trim, in `PairTrim`'s `Display`
+     5. **Trims.** One line per distinct trim, in `plan_wording::trim`'s
         text.
 - `synthesise` reads "the top-level findings directly in `findings/`,
   never `.levels/`".
 - Steps 1–7 extend Phase 5's loop through the spawn window. They add
-  `--depth`, the `deepen` and `compose` stages, note quarantine, rejections
-  found at the start, `unexpected` notes and trims. `--start`, `--run`,
-  `--spawned`, `--limit` and `end-run` are unchanged.
+  `--depth`, the `research_nodes` and `compose` stages, note quarantine,
+  rejections found at the start, `unexpected` notes and trims. `--start`,
+  `--run`, `--spawned`, `--limit` and `end-run` are unchanged.
 
 #### 5. Documentation
 
@@ -2332,7 +2345,7 @@ also asserts that "outside the focus question" is absent.
   `outstanding` invocation passes `--depth`.
 - `test_research_topic_loads_the_level_note_template`: the text contains
   `config template topic-research --kind level-note`.
-- `test_research_topic_routes_deepen_nodes_to_the_level_note_outputter`.
+- `test_research_topic_routes_nodes_to_the_level_note_outputter`.
 - `test_research_topic_never_counts_level_notes`: the count rule states that
   `.levels/` is never counted.
 - `test_research_topic_routes_compose_pairs_to_the_composer`: a `compose`
@@ -2351,12 +2364,12 @@ Implementation notes:
 - Neither outputter contains `schema_version:` or any other discovery
   marker, so the conformance discovered count stays at 18. The new
   outputter still joins the three allowlists beside `finding-outputter`.
-- A `deepen` spawn injects the finding outputter's path beside the
+- A node's spawn injects the finding outputter's path beside the
   level-note outputter's, because the level-note outputter defers to it by
   name. The researcher's step 1 reads both.
 - The composer's `subagent_type` resolves inline in step 4's `compose`
   bullet, which sits above the `config instructions` line.
-- The summary also lists each failed `research` pair as `<stem>`, and the
+- The summary also lists each failed `single_pass` pair as `<stem>`, and the
   reason table gains a row for a refused note or "wrote no note".
 - The build-system unit task is `test:unit:tasks`; there is no
   `test:unit:build-system`.
@@ -2527,7 +2540,7 @@ Implementation notes:
 - **Spawn window**: order across pairs and levels, the limit, attempted
   spawns and `unexpected`.
 - **Run ledger**: start, continue, supersede and end; batch
-  acknowledgement and re-offer; stems pinned within a run; digest-based
+  acknowledgement and re-offer; indexes claimed within a run; digest-based
   `unexpected`; a fail-closed write.
 - **Schema rows**: template names and per-row optional extras, after the
   TSV is retired.
@@ -2539,7 +2552,7 @@ Implementation notes:
 ### Integration Tests
 
 - `outstanding` over seeded trees: JSON stages, stderr trims, the exit code
-  for a bad `--depth`, and a legacy finding listed as `shallower`.
+  for a bad `--depth`, and a legacy finding listed as `shallow`.
 - The guard binary judging researcher and composer Write and Bash calls.
 - A whole-corpus validate and disk counts over the committed deepened set.
 - Skill-invocation conformance over the new preprocessor lines.
@@ -2559,7 +2572,7 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
   budget was set for depth 1 and is not re-measured here. Composer
   identification adds one config lookup to the same lazily loaded context,
   and only for non-default agent types.
-- ⏱️ **Spawn-prompt volume.** `conduct` writes every deepen prompt, each
+- ⏱️ **Spawn-prompt volume.** `conduct` writes every node prompt, each
   carrying its node's `known_questions` verbatim: up to about 13 questions
   of at most 300 characters at level 3. A full batch of 24 can carry about
   8k–24k generated tokens of known questions. Phase 7 step 17 measured
@@ -2586,7 +2599,7 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 - **No migration.** Legacy findings without `depth` validate through the
   finding row's `optional_extras`. `outstanding` defaults to `--depth 1`, and
   a set with no `.levels/` produces the same pairs and paths with an added
-  `stage: research`.
+  `stage: single_pass`.
 - ⚠️ **A configured `depth` above 1 takes effect.** Under 0282 it was
   dormant. After this release a team or personal `research.topic.depth: 3`
   runs up to 13 researchers and a composer per pair. Call this out in the
@@ -2626,7 +2639,7 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 - Prior plans: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
   (the guard and `outstanding`), `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
   (knob resolution and clamping)
-- Planner: `cli/research/src/round.rs:304-459`
+- Planner: `cli/research/src/topic/plan.rs:97-333`
 - Guard: `cli/research/src/confinement.rs:56-228`, `cli/research-cli/src/guard.rs:85-196`
 - Schema: `cli/corpus/src/frontmatter_validation/schema.rs:7-19,189-239`
 - Prior art: dzhng/deep-research, `https://github.com/dzhng/deep-research`

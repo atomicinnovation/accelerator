@@ -12,9 +12,9 @@ relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
-revision: "0f547eb4da0695568f4c4b9ab190d2b8ffdc9e0c"
+revision: "1517c709352fcd37619be0ec1af13e2d09e1be7a"
 repository: "accelerator"
-last_updated: "2026-10-03T21:26:56+00:00"
+last_updated: "2026-10-04T10:10:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -34,36 +34,49 @@ today's single-researcher shape, now stamped `depth: 1`.
 
 ## Changes
 
-### Tree derivation in the `research` domain
+### The `research` domain
 
-- **`tree.rs`** — pure derivation of a pair's missing nodes from its notes:
-  follow-up cap 4 at level 1 then `ceil(parent / 2)`, trim-then-dedupe in
+The crate is grouped into `sources` (the `research fetch` client), `topic`
+(the set, its trees and the round plan) and `conduct` (coordinating a run),
+and each topic-research concept is modelled once.
+
+- **`topic/tree.rs`** — pure derivation of a pair's `Stage` from its notes:
+  a single pass at depth 1 with no `.levels/`, otherwise the
+  `MissingNode`s still to research or the lineages to compose from.
+  Follow-up cap 4 at level 1 then `ceil(parent / 2)`, trim-then-dedupe in
   lineage order against the pair question, shallower nodes and earlier
   siblings, level barrier within a pair, pruning on `follow_ups: []`.
-- **`stem.rs`, `lineage.rs`, `finding_path.rs`** — the topic-research set
-  layout: indexed `[a-z0-9-]` finding stems, well-formed lineages (`L` then
-  `L − 1` positive positions), and the finding and level-note path checks.
-  They move out of `corpus::topic_research`, so `corpus` stays generic over
-  document types and `research` keeps its std-only pup rule with no `corpus`
-  dependency.
-- **`question.rs`** — question normalisation, now after NFKC
+- **`topic/layout/`** — the set layout: indexed `[a-z0-9-]` finding stems,
+  well-formed lineages (`L` then `L − 1` positive positions), note paths and
+  ids, question slugs, and the finding and level-note path checks. They
+  move out of `corpus::topic_research`, so `corpus` stays generic over
+  document types and `research` keeps its std-only pup rule with no
+  `corpus` dependency.
+- **`topic/question.rs`** — question normalisation, now after NFKC
   compatibility folding, behind a `UnicodeText` port.
-- **`pinned_indexes.rs`** — a `.levels/` directory holds its `<nn>` index,
-  keyed on the question of its `1.md` or `.1.md.invalid`, so a resumed pair
-  keeps its stem.
-- **`spawn_window.rs`, `run_ledger.rs`** — batch planning across pairs
-  (researchers and composers share batches) and a transient
-  `<set>/.conduct-run.json` ledger that detects notes written outside the
-  acknowledged batch, digest changes, and superseded runs
+- **`topic/claims.rs`** — a quarantined finding or a `.levels/` directory
+  claims its `<nn>` index for the question it names, and a run keeps every
+  index it plans at, so a resumed pair keeps its stem.
+- **`topic/evidence.rs`, `topic/plan.rs`** — the findings and level notes
+  read from disk, and the `RoundPlan` derived from them.
+- **`conduct/`** — batch planning across pairs (`window.rs`; researchers
+  and composers share batches), what a run remembers and has seen
+  (`memory.rs`, `observed.rs`), and a transient `<set>/.conduct-run.json`
+  ledger (`ledger.rs`) that detects notes written outside the acknowledged
+  batch, digest changes, and superseded runs
   (`E_TOPIC_RESEARCH_RUN_SUPERSEDED`).
 
 ### CLI and adapters
 
 - **`outstanding`** gains `--depth`, `--limit`, `--start`, `--run` and
-  `--spawned`, and reports each pair's `stage` (`research`, `deepen`,
-  `compose`), `nodes` or `notes`, `trims`, `shallower` pairs and `unexpected`
-  writes. It validates every note it reads and treats a failing one as
-  missing. A new `end-run` verb removes the ledger.
+  `--spawned`, and reports each pair's `stage` (`single_pass`,
+  `research_nodes`, `compose`), `nodes` or `notes`, `trims`, `shallow`
+  findings, `unfinished` spawns and `unexpected` writes. It validates every
+  note it reads and treats a failing one as missing. A new `end-run` verb
+  removes the ledger. The wording of warnings, trims, skips and refused
+  notes lives in `research-cli`, not the domain.
+- **`research-adapters`** mirrors the domain: `topic` reads a set's round
+  inputs, and `conduct::ledger` stores the run ledger.
 - **`finding_count` / `round_count`** count only top-level `<nn>-*.md`
   findings; `.levels/` is never read by `synthesise`.
 - **`UnicodeTables`** — implements `UnicodeText` from one ICU4X release
@@ -135,7 +148,7 @@ today's single-researcher shape, now stamped `depth: 1`.
 
 - [x] `mise run check` exits 0 on the branch tip
 - [x] Full `mise run` (default task) exits 0 on the branch tip after the
-      switch to ICU4X: 4429 CLI tests, 2611 frontend tests
+      crate restructure: 4447 CLI tests, 2611 frontend tests
       and 355 visualiser e2e specs pass, alongside the tree derivation, caps,
       dedupe, lineage ordering, level barrier, index retention, run ledger,
       guard role and profile contract suites
@@ -168,8 +181,9 @@ today's single-researcher shape, now stamped `depth: 1`.
   plugin reports `.levels/` notes as an unknown kind and researches the pair
   again under a new stem.
 - **`is_finding_path` narrows and moves** to
-  `research::finding_path`: it admits only an indexed `[a-z0-9-]` stem, so a
-  hand-named finding is now refused to a confined agent.
+  `research::topic::layout::finding_path`: it admits only an indexed
+  `[a-z0-9-]` stem, so a hand-named finding is now refused to a confined
+  agent.
 - 🔒 **Accepted residual risk** — the guard confines each role by path
   shape, not by assigned path, so a compromised researcher could forge
   another pair's not-yet-spawned note. The run ledger detects most such
@@ -190,6 +204,7 @@ today's single-researcher shape, now stamped `depth: 1`.
   navigation of level notes (0278, 0284), eval coverage of the orchestration
   contracts (0161), re-measuring the guard's 50 ms p95 budget under
   recursion.
-- Suggested reading order: `cli/research/src/stem.rs` / `lineage.rs`, then
-  `tree.rs`, then `run_ledger.rs` / `spawn_window.rs`, then
-  `confinement.rs`, then `skills/research/research-topic/SKILL.md`.
+- Suggested reading order: `cli/research/src/topic/layout/`, then
+  `topic/tree.rs`, then `topic/plan.rs`, then `conduct/window.rs` /
+  `ledger.rs`, then `confinement.rs`, then
+  `skills/research/research-topic/SKILL.md`.
