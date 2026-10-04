@@ -12,9 +12,9 @@ relates_to: ["work-item:0280", "work-item:0282", "work-item:0295"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/136"
 pr_number: 136
 tags: ["research", "skills", "deep-research"]
-revision: "1517c709352fcd37619be0ec1af13e2d09e1be7a"
+revision: "ab62fa3f5cd2ef4fd99be5331cbe11491c45e1aa"
 repository: "accelerator"
-last_updated: "2026-10-04T10:10:37+00:00"
+last_updated: "2026-10-04T12:26:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -150,7 +150,7 @@ and each topic-research concept is modelled once.
 
 - [x] `mise run check` exits 0 on the branch tip
 - [x] Full `mise run` (default task) exits 0 on the branch tip after the
-      crate restructure: 4447 CLI tests, 2611 frontend tests
+      schema-row change: 4450 CLI tests, 2611 frontend tests
       and 355 visualiser e2e specs pass, alongside the tree derivation, caps,
       dedupe, lineage ordering, level barrier, index retention, run ledger,
       guard role and profile contract suites
