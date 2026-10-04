@@ -87,7 +87,7 @@
   itself.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   reports each pair's `stage`, the level-note `nodes` it still needs or the
-  `notes` its composer reads, `trims` and `shallower` pairs; `--limit`,
+  `notes` its composer reads, `trims` and `shallow` findings; `--limit`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
   and the new `end-run` verb closes one. A run keeps a transient
   `<set>/.conduct-run.json`, removed on completion and safe to delete after an

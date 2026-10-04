@@ -173,7 +173,7 @@ fn pair(question: &str, profile: &str, path: &str) -> Value {
         "question": question,
         "profile": profile,
         "path": path,
-        "stage": "research",
+        "stage": "single_pass",
         "spawn": stem,
     })
 }
@@ -209,9 +209,9 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "warnings": [],
             "depth": 1,
             "remaining": 0,
-            "unaccepted": [],
+            "unfinished": [],
             "trims": [],
-            "shallower": [],
+            "shallow": [],
         })
     );
     Ok(())
@@ -243,9 +243,9 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "warnings": [],
             "depth": 1,
             "remaining": 0,
-            "unaccepted": [],
+            "unfinished": [],
             "trims": [],
-            "shallower": [],
+            "shallow": [],
         })
     );
     Ok(())
@@ -555,7 +555,7 @@ fn a_missing_level_two_note_holds_back_level_three() -> Result<(), TestError> {
             "question": "A?",
             "profile": "web",
             "path": absolute(&project, &format!("{TOPICS}/s/findings/01-a-web.md"))?,
-            "stage": "deepen",
+            "stage": "research_nodes",
             "nodes": [{
                 "lineage": "2-2",
                 "level": 2,
@@ -726,7 +726,7 @@ fn depth_one_composes_from_the_root_note_alone() -> Result<(), TestError> {
 }
 
 #[test]
-fn a_legacy_finding_is_answered_and_shallower_at_depth_three(
+fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     project.write(
@@ -734,7 +734,7 @@ fn a_legacy_finding_is_answered_and_shallower_at_depth_three(
         &finding("01-a-web", "A?", ""),
     )?;
 
-    for (depth, shallower) in [
+    for (depth, shallow) in [
         ("3", json!([{"stem": "01-a-web", "depth": 1}])),
         ("1", json!([])),
     ] {
@@ -749,9 +749,9 @@ fn a_legacy_finding_is_answered_and_shallower_at_depth_three(
                 "warnings": [],
                 "depth": depth.parse::<u32>()?,
                 "remaining": 0,
-                "unaccepted": [],
+                "unfinished": [],
                 "trims": [],
-                "shallower": shallower,
+                "shallow": shallow,
             }),
             "--depth {depth}"
         );
@@ -876,7 +876,7 @@ fn continued(
 }
 
 #[test]
-fn an_attempted_node_left_invalid_is_reported_unaccepted_on_the_next_plan_of_its_run(
+fn an_attempted_node_left_invalid_is_reported_unfinished_on_the_next_plan_of_its_run(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     let (_, run) = started(&project, &["--depth", "2"])?;
@@ -889,7 +889,7 @@ fn an_attempted_node_left_invalid_is_reported_unaccepted_on_the_next_plan_of_its
 
     assert_eq!(plan["pairs"], json!([]));
     assert_eq!(
-        plan["unaccepted"],
+        plan["unfinished"],
         json!([{
             "spawn": "01-a-web:1",
             "rejected": "fails validation: MISSING-EXTRA on follow_ups",
@@ -1078,7 +1078,7 @@ fn a_run_keeps_a_failed_pairs_stem_after_a_later_pair_writes(
     let next = continued(&project, &run, &["--spawned", "0"])?;
 
     assert_eq!(
-        next["unaccepted"],
+        next["unfinished"],
         json!([{"spawn": "01-a-web", "rejected": null}])
     );
     assert_eq!(next["unexpected"], json!([]));

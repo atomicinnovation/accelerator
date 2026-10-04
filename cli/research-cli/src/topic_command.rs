@@ -408,7 +408,7 @@ impl PlanOutput<'_> {
                 })
             })
             .collect();
-        let unaccepted: Vec<_> = self
+        let unfinished: Vec<_> = self
             .window
             .unfinished
             .iter()
@@ -434,7 +434,7 @@ impl PlanOutput<'_> {
                 })
             })
             .collect();
-        let shallower: Vec<_> = plan
+        let shallow: Vec<_> = plan
             .shallow
             .iter()
             .map(|finding| {
@@ -451,9 +451,9 @@ impl PlanOutput<'_> {
             "warnings": self.warnings,
             "depth": self.depth.levels(),
             "remaining": self.window.remaining,
-            "unaccepted": unaccepted,
+            "unfinished": unfinished,
             "trims": trims,
-            "shallower": shallower,
+            "shallow": shallow,
         });
         if let Some(ledger) = self.ledger {
             rendered["run"] = json!(ledger.run().to_string());
@@ -481,7 +481,7 @@ impl PlanOutput<'_> {
         };
         match &outstanding.stage {
             Stage::SinglePass => {
-                rendered["stage"] = json!("research");
+                rendered["stage"] = json!("single_pass");
                 rendered["spawn"] = json!(spawn);
             }
             Stage::Compose(lineages) => {
@@ -493,7 +493,7 @@ impl PlanOutput<'_> {
                 rendered["spawn"] = json!(spawn);
             }
             Stage::ResearchNodes(nodes) => {
-                rendered["stage"] = json!("deepen");
+                rendered["stage"] = json!("research_nodes");
                 rendered["nodes"] = nodes
                     .iter()
                     .map(|node| self.node(note(&node.lineage), node))

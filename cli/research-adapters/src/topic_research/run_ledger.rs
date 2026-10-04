@@ -110,7 +110,7 @@ fn ledger_to(ledger: &RunLedger) -> Value {
         .iter()
         .map(|(question, index)| (question.as_str().to_owned(), json!(index)))
         .collect();
-    let notes_seen: Map<String, Value> = memory
+    let seen_notes: Map<String, Value> = memory
         .seen
         .notes
         .iter()
@@ -122,24 +122,27 @@ fn ledger_to(ledger: &RunLedger) -> Value {
             "number": memory.pending.number(),
             "spawns": spawns(&mut memory.pending.spawns().iter()),
         },
-        "pins": claims,
+        "claims": claims,
         "attempted": spawns(&mut memory.attempted.iter()),
         "just_acknowledged": spawns(&mut memory.just_acknowledged.iter()),
-        "notes_seen": notes_seen,
-        "answered_seen": memory
-            .seen
-            .answered
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
+        "seen": {
+            "notes": seen_notes,
+            "answered": memory
+                .seen
+                .answered
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        },
     })
 }
 
 fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
     let pending = value.get("pending")?;
+    let seen = value.get("seen")?;
     Some(RunLedger::from_parts(
         RunId::parse(value.get("run")?.as_str()?)?,
-        claims_from(value.get("pins")?, unicode)?,
+        claims_from(value.get("claims")?, unicode)?,
         RunMemory {
             pending: PendingBatch::new(
                 number(pending.get("number")?)?,
@@ -152,9 +155,9 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
                 .into_iter()
                 .collect(),
             seen: Observed {
-                notes: notes_seen_from(value.get("notes_seen")?)?,
-                answered: value
-                    .get("answered_seen")?
+                notes: seen_notes_from(seen.get("notes")?)?,
+                answered: seen
+                    .get("answered")?
                     .as_array()?
                     .iter()
                     .map(|stem| Stem::parse(stem.as_str()?))
@@ -193,7 +196,7 @@ fn claims_from(
     Some(claims)
 }
 
-fn notes_seen_from(value: &Value) -> Option<BTreeMap<NoteRef, Digest>> {
+fn seen_notes_from(value: &Value) -> Option<BTreeMap<NoteRef, Digest>> {
     value
         .as_object()?
         .iter()
@@ -343,11 +346,10 @@ mod tests {
         json!({
             "run": "r1",
             "pending": {"number": 0, "spawns": []},
-            "pins": {"A?": 1},
+            "claims": {"A?": 1},
             "attempted": [],
             "just_acknowledged": [],
-            "notes_seen": {},
-            "answered_seen": [],
+            "seen": {"notes": {}, "answered": []},
         })
     }
 
@@ -389,22 +391,53 @@ mod tests {
     }
 
     #[test]
+    fn a_written_ledger_names_its_fields_after_the_memory_it_keeps(
+    ) -> Result<(), TestError> {
+        let store = StubStore::default();
+        write_run_ledger(Path::new(SET), &full_ledger(), &store)?;
+        let written: serde_json::Value = serde_json::from_str(
+            &store.read(Path::new(LEDGER))?.ok_or("no ledger")?,
+        )?;
+        let keys = |value: &serde_json::Value| -> Vec<String> {
+            value
+                .as_object()
+                .map(|fields| fields.keys().cloned().collect())
+                .unwrap_or_default()
+        };
+        assert_eq!(
+            keys(&written),
+            [
+                "attempted",
+                "claims",
+                "just_acknowledged",
+                "pending",
+                "run",
+                "seen"
+            ]
+        );
+        assert_eq!(keys(&written["seen"]), ["answered", "notes"]);
+        assert_eq!(written["claims"], json!({"A ?": 3}));
+        Ok(())
+    }
+
+    #[test]
     fn a_ledger_field_outside_its_value_type_is_corrupt() {
         let breaches = [
-            ("run", json!("a b")),
-            ("pending", json!({"number": -1, "spawns": []})),
-            ("pending", json!({"number": 0, "spawns": ["03-a:2-0"]})),
-            ("pins", json!({"A?": "one"})),
-            ("attempted", json!(["03-A"])),
-            ("just_acknowledged", json!([":1"])),
-            ("notes_seen", json!({"03-a-web": "00"})),
-            ("notes_seen", json!({"03-a-web:1": "zz"})),
-            ("notes_seen", json!({"03-a-web:1": "ab".repeat(31)})),
-            ("answered_seen", json!(["03-a-web:1"])),
+            ("/run", json!("a b")),
+            ("/pending", json!({"number": -1, "spawns": []})),
+            ("/pending", json!({"number": 0, "spawns": ["03-a:2-0"]})),
+            ("/claims", json!({"A?": "one"})),
+            ("/attempted", json!(["03-A"])),
+            ("/just_acknowledged", json!([":1"])),
+            ("/seen", json!([])),
+            ("/seen/notes", json!({"03-a-web": "00"})),
+            ("/seen/notes", json!({"03-a-web:1": "zz"})),
+            ("/seen/notes", json!({"03-a-web:1": "ab".repeat(31)})),
+            ("/seen/answered", json!(["03-a-web:1"])),
         ];
         for (field, value) in breaches {
             let mut ledger = well_formed();
-            ledger[field] = value.clone();
+            *ledger.pointer_mut(field).expect("a ledger field") = value.clone();
             assert!(
                 matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
                 "{field}: {value}"
@@ -413,9 +446,9 @@ mod tests {
     }
 
     #[test]
-    fn a_pins_key_that_is_not_already_normalised_is_corrupt() {
+    fn a_claims_key_that_is_not_already_normalised_is_corrupt() {
         let mut ledger = well_formed();
-        ledger["pins"] = json!({"A  ?": 1});
+        ledger["claims"] = json!({"A  ?": 1});
         assert!(matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)));
     }
 

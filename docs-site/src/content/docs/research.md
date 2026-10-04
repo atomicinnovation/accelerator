@@ -396,17 +396,17 @@ consumers ignore fields they do not know. It exits `1` with
 The JSON then also carries:
 
 - `depth`, the depth planned for;
-- each pair's `stage`: `research` (one researcher writes the finding),
-  `deepen` (its missing `nodes`, each with `lineage`, `level`, `question`,
-  `cap`, `id`, absolute `path`, `known_questions`, and a `rejected` reason
-  when the note on disk was refused) or `compose` (the `notes` the
-  composer reads, as absolute paths in lineage order);
-- a `spawn` ref on every `research` or `compose` pair and every node;
+- each pair's `stage`: `single_pass` (one researcher writes the finding),
+  `research_nodes` (its missing `nodes`, each with `lineage`, `level`,
+  `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
+  `rejected` reason when the note on disk was refused) or `compose` (the
+  `notes` the composer reads, as absolute paths in lineage order);
+- a `spawn` ref on every `single_pass` or `compose` pair and every node;
 - `trims`, one `{stem, lineage, recorded, cap}` per note that recorded more
   follow-ups than its cap, each also printed to stderr as a `warning:` line;
-- `shallower`, each answered pair whose finding was researched below
-  `--depth`, which is not deepened again;
-- `remaining`, the spawns held back by `--limit N`, and `unaccepted`, each
+- `shallow`, each retained finding researched below `--depth`, which is
+  not deepened again;
+- `remaining`, the spawns held back by `--limit N`, and `unfinished`, each
   `{spawn, rejected}` a run attempted that is still outstanding.
 
 The run flags exist for `conduct`. `--start` begins a run and returns its

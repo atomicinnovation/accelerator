@@ -265,18 +265,18 @@ def test_research_topic_loads_the_level_note_template() -> None:
     assert (
         "config template topic-research --kind level-note"
         in _research_topic_prose()
-    ), "conduct injects the level-note template into deepen spawns"
+    ), "conduct injects the level-note template into node spawns"
 
 
-def test_research_topic_routes_deepen_nodes_to_the_level_note_outputter() -> (
-    None
-):
-    deepen = _section(
-        _research_topic_prose(), "**a `deepen` node**", "**a `compose` pair**"
+def test_research_topic_routes_nodes_to_the_level_note_outputter() -> None:
+    node = _section(
+        _research_topic_prose(),
+        "**a node of a `research_nodes` pair**",
+        "**a `compose` pair**",
     )
-    assert (
-        "skills/research/outputters/level-note-outputter/SKILL.md" in deepen
-    ), "a deepen node must be spawned with the level-note outputter"
+    assert "skills/research/outputters/level-note-outputter/SKILL.md" in node, (
+        "a node must be spawned with the level-note outputter"
+    )
 
 
 @pytest.mark.parametrize(
