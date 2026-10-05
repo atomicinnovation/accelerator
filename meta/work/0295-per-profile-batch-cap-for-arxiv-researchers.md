@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "arxiv"]
 last_updated: "2026-10-05T10:21:31+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-882"
 ---
 
 # 0295: Per-Profile Batch Cap for arXiv Researchers
