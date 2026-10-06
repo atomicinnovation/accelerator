@@ -1,0 +1,50 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+About to apply 1 migration(s):
+  0001-rename-tickets-to-work — Rename tickets/work-item terminology in meta/ and config files
+    To skip: accelerator migrate --skip 0001-rename-tickets-to-work
+
+Migrations rewrite files and may make repo-wide changes; commit
+your working tree before running so VCS revert is available as
+rollback. The pre-flight will refuse to run on a dirty tree
+unless ACCELERATOR_MIGRATE_FORCE=1 is set.
+
+--- stderr
+[0001-rename-tickets-to-work] running
+Error: malformed frontmatter in <ROOT>/repository/.claude/accelerator.md — cannot proceed.
+Fix the config file and re-run /accelerator:migrate.
+[0001-rename-tickets-to-work] failed
+Error: malformed frontmatter in <ROOT>/repository/.claude/accelerator.md — cannot proceed.
+Fix the config file and re-run /accelerator:migrate.
+--- observed
+meta/reviews/tickets/foo-review-1.md:
+---
+type: work-item-review
+---
+
+# foo-review-1
+meta/tickets/0001-foo.md:
+---
+ticket_id: 0001
+---
+
+# 0001: Foo
+.claude/accelerator.md:
+---
+paths: [unclosed
+---
+.accelerator/state/migrations-applied:
+0002-rename-work-items-with-project-prefix
+0003-relocate-accelerator-state
+0004-restructure-meta-research-into-subject-subcategories
+0005-rename-work-item-type-to-kind
+0006-canonicalise-work-item-id-and-author
+0007-unify-meta-corpus-frontmatter
+0008-canonical-frontmatter-quoting
+0009-split-work-key-from-tracker-scope-key
+0010-strip-research-title-prefix
+.accelerator/state/migrations-run-paths.txt:
+
+.accelerator/state/migrations-run.id:
+<HEAD>

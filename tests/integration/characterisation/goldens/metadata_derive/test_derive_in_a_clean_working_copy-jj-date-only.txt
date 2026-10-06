@@ -1,0 +1,8 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+Current Date/Time (UTC): <NOW>
+Date For Filename: <STAMP>
+Current Revision: <WORKING_COPY>
+Repository Name: repository
+--- stderr

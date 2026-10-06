@@ -1,0 +1,5 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+pull `max_pages` must be a positive integer or `unlimited` (got `0`). Fix the `pull` block in .accelerator/config.md.

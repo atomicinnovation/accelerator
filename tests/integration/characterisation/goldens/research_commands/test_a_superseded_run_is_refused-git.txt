@@ -1,0 +1,8 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+E_TOPIC_RESEARCH_RUN_SUPERSEDED: run r1 was superseded by run r2; another conduct run now owns this set, so let it finish
+--- observed
+meta/research/topics/s/.conduct-run.json:
+{"run": "r2", "pending": {"number": 0, "spawns": []}, "claims": {"A?": 1}, "attempted": [], "just_acknowledged": [], "seen": {"notes": {}, "answered": []}}

@@ -1,0 +1,5 @@
+exit: 74
+loopback_requests: 0
+--- stdout
+--- stderr
+work.integration names 'linear', which is wired but not usable — its configuration or credentials are missing or refused: E_CONSENT_KEY_TRACKED: linear.token_cmd in <ROOT>/repository/.accelerator/config.local.md is refused — the file is tracked by version control, so the repository chose the value; untrack it

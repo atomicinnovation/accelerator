@@ -1,0 +1,5 @@
+exit: 105
+loopback_requests: 0
+--- stdout
+--- stderr
+E_CREATE_NO_CATALOGUE: no Linear team configured — set linear.team_id, or run /init-linear to write catalogue.json

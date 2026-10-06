@@ -310,17 +310,22 @@ binaries and must pass unchanged at the end.
   `tasks/shared/measurement.py::ceiling_directories`, a fixture identity,
   `LC_ALL=C`, `TZ=UTC`. An ancestor-repository guard, because gix ignores
   `GIT_CEILING_DIRECTORIES`.
-- `ACCELERATOR_RELEASE_BASE_URL` always points at the loopback server, which
-  refuses release downloads and counts the attempts. No case reaches the
-  network.
+- `ACCELERATOR_RELEASE_BASE_URL` and every `ACCELERATOR_*_API_URL` always
+  point at one `http://` loopback server that counts the requests it
+  receives. The production release fetcher refuses a non-`https` URL before
+  any network I/O (`fetcher.rs:236-240`), so release dispatch never reaches
+  it; the API overrides need the debug builds' `test-loopback` seam.
+- `ACCELERATOR_LOG=off` in every case. The launcher logs INFO tracing with
+  timestamps and module targets by default, which a module move would change;
+  user-facing text goes through `eprintln!`, which this leaves intact.
 - `repository` fixture parametrised over `git` and `jj` (non-colocated
   `jj git init`), with `track(path)` and `untrack(path)`. git uses `git add`;
   jj uses `jj commit`, with `.accelerator/.gitignore` listing the file for
   untracked.
-- `Run(code, stdout, stderr, release_fetches)` and
-  `assert_matches_golden(name, run, masks)`. `release_fetches` is the
-  loopback server's refused-release count for the case, so it is golden
-  content, not a separate assertion.
+- `Run(code, stdout, stderr, loopback_requests, observations)` and
+  `assert_matches_golden(name, run, masks)`. `loopback_requests` is the
+  loopback server's request count for the case, so it is golden content, not
+  a separate assertion.
   Goldens live under `tests/integration/characterisation/goldens/`, and
   `UPDATE_GOLDEN=1` regenerates them. A missing golden fails, and
   `UPDATE_GOLDEN` is refused when `CI` is set. Masks replace volatile
@@ -360,11 +365,10 @@ would make each case wait five minutes. Timeout text is pinned by the moved
 `store::lock` tests, which use short `LockOptions`.
 
 The "no `accelerator-vcs` available" summary cases record today's `Unchecked`
-output deterministically: the fetch is refused by the loopback release URL,
-and each golden records one refused release fetch. Phase 7 changes exactly
-these four goldens (tracked and untracked, git and jj) from the "was not
-checked" note to the in-process answer: a warning when tracked, nothing when
-untracked, and zero release fetches. The diff is confined to golden files and
+output deterministically: the fetcher refuses the `http://` loopback release
+URL before any network I/O. Phase 7 changes exactly these four goldens
+(tracked and untracked, git and jj) from the "was not checked" note to the
+in-process answer: a warning when tracked, nothing when untracked. The diff is confined to golden files and
 is reviewed in Phase 7; no test code changes.
 
 #### 3. Wiring
@@ -374,22 +378,34 @@ is reviewed in Phase 7; no test code changes.
 **Changes**: a `test:integration:characterisation` leaf, added to the
 `test:integration` roll-up and to `_LAUNCHER_DEPENDENTS`.
 
-`build:cli:dev` builds only `accelerator`, `accelerator-vcs`,
-`accelerator-corpus` and `accelerator-research`. The suite also runs the
-`jira`, `linear`, `collaboration`, `work`, `design` and `migrate`
-sub-binaries. Proposed, awaiting the author's confirmation: the leaf depends
-on a build of the launcher and every dispatched sub-binary of its own, and
-`build:cli:dev` stays as it is for the suites that already use it.
+Debug builds are modelled per binary and composed into groups (decided with
+the author):
+
+- **Per-binary leaves:** `build:cli:dev` builds the launcher alone.
+  `build:cli:<token>:dev` builds one dispatched sub-binary, for every token in
+  `DISPATCHED_SUBBINARIES` except `visualiser`, which keeps
+  `build:server:dev`.
+- **Group leaves:** `build:cli:characterisation:dev` runs one `cargo build`
+  over the launcher and every sub-binary, so its members compile in one
+  parallel pass instead of queueing on the target lock.
+- **Loopback seam:** a binary whose package declares `test-loopback`
+  (`jira-cli`, `linear-cli`, `accelerator-research`) is always built with it
+  in debug, in every leaf and group. Two leaves building one
+  `target/debug/<bin>` with different features would overwrite each other.
+  A compile guard already refuses the feature in a release build.
+- **Existing suites:** each depends on the leaves for the binaries it runs:
+  conformance on the launcher and `corpus`, hooks on the launcher, `vcs` and
+  `research`, research on `research`, visualiser on the launcher.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- [ ] Suite passes against today's binaries: `mise run test:integration:characterisation`
-- [ ] No case reaches the network: only the four "no `accelerator-vcs`" goldens record a non-zero `release_fetches`
-- [ ] VCS parity: a committed `test_every_case_runs_in_git_and_jj` collection test asserts that every case not marked `vcs_specific` has both a `git` and a `jj` parameter id
-- [ ] Task wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] `mise run` exits 0
+- [x] Suite passes against today's binaries: `mise run test:integration:characterisation`
+- [x] No case reaches the network: every URL override points at the loopback server, and each golden records its request count
+- [x] VCS parity: a committed `test_every_case_runs_in_git_and_jj` collection test asserts that every case not marked `vcs_specific` has both a `git` and a `jj` parameter id
+- [x] Task wiring pinned: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -929,8 +945,7 @@ libraries.
 
 The four "no `accelerator-vcs` available" summary goldens (tracked and
 untracked, git and jj) lose the "was not checked" note. The tracked ones gain
-the tracked-file warning; the untracked ones carry nothing. Their loopback
-refused-release count drops to zero. Regenerate those four alone and review
+the tracked-file warning; the untracked ones carry nothing. Regenerate those four alone and review
 the diff. No other golden changes.
 
 ### Success Criteria:
@@ -1780,12 +1795,53 @@ today through `consent-adapters` → `vcs-adapters`.
   is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
   packages, so only `source-map-js` went to 1.2.2, in a commit of its own
   ahead of Phase 1.
-- Next: Phase 2, pending the author's confirmation of the build proposal in
-  its Wiring section.
+- Phase 2 is complete. Debug builds were split into per-binary and group
+  leaves with the author (Wiring section).
+
+### Phase 2 characterisation coverage
+
+534 cases across 11 behaviour modules, each run in git and jj unless marked
+`vcs_specific`.
+
+| 0299 bullet or rerouted edge | Module and case |
+|---|---|
+| Six consent keys, each non-launcher root, tracked and untracked | `test_consent_reads.py`: `jira`, `linear`, `collaboration`, `research`, `work sync --preview` (jira and linear), `design executor ping` |
+| Launcher root resolution, nested repository | `test_summary_tracking.py::test_summary_in_a_nested_git_repository` |
+| SessionStart tracking: tracked, untracked, outside, corrupt index, colocated, with and without `accelerator-vcs` | `test_summary_tracking.py` |
+| `accelerator config` dump of tracker blocks, multi-fault order | `test_config_dump.py` |
+| `jira-cli`/`linear-cli` block parsing; `work sync` validation | `test_tracker_blocks.py` |
+| `corpus metadata derive`, clean, dirty, unborn, outside | `test_metadata_derive.py` |
+| `frontmatter validate` over every violation class and root class | `test_frontmatter_validate.py` |
+| `work-cli` author, create/update locks, `sync --preview`, `list` | `test_work_commands.py` |
+| `research-adapters` → `corpus-adapters`: `parse`, `validate_path`, `validate_text`, ledger store | `test_research_commands.py` |
+| `jira-client`/`linear-client` → `corpus-adapters` (lock) | `test_tracker_caches.py` |
+| `collaboration` → `vcs` (`OriginRemote`) | `test_collaboration.py` |
+| `migrate` → `document`; `migrate-adapters` → config, VCS, corpus and work adapters | `test_migrations.py`: m0001 root classes, m0008 re-render, comment loss, baseline realignment (relative and absolute `paths.integrations`), run-lock refusal, full registry |
+
+Deviations from the Phase 2 text, found while writing the cases:
+
+- **Release fetches:** the production fetcher refuses `http://` before any
+  I/O, so the loopback never sees a release request. `release_fetches`
+  became `loopback_requests`, counting every overridden URL.
+- **arXiv lock:** it is a kernel `flock`, with no PID sentinel to reclaim.
+  The case holds the lock and pins the contention answer instead.
+- **`sync_author` lock:** taken only when a sync creates an item from the
+  remote, which needs a tracker response `work-cli` cannot be pointed at
+  offline. `work create` takes the same lockdir through the same primitive.
+- ⚠️ **Working-copy status:** `work sync` consults it only for pulls, and
+  `work list` only once a tracker resolves and answers. `work-cli` has no
+  API-URL override, so neither is reachable offline without real network.
+  `VcsWorkingCopyStatus` stays covered by its unit tests and, from Phase 5,
+  by the `RepositoryProbe` contract tests in git and jj. Migrate's preflight,
+  which reads `working_copy_state` through `VcsWorkingCopy`, is characterised.
+- **Launcher `TEMP_PREFIX`:** used only when a fetched binary is installed,
+  which no offline case reaches. The Phase 4 constant tests guard it.
+- **Golden findings worth knowing:** `jira-cli` and `linear-cli` resolve
+  ceilings without validating, so unknown keys pass them; `work update` keeps
+  `last_updated`; a failed migrate run records git's `HEAD` but jj's `@-`.
 
 ### Still to record
 
-- Characterisation coverage map (Phase 2).
 - Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
 - Author decisions, if any gate tripped.

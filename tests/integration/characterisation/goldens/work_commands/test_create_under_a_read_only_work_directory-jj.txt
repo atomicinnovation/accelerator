@@ -1,0 +1,5 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+Error: could not acquire the work-item creation lock: cannot write under '<REPOSITORY>/meta/work/.accelerator-work-create.lockdir': not writable

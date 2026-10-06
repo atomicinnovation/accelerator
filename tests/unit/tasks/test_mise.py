@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from tasks.shared.dev_builds import DEV_BUILDS
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISE_TOML = REPO_ROOT / "mise.toml"
 
@@ -53,17 +55,22 @@ _INTEGRATION_PREFIX = "test:integration:"
 # credentials, and network egress.
 _CONTRACT_LANE = "test:integration:tracker-contract"
 
-# Integration tasks that reach the compiled launcher and so MUST carry the
-# build:cli:dev edge. conformance drives the corpus validator through the
-# launcher via accelerator_env(corpus_bin=True); hooks dispatches
-# accelerator-vcs through the launcher directly (ACCELERATOR_VCS_BIN).
-_LAUNCHER_DEPENDENTS = [
-    "test:integration:conformance",
-    "test:integration:hooks",
-    "test:integration:research",
-    "test:integration:research-exhaustive",
-    "test:integration:visualiser",
-]
+# Integration tasks that run compiled cli/ binaries, each with exactly the debug
+# builds it needs. A lane whose builds are absent runs against a stale or
+# missing binary; a lane with extra builds contends on cargo's target lock for
+# nothing.
+_CLI_DEV_BUILDS = {
+    "test:integration:conformance": {_LAUNCHER, "build:cli:corpus:dev"},
+    "test:integration:hooks": {
+        _LAUNCHER,
+        "build:cli:vcs:dev",
+        "build:cli:research:dev",
+    },
+    "test:integration:research": {"build:cli:research:dev"},
+    "test:integration:research-exhaustive": {"build:cli:research:dev"},
+    "test:integration:visualiser": {_LAUNCHER},
+    "test:integration:characterisation": {"build:cli:characterisation:dev"},
+}
 
 # Integration tasks that deliberately need no prebuilt launcher, each with a
 # reason. Every test:integration:* task must appear in exactly one of the two.
@@ -145,32 +152,56 @@ def test_gate_wired_into_lint_check(mise, gate):
     )
 
 
-@pytest.mark.parametrize("task", _LAUNCHER_DEPENDENTS)
-def test_launcher_dependent_carries_the_build_edge(mise, task):
-    assert _LAUNCHER in _task_depends(mise, task), (
-        f"{task} reaches the compiled launcher but does not depend on "
-        f"{_LAUNCHER} — it would run against a stale or absent binary"
-    )
+def _cli_dev_builds(mise: dict, task: str) -> set[str]:
+    return {
+        dependency
+        for dependency in _task_depends(mise, task)
+        if dependency.startswith("build:cli:") and dependency.endswith("dev")
+    }
+
+
+@pytest.mark.parametrize("task", sorted(_CLI_DEV_BUILDS))
+def test_a_lane_depends_on_exactly_the_cli_builds_it_runs(mise, task):
+    assert _cli_dev_builds(mise, task) == _CLI_DEV_BUILDS[task]
 
 
 @pytest.mark.parametrize("task", sorted(_NO_LAUNCHER_NEEDED))
 def test_task_needing_no_launcher_omits_the_build_edge(mise, task):
-    assert _LAUNCHER not in _task_depends(mise, task), (
+    assert not _cli_dev_builds(mise, task), (
         f"{task} is recorded as needing no prebuilt launcher "
-        f"({_NO_LAUNCHER_NEEDED[task]}) but depends on {_LAUNCHER}"
+        f"({_NO_LAUNCHER_NEEDED[task]}) but depends on a cli dev build"
     )
 
 
 def test_every_integration_task_declares_its_launcher_need(mise):
-    classified = set(_LAUNCHER_DEPENDENTS) | set(_NO_LAUNCHER_NEEDED)
+    classified = set(_CLI_DEV_BUILDS) | set(_NO_LAUNCHER_NEEDED)
     assert _integration_tasks(mise) == classified, (
         "every test:integration:* task must appear in exactly one of "
-        "_LAUNCHER_DEPENDENTS or _NO_LAUNCHER_NEEDED"
+        "_CLI_DEV_BUILDS or _NO_LAUNCHER_NEEDED"
     )
 
 
 def test_the_two_launcher_sets_are_disjoint():
-    assert not set(_LAUNCHER_DEPENDENTS) & set(_NO_LAUNCHER_NEEDED)
+    assert not set(_CLI_DEV_BUILDS) & set(_NO_LAUNCHER_NEEDED)
+
+
+def _dev_build_leaf(group: str) -> str:
+    return _LAUNCHER if group == "launcher" else f"build:cli:{group}:dev"
+
+
+@pytest.mark.parametrize("group", sorted(DEV_BUILDS))
+def test_every_dev_build_has_a_leaf_running_it(mise, group):
+    leaf = mise["tasks"][_dev_build_leaf(group)]
+    assert leaf["run"] == f"invoke build.cli-dev --group {group}"
+
+
+def test_every_cli_dev_leaf_names_a_dev_build(mise):
+    leaves = {
+        name
+        for name in mise["tasks"]
+        if name.startswith("build:cli:") and name.endswith(":dev")
+    } | {_LAUNCHER}
+    assert leaves == {_dev_build_leaf(group) for group in DEV_BUILDS}
 
 
 # test:integration.depends is curated rather than derived, so membership is an

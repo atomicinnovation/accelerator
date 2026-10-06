@@ -1,0 +1,5 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+{"depth":2,"items":[{"complete":true,"line":6,"question":"A?"},{"complete":false,"line":7,"question":"B?"},{"complete":false,"line":8,"question":"C?"}],"pairs":[{"nodes":[{"cap":4,"id":"s.05-b-web.1","known_questions":["B?"],"level":1,"lineage":"1","path":"<ROOT>/repository/meta/research/topics/s/findings/05-b-web.levels/1.md","question":"B?","spawn":"05-b-web:1"}],"path":"<ROOT>/repository/meta/research/topics/s/findings/05-b-web.md","profile":"web","question":"B?","stage":"research_nodes"},{"nodes":[{"cap":2,"id":"s.04-c-web.2-1","known_questions":["C?","Further?"],"level":2,"lineage":"2-1","path":"<ROOT>/repository/meta/research/topics/s/findings/04-c-web.levels/2-1.md","question":"Further?","rejected":"fails validation: MISSING-EXTRA on follow_ups","spawn":"04-c-web:2-1"}],"path":"<ROOT>/repository/meta/research/topics/s/findings/04-c-web.md","profile":"web","question":"C?","stage":"research_nodes"}],"remaining":0,"shallow":[],"skipped":[],"trims":[],"unfinished":[],"warnings":[]}
+--- stderr

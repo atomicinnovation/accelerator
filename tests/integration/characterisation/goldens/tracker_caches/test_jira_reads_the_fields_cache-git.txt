@@ -1,0 +1,14 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+[
+  {
+    "custom": true,
+    "id": "customfield_10016",
+    "name": "Story Points",
+    "schema": {
+      "type": "number"
+    }
+  }
+]
+--- stderr

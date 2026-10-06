@@ -1,0 +1,32 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+<ROOT>/repository/meta/plans/2026-01-01-missing-provenance.md: MISSING-PROVENANCE — anchored type missing provenance field 'revision'
+<ROOT>/repository/meta/plans/2026-01-01-missing-provenance.md: MISSING-PROVENANCE — anchored type missing provenance field 'repository'
+<ROOT>/repository/meta/research/topics/subject/brief.md: UNKNOWN-KIND — kind: 'bogus' is not a known kind for type 'topic-research'
+<ROOT>/repository/meta/work/0001-valid.md: DUPLICATE-ID — 'work-item:0001' is claimed by more than one file in the corpus
+<ROOT>/repository/meta/work/0002-invalid-type.md: INVALID-TYPE — type: 'bogus' is not a schema type
+<ROOT>/repository/meta/work/0003-missing-title.md: MISSING-BASE-FIELD — required base field 'title' absent
+<ROOT>/repository/meta/work/0004-unquoted-id.md: UNQUOTED-ID — id: value is not a quoted string
+<ROOT>/repository/meta/work/0005-bad-schema-version.md: BAD-SCHEMA-VERSION — schema_version: is not the bare integer 1
+<ROOT>/repository/meta/work/0006-bad-timestamp.md: BAD-TIMESTAMP — date: '2026-01-01' is not a full ISO-8601 timestamp
+<ROOT>/repository/meta/work/0007-bad-status.md: BAD-STATUS — status: 'nonexistent' not in vocab (draft | ready | in-progress | review | done | blocked | abandoned)
+<ROOT>/repository/meta/work/0008-provenance-on-nonanchored.md: PROVENANCE-ON-NONANCHORED — non-anchored type carries provenance field 'revision'
+<ROOT>/repository/meta/work/0009-forbidden-provenance.md: FORBIDDEN-PROVENANCE — legacy provenance field 'git_commit' present
+<ROOT>/repository/meta/work/0010-forbidden-own-id.md: FORBIDDEN-OWN-ID — forbidden own-id key 'work_item_id' present
+<ROOT>/repository/meta/work/0011-obsolete-legacy-key.md: OBSOLETE-LEGACY-KEY — obsolete legacy linkage key 'ticket' present (use id:/typed references)
+<ROOT>/repository/meta/work/0012-missing-extra.md: MISSING-EXTRA — required extra 'priority' absent
+<ROOT>/repository/meta/work/0013-empty-placeholder.md: EMPTY-PLACEHOLDER — key 'relates_to' emitted empty (should be omitted)
+<ROOT>/repository/meta/work/0014-bad-linkage-shape.md: BAD-LINKAGE-SHAPE — parent: unquoted value 'work-item:0001' is not a well-formed "doc-type:id" reference
+<ROOT>/repository/meta/work/0015-dangling-ref.md: DANGLING-REF — parent: 'work-item:9999' resolves to no artifact in the corpus
+<ROOT>/repository/meta/work/0016-duplicate-id.md: DUPLICATE-ID — 'work-item:0001' is claimed by more than one file in the corpus
+<ROOT>/repository/meta/work/0017-unquoted-string.md: UNQUOTED-STRING — author: value must be a double-quoted string
+<ROOT>/repository/meta/work/0018-absent.md: NO-FENCE — no frontmatter fence at file head
+<ROOT>/repository/meta/work/0019-unclosed.md: NO-FENCE — no frontmatter fence at file head
+<ROOT>/repository/meta/work/0020-sequence-root.md: NO-FENCE — no frontmatter fence at file head
+<ROOT>/repository/meta/work/0021-scalar-root.md: NO-FENCE — no frontmatter fence at file head
+<ROOT>/repository/meta/work/0022-null-root.md: INVALID-TYPE — type: '<absent>' is not a schema type
+<ROOT>/repository/meta/work/0023-empty-root.md: INVALID-TYPE — type: '<absent>' is not a schema type
+<ROOT>/repository/meta/work/0024-tagged.md: NO-FENCE — no frontmatter fence at file head
+

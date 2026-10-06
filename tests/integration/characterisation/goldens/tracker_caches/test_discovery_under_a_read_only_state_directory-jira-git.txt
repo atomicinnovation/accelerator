@@ -1,0 +1,5 @@
+exit: 1
+loopback_requests: 2
+--- stdout
+--- stderr
+E_CACHE_IO: <ROOT>/repository/.accelerator/state/integrations/jira/.lock: cannot write under '<ROOT>/repository/.accelerator/state/integrations/jira/.lock': not writable

@@ -56,8 +56,8 @@ def _guard(command: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 
 def _require_guard() -> None:
     assert GUARD.is_file(), (
-        f"{GUARD} is absent; build it (build:cli:dev) — this lane fails "
-        "rather than skips"
+        f"{GUARD} is absent; build it (build:cli:research:dev) — this lane "
+        "fails rather than skips"
     )
 
 

@@ -65,8 +65,9 @@ def test_the_guard_is_registered_once_per_matcher(matcher: str) -> None:
 def _plugin_root(tmp_path: Path) -> Path:
     for built in (BUILT_LAUNCHER, BUILT_RESEARCH):
         assert built.is_file(), (
-            f"{built} is absent; build it (build:cli:dev) — this lane fails "
-            "rather than fetching a release"
+            f"{built} is absent; build it (build:cli:dev, "
+            "build:cli:research:dev) — this lane fails rather than fetching "
+            "a release"
         )
     alias = _PLATFORMS[(platform.system(), platform.machine())]
     root = tmp_path / "plugin"

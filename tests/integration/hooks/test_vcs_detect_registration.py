@@ -50,7 +50,7 @@ def test_launcher_dispatch_smoke_on_a_plain_non_repo_dir(tmp_path) -> None:
     vcs_bin = Path(env["ACCELERATOR_VCS_BIN"])
     assert vcs_bin.is_file(), (
         f"the compiled accelerator-vcs is absent at {vcs_bin}; build it "
-        "(build:cli:dev) — this lane fails rather than fetching a release"
+        "(build:cli:vcs:dev) — this lane fails rather than fetching a release"
     )
 
     result = subprocess.run(

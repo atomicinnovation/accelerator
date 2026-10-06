@@ -1,0 +1,6 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+meta/work/0021-scalar-root.md: NO-FENCE — no frontmatter fence at file head
+

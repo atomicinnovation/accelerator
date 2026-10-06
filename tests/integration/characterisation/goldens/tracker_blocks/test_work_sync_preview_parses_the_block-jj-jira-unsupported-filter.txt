@@ -1,0 +1,5 @@
+exit: 1
+loopback_requests: 0
+--- stdout
+--- stderr
+the pull filter key `colour` is not supported (accepted: label, state, assignee). Fix the `pull` block in .accelerator/config.md.

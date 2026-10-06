@@ -1,0 +1,5 @@
+exit: 2
+loopback_requests: 0
+--- stdout
+--- stderr
+E_CONSENT_KEY_TRACKED: github.token_cmd in <ROOT>/repository/.accelerator/config.local.md is refused — the file is tracked by version control, so the repository chose the value; untrack it

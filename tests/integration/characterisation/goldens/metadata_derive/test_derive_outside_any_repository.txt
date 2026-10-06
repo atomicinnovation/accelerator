@@ -1,0 +1,6 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+Current Date/Time (UTC): <NOW>
+Timestamp For Filename: <STAMP>
+--- stderr

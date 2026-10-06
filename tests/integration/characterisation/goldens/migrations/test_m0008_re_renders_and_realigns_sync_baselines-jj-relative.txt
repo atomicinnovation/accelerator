@@ -1,0 +1,79 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+About to apply 1 migration(s):
+  0008-canonical-frontmatter-quoting — Re-render every meta/ document and .accelerator/config.md through the canonical frontmatter emitter — every string double-quoted, integers/booleans/null bare.
+    To skip: accelerator migrate --skip 0008-canonical-frontmatter-quoting
+
+Migrations rewrite files and may make repo-wide changes; commit
+your working tree before running so VCS revert is available as
+rollback. The pre-flight will refuse to run on a dirty tree
+unless ACCELERATOR_MIGRATE_FORCE=1 is set.
+
+
+Migration complete. applied: 1.
+--- stderr
+[0008-canonical-frontmatter-quoting] running
+0008-LOSSY <ROOT>/repository/meta/work/0003-commented.md: inline frontmatter comment
+0008: 3 file(s) re-rendered, 1 with dropped comments/CRLF, 1 sync baseline(s) realigned — revert this migration commit to recover
+[0008-canonical-frontmatter-quoting] applied
+--- observed
+jira/last-sync.json:
+{"timestamp":1,"items":{"0001":{"remote_updated_at":"2026-06-01T00:00:00Z","remote_hash":"rh","local_hash":"486329da196d4fe6da9ec8cdd8a9afb021b753ed3d6c313d02eaff5a5e5075bb","local_synced_at":1},"0002":{"remote_updated_at":"2026-06-01T00:00:00Z","remote_hash":"rh","local_hash":"<MODIFIED_DIGEST>","local_synced_at":1}}}
+
+meta/work/0001-synced-item.md:
+---
+type: "work-item"
+id: "0001"
+title: "Synced item"
+date: "2026-01-01T00:00:00Z"
+author: "a"
+tags: []
+kind: "task"
+status: "draft"
+priority: "medium"
+external_id: "ENG-1"
+last_updated: "2026-01-01T00:00:00Z"
+last_updated_by: "a"
+schema_version: 1
+---
+
+# 0001: Synced item
+Body
+meta/work/0002-modified.md:
+---
+type: "work-item"
+id: "0002"
+title: "Modified"
+date: "2026-01-01T00:00:00Z"
+author: "a"
+tags: []
+kind: "task"
+status: "draft"
+priority: "medium"
+external_id: "ENG-2"
+last_updated: "2026-01-01T00:00:00Z"
+last_updated_by: "a"
+schema_version: 1
+---
+
+# 0002: Modified
+Body
+meta/work/0003-commented.md:
+---
+type: "work-item"
+id: "0003"
+title: "Commented"
+date: "2026-01-01T00:00:00Z"
+author: "a"
+tags: []
+kind: "task"
+status: "draft"
+priority: "medium"
+last_updated: "2026-01-01T00:00:00Z"
+last_updated_by: "a"
+schema_version: 1
+---
+
+# 0003: Commented
+Body

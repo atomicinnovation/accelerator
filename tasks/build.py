@@ -7,8 +7,9 @@ import tomllib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-from invoke import Context, task
+from invoke import Context, Exit, task
 
+from tasks.shared.dev_builds import DEV_BUILDS, cargo_build_command
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.limits import raise_descriptor_limit
@@ -305,27 +306,22 @@ def server_dev(context: Context) -> None:
     )
 
 
-@task
-def cli_dev(context: Context) -> None:
-    """Build the debug cli launcher and its dev-dispatched sub-binaries.
+@task(help={"group": f"one of: {', '.join(DEV_BUILDS)}"})
+def cli_dev(context: Context, group: str = "launcher") -> None:
+    """Build one named group of debug cli binaries into cli/target/debug/.
 
-    cli/target/debug/accelerator is the local launcher the pytest lanes and
-    cargo integration tests invoke through ACCELERATOR_BIN;
-    cli/target/debug/accelerator-vcs is the sub-binary the vcs-detect
-    launcher-dispatch guard dispatches through it via the ACCELERATOR_VCS_BIN
-    dev-only override; cli/target/debug/accelerator-corpus is the sub-binary the
-    conformance guard dispatches through it via the ACCELERATOR_CORPUS_BIN
-    dev-only override; cli/target/debug/accelerator-research is the guard the
-    research-guard registration smoke and the lexer differential run.
-    Declared as a mise build dependency of the test tasks so
-    build ordering lives in the task graph, not in ad-hoc cargo calls inside the
-    tests.
+    Each group is one cargo invocation, so its members compile in a single
+    parallel pass rather than queueing on the target lock. Declared as a mise
+    build dependency of the test tasks so build ordering lives in the task
+    graph, not in ad-hoc cargo calls inside the tests.
     """
-    context.run(
-        f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        f"--bin accelerator --bin accelerator-vcs --bin accelerator-corpus "
-        f"--bin accelerator-research"
-    )
+    binaries = DEV_BUILDS.get(group)
+    if binaries is None:
+        raise Exit(
+            f"unknown dev build {group!r}; known: {', '.join(DEV_BUILDS)}",
+            code=1,
+        )
+    context.run(cargo_build_command(binaries))
 
 
 @task

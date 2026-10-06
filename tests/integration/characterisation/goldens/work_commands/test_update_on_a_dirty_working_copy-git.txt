@@ -1,0 +1,21 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+--- stderr
+--- observed
+meta/work/0001-existing.md:
+---
+type: "work-item"
+id: "0001"
+title: "Existing"
+date: "2026-01-01T00:00:00Z"
+author: "Fixture"
+status: "ready"
+kind: "task"
+priority: "medium"
+last_updated: "2026-01-01T00:00:00Z"
+last_updated_by: "Fixture"
+schema_version: 1
+---
+
+# 0001: Edited

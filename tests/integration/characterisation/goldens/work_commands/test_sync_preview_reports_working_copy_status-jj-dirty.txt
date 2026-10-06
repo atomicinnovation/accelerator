@@ -1,0 +1,7 @@
+exit: 0
+loopback_requests: 0
+--- stdout
+0001	create-from-local	unsynced	-
+0001	noop	unsynced	-
+#	discovery	skipped	push-only
+--- stderr

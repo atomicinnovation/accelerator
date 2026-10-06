@@ -1,0 +1,62 @@
+exit: 0
+loopback_requests: 2
+--- stdout
+{
+  "fields": {
+    "fields": [
+      {
+        "id": "customfield_10016",
+        "key": null,
+        "name": "Story Points",
+        "schema": {
+          "type": "number"
+        },
+        "slug": "story-points"
+      }
+    ],
+    "site": "127.0.0.1"
+  },
+  "outcome": "discovered",
+  "projects": {
+    "projects": [
+      {
+        "id": "10000",
+        "key": "ENG",
+        "name": "Eng"
+      }
+    ],
+    "site": "127.0.0.1"
+  }
+}
+--- stderr
+--- observed
+.cache-version.json:
+{
+  "version": 1
+}
+fields.json:
+{
+  "fields": [
+    {
+      "id": "customfield_10016",
+      "key": null,
+      "name": "Story Points",
+      "schema": {
+        "type": "number"
+      },
+      "slug": "story-points"
+    }
+  ],
+  "site": "127.0.0.1"
+}
+projects.json:
+{
+  "projects": [
+    {
+      "id": "10000",
+      "key": "ENG",
+      "name": "Eng"
+    }
+  ],
+  "site": "127.0.0.1"
+}
