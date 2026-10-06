@@ -1690,10 +1690,33 @@ Host: Mac16,5, macOS 26.3 (arm64), revision `22786dde` (the plan's parent).
 - Launcher size, stripped `--release`, `aarch64-apple-darwin`:
   **8 065 488 bytes**. Taken at load 137.60 / 88.71 / 58.01; size does not
   depend on load.
-- Summary latency, warm dispatch and the large-repository figure: not yet
-  taken. Load stood at 24–137 during this session, which is not a quiet host.
-  They need taking on a quiet host before Phase 7 changes the launcher,
-  against Phase 1's revision.
+- Summary latency, `mise run measure:summary-latency -- --repository .
+  --revision 22786dde6161e025e85a642e5ca701dcb389cb20`, at load
+  8.20 / 19.96 / 47.13 (the host was settling after heavy builds; Chrome and
+  IntelliJ running):
+
+  | Repository | Mode | Median | p90 |
+  |---|---|---|---|
+  | git | cold | 31.98 ms | 33.92 ms |
+  | git | warm | 32.10 ms | 33.91 ms |
+  | jj | cold | 31.66 ms | 34.63 ms |
+  | jj | warm | 31.20 ms | 34.67 ms |
+  | colocated jj | cold | 33.43 ms | 35.35 ms |
+  | colocated jj | warm | 33.03 ms | 35.16 ms |
+  | large jj | cold | 34.76 ms | 36.42 ms |
+  | large jj | warm | 36.99 ms | 39.82 ms |
+
+  The large repository is this workspace at
+  `22786dde6161e025e85a642e5ca701dcb389cb20`: jj, 4587 index entries, 7
+  operations in the snapshot. A run a minute earlier at load 15.12 gave
+  medians within 3 ms of these. On this host, process-spawning runs are
+  bimodal at ~11 ms and ~34 ms: the debug build landed in either mode, while
+  the release build sat at ~32 ms in both runs. Take the after figures with
+  the release build and compare like for like.
+- Warm dispatch: not yet taken. `measure:warm-dispatch` refuses to start
+  while other Claude Code sessions are active against the plugin root (five
+  were). The launcher cache is now warm for `1.24.0-pre.74`. It needs taking
+  with the other sessions closed, before a release containing Phase 7.
 
 Before symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
 `nm -a | grep -c`:
