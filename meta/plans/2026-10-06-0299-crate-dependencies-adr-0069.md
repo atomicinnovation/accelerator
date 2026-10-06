@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T16:30:00+00:00"
+last_updated: "2026-10-06T16:39:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1795,8 +1795,18 @@ today through `consent-adapters` → `vcs-adapters`.
   is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
   packages, so only `source-map-js` went to 1.2.2, in a commit of its own
   ahead of Phase 1.
-- Phase 2 is complete. Debug builds were split into per-binary and group
-  leaves with the author (Wiring section).
+- Phase 2 is complete: 534 characterisation cases pass inside a green
+  `mise run`. Debug builds were split into per-binary and group leaves with
+  the author (Wiring section). Its two manual checks await the author's
+  review; the second does not fully hold, for the reasons under "Phase 2
+  characterisation coverage".
+- Phase 2's `mise run` failed on `docs:audit:check` in the same way: a new
+  high advisory, `GHSA-wq5f-xc86-pv6w`, against `sharp@0.35.4`. `sharp` is an
+  optional dependency of `astro`, which `npm update` and a lock-only install
+  would not move, so the lockfile entries for `sharp` and its pinned `@img/*`
+  packages were set to 0.35.5 from the registry, in a commit of its own ahead
+  of Phase 2.
+- Next: Phase 3, role declarations and the dependency lint.
 
 ### Phase 2 characterisation coverage
 
@@ -1842,6 +1852,9 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ### Still to record
 
+- The author's decision on the working-copy status gap: accept unit and
+  contract coverage, or add a `test-loopback` API-URL seam to `work-cli` so a
+  characterisation case can reach it before Phases 5 and 9 refactor it.
 - Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
 - Author decisions, if any gate tripped.
