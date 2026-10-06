@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T20:05:03+00:00"
+last_updated: "2026-10-06T20:56:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -722,17 +722,17 @@ stubs of the four fine-grained ports.
 
 #### Automated Verification:
 
-- [ ] Port contract tests pass in git and jj: `cargo test --manifest-path cli/Cargo.toml -p vcs-adapters --all-features`
-- [ ] Consumers pass: `cargo test --manifest-path cli/Cargo.toml -p vcs -p corpus-adapters -p work-adapters -p accelerator-corpus -p accelerator-work --all-features`
-- [ ] Characterisation suite unchanged: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] Known-violation set loses `corpus-adapters`/`work-adapters` → `vcs-adapters`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run public-api:check`, `mise run pup:check` pass
-- [ ] `mise run` exits 0
+- [x] Port contract tests pass in git and jj: `cargo test --manifest-path cli/Cargo.toml -p vcs-adapters --all-features`
+- [x] Consumers pass: `cargo test --manifest-path cli/Cargo.toml -p vcs -p corpus-adapters -p work-adapters -p accelerator-corpus -p accelerator-work --all-features`
+- [x] Characterisation suite unchanged: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] Known-violation set loses `corpus-adapters`/`work-adapters` → `vcs-adapters`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run public-api:check`, `mise run pup:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None beyond review
+- [x] None beyond review
 
 ---
 
@@ -1853,7 +1853,29 @@ today through `consent-adapters` → `vcs-adapters`.
 
   Both Phase 4 paths had already moved with every golden unchanged. The arXiv
   lock is a kernel `flock` the refactor does not reroute, so it is no gap.
-- Next: Phase 5, the `vcs` repository ports.
+- Phase 5 is complete: `vcs` publishes `RepositoryTracking`,
+  `WorkingCopyStateProbe` and `RepositoryProbe`, and the lint reports 9 known
+  findings. Deviations from the Phase 5 text:
+  - **Working-copy fixture:** `work-adapters-fixture` composed
+    `VcsWorkingCopyStatus` over `InProcessProbe`, and a `[[bin]]` cannot use
+    dev-dependencies. With the author, it moved to `work-cli` as
+    `work-cli-fixture`, with `sync_working_copy_status.rs`'s 13 tests and the
+    `bash-parity` feature; `work-adapters` keeps stub-driven unit tests. The
+    parity baseline's row follows the file.
+  - **`dirty_paths`:** the inherent `InProcessProbe::dirty_paths` went with
+    `working_copy_state`; its one caller, the fixture's `dirty_paths` query,
+    reads the trait's state.
+  - **Constructors:** the injected adapters take their probe through `new`
+    (`VcsBackedRepoFactsProbe::new`, `VcsBackedIdentityProbe::new`,
+    `RepositoryIdentityProbe::new(root, probe)`), keeping fields private.
+  - **`migrate-adapters`:** imports `vcs::WorkingCopyState` and the probe
+    trait; Phase 9 injects the probe.
+  - **`mise run`:** the default run failed only in `test:e2e:visualiser`,
+    because a live e2e server in the parent checkout held the default health
+    port 19087. Every lane then passed separately: `check`, `test:unit`,
+    `test:integration` (539 characterisation cases), `docs:check`, and e2e
+    with `E2E_HEALTH_PORT=19187` (355 passed).
+- Next: Phase 6, merging `consent-adapters` into `config-adapters`.
 
 ### Phase 2 characterisation coverage
 

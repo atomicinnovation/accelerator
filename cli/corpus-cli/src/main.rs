@@ -84,7 +84,9 @@ fn run_metadata(action: &MetadataAction) -> Result<Outcome, kernel::Error> {
             let derived = corpus_adapters::metadata::derive_at(
                 &current_dir()?,
                 format,
-                &corpus_adapters::metadata::VcsBackedRepoFactsProbe,
+                &corpus_adapters::metadata::VcsBackedRepoFactsProbe::new(
+                    &vcs_adapters::library::InProcessProbe,
+                ),
             );
             metadata::run_derive(derived, format)
         }

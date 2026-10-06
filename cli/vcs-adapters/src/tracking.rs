@@ -17,10 +17,28 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
+use vcs::tracking::RootsAnswer;
 use vcs::VcsKind;
 
 use crate::library::Error;
 use crate::library::InProcessProbe;
+use crate::roots::repository_roots;
+
+/// Answers the tracking questions by reading every enclosing repository in
+/// the calling process.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InProcessTracking;
+
+impl RepositoryTracking for InProcessTracking {
+    fn file_tracking(&self, path: &Path) -> FileTracking {
+        file_tracking(path)
+    }
+
+    fn repository_roots(&self, directory: &Path) -> RootsAnswer {
+        repository_roots(directory)
+    }
+}
 
 /// The tracking status of `path` across every repository enclosing it.
 #[must_use]

@@ -419,7 +419,6 @@ def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
     ] == [
         "accelerator -> tracker-support: rule 6",
         "consent-adapters -> vcs-adapters: rule 4",
-        "corpus-adapters -> vcs-adapters: rule 4",
         "migrate -> document: rule 1",
         "migrate-adapters -> config-adapters: rule 4",
         "migrate-adapters -> corpus-adapters: rule 4",
@@ -427,5 +426,4 @@ def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
         "migrate-adapters -> work-adapters: rule 2",
         "migrate-adapters -> work-adapters: rule 4",
         "research-adapters -> corpus-adapters: rule 4",
-        "work-adapters -> vcs-adapters: rule 4",
     ]

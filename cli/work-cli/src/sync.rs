@@ -11,6 +11,7 @@ use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
+use vcs_adapters::library::InProcessProbe;
 use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -1194,7 +1195,7 @@ pub fn run_sync(
     let corpus_store = FileCorpusStore::new(baseline_dir);
     let mut baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
-    let status = VcsWorkingCopyStatus::probed_from(&root);
+    let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
     let clock = SystemClock;
     let author =
         crate::sync_author::ConfiguredLocalAuthor::new(config, root, work_dir);

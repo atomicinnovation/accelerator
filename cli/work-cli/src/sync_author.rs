@@ -20,6 +20,7 @@ use document::Yaml;
 use store::lock::acquire;
 use store::lock::LockOptions;
 use tracker::ExternalId;
+use vcs_adapters::library::InProcessProbe;
 use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::TypedLinkage;
@@ -117,12 +118,14 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         let metadata = derive_at(
             &self.root,
             FilenameTimestampFormat::DateTimeUnderscored,
-            &VcsBackedRepoFactsProbe,
+            &VcsBackedRepoFactsProbe::new(&InProcessProbe),
         )
         .map_err(failed)?;
-        let author =
-            resolve_author(None, &RepositoryIdentityProbe::new(&self.root))
-                .map_err(failed)?;
+        let author = resolve_author(
+            None,
+            &RepositoryIdentityProbe::new(&self.root, &InProcessProbe),
+        )
+        .map_err(failed)?;
 
         let inputs = CreateInputs {
             id: &id,

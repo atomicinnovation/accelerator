@@ -63,6 +63,7 @@ dependencies = [
  "kernel",
  "serde_json",
  "tempfile",
+ "vcs-adapters",
  "vcs-test-support",
 ]
 
@@ -215,6 +216,7 @@ dependencies = [
  "tracker-test-support",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
  "work",
  "work-adapters",
 ]
@@ -886,7 +888,7 @@ dependencies = [
  "store",
  "tempfile",
  "time",
- "vcs-adapters",
+ "vcs",
 ]
 
 [[package]]
@@ -5762,7 +5764,6 @@ dependencies = [
  "tracker-support",
  "tracker-test-support",
  "vcs",
- "vcs-adapters",
  "vcs-test-support",
  "work",
 ]

@@ -26,10 +26,12 @@ use vcs::checkout::JjRepositoryFacts;
 use vcs::checkout::JjWorkspaceRole;
 use vcs::checkout::WorktreeFacts;
 use vcs::RepoRoot;
+use vcs::RepositoryProbe;
 use vcs::UserIdentityProbe;
 use vcs::VcsKind;
 use vcs::VcsProbe;
 use vcs::VcsReporter;
+use vcs::WorkingCopyState;
 use vcs_adapters::library::InProcessProbe;
 
 fn main() -> ExitCode {
@@ -181,22 +183,46 @@ fn report(query: &str, start: &Path) -> Result<(), String> {
             );
             print(query, &rendered);
         }
+        "facts_at" | "user_name_at" | "dirty_paths" | "working_copy_state" => {
+            report_repository_probe(query, start, &probe)?;
+        }
+        other => return Err(format!("unknown query: {other}")),
+    }
+    Ok(())
+}
+
+fn report_repository_probe(
+    query: &str,
+    start: &Path,
+    ports: &dyn RepositoryProbe,
+) -> Result<(), String> {
+    match query {
+        "facts_at" => {
+            let rendered = ports.facts_at(start).map_or_else(
+                || "absent".to_owned(),
+                |facts| {
+                    format!(
+                        "{} {} {} {}",
+                        render(&facts.root),
+                        facts.name,
+                        facts.kind.as_str(),
+                        facts.revision.unwrap_or_else(|| "none".to_owned())
+                    )
+                },
+            );
+            print(query, &rendered);
+        }
+        "user_name_at" => {
+            let name = ports.user_name_at(start);
+            print(query, name.as_deref().unwrap_or("absent"));
+        }
         "dirty_paths" => {
-            let root = probe.discover(start).unwrap_or_else(|| start.into());
-            let kind = probe.kind(&root);
-            let paths = probe
-                .dirty_paths(&root, kind)
-                .map_err(|error| format!("error: {error}"))?;
-            for path in paths {
+            for path in working_copy_state(ports, start)?.dirty_paths {
                 println!("{path}");
             }
         }
         "working_copy_state" => {
-            let root = probe.discover(start).unwrap_or_else(|| start.into());
-            let kind = probe.kind(&root);
-            let state = probe
-                .working_copy_state(&root, kind)
-                .map_err(|error| format!("error: {error}"))?;
+            let state = working_copy_state(ports, start)?;
             for commit in state.base_commits {
                 println!("base\t{commit}");
             }
@@ -207,6 +233,19 @@ fn report(query: &str, start: &Path) -> Result<(), String> {
         other => return Err(format!("unknown query: {other}")),
     }
     Ok(())
+}
+
+fn working_copy_state(
+    ports: &dyn RepositoryProbe,
+    start: &Path,
+) -> Result<WorkingCopyState, String> {
+    let root = InProcessProbe
+        .discover(start)
+        .unwrap_or_else(|| start.into());
+    let kind = InProcessProbe.kind(&root);
+    ports
+        .working_copy_state(&root, kind)
+        .map_err(|error| format!("error: {error}"))
 }
 
 fn print(query: &str, rendered: &str) {

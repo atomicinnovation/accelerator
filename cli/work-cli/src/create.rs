@@ -23,6 +23,7 @@ use tracker::CreatePreview;
 use tracker::ExternalId;
 use tracker::FieldResolution;
 use tracker::TrackerError;
+use vcs_adapters::library::InProcessProbe;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
 use work::create::resolve_author;
@@ -633,11 +634,13 @@ fn try_run(
     let metadata = derive_at(
         &root,
         FilenameTimestampFormat::DateTimeUnderscored,
-        &VcsBackedRepoFactsProbe,
+        &VcsBackedRepoFactsProbe::new(&InProcessProbe),
     )
     .map_err(|error| error.to_string())?;
-    let author =
-        resolve_author(args.author.as_deref(), &VcsBackedIdentityProbe)?;
+    let author = resolve_author(
+        args.author.as_deref(),
+        &VcsBackedIdentityProbe::new(&InProcessProbe),
+    )?;
     let resolved_template = resolve_and_check_template(config, templates)?;
     let body = resolve_body(args, &resolved_template, &id)?;
 

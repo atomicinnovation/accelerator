@@ -361,8 +361,9 @@
             ],
         )),
         // work-adapters spawns no subprocess: its section-diff renders
-        // in-process and its VCS identity reads through vcs-adapters' library
-        // path. This crate-wide deny catches use-path std::process imports.
+        // in-process and its VCS identity reads through the injected
+        // vcs::RepositoryProbe. This crate-wide deny catches use-path
+        // std::process imports.
         Module((
             name: "work_adapters_is_zero_spawn",
             matches: Module("^work_adapters($|::)"),

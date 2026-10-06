@@ -1,5 +1,4 @@
-//! The real, `vcs`/`vcs-adapters`-backed implementation of
-//! [`WorkingCopyStatus`].
+//! The `vcs::RepositoryProbe`-backed implementation of [`WorkingCopyStatus`].
 //!
 //! One whole-tree diff, taken once at construction and answered from memory
 //! thereafter, so a corpus-sized run probes the repository exactly once. The
@@ -16,7 +15,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use tracing::warn;
-use vcs_adapters::library::InProcessProbe;
+use vcs::RepositoryProbe;
 use work::sync::Dirtiness;
 
 use crate::sync::fetch::WorkingCopyStatus;
@@ -29,16 +28,16 @@ pub struct VcsWorkingCopyStatus {
 impl VcsWorkingCopyStatus {
     /// Diffs the working copy containing `start`.
     #[must_use]
-    pub fn probed_from(start: &Path) -> Self {
-        let Some(facts) = vcs_adapters::facts(start) else {
+    pub fn probed_from(start: &Path, repository: &dyn RepositoryProbe) -> Self {
+        let Some(facts) = repository.facts_at(start) else {
             return Self {
                 root: start.to_path_buf(),
                 dirty: None,
             };
         };
-        let dirty = InProcessProbe
-            .dirty_paths(&facts.root, facts.kind)
-            .map(|paths| paths.into_iter().collect())
+        let dirty = repository
+            .working_copy_state(&facts.root, facts.kind)
+            .map(|state| state.dirty_paths.into_iter().collect())
             .map_err(|error| {
                 warn!(
                     root = %facts.root.display(),
@@ -71,7 +70,7 @@ impl WorkingCopyStatus for VcsWorkingCopyStatus {
     }
 }
 
-/// `vcs-adapters` reports canonicalised roots and forward-slash-separated
+/// The probe reports canonicalised roots and forward-slash-separated
 /// repo-relative paths; the caller's path arrives however the corpus walk
 /// built it, so both sides are brought to that shape before comparison.
 fn repo_relative(root: &Path, path: &Path) -> Option<String> {
@@ -85,4 +84,113 @@ fn repo_relative(root: &Path, path: &Path) -> Option<String> {
             .collect::<Vec<_>>()
             .join("/"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use vcs::{
+        RepoFacts, RepositoryProbe, VcsKind, WorkingCopyState,
+        WorkingCopyStateProbe,
+    };
+    use work::sync::Dirtiness;
+
+    use super::VcsWorkingCopyStatus;
+    use crate::sync::fetch::WorkingCopyStatus as _;
+
+    struct StubRepository {
+        root: Option<&'static str>,
+        state: Result<Vec<&'static str>, ()>,
+    }
+
+    impl WorkingCopyStateProbe for StubRepository {
+        fn working_copy_state(
+            &self,
+            root: &Path,
+            kind: VcsKind,
+        ) -> Result<WorkingCopyState, kernel::Error> {
+            assert_eq!((root, kind), (Path::new("/repo"), VcsKind::Git));
+            self.state
+                .clone()
+                .map(|dirty| WorkingCopyState {
+                    base_commits: vec!["abc123".to_owned()],
+                    dirty_paths: dirty.into_iter().map(str::to_owned).collect(),
+                })
+                .map_err(|()| kernel::Error::Failed("unreadable".to_owned()))
+        }
+    }
+
+    impl RepositoryProbe for StubRepository {
+        fn facts_at(&self, _start: &Path) -> Option<RepoFacts> {
+            self.root.map(|root| RepoFacts {
+                root: PathBuf::from(root),
+                name: "repo".to_owned(),
+                kind: VcsKind::Git,
+                revision: None,
+            })
+        }
+
+        fn user_name_at(&self, _start: &Path) -> Option<String> {
+            None
+        }
+    }
+
+    fn dirtiness(repository: &StubRepository, path: &str) -> Dirtiness {
+        VcsWorkingCopyStatus::probed_from(Path::new("/repo/meta"), repository)
+            .is_dirty(Path::new(path))
+    }
+
+    #[test]
+    fn a_changed_path_is_dirty_and_an_unchanged_one_clean() {
+        let repository = StubRepository {
+            root: Some("/repo"),
+            state: Ok(vec!["meta/work/0001-a.md"]),
+        };
+
+        assert_eq!(
+            dirtiness(&repository, "/repo/meta/work/0001-a.md"),
+            Dirtiness::Dirty
+        );
+        assert_eq!(
+            dirtiness(&repository, "/repo/meta/work/0002-b.md"),
+            Dirtiness::Clean
+        );
+    }
+
+    #[test]
+    fn a_path_outside_the_working_copy_is_unknown() {
+        let repository = StubRepository {
+            root: Some("/repo"),
+            state: Ok(vec![]),
+        };
+
+        assert_eq!(dirtiness(&repository, "/elsewhere.md"), Dirtiness::Unknown);
+    }
+
+    #[test]
+    fn an_unreadable_working_copy_makes_every_path_unknown() {
+        let repository = StubRepository {
+            root: Some("/repo"),
+            state: Err(()),
+        };
+
+        assert_eq!(
+            dirtiness(&repository, "/repo/meta/work/0001-a.md"),
+            Dirtiness::Unknown
+        );
+    }
+
+    #[test]
+    fn outside_a_repository_every_path_is_unknown() {
+        let repository = StubRepository {
+            root: None,
+            state: Ok(vec![]),
+        };
+
+        assert_eq!(
+            dirtiness(&repository, "/repo/meta/work/0001-a.md"),
+            Dirtiness::Unknown
+        );
+    }
 }

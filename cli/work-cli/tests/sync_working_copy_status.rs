@@ -1,7 +1,8 @@
-//! `VcsWorkingCopyStatus` against a marker-less tree and against real
-//! repositories, exercised through the `WorkingCopyStatus` port `work sync`
-//! plans against.
+//! `VcsWorkingCopyStatus` over the in-process repository probe, against a
+//! marker-less tree and against real repositories, exercised through the
+//! `WorkingCopyStatus` port `work sync` plans against.
 
+use vcs_adapters::library::InProcessProbe;
 use work::sync::Dirtiness;
 use work_adapters::sync::fetch::WorkingCopyStatus;
 use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
@@ -20,7 +21,8 @@ fn a_tree_with_no_repository_answers_unknown() -> Result<(), TestError> {
     vcs_test_support::hermetic::assert_no_repository_ancestor(loose.path())?;
     std::fs::write(loose.path().join("item.md"), "x\n")?;
 
-    let status = VcsWorkingCopyStatus::probed_from(loose.path());
+    let status =
+        VcsWorkingCopyStatus::probed_from(loose.path(), &InProcessProbe);
 
     assert_eq!(
         status.is_dirty(&loose.path().join("item.md")),
@@ -33,6 +35,7 @@ fn a_tree_with_no_repository_answers_unknown() -> Result<(), TestError> {
 mod against_a_real_repository {
     use std::fs;
 
+    use vcs_adapters::library::InProcessProbe;
     use vcs_test_support::hermetic::Hermetic;
     use work::sync::Dirtiness;
     use work_adapters::sync::fetch::WorkingCopyStatus;
@@ -41,7 +44,7 @@ mod against_a_real_repository {
     use super::tempdir;
     use super::TestError;
 
-    const FIXTURE: &str = env!("CARGO_BIN_EXE_work-adapters-fixture");
+    const FIXTURE: &str = env!("CARGO_BIN_EXE_work-cli-fixture");
 
     fn dirtiness(
         env: &Hermetic,
@@ -75,7 +78,7 @@ mod against_a_real_repository {
         env.git(&["commit", "--quiet", "-m", "init"], &root)?;
         fs::write(root.join("meta/work/0001-a.md"), "two\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root);
+        let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
 
         assert_eq!(
             status.is_dirty(&root.join("meta/work/0001-a.md")),
@@ -103,7 +106,7 @@ mod against_a_real_repository {
         env.git(&["commit", "--quiet", "-m", "init"], &root)?;
         fs::write(root.join("meta/work/0002-new.md"), "new\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root);
+        let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
 
         assert_eq!(
             status.is_dirty(&root.join("meta/work/0002-new.md")),
@@ -123,7 +126,7 @@ mod against_a_real_repository {
         env.git(&["init", "--quiet"], &root)?;
         fs::write(work.path().join("elsewhere.md"), "x\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root);
+        let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
 
         assert_eq!(
             status.is_dirty(&work.path().join("elsewhere.md")),
@@ -192,7 +195,10 @@ mod against_a_real_repository {
         env.git(&["commit", "--quiet", "-m", "init"], &root)?;
         fs::write(root.join("meta/work/0001-a.md"), "two\n")?;
 
-        let status = VcsWorkingCopyStatus::probed_from(&root.join("meta/work"));
+        let status = VcsWorkingCopyStatus::probed_from(
+            &root.join("meta/work"),
+            &InProcessProbe,
+        );
 
         assert_eq!(
             status.is_dirty(&root.join("meta/work/0001-a.md")),

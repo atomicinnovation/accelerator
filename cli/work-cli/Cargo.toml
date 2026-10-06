@@ -17,6 +17,20 @@ workspace = true
 name = "accelerator-work"
 path = "src/main.rs"
 
+[features]
+# Gates sync_working_copy_status.rs's real-repo `jj`/`git` tests. On, an absent
+# binary hard-fails; off, those tests are skipped entirely. CI enables it
+# (tasks/test/cli.py).
+bash-parity = []
+
+# Black-box test entry point, not a shipped artifact. Lives under
+# tests/fixtures/ so it stays off the crate's normal build surface; tests
+# locate it via CARGO_BIN_EXE_work-cli-fixture and run it under a hermetic
+# environment, which in-process calls cannot have.
+[[bin]]
+name = "work-cli-fixture"
+path = "tests/fixtures/work_cli_fixture.rs"
+
 [dependencies]
 work = { path = "../work" }
 work-adapters = { path = "../work-adapters" }
@@ -43,3 +57,4 @@ tempfile = { workspace = true }
 graphql-test-support = { path = "../graphql-test-support" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
+vcs-test-support = { path = "../vcs-test-support" }

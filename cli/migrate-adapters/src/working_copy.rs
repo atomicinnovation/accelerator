@@ -6,8 +6,9 @@ use migrate::ports::WorkingCopyObservation;
 use migrate::run_base::RunBase;
 use tracing::warn;
 use vcs::VcsKind;
+use vcs::WorkingCopyState;
+use vcs::WorkingCopyStateProbe as _;
 use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::library::WorkingCopyState;
 
 pub struct VcsWorkingCopy {
     root: PathBuf,

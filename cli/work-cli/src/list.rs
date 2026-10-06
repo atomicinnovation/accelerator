@@ -680,12 +680,13 @@ fn resolve_states(
     baseline_path: &Path,
     items: &[ScannedItem],
 ) -> Option<BTreeMap<String, SyncState>> {
+    use vcs_adapters::library::InProcessProbe;
     use work_adapters::sync::working_copy_status::VcsWorkingCopyStatus;
     let tracker = registry.resolve(integration).ok()?;
     let content = std::fs::read_to_string(baseline_path).ok();
     let (baseline, _) = Baseline::read(content.as_deref());
     let root = baseline_path.parent()?;
-    let status = VcsWorkingCopyStatus::probed_from(root);
+    let status = VcsWorkingCopyStatus::probed_from(root, &InProcessProbe);
     let locals = local_items(items);
     Some(classify(&locals, tracker.as_ref(), &baseline, &status))
 }
