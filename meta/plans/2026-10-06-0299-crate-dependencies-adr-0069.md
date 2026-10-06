@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T19:00:14+00:00"
+last_updated: "2026-10-06T19:57:27+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -409,7 +409,7 @@ the author):
 
 #### Manual Verification:
 
-- [ ] Each 0299 characterisation bullet maps to at least one case (checklist in Implementation Notes)
+- [x] Each 0299 characterisation bullet maps to at least one case (checklist in Implementation Notes)
 - [ ] Each rerouted symbol in the violations table is reached by a named case
 
 ---
@@ -1795,7 +1795,7 @@ today through `consent-adapters` → `vcs-adapters`.
   is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
   packages, so only `source-map-js` went to 1.2.2, in a commit of its own
   ahead of Phase 1.
-- Phase 2 is complete: 534 characterisation cases pass inside a green
+- Phase 2 is complete: 534 characterisation cases passed inside a green
   `mise run`. Debug builds were split into per-binary and group leaves with
   the author (Wiring section). Its two manual checks await the author's
   review; the second does not fully hold, for the reasons under "Phase 2
@@ -1840,27 +1840,30 @@ today through `consent-adapters` → `vcs-adapters`.
   - **First `mise run`:** `test_launcher_dispatch_smoke_on_a_plain_non_repo_dir`
     failed on a `curl` timeout fetching the launcher (5.0 of 8.7 MB in
     299 s). The hooks suite then passed alone, and a second `mise run` exited 0.
+- The author asked for check 1 of Phase 2's manual verification to be run.
+  It holds after the additions under "Phase 2 characterisation coverage",
+  which bring the suite to 539 cases. Check 2 still awaits the author.
 - Next: Phase 5, the `vcs` repository ports.
 
 ### Phase 2 characterisation coverage
 
-534 cases across 11 behaviour modules, each run in git and jj unless marked
+539 cases across 11 behaviour modules, each run in git and jj unless marked
 `vcs_specific`.
 
 | 0299 bullet or rerouted edge | Module and case |
 |---|---|
 | Six consent keys, each non-launcher root, tracked and untracked | `test_consent_reads.py`: `jira`, `linear`, `collaboration`, `research`, `work sync --preview` (jira and linear), `design executor ping` |
-| Launcher root resolution, nested repository | `test_summary_tracking.py::test_summary_in_a_nested_git_repository` |
+| Launcher root resolution, nested repository | `test_summary_tracking.py::test_summary_in_a_nested_git_repository`, tracked and untracked in the inner repository |
 | SessionStart tracking: tracked, untracked, outside, corrupt index, colocated, with and without `accelerator-vcs` | `test_summary_tracking.py` |
 | `accelerator config` dump of tracker blocks, multi-fault order | `test_config_dump.py` |
 | `jira-cli`/`linear-cli` block parsing; `work sync` validation | `test_tracker_blocks.py` |
-| `corpus metadata derive`, clean, dirty, unborn, outside | `test_metadata_derive.py` |
+| `corpus metadata derive`, clean, dirty, unborn, outside | `test_metadata_derive.py`; the command prints no author or working-copy status, so author is pinned by `work create` |
 | `frontmatter validate` over every violation class and root class | `test_frontmatter_validate.py` |
-| `work-cli` author, create/update locks, `sync --preview`, `list` | `test_work_commands.py` |
+| `work-cli` author, create/update locks, `sync --preview`, `list` | `test_work_commands.py`; working-copy status is unreachable offline (below) |
 | `research-adapters` → `corpus-adapters`: `parse`, `validate_path`, `validate_text`, ledger store | `test_research_commands.py` |
 | `jira-client`/`linear-client` → `corpus-adapters` (lock) | `test_tracker_caches.py` |
 | `collaboration` → `vcs` (`OriginRemote`) | `test_collaboration.py` |
-| `migrate` → `document`; `migrate-adapters` → config, VCS, corpus and work adapters | `test_migrations.py`: m0001 root classes, m0008 re-render, comment loss, baseline realignment (relative and absolute `paths.integrations`), run-lock refusal, full registry |
+| `migrate` → `document`; `migrate-adapters` → config, VCS, corpus and work adapters | `test_migrations.py`: m0001 root classes, m0002 project-prefix renames and its missing-code refusal, m0008 re-render, comment loss, baseline realignment (relative and absolute `paths.integrations`), run-lock refusal, full registry |
 
 Deviations from the Phase 2 text, found while writing the cases:
 
@@ -1882,9 +1885,25 @@ Deviations from the Phase 2 text, found while writing the cases:
   `test-loopback` API-URL seam in `work-cli`.
 - **Launcher `TEMP_PREFIX`:** used only when a fetched binary is installed,
   which no offline case reaches. The Phase 4 constant tests guard it.
+- **Review of the first check:** reading the goldens rather than the table
+  found two cases that could not fail and two names that overclaimed, all
+  fixed after Phase 4 and before Phase 5:
+  - the nested-repository case ran only untracked, which inner and outer
+    repositories answer alike; a tracked variant now pins the
+    nearest-repository walk;
+  - the full registry leaves m0002 a no-op without a `{project}` pattern, so
+    `canonicalise_work_item_id` was unreached; `test_m0002_renames_work_items_to_the_project_pattern`
+    now reaches it;
+  - `test_sync_preview_reports_working_copy_status` became
+    `test_push_only_sync_preview_ignores_working_copy_edits`, and
+    `test_list_reports_sync_presence_without_credentials` became
+    `test_list_reads_sync_state_from_the_item_not_the_baseline`, since their
+    paired goldens are byte-identical.
 - **Golden findings worth knowing:** `jira-cli` and `linear-cli` resolve
   ceilings without validating, so unknown keys pass them; `work update` keeps
-  `last_updated`; a failed migrate run records git's `HEAD` but jj's `@-`.
+  `last_updated`; m0002 renames files and rewrites references but leaves each
+  item's own `id` unprefixed; a failed migrate run records git's `HEAD` but
+  jj's `@-`.
 
 ### Still to record
 

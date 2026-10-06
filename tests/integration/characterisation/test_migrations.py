@@ -83,6 +83,42 @@ def test_m0001_over_a_legacy_config(
     matches_golden(_observe_tree(result, repository.root), masks)
 
 
+_PROJECT_PATTERN = (
+    '---\nwork:\n  id_pattern: "{project}-{number:04d}"\n'
+    "  default_project_code: ENG\n---\n"
+)
+_PROJECT_PATTERN_WITHOUT_CODE = (
+    '---\nwork:\n  id_pattern: "{project}-{number:04d}"\n---\n'
+)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [_PROJECT_PATTERN, _PROJECT_PATTERN_WITHOUT_CODE],
+    ids=["with-project-code", "without-project-code"],
+)
+def test_m0002_renames_work_items_to_the_project_pattern(
+    repository, binaries, run, matches_golden, config
+):
+    repository.write(".accelerator/config.md", config)
+    repository.write("meta/work/0001-foo.md", _work_item("0001", "Foo"))
+    repository.write(
+        "meta/work/0002-bar.md",
+        _work_item("0002", "Bar", 'parent: "0001"\n'),
+    )
+    repository.write(
+        "meta/plans/2026-01-01-0001-foo.md",
+        '---\ntype: plan\nwork_item_id: "0001"\n---\n\n'
+        "# Plan\n\nImplements 0001.\n",
+    )
+    _pending_only(repository, MIGRATIONS[1])
+    repository.commit()
+
+    result, masks = _migrate(run, binaries, repository)
+
+    matches_golden(_observe_tree(result, repository.root), masks)
+
+
 def _work_item(number, title, extra=""):
     return (
         f'---\ntype: work-item\nid: "{number}"\ntitle: {title}\n'

@@ -183,7 +183,7 @@ def _baseline(repository, hash_value="0" * 64):
 
 
 @pytest.mark.parametrize("working_copy", ["clean", "dirty"])
-def test_sync_preview_reports_working_copy_status(
+def test_push_only_sync_preview_ignores_working_copy_edits(
     work, binaries, run, matches_golden, root_masks, working_copy
 ):
     work.write(".accelerator/config.md", _JIRA)
@@ -205,7 +205,7 @@ def test_sync_preview_reports_working_copy_status(
 
 
 @pytest.mark.parametrize("baseline", ["without-baseline", "with-baseline"])
-def test_list_reports_sync_presence_without_credentials(
+def test_list_reads_sync_state_from_the_item_not_the_baseline(
     work, binaries, run, matches_golden, root_masks, baseline
 ):
     work.write(".accelerator/config.md", _JIRA)

@@ -76,15 +76,19 @@ def test_summary_outside_any_repository(
 
 
 @pytest.mark.vcs_specific
+@pytest.mark.parametrize("tracking", ["tracked", "untracked"])
 def test_summary_in_a_nested_git_repository(
-    hermetic, fixture_root, binaries, run, matches_golden
+    hermetic, fixture_root, binaries, run, matches_golden, tracking
 ):
     outer = Repository.create("git", fixture_root / "outer", hermetic)
     outer.write("README.md", "outer\n")
     outer.commit()
     inner = Repository.create("git", outer.root / "inner", hermetic)
     _configure(inner.root)
-    inner.untrack(PERSONAL)
+    if tracking == "tracked":
+        inner.track(PERSONAL)
+    else:
+        inner.untrack(PERSONAL)
 
     matches_golden(_summary(run, binaries, inner.root))
 
