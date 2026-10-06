@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T20:56:33+00:00"
+last_updated: "2026-10-06T21:08:21+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -922,8 +922,8 @@ libraries.
   `findings.extend(context.tracking.tracking(path).distrust().map(AuditFinding::PersonalFile))`.
 - `vcs_adapters::file_tracking` and `repository_roots` become private behind
   `InProcessTracking`. `vcs-adapters/tests/{file_tracking,roots}.rs` are
-  folded into the Phase 5 contract tests, which reach the same cases through
-  the trait objects.
+  folded into the Phase 5 contract test `repository_tracking.rs`, which
+  reaches the same cases through the trait object.
 
 #### 4. Documentation
 
@@ -1862,6 +1862,10 @@ today through `consent-adapters` → `vcs-adapters`.
     `work-cli-fixture`, with `sync_working_copy_status.rs`'s 13 tests and the
     `bash-parity` feature; `work-adapters` keeps stub-driven unit tests. The
     parity baseline's row follows the file.
+  - **Contract tests:** `vcs-adapters/tests/repository_tracking.rs` runs
+    in-process, as `file_tracking.rs` does. `repository_probe.rs` runs
+    through new `facts_at` and `user_name_at` fixture queries under
+    `Hermetic`, because jj reads the user name from process configuration.
   - **`dirty_paths`:** the inherent `InProcessProbe::dirty_paths` went with
     `working_copy_state`; its one caller, the fixture's `dirty_paths` query,
     reads the trait's state.
@@ -1875,7 +1879,8 @@ today through `consent-adapters` → `vcs-adapters`.
     port 19087. Every lane then passed separately: `check`, `test:unit`,
     `test:integration` (539 characterisation cases), `docs:check`, and e2e
     with `E2E_HEALTH_PORT=19187` (355 passed).
-- Next: Phase 6, merging `consent-adapters` into `config-adapters`.
+- Next: Phase 6, merging `consent-adapters` into `config-adapters`. Its
+  phase base is `9ba5f99b`, the Phase 5 commit.
 
 ### Phase 2 characterisation coverage
 
