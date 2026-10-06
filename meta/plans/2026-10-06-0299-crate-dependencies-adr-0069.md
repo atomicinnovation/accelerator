@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T21:42:23+00:00"
+last_updated: "2026-10-07T00:17:04+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -952,15 +952,15 @@ the diff. No other golden changes.
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p accelerator -p config -p config-adapters -p kernel -p accelerator-vcs -p vcs-adapters --all-features` passes
-- [ ] Launcher gix features guarded: `uv run pytest tests/integration/deny`
-- [ ] `accelerator vcs tracking --path x` exits non-zero as an unknown subcommand (characterisation case added this phase)
-- [ ] `rg -n 'TrackingCheck|PersonalFileUnchecked|TrackingAnswer|was not checked' cli/` is empty
-- [ ] Removal files absent: `test ! -e cli/launcher/src/launch/outbound/capture.rs && test ! -e cli/kernel/src/tracking.rs && test ! -e cli/vcs-cli/src/tracking.rs && test ! -e cli/vcs-cli/tests/tracking.rs && test ! -e cli/launcher/src/launch/outbound/tracking.rs`
-- [ ] `uv run pytest tests/unit/tasks/test_skill_cli_refs.py` passes
-- [ ] `mise run test:integration:characterisation` passes, and `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` lists exactly the four reviewed goldens, with no change under `tests/integration/characterisation/*.py`
-- [ ] `mise run deny:check`, `mise run public-api:check`, `mise run docs:check` pass
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p accelerator -p config -p config-adapters -p kernel -p accelerator-vcs -p vcs-adapters --all-features` passes
+- [x] Launcher gix features guarded: `uv run pytest tests/integration/deny`
+- [x] `accelerator vcs tracking --path x` exits non-zero as an unknown subcommand (characterisation case added this phase)
+- [x] `rg -n 'TrackingCheck|PersonalFileUnchecked|TrackingAnswer|was not checked' cli/` is empty
+- [x] Removal files absent: `test ! -e cli/launcher/src/launch/outbound/capture.rs && test ! -e cli/kernel/src/tracking.rs && test ! -e cli/vcs-cli/src/tracking.rs && test ! -e cli/vcs-cli/tests/tracking.rs && test ! -e cli/launcher/src/launch/outbound/tracking.rs`
+- [x] `uv run pytest tests/unit/tasks/test_skill_cli_refs.py` passes
+- [x] `mise run test:integration:characterisation` passes, and `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` lists exactly the four reviewed goldens, with no change under `tests/integration/characterisation/*.py`
+- [x] `mise run deny:check`, `mise run public-api:check`, `mise run docs:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1893,8 +1893,39 @@ today through `consent-adapters` → `vcs-adapters`.
     again, so the green run used `E2E_HEALTH_PORT=19187`. Under load ~39,
     `runner.rs::stdin_is_at_end_of_file` missed its 2 s bound in isolated
     parallel runs; it passed serially and in the full run.
-- Next: Phase 7, in-process tracking in the launcher. Its phase base is the
-  Phase 6 commit.
+- Phase 7 is complete: the launcher answers tracking through
+  `TrackedConfigFile(InProcessTracking)`, `InProcessTracking` folds library
+  panics through `PanicFold`, and `vcs tracking`, `TrackingCheck`,
+  `kernel::TrackingAnswer` and the launcher's capture path are gone. The four
+  `without-vcs-binary` summary goldens now equal their `with-vcs-binary`
+  twins byte for byte. Deviations from the Phase 7 text:
+  - **Panic hook:** the characterisation suite's corrupted git index makes
+    `gix-index` panic (`init.rs:73`, subtract with overflow in debug). The
+    fold answered `Unknown`, but the default hook printed the panic, with an
+    unmasked `~/.cargo/registry` path, onto stderr. With the author, the
+    launcher installs a panic hook that reports through `tracing::error!`, so
+    `ACCELERATOR_LOG=off` keeps stderr empty and that golden is unchanged. A
+    `config_read.rs` test pins it.
+  - **Launcher dependencies:** the launcher names no `vcs` type, so it gains
+    `vcs-adapters` alone, as `design-cli` did in Phase 6.
+  - **`bash-parity` on the launcher:** the jj and colocated-jj summary tests
+    are gated by a new launcher feature, as jj-driven suites are elsewhere;
+    the git case runs unconditionally.
+  - **Unknown-subcommand case:** it lives in a new module,
+    `test_vcs_subcommands.py`, with two goldens (git and jj), so no existing
+    test file changed. The golden diff is the four reviewed goldens plus these
+    two new files.
+  - **`PanicFold`'s `adapter` field** carries the decorated type's name, since
+    a tracking question may reach gix, jj-lib or both.
+  - **README worked example:** the two bullets on captured output and the
+    launcher's capturing fixture went with the capture path.
+  - **`config_personal_file.rs`** also dropped its `ACCELERATOR_VCS_BIN`
+    override.
+  - **`config-adapters/tests/runner.rs`:** its 2 s and 1.25 s spawn bounds
+    failed in parallel runs at load ~13 (a 0.9 s sleep took 2.57 s) and passed
+    serially. The crate is unchanged this phase.
+- Next: Phase 8, the `corpus` parsing port. Its phase base is the Phase 7
+  commit.
 
 ### Phase 2 characterisation coverage
 

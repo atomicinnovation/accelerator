@@ -6,9 +6,6 @@ use std::fmt::Formatter;
 pub mod hooks;
 pub mod logging;
 pub mod render;
-mod tracking;
-
-pub use tracking::{TrackingAnswer, UnrecognisedTrackingAnswer};
 
 /// The name prefix of every staged temp file and directory.
 ///

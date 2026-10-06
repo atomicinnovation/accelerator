@@ -23,14 +23,27 @@ use vcs::VcsKind;
 
 use crate::library::Error;
 use crate::library::InProcessProbe;
+use crate::panic_fold::PanicFold;
 use crate::roots::repository_roots;
 
 /// Answers the tracking questions by reading every enclosing repository in
-/// the calling process.
+/// the calling process, folding a library panic to a refusal of trust.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct InProcessTracking;
 
 impl RepositoryTracking for InProcessTracking {
+    fn file_tracking(&self, path: &Path) -> FileTracking {
+        PanicFold(LibraryTracking).file_tracking(path)
+    }
+
+    fn repository_roots(&self, directory: &Path) -> RootsAnswer {
+        PanicFold(LibraryTracking).repository_roots(directory)
+    }
+}
+
+struct LibraryTracking;
+
+impl RepositoryTracking for LibraryTracking {
     fn file_tracking(&self, path: &Path) -> FileTracking {
         file_tracking(path)
     }
@@ -40,9 +53,7 @@ impl RepositoryTracking for InProcessTracking {
     }
 }
 
-/// The tracking status of `path` across every repository enclosing it.
-#[must_use]
-pub fn file_tracking(path: &Path) -> FileTracking {
+fn file_tracking(path: &Path) -> FileTracking {
     file_tracking_with(path, &FilesystemMarkers, &InProcessProbe)
 }
 

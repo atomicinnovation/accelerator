@@ -55,7 +55,6 @@ pub enum config::consent::AuditFinding
 pub config::consent::AuditFinding::Key(config::consent::Refusal)
 pub config::consent::AuditFinding::PersonalFile(config::consent::Distrust)
 pub config::consent::AuditFinding::PersonalFileIgnored(config::consent::Refusal)
-pub config::consent::AuditFinding::PersonalFileUnchecked
 impl core::clone::Clone for config::consent::AuditFinding
 pub fn config::consent::AuditFinding::clone(&self) -> config::consent::AuditFinding
 impl core::cmp::Eq for config::consent::AuditFinding
@@ -204,18 +203,6 @@ impl core::fmt::Debug for config::consent::Tracking
 pub fn config::consent::Tracking::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for config::consent::Tracking
 impl core::marker::StructuralPartialEq for config::consent::Tracking
-pub enum config::consent::TrackingCheck
-pub config::consent::TrackingCheck::Known(config::consent::Tracking)
-pub config::consent::TrackingCheck::Unchecked
-impl core::clone::Clone for config::consent::TrackingCheck
-pub fn config::consent::TrackingCheck::clone(&self) -> config::consent::TrackingCheck
-impl core::cmp::Eq for config::consent::TrackingCheck
-impl core::cmp::PartialEq for config::consent::TrackingCheck
-pub fn config::consent::TrackingCheck::eq(&self, other: &config::consent::TrackingCheck) -> bool
-impl core::fmt::Debug for config::consent::TrackingCheck
-pub fn config::consent::TrackingCheck::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for config::consent::TrackingCheck
-impl core::marker::StructuralPartialEq for config::consent::TrackingCheck
 pub enum config::consent::Usable<T>
 pub config::consent::Usable::Absent
 pub config::consent::Usable::Refused(config::consent::Rejection)
@@ -392,7 +379,6 @@ pub const config::consent::SYMLINK_HOP_LIMIT: usize
 pub trait config::consent::CommandRunner
 pub fn config::consent::CommandRunner::run(&self, command: &str, policy: &config::consent::CommandPolicy) -> core::result::Result<alloc::string::String, config::consent::CommandFailure>
 pub trait config::consent::ConfigFileTracking
-pub fn config::consent::ConfigFileTracking::check(&self, path: &std::path::Path) -> config::consent::TrackingCheck
 pub fn config::consent::ConfigFileTracking::tracking(&self, path: &std::path::Path) -> config::consent::Tracking
 pub trait config::consent::Environment
 pub fn config::consent::Environment::read(&self, name: &str) -> core::option::Option<alloc::string::String>

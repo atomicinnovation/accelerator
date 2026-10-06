@@ -417,9 +417,8 @@
                 ),
             ],
         )),
-        // The VCS sub-binary answers the launcher's tracking question about
-        // config files by path alone, so the VCS context never learns what a
-        // config file is.
+        // The VCS sub-binary detects, reports on and guards a checkout; what a
+        // config file is stays outside the VCS context.
         Module((
             name: "vcs_cli_is_free_of_config",
             matches: Module("^accelerator_vcs($|::)"),

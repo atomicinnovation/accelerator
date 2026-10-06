@@ -87,22 +87,8 @@ pub fn reportable(warnings: &[Refusal]) -> impl Iterator<Item = &Refusal> {
         .filter(|warning| warning.reason() != RefusalReason::PersonalFile)
 }
 
-/// Whether the tracking question could be put at all.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TrackingCheck {
-    Known(Tracking),
-    Unchecked,
-}
-
 pub trait ConfigFileTracking {
     fn tracking(&self, path: &Path) -> Tracking;
-
-    /// As [`Self::tracking`], but able to report that the question could not
-    /// be put at all. Only a whole-config [`audit`] asks this way, so it can
-    /// tell an unreachable tracking service apart from an unknown answer.
-    fn check(&self, path: &Path) -> TrackingCheck {
-        TrackingCheck::Known(self.tracking(path))
-    }
 }
 
 /// Why a value was not used.
@@ -1016,7 +1002,6 @@ pub struct Aborted {
 pub enum AuditFinding {
     Key(Refusal),
     PersonalFile(Distrust),
-    PersonalFileUnchecked,
     PersonalFileIgnored(Refusal),
 }
 
@@ -1172,15 +1157,13 @@ pub fn audit(
             path
         }
     };
-    match context.tracking.check(path) {
-        TrackingCheck::Unchecked => {
-            findings.push(AuditFinding::PersonalFileUnchecked);
-        }
-        TrackingCheck::Known(tracking) => {
-            findings
-                .extend(tracking.distrust().map(AuditFinding::PersonalFile));
-        }
-    }
+    findings.extend(
+        context
+            .tracking
+            .tracking(path)
+            .distrust()
+            .map(AuditFinding::PersonalFile),
+    );
     Ok(findings)
 }
 

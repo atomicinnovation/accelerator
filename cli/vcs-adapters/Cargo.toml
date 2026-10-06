@@ -50,4 +50,5 @@ whoami = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tracing-subscriber = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }

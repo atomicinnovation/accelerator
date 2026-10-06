@@ -10,6 +10,7 @@
 
 pub mod library;
 mod markers;
+mod panic_fold;
 mod roots;
 mod tracking;
 
@@ -19,8 +20,7 @@ use vcs::RepoFacts;
 
 use crate::library::InProcessProbe;
 
-pub use crate::roots::repository_roots;
-pub use crate::tracking::file_tracking;
+pub use crate::panic_fold::panic_message;
 pub use crate::tracking::InProcessTracking;
 
 /// The facts for the repository containing `start`.

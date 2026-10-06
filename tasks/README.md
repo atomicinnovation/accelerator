@@ -734,8 +734,8 @@ by the dispatch guard.
 ## Adding a subcommand to an existing sub-binary
 
 A new subcommand of an already-dispatched token owes much less, because the
-token, its manifest entry and its release staging exist already. `vcs
-tracking` is the worked example.
+token, its manifest entry and its release staging exist already. `vcs guard`
+is the worked example.
 
 - **Dispatch coherence.** No action. The guard binds tokens, not
   subcommands, so the new subcommand is covered by its token's existing skill
@@ -746,25 +746,11 @@ tracking` is the worked example.
 - **Bash permission rules.** A skill that invokes the new subcommand through
   the `!` preprocessor needs a `Bash(...)` rule that covers it. A rule scoped
   to another subcommand of the same token does not. **No action when** only
-  the launcher or a hook runs it.
+  the launcher or a hook runs it, as `hooks/hooks.json` runs `vcs guard`.
 - **The public-API fixture.** A subcommand usually lives in the binary crate,
   which is exempt from pinning. A type it adds to a pinned domain crate moves
   that crate's snapshot, so regenerate it with `mise run public-api:update`
   after reading the diff.
-- **Output the launcher captures.** When the launcher runs the subcommand as
-  a captured child instead of `exec`ing it, the output is a contract between
-  two binaries released together. Put the rendered type in `kernel`, which
-  both sides already depend on and which carries no VCS or config libraries,
-  with `Display` for the sub-binary and `FromStr` for the launcher. Add a
-  contract test in the sub-binary's `tests/` that parses the real
-  subcommand's stdout through that `FromStr`, so a renamed token fails there
-  and not silently in the launcher. `kernel::TrackingAnswer` and
-  `cli/vcs-cli/tests/tracking.rs` are the pattern.
-- **The launcher's test fixture.** `accelerator-fixture` impersonates a
-  captured subcommand, rendering through the same `kernel` type, and every
-  launcher test that reaches the capture points `ACCELERATOR_<TOKEN>_BIN` at
-  it. Without that, a test resolves the real sub-binary from the release
-  host.
 
 ## Registering a library crate
 

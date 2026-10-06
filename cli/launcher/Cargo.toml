@@ -13,6 +13,12 @@ role = "launcher"
 [lints]
 workspace = true
 
+[features]
+# The session-start tracking tests build real jj repositories. Same contract as
+# vcs-adapters: on, an absent jj hard-fails; off, only the git cases run. CI
+# enables it (tasks/test/cli.py).
+bash-parity = []
+
 [[bin]]
 name = "accelerator"
 path = "src/main.rs"
@@ -27,6 +33,7 @@ path = "tests/fixtures/accelerator_fixture.rs"
 kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
+vcs-adapters = { path = "../vcs-adapters" }
 tracker-support = { path = "../tracker-support" }
 clap = { workspace = true }
 tracing = { workspace = true }
@@ -42,7 +49,7 @@ flate2 = { workspace = true }
 # resolver needs flock, openat with O_NOFOLLOW, fstatat and utimensat, and
 # depending on a transitive edge is the coupling the workspace's pin discipline
 # exists to prevent.
-rustix = { workspace = true, features = ["event"] }
+rustix = { workspace = true }
 # The generation suffix is drawn from the platform CSPRNG. "Fresh by
 # construction" is what removes the rename-collision branch when a materialised
 # tree is published, and this repository has already been bitten by pid reuse in

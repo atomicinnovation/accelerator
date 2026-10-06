@@ -306,12 +306,7 @@ pub fn summary(
     let body = summary_render::body(&summary);
     let stdout = match (body, hook) {
         (None, false) => String::new(),
-        (None, true)
-            if warnings.session.is_empty()
-                && warnings.context_notes.is_empty() =>
-        {
-            String::new()
-        }
+        (None, true) if warnings.session.is_empty() => String::new(),
         (Some(text), false) => format!("{text}\n"),
         (text, true) => format!(
             "{}\n",

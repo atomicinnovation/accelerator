@@ -1,5 +1,5 @@
 exit: 0
 loopback_requests: 0
 --- stdout
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Accelerator plugin configuration detected:\n- Team config: .accelerator/config.md\n- Personal config: .accelerator/config.local.md\n- Configured sections: work jira\n\nSkills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure.\n\ntracking of .accelerator/config.local.md was not checked this session"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Accelerator plugin configuration detected:\n- Team config: .accelerator/config.md\n- Personal config: .accelerator/config.local.md\n- Configured sections: work jira\n\nSkills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure."}}
 --- stderr
