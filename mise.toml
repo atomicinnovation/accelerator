@@ -355,6 +355,16 @@ description = "Measure warm-dispatch latency vs the shell baseline (quiet host, 
 depends = ["deps:install:python"]
 run = "invoke measure.warm-dispatch"
 
+[tasks."measure:launcher-size"]
+description = "Report the stripped release launcher's byte size for aarch64-apple-darwin"
+depends = ["deps:install:python"]
+run = "invoke measure.launcher-size"
+
+[tasks."measure:summary-latency"]
+description = "Time the SessionStart config summary, cold and warm, in git, jj and colocated jj (quiet host, same host before and after)"
+depends = ["deps:install:python"]
+run = "invoke measure.summary-latency"
+
 [tasks."measure:teardown"]
 description = "Replay the measurement harness's restore and verify phases from a stale manifest"
 depends = ["deps:install:python"]

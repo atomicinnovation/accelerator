@@ -258,6 +258,29 @@ launcher's cache/verify layout, the hook envelope shape, `jj`'s colocation
 default, and a revset anchoring two deleted files. `measure:teardown` is the
 documented escape from the stale-manifest start-up refusal.
 
+**Launcher size and summary latency.** `measure:launcher-size` builds the
+launcher with the shipped (stripped) release profile for
+`aarch64-apple-darwin` and prints its byte size with the host model, OS and
+load. `measure:summary-latency` builds the release launcher and
+`accelerator-vcs`, then times `accelerator config summary --format=hook` in a
+git, a non-colocated jj and a colocated jj fixture repository, each tracking an
+owner-only `.accelerator/config.local.md`. Each repository is timed in two
+modes, 3 discarded warm-ups then 20 timed runs apiece, reported as median and
+p90. **Cold** gives every run a fresh empty launcher cache and a fresh
+repository copy; it means a cold launcher cache, not a cold filesystem cache.
+**Warm** repeats against one shared cache and repository. The tracking path is
+pinned so that before and after a change time the same question:
+`ACCELERATOR_VCS_BIN` points at the locally built `accelerator-vcs`,
+`ACCELERATOR_RELEASE_BASE_URL` points at a refusing loopback address, and a run
+whose output lacks the tracked-file warning, or carries a "was not checked"
+note, fails the task rather than recording a figure. `--repository <path>
+--revision <rev>` also times a snapshot of that revision of a realistically
+sized repository: the commit's history is fetched into a fresh bare store, so
+the source is never written, and checked out in the source's own engine. The
+report records the commit, the index entry count and, for jj, the operation-log
+length. Before and after figures are comparable only when taken on the same
+host.
+
 **What a run requires.** A quiet darwin-arm64 host with no other Claude Code
 session active against the same plugin root; no `ACCELERATOR_*` override set
 except `ACCELERATOR_RELEASE_BASE_URL`; a clean `jj diff` over `keys/ bin/

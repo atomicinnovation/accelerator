@@ -270,15 +270,15 @@ research suspects `design`, `jira`, `linear` and `research` already link
 
 #### Automated Verification:
 
-- [ ] Unit tests pass: `uv run pytest tests/unit/tasks/test_measure.py`
-- [ ] Measure tasks stay out of the CI mirror: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] `mise run` exits 0
+- [x] Unit tests pass: `uv run pytest tests/unit/tasks/test_measure.py`
+- [x] Measure tasks stay out of the CI mirror: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
 - [ ] Before figures for size, warm dispatch and summary latency (cold and warm; git, jj and colocated jj) are recorded with host details, plus the large-repository figure with its repository path and revision
-- [ ] Before symbol counts for every binary are recorded
+- [x] Before symbol counts for every binary are recorded
 
 ---
 
@@ -1683,7 +1683,42 @@ change. No user data migrates.
 
 ## Implementation Notes
 
-To be filled during implementation:
+### Phase 1 before figures
+
+Host: Mac16,5, macOS 26.3 (arm64), revision `22786dde` (the plan's parent).
+
+- Launcher size, stripped `--release`, `aarch64-apple-darwin`:
+  **8 065 488 bytes**. Taken at load 137.60 / 88.71 / 58.01; size does not
+  depend on load.
+- Summary latency, warm dispatch and the large-repository figure: not yet
+  taken. Load stood at 24–137 during this session, which is not a quiet host.
+  They need taking on a quiet host before Phase 7 changes the launcher,
+  against Phase 1's revision.
+
+Before symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
+`nm -a | grep -c`:
+
+| Binary | `gix_` | `jj_lib` | `uluru` |
+|---|---|---|---|
+| `accelerator` | 0 | 0 | 0 |
+| `accelerator-verify` | 0 | 0 | 0 |
+| `accelerator-vcs` | 2273 | 2976 | 3 |
+| `accelerator-work` | 2182 | 3000 | 3 |
+| `accelerator-corpus` | 546 | 238 | 3 |
+| `accelerator-collaboration` | 1679 | 2896 | 3 |
+| `accelerator-migrate` | 2167 | 2890 | 3 |
+| `accelerator-design` | 1688 | 2909 | 3 |
+| `accelerator-linear` | 1678 | 2896 | 3 |
+| `accelerator-jira` | 1678 | 2896 | 3 |
+| `accelerator-research` | 1678 | 2896 | 3 |
+| `accelerator-visualiser` | 0 | 0 | 0 |
+
+`deny.toml` is already stale: it records `design`, `linear` and `jira` as
+linking none of the three and omits `research`, but all four link the closure
+today through `consent-adapters` → `vcs-adapters`.
+
+### Still to record
+
 
 - Measurement host: model, OS version, load.
 - Before figures (Phase 1): size; warm dispatch; summary latency median and
