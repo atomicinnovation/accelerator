@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T15:20:00+00:00"
+last_updated: "2026-10-06T16:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -371,9 +371,15 @@ is reviewed in Phase 7; no test code changes.
 
 **File**: `mise.toml`, `tasks/test/integration.py`,
 `tests/unit/tasks/test_mise.py`
-**Changes**: a `test:integration:characterisation` leaf depending on
-`build:cli:dev`, added to the `test:integration` roll-up and to
-`_LAUNCHER_DEPENDENTS`.
+**Changes**: a `test:integration:characterisation` leaf, added to the
+`test:integration` roll-up and to `_LAUNCHER_DEPENDENTS`.
+
+`build:cli:dev` builds only `accelerator`, `accelerator-vcs`,
+`accelerator-corpus` and `accelerator-research`. The suite also runs the
+`jira`, `linear`, `collaboration`, `work`, `design` and `migrate`
+sub-binaries. Proposed, awaiting the author's confirmation: the leaf depends
+on a build of the launcher and every dispatched sub-binary of its own, and
+`build:cli:dev` stays as it is for the suites that already use it.
 
 ### Success Criteria:
 
@@ -1588,10 +1594,16 @@ the diff.
 
 - Run `mise run measure:launcher-size` and `mise run measure:summary-latency`
   on the Phase 1 host, including the large-repository run with Phase 1's
-  `--repository` and `--revision`.
+  arguments: `--repository . --revision
+  22786dde6161e025e85a642e5ca701dcb389cb20`. Compare release-build figures
+  only: on this host, process-spawning runs are bimodal at ~11 ms and ~34 ms,
+  and the release build sat at ~32 ms in Phase 1.
 - A holder of `ACCELERATOR_RELEASE_SECRET_KEY` runs `mise run prerelease` for
   the finished tree.
-- Then run `mise run measure:warm-dispatch` against that prerelease.
+- Then run `mise run measure:warm-dispatch` against that prerelease. It
+  refuses while any other Claude Code session runs on the host, and while
+  the launcher cache is cold for the tree's version: warm it first with
+  `bin/accelerator vcs detect`. Compare its C1 cell with Phase 1's 44.00 ms.
 - Record raw figures and after/before ratios under Implementation Notes.
 - 🔴 A ratio of 10 or more in size, or in any latency median (the
   large-repository run included), stops for the author's decision, recorded
@@ -1768,11 +1780,8 @@ today through `consent-adapters` → `vcs-adapters`.
   is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
   packages, so only `source-map-js` went to 1.2.2, in a commit of its own
   ahead of Phase 1.
-- Next: Phase 2. Today `build:cli:dev` builds only `accelerator`, `-vcs`,
-  `-corpus` and `-research`, but the characterisation suite also runs
-  `jira`, `linear`, `collaboration`, `work`, `design` and `migrate`. The
-  proposal is a build of every dispatched sub-binary for the suite's task,
-  leaving `build:cli:dev` unchanged. Not yet confirmed.
+- Next: Phase 2, pending the author's confirmation of the build proposal in
+  its Wiring section.
 
 ### Still to record
 
