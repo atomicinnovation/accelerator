@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0283", "work-item:0161"]
 tags: ["research", "deep-research", "arxiv"]
-last_updated: "2026-10-06T14:07:35+00:00"
+last_updated: "2026-10-06T21:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-882"
@@ -167,82 +167,82 @@ queue; the Drafting Notes say why.
 Ordering criteria are observed as the order in which requests reach a stub
 arXiv.
 
-- [ ] Given three live tickets that join the queue in order A, B, C, when
+- [x] Given three live tickets that join the queue in order A, B, C, when
       the serving lock frees, then they are served in order A, B, C, even
       when C polls before A and B.
-- [ ] Given absent unexpired ticket A ahead of live ticket B, when the
+- [x] Given absent unexpired ticket A ahead of live ticket B, when the
       serving lock frees, then B is served without waiting for A; when A is
       re-presented, it is served before every ticket issued after it.
-- [ ] Given two `conduct` runs in the same project, when both issue arXiv
+- [x] Given two `conduct` runs in the same project, when both issue arXiv
       fetch requests, then their tickets are served from one queue in issue
       order.
-- [ ] Given a ticket issued for one search, when it is re-presented with
+- [x] Given a ticket issued for one search, when it is re-presented with
       different `fetch` arguments, then `fetch` returns a rejection outcome
       naming the mismatched arguments, makes no request, and leaves the
       queue unchanged.
-- [ ] Given an invocation needing a search and two withdrawal
+- [x] Given an invocation needing a search and two withdrawal
       confirmations, and a stub arXiv that returns a retryable error on the
       first confirmation, when it is served while other invocations wait,
       then its requests run consecutively, each at least 3 s after the
       previous request, and no other invocation's request reaches the stub
       before that confirmation's retry completes.
-- [ ] Given an invocation at the front with 32 s of budget left, when it
+- [x] Given an invocation at the front with 32 s of budget left, when it
       would be admitted, then it exits with a `waiting` outcome carrying
       its ticket and position, and makes no request; given 33 s left, it is
       admitted and makes its first request.
-- [ ] Given an admitted invocation whose attempt failed with a retryable
+- [x] Given an admitted invocation whose attempt failed with a retryable
       error and a 6 s backoff pending, when it has 38 s of budget left, then
       it releases the serving lock and returns `waiting`; given 39 s left, it
       backs off holding the serving lock and retries.
-- [ ] Given an invocation with a 40 s budget behind a live ticket that holds
+- [x] Given an invocation with a 40 s budget behind a live ticket that holds
       the serving lock for 20 s, when its remaining budget falls below 33 s,
       then it exits with a `waiting` outcome carrying its ticket and
       position 2, and makes no request.
-- [ ] Given expired ticket A, absent unexpired ticket B and live ticket C
+- [x] Given expired ticket A, absent unexpired ticket B and live ticket C
       ahead of ticket D, when D returns `waiting`, then it reports
       position 3.
-- [ ] Given an admitted invocation whose remaining budget cannot cover its
+- [x] Given an admitted invocation whose remaining budget cannot cover its
       second confirmation, when it reaches that point, then it releases the
       serving lock and returns `waiting`; while it is absent a later live
       ticket is served; when re-presented, it is served before every ticket
       issued after it, repeats the search, and re-issues no confirmation
       already cached.
-- [ ] Given a `waiting` ticket re-presented exactly 300 s after its most
+- [x] Given a `waiting` ticket re-presented exactly 300 s after its most
       recent invocation end, when the invocation runs, then it keeps its
       place ahead of every ticket issued after it; re-presented at 301 s,
       it rejoins at the back with a fresh ticket.
-- [ ] Given a ticket issued 950 s ago whose most recent invocation ended
+- [x] Given a ticket issued 950 s ago whose most recent invocation ended
       400 s ago, when it is re-presented, then it rejoins at the back with a
       fresh ticket rather than returning `rate_limited`.
-- [ ] Given an invocation killed mid-wait or mid-call, when the serving
+- [x] Given an invocation killed mid-wait or mid-call, when the serving
       lock next frees, then the next live ticket is served within 1 s,
       without waiting for any expiry, and its first request still reaches
       the stub at least 3 s after the previous request; when the killed
       ticket is re-presented within 300 s, it keeps its place.
-- [ ] Given an unexpired ticket re-presented exactly 900 s after issue,
+- [x] Given an unexpired ticket re-presented exactly 900 s after issue,
       when the invocation runs, then it is queued as usual; re-presented
       901 s after issue, it returns `rate_limited` with
       `cause: lock_contention`, makes no request, and writes one entry to
       `arxiv-contention.log`.
-- [ ] Given an unexpired ticket whose most recent invocation stepped aside
+- [x] Given an unexpired ticket whose most recent invocation stepped aside
       while retrying an upstream error, when it is re-presented more than
       900 s after issue, then it returns `unavailable` with reason
       `upstream_error` and no cause, makes no request, and writes nothing
       to `arxiv-contention.log`.
-- [ ] Given an arXiv queue whose lock cannot be used and a serving lock
+- [x] Given an arXiv queue whose lock cannot be used and a serving lock
       held past the invocation's budget, when an arXiv fetch runs, then it
       returns `rate_limited` with `cause: lock_contention` rather than
       `waiting`, makes no request, and writes one entry to
       `arxiv-contention.log`.
-- [ ] Given an admitted invocation whose stub arXiv returns 429 on every
+- [x] Given an admitted invocation whose stub arXiv returns 429 on every
       attempt, when its attempts are exhausted, then it returns
       `rate_limited` with a cause other than `lock_contention`; given a
       `Retry-After` that pushes the next backoff plus a serving window past
       the remaining budget, it returns `waiting`.
-- [ ] Given an invocation waiting when its ticket crosses 900 s since
+- [x] Given an invocation waiting when its ticket crosses 900 s since
       issue, when the serving lock frees for it within its budget, then it
       is served.
-- [ ] Given 30 concurrent fetch requests, each re-presenting its ticket
+- [x] Given 30 concurrent fetch requests, each re-presenting its ticket
       until a non-`waiting` outcome, against a stub arXiv with 1 s response
       latency, no errors and search results with no withdrawal candidates,
       when all complete, then every fetch request succeeds, none returns
@@ -255,13 +255,13 @@ arXiv.
       node writes exactly one note; given a stub that returns
       `rate_limited` with `cause: lock_contention`, the node writes no note.
       Both pass in 3 of 3 runs.
-- [ ] Given the arXiv serving lock held and live arXiv tickets queued, when
+- [x] Given the arXiv serving lock held and live arXiv tickets queued, when
       an OpenAlex or web fetch runs, then it completes without returning
       `waiting` and the arXiv queue is unchanged.
-- [ ] As a regression guard on the unchanged planner: given at least 24
+- [x] As a regression guard on the unchanged planner: given at least 24
       pending arXiv nodes and default `concurrency` (24), when `conduct`
       spawns a batch, then it spawns exactly 24 arXiv nodes.
-- [ ] Re-running 0283's step 17 setup (3 `arxiv` pairs, depth 3, default
+- [x] Re-running 0283's step 17 setup (3 `arxiv` pairs, depth 3, default
       concurrency) loses 0 nodes to `lock_contention`, recorded in a new
       0295 validation document under `meta/validations/`:
       - The document records the wall-clock time, the median arXiv
@@ -278,10 +278,10 @@ arXiv.
       - At most 3 runs are made. If none is valid evidence, the item is
         recorded as unvalidated, not passed.
       - No wall-clock bound applies.
-- [ ] `research-topic`'s `lock_contention` reason row names re-running
+- [x] `research-topic`'s `lock_contention` reason row names re-running
       `conduct` as the remedy and no longer tells the user to lower
       `--concurrency` first.
-- [ ] 0283's plan and validation documents carry a note that 0295 was
+- [x] 0283's plan and validation documents carry a note that 0295 was
       rescoped from a per-profile batch cap to this fair queue.
 
 ## Open Questions
