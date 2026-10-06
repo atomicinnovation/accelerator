@@ -8,6 +8,7 @@
 
 mod command_runner;
 mod compose;
+mod consent;
 mod document;
 mod render;
 mod screen;
@@ -18,6 +19,7 @@ pub mod legacy;
 pub mod paths;
 
 pub use compose::{compose, Composed};
+pub use consent::{credential_ports, repository_roots, TrackedConfigFile};
 pub use render::{render_resolved, render_value, ABSENT_SENTINEL};
 pub use screen::ScreenedStore;
 pub use store::{plugin_root_from_env, FileConfigStore, LegacyPolicy};

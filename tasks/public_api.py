@@ -15,7 +15,6 @@ from tasks.shared.rust import RUST_NIGHTLY
 _PINNED_CRATES = (
     "collaboration",
     "config",
-    "consent-adapters",
     "corpus",
     "design",
     "document",

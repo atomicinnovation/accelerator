@@ -8,7 +8,6 @@ members = [
     "document",
     "config",
     "config-adapters",
-    "consent-adapters",
     "corpus",
     "corpus-adapters",
     "corpus-cli",

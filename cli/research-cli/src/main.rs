@@ -135,7 +135,8 @@ fn fetch(
     };
     let ports = FetchPorts {
         clock,
-        credentials: consent_adapters::credential_ports(
+        credentials: config_adapters::credential_ports(
+            vcs_adapters::InProcessTracking,
             &project.root,
             &project.root,
         ),

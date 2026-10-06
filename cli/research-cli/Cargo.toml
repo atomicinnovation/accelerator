@@ -29,7 +29,6 @@ research = { path = "../research" }
 research-adapters = { path = "../research-adapters" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
-consent-adapters = { path = "../consent-adapters" }
 vcs = { path = "../vcs" }
 vcs-adapters = { path = "../vcs-adapters" }
 clap = { workspace = true }

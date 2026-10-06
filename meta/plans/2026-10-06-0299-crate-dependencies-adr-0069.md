@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T21:08:21+00:00"
+last_updated: "2026-10-06T21:42:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -822,17 +822,17 @@ pub fn credential_ports(
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p config-adapters -p accelerator-collaboration -p jira-cli -p linear-cli -p accelerator-research -p accelerator-work -p accelerator-design --all-features` passes
-- [ ] Characterisation consent cases unchanged: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] `cargo metadata --manifest-path cli/Cargo.toml --no-deps --format-version 1 | jq -e '[.packages[].name] | index("consent-adapters") | not'`
-- [ ] Known-violation set loses `consent-adapters` and the declaration table matches: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run pup:check`, `mise run public-api:check`, `mise run deny:check`, `uv run pytest tests/integration/pup` pass
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p config-adapters -p accelerator-collaboration -p jira-cli -p linear-cli -p accelerator-research -p accelerator-work -p accelerator-design --all-features` passes
+- [x] Characterisation consent cases unchanged: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] `cargo metadata --manifest-path cli/Cargo.toml --no-deps --format-version 1 | jq -e '[.packages[].name] | index("consent-adapters") | not'`
+- [x] Known-violation set loses `consent-adapters` and the declaration table matches: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run pup:check`, `mise run public-api:check`, `mise run deny:check`, `uv run pytest tests/integration/pup` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] `cargo tree -p accelerator-visualiser -e normal | grep -E 'gix|jj-lib'` is empty
+- [x] `cargo tree -p accelerator-visualiser -e normal | grep -E 'gix|jj-lib'` is empty
 
 ---
 
@@ -1879,8 +1879,22 @@ today through `consent-adapters` → `vcs-adapters`.
     port 19087. Every lane then passed separately: `check`, `test:unit`,
     `test:integration` (539 characterisation cases), `docs:check`, and e2e
     with `E2E_HEALTH_PORT=19187` (355 passed).
-- Next: Phase 6, merging `consent-adapters` into `config-adapters`. Its
-  phase base is `9ba5f99b`, the Phase 5 commit.
+- Phase 6 is complete: `config-adapters::consent` holds the wiring over an
+  injected `vcs::RepositoryTracking`, `consent-adapters` is gone, and the lint
+  reports 8 known findings. Deviations from the Phase 6 text:
+  - **`design-cli`:** names no `vcs` type, so it gains no `vcs` dependency.
+  - **Command-runner pup rule:** its match list already omits every
+    `config_adapters` module, so only its comment changed; naming
+    `config_adapters::consent` alone would mean listing the crate's other
+    modules.
+  - **Moved tests:** the crate's unit and black-box tests became one
+    stub-driven suite, `config-adapters/tests/consent.rs`.
+  - **`mise run`:** the parent checkout's e2e server held health port 19087
+    again, so the green run used `E2E_HEALTH_PORT=19187`. Under load ~39,
+    `runner.rs::stdin_is_at_end_of_file` missed its 2 s bound in isolated
+    parallel runs; it passed serially and in the full run.
+- Next: Phase 7, in-process tracking in the launcher. Its phase base is the
+  Phase 6 commit.
 
 ### Phase 2 characterisation coverage
 

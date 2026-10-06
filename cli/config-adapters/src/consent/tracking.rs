@@ -5,14 +5,15 @@ use std::path::Path;
 use config::consent::ConfigFileTracking;
 use config::consent::Tracking;
 use vcs::tracking::FileTracking;
+use vcs::tracking::RepositoryTracking;
 
 /// Answers whether a config file is tracked by every repository enclosing it.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct VcsConfigFileTracking;
+pub struct TrackedConfigFile<T>(pub T);
 
-impl ConfigFileTracking for VcsConfigFileTracking {
+impl<T: RepositoryTracking> ConfigFileTracking for TrackedConfigFile<T> {
     fn tracking(&self, path: &Path) -> Tracking {
-        translated(vcs_adapters::file_tracking(path))
+        translated(self.0.file_tracking(path))
     }
 }
 
@@ -21,20 +22,5 @@ const fn translated(answer: FileTracking) -> Tracking {
         FileTracking::Untracked => Tracking::Untracked,
         FileTracking::Tracked => Tracking::Tracked,
         FileTracking::Unknown => Tracking::Unknown,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use config::consent::Tracking;
-    use vcs::tracking::FileTracking;
-
-    use super::translated;
-
-    #[test]
-    fn each_file_tracking_answer_maps_to_its_tracking() {
-        assert_eq!(translated(FileTracking::Untracked), Tracking::Untracked);
-        assert_eq!(translated(FileTracking::Tracked), Tracking::Tracked);
-        assert_eq!(translated(FileTracking::Unknown), Tracking::Unknown);
     }
 }

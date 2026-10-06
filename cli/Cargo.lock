@@ -39,7 +39,6 @@ dependencies = [
  "collaboration",
  "config",
  "config-adapters",
- "consent-adapters",
  "github",
  "http",
  "http-test-support",
@@ -74,7 +73,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "design",
  "design-adapters",
  "kernel",
@@ -106,7 +104,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "corpus",
  "corpus-adapters",
  "http-test-support",
@@ -198,7 +195,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "corpus",
  "corpus-adapters",
  "document",
@@ -834,17 +830,7 @@ dependencies = [
  "signal-hook",
  "store",
  "tempfile",
-]
-
-[[package]]
-name = "consent-adapters"
-version = "1.24.0-pre.74"
-dependencies = [
- "config",
- "config-adapters",
- "tempfile",
  "vcs",
- "vcs-adapters",
 ]
 
 [[package]]
@@ -2873,7 +2859,6 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
- "consent-adapters",
  "http-test-support",
  "jira-client",
  "kernel",
@@ -3095,7 +3080,6 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
- "consent-adapters",
  "graphql-test-support",
  "http-test-support",
  "kernel",

@@ -357,7 +357,6 @@ _EXPECTED_DECLARATIONS = {
     "kernel": ("kernel", None, None, None),
     "config": ("domain", "config", _PLATFORM, None),
     "config-adapters": ("adapter", "config", None, None),
-    "consent-adapters": ("adapter", "config", None, None),
     "vcs": ("domain", "vcs", _PLATFORM, None),
     "vcs-adapters": ("adapter", "vcs", None, None),
     "corpus": ("domain", "corpus", _PLATFORM, None),
@@ -418,7 +417,6 @@ def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
         str(f) for f in crate_dependencies.findings(workspace_packages())
     ] == [
         "accelerator -> tracker-support: rule 6",
-        "consent-adapters -> vcs-adapters: rule 4",
         "migrate -> document: rule 1",
         "migrate-adapters -> config-adapters: rule 4",
         "migrate-adapters -> corpus-adapters: rule 4",

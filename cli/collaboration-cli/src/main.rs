@@ -109,7 +109,11 @@ fn build_blocking_client(
     config: &dyn ConfigAccess,
 ) -> Result<BlockingGitHubClient, kernel::Error> {
     let root = FileConfigStore::discover_root(start);
-    let ports = consent_adapters::credential_ports(&root, start);
+    let ports = config_adapters::credential_ports(
+        vcs_adapters::InProcessTracking,
+        &root,
+        start,
+    );
     let context = project_credential_context(
         &root,
         &ports,

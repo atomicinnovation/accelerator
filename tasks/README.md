@@ -825,10 +825,10 @@ owes five things. `cli/tracker/` is the worked example.
 
 Then run `mise run deny:check`.
 
-One placement rule decides where a new config adapter goes: it belongs in
-`cli/consent-adapters` only when it needs VCS. A VCS-free adapter stays in
-`cli/config-adapters`, whose dependents include the launcher and the
-visualiser server, so `gix` and `jj-lib` stay out of both.
+A config adapter that needs VCS asks the `vcs` domain's ports, injected at
+the composition root, and never depends on `vcs-adapters`.
+`cli/config-adapters`' dependents include the launcher and the visualiser
+server, so `gix` and `jj-lib` stay out of both.
 
 ## CI job → local command
 

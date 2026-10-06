@@ -417,21 +417,6 @@
                 ),
             ],
         )),
-        // consent-adapters answers the consent policy's VCS questions through
-        // vcs-adapters' in-process probes, so it spawns nothing itself.
-        Module((
-            name: "consent_adapters_is_zero_spawn",
-            matches: Module("^consent_adapters($|::)"),
-            rules: [
-                RestrictImports(
-                    allowed_only: None,
-                    denied: Some([
-                        "^std::process(::|$)",
-                    ]),
-                    severity: Error,
-                ),
-            ],
-        )),
         // The VCS sub-binary answers the launcher's tracking question about
         // config files by path alone, so the VCS context never learns what a
         // config file is.
@@ -452,10 +437,11 @@
         // Only the consent policy runs a command, so no consumer may name the
         // runner port or its production adapter; a consumer holds the opaque
         // `Runner` instead. The regex cannot negate, so it lists every crate
-        // but config, config_adapters and consent_adapters, on one line
-        // because a RON string cannot split. A grouped import resolves to an
-        // empty module name and slips past a denied list; the opaque `Runner`
-        // is the primary guarantee, this the second line.
+        // but config and config_adapters, whose consent module holds the
+        // production runner, on one line because a RON string cannot split.
+        // A grouped import resolves to an empty module name and slips past a
+        // denied list; the opaque `Runner` is the primary guarantee, this the
+        // second line.
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
