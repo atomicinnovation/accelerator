@@ -5,7 +5,7 @@ title: "Bring the CLI Workspace's Crate Dependencies into Line with ADR-0069 Imp
 date: "2026-10-06T11:35:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0299"
 parent: "work-item:0299"
 derived_from: ["codebase-research:2026-10-06-0299-crate-dependencies-adr-0069"]
@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T14:06:36+00:00"
+last_updated: "2026-10-06T15:20:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -277,7 +277,9 @@ research suspects `design`, `jira`, `linear` and `research` already link
 
 #### Manual Verification:
 
-- [ ] Before figures for size, warm dispatch and summary latency (cold and warm; git, jj and colocated jj) are recorded with host details, plus the large-repository figure with its repository path and revision
+- [x] Before launcher size is recorded with host details
+- [x] Before summary latency (cold and warm; git, jj and colocated jj) is recorded with host details, plus the large-repository figure with its repository path and revision
+- [ ] Before warm-dispatch figure is recorded with host details (blocked: the task refuses while other Claude Code sessions are active against the plugin root)
 - [x] Before symbol counts for every binary are recorded
 
 ---
@@ -1740,14 +1742,23 @@ Before symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
 linking none of the three and omits `research`, but all four link the closure
 today through `consent-adapters` → `vcs-adapters`.
 
+### Progress
+
+- Phase 1 is committed, apart from the warm-dispatch before figure.
+- `mise run` first failed on `docs:audit:check`: a new high advisory,
+  `GHSA-68fv-2mgg-jv7q`, against `source-map-js@1.2.1` in `docs-site/`. It
+  is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
+  packages, so only `source-map-js` went to 1.2.2, in a commit of its own
+  ahead of Phase 1.
+- Next: Phase 2. Today `build:cli:dev` builds only `accelerator`, `-vcs`,
+  `-corpus` and `-research`, but the characterisation suite also runs
+  `jira`, `linear`, `collaboration`, `work`, `design` and `migrate`. The
+  proposal is a build of every dispatched sub-binary for the suite's task,
+  leaving `build:cli:dev` unchanged. Not yet confirmed.
+
 ### Still to record
 
-
-- Measurement host: model, OS version, load.
-- Before figures (Phase 1): size; warm dispatch; summary latency median and
-  p90 for cold and warm in git, jj and colocated jj; the large-repository
-  figure with its index size and operation-log length.
-- Before symbol counts (Phase 1).
+- Warm-dispatch before figure (Phase 1).
 - Characterisation coverage map (Phase 2).
 - Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
