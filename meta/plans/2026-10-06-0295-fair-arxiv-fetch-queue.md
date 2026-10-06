@@ -1176,14 +1176,14 @@ concurrency say so and use `SystemClock` instead.
 
 #### Automated Verification
 
-- [ ] Adapter tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research-adapters`
-- [ ] `mise run public-api:check`
-- [ ] `mise run cli:check`
-- [ ] `mise run`
+- [x] Adapter tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research-adapters`
+- [x] `mise run public-api:check`
+- [x] `mise run cli:check`
+- [x] `mise run`
 
 #### Manual Verification
 
-- [ ] A `jj diff` read of `queue.rs` confirms every file write happens under
+- [x] A `jj diff` read of `queue.rs` confirms every file write happens under
       `queue.lock`.
 
 ---

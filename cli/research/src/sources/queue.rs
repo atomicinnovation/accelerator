@@ -12,6 +12,7 @@ use crate::sources::request::ArxivQuery;
 use crate::sources::request::ArxivRequest;
 use crate::sources::request::Limit;
 use crate::sources::request::RequestError;
+use crate::sources::schedule::Deadline;
 
 /// How long an absent ticket keeps its place after its last call ended.
 pub const EXPIRY: Duration = Duration::from_secs(300);
@@ -29,6 +30,12 @@ pub struct Nonce(u32);
 
 impl Nonce {
     const DIGITS: usize = 6;
+    const BITS: u32 = 0x00ff_ffff;
+
+    /// The nonce made of the low 24 bits of `bits`.
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits & Self::BITS)
+    }
 
     /// # Errors
     ///
@@ -383,4 +390,46 @@ fn end_of(standing: &Standing, now: SystemTime) -> Option<SystemTime> {
 
 fn latest_end(standing: &Standing, now: SystemTime) -> SystemTime {
     now.min(standing.presented_at + LONGEST_INVOCATION)
+}
+
+/// Where an arXiv call waits its turn across invocations.
+pub trait ArxivQueue {
+    /// Presents `presented`, or no ticket, for the call bound to `binding`.
+    /// Waits for the queue no longer than leaves the deadline a serving
+    /// window of `spacing` and one request.
+    fn join(
+        &self,
+        binding: &Binding,
+        presented: Option<&Ticket>,
+        deadline: &Deadline,
+        spacing: Duration,
+    ) -> Joining<'_>;
+}
+
+pub enum Joining<'q> {
+    Queued(Box<dyn Place + 'q>),
+    /// The queue could not be used, so the call has no place to keep.
+    Unqueued,
+    Rejected(TicketRejection),
+    OverCap {
+        ticket: Ticket,
+        last_retryable: Option<Reason>,
+    },
+}
+
+/// A ticket held live by this call until it steps aside or leaves.
+pub trait Place {
+    fn ticket(&self) -> &Ticket;
+
+    fn is_front(&self) -> bool;
+
+    /// Keeps the ticket's place for a re-presentation.
+    fn step_aside(
+        self: Box<Self>,
+        last_retryable: Option<Reason>,
+        deadline: &Deadline,
+    ) -> Position;
+
+    /// Gives the place up for good.
+    fn leave(self: Box<Self>, deadline: &Deadline);
 }

@@ -158,6 +158,14 @@ fn tickets_round_trip_through_their_text_form() {
 }
 
 #[test]
+fn a_nonce_keeps_the_low_24_bits_it_is_made_from() {
+    assert_eq!(
+        Nonce::from_bits(0xff12_3456),
+        Nonce::from_hex("123456").expect("a nonce")
+    );
+}
+
+#[test]
 fn malformed_tickets_are_refused() {
     for text in [
         "42",

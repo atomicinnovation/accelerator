@@ -403,6 +403,7 @@ pub research::sources::classify::Reason::RateLimited
 pub research::sources::classify::Reason::UpstreamError
 impl research::sources::classify::Reason
 pub const fn research::sources::classify::Reason::code(self) -> &'static str
+pub fn research::sources::classify::Reason::from_code(code: &str) -> core::option::Option<Self>
 impl core::clone::Clone for research::sources::classify::Reason
 pub fn research::sources::classify::Reason::clone(&self) -> research::sources::classify::Reason
 impl core::cmp::Eq for research::sources::classify::Reason
@@ -683,6 +684,13 @@ pub fn research::sources::queue::Binding::eq(&self, other: &research::sources::q
 impl core::fmt::Debug for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::Binding
+pub enum research::sources::queue::Joining<'q>
+pub research::sources::queue::Joining::OverCap
+pub research::sources::queue::Joining::OverCap::last_retryable: core::option::Option<research::sources::classify::Reason>
+pub research::sources::queue::Joining::OverCap::ticket: research::sources::queue::Ticket
+pub research::sources::queue::Joining::Queued(alloc::boxed::Box<(dyn research::sources::queue::Place + 'q)>)
+pub research::sources::queue::Joining::Rejected(research::sources::queue::TicketRejection)
+pub research::sources::queue::Joining::Unqueued
 pub enum research::sources::queue::Presence
 pub research::sources::queue::Presence::Absent
 pub research::sources::queue::Presence::Absent::ended_at: core::option::Option<std::time::SystemTime>
@@ -739,6 +747,7 @@ impl core::marker::Copy for research::sources::queue::Contender
 impl core::marker::StructuralPartialEq for research::sources::queue::Contender
 pub struct research::sources::queue::Nonce(_)
 impl research::sources::queue::Nonce
+pub const fn research::sources::queue::Nonce::from_bits(bits: u32) -> Self
 pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
 impl core::clone::Clone for research::sources::queue::Nonce
 pub fn research::sources::queue::Nonce::clone(&self) -> research::sources::queue::Nonce
@@ -818,6 +827,13 @@ pub const research::sources::queue::ABANDONED_AFTER: core::time::Duration
 pub const research::sources::queue::CAP: core::time::Duration
 pub const research::sources::queue::EXPIRY: core::time::Duration
 pub const research::sources::queue::LONGEST_INVOCATION: core::time::Duration
+pub trait research::sources::queue::ArxivQueue
+pub fn research::sources::queue::ArxivQueue::join(&self, binding: &research::sources::queue::Binding, presented: core::option::Option<&research::sources::queue::Ticket>, deadline: &research::sources::schedule::Deadline, spacing: core::time::Duration) -> research::sources::queue::Joining<'_>
+pub trait research::sources::queue::Place
+pub fn research::sources::queue::Place::is_front(&self) -> bool
+pub fn research::sources::queue::Place::leave(self: alloc::boxed::Box<Self>, deadline: &research::sources::schedule::Deadline)
+pub fn research::sources::queue::Place::step_aside(self: alloc::boxed::Box<Self>, last_retryable: core::option::Option<research::sources::classify::Reason>, deadline: &research::sources::schedule::Deadline) -> research::sources::queue::Position
+pub fn research::sources::queue::Place::ticket(&self) -> &research::sources::queue::Ticket
 pub fn research::sources::queue::is_abandoned(issued_at: std::time::SystemTime, now: std::time::SystemTime) -> bool
 pub fn research::sources::queue::is_front_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, now: std::time::SystemTime) -> bool
 pub mod research::sources::record

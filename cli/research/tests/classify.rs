@@ -199,6 +199,18 @@ fn server_errors_and_transport_failures_are_retried_as_upstream_errors() {
 }
 
 #[test]
+fn a_reason_is_read_back_from_its_output_code() {
+    for reason in [
+        Reason::RateLimited,
+        Reason::BudgetExhausted,
+        Reason::UpstreamError,
+    ] {
+        assert_eq!(Reason::from_code(reason.code()), Some(reason));
+    }
+    assert_eq!(Reason::from_code("lock_contention"), None);
+}
+
+#[test]
 fn a_reason_renders_as_its_output_code() {
     assert_eq!(Reason::RateLimited.code(), "rate_limited");
     assert_eq!(Reason::BudgetExhausted.code(), "budget_exhausted");

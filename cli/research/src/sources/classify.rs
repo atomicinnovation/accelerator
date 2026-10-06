@@ -53,6 +53,16 @@ impl Reason {
             Self::UpstreamError => "upstream_error",
         }
     }
+
+    pub fn from_code(code: &str) -> Option<Self> {
+        [
+            Self::RateLimited,
+            Self::BudgetExhausted,
+            Self::UpstreamError,
+        ]
+        .into_iter()
+        .find(|reason| reason.code() == code)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

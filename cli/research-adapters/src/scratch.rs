@@ -3,11 +3,14 @@
 
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::ErrorKind;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use store::atomic_write;
+use store::ensure_contained;
 use store::replace_without_sync;
 use store::NewFileMode;
 use store::WriteBounds;
@@ -29,8 +32,72 @@ impl ScratchDir {
         }
     }
 
+    /// A directory within this one, bounded by the same project root.
+    #[must_use]
+    pub fn nested(&self, name: &str) -> Self {
+        Self {
+            project_root: self.project_root.clone(),
+            directory: self.directory.join(name),
+        }
+    }
+
     pub fn path(&self, name: &str) -> PathBuf {
         self.directory.join(name)
+    }
+
+    /// The names of every entry, or none while the directory does not exist
+    /// yet.
+    ///
+    /// # Errors
+    ///
+    /// A one-line description naming the directory when it cannot be listed.
+    pub fn names(&self) -> Result<Vec<String>, String> {
+        let entries = match std::fs::read_dir(&self.directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(Vec::new())
+            }
+            Err(error) => return Err(self.unlistable(&error)),
+        };
+        entries
+            .map(|entry| {
+                entry
+                    .map(|entry| {
+                        entry.file_name().to_string_lossy().into_owned()
+                    })
+                    .map_err(|error| self.unlistable(&error))
+            })
+            .collect()
+    }
+
+    pub fn modified(&self, name: &str) -> Option<SystemTime> {
+        std::fs::metadata(self.path(name))
+            .and_then(|metadata| metadata.modified())
+            .ok()
+    }
+
+    /// Removes a file, counting one already gone as removed.
+    ///
+    /// # Errors
+    ///
+    /// A one-line description naming the file when it lies outside this
+    /// directory or cannot be removed.
+    pub fn remove(&self, name: &str) -> Result<(), String> {
+        let path = self.path(name);
+        let unremovable = |detail: &dyn std::fmt::Display| {
+            format!("could not remove {}: {detail}", path.display())
+        };
+        ensure_contained(&path, &self.bounds())
+            .map_err(|error| unremovable(&error))?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(unremovable(&error)),
+        }
+    }
+
+    fn unlistable(&self, error: &std::io::Error) -> String {
+        format!("could not list {}: {error}", self.directory.display())
     }
 
     pub fn read(&self, name: &str) -> Option<Vec<u8>> {
