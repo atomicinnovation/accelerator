@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T16:39:52+00:00"
+last_updated: "2026-10-06T16:40:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1838,12 +1838,14 @@ Deviations from the Phase 2 text, found while writing the cases:
 - **`sync_author` lock:** taken only when a sync creates an item from the
   remote, which needs a tracker response `work-cli` cannot be pointed at
   offline. `work create` takes the same lockdir through the same primitive.
-- ⚠️ **Working-copy status:** `work sync` consults it only for pulls, and
+- **Working-copy status:** `work sync` consults it only for pulls, and
   `work list` only once a tracker resolves and answers. `work-cli` has no
   API-URL override, so neither is reachable offline without real network.
   `VcsWorkingCopyStatus` stays covered by its unit tests and, from Phase 5,
   by the `RepositoryProbe` contract tests in git and jj. Migrate's preflight,
   which reads `working_copy_state` through `VcsWorkingCopy`, is characterised.
+  The author accepted unit and contract-test coverage here rather than a
+  `test-loopback` API-URL seam in `work-cli`.
 - **Launcher `TEMP_PREFIX`:** used only when a fetched binary is installed,
   which no offline case reaches. The Phase 4 constant tests guard it.
 - **Golden findings worth knowing:** `jira-cli` and `linear-cli` resolve
@@ -1852,9 +1854,6 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ### Still to record
 
-- The author's decision on the working-copy status gap: accept unit and
-  contract coverage, or add a `test-loopback` API-URL seam to `work-cli` so a
-  characterisation case can reach it before Phases 5 and 9 refactor it.
 - Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
 - Author decisions, if any gate tripped.
