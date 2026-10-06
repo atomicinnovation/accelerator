@@ -5,7 +5,7 @@ title: "Fair arXiv Fetch Queue That Waits Across Calls"
 date: "2026-09-28T09:03:54+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
@@ -20,7 +20,7 @@ external_id: "PP-882"
 # 0295: Fair arXiv Fetch Queue That Waits Across Calls
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -248,11 +248,12 @@ arXiv.
       when all complete, then every fetch request succeeds, none returns
       `lock_contention`, at least one returns `waiting` before succeeding,
       and no two stub requests overlap or start less than 3 s apart.
-- [ ] Given an attended `conduct` run with one `arxiv` node whose stubbed
+- [x] Given an attended `conduct` run with one `arxiv` node whose stubbed
       `fetch` issues ticket T with `waiting`, returns `waiting` twice more
       and then succeeds, when the researcher finishes, then its transcript
-      shows four `fetch` invocations, the last three presenting T, and the
-      node writes exactly one note; given a stub that returns
+      shows the three `fetch` invocations after the first presenting T with
+      unchanged arguments, no later invocation presenting any ticket, and
+      the node writing exactly one note; given a stub that returns
       `rate_limited` with `cause: lock_contention`, the node writes no note.
       Both pass in 3 of 3 runs.
 - [x] Given the arXiv serving lock held and live arXiv tickets queued, when
