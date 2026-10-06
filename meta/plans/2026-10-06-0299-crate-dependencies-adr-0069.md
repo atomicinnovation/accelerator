@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T16:58:57+00:00"
+last_updated: "2026-10-06T18:17:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -522,7 +522,7 @@ verbatim, because two of its rows are rule 3 judgements outside the lint
 
 #### Manual Verification:
 
-- [ ] Finding text names the crate, dependency and rule number or check name
+- [x] Finding text names the crate, dependency and rule number or check name
 
 ---
 
@@ -1808,7 +1808,7 @@ today through `consent-adapters` → `vcs-adapters`.
   of Phase 2.
 - Phase 3 is complete: all 43 members declare their role, and
   `lint:crate-dependencies:check` reports exactly the 13 known findings. It is
-  in neither roll-up. Its manual check awaits the author's review. Deviations
+  in neither roll-up. The author accepted its finding text. Deviations
   from the Phase 3 text:
   - **Names:** the domain class is `BoundedContext`, since `Context` clashes
     with invoke's. `Edge` carries no dependency kind: dev edges are dropped on
