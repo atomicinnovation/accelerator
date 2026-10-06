@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0283", "work-item:0161"]
 tags: ["research", "deep-research", "arxiv"]
-last_updated: "2026-10-05T22:51:50+00:00"
+last_updated: "2026-10-06T14:07:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-882"
@@ -30,7 +30,7 @@ As an Accelerator user researching a subject with `arxiv` pairs at depth
 above 1, I want arXiv fetch requests to queue fairly and keep their place
 across invocations, so that a deepened round loses no nodes to arXiv lock
 contention unless an unexpired ticket is re-presented more than 900 s after
-issue.
+issue, or the queue itself is unusable.
 
 ## Context
 
@@ -135,7 +135,11 @@ queue; the Drafting Notes say why.
   resumes its place, unless the 900 s cap below applies. A ticket absent for longer expires, and re-presenting
   it rejoins the back with a fresh ticket.
 - An unexpired ticket re-presented more than 900 s after issue returns
-  `rate_limited` with `cause: lock_contention`, enforced in Rust. Expiry is
+  `rate_limited` with `cause: lock_contention`, enforced in Rust. The
+  exception is a ticket whose most recent invocation ran out of budget while
+  retrying a retryable failure: it returns `unavailable` with that failure's
+  reason, with no `lock_contention` cause and no contention-log entry, so a
+  persistently failing upstream is not reported as queue contention. Expiry is
   checked before the cap, so an expired ticket rejoins with a fresh ticket
   and a reset clock. The cap is checked only on re-presentation; an
   invocation already waiting when its ticket crosses 900 s runs on until
@@ -143,10 +147,15 @@ queue; the Drafting Notes say why.
   fetch requests can wait longer in total.
 - The arXiv researcher re-presents a `waiting` ticket until the outcome is
   anything other than `waiting`, and writes no note while it is `waiting`.
-- After this change the 900 s cap is the only path to `lock_contention`.
-  The `lock_contention` cause stays distinct from the throttling cause of
-  `rate_limited`. `arxiv-contention.log` is written only when the cap
-  fires.
+- If the queue itself cannot be used (its lock cannot be opened, locked
+  or taken within the budget), an arXiv fetch is admitted unqueued. Having
+  no place to keep, it returns `rate_limited` with
+  `cause: lock_contention` rather than `waiting` when its budget runs out,
+  so the researcher's loop stays bounded.
+- After this change the 900 s cap and an unusable queue are the only paths
+  to `lock_contention`. The `lock_contention` cause stays distinct from the
+  throttling cause of `rate_limited`. `arxiv-contention.log` is written
+  only when one of them fires.
   `research-topic`'s reason row names re-running `conduct` as the remedy
   instead of lowering `--concurrency`.
 - `conduct` has no per-profile arXiv spawn cap today, and this story adds
@@ -214,6 +223,16 @@ arXiv.
       when the invocation runs, then it is queued as usual; re-presented
       901 s after issue, it returns `rate_limited` with
       `cause: lock_contention`, makes no request, and writes one entry to
+      `arxiv-contention.log`.
+- [ ] Given an unexpired ticket whose most recent invocation stepped aside
+      while retrying an upstream error, when it is re-presented more than
+      900 s after issue, then it returns `unavailable` with reason
+      `upstream_error` and no cause, makes no request, and writes nothing
+      to `arxiv-contention.log`.
+- [ ] Given an arXiv queue whose lock cannot be used and a serving lock
+      held past the invocation's budget, when an arXiv fetch runs, then it
+      returns `rate_limited` with `cause: lock_contention` rather than
+      `waiting`, makes no request, and writes one entry to
       `arxiv-contention.log`.
 - [ ] Given an admitted invocation whose stub arXiv returns 429 on every
       attempt, when its attempts are exhausted, then it returns
@@ -315,7 +334,8 @@ arXiv.
 - The gap between a researcher's consecutive `fetch` invocations is one
   agent turn, well under 300 s.
 - `conduct` reads only the notes researchers write, not `fetch` outcomes,
-  so `waiting` needs no handling outside the researcher.
+  so `waiting` needs no handling outside the researcher beyond a reason row
+  for a researcher that ends without re-presenting its ticket.
 
 ## Technical Notes
 
@@ -390,6 +410,11 @@ arXiv.
   were accounted for. A cap for round duration was considered and
   rejected: longer rounds are accepted in exchange for no lost nodes.
 - Kept the file name and id; only the title changed.
+- Plan review added two paths to the `lock_contention` contract. An
+  unusable queue ends a call in `lock_contention`, because an unpersisted
+  ticket could otherwise be re-presented forever. A cap that fires after an
+  upstream failure reports that failure, because a slow outage would
+  otherwise read as contention after 900 s.
 
 ## References
 
