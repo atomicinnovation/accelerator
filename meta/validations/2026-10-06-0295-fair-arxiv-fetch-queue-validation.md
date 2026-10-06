@@ -4,25 +4,153 @@ id: "2026-10-06-0295-fair-arxiv-fetch-queue-validation"
 title: "Validation Report: Fair arXiv Fetch Queue Implementation Plan"
 date: "2026-10-06T20:18:21+00:00"
 author: "Toby Clemson"
-producer: "implement-plan"
+producer: "validate-plan"
 status: "complete"
 result: "pass"
 target: "plan:2026-10-06-0295-fair-arxiv-fetch-queue"
 tags: ["research", "arxiv", "pacing", "fetch"]
-last_updated: "2026-10-06T20:18:21+00:00"
+last_updated: "2026-10-06T21:11:39+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
 ## Validation Report: Fair arXiv Fetch Queue Implementation Plan
 
-Result: pass. The three attended researcher checks pass 3 of 3, the planner
-offers exactly 24 arXiv nodes at the default concurrency, and the re-run of
-0283's step 17 loses 0 of 24 nodes to `lock_contention`. The first step 17
-run produced no `waiting` outcome, so it was not evidence and was repeated;
-the second is the judged run.
+Result: pass. All five phases are implemented, every automated criterion
+passes on the current tree, and the Phase 5 attended checks and step 17 run
+pass. The deviations below are small, and none changes a behaviour the plan
+or work item specifies.
 
-### Method
+### Implementation Status
+
+✓ Phase 1: Whole-Call Admission Under the Serving Lock - Fully implemented
+✓ Phase 2: Queue Domain Model - Fully implemented
+✓ Phase 3: File-Backed Queue Adapter - Fully implemented
+✓ Phase 4: `fetch` Queues arXiv Calls - Fully implemented
+✓ Phase 5: Attended Checks, Validation Run and Annotations - Fully implemented
+
+Every test the plan names exists, by name, by an obvious rename, or through a
+replacement the Phase 4 table lists.
+
+### Automated Verification Results
+
+Run on the tree after the send-margin commit:
+
+✓ Full local CI mirror: `mise run` (4,598 CLI tests pass, 2 skipped)
+✓ Read-only CI set: `mise run check`
+✓ Public API snapshots: `mise run public-api:check`
+✓ Prompt structure and lane wiring: `uv run pytest tests/unit/tasks/test_research_structure.py tests/unit/tasks/test_mise.py` (106 passed)
+✓ Guard differential: `mise run test:integration:research`
+✓ Generated docs current: `mise run docs:generate` leaves no diff
+✓ Docs lane: `mise run docs:check`
+✓ Stress lane: `mise run test:integration:arxiv-queue-stress` (1 test, 117 s)
+✓ Real-time pacing: `arxiv_pacing` 20 of 20 under `--stress-count 20`
+✓ Validation frontmatter: `accelerator corpus frontmatter validate`
+
+### Code Review Findings
+
+#### Matches Plan:
+
+- `PacingGate { spacing, try_serve }`, `ServingTurn::paced` and
+  `OutOfBudget` match the Ports section. The backoff sleeps while the turn
+  is alive, and `confirmations.recall` runs under it.
+- Admission is 33 s for 32 s / 33 s and 39 s for a 6 s backoff, from
+  `admits_attempt_after(now, wait + spacing)`.
+- `Queue::present` applies Join, mismatch, live, cap and Resume in the
+  planned order. Elapsed time saturates, and abandonment only ever caps an
+  end.
+- `FileArxivQueue` probes with a shared non-blocking lock on a read-write
+  open without create. `own` retries every 1 ms within 500 ms, and every
+  record write, removal and ticket-lock creation happens under
+  `queue.lock`.
+- No lock-order violation was found. The turn is consumed and dropped
+  before `leave` or `step_aside`, and `is_front` takes no lock beyond its
+  momentary probe.
+- `upstream_reason_or_contention` is the only place contention is
+  recorded.
+- The `waiting` JSON, its summary line and both rejection lines match the
+  plan's wording.
+- The profiles, reason rows, `research.md`, CHANGELOG and stress-lane
+  wiring are as planned.
+
+#### Deviations from Plan:
+
+- **Send margin.** A send with no finish after it is spaced 3.1 s
+  (`cli/research-adapters/src/pacing.rs:58-61`). Recorded in the plan's
+  Implementation Notes.
+- **Lock bounds carry small margins.** `join`'s `queue.lock` bound keeps
+  `spacing + 10 ms` in reserve, and `step_aside` and `leave` stop with
+  10 ms left rather than at zero (`cli/research-adapters/src/queue.rs:546-548`).
+- **Own ticket probed.** `step_aside` and `leave` probe their own ticket
+  rather than marking it `Live`. A fresh descriptor's shared probe reads
+  `Held` against the process's own exclusive lock, so the result is the
+  same.
+- **Position after a failed write.** When `step_aside`'s record write
+  fails, it returns the recomputed position rather than the join position
+  (`queue.rs:505-515`).
+- **Shared store helpers.** `store::replace_without_sync` shares
+  `contained_target`, `stage` and `publish` with `atomic_write`, not just
+  `ensure_contained` and the staging name. `atomic_write`'s two fsyncs stay
+  inline and unflagged, as the plan requires.
+- **Abandoned live ticket.** Re-presented, it reads as `OverCap` or `Join`
+  rather than `AlreadyLive`. This follows from the abandonment rule;
+  `a_live_abandoned_ticket_presented_again_is_not_already_live` covers it.
+- **Unavailable bullet shortened.** The arXiv profile's Unavailable bullet
+  omits the planned note that a ticket whose last call ran out mid-retry
+  reports that retry's reason. The required "Any other status" sentence is
+  present.
+- **Phase 5 call count.** The attended re-presentation runs show 5 `fetch`
+  invocations, not 4, because each researcher made one further legitimate
+  search; see Phase 5 Evidence.
+
+#### Potential Issues:
+
+- **Stale doc comments.** These describe the pre-queue behaviour:
+  - `Unavailable::lock_contention()` still reads "Another process held the
+    source for longer than the deadline allowed"
+    (`cli/research/src/sources/fetch.rs:174`);
+  - `CALL_BUDGET` says a throttled source "reports itself unavailable"
+    (`cli/research-cli/src/main.rs:74-75`);
+  - `summary` says it names attempts, which the waiting line omits
+    (`cli/research-cli/src/render.rs:77-78`).
+- **Docs gap.** `research.md:84-86` says only failed or unavailable calls
+  write a stderr line; a `waiting` call writes one too.
+- **Duplicated constant.** `contention.rs:48` writes "900 s cap" literally
+  rather than from `queue::CAP`.
+- **Margin edge.** The domain admits on 3 s spacing, but after a killed
+  send the gate needs 3.1 s. A call with 33.0–33.1 s left can take
+  `arxiv.lock` and then step aside without a request, which fits the plan's
+  "first attempt checks the clock again" guarantee.
+- **Undeletable lock path.** A ticket `.lock` that is a directory is never
+  removed; housekeeping reports it each pass, while its record is still
+  pruned by age.
+- **Orphaned lock file.** A fresh join whose `own` or record write fails
+  leaves an orphaned `<ticket>.lock` until the next housekeeping pass. The
+  lock is released, so nothing waits on it.
+
+### Manual Testing Required:
+
+1. Review by someone other than the implementer:
+  - [ ] Read the CHANGELOG entry and the `research.md` Pacing section
+  - [ ] Read the 0283 annotations in place
+2. Release placement:
+  - [ ] Decide whether the CHANGELOG entry belongs under `### Breaking`
+        rather than `### Changed`, since `fetch` callers must now handle
+        `waiting`
+
+### Recommendations:
+
+- Update the three stale doc comments and the `research.md` stderr
+  sentence before merge.
+- Derive the contention-log cap text from `queue::CAP`.
+- Restore the mid-retry note to the arXiv profile's Unavailable bullet, or
+  record its omission in the plan.
+- Consider raising `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` to 24 for a
+  future step 17 run, so the queue sees the full planned load.
+
+### Phase 5 Evidence
+
+#### Method
 
 Each check ran as a headless `claude -p` session (Claude Code 2.1.292,
 `claude-opus-5-5`) with `--plugin-dir` pointed at this tree, using the
@@ -53,7 +181,7 @@ its `arxiv.lock` or queue.
   awake.
 - **Cost.** 9 attended sessions, about $4.65; 2 step 17 runs, about $18.33.
 
-### Attended researcher checks
+#### Attended researcher checks
 
 | Check | Result | Evidence |
 |---|---|---|
@@ -70,7 +198,7 @@ the latest ticket replaced the earlier one, no ticket leaked into a later
 call, and exactly one note was written. Every written note and manifest
 validates.
 
-### Planner guard
+#### Planner guard
 
 `outstanding --start --limit 24` over the seeded step 17 set offers exactly
 24 level-3 spawns, all `arxiv`, with `remaining` 0, and
@@ -80,7 +208,7 @@ run 2 the 24th waited for a subagent slot, as Observations describes.
 `a_24_limit_offers_24_arxiv_spawns_and_counts_the_rest` and the catalogue
 default assertion remain the enforcing tests.
 
-### Step 17
+#### Step 17
 
 | Measure | Run 1 | Run 2 |
 |---|---|---|
@@ -124,7 +252,7 @@ For information:
 `waiting` outcome keeps its place and is re-presented, where a 0283
 contention entry lost its node.
 
-### Observations
+#### Observations
 
 - 🟡 **Claude Code caps concurrent subagents at 20.** In run 2 the
   orchestrator hit the limit and launched the 24th researcher once a slot
