@@ -279,7 +279,7 @@ research suspects `design`, `jira`, `linear` and `research` already link
 
 - [x] Before launcher size is recorded with host details
 - [x] Before summary latency (cold and warm; git, jj and colocated jj) is recorded with host details, plus the large-repository figure with its repository path and revision
-- [ ] Before warm-dispatch figure is recorded with host details (blocked: the task refuses while other Claude Code sessions are active against the plugin root)
+- [x] Before warm-dispatch figure is recorded with host details
 - [x] Before symbol counts for every binary are recorded
 
 ---
@@ -1715,10 +1715,28 @@ Host: Mac16,5, macOS 26.3 (arm64), revision `22786dde` (the plan's parent).
   bimodal at ~11 ms and ~34 ms: the debug build landed in either mode, while
   the release build sat at ~32 ms in both runs. Take the after figures with
   the release build and compare like for like.
-- Warm dispatch: not yet taken. `measure:warm-dispatch` refuses to start
-  while other Claude Code sessions are active against the plugin root (five
-  were). The launcher cache is now warm for `1.24.0-pre.74`. It needs taking
-  with the other sessions closed, before a release containing Phase 7.
+- Warm dispatch, `mise run measure:warm-dispatch` against the
+  `1.24.0-pre.74` release, with no other Claude Code session running. Record:
+  `meta/measurements/warm-dispatch-7.json` and its samples file. Load at start
+  28.86 / 16.82 / 35.77 over 16 CPUs (the harness flagged the host as
+  oversubscribed).
+
+  | Cell | Point | 95 % interval |
+  |---|---|---|
+  | C1 median(G), fast backend | 44.00 ms | 43.91–44.10 |
+  | C2 p90(G), fast backend | 52.59 ms | 52.10–52.91 |
+  | C3 median(G), fallback backend | 54.12 ms | 53.82–54.36 |
+  | C4 p90(G), fallback backend | 62.81 ms | 62.24–63.72 |
+  | C5 median(G)/median(B), fast | 1.560 | 1.557–1.564 |
+  | C6 median(G)/median(B), fallback | 1.919 | 1.908–1.929 |
+
+  The run is `invalid-post-run` (branch 5b in every cell). Its drift
+  diagnostic failed: the G/B ratio moved −0.0085 between the first and last
+  thirds against a 0.0077 band (significance 0.036). That makes it no verdict
+  on the warm-dispatch criterion. It is still adequate as the before figure
+  for 0299's 10× gate, which a 0.5 % drift cannot move. The figure compared
+  in Phase 13 is C1. An earlier attempt aborted on a single 200.67 ms outlier
+  in B against a 34.57 ms running median.
 
 Before symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
 `nm -a | grep -c`:
@@ -1744,7 +1762,7 @@ today through `consent-adapters` → `vcs-adapters`.
 
 ### Progress
 
-- Phase 1 is committed, apart from the warm-dispatch before figure.
+- Phase 1 is complete, before figures included.
 - `mise run` first failed on `docs:audit:check`: a new high advisory,
   `GHSA-68fv-2mgg-jv7q`, against `source-map-js@1.2.1` in `docs-site/`. It
   is unrelated to 0299. `docs:audit:fix` also bumped about a dozen unrelated
@@ -1758,7 +1776,6 @@ today through `consent-adapters` → `vcs-adapters`.
 
 ### Still to record
 
-- Warm-dispatch before figure (Phase 1).
 - Characterisation coverage map (Phase 2).
 - Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
