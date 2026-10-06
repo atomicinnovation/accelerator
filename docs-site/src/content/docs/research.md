@@ -174,9 +174,9 @@ project, across processes, passes through an exclusive file lock at
 `.accelerator/tmp`), which holds one connection at a time and spaces each
 request at least 3 s from the end of the previous request's response. When a
 call was killed before its response ended, the next request is spaced 3.1 s
-from the killed request's send instead, since its arrival was never seen. A `429` or `403` defers every waiting process together,
-by up to 30 s. The lock does not coordinate across repositories on one
-machine. OpenAlex is not paced; its budget is enforced server-side.
+from the killed request's send instead, since its arrival was never seen. A
+`429` or `403` defers every waiting process together, by up to 30 s. The
+lock does not coordinate across repositories on one machine. OpenAlex is not paced; its budget is enforced server-side.
 
 ### The fetch queue
 
