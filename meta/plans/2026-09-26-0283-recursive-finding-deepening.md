@@ -165,7 +165,8 @@ Verify with `mise run` (exits 0) and the attended runs in Phase 7.
 - A `research.topic.fan_out` knob. The starting cap stays fixed at 4.
 - Throttling OpenAlex or arXiv at depth. Keyless budget exhaustion and arXiv
   serialisation are accepted risks. Phase 7 measured the arXiv rate as material,
-  and 0295 follows it up.
+  and 0295 follows it up. 0295 was rescoped from a per-profile batch cap to a
+  fair arXiv fetch queue.
 - Re-deepening a pair whose finding already validates.
 - Visualiser indexing or navigation of level notes (0278, 0284). The only
   visualiser change is a glyph-map entry for the new template.
@@ -2497,7 +2498,8 @@ questions are read from each spawn prompt.
     - the spawn-prompt token volume for the batch.
 
     A rate that is material becomes a follow-up work item for a
-    per-profile batch cap.
+    per-profile batch cap. 0295 was rescoped from a per-profile batch cap
+    to a fair arXiv fetch queue.
 
 Implementation notes:
 - Results are in
@@ -2512,7 +2514,8 @@ Implementation notes:
   profile gained an Outcome section, lost its focus-question carve-out, and
   the re-run passes.
 - Step 17 failed 4 of 24 arXiv nodes on `lock_contention`, which is
-  material. Work item 0295 takes up the per-profile batch cap.
+  material. Work item 0295 takes up the per-profile batch cap. 0295 was
+  rescoped from a per-profile batch cap to a fair arXiv fetch queue.
 - Two observations stay open, outside this plan. Orchestrators doubted the
   `batch` and `--spawned` hand-off, and one passed a mismatched number that
   the ledger ignored without a word. `corpus metadata derive` prints no
@@ -2647,7 +2650,8 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
   `concurrency` arXiv nodes queue on it at once, and a wait past the budget
   fails as `lock_contention`. Phase 7 step 17 lost 4 of 24 concurrent
   arXiv nodes this way (3.6% contention per fetch), so 0295 adds a
-  per-profile batch cap.
+  per-profile batch cap. 0295 was rescoped from a per-profile batch cap to
+  a fair arXiv fetch queue.
 
 ## Migration Notes
 
@@ -2689,7 +2693,8 @@ See Phase 7. Clamping of `research.topic.concurrency` lives in prose, as
 
 - Original work item: `meta/work/0283-recursive-finding-deepening.md`
 - Validation: `meta/validations/2026-09-28-0283-recursive-finding-deepening-validation.md`
-- Follow-up: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`
+- Follow-up: `meta/work/0295-per-profile-batch-cap-for-arxiv-researchers.md`.
+  0295 was rescoped from a per-profile batch cap to a fair arXiv fetch queue.
 - Codebase research: `meta/research/codebase/2026-09-26-0283-recursive-finding-deepening.md`
 - Prior plans: `meta/plans/2026-09-23-0280-academic-source-profiles.md`
   (the guard and `outstanding`), `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
