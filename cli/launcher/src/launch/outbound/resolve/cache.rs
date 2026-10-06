@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use store::TEMP_PREFIX;
+use kernel::TEMP_PREFIX;
 
 use crate::launch::core::ResolutionError;
 
@@ -172,7 +172,7 @@ mod tests {
     use super::{find, store, temp_name, TEMP_PREFIX};
 
     #[test]
-    fn temp_names_begin_with_the_store_temp_prefix() {
+    fn temp_names_begin_with_the_shared_temp_prefix() {
         assert!(temp_name("foo-1.0.0-abc", "9-0", "").starts_with(TEMP_PREFIX));
         assert!(temp_name("foo-1.0.0-abc", "9-0", ".minisig")
             .starts_with(TEMP_PREFIX));

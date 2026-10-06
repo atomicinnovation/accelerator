@@ -10,7 +10,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus_adapters::LockOptions;
 use linear_client::cache::{
     CacheError, Filesystem, LinearCache, SystemFilesystem,
 };
@@ -18,6 +17,7 @@ use linear_client::catalogue::{
     CatalogueDocument, CatalogueUpdate, CataloguedLabel, Strictness, TeamEntry,
 };
 use serde_json::{json, Value};
+use store::lock::LockOptions;
 use tempfile::TempDir;
 
 #[derive(Default)]

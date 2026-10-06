@@ -2,9 +2,8 @@
 
 The guard keeps the whole-file atomic-write primitive consolidated in the
 ``cli/store`` crate: a ``fs::rename`` / ``NamedTempFile`` / ``.persist`` shape
-anywhere else under ``cli/**/src`` is a reintroduced duplicate. Two renames are
-genuine non-duplicates and are allowlisted (the cache publisher, the mkdir-lock
-claim).
+anywhere else under ``cli/**/src`` is a reintroduced duplicate. Renames that
+are genuine non-duplicates, such as the cache publisher, are allowlisted.
 
 Two layers:
 

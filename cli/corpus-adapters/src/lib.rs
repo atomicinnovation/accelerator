@@ -11,7 +11,6 @@ pub mod document;
 pub mod frontmatter_validation;
 pub mod fs;
 pub mod jsonl;
-pub mod lock;
 pub mod metadata;
 pub mod patcher;
 pub mod resolve;
@@ -22,7 +21,6 @@ pub mod work_item_pattern;
 pub use crate::assemble::{assemble, AssembledDocument};
 pub use crate::document::{parse, FrontmatterState, ParsedDocument};
 pub use crate::fs::{RealFs, TypeDirectoryLister};
-pub use crate::lock::{acquire, LockGuard, LockOptions};
 pub use crate::metadata::{
     derive, derive_at, ClockError, SystemClock, VcsBackedRepoFactsProbe,
 };

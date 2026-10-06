@@ -22,6 +22,4 @@ vcs-adapters = { path = "../vcs-adapters" }
 regex = { workspace = true }
 time = { workspace = true }
 tempfile = { workspace = true }
-rand = { workspace = true }
-rustix = { workspace = true }
 serde_json = { workspace = true }

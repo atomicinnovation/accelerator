@@ -299,7 +299,7 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
         let is_stale_dossier = name
             .strip_suffix(".md")
             .is_some_and(|stem| id_is_token_safe(scheme, stem));
-        let is_write_artefact = name.starts_with(store::TEMP_PREFIX);
+        let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
         if is_stale_dossier || is_write_artefact {
             let _ = std::fs::remove_file(&path);
         }
@@ -2132,7 +2132,7 @@ mod tests {
         std::fs::write(conflicts.join("0001.md"), "stale").expect("seed");
         std::fs::write(conflicts.join("notes.md"), "mine").expect("seed");
         std::fs::write(
-            conflicts.join(format!("{}sweep", store::TEMP_PREFIX)),
+            conflicts.join(format!("{}sweep", kernel::TEMP_PREFIX)),
             "artefact",
         )
         .expect("seed");
@@ -2154,7 +2154,7 @@ mod tests {
         );
         assert!(
             !conflicts
-                .join(format!("{}sweep", store::TEMP_PREFIX))
+                .join(format!("{}sweep", kernel::TEMP_PREFIX))
                 .exists(),
             "a stray write artefact is swept"
         );

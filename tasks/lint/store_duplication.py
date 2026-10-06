@@ -1,10 +1,9 @@
 """Guard: keep the atomic-write primitive consolidated in the store crate.
 
 A temp-file-plus-rename write shape anywhere under ``cli/**/src`` other than
-``cli/store/`` means a second ``atomic_write`` was (re)introduced. Two renames
-are genuine non-duplicates and are allowlisted: the launcher cache publisher (a
-0600 write plus a paired signature, not a whole-file replacement) and the
-mkdir-lock's directory rename-as-claim (not a write at all).
+``cli/store/`` means a second ``atomic_write`` was (re)introduced. Renames that
+are genuine non-duplicates, such as the launcher cache publisher (a 0600 write
+plus a paired signature, not a whole-file replacement), are allowlisted.
 """
 
 import re
@@ -23,8 +22,6 @@ ALLOWLIST: frozenset[str] = frozenset(
         # generation *directory* into place, the other is a 0600 pointer
         # publish paired with it — cache.rs's shape, not a whole-file write.
         "cli/launcher/src/launch/outbound/resolve/tree/resolver.rs",
-        # Renames a directory as a stale-lock claim, not a write at all.
-        "cli/corpus-adapters/src/lock.rs",
         # A test-only rename simulating a watcher file-move event; the indexer
         # is a read/index module and performs no atomic writes (those route
         # through the file driver onto store::atomic_write).

@@ -13,5 +13,7 @@ role = "technical-library"
 workspace = true
 
 [dependencies]
+kernel = { path = "../kernel" }
+rand = { workspace = true }
 tempfile = { workspace = true }
 rustix = { workspace = true }

@@ -10,6 +10,13 @@ mod tracking;
 
 pub use tracking::{TrackingAnswer, UnrecognisedTrackingAnswer};
 
+/// The name prefix of every staged temp file and directory.
+///
+/// Pinned so a `tempfile` default change cannot silently stop the
+/// `.accelerator/.gitignore` rule matching; a caller writing that rule must use
+/// the same literal.
+pub const TEMP_PREFIX: &str = ".tmp-";
+
 /// The error taxonomy accelerator subcommands report through.
 ///
 /// A subdomain maps its own richer error enum into `Failed` at the dispatch
@@ -50,6 +57,12 @@ impl std::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use crate::Error;
+    use crate::TEMP_PREFIX;
+
+    #[test]
+    fn staged_files_carry_the_prefix_the_gitignore_rule_matches() {
+        assert_eq!(TEMP_PREFIX, ".tmp-");
+    }
 
     #[test]
     fn a_log_filter_error_names_the_filter_as_the_problem() {

@@ -15,6 +15,8 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use kernel::TEMP_PREFIX;
+
 use crate::launch::core::tree::{Clock, TreeError};
 
 use super::layout::{TreePaths, LAYOUT_VERSION};
@@ -96,7 +98,7 @@ enum Residue {
 
 #[allow(clippy::case_sensitive_file_extension_comparisons)]
 fn classify(name: &str, keep_digests: &BTreeSet<String>) -> Option<Residue> {
-    if let Some(rest) = name.strip_prefix(".tmp-") {
+    if let Some(rest) = name.strip_prefix(TEMP_PREFIX) {
         if rest.ends_with(".archive") {
             // A partial archive for a digest the launcher still wants is a
             // resumable download, not an orphan.

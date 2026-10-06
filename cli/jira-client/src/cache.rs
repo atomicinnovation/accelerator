@@ -12,11 +12,11 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::StoreError;
-use corpus_adapters::acquire;
-use corpus_adapters::LockOptions;
 use serde_json::Value;
 use store::atomic_write;
+use store::lock::acquire;
+use store::lock::LockError;
+use store::lock::LockOptions;
 use store::NewFileMode;
 use store::WriteBounds;
 use thiserror::Error;
@@ -306,7 +306,7 @@ impl Filesystem for SystemFilesystem {
         let _guard =
             acquire(lockdir, self.lock_options).map_err(
                 |error| match error {
-                    StoreError::LockTimeout { path } => {
+                    LockError::Timeout { path } => {
                         CacheError::LockContended { path }
                     }
                     other => CacheError::Io {

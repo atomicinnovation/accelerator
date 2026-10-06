@@ -49,3 +49,4 @@ impl core::fmt::Display for kernel::UnrecognisedTrackingAnswer
 pub fn kernel::UnrecognisedTrackingAnswer::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for kernel::UnrecognisedTrackingAnswer
 impl core::marker::StructuralPartialEq for kernel::UnrecognisedTrackingAnswer
+pub const kernel::TEMP_PREFIX: &str

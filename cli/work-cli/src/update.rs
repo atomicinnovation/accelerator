@@ -7,13 +7,13 @@ use std::path::Path;
 
 use ::config::ConfigAccess;
 use corpus::AtomicWrite;
-use corpus_adapters::lock::acquire;
-use corpus_adapters::lock::LockOptions;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
+use store::lock::acquire;
+use store::lock::LockOptions;
 use tracker::TrackerError;
 use work::tags::mutate_tags;
 use work::tags::parse_current_tags;

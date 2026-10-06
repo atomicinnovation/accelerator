@@ -11,7 +11,8 @@ use config::{
     ReadTemplate, ResolvedTemplate, Scaffold, TemplateOverride, TemplateSource,
     WriteConfigLevel,
 };
-use store::{NewFileMode, WriteBounds, WriteError, TEMP_PREFIX};
+use kernel::TEMP_PREFIX;
+use store::{NewFileMode, WriteBounds, WriteError};
 
 use crate::document;
 
@@ -812,7 +813,7 @@ fn ensure_inner_gitignore(config_dir: &Path) -> Result<(), ConfigError> {
         Err(error) if error.kind() == ErrorKind::NotFound => String::new(),
         Err(error) => return Err(io_error(&path, &error)),
     };
-    let temp_rule = format!("{}*", store::TEMP_PREFIX);
+    let temp_rule = format!("{TEMP_PREFIX}*");
     let mut additions = String::new();
     for rule in ["config.local.md", temp_rule.as_str()] {
         if !existing.lines().any(|line| line == rule) {

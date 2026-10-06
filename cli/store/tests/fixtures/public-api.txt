@@ -1,4 +1,40 @@
 pub mod store
+pub mod store::lock
+#[non_exhaustive] pub enum store::lock::LockError
+pub store::lock::LockError::Io
+pub store::lock::LockError::Io::detail: alloc::string::String
+pub store::lock::LockError::Io::path: alloc::string::String
+pub store::lock::LockError::NotWritable
+pub store::lock::LockError::NotWritable::path: alloc::string::String
+pub store::lock::LockError::Timeout
+pub store::lock::LockError::Timeout::path: alloc::string::String
+impl core::clone::Clone for store::lock::LockError
+pub fn store::lock::LockError::clone(&self) -> store::lock::LockError
+impl core::cmp::Eq for store::lock::LockError
+impl core::cmp::PartialEq for store::lock::LockError
+pub fn store::lock::LockError::eq(&self, other: &store::lock::LockError) -> bool
+impl core::error::Error for store::lock::LockError
+impl core::fmt::Debug for store::lock::LockError
+pub fn store::lock::LockError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for store::lock::LockError
+pub fn store::lock::LockError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for store::lock::LockError
+pub struct store::lock::LockGuard
+impl core::ops::drop::Drop for store::lock::LockGuard
+pub fn store::lock::LockGuard::drop(&mut self)
+pub struct store::lock::LockOptions
+pub store::lock::LockOptions::base_ms: u64
+pub store::lock::LockOptions::cap_ms: u64
+pub store::lock::LockOptions::ceiling_ms: u64
+impl core::clone::Clone for store::lock::LockOptions
+pub fn store::lock::LockOptions::clone(&self) -> store::lock::LockOptions
+impl core::default::Default for store::lock::LockOptions
+pub fn store::lock::LockOptions::default() -> Self
+impl core::fmt::Debug for store::lock::LockOptions
+pub fn store::lock::LockOptions::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for store::lock::LockOptions
+pub fn store::lock::acquire(lockdir: &std::path::Path, opts: store::lock::LockOptions) -> core::result::Result<store::lock::LockGuard, store::lock::LockError>
+pub fn store::lock::holder_pid(lockdir: &std::path::Path) -> core::option::Option<u32>
 pub enum store::NewFileMode
 pub store::NewFileMode::PreserveOr(u32)
 pub store::NewFileMode::Set(u32)
@@ -34,7 +70,6 @@ impl core::marker::StructuralPartialEq for store::WriteError
 pub struct store::WriteBounds<'a>
 pub store::WriteBounds::permitted_root: &'a std::path::Path
 pub store::WriteBounds::project_root: &'a std::path::Path
-pub const store::TEMP_PREFIX: &str
 pub fn store::atomic_write(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::current_umask() -> u32
 pub fn store::ensure_contained(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<std::path::PathBuf, store::WriteError>

@@ -10,9 +10,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus_adapters::LockOptions;
 use jira_client::cache::{CacheError, Filesystem, JiraCache, SystemFilesystem};
 use serde_json::json;
+use store::lock::LockOptions;
 use tempfile::TempDir;
 
 #[derive(Default)]

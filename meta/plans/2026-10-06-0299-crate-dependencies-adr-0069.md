@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T18:17:14+00:00"
+last_updated: "2026-10-06T19:00:14+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -599,17 +599,17 @@ Move the file lock into `store` and `TEMP_PREFIX` into `kernel`. This removes
 
 #### Automated Verification:
 
-- [ ] Lock and constant tests pass: `cargo test --manifest-path cli/Cargo.toml -p store -p kernel`
-- [ ] Dependents compile and pass: `cargo test --manifest-path cli/Cargo.toml -p jira-client -p linear-client -p accelerator-work -p migrate-adapters -p corpus-adapters -p accelerator`
-- [ ] Characterisation suite unchanged, goldens untouched: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] Known-violation set shrinks by the two client edges: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run public-api:check`, `mise run pup:check`, `mise run deny:check` pass
-- [ ] `mise run` exits 0
+- [x] Lock and constant tests pass: `cargo test --manifest-path cli/Cargo.toml -p store -p kernel`
+- [x] Dependents compile and pass: `cargo test --manifest-path cli/Cargo.toml -p jira-client -p linear-client -p accelerator-work -p migrate-adapters -p corpus-adapters -p accelerator`
+- [x] Characterisation suite unchanged, goldens untouched: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] Known-violation set shrinks by the two client edges: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run public-api:check`, `mise run pup:check`, `mise run deny:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] `cargo metadata` shows no `store` in the launcher's normal dependencies
+- [x] `cargo metadata` shows no `store` in the launcher's normal dependencies
 
 ---
 
@@ -1823,7 +1823,24 @@ today through `consent-adapters` → `vcs-adapters`.
     `[package.metadata.*]` tables as it drops `[dev-dependencies]`, since
     neither builds into the shim, so the committed marker still matches and
     the root-of-trust shims were not re-vendored.
-- Next: Phase 4, the lock and `TEMP_PREFIX` moves.
+- Phase 4 is complete: the lock lives in `store::lock`, `TEMP_PREFIX` in
+  `kernel`, and the lint reports 11 known findings. Deviations from the
+  Phase 4 text:
+  - **Client dependencies:** `jira-client` and `linear-client` used `corpus`
+    only for the lock's `StoreError`, so they drop `corpus` as well as
+    `corpus-adapters`. `corpus-adapters` drops `rand` and `rustix`, which only
+    the lock used.
+  - **Launcher reaper:** `resolve/tree/reap.rs` matched a literal `".tmp-"`
+    the plan did not list; it now uses `kernel::TEMP_PREFIX` with `layout.rs`.
+  - **`holder_pid`:** returns `Option<u32>` as planned, where migrate's reader
+    parsed an `i32`, so a negative PID now reads as unknown. No writer
+    produces one.
+  - **Store-duplication docstrings:** both said "two renames" against a
+    six-entry allowlist, so they were reworded rather than trimmed.
+  - **First `mise run`:** `test_launcher_dispatch_smoke_on_a_plain_non_repo_dir`
+    failed on a `curl` timeout fetching the launcher (5.0 of 8.7 MB in
+    299 s). The hooks suite then passed alone, and a second `mise run` exited 0.
+- Next: Phase 5, the `vcs` repository ports.
 
 ### Phase 2 characterisation coverage
 

@@ -15,7 +15,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use corpus::StoreError;
 use rand::Rng as _;
 use rustix::io::Errno;
 use rustix::process::{test_kill_process, Pid};
@@ -24,6 +23,33 @@ use rustix::process::{test_kill_process, Pid};
 /// is what binds a reclaim to the exact holder it read; see `reclaim_if_stale`.
 const OWNER: &str = "owner";
 const RECLAIMING: &str = "reclaiming";
+
+/// A lock-acquisition failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LockError {
+    Timeout { path: String },
+    NotWritable { path: String },
+    Io { path: String, detail: String },
+}
+
+impl std::fmt::Display for LockError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Timeout { path } => {
+                write!(formatter, "lock acquisition timed out on '{path}'")
+            }
+            Self::NotWritable { path } => {
+                write!(formatter, "cannot write under '{path}': not writable")
+            }
+            Self::Io { path, detail } => {
+                write!(formatter, "I/O error on '{path}': {detail}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for LockError {}
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Copy)]
@@ -57,13 +83,13 @@ impl Drop for LockGuard {
 /// until it is free or `opts.ceiling_ms` is exceeded.
 ///
 /// # Errors
-/// [`StoreError::NotWritable`] or [`StoreError::Io`] when `mkdir` itself
+/// [`LockError::NotWritable`] or [`LockError::Io`] when `mkdir` itself
 /// fails for a reason other than the lockdir already existing;
-/// [`StoreError::LockTimeout`] when contention outlives `opts.ceiling_ms`.
+/// [`LockError::Timeout`] when contention outlives `opts.ceiling_ms`.
 pub fn acquire(
     lockdir: &Path,
     opts: LockOptions,
-) -> Result<LockGuard, StoreError> {
+) -> Result<LockGuard, LockError> {
     acquire_with(lockdir, opts, process_is_alive)
 }
 
@@ -71,7 +97,7 @@ fn acquire_with(
     lockdir: &Path,
     opts: LockOptions,
     is_alive: impl Fn(i32) -> bool,
-) -> Result<LockGuard, StoreError> {
+) -> Result<LockGuard, LockError> {
     let mut waited_ms = 0u64;
     let mut base_ms = opts.base_ms;
     loop {
@@ -80,7 +106,7 @@ fn acquire_with(
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {
                 reclaim_if_stale(lockdir, &is_alive);
                 if waited_ms > opts.ceiling_ms {
-                    return Err(StoreError::LockTimeout {
+                    return Err(LockError::Timeout {
                         path: lockdir.display().to_string(),
                     });
                 }
@@ -92,12 +118,12 @@ fn acquire_with(
                 }
             }
             Err(error) if error.kind() == ErrorKind::PermissionDenied => {
-                return Err(StoreError::NotWritable {
+                return Err(LockError::NotWritable {
                     path: lockdir.display().to_string(),
                 });
             }
             Err(error) => {
-                return Err(StoreError::Io {
+                return Err(LockError::Io {
                     path: lockdir.display().to_string(),
                     detail: error.to_string(),
                 });
@@ -106,18 +132,29 @@ fn acquire_with(
     }
 }
 
+/// The PID recorded by the lockdir's current holder.
+///
+/// `None` when that is ambiguous: no lockdir, no `owner.<nonce>` sentinel or
+/// more than one, an unparseable PID, or only a reclaim-in-flight or legacy
+/// nonce-less sentinel.
+#[must_use]
+pub fn holder_pid(lockdir: &Path) -> Option<u32> {
+    let name = sole_sentinel(lockdir, OWNER)?;
+    u32::try_from(sentinel_pid(lockdir, &name)?).ok()
+}
+
 /// Take ownership of a freshly created lockdir by dropping in its sentinel.
 ///
 /// The sentinel's *name* carries a fresh nonce, not just its contents. That is
 /// what makes reclaim safe: it gives every holder a filename no other holder
 /// will ever present, so a reclaimer acting on a stale read can only ever
 /// address the exact holder it read (see `reclaim_if_stale`).
-fn claim(lockdir: &Path) -> Result<LockGuard, StoreError> {
+fn claim(lockdir: &Path) -> Result<LockGuard, LockError> {
     let sentinel = format!("{OWNER}.{:016x}", rand::random::<u64>());
     let owner = std::process::id().to_string();
     if let Err(error) = fs::write(lockdir.join(sentinel), owner) {
         let _ = fs::remove_dir_all(lockdir);
-        return Err(StoreError::Io {
+        return Err(LockError::Io {
             path: lockdir.display().to_string(),
             detail: error.to_string(),
         });
@@ -274,12 +311,11 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
-    use corpus::StoreError;
     use tempfile::TempDir;
 
     use super::{
-        acquire_with, claim, jitter_ms, process_is_alive, reclaim_if_stale,
-        LockGuard, LockOptions, OWNER, RECLAIMING,
+        acquire_with, claim, holder_pid, jitter_ms, process_is_alive,
+        reclaim_if_stale, LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -353,7 +389,7 @@ mod tests {
         seed_held(&lockdir, &STALE_PID.to_string())?;
 
         let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         Ok(())
     }
 
@@ -368,7 +404,7 @@ mod tests {
             consulted.fetch_add(1, Ordering::Relaxed);
             false
         });
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         assert_eq!(consulted.load(Ordering::Relaxed), 0);
         Ok(())
     }
@@ -384,7 +420,7 @@ mod tests {
             consulted.fetch_add(1, Ordering::Relaxed);
             false
         });
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         assert_eq!(consulted.load(Ordering::Relaxed), 0);
         Ok(())
     }
@@ -400,7 +436,7 @@ mod tests {
             consulted.fetch_add(1, Ordering::Relaxed);
             false
         });
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         assert_eq!(consulted.load(Ordering::Relaxed), 0);
         Ok(())
     }
@@ -413,7 +449,7 @@ mod tests {
         seed_held(&lockdir, &STALE_PID.to_string())?;
 
         let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         Ok(())
     }
 
@@ -425,8 +461,7 @@ mod tests {
         let lockdir = file.join("child.lockdir");
 
         let outcome = acquire_with(&lockdir, LockOptions::default(), |_| true);
-        assert!(!matches!(outcome, Err(StoreError::LockTimeout { .. })));
-        assert!(outcome.is_err());
+        assert!(matches!(outcome, Err(LockError::Io { .. })));
         Ok(())
     }
 
@@ -438,7 +473,7 @@ mod tests {
 
         let is_alive = |pid: i32| pid != STALE_PID;
         let outcomes = std::thread::scope(
-            |scope| -> Result<Vec<Result<LockGuard, StoreError>>, TestError> {
+            |scope| -> Result<Vec<Result<LockGuard, LockError>>, TestError> {
                 let handles: Vec<_> = (0..2)
                     .map(|_| {
                         scope.spawn(|| {
@@ -457,7 +492,7 @@ mod tests {
         let winners = outcomes.iter().filter(|r| r.is_ok()).count();
         let timeouts = outcomes
             .iter()
-            .filter(|r| matches!(r, Err(StoreError::LockTimeout { .. })))
+            .filter(|r| matches!(r, Err(LockError::Timeout { .. })))
             .count();
         assert_eq!(winners, 1, "exactly one acquirer");
         assert_eq!(timeouts, 1, "exactly one timeout");
@@ -540,7 +575,7 @@ mod tests {
 
         let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
 
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         Ok(())
     }
 
@@ -576,7 +611,7 @@ mod tests {
 
         let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
 
-        assert!(matches!(outcome, Err(StoreError::LockTimeout { .. })));
+        assert!(matches!(outcome, Err(LockError::Timeout { .. })));
         assert!(sentinel_named(&lockdir, RECLAIMING).is_some());
         Ok(())
     }
@@ -596,7 +631,7 @@ mod tests {
 
         let outcome = claim(&lockdir);
 
-        assert!(matches!(outcome, Err(StoreError::Io { .. })));
+        assert!(matches!(outcome, Err(LockError::Io { .. })));
         assert!(!lockdir.exists());
         Ok(())
     }
@@ -638,6 +673,120 @@ mod tests {
 
         let again = acquire_with(&lockdir, fast_opts(), |_| true)?;
         drop(again);
+        Ok(())
+    }
+
+    #[test]
+    fn a_timeout_names_the_contended_lockdir() {
+        let error = LockError::Timeout {
+            path: "/w/.lockdir".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "lock acquisition timed out on '/w/.lockdir'"
+        );
+    }
+
+    #[test]
+    fn an_unwritable_parent_names_the_lockdir() {
+        let error = LockError::NotWritable {
+            path: "/w/.lockdir".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "cannot write under '/w/.lockdir': not writable"
+        );
+    }
+
+    #[test]
+    fn an_io_failure_names_the_lockdir_and_its_cause() {
+        let error = LockError::Io {
+            path: "/w/.lockdir".to_owned(),
+            detail: "Not a directory".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "I/O error on '/w/.lockdir': Not a directory"
+        );
+    }
+
+    #[test]
+    fn a_read_only_parent_is_not_writable() -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = TempDir::new()?;
+        let parent = dir.path().join("sealed");
+        fs::create_dir(&parent)?;
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555))?;
+        let lockdir = parent.join("log.lockdir");
+
+        let outcome = acquire_with(&lockdir, fast_opts(), |_| true);
+
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o755))?;
+        assert!(matches!(
+            outcome,
+            Err(LockError::NotWritable { path }) if path == lockdir.display().to_string()
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn the_holder_is_the_pid_in_the_owner_sentinel() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, "4242\n")?;
+
+        assert_eq!(holder_pid(&lockdir), Some(4242));
+        Ok(())
+    }
+
+    #[test]
+    fn an_absent_lockdir_has_no_holder() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+
+        assert_eq!(holder_pid(&dir.path().join("log.lockdir")), None);
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_owner_sentinels_have_no_holder() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, "4242")?;
+        fs::write(lockdir.join(format!("{OWNER}.fedcba9876543210")), "4343")?;
+
+        assert_eq!(holder_pid(&lockdir), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_unparseable_owner_has_no_holder() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, "not-a-pid")?;
+
+        assert_eq!(holder_pid(&lockdir), None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_reclaim_in_flight_has_no_holder() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_abandoned_reclaim(&lockdir, STALE_PID)?;
+
+        assert_eq!(holder_pid(&lockdir), None);
+        Ok(())
+    }
+
+    #[test]
+    fn a_nonce_less_owner_has_no_holder() -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        fs::create_dir_all(&lockdir)?;
+        fs::write(lockdir.join(OWNER), "4242")?;
+
+        assert_eq!(holder_pid(&lockdir), None);
         Ok(())
     }
 }
