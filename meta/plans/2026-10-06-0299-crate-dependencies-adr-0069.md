@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T19:57:27+00:00"
+last_updated: "2026-10-06T20:05:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -410,7 +410,7 @@ the author):
 #### Manual Verification:
 
 - [x] Each 0299 characterisation bullet maps to at least one case (checklist in Implementation Notes)
-- [ ] Each rerouted symbol in the violations table is reached by a named case
+- [x] Each rerouted symbol in the violations table is reached by a named case
 
 ---
 
@@ -1797,9 +1797,8 @@ today through `consent-adapters` → `vcs-adapters`.
   ahead of Phase 1.
 - Phase 2 is complete: 534 characterisation cases passed inside a green
   `mise run`. Debug builds were split into per-binary and group leaves with
-  the author (Wiring section). Its two manual checks await the author's
-  review; the second does not fully hold, for the reasons under "Phase 2
-  characterisation coverage".
+  the author (Wiring section). Its two manual checks were closed after
+  Phase 4, as recorded below.
 - Phase 2's `mise run` failed on `docs:audit:check` in the same way: a new
   high advisory, `GHSA-wq5f-xc86-pv6w`, against `sharp@0.35.4`. `sharp` is an
   optional dependency of `astro`, which `npm update` and a lock-only install
@@ -1842,7 +1841,18 @@ today through `consent-adapters` → `vcs-adapters`.
     299 s). The hooks suite then passed alone, and a second `mise run` exited 0.
 - The author asked for check 1 of Phase 2's manual verification to be run.
   It holds after the additions under "Phase 2 characterisation coverage",
-  which bring the suite to 539 cases. Check 2 still awaits the author.
+  which bring the suite to 539 cases.
+- Check 2 holds except for three rerouted paths with no binary-level case,
+  which the author accepted:
+  - working-copy status, unreachable offline, covered by unit tests and from
+    Phase 5 by the `RepositoryProbe` contract tests;
+  - the launcher's `TEMP_PREFIX`, reached only when a fetched binary is
+    installed, covered by the `kernel` constant test;
+  - `sync_author`'s lock, covered through `work create`, which takes the same
+    lockdir through the same primitive.
+
+  Both Phase 4 paths had already moved with every golden unchanged. The arXiv
+  lock is a kernel `flock` the refactor does not reroute, so it is no gap.
 - Next: Phase 5, the `vcs` repository ports.
 
 ### Phase 2 characterisation coverage
