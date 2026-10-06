@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-06T16:40:52+00:00"
+last_updated: "2026-10-06T16:58:57+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -514,11 +514,11 @@ verbatim, because two of its rows are rule 3 judgements outside the lint
 
 #### Automated Verification:
 
-- [ ] Lint tests pass: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `config-test-support` still passes after the helper move: `uv run pytest tests/unit/tasks/test_config_test_support.py`
-- [ ] `mise run lint:crate-dependencies:check` exits non-zero, naming exactly the known-violation table above
-- [ ] `mise run build-system:check` and `mise run cli:check` pass
-- [ ] `mise run` exits 0
+- [x] Lint tests pass: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `config-test-support` still passes after the helper move: `uv run pytest tests/unit/tasks/test_config_test_support.py`
+- [x] `mise run lint:crate-dependencies:check` exits non-zero, naming exactly the known-violation table above
+- [x] `mise run build-system:check` and `mise run cli:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1806,7 +1806,24 @@ today through `consent-adapters` → `vcs-adapters`.
   would not move, so the lockfile entries for `sharp` and its pinned `@img/*`
   packages were set to 0.35.5 from the registry, in a commit of its own ahead
   of Phase 2.
-- Next: Phase 3, role declarations and the dependency lint.
+- Phase 3 is complete: all 43 members declare their role, and
+  `lint:crate-dependencies:check` reports exactly the 13 known findings. It is
+  in neither roll-up. Its manual check awaits the author's review. Deviations
+  from the Phase 3 text:
+  - **Names:** the domain class is `BoundedContext`, since `Context` clashes
+    with invoke's. `Edge` carries no dependency kind: dev edges are dropped on
+    read, and no rule distinguishes normal from build.
+  - **Finding detail:** declaration and cycle findings carry a parenthesised
+    reason, e.g. `store: declaration check (no role declared)` and
+    `config -> vcs: rule 2 (cycle among config, corpus, vcs)`.
+  - **Test-support and verifier targets** take precedence: such an edge gets
+    that check's finding alone, not a role rule's as well.
+  - **Verify shim marker:** `cli/verify/Cargo.toml`'s new metadata table
+    tripped `lint:vendor-shims:check`. `vendor_shim_marker_digest` now drops
+    `[package.metadata.*]` tables as it drops `[dev-dependencies]`, since
+    neither builds into the shim, so the committed marker still matches and
+    the root-of-trust shims were not re-vendored.
+- Next: Phase 4, the lock and `TEMP_PREFIX` moves.
 
 ### Phase 2 characterisation coverage
 

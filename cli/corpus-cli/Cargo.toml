@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 description = "Manage the meta-document corpus (ADRs, metadata, frontmatter)"
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [lints]
 workspace = true
 

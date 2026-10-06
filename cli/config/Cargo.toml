@@ -6,6 +6,11 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "domain"
+context = "config"
+kind = "platform"
+
 [lints]
 workspace = true
 

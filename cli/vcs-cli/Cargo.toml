@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 description = "Detect and inspect version-control state"
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [lints]
 workspace = true
 

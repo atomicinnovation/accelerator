@@ -655,6 +655,11 @@ description = "Confine config/test-support to config's and config-adapters' dev-
 depends = ["deps:install:python"]
 run = "invoke lint.config-test-support.check"
 
+[tasks."lint:crate-dependencies:check"]
+description = "Hold every cli/ crate's normal and build dependencies to ADR-0069's rules, read from each manifest's [package.metadata.accelerator] role declaration"
+depends = ["deps:install:python"]
+run = "invoke lint.crate-dependencies.check"
+
 [tasks."lint:skill-permissions:check"]
 description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
 depends = ["deps:install:python"]

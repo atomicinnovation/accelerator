@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 description = "Fetch tiered scholarly records from OpenAlex and arXiv"
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [lints]
 workspace = true
 

@@ -490,27 +490,37 @@ def _dev_only_dependency_names(manifest_path: Path) -> set[str]:
     return dev - normal
 
 
-def _strip_dev_dependencies_table(text: str) -> str:
-    """Return `text` with any `[dev-dependencies]` table removed.
+_NON_BUILD_TABLES = (
+    "[dev-dependencies]",
+    "[dev-dependencies.",
+    "[package.metadata.",
+)
 
-    Mirrors the tests exclusion: dev-dependencies are not shim build inputs,
-    so a change to them must not perturb the drift marker. The single blank
-    separator preceding the table is dropped too, so removing a table appended
-    with a separator reproduces the pre-table bytes exactly.
+
+def _strip_non_build_tables(text: str) -> str:
+    """Return `text` without its `[dev-dependencies]` and metadata tables.
+
+    Mirrors the tests exclusion: neither table builds into the shim, so a
+    change to one must not perturb the drift marker. Each table goes with one
+    blank separator, so removing a table inserted with a separator reproduces
+    the pre-table bytes exactly.
     """
     lines = text.splitlines(keepends=True)
     kept: list[str] = []
     index = 0
     while index < len(lines):
         header = lines[index].lstrip()
-        if header.startswith(("[dev-dependencies]", "[dev-dependencies.")):
-            if kept and kept[-1].strip() == "":
+        if header.startswith(_NON_BUILD_TABLES):
+            separated = bool(kept) and kept[-1].strip() == ""
+            if separated:
                 kept.pop()
             index += 1
             while index < len(lines) and not lines[index].lstrip().startswith(
                 "["
             ):
                 index += 1
+            if separated and index < len(lines):
+                kept.append("\n")
             continue
         kept.append(lines[index])
         index += 1
@@ -538,8 +548,9 @@ def _strip_lock_dependencies(block: str, names: set[str]) -> str:
 def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
     """SHA-256 over the verify shim's build inputs.
 
-    Covers `cli/verify` source (excluding the crate's own tests and its
-    `[dev-dependencies]`, neither of which builds into the shim) plus the
+    Covers `cli/verify` source (excluding the crate's own tests, its
+    `[dev-dependencies]` and its `[package.metadata.*]` tables, none of which
+    builds into the shim) plus the
     `minisign-verify` pin and its resolved lockfile closure, so a dependency
     bump that never touches `cli/verify/**` still trips the drift guard. The
     `accelerator-verify` lock block's own version line and its dev-only
@@ -557,9 +568,7 @@ def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
         hasher.update(path.relative_to(verify_dir).as_posix().encode())
         hasher.update(b"\0")
         if path == manifest_path:
-            hasher.update(
-                _strip_dev_dependencies_table(path.read_text()).encode()
-            )
+            hasher.update(_strip_non_build_tables(path.read_text()).encode())
         else:
             hasher.update(path.read_bytes())
         hasher.update(b"\0")

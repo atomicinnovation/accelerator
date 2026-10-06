@@ -7,6 +7,9 @@ license.workspace = true
 description = "Serve the meta-directory visualiser"
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [features]
 default = ["embed-dist"]
 embed-dist = ["dep:rust-embed", "dep:mime_guess"]
