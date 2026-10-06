@@ -649,6 +649,177 @@ pub fn research::sources::openalex::Work::fmt(&self, f: &mut core::fmt::Formatte
 impl core::marker::StructuralPartialEq for research::sources::openalex::Work
 pub fn research::sources::openalex::abstract_from_inverted_index(index: &[(alloc::string::String, alloc::vec::Vec<usize>)]) -> alloc::string::String
 pub fn research::sources::openalex::normalise(work: &research::sources::openalex::Work) -> core::option::Option<research::sources::record::Record>
+pub mod research::sources::queue
+pub enum research::sources::queue::Argument
+pub research::sources::queue::Argument::Id
+pub research::sources::queue::Argument::Limit
+pub research::sources::queue::Argument::Query
+pub research::sources::queue::Argument::Verb
+impl research::sources::queue::Argument
+pub const fn research::sources::queue::Argument::code(self) -> &'static str
+impl core::clone::Clone for research::sources::queue::Argument
+pub fn research::sources::queue::Argument::clone(&self) -> research::sources::queue::Argument
+impl core::cmp::Eq for research::sources::queue::Argument
+impl core::cmp::PartialEq for research::sources::queue::Argument
+pub fn research::sources::queue::Argument::eq(&self, other: &research::sources::queue::Argument) -> bool
+impl core::fmt::Debug for research::sources::queue::Argument
+pub fn research::sources::queue::Argument::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Argument
+impl core::marker::StructuralPartialEq for research::sources::queue::Argument
+pub enum research::sources::queue::Binding
+pub research::sources::queue::Binding::Lookup(research::sources::request::ArxivId)
+pub research::sources::queue::Binding::Search
+pub research::sources::queue::Binding::Search::limit: research::sources::request::Limit
+pub research::sources::queue::Binding::Search::query: research::sources::request::ArxivQuery
+impl research::sources::queue::Binding
+pub fn research::sources::queue::Binding::differing(&self, other: &Self) -> alloc::vec::Vec<research::sources::queue::Argument>
+pub fn research::sources::queue::Binding::of(request: &research::sources::request::ArxivRequest) -> Self
+pub fn research::sources::queue::Binding::value_of(&self, argument: research::sources::queue::Argument) -> alloc::string::String
+impl core::clone::Clone for research::sources::queue::Binding
+pub fn research::sources::queue::Binding::clone(&self) -> research::sources::queue::Binding
+impl core::cmp::Eq for research::sources::queue::Binding
+impl core::cmp::PartialEq for research::sources::queue::Binding
+pub fn research::sources::queue::Binding::eq(&self, other: &research::sources::queue::Binding) -> bool
+impl core::fmt::Debug for research::sources::queue::Binding
+pub fn research::sources::queue::Binding::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::Binding
+pub enum research::sources::queue::Presence
+pub research::sources::queue::Presence::Absent
+pub research::sources::queue::Presence::Absent::ended_at: core::option::Option<std::time::SystemTime>
+pub research::sources::queue::Presence::Live
+impl core::clone::Clone for research::sources::queue::Presence
+pub fn research::sources::queue::Presence::clone(&self) -> research::sources::queue::Presence
+impl core::cmp::Eq for research::sources::queue::Presence
+impl core::cmp::PartialEq for research::sources::queue::Presence
+pub fn research::sources::queue::Presence::eq(&self, other: &research::sources::queue::Presence) -> bool
+impl core::fmt::Debug for research::sources::queue::Presence
+pub fn research::sources::queue::Presence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Presence
+impl core::marker::StructuralPartialEq for research::sources::queue::Presence
+pub enum research::sources::queue::Presentation
+pub research::sources::queue::Presentation::Join
+pub research::sources::queue::Presentation::OverCap
+pub research::sources::queue::Presentation::OverCap::last_retryable: core::option::Option<research::sources::classify::Reason>
+pub research::sources::queue::Presentation::OverCap::ticket: research::sources::queue::Ticket
+pub research::sources::queue::Presentation::Rejected(research::sources::queue::TicketRejection)
+pub research::sources::queue::Presentation::Resume(research::sources::queue::Ticket)
+impl core::clone::Clone for research::sources::queue::Presentation
+pub fn research::sources::queue::Presentation::clone(&self) -> research::sources::queue::Presentation
+impl core::cmp::Eq for research::sources::queue::Presentation
+impl core::cmp::PartialEq for research::sources::queue::Presentation
+pub fn research::sources::queue::Presentation::eq(&self, other: &research::sources::queue::Presentation) -> bool
+impl core::fmt::Debug for research::sources::queue::Presentation
+pub fn research::sources::queue::Presentation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::Presentation
+pub enum research::sources::queue::TicketRejection
+pub research::sources::queue::TicketRejection::AlreadyLive(research::sources::queue::Ticket)
+pub research::sources::queue::TicketRejection::Mismatch
+pub research::sources::queue::TicketRejection::Mismatch::differing: alloc::vec::Vec<research::sources::queue::Argument>
+pub research::sources::queue::TicketRejection::Mismatch::issued: research::sources::queue::Binding
+pub research::sources::queue::TicketRejection::Mismatch::ticket: research::sources::queue::Ticket
+impl core::clone::Clone for research::sources::queue::TicketRejection
+pub fn research::sources::queue::TicketRejection::clone(&self) -> research::sources::queue::TicketRejection
+impl core::cmp::Eq for research::sources::queue::TicketRejection
+impl core::cmp::PartialEq for research::sources::queue::TicketRejection
+pub fn research::sources::queue::TicketRejection::eq(&self, other: &research::sources::queue::TicketRejection) -> bool
+impl core::fmt::Debug for research::sources::queue::TicketRejection
+pub fn research::sources::queue::TicketRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::TicketRejection
+pub struct research::sources::queue::Contender
+pub research::sources::queue::Contender::is_live: bool
+pub research::sources::queue::Contender::issued_at: std::time::SystemTime
+impl core::clone::Clone for research::sources::queue::Contender
+pub fn research::sources::queue::Contender::clone(&self) -> research::sources::queue::Contender
+impl core::cmp::Eq for research::sources::queue::Contender
+impl core::cmp::PartialEq for research::sources::queue::Contender
+pub fn research::sources::queue::Contender::eq(&self, other: &research::sources::queue::Contender) -> bool
+impl core::fmt::Debug for research::sources::queue::Contender
+pub fn research::sources::queue::Contender::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Contender
+impl core::marker::StructuralPartialEq for research::sources::queue::Contender
+pub struct research::sources::queue::Nonce(_)
+impl research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::from_hex(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::clone(&self) -> research::sources::queue::Nonce
+impl core::cmp::Eq for research::sources::queue::Nonce
+impl core::cmp::PartialEq for research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::eq(&self, other: &research::sources::queue::Nonce) -> bool
+impl core::fmt::Debug for research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::queue::Nonce
+pub fn research::sources::queue::Nonce::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for research::sources::queue::Nonce
+impl core::marker::StructuralPartialEq for research::sources::queue::Nonce
+pub struct research::sources::queue::Position(_)
+impl research::sources::queue::Position
+pub const fn research::sources::queue::Position::get(self) -> u32
+impl core::clone::Clone for research::sources::queue::Position
+pub fn research::sources::queue::Position::clone(&self) -> research::sources::queue::Position
+impl core::cmp::Eq for research::sources::queue::Position
+impl core::cmp::PartialEq for research::sources::queue::Position
+pub fn research::sources::queue::Position::eq(&self, other: &research::sources::queue::Position) -> bool
+impl core::fmt::Debug for research::sources::queue::Position
+pub fn research::sources::queue::Position::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::queue::Position
+impl core::marker::StructuralPartialEq for research::sources::queue::Position
+pub struct research::sources::queue::Queue
+impl research::sources::queue::Queue
+pub fn research::sources::queue::Queue::expired(&self, now: std::time::SystemTime) -> alloc::vec::Vec<research::sources::queue::Ticket>
+pub const fn research::sources::queue::Queue::new(standings: alloc::vec::Vec<research::sources::queue::Standing>, unparsed: alloc::vec::Vec<research::sources::queue::Ticket>) -> Self
+pub fn research::sources::queue::Queue::next_number(&self) -> u64
+pub fn research::sources::queue::Queue::position_of(&self, ticket: &research::sources::queue::Ticket, now: std::time::SystemTime) -> research::sources::queue::Position
+pub fn research::sources::queue::Queue::present(&self, presented: core::option::Option<&research::sources::queue::Ticket>, binding: &research::sources::queue::Binding, now: std::time::SystemTime) -> research::sources::queue::Presentation
+pub fn research::sources::queue::Queue::stamps(&self, now: std::time::SystemTime) -> alloc::vec::Vec<(research::sources::queue::Ticket, std::time::SystemTime)>
+impl core::clone::Clone for research::sources::queue::Queue
+pub fn research::sources::queue::Queue::clone(&self) -> research::sources::queue::Queue
+impl core::cmp::Eq for research::sources::queue::Queue
+impl core::cmp::PartialEq for research::sources::queue::Queue
+pub fn research::sources::queue::Queue::eq(&self, other: &research::sources::queue::Queue) -> bool
+impl core::fmt::Debug for research::sources::queue::Queue
+pub fn research::sources::queue::Queue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::Queue
+pub struct research::sources::queue::Standing
+pub research::sources::queue::Standing::binding: research::sources::queue::Binding
+pub research::sources::queue::Standing::issued_at: std::time::SystemTime
+pub research::sources::queue::Standing::last_retryable: core::option::Option<research::sources::classify::Reason>
+pub research::sources::queue::Standing::presence: research::sources::queue::Presence
+pub research::sources::queue::Standing::presented_at: std::time::SystemTime
+pub research::sources::queue::Standing::ticket: research::sources::queue::Ticket
+impl core::clone::Clone for research::sources::queue::Standing
+pub fn research::sources::queue::Standing::clone(&self) -> research::sources::queue::Standing
+impl core::cmp::Eq for research::sources::queue::Standing
+impl core::cmp::PartialEq for research::sources::queue::Standing
+pub fn research::sources::queue::Standing::eq(&self, other: &research::sources::queue::Standing) -> bool
+impl core::fmt::Debug for research::sources::queue::Standing
+pub fn research::sources::queue::Standing::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::sources::queue::Standing
+pub struct research::sources::queue::Ticket
+impl research::sources::queue::Ticket
+pub const fn research::sources::queue::Ticket::is_ahead_of(&self, other: &Self) -> bool
+pub const fn research::sources::queue::Ticket::issue(number: u64, nonce: research::sources::queue::Nonce) -> Self
+pub const fn research::sources::queue::Ticket::number(&self) -> u64
+pub fn research::sources::queue::Ticket::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+impl core::clone::Clone for research::sources::queue::Ticket
+pub fn research::sources::queue::Ticket::clone(&self) -> research::sources::queue::Ticket
+impl core::cmp::Eq for research::sources::queue::Ticket
+impl core::cmp::PartialEq for research::sources::queue::Ticket
+pub fn research::sources::queue::Ticket::eq(&self, other: &research::sources::queue::Ticket) -> bool
+impl core::fmt::Debug for research::sources::queue::Ticket
+pub fn research::sources::queue::Ticket::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::queue::Ticket
+pub fn research::sources::queue::Ticket::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for research::sources::queue::Ticket
+pub fn research::sources::queue::Ticket::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::StructuralPartialEq for research::sources::queue::Ticket
+pub const research::sources::queue::ABANDONED_AFTER: core::time::Duration
+pub const research::sources::queue::CAP: core::time::Duration
+pub const research::sources::queue::EXPIRY: core::time::Duration
+pub const research::sources::queue::LONGEST_INVOCATION: core::time::Duration
+pub fn research::sources::queue::is_abandoned(issued_at: std::time::SystemTime, now: std::time::SystemTime) -> bool
+pub fn research::sources::queue::is_front_given(ahead: impl core::iter::traits::collect::IntoIterator<Item = research::sources::queue::Contender>, now: std::time::SystemTime) -> bool
 pub mod research::sources::record
 pub enum research::sources::record::Tier
 pub research::sources::record::Tier::One
@@ -790,6 +961,8 @@ pub research::sources::request::RequestError::MalformedArxivId(alloc::string::St
 pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string::String)
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
+pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
+pub research::sources::request::RequestError::TicketNotQueued(research::sources::request::Family)
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
 pub research::sources::request::RequestError::UnknownVerb(alloc::string::String)
 impl core::clone::Clone for research::sources::request::RequestError
@@ -840,13 +1013,16 @@ impl core::cmp::PartialEq for research::sources::request::ArxivId
 pub fn research::sources::request::ArxivId::eq(&self, other: &research::sources::request::ArxivId) -> bool
 impl core::fmt::Debug for research::sources::request::ArxivId
 pub fn research::sources::request::ArxivId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for research::sources::request::ArxivId
+pub fn research::sources::request::ArxivId::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for research::sources::request::ArxivId
 pub fn research::sources::request::ArxivId::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
 impl core::marker::StructuralPartialEq for research::sources::request::ArxivId
-pub struct research::sources::request::ArxivQuery(_)
+pub struct research::sources::request::ArxivQuery
 impl research::sources::request::ArxivQuery
 pub fn research::sources::request::ArxivQuery::as_str(&self) -> &str
 pub fn research::sources::request::ArxivQuery::parse(raw: &str) -> core::result::Result<Self, research::sources::request::RequestError>
+pub fn research::sources::request::ArxivQuery::spelled(&self) -> &str
 impl core::clone::Clone for research::sources::request::ArxivQuery
 pub fn research::sources::request::ArxivQuery::clone(&self) -> research::sources::request::ArxivQuery
 impl core::cmp::Eq for research::sources::request::ArxivQuery
@@ -951,6 +1127,7 @@ pub fn research::sources::request::WorkId::eq(&self, other: &research::sources::
 impl core::fmt::Debug for research::sources::request::WorkId
 pub fn research::sources::request::WorkId::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::request::WorkId
+pub fn research::sources::request::parse_ticket(family: research::sources::request::Family, raw: core::option::Option<&str>) -> core::result::Result<core::option::Option<research::sources::queue::Ticket>, research::sources::request::RequestError>
 pub mod research::sources::schedule
 pub struct research::sources::schedule::Deadline
 impl research::sources::schedule::Deadline

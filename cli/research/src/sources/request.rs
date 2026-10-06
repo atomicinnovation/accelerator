@@ -3,6 +3,8 @@
 
 use std::fmt;
 
+use crate::sources::queue::Ticket;
+
 const USER_AGENT: &str =
     concat!("accelerator-research/", env!("CARGO_PKG_VERSION"));
 const ATOM: &str = "application/atom+xml";
@@ -21,6 +23,8 @@ pub enum RequestError {
     EmptyQuery,
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
+    TicketMalformed(String),
+    TicketNotQueued(Family),
 }
 
 impl fmt::Display for RequestError {
@@ -60,11 +64,38 @@ impl fmt::Display for RequestError {
                 "E_OPENALEX_ID_MALFORMED: expected W123, \
                  https://openalex.org/W123, or a DOI (got '{id}')"
             ),
+            Self::TicketMalformed(ticket) => write!(
+                formatter,
+                "E_ARXIV_TICKET_MALFORMED: expected a ticket such as \
+                 42-9f1c2a (got '{ticket}')"
+            ),
+            Self::TicketNotQueued(_) => formatter.write_str(
+                "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
+            ),
         }
     }
 }
 
 impl std::error::Error for RequestError {}
+
+/// The ticket a waiting arXiv call printed, re-presented by its caller.
+///
+/// # Errors
+///
+/// [`RequestError::TicketNotQueued`] for a ticket on a family that never
+/// queues, or [`RequestError::TicketMalformed`].
+pub fn parse_ticket(
+    family: Family,
+    raw: Option<&str>,
+) -> Result<Option<Ticket>, RequestError> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    if family != Family::Arxiv {
+        return Err(RequestError::TicketNotQueued(family));
+    }
+    Ticket::parse(raw).map(Some)
+}
 
 /// A scholarly source the fetcher can reach.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,6 +237,14 @@ impl ArxivId {
             unversioned: unversioned.to_owned(),
             version,
         })
+    }
+}
+
+impl fmt::Display for ArxivId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.unversioned)?;
+        self.version
+            .map_or(Ok(()), |version| write!(formatter, "v{version}"))
     }
 }
 
@@ -363,11 +402,16 @@ impl OpenAlexQuery {
     }
 }
 
-/// Free text translated into arXiv's query language: one `all:` clause per
-/// word, joined by `AND`, with grouping, quoting and operator words dropped so
-/// the result always parses.
+/// Free text translated into arXiv's query language, kept beside the text as
+/// the caller spelled it.
+///
+/// The translation is one `all:` clause per word, joined by `AND`, with
+/// grouping, quoting and operator words dropped so the result always parses.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArxivQuery(String);
+pub struct ArxivQuery {
+    spelled: String,
+    translated: String,
+}
 
 impl ArxivQuery {
     const OPERATORS: [&str; 3] = ["AND", "OR", "ANDNOT"];
@@ -386,11 +430,18 @@ impl ArxivQuery {
         if clauses.is_empty() {
             return Err(RequestError::EmptyQuery);
         }
-        Ok(Self(clauses.join(" AND ")))
+        Ok(Self {
+            spelled: raw.to_owned(),
+            translated: clauses.join(" AND "),
+        })
     }
 
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.translated
+    }
+
+    pub fn spelled(&self) -> &str {
+        &self.spelled
     }
 }
 

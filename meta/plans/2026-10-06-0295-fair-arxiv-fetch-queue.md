@@ -851,14 +851,14 @@ clock is needed.
 
 #### Automated Verification
 
-- [ ] Queue tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research --test queue`
-- [ ] Public API snapshot updated deliberately: `mise run public-api:check`
-- [ ] `mise run cli:check` passes (cargo-pup keeps the module free of I/O)
-- [ ] `mise run`
+- [x] Queue tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research --test queue`
+- [x] Public API snapshot updated deliberately: `mise run public-api:check`
+- [x] `mise run cli:check` passes (cargo-pup keeps the module free of I/O)
+- [x] `mise run`
 
 #### Manual Verification
 
-- [ ] Names read as the domain is spoken: ticket, binding, standing,
+- [x] Names read as the domain is spoken: ticket, binding, standing,
       presence, position, front, expiry and cap.
 
 ---
