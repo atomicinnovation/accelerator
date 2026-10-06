@@ -248,7 +248,6 @@ impl RecordingGate {
         self
     }
 
-    /// Answers `try_serve` with `None` for the next `tries` calls.
     #[must_use]
     pub fn busy_for(self, tries: usize) -> Self {
         self.busy_for.set(tries);

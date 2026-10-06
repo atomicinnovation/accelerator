@@ -124,7 +124,6 @@ pub trait ServingTurn {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WaitTooLong;
 
-/// A call whose budget ran out before it settled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OutOfBudget {
     pub last_retryable: Option<Reason>,

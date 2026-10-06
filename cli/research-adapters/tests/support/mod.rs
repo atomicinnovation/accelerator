@@ -45,7 +45,6 @@ impl RecordingClock {
         })
     }
 
-    /// The wall time `by` before now.
     pub fn ago(&self, by: Duration) -> SystemTime {
         self.wall_origin + self.elapsed.get() - by
     }

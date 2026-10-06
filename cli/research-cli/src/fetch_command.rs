@@ -56,7 +56,6 @@ pub enum SourceCall {
     Arxiv(ArxivCall, ArxivAdapters),
 }
 
-/// An arXiv request and the ticket, if any, it re-presents.
 pub struct ArxivCall {
     pub request: ArxivRequest,
     pub presented: Option<Ticket>,

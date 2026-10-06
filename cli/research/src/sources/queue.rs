@@ -32,7 +32,6 @@ impl Nonce {
     const DIGITS: usize = 6;
     const BITS: u32 = 0x00ff_ffff;
 
-    /// The nonce made of the low 24 bits of `bits`.
     pub const fn from_bits(bits: u32) -> Self {
         Self(bits & Self::BITS)
     }

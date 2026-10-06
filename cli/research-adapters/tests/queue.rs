@@ -50,8 +50,7 @@ fn ticket(text: &str) -> Ticket {
     Ticket::parse(text).expect("a ticket")
 }
 
-/// The nonce of the `n`th ticket a harness's queue issues.
-fn nth(n: u32) -> String {
+fn nonce_of_nth_ticket(n: u32) -> String {
     format!("{n:06x}")
 }
 
@@ -80,7 +79,8 @@ impl Harness {
             self.diagnostics.clone(),
             Box::new(move || {
                 issued.set(issued.get() + 1);
-                Nonce::from_hex(&nth(issued.get())).expect("a nonce")
+                Nonce::from_hex(&nonce_of_nth_ticket(issued.get()))
+                    .expect("a nonce")
             }),
         )
     }
@@ -165,7 +165,7 @@ fn joining_an_empty_queue_issues_ticket_one_and_holds_its_lock() {
 
     let place = queued(join(&harness, &queue, None));
 
-    let issued = format!("1-{}", nth(1));
+    let issued = format!("1-{}", nonce_of_nth_ticket(1));
     assert_eq!(place.ticket().to_string(), issued);
     assert!(harness.scratch.ticket_is_held(&issued));
     let record = harness.scratch.record(&issued).expect("a record");

@@ -117,7 +117,6 @@ impl FileArxivQueue {
         }
     }
 
-    /// Every ticket on record, read without changing anything.
     fn snapshot(&self) -> Result<Snapshot, String> {
         let names = self.scratch.names()?;
         let mut snapshot = Snapshot::default();
