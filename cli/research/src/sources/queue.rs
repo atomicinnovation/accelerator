@@ -212,6 +212,10 @@ pub struct Standing {
 pub struct Position(u32);
 
 impl Position {
+    pub const fn new(position: u32) -> Self {
+        Self(position)
+    }
+
     pub const fn get(self) -> u32 {
         self.0
     }

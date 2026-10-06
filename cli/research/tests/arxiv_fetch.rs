@@ -14,6 +14,10 @@ use research::sources::fetch::ArxivPorts;
 use research::sources::fetch::Contention;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::Unavailable;
+use research::sources::queue::Argument;
+use research::sources::queue::Position;
+use research::sources::queue::Ticket;
+use research::sources::queue::TicketRejection;
 use research::sources::record::Record;
 use research::sources::record::Tier;
 use research::sources::request::ArxivId;
@@ -32,6 +36,8 @@ use support::MemoryConfirmations;
 use support::RecordingClock;
 use support::RecordingContention;
 use support::RecordingGate;
+use support::ScriptedJoin;
+use support::ScriptedQueue;
 use support::ScriptedTransport;
 use support::StubArxivDecoder;
 use support::Timeline;
@@ -69,6 +75,7 @@ struct Harness {
     timeline: Timeline,
     clock: RecordingClock,
     gate: RecordingGate,
+    queue: ScriptedQueue,
     contention: RecordingContention,
     decoder: StubArxivDecoder,
     api: Endpoint,
@@ -81,6 +88,7 @@ impl Harness {
         Self {
             clock: RecordingClock::on(timeline.clone()),
             gate: RecordingGate::on(timeline.clone()).spacing(SPACING),
+            queue: ScriptedQueue::on(timeline.clone()),
             timeline,
             contention: RecordingContention::default(),
             decoder: StubArxivDecoder { entries },
@@ -97,6 +105,21 @@ impl Harness {
         self
     }
 
+    fn queue(
+        mut self,
+        scripted: impl FnOnce(ScriptedQueue) -> ScriptedQueue,
+    ) -> Self {
+        self.queue = scripted(self.queue);
+        self
+    }
+
+    fn waiting_at(&self, position: u32) -> FetchOutcome {
+        FetchOutcome::Waiting {
+            ticket: self.queue.ticket(),
+            position: Position::new(position),
+        }
+    }
+
     fn fetch(
         &self,
         transport: &ScriptedTransport<'_>,
@@ -106,6 +129,7 @@ impl Harness {
         fetch_arxiv(
             &ArxivFetch {
                 request,
+                presented: None,
                 api: &self.api,
                 oai: &self.oai,
             },
@@ -115,6 +139,7 @@ impl Harness {
                 clock: &self.clock,
                 gate: &self.gate,
                 confirmations,
+                queue: &self.queue,
                 contention: &self.contention,
             },
             &self.clock.deadline(),
@@ -406,10 +431,8 @@ fn a_confirmation_inherits_what_remains_of_the_deadline() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(
-        outcome,
-        FetchOutcome::Unavailable(Unavailable::new(Reason::RateLimited))
-    );
+    assert_eq!(outcome, harness.waiting_at(1));
+    assert_eq!(harness.queue.stepped_aside(), [None]);
     assert_eq!(transport.hits(), 1);
 }
 
@@ -463,6 +486,21 @@ fn an_error_feed_is_a_client_error() {
     );
 }
 
+fn rejected(ticket: &Ticket) -> TicketRejection {
+    TicketRejection::Mismatch {
+        ticket: ticket.clone(),
+        issued: research::sources::queue::Binding::of(&search("5")),
+        differing: vec![Argument::Limit],
+    }
+}
+
+fn over_cap(harness: &Harness, last_retryable: Option<Reason>) -> ScriptedJoin {
+    ScriptedJoin::OverCap {
+        ticket: harness.queue.ticket(),
+        last_retryable,
+    }
+}
+
 #[test]
 fn a_whole_call_is_served_in_one_turn() {
     let harness = Harness::with(vec![
@@ -488,12 +526,13 @@ fn a_whole_call_is_served_in_one_turn() {
             Event::Attempt,
             Event::Attempt,
             Event::Released,
+            Event::Left,
         ]
     );
 }
 
 #[test]
-fn an_invocation_with_32_s_left_is_not_admitted() {
+fn a_front_invocation_with_32_s_left_waits_without_a_request() {
     let harness = Harness::with(Vec::new());
     harness.clock.leaving(secs(32));
     let confirmations = MemoryConfirmations::new(&harness.gate);
@@ -502,12 +541,13 @@ fn an_invocation_with_32_s_left_is_not_admitted() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(outcome, harness.waiting_at(1));
     assert_eq!(harness.gate.attempts(), 0);
+    assert_eq!(harness.queue.stepped_aside(), [None]);
 }
 
 #[test]
-fn an_invocation_with_33_s_left_is_admitted() {
+fn with_33_s_left_it_is_served() {
     let harness = Harness::with(Vec::new());
     harness.clock.leaving(secs(33));
     let confirmations = MemoryConfirmations::new(&harness.gate);
@@ -517,10 +557,11 @@ fn an_invocation_with_33_s_left_is_admitted() {
     records(harness.fetch(&transport, &confirmations, &search("10")));
 
     assert_eq!(harness.gate.attempts(), 1);
+    assert_eq!(harness.queue.left(), 1);
 }
 
 #[test]
-fn a_6_s_backoff_with_38_s_left_ends_the_call() {
+fn a_6_s_backoff_with_38_s_left_releases_and_waits() {
     let harness = Harness::with(Vec::new());
     harness.clock.leaving(secs(38));
     let confirmations = MemoryConfirmations::new(&harness.gate);
@@ -531,10 +572,15 @@ fn a_6_s_backoff_with_38_s_left_ends_the_call() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(outcome, unavailable(Reason::UpstreamError));
+    assert_eq!(outcome, harness.waiting_at(1));
     assert_eq!(
         harness.timeline.events(),
-        [Event::Served, Event::Attempt, Event::Released]
+        [
+            Event::Served,
+            Event::Attempt,
+            Event::Released,
+            Event::SteppedAside,
+        ]
     );
 }
 
@@ -558,6 +604,7 @@ fn a_6_s_backoff_with_39_s_left_retries_under_the_turn() {
             Event::Slept(secs(6)),
             Event::Attempt,
             Event::Released,
+            Event::Left,
         ]
     );
 }
@@ -573,31 +620,26 @@ fn a_later_request_needs_a_full_serving_window() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(outcome, harness.waiting_at(1));
     assert_eq!(harness.gate.attempts(), 1);
+    assert_eq!(harness.queue.stepped_aside(), [None]);
+    assert_eq!(harness.queue.left(), 0);
 }
 
 #[test]
-fn a_gate_busy_past_the_window_ends_in_lock_contention() {
-    let harness = Harness::with(Vec::new()).gate(RecordingGate::always_busy);
+fn a_40_s_budget_behind_a_20_s_holder_waits_at_position_2() {
+    let harness = Harness::with(Vec::new())
+        .queue(|queue| queue.not_front_for(200).at_position(2));
+    harness.clock.leaving(secs(40));
     let confirmations = MemoryConfirmations::new(&harness.gate);
     let transport =
         ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(
-        outcome,
-        FetchOutcome::Unavailable(Unavailable::lock_contention())
-    );
-    assert_eq!(
-        harness.contention.recorded(),
-        [Contention::LockHeldPastDeadline]
-    );
+    assert_eq!(outcome, harness.waiting_at(2));
     assert_eq!(transport.hits(), 0);
-    let slept = harness.clock.slept();
-    assert!(!slept.is_empty());
-    assert!(slept.iter().all(|poll| *poll == millis(100)), "{slept:?}");
+    assert!(harness.contention.recorded().is_empty());
 }
 
 #[test]
@@ -623,7 +665,7 @@ fn a_free_gate_out_of_budget_records_no_contention() {
 
     let outcome = harness.fetch(&transport, &confirmations, &search("10"));
 
-    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(outcome, harness.waiting_at(1));
     assert!(harness.contention.recorded().is_empty());
 }
 
@@ -638,4 +680,241 @@ fn a_cached_confirmation_is_recalled_inside_the_turn() {
     harness.fetch(&transport, &confirmations, &search("10"));
 
     assert_eq!(confirmations.recalled_while_serving(), [true]);
+}
+
+#[test]
+fn a_second_confirmation_the_budget_cannot_cover_waits_and_keeps_its_place() {
+    let harness = Harness::with(vec![
+        entry("2608.21129v2", Some(WITHDRAWAL)),
+        entry("2608.21130v1", Some(WITHDRAWAL)),
+    ]);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::new(
+        &harness.clock,
+        vec![(body(FEED), secs(30)), (body(WITHDRAWN_RAW), secs(40))],
+    );
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, harness.waiting_at(1));
+    assert_eq!(
+        confirmations.verdicts(),
+        [(ArxivId::parse("2608.21129v2").expect("valid"), true)]
+    );
+    assert_eq!(harness.queue.stepped_aside(), [None]);
+    assert_eq!(harness.queue.left(), 0);
+}
+
+#[test]
+fn four_429s_are_rate_limited_without_a_cause_and_leave_the_queue() {
+    let harness = Harness::with(Vec::new());
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![status(429)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(transport.hits(), 4);
+    assert_eq!(harness.queue.left(), 1);
+    assert!(harness.queue.stepped_aside().is_empty());
+}
+
+#[test]
+fn every_settled_outcome_leaves_exactly_once() {
+    for (answer, settled) in [
+        (body(FEED), "records"),
+        (body(EMPTY_FEED), "none found"),
+        (body(b"garbage"), "failed"),
+        (status(503), "unavailable"),
+    ] {
+        let harness = Harness::with(vec![entry("2608.00001v1", None)]);
+        let confirmations = MemoryConfirmations::new(&harness.gate);
+        let transport =
+            ScriptedTransport::immediate(&harness.clock, vec![answer]);
+
+        harness.fetch(&transport, &confirmations, &search("10"));
+
+        let events = harness.timeline.events();
+        assert_eq!(harness.queue.left(), 1, "{settled}");
+        assert!(harness.queue.stepped_aside().is_empty(), "{settled}");
+        assert_eq!(
+            events[events.len() - 2..],
+            [Event::Released, Event::Left],
+            "{settled}"
+        );
+    }
+}
+
+#[test]
+fn a_retry_after_past_the_budget_waits() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(60));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![retry_after(429, 30)],
+    );
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, harness.waiting_at(1));
+    assert_eq!(harness.queue.stepped_aside(), [Some(Reason::RateLimited)]);
+}
+
+#[test]
+fn a_deferral_the_turn_cannot_admit_waits() {
+    let harness = Harness::with(Vec::new()).gate(|gate| gate.refusing_from(1));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, harness.waiting_at(1));
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
+fn a_503_then_an_exhausted_budget_steps_aside_with_its_reason() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(38));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![retry_after(503, 6), body(FEED)],
+    );
+
+    harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(harness.queue.stepped_aside(), [Some(Reason::UpstreamError)]);
+}
+
+#[test]
+fn an_over_cap_join_is_lock_contention_without_a_request() {
+    let harness = Harness::with(Vec::new());
+    let verdict = over_cap(&harness, None);
+    let harness = harness.queue(|queue| queue.joining(verdict));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(
+        outcome,
+        FetchOutcome::Unavailable(Unavailable::lock_contention())
+    );
+    assert_eq!(
+        harness.contention.recorded(),
+        [Contention::TicketPastCap(harness.queue.ticket())]
+    );
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
+fn an_over_cap_join_after_an_upstream_failure_reports_that_failure() {
+    let harness = Harness::with(Vec::new());
+    let verdict = over_cap(&harness, Some(Reason::UpstreamError));
+    let harness = harness.queue(|queue| queue.joining(verdict));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::UpstreamError));
+    assert!(harness.contention.recorded().is_empty());
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
+fn a_mismatch_is_rejected_without_a_request() {
+    let harness = Harness::with(Vec::new());
+    let rejection = rejected(&harness.queue.ticket());
+    let harness = harness.queue(|queue| {
+        queue.joining(ScriptedJoin::Rejected(rejection.clone()))
+    });
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, FetchOutcome::Rejected(rejection));
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
+fn a_ticket_crossing_900_s_while_waiting_is_still_served() {
+    let harness =
+        Harness::with(Vec::new()).queue(|queue| queue.not_front_for(600));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(harness.queue.left(), 1);
+}
+
+#[test]
+fn an_unqueued_call_out_of_budget_is_lock_contention_not_waiting() {
+    for refusing in [false, true] {
+        let harness = Harness::with(Vec::new())
+            .queue(|queue| queue.joining(ScriptedJoin::Unqueued))
+            .gate(|gate| {
+                if refusing {
+                    gate.refusing_from(1)
+                } else {
+                    gate
+                }
+            });
+        if !refusing {
+            harness.clock.leaving(secs(32));
+        }
+        let confirmations = MemoryConfirmations::new(&harness.gate);
+        let transport =
+            ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+        let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+        assert_eq!(
+            outcome,
+            FetchOutcome::Unavailable(Unavailable::lock_contention())
+        );
+        assert_eq!(harness.contention.recorded(), [Contention::QueueUnusable]);
+    }
+}
+
+#[test]
+fn an_unqueued_call_out_of_budget_after_a_503_reports_that_failure() {
+    let harness = Harness::with(Vec::new())
+        .queue(|queue| queue.joining(ScriptedJoin::Unqueued));
+    harness.clock.leaving(secs(38));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![retry_after(503, 6), body(FEED)],
+    );
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::UpstreamError));
+    assert!(harness.contention.recorded().is_empty());
+}
+
+#[test]
+fn an_unqueued_call_is_served_without_a_place() {
+    let harness = Harness::with(vec![entry("2608.00001v1", None)])
+        .queue(|queue| queue.joining(ScriptedJoin::Unqueued));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let found =
+        records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(found.len(), 1);
+    assert_eq!(harness.queue.left(), 0);
 }

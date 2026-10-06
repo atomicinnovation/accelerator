@@ -4,7 +4,7 @@ from pathlib import Path
 
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CARGO_TOML
+from tasks.shared.paths import CARGO_TOML, CLI_WORKSPACE_CARGO_TOML
 from tasks.test.cli import _MANIFEST
 from tasks.test.unit import _bare_returns_in_tests, _tap_counts
 
@@ -119,6 +119,17 @@ def research(context: Context) -> None:
     show through the same guard.
     """
     context.run(_RESEARCH_DIFFERENTIAL)
+
+
+@task
+def arxiv_queue_stress(context: Context) -> None:
+    """Run 30 arXiv fetches through the queue in real time (minutes)."""
+    context.run(
+        f"cargo nextest run --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
+        "-p accelerator-research --features test-loopback "
+        "--run-ignored only -E 'binary(=arxiv_queue_stress)'",
+        pty=True,
+    )
 
 
 @task

@@ -30,6 +30,8 @@ use research::sources::fetch::OpenAlexFetch;
 use research::sources::fetch::OpenAlexPorts;
 use research::sources::fetch::PacingGate;
 use research::sources::fetch::Transport;
+use research::sources::queue::ArxivQueue;
+use research::sources::queue::Ticket;
 use research::sources::request::ApiKey;
 use research::sources::request::ArxivRequest;
 use research::sources::request::Endpoint;
@@ -51,7 +53,13 @@ pub struct FetchPorts {
 /// so no call builds, or reads configuration for, a source it never asks.
 pub enum SourceCall {
     OpenAlex(OpenAlexRequest, OpenAlexAdapters),
-    Arxiv(ArxivRequest, ArxivAdapters),
+    Arxiv(ArxivCall, ArxivAdapters),
+}
+
+/// An arXiv request and the ticket, if any, it re-presents.
+pub struct ArxivCall {
+    pub request: ArxivRequest,
+    pub presented: Option<Ticket>,
 }
 
 pub struct OpenAlexAdapters {
@@ -68,6 +76,7 @@ pub struct ArxivAdapters {
     pub decoder: Box<dyn ArxivDecoder>,
     pub gate: Box<dyn PacingGate>,
     pub confirmations: Box<dyn ConfirmationCache>,
+    pub queue: Box<dyn ArxivQueue>,
     pub contention: Box<dyn ContentionLog>,
 }
 
@@ -102,8 +111,8 @@ pub fn run(
                 key.as_ref(),
             ))
         }
-        SourceCall::Arxiv(request, adapters) => {
-            Ok(from_arxiv(ports, adapters, deadline, request))
+        SourceCall::Arxiv(call, adapters) => {
+            Ok(from_arxiv(ports, adapters, deadline, call))
         }
     }
 }
@@ -143,12 +152,13 @@ fn from_arxiv(
     ports: &FetchPorts,
     adapters: &ArxivAdapters,
     deadline: &Deadline,
-    request: &ArxivRequest,
+    call: &ArxivCall,
 ) -> Fetched {
     let transport = Counted::around(adapters.transport.as_ref());
     let outcome = fetch_arxiv(
         &ArxivFetch {
-            request,
+            request: &call.request,
+            presented: call.presented.as_ref(),
             api: &adapters.api,
             oai: &adapters.oai,
         },
@@ -158,13 +168,14 @@ fn from_arxiv(
             clock: ports.clock.as_ref(),
             gate: adapters.gate.as_ref(),
             confirmations: adapters.confirmations.as_ref(),
+            queue: adapters.queue.as_ref(),
             contention: adapters.contention.as_ref(),
         },
         deadline,
     );
     Fetched {
         family: Family::Arxiv,
-        verb: request.verb(),
+        verb: call.request.verb(),
         authenticated: false,
         attempts: transport.sent.get(),
         outcome,
@@ -298,6 +309,12 @@ mod tests {
     use research::sources::fetch::Transport;
     use research::sources::fetch::Unavailable;
     use research::sources::fetch::WaitTooLong;
+    use research::sources::queue::ArxivQueue;
+    use research::sources::queue::Binding;
+    use research::sources::queue::Joining;
+    use research::sources::queue::Place;
+    use research::sources::queue::Position;
+    use research::sources::queue::Ticket;
     use research::sources::request::ArxivId;
     use research::sources::request::Endpoint;
     use research::sources::request::FetchRequest;
@@ -309,6 +326,7 @@ mod tests {
 
     use super::run;
     use super::ArxivAdapters;
+    use super::ArxivCall;
     use super::FetchPorts;
     use super::Fetched;
     use super::OpenAlexAdapters;
@@ -494,6 +512,44 @@ mod tests {
         }
     }
 
+    struct AlwaysFront;
+
+    impl ArxivQueue for AlwaysFront {
+        fn join(
+            &self,
+            _binding: &Binding,
+            _presented: Option<&Ticket>,
+            _deadline: &Deadline,
+            _spacing: Duration,
+        ) -> Joining<'_> {
+            Joining::Queued(Box::new(FrontPlace(
+                Ticket::parse("1-000001").expect("a ticket"),
+            )))
+        }
+    }
+
+    struct FrontPlace(Ticket);
+
+    impl Place for FrontPlace {
+        fn ticket(&self) -> &Ticket {
+            &self.0
+        }
+
+        fn is_front(&self) -> bool {
+            true
+        }
+
+        fn step_aside(
+            self: Box<Self>,
+            _last_retryable: Option<Reason>,
+            _deadline: &Deadline,
+        ) -> Position {
+            Position::new(1)
+        }
+
+        fn leave(self: Box<Self>, _deadline: &Deadline) {}
+    }
+
     struct NoContention;
 
     impl ContentionLog for NoContention {
@@ -607,7 +663,10 @@ mod tests {
                     },
                 ),
                 FetchRequest::Arxiv(request) => SourceCall::Arxiv(
-                    request,
+                    ArxivCall {
+                        request,
+                        presented: None,
+                    },
                     ArxivAdapters {
                         api: Endpoint::arxiv_api(),
                         oai: Endpoint::arxiv_oai(),
@@ -615,6 +674,7 @@ mod tests {
                         decoder: Box::new(XmlArxivDecoder),
                         gate: Box::new(CountingGate(self.turns_served.clone())),
                         confirmations: Box::new(self.confirmations.clone()),
+                        queue: Box::new(AlwaysFront),
                         contention: Box::new(NoContention),
                     },
                 ),

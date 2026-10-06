@@ -234,6 +234,17 @@
 
 ### Changed
 
+- **arXiv fetches queue fairly and keep their place across calls.** Each
+  arXiv `research fetch` takes a ticket in a project-wide first-in, first-out
+  queue and, once admitted, holds the arXiv lock for its whole call, retries
+  and backoffs included. A call that cannot be served within its 100 s budget
+  prints `{"status":"waiting",…,"ticket":…,"position":…}` and exits 0;
+  re-presenting it with `--ticket` resumes its place, and the arXiv profile
+  does so until the call settles. `fetch` callers must now handle this third
+  status, `waiting`. `lock_contention` now means only a ticket past its 900 s
+  cap or a queue that could not be used, so `arxiv-contention.log` counts are
+  not comparable with earlier releases; its lines now name their kind.
+
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already

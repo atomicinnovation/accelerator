@@ -529,6 +529,21 @@ and fails naming whichever is missing:
 - `bash`
 - `zsh` — preinstalled on macOS; `apt-get install zsh` on Debian and Ubuntu
 
+### Opt-in research lanes
+
+Two research lanes stay out of the `test:integration` roll-up and the bare
+default task, because each takes minutes. Run them by hand when changing what
+they cover:
+
+- `mise run test:integration:research-exhaustive` runs the research guard's
+  lexer differential at every splice position, not the default lane's
+  fixed-seed sample.
+- `mise run test:integration:arxiv-queue-stress` runs 30 concurrent arXiv
+  fetches through the fair queue on the real clock, each re-presenting its
+  ticket until it settles, and asserts that every one succeeds with arXiv
+  requests spaced but never left idle. Its test is `#[ignore]`d, so the
+  default nextest run skips it.
+
 ### Contributor environment variables
 
 Local-only toolchain escape hatches. **CI ignores both** (it runs the

@@ -27,6 +27,8 @@ use corpus_adapters::SystemClock as CorpusClock;
 use research::conduct::ledger::RunId;
 use research::sources::fetch::Clock;
 use research::sources::fetch::FetchOutcome;
+use research::sources::queue::Ticket;
+use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
 use research::sources::schedule::Deadline;
@@ -39,6 +41,8 @@ use research_adapters::diagnostics::Stderr;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
 use research_adapters::pacing::FilePacingGate;
 use research_adapters::pacing::NoPacing;
+use research_adapters::queue::random_nonce;
+use research_adapters::queue::FileArxivQueue;
 use research_adapters::scratch::ScratchDir;
 use research_adapters::transport::HttpTransport;
 
@@ -47,6 +51,7 @@ use crate::cli::Command;
 use crate::cli::TopicAction;
 use crate::context::ProjectContext;
 use crate::fetch_command::ArxivAdapters;
+use crate::fetch_command::ArxivCall;
 use crate::fetch_command::FetchPorts;
 use crate::fetch_command::Fetched;
 use crate::fetch_command::OpenAlexAdapters;
@@ -85,8 +90,17 @@ fn main() -> ExitCode {
                     verb,
                     terms,
                     limit,
+                    ticket,
                 },
-        }) => fetch(clock, &deadline, &family, &verb, &terms, limit.as_deref()),
+        }) => fetch(
+            clock,
+            &deadline,
+            &family,
+            &verb,
+            &terms,
+            limit.as_deref(),
+            ticket.as_deref(),
+        ),
         Ok(Cli {
             command: Command::Topic { action },
         }) => topic(action),
@@ -116,9 +130,15 @@ fn fetch(
     verb: &str,
     terms: &[String],
     limit: Option<&str>,
+    ticket: Option<&str>,
 ) -> ExitCode {
-    let request = match FetchRequest::parse(family, verb, terms, limit) {
-        Ok(request) => request,
+    let parsed =
+        FetchRequest::parse(family, verb, terms, limit).and_then(|request| {
+            let presented = parse_ticket(request.family(), ticket)?;
+            Ok((request, presented))
+        });
+    let (request, presented) = match parsed {
+        Ok(parsed) => parsed,
         Err(error) => return usage(&error.to_string()),
     };
     let endpoints = match selected_endpoints() {
@@ -129,8 +149,9 @@ fn fetch(
         Ok((_, project)) => project,
         Err(message) => return failure(&message),
     };
-    let call = match source_call(request, endpoints, &project, &clock, deadline)
-    {
+    let call = match source_call(
+        request, presented, endpoints, &project, &clock, deadline,
+    ) {
         Ok(call) => call,
         Err(message) => return failure(&message),
     };
@@ -227,6 +248,7 @@ fn minted_run() -> Result<RunId, String> {
 /// the configuration arXiv's shared state needs.
 fn source_call(
     request: FetchRequest,
+    presented: Option<Ticket>,
     endpoints: Endpoints,
     project: &ProjectContext,
     clock: &Rc<dyn Clock>,
@@ -249,8 +271,9 @@ fn source_call(
                 .research_scratch()
                 .map_err(|error| error.to_string())?;
             let diagnostics: Rc<dyn Diagnostics> = Rc::new(Stderr);
+            let research = ScratchDir::new(&project.root, &scratch);
             SourceCall::Arxiv(
-                request,
+                ArxivCall { request, presented },
                 ArxivAdapters {
                     api: endpoints.arxiv_api,
                     oai: endpoints.arxiv_oai,
@@ -264,6 +287,12 @@ fn source_call(
                     confirmations: Box::new(FileConfirmationCache::new(
                         ScratchDir::new(&project.root, &scratch),
                         diagnostics.clone(),
+                    )),
+                    queue: Box::new(FileArxivQueue::new(
+                        research.nested("arxiv-queue"),
+                        clock.clone(),
+                        diagnostics.clone(),
+                        Box::new(random_nonce),
                     )),
                     contention: Box::new(FileContentionLog::new(
                         ScratchDir::new(&project.root, &scratch),
@@ -286,6 +315,9 @@ fn working_project() -> Result<(PathBuf, ProjectContext), String> {
 }
 
 fn report(fetched: &Fetched) -> ExitCode {
+    if let Some(rejection) = render::rejection(fetched) {
+        return usage(&rejection);
+    }
     if let FetchOutcome::Failed(error) = &fetched.outcome {
         eprintln!("{error}");
     }

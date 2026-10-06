@@ -13,7 +13,7 @@ relates_to: ["work-item:0283"]
 tags: ["research", "arxiv", "pacing", "fetch", "research-cli", "research-adapters"]
 revision: "ecb60d3d7abfc3fdd92add69abe0e4c7203fe633"
 repository: "accelerator"
-last_updated: "2026-10-06T16:04:19+00:00"
+last_updated: "2026-10-06T19:10:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1666,21 +1666,21 @@ live:
 
 #### Automated Verification
 
-- [ ] Domain, adapter and binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml --workspace --exclude accelerator-visualiser --all-features`
-- [ ] Prompt structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py tests/unit/tasks/test_mise.py`
-- [ ] Guard differential passes: `mise run test:integration:research`
-- [ ] Generated docs current: `mise run docs:generate` leaves no diff
-- [ ] `mise run public-api:check`
-- [ ] Stress lane passes: `mise run test:integration:arxiv-queue-stress`
-- [ ] Full local CI mirror: `mise run`
+- [x] Domain, adapter and binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml --workspace --exclude accelerator-visualiser --all-features`
+- [x] Prompt structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py tests/unit/tasks/test_mise.py`
+- [x] Guard differential passes: `mise run test:integration:research`
+- [x] Generated docs current: `mise run docs:generate` leaves no diff
+- [x] `mise run public-api:check`
+- [x] Stress lane passes: `mise run test:integration:arxiv-queue-stress`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
-- [ ] `accelerator research fetch --help` reads correctly.
-- [ ] Hand-run a search with `ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS=33000`
+- [x] `accelerator research fetch --help` reads correctly.
+- [x] Hand-run a search with `ACCELERATOR_RESEARCH_TEST_CALL_BUDGET_MS=33000`
       against a debug build while another call holds the lock. The `waiting`
       JSON is printed, and re-presenting it succeeds.
-- [ ] The CHANGELOG entry and the `research.md` Pacing section read
+- [x] The CHANGELOG entry and the `research.md` Pacing section read
       correctly.
 
 ---
@@ -1880,6 +1880,49 @@ The tests are layered so most acceptance criteria run in virtual time.
   holds throughout, because both versions take `arxiv.lock`.
 - **Rollback** is a revert. Stale `arxiv-queue/` files are inert once
   reverted.
+
+## Implementation Notes
+
+Progress as of 2026-10-06: Phases 1–4 are complete and committed; Phase 5
+has not started.
+
+- **`mise run` and `docs:audit:check`.** The `mise run` ticks for Phases 1–4
+  mean every lane passed except `docs:audit:check`, run with
+  `--continue-on-error`. That lane failed on two `npm audit` advisories
+  against `docs-site` dependencies, independent of this change. A separate
+  commit fixes both: `mise run docs:audit:fix` patched `source-map-js`,
+  `astro` moved to 7.3.6 within its range, and a `sharp` `^0.35.5` override
+  in `docs-site/package.json` patched `sharp`, which every `astro` 7.3.x
+  leaves at 0.35.4. Remove the override once `astro` declares a patched
+  `sharp`. `docs:audit:check` and `docs:check` pass with it; the full
+  `mise run` has not been repeated since that commit.
+- **Self-reviewed manual checks.** The Phase 1, 2 and 3 manual items, and
+  Phase 4's `--help` read and hand-run, were checked by the implementer's own review, not
+  by a separate reviewer.
+- **Phase 4 hand-run.** Run against a `test-loopback` debug build, with
+  the arXiv URLs pointed at a local mock serving `search-3.xml` and a separate
+  process holding `arxiv.lock`. The 33 s call printed `waiting` at position 1
+  with no request sent; the same ticket with another query exited 2 with
+  `E_ARXIV_TICKET_MISMATCH`; once the lock was released, re-presenting the
+  ticket returned `ok` with 3 records from one request, left only
+  `queue.lock`, and wrote no contention line.
+- **Phase 4 docs review.** Toby Clemson read the CHANGELOG entry and the
+  Pacing docs and approved them.
+- **Deviations from the plan:**
+  - `ArxivQuery` keeps the query as the caller spelled it beside its
+    translation, so a mismatch names the issued query and a stored record
+    re-parses to the same binding. `ArxivId` gained `Display`.
+  - `ServedCall` was folded into `Result<FetchOutcome, OutOfBudget>` once
+    Phase 4 made admission return `OutOfBudget` too.
+  - The domain gained `Reason::from_code`, `Position::new` and
+    `Nonce::from_bits`, for the record format, the queue test double and the
+    random nonce.
+  - `SourceCall::Arxiv` carries an `ArxivCall { request, presented }`.
+- **`store` containment quirk, not fixed.** `ensure_contained` canonicalises
+  a not-yet-created tail lexically, so a `..` inside a directory that does not
+  exist yet passes the check. Queue paths only nest fixed names under an
+  existing directory, so the queue is unaffected; the scratch test creates the
+  directory first.
 
 ## References
 

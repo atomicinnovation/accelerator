@@ -421,3 +421,16 @@ fn no_attempt_fits_once_too_little_of_the_deadline_remains() {
     assert_eq!(outcome, unavailable(Reason::RateLimited));
     assert_eq!(transport.hits(), 0);
 }
+
+#[test]
+fn an_openalex_fetch_never_waits() {
+    let harness = Harness::new();
+    harness.clock.advance(secs(71));
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(b"page")]);
+
+    let outcome = harness.fetch(&transport, &search("10"), None);
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(transport.hits(), 0);
+}

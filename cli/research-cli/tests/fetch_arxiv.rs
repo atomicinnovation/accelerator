@@ -6,13 +6,14 @@ mod support;
 use http_test_support::MockHTTPServer;
 use http_test_support::RequestKey;
 use http_test_support::Route;
-use rustix::fs::flock;
-use rustix::fs::FlockOperation;
 use support::arxiv_fixture;
 use support::assert_golden;
 use support::fetch;
+use support::search_binding;
 use support::Project;
 use support::Run;
+use support::SeededTicket;
+use support::CALL_BUDGET_MS;
 
 const WITHDRAWN: &str = "2608.21129";
 
@@ -400,16 +401,275 @@ fn a_throttled_call_defers_the_next_calls_first_request() {
 }
 
 #[test]
-fn a_lock_held_past_the_deadline_reports_lock_contention() {
+fn a_lock_held_past_the_window_waits_with_a_ticket() {
     let project = Project::new();
     let server = server_with(vec![(query(), feed("search-3.xml"))]);
-    std::fs::create_dir_all(project.research_scratch()).expect("mkdir");
-    let lock =
-        std::fs::File::create(project.research_scratch().join("arxiv.lock"))
-            .expect("create lock");
-    flock(&lock, FlockOperation::NonBlockingLockExclusive).expect("lock");
+    let _arxiv = project.hold("arxiv.lock");
 
     let run = fetch(&project, &server, &["arxiv", "search", "graphs"], &[]);
+
+    let ticket = waiting(&run, 1);
+    assert!(project.ticket_exists(&ticket));
+    assert!(project.contention_lines().is_empty());
+    assert_eq!(server.hits(&query()), 0);
+}
+const GRAPHS_QUERY: [&str; 3] = ["arxiv", "search", "graphs"];
+
+fn graphs() -> String {
+    search_binding("graphs", 10)
+}
+
+const fn budget(millis: &str) -> [(&str, &str); 1] {
+    [(CALL_BUDGET_MS, millis)]
+}
+
+/// The ticket of a call that printed `waiting` at `position`.
+fn waiting(run: &Run, position: u64) -> String {
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let document = run.json();
+    assert_eq!(document["status"], "waiting", "{document}");
+    assert_eq!(document["source"], "arxiv", "{document}");
+    assert_eq!(document["position"], position, "{document}");
+    document["ticket"].as_str().expect("a ticket").to_owned()
+}
+
+fn presenting<'a>(args: &[&'a str], ticket: &'a str) -> Vec<&'a str> {
+    let mut presented = args.to_vec();
+    presented.extend(["--ticket", ticket]);
+    presented
+}
+
+fn number_of(ticket: &str) -> u64 {
+    ticket
+        .split_once('-')
+        .and_then(|(number, _)| number.parse().ok())
+        .expect("a ticket number")
+}
+
+#[test]
+fn a_waiting_document_carries_ticket_and_position() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+
+    let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("32000"));
+
+    assert_eq!(run.stdout.trim().lines().count(), 1, "{}", run.stdout);
+    let ticket = waiting(&run, 1);
+    assert_eq!(number_of(&ticket), 1);
+    assert_eq!(ticket.len(), "1-".len() + 6, "{ticket}");
+    assert!(
+        run.stderr.contains(&format!(
+            "research fetch: arxiv search waiting at position 1; \
+             re-present with --ticket {ticket}"
+        )),
+        "{}",
+        run.stderr
+    );
+    assert_eq!(server.hits(&query()), 0);
+}
+
+#[test]
+fn a_40_s_budget_behind_a_live_ticket_waits_at_position_2() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    let _arxiv = project.hold("arxiv.lock");
+    project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs(), 10));
+    let _ahead = project.hold_ticket("1-aaaaaa");
+
+    let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("40000"));
+
+    waiting(&run, 2);
+}
+
+#[test]
+fn a_re_presented_ticket_is_served_and_leaves_the_queue() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    let first = fetch(&project, &server, &GRAPHS_QUERY, &budget("32000"));
+    let ticket = waiting(&first, 1);
+
+    let again =
+        fetch(&project, &server, &presenting(&GRAPHS_QUERY, &ticket), &[]);
+
+    assert_eq!(records(&again).len(), 3);
+    let names: Vec<_> = project
+        .queue_files()
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(names, ["queue.lock"]);
+}
+
+#[test]
+fn a_re_presentation_after_mid_call_exhaustion_repeats_the_search_and_reuses_cached_confirmations(
+) {
+    let project = Project::new();
+    let server = server_with(vec![
+        (query(), feed("search-2-withdrawal-candidates.xml")),
+        (
+            oai(),
+            Route::Sequence(vec![
+                feed("oai-2608.21129.xml"),
+                feed("oai-2211.12792.xml"),
+            ]),
+        ),
+    ]);
+    let first = fetch(&project, &server, &GRAPHS_QUERY, &budget("35000"));
+    let ticket = waiting(&first, 1);
+    assert_eq!(server.hits(&oai()), 1);
+    project.seed_ticket("9-bbbbbb", &SeededTicket::live(&graphs(), 0));
+    let _later = project.hold_ticket("9-bbbbbb");
+
+    let again =
+        fetch(&project, &server, &presenting(&GRAPHS_QUERY, &ticket), &[]);
+
+    let records = records(&again);
+    assert_eq!(records[0]["withdrawn"], true);
+    assert_eq!(records[1]["withdrawn"], false);
+    assert_eq!(server.hits(&query()), 2);
+    let confirmed: Vec<_> = server
+        .queries(&oai())
+        .into_iter()
+        .map(|query| query.expect("a query"))
+        .collect();
+    assert_eq!(confirmed.len(), 2, "{confirmed:?}");
+    assert_eq!(
+        confirmed
+            .iter()
+            .filter(|query| query.contains("2608.21129"))
+            .count(),
+        1,
+        "{confirmed:?}"
+    );
+}
+
+#[test]
+fn a_ticket_with_another_query_exits_2_naming_it_and_changes_nothing() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    let attention = search_binding("attention heads", 10);
+    project.seed_ticket("5-eeeeee", &SeededTicket::absent(&attention, 20, 10));
+    project.seed_ticket(
+        "3-cccccc",
+        &SeededTicket {
+            ended_ago: None,
+            ..SeededTicket::absent(&graphs(), 600, 499)
+        },
+    );
+    project.seed_ticket("2-bbbbbb", &SeededTicket::absent(&graphs(), 600, 400));
+    drop(project.hold("arxiv-queue/queue.lock"));
+    let before = project.queue_files();
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "5-eeeeee"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("E_ARXIV_TICKET_MISMATCH"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("query 'attention heads'"),
+        "{}",
+        run.stderr
+    );
+    assert_eq!(run.stdout, "");
+    assert_eq!(server.hits(&query()), 0);
+    assert_eq!(project.queue_files(), before);
+}
+
+#[test]
+fn an_expired_ticket_with_another_query_rejoins_with_a_fresh_ticket() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket(
+        "3-cccccc",
+        &SeededTicket::absent(&search_binding("attention heads", 10), 400, 301),
+    );
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "3-cccccc"),
+        &budget("32000"),
+    );
+
+    let ticket = waiting(&run, 1);
+    assert_eq!(number_of(&ticket), 4);
+    assert!(!project.ticket_exists("3-cccccc"));
+}
+
+#[test]
+fn a_ticket_re_presented_300_s_after_its_end_keeps_its_number() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 400, 300));
+    project.seed_ticket("3-cccccc", &SeededTicket::live(&graphs(), 5));
+    let _later = project.hold_ticket("3-cccccc");
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &budget("32000"),
+    );
+
+    assert_eq!(waiting(&run, 1), "1-aaaaaa");
+}
+
+#[test]
+fn at_301_s_it_rejoins_with_a_fresh_ticket() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 400, 301));
+    project.seed_ticket("3-cccccc", &SeededTicket::live(&graphs(), 5));
+    let _later = project.hold_ticket("3-cccccc");
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &budget("32000"),
+    );
+
+    let ticket = waiting(&run, 2);
+    assert_ne!(ticket, "1-aaaaaa");
+    assert!(number_of(&ticket) > 3, "{ticket}");
+}
+
+#[test]
+fn a_ticket_re_presented_900_s_after_issue_is_queued() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 900, 10));
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &budget("32000"),
+    );
+
+    assert_eq!(waiting(&run, 1), "1-aaaaaa");
+}
+
+#[test]
+fn at_901_s_it_is_lock_contention_with_one_log_entry() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 901, 10));
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &[],
+    );
 
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert_eq!(
@@ -421,6 +681,163 @@ fn a_lock_held_past_the_deadline_reports_lock_contention() {
             "cause": "lock_contention",
         })
     );
-    assert!(run.stderr.contains("lock contention"), "{}", run.stderr);
     assert_eq!(server.hits(&query()), 0);
+    let lines = project.contention_lines();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].ends_with(" ticket_past_cap 1-aaaaaa"), "{lines:?}");
+}
+
+#[test]
+fn a_ticket_issued_950_s_ago_and_ended_400_s_ago_rejoins_afresh() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 950, 400));
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &budget("32000"),
+    );
+
+    assert_ne!(waiting(&run, 1), "1-aaaaaa");
+    assert!(project.contention_lines().is_empty());
+}
+
+#[test]
+fn a_position_counts_expired_absent_and_live_tickets_correctly() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::absent(&graphs(), 600, 400));
+    project.seed_ticket("2-bbbbbb", &SeededTicket::absent(&graphs(), 200, 100));
+    project.seed_ticket("3-cccccc", &SeededTicket::live(&graphs(), 50));
+    let _live = project.hold_ticket("3-cccccc");
+    let _arxiv = project.hold("arxiv.lock");
+
+    let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("33100"));
+
+    let ticket = waiting(&run, 3);
+    assert_eq!(number_of(&ticket), 4);
+}
+
+#[test]
+fn a_malformed_ticket_is_a_usage_error() {
+    let server = MockHTTPServer::start();
+
+    let run = fetch(
+        &Project::new(),
+        &server,
+        &presenting(&GRAPHS_QUERY, "42"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2));
+    assert!(
+        run.stderr.starts_with("E_ARXIV_TICKET_MALFORMED"),
+        "{}",
+        run.stderr
+    );
+    assert_eq!(server.hits(&query()), 0);
+}
+
+#[test]
+fn a_repeated_ticket_flag_is_a_usage_error() {
+    let server = MockHTTPServer::start();
+    let mut args = presenting(&GRAPHS_QUERY, "1-aaaaaa");
+    args.extend(["--ticket", "2-bbbbbb"]);
+
+    let run = fetch(&Project::new(), &server, &args, &[]);
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert_eq!(server.hits(&query()), 0);
+}
+
+#[test]
+fn a_ticket_presented_while_live_elsewhere_exits_2() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("4-dddddd", &SeededTicket::live(&graphs(), 20));
+    let _elsewhere = project.hold_ticket("4-dddddd");
+    let before = project.queue_files();
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "4-dddddd"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert!(
+        run.stderr.contains(
+            "E_ARXIV_TICKET_LIVE: ticket 4-dddddd is already being presented \
+             by another call; use that call's output, or re-present it once \
+             that call has returned"
+        ),
+        "{}",
+        run.stderr
+    );
+    assert_eq!(server.hits(&query()), 0);
+    let after: Vec<_> = project
+        .queue_files()
+        .into_iter()
+        .filter(|(name, _)| name != "queue.lock")
+        .collect();
+    let before: Vec<_> = before
+        .into_iter()
+        .filter(|(name, _)| name != "queue.lock")
+        .collect();
+    assert_eq!(after, before);
+}
+
+#[test]
+fn an_unusable_queue_ends_a_contended_call_in_lock_contention() {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    std::fs::create_dir_all(project.queue_dir().join("queue.lock"))
+        .expect("an unusable queue lock");
+    let _arxiv = project.hold("arxiv.lock");
+
+    let run = fetch(&project, &server, &GRAPHS_QUERY, &budget("33100"));
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(run.json()["cause"], "lock_contention");
+    assert_eq!(run.json()["reason"], "rate_limited");
+    assert_eq!(server.hits(&query()), 0);
+    let lines = project.contention_lines();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].ends_with(" queue_unusable"), "{lines:?}");
+}
+
+#[test]
+fn a_ticket_over_the_cap_after_an_upstream_failure_is_unavailable_with_that_reason(
+) {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket(
+        "1-aaaaaa",
+        &SeededTicket {
+            last_retryable: Some("upstream_error"),
+            ..SeededTicket::absent(&graphs(), 901, 10)
+        },
+    );
+
+    let run = fetch(
+        &project,
+        &server,
+        &presenting(&GRAPHS_QUERY, "1-aaaaaa"),
+        &[],
+    );
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(
+        run.json(),
+        serde_json::json!({
+            "status": "unavailable",
+            "source": "arxiv",
+            "reason": "upstream_error",
+        })
+    );
+    assert_eq!(server.hits(&query()), 0);
+    assert!(project.contention_lines().is_empty());
 }

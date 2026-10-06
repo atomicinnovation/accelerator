@@ -396,3 +396,84 @@ def test_every_skill_injecting_an_academic_profile_grants_the_fetch() -> None:
             f"{path.relative_to(REPO_ROOT)} injects an academic profile "
             f"without granting Bash({FETCH_GRANT})"
         )
+
+
+def _arxiv_profile_prose() -> str:
+    return _prose(REPO_ROOT / _profile_skill("arxiv"))
+
+
+def test_arxiv_profile_re_presents_a_waiting_ticket() -> None:
+    prose = _arxiv_profile_prose()
+    for phrase in [
+        '"status":"waiting"',
+        "--ticket",
+        "latest",
+        "replacing",
+        "carry on",
+        "Write nothing yet",
+    ]:
+        assert phrase in prose, (
+            f"the arXiv profile's Waiting outcome lacks {phrase!r}"
+        )
+    assert "re-presents a waiting ticket does not count" in prose
+    assert "A call the guard blocks" in prose
+    assert "fails as a usage error" in prose
+
+
+def test_arxiv_profile_shows_the_re_presentation_it_asks_for() -> None:
+    _, body = _split(_read(REPO_ROOT / _profile_skill("arxiv")))
+    assert any(
+        "--ticket" in command for command in fenced_block_commands(body)
+    ), "the arXiv profile shows no fenced re-presentation for the guard"
+
+
+def test_arxiv_profile_runs_one_fetch_at_a_time_and_names_ticket_live() -> None:
+    prose = _arxiv_profile_prose()
+    assert "Run one fetch at a time." in prose
+    assert "E_ARXIV_TICKET_LIVE" in prose
+    assert (
+        "exited `2` with `E_ARXIV_TICKET_LIVE` when you have no other fetch "
+        "running" in prose
+    ), "the Failed outcome must cover a ticket live with no other fetch"
+
+
+@pytest.mark.parametrize("family", sorted(ACADEMIC_FAMILIES))
+def test_profiles_treat_any_other_status_as_unavailable(family: str) -> None:
+    assert (
+        "Any other status counts as Unavailable, with the status as its reason."
+        in _prose(REPO_ROOT / _profile_skill(family))
+    )
+
+
+def _lock_contention_row() -> str:
+    rows = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith(
+            "| `rate_limited` with `cause: lock_contention`"
+        )
+    ]
+    assert len(rows) == 1, "research-topic must carry one lock_contention row"
+    return rows[0]
+
+
+def test_lock_contention_row_names_re_running_conduct() -> None:
+    row = _lock_contention_row()
+    assert "re-run `conduct`" in row
+    assert "900 s" in row
+    assert "--concurrency" not in row
+
+
+def test_unrepresented_waiting_has_a_reason_row() -> None:
+    assert any(
+        line.lstrip().startswith("| `waiting` never re-presented |")
+        and "re-run `conduct`" in line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+    )
+
+
+def test_the_researcher_follows_outcomes_that_repeat_a_call() -> None:
+    assert (
+        "Follow your profile's outcomes exactly, including any that tell you "
+        "to repeat a call before ending." in _prose(RESEARCHER)
+    )

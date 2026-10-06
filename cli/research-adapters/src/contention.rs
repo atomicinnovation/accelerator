@@ -1,5 +1,6 @@
 //! The log of arXiv calls that ended in lock contention, one line per call:
-//! the wall-clock milliseconds and the kind of contention.
+//! the wall-clock milliseconds, the kind of contention, and the ticket when
+//! there is one.
 
 use std::rc::Rc;
 
@@ -40,15 +41,19 @@ impl FileContentionLog {
 
 impl ContentionLog for FileContentionLog {
     fn record(&self, contention: Contention) {
-        let (kind, explanation) = match contention {
-            Contention::LockHeldPastDeadline => (
-                "lock_held_past_deadline",
-                "another call held arXiv past this call's deadline",
+        let at = millis_since_epoch(self.clock.wall_now());
+        let (line, explanation) = match contention {
+            Contention::TicketPastCap(ticket) => (
+                format!("{at} ticket_past_cap {ticket}"),
+                format!("ticket {ticket} waited past its 900 s cap"),
+            ),
+            Contention::QueueUnusable => (
+                format!("{at} queue_unusable"),
+                "this call ran out of budget while the queue was unusable"
+                    .to_owned(),
             ),
         };
         self.report(&format!("lock contention: {explanation}"));
-        let line =
-            format!("{} {kind}", millis_since_epoch(self.clock.wall_now()));
         if let Err(error) = self.scratch.append_line(CONTENTION_LOG, &line) {
             self.report(&error);
         }

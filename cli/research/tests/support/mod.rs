@@ -10,6 +10,7 @@ use std::time::SystemTime;
 
 use research::sources::arxiv::Entry;
 use research::sources::arxiv::RawVersion;
+use research::sources::classify::Reason;
 use research::sources::classify::Received;
 use research::sources::classify::Response;
 use research::sources::fetch::ArxivDecoder;
@@ -25,6 +26,13 @@ use research::sources::fetch::ServingTurn;
 use research::sources::fetch::Transport;
 use research::sources::fetch::WaitTooLong;
 use research::sources::openalex::Work;
+use research::sources::queue::ArxivQueue;
+use research::sources::queue::Binding;
+use research::sources::queue::Joining;
+use research::sources::queue::Place;
+use research::sources::queue::Position;
+use research::sources::queue::Ticket;
+use research::sources::queue::TicketRejection;
 use research::sources::request::ArxivId;
 use research::sources::request::UpstreamRequest;
 use research::sources::schedule::Deadline;
@@ -467,5 +475,133 @@ impl ConfirmationCache for MemoryConfirmations<'_> {
             .borrow_mut()
             .push(self.gate.is_serving());
         self.verdicts.borrow_mut().push((entry.clone(), withdrawn));
+    }
+}
+
+#[derive(Clone)]
+pub enum ScriptedJoin {
+    Queued,
+    Unqueued,
+    Rejected(TicketRejection),
+    OverCap {
+        ticket: Ticket,
+        last_retryable: Option<Reason>,
+    },
+}
+
+/// Answers every join as scripted. A place is front unless scripted not to
+/// be for its first few asks, and stepping aside or leaving is recorded on
+/// the shared timeline.
+pub struct ScriptedQueue {
+    timeline: Timeline,
+    verdict: ScriptedJoin,
+    ticket: Ticket,
+    position: Position,
+    not_front_for: Cell<usize>,
+    stepped_aside: RefCell<Vec<Option<Reason>>>,
+    left: Cell<usize>,
+}
+
+impl ScriptedQueue {
+    pub fn on(timeline: Timeline) -> Self {
+        Self {
+            timeline,
+            verdict: ScriptedJoin::Queued,
+            ticket: Ticket::parse("1-000001")
+                .unwrap_or_else(|error| panic!("{error}")),
+            position: Position::new(1),
+            not_front_for: Cell::new(0),
+            stepped_aside: RefCell::new(Vec::new()),
+            left: Cell::new(0),
+        }
+    }
+
+    #[must_use]
+    pub fn joining(mut self, verdict: ScriptedJoin) -> Self {
+        self.verdict = verdict;
+        self
+    }
+
+    #[must_use]
+    pub fn not_front_for(self, asks: usize) -> Self {
+        self.not_front_for.set(asks);
+        self
+    }
+
+    #[must_use]
+    pub const fn at_position(mut self, position: u32) -> Self {
+        self.position = Position::new(position);
+        self
+    }
+
+    pub fn ticket(&self) -> Ticket {
+        self.ticket.clone()
+    }
+
+    pub fn stepped_aside(&self) -> Vec<Option<Reason>> {
+        self.stepped_aside.borrow().clone()
+    }
+
+    pub const fn left(&self) -> usize {
+        self.left.get()
+    }
+}
+
+impl ArxivQueue for ScriptedQueue {
+    fn join(
+        &self,
+        _binding: &Binding,
+        _presented: Option<&Ticket>,
+        _deadline: &Deadline,
+        _spacing: Duration,
+    ) -> Joining<'_> {
+        match self.verdict.clone() {
+            ScriptedJoin::Queued => {
+                Joining::Queued(Box::new(ScriptedPlace { queue: self }))
+            }
+            ScriptedJoin::Unqueued => Joining::Unqueued,
+            ScriptedJoin::Rejected(rejection) => Joining::Rejected(rejection),
+            ScriptedJoin::OverCap {
+                ticket,
+                last_retryable,
+            } => Joining::OverCap {
+                ticket,
+                last_retryable,
+            },
+        }
+    }
+}
+
+struct ScriptedPlace<'q> {
+    queue: &'q ScriptedQueue,
+}
+
+impl Place for ScriptedPlace<'_> {
+    fn ticket(&self) -> &Ticket {
+        &self.queue.ticket
+    }
+
+    fn is_front(&self) -> bool {
+        let waiting = self.queue.not_front_for.get();
+        if waiting == 0 {
+            return true;
+        }
+        self.queue.not_front_for.set(waiting - 1);
+        false
+    }
+
+    fn step_aside(
+        self: Box<Self>,
+        last_retryable: Option<Reason>,
+        _deadline: &Deadline,
+    ) -> Position {
+        self.queue.stepped_aside.borrow_mut().push(last_retryable);
+        self.queue.timeline.push(Event::SteppedAside);
+        self.queue.position
+    }
+
+    fn leave(self: Box<Self>, _deadline: &Deadline) {
+        self.queue.left.set(self.queue.left.get() + 1);
+        self.queue.timeline.push(Event::Left);
     }
 }

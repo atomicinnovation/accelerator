@@ -18,7 +18,15 @@ Prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]}, each recor
 carrying title, authors, url, venue, venue_signals, abstract, tier, retracted
 and withdrawn; or {\"status\":\"unavailable\",\"source\":…,\"reason\":…} with a
 reason of rate_limited, budget_exhausted or upstream_error when the source
-cannot answer now. Both exit 0.
+cannot answer now. A caller should treat any other status as unavailable,
+reporting the status verbatim as its reason.
+
+arXiv calls wait their turn in a queue shared by the project. One that cannot
+be served in time prints
+{\"status\":\"waiting\",\"source\":\"arxiv\",\"ticket\":…,\"position\":…}: re-present
+the same call with --ticket set to that ticket, and repeat until the status
+is anything else. A ticket exits 2 when presented with other arguments, or
+while another call presents it. ok, unavailable and waiting all exit 0.
 
 Every call finishes within 100 s of starting. Usage errors exit 2 before any
 request; credential refusals and rejected requests exit 1.";
@@ -45,6 +53,10 @@ pub enum Command {
         /// How many records a search returns, 1–25 (default 10).
         #[arg(long)]
         limit: Option<String>,
+        /// Re-present the ticket a waiting arXiv call printed, with the same
+        /// arguments.
+        #[arg(long)]
+        ticket: Option<String>,
     },
     /// Conventions of a `topic-research` set.
     Topic {

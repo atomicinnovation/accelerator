@@ -476,7 +476,8 @@ pub fn research::sources::fetch::Cause::fmt(&self, f: &mut core::fmt::Formatter<
 impl core::marker::Copy for research::sources::fetch::Cause
 impl core::marker::StructuralPartialEq for research::sources::fetch::Cause
 pub enum research::sources::fetch::Contention
-pub research::sources::fetch::Contention::LockHeldPastDeadline
+pub research::sources::fetch::Contention::QueueUnusable
+pub research::sources::fetch::Contention::TicketPastCap(research::sources::queue::Ticket)
 impl core::clone::Clone for research::sources::fetch::Contention
 pub fn research::sources::fetch::Contention::clone(&self) -> research::sources::fetch::Contention
 impl core::cmp::Eq for research::sources::fetch::Contention
@@ -484,7 +485,6 @@ impl core::cmp::PartialEq for research::sources::fetch::Contention
 pub fn research::sources::fetch::Contention::eq(&self, other: &research::sources::fetch::Contention) -> bool
 impl core::fmt::Debug for research::sources::fetch::Contention
 pub fn research::sources::fetch::Contention::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for research::sources::fetch::Contention
 impl core::marker::StructuralPartialEq for research::sources::fetch::Contention
 pub enum research::sources::fetch::DecodeFailure
 pub research::sources::fetch::DecodeFailure::ErrorFeed(alloc::string::String)
@@ -500,7 +500,11 @@ impl core::marker::StructuralPartialEq for research::sources::fetch::DecodeFailu
 pub enum research::sources::fetch::FetchOutcome
 pub research::sources::fetch::FetchOutcome::Failed(research::sources::classify::FetchError)
 pub research::sources::fetch::FetchOutcome::Records(alloc::vec::Vec<research::sources::record::Record>)
+pub research::sources::fetch::FetchOutcome::Rejected(research::sources::queue::TicketRejection)
 pub research::sources::fetch::FetchOutcome::Unavailable(research::sources::fetch::Unavailable)
+pub research::sources::fetch::FetchOutcome::Waiting
+pub research::sources::fetch::FetchOutcome::Waiting::position: research::sources::queue::Position
+pub research::sources::fetch::FetchOutcome::Waiting::ticket: research::sources::queue::Ticket
 impl core::clone::Clone for research::sources::fetch::FetchOutcome
 pub fn research::sources::fetch::FetchOutcome::clone(&self) -> research::sources::fetch::FetchOutcome
 impl core::cmp::Eq for research::sources::fetch::FetchOutcome
@@ -512,6 +516,7 @@ impl core::marker::StructuralPartialEq for research::sources::fetch::FetchOutcom
 pub struct research::sources::fetch::ArxivFetch<'a>
 pub research::sources::fetch::ArxivFetch::api: &'a research::sources::request::Endpoint
 pub research::sources::fetch::ArxivFetch::oai: &'a research::sources::request::Endpoint
+pub research::sources::fetch::ArxivFetch::presented: core::option::Option<&'a research::sources::queue::Ticket>
 pub research::sources::fetch::ArxivFetch::request: &'a research::sources::request::ArxivRequest
 pub struct research::sources::fetch::ArxivPorts<'a>
 pub research::sources::fetch::ArxivPorts::clock: &'a dyn research::sources::fetch::Clock
@@ -519,6 +524,7 @@ pub research::sources::fetch::ArxivPorts::confirmations: &'a dyn research::sourc
 pub research::sources::fetch::ArxivPorts::contention: &'a dyn research::sources::fetch::ContentionLog
 pub research::sources::fetch::ArxivPorts::decoder: &'a dyn research::sources::fetch::ArxivDecoder
 pub research::sources::fetch::ArxivPorts::gate: &'a dyn research::sources::fetch::PacingGate
+pub research::sources::fetch::ArxivPorts::queue: &'a dyn research::sources::queue::ArxivQueue
 pub research::sources::fetch::ArxivPorts::transport: &'a dyn research::sources::fetch::Transport
 pub struct research::sources::fetch::Attempted
 pub research::sources::fetch::Attempted::defer_until: core::option::Option<std::time::SystemTime>
@@ -765,6 +771,7 @@ impl core::marker::StructuralPartialEq for research::sources::queue::Nonce
 pub struct research::sources::queue::Position(_)
 impl research::sources::queue::Position
 pub const fn research::sources::queue::Position::get(self) -> u32
+pub const fn research::sources::queue::Position::new(position: u32) -> Self
 impl core::clone::Clone for research::sources::queue::Position
 pub fn research::sources::queue::Position::clone(&self) -> research::sources::queue::Position
 impl core::cmp::Eq for research::sources::queue::Position

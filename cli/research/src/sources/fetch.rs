@@ -17,6 +17,12 @@ use crate::sources::classify::Response;
 use crate::sources::classify::Verdict;
 use crate::sources::openalex;
 use crate::sources::openalex::Work;
+use crate::sources::queue::ArxivQueue;
+use crate::sources::queue::Binding;
+use crate::sources::queue::Joining;
+use crate::sources::queue::Position;
+use crate::sources::queue::Ticket;
+use crate::sources::queue::TicketRejection;
 use crate::sources::record::Record;
 use crate::sources::request::ApiKey;
 use crate::sources::request::ArxivId;
@@ -124,9 +130,13 @@ pub struct OutOfBudget {
     pub last_retryable: Option<Reason>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Why an arXiv call ended in lock contention with no upstream failure
+/// behind it.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Contention {
-    LockHeldPastDeadline,
+    TicketPastCap(Ticket),
+    /// The call ran out of budget with no place in the queue to keep.
+    QueueUnusable,
 }
 
 /// Where a call that lost its turn to contention is recorded.
@@ -183,6 +193,13 @@ pub enum FetchOutcome {
     Records(Vec<Record>),
     Unavailable(Unavailable),
     Failed(FetchError),
+    /// The call ran out of budget but kept its place; re-presenting the
+    /// ticket resumes it.
+    Waiting {
+        ticket: Ticket,
+        position: Position,
+    },
+    Rejected(TicketRejection),
 }
 
 pub struct OpenAlexPorts<'a> {
@@ -204,11 +221,13 @@ pub struct ArxivPorts<'a> {
     pub clock: &'a dyn Clock,
     pub gate: &'a dyn PacingGate,
     pub confirmations: &'a dyn ConfirmationCache,
+    pub queue: &'a dyn ArxivQueue,
     pub contention: &'a dyn ContentionLog,
 }
 
 pub struct ArxivFetch<'a> {
     pub request: &'a ArxivRequest,
+    pub presented: Option<&'a Ticket>,
     pub api: &'a Endpoint,
     pub oai: &'a Endpoint,
 }
@@ -218,9 +237,7 @@ pub fn fetch_openalex(
     ports: &OpenAlexPorts<'_>,
     deadline: &Deadline,
 ) -> FetchOutcome {
-    let Admission::Admitted(turn) =
-        admitted(ports.gate, ports.clock, deadline, &|| true)
-    else {
+    let Ok(turn) = admitted(ports.gate, ports.clock, deadline, &|| true) else {
         return FetchOutcome::Unavailable(Unavailable::new(
             Reason::RateLimited,
         ));
@@ -255,7 +272,9 @@ pub fn fetch_openalex(
         }
         Ok(Settled::Failed(error)) => return FetchOutcome::Failed(error),
         Err(out_of_budget) => {
-            return last_retryable_or_rate_limited(out_of_budget)
+            return FetchOutcome::Unavailable(Unavailable::new(
+                out_of_budget.last_retryable.unwrap_or(Reason::RateLimited),
+            ))
         }
     };
     FetchOutcome::Records(
@@ -269,6 +288,10 @@ pub fn fetch_openalex(
 
 /// Fetches arXiv entries, confirming every withdrawal candidate.
 ///
+/// The call waits its turn in the queue. One that runs out of budget keeps
+/// its place and returns [`FetchOutcome::Waiting`]; one that never got a
+/// place reports its last upstream failure or lock contention instead.
+///
 /// Confirmations share the query's deadline, and one that cannot be confirmed
 /// makes the whole call unavailable, so an unconfirmed withdrawal is never
 /// cited at the higher tier.
@@ -277,75 +300,107 @@ pub fn fetch_arxiv(
     ports: &ArxivPorts<'_>,
     deadline: &Deadline,
 ) -> FetchOutcome {
-    let turn = match admitted(ports.gate, ports.clock, deadline, &|| true) {
-        Admission::Admitted(turn) => turn,
-        Admission::Exhausted { contended: true } => {
-            ports.contention.record(Contention::LockHeldPastDeadline);
-            return FetchOutcome::Unavailable(Unavailable::lock_contention());
-        }
-        Admission::Exhausted { contended: false } => {
-            return FetchOutcome::Unavailable(Unavailable::new(
-                Reason::RateLimited,
-            ))
-        }
-    };
-    match serve_call(turn, fetch, ports, deadline) {
-        ServedCall::Settled(outcome) => outcome,
-        ServedCall::OutOfBudget(out_of_budget) => {
-            last_retryable_or_rate_limited(out_of_budget)
+    let binding = Binding::of(fetch.request);
+    let joining = ports.queue.join(
+        &binding,
+        fetch.presented,
+        deadline,
+        ports.gate.spacing(),
+    );
+    match joining {
+        Joining::Rejected(rejection) => FetchOutcome::Rejected(rejection),
+        Joining::OverCap {
+            ticket,
+            last_retryable,
+        } => upstream_reason_or_contention(
+            ports,
+            last_retryable,
+            Contention::TicketPastCap(ticket),
+        ),
+        Joining::Unqueued => served_when(&|| true, fetch, ports, deadline)
+            .unwrap_or_else(|out_of_budget| {
+                upstream_reason_or_contention(
+                    ports,
+                    out_of_budget.last_retryable,
+                    Contention::QueueUnusable,
+                )
+            }),
+        Joining::Queued(place) => {
+            match served_when(&|| place.is_front(), fetch, ports, deadline) {
+                Ok(outcome) => {
+                    place.leave(deadline);
+                    outcome
+                }
+                Err(out_of_budget) => {
+                    let ticket = place.ticket().clone();
+                    let position = place
+                        .step_aside(out_of_budget.last_retryable, deadline);
+                    FetchOutcome::Waiting { ticket, position }
+                }
+            }
         }
     }
 }
 
-fn last_retryable_or_rate_limited(out_of_budget: OutOfBudget) -> FetchOutcome {
-    FetchOutcome::Unavailable(Unavailable::new(
-        out_of_budget.last_retryable.unwrap_or(Reason::RateLimited),
+/// The only place the domain records contention: a call that ended with no
+/// upstream failure to report instead.
+fn upstream_reason_or_contention(
+    ports: &ArxivPorts<'_>,
+    last_retryable: Option<Reason>,
+    contention: Contention,
+) -> FetchOutcome {
+    FetchOutcome::Unavailable(last_retryable.map_or_else(
+        || {
+            ports.contention.record(contention);
+            Unavailable::lock_contention()
+        },
+        Unavailable::new,
     ))
 }
 
 const ADMISSION_POLL: Duration = Duration::from_millis(100);
 
-enum Admission<'g> {
-    Admitted(Box<dyn ServingTurn + 'g>),
-    Exhausted { contended: bool },
-}
-
-/// Waits for a turn while the deadline still covers a serving window: the
-/// source's spacing and one whole request.
+/// Waits for a turn while `ready` holds back and the deadline still covers a
+/// serving window: the source's spacing and one whole request.
 fn admitted<'g>(
     gate: &'g dyn PacingGate,
     clock: &dyn Clock,
     deadline: &Deadline,
     ready: &dyn Fn() -> bool,
-) -> Admission<'g> {
-    let mut contended = false;
+) -> Result<Box<dyn ServingTurn + 'g>, OutOfBudget> {
     loop {
         if !deadline.admits_attempt_after(clock.now(), gate.spacing()) {
-            return Admission::Exhausted { contended };
+            return Err(OutOfBudget {
+                last_retryable: None,
+            });
         }
         if ready() {
             if let Some(turn) = gate.try_serve() {
-                return Admission::Admitted(turn);
+                return Ok(turn);
             }
         }
-        contended = true;
         clock.sleep(ADMISSION_POLL);
     }
 }
 
-enum ServedCall {
-    Settled(FetchOutcome),
-    OutOfBudget(OutOfBudget),
+fn served_when(
+    ready: &dyn Fn() -> bool,
+    fetch: &ArxivFetch<'_>,
+    ports: &ArxivPorts<'_>,
+    deadline: &Deadline,
+) -> Result<FetchOutcome, OutOfBudget> {
+    let turn = admitted(ports.gate, ports.clock, deadline, ready)?;
+    serve_call(turn, fetch, ports, deadline)
 }
 
 /// Runs the query and every confirmation it needs within one turn, which is
-/// released when this returns.
+/// released before this returns.
 fn serve_call(
     turn: Box<dyn ServingTurn + '_>,
     fetch: &ArxivFetch<'_>,
     ports: &ArxivPorts<'_>,
     deadline: &Deadline,
-) -> ServedCall {
+) -> Result<FetchOutcome, OutOfBudget> {
     let attempts = Attempts {
         transport: ports.transport,
         clock: ports.clock,
@@ -355,7 +410,7 @@ fn serve_call(
     };
     let served = served(&attempts, fetch, ports);
     drop(turn);
-    served.map_or_else(ServedCall::OutOfBudget, ServedCall::Settled)
+    served
 }
 
 fn served(

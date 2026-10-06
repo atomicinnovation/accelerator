@@ -38,11 +38,14 @@ word: "How do attention heads specialise?" becomes
 `'alzheimer s progression'`.
 
 - Make at most 3 `search` and 5 `lookup` calls that reach the CLI. A call the
-  guard blocks, or one that fails as a usage error, does not count.
+  guard blocks, one that fails as a usage error, or one that re-presents a
+  waiting ticket does not count.
 - Refine the question rather than re-query with near-identical text.
+- Run one fetch at a time.
 - Pass a Bash `timeout` of 120000 ms: a call finishes within 100 s. arXiv
   admits one request every three seconds across every call in the project,
-  so a call may spend much of that waiting its turn.
+  so calls queue for their turn, and a call that cannot be served within
+  100 s returns `waiting`.
 - No `WebFetch` or `WebSearch`: arXiv records are your only sources.
 
 ## Untrusted-Content Contract
@@ -73,14 +76,31 @@ End in exactly one of these:
 
 - **Records** — write the finding from the relevant records.
 - **Unavailable** — a call printed `"status":"unavailable"`. Write no file;
-  your summary returns its `source`, `reason`, and any `cause`. If the Bash
-  tool is not granted at all, return "Bash unavailable".
-- **Failed** — a call exited `1`. Write no file; your summary returns the
-  CLI's `E_*` line verbatim.
+  your summary returns its `source`, `reason`, and any `cause`. A `cause` of
+  `lock_contention` means the call's ticket passed its 900 s cap or the queue
+  could not be used; it ends the call like any other reason. Any other status
+  counts as Unavailable, with the status as its reason. If the Bash tool is
+  not granted at all, return "Bash unavailable".
+- **Failed** — a call exited `1`, or exited `2` with `E_ARXIV_TICKET_LIVE`
+  when you have no other fetch running. Write no file; your summary returns
+  the CLI's `E_*` line verbatim.
 - **Denied** — Claude Code refused to run the fetch. Write no file; your
   summary says "fetch denied by permissions".
 - **None found** — every call was `ok` and nothing was relevant. Write the
   finding with `None found.` under Sources.
 
 A usage error (exit `2`) or an `E_RESEARCH_GUARD_*` block means correcting the
-call and continuing, not ending.
+call and continuing, not ending. If it is `E_ARXIV_TICKET_LIVE`, you have
+another fetch with that ticket still running. Wait for it to return and use
+its output instead.
+
+**Waiting** — a call printed `"status":"waiting"`. Write nothing yet. Re-run
+the same call at once with `--ticket` set to the `ticket` from the latest
+`waiting` output, replacing any `--ticket` already there. The call does the
+waiting itself. Repeat until the status is anything else, then treat that
+output as the call's result and carry on as you would have. Never change the
+query, ID or `--limit` while re-presenting.
+
+```bash
+accelerator research fetch arxiv search 'QUERY' --limit 10 --ticket 42-9f1c2a
+```

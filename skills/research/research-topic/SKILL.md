@@ -443,7 +443,8 @@ allocate a finding or note path yourself.
    | `budget_exhausted`, keyless | configure `openalex.api_key` (`/accelerator:configure`), then re-run `conduct` |
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
-   | `rate_limited` with `cause: lock_contention` | the round had too many concurrent arXiv researchers; re-run `conduct` with a lower `--concurrency`, or assign arXiv to fewer focus areas |
+   | `rate_limited` with `cause: lock_contention` | an arXiv fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or the arXiv queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check `<paths.tmp>/research/arxiv-contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
+   | `waiting` never re-presented | the researcher ended before its arXiv ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting outcome |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
    | `E_RESEARCH_GUARD_COMMAND` from a composer | the configured `agents.composer` tried to run a command; composers may only Read and Write |
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
