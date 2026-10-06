@@ -8,6 +8,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use store::atomic_write;
+use store::replace_without_sync;
 use store::NewFileMode;
 use store::WriteBounds;
 
@@ -44,13 +45,38 @@ impl ScratchDir {
         atomic_write(
             &path,
             bytes,
-            &WriteBounds {
-                permitted_root: &self.directory,
-                project_root: &self.project_root,
-            },
+            &self.bounds(),
             NewFileMode::PreserveOr(STATE_MODE),
         )
         .map_err(|error| format!("could not write {}: {error}", path.display()))
+    }
+
+    /// Like [`Self::replace`], but an OS crash may lose the write: for state
+    /// that is rebuilt or outlived by any call it could affect.
+    ///
+    /// # Errors
+    ///
+    /// A one-line description naming the file when it cannot be replaced.
+    pub fn replace_transient(
+        &self,
+        name: &str,
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        let path = self.path(name);
+        replace_without_sync(
+            &path,
+            bytes,
+            &self.bounds(),
+            NewFileMode::PreserveOr(STATE_MODE),
+        )
+        .map_err(|error| format!("could not write {}: {error}", path.display()))
+    }
+
+    fn bounds(&self) -> WriteBounds<'_> {
+        WriteBounds {
+            permitted_root: &self.directory,
+            project_root: &self.project_root,
+        }
     }
 
     /// # Errors

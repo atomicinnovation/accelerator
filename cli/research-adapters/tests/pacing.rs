@@ -9,12 +9,10 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use research::sources::classify::Reason;
 use research::sources::fetch::Attempted;
-use research::sources::fetch::Cause;
 use research::sources::fetch::Clock as _;
 use research::sources::fetch::PacingGate as _;
-use research::sources::fetch::Unavailable;
+use research::sources::fetch::WaitTooLong;
 use research::sources::schedule::Deadline;
 use research_adapters::pacing::FilePacingGate;
 use rustix::fs::flock;
@@ -52,9 +50,19 @@ impl Harness {
         Deadline::starting(self.clock.now(), total, secs(30))
     }
 
-    fn pass(&self, defer_by: Option<Duration>) -> Result<(), Unavailable> {
+    fn paced(
+        &self,
+        attempt: &mut dyn FnMut() -> Attempted,
+        deadline: &Deadline,
+    ) -> Result<(), WaitTooLong> {
+        let gate = self.gate();
+        let turn = gate.try_serve().expect("the lock is free");
+        turn.paced(attempt, deadline)
+    }
+
+    fn pass(&self, defer_by: Option<Duration>) -> Result<(), WaitTooLong> {
         let clock = self.clock.clone();
-        self.gate().paced(
+        self.paced(
             &mut || Attempted {
                 defer_until: defer_by.map(|by| clock.wall_now() + by),
             },
@@ -67,17 +75,36 @@ impl Harness {
         last_finish: Option<SystemTime>,
         not_before: Option<SystemTime>,
     ) {
+        self.store_sent_state(None, last_finish, not_before);
+    }
+
+    fn store_sent_state(
+        &self,
+        last_sent: Option<SystemTime>,
+        last_finish: Option<SystemTime>,
+        not_before: Option<SystemTime>,
+    ) {
         let millis = |at: Option<SystemTime>| {
             at.map_or_else(|| "null".to_owned(), |at| millis(at).to_string())
         };
         self.scratch.write(
             "arxiv-pacing",
             &format!(
-                "{{\"last_finish_ms\":{},\"not_before_ms\":{}}}",
+                "{{\"last_sent_ms\":{},\"last_finish_ms\":{},\
+                 \"not_before_ms\":{}}}",
+                millis(last_sent),
                 millis(last_finish),
                 millis(not_before)
             ),
         );
+    }
+
+    fn stored_last_sent_ms(&self) -> Option<u64> {
+        let state: serde_json::Value = serde_json::from_str(
+            &self.scratch.read("arxiv-pacing").expect("a pacing state"),
+        )
+        .expect("JSON pacing state");
+        state["last_sent_ms"].as_u64()
     }
 
     fn hold_lock(&self) -> File {
@@ -148,7 +175,6 @@ fn a_shorter_deferral_never_shortens_a_longer_one_already_stored() {
     let harness = Harness::new();
     let clock = harness.clock.clone();
     harness
-        .gate()
         .paced(
             &mut || {
                 harness.store_state(None, Some(clock.wall_now() + secs(12)));
@@ -192,7 +218,6 @@ fn a_failed_state_write_is_reported_and_the_attempt_still_runs() {
     let ran = Cell::new(false);
 
     harness
-        .gate()
         .paced(
             &mut || {
                 ran.set(true);
@@ -204,8 +229,11 @@ fn a_failed_state_write_is_reported_and_the_attempt_still_runs() {
 
     assert!(ran.get());
     let reported = harness.diagnostics.lines();
-    assert_eq!(reported.len(), 1, "{reported:?}");
-    assert!(reported[0].contains("arxiv-pacing"), "{reported:?}");
+    assert_eq!(reported.len(), 2, "{reported:?}");
+    assert!(
+        reported.iter().all(|line| line.contains("arxiv-pacing")),
+        "{reported:?}"
+    );
 }
 
 #[test]
@@ -220,12 +248,14 @@ fn every_request_sent_appends_one_line_to_the_request_log() {
 }
 
 #[test]
-fn a_wait_the_deadline_cannot_admit_refuses_and_releases_the_lock() {
+fn a_wait_the_deadline_cannot_admit_refuses_without_running() {
     let harness = Harness::new();
     harness.store_state(None, Some(harness.clock.wall_now() + secs(20)));
     let ran = Cell::new(false);
+    let gate = harness.gate();
+    let turn = gate.try_serve().expect("the lock is free");
 
-    let refused = harness.gate().paced(
+    let refused = turn.paced(
         &mut || {
             ran.set(true);
             Attempted { defer_until: None }
@@ -233,62 +263,101 @@ fn a_wait_the_deadline_cannot_admit_refuses_and_releases_the_lock() {
         &harness.deadline(secs(40)),
     );
 
-    assert_eq!(refused, Err(Unavailable::new(Reason::RateLimited)));
+    assert_eq!(refused, Err(WaitTooLong));
     assert!(!ran.get());
     assert!(harness.clock.slept().is_empty());
+    assert!(!harness.lock_is_free());
+    drop(turn);
     assert!(harness.lock_is_free());
 }
 
 #[test]
-fn a_lock_held_past_the_deadline_ends_in_lock_contention() {
+fn try_serve_is_none_while_another_holder_has_the_lock() {
     let harness = Harness::new();
     let _held = harness.hold_lock();
-    let ran = Cell::new(false);
 
-    let refused = harness.gate().paced(
-        &mut || {
-            ran.set(true);
-            Attempted { defer_until: None }
-        },
-        &harness.deadline(secs(100)),
-    );
-
-    let unavailable = refused.expect_err("refused");
-    assert_eq!(unavailable.reason(), Reason::RateLimited);
-    assert_eq!(unavailable.cause(), Some(Cause::LockContention));
-    assert!(!ran.get());
-    assert_eq!(harness.scratch.lines("arxiv-contention.log").len(), 1);
-    assert!(harness.scratch.lines("arxiv-requests.log").is_empty());
-    assert!(harness
-        .diagnostics
-        .lines()
-        .iter()
-        .any(|line| line.contains("lock contention")));
-    assert!(harness
-        .clock
-        .slept()
-        .iter()
-        .all(|poll| *poll == millis_duration(100)));
+    assert!(harness.gate().try_serve().is_none());
+    assert!(harness.clock.slept().is_empty());
 }
 
 #[test]
-fn the_lock_is_held_for_as_long_as_the_attempt_runs() {
+fn a_turn_holds_the_lock_between_attempts_until_dropped() {
     let harness = Harness::new();
-    let observed_free = RefCell::new(None);
+    let gate = harness.gate();
+    let turn = gate.try_serve().expect("the lock is free");
+    let observed_free = RefCell::new(Vec::new());
+    let mut attempt = || {
+        observed_free.borrow_mut().push(harness.lock_is_free());
+        Attempted { defer_until: None }
+    };
+
+    turn.paced(&mut attempt, &harness.deadline(secs(100)))
+        .expect("admitted");
+    let free_between = harness.lock_is_free();
+    turn.paced(&mut attempt, &harness.deadline(secs(100)))
+        .expect("admitted");
+    drop(turn);
+
+    assert_eq!(*observed_free.borrow(), [false, false]);
+    assert!(!free_between);
+    assert!(harness.lock_is_free());
+}
+
+#[test]
+fn dropping_a_turn_frees_the_lock_at_once() {
+    let harness = Harness::new();
+    let first = harness.gate();
+    let second = harness.gate();
+    let turn = first.try_serve().expect("the lock is free");
+    assert!(second.try_serve().is_none());
+
+    drop(turn);
+
+    assert!(second.try_serve().is_some());
+    assert!(harness.clock.slept().is_empty());
+}
+
+#[test]
+fn spacing_runs_from_a_send_whose_finish_was_never_recorded() {
+    let harness = Harness::new();
+    let now = harness.clock.wall_now();
+    harness.store_sent_state(Some(now - secs(1)), Some(now - secs(10)), None);
+
+    harness.pass(None).expect("admitted");
+
+    assert_eq!(harness.clock.slept(), [secs(2)]);
+}
+
+#[test]
+fn spacing_runs_from_the_last_finish_when_it_follows_the_last_send() {
+    let harness = Harness::new();
+    let now = harness.clock.wall_now();
+    harness.store_sent_state(Some(now - secs(10)), Some(now - secs(1)), None);
+
+    harness.pass(None).expect("admitted");
+
+    assert_eq!(harness.clock.slept(), [secs(2)]);
+}
+
+#[test]
+fn last_sent_is_stored_before_the_attempt_runs() {
+    let harness = Harness::new();
+    harness.clock.advance(secs(7));
+    let observed = Cell::new(None);
 
     harness
-        .gate()
         .paced(
             &mut || {
-                *observed_free.borrow_mut() = Some(harness.lock_is_free());
+                observed.set(harness.stored_last_sent_ms());
                 Attempted { defer_until: None }
             },
             &harness.deadline(secs(100)),
         )
         .expect("admitted");
 
-    assert_eq!(*observed_free.borrow(), Some(false));
-    assert!(harness.lock_is_free());
+    let expected = u64::try_from(millis(harness.clock.wall_now()))
+        .expect("milliseconds fit");
+    assert_eq!(observed.get(), Some(expected));
 }
 
 #[test]
@@ -298,13 +367,8 @@ fn an_in_lock_wait_is_spent_from_the_callers_deadline() {
     let deadline = harness.deadline(secs(100));
 
     harness
-        .gate()
         .paced(&mut || Attempted { defer_until: None }, &deadline)
         .expect("admitted");
 
     assert_eq!(deadline.remaining(harness.clock.now()), secs(88));
-}
-
-const fn millis_duration(millis: u64) -> Duration {
-    Duration::from_millis(millis)
 }

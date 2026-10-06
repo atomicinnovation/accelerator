@@ -1,9 +1,13 @@
-//! `atomic_write`: whole-file atomic replacement with a permitted-root symlink
-//! refusal, shared by the config and corpus writers. A reader never observes a
-//! partial file, and no component of the target may resolve outside the caller's
-//! permitted root — a symlinked component is refused, never followed. The staged
-//! bytes and the publishing rename are both fsynced, so a committed write
-//! survives a crash.
+//! Whole-file atomic replacement with a permitted-root symlink refusal. A
+//! reader never observes a partial file, and no component of the target may
+//! resolve outside the caller's permitted root — a symlinked component is
+//! refused, never followed. Two contracts share that guarantee:
+//!
+//! - [`atomic_write`], for the config and corpus writers, fsyncs the staged
+//!   bytes and the publishing rename, so a committed write survives a crash.
+//! - [`replace_without_sync`] fsyncs neither. It is for scratch state that can
+//!   be rebuilt, where a write lost to an OS crash costs nothing and a flush
+//!   would only add latency.
 //!
 //! Infrastructure only: of the workspace crates it depends on `kernel` alone,
 //! for naming constants. Every consumer translates [`WriteError`] and
@@ -98,12 +102,42 @@ pub fn atomic_write(
     bounds: &WriteBounds<'_>,
     mode: NewFileMode,
 ) -> Result<(), WriteError> {
+    let (parent, target) = contained_target(path, bounds)?;
+    let staged = stage(&parent, &target, bytes, mode)?;
+    staged
+        .as_file()
+        .sync_all()
+        .map_err(|error| io(staged.path(), &error))?;
+    publish(staged, &target)?;
+    sync_parent_dir(&target)
+}
+
+/// [`atomic_write`] without either fsync: a reader still never observes a
+/// partial file, but an OS crash may lose the write.
+///
+/// # Errors
+/// Returns [`WriteError`] on a containment refusal, cross-filesystem staging, an
+/// unwritable target, or any underlying I/O failure.
+pub fn replace_without_sync(
+    path: &Path,
+    bytes: &[u8],
+    bounds: &WriteBounds<'_>,
+    mode: NewFileMode,
+) -> Result<(), WriteError> {
+    let (parent, target) = contained_target(path, bounds)?;
+    let staged = stage(&parent, &target, bytes, mode)?;
+    publish(staged, &target)
+}
+
+fn contained_target(
+    path: &Path,
+    bounds: &WriteBounds<'_>,
+) -> Result<(PathBuf, PathBuf), WriteError> {
     let parent = ensure_contained(path, bounds)?;
     fs::create_dir_all(&parent).map_err(|error| io(&parent, &error))?;
     let file_name = path.file_name().ok_or_else(|| unsafe_path(path))?;
     let target = parent.join(file_name);
-    let staged = stage(&parent, &target, bytes, mode)?;
-    persist(staged, &target)
+    Ok((parent, target))
 }
 
 /// Atomic creation that never replaces: a reader sees either no file or the
@@ -276,9 +310,6 @@ fn stage(
             .map_err(|error| io(temp.path(), &error))?;
     }
     temp.write_all(bytes).map_err(|error| io(dir, &error))?;
-    temp.as_file()
-        .sync_all()
-        .map_err(|error| io(temp.path(), &error))?;
     Ok(temp)
 }
 
@@ -298,11 +329,10 @@ fn resolve_mode(
     }
 }
 
-fn persist(temp: NamedTempFile, target: &Path) -> Result<(), WriteError> {
+fn publish(temp: NamedTempFile, target: &Path) -> Result<(), WriteError> {
     temp.persist(target)
         .map(|_| ())
-        .map_err(|error| classify_persist_error(target, &error.error))?;
-    sync_parent_dir(target)
+        .map_err(|error| classify_persist_error(target, &error.error))
 }
 
 /// Fsyncs the target's parent directory so the rename that published the file
@@ -365,8 +395,8 @@ mod tests {
 
     use super::{
         atomic_create, atomic_write, classify_persist_error, ensure_contained,
-        read_within, require_owner_only_permissions, stage, NewFileMode,
-        WriteBounds, WriteError,
+        read_within, replace_without_sync, require_owner_only_permissions,
+        stage, NewFileMode, WriteBounds, WriteError,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -406,6 +436,38 @@ mod tests {
         )?;
         assert_eq!(fs::read(&target)?, b"hello");
         assert_eq!(temp_names(&permitted)?, vec!["file.md".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn a_write_without_sync_is_whole_and_contained() -> Result<(), TestError> {
+        let project = TempDir::new()?;
+        let permitted = project.path().join("permitted");
+        fs::create_dir_all(&permitted)?;
+        let target = permitted.join("state");
+        fs::write(&target, b"old")?;
+        replace_without_sync(
+            &target,
+            b"new",
+            &bounds(&permitted, project.path()),
+            NewFileMode::PreserveOr(0o644),
+        )?;
+        assert_eq!(fs::read(&target)?, b"new");
+        assert_eq!(temp_names(&permitted)?, vec!["state".to_owned()]);
+
+        let outside = project.path().join("outside");
+        fs::create_dir_all(&outside)?;
+        std::os::unix::fs::symlink(&outside, permitted.join("link"))?;
+        assert!(matches!(
+            replace_without_sync(
+                &permitted.join("link/state"),
+                b"x",
+                &bounds(&permitted, project.path()),
+                NewFileMode::PreserveOr(0o644),
+            ),
+            Err(WriteError::UnsafePath { .. })
+        ));
+        assert!(!outside.join("state").exists());
         Ok(())
     }
 

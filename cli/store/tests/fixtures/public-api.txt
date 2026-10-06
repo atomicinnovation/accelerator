@@ -77,4 +77,5 @@ pub fn store::atomic_write(path: &std::path::Path, bytes: &[u8], bounds: &store:
 pub fn store::current_umask() -> u32
 pub fn store::ensure_contained(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<std::path::PathBuf, store::WriteError>
 pub fn store::read_within(path: &std::path::Path, bounds: &store::WriteBounds<'_>) -> core::result::Result<core::option::Option<alloc::vec::Vec<u8>>, store::WriteError>
+pub fn store::replace_without_sync(path: &std::path::Path, bytes: &[u8], bounds: &store::WriteBounds<'_>, mode: store::NewFileMode) -> core::result::Result<(), store::WriteError>
 pub fn store::require_owner_only_permissions(path: &std::path::Path) -> core::result::Result<(), store::WriteError>

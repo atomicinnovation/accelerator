@@ -3,6 +3,7 @@
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -15,11 +16,14 @@ use research::sources::fetch::ArxivDecoder;
 use research::sources::fetch::Attempted;
 use research::sources::fetch::Clock;
 use research::sources::fetch::ConfirmationCache;
+use research::sources::fetch::Contention;
+use research::sources::fetch::ContentionLog;
 use research::sources::fetch::DecodeFailure;
 use research::sources::fetch::OpenAlexDecoder;
 use research::sources::fetch::PacingGate;
+use research::sources::fetch::ServingTurn;
 use research::sources::fetch::Transport;
-use research::sources::fetch::Unavailable;
+use research::sources::fetch::WaitTooLong;
 use research::sources::openalex::Work;
 use research::sources::request::ArxivId;
 use research::sources::request::UpstreamRequest;
@@ -29,6 +33,31 @@ pub const fn secs(seconds: u64) -> Duration {
     Duration::from_secs(seconds)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    Slept(Duration),
+    Served,
+    Attempt,
+    Released,
+    SteppedAside,
+    Left,
+}
+
+/// One ordered log several doubles write to, so a test can assert how their
+/// events interleave.
+#[derive(Clone, Default)]
+pub struct Timeline(Rc<RefCell<Vec<Event>>>);
+
+impl Timeline {
+    pub fn push(&self, event: Event) {
+        self.0.borrow_mut().push(event);
+    }
+
+    pub fn events(&self) -> Vec<Event> {
+        self.0.borrow().clone()
+    }
+}
+
 /// A virtual timeline: sleeping advances it instead of waiting, and every
 /// wait is recorded.
 pub struct RecordingClock {
@@ -36,16 +65,27 @@ pub struct RecordingClock {
     wall_origin: SystemTime,
     elapsed: Cell<Duration>,
     slept: RefCell<Vec<Duration>>,
+    timeline: Timeline,
 }
 
 impl RecordingClock {
     pub fn new() -> Self {
+        Self::on(Timeline::default())
+    }
+
+    pub fn on(timeline: Timeline) -> Self {
         Self {
             origin: Instant::now(),
             wall_origin: SystemTime::UNIX_EPOCH + secs(1_800_000_000),
             elapsed: Cell::new(Duration::ZERO),
             slept: RefCell::new(Vec::new()),
+            timeline,
         }
+    }
+
+    /// Spends the deadline down so only `left` of it remains.
+    pub fn leaving(&self, left: Duration) {
+        self.advance(secs(100) - left);
     }
 
     pub fn advance(&self, by: Duration) {
@@ -76,6 +116,7 @@ impl Clock for RecordingClock {
 
     fn sleep(&self, duration: Duration) {
         self.slept.borrow_mut().push(duration);
+        self.timeline.push(Event::Slept(duration));
         self.advance(duration);
     }
 }
@@ -170,55 +211,135 @@ pub fn retry_after(code: u16, seconds: u64) -> Response {
     })
 }
 
-/// Runs every attempt at once, unless scripted to refuse a pass, and records
-/// each deferral the domain asks it to persist.
+/// Serves a turn at once unless scripted to stay busy, runs every attempt
+/// unless scripted to refuse one, and records each deferral the domain asks
+/// it to persist.
 #[derive(Default)]
 pub struct RecordingGate {
-    passes: Cell<usize>,
-    refuse_from_pass: Option<(usize, Unavailable)>,
+    spacing: Duration,
+    busy_for: Cell<usize>,
+    refuse_from_attempt: Option<usize>,
+    turns: Cell<usize>,
+    attempts: Cell<usize>,
     deferrals: RefCell<Vec<Option<SystemTime>>>,
-    inside: Cell<bool>,
+    serving: Cell<bool>,
+    timeline: Timeline,
 }
 
 impl RecordingGate {
-    pub fn refusing_from(pass: usize, unavailable: Unavailable) -> Self {
+    pub fn on(timeline: Timeline) -> Self {
         Self {
-            refuse_from_pass: Some((pass, unavailable)),
+            timeline,
             ..Self::default()
         }
     }
 
-    pub const fn passes(&self) -> usize {
-        self.passes.get()
+    #[must_use]
+    pub const fn spacing(mut self, spacing: Duration) -> Self {
+        self.spacing = spacing;
+        self
+    }
+
+    /// Answers `try_serve` with `None` for the next `tries` calls.
+    #[must_use]
+    pub fn busy_for(self, tries: usize) -> Self {
+        self.busy_for.set(tries);
+        self
+    }
+
+    #[must_use]
+    pub fn always_busy(self) -> Self {
+        self.busy_for(usize::MAX)
+    }
+
+    /// Refuses the `attempt`th attempt, and every one after it, as a wait
+    /// too long for the deadline.
+    #[must_use]
+    pub const fn refusing_from(mut self, attempt: usize) -> Self {
+        self.refuse_from_attempt = Some(attempt);
+        self
+    }
+
+    pub const fn turns_served(&self) -> usize {
+        self.turns.get()
+    }
+
+    pub const fn attempts(&self) -> usize {
+        self.attempts.get()
     }
 
     pub fn deferrals(&self) -> Vec<Option<SystemTime>> {
         self.deferrals.borrow().clone()
     }
 
-    pub const fn is_inside(&self) -> bool {
-        self.inside.get()
+    pub const fn is_serving(&self) -> bool {
+        self.serving.get()
     }
 }
 
 impl PacingGate for RecordingGate {
+    fn spacing(&self) -> Duration {
+        self.spacing
+    }
+
+    fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
+        let busy = self.busy_for.get();
+        if busy == usize::MAX {
+            return None;
+        }
+        if busy > 0 {
+            self.busy_for.set(busy - 1);
+            return None;
+        }
+        self.turns.set(self.turns.get() + 1);
+        self.serving.set(true);
+        self.timeline.push(Event::Served);
+        Some(Box::new(RecordingTurn { gate: self }))
+    }
+}
+
+struct RecordingTurn<'g> {
+    gate: &'g RecordingGate,
+}
+
+impl ServingTurn for RecordingTurn<'_> {
     fn paced(
         &self,
         attempt: &mut dyn FnMut() -> Attempted,
         _deadline: &Deadline,
-    ) -> Result<(), Unavailable> {
-        let pass = self.passes.get() + 1;
-        if let Some((from, unavailable)) = &self.refuse_from_pass {
-            if pass >= *from {
-                return Err(*unavailable);
-            }
+    ) -> Result<(), WaitTooLong> {
+        let gate = self.gate;
+        let number = gate.attempts.get() + 1;
+        if gate.refuse_from_attempt.is_some_and(|from| number >= from) {
+            return Err(WaitTooLong);
         }
-        self.passes.set(pass);
-        self.inside.set(true);
+        gate.attempts.set(number);
+        gate.timeline.push(Event::Attempt);
         let attempted = attempt();
-        self.inside.set(false);
-        self.deferrals.borrow_mut().push(attempted.defer_until);
+        gate.deferrals.borrow_mut().push(attempted.defer_until);
         Ok(())
+    }
+}
+
+impl Drop for RecordingTurn<'_> {
+    fn drop(&mut self) {
+        self.gate.serving.set(false);
+        self.gate.timeline.push(Event::Released);
+    }
+}
+
+#[derive(Default)]
+pub struct RecordingContention(RefCell<Vec<Contention>>);
+
+impl RecordingContention {
+    pub fn recorded(&self) -> Vec<Contention> {
+        self.0.borrow().clone()
+    }
+}
+
+impl ContentionLog for RecordingContention {
+    fn record(&self, contention: Contention) {
+        self.0.borrow_mut().push(contention);
     }
 }
 
@@ -284,12 +405,13 @@ impl ArxivDecoder for StubArxivDecoder {
     }
 }
 
-/// Remembers verdicts in memory and whether each was recorded while the gate
-/// held its pass.
+/// Remembers verdicts in memory and whether the gate was serving a turn
+/// when each was recalled or recorded.
 pub struct MemoryConfirmations<'a> {
     gate: &'a RecordingGate,
     verdicts: RefCell<Vec<(ArxivId, bool)>>,
-    recorded_inside_pass: RefCell<Vec<bool>>,
+    recalled_while_serving: RefCell<Vec<bool>>,
+    recorded_while_serving: RefCell<Vec<bool>>,
 }
 
 impl<'a> MemoryConfirmations<'a> {
@@ -297,7 +419,8 @@ impl<'a> MemoryConfirmations<'a> {
         Self {
             gate,
             verdicts: RefCell::new(Vec::new()),
-            recorded_inside_pass: RefCell::new(Vec::new()),
+            recalled_while_serving: RefCell::new(Vec::new()),
+            recorded_while_serving: RefCell::new(Vec::new()),
         }
     }
 
@@ -318,13 +441,20 @@ impl<'a> MemoryConfirmations<'a> {
         self.verdicts.borrow().clone()
     }
 
-    pub fn recorded_inside_pass(&self) -> Vec<bool> {
-        self.recorded_inside_pass.borrow().clone()
+    pub fn recalled_while_serving(&self) -> Vec<bool> {
+        self.recalled_while_serving.borrow().clone()
+    }
+
+    pub fn recorded_while_serving(&self) -> Vec<bool> {
+        self.recorded_while_serving.borrow().clone()
     }
 }
 
 impl ConfirmationCache for MemoryConfirmations<'_> {
     fn recall(&self, entry: &ArxivId) -> Option<bool> {
+        self.recalled_while_serving
+            .borrow_mut()
+            .push(self.gate.is_serving());
         self.verdicts
             .borrow()
             .iter()
@@ -333,9 +463,9 @@ impl ConfirmationCache for MemoryConfirmations<'_> {
     }
 
     fn record(&self, entry: &ArxivId, withdrawn: bool) {
-        self.recorded_inside_pass
+        self.recorded_while_serving
             .borrow_mut()
-            .push(self.gate.is_inside());
+            .push(self.gate.is_serving());
         self.verdicts.borrow_mut().push((entry.clone(), withdrawn));
     }
 }

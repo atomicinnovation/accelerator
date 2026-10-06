@@ -474,6 +474,17 @@ impl core::fmt::Debug for research::sources::fetch::Cause
 pub fn research::sources::fetch::Cause::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::fetch::Cause
 impl core::marker::StructuralPartialEq for research::sources::fetch::Cause
+pub enum research::sources::fetch::Contention
+pub research::sources::fetch::Contention::LockHeldPastDeadline
+impl core::clone::Clone for research::sources::fetch::Contention
+pub fn research::sources::fetch::Contention::clone(&self) -> research::sources::fetch::Contention
+impl core::cmp::Eq for research::sources::fetch::Contention
+impl core::cmp::PartialEq for research::sources::fetch::Contention
+pub fn research::sources::fetch::Contention::eq(&self, other: &research::sources::fetch::Contention) -> bool
+impl core::fmt::Debug for research::sources::fetch::Contention
+pub fn research::sources::fetch::Contention::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::Contention
+impl core::marker::StructuralPartialEq for research::sources::fetch::Contention
 pub enum research::sources::fetch::DecodeFailure
 pub research::sources::fetch::DecodeFailure::ErrorFeed(alloc::string::String)
 pub research::sources::fetch::DecodeFailure::Undecodable
@@ -504,6 +515,7 @@ pub research::sources::fetch::ArxivFetch::request: &'a research::sources::reques
 pub struct research::sources::fetch::ArxivPorts<'a>
 pub research::sources::fetch::ArxivPorts::clock: &'a dyn research::sources::fetch::Clock
 pub research::sources::fetch::ArxivPorts::confirmations: &'a dyn research::sources::fetch::ConfirmationCache
+pub research::sources::fetch::ArxivPorts::contention: &'a dyn research::sources::fetch::ContentionLog
 pub research::sources::fetch::ArxivPorts::decoder: &'a dyn research::sources::fetch::ArxivDecoder
 pub research::sources::fetch::ArxivPorts::gate: &'a dyn research::sources::fetch::PacingGate
 pub research::sources::fetch::ArxivPorts::transport: &'a dyn research::sources::fetch::Transport
@@ -527,6 +539,17 @@ pub research::sources::fetch::OpenAlexPorts::clock: &'a dyn research::sources::f
 pub research::sources::fetch::OpenAlexPorts::decoder: &'a dyn research::sources::fetch::OpenAlexDecoder
 pub research::sources::fetch::OpenAlexPorts::gate: &'a dyn research::sources::fetch::PacingGate
 pub research::sources::fetch::OpenAlexPorts::transport: &'a dyn research::sources::fetch::Transport
+pub struct research::sources::fetch::OutOfBudget
+pub research::sources::fetch::OutOfBudget::last_retryable: core::option::Option<research::sources::classify::Reason>
+impl core::clone::Clone for research::sources::fetch::OutOfBudget
+pub fn research::sources::fetch::OutOfBudget::clone(&self) -> research::sources::fetch::OutOfBudget
+impl core::cmp::Eq for research::sources::fetch::OutOfBudget
+impl core::cmp::PartialEq for research::sources::fetch::OutOfBudget
+pub fn research::sources::fetch::OutOfBudget::eq(&self, other: &research::sources::fetch::OutOfBudget) -> bool
+impl core::fmt::Debug for research::sources::fetch::OutOfBudget
+pub fn research::sources::fetch::OutOfBudget::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::OutOfBudget
+impl core::marker::StructuralPartialEq for research::sources::fetch::OutOfBudget
 pub struct research::sources::fetch::Unavailable
 impl research::sources::fetch::Unavailable
 pub const fn research::sources::fetch::Unavailable::cause(self) -> core::option::Option<research::sources::fetch::Cause>
@@ -542,6 +565,16 @@ impl core::fmt::Debug for research::sources::fetch::Unavailable
 pub fn research::sources::fetch::Unavailable::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::sources::fetch::Unavailable
 impl core::marker::StructuralPartialEq for research::sources::fetch::Unavailable
+pub struct research::sources::fetch::WaitTooLong
+impl core::clone::Clone for research::sources::fetch::WaitTooLong
+pub fn research::sources::fetch::WaitTooLong::clone(&self) -> research::sources::fetch::WaitTooLong
+impl core::cmp::Eq for research::sources::fetch::WaitTooLong
+impl core::cmp::PartialEq for research::sources::fetch::WaitTooLong
+pub fn research::sources::fetch::WaitTooLong::eq(&self, other: &research::sources::fetch::WaitTooLong) -> bool
+impl core::fmt::Debug for research::sources::fetch::WaitTooLong
+pub fn research::sources::fetch::WaitTooLong::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::sources::fetch::WaitTooLong
+impl core::marker::StructuralPartialEq for research::sources::fetch::WaitTooLong
 pub trait research::sources::fetch::ArxivDecoder
 pub fn research::sources::fetch::ArxivDecoder::entries(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::Entry>, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::ArxivDecoder::raw_versions(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::arxiv::RawVersion>, research::sources::fetch::DecodeFailure>
@@ -552,11 +585,16 @@ pub fn research::sources::fetch::Clock::wall_now(&self) -> std::time::SystemTime
 pub trait research::sources::fetch::ConfirmationCache
 pub fn research::sources::fetch::ConfirmationCache::recall(&self, entry: &research::sources::request::ArxivId) -> core::option::Option<bool>
 pub fn research::sources::fetch::ConfirmationCache::record(&self, entry: &research::sources::request::ArxivId, withdrawn: bool)
+pub trait research::sources::fetch::ContentionLog
+pub fn research::sources::fetch::ContentionLog::record(&self, contention: research::sources::fetch::Contention)
 pub trait research::sources::fetch::OpenAlexDecoder
 pub fn research::sources::fetch::OpenAlexDecoder::work(&self, body: &[u8]) -> core::result::Result<research::sources::openalex::Work, research::sources::fetch::DecodeFailure>
 pub fn research::sources::fetch::OpenAlexDecoder::works(&self, body: &[u8]) -> core::result::Result<alloc::vec::Vec<research::sources::openalex::Work>, research::sources::fetch::DecodeFailure>
 pub trait research::sources::fetch::PacingGate
-pub fn research::sources::fetch::PacingGate::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::sources::fetch::Attempted, deadline: &research::sources::schedule::Deadline) -> core::result::Result<(), research::sources::fetch::Unavailable>
+pub fn research::sources::fetch::PacingGate::spacing(&self) -> core::time::Duration
+pub fn research::sources::fetch::PacingGate::try_serve(&self) -> core::option::Option<alloc::boxed::Box<(dyn research::sources::fetch::ServingTurn + '_)>>
+pub trait research::sources::fetch::ServingTurn
+pub fn research::sources::fetch::ServingTurn::paced(&self, attempt: &mut dyn core::ops::function::FnMut() -> research::sources::fetch::Attempted, deadline: &research::sources::schedule::Deadline) -> core::result::Result<(), research::sources::fetch::WaitTooLong>
 pub trait research::sources::fetch::Transport
 pub fn research::sources::fetch::Transport::send(&self, request: &research::sources::request::UpstreamRequest) -> research::sources::classify::Response
 pub fn research::sources::fetch::fetch_arxiv(fetch: &research::sources::fetch::ArxivFetch<'_>, ports: &research::sources::fetch::ArxivPorts<'_>, deadline: &research::sources::schedule::Deadline) -> research::sources::fetch::FetchOutcome

@@ -651,17 +651,17 @@ below says. New tests:
 
 #### Automated Verification
 
-- [ ] Domain tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research`
-- [ ] Adapter tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research-adapters`
-- [ ] Binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-research --features test-loopback`
-- [ ] Public API snapshots of `research` and `store` updated deliberately, then checked: `mise run public-api:check`
-- [ ] Store tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p store`
-- [ ] Architecture rules hold: `mise run cli:check`
-- [ ] Full local CI mirror: `mise run`
+- [x] Domain tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research`
+- [x] Adapter tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p research-adapters`
+- [x] Binary tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p accelerator-research --features test-loopback`
+- [x] Public API snapshots of `research` and `store` updated deliberately, then checked: `mise run public-api:check`
+- [x] Store tests pass: `cargo nextest run --manifest-path cli/Cargo.toml -p store`
+- [x] Architecture rules hold: `mise run cli:check`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
-- [ ] `jj diff` shows no comment that restates code and no reference to
+- [x] `jj diff` shows no comment that restates code and no reference to
       this plan or the work item.
 
 ---

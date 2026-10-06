@@ -8,6 +8,13 @@ use research::sources::fetch::Clock;
 
 pub struct SystemClock;
 
+pub(crate) fn millis_since_epoch(at: SystemTime) -> u64 {
+    at.duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .and_then(|since| u64::try_from(since.as_millis()).ok())
+        .unwrap_or_default()
+}
+
 impl Clock for SystemClock {
     fn now(&self) -> Instant {
         Instant::now()

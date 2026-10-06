@@ -2,6 +2,8 @@
 
 mod support;
 
+use std::time::Duration;
+
 use research::sources::arxiv::Entry;
 use research::sources::classify::ClientRejection;
 use research::sources::classify::FetchError;
@@ -9,6 +11,7 @@ use research::sources::classify::Reason;
 use research::sources::fetch::fetch_arxiv;
 use research::sources::fetch::ArxivFetch;
 use research::sources::fetch::ArxivPorts;
+use research::sources::fetch::Contention;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::Unavailable;
 use research::sources::record::Record;
@@ -21,13 +24,17 @@ use research::sources::request::Family;
 use research::sources::request::Limit;
 
 use support::body;
+use support::retry_after;
 use support::secs;
 use support::status;
+use support::Event;
 use support::MemoryConfirmations;
 use support::RecordingClock;
+use support::RecordingContention;
 use support::RecordingGate;
 use support::ScriptedTransport;
 use support::StubArxivDecoder;
+use support::Timeline;
 use support::EMPTY_FEED;
 use support::ERROR_FEED;
 use support::FEED;
@@ -56,9 +63,13 @@ fn lookup(id: &str) -> ArxivRequest {
     ArxivRequest::Lookup(ArxivId::parse(id).expect("valid"))
 }
 
+const SPACING: Duration = secs(3);
+
 struct Harness {
+    timeline: Timeline,
     clock: RecordingClock,
     gate: RecordingGate,
+    contention: RecordingContention,
     decoder: StubArxivDecoder,
     api: Endpoint,
     oai: Endpoint,
@@ -66,13 +77,24 @@ struct Harness {
 
 impl Harness {
     fn with(entries: Vec<Entry>) -> Self {
+        let timeline = Timeline::default();
         Self {
-            clock: RecordingClock::new(),
-            gate: RecordingGate::default(),
+            clock: RecordingClock::on(timeline.clone()),
+            gate: RecordingGate::on(timeline.clone()).spacing(SPACING),
+            timeline,
+            contention: RecordingContention::default(),
             decoder: StubArxivDecoder { entries },
             api: Endpoint::new("https://export.arxiv.org"),
             oai: Endpoint::new("https://oaipmh.arxiv.org"),
         }
+    }
+
+    fn gate(
+        mut self,
+        scripted: impl FnOnce(RecordingGate) -> RecordingGate,
+    ) -> Self {
+        self.gate = scripted(self.gate);
+        self
     }
 
     fn fetch(
@@ -93,6 +115,7 @@ impl Harness {
                 clock: &self.clock,
                 gate: &self.gate,
                 confirmations,
+                contention: &self.contention,
             },
             &self.clock.deadline(),
         )
@@ -108,6 +131,14 @@ fn records(outcome: FetchOutcome) -> Vec<Record> {
 
 fn is_confirmation(url: &str) -> bool {
     url.starts_with("https://oaipmh.arxiv.org/oai?")
+}
+
+const fn unavailable(reason: Reason) -> FetchOutcome {
+    FetchOutcome::Unavailable(Unavailable::new(reason))
+}
+
+const fn millis(millis: u64) -> Duration {
+    Duration::from_millis(millis)
 }
 
 #[test]
@@ -242,7 +273,7 @@ fn an_entry_with_no_withdrawal_comment_needs_no_confirmation() {
 }
 
 #[test]
-fn a_recalled_verdict_needs_no_gate_pass() {
+fn a_recalled_verdict_needs_no_attempt() {
     let harness = Harness::with(vec![entry("2608.21129v2", Some(WITHDRAWAL))]);
     let confirmations =
         MemoryConfirmations::remembering(&harness.gate, "2608.21129v2", true);
@@ -253,7 +284,8 @@ fn a_recalled_verdict_needs_no_gate_pass() {
         records(harness.fetch(&transport, &confirmations, &search("10")));
 
     assert!(found[0].withdrawn());
-    assert_eq!(harness.gate.passes(), 1);
+    assert_eq!(harness.gate.turns_served(), 1);
+    assert_eq!(harness.gate.attempts(), 1);
     assert_eq!(transport.hits(), 1);
 }
 
@@ -271,11 +303,12 @@ fn a_verdict_recalled_for_an_older_version_does_not_apply() {
         records(harness.fetch(&transport, &confirmations, &search("10")));
 
     assert!(!found[0].withdrawn());
-    assert_eq!(harness.gate.passes(), 2);
+    assert_eq!(harness.gate.turns_served(), 1);
+    assert_eq!(harness.gate.attempts(), 2);
 }
 
 #[test]
-fn a_confirmed_verdict_is_recorded_from_inside_its_gate_pass() {
+fn a_confirmed_verdict_is_recorded_while_serving() {
     let harness = Harness::with(vec![entry("2608.21129v2", Some(WITHDRAWAL))]);
     let confirmations = MemoryConfirmations::new(&harness.gate);
     let transport = ScriptedTransport::immediate(
@@ -289,7 +322,7 @@ fn a_confirmed_verdict_is_recorded_from_inside_its_gate_pass() {
         confirmations.verdicts(),
         [(ArxivId::parse("2608.21129v2").expect("valid"), true)]
     );
-    assert_eq!(confirmations.recorded_inside_pass(), [true]);
+    assert_eq!(confirmations.recorded_while_serving(), [true]);
 }
 
 #[test]
@@ -428,4 +461,181 @@ fn an_error_feed_is_a_client_error() {
             ),
         })
     );
+}
+
+#[test]
+fn a_whole_call_is_served_in_one_turn() {
+    let harness = Harness::with(vec![
+        entry("2608.21129v2", Some(WITHDRAWAL)),
+        entry("2608.21130v1", Some(WITHDRAWAL)),
+    ]);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![body(FEED), status(503), body(WITHDRAWN_RAW), body(LIVE_RAW)],
+    );
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(harness.gate.turns_served(), 1);
+    assert_eq!(
+        harness.timeline.events(),
+        [
+            Event::Served,
+            Event::Attempt,
+            Event::Attempt,
+            Event::Slept(secs(3)),
+            Event::Attempt,
+            Event::Attempt,
+            Event::Released,
+        ]
+    );
+}
+
+#[test]
+fn an_invocation_with_32_s_left_is_not_admitted() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(32));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(harness.gate.attempts(), 0);
+}
+
+#[test]
+fn an_invocation_with_33_s_left_is_admitted() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(33));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(harness.gate.attempts(), 1);
+}
+
+#[test]
+fn a_6_s_backoff_with_38_s_left_ends_the_call() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(38));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![retry_after(503, 6), body(FEED)],
+    );
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::UpstreamError));
+    assert_eq!(
+        harness.timeline.events(),
+        [Event::Served, Event::Attempt, Event::Released]
+    );
+}
+
+#[test]
+fn a_6_s_backoff_with_39_s_left_retries_under_the_turn() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(39));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::immediate(
+        &harness.clock,
+        vec![retry_after(503, 6), body(FEED)],
+    );
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(
+        harness.timeline.events(),
+        [
+            Event::Served,
+            Event::Attempt,
+            Event::Slept(secs(6)),
+            Event::Attempt,
+            Event::Released,
+        ]
+    );
+}
+
+#[test]
+fn a_later_request_needs_a_full_serving_window() {
+    let harness = Harness::with(vec![entry("2608.21129v2", Some(WITHDRAWAL))]);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport = ScriptedTransport::new(
+        &harness.clock,
+        vec![(body(FEED), secs(68)), (body(WITHDRAWN_RAW), secs(0))],
+    );
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(harness.gate.attempts(), 1);
+}
+
+#[test]
+fn a_gate_busy_past_the_window_ends_in_lock_contention() {
+    let harness = Harness::with(Vec::new()).gate(RecordingGate::always_busy);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(
+        outcome,
+        FetchOutcome::Unavailable(Unavailable::lock_contention())
+    );
+    assert_eq!(
+        harness.contention.recorded(),
+        [Contention::LockHeldPastDeadline]
+    );
+    assert_eq!(transport.hits(), 0);
+    let slept = harness.clock.slept();
+    assert!(!slept.is_empty());
+    assert!(slept.iter().all(|poll| *poll == millis(100)), "{slept:?}");
+}
+
+#[test]
+fn a_gate_busy_briefly_serves_the_call_once_it_frees() {
+    let harness = Harness::with(Vec::new()).gate(|gate| gate.busy_for(2));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(harness.clock.slept(), [millis(100), millis(100)]);
+    assert!(harness.contention.recorded().is_empty());
+}
+
+#[test]
+fn a_free_gate_out_of_budget_records_no_contention() {
+    let harness = Harness::with(Vec::new());
+    harness.clock.leaving(secs(32));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert!(harness.contention.recorded().is_empty());
+}
+
+#[test]
+fn a_cached_confirmation_is_recalled_inside_the_turn() {
+    let harness = Harness::with(vec![entry("2608.21129v2", Some(WITHDRAWAL))]);
+    let confirmations =
+        MemoryConfirmations::remembering(&harness.gate, "2608.21129v2", true);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(confirmations.recalled_while_serving(), [true]);
 }

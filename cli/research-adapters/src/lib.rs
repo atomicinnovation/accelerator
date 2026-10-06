@@ -7,6 +7,7 @@ pub mod arxiv_xml;
 pub mod clock;
 pub mod conduct;
 pub mod confirmations;
+pub mod contention;
 pub mod diagnostics;
 pub mod openalex_json;
 pub mod pacing;

@@ -23,6 +23,7 @@ use research::sources::fetch::ArxivFetch;
 use research::sources::fetch::ArxivPorts;
 use research::sources::fetch::Clock;
 use research::sources::fetch::ConfirmationCache;
+use research::sources::fetch::ContentionLog;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::OpenAlexDecoder;
 use research::sources::fetch::OpenAlexFetch;
@@ -67,6 +68,7 @@ pub struct ArxivAdapters {
     pub decoder: Box<dyn ArxivDecoder>,
     pub gate: Box<dyn PacingGate>,
     pub confirmations: Box<dyn ConfirmationCache>,
+    pub contention: Box<dyn ContentionLog>,
 }
 
 /// A call that reached its source, however the source answered.
@@ -156,6 +158,7 @@ fn from_arxiv(
             clock: ports.clock.as_ref(),
             gate: adapters.gate.as_ref(),
             confirmations: adapters.confirmations.as_ref(),
+            contention: adapters.contention.as_ref(),
         },
         deadline,
     );
@@ -287,10 +290,14 @@ mod tests {
     use research::sources::fetch::Attempted;
     use research::sources::fetch::Clock;
     use research::sources::fetch::ConfirmationCache;
+    use research::sources::fetch::Contention;
+    use research::sources::fetch::ContentionLog;
     use research::sources::fetch::FetchOutcome;
     use research::sources::fetch::PacingGate;
+    use research::sources::fetch::ServingTurn;
     use research::sources::fetch::Transport;
     use research::sources::fetch::Unavailable;
+    use research::sources::fetch::WaitTooLong;
     use research::sources::request::ArxivId;
     use research::sources::request::Endpoint;
     use research::sources::request::FetchRequest;
@@ -464,14 +471,34 @@ mod tests {
     struct CountingGate(Rc<Cell<usize>>);
 
     impl PacingGate for CountingGate {
+        fn spacing(&self) -> Duration {
+            secs(3)
+        }
+
+        fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
+            self.0.set(self.0.get() + 1);
+            Some(Box::new(Unpaced))
+        }
+    }
+
+    struct Unpaced;
+
+    impl ServingTurn for Unpaced {
         fn paced(
             &self,
             attempt: &mut dyn FnMut() -> Attempted,
             _deadline: &Deadline,
-        ) -> Result<(), Unavailable> {
-            self.0.set(self.0.get() + 1);
+        ) -> Result<(), WaitTooLong> {
             attempt();
             Ok(())
+        }
+    }
+
+    struct NoContention;
+
+    impl ContentionLog for NoContention {
+        fn record(&self, contention: Contention) {
+            panic!("an uncontended call recorded {contention:?}");
         }
     }
 
@@ -494,7 +521,7 @@ mod tests {
 
     struct Call {
         request: FetchRequest,
-        gate_passes: Rc<Cell<usize>>,
+        turns_served: Rc<Cell<usize>>,
         confirmations: RememberingCache,
         clock: Rc<VirtualClock>,
         deadline: Deadline,
@@ -516,7 +543,7 @@ mod tests {
                     None,
                 )
                 .expect("a valid request"),
-                gate_passes: Rc::default(),
+                turns_served: Rc::default(),
                 confirmations: RememberingCache::default(),
                 clock,
                 deadline,
@@ -586,8 +613,9 @@ mod tests {
                         oai: Endpoint::arxiv_oai(),
                         transport: Box::new(RecordedWithdrawal),
                         decoder: Box::new(XmlArxivDecoder),
-                        gate: Box::new(CountingGate(self.gate_passes.clone())),
+                        gate: Box::new(CountingGate(self.turns_served.clone())),
                         confirmations: Box::new(self.confirmations.clone()),
+                        contention: Box::new(NoContention),
                     },
                 ),
             }
@@ -670,7 +698,7 @@ mod tests {
     }
 
     #[test]
-    fn an_arxiv_lookup_confirms_its_withdrawal_through_the_gate_once() {
+    fn an_arxiv_lookup_confirms_its_withdrawal_in_one_turn() {
         let call = Call::new().arxiv_lookup("2608.21129");
 
         let fetched = call.run().expect("a fetch");
@@ -681,7 +709,7 @@ mod tests {
         assert_eq!(records.len(), 1);
         assert!(records[0].withdrawn());
         assert_eq!(fetched.attempts, 2);
-        assert_eq!(call.gate_passes.get(), 2);
+        assert_eq!(call.turns_served.get(), 1);
         assert_eq!(
             *call.confirmations.0.borrow(),
             [(ArxivId::parse("2608.21129v2").expect("an ID"), true)]

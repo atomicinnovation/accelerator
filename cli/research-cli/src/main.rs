@@ -33,6 +33,7 @@ use research::sources::schedule::Deadline;
 use research_adapters::arxiv_xml::XmlArxivDecoder;
 use research_adapters::clock::SystemClock;
 use research_adapters::confirmations::FileConfirmationCache;
+use research_adapters::contention::FileContentionLog;
 use research_adapters::diagnostics::Diagnostics;
 use research_adapters::diagnostics::Stderr;
 use research_adapters::openalex_json::JsonOpenAlexDecoder;
@@ -262,6 +263,11 @@ fn source_call(
                     )),
                     confirmations: Box::new(FileConfirmationCache::new(
                         ScratchDir::new(&project.root, &scratch),
+                        diagnostics.clone(),
+                    )),
+                    contention: Box::new(FileContentionLog::new(
+                        ScratchDir::new(&project.root, &scratch),
+                        clock.clone(),
                         diagnostics,
                     )),
                 },

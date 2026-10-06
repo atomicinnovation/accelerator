@@ -1,5 +1,6 @@
-//! The fetch workflow: one attempt per gate pass, retried on the schedule
-//! within the call's deadline, then decoded and normalised into records.
+//! The fetch workflow: a call admitted to one serving turn, its attempts
+//! retried on the schedule within the call's deadline, then decoded and
+//! normalised into records.
 
 use std::time::Duration;
 use std::time::Instant;
@@ -89,19 +90,48 @@ pub struct Attempted {
     pub defer_until: Option<SystemTime>,
 }
 
-/// Paces attempts against a source that tolerates one request at a time.
+/// Admits calls to a source that tolerates one request at a time.
 pub trait PacingGate {
-    /// Runs `attempt` exactly once while holding the source, or refuses
-    /// without running it when the deadline cannot admit the wait.
+    /// The least a request must wait after the one before it.
+    fn spacing(&self) -> Duration;
+
+    /// A turn holding the source, or `None` while another call holds it.
+    fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>>;
+}
+
+/// Holds the source for as long as it lives, so every attempt and backoff
+/// of a call runs without another call's requests between them.
+pub trait ServingTurn {
+    /// Runs `attempt` exactly once, or refuses without running it when the
+    /// deadline cannot admit the wait the source still asks for.
     ///
     /// # Errors
     ///
-    /// [`Unavailable`] when the attempt could not be admitted in time.
+    /// [`WaitTooLong`] when the attempt could not be admitted in time.
     fn paced(
         &self,
         attempt: &mut dyn FnMut() -> Attempted,
         deadline: &Deadline,
-    ) -> Result<(), Unavailable>;
+    ) -> Result<(), WaitTooLong>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WaitTooLong;
+
+/// A call whose budget ran out before it settled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OutOfBudget {
+    pub last_retryable: Option<Reason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Contention {
+    LockHeldPastDeadline,
+}
+
+/// Where a call that lost its turn to contention is recorded.
+pub trait ContentionLog {
+    fn record(&self, contention: Contention);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -174,6 +204,7 @@ pub struct ArxivPorts<'a> {
     pub clock: &'a dyn Clock,
     pub gate: &'a dyn PacingGate,
     pub confirmations: &'a dyn ConfirmationCache,
+    pub contention: &'a dyn ContentionLog,
 }
 
 pub struct ArxivFetch<'a> {
@@ -187,10 +218,18 @@ pub fn fetch_openalex(
     ports: &OpenAlexPorts<'_>,
     deadline: &Deadline,
 ) -> FetchOutcome {
+    let Admission::Admitted(turn) =
+        admitted(ports.gate, ports.clock, deadline, &|| true)
+    else {
+        return FetchOutcome::Unavailable(Unavailable::new(
+            Reason::RateLimited,
+        ));
+    };
     let attempts = Attempts {
         transport: ports.transport,
         clock: ports.clock,
-        gate: ports.gate,
+        turn: turn.as_ref(),
+        spacing: ports.gate.spacing(),
         deadline,
     };
     let verb = fetch.request.verb();
@@ -209,12 +248,15 @@ pub fn fetch_openalex(
         },
     );
     let works = match settled {
-        Settled::Delivered(works) => works,
-        Settled::Empty => Vec::new(),
-        Settled::Unavailable(unavailable) => {
+        Ok(Settled::Delivered(works)) => works,
+        Ok(Settled::Empty) => Vec::new(),
+        Ok(Settled::Unavailable(unavailable)) => {
             return FetchOutcome::Unavailable(unavailable)
         }
-        Settled::Failed(error) => return FetchOutcome::Failed(error),
+        Ok(Settled::Failed(error)) => return FetchOutcome::Failed(error),
+        Err(out_of_budget) => {
+            return last_retryable_or_rate_limited(out_of_budget)
+        }
     };
     FetchOutcome::Records(
         works
@@ -235,12 +277,92 @@ pub fn fetch_arxiv(
     ports: &ArxivPorts<'_>,
     deadline: &Deadline,
 ) -> FetchOutcome {
+    let turn = match admitted(ports.gate, ports.clock, deadline, &|| true) {
+        Admission::Admitted(turn) => turn,
+        Admission::Exhausted { contended: true } => {
+            ports.contention.record(Contention::LockHeldPastDeadline);
+            return FetchOutcome::Unavailable(Unavailable::lock_contention());
+        }
+        Admission::Exhausted { contended: false } => {
+            return FetchOutcome::Unavailable(Unavailable::new(
+                Reason::RateLimited,
+            ))
+        }
+    };
+    match serve_call(turn, fetch, ports, deadline) {
+        ServedCall::Settled(outcome) => outcome,
+        ServedCall::OutOfBudget(out_of_budget) => {
+            last_retryable_or_rate_limited(out_of_budget)
+        }
+    }
+}
+
+fn last_retryable_or_rate_limited(out_of_budget: OutOfBudget) -> FetchOutcome {
+    FetchOutcome::Unavailable(Unavailable::new(
+        out_of_budget.last_retryable.unwrap_or(Reason::RateLimited),
+    ))
+}
+
+const ADMISSION_POLL: Duration = Duration::from_millis(100);
+
+enum Admission<'g> {
+    Admitted(Box<dyn ServingTurn + 'g>),
+    Exhausted { contended: bool },
+}
+
+/// Waits for a turn while the deadline still covers a serving window: the
+/// source's spacing and one whole request.
+fn admitted<'g>(
+    gate: &'g dyn PacingGate,
+    clock: &dyn Clock,
+    deadline: &Deadline,
+    ready: &dyn Fn() -> bool,
+) -> Admission<'g> {
+    let mut contended = false;
+    loop {
+        if !deadline.admits_attempt_after(clock.now(), gate.spacing()) {
+            return Admission::Exhausted { contended };
+        }
+        if ready() {
+            if let Some(turn) = gate.try_serve() {
+                return Admission::Admitted(turn);
+            }
+        }
+        contended = true;
+        clock.sleep(ADMISSION_POLL);
+    }
+}
+
+enum ServedCall {
+    Settled(FetchOutcome),
+    OutOfBudget(OutOfBudget),
+}
+
+/// Runs the query and every confirmation it needs within one turn, which is
+/// released when this returns.
+fn serve_call(
+    turn: Box<dyn ServingTurn + '_>,
+    fetch: &ArxivFetch<'_>,
+    ports: &ArxivPorts<'_>,
+    deadline: &Deadline,
+) -> ServedCall {
     let attempts = Attempts {
         transport: ports.transport,
         clock: ports.clock,
-        gate: ports.gate,
+        turn: turn.as_ref(),
+        spacing: ports.gate.spacing(),
         deadline,
     };
+    let served = served(&attempts, fetch, ports);
+    drop(turn);
+    served.map_or_else(ServedCall::OutOfBudget, ServedCall::Settled)
+}
+
+fn served(
+    attempts: &Attempts<'_>,
+    fetch: &ArxivFetch<'_>,
+    ports: &ArxivPorts<'_>,
+) -> Result<FetchOutcome, OutOfBudget> {
     let settled = attempts.until_settled(
         &fetch.request.upstream(fetch.api),
         &classify::arxiv,
@@ -250,14 +372,14 @@ pub fn fetch_arxiv(
                 .entries(&body)
                 .map_err(|failure| decode_error(Family::Arxiv, failure))
         },
-    );
+    )?;
     let entries = match settled {
         Settled::Delivered(entries) => entries,
         Settled::Empty => Vec::new(),
         Settled::Unavailable(unavailable) => {
-            return FetchOutcome::Unavailable(unavailable)
+            return Ok(FetchOutcome::Unavailable(unavailable))
         }
-        Settled::Failed(error) => return FetchOutcome::Failed(error),
+        Settled::Failed(error) => return Ok(FetchOutcome::Failed(error)),
     };
     let listed = listed_entries(fetch.request, entries);
 
@@ -268,26 +390,28 @@ pub fn fetch_arxiv(
         }
         let withdrawn = match ports.confirmations.recall(id) {
             Some(withdrawn) => withdrawn,
-            None => match confirm_withdrawal(&attempts, fetch.oai, ports, id) {
+            None => match confirm_withdrawal(attempts, fetch.oai, ports, id)? {
                 Settled::Delivered(withdrawn) => withdrawn,
                 Settled::Empty => false,
                 Settled::Unavailable(unavailable) => {
-                    return FetchOutcome::Unavailable(unavailable)
+                    return Ok(FetchOutcome::Unavailable(unavailable))
                 }
-                Settled::Failed(error) => return FetchOutcome::Failed(error),
+                Settled::Failed(error) => {
+                    return Ok(FetchOutcome::Failed(error))
+                }
             },
         };
         verdicts.note(id, withdrawn);
     }
 
-    FetchOutcome::Records(
+    Ok(FetchOutcome::Records(
         listed
             .iter()
             .filter_map(|(id, entry)| {
                 arxiv::normalise(entry, verdicts.withdrawn(id))
             })
             .collect(),
-    )
+    ))
 }
 
 /// The citable entries a request asked for, in feed order and within its
@@ -310,14 +434,14 @@ fn listed_entries(
         .collect()
 }
 
-/// The verdict is recorded inside the gate pass that fetched it, so a
-/// concurrent caller waiting on the gate finds it already cached.
+/// The verdict is recorded inside the turn that fetched it, so a concurrent
+/// caller waiting for a turn finds it already cached.
 fn confirm_withdrawal(
     attempts: &Attempts<'_>,
     oai: &Endpoint,
     ports: &ArxivPorts<'_>,
     id: &ArxivId,
-) -> Settled<bool> {
+) -> Result<Settled<bool>, OutOfBudget> {
     attempts.until_settled(
         &UpstreamRequest::withdrawal_confirmation(oai, id),
         &classify::arxiv,
@@ -381,35 +505,39 @@ enum Step<T> {
 struct Attempts<'a> {
     transport: &'a dyn Transport,
     clock: &'a dyn Clock,
-    gate: &'a dyn PacingGate,
+    turn: &'a dyn ServingTurn,
+    spacing: Duration,
     deadline: &'a Deadline,
 }
 
 impl Attempts<'_> {
-    /// Attempts `request` until it settles, the retries run out, or the
-    /// deadline cannot admit the next wait; the last retryable attempt then
-    /// decides the reason. A delivered body is accepted inside the gate pass.
+    /// Attempts `request` until it settles or the retries run out, the last
+    /// retryable attempt then deciding the reason. Each attempt must leave
+    /// room for a serving window after its wait, or the call is out of
+    /// budget. A delivered body is accepted inside the turn.
     fn until_settled<T>(
         &self,
         request: &UpstreamRequest,
         classify: &dyn Fn(Response) -> Verdict,
         accept: &mut dyn FnMut(Vec<u8>) -> Result<T, FetchError>,
-    ) -> Settled<T> {
+    ) -> Result<Settled<T>, OutOfBudget> {
         let mut next_retry = RetryNumber::first();
         let mut wait = Duration::ZERO;
         let mut last_retryable = None;
         loop {
-            if !self.deadline.admits_attempt_after(self.clock.now(), wait) {
-                return Settled::Unavailable(Unavailable::new(
-                    last_retryable.unwrap_or(Reason::RateLimited),
-                ));
+            let serving_window = wait + self.spacing;
+            if !self
+                .deadline
+                .admits_attempt_after(self.clock.now(), serving_window)
+            {
+                return Err(OutOfBudget { last_retryable });
             }
             if !wait.is_zero() {
                 self.clock.sleep(wait);
             }
 
             let mut step = None;
-            let passed = self.gate.paced(
+            let passed = self.turn.paced(
                 &mut || {
                     let verdict = classify(self.transport.send(request));
                     let defer_until = self.deferral(&verdict, next_retry);
@@ -418,15 +546,12 @@ impl Attempts<'_> {
                 },
                 self.deadline,
             );
-            if let Err(refused) = passed {
-                return Settled::Unavailable(Unavailable {
-                    reason: last_retryable.unwrap_or(refused.reason),
-                    cause: refused.cause,
-                });
+            if passed.is_err() {
+                return Err(OutOfBudget { last_retryable });
             }
 
             match step {
-                Some(Step::Settled(settled)) => return settled,
+                Some(Step::Settled(settled)) => return Ok(settled),
                 Some(Step::Retry {
                     reason,
                     retry_after,
@@ -435,16 +560,14 @@ impl Attempts<'_> {
                     let Some(next_wait) =
                         RetrySchedule::wait_before(next_retry, retry_after)
                     else {
-                        return Settled::Unavailable(Unavailable::new(reason));
+                        return Ok(Settled::Unavailable(Unavailable::new(
+                            reason,
+                        )));
                     };
                     wait = next_wait;
                     next_retry = next_retry.next();
                 }
-                None => {
-                    return Settled::Unavailable(Unavailable::new(
-                        last_retryable.unwrap_or(Reason::RateLimited),
-                    ))
-                }
+                None => return Err(OutOfBudget { last_retryable }),
             }
         }
     }
