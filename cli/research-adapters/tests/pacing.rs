@@ -318,14 +318,26 @@ fn dropping_a_turn_frees_the_lock_at_once() {
 }
 
 #[test]
-fn spacing_runs_from_a_send_whose_finish_was_never_recorded() {
+fn spacing_runs_from_a_send_whose_finish_was_never_recorded_with_a_margin_for_its_arrival(
+) {
     let harness = Harness::new();
     let now = harness.clock.wall_now();
     harness.store_sent_state(Some(now - secs(1)), Some(now - secs(10)), None);
 
     harness.pass(None).expect("admitted");
 
-    assert_eq!(harness.clock.slept(), [secs(2)]);
+    assert_eq!(harness.clock.slept(), [Duration::from_millis(2100)]);
+}
+
+#[test]
+fn a_send_stamped_ahead_of_now_waits_no_more_than_one_spaced_send() {
+    let harness = Harness::new();
+    let now = harness.clock.wall_now();
+    harness.store_sent_state(Some(now + secs(60)), None, None);
+
+    harness.pass(None).expect("admitted");
+
+    assert_eq!(harness.clock.slept(), [Duration::from_millis(3100)]);
 }
 
 #[test]

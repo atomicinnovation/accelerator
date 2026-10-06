@@ -55,14 +55,18 @@ const STATE: &str = "arxiv-pacing";
 const REQUEST_LOG: &str = "arxiv-requests.log";
 
 const SPACING: Duration = Duration::from_secs(3);
+/// A send is stamped before its request leaves, so its arrival at arXiv is
+/// unobserved and can trail the stamp by more than the next request's does.
+const SEND_MARGIN: Duration = Duration::from_millis(100);
+const SPACED_SEND: Duration = SPACING.saturating_add(SEND_MARGIN);
 const DEFERRAL_CEILING: Duration = Duration::from_secs(30);
 
 /// Serialises arXiv calls across the project through an exclusive `flock`,
 /// held by each call's turn from its first request to its last.
 ///
-/// Spacing runs from the later of when the last request was sent and when it
-/// finished. The finish is when arXiv has certainly seen it; the send covers
-/// a call killed before its finish was recorded.
+/// Spacing runs from the last request's finish, when arXiv has certainly
+/// seen it. A send with no finish after it, from a call killed mid-request,
+/// is spaced from the send instead, with a margin for its unseen arrival.
 ///
 /// Its waits run on the caller's clock, so time spent here is spent from
 /// the same deadline the caller measures.
@@ -207,9 +211,14 @@ impl PacingState {
             at.and_then(|at| at.duration_since(now).ok())
                 .map_or(Duration::ZERO, |wait| wait.min(ceiling))
         };
-        let last_request = self.last_finish.max(self.last_sent);
-        let spacing =
-            until(last_request.map(|request| request + SPACING), SPACING);
+        let spacing = match (self.last_sent, self.last_finish) {
+            (Some(sent), finish) if finish < Some(sent) => {
+                until(Some(sent + SPACED_SEND), SPACED_SEND)
+            }
+            (_, finish) => {
+                until(finish.map(|finish| finish + SPACING), SPACING)
+            }
+        };
         let deferral = until(self.not_before, DEFERRAL_CEILING);
         spacing.max(deferral)
     }
