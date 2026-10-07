@@ -189,8 +189,10 @@ impl Binding {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Presence {
-    /// Some call holds the ticket, or whether one does cannot be told.
     Live,
+    /// Whether a call holds the ticket cannot be told, so it counts as live
+    /// only while a call presented with it could still be running.
+    Unknown,
     Absent {
         ended_at: Option<SystemTime>,
     },
@@ -223,8 +225,9 @@ impl Position {
 /// What the front rule needs to know of a ticket ahead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Contender {
-    pub is_live: bool,
+    pub presence: Presence,
     pub issued_at: SystemTime,
+    pub presented_at: SystemTime,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -344,21 +347,30 @@ impl Queue {
                 standing.presence == Presence::Absent { ended_at: None }
             })
             .map(|standing| {
-                (standing.ticket.clone(), latest_end(standing, now))
+                (
+                    standing.ticket.clone(),
+                    latest_end(standing.presented_at, now),
+                )
             })
             .collect()
     }
 }
 
 /// The one home of the front rule: a ticket is front unless a contender
-/// ahead of it is live and not abandoned. Stops at the first that is, so a
-/// lazy `ahead` reads no further.
+/// ahead of it has not ended. Stops at the first that has not, so a lazy
+/// `ahead` reads no further.
 pub fn is_front_given(
     ahead: impl IntoIterator<Item = Contender>,
     now: SystemTime,
 ) -> bool {
     !ahead.into_iter().any(|contender| {
-        contender.is_live && !is_abandoned(contender.issued_at, now)
+        last_end(
+            contender.presence,
+            contender.issued_at,
+            contender.presented_at,
+            now,
+        )
+        .is_none()
     })
 }
 
@@ -374,25 +386,43 @@ fn is_expired(standing: &Standing, now: SystemTime) -> bool {
     end_of(standing, now).is_some_and(|end| elapsed(end, now) > EXPIRY)
 }
 
+fn end_of(standing: &Standing, now: SystemTime) -> Option<SystemTime> {
+    last_end(
+        standing.presence,
+        standing.issued_at,
+        standing.presented_at,
+        now,
+    )
+}
+
 /// When the ticket's last call ended, or `None` while it is live.
 /// Abandonment only ever brings an end earlier.
-fn end_of(standing: &Standing, now: SystemTime) -> Option<SystemTime> {
-    let recorded = match standing.presence {
+fn last_end(
+    presence: Presence,
+    issued_at: SystemTime,
+    presented_at: SystemTime,
+    now: SystemTime,
+) -> Option<SystemTime> {
+    let recorded = match presence {
         Presence::Absent {
             ended_at: Some(ended_at),
         } => Some(ended_at),
-        Presence::Absent { ended_at: None } => Some(latest_end(standing, now)),
+        Presence::Absent { ended_at: None } => {
+            Some(latest_end(presented_at, now))
+        }
+        Presence::Unknown => (elapsed(presented_at, now) > LONGEST_INVOCATION)
+            .then(|| latest_end(presented_at, now)),
         Presence::Live => None,
     };
-    if !is_abandoned(standing.issued_at, now) {
+    if !is_abandoned(issued_at, now) {
         return recorded;
     }
-    let abandoned_at = standing.issued_at + ABANDONED_AFTER;
+    let abandoned_at = issued_at + ABANDONED_AFTER;
     Some(recorded.map_or(abandoned_at, |end| end.min(abandoned_at)))
 }
 
-fn latest_end(standing: &Standing, now: SystemTime) -> SystemTime {
-    now.min(standing.presented_at + LONGEST_INVOCATION)
+fn latest_end(presented_at: SystemTime, now: SystemTime) -> SystemTime {
+    now.min(presented_at + LONGEST_INVOCATION)
 }
 
 /// Where an arXiv call waits its turn across invocations.

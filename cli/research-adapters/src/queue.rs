@@ -9,6 +9,7 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::ErrorKind;
@@ -66,6 +67,7 @@ pub struct FileArxivQueue {
     clock: Rc<dyn Clock>,
     diagnostics: Rc<dyn Diagnostics>,
     nonces: Box<dyn Fn() -> Nonce>,
+    unprobeable_reported: RefCell<HashSet<Ticket>>,
 }
 
 impl FileArxivQueue {
@@ -80,6 +82,7 @@ impl FileArxivQueue {
             clock,
             diagnostics,
             nonces,
+            unprobeable_reported: RefCell::default(),
         }
     }
 
@@ -157,31 +160,52 @@ impl FileArxivQueue {
             Probe::Free => Presence::Absent {
                 ended_at: record.ended_ms.map(at_millis),
             },
-            Probe::Held | Probe::Unknown => Presence::Live,
+            Probe::Held => Presence::Live,
+            Probe::Unknown => Presence::Unknown,
         }
+    }
+
+    fn probe(&self, ticket: &Ticket) -> Probe {
+        self.try_probe(ticket).unwrap_or_else(|error| {
+            if self
+                .unprobeable_reported
+                .borrow_mut()
+                .insert(ticket.clone())
+            {
+                self.report(&format!(
+                    "{error}; counting its ticket live until one invocation \
+                     after its presentation"
+                ));
+            }
+            Probe::Unknown
+        })
     }
 
     /// Opened for writing without creating, so a lock path that is not a
     /// regular file reads as unknown rather than free.
-    fn probe(&self, ticket: &Ticket) -> Probe {
-        let file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(self.scratch.path(&lock_name(ticket)))
-        {
+    fn try_probe(&self, ticket: &Ticket) -> Result<Probe, String> {
+        let path = self.scratch.path(&lock_name(ticket));
+        let file = match OpenOptions::new().read(true).write(true).open(&path) {
             Ok(file) => file,
             Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Probe::Free
+                return Ok(Probe::Free)
             }
-            Err(_) => return Probe::Unknown,
+            Err(error) => {
+                return Err(format!(
+                    "could not open {}: {error}",
+                    path.display()
+                ))
+            }
         };
         match flock(&file, FlockOperation::NonBlockingLockShared) {
             Ok(()) => {
                 let _ = flock(&file, FlockOperation::Unlock);
-                Probe::Free
+                Ok(Probe::Free)
             }
-            Err(Errno::WOULDBLOCK) => Probe::Held,
-            Err(_) => Probe::Unknown,
+            Err(Errno::WOULDBLOCK) => Ok(Probe::Held),
+            Err(errno) => {
+                Err(format!("could not probe {}: {errno}", path.display()))
+            }
         }
     }
 
@@ -416,17 +440,41 @@ impl FilePlace<'_> {
     /// mid-read has just left, so it is not live.
     fn contender(&self, ticket: &Ticket, now: SystemTime) -> Contender {
         let absent = Contender {
-            is_live: false,
+            presence: Presence::Absent { ended_at: None },
             issued_at: now,
+            presented_at: now,
         };
-        if self.queue.probe(ticket) == Probe::Free {
+        let presence = match self.queue.probe(ticket) {
+            Probe::Free => return absent,
+            Probe::Held => Presence::Live,
+            Probe::Unknown => Presence::Unknown,
+        };
+        let Some(issued_at) = self.issued_at(ticket) else {
             return absent;
+        };
+        let presented_at = match presence {
+            Presence::Unknown => self.presented_at(ticket).unwrap_or(now),
+            _ => issued_at,
+        };
+        Contender {
+            presence,
+            issued_at,
+            presented_at,
         }
-        self.issued_at(ticket)
-            .map_or(absent, |issued_at| Contender {
-                is_live: true,
-                issued_at,
+    }
+
+    /// Read afresh, as a resumption moves it. A record too corrupt to say
+    /// falls back to its last write, which is never before a presentation.
+    fn presented_at(&self, ticket: &Ticket) -> Option<SystemTime> {
+        let name = record_name(ticket);
+        self.queue
+            .scratch
+            .read(&name)
+            .and_then(|bytes| {
+                serde_json::from_slice::<PresentedOnly>(&bytes).ok()
             })
+            .map(|presented| at_millis(presented.presented_ms))
+            .or_else(|| self.queue.scratch.modified(&name))
     }
 
     fn issued_at(&self, ticket: &Ticket) -> Option<SystemTime> {
@@ -591,6 +639,11 @@ struct Record {
 #[derive(Deserialize)]
 struct IssuedOnly {
     issued_ms: u64,
+}
+
+#[derive(Deserialize)]
+struct PresentedOnly {
+    presented_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

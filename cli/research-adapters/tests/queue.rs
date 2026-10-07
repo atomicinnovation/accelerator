@@ -525,9 +525,7 @@ fn a_corrupt_record_whose_lock_is_held_is_reported_and_kept() {
         .any(|line| line.contains("3-cccccc.json")));
 }
 
-#[test]
-fn a_corrupt_record_behind_an_unprobeable_lock_is_abandoned_by_its_age() {
-    let harness = Harness::new();
+fn seed_corrupt_record_behind_an_unprobeable_lock(harness: &Harness) {
     harness.scratch.seed_raw_record(
         "3-cccccc.json",
         b"{not json",
@@ -535,15 +533,36 @@ fn a_corrupt_record_behind_an_unprobeable_lock_is_abandoned_by_its_age() {
     );
     std::fs::create_dir(harness.scratch.queue_path("3-cccccc.lock"))
         .expect("an unprobeable lock");
+}
+
+#[test]
+fn a_corrupt_record_behind_an_unprobeable_lock_holds_the_front_for_one_invocation_after_its_last_write(
+) {
+    let harness = Harness::new();
+    seed_corrupt_record_behind_an_unprobeable_lock(&harness);
     let queue = harness.queue();
     let place = queued(join(&harness, &queue, None));
-    assert!(harness.scratch.record_bytes("3-cccccc").is_some());
-    harness.clock.advance(secs(1000));
+    harness.clock.advance(secs(100));
     assert!(!place.is_front());
 
     harness.clock.advance(secs(1));
+
     assert!(place.is_front());
-    let _later = queued(join(&harness, &queue, None));
+}
+
+#[test]
+fn a_corrupt_record_behind_an_unprobeable_lock_is_removed_once_abandoned_by_its_age(
+) {
+    let harness = Harness::new();
+    seed_corrupt_record_behind_an_unprobeable_lock(&harness);
+    let queue = harness.queue();
+    let _first = queued(join(&harness, &queue, None));
+    harness.clock.advance(secs(1000));
+    let _second = queued(join(&harness, &queue, None));
+    assert!(harness.scratch.record_bytes("3-cccccc").is_some());
+
+    harness.clock.advance(secs(1));
+    let _third = queued(join(&harness, &queue, None));
 
     assert!(harness.scratch.record_bytes("3-cccccc").is_none());
 }
@@ -735,7 +754,8 @@ fn an_orphan_ticket_lock_that_probes_free_is_removed() {
 }
 
 #[test]
-fn a_ticket_whose_lock_cannot_be_probed_holds_the_front_until_abandoned() {
+fn a_ticket_whose_lock_cannot_be_probed_holds_the_front_for_one_invocation_after_its_presentation(
+) {
     let harness = Harness::new();
     harness.seed(
         "1-aaaaaa",
@@ -751,12 +771,35 @@ fn a_ticket_whose_lock_cannot_be_probed_holds_the_front_until_abandoned() {
         .expect("an unprobeable lock");
     let queue = harness.queue();
     let place = queued(join(&harness, &queue, None));
-    harness.clock.advance(secs(1000));
+    harness.clock.advance(secs(100));
     assert!(!place.is_front());
 
     harness.clock.advance(secs(1));
 
     assert!(place.is_front());
+}
+
+#[test]
+fn an_unprobeable_lock_is_reported_once_with_its_error() {
+    let harness = Harness::new();
+    harness.seed_live("1-aaaaaa", 0);
+    let lock = harness.scratch.queue_path("1-aaaaaa.lock");
+    std::fs::remove_file(&lock).expect("remove the held lock");
+    std::fs::create_dir(&lock).expect("an unprobeable lock");
+    let queue = harness.queue();
+    let place = queued(join(&harness, &queue, None));
+
+    for _ in 0..3 {
+        assert!(!place.is_front());
+    }
+
+    let reported: Vec<String> = harness
+        .reported()
+        .into_iter()
+        .filter(|line| line.contains("1-aaaaaa.lock"))
+        .collect();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(reported[0].contains("directory"), "{reported:?}");
 }
 
 #[test]

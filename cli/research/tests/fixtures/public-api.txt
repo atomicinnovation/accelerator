@@ -701,6 +701,7 @@ pub enum research::sources::queue::Presence
 pub research::sources::queue::Presence::Absent
 pub research::sources::queue::Presence::Absent::ended_at: core::option::Option<std::time::SystemTime>
 pub research::sources::queue::Presence::Live
+pub research::sources::queue::Presence::Unknown
 impl core::clone::Clone for research::sources::queue::Presence
 pub fn research::sources::queue::Presence::clone(&self) -> research::sources::queue::Presence
 impl core::cmp::Eq for research::sources::queue::Presence
@@ -740,8 +741,9 @@ impl core::fmt::Debug for research::sources::queue::TicketRejection
 pub fn research::sources::queue::TicketRejection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::sources::queue::TicketRejection
 pub struct research::sources::queue::Contender
-pub research::sources::queue::Contender::is_live: bool
 pub research::sources::queue::Contender::issued_at: std::time::SystemTime
+pub research::sources::queue::Contender::presence: research::sources::queue::Presence
+pub research::sources::queue::Contender::presented_at: std::time::SystemTime
 impl core::clone::Clone for research::sources::queue::Contender
 pub fn research::sources::queue::Contender::clone(&self) -> research::sources::queue::Contender
 impl core::cmp::Eq for research::sources::queue::Contender

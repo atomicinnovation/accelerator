@@ -101,6 +101,11 @@ impl Seed {
         self
     }
 
+    const fn unprobeable(mut self) -> Self {
+        self.presence = Presence::Unknown;
+        self
+    }
+
     fn bound_to(mut self, binding: Binding) -> Self {
         self.binding = binding;
         self
@@ -133,15 +138,28 @@ fn present(queue: &Queue, presented: &str, binding: &Binding) -> Presentation {
 
 const fn live(issued_at: SystemTime) -> Contender {
     Contender {
-        is_live: true,
+        presence: Presence::Live,
         issued_at,
+        presented_at: issued_at,
     }
 }
 
 const fn absent(issued_at: SystemTime) -> Contender {
     Contender {
-        is_live: false,
+        presence: Presence::Absent { ended_at: None },
         issued_at,
+        presented_at: issued_at,
+    }
+}
+
+const fn unprobeable(
+    issued_at: SystemTime,
+    presented_at: SystemTime,
+) -> Contender {
+    Contender {
+        presence: Presence::Unknown,
+        issued_at,
+        presented_at,
     }
 }
 
@@ -538,6 +556,67 @@ fn a_live_ticket_issued_1000_s_ago_still_holds_the_front() {
 fn at_1001_s_it_is_abandoned_and_no_longer_holds_the_front() {
     assert!(is_front_given([live(ago(1001))], now()));
     assert!(is_abandoned(ago(1001), now()));
+}
+
+#[test]
+fn an_unprobeable_contender_holds_the_front_for_one_invocation_after_presentation(
+) {
+    assert!(!is_front_given([unprobeable(ago(500), ago(100))], now()));
+    assert!(is_front_given([unprobeable(ago(500), ago(101))], now()));
+}
+
+#[test]
+fn an_unprobeable_contender_presented_moments_ago_yields_once_abandoned() {
+    assert!(is_front_given([unprobeable(ago(1001), ago(0))], now()));
+}
+
+#[test]
+fn an_unprobeable_ticket_presented_again_within_one_invocation_is_already_live()
+{
+    let queue = queue(vec![Seed::new("3-aaaaaa", 500)
+        .presented(100)
+        .unprobeable()]);
+
+    assert_eq!(
+        present(&queue, "3-aaaaaa", &graphs()),
+        Presentation::Rejected(TicketRejection::AlreadyLive(ticket(
+            "3-aaaaaa"
+        )))
+    );
+}
+
+#[test]
+fn an_unprobeable_ticket_presented_again_after_one_invocation_resumes() {
+    let queue = queue(vec![Seed::new("3-aaaaaa", 500)
+        .presented(101)
+        .unprobeable()]);
+
+    assert_eq!(
+        present(&queue, "3-aaaaaa", &graphs()),
+        Presentation::Resume(ticket("3-aaaaaa"))
+    );
+}
+
+#[test]
+fn an_unprobeable_ticket_expires_300_s_after_its_invocation_could_end() {
+    let at_expiry = queue(vec![Seed::new("3-aaaaaa", 500)
+        .presented(400)
+        .unprobeable()]);
+    let past_expiry = queue(vec![Seed::new("3-aaaaaa", 500)
+        .presented(401)
+        .unprobeable()]);
+
+    assert!(at_expiry.expired(now()).is_empty());
+    assert_eq!(past_expiry.expired(now()), [ticket("3-aaaaaa")]);
+}
+
+#[test]
+fn an_unprobeable_ticket_is_never_stamped() {
+    let queue = queue(vec![Seed::new("3-aaaaaa", 500)
+        .presented(200)
+        .unprobeable()]);
+
+    assert!(queue.stamps(now()).is_empty());
 }
 
 #[test]
