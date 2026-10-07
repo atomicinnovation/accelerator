@@ -272,6 +272,25 @@ fn a_wait_the_deadline_cannot_admit_refuses_without_running() {
 }
 
 #[test]
+fn a_lock_that_cannot_open_still_serves_a_spaced_turn_and_reports_it() {
+    let harness = Harness::new();
+    harness.scratch.mkdir("arxiv.lock");
+    harness.pass(None).expect("admitted");
+    harness.clock.advance(secs(1));
+
+    harness.pass(None).expect("admitted");
+
+    assert_eq!(harness.clock.slept(), [secs(2)]);
+    let reported = harness.diagnostics.lines();
+    assert_eq!(reported.len(), 2, "{reported:?}");
+    assert!(
+        reported.iter().all(|line| line.contains("arxiv.lock")
+            && line.contains("pacing without the lock")),
+        "{reported:?}"
+    );
+}
+
+#[test]
 fn try_serve_is_none_while_another_holder_has_the_lock() {
     let harness = Harness::new();
     let _held = harness.hold_lock();
