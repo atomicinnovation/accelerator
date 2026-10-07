@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T00:17:04+00:00"
+last_updated: "2026-10-07T00:28:37+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -964,7 +964,7 @@ the diff. No other golden changes.
 
 #### Manual Verification:
 
-- [ ] A fresh Claude Code session in a repository with a tracked `config.local.md` shows the warning, with an empty launcher cache
+- [x] A fresh Claude Code session in a repository with a tracked `config.local.md` shows the warning, with an empty launcher cache
 
 ---
 
@@ -1924,6 +1924,14 @@ today through `consent-adapters` → `vcs-adapters`.
   - **`config-adapters/tests/runner.rs`:** its 2 s and 1.25 s spawn bounds
     failed in parallel runs at load ~13 (a 0.9 s sleep took 2.57 s) and passed
     serially. The crate is unchanged this phase.
+- Phase 7's manual check passed: a fresh session on the locally built
+  launcher (the bootstrap's unverified-launcher override, an empty launcher
+  cache, `ACCELERATOR_VCS_BIN` unset) in a git repository tracking
+  `config.local.md` showed `E_CONSENT_KEY_TRACKED` as its start-of-session
+  message. With the file untracked, a second session showed no consent
+  warning and no "was not checked" note. Both sessions also showed the
+  override's unverified-launcher notice and a migration reminder for the
+  scratch repository, which are expected.
 - Next: Phase 8, the `corpus` parsing port. Its phase base is the Phase 7
   commit.
 
