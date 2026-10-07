@@ -1604,11 +1604,11 @@ checklists gain the declaration step.
 
 #### Automated Verification:
 
-- [ ] `uv run pytest tests/unit/tasks/test_crate_dependencies.py tests/unit/tasks/test_mise.py tests/unit/tasks/test_registration_docs.py` passes
-- [ ] `rg -n -i 'thirteen' tasks/ tests/unit/tasks/ CLAUDE.md` is empty
-- [ ] `mise run check` passes
-- [ ] Adding `corpus-adapters = { path = "../corpus-adapters" }` to `cli/jira-client/Cargo.toml` makes `mise run check` exit non-zero naming `jira-client -> corpus-adapters: rule 4` (reverted after)
-- [ ] `mise run` exits 0
+- [x] `uv run pytest tests/unit/tasks/test_crate_dependencies.py tests/unit/tasks/test_mise.py tests/unit/tasks/test_registration_docs.py` passes
+- [x] `rg -n -i 'thirteen' tasks/ tests/unit/tasks/ CLAUDE.md` is empty
+- [x] `mise run check` passes
+- [x] Adding `corpus-adapters = { path = "../corpus-adapters" }` to `cli/jira-client/Cargo.toml` makes `mise run check` exit non-zero naming `jira-client -> corpus-adapters: rule 4` (reverted after)
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -2152,8 +2152,20 @@ today through `consent-adapters` → `vcs-adapters`.
   - **`work` → `config`:** removed; no `config` type was named.
   - **`collaboration` → `vcs`:** removed, behind
     `collaboration::RepositoryOrigin`.
-- Next: Phase 12, wiring the lint into `check`. Its phase base is the commit
-  it starts from, after Phase 11's plan-only updates.
+- Phase 12 is complete from phase base `spvuxxyn`:
+  `lint:crate-dependencies:check` is in `cli:check` and `lint:check`, and
+  both registration checklists carry the declaration step. With the edge
+  `jira-client` → `corpus-adapters` injected, `mise run check` failed only in
+  that lint, naming `jira-client -> corpus-adapters: rule 4`. Deviations from
+  the Phase 12 text:
+  - **README roll-up prose:** it named three of `cli:check`'s Python guards;
+    it now names all six.
+  - **Registration guard:** `_RESOLVES` also pins `_EXPECTED_DECLARATIONS`
+    in the test module and `COMPOSITION_ROOT` in the lint, so renaming
+    either reddens the checklist guard rather than leaving it stale.
+  - **Library checklist test:** `_section` takes the heading, rather than a
+    second section reader.
+- Next: Phase 13, re-measuring and recording the after figures.
 
 ### Phase 2 characterisation coverage
 
