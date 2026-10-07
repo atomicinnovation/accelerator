@@ -78,9 +78,10 @@ End in exactly one of these:
 - **Unavailable** — a call printed `"status":"unavailable"`. Write no file;
   your summary returns its `source`, `reason`, and any `cause`. A `cause` of
   `lock_contention` means the call's ticket passed its 900 s cap or the queue
-  could not be used; it ends the call like any other reason. Any other status
-  counts as Unavailable, with the status as its reason. If the Bash tool is
-  not granted at all, return "Bash unavailable".
+  could not be used; a ticket whose last call ran out of budget mid-retry
+  reports that retry's reason instead. Either way it ends the call like any
+  other reason. Any other status counts as Unavailable, with the status as its
+  reason. If the Bash tool is not granted at all, return "Bash unavailable".
 - **Failed** — a call exited `1`, or exited `2` with `E_ARXIV_TICKET_LIVE`
   when you have no other fetch running. Write no file; your summary returns
   the CLI's `E_*` line verbatim.

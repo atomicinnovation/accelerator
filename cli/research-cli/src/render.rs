@@ -74,8 +74,9 @@ pub fn rejection(fetched: &Fetched) -> Option<String> {
     })
 }
 
-/// The line naming the source, verb, final status and attempts of a call
-/// that did not deliver records.
+/// The line naming the source, verb and final status of a call that did not
+/// deliver records: with its attempts, or for a waiting call its position
+/// and the ticket to re-present.
 pub fn summary(fetched: &Fetched) -> Option<String> {
     let status = match &fetched.outcome {
         FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,

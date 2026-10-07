@@ -7,6 +7,7 @@ use std::rc::Rc;
 use research::sources::fetch::Clock;
 use research::sources::fetch::Contention;
 use research::sources::fetch::ContentionLog;
+use research::sources::queue;
 
 use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
@@ -45,7 +46,10 @@ impl ContentionLog for FileContentionLog {
         let (line, explanation) = match contention {
             Contention::TicketPastCap(ticket) => (
                 format!("{at} ticket_past_cap {ticket}"),
-                format!("ticket {ticket} waited past its 900 s cap"),
+                format!(
+                    "ticket {ticket} waited past its {} s cap",
+                    queue::CAP.as_secs()
+                ),
             ),
             Contention::QueueUnusable => (
                 format!("{at} queue_unusable"),

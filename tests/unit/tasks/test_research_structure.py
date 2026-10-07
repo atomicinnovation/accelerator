@@ -437,6 +437,15 @@ def test_arxiv_profile_runs_one_fetch_at_a_time_and_names_ticket_live() -> None:
     ), "the Failed outcome must cover a ticket live with no other fetch"
 
 
+def test_arxiv_profile_reports_a_mid_retry_reason_over_lock_contention() -> (
+    None
+):
+    assert (
+        "ran out of budget mid-retry reports that retry's reason instead"
+        in _arxiv_profile_prose()
+    )
+
+
 @pytest.mark.parametrize("family", sorted(ACADEMIC_FAMILIES))
 def test_profiles_treat_any_other_status_as_unavailable(family: str) -> None:
     assert (

@@ -44,4 +44,5 @@ fn recording_contention_appends_one_line_per_event_and_reports_it() {
         "{reported:?}"
     );
     assert!(reported[0].contains("42-9f1c2a"), "{reported:?}");
+    assert!(reported[0].contains("past its 900 s cap"), "{reported:?}");
 }

@@ -82,8 +82,9 @@ A source that cannot answer now:
 
 `authenticated` appears only for OpenAlex, which is how `conduct` tells a
 missing key from a spent one. A failed or unavailable call also writes one
-line to stderr naming the source, verb, final status, and attempt count, and
-never the key.
+line to stderr naming the source, verb, final status, and attempt count; a
+waiting call writes one naming its position and the `--ticket` to re-present.
+Neither line ever names the key.
 
 An arXiv call that could not be served in time keeps its place in the queue
 (see [Pacing](#pacing)):

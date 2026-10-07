@@ -170,7 +170,8 @@ impl Unavailable {
         }
     }
 
-    /// Another process held the source for longer than the deadline allowed.
+    /// The call's ticket passed its cap, or the queue could not be used, and
+    /// no upstream failure was left to report instead.
     pub const fn lock_contention() -> Self {
         Self {
             reason: Reason::RateLimited,

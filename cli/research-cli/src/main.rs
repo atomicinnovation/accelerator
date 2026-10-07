@@ -71,8 +71,8 @@ compile_error!("test-loopback must never be enabled in a release build");
 #[no_mangle]
 pub static ACCELERATOR_RESEARCH_TEST_LOOPBACK_MARKER: u8 = 0;
 
-/// Below Claude Code's default Bash timeout, so a throttled source reports
-/// itself unavailable rather than the call being killed.
+/// Below Claude Code's default Bash timeout, so a call that cannot finish in
+/// time prints its outcome, unavailable or waiting, rather than being killed.
 const CALL_BUDGET: Duration = Duration::from_secs(100);
 const REQUEST_BUDGET: Duration = Duration::from_secs(30);
 
