@@ -1541,16 +1541,16 @@ Under Implementation Notes:
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p work -p collaboration -p accelerator-collaboration --all-features` passes
-- [ ] Collaboration characterisation cases, origin present and absent included, unchanged and goldens untouched: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] `cargo metadata` shows neither edge; `rg -n 'config' cli/pup.ron` shows no `work` permission on `config`
-- [ ] `mise run pup:check`, `mise run public-api:check` pass
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p work -p collaboration -p accelerator-collaboration --all-features` passes
+- [x] Collaboration characterisation cases, origin present and absent included, unchanged and goldens untouched: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] `cargo metadata` shows neither edge; `rg -n 'config' cli/pup.ron` shows no `work` permission on `config`
+- [x] `mise run pup:check`, `mise run public-api:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Rule 3 outcomes recorded with upstream types named
+- [x] Rule 3 outcomes recorded with upstream types named
 
 ---
 
@@ -2120,8 +2120,36 @@ today through `consent-adapters` → `vcs-adapters`.
     run, with `E2E_HEALTH_PORT=19187`, exited 0.
 - Phase 10's manual check, `accelerator config` against a real Jira
   integration, is the author's to run.
-- Next: Phase 11, domain → domain dependencies. Its phase base is the commit
-  it starts from, after Phase 10's plan-only updates.
+- Phase 11 is complete from phase base `okyvmlxp`: `work` no longer depends
+  on `config`, and `collaboration` no longer depends on `vcs`.
+  `collaboration::RepositoryOrigin` replaces `vcs::OriginRemote` in the
+  domain, and `collaboration-cli`'s `VcsOrigin` delegates to
+  `InProcessProbe`. No golden changed. Deviations from the Phase 11 text:
+  - **`collaboration` pup rule:** `pup.ron` had no allow-list for
+    `collaboration`, so there was no `^vcs` to drop; the `cargo metadata`
+    edge removal is the enforcement.
+  - **`work` pup rule:** its comment lost the `config` justification along
+    with the `^config` permission.
+  - **Parameter names:** the domain functions' `origin_remote` parameter
+    became `origin`, matching the port.
+  - **`mise run`:** the first run failed only in the visualiser's
+    `api_smoke` test, whose server did not start within 30 s under load; it
+    passed alone in 0.2 s, and the visualiser links neither changed crate.
+    The second run, with `E2E_HEALTH_PORT=19187`, exited 0.
+- Rule 3 outcomes, with the upstream types each edge carries:
+  - **`work` → `corpus`:** justified. `work`'s public model is expressed in
+    `corpus::WorkItemIdScheme` and the `corpus::IdScanner` port
+    (`filter.rs`, `next_number.rs`, `resolve.rs`), and it uses
+    `corpus::canonicalise_id`, `corpus::references_key` and `corpus::Clock`.
+  - **`work` → `tracker`:** justified. `work`'s sync model is expressed in
+    `tracker::ExternalId`, `tracker::RemoteTimestamp` and the
+    `tracker::RemoteTracker` port (`sync/classify.rs`, `sync/plan.rs`,
+    `sync/push_precondition.rs`, `sync/mod.rs`).
+  - **`work` → `config`:** removed; no `config` type was named.
+  - **`collaboration` → `vcs`:** removed, behind
+    `collaboration::RepositoryOrigin`.
+- Next: Phase 12, wiring the lint into `check`. Its phase base is the commit
+  it starts from, after Phase 11's plan-only updates.
 
 ### Phase 2 characterisation coverage
 
@@ -2185,7 +2213,6 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ### Still to record
 
-- Rule 3 outcomes (Phase 11).
 - After figures and ratios (Phase 13).
 - Author decisions, if any gate tripped.
 
