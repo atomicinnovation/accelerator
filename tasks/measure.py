@@ -85,10 +85,9 @@ from tasks.shared.paths import (
     REPO_ROOT,
 )
 
-# --- Criterion constants --------------------------------------------------
-# Held in lockstep with `tasks/README.md`, bidirectionally: every constant
-# appears there and every number there resolves to a name here.
-
+# The criterion constants, held in lockstep with `tasks/README.md`'s
+# "Criterion constants" section, bidirectionally: every constant appears there
+# and every number there resolves to a name here.
 RESAMPLES = 10000
 CONFIDENCE = 0.95
 RATIO_THRESHOLD = 1.4
@@ -325,9 +324,6 @@ def criterion_constants() -> dict[str, float]:
     return constants
 
 
-# --- Artefact manifest ----------------------------------------------------
-
-
 @unique
 class ArtefactKind(StrEnum):
     """Every throwaway the harness creates.
@@ -392,9 +388,6 @@ class Manifest:
     def load(cls, path: Path) -> Manifest:
         payload = json.loads(path.read_text())
         return cls(**payload)
-
-
-# --- Ports ----------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -570,8 +563,6 @@ def ambient_diagnostic_runner(argv: Sequence[str]) -> str:
     return completed.stdout.strip()
 
 
-# --- The session ----------------------------------------------------------
-
 _UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 
 
@@ -611,8 +602,6 @@ class MeasurementSession:
         self.baseline: Baseline | None = None
         self.failures: list[str] = []
         self._previous_handlers: dict[int, object] = {}
-
-    # -- entry --
 
     def __enter__(self) -> Self:
         if self.manifest_path.exists():
@@ -712,16 +701,12 @@ class MeasurementSession:
     def _unverified_log(self) -> Path:
         return self.cache_root / ".accelerator-unverified.log"
 
-    # -- artefacts --
-
     def register_artefact(self, kind: ArtefactKind, path: Path) -> Path:
         """Record an artefact before creating it, and return its path."""
         resolved = Path(path).resolve()
         self.manifest.artefacts[str(kind)] = str(resolved)
         self.manifest.write(self.manifest_path)
         return resolved
-
-    # -- exit --
 
     def restore(self) -> None:
         """Remove every recorded artefact, containment-checked, then stop.
@@ -871,9 +856,6 @@ class MeasurementSession:
         return problems
 
 
-# --- Cells ----------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class Cell:
     name: str
@@ -1003,9 +985,6 @@ def classify_cell(
     return CellOutcome(cell.name, gates=cell.gates, branch=branch)
 
 
-# --- Fixture and farms ----------------------------------------------------
-
-
 def create_fixture(root: Path, *, runner: DiagnosticRunner) -> Path:
     """Create a pure-jj fixture, colocation pinned off and asserted.
 
@@ -1131,9 +1110,6 @@ def recover_baseline(
             )
     guard.chmod(0o755)
     return guard
-
-
-# --- Tasks ----------------------------------------------------------------
 
 
 def entry_platform() -> str:
@@ -2902,9 +2878,6 @@ def percentile_of(values: Sequence[float], quantile: float) -> float:
     return percentile(values, quantile)
 
 
-# --- Instrument floors, provenance and the composition budget -------------
-
-
 def measure_floors(
     runner: MeasurementRunner,
     *,
@@ -3155,8 +3128,6 @@ def jj_pin(plugin_root: Path) -> str:
     tools = tomllib.loads((plugin_root / "mise.toml").read_text())["tools"]
     return str(tools["jj"])
 
-
-# --- Launcher size and SessionStart summary latency -----------------------
 
 LAUNCHER_PACKAGE = "accelerator"
 LAUNCHER_TARGET = "aarch64-apple-darwin"

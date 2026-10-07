@@ -5,10 +5,10 @@
 //! bytes and the publishing rename are both fsynced, so a committed write
 //! survives a crash.
 //!
-//! Infrastructure only: depends on std, `tempfile`, `rustix` and `rand`, and on
-//! `kernel` for naming constants alone. Every consumer translates
-//! [`WriteError`] and [`lock::LockError`] into its own taxonomy, so this crate
-//! never produces a `kernel::Error`.
+//! Infrastructure only: of the workspace crates it depends on `kernel` alone,
+//! for naming constants. Every consumer translates [`WriteError`] and
+//! [`lock::LockError`] into its own taxonomy, so this crate never produces a
+//! `kernel::Error`.
 
 pub mod lock;
 

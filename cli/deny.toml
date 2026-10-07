@@ -100,9 +100,9 @@ confidence-threshold = 0.8
 # rides the dist/release/accelerator-* SLSA provenance glob like every other
 # published asset.
 #
-# The visualiser still links none of it, so its original exception
-# rationale stands unchanged. Re-check when accelerator-visualiser's normal
-# dependency graph gains vcs-adapters.
+# The visualiser links none of it, so the obligation does not reach it.
+# Re-check when accelerator-visualiser's normal dependency graph gains
+# vcs-adapters.
 #
 # Verify by symbol count, not by string literal: `extensions.objectFormat`
 # (gix) and `There is no Jujutsu repo` (jj-lib) prove presence when found, but
