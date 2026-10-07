@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-const HEALTH_PORT = Number(process.env.E2E_HEALTH_PORT ?? 19087);
+const ALLOCATED_HEALTH_PORT = process.env.E2E_HEALTH_PORT;
+const HEALTH_PORT = Number(ALLOCATED_HEALTH_PORT ?? 19087);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -41,9 +42,12 @@ export default defineConfig({
   ],
   webServer: {
     command: "node e2e/start-server.mjs",
-    // Health server (fixed port) returns 200 once the real server is up.
+    // Health server returns 200 once the real server is up.
     url: `http://127.0.0.1:${HEALTH_PORT}`,
-    reuseExistingServer: !process.env.CI,
+    // A port allocated for this run has nothing legitimate to reuse; refusing
+    // reuse makes a port stolen since allocation fail loudly instead of
+    // pointing these specs at another checkout's server.
+    reuseExistingServer: !process.env.CI && ALLOCATED_HEALTH_PORT === undefined,
     timeout: 60_000,
     stdout: "pipe",
     stderr: "pipe",
