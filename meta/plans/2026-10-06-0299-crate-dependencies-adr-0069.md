@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T10:50:26+00:00"
+last_updated: "2026-10-07T10:59:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1153,14 +1153,19 @@ new capabilities.
   - `document::split` in `canonicalise` and `detect_loss` becomes
     `ctx.frontmatter_text(..)`;
   - each failure keeps today's `at(path, &error.to_string())` text.
-- m0008's in-crate unit tests keep only control flow over a stub context
-  (abort writes nothing, unchanged files are skipped, loss is reported). The
-  YAML-dependent cases move to `migrate-adapters/tests/m0008.rs`, which runs
-  `Migration0008` against `FileMigrationContext` composed with
-  `YamlFrontmatter`. These cases are `a_value_retyping_re_render_aborts_and_writes_nothing`,
-  `re_rendering_is_a_byte_level_fixed_point`,
-  `a_block_linkage_sequence_with_colons_reflows_to_quoted_flow` and the
-  `detect_loss` cases.
+- m0008's in-crate unit tests run over a stub context that renders through
+  an explicit table and reads a value as the fenced text without quotes or
+  comment lines. They pin control flow (written in place, unchanged files
+  skipped, a value change or render failure aborts and writes nothing, a
+  residual violation aborts, config skips the corpus standard, only `meta/`
+  originals reach realignment, enumeration) and keep the `detect_loss` cases,
+  whose predicate is domain logic. The YAML-dependent cases move to
+  `migrate-adapters/tests/m0008.rs`, which runs `Migration0008` against
+  `FileMigrationContext` composed with `YamlFrontmatter`: the bare-document,
+  block-linkage, untyped-config, value-retyping and dropped-comment cases, and
+  `re_rendering_is_a_byte_level_fixed_point`.
+- m0001 gains a stub-context test each for a config the context refuses to
+  parse and one it parses.
 - `SessionLogFactory::for_migration` returns `Box<dyn SessionLog + '_>`, so
   a factory can lend its injected collaborators to the logs it builds.
   Existing test doubles compile unchanged under elision.
@@ -1221,10 +1226,11 @@ pub trait SyncBaselines {
   `corpus::frontmatter_validation::pipeline` (Phase 8), with `RealFs` and
   `YamlFrontmatter`; it switches to the injected walker, reader and parser.
   `canonicalise_work_item_id` calls the injected canonicaliser, whose
-  `CanonicaliseError` text matches today's `PatternError` text. `corpus_index.rs` uses the injected walker and
-  reader.
-- `VcsWorkingCopy` holds a `&dyn vcs::RepositoryProbe` and calls
-  `working_copy_state`.
+  `CanonicaliseError` text matches today's `PatternError` text.
+  `FileCorpusIndex::build` takes the injected walker; the index reads file
+  names, not contents.
+- `VcsWorkingCopy` holds a `&dyn vcs::WorkingCopyStateProbe`, the only port it
+  calls, and `migrate-cli` injects `InProcessProbe`.
 - `session_log_factory.rs`:
   - takes `&dyn corpus::RecordStore` and `&dyn corpus::Clock`, and returns
     logs that borrow them;
@@ -1237,11 +1243,18 @@ pub trait SyncBaselines {
   - the factory maps `Io { detail, .. }` and `Validation { detail }` to
     `MigrationError::new(detail)`, dropping `StoreError`'s prefixes, so each
     message matches today's. Red tests pin each arm's exact text;
-  - `check_schema_version` stays in the factory.
+  - `check_schema_version` stays in the factory, after `read_records` has
+    parsed the whole file.
 - `session_log.rs`'s `FileSessionLogRewriter` and the `SessionLogRewriter`
-  port are deleted, since no root constructs them.
+  port are deleted, since no root constructs them; the module keeps
+  `session_log_path`.
 - `migrate-adapters` drops `config-adapters`, `vcs-adapters`,
-  `corpus-adapters` and `work-adapters`.
+  `corpus-adapters`, `work-adapters` and `time`, and gains `document`.
+  `config-adapters`, `corpus-adapters` and `vcs-adapters` stay as
+  dev-dependencies for the composition tests (`tests/common/mod.rs`,
+  `tests/context.rs`, `tests/m0008.rs`, `tests/working_copy.rs`).
+  `tests/context.rs` also pins how the context resolves a relative, absolute
+  or absent `paths.integrations` before calling `SyncBaselines`.
 
 #### 4. `migrate-cli` composition
 
@@ -1256,8 +1269,10 @@ pub trait SyncBaselines {
   - `FileCorpusStore`, `SystemClock::with_offset(UtcOffset::UTC)` and
     `InProcessProbe`.
 - The loop of `context.rs:297-413` and `realign_one_baseline` move to
-  `work-adapters`, with their unit tests, so the work context owns what
-  realigning a baseline means:
+  `work_adapters::sync::realign`, so the work context owns what realigning a
+  baseline means. They had no unit tests; `work-adapters/tests/sync_realign.rs`
+  pins the synced, diverged, unchanged-digest, absent-baseline,
+  per-directory-writer, listing-error and baseline-error cases:
 
   ```rust
   pub fn realign_baselines(
@@ -1280,15 +1295,19 @@ pub trait SyncBaselines {
   `writer_at` builds a writer rooted at each baseline's own directory, as
   today's per-integration `FileCorpusStore::new(parent)` does. That keeps an
   absolute `paths.integrations` outside the repository writable, and it
-  keeps `work-adapters` free of `corpus-adapters`.
+  keeps `work-adapters` free of `corpus-adapters`. The re-rendered file is
+  read through `reader`, and an integration with no `last-sync.json` loads as
+  an empty baseline rather than being skipped by an `exists()` check.
 - `WorkSyncBaselines` in `migrate-cli` implements `SyncBaselines` by calling
   `realign_baselines` with `&RealFs` and
   `&|dir| Box::new(FileCorpusStore::new(dir))`, and maps `RealignError` into
-  `MigrationError` with today's text. A `migrate-cli` unit test pins that
-  mapping over an unreadable and a malformed `last-sync.json`. Only
-  `migrate-cli` names both `work` and `migrate`.
+  `MigrationError` with today's text. `migrate-cli` unit tests pin that an
+  unreadable `last-sync.json` fails with its store error text, a malformed
+  one realigns nothing and is left alone, and an unlistable root fails with
+  the I/O text. Only `migrate-cli` names both `work` and `migrate`.
 - `migrate-cli` depends on `corpus-adapters`, `vcs-adapters`, `work-adapters`,
-  `config` and `corpus`; `work-adapters` moves from dev to normal.
+  `corpus` and `time`; `work-adapters` moves from dev to normal. It names no
+  `config` type, so it takes no `config` dependency.
 
 ### Success Criteria:
 
@@ -1693,6 +1712,12 @@ the diff.
 - `vcs-adapters` port contract tests in git and jj for every
   `RepositoryTracking` and `RepositoryProbe` method, including the corrupted
   index and a nested repository.
+- `corpus-adapters` store tests for `RecordStore::read_records`: file order,
+  absent file, skipped empty lines, and the I/O, UTF-8 and record-parse
+  error texts.
+- `migrate-adapters` composition tests: m0008 over `YamlFrontmatter`, parser
+  and emitter agreeing over every root class, and the integrations-root
+  resolution in front of `SyncBaselines`.
 - `corpus-adapters` contract tests for `YamlFrontmatter` over every root class
   and for `PatternCanonicaliser` over every `PatternError` arm
   `canonicalise_id` returns, plus the composition test with the domain
