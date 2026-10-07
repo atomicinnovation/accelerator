@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T08:54:18+00:00"
+last_updated: "2026-10-07T09:26:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1294,12 +1294,12 @@ pub trait SyncBaselines {
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p migrate -p migrate-adapters -p accelerator-migrate -p corpus-adapters -p work-adapters --all-features` passes
-- [ ] Migration characterisation cases byte-identical, goldens untouched: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] Known-violation set loses `migrate` → `document` and the five `migrate-adapters` findings: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run pup:check`, `mise run public-api:check` pass
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p migrate -p migrate-adapters -p accelerator-migrate -p corpus-adapters -p work-adapters --all-features` passes
+- [x] Migration characterisation cases byte-identical, goldens untouched: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] Known-violation set loses `migrate` → `document` and the five `migrate-adapters` findings: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run pup:check`, `mise run public-api:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1991,11 +1991,38 @@ today through `consent-adapters` → `vcs-adapters`.
     `resolved-styles` specs hit `page.goto: net::ERR_ABORTED` on their first
     navigation. The lane then passed alone (355 passed), and every other lane
     passed in the full run, the 541 characterisation cases included.
-- Next: Phase 9, `migrate` and `migrate-adapters` through ports. Its phase
-  base is the commit it starts from, after Phase 8's plan-only updates; no
-  golden differs from the Phase 8 commit `mttrrpzr`. Phase 9 consumes
-  `FrontmatterParser::parse_value` and `split_frontmatter`, which no
-  production code calls yet, and `WorkItemIdCanonicaliser`.
+- Phase 9 is complete from phase base `nyrymzxs`: `migrate` reaches
+  frontmatter only through `MigrationContext`, `migrate-adapters` reaches
+  config, corpus, VCS and sync baselines only through injected ports, and
+  `migrate-cli` composes them. The lint reports 1 known finding. The 541
+  characterisation cases pass with no golden changed. Deviations from the
+  Phase 9 text:
+  - **`VcsWorkingCopy`:** holds the narrower `vcs::WorkingCopyStateProbe`,
+    the only port it calls.
+  - **m0008 tests:** the `detect_loss` cases stay in `migrate` over a
+    fence-splitting stub, since the loss predicate is domain logic and its
+    `0008-LOSSY` line is not observable from an adapter test. The domain
+    suite pins control flow (written, unchanged, value change, render
+    failure, residual violation, config, realignment input, enumeration).
+    `migrate-adapters/tests/m0008.rs` holds the YAML-dependent cases and
+    pins that parser and emitter agree over every root class and share the
+    unterminated-fence text.
+  - **`FileCorpusIndex::build`:** takes the walker alone; the index reads
+    file names, not contents.
+  - **`migrate-cli` dependencies:** no `config`, since it names no `config`
+    type; `time` for the session log's UTC clock.
+  - **Session-log read order:** `read_records` parses the whole file before
+    the schema-version check, so a file with both a malformed line and an
+    unknown `schema_version` now reports the parse error first. Every
+    single-fault message is unchanged and pinned.
+  - **Realignment:** an integration with no `last-sync.json` now loads as an
+    empty baseline through the injected reader instead of being skipped by
+    an `exists()` check; both realign nothing and write nothing.
+  - **`FileCorpusStore::replace_locked`:** has no production caller once the
+    rewriter is gone; it stays, with its tests.
+  - **`mise run`:** green in one run with `E2E_HEALTH_PORT=19187`.
+- Next: Phase 10, catalogue describes tracker blocks. Its phase base is the
+  commit it starts from, after Phase 9's plan-only updates.
 
 ### Phase 2 characterisation coverage
 
