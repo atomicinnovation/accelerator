@@ -1669,16 +1669,16 @@ the diff.
 
 #### Automated Verification:
 
-- [ ] `mise run deny:check` and `mise run notices:check` pass
-- [ ] `uv run pytest tests/unit/tasks/test_vcs_pin_lockstep.py` passes
-- [ ] `mise run` exits 0
+- [x] `mise run deny:check` and `mise run notices:check` pass
+- [x] `uv run pytest tests/unit/tasks/test_vcs_pin_lockstep.py` passes
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Symbol-count table matches the measured counts for every binary
-- [ ] Binaries named as carrying the MPL-2.0 obligation are exactly those linking `uluru`
+- [x] Symbol-count table matches the measured counts for every binary
+- [x] Binaries named as carrying the MPL-2.0 obligation are exactly those linking `uluru`
 - [ ] After figures and ratios recorded; no ratio ≥ 10, or a recorded decision
-- [ ] Visualiser links none of `gix`, `jj-lib`, `uluru`, or a recorded decision
+- [x] Visualiser links none of `gix`, `jj-lib`, `uluru`, or a recorded decision
 
 ---
 
@@ -1837,6 +1837,58 @@ Before symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
 `deny.toml` is already stale: it records `design`, `linear` and `jira` as
 linking none of the three and omits `research`, but all four link the closure
 today through `consent-adapters` → `vcs-adapters`.
+
+### Phase 13 after figures
+
+Host: Mac16,5, macOS 26.3 (arm64), the Phase 1 host, at the tree of
+`zksrnost` plus Phase 13's `deny.toml` change.
+
+- Launcher size, stripped `--release`, `aarch64-apple-darwin`:
+  **16 667 568 bytes**, ratio **2.07** against 8 065 488. Taken at load
+  74.28 / 75.79 / 49.68; size does not depend on load.
+- Summary latency, same arguments as Phase 1. The task's own load reading was
+  46.94 / 54.92 / 46.58, taken straight after its release build; the
+  1-minute load had been 12.32 just before. IntelliJ (~470 % CPU) and
+  Spotlight (~155 %) were active.
+
+  | Repository | Mode | Median | p90 | Median ratio |
+  |---|---|---|---|---|
+  | git | cold | 6.56 ms | 7.09 ms | 0.21 |
+  | git | warm | 5.71 ms | 6.57 ms | 0.18 |
+  | jj | cold | 7.07 ms | 7.62 ms | 0.22 |
+  | jj | warm | 7.04 ms | 8.52 ms | 0.23 |
+  | colocated jj | cold | 6.93 ms | 8.20 ms | 0.21 |
+  | colocated jj | warm | 7.35 ms | 7.89 ms | 0.22 |
+  | large jj | cold | 8.68 ms | 9.26 ms | 0.25 |
+  | large jj | warm | 7.37 ms | 8.52 ms | 0.20 |
+
+  Every median dropped below Phase 1's ~11 ms fast mode: the summary no longer
+  spawns `accelerator-vcs`, and in-process tracking of the 4587-entry
+  repository costs ~1–2 ms over the fixtures.
+- Symbol counts, unstripped `--release`, `aarch64-apple-darwin`,
+  `nm -a | grep -c`:
+
+  | Binary | `gix_` | `jj_lib` | `uluru` |
+  |---|---|---|---|
+  | `accelerator` | 1662 | 2896 | 3 |
+  | `accelerator-verify` | 0 | 0 | 0 |
+  | `accelerator-vcs` | 2271 | 2907 | 3 |
+  | `accelerator-work` | 2182 | 3003 | 3 |
+  | `accelerator-corpus` | 2177 | 2929 | 3 |
+  | `accelerator-collaboration` | 1679 | 2899 | 3 |
+  | `accelerator-migrate` | 2167 | 2893 | 3 |
+  | `accelerator-design` | 1688 | 2912 | 3 |
+  | `accelerator-linear` | 1678 | 2899 | 3 |
+  | `accelerator-jira` | 1678 | 2899 | 3 |
+  | `accelerator-research` | 1678 | 2899 | 3 |
+  | `accelerator-visualiser` | 0 | 0 | 0 |
+
+  The launcher gains the closure through in-process tracking.
+  `accelerator-corpus` already linked all three; its `gix_` count rose from
+  546 to 2177 once it composed `InProcessProbe` behind the `vcs` repository
+  ports. The visualiser
+  links none of the three, so its gate did not trip.
+- Warm dispatch: pending the prerelease.
 
 ### Progress
 
@@ -2165,7 +2217,29 @@ today through `consent-adapters` → `vcs-adapters`.
     either reddens the checklist guard rather than leaving it stale.
   - **Library checklist test:** `_section` takes the heading, rather than a
     second section reader.
-- Next: Phase 13, re-measuring and recording the after figures.
+- Phase 13 is under way from phase base `zksrnost`: `deny.toml` records every
+  binary's symbol counts and names the ten binaries that link `uluru`, and the
+  launcher size and summary latency are taken. `notices:update` left the
+  artefact unchanged. Deviations from the Phase 13 text:
+  - **Re-check trigger:** the visualiser exception's trigger named
+    `vcs_adapters::facts` and `derive_at`, but the closure now arrives through
+    any `vcs-adapters` edge, so the trigger names that edge.
+  - **Visualiser watch registration:** three full runs failed only in
+    `api_smoke`. Its server log showed the first recursive `FSEvents` watch
+    taking 22 s, and `server::run` registered every watch before
+    `axum::serve`, so a server that had published `server-info.json` accepted
+    nothing for over 30 s. With the author, `watcher::spawn` now registers on
+    a blocking thread behind a `DirectoryWatcher` port, and `Watching`
+    exposes `registered()`. A held-registration test pins that starting does
+    not wait. `sse_e2e.rs` rewrites until the event arrives, within a 300 s
+    budget, because the first response no longer implies watching; in full
+    runs registration has taken minutes. `api_smoke` reports the server's
+    exit status and log when unreachable. Back to back, the visualiser lib
+    suite took 137.6 s before and 63.5 s after; full-run lib suites vary
+    from 258 s to 892 s with `FSEvents` load. `mise run` then exited 0.
+  - **Remaining:** the signed prerelease, which needs
+    `ACCELERATOR_RELEASE_SECRET_KEY`, and warm dispatch against it, which
+    refuses while any other Claude Code session runs, are the author's to run.
 
 ### Phase 2 characterisation coverage
 
@@ -2229,7 +2303,7 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ### Still to record
 
-- After figures and ratios (Phase 13).
+- Warm-dispatch after figure and its C1 ratio against 44.00 ms (Phase 13).
 - Author decisions, if any gate tripped.
 
 ## References

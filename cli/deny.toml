@@ -73,29 +73,36 @@ confidence-threshold = 0.8
 # §3.2 corresponding-source statement naming its repository and crates.io
 # source; that discharges the obligation.
 #
-# Measured across the dispatched sub-binaries, unstripped --release,
+# Measured across every shipped binary, unstripped --release,
 # aarch64-apple-darwin, by counting `gix_`/`jj_lib`/`uluru` symbols:
 #
-#   accelerator-vcs, -work, -collaboration, -migrate  uluru linked
-#   accelerator-corpus                                uluru linked
-#   accelerator-visualiser                            no gix, jj-lib or uluru
-#   accelerator-design, -linear, -jira                no gix, jj-lib or uluru
+#   binary                      gix_   jj_lib  uluru
+#   accelerator                 1662     2896      3
+#   accelerator-verify             0        0      0
+#   accelerator-vcs             2271     2907      3
+#   accelerator-work            2182     3003      3
+#   accelerator-corpus          2177     2929      3
+#   accelerator-collaboration   1679     2899      3
+#   accelerator-migrate         2167     2893      3
+#   accelerator-design          1688     2912      3
+#   accelerator-linear          1678     2899      3
+#   accelerator-jira            1678     2899      3
+#   accelerator-research        1678     2899      3
+#   accelerator-visualiser         0        0      0
 #
-# The linear and jira sub-binaries carry the reqwest/rustls tree only, riding
-# the existing permissive allow; they add no copyleft closure.
+# Every composition root that answers a VCS question in-process links the
+# closure: the launcher for SessionStart tracking, the consent-reading roots
+# (design, linear, jira, research) through config-adapters' injected
+# repository tracking. So the notice obligation is live for accelerator,
+# accelerator-vcs, -work, -corpus, -collaboration, -migrate, -design, -linear,
+# -jira and -research, discharged by accelerator-third-party-notices.txt in the
+# release upload set. That file ships unsigned — it is not a trust anchor — but
+# rides the dist/release/accelerator-* SLSA provenance glob like every other
+# published asset.
 #
-# The first four are a pre-existing finding, not a new one: each constructs
-# InProcessProbe directly, and each already carried the closure before the
-# metadata-read path moved onto it. accelerator-corpus is the one this switch
-# caused — it carried none of the three before and carries all of them after.
-# So the notice obligation is live today for five shipped binaries, discharged
-# by accelerator-third-party-notices.txt in the release upload set. That file
-# ships unsigned — it is not a trust anchor — but rides the dist/release/
-# accelerator-* SLSA provenance glob like every other published asset.
-#
-# The visualiser alone still links none of it, so its original exception
-# rationale stands unchanged. Re-check when any code under
-# cli/visualiser/server calls vcs_adapters::facts or derive_at.
+# The visualiser still links none of it, so its original exception
+# rationale stands unchanged. Re-check when accelerator-visualiser's normal
+# dependency graph gains vcs-adapters.
 #
 # Verify by symbol count, not by string literal: `extensions.objectFormat`
 # (gix) and `There is no Jujutsu repo` (jj-lib) prove presence when found, but
