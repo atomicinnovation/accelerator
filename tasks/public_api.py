@@ -74,7 +74,7 @@ _EXEMPT_MEMBERS = {
     "work-cli": _COMPOSITION_ROOT,
     "launcher": (
         f"{_COMPOSITION_ROOT}. Its dispatch surface is pinned instead by the"
-        " thirteen-point registration guard and the bootstrap tests"
+        " fourteen-point registration guard and the bootstrap tests"
     ),
     "verify": "a bin-only crate: it exposes no library surface at all",
     "visualiser/server": (

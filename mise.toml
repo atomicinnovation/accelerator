@@ -672,7 +672,7 @@ run = "invoke lint.claude-coupling.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -734,7 +734,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

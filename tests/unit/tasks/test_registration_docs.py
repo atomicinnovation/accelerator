@@ -21,6 +21,7 @@ from tasks.shared.sources import repo_root
 REPO_ROOT = repo_root()
 README = REPO_ROOT / "tasks/README.md"
 HEADING = "## Registering a dispatched sub-binary"
+LIBRARY_HEADING = "## Registering a library crate"
 ANCHOR = "tasks/README.md#registering-a-dispatched-sub-binary"
 
 # Closed set. The predicate is not decidable in general, so section and test are
@@ -50,6 +51,8 @@ _NAMED = (
     "accelerator-<token>",
     "ACCELERATOR_<TOKEN>_BIN",
     "same change",
+    "[package.metadata.accelerator]",
+    "_EXPECTED_DECLARATIONS",
 )
 
 # Every source the section attributes something to, and the thing it attributes.
@@ -82,6 +85,8 @@ _RESOLVES = (
         "ACCELERATOR_VISUALISER_BIN",
     ),
     ("tasks/CLAUDE.md", ANCHOR),
+    ("tests/unit/tasks/test_crate_dependencies.py", "_EXPECTED_DECLARATIONS"),
+    ("tasks/lint/crate_dependencies.py", "COMPOSITION_ROOT"),
 )
 
 _EXISTS = (
@@ -91,10 +96,10 @@ _EXISTS = (
 )
 
 
-def _section() -> str:
+def _section(heading: str = HEADING) -> str:
     text = README.read_text()
-    start = text.index(HEADING)
-    end = text.index("\n## ", start + len(HEADING))
+    start = text.index(heading)
+    end = text.index("\n## ", start + len(heading))
     return text[start:end]
 
 
@@ -107,20 +112,20 @@ def test_the_section_exists() -> None:
     assert HEADING in README.read_text()
 
 
-def test_the_checklist_has_thirteen_points() -> None:
-    assert len(_items()) == 13
+def test_the_checklist_has_fourteen_points() -> None:
+    assert len(_items()) == 14
 
 
-@pytest.mark.parametrize("index", range(13))
+@pytest.mark.parametrize("index", range(14))
 def test_each_item_opens_with_an_action_or_declines_one(index: int) -> None:
     first_line = _items()[index].splitlines()[0]
     # Every item is written `1. **Add** …`, so the emphasis strip is part of
-    # the contract — a bare startswith would match none of the thirteen.
+    # the contract — a bare startswith would match none of the fourteen.
     stripped = first_line.lstrip("*")
     assert stripped.startswith(_VERBS) or "No action when" in _items()[index]
 
 
-@pytest.mark.parametrize("index", range(13))
+@pytest.mark.parametrize("index", range(14))
 def test_each_item_carries_exactly_one_surfacing_tag(index: int) -> None:
     item = _items()[index]
     assert sum(item.count(tag) for tag in _TAGS) == 1
@@ -129,6 +134,10 @@ def test_each_item_carries_exactly_one_surfacing_tag(index: int) -> None:
 @pytest.mark.parametrize("named", _NAMED)
 def test_the_section_names_each_registration_point(named: str) -> None:
     assert named in _section()
+
+
+def test_the_library_checklist_names_the_role_declaration() -> None:
+    assert "[package.metadata.accelerator]" in _section(LIBRARY_HEADING)
 
 
 @pytest.mark.parametrize(("path", "named"), _RESOLVES)

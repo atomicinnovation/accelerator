@@ -412,7 +412,7 @@ def test_the_shipped_declarations_match_the_expected_table() -> None:
     assert declared == _EXPECTED_DECLARATIONS
 
 
-def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
+def test_the_shipped_workspace_is_clean() -> None:
     assert [
         str(f) for f in crate_dependencies.findings(workspace_packages())
     ] == []

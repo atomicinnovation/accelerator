@@ -31,11 +31,13 @@ members join enforcement with no per-member wiring. `format:cli:*` and
 rust `components` field is silently skipped for an already-present toolchain, so
 rustfmt/clippy are provisioned explicitly. `lint:cli:fix` applies only clippy's
 machine-rewritable subset (lints such as `unwrap_used` cannot be auto-fixed), so
-`cli:check` must still be run for the remainder. It also folds three Python
+`cli:check` must still be run for the remainder. It also folds six Python
 guards over the same tree — `lint:vendor-shims:check`,
-`lint:store-duplication:check` and `lint:claude-coupling:check`. Those three are
-wired into `lint:check` as well: `cli:check` is what CI runs, but the bare
-`default` task depends on `lint:check` and not on `check`, so a `cli:check`-only
+`lint:store-duplication:check`, `lint:claude-coupling:check`,
+`lint:vcs-settings:check`, `lint:config-test-support:check` and
+`lint:crate-dependencies:check`. All six are wired into `lint:check` as well:
+`cli:check` is what CI runs, but the bare `default` task depends on
+`lint:check` and not on `check`, so a `cli:check`-only
 guard stays green in a full local run however badly its invariant is broken.
 `tests/unit/tasks/test_mise.py` pins both placements. `build-system:check`
 carries `lint:dispatch-coherence:check` under the same reasoning: it is a
@@ -702,6 +704,12 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
 13. **Extend** `cli/deny.toml` when the new crate's dependency graph needs a
     licence or advisory exception, with a comment giving the justification. **No
     action when** `mise run deny:check` is already green. **[PR]**
+14. **Add** the crate's `[package.metadata.accelerator]` declaration, with
+    `role = "composition-root"`, and its row in
+    `tests/unit/tasks/test_crate_dependencies.py`'s `_EXPECTED_DECLARATIONS`
+    table. `lint:crate-dependencies:check` (`tasks/lint/crate_dependencies.py`)
+    rejects an undeclared member and any normal or build dependency the role
+    forbids. **[PR]**
 
 Points 1, 2, 3, 4, 7 and 8 must land in the **same change**. The release path
 resolves them together, and only the 1↔7 pair is caught before the release job —
@@ -755,7 +763,7 @@ is the worked example.
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
-owes five things. `cli/tracker/` is the worked example.
+owes six things. `cli/tracker/` is the worked example.
 
 - **Workspace membership.** Add the directory to `[workspace].members` in
   `cli/Cargo.toml`, then sync the lockfile with `cargo metadata
@@ -768,6 +776,13 @@ owes five things. `cli/tracker/` is the worked example.
   version passes the coherence check today and breaks at the next bump; a
   missing `[lints]` table silently exempts the crate from every lint the rest
   of the workspace is held to.
+- **A role declaration.** Add `[package.metadata.accelerator]` with the
+  crate's `role`, plus its `context` for a domain or adapter, and the
+  context's `kind` and `downstreams` where the context is new. Add the same
+  row to `_EXPECTED_DECLARATIONS` in
+  `tests/unit/tasks/test_crate_dependencies.py`.
+  `lint:crate-dependencies:check` rejects an undeclared member, and any
+  normal or build dependency the declared role forbids.
 - **A `cli/pup.ron` rule.** Nothing derives architectural enforcement from
   membership, so a crate without a rule has none and no check reports it
   missing.

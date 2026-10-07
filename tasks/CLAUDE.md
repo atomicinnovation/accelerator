@@ -9,7 +9,7 @@
   minimal update, never `generate-lockfile`). Clippy runs `--locked`, so drift
   there surfaces as an unrelated-looking Rust failure;
   `tests/unit/tasks/test_version.py` guards it by name instead.
-- Registering a new dispatched sub-binary is a thirteen-point surface — see
+- Registering a new dispatched sub-binary is a fourteen-point surface — see
   `tasks/README.md#registering-a-dispatched-sub-binary` before adding one.
   Registering a plain library crate is a smaller surface — see
   `tasks/README.md#registering-a-library-crate`. Adding a subcommand to an
