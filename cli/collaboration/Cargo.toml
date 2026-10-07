@@ -16,4 +16,3 @@ workspace = true
 
 [dependencies]
 kernel = { path = "../kernel" }
-vcs = { path = "../vcs" }

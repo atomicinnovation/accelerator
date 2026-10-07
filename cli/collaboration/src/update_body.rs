@@ -2,14 +2,12 @@
 
 use std::path::Path;
 
-use vcs::origin_remote::OriginRemote;
-
 use crate::base_repo::{
     resolve_base_repository, BaseRepoFailure, BaseRepoOutcome,
 };
 use crate::{
     ForgeApiError, PullRequestBodyUpdate, PullRequestExistence,
-    RemoteUrlRecognizer, RepositoryLookup,
+    RemoteUrlRecognizer, RepositoryLookup, RepositoryOrigin,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +31,7 @@ pub enum UpdateBodyOutcome {
 #[allow(clippy::too_many_arguments)]
 pub fn update_pull_request_body(
     root: &Path,
-    origin_remote: &dyn OriginRemote,
+    origin: &dyn RepositoryOrigin,
     recognizer: &dyn RemoteUrlRecognizer,
     repository_lookup: &dyn RepositoryLookup,
     pull_request_existence: &dyn PullRequestExistence,
@@ -43,7 +41,7 @@ pub fn update_pull_request_body(
 ) -> Result<UpdateBodyOutcome, kernel::Error> {
     let base = match resolve_base_repository(
         root,
-        origin_remote,
+        origin,
         recognizer,
         repository_lookup,
         pull_request_existence,
@@ -65,18 +63,16 @@ pub fn update_pull_request_body(
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use vcs::origin_remote::OriginRemote;
-
     use super::{update_pull_request_body, UpdateBodyOutcome};
     use crate::base_repo::BaseRepoFailure;
     use crate::{
         ForgeApiError, OwnerRepo, PullRequestBodyUpdate, PullRequestExistence,
-        RemoteUrlRecognizer, RepositoryLookup,
+        RemoteUrlRecognizer, RepositoryLookup, RepositoryOrigin,
     };
 
-    struct FixedOriginRemote(Result<Option<&'static str>, &'static str>);
+    struct FixedRepositoryOrigin(Result<Option<&'static str>, &'static str>);
 
-    impl OriginRemote for FixedOriginRemote {
+    impl RepositoryOrigin for FixedRepositoryOrigin {
         fn origin_url(
             &self,
             _root: &Path,
@@ -90,8 +86,8 @@ mod tests {
         }
     }
 
-    fn configured_origin() -> FixedOriginRemote {
-        FixedOriginRemote(Ok(Some(
+    fn configured_origin() -> FixedRepositoryOrigin {
+        FixedRepositoryOrigin(Ok(Some(
             "https://example.test/candidate-owner/candidate-repo",
         )))
     }
@@ -165,7 +161,7 @@ mod tests {
 
     #[allow(clippy::too_many_arguments)]
     fn update(
-        origin_remote: &dyn OriginRemote,
+        origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
         repository_lookup: &dyn RepositoryLookup,
         pull_request_existence: &dyn PullRequestExistence,
@@ -173,7 +169,7 @@ mod tests {
     ) -> Result<UpdateBodyOutcome, kernel::Error> {
         update_pull_request_body(
             &PathBuf::from("/repo"),
-            origin_remote,
+            origin,
             recognizer,
             repository_lookup,
             pull_request_existence,
@@ -186,7 +182,7 @@ mod tests {
     #[test]
     fn a_missing_origin_remote_propagates_as_a_kernel_error() {
         let result = update(
-            &FixedOriginRemote(Ok(None)),
+            &FixedRepositoryOrigin(Ok(None)),
             &recognizes_candidate(),
             &no_parent(),
             &pr_exists(),

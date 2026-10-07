@@ -785,7 +785,6 @@ name = "collaboration"
 version = "1.24.0-pre.74"
 dependencies = [
  "kernel",
- "vcs",
 ]
 
 [[package]]
@@ -5720,7 +5719,6 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 name = "work"
 version = "1.24.0-pre.74"
 dependencies = [
- "config",
  "corpus",
  "kernel",
  "serde_json",

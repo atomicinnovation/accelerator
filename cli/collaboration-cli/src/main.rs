@@ -19,6 +19,7 @@ use collaboration::PullRequestBodyUpdate;
 use collaboration::PullRequestExistence;
 use collaboration::RepositoryDetails;
 use collaboration::RepositoryLookup;
+use collaboration::RepositoryOrigin;
 use config::consent::CommandPolicy;
 use config::ConfigAccess;
 use config_adapters::compose;
@@ -147,6 +148,14 @@ fn build_blocking_client(
     Ok(BlockingGitHubClient { runtime, client })
 }
 
+struct VcsOrigin<'a>(&'a dyn vcs::origin_remote::OriginRemote);
+
+impl RepositoryOrigin for VcsOrigin<'_> {
+    fn origin_url(&self, root: &Path) -> Result<Option<String>, kernel::Error> {
+        self.0.origin_url(root)
+    }
+}
+
 /// `Transport`/`Malformed` carry an already-formatted, human-readable
 /// string; only `Status` has a separate numeric field to interpolate.
 fn render_forge_api_error(error: &ForgeApiError) -> String {
@@ -182,12 +191,12 @@ fn run_base_repo(pull_number: u64) -> Result<(), kernel::Error> {
     composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
     let client = build_blocking_client(&start, service)?;
-    let origin_remote = InProcessProbe;
+    let origin = VcsOrigin(&InProcessProbe);
     let recognizer = GitHubRemoteUrlRecognizer;
 
     match resolve_base_repository(
         &start,
-        &origin_remote,
+        &origin,
         &recognizer,
         &client,
         &client,
@@ -218,12 +227,12 @@ fn run_update_body(
     composed.report_ignored_personal_file();
     let service: &dyn ConfigAccess = &composed.service;
     let client = build_blocking_client(&start, service)?;
-    let origin_remote = InProcessProbe;
+    let origin = VcsOrigin(&InProcessProbe);
     let recognizer = GitHubRemoteUrlRecognizer;
 
     match update_pull_request_body(
         &start,
-        &origin_remote,
+        &origin,
         &recognizer,
         &client,
         &client,

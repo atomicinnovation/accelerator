@@ -24,7 +24,7 @@ pub fn collaboration::base_repo::BaseRepoOutcome::eq(&self, other: &collaboratio
 impl core::fmt::Debug for collaboration::base_repo::BaseRepoOutcome
 pub fn collaboration::base_repo::BaseRepoOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for collaboration::base_repo::BaseRepoOutcome
-pub fn collaboration::base_repo::resolve_base_repository(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, pull_number: u64) -> core::result::Result<collaboration::base_repo::BaseRepoOutcome, kernel::Error>
+pub fn collaboration::base_repo::resolve_base_repository(root: &std::path::Path, origin: &dyn collaboration::RepositoryOrigin, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, pull_number: u64) -> core::result::Result<collaboration::base_repo::BaseRepoOutcome, kernel::Error>
 pub mod collaboration::update_body
 pub enum collaboration::update_body::UpdateBodyOutcome
 pub collaboration::update_body::UpdateBodyOutcome::BaseRepoResolutionFailed(collaboration::base_repo::BaseRepoFailure)
@@ -38,7 +38,7 @@ pub fn collaboration::update_body::UpdateBodyOutcome::eq(&self, other: &collabor
 impl core::fmt::Debug for collaboration::update_body::UpdateBodyOutcome
 pub fn collaboration::update_body::UpdateBodyOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for collaboration::update_body::UpdateBodyOutcome
-pub fn collaboration::update_body::update_pull_request_body(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, body_update: &dyn collaboration::PullRequestBodyUpdate, pull_number: u64, body: &str) -> core::result::Result<collaboration::update_body::UpdateBodyOutcome, kernel::Error>
+pub fn collaboration::update_body::update_pull_request_body(root: &std::path::Path, origin: &dyn collaboration::RepositoryOrigin, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, pull_request_existence: &dyn collaboration::PullRequestExistence, body_update: &dyn collaboration::PullRequestBodyUpdate, pull_number: u64, body: &str) -> core::result::Result<collaboration::update_body::UpdateBodyOutcome, kernel::Error>
 pub enum collaboration::ForgeApiError
 pub collaboration::ForgeApiError::Malformed(alloc::string::String)
 pub collaboration::ForgeApiError::Status
@@ -83,4 +83,6 @@ pub trait collaboration::RemoteUrlRecognizer
 pub fn collaboration::RemoteUrlRecognizer::parse(&self, url: &str) -> core::option::Option<collaboration::OwnerRepo>
 pub trait collaboration::RepositoryLookup
 pub fn collaboration::RepositoryLookup::repository(&self, owner: &str, repo: &str) -> core::result::Result<collaboration::RepositoryDetails, collaboration::ForgeApiError>
-pub fn collaboration::resolve_origin_owner_repo(root: &std::path::Path, origin_remote: &dyn vcs::origin_remote::OriginRemote, recognizer: &dyn collaboration::RemoteUrlRecognizer) -> core::result::Result<collaboration::OwnerRepo, kernel::Error>
+pub trait collaboration::RepositoryOrigin
+pub fn collaboration::RepositoryOrigin::origin_url(&self, root: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub fn collaboration::resolve_origin_owner_repo(root: &std::path::Path, origin: &dyn collaboration::RepositoryOrigin, recognizer: &dyn collaboration::RemoteUrlRecognizer) -> core::result::Result<collaboration::OwnerRepo, kernel::Error>
