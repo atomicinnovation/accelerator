@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T10:59:05+00:00"
+last_updated: "2026-10-07T11:08:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1105,7 +1105,7 @@ arms of their own (`EmptyInput`, `MissingKey`, `UnrecognisedIdShape`,
 
 #### Manual Verification:
 
-- [ ] None beyond review
+- [x] None beyond review
 
 ---
 
