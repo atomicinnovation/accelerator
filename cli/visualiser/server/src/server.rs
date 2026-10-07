@@ -376,7 +376,8 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     }
     watch_dirs.sort();
     watch_dirs.dedup();
-    let watcher_handle = crate::watcher::spawn(
+    let watching = crate::watcher::spawn(
+        crate::watcher::os_watcher,
         watch_dirs,
         state.cfg.project_root.clone(),
         state.indexer.clone(),
@@ -388,7 +389,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
         crate::watcher::Settings::DEFAULT,
     );
     tokio::spawn(async move {
-        if let Err(e) = watcher_handle.await {
+        if let Err(e) = watching.finished().await {
             tracing::error!(
                 error = %e,
                 "filesystem watcher task exited unexpectedly; \
