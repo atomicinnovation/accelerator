@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T09:26:03+00:00"
+last_updated: "2026-10-07T10:50:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1303,7 +1303,7 @@ pub trait SyncBaselines {
 
 #### Manual Verification:
 
-- [ ] `/accelerator:migrate` on a scratch copy of an old-schema repository applies cleanly
+- [x] `/accelerator:migrate` on a scratch copy of an old-schema repository applies cleanly
 
 ---
 
@@ -2021,6 +2021,16 @@ today through `consent-adapters` → `vcs-adapters`.
   - **`FileCorpusStore::replace_locked`:** has no production caller once the
     rewriter is gone; it stays, with its tests.
   - **`mise run`:** green in one run with `E2E_HEALTH_PORT=19187`.
+- Phase 9's manual check passed: the locally built `accelerator-migrate`,
+  over a scratch colocated jj repository in the pre-0001 layout (a
+  `{project}` pattern in `.claude/accelerator.md`, two tickets, an ADR, a plan
+  and a research document), applied all 10 migrations, exited 0, and a
+  second run reported no pending migrations. The migrated corpus passes
+  `frontmatter validate` with every check. A first fixture without
+  `git_commit` on the plan and research document stopped at 0007 on
+  `MISSING-PROVENANCE`, since 0007 has no VCS revision fallback; real legacy
+  documents carry `git_commit`. No published binary was cached, so the run
+  was checked by inspection rather than diffed against a release.
 - Next: Phase 10, catalogue describes tracker blocks. Its phase base is the
   commit it starts from, after Phase 9's plan-only updates.
 
