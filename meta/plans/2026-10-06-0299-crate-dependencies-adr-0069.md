@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T13:09:58+00:00"
+last_updated: "2026-10-07T14:11:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1523,7 +1523,8 @@ the two justified edges.
 - `collaboration-cli` adds `struct VcsOrigin<'a>(&'a dyn vcs::OriginRemote)`,
   implementing `collaboration::RepositoryOrigin` by one-to-one delegation over
   `InProcessProbe`.
-- `collaboration` drops `vcs`, and its pup allow-list drops `^vcs`.
+- `collaboration` drops `vcs`. (`pup.ron` has no `collaboration` allow-list,
+  so there was no `^vcs` to drop; see Implementation Notes.)
 
 #### 3. Recorded justifications
 
@@ -2124,7 +2125,10 @@ today through `consent-adapters` → `vcs-adapters`.
   on `config`, and `collaboration` no longer depends on `vcs`.
   `collaboration::RepositoryOrigin` replaces `vcs::OriginRemote` in the
   domain, and `collaboration-cli`'s `VcsOrigin` delegates to
-  `InProcessProbe`. No golden changed. Deviations from the Phase 11 text:
+  `InProcessProbe`. The 541 characterisation cases pass with no golden
+  changed. `pup.ron`'s only remaining `^config` entry is
+  `vcs_cli_is_free_of_config`'s deny. Code in `trmknysv`. Deviations from the
+  Phase 11 text:
   - **`collaboration` pup rule:** `pup.ron` had no allow-list for
     `collaboration`, so there was no `^vcs` to drop; the `cargo metadata`
     edge removal is the enforcement.
