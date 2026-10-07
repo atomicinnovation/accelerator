@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T00:40:03+00:00"
+last_updated: "2026-10-07T07:57:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -174,7 +174,8 @@ success criteria name them:
   is accepted.
 - `jj diff --stat --from <phase base> tests/integration/characterisation/goldens`
   is empty, where `<phase base>` is the revision the phase started from
-  (Phase 7: only its four named goldens).
+  (Phase 7: its four named goldens, plus the two new unknown-subcommand
+  goldens).
 
 ---
 
@@ -884,9 +885,10 @@ libraries.
   `ACCELERATOR_LOG` can diagnose it.
 - `InProcessTracking` delegates through `PanicFold`, so every in-process
   caller is covered, not only the consent path.
-- Both rely on `panic = "unwind"`, as `report.rs` already does. The default
-  panic hook's message still reaches stderr when a fold happens. That is
-  accepted: stdout stays one JSON line, and a fold is a defect worth seeing.
+- Both rely on `panic = "unwind"`, as `report.rs` already does. As built,
+  the launcher installs a panic hook that reports through `tracing::error!`,
+  so a fold reaches stderr only through `ACCELERATOR_LOG` (Implementation
+  Notes, Phase 7).
 - The process-level isolation the dispatched child gave is replaced by this
   fold for panics. Hangs remain unbounded (0299 Assumptions).
 
@@ -1660,7 +1662,9 @@ the diff.
   its text, plus `holder_pid`.
 - **Panic boundary**: `PanicFold` over a panicking `RepositoryTracking`
   stub folds `file_tracking` to `Unknown` and `repository_roots` to an
-  incomplete empty answer, each with a `warn!`.
+  incomplete empty answer, each with a `warn!`. A launcher test over a
+  corrupted git index pins that, with `ACCELERATOR_LOG=off`, the panic
+  leaves stderr empty and the file `Unknown`.
 - **`RepositoryProbe` blanket impl**: composed over stubs of the four
   fine-grained `vcs` ports.
 
@@ -1921,6 +1925,9 @@ today through `consent-adapters` → `vcs-adapters`.
     launcher's capturing fixture went with the capture path.
   - **`config_personal_file.rs`** also dropped its `ACCELERATOR_VCS_BIN`
     override.
+  - **`signal-hook`:** re-checked as asked. `gix` adds no second version;
+    the launcher's graph resolves `signal-hook` 0.4.4 alone, and
+    `mise run deny:check` passes.
   - **`config-adapters/tests/runner.rs`:** its 2 s and 1.25 s spawn bounds
     failed in parallel runs at load ~13 (a 0.9 s sleep took 2.57 s) and passed
     serially. The crate is unchanged this phase.
@@ -1932,8 +1939,9 @@ today through `consent-adapters` → `vcs-adapters`.
   warning and no "was not checked" note. Both sessions also showed the
   override's unverified-launcher notice and a migration reminder for the
   scratch repository, which are expected.
-- Next: Phase 8, the `corpus` parsing port. Its phase base is `onzomskl`,
-  the commit recording Phase 7's manual check.
+- Next: Phase 8, the `corpus` parsing port. Its phase base is the commit it
+  starts from, after Phase 7's plan-only updates; no golden differs from the
+  Phase 7 commit `ymnuppln`.
 
 ### Phase 2 characterisation coverage
 
