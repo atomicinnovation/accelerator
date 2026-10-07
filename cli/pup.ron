@@ -494,12 +494,11 @@
         // The whole migrate crate is domain (no adapter modules live in it).
         // Unlike corpus/vcs, it also reuses `corpus`'s own `Record`/
         // `RecordStore`/`linkage` directly (its session log is a
-        // `corpus`-typed record, not a new record type) and `document`'s
-        // zero-infrastructure value tree — both narrow, justified widenings
-        // beyond the std/kernel::Error/crate baseline every other domain
-        // crate here is held to. `config`/`vcs` stay excluded: migrate
-        // reaches them only through its own locally-declared port traits,
-        // bridged by migrate-adapters.
+        // `corpus`-typed record, not a new record type) — a narrow, justified
+        // widening beyond the std/kernel::Error/crate baseline every other
+        // domain crate here is held to. `config`/`vcs` and frontmatter YAML
+        // stay excluded: migrate reaches them only through its own
+        // locally-declared port traits, bridged by migrate-adapters.
         Module((
             name: "migrate_domain_imports_only_permitted",
             matches: Module("^migrate($|::)"),
@@ -510,7 +509,6 @@
                         "^kernel::Error(::|$)",
                         "^crate(::|$)",
                         "^corpus(::|$)",
-                        "^document(::|$)",
                     ]),
                     denied: None,
                     severity: Error,

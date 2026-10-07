@@ -89,11 +89,15 @@ version = "1.24.0-pre.74"
 dependencies = [
  "clap",
  "config-adapters",
+ "corpus",
+ "corpus-adapters",
  "kernel",
  "migrate",
  "migrate-adapters",
  "tempfile",
+ "time",
  "vcs",
+ "vcs-adapters",
  "vcs-test-support",
  "work-adapters",
 ]
@@ -3234,7 +3238,6 @@ name = "migrate"
 version = "1.24.0-pre.74"
 dependencies = [
  "corpus",
- "document",
  "kernel",
 ]
 
@@ -3246,16 +3249,15 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "document",
  "kernel",
  "migrate",
  "store",
  "tempfile",
- "time",
  "tracing",
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
- "work-adapters",
 ]
 
 [[package]]

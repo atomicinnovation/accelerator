@@ -165,3 +165,106 @@ fn concurrent_appends_preserve_every_record() -> Result<(), TestError> {
     assert_eq!(seen, expected);
     Ok(())
 }
+
+#[test]
+fn records_read_back_in_file_order() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+    let store = FileCorpusStore::new(dir.path());
+    store.append_record(&path, &record("first"))?;
+    store.append_record(&path, &record("second"))?;
+
+    let keys: Vec<String> = store
+        .read_records(&path)?
+        .into_iter()
+        .map(|record| record.transformation_key)
+        .collect();
+
+    assert_eq!(keys, vec!["first".to_owned(), "second".to_owned()]);
+    Ok(())
+}
+
+#[test]
+fn an_absent_record_file_reads_as_no_records() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+
+    assert!(FileCorpusStore::new(dir.path())
+        .read_records(&path)?
+        .is_empty());
+    Ok(())
+}
+
+#[test]
+fn empty_lines_between_records_are_skipped() -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+    let store = FileCorpusStore::new(dir.path());
+    store.append_record(&path, &record("only"))?;
+    let mut content = String::from("\n");
+    content.push_str(&fs::read_to_string(&path)?);
+    content.push('\n');
+    fs::write(&path, content)?;
+
+    assert_eq!(store.read_records(&path)?, vec![record("only")]);
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_record_file_is_an_io_error_with_the_io_text(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+    fs::create_dir(&path)?;
+    let expected = fs::read(&path).err().ok_or("reading a directory")?;
+
+    let result = FileCorpusStore::new(dir.path()).read_records(&path);
+
+    assert_eq!(
+        result,
+        Err(StoreError::Io {
+            path: path.display().to_string(),
+            detail: expected.to_string(),
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn a_non_utf8_record_file_is_a_validation_error_with_the_utf8_text(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+    fs::write(&path, b"\xff\n")?;
+    let expected = String::from_utf8(vec![0xff, b'\n'])
+        .err()
+        .ok_or("invalid UTF-8")?;
+
+    let result = FileCorpusStore::new(dir.path()).read_records(&path);
+
+    assert_eq!(
+        result,
+        Err(StoreError::Validation {
+            detail: expected.to_string(),
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn a_malformed_record_is_a_validation_error_with_the_parse_text(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let path = dir.path().join("log.jsonl");
+    fs::write(&path, "[]\n")?;
+
+    let result = FileCorpusStore::new(dir.path()).read_records(&path);
+
+    assert_eq!(
+        result,
+        Err(StoreError::Validation {
+            detail: "invalid record: record is not a JSON object".to_owned(),
+        })
+    );
+    Ok(())
+}

@@ -13,7 +13,7 @@ use corpus::{AtomicWrite, FileRemove, Record, RecordStore, StoreError};
 use store::lock::{self, LockOptions};
 use store::{NewFileMode, WriteBounds, WriteError};
 
-use crate::jsonl::{compose_record, remove_prefix};
+use crate::jsonl::{compose_record, parse_record, remove_prefix};
 
 /// A corpus store rooted at a directory that bounds every write.
 ///
@@ -209,6 +209,28 @@ impl RecordStore for FileCorpusStore {
             }
         }
         self.write_atomic(path, out.as_bytes())
+    }
+
+    fn read_records(&self, path: &Path) -> Result<Vec<Record>, StoreError> {
+        let bytes = match fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Vec::new())
+            }
+            Err(error) => return Err(io(path, &error)),
+        };
+        let text =
+            String::from_utf8(bytes).map_err(|error| validation(&error))?;
+        text.lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| parse_record(line).map_err(|error| validation(&error)))
+            .collect()
+    }
+}
+
+fn validation(error: &impl ToString) -> StoreError {
+    StoreError::Validation {
+        detail: error.to_string(),
     }
 }
 

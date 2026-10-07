@@ -614,6 +614,7 @@ pub trait corpus::store::FileRemove
 pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
@@ -969,6 +970,7 @@ pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::RecordStore
 pub fn corpus::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>

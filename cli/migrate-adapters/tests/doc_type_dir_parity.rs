@@ -2,6 +2,9 @@
 //! `FileMigrationContext`'s conversion should fail this test, not silently
 //! drift.
 
+mod common;
+
+use common::Composition;
 use config::ConfigService;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
@@ -22,7 +25,8 @@ fn every_doc_type_dir_matches_configs_own_resolution_field_for_field(
     let service = ConfigService::new(store.clone(), store);
     let expected = config::paths::doc_type_dirs(&service)?;
 
-    let ctx = FileMigrationContext::new(dir.path())?;
+    let composition = Composition::at(dir.path())?;
+    let ctx = FileMigrationContext::new(dir.path(), composition.capabilities());
     let actual = ctx.doc_type_dirs();
 
     assert_eq!(actual.len(), expected.len());

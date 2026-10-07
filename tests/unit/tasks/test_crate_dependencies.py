@@ -417,10 +417,4 @@ def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
         str(f) for f in crate_dependencies.findings(workspace_packages())
     ] == [
         "accelerator -> tracker-support: rule 6",
-        "migrate -> document: rule 1",
-        "migrate-adapters -> config-adapters: rule 4",
-        "migrate-adapters -> corpus-adapters: rule 4",
-        "migrate-adapters -> vcs-adapters: rule 4",
-        "migrate-adapters -> work-adapters: rule 2",
-        "migrate-adapters -> work-adapters: rule 4",
     ]

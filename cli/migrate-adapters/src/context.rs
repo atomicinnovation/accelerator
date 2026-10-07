@@ -1,19 +1,13 @@
-//! The composed `MigrationContext`: legacy-layout config access for
-//! doc-type directories, and the bounded atomic write every migration's
-//! mutation routes through.
+//! The composed `MigrationContext`: config access for doc-type directories,
+//! the bounded atomic write every migration's mutation routes through, and
+//! the injected corpus and sync-baseline capabilities.
 
 use std::cell::OnceCell;
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use config::ConfigAccess as _;
-use config::ConfigError;
 use config::Key;
-use config_adapters::Composed;
-use config_adapters::FileConfigStore;
-use config_adapters::LegacyPolicy;
 use corpus::doc_type::DocTypeKey;
 use migrate::ports::CorpusIndex;
 use migrate::ports::DocTypeDir;
@@ -27,42 +21,38 @@ use crate::corpus_index::FileCorpusIndex;
 use crate::manifest_store::FileManifestStore;
 use crate::merge_move::merge_move;
 
-pub struct FileMigrationContext {
+/// What a composition root lends every migration.
+pub struct Capabilities<'a> {
+    pub config: &'a dyn config::ConfigAccess,
+    pub walker: &'a dyn corpus::scan::CorpusWalker,
+    pub reader: &'a dyn corpus::scan::FileReader,
+    pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
+    pub canonicaliser: &'a dyn corpus::work_item_id::WorkItemIdCanonicaliser,
+    pub sync_baselines: &'a dyn migrate::ports::SyncBaselines,
+}
+
+pub struct FileMigrationContext<'a> {
     root: PathBuf,
-    composed: Composed,
+    capabilities: Capabilities<'a>,
     fresh_mode: u32,
     index: OnceCell<FileCorpusIndex>,
     manifest: FileManifestStore,
 }
 
-impl FileMigrationContext {
-    /// # Errors
-    ///
-    /// [`ConfigError::Io`] when the personal config's metadata cannot be read.
-    pub fn new(root: impl Into<PathBuf>) -> Result<Self, ConfigError> {
+impl<'a> FileMigrationContext<'a> {
+    #[must_use]
+    pub fn new(
+        root: impl Into<PathBuf>,
+        capabilities: Capabilities<'a>,
+    ) -> Self {
         let root = root.into();
-        let composed = Composed::over(
-            FileConfigStore::at(&root).with_legacy_policy(LegacyPolicy::Allow),
-        )?;
-        composed.report_ignored_personal_file();
-        Ok(Self {
-            composed,
+        Self {
+            capabilities,
             fresh_mode: 0o666 & !store::current_umask(),
             index: OnceCell::new(),
             manifest: FileManifestStore::new(&root),
             root,
-        })
-    }
-
-    /// For a run that migrates: its writes would outlive the fix to an
-    /// ignored personal config.
-    ///
-    /// # Errors
-    ///
-    /// [`ConfigError::InsecurePersonalFile`] when the personal config is
-    /// ignored.
-    pub fn require_readable_personal_file(&self) -> Result<(), ConfigError> {
-        self.composed.require_readable_personal_file()
+        }
     }
 
     fn bounds(&self) -> WriteBounds<'_> {
@@ -84,11 +74,20 @@ impl FileMigrationContext {
             })
             .collect()
     }
+
+    fn resolve(&self, key: &str) -> Result<config::Resolution, MigrationError> {
+        let key = Key::parse(key)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        self.capabilities
+            .config
+            .effective(&key, None)
+            .map_err(|error| MigrationError::new(error.to_string()))
+    }
 }
 
-impl MigrationContext for FileMigrationContext {
+impl MigrationContext for FileMigrationContext<'_> {
     fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
-        config::paths::doc_type_dirs(&self.composed.service)
+        config::paths::doc_type_dirs(self.capabilities.config)
             .map(|dirs| {
                 dirs.into_iter()
                     .map(|dir| DocTypeDir {
@@ -101,8 +100,12 @@ impl MigrationContext for FileMigrationContext {
     }
 
     fn corpus_index(&self) -> &dyn CorpusIndex {
-        self.index
-            .get_or_init(|| FileCorpusIndex::build(&self.linkage_table()))
+        self.index.get_or_init(|| {
+            FileCorpusIndex::build(
+                &self.linkage_table(),
+                self.capabilities.walker,
+            )
+        })
     }
 
     fn write(&self, path: &Path, content: &str) -> Result<(), MigrationError> {
@@ -147,28 +150,14 @@ impl MigrationContext for FileMigrationContext {
         &self,
         key: &str,
     ) -> Result<Option<String>, MigrationError> {
-        let key = Key::parse(key)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        let resolution = self
-            .composed
-            .service
-            .effective(&key, None)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        Ok(Some(resolution.rendered()))
+        Ok(Some(self.resolve(key)?.rendered()))
     }
 
     fn configured_path_override(
         &self,
         key: &str,
     ) -> Result<Option<String>, MigrationError> {
-        let key = Key::parse(key)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        let resolution = self
-            .composed
-            .service
-            .effective(&key, None)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        Ok(resolution.configured_value())
+        Ok(self.resolve(key)?.configured_value())
     }
 
     fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
@@ -242,12 +231,10 @@ impl MigrationContext for FileMigrationContext {
         let project =
             MigrationContext::config_value(self, "work.default_project_code")?
                 .unwrap_or_default();
-        corpus_adapters::work_item_pattern::canonicalise_id(
-            bare_number,
-            &pattern,
-            &project,
-        )
-        .map_err(|error| MigrationError::new(error.to_string()))
+        self.capabilities
+            .canonicaliser
+            .canonicalise(bare_number, &pattern, &project)
+            .map_err(|error| MigrationError::new(error.to_string()))
     }
 
     fn validate_frontmatter(
@@ -255,18 +242,25 @@ impl MigrationContext for FileMigrationContext {
         files: &[PathBuf],
     ) -> Result<(), MigrationError> {
         let table = self.linkage_table();
-        let walker = corpus_adapters::fs::RealFs;
-        let parser = corpus_adapters::YamlFrontmatter;
+        let Capabilities {
+            walker,
+            reader,
+            frontmatter,
+            ..
+        } = self.capabilities;
         let target = if files.is_empty() {
             corpus::frontmatter_validation::pipeline::corpus_files(
-                &table, &walker,
+                &table, walker,
             )
             .map_err(|error| MigrationError::new(error.to_string()))?
         } else {
             files.to_vec()
         };
         let index = corpus::frontmatter_validation::pipeline::build_index(
-            &table, &walker, &walker, &parser,
+            &table,
+            walker,
+            reader,
+            frontmatter,
         )
         .map_err(|error| MigrationError::new(error.to_string()))?;
         let checks = corpus::frontmatter_validation::pipeline::Checks {
@@ -276,7 +270,12 @@ impl MigrationContext for FileMigrationContext {
         };
         let results =
             corpus::frontmatter_validation::pipeline::validate_targets(
-                &target, &table, &index, checks, &walker, &parser,
+                &target,
+                &table,
+                &index,
+                checks,
+                reader,
+                frontmatter,
             )
             .map_err(|error| MigrationError::new(error.to_string()))?;
 
@@ -317,100 +316,40 @@ impl MigrationContext for FileMigrationContext {
             return Ok(0);
         }
 
-        let mut by_id: HashMap<String, (&Path, &str)> = HashMap::new();
-        for (path, original) in pre_migration {
-            if let Some(id) = frontmatter_id(original) {
-                by_id.insert(id, (path.as_path(), original.as_str()));
-            }
-        }
-
-        let mut realigned = 0;
-        let entries = fs::read_dir(&integrations_root)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        for entry in entries {
-            let entry = entry
-                .map_err(|error| MigrationError::new(error.to_string()))?;
-            if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                continue;
-            }
-            let integration = entry.file_name();
-            let integration = integration.to_string_lossy();
-            let baseline_path = work_adapters::sync::baseline::path(
-                &integrations_root,
-                &integration,
-            );
-            if baseline_path.exists() {
-                realigned += realign_one_baseline(&baseline_path, &by_id)?;
-            }
-        }
-        Ok(realigned)
+        self.capabilities
+            .sync_baselines
+            .realign(&integrations_root, pre_migration)
     }
-}
 
-/// The `id` field's stripped value from `content`'s frontmatter, if present.
-fn frontmatter_id(content: &str) -> Option<String> {
-    let (frontmatter, _) =
-        work_adapters::sync::digest::split_frontmatter_and_body(content)
-            .ok()?;
-    let entries = corpus::frontmatter_validation::parse_entries(&frontmatter);
-    let raw = corpus::frontmatter_validation::raw_value(&entries, "id")?;
-    let id = corpus::frontmatter_validation::strip_surrounding_quote(raw);
-    (!id.is_empty()).then(|| id.to_owned())
-}
-
-/// Realigns one integration's baseline: an entry whose pre-migration digest
-/// matched its stored `local_hash` (it was `Synced`) is advanced to the
-/// re-rendered file's digest; a diverged entry (it was `LocallyModified`) is
-/// left untouched so its pending push survives.
-fn realign_one_baseline(
-    baseline_path: &Path,
-    by_id: &HashMap<String, (&Path, &str)>,
-) -> Result<usize, MigrationError> {
-    let reader = corpus_adapters::fs::RealFs;
-    let store_dir = baseline_path.parent().unwrap_or_else(|| Path::new("."));
-    let writer = corpus_adapters::FileCorpusStore::new(store_dir);
-    let mut store = work_adapters::sync::baseline_store::BaselineStore::new(
-        baseline_path.to_path_buf(),
-        &reader,
-        &writer,
-    );
-    let (baseline, _) = store
-        .load()
-        .map_err(|error| MigrationError::new(error.to_string()))?;
-
-    let mut realigned = 0;
-    for (id, &(path, original)) in by_id {
-        let Some(entry) = baseline.get(id) else {
-            continue;
-        };
-        let Ok(pre_hash) = work_adapters::sync::digest::local(original) else {
-            continue;
-        };
-        if pre_hash != entry.local_hash {
-            continue;
-        }
-        let Ok(new_content) = fs::read_to_string(path) else {
-            continue;
-        };
-        let Ok(new_hash) = work_adapters::sync::digest::local(&new_content)
-        else {
-            continue;
-        };
-        if new_hash == entry.local_hash {
-            continue;
-        }
-        let updated = work_adapters::sync::baseline::Entry {
-            local_hash: new_hash,
-            remote_hash: entry.remote_hash.clone(),
-            remote_updated_at: entry.remote_updated_at.clone(),
-            local_synced_at: entry.local_synced_at,
-        };
-        store
-            .set(id, updated)
-            .map_err(|error| MigrationError::new(error.to_string()))?;
-        realigned += 1;
+    fn parse_frontmatter(
+        &self,
+        content: &str,
+    ) -> Result<corpus::FrontmatterValue, MigrationError> {
+        self.capabilities
+            .frontmatter
+            .parse_value(content)
+            .map_err(|error| MigrationError::new(error.to_string()))
     }
-    Ok(realigned)
+
+    fn frontmatter_text(
+        &self,
+        content: &str,
+    ) -> Result<String, MigrationError> {
+        self.capabilities
+            .frontmatter
+            .split_frontmatter(content)
+            .map_err(|error| MigrationError::new(error.to_string()))
+    }
+
+    fn render_canonical(
+        &self,
+        content: &str,
+    ) -> Result<String, MigrationError> {
+        let frontmatter = document::parse(content)
+            .map_err(|error| MigrationError::new(error.to_string()))?;
+        document::render(Some(content), &frontmatter)
+            .map_err(|error| MigrationError::new(error.to_string()))
+    }
 }
 
 /// Recursively collects entries under `dir`. `md_only` selects between
@@ -445,36 +384,4 @@ fn walk(
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use tempfile::TempDir;
-
-    use super::FileMigrationContext;
-    use crate::manifest_store::FileManifestStore;
-    use migrate::ports::ManifestStore as _;
-    use migrate::ports::MigrationContext as _;
-
-    type TestError = Box<dyn std::error::Error>;
-
-    #[test]
-    fn a_write_records_the_path_once_even_across_two_write_points(
-    ) -> Result<(), TestError> {
-        let dir = TempDir::new()?;
-        let ctx = FileMigrationContext::new(dir.path())?;
-
-        ctx.write(&dir.path().join("meta/work/a.md"), "one")?;
-        ctx.write(&dir.path().join("meta/work/a.md"), "two")?;
-        ctx.write(&dir.path().join("meta/work/b.md"), "three")?;
-
-        let manifest = FileManifestStore::new(dir.path());
-        let mut recorded = manifest.manifest()?.unwrap_or_default();
-        recorded.sort();
-        assert_eq!(
-            recorded,
-            vec!["meta/work/a.md".to_owned(), "meta/work/b.md".to_owned()]
-        );
-        Ok(())
-    }
 }

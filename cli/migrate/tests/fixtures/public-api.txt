@@ -255,13 +255,16 @@ pub fn migrate::ports::MigrationContext::configured_path_override(&self, _key: &
 pub fn migrate::ports::MigrationContext::corpus_index(&self) -> &dyn migrate::ports::CorpusIndex
 pub fn migrate::ports::MigrationContext::dir_exists(&self, _path: &std::path::Path) -> bool
 pub fn migrate::ports::MigrationContext::doc_type_dirs(&self) -> alloc::vec::Vec<migrate::ports::DocTypeDir>
+pub fn migrate::ports::MigrationContext::frontmatter_text(&self, _content: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_all_under(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::list_md_files(&self, _dir: &std::path::Path) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::merge_move(&self, _src: &std::path::Path, _dst: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::parse_frontmatter(&self, _content: &str) -> core::result::Result<corpus::value::FrontmatterValue, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::read(&self, _path: &std::path::Path) -> core::result::Result<core::option::Option<alloc::string::String>, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::realign_sync_baseline(&self, _pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_dir_if_empty(&self, _path: &std::path::Path) -> core::result::Result<bool, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::remove_file(&self, _path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::MigrationContext::render_canonical(&self, _content: &str) -> core::result::Result<alloc::string::String, migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::root(&self) -> &std::path::Path
 pub fn migrate::ports::MigrationContext::validate_frontmatter(&self, _files: &[std::path::PathBuf]) -> core::result::Result<(), migrate::ports::MigrationError>
 pub fn migrate::ports::MigrationContext::write(&self, path: &std::path::Path, content: &str) -> core::result::Result<(), migrate::ports::MigrationError>
@@ -288,9 +291,9 @@ pub fn migrate::ports::SessionLog::append(&self, key: &str, outcome: corpus::rec
 pub fn migrate::ports::SessionLog::records(&self) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, migrate::ports::MigrationError>
 pub fn migrate::ports::SessionLog::remove_by_key(&self, key: &str) -> core::result::Result<(), migrate::ports::MigrationError>
 pub trait migrate::ports::SessionLogFactory
-pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<dyn migrate::ports::SessionLog>
-pub trait migrate::ports::SessionLogRewriter
-pub fn migrate::ports::SessionLogRewriter::cutover(&self, path: &std::path::Path) -> core::result::Result<(), migrate::ports::MigrationError>
+pub fn migrate::ports::SessionLogFactory::for_migration(&self, id: &str) -> alloc::boxed::Box<(dyn migrate::ports::SessionLog + '_)>
+pub trait migrate::ports::SyncBaselines
+pub fn migrate::ports::SyncBaselines::realign(&self, integrations_root: &std::path::Path, pre_migration: &[(std::path::PathBuf, alloc::string::String)]) -> core::result::Result<usize, migrate::ports::MigrationError>
 pub trait migrate::ports::WorkingCopy
 pub fn migrate::ports::WorkingCopy::observe(&self, roots: &[&str]) -> core::result::Result<migrate::ports::WorkingCopyObservation, migrate::ports::MigrationError>
 pub mod migrate::preflight

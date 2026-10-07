@@ -1,7 +1,7 @@
 //! Re-renders every corpus document and `.accelerator/config.md` through the
 //! canonical frontmatter emitter.
 //!
-//! The transformation is "re-render": the emitter (`document::render`) is the
+//! The transformation is "re-render": the context's canonical emitter is the
 //! single definition of canonical form, so this migration never re-encodes the
 //! quoting predicate. Every rewrite is guarded against value change — a
 //! re-parsed value tree that differs from the original, or a re-rendered
@@ -113,21 +113,24 @@ fn canonicalise(
     kind: FileKind,
     original: &str,
 ) -> Result<Rewrite, MigrationError> {
-    let rendered =
-        render_canonical(original).map_err(|error| at(path, &error))?;
-
-    let before = document::parse(original)
+    let rendered = ctx
+        .render_canonical(original)
         .map_err(|error| at(path, &error.to_string()))?;
-    let after = document::parse(&rendered)
+
+    let before = ctx
+        .parse_frontmatter(original)
+        .map_err(|error| at(path, &error.to_string()))?;
+    let after = ctx
+        .parse_frontmatter(&rendered)
         .map_err(|error| at(path, &error.to_string()))?;
     if before != after {
         return Err(at(path, "re-rendering changed a frontmatter value"));
     }
 
     if kind == FileKind::Meta {
-        let frontmatter = document::split(&rendered)
-            .map_err(|error| at(path, &error.to_string()))?
-            .frontmatter;
+        let frontmatter = ctx
+            .frontmatter_text(&rendered)
+            .map_err(|error| at(path, &error.to_string()))?;
         if let Some(violation) =
             corpus::frontmatter_validation::validate_file(&frontmatter).first()
         {
@@ -144,14 +147,9 @@ fn canonicalise(
     if rendered == original {
         return Ok(Rewrite::Unchanged);
     }
-    let loss = detect_loss(original);
+    let loss = detect_loss(ctx, original);
     ctx.write(path, &rendered)?;
     Ok(Rewrite::Written { loss })
-}
-
-fn render_canonical(content: &str) -> Result<String, String> {
-    let frontmatter = document::parse(content).map_err(|e| e.to_string())?;
-    document::render(Some(content), &frontmatter).map_err(|e| e.to_string())
 }
 
 fn at(path: &Path, message: &str) -> MigrationError {
@@ -164,11 +162,11 @@ fn at(path: &Path, message: &str) -> MigrationError {
 /// A tractable, testable predicate on the original bytes: an inline `#`
 /// comment, a CRLF ending in the frontmatter, or content that did not
 /// round-trip through UTF-8 (surfaced as the replacement character on read).
-fn detect_loss(original: &str) -> Option<String> {
+fn detect_loss(ctx: &dyn MigrationContext, original: &str) -> Option<String> {
     if original.contains('\u{FFFD}') {
         return Some("non-UTF-8 bytes replaced on read".to_owned());
     }
-    let frontmatter = document::split(original).ok()?.frontmatter;
+    let frontmatter = ctx.frontmatter_text(original).ok()?;
     if frontmatter.contains('\r') {
         return Some("CRLF line ending in frontmatter".to_owned());
     }
@@ -210,7 +208,7 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
-    use super::{detect_loss, render_canonical, Migration, Migration0008};
+    use super::{detect_loss, Migration, Migration0008};
     use crate::ports::{
         CorpusIndex, DocTypeDir, MigrationContext, MigrationError,
     };
@@ -223,12 +221,18 @@ mod tests {
         }
     }
 
+    /// Renders through an explicit table, and reads a frontmatter value as
+    /// its fenced text without double quotes or comment lines, so quoting a
+    /// string or dropping a comment keeps the value and retyping one does
+    /// not.
     struct TestCtx {
         root: PathBuf,
         dirs: Vec<DocTypeDir>,
         files: RefCell<HashMap<PathBuf, String>>,
+        renders: HashMap<String, Result<String, String>>,
+        writes: RefCell<Vec<PathBuf>>,
+        realigned_from: RefCell<Vec<(PathBuf, String)>>,
         index: NoIndex,
-        realigned: usize,
     }
 
     impl TestCtx {
@@ -240,8 +244,10 @@ mod tests {
                     dir: PathBuf::from("/repo/meta/work"),
                 }],
                 files: RefCell::new(HashMap::new()),
+                renders: HashMap::new(),
+                writes: RefCell::new(Vec::new()),
+                realigned_from: RefCell::new(Vec::new()),
                 index: NoIndex,
-                realigned: 0,
             }
         }
 
@@ -252,9 +258,32 @@ mod tests {
             self
         }
 
+        fn rendering(mut self, original: &str, rendered: &str) -> Self {
+            self.renders
+                .insert(original.to_owned(), Ok(rendered.to_owned()));
+            self
+        }
+
+        fn failing_to_render(mut self, original: &str, error: &str) -> Self {
+            self.renders
+                .insert(original.to_owned(), Err(error.to_owned()));
+            self
+        }
+
         fn content(&self, path: &str) -> Option<String> {
             self.files.borrow().get(Path::new(path)).cloned()
         }
+    }
+
+    fn fenced_text(content: &str) -> Result<String, MigrationError> {
+        let Some(rest) = content.strip_prefix("---\n") else {
+            return Ok(String::new());
+        };
+        rest.find("---\n")
+            .map(|end| rest[..end].to_owned())
+            .ok_or_else(|| {
+                MigrationError::new("unterminated frontmatter block")
+            })
     }
 
     impl MigrationContext for TestCtx {
@@ -272,6 +301,7 @@ mod tests {
             path: &Path,
             content: &str,
         ) -> Result<(), MigrationError> {
+            self.writes.borrow_mut().push(path.to_path_buf());
             self.files
                 .borrow_mut()
                 .insert(path.to_path_buf(), content.to_owned());
@@ -296,9 +326,41 @@ mod tests {
         }
         fn realign_sync_baseline(
             &self,
-            _pre_migration: &[(PathBuf, String)],
+            pre_migration: &[(PathBuf, String)],
         ) -> Result<usize, MigrationError> {
-            Ok(self.realigned)
+            self.realigned_from
+                .borrow_mut()
+                .extend(pre_migration.iter().cloned());
+            Ok(0)
+        }
+        fn parse_frontmatter(
+            &self,
+            content: &str,
+        ) -> Result<corpus::FrontmatterValue, MigrationError> {
+            let value: String = fenced_text(content)?
+                .lines()
+                .filter(|line| !line.trim_start().starts_with('#'))
+                .map(|line| line.replace('"', "") + "\n")
+                .collect();
+            Ok(corpus::FrontmatterValue::Scalar(corpus::Scalar::String(
+                value,
+            )))
+        }
+        fn frontmatter_text(
+            &self,
+            content: &str,
+        ) -> Result<String, MigrationError> {
+            fenced_text(content)
+        }
+        fn render_canonical(
+            &self,
+            content: &str,
+        ) -> Result<String, MigrationError> {
+            self.renders
+                .get(content)
+                .cloned()
+                .unwrap_or_else(|| Ok(content.to_owned()))
+                .map_err(MigrationError::new)
         }
     }
 
@@ -306,112 +368,149 @@ mod tests {
         Migration0008.apply(ctx)
     }
 
-    /// A structurally-complete work item, so the re-render's own
-    /// `validate_file` gate has no unrelated base-field violation to trip on.
-    fn valid_work_item(extra_lines: &str) -> String {
+    /// A canonical, structurally-complete work item, so the re-render's own
+    /// `validate_file` gate has no unrelated violation to trip on.
+    fn canonical_work_item(extra_lines: &str) -> String {
         format!(
-            "---\ntype: work-item\nid: \"0001\"\ntitle: Bare\n\
-             date: \"2026-01-01T00:00:00+00:00\"\nauthor: Toby\ntags: []\n\
+            "---\ntype: \"work-item\"\nid: \"0001\"\ntitle: \"Bare\"\n\
+             date: \"2026-01-01T00:00:00+00:00\"\nauthor: \"Toby\"\ntags: []\n\
              last_updated: \"2026-01-01T00:00:00+00:00\"\n\
-             last_updated_by: Toby\nschema_version: 1\nstatus: draft\n\
-             kind: feature\npriority: normal\n{extra_lines}---\nbody\n"
+             last_updated_by: \"Toby\"\nschema_version: 1\nstatus: \"draft\"\n\
+             kind: \"feature\"\npriority: \"normal\"\n{extra_lines}---\nbody\n"
         )
     }
 
+    fn bare_title(content: &str) -> String {
+        content.replace("title: \"Bare\"", "title: Bare")
+    }
+
     #[test]
-    fn a_bare_document_is_re_rendered_with_every_string_quoted() {
+    fn a_re_render_is_written_in_place() {
+        let rendered = canonical_work_item("");
+        let original = bare_title(&rendered);
         let ctx = TestCtx::new()
-            .with_file("/repo/meta/work/0001-x.md", &valid_work_item(""));
+            .with_file("/repo/meta/work/0001-x.md", &original)
+            .rendering(&original, &rendered);
+
         apply(&ctx).expect("apply");
-        let content = ctx.content("/repo/meta/work/0001-x.md").expect("file");
-        assert!(content.contains("title: \"Bare\""), "{content}");
-        assert!(content.contains("status: \"draft\""), "{content}");
-        assert!(content.contains("schema_version: 1"), "{content}");
-        assert!(content.contains("body\n"), "{content}");
+
+        assert_eq!(ctx.content("/repo/meta/work/0001-x.md"), Some(rendered));
     }
 
     #[test]
-    fn a_block_linkage_sequence_with_colons_reflows_to_quoted_flow() {
-        let fixture = valid_work_item(
-            "relates_to:\n  - work-item:0194\n  - adr:ADR-0034\n",
-        );
-        let ctx =
-            TestCtx::new().with_file("/repo/meta/work/0002-y.md", &fixture);
+    fn an_already_canonical_file_is_not_written() {
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0001-x.md", &canonical_work_item(""));
+
         apply(&ctx).expect("apply");
-        let content = ctx.content("/repo/meta/work/0002-y.md").expect("file");
-        assert!(
-            content
-                .contains("relates_to: [\"work-item:0194\", \"adr:ADR-0034\"]"),
-            "{content}"
-        );
+
+        assert!(ctx.writes.borrow().is_empty());
     }
 
     #[test]
-    fn re_rendering_is_a_byte_level_fixed_point() {
-        let original = "---\ntype: work-item\nid: \"0003\"\n\
-             title: A long title that runs well past eighty columns to prove \
-             no block scalar refold happens here at all\n\
-             tags: [alpha, beta]\nschema_version: 1\n---\nbody\n";
-        let once = render_canonical(original).expect("first");
-        let twice = render_canonical(&once).expect("second");
-        assert_eq!(once, twice, "second pass must be byte-identical");
-    }
+    fn a_value_changing_re_render_aborts_and_writes_nothing() {
+        let original = canonical_work_item("ratio: 1.0\n");
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0004-f.md", &original)
+            .rendering(&original, &canonical_work_item("ratio: 1\n"));
 
-    #[test]
-    fn config_untyped_frontmatter_quotes_strings_and_leaves_integers_bare() {
-        let ctx = TestCtx::new().with_file(
-            "/repo/.accelerator/config.md",
-            "---\nvisualiser:\n  port: 8080\n  theme: dark\n\
-             tags:\n  - one\n  - two\n---\nbody\n",
-        );
-        apply(&ctx).expect("apply");
-        let content =
-            ctx.content("/repo/.accelerator/config.md").expect("file");
-        assert!(content.contains("port: 8080"), "{content}");
-        assert!(content.contains("theme: \"dark\""), "{content}");
-        assert!(content.contains("tags: [\"one\", \"two\"]"), "{content}");
-    }
-
-    #[test]
-    fn a_value_retyping_re_render_aborts_and_writes_nothing() {
-        let fixture = valid_work_item("ratio: 1.0\n");
-        let ctx =
-            TestCtx::new().with_file("/repo/meta/work/0004-f.md", &fixture);
         let Err(error) = apply(&ctx) else {
-            panic!("float coercion must abort");
+            panic!("a value change must abort");
         };
-        assert!(error.to_string().contains("0004-f.md"), "{error}");
-        let content = ctx.content("/repo/meta/work/0004-f.md").expect("file");
-        assert!(content.contains("ratio: 1.0"), "the file must be untouched");
+
+        assert_eq!(
+            error.to_string(),
+            "0008: /repo/meta/work/0004-f.md: re-rendering changed a \
+             frontmatter value — revert this migration commit to recover"
+        );
+        assert!(ctx.writes.borrow().is_empty());
     }
 
     #[test]
-    fn a_clean_lf_document_emits_no_loss_diagnostic() {
-        let clean = "---\ntype: work-item\nid: \"0005\"\ntitle: Bare\n\
-             status: draft\nschema_version: 1\n---\nbody\n";
-        assert_eq!(detect_loss(clean), None);
+    fn a_render_failure_aborts_naming_the_file() {
+        let original = canonical_work_item("");
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0001-x.md", &original)
+            .failing_to_render(&original, "invalid frontmatter YAML: bad");
+
+        let Err(error) = apply(&ctx) else {
+            panic!("a render failure must abort");
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "0008: /repo/meta/work/0001-x.md: invalid frontmatter YAML: bad \
+             — revert this migration commit to recover"
+        );
     }
 
     #[test]
-    fn a_comment_a_crlf_and_a_replacement_char_each_report_loss() {
-        let comment = "---\ntype: work-item\ntitle: T # inline\n---\nbody\n";
-        let crlf = "---\r\ntype: work-item\r\ntitle: T\r\n---\r\nbody\r\n";
-        let non_utf8 = "---\ntype: work-item\ntitle: \u{FFFD}\n---\nbody\n";
-        assert!(detect_loss(comment).is_some());
-        assert!(detect_loss(crlf).is_some());
-        assert!(detect_loss(non_utf8).is_some());
+    fn a_re_rendered_meta_file_that_still_violates_the_standard_aborts() {
+        let rendered = "---\ntype: \"work-item\"\ntitle: \"Bare\"\n---\nbody\n";
+        let original = bare_title(rendered);
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0001-x.md", &original)
+            .rendering(&original, rendered);
+
+        let Err(error) = apply(&ctx) else {
+            panic!("an invalid re-render must abort");
+        };
+
+        assert!(
+            error.to_string().contains(
+                "re-rendered frontmatter still violates the standard"
+            ),
+            "{error}"
+        );
+        assert!(ctx.writes.borrow().is_empty());
+    }
+
+    #[test]
+    fn config_frontmatter_is_re_rendered_without_the_corpus_standard() {
+        let original = "---\nvisualiser:\n  theme: dark\n---\nbody\n";
+        let rendered = "---\nvisualiser:\n  theme: \"dark\"\n---\nbody\n";
+        let ctx = TestCtx::new()
+            .with_file("/repo/.accelerator/config.md", original)
+            .rendering(original, rendered);
+
+        apply(&ctx).expect("apply");
+
+        assert_eq!(
+            ctx.content("/repo/.accelerator/config.md").as_deref(),
+            Some(rendered)
+        );
+    }
+
+    #[test]
+    fn only_meta_files_reach_baseline_realignment_with_their_original_bytes() {
+        let rendered = canonical_work_item("");
+        let original = bare_title(&rendered);
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0001-x.md", &original)
+            .with_file("/repo/.accelerator/config.md", "---\nk: v\n---\n")
+            .rendering(&original, &rendered);
+
+        apply(&ctx).expect("apply");
+
+        assert_eq!(
+            *ctx.realigned_from.borrow(),
+            vec![(PathBuf::from("/repo/meta/work/0001-x.md"), original)]
+        );
     }
 
     #[test]
     fn a_lossy_file_is_still_written_and_the_run_succeeds() {
-        let fixture = valid_work_item("# a standalone frontmatter comment\n");
-        let ctx =
-            TestCtx::new().with_file("/repo/meta/work/0006-c.md", &fixture);
+        let rendered = canonical_work_item("");
+        let original =
+            canonical_work_item("# a standalone frontmatter comment\n");
+        let ctx = TestCtx::new()
+            .with_file("/repo/meta/work/0006-c.md", &original)
+            .rendering(&original, &rendered);
+
         let outcome = apply(&ctx).expect("apply");
+
         assert!(matches!(outcome, ApplyOutcome::Applied));
-        let content = ctx.content("/repo/meta/work/0006-c.md").expect("file");
-        assert!(!content.contains("standalone"), "comment must be dropped");
-        assert!(content.contains("title: \"Bare\""), "{content}");
+        assert_eq!(ctx.content("/repo/meta/work/0006-c.md"), Some(rendered));
     }
 
     #[test]
@@ -421,9 +520,53 @@ mod tests {
             doc_type: "local-only-not-a-linkage-type".to_owned(),
             dir: PathBuf::from("/repo/meta/local"),
         });
-        let ctx = ctx.with_file("/repo/meta/local/x.md", &valid_work_item(""));
+        let rendered = canonical_work_item("");
+        let original = bare_title(&rendered);
+        let ctx = ctx
+            .with_file("/repo/meta/local/x.md", &original)
+            .rendering(&original, &rendered);
+
         apply(&ctx).expect("apply");
-        let content = ctx.content("/repo/meta/local/x.md").expect("file");
-        assert!(content.contains("title: \"Bare\""), "{content}");
+
+        assert_eq!(ctx.content("/repo/meta/local/x.md"), Some(rendered));
+    }
+
+    #[test]
+    fn a_clean_lf_document_emits_no_loss_diagnostic() {
+        let clean = "---\ntype: work-item\nid: \"0005\"\ntitle: Bare\n\
+             status: draft\nschema_version: 1\n---\nbody\n";
+        assert_eq!(detect_loss(&TestCtx::new(), clean), None);
+    }
+
+    #[test]
+    fn a_comment_a_crlf_and_a_replacement_char_each_report_loss() {
+        let ctx = TestCtx::new();
+        let comment = "---\ntype: work-item\ntitle: T # inline\n---\nbody\n";
+        let crlf = "---\ntype: work-item\r\ntitle: T\r\n---\nbody\r\n";
+        let non_utf8 = "---\ntype: work-item\ntitle: \u{FFFD}\n---\nbody\n";
+        assert_eq!(
+            detect_loss(&ctx, comment).as_deref(),
+            Some("inline frontmatter comment")
+        );
+        assert_eq!(
+            detect_loss(&ctx, crlf).as_deref(),
+            Some("CRLF line ending in frontmatter")
+        );
+        assert_eq!(
+            detect_loss(&ctx, non_utf8).as_deref(),
+            Some("non-UTF-8 bytes replaced on read")
+        );
+    }
+
+    #[test]
+    fn a_hash_inside_quotes_is_not_a_comment() {
+        let quoted = "---\ntitle: \"Issue #12\"\nalt: 'see #3'\n---\nbody\n";
+        assert_eq!(detect_loss(&TestCtx::new(), quoted), None);
+    }
+
+    #[test]
+    fn content_whose_frontmatter_cannot_be_split_reports_no_loss() {
+        let unterminated = "---\ntitle: T # inline\n";
+        assert_eq!(detect_loss(&TestCtx::new(), unterminated), None);
     }
 }
