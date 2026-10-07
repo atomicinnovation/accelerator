@@ -17,6 +17,7 @@ use research::sources::queue::Nonce;
 use research::sources::queue::Place;
 use research::sources::queue::Ticket;
 use research::sources::queue::TicketRejection;
+use research::sources::request::ArxivId;
 use research::sources::request::ArxivQuery;
 use research::sources::request::ArxivRequest;
 use research::sources::request::Limit;
@@ -141,8 +142,17 @@ fn join<'q>(
     queue: &'q FileArxivQueue,
     presented: Option<&str>,
 ) -> Joining<'q> {
+    join_as(harness, queue, &graphs(), presented)
+}
+
+fn join_as<'q>(
+    harness: &Harness,
+    queue: &'q FileArxivQueue,
+    binding: &Binding,
+    presented: Option<&str>,
+) -> Joining<'q> {
     queue.join(
-        &graphs(),
+        binding,
         presented.map(ticket).as_ref(),
         &harness.deadline(),
         SPACING,
@@ -241,6 +251,28 @@ fn a_resumed_ticket_keeps_its_number_and_clears_its_end() {
         Some(wall_millis(&harness))
     );
     assert!(record["ended_ms"].is_null());
+}
+
+#[test]
+fn a_resumed_lookup_ticket_keeps_its_number_and_its_versioned_id() {
+    let harness = Harness::new();
+    let queue = harness.queue();
+    let lookup = Binding::of(&ArxivRequest::Lookup(
+        ArxivId::parse("2608.21129v2").expect("an arXiv ID"),
+    ));
+    let place = queued(join_as(&harness, &queue, &lookup, None));
+    let issued = place.ticket().to_string();
+    let issued_ms = wall_millis(&harness);
+    place.step_aside(None, &harness.deadline());
+    harness.clock.advance(secs(10));
+
+    let resumed = queued(join_as(&harness, &queue, &lookup, Some(&issued)));
+
+    assert_eq!(resumed.ticket().to_string(), issued);
+    let record = harness.scratch.record(&issued).expect("a record");
+    assert_eq!(millis_of(&record, "issued_ms"), Some(issued_ms));
+    assert_eq!(record["verb"], "lookup");
+    assert_eq!(record["id"], "2608.21129v2");
 }
 
 fn seed_neighbours(harness: &Harness) {
