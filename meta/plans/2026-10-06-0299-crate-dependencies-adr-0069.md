@@ -1620,8 +1620,9 @@ checklists gain the declaration step.
 
 ### Overview
 
-Re-measure every binary, rewrite `deny.toml` and the notices, cut the signed
-prerelease, take the after figures and apply the gates.
+Re-measure every binary, rewrite `deny.toml` and the notices, take the after
+figures and apply the gates. Warm dispatch is measured against the
+prerelease the pipeline publishes once this work merges.
 
 ### Changes Required:
 
@@ -1654,16 +1655,19 @@ the diff.
   22786dde6161e025e85a642e5ca701dcb389cb20`. Compare release-build figures
   only: on this host, process-spawning runs are bimodal at ~11 ms and ~34 ms,
   and the release build sat at ~32 ms in Phase 1.
-- A holder of `ACCELERATOR_RELEASE_SECRET_KEY` runs `mise run prerelease` for
-  the finished tree.
-- Then run `mise run measure:warm-dispatch` against that prerelease. It
-  refuses while any other Claude Code session runs on the host, and while
-  the launcher cache is cold for the tree's version: warm it first with
-  `bin/accelerator vcs detect`. Compare its C1 cell with Phase 1's 44.00 ms.
+- Prereleases are published only by the `main` pipeline's `prerelease` job,
+  which runs on every push to `main` and signs in CI; no one cuts one
+  locally. Once this work merges, run `mise run measure:warm-dispatch`
+  against the prerelease that job publishes for the merge. It refuses while
+  any other Claude Code session runs on the host, and while the launcher cache
+  is cold for that version: warm it first with `bin/accelerator vcs detect`.
+  Compare its C1 cell with Phase 1's 44.00 ms.
 - Record raw figures and after/before ratios under Implementation Notes.
 - 🔴 A ratio of 10 or more in size, or in any latency median (the
   large-repository run included), stops for the author's decision, recorded
-  here.
+  here. Size and summary latency are gated before merge; warm dispatch is
+  gated after it, so a trip there is answered by a follow-up change or a
+  revert rather than by holding the merge.
 
 ### Success Criteria:
 
@@ -1888,7 +1892,8 @@ Host: Mac16,5, macOS 26.3 (arm64), the Phase 1 host, at the tree of
   546 to 2177 once it composed `InProcessProbe` behind the `vcs` repository
   ports. The visualiser
   links none of the three, so its gate did not trip.
-- Warm dispatch: pending the prerelease.
+- Warm dispatch: pending the `main` pipeline's prerelease for this work's
+  merge.
 
 ### Progress
 
@@ -2237,9 +2242,15 @@ Host: Mac16,5, macOS 26.3 (arm64), the Phase 1 host, at the tree of
     exit status and log when unreachable. Back to back, the visualiser lib
     suite took 137.6 s before and 63.5 s after; full-run lib suites vary
     from 258 s to 892 s with `FSEvents` load. `mise run` then exited 0.
-  - **Remaining:** the signed prerelease, which needs
-    `ACCELERATOR_RELEASE_SECRET_KEY`, and warm dispatch against it, which
-    refuses while any other Claude Code session runs, are the author's to run.
+  - **Prerelease:** with the author, the pipeline stays the only place
+    prereleases are published, so warm dispatch is measured after merge
+    against the `main` pipeline's prerelease. A local build cannot stand in:
+    the harness refuses every `ACCELERATOR_*` override but
+    `ACCELERATOR_RELEASE_BASE_URL`, the unverified-launcher override skips the
+    fetch, verification and cache path being measured, and a mirror still
+    needs a release-key signature.
+  - **Remaining:** warm dispatch against that prerelease, which refuses while
+    any other Claude Code session runs, is the author's to run.
 
 ### Phase 2 characterisation coverage
 
@@ -2303,7 +2314,8 @@ Deviations from the Phase 2 text, found while writing the cases:
 
 ### Still to record
 
-- Warm-dispatch after figure and its C1 ratio against 44.00 ms (Phase 13).
+- Warm-dispatch after figure and its C1 ratio against 44.00 ms, taken after
+  merge against the pipeline's prerelease (Phase 13).
 - Author decisions, if any gate tripped.
 
 ## References
