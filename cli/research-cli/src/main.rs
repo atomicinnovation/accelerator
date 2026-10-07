@@ -28,6 +28,7 @@ use research::conduct::ledger::RunId;
 use research::sources::fetch::Clock;
 use research::sources::fetch::FetchOutcome;
 use research::sources::queue::Ticket;
+use research::sources::queue::LONGEST_INVOCATION;
 use research::sources::request::parse_ticket;
 use research::sources::request::Endpoint;
 use research::sources::request::FetchRequest;
@@ -74,6 +75,8 @@ pub static ACCELERATOR_RESEARCH_TEST_LOOPBACK_MARKER: u8 = 0;
 /// Below Claude Code's default Bash timeout, so a call that cannot finish in
 /// time prints its outcome, unavailable or waiting, rather than being killed.
 const CALL_BUDGET: Duration = Duration::from_secs(100);
+const _: () =
+    assert!(CALL_BUDGET.as_millis() <= LONGEST_INVOCATION.as_millis());
 const REQUEST_BUDGET: Duration = Duration::from_secs(30);
 
 const USAGE: u8 = 2;
