@@ -10,6 +10,9 @@
 pub mod contract;
 pub mod evidence;
 pub mod seed;
+mod shared;
+
+pub use shared::SharedTracker;
 
 use std::cell::RefCell;
 use std::sync::Arc;
