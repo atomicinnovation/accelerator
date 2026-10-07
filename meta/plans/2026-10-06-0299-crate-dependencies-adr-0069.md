@@ -2090,7 +2090,8 @@ today through `consent-adapters` → `vcs-adapters`.
     that both accept the same tokens and spell `unlimited` alike.
   - **Filter lists:** `JIRA_FILTERS`, `LINEAR_FILTERS` and
     `tracker::FilterSchema` were deleted rather than derived: once the
-    catalogue validates filters, nothing reads them.
+    catalogue validates filters, nothing reads them. The author confirmed
+    the deletion: no client consumes a filter vocabulary today.
   - **`read_block`:** returns `ConfigError`, so the dump keeps its access
     failures' variant; `tracker-support` and `work-cli` stringify it.
   - **Extension tests:** the parser leaves ceilings raw, so "set invalid"
