@@ -1,31 +1,29 @@
 //! Whole-corpus walk, the referential-integrity index, and per-file
 //! orchestration for frontmatter validation.
 //!
-//! The pure per-file/per-reference checks live in
-//! `corpus::frontmatter_validation`; this module owns the filesystem walk,
-//! the whole-corpus index build, and wiring the two check categories
-//! (structural, referential) together per file.
+//! The walk, the file reads and the frontmatter parsing arrive through
+//! injected ports; this module builds the whole-corpus index and wires the
+//! two check categories (structural, referential) together per file.
 
 use std::path::Path;
 use std::path::PathBuf;
 
-use corpus::frontmatter_validation::dangling_refs;
-use corpus::frontmatter_validation::declared_type;
-use corpus::frontmatter_validation::duplicate_check;
-use corpus::frontmatter_validation::parse_entries;
-use corpus::frontmatter_validation::raw_value;
-use corpus::frontmatter_validation::schema;
-use corpus::frontmatter_validation::strip_surrounding_quote;
-use corpus::frontmatter_validation::template_shape;
-use corpus::frontmatter_validation::validate_file;
-use corpus::frontmatter_validation::Index;
-use corpus::frontmatter_validation::Violation;
-use corpus::scan::CorpusWalker;
-use corpus::scan::FileReader;
-use corpus::DocTypeKey;
-
-use crate::document::parse as classify;
-use crate::document::FrontmatterState;
+use crate::frontmatter::FrontmatterParser;
+use crate::frontmatter::FrontmatterState;
+use crate::frontmatter_validation::dangling_refs;
+use crate::frontmatter_validation::declared_type;
+use crate::frontmatter_validation::duplicate_check;
+use crate::frontmatter_validation::parse_entries;
+use crate::frontmatter_validation::raw_value;
+use crate::frontmatter_validation::schema;
+use crate::frontmatter_validation::strip_surrounding_quote;
+use crate::frontmatter_validation::template_shape;
+use crate::frontmatter_validation::validate_file;
+use crate::frontmatter_validation::Index;
+use crate::frontmatter_validation::Violation;
+use crate::scan::CorpusWalker;
+use crate::scan::FileReader;
+use crate::DocTypeKey;
 
 /// Every `*.md` file under any directory in `table`, deduplicated (a
 /// configured directory nested under another would otherwise be walked
@@ -35,9 +33,9 @@ use crate::document::FrontmatterState;
 ///
 /// A [`kernel::Error`] when a configured directory exists but cannot be
 /// walked.
-pub fn corpus_files<W: CorpusWalker>(
+pub fn corpus_files(
     table: &[(DocTypeKey, PathBuf)],
-    walker: &W,
+    walker: &dyn CorpusWalker,
 ) -> Result<Vec<PathBuf>, kernel::Error> {
     let roots: Vec<PathBuf> =
         table.iter().map(|(_, dir)| dir.clone()).collect();
@@ -49,12 +47,15 @@ pub fn corpus_files<W: CorpusWalker>(
 
 /// The frontmatter text between a file's fences, or `None` when the content
 /// isn't `Parsed` (no fence, unclosed fence, or unparseable YAML).
-fn parsed_frontmatter_text(content: &str) -> Option<String> {
-    let classified = classify(content.as_bytes());
+fn parsed_frontmatter_text(
+    content: &str,
+    parser: &dyn FrontmatterParser,
+) -> Option<String> {
+    let classified = parser.classify(content.as_bytes());
     if !matches!(classified.state, FrontmatterState::Parsed(_)) {
         return None;
     }
-    document::split(content).ok().map(|split| split.frontmatter)
+    parser.split_frontmatter(content).ok()
 }
 
 /// A file's own resolved `(type, id)` key, `type:id`-joined — the same
@@ -75,7 +76,7 @@ fn resolve_own_type_id(
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
         .or_else(|| {
-            corpus::linkage::type_from_path(&path.to_string_lossy(), table)
+            crate::linkage::type_from_path(&path.to_string_lossy(), table)
                 .map(str::to_owned)
         })?;
 
@@ -103,16 +104,19 @@ fn resolve_own_type_id(
 /// # Errors
 ///
 /// A [`kernel::Error`] when the walk or a file read fails.
-pub fn build_index<W: CorpusWalker + FileReader>(
+pub fn build_index(
     table: &[(DocTypeKey, PathBuf)],
-    walker: &W,
+    walker: &dyn CorpusWalker,
+    reader: &dyn FileReader,
+    parser: &dyn FrontmatterParser,
 ) -> Result<Index, kernel::Error> {
     let mut index = Index::new();
     for path in corpus_files(table, walker)? {
-        let Some(content) = walker.read(&path)? else {
+        let Some(content) = reader.read(&path)? else {
             continue;
         };
-        let Some(frontmatter) = parsed_frontmatter_text(&content) else {
+        let Some(frontmatter) = parsed_frontmatter_text(&content, parser)
+        else {
             continue;
         };
         let Some(type_id) = resolve_own_type_id(&frontmatter, &path, table)
@@ -134,19 +138,23 @@ pub fn build_index<W: CorpusWalker + FileReader>(
 ///
 /// A [`kernel::Error`] when the file read fails for a reason other than
 /// absence.
-pub fn validate_path<F: FileReader>(
+pub fn validate_path(
     path: &Path,
-    file_reader: &F,
+    reader: &dyn FileReader,
+    parser: &dyn FrontmatterParser,
 ) -> Result<Vec<Violation>, kernel::Error> {
-    Ok(file_reader.read(path)?.map_or_else(
+    Ok(reader.read(path)?.map_or_else(
         || vec![Violation::NoFence],
-        |content| validate_text(&content),
+        |content| validate_text(&content, parser),
     ))
 }
 
 #[must_use]
-pub fn validate_text(content: &str) -> Vec<Violation> {
-    parsed_frontmatter_text(content)
+pub fn validate_text(
+    content: &str,
+    parser: &dyn FrontmatterParser,
+) -> Vec<Violation> {
+    parsed_frontmatter_text(content, parser)
         .map_or_else(|| vec![Violation::NoFence], |fm| validate_file(&fm))
 }
 
@@ -194,16 +202,17 @@ fn structural_gate_failed(violations: &[Violation]) -> bool {
 ///
 /// A [`kernel::Error`] when a file read fails for a reason other than
 /// absence.
-pub fn validate_targets<F: FileReader>(
+pub fn validate_targets(
     files: &[PathBuf],
     table: &[(DocTypeKey, PathBuf)],
     index: &Index,
     checks: Checks,
-    file_reader: &F,
+    reader: &dyn FileReader,
+    parser: &dyn FrontmatterParser,
 ) -> Result<Vec<(PathBuf, TargetOutcome)>, kernel::Error> {
     let mut results = Vec::with_capacity(files.len());
     for path in files {
-        let mut structural = validate_path(path, file_reader)?;
+        let mut structural = validate_path(path, reader, parser)?;
         if !checks.canonical {
             structural.retain(|violation| {
                 !matches!(violation, Violation::UnquotedString { .. })
@@ -218,8 +227,10 @@ pub fn validate_targets<F: FileReader>(
         };
 
         if checks.references && !gate_failed {
-            if let Some(content) = file_reader.read(path)? {
-                if let Some(frontmatter) = parsed_frontmatter_text(&content) {
+            if let Some(content) = reader.read(path)? {
+                if let Some(frontmatter) =
+                    parsed_frontmatter_text(&content, parser)
+                {
                     emitted.extend(dangling_refs(&frontmatter, index));
                     if let Some(type_id) =
                         resolve_own_type_id(&frontmatter, path, table)
@@ -299,15 +310,20 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
-    use corpus::frontmatter_validation::Violation;
-    use corpus::scan::CorpusWalker;
-    use corpus::scan::FileReader;
-    use corpus::DocTypeKey;
-
     use super::{
         build_index, corpus_files, validate_path, validate_targets, Checks,
         TargetOutcome,
     };
+    use crate::frontmatter::FrontmatterError;
+    use crate::frontmatter::FrontmatterParser;
+    use crate::frontmatter::FrontmatterState;
+    use crate::frontmatter::ParsedDocument;
+    use crate::frontmatter_validation::Violation;
+    use crate::scan::CorpusWalker;
+    use crate::scan::FileReader;
+    use crate::DocTypeKey;
+    use crate::FrontmatterValue;
+    use crate::Mapping;
 
     #[derive(Default)]
     struct StubFs {
@@ -340,6 +356,67 @@ mod tests {
                 }
             }
             Ok(found)
+        }
+    }
+
+    const MALFORMED: &str = "malformed: true";
+
+    struct FenceParser;
+
+    enum Fence<'a> {
+        Absent,
+        Unterminated,
+        Closed(&'a str),
+    }
+
+    impl FenceParser {
+        fn fence(content: &str) -> Fence<'_> {
+            let Some(rest) = content.strip_prefix("---\n") else {
+                return Fence::Absent;
+            };
+            rest.find("---\n")
+                .map_or(Fence::Unterminated, |end| Fence::Closed(&rest[..end]))
+        }
+    }
+
+    impl FrontmatterParser for FenceParser {
+        fn classify(&self, raw: &[u8]) -> ParsedDocument {
+            let content = String::from_utf8_lossy(raw);
+            let state = match Self::fence(&content) {
+                Fence::Absent => FrontmatterState::Absent,
+                Fence::Closed(frontmatter)
+                    if !frontmatter.contains(MALFORMED) =>
+                {
+                    FrontmatterState::Parsed(Mapping::new())
+                }
+                Fence::Closed(_) | Fence::Unterminated => {
+                    FrontmatterState::Malformed
+                }
+            };
+            ParsedDocument {
+                state,
+                body: String::new(),
+            }
+        }
+
+        fn parse_value(
+            &self,
+            _content: &str,
+        ) -> Result<FrontmatterValue, FrontmatterError> {
+            Err(FrontmatterError("the pipeline never parses values".into()))
+        }
+
+        fn split_frontmatter(
+            &self,
+            content: &str,
+        ) -> Result<String, FrontmatterError> {
+            match Self::fence(content) {
+                Fence::Absent => Ok(String::new()),
+                Fence::Closed(frontmatter) => Ok(frontmatter.to_owned()),
+                Fence::Unterminated => {
+                    Err(FrontmatterError("unterminated".into()))
+                }
+            }
         }
     }
 
@@ -391,21 +468,26 @@ mod tests {
     fn validate_path_reports_no_fence_for_a_missing_file(
     ) -> Result<(), TestError> {
         let walker = StubFs::default();
-        let violations =
-            validate_path(Path::new("meta/work/0001.md"), &walker)?;
+        let violations = validate_path(
+            Path::new("meta/work/0001.md"),
+            &walker,
+            &FenceParser,
+        )?;
         assert_eq!(violations, vec![Violation::NoFence]);
         Ok(())
     }
 
     #[test]
-    fn validate_path_reports_no_fence_for_unparseable_yaml(
+    fn validate_path_reports_no_fence_for_malformed_frontmatter(
     ) -> Result<(), TestError> {
-        let walker = StubFs::default().with_file(
-            "meta/work/0001.md",
-            "---\nkey: !custom value\n---\nbody\n",
-        );
-        let violations =
-            validate_path(Path::new("meta/work/0001.md"), &walker)?;
+        let mut content = work_item("0001", None);
+        content.insert_str("---\n".len(), &format!("{MALFORMED}\n"));
+        let walker = StubFs::default().with_file("meta/work/0001.md", &content);
+        let violations = validate_path(
+            Path::new("meta/work/0001.md"),
+            &walker,
+            &FenceParser,
+        )?;
         assert_eq!(violations, vec![Violation::NoFence]);
         Ok(())
     }
@@ -414,8 +496,11 @@ mod tests {
     fn validate_path_validates_a_well_formed_file() -> Result<(), TestError> {
         let content = work_item("0001", None);
         let walker = StubFs::default().with_file("meta/work/0001.md", &content);
-        let violations =
-            validate_path(Path::new("meta/work/0001.md"), &walker)?;
+        let violations = validate_path(
+            Path::new("meta/work/0001.md"),
+            &walker,
+            &FenceParser,
+        )?;
         assert!(violations.is_empty());
         Ok(())
     }
@@ -426,7 +511,7 @@ mod tests {
         let mut walker = StubFs::default()
             .with_file(
                 "meta/work/0001.md",
-                "---\nkey: !custom value\n---\nbody\n",
+                &format!("---\n{MALFORMED}\n---\nbody\n"),
             )
             .with_file("meta/work/0002.md", &work_item("0002", None));
         walker.roots.insert(
@@ -441,7 +526,7 @@ mod tests {
             .roots
             .insert(PathBuf::from("meta/decisions"), Vec::new());
 
-        let index = build_index(&table(), &walker)?;
+        let index = build_index(&table(), &walker, &walker, &FenceParser)?;
         assert!(!index.contains("work-item:0001"));
         assert!(index.contains("work-item:0002"));
         Ok(())
@@ -459,7 +544,7 @@ mod tests {
             .roots
             .insert(PathBuf::from("meta/decisions"), Vec::new());
 
-        let index = build_index(&table(), &walker)?;
+        let index = build_index(&table(), &walker, &walker, &FenceParser)?;
         let results = validate_targets(
             &[PathBuf::from("meta/work/0001.md")],
             &table(),
@@ -470,6 +555,7 @@ mod tests {
                 canonical: true,
             },
             &walker,
+            &FenceParser,
         )?;
 
         let TargetOutcome::Violations(violations) = &results[0].1 else {
@@ -493,7 +579,7 @@ mod tests {
         walker
             .roots
             .insert(PathBuf::from("meta/decisions"), Vec::new());
-        let index = build_index(&table(), &walker)?;
+        let index = build_index(&table(), &walker, &walker, &FenceParser)?;
 
         let results = validate_targets(
             &[PathBuf::from("meta/work/0001.md")],
@@ -505,6 +591,7 @@ mod tests {
                 canonical: true,
             },
             &walker,
+            &FenceParser,
         )?;
 
         let TargetOutcome::Violations(violations) = &results[0].1 else {
@@ -524,7 +611,7 @@ mod tests {
         walker
             .roots
             .insert(PathBuf::from("meta/decisions"), Vec::new());
-        let index = build_index(&table(), &walker)?;
+        let index = build_index(&table(), &walker, &walker, &FenceParser)?;
 
         let results = validate_targets(
             &[PathBuf::from("meta/work/missing.md")],
@@ -536,6 +623,7 @@ mod tests {
                 canonical: false,
             },
             &walker,
+            &FenceParser,
         )?;
 
         assert_eq!(results[0].1, TargetOutcome::Skipped);
@@ -563,7 +651,7 @@ mod tests {
             .roots
             .insert(PathBuf::from("meta/decisions"), Vec::new());
 
-        let index = build_index(&table(), &walker)?;
+        let index = build_index(&table(), &walker, &walker, &FenceParser)?;
         let results = validate_targets(
             &[PathBuf::from("meta/work/0001-a.md")],
             &table(),
@@ -574,6 +662,7 @@ mod tests {
                 canonical: true,
             },
             &walker,
+            &FenceParser,
         )?;
 
         let TargetOutcome::Violations(violations) = &results[0].1 else {

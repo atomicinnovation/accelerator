@@ -15,12 +15,13 @@
 //! every template's actual emission convention.
 //!
 //! Whether the frontmatter is well-formed YAML at all (a tagged node, or a
-//! non-mapping root) is a separate, stricter concern the adapter layer
-//! decides via `corpus_adapters::document::parse` before ever calling into
-//! this module — the naive scanner here has no equivalent concept, so this
-//! module never needs one either.
+//! non-mapping root) is a separate, stricter concern: [`pipeline`] asks the
+//! injected [`FrontmatterParser`](crate::frontmatter::FrontmatterParser) to
+//! classify each file before its raw text reaches these checks, so the naive
+//! scanner never needs an equivalent concept.
 
 mod canonical_quoting;
+pub mod pipeline;
 pub mod schema;
 pub mod shape;
 pub mod template_shape;

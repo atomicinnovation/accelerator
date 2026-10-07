@@ -15,9 +15,9 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use corpus::frontmatter_validation::pipeline::Checks;
 use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
-use corpus_adapters::frontmatter_validation::Checks;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::RealFs;
 

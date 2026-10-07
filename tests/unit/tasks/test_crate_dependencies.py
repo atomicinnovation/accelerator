@@ -423,5 +423,4 @@ def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
         "migrate-adapters -> vcs-adapters: rule 4",
         "migrate-adapters -> work-adapters: rule 2",
         "migrate-adapters -> work-adapters: rule 4",
-        "research-adapters -> corpus-adapters: rule 4",
     ]

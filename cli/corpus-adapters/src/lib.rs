@@ -8,7 +8,6 @@
 pub mod assemble;
 pub mod doc_type;
 pub mod document;
-pub mod frontmatter_validation;
 pub mod fs;
 pub mod jsonl;
 pub mod metadata;
@@ -19,7 +18,9 @@ pub mod store;
 pub mod work_item_pattern;
 
 pub use crate::assemble::{assemble, AssembledDocument};
-pub use crate::document::{parse, FrontmatterState, ParsedDocument};
+pub use crate::document::{
+    parse, FrontmatterState, ParsedDocument, YamlFrontmatter,
+};
 pub use crate::fs::{RealFs, TypeDirectoryLister};
 pub use crate::metadata::{
     derive, derive_at, ClockError, SystemClock, VcsBackedRepoFactsProbe,
@@ -29,5 +30,5 @@ pub use crate::scanner::RegexScanner;
 pub use crate::store::FileCorpusStore;
 pub use crate::work_item_pattern::{
     canonicalise_id, compile_format_string, compile_scan_regex, parse_full_id,
-    pattern_max_number, ParsedId, PatternError,
+    pattern_max_number, ParsedId, PatternCanonicaliser, PatternError,
 };

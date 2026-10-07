@@ -6,16 +6,16 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::frontmatter::FrontmatterParser;
+use corpus::frontmatter::FrontmatterState;
+use corpus::frontmatter_validation::pipeline::validate_path;
+use corpus::frontmatter_validation::pipeline::validate_text;
 use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 use corpus::FrontmatterValue;
 use corpus::Mapping;
 use corpus::Scalar;
-use corpus_adapters::frontmatter_validation::validate_path;
-use corpus_adapters::frontmatter_validation::validate_text;
-use corpus_adapters::parse;
-use corpus_adapters::FrontmatterState;
 use research::topic::claims::ClaimedIndexes;
 use research::topic::claims::IndexClaim;
 use research::topic::evidence::Digest;
@@ -126,6 +126,7 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
     depth: Depth,
     claims: ClaimedIndexes,
     fs: &F,
+    parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<RoundReading, kernel::Error> {
     let outline = fs
@@ -133,9 +134,12 @@ pub fn read_round_inputs<F: DirReader + FileReader + DirectoryProbe>(
         .map_or_else(Outline::default, |text| Outline::parse(&text));
     let source_profiles = fs
         .read(&set_root.join("brief.md"))?
-        .and_then(|text| string_list(&frontmatter(&text)?, "source_profiles"))
+        .and_then(|text| {
+            string_list(&frontmatter(&text, parser)?, "source_profiles")
+        })
         .unwrap_or_else(|| vec![DEFAULT_PROFILE.to_owned()]);
-    let listing = read_findings(&set_root.join("findings"), fs, unicode)?;
+    let listing =
+        read_findings(&set_root.join("findings"), fs, parser, unicode)?;
     let profiles = available_profiles(profiles_dir, fs)?;
     Ok(RoundReading {
         inputs: RoundInputs {
@@ -165,6 +169,7 @@ struct FindingsListing {
 fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
     findings_dir: &Path,
     fs: &F,
+    parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<FindingsListing, kernel::Error> {
     let mut names = fs.list(findings_dir)?.unwrap_or_default();
@@ -178,9 +183,9 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
         let path = findings_dir.join(&name);
         if name.starts_with('.') {
             if name.ends_with(QUARANTINE_SUFFIX) {
-                let question = fs
-                    .read(&path)?
-                    .and_then(|text| string(&frontmatter(&text)?, "question"));
+                let question = fs.read(&path)?.and_then(|text| {
+                    string(&frontmatter(&text, parser)?, "question")
+                });
                 listing.quarantined.extend(IndexClaim::quarantined(
                     &name,
                     question.as_deref(),
@@ -190,11 +195,11 @@ fn read_findings<F: DirReader + FileReader + DirectoryProbe>(
         } else if let Some(stem) = levels_stem(&name, &path, fs) {
             listing
                 .levels
-                .push(read_levels_directory(&path, stem, fs, unicode)?);
+                .push(read_levels_directory(&path, stem, fs, parser, unicode)?);
         } else if is_markdown(&path) {
             listing
                 .findings
-                .push(read_finding(&path, &name, fs, unicode)?);
+                .push(read_finding(&path, &name, fs, parser, unicode)?);
         }
     }
     Ok(listing)
@@ -218,12 +223,14 @@ fn read_finding<F: FileReader>(
     path: &Path,
     name: &str,
     fs: &F,
+    parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<Finding, kernel::Error> {
-    if !validate_path(path, fs)?.is_empty() {
+    if !validate_path(path, fs, parser)?.is_empty() {
         return Ok(Finding::invalid(name));
     }
-    let Some(fields) = fs.read(path)?.and_then(|text| frontmatter(&text))
+    let Some(fields) =
+        fs.read(path)?.and_then(|text| frontmatter(&text, parser))
     else {
         return Ok(Finding::invalid(name));
     };
@@ -252,6 +259,7 @@ fn read_levels_directory<F: DirReader + FileReader + DirectoryProbe>(
     dir: &Path,
     stem: Stem,
     fs: &F,
+    parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<LevelsDirectory, kernel::Error> {
     let mut names = fs.list(dir)?.unwrap_or_default();
@@ -264,9 +272,9 @@ fn read_levels_directory<F: DirReader + FileReader + DirectoryProbe>(
         let path = dir.join(&name);
         if is_root_marker(&name) {
             if marker_question.is_none() {
-                marker_question = fs
-                    .read(&path)?
-                    .and_then(|text| string(&frontmatter(&text)?, "question"));
+                marker_question = fs.read(&path)?.and_then(|text| {
+                    string(&frontmatter(&text, parser)?, "question")
+                });
             }
             continue;
         }
@@ -279,13 +287,19 @@ fn read_levels_directory<F: DirReader + FileReader + DirectoryProbe>(
         let Some(text) = fs.read(&path)? else {
             continue;
         };
-        let fields = frontmatter(&text);
+        let fields = frontmatter(&text, parser);
         if lineage == Lineage::root() {
             root_question = fields
                 .as_ref()
                 .and_then(|fields| string(fields, "question"));
         }
-        match judge_note(lineage.clone(), &text, fields.as_ref(), unicode) {
+        match judge_note(
+            lineage.clone(),
+            &text,
+            fields.as_ref(),
+            parser,
+            unicode,
+        ) {
             Ok(note) => notes.push(note),
             Err(rejection) => {
                 rejected.insert(lineage, rejection);
@@ -315,9 +329,10 @@ fn judge_note(
     lineage: Lineage,
     text: &str,
     fields: Option<&Mapping>,
+    parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<LevelNote, NoteRejection> {
-    if let Some(violation) = validate_text(text).first() {
+    if let Some(violation) = validate_text(text, parser).first() {
         return Err(NoteRejection::FailsValidation {
             code: violation.code(),
             field: violation.schema_key(),
@@ -342,8 +357,8 @@ fn judge_note(
     )
 }
 
-fn frontmatter(text: &str) -> Option<Mapping> {
-    match parse(text.as_bytes()).state {
+fn frontmatter(text: &str, parser: &dyn FrontmatterParser) -> Option<Mapping> {
+    match parser.classify(text.as_bytes()).state {
         FrontmatterState::Parsed(mapping) => Some(mapping),
         FrontmatterState::Absent | FrontmatterState::Malformed => None,
     }
@@ -400,6 +415,8 @@ mod tests {
     use research::topic::tree::Depth;
     use sha2::Digest as _;
     use sha2::Sha256;
+
+    use corpus_adapters::YamlFrontmatter;
 
     use super::read_round_inputs;
     use super::ReadingWarning;
@@ -510,6 +527,7 @@ mod tests {
             Depth::new(3).ok_or("depth")?,
             ClaimedIndexes::default(),
             fs,
+            &YamlFrontmatter,
             &UnicodeTables,
         )?
         .inputs
@@ -773,6 +791,7 @@ mod tests {
             Depth::default(),
             ClaimedIndexes::default(),
             &fs,
+            &YamlFrontmatter,
             &UnicodeTables,
         )?;
 
@@ -811,6 +830,7 @@ mod tests {
                 Depth::new(3).ok_or("depth")?,
                 ClaimedIndexes::default(),
                 &fs,
+                &YamlFrontmatter,
                 &UnicodeTables,
             )?
             .inputs;

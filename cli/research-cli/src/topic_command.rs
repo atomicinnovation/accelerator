@@ -13,6 +13,7 @@ use corpus::AtomicWrite;
 use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
+use corpus_adapters::YamlFrontmatter;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
@@ -237,6 +238,7 @@ where
         depth,
         claims,
         fs,
+        &YamlFrontmatter,
         &UnicodeTables,
     )
     .map_err(|error| error.to_string())?;

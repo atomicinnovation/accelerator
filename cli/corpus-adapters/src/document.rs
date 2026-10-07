@@ -1,26 +1,48 @@
 //! Translating a parsed `document::Yaml` into the `corpus::FrontmatterValue`
 //! domain tree, and the per-document frontmatter-state classification.
 
+pub use corpus::frontmatter::FrontmatterState;
+pub use corpus::frontmatter::ParsedDocument;
+
+use corpus::frontmatter::FrontmatterError;
+use corpus::frontmatter::FrontmatterParser;
 use corpus::FrontmatterValue;
 use corpus::Mapping;
 use corpus::Scalar;
+use document::DocumentError;
 use document::Scalar as YamlScalar;
 use document::Yaml;
 
-/// The frontmatter outcome for a document: parsed to a root mapping, absent, or
-/// malformed.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FrontmatterState {
-    Parsed(Mapping),
-    Absent,
-    Malformed,
+/// The [`FrontmatterParser`] over the `document` YAML layer.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct YamlFrontmatter;
+
+impl FrontmatterParser for YamlFrontmatter {
+    fn classify(&self, raw: &[u8]) -> ParsedDocument {
+        parse(raw)
+    }
+
+    fn parse_value(
+        &self,
+        content: &str,
+    ) -> Result<FrontmatterValue, FrontmatterError> {
+        document::parse(content)
+            .map(to_value)
+            .map_err(|error| frontmatter_error(&error))
+    }
+
+    fn split_frontmatter(
+        &self,
+        content: &str,
+    ) -> Result<String, FrontmatterError> {
+        document::split(content)
+            .map(|split| split.frontmatter)
+            .map_err(|error| frontmatter_error(&error))
+    }
 }
 
-/// A classified document: its frontmatter state and its body.
-#[derive(Debug, Clone)]
-pub struct ParsedDocument {
-    pub state: FrontmatterState,
-    pub body: String,
+fn frontmatter_error(error: &DocumentError) -> FrontmatterError {
+    FrontmatterError(error.to_string())
 }
 
 /// Classifies a document's frontmatter and splits off its body. A non-mapping

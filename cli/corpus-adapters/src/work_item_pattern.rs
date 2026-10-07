@@ -12,6 +12,8 @@
 
 use std::fmt::{self, Display, Formatter, Write as _};
 
+use corpus::work_item_id::CanonicaliseError;
+use corpus::work_item_id::WorkItemIdCanonicaliser;
 use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -555,6 +557,45 @@ pub fn canonicalise_id(
     Err(PatternError::UnrecognisedIdShape(input.to_owned()))
 }
 
+/// The [`WorkItemIdCanonicaliser`] over [`canonicalise_id`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PatternCanonicaliser;
+
+impl WorkItemIdCanonicaliser for PatternCanonicaliser {
+    fn canonicalise(
+        &self,
+        input: &str,
+        pattern: &str,
+        key_value: &str,
+    ) -> Result<String, CanonicaliseError> {
+        canonicalise_id(input, pattern, key_value).map_err(canonicalise_error)
+    }
+}
+
+fn canonicalise_error(error: PatternError) -> CanonicaliseError {
+    match error {
+        PatternError::EmptyInput => CanonicaliseError::EmptyInput,
+        PatternError::MissingKey => CanonicaliseError::MissingKey,
+        PatternError::UnrecognisedIdShape(input) => {
+            CanonicaliseError::UnrecognisedIdShape(input)
+        }
+        PatternError::NoMatch => CanonicaliseError::NoMatch,
+        malformed @ (PatternError::Empty
+        | PatternError::UnmatchedBrace(_)
+        | PatternError::NestedBrace(_)
+        | PatternError::UnclosedToken(_)
+        | PatternError::AdjacentTokens
+        | PatternError::BadKeyValue(_)
+        | PatternError::BadFormatSpec(_)
+        | PatternError::UnknownToken(_)
+        | PatternError::HostileChar(_)
+        | PatternError::NoNumberToken
+        | PatternError::WidthOverflow(_)) => {
+            CanonicaliseError::MalformedPattern(malformed.to_string())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -862,6 +903,17 @@ mod tests {
             canonicalise_id("42", "{key}-{number:04d}", ""),
             Err(PatternError::MissingKey)
         ));
+    }
+
+    #[test]
+    fn a_width_overflow_is_a_malformed_pattern() {
+        assert_eq!(
+            canonicalise_error(PatternError::WidthOverflow(20)),
+            CanonicaliseError::MalformedPattern(
+                "{number} width 20 overflows the allocator's numeric cap"
+                    .to_owned()
+            )
+        );
     }
 
     #[test]

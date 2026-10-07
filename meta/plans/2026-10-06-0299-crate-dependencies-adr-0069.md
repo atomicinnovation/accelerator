@@ -1084,13 +1084,13 @@ returns.
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus -p research-adapters -p accelerator-research -p accelerator-visualiser --all-features` passes
-- [ ] Frontmatter-validate and research characterisation cases unchanged, goldens untouched: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] Known-violation set loses `research-adapters` → `corpus-adapters`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run pup:check` passes with `corpus`'s allow-list unchanged
-- [ ] `mise run public-api:check` passes
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters -p accelerator-corpus -p research-adapters -p accelerator-research -p accelerator-visualiser --all-features` passes
+- [x] Frontmatter-validate and research characterisation cases unchanged, goldens untouched: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] Known-violation set loses `research-adapters` → `corpus-adapters`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run pup:check` passes with `corpus`'s allow-list unchanged
+- [x] `mise run public-api:check` passes
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1939,9 +1939,40 @@ today through `consent-adapters` → `vcs-adapters`.
   warning and no "was not checked" note. Both sessions also showed the
   override's unverified-launcher notice and a migration reminder for the
   scratch repository, which are expected.
-- Next: Phase 8, the `corpus` parsing port. Its phase base is the commit it
-  starts from, after Phase 7's plan-only updates; no golden differs from the
-  Phase 7 commit `ymnuppln`.
+- Phase 8 is complete from phase base `wllzvxwr`: `corpus` owns
+  `FrontmatterParser`, `WorkItemIdCanonicaliser` and
+  `frontmatter_validation::pipeline`, `research-adapters` reaches YAML only
+  through the injected parser, and the lint reports 7 known findings. The
+  541 characterisation cases pass with no golden changed. Deviations from the
+  Phase 8 text:
+  - **`CanonicaliseError`:** keeps the four input arms (`EmptyInput`,
+    `MissingKey`, `UnrecognisedIdShape`, `NoMatch`) and folds the eleven
+    malformed-pattern arms into `MalformedPattern(String)`, which carries
+    `PatternError`'s text. One arm per variant would copy the DSL's message
+    catalogue into `corpus`. The contract test covers each reachable arm;
+    `WidthOverflow`, which `canonicalise_id` cannot return, is unit-tested at
+    the mapping.
+  - **`available_profiles`:** takes no parser, since it reads no
+    frontmatter.
+  - **`research-adapters` dev edge:** the topic tests assert on real YAML
+    (follow-up sequences, validation codes), so they inject `YamlFrontmatter`
+    through a `corpus-adapters` dev-dependency rather than a stub YAML parser.
+    The lint ignores dev edges; the normal edge is gone.
+  - **`corpus_files`:** takes `&dyn CorpusWalker` like its siblings.
+    `validate_templates` stays generic.
+  - **`migrate-adapters`:** its `validate_frontmatter` calls the `corpus`
+    pipeline with `YamlFrontmatter`; Phase 9 injects it.
+  - **Domain stub:** the moved unit tests use a fence-splitting stub that
+    reads a `malformed: true` line as `Malformed`; the tagged-YAML cases live
+    in `corpus-adapters/tests/frontmatter_validation.rs`.
+  - **`mise run`:** the first run failed only on
+    `test_dev_launcher_marker_is_gitignored_and_unshipped`, because Phase 7's
+    manual check had left an untracked `.accelerator-dev-launcher` marker in
+    the workspace. With the author, it was deleted. The second run, with
+    `E2E_HEALTH_PORT=19187`, failed only in `test:e2e:visualiser`: three
+    `resolved-styles` specs hit `page.goto: net::ERR_ABORTED` on their first
+    navigation. The lane then passed alone (355 passed), and every other lane
+    passed in the full run, the 541 characterisation cases included.
 
 ### Phase 2 characterisation coverage
 

@@ -256,32 +256,33 @@ impl MigrationContext for FileMigrationContext {
     ) -> Result<(), MigrationError> {
         let table = self.linkage_table();
         let walker = corpus_adapters::fs::RealFs;
+        let parser = corpus_adapters::YamlFrontmatter;
         let target = if files.is_empty() {
-            corpus_adapters::frontmatter_validation::corpus_files(
+            corpus::frontmatter_validation::pipeline::corpus_files(
                 &table, &walker,
             )
             .map_err(|error| MigrationError::new(error.to_string()))?
         } else {
             files.to_vec()
         };
-        let index = corpus_adapters::frontmatter_validation::build_index(
-            &table, &walker,
+        let index = corpus::frontmatter_validation::pipeline::build_index(
+            &table, &walker, &walker, &parser,
         )
         .map_err(|error| MigrationError::new(error.to_string()))?;
-        let checks = corpus_adapters::frontmatter_validation::Checks {
+        let checks = corpus::frontmatter_validation::pipeline::Checks {
             structure: true,
             references: true,
             canonical: false,
         };
         let results =
-            corpus_adapters::frontmatter_validation::validate_targets(
-                &target, &table, &index, checks, &walker,
+            corpus::frontmatter_validation::pipeline::validate_targets(
+                &target, &table, &index, checks, &walker, &parser,
             )
             .map_err(|error| MigrationError::new(error.to_string()))?;
 
         let mut messages = Vec::new();
         for (path, outcome) in &results {
-            if let corpus_adapters::frontmatter_validation::TargetOutcome::Violations(violations) = outcome {
+            if let corpus::frontmatter_validation::pipeline::TargetOutcome::Violations(violations) = outcome {
                 for violation in violations {
                     messages.push(format!("{}: {violation}", path.display()));
                 }

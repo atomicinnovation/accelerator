@@ -238,6 +238,7 @@ mod tests {
 
     use corpus::scan::FileReader;
     use corpus::AtomicWrite;
+    use corpus::FileRemove;
     use corpus::StoreError;
     use research::conduct::ledger::RunId;
     use research::conduct::ledger::RunLedger;
@@ -258,7 +259,6 @@ mod tests {
     use super::write_run_ledger;
     use super::LedgerError;
     use crate::unicode_text::UnicodeTables;
-    use corpus_adapters::FileCorpusStore;
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -293,6 +293,13 @@ mod tests {
                 path.to_path_buf(),
                 String::from_utf8_lossy(bytes).into_owned(),
             );
+            Ok(())
+        }
+    }
+
+    impl FileRemove for StubStore {
+        fn remove(&self, path: &Path) -> Result<(), StoreError> {
+            self.files.borrow_mut().remove(path);
             Ok(())
         }
     }
@@ -454,20 +461,18 @@ mod tests {
 
     #[test]
     fn deleting_an_absent_run_ledger_succeeds() -> Result<(), TestError> {
-        let set = tempfile::tempdir()?;
-        delete_run_ledger(set.path(), &FileCorpusStore::new(set.path()))?;
+        delete_run_ledger(Path::new(SET), &StubStore::default())?;
         Ok(())
     }
 
     #[test]
     fn deleting_a_run_ledger_removes_its_file() -> Result<(), TestError> {
-        let set = tempfile::tempdir()?;
-        let store = FileCorpusStore::new(set.path());
-        write_run_ledger(set.path(), &full_ledger(), &store)?;
+        let store = StubStore::default();
+        write_run_ledger(Path::new(SET), &full_ledger(), &store)?;
 
-        delete_run_ledger(set.path(), &store)?;
+        delete_run_ledger(Path::new(SET), &store)?;
 
-        assert!(!set.path().join(".conduct-run.json").exists());
+        assert_eq!(store.read(Path::new(LEDGER))?, None);
         Ok(())
     }
 }

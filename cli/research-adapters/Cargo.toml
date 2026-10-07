@@ -16,7 +16,6 @@ workspace = true
 [dependencies]
 research = { path = "../research" }
 corpus = { path = "../corpus" }
-corpus-adapters = { path = "../corpus-adapters" }
 kernel = { path = "../kernel" }
 # rustls-tls-webpki-roots-no-provider installs no crypto provider, so the
 # transport installs ring itself.
@@ -32,5 +31,6 @@ icu_properties = { workspace = true }
 store = { path = "../store" }
 
 [dev-dependencies]
+corpus-adapters = { path = "../corpus-adapters" }
 http-test-support = { path = "../http-test-support" }
 tempfile = { workspace = true }
