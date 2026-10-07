@@ -89,16 +89,6 @@
   promotion record written past its first stage and aborts on it. Run
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
-- **arXiv fetches queue fairly and keep their place across calls.** Each
-  arXiv `research fetch` takes a ticket in a project-wide first-in, first-out
-  queue and, once admitted, holds the arXiv lock for its whole call, retries
-  and backoffs included. A call that cannot be served within its 100 s budget
-  prints `{"status":"waiting",…,"ticket":…,"position":…}` and exits 0;
-  re-presenting it with `--ticket` resumes its place, and the arXiv profile
-  does so until the call settles. `fetch` callers must now handle this third
-  status, `waiting`. `lock_contention` now means only a ticket past its 900 s
-  cap or a queue that could not be used, so `arxiv-contention.log` counts are
-  not comparable with earlier releases; its lines now name their kind.
 
 ### Added
 
@@ -115,9 +105,16 @@
   <openalex|arxiv> <search|lookup>` returns normalised records as JSON, each
   carrying a reputation tier the CLI derives from venue, version, retraction,
   and confirmed arXiv withdrawal, within a 100 s deadline. A throttled,
-  budget-exhausted, or failing source degrades to `status: "unavailable"`
-  rather than an error, and arXiv requests are paced three seconds apart
-  across every process in the project.
+  budget-exhausted, or failing source reports `status: "unavailable"`
+  rather than an error. arXiv fetches take a ticket in a project-wide
+  first-in, first-out queue, and their requests are paced three seconds
+  apart across every process in the project. A call that cannot be served
+  within its deadline reports `status: "waiting"` with its `ticket` and
+  `position`; re-presenting it with `--ticket` resumes its place, and the
+  arXiv profile does so until the call settles. A ticket that is malformed,
+  presented with other arguments, or in use by another call exits 2 with
+  `E_ARXIV_TICKET_MALFORMED`, `E_ARXIV_TICKET_MISMATCH` or
+  `E_ARXIV_TICKET_LIVE`.
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
