@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T11:08:25+00:00"
+last_updated: "2026-10-07T13:09:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -139,8 +139,9 @@ and `cargo-deny` checks third-party crates.
 - Linting `use` paths or dev-dependencies. `remote-projection` → `work` and
   `work-adapters` → `jira-client` stay as dev edges.
 - Enforcing rule 3 mechanically; it is recorded here and reviewed.
-- Moving tracker ceiling interpretation, defaults or `FilterSchema` out of
-  `tracker`/`tracker-support`.
+- Moving tracker ceiling interpretation or defaults out of
+  `tracker`/`tracker-support`. (`FilterSchema` was deleted in Phase 10 once
+  nothing read it; see Implementation Notes.)
 - Collapsing the narrow consumer-side VCS ports (`corpus::RepoFactsProbe`,
   `work::create::VcsIdentityProbe`, `migrate::ports::WorkingCopy`); they stay
   and are implemented over the new `vcs` port.
@@ -1572,8 +1573,9 @@ checklists gain the declaration step.
 - `lint:crate-dependencies:check` joins both roll-ups.
 - `_CLI_CHECK_GATES` gains it, and the missing
   `lint:config-test-support:check`.
-- The known-violations test becomes `test_the_shipped_workspace_is_clean`
-  (`== []`).
+- The known-violations test becomes `test_the_shipped_workspace_is_clean`;
+  its assertion is already `== []` since Phase 10, so only the name
+  changes.
 - The README roll-up prose lists every Python guard in `cli:check`.
 
 #### 2. Checklists
@@ -1692,7 +1694,8 @@ the diff.
   `SyncBaselines`, `collaboration::RepositoryOrigin`), and the new
   `MigrationContext` operations through m0001's and m0008's doubles.
 - **`config::tracker_block`**: every refusal text, the full validation order,
-  the one-`EntityList`-one-`ScopeFlag` invariant, and the extension field
+  the one-`EntityList`-one-`ScopeFlag` invariant (both or neither; every
+  pull block has both), and the extension field
   through an injected table in all three consumers.
 - **`store::lock`**: the moved lock tests against `LockError`, one per arm and
   its text, plus `holder_pid`.
@@ -2109,6 +2112,8 @@ today through `consent-adapters` → `vcs-adapters`.
     `corpus` errors that `cargo test` did not: an IDE-driven check had
     fingerprinted both mid-edit, `corpus` since Phase 8. Touching their
     sources cleared it.
+  - **Known-violations test:** with no findings left, its assertion is
+    already `== []`; Phase 12 only renames it.
   - **`mise run`:** the first run failed only in `lint:cli:check`, on
     `missing_const_for_fn` and `too_many_lines` in the new `config` code and
     tests; the refusal-text test split into pull and push halves. The second
