@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T00:28:37+00:00"
+last_updated: "2026-10-07T00:40:03+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -63,8 +63,8 @@ and `cargo-deny` checks third-party crates.
   across contexts run from `jira-client` and `linear-client` to
   `tracker-support`.
 - The launcher's normal workspace dependencies are `kernel`, `config`,
-  `config-adapters`, `vcs` and `vcs-adapters`, plus technical libraries other
-  than `store`.
+  `config-adapters` and `vcs-adapters`, plus technical libraries other than
+  `store`.
 - `accelerator vcs tracking --path x` fails as an unknown subcommand.
   SessionStart warns about a tracked `config.local.md` in every case, and
   never emits a "was not checked" note.
@@ -958,7 +958,7 @@ the diff. No other golden changes.
 - [x] `rg -n 'TrackingCheck|PersonalFileUnchecked|TrackingAnswer|was not checked' cli/` is empty
 - [x] Removal files absent: `test ! -e cli/launcher/src/launch/outbound/capture.rs && test ! -e cli/kernel/src/tracking.rs && test ! -e cli/vcs-cli/src/tracking.rs && test ! -e cli/vcs-cli/tests/tracking.rs && test ! -e cli/launcher/src/launch/outbound/tracking.rs`
 - [x] `uv run pytest tests/unit/tasks/test_skill_cli_refs.py` passes
-- [x] `mise run test:integration:characterisation` passes, and `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` lists exactly the four reviewed goldens, with no change under `tests/integration/characterisation/*.py`
+- [x] `mise run test:integration:characterisation` passes, and `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` lists exactly the four reviewed goldens, with no change under `tests/integration/characterisation/*.py` (met with the new `test_vcs_subcommands.py` and its two goldens besides; see Implementation Notes)
 - [x] `mise run deny:check`, `mise run public-api:check`, `mise run docs:check` pass
 - [x] `mise run` exits 0
 
@@ -1932,8 +1932,8 @@ today through `consent-adapters` → `vcs-adapters`.
   warning and no "was not checked" note. Both sessions also showed the
   override's unverified-launcher notice and a migration reminder for the
   scratch repository, which are expected.
-- Next: Phase 8, the `corpus` parsing port. Its phase base is the Phase 7
-  commit.
+- Next: Phase 8, the `corpus` parsing port. Its phase base is `onzomskl`,
+  the commit recording Phase 7's manual check.
 
 ### Phase 2 characterisation coverage
 
