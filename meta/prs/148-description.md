@@ -12,9 +12,9 @@ relates_to: ["work-item:0283", "work-item:0300"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/148"
 pr_number: 148
 tags: ["research", "arxiv", "pacing", "fetch"]
-revision: "fcb2af07f1cf29b0a50cd1d19ce0bc48db3a6e0b"
+revision: "6897b001d37925da7770224239e830f0afae54b3"
 repository: "accelerator"
-last_updated: "2026-10-06T22:42:40+00:00"
+last_updated: "2026-10-07T00:27:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -70,7 +70,7 @@ is delayed rather than lost.
   releases.
 - **Prompts and docs.** The arXiv profile and `researcher` agent re-present
   `waiting` tickets until the call settles. The `research.md` Pacing section
-  and the CHANGELOG describe the queue.
+  describes the queue, and the CHANGELOG lists it under `### Breaking`.
 - **Tests and lanes.** There are domain, adapter and CLI tests, including
   real-process queue ordering in `arxiv_queue.rs`. The opt-in
   `test:integration:arxiv-queue-stress` lane runs 30 concurrent fetches on
@@ -98,8 +98,9 @@ is delayed rather than lost.
 - [x] `mise run check` (the CI read-only set, including
   `public-api:check`) exits 0 at the branch tip
 - [x] Full local CI mirror `mise run`: 4,598 CLI tests pass, 2 skipped. This
-  was run during validation, on the tree before the final comment-only
-  commit. For that commit, `cli:check` and the `research`,
+  was run during validation, before the comment cleanup and the
+  validation follow-ups. For those commits, `mise run fix && mise run
+  check`, `docs:check`, the structure tests (107) and the `research`,
   `research-adapters` and `accelerator-research` tests (606) pass
 - [x] `mise run test:integration:arxiv-queue-stress`: 1 test, 117 s
 - [x] `arxiv_pacing` passes 20 of 20 under `--stress-count 20`
@@ -115,25 +116,20 @@ is delayed rather than lost.
 
 ## Notes for Reviewers
 
-- **Release placement.** The CHANGELOG entry sits under `### Changed`, but
-  `fetch` callers must now handle `waiting`. Decide whether it belongs under
-  `### Breaking`.
 - **Lock ordering.** The places to focus are `FileArxivQueue::join` /
   `step_aside` / `leave`, and the turn's lifetime in `fetch.rs`'s
   `serve_call`. The turn is consumed and dropped before `leave` or
   `step_aside`, and `is_front` takes no lock beyond its momentary probe.
-- **Open validation recommendations.** These are not addressed in this PR:
-  - Stale doc comments describe the pre-queue behaviour:
-    `Unavailable::lock_contention()` (`research/src/sources/fetch.rs:173`),
-    `CALL_BUDGET` (`research-cli/src/main.rs:74`) and `summary`'s "attempts"
-    (`research-cli/src/render.rs:77`).
-  - `research.md:85` says only failed or unavailable calls write a stderr
-    line, but a `waiting` call writes one too.
-  - `contention.rs:48` hard-codes "900 s cap" instead of deriving it from
-    `queue::CAP`.
-  - The arXiv profile's Unavailable bullet omits the planned mid-retry
-    reason note.
-- **Known edge cases** (from the validation; benign):
+- **Validation follow-ups.** Two follow-up commits close the validation's
+  recommendations:
+  - The CHANGELOG entry moves under `### Breaking`.
+  - Three stale doc comments now describe the queue:
+    `Unavailable::lock_contention()`, `CALL_BUDGET` and `summary`.
+  - `research.md` now says a `waiting` call also writes a stderr line.
+  - The contention log derives its cap from `queue::CAP`.
+  - The arXiv profile's Unavailable bullet regains the mid-retry reason
+    note, with a structure test that pins it.
+- **Known edge cases** (from the validation; benign, left as they are):
   - A ticket `.lock` that is a directory is never removed. Housekeeping
     reports it on every pass.
   - A failed fresh join can leave an orphaned, unlocked `<ticket>.lock`
