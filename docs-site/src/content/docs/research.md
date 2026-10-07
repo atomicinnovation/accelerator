@@ -94,8 +94,10 @@ An arXiv call that could not be served in time keeps its place in the queue
 ```
 
 Re-present the same call with `--ticket 42-9f1c2a`, and repeat until the
-status is anything else. A caller should treat any other status as
-`unavailable`, reporting the status verbatim as its reason.
+status is no longer `waiting`.
+
+A caller should treat any status other than `ok`, `unavailable` or `waiting`
+as `unavailable`, reporting the status verbatim as its reason.
 
 ### Exit codes
 
