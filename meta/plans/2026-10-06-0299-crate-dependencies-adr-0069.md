@@ -13,7 +13,7 @@ relates_to: ["adr:ADR-0069", "adr:ADR-0054", "plan:2026-09-25-0226-unify-the-tru
 tags: ["cli", "architecture", "dependencies", "refactor", "build-system"]
 revision: "2dac05f5ee7d5703185c83438b8a3b0effad12de"
 repository: "accelerator"
-last_updated: "2026-10-07T07:57:54+00:00"
+last_updated: "2026-10-07T08:54:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1025,8 +1025,11 @@ The three parsing operations have distinct, exact contracts:
   root. Unfenced content is the empty string, and an unterminated fence is an
   error with `DocumentError`'s text.
 
-`CanonicaliseError` mirrors the `PatternError` arms `canonicalise_id`
-returns.
+`CanonicaliseError` keeps the input refusals `canonicalise_id` returns as
+arms of their own (`EmptyInput`, `MissingKey`, `UnrecognisedIdShape`,
+`NoMatch`) and folds every malformed-pattern arm into
+`MalformedPattern(String)`, carrying `PatternError`'s text. Its `Display` is
+`PatternError`'s text for every arm.
 
 #### 2. Adapters
 
@@ -1042,7 +1045,9 @@ returns.
   empty, null-root, mapping, sequence-root, scalar-root, unterminated-fence,
   invalid-YAML and tagged inputs.
 - `PatternCanonicaliser` implements `WorkItemIdCanonicaliser` over
-  `canonicalise_id`, with a test per `PatternError` arm.
+  `canonicalise_id`, with a contract test per `PatternError` arm
+  `canonicalise_id` can return, and a unit test mapping `WidthOverflow`,
+  which it cannot.
 
 #### 3. Pipeline move
 
@@ -1058,14 +1063,17 @@ returns.
 - `parsed_frontmatter_text` keeps its gating: `classify` first, and
   `split_frontmatter` only for `Parsed` content, with split errors folded to
   `None` as today.
-- `corpus_files`, `validate_templates`, `Checks` and `TargetOutcome` move
-  unchanged.
-- The moved unit tests use a stub parser. The YAML-dependent cases
-  (`frontmatter_validation.rs:400-411`) move to a `corpus-adapters`
-  integration test that composes `YamlFrontmatter` with the domain pipeline.
+- `corpus_files` takes `&dyn CorpusWalker` like its siblings.
+  `validate_templates`, `Checks` and `TargetOutcome` move unchanged.
+- The moved unit tests use a fence-splitting stub parser that reads a
+  `malformed: true` line as `Malformed`. The YAML-dependent cases
+  (`frontmatter_validation.rs:400-411`) move to
+  `corpus-adapters/tests/frontmatter_validation.rs`, which composes
+  `YamlFrontmatter` with the domain pipeline.
 - The module doc at `corpus/src/frontmatter_validation/mod.rs:17-21` is
   rewritten.
-- `corpus-cli/src/frontmatter.rs` injects `&YamlFrontmatter`.
+- `corpus-cli/src/frontmatter.rs` injects `&YamlFrontmatter`, and so does
+  `migrate-adapters`' `validate_frontmatter` until Phase 9 injects it.
 
 #### 4. `research-adapters`
 
@@ -1073,12 +1081,15 @@ returns.
 `Cargo.toml`
 **Changes**:
 
-- `read_round_inputs`, `available_profiles` and the topic functions take a
+- `read_round_inputs` and the topic functions it calls take a
   `&dyn FrontmatterParser`. `frontmatter()` uses `parser.classify`.
+  `available_profiles` reads no frontmatter and takes no parser.
 - Ledger tests swap `FileCorpusStore` for an in-memory `AtomicWrite` and
   `FileRemove` double.
-- `research-adapters` drops `corpus-adapters`, and `research-cli` injects
-  `&YamlFrontmatter`.
+- `research-adapters` drops its normal `corpus-adapters` dependency, and
+  `research-cli` injects `&YamlFrontmatter`. The topic tests assert on real
+  YAML, so they inject `YamlFrontmatter` through a `corpus-adapters`
+  dev-dependency, which the lint ignores.
 
 ### Success Criteria:
 
@@ -1185,8 +1196,9 @@ pub trait SyncBaselines {
       pub config: &'a dyn config::ConfigAccess,
       pub walker: &'a dyn corpus::scan::CorpusWalker,
       pub reader: &'a dyn corpus::scan::FileReader,
-      pub frontmatter: &'a dyn corpus::FrontmatterParser,
-      pub canonicaliser: &'a dyn corpus::WorkItemIdCanonicaliser,
+      pub frontmatter: &'a dyn corpus::frontmatter::FrontmatterParser,
+      pub canonicaliser:
+          &'a dyn corpus::work_item_id::WorkItemIdCanonicaliser,
       pub sync_baselines: &'a dyn migrate::ports::SyncBaselines,
   }
   ```
@@ -1202,9 +1214,14 @@ pub trait SyncBaselines {
   The two routes meet in one place: `YamlFrontmatter::parse_value` is
   `document::parse` mapped through `to_value`, which lives in
   `corpus-adapters` and so cannot be called here directly. The
-  `migrate-adapters/tests/m0008.rs` composition pins that both routes agree.
-- `validate_frontmatter` calls the `corpus` pipeline with the injected
-  walker, reader and parser. `corpus_index.rs` uses the injected walker and
+  `migrate-adapters/tests/m0008.rs` composition pins that both routes agree;
+  it reaches `YamlFrontmatter` through a `corpus-adapters` dev-dependency, as
+  `research-adapters`' topic tests do.
+- `validate_frontmatter` already calls
+  `corpus::frontmatter_validation::pipeline` (Phase 8), with `RealFs` and
+  `YamlFrontmatter`; it switches to the injected walker, reader and parser.
+  `canonicalise_work_item_id` calls the injected canonicaliser, whose
+  `CanonicaliseError` text matches today's `PatternError` text. `corpus_index.rs` uses the injected walker and
   reader.
 - `VcsWorkingCopy` holds a `&dyn vcs::RepositoryProbe` and calls
   `working_copy_state`.
@@ -1677,8 +1694,9 @@ the diff.
   `RepositoryTracking` and `RepositoryProbe` method, including the corrupted
   index and a nested repository.
 - `corpus-adapters` contract tests for `YamlFrontmatter` over every root class
-  and for `PatternCanonicaliser` over every `PatternError` arm, plus the
-  composition test with the domain pipeline.
+  and for `PatternCanonicaliser` over every `PatternError` arm
+  `canonicalise_id` returns, plus the composition test with the domain
+  pipeline.
 - Launcher real-repository summary tests in `config_read.rs`, asserting
   single-line stdout.
 - `tests/integration/deny`: gix feature absence for the launcher's graph.
@@ -1973,6 +1991,11 @@ today through `consent-adapters` → `vcs-adapters`.
     `resolved-styles` specs hit `page.goto: net::ERR_ABORTED` on their first
     navigation. The lane then passed alone (355 passed), and every other lane
     passed in the full run, the 541 characterisation cases included.
+- Next: Phase 9, `migrate` and `migrate-adapters` through ports. Its phase
+  base is the commit it starts from, after Phase 8's plan-only updates; no
+  golden differs from the Phase 8 commit `mttrrpzr`. Phase 9 consumes
+  `FrontmatterParser::parse_value` and `split_frontmatter`, which no
+  production code calls yet, and `WorkItemIdCanonicaliser`.
 
 ### Phase 2 characterisation coverage
 
