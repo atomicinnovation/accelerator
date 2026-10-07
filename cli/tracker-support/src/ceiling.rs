@@ -1,8 +1,8 @@
 //! The one conversion from a written ceiling string to a [`Ceiling`].
 //!
-//! Config validation, config resolution, and the CLI value parser all route
-//! through it, so a token that is accepted in one place is accepted in every
-//! place and rejected the same way.
+//! Config resolution and the CLI value parser route through it. Structural
+//! config validation lives in `config`, which cannot name [`Ceiling`]; a test
+//! pins that the two accept the same tokens.
 
 use tracker::Ceiling;
 use tracker::UNLIMITED_TOKEN;
@@ -55,5 +55,21 @@ mod tests {
         assert_eq!(from_token("-1", true), None);
         assert_eq!(from_token("lots", true), None);
         assert_eq!(from_token("", true), None);
+    }
+
+    #[test]
+    fn interpretation_accepts_exactly_what_config_validation_accepts() {
+        assert_eq!(config::tracker_block::UNLIMITED, tracker::UNLIMITED_TOKEN);
+        for token in
+            ["0", "1", "25", "unlimited", "2.5", "-1", "lots", "", " 3"]
+        {
+            for allow_zero in [true, false] {
+                assert_eq!(
+                    from_token(token, allow_zero).is_some(),
+                    config::tracker_block::is_valid_ceiling(token, allow_zero),
+                    "{token:?} allow_zero={allow_zero}"
+                );
+            }
+        }
     }
 }

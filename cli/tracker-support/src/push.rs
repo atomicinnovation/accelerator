@@ -6,39 +6,34 @@
 //! filters, and page caps have no push analogue, so this block is deliberately
 //! narrower than [`crate::pull`].
 
+use config::catalogue::TRACKERS;
 use config::render_value;
+use config::tracker_block::read_block;
+use config::tracker_block::BlockError;
+use config::tracker_block::BlockFault;
+use config::tracker_block::BlockName;
+use config::tracker_block::FieldKind;
+use config::tracker_block::TrackerCatalogue;
 use config::ConfigAccess;
 use config::Level;
 use config::Value;
 use tracker::Ceiling;
 use tracker::DEFAULT_MAX_ITEMS;
 
-use crate::pull::Tracker;
-
 /// A configured `<tracker>.push` block.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PushConfig {
     /// The push-direction write bound, held as a raw token for later
     /// interpretation.
     pub max_items: Option<String>,
-    /// Top-level keys the parser did not recognise, retained rather than
-    /// dropped so validation can reject them.
-    pub unknown_keys: Vec<String>,
+    /// Catalogue fields with no typed slot here, in field order.
+    pub extensions: Vec<(&'static str, Value)>,
 }
 
-/// Why a `push` block is invalid. Each carries the data its message names;
-/// [`PushConfigError::detail`] renders the operator message, naming the config
-/// file the effective block resolved from.
+/// Why a `push` block is invalid.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PushConfigError {
-    /// The block itself is not a mapping — a scalar or sequence where a block
-    /// was expected.
-    NotAMapping,
-    /// A `max_items` token that is neither a non-negative integer nor
-    /// `unlimited`.
-    BadCeiling { value: String },
-    /// A top-level key the block does not accept.
-    UnrecognisedKey { key: String },
+    Structure(BlockError),
 }
 
 impl PushConfigError {
@@ -46,55 +41,80 @@ impl PushConfigError {
     /// file the effective block resolved from.
     #[must_use]
     pub fn detail(&self, level: Level) -> String {
-        let file = level.filename();
-        let fix = format!("Fix the `push` block in {file}.");
         match self {
-            Self::NotAMapping => format!(
-                "the `push` value must be a block of settings, not a scalar \
-                 or list. {fix}"
-            ),
-            Self::BadCeiling { value } => format!(
-                "push `max_items` must be a non-negative integer (0 refuses \
-                 all) or `unlimited` (got `{value}`). {fix}"
-            ),
-            Self::UnrecognisedKey { key } => format!(
-                "the push block key `{key}` is not recognised (accepted: \
-                 max_items). {fix}"
-            ),
+            Self::Structure(error) => error.detail(level),
         }
     }
 }
 
-/// Reads a resolved config block into a [`PushConfig`].
+/// Reads a resolved `<scope>.push` block into a [`PushConfig`] against the
+/// platform catalogue.
 ///
 /// # Errors
 ///
-/// [`PushConfigError::NotAMapping`] when the block is not a mapping.
-pub fn parse(block: &Value) -> Result<PushConfig, PushConfigError> {
-    let Value::Mapping(entries) = block else {
-        return Err(PushConfigError::NotAMapping);
-    };
+/// A [`PushConfigError::Structure`] when the block is not a mapping.
+pub fn parse(
+    scope: &str,
+    block: &Value,
+) -> Result<PushConfig, PushConfigError> {
+    parse_with(TRACKERS, scope, block)
+}
+
+/// [`parse`] against an injected catalogue. A key outside the scope's block
+/// is left for [`validate_with`] to refuse.
+///
+/// # Errors
+///
+/// As [`parse`].
+pub fn parse_with(
+    catalogue: TrackerCatalogue,
+    scope: &str,
+    block: &Value,
+) -> Result<PushConfig, PushConfigError> {
     let mut config = PushConfig::default();
+    let Some(definition) = catalogue.block(scope, BlockName::Push) else {
+        return Ok(config);
+    };
+    let entries = definition
+        .entries(block)
+        .map_err(PushConfigError::Structure)?;
     for (key, value) in entries {
-        match key.as_str() {
-            "max_items" => config.max_items = Some(render_value(value)),
-            other => config.unknown_keys.push(other.to_owned()),
+        let Some(field) = definition.field(key) else {
+            continue;
+        };
+        match (field.kind, field.name) {
+            (FieldKind::Ceiling { .. }, "max_items") => {
+                config.max_items = Some(render_value(value));
+            }
+            (_, name) => config.extensions.push((name, value.clone())),
         }
     }
     Ok(config)
 }
 
-/// Validates a parsed `push` block, structural only.
+/// Validates a `<scope>.push` block's structure against the platform
+/// catalogue.
 ///
 /// # Errors
 ///
-/// A [`PushConfigError`] for an unrecognised top-level key or a malformed
-/// `max_items` token.
-pub fn validate(config: &PushConfig) -> Result<(), PushConfigError> {
-    if let Some(key) = config.unknown_keys.first() {
-        return Err(PushConfigError::UnrecognisedKey { key: key.clone() });
-    }
-    config.max_items().map(|_| ())
+/// The first structural fault, as a [`PushConfigError::Structure`].
+pub fn validate(scope: &str, block: &Value) -> Result<(), PushConfigError> {
+    validate_with(TRACKERS, scope, block)
+}
+
+/// [`validate`] against an injected catalogue.
+///
+/// # Errors
+///
+/// As [`validate`].
+pub fn validate_with(
+    catalogue: TrackerCatalogue,
+    scope: &str,
+    block: &Value,
+) -> Result<(), PushConfigError> {
+    catalogue
+        .validate(scope, BlockName::Push, block)
+        .map_err(PushConfigError::Structure)
 }
 
 impl PushConfig {
@@ -102,7 +122,7 @@ impl PushConfig {
     ///
     /// # Errors
     ///
-    /// [`PushConfigError::BadCeiling`] for a malformed token. [`validate`]
+    /// A [`BlockFault::BadCeiling`] for a malformed token. [`validate`]
     /// rejects the same tokens at configure time, so this only fires on a
     /// hand-edited config that reaches interpretation unvalidated.
     pub fn max_items(&self) -> Result<Ceiling, PushConfigError> {
@@ -110,9 +130,14 @@ impl PushConfig {
             .as_ref()
             .map_or(Ok(DEFAULT_MAX_ITEMS), |token| {
                 crate::ceiling::from_token(token, true).ok_or_else(|| {
-                    PushConfigError::BadCeiling {
-                        value: token.clone(),
-                    }
+                    PushConfigError::Structure(BlockError {
+                        block: BlockName::Push,
+                        fault: BlockFault::BadCeiling {
+                            key: "max_items".to_owned(),
+                            value: token.clone(),
+                            allow_zero: true,
+                        },
+                    })
                 })
             })
     }
@@ -134,21 +159,23 @@ pub fn read(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<Option<(PushConfig, Level)>, String> {
-    if Tracker::from_integration(integration).is_none() {
+    if TRACKERS.block(integration, BlockName::Push).is_none() {
         return Ok(None);
     }
-    let Some((value, level)) =
-        crate::block::read_block(config, integration, "push")?
+    let Some((value, level)) = read_block(config, integration, BlockName::Push)
+        .map_err(|error| error.to_string())?
     else {
         return Ok(None);
     };
-    let parsed = parse(&value).map_err(|error| error.detail(level))?;
+    let parsed =
+        parse(integration, &value).map_err(|error| error.detail(level))?;
     Ok(Some((parsed, level)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{parse, validate, PushConfig, PushConfigError};
+    use config::tracker_block::{BlockError, BlockFault, BlockName};
     use config::{Scalar, Value};
     use tracker::{Ceiling, DEFAULT_MAX_ITEMS};
 
@@ -165,10 +192,17 @@ mod tests {
         )
     }
 
+    fn structure(fault: BlockFault) -> PushConfigError {
+        PushConfigError::Structure(BlockError {
+            block: BlockName::Push,
+            fault,
+        })
+    }
+
     #[test]
     fn a_max_items_scalar_is_held_as_a_raw_token() {
         assert_eq!(
-            parse(&block(vec![("max_items", scalar("10"))])),
+            parse("jira", &block(vec![("max_items", scalar("10"))])),
             Ok(PushConfig {
                 max_items: Some("10".to_owned()),
                 ..PushConfig::default()
@@ -177,19 +211,19 @@ mod tests {
     }
 
     #[test]
-    fn an_unknown_key_is_retained_for_validation() {
+    fn an_unknown_key_is_left_for_validation() {
         assert_eq!(
-            parse(&block(vec![("max_pages", scalar("5"))])),
-            Ok(PushConfig {
-                unknown_keys: vec!["max_pages".to_owned()],
-                ..PushConfig::default()
-            })
+            parse("linear", &block(vec![("max_pages", scalar("5"))])),
+            Ok(PushConfig::default())
         );
     }
 
     #[test]
     fn a_scalar_block_is_not_a_mapping() {
-        assert_eq!(parse(&scalar("oops")), Err(PushConfigError::NotAMapping));
+        assert_eq!(
+            parse("jira", &scalar("oops")),
+            Err(structure(BlockFault::NotAMapping))
+        );
     }
 
     #[test]
@@ -217,35 +251,37 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_a_bad_ceiling_and_an_unknown_key() {
-        let bad_ceiling = PushConfig {
+    fn a_hand_edited_bad_max_items_is_rejected_at_interpretation() {
+        let config = PushConfig {
             max_items: Some("2.5".to_owned()),
             ..PushConfig::default()
         };
         assert_eq!(
-            validate(&bad_ceiling),
-            Err(PushConfigError::BadCeiling {
-                value: "2.5".to_owned()
-            })
-        );
-        let unknown = PushConfig {
-            unknown_keys: vec!["filters".to_owned()],
-            ..PushConfig::default()
-        };
-        assert_eq!(
-            validate(&unknown),
-            Err(PushConfigError::UnrecognisedKey {
-                key: "filters".to_owned()
-            })
+            config.max_items(),
+            Err(structure(BlockFault::BadCeiling {
+                key: "max_items".to_owned(),
+                value: "2.5".to_owned(),
+                allow_zero: true,
+            }))
         );
     }
 
     #[test]
-    fn validate_accepts_a_well_formed_block() {
-        let unlimited = PushConfig {
-            max_items: Some("unlimited".to_owned()),
-            ..PushConfig::default()
-        };
-        assert_eq!(validate(&unlimited), Ok(()));
+    fn validate_wraps_the_catalogues_first_fault() {
+        assert_eq!(
+            validate("jira", &block(vec![("filters", scalar("x"))])),
+            Err(structure(BlockFault::UnrecognisedKey {
+                key: "filters".to_owned(),
+                accepted: vec!["max_items".to_owned()],
+                hint: None,
+            }))
+        );
+        assert_eq!(
+            validate(
+                "linear",
+                &block(vec![("max_items", scalar("unlimited"))])
+            ),
+            Ok(())
+        );
     }
 }

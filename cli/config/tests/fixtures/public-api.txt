@@ -42,6 +42,7 @@ pub const config::catalogue::PATH_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::RESEARCH_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::REVIEW_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::TEMPLATE_KEYS: &[&str]
+pub const config::catalogue::TRACKERS: config::tracker_block::TrackerCatalogue
 pub const config::catalogue::VISUALISER_KEYS: &[(&str, config::catalogue::Default)]
 pub const config::catalogue::WORK_INTEGRATION_VALUES: &[&str]
 pub const config::catalogue::WORK_KEYS: &[(&str, config::catalogue::Default)]
@@ -787,6 +788,123 @@ pub fn config::service::TemplateOverride::within_project(&self, abs_path: &str) 
 pub trait config::service::WriteConfigLevel
 pub fn config::service::WriteConfigLevel::write(&self, level: config::level::Level, document: &config::node::Node) -> core::result::Result<(), config::error::ConfigError>
 pub fn config::service::project(node: &config::node::Node) -> config::service::Value
+pub mod config::tracker_block
+pub enum config::tracker_block::BlockFault
+pub config::tracker_block::BlockFault::BadCeiling
+pub config::tracker_block::BlockFault::BadCeiling::allow_zero: bool
+pub config::tracker_block::BlockFault::BadCeiling::key: alloc::string::String
+pub config::tracker_block::BlockFault::BadCeiling::value: alloc::string::String
+pub config::tracker_block::BlockFault::MutuallyExclusive
+pub config::tracker_block::BlockFault::MutuallyExclusive::first: alloc::string::String
+pub config::tracker_block::BlockFault::MutuallyExclusive::second: alloc::string::String
+pub config::tracker_block::BlockFault::NestedFiltersUnsupported
+pub config::tracker_block::BlockFault::NestedFiltersUnsupported::key: alloc::string::String
+pub config::tracker_block::BlockFault::NotAMapping
+pub config::tracker_block::BlockFault::SubBlockNotAMapping
+pub config::tracker_block::BlockFault::SubBlockNotAMapping::key: alloc::string::String
+pub config::tracker_block::BlockFault::UnrecognisedKey
+pub config::tracker_block::BlockFault::UnrecognisedKey::accepted: alloc::vec::Vec<alloc::string::String>
+pub config::tracker_block::BlockFault::UnrecognisedKey::hint: core::option::Option<alloc::string::String>
+pub config::tracker_block::BlockFault::UnrecognisedKey::key: alloc::string::String
+pub config::tracker_block::BlockFault::UnsupportedFilterKey
+pub config::tracker_block::BlockFault::UnsupportedFilterKey::accepted: alloc::vec::Vec<alloc::string::String>
+pub config::tracker_block::BlockFault::UnsupportedFilterKey::key: alloc::string::String
+impl core::clone::Clone for config::tracker_block::BlockFault
+pub fn config::tracker_block::BlockFault::clone(&self) -> config::tracker_block::BlockFault
+impl core::cmp::Eq for config::tracker_block::BlockFault
+impl core::cmp::PartialEq for config::tracker_block::BlockFault
+pub fn config::tracker_block::BlockFault::eq(&self, other: &config::tracker_block::BlockFault) -> bool
+impl core::fmt::Debug for config::tracker_block::BlockFault
+pub fn config::tracker_block::BlockFault::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::tracker_block::BlockFault
+pub enum config::tracker_block::BlockName
+pub config::tracker_block::BlockName::Pull
+pub config::tracker_block::BlockName::Push
+impl config::tracker_block::BlockName
+pub const fn config::tracker_block::BlockName::as_str(self) -> &'static str
+impl core::clone::Clone for config::tracker_block::BlockName
+pub fn config::tracker_block::BlockName::clone(&self) -> config::tracker_block::BlockName
+impl core::cmp::Eq for config::tracker_block::BlockName
+impl core::cmp::PartialEq for config::tracker_block::BlockName
+pub fn config::tracker_block::BlockName::eq(&self, other: &config::tracker_block::BlockName) -> bool
+impl core::fmt::Debug for config::tracker_block::BlockName
+pub fn config::tracker_block::BlockName::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for config::tracker_block::BlockName
+pub fn config::tracker_block::BlockName::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::tracker_block::BlockName
+impl core::marker::StructuralPartialEq for config::tracker_block::BlockName
+pub enum config::tracker_block::FieldKind
+pub config::tracker_block::FieldKind::Ceiling
+pub config::tracker_block::FieldKind::Ceiling::allow_zero: bool
+pub config::tracker_block::FieldKind::EntityList
+pub config::tracker_block::FieldKind::Filters
+pub config::tracker_block::FieldKind::Filters::accepted: &'static [&'static str]
+pub config::tracker_block::FieldKind::Filters::reserved: &'static [&'static str]
+pub config::tracker_block::FieldKind::PageCaps
+pub config::tracker_block::FieldKind::PageCaps::default: &'static str
+pub config::tracker_block::FieldKind::PageCaps::overrides: &'static [&'static str]
+pub config::tracker_block::FieldKind::ScopeFlag
+impl core::clone::Clone for config::tracker_block::FieldKind
+pub fn config::tracker_block::FieldKind::clone(&self) -> config::tracker_block::FieldKind
+impl core::cmp::Eq for config::tracker_block::FieldKind
+impl core::cmp::PartialEq for config::tracker_block::FieldKind
+pub fn config::tracker_block::FieldKind::eq(&self, other: &config::tracker_block::FieldKind) -> bool
+impl core::fmt::Debug for config::tracker_block::FieldKind
+pub fn config::tracker_block::FieldKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::tracker_block::FieldKind
+impl core::marker::StructuralPartialEq for config::tracker_block::FieldKind
+pub struct config::tracker_block::BlockError
+pub config::tracker_block::BlockError::block: config::tracker_block::BlockName
+pub config::tracker_block::BlockError::fault: config::tracker_block::BlockFault
+impl config::tracker_block::BlockError
+pub fn config::tracker_block::BlockError::detail(&self, level: config::level::Level) -> alloc::string::String
+impl core::clone::Clone for config::tracker_block::BlockError
+pub fn config::tracker_block::BlockError::clone(&self) -> config::tracker_block::BlockError
+impl core::cmp::Eq for config::tracker_block::BlockError
+impl core::cmp::PartialEq for config::tracker_block::BlockError
+pub fn config::tracker_block::BlockError::eq(&self, other: &config::tracker_block::BlockError) -> bool
+impl core::fmt::Debug for config::tracker_block::BlockError
+pub fn config::tracker_block::BlockError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::tracker_block::BlockError
+pub struct config::tracker_block::Field
+pub config::tracker_block::Field::kind: config::tracker_block::FieldKind
+pub config::tracker_block::Field::name: &'static str
+impl core::clone::Clone for config::tracker_block::Field
+pub fn config::tracker_block::Field::clone(&self) -> config::tracker_block::Field
+impl core::cmp::Eq for config::tracker_block::Field
+impl core::cmp::PartialEq for config::tracker_block::Field
+pub fn config::tracker_block::Field::eq(&self, other: &config::tracker_block::Field) -> bool
+impl core::fmt::Debug for config::tracker_block::Field
+pub fn config::tracker_block::Field::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::tracker_block::Field
+impl core::marker::StructuralPartialEq for config::tracker_block::Field
+pub struct config::tracker_block::TrackerBlock
+pub config::tracker_block::TrackerBlock::fields: &'static [config::tracker_block::Field]
+pub config::tracker_block::TrackerBlock::label: &'static str
+pub config::tracker_block::TrackerBlock::mutually_exclusive: &'static [(&'static str, &'static str)]
+pub config::tracker_block::TrackerBlock::name: config::tracker_block::BlockName
+pub config::tracker_block::TrackerBlock::scope: &'static str
+impl config::tracker_block::TrackerBlock
+pub fn config::tracker_block::TrackerBlock::entries<'value>(&self, value: &'value config::service::Value) -> core::result::Result<&'value [(alloc::string::String, config::service::Value)], config::tracker_block::BlockError>
+pub fn config::tracker_block::TrackerBlock::field(&self, name: &str) -> core::option::Option<&'static config::tracker_block::Field>
+impl core::cmp::Eq for config::tracker_block::TrackerBlock
+impl core::cmp::PartialEq for config::tracker_block::TrackerBlock
+pub fn config::tracker_block::TrackerBlock::eq(&self, other: &config::tracker_block::TrackerBlock) -> bool
+impl core::fmt::Debug for config::tracker_block::TrackerBlock
+pub fn config::tracker_block::TrackerBlock::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for config::tracker_block::TrackerBlock
+pub struct config::tracker_block::TrackerCatalogue(pub &'static [config::tracker_block::TrackerBlock])
+impl config::tracker_block::TrackerCatalogue
+pub fn config::tracker_block::TrackerCatalogue::block(self, scope: &str, name: config::tracker_block::BlockName) -> core::option::Option<&'static config::tracker_block::TrackerBlock>
+pub fn config::tracker_block::TrackerCatalogue::validate(self, scope: &str, name: config::tracker_block::BlockName, value: &config::service::Value) -> core::result::Result<(), config::tracker_block::BlockError>
+impl core::clone::Clone for config::tracker_block::TrackerCatalogue
+pub fn config::tracker_block::TrackerCatalogue::clone(&self) -> config::tracker_block::TrackerCatalogue
+impl core::fmt::Debug for config::tracker_block::TrackerCatalogue
+pub fn config::tracker_block::TrackerCatalogue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for config::tracker_block::TrackerCatalogue
+pub const config::tracker_block::UNLIMITED: &str
+pub fn config::tracker_block::is_valid_ceiling(token: &str, allow_zero: bool) -> bool
+pub fn config::tracker_block::read_block(config: &dyn config::service::ConfigAccess, scope: &str, name: config::tracker_block::BlockName) -> core::result::Result<core::option::Option<(config::service::Value, config::level::Level)>, config::error::ConfigError>
 #[non_exhaustive] pub enum config::ConfigError
 pub config::ConfigError::InsecurePersonalFile
 pub config::ConfigError::InsecurePersonalFile::mode: u32

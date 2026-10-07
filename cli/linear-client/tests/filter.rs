@@ -9,6 +9,7 @@ mod support;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use config::{Scalar, Value};
 use linear_client::filter::{
     complete_for_teams, compose, preflight, ConfiguredSearch, FilterKey,
     UnresolvedFilter, UnresolvedFilters, ValidatedSearch, FETCH_PAGE_SIZE,
@@ -20,7 +21,7 @@ use serde_json::json;
 use support::catalogue::{
     complete_entry, label, member, project, resolvers, state,
 };
-use tracker_support::pull::{validate, PullConfig, Tracker};
+use tracker_support::pull::validate;
 
 const FAMILIES: [&str; 7] = [
     "team", "state", "assignee", "label", "project", "text", "teams",
@@ -456,17 +457,12 @@ fn every_filter_key_spells_and_parses_back() {
 #[test]
 fn every_named_filter_key_is_accepted_by_linear_pull_validation() {
     let accepted = |family: FilterFamily| {
-        validate(
-            &PullConfig {
-                filters: vec![(
-                    FilterKey::Named(family).as_str().to_owned(),
-                    vec!["x".to_owned()],
-                )],
-                ..PullConfig::default()
-            },
-            Tracker::Linear,
-        )
-        .is_ok()
+        let filter = Value::Mapping(vec![(
+            FilterKey::Named(family).as_str().to_owned(),
+            Value::Sequence(vec![Scalar::String("x".to_owned())]),
+        )]);
+        let block = Value::Mapping(vec![("filters".to_owned(), filter)]);
+        validate("linear", &block).is_ok()
     };
 
     for family in [

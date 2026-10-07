@@ -34,7 +34,6 @@ kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
-tracker-support = { path = "../tracker-support" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }

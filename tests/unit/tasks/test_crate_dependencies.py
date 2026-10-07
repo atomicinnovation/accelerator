@@ -415,6 +415,4 @@ def test_the_shipped_declarations_match_the_expected_table() -> None:
 def test_the_shipped_workspace_findings_are_the_known_violations() -> None:
     assert [
         str(f) for f in crate_dependencies.findings(workspace_packages())
-    ] == [
-        "accelerator -> tracker-support: rule 6",
-    ]
+    ] == []

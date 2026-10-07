@@ -5,6 +5,9 @@
 //! default string still attributes to the level that set it. Credential keys
 //! render as `*(set — hidden)*`.
 
+use config::tracker_block::{
+    read_block, BlockName, TrackerBlock, TrackerCatalogue,
+};
 use config::{
     catalogue, ConfigAccess, ConfigError, Key, Level, ReadConfigLevel,
     Resolved, Value,
@@ -46,6 +49,7 @@ pub struct Row {
 pub fn assemble(
     config: &dyn ConfigAccess,
     levels: &dyn ReadConfigLevel,
+    trackers: TrackerCatalogue,
 ) -> Result<Option<Vec<Row>>, ConfigError> {
     let has_config = levels.read(Level::Team)?.is_some()
         || levels.read(Level::Personal)?.is_some();
@@ -77,104 +81,40 @@ pub fn assemble(
     for key in catalogue::EXTRA_KEYS {
         rows.push(extra_row(config, key.name)?);
     }
-    rows.extend(pull_rows(config)?);
-    rows.extend(push_rows(config)?);
+    for name in [BlockName::Pull, BlockName::Push] {
+        rows.extend(tracker_block_rows(config, trackers, name)?);
+    }
     Ok(Some(rows))
 }
 
-/// The active tracker's accepted `pull`-block fields, in the tracker's own
-/// vocabulary, for the unset placeholder.
-const fn pull_fields(
-    tracker: tracker_support::pull::Tracker,
-) -> &'static [&'static str] {
-    match tracker {
-        tracker_support::pull::Tracker::Jira => &[
-            "additional_projects",
-            "all_projects",
-            "filters",
-            "max_items",
-            "max_pages",
-        ],
-        tracker_support::pull::Tracker::Linear => &[
-            "additional_teams",
-            "all_teams",
-            "filters",
-            "max_items",
-            "max_pages",
-        ],
-    }
-}
-
-/// Read-only rows for the active tracker's `<tracker>.pull` block: the resolved
-/// block flattened to `<tracker>.pull.<field>` rows when present, else an
-/// unset-but-available placeholder listing the accepted fields. Whole-block
+/// Read-only rows for the active tracker's `<tracker>.<name>` block: the
+/// resolved block flattened to `<tracker>.<name>.<field>` rows when present,
+/// else an unset-but-available placeholder per catalogued field. Whole-block
 /// replacement shows through the per-row source when a personal block wins.
 ///
 /// A structurally-invalid block is a fail-closed [`ConfigError::Invalid`]
 /// refusal here, not a rendered row — the same fail-loud contract `configure`
 /// applies to `work.integration`.
-fn pull_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
+fn tracker_block_rows(
+    config: &dyn ConfigAccess,
+    trackers: TrackerCatalogue,
+    name: BlockName,
+) -> Result<Vec<Row>, ConfigError> {
     let integration = config
         .effective(&Key::parse("work.integration")?, None)?
         .rendered();
-    let Some(tracker) =
-        tracker_support::pull::Tracker::from_integration(&integration)
-    else {
+    let Some(block) = trackers.block(&integration, name) else {
         return Ok(Vec::new());
     };
-    let prefix = format!("{integration}.pull");
-    let key = Key::parse(&prefix)?;
-    let Resolved::Found(value) = config.get(&key, None)? else {
-        return Ok(placeholder_rows(&prefix, tracker));
+    let prefix = format!("{integration}.{name}");
+    let Some((value, level)) = read_block(config, &integration, name)? else {
+        return Ok(placeholder_rows(&prefix, block));
     };
-    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
-        return Ok(placeholder_rows(&prefix, tracker));
-    }
-    let level = block_level(config, &key)?;
-    let invalid =
-        |error: tracker_support::pull::PullConfigError| ConfigError::Invalid {
+    trackers
+        .validate(&integration, name, &value)
+        .map_err(|error| ConfigError::Invalid {
             detail: error.detail(level),
-        };
-    let parsed = tracker_support::pull::parse(&value).map_err(invalid)?;
-    tracker_support::pull::validate(&parsed, tracker).map_err(invalid)?;
-    let source = source_of(config, &prefix)?;
-    Ok(block_leaf_rows(&value, &prefix, source))
-}
-
-/// Read-only rows for the active tracker's `<tracker>.push` block: the resolved
-/// `max_items` when present, else an unset-but-available placeholder. The
-/// fail-closed contract matches [`pull_rows`]; push has one field, so there is
-/// no per-tracker vocabulary to list.
-fn push_rows(config: &dyn ConfigAccess) -> Result<Vec<Row>, ConfigError> {
-    let integration = config
-        .effective(&Key::parse("work.integration")?, None)?
-        .rendered();
-    if tracker_support::pull::Tracker::from_integration(&integration).is_none()
-    {
-        return Ok(Vec::new());
-    }
-    let prefix = format!("{integration}.push");
-    let key = Key::parse(&prefix)?;
-    let placeholder = || {
-        vec![Row {
-            key: format!("{prefix}.max_items"),
-            cell: Cell::NotSet,
-            source: Source::Default,
-        }]
-    };
-    let Resolved::Found(value) = config.get(&key, None)? else {
-        return Ok(placeholder());
-    };
-    if matches!(&value, Value::Mapping(entries) if entries.is_empty()) {
-        return Ok(placeholder());
-    }
-    let level = block_level(config, &key)?;
-    let invalid =
-        |error: tracker_support::push::PushConfigError| ConfigError::Invalid {
-            detail: error.detail(level),
-        };
-    let parsed = tracker_support::push::parse(&value).map_err(invalid)?;
-    tracker_support::push::validate(&parsed).map_err(invalid)?;
+        })?;
     let source = source_of(config, &prefix)?;
     Ok(block_leaf_rows(&value, &prefix, source))
 }
@@ -198,30 +138,17 @@ fn block_leaf_rows(value: &Value, prefix: &str, source: Source) -> Vec<Row> {
         .collect()
 }
 
-/// The unset-but-available placeholder rows for a tracker's accepted fields.
-fn placeholder_rows(
-    prefix: &str,
-    tracker: tracker_support::pull::Tracker,
-) -> Vec<Row> {
-    pull_fields(tracker)
+/// The unset-but-available placeholder rows for a block's catalogued fields.
+fn placeholder_rows(prefix: &str, block: &TrackerBlock) -> Vec<Row> {
+    block
+        .fields
         .iter()
         .map(|field| Row {
-            key: format!("{prefix}.{field}"),
+            key: format!("{prefix}.{}", field.name),
             cell: Cell::NotSet,
             source: Source::Default,
         })
         .collect()
-}
-
-/// The config level a present block resolved from, for error attribution.
-fn block_level(
-    config: &dyn ConfigAccess,
-    key: &Key,
-) -> Result<Level, ConfigError> {
-    Ok(match config.effective(key, None)?.source() {
-        config::Source::Personal => Level::Personal,
-        _ => Level::Team,
-    })
 }
 
 /// Flattens a resolved block to leaf `(dotted-key, rendered-value)` pairs,
@@ -338,4 +265,173 @@ fn extra_row(config: &dyn ConfigAccess, key: &str) -> Result<Row, ConfigError> {
         cell,
         source: source_of(config, key)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use config::tracker_block::{
+        BlockName, Field, FieldKind, TrackerBlock, TrackerCatalogue,
+    };
+    use config::{
+        ConfigError, ConfigService, Level, Node, ReadConfigLevel, Scalar,
+        WriteConfigLevel,
+    };
+
+    use super::{assemble, Cell};
+
+    #[derive(Clone)]
+    struct TeamOnly(Node);
+
+    impl ReadConfigLevel for TeamOnly {
+        fn read(&self, level: Level) -> Result<Option<Node>, ConfigError> {
+            Ok((level == Level::Team).then(|| self.0.clone()))
+        }
+    }
+
+    struct NoWrites;
+
+    impl WriteConfigLevel for NoWrites {
+        fn write(&self, _: Level, _: &Node) -> Result<(), ConfigError> {
+            Ok(())
+        }
+    }
+
+    fn text(value: &str) -> Node {
+        Node::Scalar(Scalar::String(value.to_owned()))
+    }
+
+    fn int(value: i64) -> Node {
+        Node::Scalar(Scalar::Int(value))
+    }
+
+    fn mapping(entries: Vec<(&str, Node)>) -> Node {
+        Node::Mapping(
+            entries
+                .into_iter()
+                .map(|(key, node)| (key.to_owned(), node))
+                .collect(),
+        )
+    }
+
+    static EXTENDED: &[TrackerBlock] = &[
+        TrackerBlock {
+            scope: "acme",
+            label: "Acme",
+            name: BlockName::Pull,
+            fields: &[
+                Field {
+                    name: "extra_boards",
+                    kind: FieldKind::EntityList,
+                },
+                Field {
+                    name: "every_board",
+                    kind: FieldKind::ScopeFlag,
+                },
+                Field {
+                    name: "labels_by_board",
+                    kind: FieldKind::Filters {
+                        accepted: &["label"],
+                        reserved: &[],
+                    },
+                },
+            ],
+            mutually_exclusive: &[],
+        },
+        TrackerBlock {
+            scope: "acme",
+            label: "Acme",
+            name: BlockName::Push,
+            fields: &[Field {
+                name: "max_comments",
+                kind: FieldKind::Ceiling { allow_zero: false },
+            }],
+            mutually_exclusive: &[],
+        },
+    ];
+
+    const CATALOGUE: TrackerCatalogue = TrackerCatalogue(EXTENDED);
+
+    fn acme_rows(
+        blocks: Vec<(&str, Node)>,
+    ) -> Result<Vec<(String, String)>, ConfigError> {
+        let mut team =
+            vec![("work", mapping(vec![("integration", text("acme"))]))];
+        if !blocks.is_empty() {
+            team.push(("acme", mapping(blocks)));
+        }
+        let reader = TeamOnly(mapping(team));
+        let config = ConfigService::new(reader.clone(), NoWrites);
+        let rows = assemble(&config, &reader, CATALOGUE)?.unwrap_or_default();
+        Ok(rows
+            .into_iter()
+            .filter(|row| row.key.starts_with("acme."))
+            .map(|row| {
+                let cell = match row.cell {
+                    Cell::Value(value) => value,
+                    Cell::NotSet => "(not set)".to_owned(),
+                    Cell::Invalid(_) | Cell::Hidden => "(other)".to_owned(),
+                };
+                (row.key, cell)
+            })
+            .collect())
+    }
+
+    fn owned(rows: &[(&str, &str)]) -> Vec<(String, String)> {
+        rows.iter()
+            .map(|(key, cell)| ((*key).to_owned(), (*cell).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn unset_blocks_list_the_catalogues_fields() -> Result<(), ConfigError> {
+        assert_eq!(
+            acme_rows(Vec::new())?,
+            owned(&[
+                ("acme.pull.extra_boards", "(not set)"),
+                ("acme.pull.every_board", "(not set)"),
+                ("acme.pull.labels_by_board", "(not set)"),
+                ("acme.push.max_comments", "(not set)"),
+            ])
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_extension_field_set_well_is_printed() -> Result<(), ConfigError> {
+        assert_eq!(
+            acme_rows(vec![
+                (
+                    "pull",
+                    mapping(vec![(
+                        "labels_by_board",
+                        mapping(vec![("label", text("bug"))]),
+                    )]),
+                ),
+                ("push", mapping(vec![("max_comments", int(3))])),
+            ])?,
+            owned(&[
+                ("acme.pull.labels_by_board.label", "bug"),
+                ("acme.push.max_comments", "3"),
+            ])
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_extension_field_set_badly_is_structurally_invalid() {
+        for (block, extension) in [
+            ("pull", mapping(vec![("labels_by_board", text("oops"))])),
+            ("push", mapping(vec![("max_comments", int(0))])),
+        ] {
+            let result = acme_rows(vec![(block, extension)]);
+            assert!(
+                matches!(
+                    &result,
+                    Err(ConfigError::Invalid { detail })
+                        if detail.contains(&format!("Fix the `{block}` block"))
+                ),
+                "{block}: {result:?}"
+            );
+        }
+    }
 }

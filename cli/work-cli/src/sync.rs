@@ -5,6 +5,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use ::config::catalogue::TRACKERS;
+use ::config::tracker_block::read_block;
+use ::config::tracker_block::BlockName;
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
 use corpus::WorkItemIdScheme;
@@ -744,34 +747,13 @@ fn validate_pull_config(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<(), String> {
-    let Some(tracker) =
-        tracker_support::pull::Tracker::from_integration(integration)
-    else {
-        return Ok(());
-    };
-    let key = ::config::Key::parse(&format!("{integration}.pull"))
-        .map_err(|error| error.to_string())?;
-    let ::config::Resolved::Found(value) =
-        config.get(&key, None).map_err(|error| error.to_string())?
-    else {
-        return Ok(());
-    };
-    if matches!(&value, ::config::Value::Mapping(entries) if entries.is_empty())
-    {
-        return Ok(());
+    match read_tracker_block(config, integration, BlockName::Pull)? {
+        Some((value, level)) => {
+            tracker_support::pull::validate(integration, &value)
+                .map_err(|error| error.detail(level))
+        }
+        None => Ok(()),
     }
-    let level = match config
-        .effective(&key, None)
-        .map_err(|error| error.to_string())?
-        .source()
-    {
-        ::config::Source::Personal => ::config::Level::Personal,
-        _ => ::config::Level::Team,
-    };
-    let parsed = tracker_support::pull::parse(&value)
-        .map_err(|error| error.detail(level))?;
-    tracker_support::pull::validate(&parsed, tracker)
-        .map_err(|error| error.detail(level))
 }
 
 /// Validates the active tracker's `<tracker>.push` block before the run, so a
@@ -783,11 +765,24 @@ fn validate_push_config(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<(), String> {
-    match tracker_support::push::read(config, integration)? {
-        Some((push, level)) => tracker_support::push::validate(&push)
-            .map_err(|error| error.detail(level)),
+    match read_tracker_block(config, integration, BlockName::Push)? {
+        Some((value, level)) => {
+            tracker_support::push::validate(integration, &value)
+                .map_err(|error| error.detail(level))
+        }
         None => Ok(()),
     }
+}
+
+fn read_tracker_block(
+    config: &dyn ConfigAccess,
+    integration: &str,
+    name: BlockName,
+) -> Result<Option<(::config::Value, ::config::Level)>, String> {
+    if TRACKERS.block(integration, name).is_none() {
+        return Ok(None);
+    }
+    read_block(config, integration, name).map_err(|error| error.to_string())
 }
 
 /// The resolved pull-direction write bound and the config level it resolved

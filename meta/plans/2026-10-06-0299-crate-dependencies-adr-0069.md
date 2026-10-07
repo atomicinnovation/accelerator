@@ -1474,13 +1474,13 @@ core's catalogue parameter:
 
 #### Automated Verification:
 
-- [ ] `cargo test --manifest-path cli/Cargo.toml -p config -p tracker-support -p accelerator -p accelerator-work -p jira-cli -p linear-cli -p linear-client --all-features` passes
-- [ ] Dump and tracker-block characterisation cases unchanged, multi-fault blocks included, goldens untouched: `mise run test:integration:characterisation`
-- [ ] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
-- [ ] `rg -n '"(additional_|all_|filters|max_items|max_pages)' cli/launcher/src/config_command/core/dump.rs` is empty
-- [ ] Known-violation set loses launcher → `tracker-support`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
-- [ ] `mise run pup:check`, `mise run public-api:check` pass
-- [ ] `mise run` exits 0
+- [x] `cargo test --manifest-path cli/Cargo.toml -p config -p tracker-support -p accelerator -p accelerator-work -p jira-cli -p linear-cli -p linear-client --all-features` passes
+- [x] Dump and tracker-block characterisation cases unchanged, multi-fault blocks included, goldens untouched: `mise run test:integration:characterisation`
+- [x] Goldens untouched since the phase began: `jj diff --stat --from <phase base> tests/integration/characterisation/goldens` is empty
+- [x] `rg -n '"(additional_|all_|filters|max_items|max_pages)' cli/launcher/src/config_command/core/dump.rs` is empty
+- [x] Known-violation set loses launcher → `tracker-support`: `uv run pytest tests/unit/tasks/test_crate_dependencies.py`
+- [x] `mise run pup:check`, `mise run public-api:check` pass
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -2056,8 +2056,66 @@ today through `consent-adapters` → `vcs-adapters`.
   `MISSING-PROVENANCE`, since 0007 has no VCS revision fallback; real legacy
   documents carry `git_commit`. No published binary was cached, so the run
   was checked by inspection rather than diffed against a release.
-- Next: Phase 10, catalogue describes tracker blocks. Its phase base is the
-  commit it starts from, after Phase 9's plan-only updates.
+- Phase 10 is complete from phase base `koomlryk`: `config::catalogue::TRACKERS`
+  describes the four tracker blocks, `config::tracker_block` validates them,
+  `tracker-support` parses and validates through the catalogue, and the
+  launcher no longer depends on `tracker-support`. The lint reports no
+  findings. The 541 characterisation cases pass with no golden changed.
+  Deviations from the Phase 10 text:
+  - **`PageCaps`:** is `{ default, overrides }` rather than `{ sub_keys }`,
+    since the default cap is named by the bare field (`max_pages`) and the
+    overrides under it (`max_pages.discovery`).
+  - **`BlockError`:** is `{ block: BlockName, fault: BlockFault }`, so one
+    fault set renders both blocks' text.
+  - **Validation input:** `pull::validate` and `push::validate` take the raw
+    block (`scope`, `&Value`), not a parsed config, because the catalogue
+    validates the mapping. `PullConfig` drops `scope_nouns` and
+    `unknown_keys`, `PushConfig` drops `unknown_keys`, and both lose `Eq`,
+    since `extensions` holds a `Value`. Parsing ignores keys outside the
+    scope's block, so `jira-cli`'s and `linear-cli`'s unvalidated ceiling
+    reads are unchanged.
+  - **`work-cli`:** `validate_pull_config` and `validate_push_config` share a
+    `read_tracker_block` over `config::tracker_block::read_block`, since
+    `pull::read` returns a parsed config and validation needs the mapping.
+  - **Pairing invariant:** push blocks carry no scope fields, so the test pins
+    one `EntityList` and one `ScopeFlag` or neither, plus a second test that
+    every pull block has the pair.
+  - **Error variants:** `PullConfigError` and `PushConfigError` hold
+    `Structure` alone; a hand-edited ceiling fault at interpretation reuses
+    `BlockFault::BadCeiling`, so its text lives once. Neither gained
+    `Display`, which nothing consumes.
+  - **Ceiling acceptance:** pup bars `config` from `tracker`, so `config`
+    holds `UNLIMITED` and `is_valid_ceiling`, and `tracker-support`'s
+    `ceiling::from_token` keeps interpretation. A `tracker-support` test pins
+    that both accept the same tokens and spell `unlimited` alike.
+  - **Filter lists:** `JIRA_FILTERS`, `LINEAR_FILTERS` and
+    `tracker::FilterSchema` were deleted rather than derived: once the
+    catalogue validates filters, nothing reads them.
+  - **`read_block`:** returns `ConfigError`, so the dump keeps its access
+    failures' variant; `tracker-support` and `work-cli` stringify it.
+  - **Extension tests:** the parser leaves ceilings raw, so "set invalid"
+    reaches the parser through a `Filters`-kind extension (a scalar where a
+    mapping belongs). The dump's test catalogue names its scope fields
+    `extra_boards` and `every_board`, so the literal-name criterion's regex
+    stays meaningful.
+  - **Exclusivity text:** `MutuallyExclusive` carries both field names, and
+    the message renders each as its stem's wildcard (`all_*`).
+  - **Criterion run:** `cargo test ... --all-features` also builds
+    `linear-client`'s live-tenant `contract.rs`, which fails without a real
+    team by design and which nextest excludes. The criterion's packages pass
+    under `cargo nextest run` (1457 tests).
+  - **Stale check artefacts:** plain `cargo check` reported `config` and
+    `corpus` errors that `cargo test` did not: an IDE-driven check had
+    fingerprinted both mid-edit, `corpus` since Phase 8. Touching their
+    sources cleared it.
+  - **`mise run`:** the first run failed only in `lint:cli:check`, on
+    `missing_const_for_fn` and `too_many_lines` in the new `config` code and
+    tests; the refusal-text test split into pull and push halves. The second
+    run, with `E2E_HEALTH_PORT=19187`, exited 0.
+- Phase 10's manual check, `accelerator config` against a real Jira
+  integration, is the author's to run.
+- Next: Phase 11, domain → domain dependencies. Its phase base is the commit
+  it starts from, after Phase 10's plan-only updates.
 
 ### Phase 2 characterisation coverage
 
