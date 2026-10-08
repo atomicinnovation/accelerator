@@ -230,7 +230,14 @@ session running an earlier prerelease of the plugin.
   connection at a time nor 3 s spacing is then guaranteed, and only the
   stderr diagnostic records it.
 - When the queue itself cannot be used, a call is served without a place, and
-  ends in `lock_contention` rather than `waiting` if its budget runs out.
+  ends in `lock_contention` rather than `waiting` if its budget runs out. A
+  re-presented call keeps the place its ticket already holds and still ends
+  in `waiting`.
+- The queue is fair only while every session in the project runs a plugin
+  version with this queue. An earlier one still paces through `arxiv.lock`
+  but ignores the queue, so calls queued behind it see more
+  `lock_contention`. A version whose queue records it cannot read removes
+  them once their tickets are free.
 - Wall-clock steps, and a host that sleeps mid-run, can delay or hasten
   expiry, abandonment and the cap. That costs fairness or an occasional node,
   never spacing, which the lock enforces on every request.
