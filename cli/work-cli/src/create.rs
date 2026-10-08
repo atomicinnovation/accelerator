@@ -581,6 +581,17 @@ fn refuse_to_overwrite(target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Once an issue exists, a failed write leaves it carried by no item, so
+/// one transient failure is worth absorbing.
+fn write_new_retrying_once(
+    store: &dyn CreationStore,
+    target: &Path,
+    content: &str,
+) -> Result<(), String> {
+    write_new(store, target, content)
+        .or_else(|_| write_new(store, target, content))
+}
+
 fn write_new(
     store: &dyn CreationStore,
     target: &Path,
@@ -850,9 +861,7 @@ fn record_baseline_after_create(
     .map_err(|error| error.to_string())
 }
 
-/// Writes a locally numbered item, pushing it first when asked. The write
-/// is retried once, because once an issue exists a failed write leaves it
-/// carried by no item.
+/// Writes a locally numbered item, pushing it first when asked.
 fn create_local_item(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
@@ -876,18 +885,17 @@ fn create_local_item(
     let push = push_legacy_item(context, &context.body(&id)?, registry)?;
     let item =
         context.content(&id, push.key.as_ref().map(ExternalId::as_str))?;
-    let written = write_new(store, &target, &item)
-        .or_else(|_| write_new(store, &target, &item));
+    let written = write_new_retrying_once(store, &target, &item);
     let Some(key) = push.key else {
         written?;
         return Ok(pushed(Some(target), push.outcome, None, push.cause));
     };
-    if written.is_err() {
+    if let Err(cause) = written {
         return Ok(pushed(
             None,
             PushOutcome::CreatedUnwritten,
             Some(&key),
-            None,
+            Some(cause),
         ));
     }
     let remote = push
@@ -2103,6 +2111,14 @@ mod tests {
         );
         assert_eq!(report.outcome, PushOutcome::CreatedUnwritten);
         assert_eq!(report.external_id.as_deref(), Some(KEY));
+        assert!(
+            report
+                .cause
+                .as_deref()
+                .is_some_and(|c| c.contains("injected")),
+            "{:?}",
+            report.cause
+        );
         assert!(repo.marker().exists(), "the created marker holds the key");
     }
 
