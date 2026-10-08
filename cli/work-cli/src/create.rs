@@ -611,17 +611,15 @@ fn write_draft(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
-    drafted: &mut dyn FnMut(&DraftId),
 ) -> Result<(DraftId, PathBuf), String> {
     let guard = context.lock()?;
-    write_draft_locked(context, store, draws, drafted, &guard)
+    write_draft_locked(context, store, draws, &guard)
 }
 
 fn write_draft_locked(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
-    drafted: &mut dyn FnMut(&DraftId),
     _held: &LockGuard,
 ) -> Result<(DraftId, PathBuf), String> {
     let files = FilesystemWorkItemFiles::new(&context.work_dir)
@@ -635,7 +633,6 @@ fn write_draft_locked(
         context.slug()
     ));
     write_new(store, &target, &context.content(draft.as_str(), None)?)?;
-    drafted(&draft);
     Ok((draft, target))
 }
 
@@ -643,9 +640,10 @@ fn save_draft(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
-    drafted: &mut dyn FnMut(&DraftId),
+    drafted: &mut Drafted<'_>,
 ) -> Result<CreationOutcome, String> {
-    let (_, path) = write_draft(context, store, draws, drafted)?;
+    let (draft, path) = write_draft(context, store, draws)?;
+    drafted(&draft)?;
     Ok(CreationOutcome::unpushed(path))
 }
 
@@ -1268,7 +1266,7 @@ fn create_tracker_keyed_item(
     context: &CreationContext<'_>,
     store: &dyn CreationStore,
     draws: &mut dyn SuffixDraws,
-    drafted: &mut dyn FnMut(&DraftId),
+    drafted: &mut Drafted<'_>,
     registry: &dyn TrackerRegistry,
 ) -> Result<CreationOutcome, CreateFailure> {
     let (integrations_root, integration) = context.pending_push_location()?;
@@ -1290,8 +1288,16 @@ fn create_tracker_keyed_item(
         });
     }
     let (draft, draft_path) =
-        write_draft_locked(context, store, draws, drafted, &guard)?;
+        write_draft_locked(context, store, draws, &guard)?;
     drop(guard);
+    if let Err(cause) = drafted(&draft) {
+        return Ok(pushed(
+            Some(draft_path),
+            PushOutcome::LocalSave,
+            None,
+            Some(cause),
+        ));
+    }
     let Ok(tracker) = registry.resolve(&integration) else {
         return Ok(pushed(
             Some(draft_path),
@@ -1397,7 +1403,7 @@ pub fn create_item(
     templates: &dyn ReadTemplate,
     args: &CreateArgs,
     seams: &mut Seams<'_>,
-    drafted: &mut dyn FnMut(&DraftId),
+    drafted: &mut Drafted<'_>,
 ) -> Result<CreationOutcome, CreateFailure> {
     let context = creation_context(start, config, templates, args)?;
     let store = (seams.store_at)(&context.root);
@@ -1417,6 +1423,11 @@ pub fn create_item(
         ),
     }
 }
+
+/// Told of each draft as soon as it is on disk; an error stops the draft
+/// being pushed, so nothing reaches the tracker that the caller could not
+/// record.
+pub type Drafted<'a> = dyn FnMut(&DraftId) -> Result<(), String> + 'a;
 
 /// What `run` takes from its caller beyond the request: the tracker, the
 /// store items are written through, and the source of draft suffixes.
@@ -1468,7 +1479,7 @@ pub fn run_with(
         };
         return preview_push(&integration, &args.kind, seams.registry);
     }
-    match create_item(start, config, templates, args, seams, &mut |_| {}) {
+    match create_item(start, config, templates, args, seams, &mut |_| Ok(())) {
         Ok(CreationOutcome { path, push }) => {
             RunOutcome::Created { path, push }
         }

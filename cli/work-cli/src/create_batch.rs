@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::LockdirLock;
 use work::create_batch::BatchKeyword;
 use work::draft_id::DraftId;
 use work::hierarchy::parents_first;
@@ -178,7 +179,13 @@ pub fn run_with(
         Err(problem) => return BatchOutcome::Invalid(vec![problem]),
     };
     let root = config_adapters::FileConfigStore::discover_root(start);
-    let workspace = match BatchWorkspace::open(config, &root, args.push, now) {
+    let workspace = match BatchWorkspace::open(
+        config,
+        &root,
+        args.push,
+        now,
+        seams.store_at,
+    ) {
         Ok(workspace) => workspace,
         Err(message) => {
             return BatchOutcome::Failed {
@@ -256,12 +263,18 @@ impl BatchWorkspace {
         root: &Path,
         push: bool,
         now: u64,
+        store_at: &dyn Fn(&Path) -> Box<dyn CreationStore>,
     ) -> Result<Self, String> {
         let work_dir = crate::config::resolve_work_dir(config, root)
             .map_err(|error| error.to_string())?;
         let journal = push
             .then(|| {
-                BatchJournal::open(&root.join(crate::sync::STATE_DIR), now)
+                BatchJournal::open(
+                    &root.join(crate::sync::STATE_DIR),
+                    now,
+                    store_at(root),
+                    &LockdirLock::new(&work_dir),
+                )
             })
             .transpose()?;
         Ok(Self { work_dir, journal })
@@ -304,7 +317,6 @@ impl Batch<'_> {
         }
         let args = entry.create_args(parent.clone(), &self.authorship);
         let mut journal = self.workspace.journal.as_mut();
-        let mut journal_failure = None;
         let result = create_item(
             self.start,
             self.config,
@@ -312,8 +324,8 @@ impl Batch<'_> {
             &args,
             seams,
             &mut |draft: &DraftId| {
-                if let Some(journal) = journal.as_deref_mut() {
-                    let recorded = journal.record(JournalEntry {
+                journal.as_deref_mut().map_or(Ok(()), |journal| {
+                    journal.record(JournalEntry {
                         content_digest: digest.clone(),
                         batch: self.fingerprint.clone(),
                         reference: entry.reference.clone(),
@@ -322,9 +334,8 @@ impl Batch<'_> {
                         key: None,
                         outcome: None,
                         recorded_at: self.now,
-                    });
-                    journal_failure = recorded.err();
-                }
+                    })
+                })
             },
         );
         let mut item = match result {
@@ -354,9 +365,6 @@ impl Batch<'_> {
                 outcome: Some(item.keyword.keyword().to_owned()),
                 recorded_at: self.now,
             })?;
-        }
-        if let Some(failure) = journal_failure {
-            return Err(failure);
         }
         if let (Some(ParentLink::InBatch(parent_ref)), None) =
             (&entry.parent, &parent)
@@ -984,6 +992,35 @@ mod tests {
             parent_of(&read(Path::new(&lines["story-b"].0))),
             Some("work-item:REC-1".to_owned()),
             "children_of_a_journalled_parent_link_to_its_recorded_key"
+        );
+    }
+
+    fn the_journal_file(path: &Path) -> bool {
+        path.ends_with("batch-journal/journal.json")
+    }
+
+    #[test]
+    fn a_pushed_draft_whose_journal_row_cannot_be_written_is_never_sent() {
+        let repo = BatchRepo::tracker_owned();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        let only_epic = r#"[{"ref": "epic", "title": "The epic",
+                             "kind": "epic", "priority": "high"}]"#;
+
+        let report = reported(repo.run_failing(
+            only_epic,
+            true,
+            &tracker,
+            Some((the_journal_file, 1)),
+        ));
+
+        assert_eq!(creates(&tracker), 0);
+        let (draft, keyword, _) = items(&report)["epic"].clone();
+        assert_eq!(keyword, "local-save");
+        assert!(repo.path(&draft).exists(), "the draft is kept: {draft}");
+        assert!(
+            report.causes.iter().any(|cause| cause.contains("injected")),
+            "{:?}",
+            report.causes
         );
     }
 

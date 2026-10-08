@@ -1,8 +1,8 @@
 //! Exclusive locks over the corpus, named in domain terms.
 //!
-//! Every holder acquires in one global order — retirement, then create, then
-//! per-file — and no holder of a later lock ever takes an earlier one, so two
-//! holders can never wait on each other.
+//! Every holder acquires in one global order — batch journal, then
+//! retirement, then create, then per-file — and no holder of a later lock
+//! ever takes an earlier one, so two holders can never wait on each other.
 
 use std::path::PathBuf;
 
@@ -10,6 +10,7 @@ use crate::store::StoreError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LockName {
+    BatchJournal,
     Retirement,
     ForFile(PathBuf),
 }

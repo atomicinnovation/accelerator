@@ -9,8 +9,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::lock::ExclusiveLock;
+use corpus::lock::HeldLock;
+use corpus::lock::LockName;
 use corpus::AtomicWrite;
-use corpus_adapters::FileCorpusStore;
 use serde_json::json;
 use serde_json::Value;
 
@@ -41,19 +43,34 @@ pub struct BatchJournal {
     dir: PathBuf,
     entries: Vec<JournalEntry>,
     claimed: Vec<bool>,
+    writer: Box<dyn AtomicWrite>,
+    _held: HeldLock,
 }
 
 impl BatchJournal {
     /// Opens the journal under `state_dir`, dropping entries recorded more
-    /// than 30 days before `now`. Fail-closed: the directory's `*`
-    /// `.gitignore` is written and verified before anything is read.
+    /// than 30 days before `now`, and holds it until dropped so a concurrent
+    /// batch cannot overwrite what this one records. Fail-closed: the
+    /// directory's `*` `.gitignore` is written and verified before anything
+    /// is read.
     ///
     /// # Errors
     ///
-    /// A message naming the journal when its directory cannot be ignored
-    /// or its file cannot be parsed.
-    pub fn open(state_dir: &Path, now: u64) -> Result<Self, String> {
+    /// A message naming the journal when another batch holds it, its
+    /// directory cannot be ignored, or its file cannot be parsed.
+    pub fn open(
+        state_dir: &Path,
+        now: u64,
+        writer: Box<dyn AtomicWrite>,
+        lock: &dyn ExclusiveLock,
+    ) -> Result<Self, String> {
         let dir = state_dir.join(DIRECTORY);
+        let held = lock.acquire(&LockName::BatchJournal).map_err(|error| {
+            format!(
+                "the batch journal at {} is held by another batch: {error}",
+                dir.display()
+            )
+        })?;
         ignore_everything_in(&dir).map_err(|error| {
             format!(
                 "could not prepare the batch journal at {}: {error}",
@@ -89,6 +106,8 @@ impl BatchJournal {
             claimed: vec![false; entries.len()],
             dir,
             entries,
+            writer,
+            _held: held,
         })
     }
 
@@ -197,17 +216,14 @@ impl BatchJournal {
             "entries": self.entries.iter().map(render).collect::<Vec<_>>(),
         });
         let path = self.dir.join(FILE);
-        AtomicWrite::write(
-            &FileCorpusStore::new(&self.dir),
-            &path,
-            format!("{rendered}\n").as_bytes(),
-        )
-        .map_err(|error| {
-            format!(
-                "could not write the batch journal at {}: {error}",
-                path.display()
-            )
-        })
+        self.writer
+            .write(&path, format!("{rendered}\n").as_bytes())
+            .map_err(|error| {
+                format!(
+                    "could not write the batch journal at {}: {error}",
+                    path.display()
+                )
+            })
     }
 }
 
@@ -267,6 +283,9 @@ fn parse(text: &str) -> Option<Vec<JournalEntry>> {
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use corpus_adapters::FileCorpusStore;
+    use corpus_adapters::LockdirLock;
+    use store::lock::LockOptions;
 
     const DAY: u64 = 24 * 60 * 60;
     const BATCH: &str = "batch-one";
@@ -282,6 +301,23 @@ mod tests {
             outcome: Some("write-once".to_owned()),
             recorded_at,
         }
+    }
+
+    fn open_at(state: &Path, now: u64) -> Result<BatchJournal, String> {
+        let lock = LockdirLock::with_options(
+            state,
+            LockOptions {
+                ceiling_ms: 1,
+                base_ms: 1,
+                cap_ms: 1,
+            },
+        );
+        BatchJournal::open(
+            state,
+            now,
+            Box::new(FileCorpusStore::new(state)),
+            &lock,
+        )
     }
 
     fn referenced(digest: &str, reference: &str, title: &str) -> JournalEntry {
@@ -302,9 +338,20 @@ mod tests {
     }
 
     #[test]
+    fn a_second_journal_waits_until_the_first_is_closed() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let first = open_at(state.path(), 100).expect("open");
+
+        assert!(open_at(state.path(), 100).is_err(), "the lock is held");
+
+        drop(first);
+        assert!(open_at(state.path(), 100).is_ok());
+    }
+
+    #[test]
     fn twin_entries_each_claim_their_own_row() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal
             .record(referenced("twin", "a", "Update docs"))
             .unwrap();
@@ -312,7 +359,9 @@ mod tests {
             .record(referenced("twin", "b", "Update docs"))
             .unwrap();
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
         assert_eq!(claimed_reference(&mut reopened, "a"), Some("a".to_owned()));
@@ -321,12 +370,14 @@ mod tests {
     #[test]
     fn a_twin_never_reached_claims_nothing() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal
             .record(referenced("twin", "b", "Update docs"))
             .unwrap();
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(claimed_reference(&mut reopened, "a"), None);
         assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
@@ -335,14 +386,15 @@ mod tests {
     #[test]
     fn forgetting_one_twin_keeps_the_other() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal
             .record(referenced("twin", "a", "Update docs"))
             .unwrap();
         journal
             .record(referenced("twin", "b", "Update docs"))
             .unwrap();
-        let mut rerun = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+        let mut rerun = open_at(state.path(), 100).expect("open");
         let a = rerun
             .claim("twin", BATCH, "a", "Update docs")
             .unwrap()
@@ -350,7 +402,9 @@ mod tests {
 
         rerun.forget(&a).expect("forget");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(rerun);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
         assert_eq!(claimed_reference(&mut reopened, "a"), None);
         assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
     }
@@ -358,11 +412,13 @@ mod tests {
     #[test]
     fn a_reworded_entry_is_claimed_by_its_reference() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal.record(referenced("d1", "a", "Story")).unwrap();
         journal.record(referenced("d2", "b", "Story")).unwrap();
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(
             reopened
@@ -376,10 +432,12 @@ mod tests {
     #[test]
     fn a_recorded_entry_is_claimed_by_digest_on_reopening() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal.record(entry("d1", "Epic", 100)).expect("record");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(
             reopened.claim("d1", BATCH, "r", "Renamed").expect("saved"),
@@ -395,11 +453,13 @@ mod tests {
     #[test]
     fn an_entry_whose_body_was_reworded_is_claimed_by_title() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal.record(entry("d1", "Epic", 100)).expect("record");
         journal.record(entry("d2", "Story", 100)).expect("record");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(
             reopened
@@ -413,9 +473,10 @@ mod tests {
     #[test]
     fn a_title_claimed_entry_can_be_forgotten() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal.record(entry("d1", "Story", 100)).expect("record");
-        let mut reworded = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+        let mut reworded = open_at(state.path(), 100).expect("open");
         let claimed = reworded
             .claim("reworded", BATCH, "r", "Story")
             .expect("saved")
@@ -423,7 +484,9 @@ mod tests {
 
         reworded.forget(&claimed).expect("forget");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(reworded);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
         assert_eq!(
             reopened.claim("d1", BATCH, "r", "Story").expect("saved"),
             None
@@ -439,14 +502,15 @@ mod tests {
     #[test]
     fn entries_older_than_thirty_days_are_pruned() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 0).expect("open");
+        let mut journal = open_at(state.path(), 0).expect("open");
         journal.record(entry("old", "Old", 0)).expect("record");
         journal
             .record(entry("recent", "Recent", 2 * DAY))
             .expect("record");
 
-        let mut reopened =
-            BatchJournal::open(state.path(), 31 * DAY).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 31 * DAY).expect("open");
 
         assert_eq!(
             reopened.claim("old", BATCH, "r", "Old").expect("saved"),
@@ -461,15 +525,18 @@ mod tests {
     #[test]
     fn a_title_claim_moves_the_entry_to_the_reworded_digest() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal.record(entry("d1", "Story", 100)).expect("record");
-        let mut reworded = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+        let mut reworded = open_at(state.path(), 100).expect("open");
         reworded
             .claim("reworded", BATCH, "r", "Story")
             .expect("saved")
             .expect("claimed");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(reworded);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(
             reopened.claim("d1", "other", "r", "Other").expect("saved"),
@@ -484,12 +551,14 @@ mod tests {
     #[test]
     fn a_title_another_batch_recorded_is_not_claimed() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        let mut journal = open_at(state.path(), 100).expect("open");
         journal
             .record(entry("d1", "Add tests", 100))
             .expect("record");
 
-        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 100).expect("open");
 
         assert_eq!(
             reopened
@@ -507,7 +576,7 @@ mod tests {
     fn the_journal_directory_ignores_everything_in_it() {
         let state = tempfile::tempdir().expect("tempdir");
 
-        BatchJournal::open(state.path(), 0).expect("open");
+        open_at(state.path(), 0).expect("open");
 
         assert_eq!(
             std::fs::read_to_string(
@@ -521,11 +590,13 @@ mod tests {
     #[test]
     fn a_forgotten_entry_is_no_longer_claimed() {
         let state = tempfile::tempdir().expect("tempdir");
-        let mut journal = BatchJournal::open(state.path(), 0).expect("open");
+        let mut journal = open_at(state.path(), 0).expect("open");
         journal.record(entry("d1", "Epic", 0)).expect("record");
         journal.forget(&entry("d1", "Epic", 0)).expect("forget");
 
-        let mut reopened = BatchJournal::open(state.path(), 0).expect("open");
+        drop(journal);
+
+        let mut reopened = open_at(state.path(), 0).expect("open");
 
         assert_eq!(
             reopened.claim("d1", BATCH, "r", "Epic").expect("saved"),
@@ -541,6 +612,6 @@ mod tests {
         std::fs::write(state.path().join("batch-journal/journal.json"), "{")
             .expect("write");
 
-        assert!(BatchJournal::open(state.path(), 0).is_err());
+        assert!(open_at(state.path(), 0).is_err());
     }
 }

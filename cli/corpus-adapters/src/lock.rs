@@ -17,6 +17,8 @@ pub struct LockdirLock {
 impl LockdirLock {
     pub const RETIREMENT_LOCKDIR: &'static str =
         ".accelerator-work-retire.lockdir";
+    pub const BATCH_JOURNAL_LOCKDIR: &'static str =
+        ".accelerator-work-batch-journal.lockdir";
 
     #[must_use]
     pub fn new(work_dir: impl Into<PathBuf>) -> Self {
@@ -36,6 +38,9 @@ impl LockdirLock {
 
     fn lockdir(&self, name: &LockName) -> PathBuf {
         match name {
+            LockName::BatchJournal => {
+                self.work_dir.join(Self::BATCH_JOURNAL_LOCKDIR)
+            }
             LockName::Retirement => {
                 self.work_dir.join(Self::RETIREMENT_LOCKDIR)
             }

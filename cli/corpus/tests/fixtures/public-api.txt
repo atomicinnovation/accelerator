@@ -438,6 +438,7 @@ pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_ty
 pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
 pub mod corpus::lock
 pub enum corpus::lock::LockName
+pub corpus::lock::LockName::BatchJournal
 pub corpus::lock::LockName::ForFile(std::path::PathBuf)
 pub corpus::lock::LockName::Retirement
 impl core::clone::Clone for corpus::lock::LockName
