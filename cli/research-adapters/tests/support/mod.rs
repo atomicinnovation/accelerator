@@ -170,10 +170,6 @@ impl Scratch {
         set_modified(&path, modified);
     }
 
-    pub fn age_file(&self, name: &str, modified: SystemTime) {
-        set_modified(&self.queue_path(name), modified);
-    }
-
     pub fn open_queue_file(&self, name: &str) -> File {
         std::fs::OpenOptions::new()
             .create(true)

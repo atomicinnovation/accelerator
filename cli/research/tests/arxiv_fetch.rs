@@ -421,6 +421,21 @@ fn a_confirmation_that_does_not_settle_is_tried_again_by_a_later_call() {
 }
 
 #[test]
+fn a_front_place_whose_gate_stays_busy_waits_without_a_turn() {
+    let harness = Harness::with(Vec::new()).gate(RecordingGate::always_busy);
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+    assert_eq!(outcome, harness.waiting_at(1));
+    assert_eq!(harness.queue.stepped_aside(), [None]);
+    assert_eq!(harness.gate.turns_served(), 0);
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
 fn a_confirmation_inherits_what_remains_of_the_deadline() {
     let harness = Harness::with(vec![entry("2608.21129v2", Some(WITHDRAWAL))]);
     let confirmations = MemoryConfirmations::new(&harness.gate);
