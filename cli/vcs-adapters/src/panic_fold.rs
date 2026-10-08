@@ -3,14 +3,20 @@
 //! trust.
 //!
 //! The fold depends on `panic = "unwind"`, which `cli/Cargo.toml`'s
-//! `[profile.release]` keeps. It does not cover a hang: a thread cannot be
-//! safely interrupted in-process.
+//! `[profile.release]` keeps. It does not cover a hang: like the `git` and
+//! `jj` reads it re-implements, a question blocks until its I/O completes.
+//!
+//! A panic hook runs before `catch_unwind` regains control, so the first fold
+//! wraps whichever hook is installed and silences it for a folding thread
+//! only. Every other panic still reaches the hook its composition root chose.
 
 use std::any::type_name;
 use std::any::Any;
+use std::cell::Cell;
 use std::panic;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
+use std::sync::Once;
 
 use tracing::warn;
 
@@ -55,7 +61,11 @@ impl<T: RepositoryTracking> RepositoryTracking for PanicFold<T> {
 }
 
 fn folded<T, A>(question: &str, refusal: A, ask: impl FnOnce() -> A) -> A {
-    panic::catch_unwind(AssertUnwindSafe(ask)).unwrap_or_else(|payload| {
+    silence_folded_panics();
+    let folding = Folding::begin();
+    let answer = panic::catch_unwind(AssertUnwindSafe(ask));
+    drop(folding);
+    answer.unwrap_or_else(|payload| {
         warn!(
             adapter = type_name::<T>(),
             panic = panic_message(&*payload),
@@ -63,6 +73,40 @@ fn folded<T, A>(question: &str, refusal: A, ask: impl FnOnce() -> A) -> A {
         );
         refusal
     })
+}
+
+thread_local! {
+    static FOLDING: Cell<bool> = const { Cell::new(false) };
+}
+
+struct Folding {
+    enclosing: bool,
+}
+
+impl Folding {
+    fn begin() -> Self {
+        Self {
+            enclosing: FOLDING.replace(true),
+        }
+    }
+}
+
+impl Drop for Folding {
+    fn drop(&mut self) {
+        FOLDING.set(self.enclosing);
+    }
+}
+
+fn silence_folded_panics() {
+    static WRAPPED: Once = Once::new();
+    WRAPPED.call_once(|| {
+        let chosen = panic::take_hook();
+        panic::set_hook(Box::new(move |panic| {
+            if !FOLDING.get() {
+                chosen(panic);
+            }
+        }));
+    });
 }
 
 #[cfg(test)]

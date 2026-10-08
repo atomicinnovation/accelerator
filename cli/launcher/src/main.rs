@@ -436,18 +436,8 @@ fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
     acquire_trees(&resolver, &names).ok()
 }
 
-/// A panic the in-process tracking check folds to a refusal would otherwise
-/// print past `ACCELERATOR_LOG` onto the hook's stderr, so every panic is
-/// reported through the log instead.
-fn report_panics_through_the_log() {
-    std::panic::set_hook(Box::new(|panic| {
-        tracing::error!(%panic, "panicked");
-    }));
-}
-
 fn run(cli: &Cli) -> Result<(), kernel::Error> {
     kernel::logging::init()?;
-    report_panics_through_the_log();
     // Held until `dispatch` execs the consumer: on success the process image is
     // replaced and no destructor runs, so the leases pin their trees against
     // reclamation right up to the handover.

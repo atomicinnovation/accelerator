@@ -2996,7 +2996,7 @@ fn a_personal_file_tracked_by_git_is_warned_about_in_both_hook_fields(
 }
 
 #[test]
-fn a_tracking_panic_with_logging_off_is_unknown_and_silent() -> TestResult {
+fn a_corrupt_index_with_logging_off_is_unknown_and_silent() -> TestResult {
     let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
     let root = guard.path().join("repo");
     fs::create_dir_all(&root)?;

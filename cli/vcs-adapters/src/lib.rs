@@ -21,6 +21,7 @@ use vcs::RepoFacts;
 use crate::library::InProcessProbe;
 
 pub use crate::panic_fold::panic_message;
+pub use crate::panic_fold::PanicFold;
 pub use crate::tracking::InProcessTracking;
 
 /// The facts for the repository containing `start`.
