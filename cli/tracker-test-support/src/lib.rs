@@ -157,6 +157,8 @@ pub struct RecordingTracker {
     search_result: RefCell<Option<Discovery>>,
     preview: RefCell<Option<CreatePreview>>,
     next_id: RefCell<u32>,
+    /// The prefix created issues' keys take; `REC` when unset.
+    key_prefix: Option<String>,
     calls: RefCell<Vec<Call>>,
 }
 
@@ -185,8 +187,17 @@ impl RecordingTracker {
             search_result: RefCell::new(None),
             preview: RefCell::new(None),
             next_id: RefCell::new(1),
+            key_prefix: None,
             calls: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Creates each issue under `<prefix>-<n>`, as a tracker answering with
+    /// a key of its own shape would.
+    #[must_use]
+    pub fn creating_under(mut self, prefix: &str) -> Self {
+        self.key_prefix = Some(prefix.to_owned());
+        self
     }
 
     /// A tracker whose bulk retrieval cannot account for `unprovable`: those
@@ -466,7 +477,8 @@ impl RecordingTracker {
 
     fn allocate_id(&self) -> ExternalId {
         let mut next = self.next_id.borrow_mut();
-        let id = ExternalId::new(format!("REC-{next}"));
+        let prefix = self.key_prefix.as_deref().unwrap_or("REC");
+        let id = ExternalId::new(format!("{prefix}-{next}"));
         *next += 1;
         id
     }

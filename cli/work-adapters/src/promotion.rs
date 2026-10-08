@@ -36,6 +36,7 @@ use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
 use work::sync::RequestFingerprint;
+use work::tracker_key::TrackerKey;
 
 use crate::create_request_fields;
 use crate::promotion_records::PromotionRecords;
@@ -192,14 +193,11 @@ fn unpromoted_subjects(
         NotPromoted::RetirementFailed(
             RetirementFailure::RestoreIncomplete { unrestored, .. },
         ) => {
-            let recovery_dir = held_key.map(|key| {
-                Retirement {
-                    old_id: draft.as_str(),
-                    new_id: key.as_str(),
-                    new_external_id: Some(key.as_str()),
-                }
-                .recovery_dir()
-            });
+            let recovery_dir = held_key
+                .and_then(|key| TrackerKey::parse(key.as_str()))
+                .map(|key| {
+                    Retirement::onto(draft.as_str(), &key).recovery_dir()
+                });
             unrestored
                 .iter()
                 .map(|path| {
@@ -277,9 +275,9 @@ const fn store_failure(path: PathBuf, error: StoreError) -> NotPromoted {
     })
 }
 
-fn unwritable(key: Option<&ExternalId>, error: &StoreError) -> NotPromoted {
+fn unwritable(key: Option<&TrackerKey>, error: &StoreError) -> NotPromoted {
     NotPromoted::RecordUnwritable {
-        key: key.cloned(),
+        key: key.map(ExternalId::from),
         detail: error.to_string(),
     }
 }
@@ -514,11 +512,24 @@ impl Promoting<'_> {
             let _ = self.ports.records.remove(self.draft);
         };
         match created {
-            RemoteCreate::Created(key) => {
+            RemoteCreate::Created(answered) => {
+                let Some(key) = TrackerKey::parse(answered.as_str()) else {
+                    let _ = self.save(&self.record(
+                        RequestFingerprint {
+                            failure: Some(format!(
+                                "the issue was created as '{answered}', \
+                                 which is not a tracker key"
+                            )),
+                            ..request
+                        },
+                        PromotionStage::Attempted,
+                    ));
+                    return Err(NotPromoted::CreateOutcomeUnknown);
+                };
                 let created_remote_hash = self
                     .ports
                     .tracker
-                    .show(&key)
+                    .show(&answered)
                     .ok()
                     .map(|issue| read_back_of(&issue).hash);
                 self.save(&self.record(
@@ -558,13 +569,15 @@ impl Promoting<'_> {
     /// never rewritten: its content is the user's.
     fn adopt(
         &self,
-        named: &ExternalId,
+        named: &TrackerKey,
         stored: &StoredRecord,
     ) -> Result<(), NotPromoted> {
-        let issue = match self.ports.tracker.locate(named) {
+        let issue = match self.ports.tracker.locate(&ExternalId::from(named)) {
             Ok(Located::Found(issue)) => issue,
             Ok(Located::NotFound) => {
-                return Err(NotPromoted::AdoptedIssueMissing(named.clone()));
+                return Err(NotPromoted::AdoptedIssueMissing(
+                    ExternalId::from(named),
+                ));
             }
             Err(_) => return Err(NotPromoted::TrackerUnreachable),
         };
@@ -587,15 +600,11 @@ impl Promoting<'_> {
         ))
     }
 
-    fn retirement<'k>(&'k self, key: &'k ExternalId) -> Retirement<'k> {
-        Retirement {
-            old_id: self.draft.as_str(),
-            new_id: key.as_str(),
-            new_external_id: Some(key.as_str()),
-        }
+    fn retirement<'k>(&'k self, key: &'k TrackerKey) -> Retirement<'k> {
+        Retirement::onto(self.draft.as_str(), key)
     }
 
-    fn promoted_content(&self, key: &ExternalId) -> String {
+    fn promoted_content(&self, key: &TrackerKey) -> String {
         retired_content(
             &self.content.content,
             &self.retirement(key),
@@ -604,16 +613,17 @@ impl Promoting<'_> {
         )
     }
 
-    fn show(&self, key: &ExternalId) -> Result<RemoteIssue, NotPromoted> {
+    fn show(&self, key: &TrackerKey) -> Result<RemoteIssue, NotPromoted> {
+        let id = ExternalId::from(key);
         self.ports
             .tracker
-            .show(key)
-            .map_err(|_| NotPromoted::ReadBackFailed(key.clone()))
+            .show(&id)
+            .map_err(|_| NotPromoted::ReadBackFailed(id))
     }
 
     fn retitle_remote(
         &self,
-        key: &ExternalId,
+        key: &TrackerKey,
         stored: &StoredRecord,
     ) -> Result<(), NotPromoted> {
         let StoredRecord::Present(record) = stored else {
@@ -626,12 +636,6 @@ impl Promoting<'_> {
         else {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
-        if !corpus::is_tracker_key(key.as_str()) {
-            tracing::warn!(
-                "{key} is not a tracker key; prose references to it will \
-                 not be rewritten if it is ever retired"
-            );
-        }
         let issue = self.show(key)?;
         let read_back = read_back_of(&issue);
         let ids = [self.draft.as_str(), key.as_str()];
@@ -656,7 +660,7 @@ impl Promoting<'_> {
                 if self
                     .ports
                     .tracker
-                    .update(key, &self.content.title, &body)
+                    .update(&ExternalId::from(key), &self.content.title, &body)
                     .is_err()
                 {
                     return self.advance(
@@ -683,7 +687,7 @@ impl Promoting<'_> {
 
     fn retire(
         &self,
-        key: &ExternalId,
+        key: &TrackerKey,
         stored: &StoredRecord,
     ) -> Result<Promotion, NotPromoted> {
         let StoredRecord::Present(record) = stored else {
@@ -761,11 +765,7 @@ pub fn finish_promotion(
     else {
         return Err(NotPromoted::CreateOutcomeUnknown);
     };
-    let retirement = Retirement {
-        old_id: record.draft_id.as_str(),
-        new_id: key.as_str(),
-        new_external_id: Some(key.as_str()),
-    };
+    let retirement = Retirement::onto(record.draft_id.as_str(), key);
     let rewind = |failure: NotPromoted| {
         let _ = records.save(&PromotionRecord {
             stage: (**before).clone(),
@@ -811,5 +811,5 @@ pub fn finish_promotion(
     records
         .remove(&record.draft_id)
         .map_err(|error| unwritable(Some(key), &error))?;
-    Ok(Promotion::Completed(key.clone(), next_sync))
+    Ok(Promotion::Completed(ExternalId::from(key), next_sync))
 }

@@ -38,6 +38,7 @@ use work::sync::PushOutcome;
 use work::sync::PushPrecondition;
 use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
+use work::tracker_key::TrackerKey;
 use work::work_item_files::identities;
 use work::work_item_files::WorkItemFiles;
 
@@ -845,17 +846,15 @@ fn incomplete_outcome(
         .chain(target.as_deref())
         .find(|path| creation.exists(path))
         .map(Path::to_path_buf);
-    let cause = key.map(|key| {
-        let retirement = Retirement {
-            old_id: draft.as_str(),
-            new_id: key.as_str(),
-            new_external_id: Some(key.as_str()),
-        };
-        failure.message(
-            &retirement,
-            &creation.state_dir.join(retirement.recovery_dir()),
-        )
-    });
+    let cause =
+        key.and_then(|key| TrackerKey::parse(key.as_str()))
+            .map(|key| {
+                let retirement = Retirement::onto(draft.as_str(), &key);
+                failure.message(
+                    &retirement,
+                    &creation.state_dir.join(retirement.recovery_dir()),
+                )
+            });
     pushed(path, PushOutcome::RetirementIncomplete, key, cause)
 }
 

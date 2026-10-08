@@ -135,10 +135,9 @@ impl ConfiguredLocalAuthor<'_> {
         for entry in records.outstanding().map_err(failed)? {
             match entry {
                 Ok(record) => {
-                    let names_key = record
-                        .stage
-                        .key()
-                        .is_some_and(|held| same_key(held, key));
+                    let names_key = record.stage.key().is_some_and(|held| {
+                        same_key(&ExternalId::from(held), key)
+                    });
                     if !names_key {
                         continue;
                     }
@@ -674,7 +673,8 @@ mod tests {
 
     fn created(key: &str) -> PromotionStage {
         PromotionStage::Created {
-            key: ExternalId::new(key.to_owned()),
+            key: work::tracker_key::TrackerKey::parse(key)
+                .expect("a tracker key"),
             created_remote_hash: None,
         }
     }

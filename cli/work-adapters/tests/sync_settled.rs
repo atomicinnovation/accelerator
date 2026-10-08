@@ -47,6 +47,7 @@ use work::sync::IdentityAction;
 use work::sync::RequestFingerprint;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
+use work::tracker_key::TrackerKey;
 use work::work_item_files::identities;
 use work::work_item_files::identity_of;
 use work::work_item_files::WorkItemFiles as _;
@@ -95,6 +96,10 @@ const FAST: LockOptions = LockOptions {
 
 fn key(raw: &str) -> ExternalId {
     ExternalId::new(raw.to_owned())
+}
+
+fn tracker_key(raw: &str) -> TrackerKey {
+    TrackerKey::parse(raw).expect("a tracker key")
 }
 
 fn held(raw: &str) -> (ExternalId, RemoteIssue) {
@@ -1691,7 +1696,7 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::Retiring {
-            key: key("ENG-42"),
+            key: tracker_key("ENG-42"),
             baseline: IntendedBaseline {
                 remote_hash: RemoteHash::Known(settled_remote.clone()),
                 local_hash: digest::local(promoted).unwrap(),
@@ -1700,7 +1705,7 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
                 "retirement-recovery/draft-k7mq3x--ENG-42",
             ),
             before: Box::new(PromotionStage::RemoteRetitled {
-                key: key("ENG-42"),
+                key: tracker_key("ENG-42"),
                 read_back: settled_remote,
             }),
         }),
@@ -1735,7 +1740,7 @@ fn untracked_discovery_skips_a_key_held_by_a_drafts_created_marker() {
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::Created {
-            key: key("ENG-42"),
+            key: tracker_key("ENG-42"),
             created_remote_hash: None,
         }),
     );
@@ -1763,7 +1768,7 @@ fn a_record_whose_draft_has_vanished_does_not_hide_its_key_from_discovery() {
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::Created {
-            key: key("ENG-42"),
+            key: tracker_key("ENG-42"),
             created_remote_hash: None,
         }),
     );
@@ -2139,7 +2144,7 @@ fn a_promotion_record_left_by_failed_retirements_is_finished_by_the_next_sync()
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::RemoteRetitled {
-            key: key("PP-900"),
+            key: tracker_key("PP-900"),
             read_back: remote,
         }),
     );

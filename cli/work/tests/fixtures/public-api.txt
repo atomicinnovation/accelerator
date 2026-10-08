@@ -291,7 +291,7 @@ impl core::fmt::Debug for work::promotion::Promotion
 pub fn work::promotion::Promotion::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::Promotion
 pub enum work::promotion::PromotionMode
-pub work::promotion::PromotionMode::Adopt(tracker::ExternalId)
+pub work::promotion::PromotionMode::Adopt(work::tracker_key::TrackerKey)
 pub work::promotion::PromotionMode::CreateAcceptingDuplicate
 pub work::promotion::PromotionMode::Standard
 impl core::clone::Clone for work::promotion::PromotionMode
@@ -306,20 +306,20 @@ pub enum work::promotion::PromotionStage
 pub work::promotion::PromotionStage::Attempted
 pub work::promotion::PromotionStage::Created
 pub work::promotion::PromotionStage::Created::created_remote_hash: core::option::Option<alloc::string::String>
-pub work::promotion::PromotionStage::Created::key: tracker::ExternalId
+pub work::promotion::PromotionStage::Created::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::RemoteKept
-pub work::promotion::PromotionStage::RemoteKept::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteKept::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::RemoteKept::reason: work::promotion::RemoteKeptReason
 pub work::promotion::PromotionStage::RemoteRetitled
-pub work::promotion::PromotionStage::RemoteRetitled::key: tracker::ExternalId
+pub work::promotion::PromotionStage::RemoteRetitled::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::RemoteRetitled::read_back: work::promotion::ReadBack
 pub work::promotion::PromotionStage::Retiring
 pub work::promotion::PromotionStage::Retiring::baseline: work::promotion::IntendedBaseline
 pub work::promotion::PromotionStage::Retiring::before: alloc::boxed::Box<work::promotion::PromotionStage>
-pub work::promotion::PromotionStage::Retiring::key: tracker::ExternalId
+pub work::promotion::PromotionStage::Retiring::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::Retiring::recovery_dir: std::path::PathBuf
 impl work::promotion::PromotionStage
-pub const fn work::promotion::PromotionStage::key(&self) -> core::option::Option<&tracker::ExternalId>
+pub const fn work::promotion::PromotionStage::key(&self) -> core::option::Option<&work::tracker_key::TrackerKey>
 impl core::clone::Clone for work::promotion::PromotionStage
 pub fn work::promotion::PromotionStage::clone(&self) -> work::promotion::PromotionStage
 impl core::cmp::Eq for work::promotion::PromotionStage
@@ -331,10 +331,10 @@ impl core::marker::StructuralPartialEq for work::promotion::PromotionStage
 pub enum work::promotion::PromotionStep
 pub work::promotion::PromotionStep::CreateIssue
 pub work::promotion::PromotionStep::Finish
-pub work::promotion::PromotionStep::Retire(tracker::ExternalId)
-pub work::promotion::PromotionStep::RetitleRemote(tracker::ExternalId)
+pub work::promotion::PromotionStep::Retire(work::tracker_key::TrackerKey)
+pub work::promotion::PromotionStep::RetitleRemote(work::tracker_key::TrackerKey)
 pub work::promotion::PromotionStep::Stop(work::promotion::NotPromoted)
-pub work::promotion::PromotionStep::VerifyThenAdopt(tracker::ExternalId)
+pub work::promotion::PromotionStep::VerifyThenAdopt(work::tracker_key::TrackerKey)
 impl core::clone::Clone for work::promotion::PromotionStep
 pub fn work::promotion::PromotionStep::clone(&self) -> work::promotion::PromotionStep
 impl core::cmp::Eq for work::promotion::PromotionStep
@@ -582,8 +582,9 @@ pub struct work::retirement::Retirement<'a>
 pub work::retirement::Retirement::new_external_id: core::option::Option<&'a str>
 pub work::retirement::Retirement::new_id: &'a str
 pub work::retirement::Retirement::old_id: &'a str
-impl work::retirement::Retirement<'_>
-pub fn work::retirement::Retirement<'_>::recovery_dir(&self) -> std::path::PathBuf
+impl<'a> work::retirement::Retirement<'a>
+pub fn work::retirement::Retirement<'a>::onto(old_id: &'a str, key: &'a work::tracker_key::TrackerKey) -> Self
+pub fn work::retirement::Retirement<'a>::recovery_dir(&self) -> std::path::PathBuf
 impl<'a> core::clone::Clone for work::retirement::Retirement<'a>
 pub fn work::retirement::Retirement<'a>::clone(&self) -> work::retirement::Retirement<'a>
 impl<'a> core::cmp::Eq for work::retirement::Retirement<'a>
@@ -798,11 +799,11 @@ pub work::sync::key_change::KeyChange::FollowExternalId::new: tracker::ExternalI
 pub work::sync::key_change::KeyChange::FollowExternalId::old: tracker::ExternalId
 pub work::sync::key_change::KeyChange::RetireKey
 pub work::sync::key_change::KeyChange::RetireKey::item: alloc::string::String
-pub work::sync::key_change::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::key_change::KeyChange::RetireKey::new: work::tracker_key::TrackerKey
 pub work::sync::key_change::KeyChange::RetireKey::old: tracker::ExternalId
 impl work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::item(&self) -> &str
-pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub fn work::sync::key_change::KeyChange::new_key(&self) -> tracker::ExternalId
 pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
 impl core::clone::Clone for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
@@ -1044,11 +1045,11 @@ pub work::sync::KeyChange::FollowExternalId::new: tracker::ExternalId
 pub work::sync::KeyChange::FollowExternalId::old: tracker::ExternalId
 pub work::sync::KeyChange::RetireKey
 pub work::sync::KeyChange::RetireKey::item: alloc::string::String
-pub work::sync::KeyChange::RetireKey::new: tracker::ExternalId
+pub work::sync::KeyChange::RetireKey::new: work::tracker_key::TrackerKey
 pub work::sync::KeyChange::RetireKey::old: tracker::ExternalId
 impl work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::item(&self) -> &str
-pub const fn work::sync::key_change::KeyChange::new_key(&self) -> &tracker::ExternalId
+pub fn work::sync::key_change::KeyChange::new_key(&self) -> tracker::ExternalId
 pub const fn work::sync::key_change::KeyChange::old(&self) -> &tracker::ExternalId
 impl core::clone::Clone for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::clone(&self) -> work::sync::key_change::KeyChange
@@ -1323,6 +1324,23 @@ pub fn work::tags::parse_current_tags(raw_tags: &str) -> alloc::vec::Vec<alloc::
 pub mod work::template_hints
 pub fn work::template_hints::extract_hints(template_frontmatter: &str, field: &str) -> alloc::vec::Vec<alloc::string::String>
 pub fn work::template_hints::hardcoded_fallback(field: &str) -> alloc::vec::Vec<alloc::string::String>
+pub mod work::tracker_key
+pub struct work::tracker_key::TrackerKey(_)
+impl work::tracker_key::TrackerKey
+pub fn work::tracker_key::TrackerKey::as_str(&self) -> &str
+pub fn work::tracker_key::TrackerKey::parse(token: &str) -> core::option::Option<Self>
+impl core::clone::Clone for work::tracker_key::TrackerKey
+pub fn work::tracker_key::TrackerKey::clone(&self) -> work::tracker_key::TrackerKey
+impl core::cmp::Eq for work::tracker_key::TrackerKey
+impl core::cmp::PartialEq for work::tracker_key::TrackerKey
+pub fn work::tracker_key::TrackerKey::eq(&self, other: &work::tracker_key::TrackerKey) -> bool
+impl core::convert::From<&work::tracker_key::TrackerKey> for tracker::ExternalId
+pub fn tracker::ExternalId::from(key: &work::tracker_key::TrackerKey) -> Self
+impl core::fmt::Debug for work::tracker_key::TrackerKey
+pub fn work::tracker_key::TrackerKey::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::tracker_key::TrackerKey
+pub fn work::tracker_key::TrackerKey::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::tracker_key::TrackerKey
 pub mod work::update
 pub enum work::update::ListAction
 pub work::update::ListAction::Append

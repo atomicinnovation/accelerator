@@ -93,7 +93,7 @@ fn conflicting(input: &str, claims: &[IdentityMatch<'_>]) -> PromoteOutcome {
 
 fn mode_of(args: &PromoteArgs) -> PromotionMode {
     match (&args.adopt, args.create) {
-        (Some(key), _) => PromotionMode::Adopt(ExternalId::new(key.clone())),
+        (Some(key), _) => PromotionMode::Adopt(key.clone()),
         (None, true) => PromotionMode::CreateAcceptingDuplicate,
         (None, false) => PromotionMode::Standard,
     }
@@ -114,15 +114,15 @@ fn remedy_for(
         return None;
     };
     let named = match mode {
-        PromotionMode::Adopt(key) => Some(key),
+        PromotionMode::Adopt(key) => Some(ExternalId::from(key)),
         PromotionMode::Standard | PromotionMode::CreateAcceptingDuplicate => {
             None
         }
     };
     held_key
-        .as_ref()
+        .clone()
         .or(named)
-        .map(|key| crate::create::blocked_remedy(refusal, key, draft))
+        .map(|key| crate::create::blocked_remedy(refusal, &key, draft))
 }
 
 /// # Errors
@@ -403,7 +403,10 @@ mod tests {
                 &composed.service,
                 &PromoteArgs {
                     draft_id: draft_id.to_owned(),
-                    adopt: adopt.map(str::to_owned),
+                    adopt: adopt.map(|key| {
+                        work::tracker_key::TrackerKey::parse(key)
+                            .expect("a tracker key")
+                    }),
                     create,
                 },
                 &StubRegistry(Rc::clone(tracker)),

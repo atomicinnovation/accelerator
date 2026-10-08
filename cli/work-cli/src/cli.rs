@@ -1,6 +1,7 @@
 //! The clap inbound adapter: the `accelerator-work` command-line surface.
 
 use std::path::PathBuf;
+use work::tracker_key::TrackerKey;
 
 use clap::Args;
 use clap::Parser;
@@ -156,10 +157,11 @@ fn parse_key_value(raw: &str) -> Result<(String, String), String> {
     )
 }
 
-fn parse_issue_key(raw: &str) -> Result<String, String> {
+fn parse_issue_key(raw: &str) -> Result<TrackerKey, String> {
     tracker_support::issue_key_is_safe(raw)
-        .map(|()| raw.to_owned())
-        .map_err(|refusal| format!("'{raw}': {refusal}"))
+        .map_err(|refusal| format!("'{raw}': {refusal}"))?;
+    TrackerKey::parse(raw)
+        .ok_or_else(|| format!("'{raw}' is not shaped like an issue key"))
 }
 
 /// A `--max-pulls` / `--max-pushes` value: the same grammar the `max_items`
@@ -401,7 +403,7 @@ pub struct PromoteArgs {
         conflicts_with = "create",
         value_parser = parse_issue_key
     )]
-    pub adopt: Option<String>,
+    pub adopt: Option<TrackerKey>,
     /// Create a new issue even though an earlier create may already have
     /// reached the tracker, accepting the risk of a duplicate.
     #[arg(long)]

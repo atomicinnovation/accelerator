@@ -17,6 +17,7 @@ use crate::identity::holder_of;
 use crate::identity::linker_of;
 use crate::identity::IdentityField;
 use crate::identity::ItemIdentity;
+use crate::tracker_key::TrackerKey;
 use crate::work_item_files::DRAFTS_DIRECTORY;
 
 const WORK_ITEM: &str = "work-item";
@@ -33,7 +34,18 @@ pub struct Retirement<'a> {
     pub new_external_id: Option<&'a str>,
 }
 
-impl Retirement<'_> {
+impl<'a> Retirement<'a> {
+    /// Retires `old_id` in favour of `key`, which becomes both the item's
+    /// `id` and its `external_id`.
+    #[must_use]
+    pub fn onto(old_id: &'a str, key: &'a TrackerKey) -> Self {
+        Self {
+            old_id,
+            new_id: key.as_str(),
+            new_external_id: Some(key.as_str()),
+        }
+    }
+
     /// Where the pre-retirement bytes of uncommitted files are kept, relative
     /// to the state directory; one per retirement, so a resumed retirement
     /// finds the copies its first attempt made.
@@ -731,6 +743,21 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
         plan_retirement(retirement, work_dir(), &items, corpus)
+    }
+
+    #[test]
+    fn retiring_onto_a_tracker_key_renames_and_links_the_item_to_it() {
+        let key = crate::tracker_key::TrackerKey::parse("PP-900")
+            .unwrap_or_else(|| unreachable!("a tracker key"));
+
+        assert_eq!(
+            Retirement::onto("draft-k7mq3x", &key),
+            Retirement {
+                old_id: "draft-k7mq3x",
+                new_id: "PP-900",
+                new_external_id: Some("PP-900"),
+            }
+        );
     }
 
     #[test]

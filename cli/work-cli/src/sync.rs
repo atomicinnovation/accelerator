@@ -126,7 +126,10 @@ fn warn_outstanding_pushes(integrations_root: &Path, integration: &str) {
             }) => (request, Some(external_id.as_str())),
             Marker::Promotion(record) => (
                 &record.request,
-                record.stage.key().map(tracker::ExternalId::as_str),
+                record
+                    .stage
+                    .key()
+                    .map(work::tracker_key::TrackerKey::as_str),
             ),
         };
         eprintln!(

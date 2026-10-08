@@ -28,7 +28,7 @@ impl StoredRecord {
     #[must_use]
     pub fn key(&self) -> Option<ExternalId> {
         match self {
-            Self::Present(record) => record.stage.key().cloned(),
+            Self::Present(record) => record.stage.key().map(ExternalId::from),
             Self::Absent | Self::Unreadable(_) => None,
         }
     }

@@ -19,6 +19,7 @@ use crate::retirement::RetirementRefusal;
 use crate::sync::PushOutcome;
 use crate::sync::RequestFingerprint;
 use crate::sync::SyncState;
+use crate::tracker_key::TrackerKey;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromotionRecord {
@@ -32,19 +33,19 @@ pub struct PromotionRecord {
 pub enum PromotionStage {
     Attempted,
     Created {
-        key: ExternalId,
+        key: TrackerKey,
         created_remote_hash: Option<String>,
     },
     RemoteRetitled {
-        key: ExternalId,
+        key: TrackerKey,
         read_back: ReadBack,
     },
     RemoteKept {
-        key: ExternalId,
+        key: TrackerKey,
         reason: RemoteKeptReason,
     },
     Retiring {
-        key: ExternalId,
+        key: TrackerKey,
         baseline: IntendedBaseline,
         recovery_dir: PathBuf,
         before: Box<PromotionStage>,
@@ -54,7 +55,7 @@ pub enum PromotionStage {
 impl PromotionStage {
     /// The key the tracker gave the draft's issue, once one exists.
     #[must_use]
-    pub const fn key(&self) -> Option<&ExternalId> {
+    pub const fn key(&self) -> Option<&TrackerKey> {
         match self {
             Self::Attempted => None,
             Self::Created { key, .. }
@@ -140,7 +141,7 @@ pub enum RecordState<'a> {
 pub enum PromotionMode {
     Standard,
     /// The user named the issue the draft's create reached.
-    Adopt(ExternalId),
+    Adopt(TrackerKey),
     /// The user accepts that an earlier create may have reached the
     /// tracker, and asks for a fresh one.
     CreateAcceptingDuplicate,
@@ -149,9 +150,9 @@ pub enum PromotionMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PromotionStep {
     CreateIssue,
-    VerifyThenAdopt(ExternalId),
-    RetitleRemote(ExternalId),
-    Retire(ExternalId),
+    VerifyThenAdopt(TrackerKey),
+    RetitleRemote(TrackerKey),
+    Retire(TrackerKey),
     Finish,
     Stop(NotPromoted),
 }
@@ -330,7 +331,7 @@ pub fn next_step(
             if !key.as_str().eq_ignore_ascii_case(named.as_str()) =>
         {
             PromotionStep::Stop(NotPromoted::AdoptConflictsWithRecordedKey {
-                recorded: key.clone(),
+                recorded: ExternalId::from(key),
             })
         }
         (_, Some((_, stage))) => resume(stage),
@@ -471,9 +472,11 @@ mod tests {
     use crate::sync::PushOutcome;
     use crate::sync::RequestFingerprint;
     use crate::sync::SyncState;
+    use crate::tracker_key::TrackerKey;
 
-    fn key() -> ExternalId {
-        ExternalId::new("PP-900".to_owned())
+    fn key() -> TrackerKey {
+        TrackerKey::parse("PP-900")
+            .unwrap_or_else(|| unreachable!("a tracker key"))
     }
 
     fn read_back(hash: &str) -> ReadBack {
@@ -659,7 +662,8 @@ mod tests {
 
     #[test]
     fn next_step_under_adopt_and_create_modes() {
-        let other = ExternalId::new("PP-901".to_owned());
+        let other = TrackerKey::parse("PP-901")
+            .unwrap_or_else(|| unreachable!("a tracker key"));
         let later_stages = [
             (
                 PromotionStage::Created {
@@ -712,7 +716,7 @@ mod tests {
                 next_step(state, &adopt_other),
                 PromotionStep::Stop(
                     NotPromoted::AdoptConflictsWithRecordedKey {
-                        recorded: key()
+                        recorded: ExternalId::from(&key())
                     }
                 ),
                 "{held:?}"
@@ -726,8 +730,10 @@ mod tests {
             key: key(),
             read_back: read_back("h"),
         });
-        let adopt_lowercase =
-            PromotionMode::Adopt(ExternalId::new("pp-900".to_owned()));
+        let adopt_lowercase = PromotionMode::Adopt(
+            TrackerKey::parse("pp-900")
+                .unwrap_or_else(|| unreachable!("a tracker key")),
+        );
 
         assert_eq!(
             next_step(RecordState::Present(&held), &adopt_lowercase),
@@ -757,12 +763,15 @@ mod tests {
     #[test]
     fn every_new_reason_has_its_keyword() {
         assert_eq!(
-            NotPromoted::AdoptedIssueMissing(key()).keyword(),
+            NotPromoted::AdoptedIssueMissing(ExternalId::from(&key()))
+                .keyword(),
             "adopted-issue-missing"
         );
         assert_eq!(
-            NotPromoted::AdoptConflictsWithRecordedKey { recorded: key() }
-                .keyword(),
+            NotPromoted::AdoptConflictsWithRecordedKey {
+                recorded: ExternalId::from(&key())
+            }
+            .keyword(),
             "adopt-conflicts-with-recorded-key"
         );
     }

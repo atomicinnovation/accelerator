@@ -21,6 +21,7 @@ use work::promotion::RemoteHash;
 use work::promotion::RemoteKeptReason;
 use work::sync::PendingPush;
 use work::sync::RequestFingerprint;
+use work::tracker_key::TrackerKey;
 
 const PROMOTION_SCHEMA: u64 = 2;
 
@@ -246,8 +247,11 @@ fn optional_text(object: &Map<String, Value>, field: &str) -> Option<String> {
     object.get(field).and_then(Value::as_str).map(str::to_owned)
 }
 
-fn key_of(object: &Map<String, Value>) -> Result<ExternalId, MarkerError> {
-    text(object, "external_id").map(ExternalId::new)
+fn key_of(object: &Map<String, Value>) -> Result<TrackerKey, MarkerError> {
+    let raw = text(object, "external_id")?;
+    TrackerKey::parse(&raw).ok_or_else(|| {
+        MarkerError::Malformed(format!("'{raw}' is not a tracker key"))
+    })
 }
 
 /// A read-back as `<prefix>_hash` and `<prefix>_updated_at`, the stamp
@@ -358,7 +362,7 @@ fn stage_fields(stage: &PromotionStage) -> Map<String, Value> {
     let mut put = |field: &str, value: Value| {
         object.insert(field.to_owned(), value);
     };
-    let key = |key: &ExternalId| Value::String(key.as_str().to_owned());
+    let key = |key: &TrackerKey| Value::String(key.as_str().to_owned());
     match stage {
         PromotionStage::Attempted => put("kind", json!("attempted")),
         PromotionStage::Created {
@@ -525,6 +529,7 @@ pub fn outstanding(
 #[allow(clippy::expect_used)]
 mod tests {
     use std::path::PathBuf;
+    use work::tracker_key::TrackerKey;
 
     use super::content_digest;
     use super::outstanding;
@@ -674,8 +679,8 @@ mod tests {
         );
     }
 
-    fn key() -> ExternalId {
-        ExternalId::new("PP-900".to_owned())
+    fn key() -> TrackerKey {
+        TrackerKey::parse("PP-900").expect("a tracker key")
     }
 
     fn promotion(stage: PromotionStage) -> PromotionRecord {
@@ -788,6 +793,19 @@ mod tests {
     }
 
     #[test]
+    fn a_stage_key_not_shaped_like_a_key_makes_the_record_unreadable() {
+        for stage in every_stage()
+            .into_iter()
+            .filter(|stage| stage.key().is_some())
+        {
+            let rendered = render_record(&promotion(stage))
+                .replace("\"PP-900\"", "\"PP-900/../..\"");
+
+            assert!(read_marker(Some(&rendered)).is_err(), "{rendered}");
+        }
+    }
+
+    #[test]
     fn the_content_digest_is_independent_of_the_substituted_id() {
         let digest = |id: &str| {
             content_digest(
@@ -890,7 +908,7 @@ mod tests {
             read(Some(&created)).expect("reads"),
             Some(PendingPush::Created {
                 request: fingerprint(),
-                external_id: key(),
+                external_id: ExternalId::from(&key()),
             })
         );
     }

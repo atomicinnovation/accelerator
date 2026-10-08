@@ -42,6 +42,7 @@ use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
 use work::sync::RequestFingerprint;
 use work::sync::SyncState;
+use work::tracker_key::TrackerKey;
 use work_adapters::promotion::promote;
 use work_adapters::promotion::Detail;
 use work_adapters::promotion::DetailSource;
@@ -226,6 +227,10 @@ fn key() -> ExternalId {
     ExternalId::new(KEY.to_owned())
 }
 
+fn tracker_key() -> TrackerKey {
+    TrackerKey::parse(KEY).expect("a tracker key")
+}
+
 /// Promotes the draft once over `store`, as one process would.
 fn promote_with(
     repo: &Repo,
@@ -334,7 +339,7 @@ fn adopted(
         repo,
         tracker,
         &Store::new(repo.root()),
-        &PromotionMode::Adopt(key()),
+        &PromotionMode::Adopt(tracker_key()),
     )
 }
 
@@ -676,7 +681,7 @@ fn a_created_marker_is_adopted_without_a_new_issue_even_after_edits() {
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding(&draft_projection());
     repo.save(&record_at(PromotionStage::Created {
-        key: key(),
+        key: tracker_key(),
         created_remote_hash: Some(digest::remote_body(&draft_projection())),
     }));
     let edited = DRAFT_CONTENT.replace("Supersedes nothing", "Supersedes all");
@@ -697,7 +702,7 @@ fn an_untouched_recorded_issue_gets_the_tracker_key_h1_on_adoption() {
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding(&draft_projection());
     repo.save(&record_at(PromotionStage::Created {
-        key: key(),
+        key: tracker_key(),
         created_remote_hash: Some(digest::remote_body(&draft_projection())),
     }));
 
@@ -717,7 +722,7 @@ fn an_edited_recorded_issue_is_not_rewritten_and_the_next_sync_raises_a_conflict
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding("Add search\nSomeone rewrote this.\n");
     repo.save(&record_at(PromotionStage::Created {
-        key: key(),
+        key: tracker_key(),
         created_remote_hash: Some(digest::remote_body(&draft_projection())),
     }));
 
@@ -744,7 +749,7 @@ fn a_kill_between_the_h1_update_and_its_record_resumes_as_retitled_not_edited()
     let retitled = format!("Add search\n{}", body.replace(DRAFT_ID, KEY));
     let tracker = tracker_holding(&retitled);
     repo.save(&record_at(PromotionStage::Created {
-        key: key(),
+        key: tracker_key(),
         created_remote_hash: Some(digest::remote_body(&draft_projection())),
     }));
 
@@ -785,7 +790,7 @@ fn a_draft_unfenced_mid_promotion_is_refused_before_anything_is_written() {
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding(&draft_projection());
     repo.save(&record_at(PromotionStage::RemoteRetitled {
-        key: key(),
+        key: tracker_key(),
         read_back: ReadBack {
             hash: digest::remote_body(&draft_projection()),
             updated: RemoteTimestamp::Reported("t0".to_owned()),
@@ -858,7 +863,7 @@ fn a_failed_read_back_leaves_the_record_at_created_and_reports_created_unwritten
     assert_eq!(
         record.stage,
         PromotionStage::Created {
-            key: key(),
+            key: tracker_key(),
             created_remote_hash: None
         }
     );
@@ -889,7 +894,7 @@ fn a_retirement_failure_rolls_back_and_leaves_a_promotion_record_holding_the_key
     let StoredRecord::Present(record) = repo.stored() else {
         panic!("the record holds the key");
     };
-    assert_eq!(record.stage.key(), Some(&key()));
+    assert_eq!(record.stage.key(), Some(&tracker_key()));
     assert!(
         !matches!(record.stage, PromotionStage::Retiring { .. }),
         "rewound: {:?}",
@@ -978,7 +983,7 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding(&draft_projection());
     let before = PromotionStage::RemoteKept {
-        key: key(),
+        key: tracker_key(),
         reason: work::promotion::RemoteKeptReason::NoHash {
             read_back: work::promotion::ReadBack {
                 hash: digest::remote_body(&draft_projection()),
@@ -987,7 +992,7 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
         },
     };
     repo.save(&record_at(PromotionStage::Retiring {
-        key: key(),
+        key: tracker_key(),
         baseline: work::promotion::IntendedBaseline {
             remote_hash: RemoteHash::Unknown,
             local_hash: "draft".to_owned(),
@@ -1051,7 +1056,7 @@ fn a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote() {
                 &repo,
                 &tracker,
                 &Store::new(repo.root()),
-                &PromotionMode::Adopt(key()),
+                &PromotionMode::Adopt(tracker_key()),
             );
         }
         assert!(
@@ -1065,6 +1070,24 @@ fn a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote() {
         assert_promoted(&repo);
         assert!(repo.baseline_entry(KEY).is_some(), "killed at {die_at}");
     }
+}
+
+#[test]
+fn a_create_answered_under_a_non_key_is_an_unknown_outcome_never_retired_onto()
+{
+    let repo = Repo::new().unwrap();
+    let tracker = fresh_tracker().creating_under("PP/..");
+
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Err(NotPromoted::CreateOutcomeUnknown)
+    );
+    assert_eq!(creates(&tracker), 1);
+    assert_eq!(repo.read(DRAFT).as_deref(), Some(DRAFT_CONTENT));
+    let StoredRecord::Present(record) = repo.stored() else {
+        panic!("the attempted record stays");
+    };
+    assert_eq!(record.stage, PromotionStage::Attempted);
 }
 
 #[test]
@@ -1327,7 +1350,7 @@ fn creating_accepts_the_duplicate_risk_over_an_attempted_record() {
 fn an_adopt_naming_another_key_than_the_record_holds_stops() {
     let repo = Repo::new().unwrap();
     repo.save(&record_at(PromotionStage::Created {
-        key: ExternalId::new("REC-7".to_owned()),
+        key: TrackerKey::parse("REC-7").expect("a tracker key"),
         created_remote_hash: None,
     }));
 
@@ -1382,7 +1405,7 @@ fn a_promotion_that_will_conflict_names_the_promoted_item() {
     let repo = Repo::new().unwrap();
     let tracker = tracker_holding("Add search\nSomeone rewrote this.\n");
     repo.save(&record_at(PromotionStage::Created {
-        key: key(),
+        key: tracker_key(),
         created_remote_hash: Some(digest::remote_body(&draft_projection())),
     }));
 

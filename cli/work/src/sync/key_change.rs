@@ -3,6 +3,8 @@
 use corpus::IdOwnership;
 use tracker::ExternalId;
 
+use crate::tracker_key::TrackerKey;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyChange {
     /// Only `external_id` follows the new key; the item keeps its `id`.
@@ -15,7 +17,7 @@ pub enum KeyChange {
     RetireKey {
         item: String,
         old: ExternalId,
-        new: ExternalId,
+        new: TrackerKey,
     },
 }
 
@@ -37,10 +39,10 @@ impl KeyChange {
     }
 
     #[must_use]
-    pub const fn new_key(&self) -> &ExternalId {
+    pub fn new_key(&self) -> ExternalId {
         match self {
-            Self::FollowExternalId { new, .. }
-            | Self::RetireKey { new, .. } => new,
+            Self::FollowExternalId { new, .. } => new.clone(),
+            Self::RetireKey { new, .. } => ExternalId::from(new),
         }
     }
 }
@@ -53,12 +55,20 @@ pub fn decide_key_change(
     new: &ExternalId,
 ) -> KeyChange {
     let item = item_id.to_owned();
-    let (old, new) = (old.clone(), new.clone());
     let id_is_the_old_key = item_id.eq_ignore_ascii_case(old.as_str());
-    if ownership == IdOwnership::Tracker && id_is_the_old_key {
-        KeyChange::RetireKey { item, old, new }
-    } else {
-        KeyChange::FollowExternalId { item, old, new }
+    match TrackerKey::parse(new.as_str()) {
+        Some(key) if ownership == IdOwnership::Tracker && id_is_the_old_key => {
+            KeyChange::RetireKey {
+                item,
+                old: old.clone(),
+                new: key,
+            }
+        }
+        _ => KeyChange::FollowExternalId {
+            item,
+            old: old.clone(),
+            new: new.clone(),
+        },
     }
 }
 
@@ -69,6 +79,7 @@ mod tests {
 
     use super::decide_key_change;
     use super::KeyChange;
+    use crate::tracker_key::TrackerKey;
 
     fn key(raw: &str) -> ExternalId {
         ExternalId::new(raw.to_owned())
@@ -106,10 +117,26 @@ mod tests {
                 KeyChange::RetireKey {
                     item: item.to_owned(),
                     old: key("PP-760"),
-                    new: key("ENG-42"),
+                    new: TrackerKey::parse("ENG-42")
+                        .unwrap_or_else(|| unreachable!("a tracker key")),
                 }
             );
         }
+    }
+
+    #[test]
+    fn an_answer_not_shaped_like_a_key_is_followed_never_retired_onto() {
+        let decided = decide_key_change(
+            IdOwnership::Tracker,
+            "PP-760",
+            &key("PP-760"),
+            &key("ENG-42/../.."),
+        );
+
+        assert!(
+            matches!(decided, KeyChange::FollowExternalId { .. }),
+            "{decided:?}"
+        );
     }
 
     #[test]

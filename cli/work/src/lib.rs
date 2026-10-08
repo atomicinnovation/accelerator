@@ -21,5 +21,6 @@ pub mod show;
 pub mod sync;
 pub mod tags;
 pub mod template_hints;
+pub mod tracker_key;
 pub mod update;
 pub mod work_item_files;

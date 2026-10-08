@@ -21,6 +21,7 @@ use work::retirement::RetirementRecord;
 use work::sync::decide_key_change;
 use work::sync::IdentityAction;
 use work::sync::KeyChange;
+use work::tracker_key::TrackerKey;
 
 use work::draft_id::DraftId;
 use work::promotion::NotPromoted;
@@ -314,11 +315,7 @@ fn reconcile_promotions(
         if *current != record {
             continue;
         }
-        let retirement = Retirement {
-            old_id: record.draft_id.as_str(),
-            new_id: key.as_str(),
-            new_external_id: Some(key.as_str()),
-        };
+        let retirement = Retirement::onto(record.draft_id.as_str(), key);
         let outcome = match finish_promotion(
             &record,
             settlement.retirement,
@@ -364,7 +361,7 @@ fn keys_held_by_promotions(
         .into_iter()
         .flatten()
         .filter(|record| draft_exists(&record.draft_id))
-        .filter_map(|record| record.stage.key().cloned())
+        .filter_map(|record| record.stage.key().map(ExternalId::from))
         .collect())
 }
 
@@ -466,16 +463,16 @@ fn promote_draft(
         failure @ RetirementFailure::RestoreIncomplete { .. },
     )) = &result
     {
-        if let Some(key) = settlement.promotions.read(&planned.draft).key() {
-            return Err(incomplete(
-                failure,
-                &Retirement {
-                    old_id: planned.draft.as_str(),
-                    new_id: key.as_str(),
-                    new_external_id: Some(key.as_str()),
-                },
-                settlement,
-            ));
+        if let StoredRecord::Present(record) =
+            settlement.promotions.read(&planned.draft)
+        {
+            if let Some(key) = record.stage.key() {
+                return Err(incomplete(
+                    failure,
+                    &Retirement::onto(planned.draft.as_str(), key),
+                    settlement,
+                ));
+            }
         }
     }
     Ok(PromotionRow::of(
@@ -543,14 +540,10 @@ fn follow_external_id(
 
 fn retire_key(
     item: &str,
-    new: &ExternalId,
+    new: &TrackerKey,
     settlement: &SettlementPorts<'_>,
 ) -> Result<IdentityOutcome, RunError> {
-    let retirement = Retirement {
-        old_id: item,
-        new_id: new.as_str(),
-        new_external_id: Some(new.as_str()),
-    };
+    let retirement = Retirement::onto(item, new);
     let lock = acquire_retirement_lock(settlement.retirement.lock)
         .map_err(internal)?;
     settlement
@@ -732,7 +725,7 @@ pub fn settle_identities(
     let view = SettledView::following(
         plan.key_changes
             .iter()
-            .map(|change| change.new_key().clone())
+            .map(KeyChange::new_key)
             .chain(promotion_keys),
     )
     .promoting(promoted_keys);
