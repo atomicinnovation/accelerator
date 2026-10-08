@@ -72,7 +72,7 @@ Cite each record by its `url`, with the CLI's `tier` verbatim beside it.
 
 ## Outcome
 
-End in exactly one of these:
+End in exactly one of these. `waiting` is never an end; see Waiting below.
 
 - **Records** — write the finding from the relevant records.
 - **Unavailable** — a call printed `"status":"unavailable"`. Write no file;
@@ -98,9 +98,12 @@ its output instead.
 **Waiting** — a call printed `"status":"waiting"`. Write nothing yet. Re-run
 the same call at once with `--ticket` set to the `ticket` from the latest
 `waiting` output, replacing any `--ticket` already there. The call does the
-waiting itself. Repeat until the status is anything else, then treat that
-output as the call's result and carry on as you would have. Never change the
-query, ID or `--limit` while re-presenting.
+waiting itself, and the CLI settles a ticket within about 17 minutes of its
+issue. Never stop while the status is `waiting`: repeat until it is anything
+else, then treat that output as the call's result and carry on as you would
+have. If 20 re-presentations of one call all print `waiting`, stop and end
+as Unavailable with reason `waiting`. Never change the query, ID or
+`--limit` while re-presenting.
 
 ```bash
 accelerator research fetch arxiv search 'QUERY' --limit 10 --ticket 42-9f1c2a

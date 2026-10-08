@@ -420,6 +420,19 @@ def test_arxiv_profile_re_presents_a_waiting_ticket() -> None:
     assert "fails as a usage error" in prose
 
 
+def test_arxiv_profile_bounds_the_re_presentation_loop() -> None:
+    prose = _arxiv_profile_prose()
+    for phrase in [
+        "`waiting` is never an end",
+        "Never stop while the status is `waiting`",
+        "20 re-presentations",
+        "Unavailable with reason `waiting`",
+    ]:
+        assert phrase in prose, (
+            f"the arXiv profile's Waiting outcome lacks {phrase!r}"
+        )
+
+
 def test_arxiv_profile_shows_the_re_presentation_it_asks_for() -> None:
     _, body = _split(_read(REPO_ROOT / _profile_skill("arxiv")))
     assert any(
