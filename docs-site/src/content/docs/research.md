@@ -213,8 +213,8 @@ arXiv calls take turns in a first-in, first-out queue of tickets under
 `arxiv-requests.log` beside the lock records one timestamped line per request
 sent. `arxiv-contention.log` records one line per call that ended in
 `lock_contention` with no upstream failure behind it, in the form
-`<wall ms> <kind>[ <ticket>]`. A line with only a timestamp comes from an
-earlier release, or from an older session still running in the project.
+`<wall ms> <kind>[ <ticket>]`. A line with only a timestamp comes from a
+session running an earlier prerelease of the plugin.
 
 | Kind              | Means                                      | Next step                                                                                                   |
 |-------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------|
