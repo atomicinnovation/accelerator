@@ -169,9 +169,9 @@
   names every consent key set in `.accelerator/config.md` and a
   `config.local.md` that is tracked by version control or whose tracking
   cannot be determined, in both the start-of-session message and the session
-  context. The tracking check runs through the `vcs` sub-binary. In the first
-  session after an upgrade, if that binary cannot be fetched in time, the
-  check is noted in the session context as skipped rather than warned about.
+  context. The launcher checks tracking itself, so the warning appears in every
+  session, offline included, and a repository it cannot read counts as
+  undetermined.
 - **A consent keys reference.** `/accelerator:configure` lists the six
   consent keys, the rule they share, and every refusal code they can report
   with its remedy. The configuration, research, collaboration and visualiser
