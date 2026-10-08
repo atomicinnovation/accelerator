@@ -45,7 +45,8 @@ OpenAlex; parentheses, quotes, and the `AND`, `OR`, and `ANDNOT` operators for
 arXiv, which then requires every remaining word), and the query is
 percent-encoded as one value, so it cannot smuggle an operator or a second
 parameter. A query empty once they are removed is a usage error. `--limit`
-takes 1–25 and defaults to 10.
+takes 1–25 and defaults to 10. `--ticket` re-presents the ticket a `waiting`
+arXiv call printed (see [Output](#output)); an OpenAlex call refuses it.
 
 **Every call finishes within 100 s of the process starting**, whatever it is
 waiting on: the credential command, pacing, retries, and each request's own
