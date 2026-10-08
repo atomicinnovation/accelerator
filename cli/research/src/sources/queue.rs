@@ -410,7 +410,6 @@ fn latest_end(presented_at: SystemTime, now: SystemTime) -> SystemTime {
 
 /// Where an arXiv call waits its turn across invocations.
 pub trait ArxivQueue {
-    /// Presents `presented`, or no ticket, for the call bound to `binding`.
     /// Waits for the queue no longer than leaves the deadline a serving
     /// window of `spacing` and one request.
     fn join(
