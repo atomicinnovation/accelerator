@@ -151,6 +151,22 @@ fn a_last_finish_in_the_future_waits_at_most_three_seconds() {
 }
 
 #[test]
+fn a_state_written_before_last_sent_was_recorded_still_spaces_the_request() {
+    let harness = Harness::new();
+    harness.scratch.write(
+        "arxiv-pacing",
+        &format!(
+            "{{\"last_finish_ms\":{},\"not_before_ms\":null}}",
+            millis(harness.clock.wall_now() - secs(1))
+        ),
+    );
+
+    harness.pass(None).expect("admitted");
+
+    assert_eq!(harness.clock.slept(), [secs(2)]);
+}
+
+#[test]
 fn a_corrupt_state_file_counts_as_no_previous_request() {
     let harness = Harness::new();
     harness.scratch.write("arxiv-pacing", "{not json");
