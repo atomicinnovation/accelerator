@@ -17,14 +17,7 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
         .current_dir(dir.path())
         .status()?;
     assert!(status.success(), "git init failed");
-    fs::create_dir_all(dir.path().join("meta/work"))?;
-    let templates_dir = dir.path().join("templates");
-    fs::create_dir_all(&templates_dir)?;
-    let repo_root = repo_root()?;
-    fs::copy(
-        repo_root.join("templates/work-item.md"),
-        templates_dir.join("work-item.md"),
-    )?;
+    install_work_item_template(dir.path())?;
     let email_status = Command::new("git")
         .args(["config", "user.email", "t@e.x"])
         .current_dir(dir.path())
@@ -36,6 +29,17 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
         .status()?;
     assert!(name_status.success());
     Ok(dir)
+}
+
+fn install_work_item_template(dir: &Path) -> Result<(), TestError> {
+    fs::create_dir_all(dir.join("meta/work"))?;
+    let templates_dir = dir.join("templates");
+    fs::create_dir_all(&templates_dir)?;
+    fs::copy(
+        repo_root()?.join("templates/work-item.md"),
+        templates_dir.join("work-item.md"),
+    )?;
+    Ok(())
 }
 
 fn repo_root() -> Result<PathBuf, TestError> {
@@ -257,5 +261,67 @@ fn overflow_is_reported_and_nothing_is_written() -> Result<(), TestError> {
         .filter_map(Result::ok)
         .collect();
     assert_eq!(entries.len(), 1, "no new file should have been written");
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_work_directory_refuses_the_creation_lock(
+) -> Result<(), TestError> {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let repo = scratch_repo()?;
+    let work_dir = repo.path().join("meta/work").canonicalize()?;
+    fs::set_permissions(&work_dir, fs::Permissions::from_mode(0o555))?;
+
+    let output = run(repo.path(), &["create", "Blocked", "task", "high"]);
+    fs::set_permissions(&work_dir, fs::Permissions::from_mode(0o755))?;
+    let output = output?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(
+        String::from_utf8(output.stderr)?,
+        format!(
+            "Error: could not acquire the work-item creation lock: cannot \
+             write under '{}': not writable\n",
+            work_dir.join(".accelerator-work-create.lockdir").display()
+        )
+    );
+    assert!(fs::read_dir(&work_dir)?.next().is_none());
+    Ok(())
+}
+
+#[cfg(feature = "bash-parity")]
+#[test]
+fn the_author_comes_from_the_jj_identity_when_no_flag_is_given(
+) -> Result<(), TestError> {
+    use vcs_test_support::hermetic::Hermetic;
+
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempfile::Builder::new()
+        .prefix("work-cli-create-jj-")
+        .tempdir()?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let root = work.path().join("repo");
+    fs::create_dir_all(&root)?;
+    env.jj(&["git", "init", "--no-colocate"], &root)?;
+    install_work_item_template(&root)?;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator-work"));
+    command
+        .args(["create", "Fresh item", "task", "high"])
+        .current_dir(&root)
+        .env("ACCELERATOR_PLUGIN_ROOT", &root);
+    env.apply(&mut command);
+
+    let output = command.output()?;
+
+    assert!(output.status.success(), "{output:?}");
+    let path = String::from_utf8(output.stdout)?.trim().to_owned();
+    let content = fs::read_to_string(&path)?;
+    assert!(content.contains("author: \"Fixture\""), "{content}");
+    assert!(
+        content.contains("last_updated_by: \"Fixture\""),
+        "{content}"
+    );
     Ok(())
 }

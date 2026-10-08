@@ -419,3 +419,32 @@ fn a_dirty_working_copy_does_not_block_the_write() -> Result<(), TestError> {
     assert!(content.contains("status: \"ready\""));
     Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_work_directory_refuses_the_update_lock() -> Result<(), TestError>
+{
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let repo = scratch_repo()?;
+    let work_dir = repo.path().join("meta/work");
+    fs::create_dir_all(&work_dir)?;
+    let path = write_fixture(&work_dir, "0001-existing.md", BASIC_FIXTURE)?;
+    fs::set_permissions(&work_dir, fs::Permissions::from_mode(0o555))?;
+
+    let output = run(
+        repo.path(),
+        &["meta/work/0001-existing.md", "--set", "status=ready"],
+    );
+    fs::set_permissions(&work_dir, fs::Permissions::from_mode(0o755))?;
+    let output = output?;
+
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(
+        String::from_utf8(output.stderr)?,
+        "could not acquire the update lock: cannot write under \
+         'meta/work/0001-existing.md.lockdir': not writable\n"
+    );
+    assert_eq!(fs::read_to_string(&path)?, BASIC_FIXTURE);
+    Ok(())
+}

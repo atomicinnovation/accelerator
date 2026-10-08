@@ -96,3 +96,37 @@ fn a_team_token_command_beside_a_personal_token_is_reported_as_a_warning(
     assert!(stderr.contains("E_NO_PROJECT"), "{stderr}");
     Ok(())
 }
+
+#[test]
+fn a_personal_token_command_in_a_tracked_file_leaves_the_tracker_unconfigured(
+) -> Result<(), TestError> {
+    let repo = repo(
+        "---\nwork:\n  integration: jira\njira:\n  site: acme\n  \
+         email: fixture@example.com\n---\n",
+        Some("---\njira:\n  token_cmd: exit 3\n---\n"),
+    )?;
+    let status = Command::new("git")
+        .args(["add", "--force", ".accelerator/config.local.md"])
+        .current_dir(repo.path())
+        .status()?;
+    assert!(status.success(), "git add failed");
+
+    let (code, stderr) = sync(repo.path())?;
+
+    assert_eq!(code, Some(74), "{stderr}");
+    assert_eq!(
+        stderr,
+        format!(
+            "work.integration names 'jira', which is wired but not usable — \
+             its configuration or credentials are missing or refused: \
+             E_CONSENT_KEY_TRACKED: jira.token_cmd in {} is refused — the \
+             file is tracked by version control, so the repository chose \
+             the value; untrack it\n",
+            repo.path()
+                .canonicalize()?
+                .join(".accelerator/config.local.md")
+                .display()
+        )
+    );
+    Ok(())
+}
