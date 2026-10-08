@@ -314,7 +314,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        acquire_with, claim, holder_pid, jitter_ms, process_is_alive,
+        acquire, acquire_with, claim, holder_pid, jitter_ms, process_is_alive,
         reclaim_if_stale, LockError, LockGuard, LockOptions, OWNER, RECLAIMING,
     };
 
@@ -378,6 +378,25 @@ mod tests {
 
         let guard = acquire_with(&lockdir, fast_opts(), |_| false)?;
         assert!(sentinel_named(&lockdir, OWNER).is_some());
+        drop(guard);
+        Ok(())
+    }
+
+    fn an_exited_process_pid() -> Result<i32, TestError> {
+        let mut child = std::process::Command::new("true").spawn()?;
+        child.wait()?;
+        Ok(i32::try_from(child.id())?)
+    }
+
+    #[test]
+    fn an_owner_whose_process_has_exited_is_reclaimed_and_the_lock_acquired(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lockdir = dir.path().join("log.lockdir");
+        seed_held(&lockdir, &an_exited_process_pid()?.to_string())?;
+
+        let guard = acquire(&lockdir, fast_opts())?;
+        assert_eq!(holder_pid(&lockdir), Some(std::process::id()));
         drop(guard);
         Ok(())
     }

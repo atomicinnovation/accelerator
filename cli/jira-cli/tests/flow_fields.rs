@@ -42,6 +42,33 @@ fn a_markerless_fields_cache_resolves() {
 }
 
 #[test]
+fn listing_fields_prints_the_cached_fields() {
+    let dir = support::scratch(support::CONFIG);
+    let fields = serde_json::json!([{
+        "custom": true,
+        "id": "customfield_10016",
+        "name": "Story Points",
+        "schema": {"type": "number"}
+    }]);
+    seed(
+        dir.path(),
+        "fields.json",
+        &serde_json::json!({ "fields": fields }).to_string(),
+    );
+
+    let output = run(dir.path(), &["fields", "list"]);
+    assert!(
+        output.status.success(),
+        "exited {:?}: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let listed: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("json stdout");
+    assert_eq!(listed, fields);
+}
+
+#[test]
 fn an_incompatible_marker_fails_closed_with_the_corrupt_code() {
     let dir = support::scratch(support::CONFIG);
     seed(dir.path(), "fields.json", r#"{"fields":[]}"#);

@@ -47,6 +47,7 @@ dependencies = [
  "tokio",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]

@@ -209,6 +209,35 @@ fn the_real_lock_times_out_rather_than_stealing_a_bash_held_lock() {
     assert!(lockdir.exists(), "the pre-held lock is left intact");
 }
 
+#[cfg(unix)]
+#[test]
+fn the_real_lock_under_a_read_only_state_dir_is_a_cache_io_failure() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let dir = TempDir::new().expect("a temp dir");
+    let state = dir.path().join("state");
+    std::fs::create_dir(&state).expect("the state dir is created");
+    std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o555))
+        .expect("the state dir is sealed");
+    let lockdir = state.join(".lock");
+
+    let fs = SystemFilesystem::new(dir.path().to_path_buf());
+    let error = fs
+        .with_lock(&lockdir, &mut || Ok(()))
+        .expect_err("a sealed state dir refuses the lock");
+
+    std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o755))
+        .expect("the state dir is unsealed");
+    let lockdir = lockdir.display();
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "E_CACHE_IO: {lockdir}: cannot write under '{lockdir}': \
+             not writable"
+        )
+    );
+}
+
 fn catalogue_path() -> PathBuf {
     cache_root().join("catalogue.json")
 }

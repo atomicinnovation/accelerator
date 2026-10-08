@@ -53,6 +53,31 @@ impl Scratch {
         Ok(())
     }
 
+    fn track_personal(&self) -> Result<(), TestError> {
+        Hermetic::rooted_at(self.work.path())?.git(
+            &["add", "--force", ".accelerator/config.local.md"],
+            &self.repo,
+        )?;
+        Ok(())
+    }
+
+    fn empty_plugin_root(&self) -> Result<PathBuf, TestError> {
+        let root = self.work.path().join("plugin-root");
+        fs::create_dir_all(&root)?;
+        Ok(root)
+    }
+
+    fn browser_slots(&self) -> Result<Vec<String>, TestError> {
+        let state = self
+            .repo
+            .join(".accelerator/tmp/inventory-design-playwright");
+        let mut slots = fs::read_dir(state)?
+            .map(|entry| Ok(entry?.file_name().to_string_lossy().into_owned()))
+            .collect::<Result<Vec<_>, std::io::Error>>()?;
+        slots.sort();
+        Ok(slots)
+    }
+
     fn stderr(&self, environment: &[(&str, &Path)]) -> String {
         let mut command = Command::new(BIN);
         command.args(["executor", "ping"]);
@@ -103,6 +128,25 @@ fn a_personal_browser_prints_no_notice() -> Result<(), TestError> {
 
     assert!(!stderr.contains("notice:"), "{stderr}");
     assert!(!stderr.contains("warning:"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_tracked_personal_browser_is_refused_for_the_bundled_browser(
+) -> Result<(), TestError> {
+    let scratch = Scratch::new()?;
+    let browser = scratch.outside_browser()?;
+    scratch.personal(&browser, 0o600)?;
+    scratch.track_personal()?;
+    let plugin_root = scratch.empty_plugin_root()?;
+
+    let stderr = scratch.stderr(&[("ACCELERATOR_PLUGIN_ROOT", &plugin_root)]);
+
+    assert!(
+        stderr.contains("warning: E_CONSENT_KEY_TRACKED: design.browser_path"),
+        "{stderr}"
+    );
+    assert_eq!(scratch.browser_slots()?, ["bundled"]);
     Ok(())
 }
 
