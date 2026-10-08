@@ -2,13 +2,17 @@
 //! panic, and an asking process must survive with an answer that refuses
 //! trust.
 //!
-//! The fold depends on `panic = "unwind"`, which `cli/Cargo.toml`'s
-//! `[profile.release]` keeps. It does not cover a hang: like the `git` and
-//! `jj` reads it re-implements, a question blocks until its I/O completes.
+//! It does not cover a hang: like the `git` and `jj` reads it re-implements,
+//! a question blocks until its I/O completes.
 //!
 //! A panic hook runs before `catch_unwind` regains control, so the first fold
 //! wraps whichever hook is installed and silences it for a folding thread
 //! only. Every other panic still reaches the hook its composition root chose.
+
+#[cfg(panic = "abort")]
+compile_error!(
+    "PanicFold folds a panic to a refusal only under panic = \"unwind\""
+);
 
 use std::any::type_name;
 use std::any::Any;
