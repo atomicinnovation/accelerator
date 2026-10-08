@@ -1037,7 +1037,7 @@ fn a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote() {
             promote_with(&repo, &tracker, &store)
         }));
 
-        let resumed = promoted(&repo, &tracker);
+        let mut resumed = promoted(&repo, &tracker);
 
         if die_at == 1 {
             assert_eq!(
@@ -1045,7 +1045,14 @@ fn a_promotion_killed_at_each_stage_boundary_finishes_on_the_next_promote() {
                 Err(NotPromoted::EarlierAttemptUnconfirmed),
                 "killed between sending the create and recording its key"
             );
-            continue;
+            assert_eq!(creates(&tracker), 1, "the create is not resent");
+            assert_eq!(repo.read(DRAFT).as_deref(), Some(DRAFT_CONTENT));
+            resumed = promote_in(
+                &repo,
+                &tracker,
+                &Store::new(repo.root()),
+                &PromotionMode::Adopt(key()),
+            );
         }
         assert!(
             matches!(
