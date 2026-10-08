@@ -20,7 +20,7 @@ external_id: "PP-872"
 # 0286: Make Accelerator skills VCS-agnostic by eradicating direct git calls
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 

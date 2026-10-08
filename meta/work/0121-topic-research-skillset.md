@@ -20,7 +20,7 @@ external_id: "PP-22"
 # 0121: Topic Research Skillset
 
 **Kind**: Epic
-**Status**: Ready
+**Status**: In Progress
 **Priority**: High
 **Author**: Toby Clemson
 

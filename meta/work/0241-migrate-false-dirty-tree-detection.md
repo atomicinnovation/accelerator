@@ -20,7 +20,7 @@ external_id: "PP-771"
 # 0241: False Dirty-Tree Detection on jj Repositories
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

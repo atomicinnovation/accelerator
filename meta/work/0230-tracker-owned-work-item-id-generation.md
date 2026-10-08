@@ -19,7 +19,7 @@ external_id: "PP-760"
 # 0230: Tracker-Owned Work Item ID Generation
 
 **Kind**: Story
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Low
 **Author**: Toby Clemson
 

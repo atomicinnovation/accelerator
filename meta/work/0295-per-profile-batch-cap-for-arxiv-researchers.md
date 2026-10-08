@@ -19,7 +19,7 @@ schema_version: 1
 # 0295: Per-Profile Batch Cap for arXiv Researchers
 
 **Kind**: Story
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 

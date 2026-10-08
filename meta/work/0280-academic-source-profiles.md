@@ -22,7 +22,7 @@ external_id: "PP-864"
 # 0280: Academic Source Profiles
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

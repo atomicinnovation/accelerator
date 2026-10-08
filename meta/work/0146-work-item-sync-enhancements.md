@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-09-23T00:00:00+00:00"
+last_updated: "2026-09-23T21:40:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -20,7 +20,7 @@ external_id: "PP-167"
 # 0146: Work Item Synchronisation Enhancements
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
