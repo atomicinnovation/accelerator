@@ -3012,8 +3012,7 @@ mod tests {
         #[test]
         fn each_outcome_exits_alike_from_every_command_or_is_documented() {
             for reason in every_reason() {
-                let from_create =
-                    crate::create::create_outcome_of(&reason).exit_code();
+                let from_create = reason.create_outcome().exit_code();
                 let from_sync = reason.exit_code(true);
                 let documented = DOCUMENTED_DIFFERENCES
                     .contains(&reason.keyword())

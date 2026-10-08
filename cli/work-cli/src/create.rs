@@ -9,27 +9,20 @@ use std::path::PathBuf;
 
 use ::config::ConfigAccess;
 use ::config::ReadTemplate;
-use corpus::store::ExclusiveCreate;
-use corpus::store::FileRemove;
-use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
 use corpus::IdOwnership;
 use corpus_adapters::compile_scan_regex;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
+use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
 use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
-use store::lock::acquire;
-use store::lock::LockGuard;
-use store::lock::LockOptions;
 use tracker::CreatePreview;
-use tracker::ExternalId;
 use tracker::FieldResolution;
-use tracker::RemoteTracker;
 use vcs_adapters::library::InProcessProbe;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
@@ -37,54 +30,31 @@ use work::create::resolve_author;
 use work::create::CreateInputs;
 use work::create::FieldValue;
 use work::create::TypedLinkage;
-use work::draft_id::mint_draft_id;
 use work::draft_id::DraftId;
 use work::draft_id::SuffixDraws;
-use work::identity::linker_of;
-use work::identity::ItemIdentity;
 use work::next_number::allocate;
 use work::next_number::AllocationError;
-use work::promotion::IntendedBaseline;
-use work::promotion::NotPromoted;
-use work::promotion::Promotion;
 use work::promotion::PromotionMode;
-use work::promotion::PromotionStage;
-use work::promotion::ReadBack;
-use work::promotion::RemoteHash;
-use work::promotion::ID_PLACEHOLDER as PROMOTION_PLACEHOLDER;
 use work::resolve::DirectoryLister;
-use work::retirement::RetirementFailure;
-use work::retirement::RetirementRefusal;
-use work::sync::MarkerState;
-use work::sync::PendingPush;
-use work::sync::PushOutcome;
-use work::sync::PushPrecondition;
-use work::sync::RefusalReason;
-use work::sync::RequestFingerprint;
-use work::work_item_files::identities;
-use work::work_item_files::WorkItemFiles;
 use work_adapters::author::VcsBackedIdentityProbe;
-use work_adapters::create_request_fields;
+pub use work_adapters::creation::blocked_remedy;
+use work_adapters::creation::create_local_item;
+use work_adapters::creation::create_tracker_keyed_item;
+use work_adapters::creation::save_draft;
+pub use work_adapters::creation::CreateFailure;
+use work_adapters::creation::Creation;
+pub use work_adapters::creation::CreationOutcome;
+pub use work_adapters::creation::CreationStore;
+pub use work_adapters::creation::Drafted;
+use work_adapters::creation::IntegrationState;
+use work_adapters::creation::LegacyPushing;
+use work_adapters::creation::NewItem;
+pub use work_adapters::creation::PushReport;
 use work_adapters::draft_id::RandomSuffixDraws;
-use work_adapters::filesystem::drafts_dir;
 use work_adapters::filesystem::FilesystemLister;
-use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::promotion::promote;
-use work_adapters::promotion::Detail;
-use work_adapters::promotion::PromotionOutcome;
 use work_adapters::promotion::PromotionPorts;
 use work_adapters::promotion::PromotionRow;
-use work_adapters::promotion_records::FilePromotionRecords;
-use work_adapters::promotion_records::PromotionRecords;
-use work_adapters::remote_create::send_create;
-use work_adapters::remote_create::CreateRequest;
-use work_adapters::remote_create::RemoteCreate;
-use work_adapters::sync::baseline;
-use work_adapters::sync::baseline_store::BaselineStore;
-use work_adapters::sync::created_baseline::record_created_baseline;
-use work_adapters::sync::digest;
-use work_adapters::sync::pending_push;
-use work_adapters::sync::pending_push::Marker;
 
 use crate::config::configured_override;
 use crate::config::effective_nonempty;
@@ -98,7 +68,7 @@ use crate::tracker_registry::TrackerRegistry;
 
 const ID_PLACEHOLDER: &str = "NNNN";
 const TITLE_PLACEHOLDER: &str = "Title as Short Noun Phrase";
-pub const LOCK_FILE_NAME: &str = ".accelerator-work-create.lockdir";
+pub const LOCK_FILE_NAME: &str = LockdirLock::CREATE_LOCKDIR;
 
 pub struct CreateArgs {
     pub title: String,
@@ -120,17 +90,6 @@ pub struct CreateArgs {
     pub dry_run: bool,
 }
 
-pub struct PushReport {
-    pub outcome: PushOutcome,
-    pub external_id: Option<String>,
-    /// What stderr tells the user beside the keyword: a rejected request's
-    /// cause, a blocking item and its remedy, or the paths to restore.
-    pub cause: Option<String>,
-    /// The blocking item, or each path to restore, for a caller that
-    /// reports them as data.
-    pub details: Vec<Detail>,
-}
-
 pub enum RunOutcome {
     /// `path` is a file that exists, or `None` when an issue was created but
     /// no local file carries it.
@@ -147,11 +106,6 @@ pub enum RunOutcome {
     Pending(String),
     Failed(String),
 }
-
-/// The file store every creation strategy writes items through.
-pub trait CreationStore: AtomicWrite + ExclusiveCreate + FileRemove {}
-
-impl<T: AtomicWrite + ExclusiveCreate + FileRemove> CreationStore for T {}
 
 const SLUG_MAX_LEN: usize = 60;
 
@@ -318,74 +272,6 @@ fn resolve_body(
         .replace(TITLE_PLACEHOLDER, &args.title))
 }
 
-fn corpus_identities(work_dir: &Path) -> Result<Vec<ItemIdentity>, String> {
-    FilesystemWorkItemFiles::new(work_dir)
-        .files()
-        .map(|files| identities(&files))
-        .map_err(|error| error.to_string())
-}
-
-fn carries_external_id(
-    corpus: &[ItemIdentity],
-    external_id: &ExternalId,
-) -> bool {
-    linker_of(external_id.as_str(), corpus).is_some()
-}
-
-fn refusal_message(
-    reason: RefusalReason,
-    marker_path: &Path,
-    marker: Option<&PendingPush>,
-) -> String {
-    match reason {
-        RefusalReason::MarkerUnreadable => format!(
-            "E_PUSH_MARKER_UNREADABLE: the pending-push marker at {} could \
-             not be parsed; a previous create may have partially applied. \
-             Inspect or remove the marker before retrying.",
-            marker_path.display()
-        ),
-        RefusalReason::PriorAttemptUnknownOutcome => {
-            let Some(PendingPush::Attempted { request }) = marker else {
-                unreachable!("PriorAttemptUnknownOutcome always carries an Attempted marker")
-            };
-            format!(
-                "E_PUSH_PENDING: a previous create attempt for '{}' at {} \
-                 (recorded at {}{}) has an unknown outcome — a remote \
-                 issue may already exist. Inspect it, then remove the \
-                 marker to retry.",
-                request.title,
-                marker_path.display(),
-                request.attempted_at,
-                request
-                    .failure
-                    .as_deref()
-                    .map(|detail| format!(", failure: {detail}"))
-                    .unwrap_or_default()
-            )
-        }
-        RefusalReason::FingerprintMismatch => format!(
-            "E_PUSH_FINGERPRINT_MISMATCH: the pending-push marker at {} was \
-             recorded for a different request with the same title but a \
-             different body or kind. Remove the marker to force a new \
-             create.",
-            marker_path.display()
-        ),
-        RefusalReason::AlreadyWritten => {
-            let Some(PendingPush::Created { external_id, .. }) = marker else {
-                unreachable!("AlreadyWritten always carries a Created marker")
-            };
-            format!(
-                "E_PUSH_ALREADY_WRITTEN: the pending-push marker at {} \
-                 claims external_id '{}', already carried by a work item \
-                 on disk. Remove the marker if this is a genuine duplicate \
-                 create.",
-                marker_path.display(),
-                external_id.as_str()
-            )
-        }
-    }
-}
-
 pub const fn dispatch_code_for_selection_error(error: &SelectionError) -> u8 {
     match error {
         SelectionError::NotAvailable { .. } => exit_codes::NOT_AVAILABLE,
@@ -478,7 +364,19 @@ struct CreationContext<'a> {
     date: String,
 }
 
-impl CreationContext<'_> {
+impl NewItem for CreationContext<'_> {
+    fn title(&self) -> &str {
+        &self.args.title
+    }
+
+    fn kind(&self) -> &str {
+        &self.args.kind
+    }
+
+    fn slug(&self) -> String {
+        slugify(&self.args.title)
+    }
+
     fn body(&self, id: &str) -> Result<String, String> {
         resolve_body(self.args, &self.template, id)
     }
@@ -515,836 +413,24 @@ impl CreationContext<'_> {
             self.body(id)?
         ))
     }
+}
 
-    fn slug(&self) -> String {
-        slugify(&self.args.title)
-    }
-
-    fn lock(&self) -> Result<LockGuard, String> {
-        acquire(&self.work_dir.join(LOCK_FILE_NAME), LockOptions::default())
-            .map_err(|error| {
-                format!(
-                    "could not acquire the work-item creation lock: {error}"
-                )
-            })
-    }
-
-    fn pending_push_location(&self) -> Result<(PathBuf, String), String> {
-        let integration = effective_nonempty(self.config, "work.integration")
+impl CreationContext<'_> {
+    fn integration_state(&self) -> Result<IntegrationState, String> {
+        let name = effective_nonempty(self.config, "work.integration")
             .map_err(|error| error.to_string())?;
-        let integrations_root =
-            crate::sync::integrations_dir(self.config, &self.root)
-                .map_err(|error| error.to_string())?;
-        Ok((integrations_root, integration))
-    }
-}
-
-/// What a creation strategy left on disk, and what became of its push.
-pub struct CreationOutcome {
-    pub path: Option<PathBuf>,
-    pub push: Option<PushReport>,
-}
-
-impl CreationOutcome {
-    const fn unpushed(path: PathBuf) -> Self {
-        Self {
-            path: Some(path),
-            push: None,
-        }
-    }
-}
-
-fn pushed(
-    path: Option<PathBuf>,
-    outcome: PushOutcome,
-    key: Option<&ExternalId>,
-    cause: Option<String>,
-) -> CreationOutcome {
-    CreationOutcome {
-        path,
-        push: Some(PushReport {
-            outcome,
-            external_id: key.map(|key| key.as_str().to_owned()),
-            cause,
-            details: Vec::new(),
-        }),
-    }
-}
-
-fn refuse_to_overwrite(target: &Path) -> Result<(), String> {
-    if target.exists() {
-        return Err(format!(
-            "refusing to overwrite an existing file: {}",
-            target.display()
-        ));
-    }
-    Ok(())
-}
-
-/// Once an issue exists, a failed write leaves it carried by no item, so
-/// one transient failure is worth absorbing.
-fn write_new_retrying_once(
-    store: &dyn CreationStore,
-    target: &Path,
-    content: &str,
-) -> Result<(), String> {
-    write_new(store, target, content)
-        .or_else(|_| write_new(store, target, content))
-}
-
-fn write_new(
-    store: &dyn CreationStore,
-    target: &Path,
-    content: &str,
-) -> Result<(), String> {
-    let dir = target.parent().unwrap_or_else(|| Path::new("."));
-    std::fs::create_dir_all(dir).map_err(|error| {
-        format!("could not create {}: {error}", dir.display())
-    })?;
-    refuse_to_overwrite(target)?;
-    AtomicWrite::write(store, target, content.as_bytes())
-        .map_err(|error| error.to_string())
-}
-
-/// Writes the draft under the create lock, minting an ID no item holds.
-fn write_draft(
-    context: &CreationContext<'_>,
-    store: &dyn CreationStore,
-    draws: &mut dyn SuffixDraws,
-) -> Result<(DraftId, PathBuf), String> {
-    let guard = context.lock()?;
-    write_draft_locked(context, store, draws, &guard)
-}
-
-fn write_draft_locked(
-    context: &CreationContext<'_>,
-    store: &dyn CreationStore,
-    draws: &mut dyn SuffixDraws,
-    _held: &LockGuard,
-) -> Result<(DraftId, PathBuf), String> {
-    let files = FilesystemWorkItemFiles::new(&context.work_dir)
-        .files()
-        .map_err(|error| error.to_string())?;
-    let draft = mint_draft_id(draws, &identities(&files))
-        .map_err(|error| error.to_string())?;
-    let target = drafts_dir(&context.work_dir).join(format!(
-        "{}-{}.md",
-        draft.as_str(),
-        context.slug()
-    ));
-    write_new(store, &target, &context.content(draft.as_str(), None)?)?;
-    Ok((draft, target))
-}
-
-fn save_draft(
-    context: &CreationContext<'_>,
-    store: &dyn CreationStore,
-    draws: &mut dyn SuffixDraws,
-    drafted: &mut Drafted<'_>,
-) -> Result<CreationOutcome, String> {
-    let (draft, path) = write_draft(context, store, draws)?;
-    drafted(&draft)?;
-    Ok(CreationOutcome::unpushed(path))
-}
-
-/// A legacy push's result: the key it obtained, if any, the tracker it
-/// reached, and the marker to spend once the item carries the key.
-struct LegacyPush {
-    outcome: PushOutcome,
-    key: Option<ExternalId>,
-    cause: Option<String>,
-    tracker: Option<Box<dyn RemoteTracker>>,
-    marker: Option<PathBuf>,
-}
-
-impl LegacyPush {
-    const fn without_issue(
-        outcome: PushOutcome,
-        cause: Option<String>,
-    ) -> Self {
-        Self {
-            outcome,
-            key: None,
-            cause,
-            tracker: None,
-            marker: None,
-        }
-    }
-}
-
-fn write_marker(
-    store: &FileCorpusStore,
-    path: &Path,
-    marker: &PendingPush,
-) -> Result<(), String> {
-    AtomicWrite::write(store, path, pending_push::render(marker).as_bytes())
-        .map_err(|error| error.to_string())
-}
-
-/// Pushes a locally numbered item through its slug-named `pending_push`
-/// marker, whose recovery rules older binaries share.
-fn push_legacy_item(
-    context: &CreationContext<'_>,
-    body: &str,
-    registry: &dyn TrackerRegistry,
-) -> Result<LegacyPush, String> {
-    let args = context.args;
-    let (integrations_root, integration) = context.pending_push_location()?;
-    let marker_path =
-        pending_push::path(&integrations_root, &integration, &context.slug());
-    let marker_store = FileCorpusStore::new(
-        marker_path.parent().unwrap_or(&integrations_root),
-    );
-    let marker_content = std::fs::read_to_string(&marker_path).ok();
-    let parsed = pending_push::read(marker_content.as_deref());
-    let digest = pending_push::request_digest(&args.title, body, &args.kind);
-    let marker_state = match &parsed {
-        Err(_) => MarkerState::Unreadable,
-        Ok(None) => MarkerState::Absent,
-        Ok(Some(marker)) => MarkerState::Present(marker),
-    };
-    let corpus = corpus_identities(&context.work_dir)?;
-    let corpus_carries = |id: &ExternalId| carries_external_id(&corpus, id);
-    let precondition =
-        work::sync::push_precondition(&marker_state, &digest, &corpus_carries);
-
-    let tracker_for_read_back = || registry.resolve(&integration).ok();
-    match precondition {
-        PushPrecondition::Refuse(reason) => Err(refusal_message(
-            reason,
-            &marker_path,
-            parsed.ok().flatten().as_ref(),
-        )),
-        PushPrecondition::ReuseId(key) => Ok(LegacyPush {
-            outcome: PushOutcome::WriteOnce,
-            key: Some(key),
-            cause: None,
-            tracker: tracker_for_read_back(),
-            marker: Some(marker_path),
-        }),
-        PushPrecondition::Proceed => {
-            pending_push::prepare_dir(&integrations_root, &integration)
-                .map_err(|error| error.to_string())?;
-            let tracker = match registry.resolve(&integration) {
-                Ok(tracker) => tracker,
-                Err(error) => {
-                    let outcome = work::sync::push_decide(
-                        dispatch_code_for_selection_error(&error),
-                        1,
-                        false,
-                    );
-                    return Ok(LegacyPush::without_issue(outcome, None));
-                }
-            };
-            let fingerprint = RequestFingerprint {
-                title: args.title.clone(),
-                digest,
-                attempted_at: attempted_at_epoch(),
-                failure: None,
-            };
-            write_marker(
-                &marker_store,
-                &marker_path,
-                &PendingPush::Attempted {
-                    request: fingerprint.clone(),
-                },
-            )?;
-            send_legacy_create(
-                &CreateRequest {
-                    title: &args.title,
-                    body,
-                    kind: &args.kind,
-                },
-                tracker,
-                &marker_store,
-                marker_path,
-                fingerprint,
-            )
-        }
-    }
-}
-
-/// Sends the create and records its outcome in the marker: the key once
-/// created, the failure when the outcome is unknown, and nothing once no
-/// issue can exist.
-fn send_legacy_create(
-    request: &CreateRequest<'_>,
-    tracker: Box<dyn RemoteTracker>,
-    marker_store: &FileCorpusStore,
-    marker_path: PathBuf,
-    fingerprint: RequestFingerprint,
-) -> Result<LegacyPush, String> {
-    match send_create(request, tracker.as_ref()) {
-        RemoteCreate::Created(key) => {
-            write_marker(
-                marker_store,
-                &marker_path,
-                &PendingPush::Created {
-                    request: fingerprint,
-                    external_id: key.clone(),
-                },
-            )?;
-            Ok(LegacyPush {
-                outcome: PushOutcome::WriteOnce,
-                key: Some(key),
-                cause: None,
-                tracker: Some(tracker),
-                marker: Some(marker_path),
-            })
-        }
-        RemoteCreate::TrackerUnreachable => {
-            std::fs::remove_file(&marker_path).ok();
-            Ok(LegacyPush::without_issue(PushOutcome::LocalSave, None))
-        }
-        RemoteCreate::Rejected { detail } => {
-            std::fs::remove_file(&marker_path).ok();
-            Ok(LegacyPush::without_issue(
-                PushOutcome::Rejected,
-                Some(detail),
-            ))
-        }
-        RemoteCreate::OutcomeUnknown { detail } => {
-            write_marker(
-                marker_store,
-                &marker_path,
-                &PendingPush::Attempted {
-                    request: RequestFingerprint {
-                        failure: Some(detail),
-                        ..fingerprint
-                    },
-                },
-            )?;
-            Ok(LegacyPush::without_issue(PushOutcome::LoudTerminal, None))
-        }
-    }
-}
-
-fn read_back_of(tracker: &dyn RemoteTracker, key: &ExternalId) -> RemoteHash {
-    tracker.show(key).map_or(RemoteHash::Unknown, |issue| {
-        RemoteHash::Known(ReadBack {
-            hash: digest::remote_body(&issue.body),
-            updated: issue.updated,
-        })
-    })
-}
-
-fn baseline_path(context: &CreationContext<'_>) -> Result<PathBuf, String> {
-    let (integrations_root, integration) = context.pending_push_location()?;
-    Ok(baseline::path(&integrations_root, &integration))
-}
-
-/// Records what the item and its new issue look like now, so the next sync
-/// classifies the pair as synced.
-fn record_baseline_after_create(
-    context: &CreationContext<'_>,
-    item_id: &str,
-    written: &str,
-    remote: RemoteHash,
-) -> Result<(), String> {
-    let path = baseline_path(context)?;
-    let dir = path.parent().unwrap_or(&context.root).to_path_buf();
-    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
-    let writer = FileCorpusStore::new(&dir);
-    let store = BaselineStore::new(path, &RealFs, &writer);
-    record_created_baseline(
-        item_id,
-        &IntendedBaseline {
-            remote_hash: remote,
-            local_hash: digest::local(written)
-                .map_err(|error| error.to_string())?,
-        },
-        &store,
-        attempted_at_epoch(),
-    )
-    .map_err(|error| error.to_string())
-}
-
-/// Writes a locally numbered item, pushing it first when asked.
-fn create_local_item(
-    context: &CreationContext<'_>,
-    store: &dyn CreationStore,
-    registry: &dyn TrackerRegistry,
-) -> Result<CreationOutcome, String> {
-    let _guard = context.lock()?;
-    let project = context
-        .args
-        .project
-        .clone()
-        .or_else(|| context.scheme.key.clone());
-    let id =
-        allocate_id(&context.scheme, &context.work_dir, project.as_deref())?;
-    let target = context.work_dir.join(format!("{id}-{}.md", context.slug()));
-    refuse_to_overwrite(&target)?;
-
-    if !context.args.push {
-        write_new(store, &target, &context.content(&id, None)?)?;
-        return Ok(CreationOutcome::unpushed(target));
-    }
-    let push = push_legacy_item(context, &context.body(&id)?, registry)?;
-    let item =
-        context.content(&id, push.key.as_ref().map(ExternalId::as_str))?;
-    let written = write_new_retrying_once(store, &target, &item);
-    let Some(key) = push.key else {
-        written?;
-        return Ok(pushed(Some(target), push.outcome, None, push.cause));
-    };
-    if let Err(cause) = written {
-        return Ok(pushed(
-            None,
-            PushOutcome::CreatedUnwritten,
-            Some(&key),
-            Some(cause),
-        ));
-    }
-    let remote = push
-        .tracker
-        .as_deref()
-        .map_or(RemoteHash::Unknown, |tracker| read_back_of(tracker, &key));
-    record_baseline_after_create(context, &id, &item, remote)?;
-    if let Some(marker) = push.marker {
-        std::fs::remove_file(marker).ok();
-    }
-    Ok(pushed(
-        Some(target),
-        PushOutcome::WriteOnce,
-        Some(&key),
-        None,
-    ))
-}
-
-/// How an earlier create of the same content is still pending.
-enum PendingCreate {
-    Record {
-        draft: DraftId,
-        stage: PromotionStage,
-        draft_path: Option<PathBuf>,
-    },
-    UnreadableRecord {
-        path: PathBuf,
-        draft_path: PathBuf,
-    },
-    LegacyMarker(PathBuf),
-    Draft(PathBuf),
-}
-
-impl PendingCreate {
-    /// The draft the earlier create left, where one still exists.
-    fn existing_draft(&self) -> Option<PathBuf> {
-        match self {
-            Self::Record { draft_path, .. } => draft_path.clone(),
-            Self::UnreadableRecord { draft_path, .. }
-            | Self::Draft(draft_path) => Some(draft_path.clone()),
-            Self::LegacyMarker(_) => None,
-        }
+        let root = crate::sync::integrations_dir(self.config, &self.root)
+            .map_err(|error| error.to_string())?;
+        Ok(IntegrationState { root, name })
     }
 
-    fn message(&self, title: &str) -> String {
-        match self {
-            Self::Record {
-                draft,
-                stage: PromotionStage::Attempted,
-                ..
-            } => format!(
-                "E_PUSH_PENDING: {draft} records a create of this content whose \
-                 outcome is unknown; if the tracker has its issue run `work \
-                 promote {draft} --adopt <KEY>`, otherwise `work promote \
-                 {draft} --create`",
-                draft = draft.as_str()
-            ),
-            Self::Record { draft, .. } => format!(
-                "E_PUSH_PENDING: {draft} is already being promoted onto its \
-                 issue; run `work promote {draft}` or `work sync` to finish it",
-                draft = draft.as_str()
-            ),
-            Self::UnreadableRecord { path, .. } => format!(
-                "E_PUSH_PENDING: {} could not be read and may record a create \
-                 of this content; inspect it before creating again",
-                path.display()
-            ),
-            Self::LegacyMarker(path) => format!(
-                "E_PUSH_PENDING: {} records an earlier create titled '{title}'; \
-                 check the tracker for an issue titled '{title}' first, then \
-                 inspect or remove the named marker",
-                path.display()
-            ),
-            Self::Draft(path) => format!(
-                "E_DRAFT_EXISTS: {} already holds this content; run `work \
-                 promote <draft>` or `work sync`",
-                path.display()
-            ),
-        }
-    }
-}
-
-/// The draft's own content digest: the same content digests alike
-/// whatever draft ID each copy was given.
-fn draft_content_digest(content: &str, id: &str) -> Option<String> {
-    let (_, body) = digest::split_frontmatter_and_body(content).ok()?;
-    let fields = create_request_fields::read(content).ok()?;
-    Some(pending_push::content_digest(
-        &fields.title,
-        &body,
-        &fields.kind,
-        id,
-    ))
-}
-
-/// Finds an earlier create of the same content still pending, so a rerun
-/// after a tracker error, a kill or an unwritten create never sends a
-/// second create.
-fn pending_create(
-    context: &CreationContext<'_>,
-    records: &dyn PromotionRecords,
-    integrations_root: &Path,
-    integration: &str,
-) -> Result<Option<PendingCreate>, String> {
-    let (_, placeholder_body) = digest::split_frontmatter_and_body(
-        &context.content(PROMOTION_PLACEHOLDER, None)?,
-    )
-    .map_err(|error| error.to_string())?;
-    let wanted = pending_push::content_digest(
-        &context.args.title,
-        &placeholder_body,
-        &context.args.kind,
-        PROMOTION_PLACEHOLDER,
-    );
-    let files = FilesystemWorkItemFiles::new(&context.work_dir)
-        .files()
-        .map_err(|error| error.to_string())?;
-    let drafts: Vec<(DraftId, &Path, &str)> = files
-        .iter()
-        .filter_map(|file| {
-            let identity = work::work_item_files::identity_of(file)?;
-            let draft = DraftId::parse(&identity.id)?;
-            Some((draft, file.path.as_path(), file.content.as_str()))
-        })
-        .collect();
-    let draft_path = |wanted: &DraftId| {
-        drafts
-            .iter()
-            .find(|(draft, _, _)| draft == wanted)
-            .map(|(_, path, _)| path.to_path_buf())
-    };
-
-    for entry in records.outstanding().map_err(|error| error.to_string())? {
-        match entry {
-            Ok(record) if record.content_digest == wanted => {
-                return Ok(Some(PendingCreate::Record {
-                    draft_path: draft_path(&record.draft_id),
-                    draft: record.draft_id,
-                    stage: record.stage,
-                }));
-            }
-            Ok(_) => {}
-            Err(unreadable) => {
-                let live_draft = unreadable
-                    .path
-                    .file_stem()
-                    .and_then(std::ffi::OsStr::to_str)
-                    .and_then(DraftId::parse)
-                    .and_then(|draft| draft_path(&draft));
-                if let Some(draft_path) = live_draft {
-                    return Ok(Some(PendingCreate::UnreadableRecord {
-                        path: unreadable.path,
-                        draft_path,
-                    }));
-                }
-            }
-        }
-    }
-    let markers = pending_push::outstanding(integrations_root, integration)
-        .map_err(|error| error.to_string())?;
-    for (path, marker) in markers.into_iter().flatten() {
-        if let Marker::Legacy(
-            PendingPush::Attempted { request }
-            | PendingPush::Created { request, .. },
-        ) = marker
-        {
-            if request.title == context.args.title {
-                return Ok(Some(PendingCreate::LegacyMarker(path)));
-            }
-        }
-    }
-    Ok(drafts
-        .iter()
-        .find(|(draft, _, content)| {
-            draft_content_digest(content, draft.as_str()).as_deref()
-                == Some(wanted.as_str())
-        })
-        .map(|(_, path, _)| PendingCreate::Draft(path.to_path_buf())))
-}
-
-pub fn blocked_remedy(
-    refusal: &RetirementRefusal,
-    key: &ExternalId,
-    draft: &DraftId,
-) -> String {
-    let draft = draft.as_str();
-    match refusal {
-        RetirementRefusal::IdTaken { holder, .. }
-        | RetirementRefusal::KeyLinked { holder } => format!(
-            "{holder} already carries {key}; if it is the same issue, delete \
-             the draft or merge it into {holder}, otherwise fix {holder}, \
-             then `work promote {draft}`",
-            holder = holder.display()
-        ),
-        RetirementRefusal::TargetExists(path) => format!(
-            "move {} aside, then `work promote {draft}`",
-            path.display()
-        ),
-        RetirementRefusal::ItemNotFound(_) => {
-            format!("the draft {draft} is gone; the issue {key} is unlinked")
-        }
-    }
-}
-
-fn existing(paths: &[&Path]) -> Option<PathBuf> {
-    paths
-        .iter()
-        .find(|path| path.exists())
-        .map(|path| path.to_path_buf())
-}
-
-/// A retirement that could not restore every path: the path line names
-/// whichever of the draft and the target exists, and stderr the paths to
-/// restore.
-fn incomplete_outcome(
-    failure: &RetirementFailure,
-    context: &CreationContext<'_>,
-    draft: &DraftId,
-    draft_path: &Path,
-    key: Option<&ExternalId>,
-) -> CreationOutcome {
-    let target = key.map(|key| {
-        context
-            .work_dir
-            .join(format!("{}-{}.md", key.as_str(), context.slug()))
-    });
-    let mut candidates = vec![draft_path];
-    if let Some(target) = &target {
-        candidates.push(target);
-    }
-    let cause = key.map(|key| {
-        let retirement = work::retirement::Retirement {
-            old_id: draft.as_str(),
-            new_id: key.as_str(),
-            new_external_id: Some(key.as_str()),
-        };
-        failure.message(
-            &retirement,
-            &context
-                .root
-                .join(crate::sync::STATE_DIR)
-                .join(retirement.recovery_dir()),
-        )
-    });
-    pushed(
-        existing(&candidates),
-        PushOutcome::RetirementIncomplete,
-        key,
-        cause,
-    )
-}
-
-/// The create outcome a draft left unpromoted reports.
-pub const fn create_outcome_of(reason: &NotPromoted) -> PushOutcome {
-    match reason {
-        NotPromoted::TrackerUnreachable
-        | NotPromoted::RecordUnwritable { key: None, .. } => {
-            PushOutcome::LocalSave
-        }
-        NotPromoted::CreateOutcomeUnknown
-        | NotPromoted::EarlierAttemptUnconfirmed => PushOutcome::LoudTerminal,
-        NotPromoted::RequestRejected { .. } => PushOutcome::Rejected,
-        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_))
-        | NotPromoted::ReadBackFailed(_)
-        | NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
-            ..
-        })
-        | NotPromoted::RecordUnwritable { key: Some(_), .. } => {
-            PushOutcome::CreatedUnwritten
-        }
-        NotPromoted::Refused(_)
-        | NotPromoted::AdoptedIssueMissing(_)
-        | NotPromoted::AdoptConflictsWithRecordedKey { .. } => {
-            PushOutcome::CreatedBlocked
-        }
-        NotPromoted::RetirementFailed(
-            RetirementFailure::RestoreIncomplete { .. },
-        ) => PushOutcome::RetirementIncomplete,
-    }
-}
-
-/// Maps a promotion's row onto the create outcome the skills read.
-fn promotion_outcome(
-    row: PromotionRow,
-    context: &CreationContext<'_>,
-    draft: &DraftId,
-) -> CreationOutcome {
-    let (reason, key) = match row.outcome {
-        PromotionOutcome::Promoted(
-            Promotion::Completed(key, _) | Promotion::AlreadyDone(key),
-        ) => {
-            let path = FilesystemWorkItemFiles::new(&context.work_dir)
-                .files()
-                .ok()
-                .and_then(|files| {
-                    identities(&files)
-                        .into_iter()
-                        .find(|item| item.id.eq_ignore_ascii_case(key.as_str()))
-                })
-                .map_or_else(
-                    || {
-                        context.work_dir.join(format!(
-                            "{}-{}.md",
-                            key.as_str(),
-                            context.slug()
-                        ))
-                    },
-                    |item| item.path,
-                );
-            return pushed(
-                Some(path),
-                PushOutcome::WriteOnce,
-                Some(&key),
-                None,
-            );
-        }
-        PromotionOutcome::Previewed => {
-            unreachable!("a create never previews its promotion")
-        }
-        PromotionOutcome::NotPromoted { reason, held_key } => {
-            (reason, held_key)
-        }
-    };
-    let draft_path = row.path;
-    let outcome = create_outcome_of(&reason);
-    let shown_key = match outcome {
-        PushOutcome::CreatedUnwritten | PushOutcome::CreatedBlocked => {
-            key.as_ref()
-        }
-        _ => None,
-    };
-    let mut created = match reason {
-        NotPromoted::RetirementFailed(
-            failure @ RetirementFailure::RestoreIncomplete { .. },
-        ) => incomplete_outcome(
-            &failure,
-            context,
-            draft,
-            &draft_path,
-            key.as_ref(),
-        ),
-        NotPromoted::Refused(RetirementRefusal::ItemNotFound(_)) => {
-            pushed(None, outcome, shown_key, None)
-        }
-        NotPromoted::Refused(refusal) => {
-            let remedy =
-                key.as_ref().map(|key| blocked_remedy(&refusal, key, draft));
-            pushed(Some(draft_path), outcome, shown_key, remedy)
-        }
-        NotPromoted::RequestRejected { detail }
-        | NotPromoted::RecordUnwritable { detail, .. } => {
-            pushed(Some(draft_path), outcome, shown_key, Some(detail))
-        }
-        _ => pushed(Some(draft_path), outcome, shown_key, None),
-    };
-    if let Some(report) = created.push.as_mut() {
-        if matches!(
-            report.outcome,
-            PushOutcome::CreatedBlocked | PushOutcome::RetirementIncomplete
-        ) {
-            report.details = row.details;
-        }
-    }
-    created
-}
-
-/// Under `{tracker}` with `--push`: writes a draft, then promotes it, so an
-/// interrupted create always leaves a draft its record belongs to.
-fn create_tracker_keyed_item(
-    context: &CreationContext<'_>,
-    store: &dyn CreationStore,
-    draws: &mut dyn SuffixDraws,
-    drafted: &mut Drafted<'_>,
-    registry: &dyn TrackerRegistry,
-) -> Result<CreationOutcome, CreateFailure> {
-    let (integrations_root, integration) = context.pending_push_location()?;
-    std::fs::create_dir_all(&integrations_root)
-        .map_err(|error| error.to_string())?;
-    let records_store = FileCorpusStore::new(&integrations_root);
-    let records = FilePromotionRecords::new(
-        &integrations_root,
-        &integration,
-        &records_store,
-    );
-    let guard = context.lock()?;
-    if let Some(pending) =
-        pending_create(context, &records, &integrations_root, &integration)?
-    {
-        return Err(CreateFailure::Pending {
-            message: pending.message(&context.args.title),
-            existing_draft: pending.existing_draft(),
-        });
-    }
-    let (draft, draft_path) =
-        write_draft_locked(context, store, draws, &guard)?;
-    drop(guard);
-    if let Err(cause) = drafted(&draft) {
-        return Ok(pushed(
-            Some(draft_path),
-            PushOutcome::LocalSave,
-            None,
-            Some(cause),
-        ));
-    }
-    let Ok(tracker) = registry.resolve(&integration) else {
-        return Ok(pushed(
-            Some(draft_path),
-            PushOutcome::LocalSave,
-            None,
-            None,
-        ));
-    };
-
-    let workspace = IdentityWorkspace::open(
-        context.config,
-        &context.root,
-        &context.work_dir,
-        &integrations_root,
-        &integration,
-    )?;
-    let baseline = workspace.baseline(store);
-    let retirement = workspace.retirement_ports(store, &baseline);
-    let ports = PromotionPorts {
-        tracker: tracker.as_ref(),
-        retirement: &retirement,
-        records: &records,
-    };
-    let result = promote(&draft, &PromotionMode::Standard, &ports);
-    let row = PromotionRow::of(
-        &draft,
-        draft_path,
-        result,
-        &ports,
-        workspace.state_dir(),
-    );
-    Ok(promotion_outcome(row, context, &draft))
-}
-
-/// Why a create wrote nothing: an earlier create of the same content is
-/// still pending, or something failed.
-pub enum CreateFailure {
-    Pending {
-        message: String,
-        existing_draft: Option<PathBuf>,
-    },
-    Failed(String),
-}
-
-impl From<String> for CreateFailure {
-    fn from(message: String) -> Self {
-        Self::Failed(message)
+    fn allocate_local_id(&self) -> Result<String, String> {
+        let project = self
+            .args
+            .project
+            .clone()
+            .or_else(|| self.scheme.key.clone());
+        allocate_id(&self.scheme, &self.work_dir, project.as_deref())
     }
 }
 
@@ -1406,28 +492,93 @@ pub fn create_item(
     drafted: &mut Drafted<'_>,
 ) -> Result<CreationOutcome, CreateFailure> {
     let context = creation_context(start, config, templates, args)?;
-    let store = (seams.store_at)(&context.root);
+    let state_dir = context.root.join(crate::sync::STATE_DIR);
+    let lock = LockdirLock::new(&context.work_dir);
+    let creation = Creation {
+        item: &context,
+        repo_root: &context.root,
+        work_dir: &context.work_dir,
+        state_dir: &state_dir,
+        store_at: seams.store_at,
+        reader: &RealFs,
+        lock: &lock,
+        now: attempted_at_epoch(),
+    };
+    let registry = seams.registry;
     match (context.scheme.ownership(), args.push) {
-        (IdOwnership::Local, _) => {
-            Ok(create_local_item(&context, store.as_ref(), seams.registry)?)
+        (IdOwnership::Local, false) => Ok(create_local_item(
+            &creation,
+            &|| context.allocate_local_id(),
+            None,
+        )?),
+        (IdOwnership::Local, true) => {
+            let state = context.integration_state()?;
+            let tracker = || {
+                registry.resolve(&state.name).map_err(|error| {
+                    work::sync::push_decide(
+                        dispatch_code_for_selection_error(&error),
+                        1,
+                        false,
+                    )
+                })
+            };
+            Ok(create_local_item(
+                &creation,
+                &|| context.allocate_local_id(),
+                Some(&LegacyPushing {
+                    state: &state,
+                    tracker: &tracker,
+                }),
+            )?)
         }
         (IdOwnership::Tracker, false) => {
-            Ok(save_draft(&context, store.as_ref(), seams.draws, drafted)?)
+            Ok(save_draft(&creation, seams.draws, drafted)?)
         }
-        (IdOwnership::Tracker, true) => create_tracker_keyed_item(
-            &context,
-            store.as_ref(),
-            seams.draws,
-            drafted,
-            seams.registry,
-        ),
+        (IdOwnership::Tracker, true) => {
+            let state = context.integration_state()?;
+            let records_store = (seams.store_at)(&state.root);
+            let records = state.promotion_records(records_store.as_ref());
+            let store_at = seams.store_at;
+            let mut promotion = |draft: &DraftId, draft_path: PathBuf| {
+                let Ok(tracker) = registry.resolve(&state.name) else {
+                    return Ok(None);
+                };
+                let workspace = IdentityWorkspace::open(
+                    config,
+                    &context.root,
+                    &context.work_dir,
+                    &state.root,
+                    &state.name,
+                )?;
+                let store = store_at(&context.root);
+                let baseline = workspace.baseline(store.as_ref());
+                let retirement =
+                    workspace.retirement_ports(store.as_ref(), &baseline);
+                let ports = PromotionPorts {
+                    tracker: tracker.as_ref(),
+                    retirement: &retirement,
+                    records: &records,
+                };
+                let result = promote(draft, &PromotionMode::Standard, &ports);
+                Ok(Some(PromotionRow::of(
+                    draft,
+                    draft_path,
+                    result,
+                    &ports,
+                    workspace.state_dir(),
+                )))
+            };
+            create_tracker_keyed_item(
+                &creation,
+                &state,
+                &records,
+                seams.draws,
+                drafted,
+                &mut promotion,
+            )
+        }
     }
 }
-
-/// Told of each draft as soon as it is on disk; an error stops the draft
-/// being pushed, so nothing reaches the tracker that the caller could not
-/// record.
-pub type Drafted<'a> = dyn FnMut(&DraftId) -> Result<(), String> + 'a;
 
 /// What `run` takes from its caller beyond the request: the tracker, the
 /// store items are written through, and the source of draft suffixes.
@@ -1496,6 +647,7 @@ mod tests {
     use std::cell::RefCell;
 
     use tracker::CreatePreview;
+    use tracker::ExternalId;
     use tracker::FieldResolution;
     use tracker::RemoteTracker;
     use tracker::TrackerError;
@@ -1503,6 +655,11 @@ mod tests {
 
     use super::*;
     use std::rc::Rc;
+    use work::sync::PendingPush;
+    use work::sync::PushOutcome;
+    use work::sync::RequestFingerprint;
+    use work_adapters::sync::digest;
+    use work_adapters::sync::pending_push;
 
     use crate::test_support::FakeConfig;
     use crate::test_support::Faults;
@@ -1525,31 +682,6 @@ mod tests {
         TrackerError::Rejected {
             detail: "jira create: the body has a table".to_owned(),
         }
-    }
-
-    #[test]
-    fn the_push_duplicate_check_sees_external_ids_in_drafts() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let drafts = dir.path().join("drafts");
-        std::fs::create_dir_all(&drafts).expect("drafts dir");
-        std::fs::write(
-            drafts.join("draft-k7mq3x-title.md"),
-            "---\nid: \"draft-k7mq3x\"\nexternal_id: \"ENG-42\"\n---\n",
-        )
-        .expect("write draft");
-
-        let corpus =
-            super::corpus_identities(dir.path()).expect("listable corpus");
-        let carries = |key: &str| {
-            super::carries_external_id(
-                &corpus,
-                &ExternalId::new(key.to_owned()),
-            )
-        };
-
-        assert!(carries("ENG-42"));
-        assert!(carries("eng-42"));
-        assert!(!carries("ENG-43"));
     }
 
     #[test]

@@ -268,6 +268,7 @@ pub work::promotion::NotPromoted::RequestRejected::detail: alloc::string::String
 pub work::promotion::NotPromoted::RetirementFailed(work::retirement::RetirementFailure)
 pub work::promotion::NotPromoted::TrackerUnreachable
 impl work::promotion::NotPromoted
+pub const fn work::promotion::NotPromoted::create_outcome(&self) -> work::sync::push_decide::PushOutcome
 pub const fn work::promotion::NotPromoted::exit_code(&self, issue_exists: bool) -> u8
 pub const fn work::promotion::NotPromoted::keyword(&self) -> &'static str
 impl core::clone::Clone for work::promotion::NotPromoted

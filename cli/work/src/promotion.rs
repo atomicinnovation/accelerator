@@ -16,6 +16,7 @@ use tracker::RemoteTimestamp;
 use crate::draft_id::DraftId;
 use crate::retirement::RetirementFailure;
 use crate::retirement::RetirementRefusal;
+use crate::sync::PushOutcome;
 use crate::sync::RequestFingerprint;
 use crate::sync::SyncState;
 
@@ -182,6 +183,37 @@ pub enum NotPromoted {
 }
 
 impl NotPromoted {
+    /// The create outcome a draft left unpromoted for this reason reports.
+    #[must_use]
+    pub const fn create_outcome(&self) -> PushOutcome {
+        match self {
+            Self::TrackerUnreachable
+            | Self::RecordUnwritable { key: None, .. } => {
+                PushOutcome::LocalSave
+            }
+            Self::CreateOutcomeUnknown | Self::EarlierAttemptUnconfirmed => {
+                PushOutcome::LoudTerminal
+            }
+            Self::RequestRejected { .. } => PushOutcome::Rejected,
+            Self::Refused(RetirementRefusal::ItemNotFound(_))
+            | Self::ReadBackFailed(_)
+            | Self::RetirementFailed(RetirementFailure::RolledBack {
+                ..
+            })
+            | Self::RecordUnwritable { key: Some(_), .. } => {
+                PushOutcome::CreatedUnwritten
+            }
+            Self::Refused(_)
+            | Self::AdoptedIssueMissing(_)
+            | Self::AdoptConflictsWithRecordedKey { .. } => {
+                PushOutcome::CreatedBlocked
+            }
+            Self::RetirementFailed(RetirementFailure::RestoreIncomplete {
+                ..
+            }) => PushOutcome::RetirementIncomplete,
+        }
+    }
+
     #[must_use]
     pub const fn keyword(&self) -> &'static str {
         match self {
@@ -436,6 +468,7 @@ mod tests {
     use super::RemoteKeptReason;
     use super::Retitling;
     use crate::draft_id::DraftId;
+    use crate::sync::PushOutcome;
     use crate::sync::RequestFingerprint;
     use crate::sync::SyncState;
 
@@ -480,6 +513,91 @@ mod tests {
             before: Box::new(kept(RemoteKeptReason::NoHash {
                 read_back: read_back("r"),
             })),
+        }
+    }
+
+    #[test]
+    fn an_unpromoted_draft_reports_the_create_outcome_its_reason_implies() {
+        use crate::retirement::RetirementCause;
+        use crate::retirement::RetirementCauseKind;
+        use crate::retirement::RetirementFailure;
+        use crate::retirement::RetirementRefusal;
+
+        let key = ExternalId::new("PP-1".to_owned());
+        let cause = RetirementCause {
+            path: PathBuf::from("meta/work/a.md"),
+            kind: RetirementCauseKind::ChangedSinceSnapshot,
+        };
+        let cases = [
+            (NotPromoted::TrackerUnreachable, PushOutcome::LocalSave),
+            (
+                NotPromoted::RecordUnwritable {
+                    key: None,
+                    detail: String::new(),
+                },
+                PushOutcome::LocalSave,
+            ),
+            (NotPromoted::CreateOutcomeUnknown, PushOutcome::LoudTerminal),
+            (
+                NotPromoted::EarlierAttemptUnconfirmed,
+                PushOutcome::LoudTerminal,
+            ),
+            (
+                NotPromoted::RequestRejected {
+                    detail: String::new(),
+                },
+                PushOutcome::Rejected,
+            ),
+            (
+                NotPromoted::Refused(RetirementRefusal::ItemNotFound(
+                    "draft-k7mq3x".to_owned(),
+                )),
+                PushOutcome::CreatedUnwritten,
+            ),
+            (
+                NotPromoted::ReadBackFailed(key.clone()),
+                PushOutcome::CreatedUnwritten,
+            ),
+            (
+                NotPromoted::RetirementFailed(RetirementFailure::RolledBack {
+                    cause: cause.clone(),
+                }),
+                PushOutcome::CreatedUnwritten,
+            ),
+            (
+                NotPromoted::RecordUnwritable {
+                    key: Some(key.clone()),
+                    detail: String::new(),
+                },
+                PushOutcome::CreatedUnwritten,
+            ),
+            (
+                NotPromoted::Refused(RetirementRefusal::TargetExists(
+                    PathBuf::from("meta/work/PP-1-a.md"),
+                )),
+                PushOutcome::CreatedBlocked,
+            ),
+            (
+                NotPromoted::AdoptedIssueMissing(key.clone()),
+                PushOutcome::CreatedBlocked,
+            ),
+            (
+                NotPromoted::AdoptConflictsWithRecordedKey { recorded: key },
+                PushOutcome::CreatedBlocked,
+            ),
+            (
+                NotPromoted::RetirementFailed(
+                    RetirementFailure::RestoreIncomplete {
+                        cause,
+                        unrestored: Vec::new(),
+                    },
+                ),
+                PushOutcome::RetirementIncomplete,
+            ),
+        ];
+
+        for (reason, outcome) in cases {
+            assert_eq!(reason.create_outcome(), outcome, "{reason:?}");
         }
     }
 
