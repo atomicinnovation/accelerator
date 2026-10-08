@@ -1,9 +1,10 @@
 //! The batch journal: what each entry of a pushed `work create-batch`
 //! became, so rerunning a batch creates only the entries it never reached.
 //!
-//! An entry is matched by its content digest, or by its title when a
-//! regenerated manifest of the same batch reworded the body, never by its
-//! position, so a reordered or regenerated manifest resumes identically.
+//! An entry is matched by its batch and manifest reference, never by its
+//! position, so a reordered or reworded manifest resumes identically. Rows
+//! an older binary wrote carry no reference, and are matched by content
+//! digest or, within their batch, by title.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -24,6 +25,9 @@ pub struct JournalEntry {
     /// The fingerprint of the manifest that recorded the entry; empty for an
     /// entry an older binary recorded, which only its digest then matches.
     pub batch: String,
+    /// The manifest entry's `ref`; empty for an entry an older binary
+    /// recorded.
+    pub reference: String,
     pub title: String,
     /// The ID the entry's item took: a draft's, a local number, or a key.
     pub id: Option<String>,
@@ -88,18 +92,20 @@ impl BatchJournal {
         })
     }
 
-    /// Claims the unclaimed entry recorded for this content, preferring
-    /// one whose digest matches over one `batch` recorded under this title.
-    /// An entry claimed by title is recorded under `content_digest` from
-    /// then on, so its superseded digest no longer lingers.
+    /// Claims the unclaimed entry this batch recorded for `reference`.
+    /// Failing that, a row no other reference of this batch owns is claimed
+    /// by its digest, and an older binary's row of this batch by its title.
+    /// A claimed entry is recorded under `content_digest` from then on, so
+    /// a superseded digest no longer lingers.
     ///
     /// # Errors
     ///
-    /// As [`BatchJournal::record`], when a title claim cannot be saved.
+    /// As [`BatchJournal::record`], when a reworded claim cannot be saved.
     pub fn claim(
         &mut self,
         content_digest: &str,
         batch: &str,
+        reference: &str,
         title: &str,
     ) -> Result<Option<JournalEntry>, String> {
         let unclaimed = |matches: &dyn Fn(&JournalEntry) -> bool| {
@@ -108,33 +114,51 @@ impl BatchJournal {
                 .zip(&self.claimed)
                 .position(|(entry, claimed)| !claimed && matches(entry))
         };
-        if let Some(position) =
-            unclaimed(&|entry| entry.content_digest == content_digest)
-        {
-            self.claimed[position] = true;
-            return Ok(Some(self.entries[position].clone()));
-        }
+        let owned_in_this_batch = |entry: &JournalEntry| {
+            entry.batch == batch && !entry.reference.is_empty()
+        };
         let Some(position) = unclaimed(&|entry| {
-            !entry.batch.is_empty()
-                && entry.batch == batch
-                && entry.title == title
+            owned_in_this_batch(entry) && entry.reference == reference
+        })
+        .or_else(|| {
+            unclaimed(&|entry| {
+                !owned_in_this_batch(entry)
+                    && entry.content_digest == content_digest
+            })
+        })
+        .or_else(|| {
+            unclaimed(&|entry| {
+                entry.reference.is_empty()
+                    && !entry.batch.is_empty()
+                    && entry.batch == batch
+                    && entry.title == title
+            })
         }) else {
             return Ok(None);
         };
         self.claimed[position] = true;
-        content_digest.clone_into(&mut self.entries[position].content_digest);
-        self.save()?;
+        if self.entries[position].content_digest != content_digest {
+            content_digest
+                .clone_into(&mut self.entries[position].content_digest);
+            self.save()?;
+        }
         Ok(Some(self.entries[position].clone()))
     }
 
-    /// Records `entry`, replacing whatever was recorded for its digest.
+    /// Records `entry`, replacing what its batch recorded for its
+    /// reference, or an older binary's row for its digest.
     ///
     /// # Errors
     ///
     /// A message naming the journal when it cannot be written.
     pub fn record(&mut self, entry: JournalEntry) -> Result<(), String> {
         if let Some(position) = self.entries.iter().position(|recorded| {
-            recorded.content_digest == entry.content_digest
+            if recorded.reference.is_empty() {
+                recorded.content_digest == entry.content_digest
+            } else {
+                recorded.batch == entry.batch
+                    && recorded.reference == entry.reference
+            }
         }) {
             self.entries[position] = entry;
             self.claimed[position] = true;
@@ -145,19 +169,24 @@ impl BatchJournal {
         self.save()
     }
 
-    /// Drops what was recorded for `content_digest`, once it no longer
-    /// names anything a rerun could report.
+    /// Drops the row `claimed` came from, once it no longer names anything
+    /// a rerun could report.
     ///
     /// # Errors
     ///
     /// As [`BatchJournal::record`].
-    pub fn forget(&mut self, content_digest: &str) -> Result<(), String> {
+    pub fn forget(&mut self, claimed: &JournalEntry) -> Result<(), String> {
+        let is_claimed = |entry: &JournalEntry| {
+            entry.batch == claimed.batch
+                && entry.reference == claimed.reference
+                && entry.content_digest == claimed.content_digest
+        };
         let entries = std::mem::take(&mut self.entries);
         let claimed = std::mem::take(&mut self.claimed);
         (self.entries, self.claimed) = entries
             .into_iter()
             .zip(claimed)
-            .filter(|(entry, _)| entry.content_digest != content_digest)
+            .filter(|(entry, _)| !is_claimed(entry))
             .unzip();
         self.save()
     }
@@ -198,6 +227,7 @@ fn render(entry: &JournalEntry) -> Value {
     json!({
         "content_digest": entry.content_digest,
         "batch": entry.batch,
+        "reference": entry.reference,
         "title": entry.title,
         "id": entry.id,
         "key": entry.key,
@@ -222,6 +252,7 @@ fn parse(text: &str) -> Option<Vec<JournalEntry>> {
             Some(JournalEntry {
                 content_digest: text("content_digest")?,
                 batch: text("batch").unwrap_or_default(),
+                reference: text("reference").unwrap_or_default(),
                 title: text("title")?,
                 id: text("id"),
                 key: text("key"),
@@ -244,12 +275,102 @@ mod tests {
         JournalEntry {
             content_digest: digest.to_owned(),
             batch: BATCH.to_owned(),
+            reference: String::new(),
             title: title.to_owned(),
             id: Some("draft-k7mq3x".to_owned()),
             key: Some("PP-901".to_owned()),
             outcome: Some("write-once".to_owned()),
             recorded_at,
         }
+    }
+
+    fn referenced(digest: &str, reference: &str, title: &str) -> JournalEntry {
+        JournalEntry {
+            reference: reference.to_owned(),
+            ..entry(digest, title, 100)
+        }
+    }
+
+    fn claimed_reference(
+        journal: &mut BatchJournal,
+        reference: &str,
+    ) -> Option<String> {
+        journal
+            .claim("twin", BATCH, reference, "Update docs")
+            .expect("saved")
+            .map(|claimed| claimed.reference)
+    }
+
+    #[test]
+    fn twin_entries_each_claim_their_own_row() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        journal
+            .record(referenced("twin", "a", "Update docs"))
+            .unwrap();
+        journal
+            .record(referenced("twin", "b", "Update docs"))
+            .unwrap();
+
+        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+
+        assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
+        assert_eq!(claimed_reference(&mut reopened, "a"), Some("a".to_owned()));
+    }
+
+    #[test]
+    fn a_twin_never_reached_claims_nothing() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        journal
+            .record(referenced("twin", "b", "Update docs"))
+            .unwrap();
+
+        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+
+        assert_eq!(claimed_reference(&mut reopened, "a"), None);
+        assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
+    }
+
+    #[test]
+    fn forgetting_one_twin_keeps_the_other() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        journal
+            .record(referenced("twin", "a", "Update docs"))
+            .unwrap();
+        journal
+            .record(referenced("twin", "b", "Update docs"))
+            .unwrap();
+        let mut rerun = BatchJournal::open(state.path(), 100).expect("open");
+        let a = rerun
+            .claim("twin", BATCH, "a", "Update docs")
+            .unwrap()
+            .expect("claimed");
+
+        rerun.forget(&a).expect("forget");
+
+        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+        assert_eq!(claimed_reference(&mut reopened, "a"), None);
+        assert_eq!(claimed_reference(&mut reopened, "b"), Some("b".to_owned()));
+    }
+
+    #[test]
+    fn a_reworded_entry_is_claimed_by_its_reference() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let mut journal = BatchJournal::open(state.path(), 100).expect("open");
+        journal.record(referenced("d1", "a", "Story")).unwrap();
+        journal.record(referenced("d2", "b", "Story")).unwrap();
+
+        let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
+
+        assert_eq!(
+            reopened
+                .claim("reworded", BATCH, "b", "Story")
+                .unwrap()
+                .map(|claimed| claimed.reference),
+            Some("b".to_owned())
+        );
     }
 
     #[test]
@@ -261,11 +382,11 @@ mod tests {
         let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
 
         assert_eq!(
-            reopened.claim("d1", BATCH, "Renamed").expect("saved"),
+            reopened.claim("d1", BATCH, "r", "Renamed").expect("saved"),
             Some(entry("d1", "Epic", 100))
         );
         assert_eq!(
-            reopened.claim("d1", BATCH, "Renamed").expect("saved"),
+            reopened.claim("d1", BATCH, "r", "Renamed").expect("saved"),
             None,
             "claimed once"
         );
@@ -282,7 +403,7 @@ mod tests {
 
         assert_eq!(
             reopened
-                .claim("reworded", BATCH, "Story")
+                .claim("reworded", BATCH, "r", "Story")
                 .expect("saved")
                 .map(|found| found.title),
             Some("Story".to_owned())
@@ -296,16 +417,21 @@ mod tests {
         journal.record(entry("d1", "Story", 100)).expect("record");
         let mut reworded = BatchJournal::open(state.path(), 100).expect("open");
         let claimed = reworded
-            .claim("reworded", BATCH, "Story")
+            .claim("reworded", BATCH, "r", "Story")
             .expect("saved")
             .expect("claimed");
 
-        reworded.forget(&claimed.content_digest).expect("forget");
+        reworded.forget(&claimed).expect("forget");
 
         let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
-        assert_eq!(reopened.claim("d1", BATCH, "Story").expect("saved"), None);
         assert_eq!(
-            reopened.claim("reworded", BATCH, "Story").expect("saved"),
+            reopened.claim("d1", BATCH, "r", "Story").expect("saved"),
+            None
+        );
+        assert_eq!(
+            reopened
+                .claim("reworded", BATCH, "r", "Story")
+                .expect("saved"),
             None
         );
     }
@@ -322,9 +448,12 @@ mod tests {
         let mut reopened =
             BatchJournal::open(state.path(), 31 * DAY).expect("open");
 
-        assert_eq!(reopened.claim("old", BATCH, "Old").expect("saved"), None);
+        assert_eq!(
+            reopened.claim("old", BATCH, "r", "Old").expect("saved"),
+            None
+        );
         assert!(reopened
-            .claim("recent", BATCH, "Recent")
+            .claim("recent", BATCH, "r", "Recent")
             .expect("saved")
             .is_some());
     }
@@ -336,18 +465,18 @@ mod tests {
         journal.record(entry("d1", "Story", 100)).expect("record");
         let mut reworded = BatchJournal::open(state.path(), 100).expect("open");
         reworded
-            .claim("reworded", BATCH, "Story")
+            .claim("reworded", BATCH, "r", "Story")
             .expect("saved")
             .expect("claimed");
 
         let mut reopened = BatchJournal::open(state.path(), 100).expect("open");
 
         assert_eq!(
-            reopened.claim("d1", "other", "Other").expect("saved"),
+            reopened.claim("d1", "other", "r", "Other").expect("saved"),
             None
         );
         assert!(reopened
-            .claim("reworded", "other", "Other")
+            .claim("reworded", "other", "r", "Other")
             .expect("saved")
             .is_some());
     }
@@ -364,12 +493,12 @@ mod tests {
 
         assert_eq!(
             reopened
-                .claim("d2", "batch-two", "Add tests")
+                .claim("d2", "batch-two", "r", "Add tests")
                 .expect("saved"),
             None
         );
         assert!(reopened
-            .claim("d1", "batch-two", "Add tests")
+            .claim("d1", "batch-two", "r", "Add tests")
             .expect("saved")
             .is_some());
     }
@@ -394,11 +523,14 @@ mod tests {
         let state = tempfile::tempdir().expect("tempdir");
         let mut journal = BatchJournal::open(state.path(), 0).expect("open");
         journal.record(entry("d1", "Epic", 0)).expect("record");
-        journal.forget("d1").expect("forget");
+        journal.forget(&entry("d1", "Epic", 0)).expect("forget");
 
         let mut reopened = BatchJournal::open(state.path(), 0).expect("open");
 
-        assert_eq!(reopened.claim("d1", BATCH, "Epic").expect("saved"), None);
+        assert_eq!(
+            reopened.claim("d1", BATCH, "r", "Epic").expect("saved"),
+            None
+        );
     }
 
     #[test]

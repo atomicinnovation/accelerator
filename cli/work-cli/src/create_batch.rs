@@ -316,6 +316,7 @@ impl Batch<'_> {
                     let recorded = journal.record(JournalEntry {
                         content_digest: digest.clone(),
                         batch: self.fingerprint.clone(),
+                        reference: entry.reference.clone(),
                         title: entry.title.clone(),
                         id: Some(draft.as_str().to_owned()),
                         key: None,
@@ -346,6 +347,7 @@ impl Batch<'_> {
             journal.record(JournalEntry {
                 content_digest: digest,
                 batch: self.fingerprint.clone(),
+                reference: entry.reference.clone(),
                 title: entry.title.clone(),
                 id: item.path.as_deref().and_then(id_at),
                 key: item.key.clone(),
@@ -394,9 +396,12 @@ impl Batch<'_> {
         digest: &str,
     ) -> Result<Option<BatchItem>, String> {
         let claimed = match self.workspace.journal.as_mut() {
-            Some(journal) => {
-                journal.claim(digest, &self.fingerprint, &entry.title)?
-            }
+            Some(journal) => journal.claim(
+                digest,
+                &self.fingerprint,
+                &entry.reference,
+                &entry.title,
+            )?,
             None => None,
         };
         let Some(recorded) = claimed else {
@@ -423,7 +428,7 @@ impl Batch<'_> {
                 cause: None,
                 details: Vec::new(),
             };
-        let reported = match (holder, recorded.key) {
+        let reported = match (holder, recorded.key.clone()) {
             (Some(held), _) if DraftId::parse(&held.id).is_some() => item(
                 BatchKeyword::Pending,
                 Some(held.path),
@@ -444,7 +449,7 @@ impl Batch<'_> {
             ),
             (None, None) => {
                 if let Some(journal) = self.workspace.journal.as_mut() {
-                    journal.forget(&recorded.content_digest)?;
+                    journal.forget(&recorded)?;
                 }
                 return Ok(None);
             }
