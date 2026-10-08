@@ -17,6 +17,7 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
+use kernel::TEMP_PREFIX;
 use research::sources::classify::Reason;
 use research::sources::fetch::Clock;
 use research::sources::queue::is_abandoned;
@@ -43,7 +44,6 @@ use rustix::fs::FlockOperation;
 use rustix::io::Errno;
 use serde::Deserialize;
 use serde::Serialize;
-use store::TEMP_PREFIX;
 
 use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
