@@ -51,7 +51,9 @@ arXiv call printed (see [Output](#output)); an OpenAlex call refuses it.
 **Every call finishes within 100 s of the process starting**, whatever it is
 waiting on: the credential command, pacing, retries, and each request's own
 30 s timeout all draw on that one budget. Give the call a Bash timeout of at
-least 120 s.
+least 120 s. An arXiv call that prints `waiting` keeps its place across
+re-presentations instead, so its result can take up to about 1,000 s from the
+first call to settle.
 
 ### Output
 

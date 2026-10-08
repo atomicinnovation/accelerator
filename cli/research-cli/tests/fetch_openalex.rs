@@ -145,6 +145,7 @@ fn help_documents_the_families_verbs_limit_range_and_deadline() {
         "waiting",
         "other than ok, unavailable or waiting",
         "clears once that call returns",
+        "up to about 1,000 s to settle",
     ] {
         assert!(help.contains(expected), "{expected:?} missing from {help}");
     }

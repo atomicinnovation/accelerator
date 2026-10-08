@@ -28,10 +28,12 @@ is no longer waiting. ok, unavailable and waiting all exit 0. A caller should
 treat any status other than ok, unavailable or waiting as unavailable,
 reporting the status verbatim as its reason.
 
-Every call finishes within 100 s of starting. Usage errors exit 2 before any
-request; credential refusals and rejected requests exit 1. A ticket presented
-with other arguments also exits 2, as does one another call is presenting
-right now (E_ARXIV_TICKET_LIVE), which clears once that call returns.";
+Every call finishes within 100 s of starting, though a waiting arXiv call can
+take re-presentations over up to about 1,000 s to settle. Usage errors exit 2
+before any request; credential refusals and rejected requests exit 1. A
+ticket presented with other arguments also exits 2, as does one another call
+is presenting right now (E_ARXIV_TICKET_LIVE),
+which clears once that call returns.";
 
 #[derive(Parser)]
 #[command(name = "accelerator-research", disable_version_flag = true)]
