@@ -156,6 +156,12 @@ fn parse_key_value(raw: &str) -> Result<(String, String), String> {
     )
 }
 
+fn parse_issue_key(raw: &str) -> Result<String, String> {
+    tracker_support::issue_key_is_safe(raw)
+        .map(|()| raw.to_owned())
+        .map_err(|refusal| format!("'{raw}': {refusal}"))
+}
+
 /// A `--max-pulls` / `--max-pushes` value: the same grammar the `max_items`
 /// config key accepts, so a flag can express every configured bound. `0`
 /// refuses all; `unlimited` lifts the bound.
@@ -389,7 +395,12 @@ pub struct PromoteArgs {
     /// Adopt this existing issue as the draft's instead of creating one,
     /// after confirming the tracker holds it. The issue is never rewritten.
     /// For a draft whose earlier create may have reached the tracker.
-    #[arg(long, value_name = "KEY", conflicts_with = "create")]
+    #[arg(
+        long,
+        value_name = "KEY",
+        conflicts_with = "create",
+        value_parser = parse_issue_key
+    )]
     pub adopt: Option<String>,
     /// Create a new issue even though an earlier create may already have
     /// reached the tracker, accepting the risk of a duplicate.
@@ -423,6 +434,23 @@ mod tests {
         ]);
 
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn adopt_accepts_only_a_key_shaped_like_an_issue_key() {
+        let adopting = |key: &str| {
+            Cli::try_parse_from([
+                "accelerator-work",
+                "promote",
+                "draft-aaaaaa",
+                "--adopt",
+                key,
+            ])
+        };
+
+        assert!(adopting("MY_PROJ-12").is_ok());
+        assert!(adopting("PP-1/../../..").is_err());
+        assert!(adopting("../../etc").is_err());
     }
 
     #[test]
