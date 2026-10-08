@@ -143,6 +143,8 @@ fn help_documents_the_families_verbs_limit_range_and_deadline() {
         "--ticket",
         "Re-present the ticket a waiting arXiv call printed",
         "waiting",
+        "other than ok, unavailable or waiting",
+        "clears once that call returns",
     ] {
         assert!(help.contains(expected), "{expected:?} missing from {help}");
     }

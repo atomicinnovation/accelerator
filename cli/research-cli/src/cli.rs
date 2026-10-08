@@ -18,18 +18,20 @@ Prints compact JSON on stdout: {\"status\":\"ok\",\"records\":[…]}, each recor
 carrying title, authors, url, venue, venue_signals, abstract, tier, retracted
 and withdrawn; or {\"status\":\"unavailable\",\"source\":…,\"reason\":…} with a
 reason of rate_limited, budget_exhausted or upstream_error when the source
-cannot answer now. A caller should treat any other status as unavailable,
-reporting the status verbatim as its reason.
+cannot answer now.
 
 arXiv calls wait their turn in a queue shared by the project. One that cannot
 be served in time prints
 {\"status\":\"waiting\",\"source\":\"arxiv\",\"ticket\":…,\"position\":…}: re-present
 the same call with --ticket set to that ticket, and repeat until the status
-is anything else. A ticket exits 2 when presented with other arguments, or
-while another call presents it. ok, unavailable and waiting all exit 0.
+is no longer waiting. ok, unavailable and waiting all exit 0. A caller should
+treat any status other than ok, unavailable or waiting as unavailable,
+reporting the status verbatim as its reason.
 
 Every call finishes within 100 s of starting. Usage errors exit 2 before any
-request; credential refusals and rejected requests exit 1.";
+request; credential refusals and rejected requests exit 1. A ticket presented
+with other arguments also exits 2, as does one another call is presenting
+right now (E_ARXIV_TICKET_LIVE), which clears once that call returns.";
 
 #[derive(Parser)]
 #[command(name = "accelerator-research", disable_version_flag = true)]

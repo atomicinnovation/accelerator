@@ -459,12 +459,25 @@ def test_arxiv_profile_reports_a_mid_retry_reason_over_lock_contention() -> (
     )
 
 
-@pytest.mark.parametrize("family", sorted(ACADEMIC_FAMILIES))
-def test_profiles_treat_any_other_status_as_unavailable(family: str) -> None:
-    assert (
-        "Any other status counts as Unavailable, with the status as its reason."
-        in _prose(REPO_ROOT / _profile_skill(family))
-    )
+@pytest.mark.parametrize(
+    ("family", "fallback"),
+    [
+        (
+            "arxiv",
+            "Any status other than `ok`, `unavailable` or `waiting` counts as "
+            "Unavailable, with the status as its reason.",
+        ),
+        (
+            "openalex",
+            "Any other status counts as Unavailable, with the status as its "
+            "reason.",
+        ),
+    ],
+)
+def test_profiles_treat_any_unknown_status_as_unavailable(
+    family: str, fallback: str
+) -> None:
+    assert fallback in _prose(REPO_ROOT / _profile_skill(family))
 
 
 def _lock_contention_row() -> str:

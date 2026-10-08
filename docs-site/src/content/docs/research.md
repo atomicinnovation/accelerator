@@ -105,7 +105,7 @@ as `unavailable`, reporting the status verbatim as its reason.
 |------|------------------------------------------------------------------|
 | 0    | `ok`, `unavailable` or `waiting` — the call worked; the source may not have |
 | 1    | A credential refusal or a rejected request, with one `E_*` line  |
-| 2    | Usage error, before any request is sent                          |
+| 2    | Usage error or refused ticket, before any request is sent; only `E_ARXIV_TICKET_LIVE` can clear without changing the call |
 
 | Code                              | Exit | Cause                                                        |
 |-----------------------------------|------|--------------------------------------------------------------|
@@ -114,7 +114,7 @@ as `unavailable`, reporting the status verbatim as its reason.
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
 | `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
 | `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names each issued value |
-| `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now                |
+| `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now; clears once that call returns |
 | `E_OPENALEX_KEY_REJECTED`         | 1    | OpenAlex refused the key; names the rung that supplied it    |
 | `E_OPENALEX_UNAUTHENTICATED`      | 1    | OpenAlex refused a keyless request                           |
 | `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed |
