@@ -26,7 +26,6 @@ const RECLAIMING: &str = "reclaiming";
 
 /// A lock-acquisition failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub enum LockError {
     Timeout { path: String },
     NotWritable { path: String },

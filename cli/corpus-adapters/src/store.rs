@@ -128,10 +128,6 @@ fn from_lock_error(error: lock::LockError) -> StoreError {
             StoreError::NotWritable { path }
         }
         lock::LockError::Io { path, detail } => StoreError::Io { path, detail },
-        other => StoreError::Io {
-            path: String::new(),
-            detail: other.to_string(),
-        },
     }
 }
 

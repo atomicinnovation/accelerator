@@ -1,6 +1,6 @@
 pub mod store
 pub mod store::lock
-#[non_exhaustive] pub enum store::lock::LockError
+pub enum store::lock::LockError
 pub store::lock::LockError::Io
 pub store::lock::LockError::Io::detail: alloc::string::String
 pub store::lock::LockError::Io::path: alloc::string::String

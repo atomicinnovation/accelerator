@@ -309,9 +309,10 @@ impl Filesystem for SystemFilesystem {
                     LockError::Timeout { path } => {
                         CacheError::LockContended { path }
                     }
-                    other => CacheError::Io {
+                    error @ (LockError::NotWritable { .. }
+                    | LockError::Io { .. }) => CacheError::Io {
                         path: lockdir.display().to_string(),
-                        detail: other.to_string(),
+                        detail: error.to_string(),
                     },
                 },
             )?;

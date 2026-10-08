@@ -50,7 +50,9 @@ impl RunLock for FileRunLock {
             Err(LockError::Timeout { .. }) => {
                 Err(MigrationError::new(refusal_message(&self.lockdir)))
             }
-            Err(other) => Err(MigrationError::new(other.to_string())),
+            Err(
+                error @ (LockError::NotWritable { .. } | LockError::Io { .. }),
+            ) => Err(MigrationError::new(error.to_string())),
         }
     }
 }
