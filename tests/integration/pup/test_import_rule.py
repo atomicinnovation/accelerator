@@ -1643,14 +1643,11 @@ _DOMAIN_RULES = [
     ("vcs", "vcs_domain_imports_only_permitted", ()),
     ("research", "research_domain_imports_only_permitted", ()),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
-    (
-        "migrate",
-        "migrate_domain_imports_only_permitted",
-        ("corpus", "document"),
-    ),
+    ("migrate", "migrate_domain_imports_only_permitted", ("corpus",)),
 ]
 
-# The full universe of extra allowances any domain rule widens with. A probed
+# Every extra allowance a domain rule widens with, plus `document`, which
+# migrate's rule once granted and must now be proven to refuse. A probed
 # crate depends on every one of these except itself, so the converse
 # (cross-rejection) cases below can attempt an import that its own rule does
 # not permit and have cargo-pup reject it, rather than the import failing to
