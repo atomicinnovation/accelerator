@@ -12,9 +12,9 @@ relates_to: ["work-item:0283", "work-item:0300", "work-item:0301"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/148"
 pr_number: 148
 tags: ["research", "arxiv", "pacing", "fetch"]
-revision: "950384733272de2b29cdd6b08c39346f69a3e532"
+revision: "80733c37287ede1822a9ed6d7de92f79e4e5b28a"
 repository: "accelerator"
-last_updated: "2026-10-08T18:14:33+00:00"
+last_updated: "2026-10-08T21:40:26+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -87,8 +87,7 @@ is delayed rather than lost.
   `test:integration:arxiv-queue-stress` lane runs 30 concurrent fetches on
   the real clock; it takes minutes, so it is kept out of the default task.
   The build fails if `CALL_BUDGET` outgrows `queue::LONGEST_INVOCATION`.
-- **Incidental.** The PR also patches the docs site's `sharp` and
-  `source-map-js` advisories, captures work items 0300 (sync pulls of
+- **Incidental.** The PR also captures work items 0300 (sync pulls of
   tracked work items fail silently) and 0301 (deferred review findings),
   refreshes the Linear sync baseline, and adds 0295 annotations to 0283's
   plan and validation.
@@ -112,7 +111,8 @@ is delayed rather than lost.
 ## Testing
 
 - [x] Full local CI mirror `mise run` (formatters, every lint and type-check,
-  `docs:check` and the whole test suite) exits 0 at the branch tip in 485 s
+  including 0299's crate-dependency lint, `docs:check` and the whole test
+  suite) exits 0 at the branch tip, rebased onto 0299, in 400 s
 - [x] `public-api:check`, `cli:check`, the structure tests (57 in
   `test_research_structure.py`) and the `research`, `research-adapters` and
   `accelerator-research` tests (with `test-loopback`) pass after each
