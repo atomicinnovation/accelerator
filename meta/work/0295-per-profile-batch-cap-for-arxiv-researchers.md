@@ -5,7 +5,7 @@ title: "Per-Profile Batch Cap for arXiv Researchers"
 date: "2026-09-28T09:03:54+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "in-progress"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
@@ -19,7 +19,7 @@ schema_version: 1
 # 0295: Per-Profile Batch Cap for arXiv Researchers
 
 **Kind**: Story
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 

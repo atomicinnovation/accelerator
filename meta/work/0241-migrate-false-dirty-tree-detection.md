@@ -5,7 +5,7 @@ title: "False Dirty-Tree Detection on jj Repositories"
 date: "2026-08-31T12:11:13+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "bug"
 priority: "high"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-771"
 # 0241: False Dirty-Tree Detection on jj Repositories
 
 **Kind**: Bug
-**Status**: Ready
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 

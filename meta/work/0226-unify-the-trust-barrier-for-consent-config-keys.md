@@ -5,7 +5,7 @@ title: "Unify the Trust Barrier for Consent Config Keys"
 date: "2026-08-20T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0136"
@@ -23,7 +23,7 @@ external_id: "PP-756"
 # 0226: Unify the Trust Barrier for Consent Config Keys
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

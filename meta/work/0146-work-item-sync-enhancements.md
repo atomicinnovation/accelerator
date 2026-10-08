@@ -5,13 +5,13 @@ title: "Work Item Synchronisation Enhancements"
 date: "2026-06-22T23:41:03+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "in-progress"
 kind: "epic"
 priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["work-item:0171"]
 tags: ["sync", "linear", "jira", "tracker", "scoping", "configuration"]
-last_updated: "2026-09-20T17:54:11+00:00"
+last_updated: "2026-09-23T21:40:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-167"
@@ -20,7 +20,7 @@ external_id: "PP-167"
 # 0146: Work Item Synchronisation Enhancements
 
 **Kind**: Epic
-**Status**: Draft
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -64,14 +64,15 @@ Three structural findings frame the scoping work:
 
 ## Requirements
 
-### Existing candidates (field mapping and relationships)
+### Field mapping and relationships
 
-- Add **status** mapping to work item synchronisation.
-- Add **kind** mapping to work item synchronisation.
-- Add **priority** mapping to work item synchronisation.
-- Establish **parent-child relationships** between work items on synchronisation.
+- Map **status**, **kind**, and **priority** on work item synchronisation —
+  realised by 0290 (per-tracker mapping tables, last-writer-wins, skip-and-warn on
+  unmappable values).
+- Establish **parent-child relationships** between work items on synchronisation —
+  realised by 0291 (single parent edge, parents-before-children ordering).
 - **Restrict** work item sync based on configured labels or projects — realised by
-  the per-tracker pull-scope child below.
+  the per-tracker pull-scope child (0229).
 
 ### Scope-and-configuration redesign (children)
 
@@ -88,7 +89,7 @@ Three structural findings frame the scoping work:
   and independent of the scope key — it never derives from it, and `{key}` in
   `id_pattern` requires an explicit `work.key` (local IDs stay independent of remote,
   joined on `external_id`). Provide a tracker-aware migration / read-time alias.
-  `init-linear` / `init-jira` write the key they discover.
+  `init-linear` / `init-jira` write the key they discover. See 0228.
 - **Per-tracker pull scope** — a per-tracker `pull` block: `additional_teams` /
   `additional_projects` (broaden beyond the creation entity), `all_teams` /
   `all_projects` (whole accessible workspace, mutually exclusive with the
@@ -102,7 +103,7 @@ Three structural findings frame the scoping work:
   work-item ID (stub-create remote, adopt its identifier locally so `id ==
   external_id`), and codify the `id`-immutability boundary: immutable once synced,
   provisional-and-rewritable before first push. The largest and least urgent
-  child.
+  child. See 0230.
 
 ## Design
 
@@ -236,6 +237,17 @@ Resolved during refinement (2026-08-30):
   ceilings with truncation-to-hard-error, dedup + stable ordering).
 - 0230 — Tracker-owned work-item ID generation (stub-mint; `id`-immutability
   boundary).
+- 0257 — Sync specific work items (reconcile one or more named items without a
+  full sync's cost and blast radius).
+- 0285 — Targeted pull of remote-only work items (`work sync --target` imports a
+  named remote issue absent locally; normalises targeted local/remote resolution
+  and collision behaviour via shared `resolve_targets`).
+- 0290 — Bidirectional field mapping (status / kind / priority via per-tracker
+  mapping tables, last-writer-wins, skip-and-warn on unmappable values); closes
+  the field-mapping acceptance criteria.
+- 0291 — Parent-child relationship synchronisation (push/pull the single parent
+  edge, parents-before-children ordering, last-writer-wins); closes the
+  parent-child acceptance criterion.
 - 0292 — Linear pull filters via catalogue-resolved ids (splits 0229's shared
   filter schema per-tracker; adds a Linear `project` filter and converts
   `label` / `assignee` to catalogue-resolved ids, lowering to `project.id`,
@@ -243,8 +255,6 @@ Resolved during refinement (2026-08-30):
 - 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
   promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
   lowering, bounded to set-membership negation as Linear has no top-level `not`).
-- TBD (existing candidates) — status / kind / priority mapping; parent-child
-  relationships on sync.
 
 ### Future candidates (deferred from 0229 refinement)
 

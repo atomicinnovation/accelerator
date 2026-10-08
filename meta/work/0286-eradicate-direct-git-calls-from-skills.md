@@ -5,7 +5,7 @@ title: "Make Accelerator skills VCS-agnostic by eradicating direct git calls"
 date: "2026-09-10T11:44:31+00:00"
 author: "Toby Clemson"
 producer: "conduct-spike"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "low"
 parent: "work-item:0136"
@@ -20,7 +20,7 @@ external_id: "PP-872"
 # 0286: Make Accelerator skills VCS-agnostic by eradicating direct git calls
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
