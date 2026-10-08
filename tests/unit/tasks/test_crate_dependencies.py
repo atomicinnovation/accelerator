@@ -315,10 +315,42 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
             f"document: {Rule.DECLARATION} (role 'technical-library' carries "
             "no context)",
         ),
+        (
+            [
+                _crate(
+                    "jira-client",
+                    "adapter",
+                    context="jira",
+                    kind="product",
+                    downstreams=["work"],
+                )
+            ],
+            f"jira-client: {Rule.DECLARATION} (only a shared context's domain "
+            "crate declares downstreams)",
+        ),
+        (
+            [_crate("store", "technical-library", downstreams=["work"])],
+            f"store: {Rule.DECLARATION} (only a shared context's domain crate "
+            "declares downstreams)",
+        ),
     ],
 )
 def test_a_malformed_declaration_is_reported(packages, expected) -> None:
     assert _declaration_findings(*packages) == [expected]
+
+
+def test_a_malformed_crate_leaves_its_context_siblings_unjudged() -> None:
+    assert _declaration_findings(
+        _crate("work", "domain", context="work", kind="core"),
+        _crate(
+            "work-adapters",
+            "adapter",
+            context="work",
+            dependencies=[_dep("vcs-adapters")],
+        ),
+        _crate("vcs", "domain", context="vcs", kind="platform"),
+        _crate("vcs-adapters", "adapter", context="vcs"),
+    ) == [f"work: {Rule.DECLARATION} (unrecognised kind 'core')"]
 
 
 def test_conflicting_kinds_for_one_context_are_reported() -> None:
