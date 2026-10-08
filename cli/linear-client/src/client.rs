@@ -396,10 +396,27 @@ impl LinearClient {
         operation: Operation,
         detail: &str,
     ) -> Result<Value, LinearFailure> {
-        let received = self
-            .transport
-            .send(document, variables)
-            .map_err(|error| send_failure(operation, &error))?;
+        let sent = self.transport.send(document, variables);
+        Self::answer_to(sent, operation, detail)
+    }
+
+    fn call_unrepeatable_op(
+        &self,
+        document: &str,
+        variables: &Value,
+        operation: Operation,
+        detail: &str,
+    ) -> Result<Value, LinearFailure> {
+        let sent = self.transport.send_unrepeatable(document, variables);
+        Self::answer_to(sent, operation, detail)
+    }
+
+    fn answer_to(
+        sent: Result<Received, ClientError>,
+        operation: Operation,
+        detail: &str,
+    ) -> Result<Value, LinearFailure> {
+        let received = sent.map_err(|error| send_failure(operation, &error))?;
         Self::interpret_outcome(&received).map_err(|outcome| {
             LinearFailure::wire(outcome, operation, detail.to_owned())
         })
@@ -669,8 +686,12 @@ impl LinearClient {
             "title": title,
             "description": body,
         }});
-        let response =
-            self.call_op(CREATE, &variables, Operation::Create, title)?;
+        let response = self.call_unrepeatable_op(
+            CREATE,
+            &variables,
+            Operation::Create,
+            title,
+        )?;
         let identifier = response
             .pointer("/data/issueCreate/issue/identifier")
             .and_then(Value::as_str)

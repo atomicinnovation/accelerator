@@ -59,6 +59,19 @@ fn a_state_name_resolves_case_insensitively() {
 }
 
 #[test]
+fn a_transition_answered_5xx_is_sent_once() {
+    let server = MockHTTPServer::start();
+    server.route(RequestKey::post(TRANSITIONS), Route::Status(502));
+    let client = client_for(&server, TransportConfig::default());
+
+    let applied =
+        client.transition(KEY, &Target::Id("21".to_owned()), None, None, true);
+
+    assert!(applied.is_err());
+    assert_eq!(server.hits(&RequestKey::post(TRANSITIONS)), 1);
+}
+
+#[test]
 fn a_known_transition_id_skips_the_lookup() {
     let server = MockHTTPServer::start();
     server.route(RequestKey::post(TRANSITIONS), Route::Status(204));

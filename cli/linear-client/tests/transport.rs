@@ -134,6 +134,51 @@ fn a_request_carries_its_token_document_and_variables() {
 }
 
 #[test]
+fn an_unrepeatable_request_answered_5xx_is_sent_exactly_once() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(key.clone(), Route::Status(502));
+    let sleeper = RecordingSleeper::new();
+    let transport = transport_at(&server.base_url(), brief(), &sleeper);
+
+    let received = transport
+        .send_unrepeatable(QUERY, &json!({}))
+        .expect("the 502 is returned, not resent");
+
+    assert_eq!(received.status, 502);
+    assert_eq!(server.hits(&key), 1);
+    assert!(sleeper.slept().is_empty());
+}
+
+#[test]
+fn an_unrepeatable_request_that_was_rate_limited_is_resent() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(
+        key.clone(),
+        Route::Sequence(vec![
+            Route::Json {
+                status: 400,
+                body: errors_body("RATELIMITED"),
+            },
+            Route::Json {
+                status: 200,
+                body: "{\"data\":{}}".to_owned(),
+            },
+        ]),
+    );
+    let sleeper = RecordingSleeper::new();
+    let transport = transport_at(&server.base_url(), brief(), &sleeper);
+
+    let received = transport
+        .send_unrepeatable(QUERY, &json!({}))
+        .expect("the rate-limited request is resent");
+
+    assert_eq!(received.status, 200);
+    assert_eq!(server.hits(&key), 2);
+}
+
+#[test]
 fn a_persistent_5xx_is_attempted_exactly_four_times() {
     let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
@@ -392,7 +437,23 @@ fn create_that_stalls_after_sending_is_terminal() {
 }
 
 #[test]
-fn a_503_then_a_refused_connection_is_terminal() {
+fn a_create_answered_5xx_is_sent_once_and_its_outcome_unknown() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(key.clone(), Route::Status(502));
+    let sleeper = RecordingSleeper::new();
+    let client = client_at(&server.base_url(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "")
+        .expect_err("the 502 may follow an applied create");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+    assert_eq!(server.hits(&key), 1);
+}
+
+#[test]
+fn an_update_answered_503_then_a_refused_connection_is_terminal() {
     let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
     server.route(key.clone(), Route::StatusThenShutdown(503));
@@ -400,7 +461,7 @@ fn a_503_then_a_refused_connection_is_terminal() {
     let client = client_at(&server.base_url(), &sleeper);
 
     let error = client
-        .create("A title", "A body\n", "")
+        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
         .expect_err("the retry after the 503 is refused");
 
     assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");

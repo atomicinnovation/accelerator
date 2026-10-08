@@ -136,7 +136,7 @@ impl JiraClient {
             .map_err(|error| rejected(Operation::Create, &error))?;
         let received = self
             .transport()
-            .send(&Method::POST, ISSUE_PATH, &[], Some(&body))
+            .send_unrepeatable(&Method::POST, ISSUE_PATH, &[], Some(&body))
             .map_err(|error| send_failure(Operation::Create, &error))?;
         let created = crate::client::json_body_op(
             &received,

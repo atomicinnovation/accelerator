@@ -114,9 +114,12 @@ impl JiraClient {
         } else {
             vec![("notifyUsers", "false")]
         };
-        let received =
-            self.transport()
-                .send(&Method::POST, &path, &query, Some(&body))?;
+        let received = self.transport().send_unrepeatable(
+            &Method::POST,
+            &path,
+            &query,
+            Some(&body),
+        )?;
         if received.status >= 200 && received.status < 300 {
             return Ok(());
         }
