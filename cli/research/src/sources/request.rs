@@ -193,6 +193,17 @@ impl Default for Limit {
     }
 }
 
+impl TryFrom<u8> for Limit {
+    type Error = RequestError;
+
+    fn try_from(limit: u8) -> Result<Self, Self::Error> {
+        Self::RANGE
+            .contains(&limit)
+            .then_some(Self(limit))
+            .ok_or_else(|| RequestError::LimitOutOfRange(limit.to_string()))
+    }
+}
+
 /// An arXiv identifier in either the new (`2608.21129v2`) or old
 /// (`hep-th/9901001v2`) scheme.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

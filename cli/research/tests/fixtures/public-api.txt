@@ -1109,6 +1109,9 @@ pub fn research::sources::request::Limit::clone(&self) -> research::sources::req
 impl core::cmp::Eq for research::sources::request::Limit
 impl core::cmp::PartialEq for research::sources::request::Limit
 pub fn research::sources::request::Limit::eq(&self, other: &research::sources::request::Limit) -> bool
+impl core::convert::TryFrom<u8> for research::sources::request::Limit
+pub type research::sources::request::Limit::Error = research::sources::request::RequestError
+pub fn research::sources::request::Limit::try_from(limit: u8) -> core::result::Result<Self, Self::Error>
 impl core::default::Default for research::sources::request::Limit
 pub fn research::sources::request::Limit::default() -> Self
 impl core::fmt::Debug for research::sources::request::Limit

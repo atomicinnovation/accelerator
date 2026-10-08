@@ -720,7 +720,7 @@ impl StoredBinding {
         Some(match self {
             Self::Search { query, limit } => Binding::Search {
                 query: ArxivQuery::parse(query).ok()?,
-                limit: Limit::parse(&limit.to_string()).ok()?,
+                limit: Limit::try_from(*limit).ok()?,
             },
             Self::Lookup { id } => Binding::Lookup(ArxivId::parse(id).ok()?),
         })

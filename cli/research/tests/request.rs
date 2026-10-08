@@ -75,6 +75,20 @@ fn a_limit_accepts_one_to_twenty_five() {
 }
 
 #[test]
+fn a_limit_converts_from_a_count_in_its_range() {
+    assert_eq!(Limit::try_from(1).map(Limit::get), Ok(1));
+    assert_eq!(Limit::try_from(25).map(Limit::get), Ok(25));
+    for rejected in [0, 26] {
+        assert_eq!(
+            Limit::try_from(rejected).map_err(|error| error.to_string()),
+            Err(format!(
+                "E_RESEARCH_USAGE: --limit must be 1–25 (got {rejected})"
+            )),
+        );
+    }
+}
+
+#[test]
 fn a_limit_outside_its_range_names_the_rejected_value() {
     for rejected in ["0", "26", "50", "-1", "ten", ""] {
         assert_eq!(
