@@ -12,9 +12,9 @@ relates_to: ["work-item:0226"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/149"
 pr_number: 149
 tags: ["cli", "architecture", "dependencies", "refactor"]
-revision: "f63f53b63cc250bed92c20c2c4558450a048e62a"
+revision: "15d36a76e44005e564fc36daef38879c31ba9786"
 repository: "accelerator"
-last_updated: "2026-10-07T23:20:45+00:00"
+last_updated: "2026-10-08T09:39:10+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -31,7 +31,9 @@ get there, each of the 13 violating edges in 0299's table is replaced by a
 port injected at a composition root, a move into the upstream domain, or a
 move into a technical library. `consent-adapters` is gone, and the launcher
 answers its SessionStart tracking question in-process, so `vcs tracking` and
-the "was not checked" note are removed.
+the "was not checked" note are removed. The characterisation suite that
+guarded the refactor is retired at the end, and the behaviours only it pinned
+are now crate tests.
 
 ## Changes
 
@@ -90,14 +92,20 @@ the "was not checked" note are removed.
 
 ### Safety net and measurement
 
-- **Characterisation suite** — `tests/integration/characterisation/` has 541
-  pytest cases over the built binaries, with 534 goldens. The goldens stayed
-  byte-identical through every refactor phase. The only exception is the
-  four "without `accelerator-vcs`" summary goldens, which moved from the
-  `Unchecked` note to the in-process answer, plus two new unknown-subcommand
-  goldens for `vcs tracking`.
+- **Characterisation suite, then its retirement** — a pytest suite of 541
+  cases over the built binaries, with 534 goldens, guarded every refactor
+  phase. Its goldens stayed byte-identical throughout, apart from the four
+  "without `accelerator-vcs`" summary goldens, which moved from the
+  `Unchecked` note to the in-process answer, and two new unknown-subcommand
+  goldens for `vcs tracking`. With the refactor done, an overlap audit found
+  492 of the goldens already covered by crate tests, and git/jj pairs
+  byte-identical everywhere but the metadata revision. The roughly 25
+  behaviours only the suite pinned are now 45 Rust tests across 14 crates.
+  The suite, its `test:integration:characterisation` lane and its
+  `build:cli:characterisation:dev` build are removed.
 - **Per-sub-binary dev builds** — `build:cli:<x>:dev` tasks
-  (`tasks/shared/dev_builds.py`) let the suite build only what it invokes.
+  (`tasks/shared/dev_builds.py`) let each integration lane build only the
+  binaries it runs.
 - **Launcher measurement** — the `measure` tasks gain launcher size and
   SessionStart summary latency. `deny.toml`'s symbol-count table and `uluru`
   MPL-2.0 record are rewritten to match the re-measured binaries.
@@ -135,7 +143,11 @@ the "was not checked" note are removed.
   in Phase 12).
 - [x] The characterisation suite passed with no golden changed after each
   refactor phase, apart from Phase 7's reviewed goldens.
-- [x] `mise run` exited 0 at the end of Phase 13 (recorded in the plan).
+- [x] Each ported crate test failed when the behaviour it guards was
+  broken, either in production code or, for a few, by changing the expected
+  value. Every break was reverted, and the stack changes no production code.
+- [x] `mise run` exited 0 over the final stack, with the suite removed
+  (585 s, macOS). It also exited 0 at the end of Phase 13.
 - [x] Manual migrate check: all 10 migrations applied to a scratch corpus, a
   second run reported none pending, and the result passed validation.
 - [x] Launcher size gate: 16 667 568 bytes, ratio 2.07 against 8 065 488
@@ -159,9 +171,19 @@ the "was not checked" note are removed.
 - `accelerator vcs tracking` is removed and now fails as an unknown
   subcommand. Only the launcher called it. `CHANGELOG.md` is not touched in
   this PR.
-- The diff is 812 files, but 534 of them are new characterisation goldens.
-  The review surface is the `cli/` crates, `tasks/lint/crate_dependencies.py`
-  and `tasks/shared/`.
+- The suite's goldens are added and then removed within this PR, so the net
+  diff carries none of them. The review surface is the `cli/` crates,
+  `tasks/lint/crate_dependencies.py` and `tasks/shared/`. The
+  frontmatter fixture corpus moved to `cli/corpus-cli/tests/fixtures/`.
+- The overlap audit surfaced two gaps that are left for follow-up, not
+  pinned. `accelerator-jira` and `accelerator-linear` check only a `pull`
+  block's shape and ceilings, so they accept blocks that `config dump` and
+  `work sync` refuse. Nothing guards that the SessionStart summary never
+  spawns `accelerator-vcs`.
+- The read-only-directory tests and the canonicalised `/private/var` paths
+  in the ported tests have only run on macOS; CI is the first Linux run.
+- `meta/reviews/prs/149-review-1.md` records the multi-lens review of this
+  PR before the suite was retired.
 - The only remaining normal adapter → adapter edges across contexts are
   `jira-client` and `linear-client` → `tracker-support`. The declared
   downstreams of the shared `tracker` context allow them.
