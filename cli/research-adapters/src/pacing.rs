@@ -103,7 +103,7 @@ impl FilePacingGate {
     fn store(&self, state: PacingState) {
         let written = serde_json::to_vec(&StoredState::from(state))
             .map_err(|error| error.to_string())
-            .and_then(|bytes| self.scratch.replace_transient(STATE, &bytes));
+            .and_then(|bytes| self.scratch.replace_without_sync(STATE, &bytes));
         if let Err(error) = written {
             self.report(&error);
         }

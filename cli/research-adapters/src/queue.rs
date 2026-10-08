@@ -350,7 +350,8 @@ impl FileArxivQueue {
         let written = serde_json::to_vec(record)
             .map_err(|error| error.to_string())
             .and_then(|bytes| {
-                self.scratch.replace_transient(&record_name(ticket), &bytes)
+                self.scratch
+                    .replace_without_sync(&record_name(ticket), &bytes)
             });
         written.map_err(|error| self.report(&error)).is_ok()
     }

@@ -10,8 +10,8 @@ fn a_transient_replace_is_whole_and_refuses_names_outside_the_directory() {
     scratch.write("state", "old");
     let dir = scratch.dir();
 
-    dir.replace_transient("state", b"new").expect("replaced");
-    let escaped = dir.replace_transient("../escaped", b"x");
+    dir.replace_without_sync("state", b"new").expect("replaced");
+    let escaped = dir.replace_without_sync("../escaped", b"x");
 
     assert_eq!(scratch.read("state").as_deref(), Some("new"));
     assert!(escaped.is_err());
@@ -52,7 +52,7 @@ fn a_nested_directory_refuses_writes_outside_the_project_root() {
     let outside = scratch.dir().nested("../../..");
     let escaped = format!("escaped-{}", std::process::id());
 
-    assert!(outside.replace_transient(&escaped, b"x").is_err());
+    assert!(outside.replace_without_sync(&escaped, b"x").is_err());
     assert!(!outside.path(&escaped).exists());
 }
 

@@ -124,7 +124,7 @@ impl ScratchDir {
     /// # Errors
     ///
     /// A one-line description naming the file when it cannot be replaced.
-    pub fn replace_transient(
+    pub fn replace_without_sync(
         &self,
         name: &str,
         bytes: &[u8],
