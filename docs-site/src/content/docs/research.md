@@ -203,8 +203,9 @@ arXiv calls take turns in a first-in, first-out queue of tickets under
   `cause: lock_contention`, unless its last call ran out mid-retry, which
   reports that retry's reason instead. A ticket issued more than 1000 s ago
   is treated as abandoned, whatever its lock says.
-- **Killed calls.** A killed call's ticket stops holding its place at once,
-  and keeps it for re-presentation within 300 s.
+- **Killed calls.** A killed call releases its ticket's lock, so the tickets
+  behind it stop waiting on it at once. The ticket keeps its place for
+  re-presentation until 300 s after the call could last have ended.
 
 ### Logs
 
