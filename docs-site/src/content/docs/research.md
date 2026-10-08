@@ -238,6 +238,9 @@ session running an earlier prerelease of the plugin.
   but ignores the queue, so calls queued behind it see more
   `lock_contention`. A version whose queue records it cannot read removes
   them once their tickets are free.
+- A ticket that has just found itself at the front takes `arxiv.lock` a
+  moment later. An earlier ticket re-presented in that moment can be passed
+  for one turn; spacing is unaffected.
 - Wall-clock steps, and a host that sleeps mid-run, can delay or hasten
   expiry, abandonment and the cap. That costs fairness or an occasional node,
   never spacing, which the lock enforces on every request.
