@@ -83,18 +83,17 @@ End in exactly one of these. `waiting` is never an end; see Waiting below.
   other reason. Any status other than `ok`, `unavailable` or `waiting` counts
   as Unavailable, with the status as its reason. If the Bash tool is not
   granted at all, return "Bash unavailable".
-- **Failed** — a call exited `1`, or exited `2` with `E_ARXIV_TICKET_LIVE`
-  when you have no other fetch running. Write no file; your summary returns
-  the CLI's `E_*` line verbatim.
+- **Failed** — a call exited `1`, or exited `2` with `E_ARXIV_TICKET_LIVE`,
+  which means another process holds your ticket, since you run one fetch at a
+  time. Write no file; your summary returns the CLI's `E_*` line verbatim.
 - **Denied** — Claude Code refused to run the fetch. Write no file; your
   summary says "fetch denied by permissions".
 - **None found** — every call was `ok` and nothing was relevant. Write the
   finding with `None found.` under Sources.
 
-A usage error (exit `2`) or an `E_RESEARCH_GUARD_*` block means correcting the
-call and continuing, not ending. If it is `E_ARXIV_TICKET_LIVE`, you have
-another fetch with that ticket still running. Wait for it to return and use
-its output instead.
+A usage error other than `E_ARXIV_TICKET_LIVE` (exit `2`), or an
+`E_RESEARCH_GUARD_*` block, means correcting the call and continuing, not
+ending.
 
 **Waiting** — a call printed `"status":"waiting"`. Write nothing yet. Re-run
 the same call at once with `--ticket` set to the `ticket` from the latest

@@ -443,11 +443,12 @@ def test_arxiv_profile_shows_the_re_presentation_it_asks_for() -> None:
 def test_arxiv_profile_runs_one_fetch_at_a_time_and_names_ticket_live() -> None:
     prose = _arxiv_profile_prose()
     assert "Run one fetch at a time." in prose
-    assert "E_ARXIV_TICKET_LIVE" in prose
     assert (
-        "exited `2` with `E_ARXIV_TICKET_LIVE` when you have no other fetch "
-        "running" in prose
-    ), "the Failed outcome must cover a ticket live with no other fetch"
+        "exited `2` with `E_ARXIV_TICKET_LIVE`, which means another process "
+        "holds your ticket" in prose
+    ), "the Failed outcome must cover a ticket live elsewhere"
+    assert "usage error other than `E_ARXIV_TICKET_LIVE`" in prose
+    assert "you have another fetch with that ticket still running" not in prose
 
 
 def test_arxiv_profile_reports_a_mid_retry_reason_over_lock_contention() -> (
