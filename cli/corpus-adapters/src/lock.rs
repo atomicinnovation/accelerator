@@ -17,6 +17,7 @@ pub struct LockdirLock {
 impl LockdirLock {
     pub const RETIREMENT_LOCKDIR: &'static str =
         ".accelerator-work-retire.lockdir";
+    pub const CREATE_LOCKDIR: &'static str = ".accelerator-work-create.lockdir";
     pub const BATCH_JOURNAL_LOCKDIR: &'static str =
         ".accelerator-work-batch-journal.lockdir";
 
@@ -41,6 +42,7 @@ impl LockdirLock {
             LockName::BatchJournal => {
                 self.work_dir.join(Self::BATCH_JOURNAL_LOCKDIR)
             }
+            LockName::Create => self.work_dir.join(Self::CREATE_LOCKDIR),
             LockName::Retirement => {
                 self.work_dir.join(Self::RETIREMENT_LOCKDIR)
             }
@@ -96,6 +98,16 @@ mod tests {
         let lock = LockdirLock::new(dir.path());
         let _held = lock.acquire(&LockName::Retirement)?;
         assert!(dir.path().join(LockdirLock::RETIREMENT_LOCKDIR).is_dir());
+        Ok(())
+    }
+
+    #[test]
+    fn the_create_lock_keeps_the_lockdir_older_binaries_take(
+    ) -> Result<(), TestError> {
+        let dir = TempDir::new()?;
+        let lock = LockdirLock::new(dir.path());
+        let _held = lock.acquire(&LockName::Create)?;
+        assert!(dir.path().join(".accelerator-work-create.lockdir").is_dir());
         Ok(())
     }
 

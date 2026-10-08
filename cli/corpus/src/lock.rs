@@ -12,6 +12,7 @@ use crate::store::StoreError;
 pub enum LockName {
     BatchJournal,
     Retirement,
+    Create,
     ForFile(PathBuf),
 }
 

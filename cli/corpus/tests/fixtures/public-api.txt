@@ -439,6 +439,7 @@ pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::D
 pub mod corpus::lock
 pub enum corpus::lock::LockName
 pub corpus::lock::LockName::BatchJournal
+pub corpus::lock::LockName::Create
 pub corpus::lock::LockName::ForFile(std::path::PathBuf)
 pub corpus::lock::LockName::Retirement
 impl core::clone::Clone for corpus::lock::LockName
