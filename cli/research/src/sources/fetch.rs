@@ -325,6 +325,10 @@ pub fn fetch_arxiv(
                     Contention::QueueUnusable,
                 )
             }),
+        Joining::Unheld { ticket, position } => {
+            served_when(&|| true, fetch, ports, deadline)
+                .unwrap_or(FetchOutcome::Waiting { ticket, position })
+        }
         Joining::Queued(place) => {
             match served_when(&|| place.is_front(), fetch, ports, deadline) {
                 Ok(outcome) => {

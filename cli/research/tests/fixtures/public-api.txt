@@ -695,6 +695,9 @@ pub research::sources::queue::Joining::OverCap::last_retryable: core::option::Op
 pub research::sources::queue::Joining::OverCap::ticket: research::sources::queue::Ticket
 pub research::sources::queue::Joining::Queued(alloc::boxed::Box<(dyn research::sources::queue::Place + 'q)>)
 pub research::sources::queue::Joining::Rejected(research::sources::queue::TicketRejection)
+pub research::sources::queue::Joining::Unheld
+pub research::sources::queue::Joining::Unheld::position: research::sources::queue::Position
+pub research::sources::queue::Joining::Unheld::ticket: research::sources::queue::Ticket
 pub research::sources::queue::Joining::Unqueued
 pub enum research::sources::queue::Presence
 pub research::sources::queue::Presence::Absent

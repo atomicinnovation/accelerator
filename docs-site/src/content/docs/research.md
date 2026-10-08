@@ -77,7 +77,7 @@ A source that cannot answer now:
 | `reason`           | Means                                                                  |
 |--------------------|------------------------------------------------------------------------|
 | `budget_exhausted` | OpenAlex's daily budget is spent; `authenticated` says whether a key was sent |
-| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when a queued arXiv fetch passed its 900 s cap, or ran out of budget while the queue was unusable. Either way, a call that ran out mid-retry reports that retry's reason instead |
+| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when a queued arXiv fetch passed its 900 s cap, or a fresh one ran out of budget while the queue was unusable (a re-presented one keeps its place and waits). Either way, a call that ran out mid-retry reports that retry's reason instead |
 | `upstream_error`   | Server errors, connection failures, or timeouts past every retry       |
 
 `authenticated` appears only for OpenAlex, which is how `conduct` tells a

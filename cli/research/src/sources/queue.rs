@@ -426,6 +426,12 @@ pub enum Joining<'q> {
     Queued(Box<dyn Place + 'q>),
     /// The queue could not be used, so the call has no place to keep.
     Unqueued,
+    /// A resumed ticket this call could not hold: served without the queue,
+    /// its place still kept for a re-presentation.
+    Unheld {
+        ticket: Ticket,
+        position: Position,
+    },
     Rejected(TicketRejection),
     OverCap {
         ticket: Ticket,

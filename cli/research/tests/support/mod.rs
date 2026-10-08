@@ -481,6 +481,7 @@ impl ConfirmationCache for MemoryConfirmations<'_> {
 pub enum ScriptedJoin {
     Queued,
     Unqueued,
+    Unheld,
     Rejected(TicketRejection),
     OverCap {
         ticket: Ticket,
@@ -559,6 +560,10 @@ impl ArxivQueue for ScriptedQueue {
                 Joining::Queued(Box::new(ScriptedPlace { queue: self }))
             }
             ScriptedJoin::Unqueued => Joining::Unqueued,
+            ScriptedJoin::Unheld => Joining::Unheld {
+                ticket: self.ticket.clone(),
+                position: self.position,
+            },
             ScriptedJoin::Rejected(rejection) => Joining::Rejected(rejection),
             ScriptedJoin::OverCap {
                 ticket,

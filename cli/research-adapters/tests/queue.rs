@@ -132,6 +132,7 @@ fn queued<'q>(joining: Joining<'q>) -> Box<dyn Place + 'q> {
     match joining {
         Joining::Queued(place) => place,
         Joining::Unqueued => panic!("unqueued"),
+        Joining::Unheld { ticket, .. } => panic!("{ticket} unheld"),
         Joining::Rejected(rejection) => panic!("rejected: {rejection:?}"),
         Joining::OverCap { ticket, .. } => panic!("{ticket} over the cap"),
     }
@@ -670,6 +671,13 @@ fn own_succeeds_once_a_briefly_held_shared_lock_is_released() {
     assert_eq!(queued(joining).ticket(), &ticket("1-aaaaaa"));
 }
 
+fn unheld_ticket(joining: &Joining<'_>) -> Option<String> {
+    match joining {
+        Joining::Unheld { ticket, .. } => Some(ticket.to_string()),
+        _ => None,
+    }
+}
+
 #[test]
 fn own_fails_when_a_shared_lock_outlasts_its_patience() {
     let harness = Harness::new();
@@ -695,7 +703,7 @@ fn own_fails_when_a_shared_lock_outlasts_its_patience() {
         SPACING,
     );
 
-    assert!(matches!(joining, Joining::Unqueued));
+    assert_eq!(unheld_ticket(&joining).as_deref(), Some("1-aaaaaa"));
     assert!(started.elapsed() < Duration::from_millis(1500));
     assert!(harness.scratch.queue_lock_is_free());
 }
@@ -841,7 +849,7 @@ fn an_unlockable_queue_joins_unqueued_with_a_diagnostic() {
 
 #[cfg(unix)]
 #[test]
-fn a_failed_record_write_joins_unqueued_and_leaves_no_lock_held() {
+fn a_failed_record_write_leaves_a_resumed_ticket_unheld_and_its_lock_free() {
     use std::os::unix::fs::PermissionsExt as _;
 
     let harness = Harness::new();
@@ -866,11 +874,11 @@ fn a_failed_record_write_joins_unqueued_and_leaves_no_lock_held() {
     let queue = harness.queue();
 
     let joining = join(&harness, &queue, Some("1-aaaaaa"));
-    let unqueued = matches!(joining, Joining::Unqueued);
+    let unheld = unheld_ticket(&joining);
     drop(joining);
     read_only(0o755);
 
-    assert!(unqueued);
+    assert_eq!(unheld.as_deref(), Some("1-aaaaaa"));
     assert!(!harness.reported().is_empty());
     assert!(!harness.scratch.ticket_is_held("1-aaaaaa"));
     assert_eq!(harness.scratch.record_bytes("1-aaaaaa"), record);

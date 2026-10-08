@@ -905,6 +905,48 @@ fn an_unqueued_call_out_of_budget_after_a_503_reports_that_failure() {
 }
 
 #[test]
+fn an_unheld_call_out_of_budget_waits_with_the_ticket_it_could_not_hold() {
+    for refusing in [false, true] {
+        let harness = Harness::with(Vec::new())
+            .queue(|queue| queue.joining(ScriptedJoin::Unheld).at_position(3))
+            .gate(|gate| {
+                if refusing {
+                    gate.refusing_from(1)
+                } else {
+                    gate
+                }
+            });
+        if !refusing {
+            harness.clock.leaving(secs(32));
+        }
+        let confirmations = MemoryConfirmations::new(&harness.gate);
+        let transport =
+            ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+        let outcome = harness.fetch(&transport, &confirmations, &search("10"));
+
+        assert_eq!(outcome, harness.waiting_at(3));
+        assert!(harness.contention.recorded().is_empty());
+        assert!(harness.queue.stepped_aside().is_empty());
+    }
+}
+
+#[test]
+fn an_unheld_call_is_served_without_leaving_the_place_it_could_not_hold() {
+    let harness = Harness::with(vec![entry("2608.00001v1", None)])
+        .queue(|queue| queue.joining(ScriptedJoin::Unheld));
+    let confirmations = MemoryConfirmations::new(&harness.gate);
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(FEED)]);
+
+    let found =
+        records(harness.fetch(&transport, &confirmations, &search("10")));
+
+    assert_eq!(found.len(), 1);
+    assert_eq!(harness.queue.left(), 0);
+}
+
+#[test]
 fn an_unqueued_call_is_served_without_a_place() {
     let harness = Harness::with(vec![entry("2608.00001v1", None)])
         .queue(|queue| queue.joining(ScriptedJoin::Unqueued));

@@ -420,7 +420,17 @@ impl ArxivQueue for FileArxivQueue {
                     return Joining::Unqueued;
                 };
                 let record = issued.presented_at(now);
-                self.take_place(ticket, &record, &queue, deadline, spacing)
+                let position = queue.position_of(&ticket, now);
+                match self.take_place(
+                    ticket.clone(),
+                    &record,
+                    &queue,
+                    deadline,
+                    spacing,
+                ) {
+                    Joining::Unqueued => Joining::Unheld { ticket, position },
+                    joining => joining,
+                }
             }
         }
     }
