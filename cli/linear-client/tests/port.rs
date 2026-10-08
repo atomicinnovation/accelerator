@@ -461,6 +461,25 @@ fn a_failed_search_reports_every_unfound_id_indeterminate() {
 }
 
 #[test]
+fn a_page_holding_an_identifier_not_shaped_like_an_issue_key_is_indeterminate()
+{
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(search_body(&["ENG-1", "../../etc"], None)),
+    );
+    let client = client_for(&server, brief());
+
+    let outcome = client
+        .fetch_all(&[id("ENG-1"), id("ENG-2")])
+        .expect("a malformed page is an Ok with the partition");
+
+    assert!(outcome.found.is_empty());
+    assert!(outcome.absent.is_empty());
+    assert_eq!(outcome.indeterminate.len(), 2);
+}
+
+#[test]
 fn a_stamp_absent_from_a_bulk_row_is_still_found() {
     let server = MockHTTPServer::start();
     server.route(
@@ -1221,6 +1240,22 @@ fn show_of_a_team_moved_identifier_reports_the_new_identifier() {
     let issue = client.show(&id("PP-760")).expect("show succeeds");
 
     assert_eq!(issue.key, id("ENG-42"));
+}
+
+#[test]
+fn show_refuses_an_answer_under_an_identifier_not_shaped_like_an_issue_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(issue_body(
+            "PP-1/../../..",
+            "2026-01-01T00:00:00.000Z",
+            "null",
+        )),
+    );
+    let client = client_for(&server, brief());
+
+    assert!(client.show(&id("PP-760")).is_err());
 }
 
 #[test]

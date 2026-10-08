@@ -488,7 +488,7 @@ fn a_stamp_absent_from_a_bulk_row_is_still_found() {
 }
 
 #[test]
-fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
+fn a_slash_bearing_identifier_is_percent_encoded_and_its_answer_refused() {
     let server = MockHTTPServer::start();
     let key = RequestKey::get("/rest/api/3/issue/OWNER%2FREPO-1");
     server.route(
@@ -500,11 +500,10 @@ fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
     );
     let client = client_for(&server, brief());
 
-    client
-        .show(&id("OWNER/REPO-1"))
-        .expect("a legitimate slash is accepted end to end");
+    let shown = client.show(&id("OWNER/REPO-1"));
 
     assert_eq!(server.hits(&key), 1, "the segment is percent-encoded");
+    assert!(shown.is_err(), "an answer under a non-key is refused");
 }
 
 #[test]
@@ -778,6 +777,43 @@ fn locate_reports_an_error_for_a_401() {
         .expect_err("a 401 is a failed read, not an absence");
 
     assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn locate_refuses_an_answer_under_a_key_not_shaped_like_an_issue_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: issue_payload("PP-1/../../..", None),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    assert!(client.locate(&id("PP-76")).is_err());
+}
+
+#[test]
+fn a_discovery_page_holding_a_key_not_shaped_like_an_issue_key_is_incomplete() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(SEARCH),
+        Route::Json {
+            status: 200,
+            body: search_page(&["ENG-1", "../../etc"], None),
+        },
+    );
+
+    let discovery = client_for(&server, brief())
+        .search(&scope())
+        .expect("search returns a degraded result, not an error");
+
+    assert_eq!(discovery.completeness, Completeness::Transient);
+    assert!(discovery
+        .found
+        .iter()
+        .all(|(key, _)| key.as_str() != "../../etc"));
 }
 
 #[test]

@@ -17,6 +17,7 @@ pub enum IdentifierRefusal {
     ControlCharacter,
     DocumentSeparator,
     CommentTrigger,
+    NotAnIssueKey,
 }
 
 impl fmt::Display for IdentifierRefusal {
@@ -31,6 +32,9 @@ impl fmt::Display for IdentifierRefusal {
             }
             Self::CommentTrigger => {
                 "the identifier starts with a YAML comment marker"
+            }
+            Self::NotAnIssueKey => {
+                "the identifier is not shaped like an issue key"
             }
         };
         formatter.write_str(reason)
@@ -56,6 +60,21 @@ pub fn identifier_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
     }
     if candidate.trim_start().starts_with('#') {
         return Err(IdentifierRefusal::CommentTrigger);
+    }
+    Ok(())
+}
+
+/// Accepts a key a tracker answered under: safe to write into frontmatter,
+/// and shaped like an issue key, because it goes on to name files and
+/// directories.
+///
+/// # Errors
+///
+/// [`IdentifierRefusal`] naming the property that failed.
+pub fn issue_key_is_safe(candidate: &str) -> Result<(), IdentifierRefusal> {
+    identifier_is_safe(candidate)?;
+    if !corpus::is_tracker_key(candidate) {
+        return Err(IdentifierRefusal::NotAnIssueKey);
     }
     Ok(())
 }

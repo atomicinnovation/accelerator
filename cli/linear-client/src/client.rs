@@ -469,6 +469,9 @@ impl LinearClient {
                 if let Some(identifier) =
                     node.get("identifier").and_then(Value::as_str)
                 {
+                    tracker_support::issue_key_is_safe(identifier).map_err(
+                        |refusal| format!("{identifier:?}: {refusal}"),
+                    )?;
                     found.push((
                         identifier.to_owned(),
                         stamp(node.get("updatedAt")),
@@ -679,10 +682,10 @@ impl LinearClient {
                 )
             })?;
         // The issue exists remotely, so an unusable identifier is Terminal.
-        check_identifier(identifier).map_err(|error| {
+        tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
             LinearFailure::UnwritableIdentifier {
                 identifier: identifier.to_owned(),
-                reason: error.to_string(),
+                reason: refusal.to_string(),
             }
         })?;
         Ok(ExternalId::new(identifier.to_owned()))
@@ -796,9 +799,17 @@ fn current_identifier(
     else {
         return Ok(requested.clone());
     };
-    let current = ExternalId::new(identifier.to_owned());
-    refuse_identifier_op(&current, Operation::Read)?;
-    Ok(current)
+    tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
+        LinearFailure::wire(
+            Outcome::RequestInvalid,
+            Operation::Read,
+            format!(
+                "{requested} answered under {identifier:?}, which cannot be \
+                 written back — {refusal}"
+            ),
+        )
+    })?;
+    Ok(ExternalId::new(identifier.to_owned()))
 }
 
 /// One `teams` node as a [`VisibleEntity`]: a Linear team's key is its

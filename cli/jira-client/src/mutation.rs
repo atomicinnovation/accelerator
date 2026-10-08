@@ -154,7 +154,7 @@ impl JiraClient {
         // The issue exists remotely, so an unusable identifier is Terminal: a
         // repeat would duplicate it, and the caller must be told rather than
         // handed a value that would corrupt the work item.
-        tracker_support::identifier_is_safe(key).map_err(|refusal| {
+        tracker_support::issue_key_is_safe(key).map_err(|refusal| {
             JiraFailure::UnwritableIdentifier {
                 identifier: key.to_owned(),
                 reason: refusal.to_string(),
