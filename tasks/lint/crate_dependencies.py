@@ -1,4 +1,4 @@
-"""Guard: every ``cli/`` crate dependency obeys ADR-0069's rules.
+"""Guard: every ``cli/`` crate dependency obeys the injection rules.
 
 Each workspace member declares its role under
 ``[package.metadata.accelerator]``, plus its context and that context's kind
@@ -7,8 +7,8 @@ dependencies from ``cargo metadata`` rather than ``use`` paths, so it runs on
 the stable toolchain and catches a dependency declared but never imported.
 Dev-dependencies are out of scope.
 
-Rule 3 (a domain depends on another only when its own model is expressed in
-the upstream's terms) is a judgement, so review enforces it, not this lint.
+Whether a domain's model is genuinely expressed in an upstream's terms is a
+judgement, so review enforces it, not this lint.
 """
 
 from collections import defaultdict
@@ -54,16 +54,27 @@ class Kind(StrEnum):
 
 @unique
 class Rule(StrEnum):
-    INWARD = "rule 1"
-    UPSTREAM = "rule 2"
-    INJECTION = "rule 4"
-    WIRING_AT_ROOTS = "rule 5"
-    LAUNCHER = "rule 6"
-    KERNEL = "kernel constraint"
-    TECHNICAL_LIBRARY = "technical-library constraint"
-    VERIFIER = "verifier constraint"
-    TEST_SUPPORT = "test-support check"
-    DECLARATION = "declaration check"
+    INWARD = "a domain depends only on the kernel and upstream domains"
+    UPSTREAM = (
+        "a context depends only on a platform context or a shared context "
+        "declaring it, without a cycle"
+    )
+    INJECTION = (
+        "an adapter depends on no other context's adapter or composition "
+        "root; inject its port at a composition root"
+    )
+    WIRING_AT_ROOTS = "a composition root depends on no other composition root"
+    LAUNCHER = (
+        "the launcher depends only on the kernel, platform contexts and "
+        "technical libraries"
+    )
+    KERNEL = "the kernel depends on no workspace crate"
+    TECHNICAL_LIBRARY = (
+        "a technical library depends only on the kernel and technical libraries"
+    )
+    VERIFIER = "only the launcher depends on the bootstrap verifier"
+    TEST_SUPPORT = "test support is a dev-dependency only"
+    DECLARATION = "malformed role declaration"
 
 
 @dataclass(frozen=True)
@@ -472,11 +483,11 @@ def findings(packages: list[Package]) -> list[Finding]:
 
 @task
 def check(context: Context) -> None:
-    """Fail if any crate dependency breaks ADR-0069's rules."""
+    """Fail if any crate dependency breaks the injection rules."""
     offenders = findings(workspace_packages())
     if offenders:
         raise Exit(
-            "Crate dependencies break ADR-0069's rules "
+            "Crate dependencies break the injection rules "
             "(see [package.metadata.accelerator] in each Cargo.toml):\n  "
             + "\n  ".join(map(str, offenders)),
             code=1,

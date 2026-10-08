@@ -646,7 +646,7 @@ depends = ["deps:install:python"]
 run = "invoke lint.config-test-support.check"
 
 [tasks."lint:crate-dependencies:check"]
-description = "Hold every cli/ crate's normal and build dependencies to ADR-0069's rules, read from each manifest's [package.metadata.accelerator] role declaration"
+description = "Hold every cli/ crate's normal and build dependencies to the injection rules, read from each manifest's [package.metadata.accelerator] role declaration"
 depends = ["deps:install:python"]
 run = "invoke lint.crate-dependencies.check"
 

@@ -1,4 +1,4 @@
-"""Tests for the ADR-0069 crate-dependency lint in
+"""Tests for the crate-dependency lint in
 ``tasks/lint/crate_dependencies.py``.
 
 Synthetic ``cargo metadata`` packages exercise every rule, constraint and
@@ -10,6 +10,7 @@ import pytest
 from invoke import Context, Exit
 
 from tasks.lint import crate_dependencies
+from tasks.lint.crate_dependencies import Finding, Rule
 from tasks.shared.cargo_metadata import workspace_packages
 
 Package = dict
@@ -95,25 +96,37 @@ def _declaration_findings(*packages: Package) -> list[str]:
     "target", ["document", "config-adapters", "work-cli", "launcher"]
 )
 def test_a_domain_crate_reaches_only_kernel_and_domains(target) -> None:
-    assert _findings(("work", target)) == [f"work -> {target}: rule 1"]
+    assert _findings(("work", target)) == [f"work -> {target}: {Rule.INWARD}"]
 
 
 @pytest.mark.parametrize("source", ["work", "corpus-adapters"])
 def test_nothing_depends_on_a_product_context(source) -> None:
-    assert _findings((source, "research")) == [f"{source} -> research: rule 2"]
+    assert _findings((source, "research")) == [
+        f"{source} -> research: {Rule.UPSTREAM}"
+    ]
+
+
+def test_a_finding_names_the_rule_it_breaks_in_words() -> None:
+    finding = Finding("jira-client", Rule.INJECTION, "corpus-adapters")
+
+    assert str(finding) == (
+        "jira-client -> corpus-adapters: an adapter depends on no other "
+        "context's adapter or composition root; inject its port at a "
+        "composition root"
+    )
 
 
 def test_two_platform_contexts_in_a_cycle_are_reported() -> None:
     assert _findings(
         ("config-adapters", "vcs"), ("vcs-adapters", "config")
     ) == [
-        "config-adapters -> vcs: rule 2 (cycle among config, vcs)",
-        "vcs-adapters -> config: rule 2 (cycle among config, vcs)",
+        f"config-adapters -> vcs: {Rule.UPSTREAM} (cycle among config, vcs)",
+        f"vcs-adapters -> config: {Rule.UPSTREAM} (cycle among config, vcs)",
     ]
 
 
 def test_three_platform_contexts_in_a_cycle_are_reported() -> None:
-    cycle = "rule 2 (cycle among config, corpus, vcs)"
+    cycle = f"{Rule.UPSTREAM} (cycle among config, corpus, vcs)"
     assert _findings(
         ("config", "vcs"), ("vcs-adapters", "corpus"), ("corpus", "config")
     ) == [
@@ -126,13 +139,13 @@ def test_three_platform_contexts_in_a_cycle_are_reported() -> None:
 @pytest.mark.parametrize("kind", [None, "build"])
 def test_an_adapter_never_reaches_another_contexts_adapter(kind) -> None:
     assert _findings(("work-adapters", "vcs-adapters", kind)) == [
-        "work-adapters -> vcs-adapters: rule 4"
+        f"work-adapters -> vcs-adapters: {Rule.INJECTION}"
     ]
 
 
 def test_an_adapter_never_reaches_a_composition_root() -> None:
     assert _findings(("work-adapters", "work-cli")) == [
-        "work-adapters -> work-cli: rule 4"
+        f"work-adapters -> work-cli: {Rule.INJECTION}"
     ]
 
 
@@ -145,37 +158,41 @@ def test_an_adapter_never_reaches_a_composition_root() -> None:
     ],
 )
 def test_no_composition_root_depends_on_another(source, target) -> None:
-    assert _findings((source, target)) == [f"{source} -> {target}: rule 5"]
+    assert _findings((source, target)) == [
+        f"{source} -> {target}: {Rule.WIRING_AT_ROOTS}"
+    ]
 
 
 @pytest.mark.parametrize("target", ["tracker", "tracker-support", "work"])
 def test_the_launcher_reaches_only_platform_contexts(target) -> None:
-    assert _findings(("launcher", target)) == [f"launcher -> {target}: rule 6"]
+    assert _findings(("launcher", target)) == [
+        f"launcher -> {target}: {Rule.LAUNCHER}"
+    ]
 
 
 def test_kernel_depends_on_no_workspace_crate() -> None:
     assert _findings(("kernel", "config")) == [
-        "kernel -> config: kernel constraint"
+        f"kernel -> config: {Rule.KERNEL}"
     ]
 
 
 @pytest.mark.parametrize("target", ["config", "config-adapters"])
 def test_a_technical_library_reaches_only_kernel_and_libraries(target) -> None:
     assert _findings(("document", target)) == [
-        f"document -> {target}: technical-library constraint"
+        f"document -> {target}: {Rule.TECHNICAL_LIBRARY}"
     ]
 
 
 def test_only_the_launcher_depends_on_the_bootstrap_verifier() -> None:
     assert _findings(("work-cli", "verify")) == [
-        "work-cli -> verify: verifier constraint"
+        f"work-cli -> verify: {Rule.VERIFIER}"
     ]
 
 
 @pytest.mark.parametrize("kind", [None, "build"])
 def test_nothing_ships_a_dependency_on_test_support(kind) -> None:
     assert _findings(("work-adapters", "vcs-test-support", kind)) == [
-        "work-adapters -> vcs-test-support: test-support check"
+        f"work-adapters -> vcs-test-support: {Rule.TEST_SUPPORT}"
     ]
 
 
@@ -226,9 +243,9 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
     assert _findings(
         ("research", "tracker"), ("research-adapters", "tracker-support")
     ) == [
-        "research -> tracker: rule 2",
-        "research-adapters -> tracker-support: rule 2",
-        "research-adapters -> tracker-support: rule 4",
+        f"research -> tracker: {Rule.UPSTREAM}",
+        f"research-adapters -> tracker-support: {Rule.UPSTREAM}",
+        f"research-adapters -> tracker-support: {Rule.INJECTION}",
     ]
 
 
@@ -237,29 +254,29 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
     [
         (
             [_crate("store")],
-            "store: declaration check (no role declared)",
+            f"store: {Rule.DECLARATION} (no role declared)",
         ),
         (
             [_crate("store", "service")],
-            "store: declaration check (unrecognised role 'service')",
+            f"store: {Rule.DECLARATION} (unrecognised role 'service')",
         ),
         (
             [_crate("work", "domain", kind="product")],
-            "work: declaration check (role 'domain' needs a context)",
+            f"work: {Rule.DECLARATION} (role 'domain' needs a context)",
         ),
         (
             [_crate("work", "domain", context="work")],
-            "work: declaration check (context 'work' declares no kind)",
+            f"work: {Rule.DECLARATION} (context 'work' declares no kind)",
         ),
         (
             [_crate("work", "domain", context="work", kind="core")],
-            "work: declaration check (unrecognised kind 'core')",
+            f"work: {Rule.DECLARATION} (unrecognised kind 'core')",
         ),
         (
             [
                 _crate("tracker", "domain", context="tracker", kind="shared"),
             ],
-            "tracker: declaration check (shared context 'tracker' declares "
+            f"tracker: {Rule.DECLARATION} (shared context 'tracker' declares "
             "no downstreams)",
         ),
         (
@@ -272,7 +289,7 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
                     downstreams=["vcs"],
                 )
             ],
-            "vcs: declaration check (only a shared context's domain crate "
+            f"vcs: {Rule.DECLARATION} (only a shared context's domain crate "
             "declares downstreams)",
         ),
         (
@@ -285,17 +302,17 @@ def test_an_undeclared_downstream_may_not_build_on_a_shared_context() -> None:
                     downstreams=["billing"],
                 )
             ],
-            "tracker: declaration check (downstream 'billing' is not a "
+            f"tracker: {Rule.DECLARATION} (downstream 'billing' is not a "
             "context)",
         ),
         (
             [_crate("document", "technical-library", context="corpus")],
-            "document: declaration check (role 'technical-library' carries "
+            f"document: {Rule.DECLARATION} (role 'technical-library' carries "
             "no context)",
         ),
         (
             [_crate("document", "technical-library", kind="platform")],
-            "document: declaration check (role 'technical-library' carries "
+            f"document: {Rule.DECLARATION} (role 'technical-library' carries "
             "no context)",
         ),
     ],
@@ -309,9 +326,9 @@ def test_conflicting_kinds_for_one_context_are_reported() -> None:
         _crate("jira-client", "adapter", context="jira", kind="product"),
         _crate("jira-sync", "adapter", context="jira", kind="platform"),
     ) == [
-        "jira-client: declaration check (context 'jira' declares conflicting "
+        f"jira-client: {Rule.DECLARATION} (context 'jira' declares conflicting "
         "kinds platform, product)",
-        "jira-sync: declaration check (context 'jira' declares conflicting "
+        f"jira-sync: {Rule.DECLARATION} (context 'jira' declares conflicting "
         "kinds platform, product)",
     ]
 
@@ -320,7 +337,7 @@ def test_every_adapter_of_a_domainless_context_declares_its_kind() -> None:
     assert _declaration_findings(
         _crate("jira-client", "adapter", context="jira", kind="product"),
         _crate("jira-sync", "adapter", context="jira"),
-    ) == ["jira-sync: declaration check (context 'jira' declares no kind)"]
+    ) == [f"jira-sync: {Rule.DECLARATION} (context 'jira' declares no kind)"]
 
 
 def test_a_context_with_a_domain_crate_declares_its_kind_there() -> None:
@@ -328,7 +345,7 @@ def test_a_context_with_a_domain_crate_declares_its_kind_there() -> None:
         _crate("config", "domain", context="config", kind="platform"),
         _crate("config-adapters", "adapter", context="config", kind="platform"),
     ) == [
-        "config-adapters: declaration check (kind belongs on context "
+        f"config-adapters: {Rule.DECLARATION} (kind belongs on context "
         "'config''s domain crate)"
     ]
 
@@ -346,8 +363,8 @@ def test_check_names_every_finding(monkeypatch) -> None:
     with pytest.raises(Exit) as raised:
         crate_dependencies.check(Context())
 
-    assert "work -> document: rule 1" in str(raised.value.message)
-    assert "launcher -> tracker: rule 6" in str(raised.value.message)
+    assert f"work -> document: {Rule.INWARD}" in str(raised.value.message)
+    assert f"launcher -> tracker: {Rule.LAUNCHER}" in str(raised.value.message)
 
 
 _PLATFORM = "platform"
