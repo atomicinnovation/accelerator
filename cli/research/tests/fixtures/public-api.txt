@@ -989,7 +989,7 @@ pub research::sources::request::RequestError::MalformedOpenAlexId(alloc::string:
 pub research::sources::request::RequestError::MissingId
 pub research::sources::request::RequestError::MissingQuery
 pub research::sources::request::RequestError::TicketMalformed(alloc::string::String)
-pub research::sources::request::RequestError::TicketNotQueued(research::sources::request::Family)
+pub research::sources::request::RequestError::TicketNotQueued
 pub research::sources::request::RequestError::UnknownFamily(alloc::string::String)
 pub research::sources::request::RequestError::UnknownVerb(alloc::string::String)
 impl core::clone::Clone for research::sources::request::RequestError

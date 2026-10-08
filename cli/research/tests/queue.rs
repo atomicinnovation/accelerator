@@ -218,7 +218,7 @@ fn a_ticket_on_an_openalex_call_is_not_queued() {
     let refused =
         parse_ticket(Family::OpenAlex, Some("42-9f1c2a")).expect_err("refused");
 
-    assert_eq!(refused, RequestError::TicketNotQueued(Family::OpenAlex));
+    assert_eq!(refused, RequestError::TicketNotQueued);
     assert_eq!(
         refused.to_string(),
         "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches"

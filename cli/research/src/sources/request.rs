@@ -24,7 +24,7 @@ pub enum RequestError {
     MalformedArxivId(String),
     MalformedOpenAlexId(String),
     TicketMalformed(String),
-    TicketNotQueued(Family),
+    TicketNotQueued,
 }
 
 impl fmt::Display for RequestError {
@@ -69,7 +69,7 @@ impl fmt::Display for RequestError {
                 "E_ARXIV_TICKET_MALFORMED: expected a ticket such as \
                  42-9f1c2a (got '{ticket}')"
             ),
-            Self::TicketNotQueued(_) => formatter.write_str(
+            Self::TicketNotQueued => formatter.write_str(
                 "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches",
             ),
         }
@@ -92,7 +92,7 @@ pub fn parse_ticket(
         return Ok(None);
     };
     if family != Family::Arxiv {
-        return Err(RequestError::TicketNotQueued(family));
+        return Err(RequestError::TicketNotQueued);
     }
     Ticket::parse(raw).map(Some)
 }
