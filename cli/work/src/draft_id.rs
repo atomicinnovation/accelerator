@@ -10,11 +10,6 @@ pub const ALPHABET: &[u8; 32] = b"0123456789abcdefghjkmnpqrstvwxyz";
 
 const MINT_ATTEMPTS: usize = 16;
 
-const fn is_crockford_character(c: char) -> bool {
-    c.is_ascii_digit()
-        || (c.is_ascii_lowercase() && !matches!(c, 'i' | 'l' | 'o' | 'u'))
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DraftId(String);
 
@@ -23,12 +18,7 @@ impl DraftId {
 
     #[must_use]
     pub fn parse(raw: &str) -> Option<Self> {
-        let canonical = raw.to_ascii_lowercase();
-        let suffix = canonical.strip_prefix(Self::PREFIX)?;
-        let well_formed = suffix.len() == SUFFIX_LENGTH
-            && suffix.chars().all(is_crockford_character)
-            && suffix.chars().any(|c| c.is_ascii_alphabetic());
-        well_formed.then_some(Self(canonical))
+        corpus::canonical_draft_id(raw).map(Self)
     }
 
     #[must_use]

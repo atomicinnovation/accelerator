@@ -147,11 +147,17 @@ impl WorkItemIdScheme {
 
     /// Validates and normalises a work-item-ID from any source. A prefixed form
     /// passes through verbatim; bare digits gain the configured project code.
+    /// Under tracker ownership only a tracker key or a draft ID is an ID.
     #[must_use]
     pub fn normalise_id(&self, raw: &str) -> Option<String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
             return None;
+        }
+        if self.ownership() == IdOwnership::Tracker {
+            return canonical_draft_id(trimmed).or_else(|| {
+                is_tracker_key(trimmed).then(|| trimmed.to_owned())
+            });
         }
         if let Some((prefix, digits)) = trimmed.split_once('-') {
             if prefix.is_empty()
@@ -276,6 +282,26 @@ pub const TRACKER_TOKEN: &str = "{tracker}";
 pub enum IdOwnership {
     Local,
     Tracker,
+}
+
+const DRAFT_PREFIX: &str = "draft-";
+const DRAFT_SUFFIX_LENGTH: usize = 6;
+
+const fn is_crockford_character(c: char) -> bool {
+    c.is_ascii_digit()
+        || (c.is_ascii_lowercase() && !matches!(c, 'i' | 'l' | 'o' | 'u'))
+}
+
+/// The lowercase form of `token` when it is a draft ID: `draft-` and six
+/// lowercase Crockford base-32 characters, at least one a letter.
+#[must_use]
+pub fn canonical_draft_id(token: &str) -> Option<String> {
+    let canonical = token.to_ascii_lowercase();
+    let suffix = canonical.strip_prefix(DRAFT_PREFIX)?;
+    let well_formed = suffix.len() == DRAFT_SUFFIX_LENGTH
+        && suffix.chars().all(is_crockford_character)
+        && suffix.chars().any(|c| c.is_ascii_alphabetic());
+    well_formed.then_some(canonical)
 }
 
 /// True iff `token` is shaped like a Jira key or Linear identifier:
@@ -419,9 +445,9 @@ fn is_project_prefixed(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_key_token, is_tracker_key, references_key, validate_id_pattern,
-        IdOwnership, IdPatternError, IdScan, IdScanner, WorkItemIdScheme,
-        TRACKER_TOKEN,
+        canonical_draft_id, is_key_token, is_tracker_key, references_key,
+        validate_id_pattern, IdOwnership, IdPatternError, IdScan, IdScanner,
+        WorkItemIdScheme, TRACKER_TOKEN,
     };
 
     fn scheme_of(id_pattern: &str) -> WorkItemIdScheme {
@@ -492,6 +518,42 @@ mod tests {
         assert!(!is_tracker_key("1PP-760"));
         assert!(!is_tracker_key("PP-76a"));
         assert!(!is_tracker_key("draft-k7mq3x"));
+    }
+
+    #[test]
+    fn a_draft_id_canonicalises_to_lowercase() {
+        assert_eq!(
+            canonical_draft_id("Draft-K7MQ3X").as_deref(),
+            Some("draft-k7mq3x")
+        );
+        assert_eq!(canonical_draft_id("draft-k7mq3"), None);
+        assert_eq!(canonical_draft_id("draft-123456"), None);
+        assert_eq!(canonical_draft_id("draft-k7mq3i"), None);
+        assert_eq!(canonical_draft_id("PP-760"), None);
+    }
+
+    #[test]
+    fn a_tracker_scheme_normalises_tracker_keys_and_draft_ids() {
+        let tracker = scheme_of(TRACKER_TOKEN);
+
+        assert_eq!(
+            tracker.normalise_id("MY_PROJ-7").as_deref(),
+            Some("MY_PROJ-7")
+        );
+        assert_eq!(
+            tracker.normalise_id(" ABC2-15 ").as_deref(),
+            Some("ABC2-15")
+        );
+        assert_eq!(
+            tracker.normalise_id("Draft-K7MQ3X").as_deref(),
+            Some("draft-k7mq3x")
+        );
+        assert_eq!(tracker.normalise_id("0042"), None);
+        assert_eq!(WorkItemIdScheme::numeric().normalise_id("MY_PROJ-7"), None);
+        assert_eq!(
+            WorkItemIdScheme::numeric().normalise_id("draft-k7mq3x"),
+            None
+        );
     }
 
     #[test]
