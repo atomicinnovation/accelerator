@@ -1057,3 +1057,65 @@ fn print_schema_emits_every_row_with_its_template() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+/// One fixture per violation class, plus the frontmatter root shapes the
+/// validator cannot read as a mapping.
+fn frontmatter_corpus() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/frontmatter-corpus")
+}
+
+fn expected_corpus_report(report: &str, root: &Path) -> String {
+    report.replace("<CORPUS>", &root.display().to_string())
+}
+
+fn corpus_with_every_violation(
+    tag: &str,
+) -> Result<(tempfile::TempDir, PathBuf), TestError> {
+    let dir = tempdir(tag)?;
+    let root = canonical_root(&dir)?;
+    repo(&root)?;
+    copy_tree(&frontmatter_corpus(), &root)?;
+    Ok((dir, root))
+}
+
+#[test]
+fn a_whole_corpus_default_run_reports_every_violation_sorted_by_file(
+) -> Result<(), TestError> {
+    let (_dir, root) = corpus_with_every_violation("every-violation")?;
+
+    let output = run(&root, &["frontmatter", "validate"])?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        stderr(&output),
+        expected_corpus_report(
+            include_str!("fixtures/frontmatter-corpus-default.stderr"),
+            &root
+        )
+    );
+    Ok(())
+}
+
+#[test]
+fn a_whole_corpus_references_run_skips_every_ineligible_file(
+) -> Result<(), TestError> {
+    let (_dir, root) = corpus_with_every_violation("every-violation-refs")?;
+
+    let output = run(
+        &root,
+        &["frontmatter", "validate", "--checks", "references"],
+    )?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        stderr(&output),
+        expected_corpus_report(
+            include_str!("fixtures/frontmatter-corpus-references.stderr"),
+            &root
+        )
+    );
+    Ok(())
+}

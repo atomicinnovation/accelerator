@@ -14,7 +14,6 @@ use std::process;
 
 const HELP_SENTINEL: &str = "ACCELERATOR_FIXTURE_HELP_SENTINEL";
 const READY_SENTINEL: &str = "ACCELERATOR_FIXTURE_READY";
-const TRACKING_ANSWER: &str = "ACCELERATOR_FIXTURE_VCS_TRACKING";
 
 fn main() {
     // args_os so a non-UTF-8 forwarded argument does not panic.
@@ -30,7 +29,6 @@ fn main() {
         Some("block-on-sigterm") => block_until_signalled(),
         Some("print-help-sentinel") => println!("{HELP_SENTINEL}"),
         Some("write-args-to") => write_forwarded_args(&args),
-        Some("tracking") => answer_tracking(),
         other => {
             eprintln!("accelerator-fixture: unknown behaviour {other:?}");
             process::exit(1);
@@ -46,24 +44,6 @@ fn block_until_signalled() -> ! {
     let _ = std::io::stdout().flush();
     loop {
         std::thread::sleep(std::time::Duration::from_secs(3600));
-    }
-}
-
-/// Impersonates `vcs tracking`, answering as `ACCELERATOR_FIXTURE_VCS_TRACKING`
-/// says: `tracked`, `untracked` (the default), `fail` or `hang`.
-fn answer_tracking() {
-    let answer = std::env::var(TRACKING_ANSWER).unwrap_or_default();
-    match answer.as_str() {
-        "tracked" => println!("{}", kernel::TrackingAnswer::Tracked),
-        "" | "untracked" => println!("{}", kernel::TrackingAnswer::Untracked),
-        "fail" => process::exit(1),
-        "hang" => loop {
-            std::thread::sleep(std::time::Duration::from_secs(3600));
-        },
-        other => {
-            eprintln!("accelerator-fixture: unknown tracking answer {other:?}");
-            process::exit(1);
-        }
     }
 }
 

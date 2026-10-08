@@ -15,9 +15,11 @@ Four invariants, each guarding a distinct failure:
   second version exists, not that gix is pinned to 0.85.x specifically — the
   version constraint the whole-graph ban cannot express.
 * Features. The six the adapter's calls need must be on; the network client and
-  credentials families must be off. Feature absence — not crate absence — is
-  what keeps gix-transport and gix-protocol inert: both ARE in the graph via
-  jj-lib's defaults, so banning them by name would fail deny:check outright.
+  credentials families must be off, in the adapter's graph and in the
+  launcher's, which links the adapter and resolves gix's features afresh.
+  Feature absence — not crate absence — is what keeps gix-transport and
+  gix-protocol inert: both ARE in the graph via jj-lib's defaults, so banning
+  them by name would fail deny:check outright.
 * MSRV. Asserted directly rather than trusting resolver 3's
   incompatible-rust-versions = "fallback", which is a *preference*, not a hard
   constraint — without the gix/jj-lib trees the graph selects kstring 2.0.4,
@@ -49,6 +51,7 @@ _CLI_LOCK = _CLI / "Cargo.lock"
 _CARGO = shutil.which("cargo")
 
 _PACKAGE = "vcs-adapters"
+_GIX_LINKING_PACKAGES = (_PACKAGE, "accelerator")
 
 # The gix release line jj-lib 0.43 requires, and the exact jj-lib pin.
 _GIX_VERSION = re.compile(r"^0\.85\.\d+$")
@@ -157,9 +160,9 @@ def _require_cargo() -> None:
         pytest.skip("cargo not on PATH")
 
 
-def _feature_tree(target: str | None = None) -> str:
+def _feature_tree(target: str | None = None, package: str = _PACKAGE) -> str:
     _require_cargo()
-    command = ["cargo", "tree", "-e", "features", "-p", _PACKAGE]
+    command = ["cargo", "tree", "-e", "features", "-p", package]
     if target is not None:
         command += ["--target", target]
     result = subprocess.run(
@@ -292,24 +295,32 @@ def test_required_gix_feature_is_enabled(feature: str) -> None:
     )
 
 
+@pytest.mark.parametrize("package", _GIX_LINKING_PACKAGES)
 @pytest.mark.parametrize("feature", _FEATURES_ABSENT)
-def test_prohibited_gix_feature_is_disabled(feature: str) -> None:
-    enabled = _gix_features(_feature_tree())
-    assert feature not in enabled, f"gix feature {feature!r} is unexpectedly on"
+def test_prohibited_gix_feature_is_disabled(feature: str, package: str) -> None:
+    enabled = _gix_features(_feature_tree(package=package))
+    assert feature not in enabled, (
+        f"gix feature {feature!r} is unexpectedly on for {package}"
+    )
 
 
-def test_no_http_transport_feature_is_enabled() -> None:
+@pytest.mark.parametrize("package", _GIX_LINKING_PACKAGES)
+def test_no_http_transport_feature_is_enabled(package: str) -> None:
     offenders = sorted(
         feature
-        for feature in _gix_features(_feature_tree())
+        for feature in _gix_features(_feature_tree(package=package))
         if feature.startswith(_FEATURE_PREFIXES_ABSENT)
     )
-    assert not offenders, f"http transport features enabled: {offenders}"
+    assert not offenders, (
+        f"http transport features enabled for {package}: {offenders}"
+    )
 
 
-def test_the_feature_assertion_is_not_vacuous() -> None:
+@pytest.mark.parametrize("package", _GIX_LINKING_PACKAGES)
+def test_the_feature_assertion_is_not_vacuous(package: str) -> None:
     # A tree that parsed to nothing would pass every absence assertion above.
-    assert len(_gix_features(_feature_tree())) >= len(_FEATURES_PRESENT)
+    enabled = _gix_features(_feature_tree(package=package))
+    assert len(enabled) >= len(_FEATURES_PRESENT)
 
 
 # --- No TLS stack in the subtree, on every target deny.toml evaluates ---

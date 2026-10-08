@@ -237,6 +237,52 @@ pub trait MigrationContext {
         ))
     }
 
+    /// The value of `content`'s frontmatter, whatever its root; unfenced or
+    /// empty frontmatter is an empty mapping. Only migrations 0001 and 0008
+    /// call this.
+    ///
+    /// # Errors
+    /// [`MigrationError`] for an unterminated fence, invalid YAML or a tagged
+    /// node, or when this context does not implement frontmatter parsing.
+    fn parse_frontmatter(
+        &self,
+        _content: &str,
+    ) -> Result<corpus::FrontmatterValue, MigrationError> {
+        Err(MigrationError::new(
+            "parse_frontmatter is not implemented by this context",
+        ))
+    }
+
+    /// The raw text between `content`'s fences, whatever its root; empty for
+    /// unfenced content. Only migration 0008 calls this.
+    ///
+    /// # Errors
+    /// [`MigrationError`] for an unterminated fence, or when this context
+    /// does not implement frontmatter splitting.
+    fn frontmatter_text(
+        &self,
+        _content: &str,
+    ) -> Result<String, MigrationError> {
+        Err(MigrationError::new(
+            "frontmatter_text is not implemented by this context",
+        ))
+    }
+
+    /// `content` with its frontmatter re-rendered through the canonical
+    /// emitter. Only migration 0008 calls this.
+    ///
+    /// # Errors
+    /// [`MigrationError`] when the frontmatter cannot be parsed or rendered,
+    /// or this context does not implement canonical rendering.
+    fn render_canonical(
+        &self,
+        _content: &str,
+    ) -> Result<String, MigrationError> {
+        Err(MigrationError::new(
+            "render_canonical is not implemented by this context",
+        ))
+    }
+
     /// Recomputes the `/sync-work-items` change-detection baseline for every
     /// tracked item that was `Synced` before this run, so a whole-corpus
     /// re-render does not spuriously reclassify content-identical items as
@@ -371,25 +417,20 @@ pub trait ManifestStore {
     fn clear(&self) -> Result<(), MigrationError>;
 }
 
-/// The session-log-to-canonical-format cutover's one whole-file rewrite.
-///
-/// Distinct from `corpus::RecordStore` (which the session log itself is —
-/// migrations append/remove through it directly): this is the one-time,
-/// unconditional re-canonicalisation that must land in the *same* critical
-/// section a concurrent `append_record`/`remove_by_key` call would take, so
-/// it participates in the same lock rather than racing it. Parsing and
-/// re-composing the JSONL bytes is necessarily adapter-side work — `migrate`
-/// carries no JSON dependency — so, unlike every other port here, the
-/// implementation reads the current file itself rather than being handed
-/// bytes to write; the domain engine only decides *when* to call it (once
-/// per run, at first access).
-pub trait SessionLogRewriter {
-    /// A no-op when `path` does not exist yet.
+/// Realigns every integration's sync baseline under one integrations root
+/// after a whole-corpus re-render.
+pub trait SyncBaselines {
+    /// `pre_migration` carries each re-rendered `meta/` file's original
+    /// content. Returns the number of realigned entries.
     ///
     /// # Errors
-    /// [`MigrationError`] when a record fails validation (the file is left
-    /// byte-unchanged) or the write itself fails.
-    fn cutover(&self, path: &Path) -> Result<(), MigrationError>;
+    /// [`MigrationError`] when the root cannot be listed or a baseline cannot
+    /// be read or written.
+    fn realign(
+        &self,
+        integrations_root: &Path,
+        pre_migration: &[(PathBuf, String)],
+    ) -> Result<usize, MigrationError>;
 }
 
 /// One migration's interactive session log, bound to its own path at
@@ -422,7 +463,7 @@ pub trait SessionLog {
 /// this is what binds a fresh [`SessionLog`] to the right one for a given
 /// migration id.
 pub trait SessionLogFactory {
-    fn for_migration(&self, id: &str) -> Box<dyn SessionLog>;
+    fn for_migration(&self, id: &str) -> Box<dyn SessionLog + '_>;
 }
 
 /// `Eof` is distinct from `Timeout`.

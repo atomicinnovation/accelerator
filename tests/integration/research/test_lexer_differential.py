@@ -271,7 +271,7 @@ def _shells() -> list[str]:
 @pytest.fixture
 def harness(tmp_path: Path) -> Iterator[Harness]:
     assert GUARD.is_file(), (
-        f"{GUARD} is absent; build it (build:cli:dev) before this lane"
+        f"{GUARD} is absent; build it (build:cli:research:dev) before this lane"
     )
     stub_dir = tmp_path / "stub"
     stub_dir.mkdir()

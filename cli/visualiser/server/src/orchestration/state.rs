@@ -97,7 +97,7 @@ impl StateDir {
         let _ = std::fs::remove_file(self.stopped_path());
     }
 
-    /// Remove leaked atomic-write temp files (`store::TEMP_PREFIX`) left in the
+    /// Remove leaked atomic-write temp files (`kernel::TEMP_PREFIX`) left in the
     /// state dir by a crashed writer. Confined to this visualiser-exclusive
     /// directory and only ever called once no live server has been confirmed.
     pub fn clean_stale_temps(&self) {
@@ -108,7 +108,7 @@ impl StateDir {
             if entry
                 .file_name()
                 .to_string_lossy()
-                .starts_with(store::TEMP_PREFIX)
+                .starts_with(kernel::TEMP_PREFIX)
             {
                 let _ = std::fs::remove_file(entry.path());
             }

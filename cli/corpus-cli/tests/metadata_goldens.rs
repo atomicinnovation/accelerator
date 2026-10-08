@@ -294,3 +294,71 @@ fn outside_a_repository_the_provenance_lines_are_omitted(
     assert!(!block.contains("Repository Name:"));
     Ok(())
 }
+
+fn revision_of(block: &str) -> Option<&str> {
+    block
+        .lines()
+        .find_map(|line| line.strip_prefix("Current Revision: "))
+}
+
+#[test]
+fn a_git_revision_is_the_checked_out_commit() -> Result<(), TestError> {
+    let work = tempdir("git-revision")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.git(&["init", "--quiet"], &repo)?;
+    fs::write(repo.join("README.md"), "fixture\n")?;
+    env.git(&["add", "--all"], &repo)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &repo)?;
+    let head = env.git(&["rev-parse", "HEAD"], &repo)?;
+
+    let block = derive_in(&repo, &env)?;
+
+    assert_eq!(revision_of(&block), Some(head.as_str()), "{block}");
+    Ok(())
+}
+
+#[test]
+fn a_jj_revision_is_the_working_copy_commit() -> Result<(), TestError> {
+    let work = tempdir("jj-revision")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.jj(&["git", "init", "--no-colocate"], &repo)?;
+    fs::write(repo.join("README.md"), "fixture\n")?;
+    env.jj(&["commit", "-m", "init"], &repo)?;
+    let working_copy = env.jj(
+        &[
+            "--ignore-working-copy",
+            "log",
+            "--no-graph",
+            "-r",
+            "@",
+            "-T",
+            "commit_id",
+        ],
+        &repo,
+    )?;
+
+    let block = derive_in(&repo, &env)?;
+
+    assert_eq!(revision_of(&block), Some(working_copy.as_str()), "{block}");
+    Ok(())
+}
+
+#[test]
+fn a_git_repository_before_its_first_commit_has_no_revision(
+) -> Result<(), TestError> {
+    let work = tempdir("git-unborn")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repo = work.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    env.git(&["init", "--quiet"], &repo)?;
+
+    let block = derive_in(&repo, &env)?;
+
+    assert!(!block.contains("Current Revision:"), "{block}");
+    assert!(block.contains("\nRepository Name: repo\n"), "{block}");
+    Ok(())
+}

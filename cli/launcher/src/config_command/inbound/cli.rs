@@ -8,7 +8,9 @@
 //! regardless of `--fail-safe`, so a bad `work.integration` enum is never
 //! papered over into empty-and-exit-0.
 
-use config::{ConfigError, EjectOutcome, Key, Level, TemplateSource};
+use config::{
+    catalogue, ConfigError, EjectOutcome, Key, Level, TemplateSource,
+};
 
 use crate::config_command::core::context::{self as context_core, SkillFile};
 use crate::config_command::core::review::{self as review_view, Mode};
@@ -306,12 +308,7 @@ pub fn summary(
     let body = summary_render::body(&summary);
     let stdout = match (body, hook) {
         (None, false) => String::new(),
-        (None, true)
-            if warnings.session.is_empty()
-                && warnings.context_notes.is_empty() =>
-        {
-            String::new()
-        }
+        (None, true) if warnings.session.is_empty() => String::new(),
         (Some(text), false) => format!("{text}\n"),
         (text, true) => format!(
             "{}\n",
@@ -325,12 +322,15 @@ pub fn summary(
 }
 
 fn resolve_dump(stack: &ConfigStack) -> Result<Rendered, Failure> {
-    Ok(
-        dump_view::assemble(stack.config(), stack.levels())?.map_or_else(
-            || Rendered::new(String::new()),
-            |rows| dump_render::render(&rows),
-        ),
-    )
+    Ok(dump_view::assemble(
+        stack.config(),
+        stack.levels(),
+        catalogue::TRACKERS,
+    )?
+    .map_or_else(
+        || Rendered::new(String::new()),
+        |rows| dump_render::render(&rows),
+    ))
 }
 
 fn resolve_paths(

@@ -1,6 +1,6 @@
 //! The atomic-store error taxonomy and the two driven ports the adapter
 //! implements: `AtomicWrite` for whole-file atomic replacement and
-//! `RecordStore` for canonical-order JSONL append/remove.
+//! `RecordStore` for canonical-order JSONL append, remove and read.
 
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -72,7 +72,7 @@ pub trait FileRemove {
     fn remove(&self, path: &Path) -> Result<(), StoreError>;
 }
 
-/// Canonical-order JSONL append and anchored-prefix remove-by-key.
+/// Canonical-order JSONL append, anchored-prefix remove-by-key, and read.
 pub trait RecordStore {
     /// # Errors
     /// [`StoreError`] on validation failure, lock-acquisition timeout, or I/O.
@@ -85,6 +85,14 @@ pub trait RecordStore {
     /// # Errors
     /// [`StoreError`] on lock-acquisition timeout or I/O.
     fn remove_by_key(&self, path: &Path, key: &str) -> Result<(), StoreError>;
+
+    /// Every record at `path`, in file order; an absent file has none.
+    ///
+    /// # Errors
+    /// [`StoreError::Io`] when the file cannot be read, and
+    /// [`StoreError::Validation`] when it is not UTF-8 or a line is not a
+    /// record.
+    fn read_records(&self, path: &Path) -> Result<Vec<Record>, StoreError>;
 }
 
 #[cfg(test)]

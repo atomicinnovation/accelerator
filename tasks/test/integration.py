@@ -79,8 +79,9 @@ def conformance(context: Context) -> None:
     """Producer-conformance guard: drives the real corpus validator.
 
     Runs the launcher-provisioning pytest lane with ACCELERATOR_CORPUS_BIN
-    overlaid (via ``accelerator_env(corpus_bin=True)``) and the launcher built
-    by the ``build:cli:dev`` mise dependency, so it dispatches
+    overlaid (via ``accelerator_env(corpus_bin=True)``) and the launcher and
+    sub-binary built by the ``build:cli:dev`` and ``build:cli:corpus:dev`` mise
+    dependencies, so it dispatches
     ``accelerator corpus frontmatter validate`` to the compiled sub-binary.
     """
     context.run(
@@ -95,8 +96,9 @@ def hooks(context: Context) -> None:
 
     The launcher-dispatch smoke drives the compiled accelerator-vcs through the
     real `bin/accelerator` wrapper, so it needs ACCELERATOR_VCS_BIN — the
-    vcs_bin=True overlay — and the launcher built by the build:cli:dev
-    dependency.
+    vcs_bin=True overlay — and the launcher, accelerator-vcs and
+    accelerator-research built by the build:cli:dev, build:cli:vcs:dev and
+    build:cli:research:dev dependencies.
     """
     context.run(
         "uv run pytest tests/integration/hooks -v",
@@ -113,8 +115,8 @@ def research(context: Context) -> None:
 
     Runs the measured baseline, the lexer-boundary rows, and a fixed-seed
     sample of mutants through the compiled accelerator-research built by the
-    build:cli:dev dependency, and every fetch the academic profiles show
-    through the same guard.
+    build:cli:research:dev dependency, and every fetch the academic profiles
+    show through the same guard.
     """
     context.run(_RESEARCH_DIFFERENTIAL)
 

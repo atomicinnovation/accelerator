@@ -10,8 +10,9 @@ plus a per-axis negative self-test proving the guard is wired.
 
 The launcher is resolved from `ACCELERATOR_BIN` (the integration lane sets it
 and `ACCELERATOR_CORPUS_BIN` via `accelerator_env(corpus_bin=True)`, and builds
-it via `build:cli:dev`). This lane fails rather than skips when the launcher is
-absent: a skipped conformance guard is indistinguishable from a passing one.
+them via `build:cli:dev` and `build:cli:corpus:dev`). This lane fails rather
+than skips when the launcher is absent: a skipped conformance guard is
+indistinguishable from a passing one.
 """
 
 import functools

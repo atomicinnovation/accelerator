@@ -1,14 +1,14 @@
 //! Artifact-metadata derivation.
 //!
-//! The clock adapter, the `vcs`/`vcs-adapters`-backed implementation of
+//! The clock adapter, the `vcs::RepositoryProbe`-backed implementation of
 //! `corpus::RepoFactsProbe`, and the composition of a clock and a
 //! repository probe into the block the authoring skills stamp artifacts
 //! with.
 //!
 //! [`VcsBackedRepoFactsProbe`] is the only place in this module that
-//! depends on `vcs`/`vcs-adapters` — `derive_at` takes its facts probe by
-//! injection, so a caller (or a test) can supply a double instead, and
-//! [`derive`] never sees a VCS-specific type at all.
+//! depends on `vcs` — `derive_at` takes its facts probe by injection, so a
+//! caller (or a test) can supply a double instead, and [`derive`] never sees
+//! a VCS-specific type at all.
 
 use std::fmt;
 use std::path::Path;
@@ -20,6 +20,7 @@ use corpus::FilenameTimestampFormat;
 use corpus::RepoFactsProbe;
 use corpus::RepositoryFacts;
 use time::{OffsetDateTime, UtcOffset};
+use vcs::RepositoryProbe;
 
 /// The host's UTC offset could not be resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -208,12 +209,21 @@ pub fn derive(
 /// last recorded commit. No write path here reads the revision, but the
 /// authoring skills copy the printed one into committed frontmatter, and that
 /// staleness is accepted as a best-effort provenance degradation.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct VcsBackedRepoFactsProbe;
+#[derive(Clone, Copy)]
+pub struct VcsBackedRepoFactsProbe<'a> {
+    repository: &'a dyn RepositoryProbe,
+}
 
-impl RepoFactsProbe for VcsBackedRepoFactsProbe {
+impl<'a> VcsBackedRepoFactsProbe<'a> {
+    #[must_use]
+    pub const fn new(repository: &'a dyn RepositoryProbe) -> Self {
+        Self { repository }
+    }
+}
+
+impl RepoFactsProbe for VcsBackedRepoFactsProbe<'_> {
     fn facts(&self, start: &Path) -> Option<RepositoryFacts> {
-        let facts = vcs_adapters::facts(start)?;
+        let facts = self.repository.facts_at(start)?;
         Some(RepositoryFacts {
             name: facts.name,
             revision: facts.revision,
@@ -263,12 +273,68 @@ pub fn render(
 
 #[cfg(test)]
 mod tests {
+    use std::path::{Path, PathBuf};
+
+    use corpus::{RepoFactsProbe, RepositoryFacts};
     use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
+    use vcs::{
+        RepoFacts, RepositoryProbe, VcsKind, WorkingCopyState,
+        WorkingCopyStateProbe,
+    };
 
     use super::{
         format_filename_timestamp, format_utc_iso, parse_offset,
-        FilenameTimestampFormat,
+        FilenameTimestampFormat, VcsBackedRepoFactsProbe,
     };
+
+    struct StubRepository(Option<RepoFacts>);
+
+    impl WorkingCopyStateProbe for StubRepository {
+        fn working_copy_state(
+            &self,
+            _root: &Path,
+            _kind: VcsKind,
+        ) -> Result<WorkingCopyState, kernel::Error> {
+            Ok(WorkingCopyState::default())
+        }
+    }
+
+    impl RepositoryProbe for StubRepository {
+        fn facts_at(&self, _start: &Path) -> Option<RepoFacts> {
+            self.0.clone()
+        }
+
+        fn user_name_at(&self, _start: &Path) -> Option<String> {
+            None
+        }
+    }
+
+    #[test]
+    fn the_repository_facts_carry_the_name_and_revision() {
+        let repository = StubRepository(Some(RepoFacts {
+            root: PathBuf::from("/tmp/some-repo"),
+            name: "some-repo".to_owned(),
+            kind: VcsKind::Jj,
+            revision: Some("abc123".to_owned()),
+        }));
+        let probe = VcsBackedRepoFactsProbe::new(&repository);
+
+        assert_eq!(
+            probe.facts(Path::new("/tmp/some-repo/meta")),
+            Some(RepositoryFacts {
+                name: "some-repo".to_owned(),
+                revision: Some("abc123".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn outside_a_repository_there_are_no_facts() {
+        let repository = StubRepository(None);
+        let probe = VcsBackedRepoFactsProbe::new(&repository);
+
+        assert_eq!(probe.facts(Path::new("/tmp/loose")), None);
+    }
 
     type TestError = Box<dyn std::error::Error>;
 

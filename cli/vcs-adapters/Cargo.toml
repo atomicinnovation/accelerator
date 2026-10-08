@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "adapter"
+context = "vcs"
+
 [lints]
 workspace = true
 
@@ -46,4 +50,5 @@ whoami = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tracing-subscriber = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }

@@ -40,7 +40,7 @@ impl Migration for Migration0001 {
 
         for cfg in [&config_team, &config_local] {
             if let Some(content) = ctx.read(cfg)? {
-                if document::parse(&content).is_err() {
+                if ctx.parse_frontmatter(&content).is_err() {
                     return Err(MigrationError::new(format!(
                         "Error: malformed frontmatter in {} — cannot proceed.\n\
                          Fix the config file and re-run /accelerator:migrate.",
@@ -222,8 +222,122 @@ fn rewrite_config_line(line: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::panic)]
 mod tests {
-    use super::{rewrite_config, rewrite_ticket_frontmatter};
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use super::{rewrite_config, rewrite_ticket_frontmatter, Migration0001};
+    use crate::ports::{
+        CorpusIndex, DocTypeDir, MigrationContext, MigrationError,
+    };
+    use crate::registry::Migration;
+
+    struct NoIndex;
+    impl CorpusIndex for NoIndex {
+        fn target_exists(&self, _target_type: &str, _target_id: &str) -> bool {
+            false
+        }
+    }
+
+    const UNPARSEABLE: &str = "---\nunparseable\n---\n";
+
+    struct ConfigCtx {
+        root: PathBuf,
+        files: RefCell<HashMap<PathBuf, String>>,
+        index: NoIndex,
+    }
+
+    impl ConfigCtx {
+        fn with_team_config(content: &str) -> Self {
+            let root = PathBuf::from("/repo");
+            let files = HashMap::from([(
+                root.join(".claude/accelerator.md"),
+                content.to_owned(),
+            )]);
+            Self {
+                root,
+                files: RefCell::new(files),
+                index: NoIndex,
+            }
+        }
+
+        fn team_config(&self) -> Option<String> {
+            self.files
+                .borrow()
+                .get(&self.root.join(".claude/accelerator.md"))
+                .cloned()
+        }
+    }
+
+    impl MigrationContext for ConfigCtx {
+        fn doc_type_dirs(&self) -> Vec<DocTypeDir> {
+            Vec::new()
+        }
+        fn corpus_index(&self) -> &dyn CorpusIndex {
+            &self.index
+        }
+        fn root(&self) -> &Path {
+            &self.root
+        }
+        fn write(
+            &self,
+            path: &Path,
+            content: &str,
+        ) -> Result<(), MigrationError> {
+            self.files
+                .borrow_mut()
+                .insert(path.to_path_buf(), content.to_owned());
+            Ok(())
+        }
+        fn read(&self, path: &Path) -> Result<Option<String>, MigrationError> {
+            Ok(self.files.borrow().get(path).cloned())
+        }
+        fn parse_frontmatter(
+            &self,
+            content: &str,
+        ) -> Result<corpus::FrontmatterValue, MigrationError> {
+            if content == UNPARSEABLE {
+                return Err(MigrationError::new("invalid frontmatter YAML"));
+            }
+            Ok(corpus::FrontmatterValue::Mapping(corpus::Mapping::new()))
+        }
+    }
+
+    #[test]
+    fn a_config_the_context_cannot_parse_stops_the_migration() {
+        let ctx = ConfigCtx::with_team_config(UNPARSEABLE);
+
+        let Err(error) = Migration0001.apply(&ctx) else {
+            panic!("an unparseable config must stop the migration");
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "Error: malformed frontmatter in /repo/.claude/accelerator.md — \
+             cannot proceed.\n\
+             Fix the config file and re-run /accelerator:migrate."
+        );
+        assert_eq!(ctx.team_config().as_deref(), Some(UNPARSEABLE));
+    }
+
+    #[test]
+    fn a_config_the_context_parses_is_rewritten() -> Result<(), MigrationError>
+    {
+        let ctx = ConfigCtx::with_team_config(
+            "---\npaths:\n  tickets: meta/tickets\n---\n",
+        );
+
+        Migration0001.apply(&ctx)?;
+
+        assert_eq!(
+            ctx.team_config().as_deref(),
+            Some("---\npaths:\n  work: meta/work\n---\n")
+        );
+        Ok(())
+    }
 
     #[test]
     fn renames_ticket_id_when_work_item_id_absent() {

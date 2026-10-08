@@ -182,7 +182,11 @@ impl<'a> ConfiguredTrackers<'a> {
         &self,
         body: impl FnOnce(&CredentialContext<'_>) -> T,
     ) -> T {
-        let ports = consent_adapters::credential_ports(&self.root, &self.root);
+        let ports = config_adapters::credential_ports(
+            vcs_adapters::InProcessTracking,
+            &self.root,
+            &self.root,
+        );
         let mut context = project_credential_context(
             &self.root,
             &ports,

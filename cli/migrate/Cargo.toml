@@ -6,16 +6,18 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "domain"
+context = "migrate"
+kind = "product"
+
 [lints]
 workspace = true
 
 # `corpus` because `migrate` reuses `corpus::Record`/`RecordStore`/`linkage`
 # directly throughout — its own session log is a `corpus`-typed record, not a
-# new record type. `document` because it is itself zero-infrastructure (only
-# `serde`/`serde-saphyr`, no `kernel`, no I/O), so depending on it doesn't
-# compromise this crate's own zero-infrastructure invariant. Both widenings are
-# mirrored in `cli/pup.ron`'s `migrate_domain_imports_only_permitted` rule.
+# new record type. The widening is mirrored in `cli/pup.ron`'s
+# `migrate_domain_imports_only_permitted` rule.
 [dependencies]
 corpus = { path = "../corpus" }
-document = { path = "../document" }
 kernel = { path = "../kernel" }

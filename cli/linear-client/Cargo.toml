@@ -6,6 +6,11 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "adapter"
+context = "linear"
+kind = "product"
+
 [lints]
 workspace = true
 
@@ -23,8 +28,6 @@ config = { path = "../config" }
 # primitives rather than a second implementation — the store-duplication guard
 # enforces this, and the mkdir-lock's owner.<nonce> sentinel never reclaims a
 # legacy holder.pid lock, so the two exclude safely on the shared path.
-corpus = { path = "../corpus" }
-corpus-adapters = { path = "../corpus-adapters" }
 store = { path = "../store" }
 remote-projection = { path = "../remote-projection" }
 tracker = { path = "../tracker" }

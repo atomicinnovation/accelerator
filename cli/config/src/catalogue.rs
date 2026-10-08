@@ -5,6 +5,11 @@ use crate::key::Key;
 use crate::node::Scalar;
 use crate::service::ConfigAccess;
 use crate::service::Value;
+use crate::tracker_block::BlockName;
+use crate::tracker_block::Field;
+use crate::tracker_block::FieldKind;
+use crate::tracker_block::TrackerBlock;
+use crate::tracker_block::TrackerCatalogue;
 
 pub const AGENT_PREFIX: &str = "accelerator:";
 
@@ -274,6 +279,85 @@ pub fn declared(name: &str) -> Option<&'static ExtraKey> {
 pub fn consent_keys() -> impl Iterator<Item = &'static ExtraKey> {
     EXTRA_KEYS.iter().filter(|key| key.trust != Trust::Open)
 }
+
+const MAX_ITEMS: Field = Field {
+    name: "max_items",
+    kind: FieldKind::Ceiling { allow_zero: true },
+};
+
+const MAX_PAGES: Field = Field {
+    name: "max_pages",
+    kind: FieldKind::PageCaps {
+        default: "default",
+        overrides: &["discovery", "keyed_read"],
+    },
+};
+
+const fn pull_fields(
+    entity_list: &'static str,
+    scope_flag: &'static str,
+    accepted_filters: &'static [&'static str],
+) -> [Field; 5] {
+    [
+        Field {
+            name: entity_list,
+            kind: FieldKind::EntityList,
+        },
+        Field {
+            name: scope_flag,
+            kind: FieldKind::ScopeFlag,
+        },
+        Field {
+            name: "filters",
+            kind: FieldKind::Filters {
+                accepted: accepted_filters,
+                reserved: &["all", "any"],
+            },
+        },
+        MAX_ITEMS,
+        MAX_PAGES,
+    ]
+}
+
+/// The `<tracker>.pull` and `<tracker>.push` blocks each tracker accepts.
+pub const TRACKERS: TrackerCatalogue = TrackerCatalogue(&[
+    TrackerBlock {
+        scope: "jira",
+        label: "Jira",
+        name: BlockName::Pull,
+        fields: &pull_fields(
+            "additional_projects",
+            "all_projects",
+            &["label", "state", "assignee"],
+        ),
+        mutually_exclusive: &[("all_projects", "additional_projects")],
+    },
+    TrackerBlock {
+        scope: "linear",
+        label: "Linear",
+        name: BlockName::Pull,
+        fields: &pull_fields(
+            "additional_teams",
+            "all_teams",
+            &["label", "state", "assignee", "project"],
+        ),
+        mutually_exclusive: &[("all_teams", "additional_teams")],
+    },
+    TrackerBlock {
+        scope: "jira",
+        label: "Jira",
+        name: BlockName::Push,
+        fields: &[MAX_ITEMS],
+        mutually_exclusive: &[],
+    },
+    TrackerBlock {
+        scope: "linear",
+        label: "Linear",
+        name: BlockName::Push,
+        fields: &[MAX_ITEMS],
+        mutually_exclusive: &[],
+    },
+]);
 
 pub const REVIEW_KEYS: &[(&str, Default)] = &[
     ("review.max_inline_comments", Default::Scalar("10")),

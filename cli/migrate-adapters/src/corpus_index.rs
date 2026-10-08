@@ -16,7 +16,6 @@ use std::path::PathBuf;
 
 use corpus::doc_type::DocTypeKey;
 use corpus::scan::CorpusWalker;
-use corpus_adapters::fs::RealFs;
 use migrate::ports::CorpusIndex;
 
 pub struct FileCorpusIndex {
@@ -25,10 +24,13 @@ pub struct FileCorpusIndex {
 
 impl FileCorpusIndex {
     #[must_use]
-    pub fn build(table: &[(DocTypeKey, PathBuf)]) -> Self {
+    pub fn build(
+        table: &[(DocTypeKey, PathBuf)],
+        walker: &dyn CorpusWalker,
+    ) -> Self {
         let roots: Vec<PathBuf> =
             table.iter().map(|(_, dir)| dir.clone()).collect();
-        let files = RealFs.walk_markdown(&roots).unwrap_or_default();
+        let files = walker.walk_markdown(&roots).unwrap_or_default();
         let mut targets = HashSet::new();
         for file in files {
             if let Some((kind, id)) =
@@ -56,6 +58,7 @@ impl CorpusIndex for FileCorpusIndex {
 mod tests {
     use super::FileCorpusIndex;
     use corpus::doc_type::DocTypeKey;
+    use corpus_adapters::RealFs;
     use migrate::ports::CorpusIndex as _;
     use tempfile::TempDir;
 
@@ -68,7 +71,7 @@ mod tests {
         std::fs::write(work.join("0042-foo.md"), "")?;
         let table = vec![(DocTypeKey::WorkItems, work)];
 
-        let index = FileCorpusIndex::build(&table);
+        let index = FileCorpusIndex::build(&table, &RealFs);
         assert!(index.target_exists("work-item", "0042"));
         assert!(!index.target_exists("work-item", "0099"));
         Ok(())
@@ -86,7 +89,7 @@ mod tests {
         )?;
         let table = vec![(DocTypeKey::Plans, plans)];
 
-        let index = FileCorpusIndex::build(&table);
+        let index = FileCorpusIndex::build(&table, &RealFs);
         assert!(index
             .target_exists("plan", "2026-05-13-0055-sidebar-activity-feed"));
         assert!(!index.target_exists("plan", "sidebar-activity-feed"));

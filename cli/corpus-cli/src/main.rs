@@ -15,9 +15,9 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser as _;
+use corpus::frontmatter_validation::pipeline::Checks;
 use corpus::DocTypeKey;
 use corpus::FilenameTimestampFormat;
-use corpus_adapters::frontmatter_validation::Checks;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::RealFs;
 
@@ -84,7 +84,9 @@ fn run_metadata(action: &MetadataAction) -> Result<Outcome, kernel::Error> {
             let derived = corpus_adapters::metadata::derive_at(
                 &current_dir()?,
                 format,
-                &corpus_adapters::metadata::VcsBackedRepoFactsProbe,
+                &corpus_adapters::metadata::VcsBackedRepoFactsProbe::new(
+                    &vcs_adapters::library::InProcessProbe,
+                ),
             );
             metadata::run_derive(derived, format)
         }

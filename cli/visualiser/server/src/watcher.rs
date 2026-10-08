@@ -29,10 +29,55 @@ impl Settings {
     };
 }
 
+pub trait DirectoryWatcher: Send + 'static {
+    fn watch_recursively(&mut self, dir: &Path) -> notify::Result<()>;
+}
+
+impl DirectoryWatcher for RecommendedWatcher {
+    fn watch_recursively(&mut self, dir: &Path) -> notify::Result<()> {
+        // Recursive so editor atomic-rename patterns and nested tier layouts
+        // produce events. Scope is preserved by the is_markdown filter and the
+        // canonical-path index inside the handler.
+        Watcher::watch(self, dir, RecursiveMode::Recursive)
+    }
+}
+
+pub struct EventSink(tokio::sync::mpsc::Sender<notify::Result<Event>>);
+
+impl notify::EventHandler for EventSink {
+    fn handle_event(&mut self, event: notify::Result<Event>) {
+        if self.0.try_send(event).is_err() {
+            tracing::warn!("filesystem event channel full; dropping event");
+        }
+    }
+}
+
+pub fn os_watcher(sink: EventSink) -> notify::Result<RecommendedWatcher> {
+    RecommendedWatcher::new(sink, notify::Config::default())
+}
+
+pub struct Watching {
+    registered: tokio::sync::watch::Receiver<bool>,
+    events: JoinHandle<()>,
+}
+
+impl Watching {
+    /// Resolves once every watch directory is registered with the OS, or
+    /// once registration has given up.
+    pub async fn registered(&mut self) {
+        let _ = self.registered.wait_for(|done| *done).await;
+    }
+
+    pub async fn finished(self) -> Result<(), tokio::task::JoinError> {
+        self.events.await
+    }
+}
+
 // Each arg is a distinct shared-state handle or config value the watcher
 // task captures; bundling them into a struct would only rename the wiring.
 #[allow(clippy::too_many_arguments)]
-pub fn spawn(
+pub fn spawn<W: DirectoryWatcher>(
+    open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
     dirs: Vec<PathBuf>,
     project_root: PathBuf,
     indexer: Arc<Indexer>,
@@ -42,38 +87,30 @@ pub fn spawn(
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     settings: Settings,
-) -> JoinHandle<()> {
+) -> Watching {
     let (tx, mut rx) =
         tokio::sync::mpsc::channel::<notify::Result<Event>>(1024);
+    let (registered_tx, registered) = tokio::sync::watch::channel(false);
 
-    // Watcher construction fails only if the platform backend is unavailable at
-    // startup; there is no recovery path, so a panic is the correct outcome.
-    #[allow(clippy::expect_used)]
-    let mut watcher = RecommendedWatcher::new(
-        move |res| {
-            if tx.try_send(res).is_err() {
-                tracing::warn!("filesystem event channel full; dropping event");
-            }
-        },
-        notify::Config::default(),
-    )
-    .expect("failed to create filesystem watcher");
+    // Registering a recursive watch can block for tens of seconds when the
+    // OS notification service is saturated, so it must not hold up serving.
+    let registration = tokio::task::spawn_blocking(move || {
+        // Watcher construction fails only if the platform backend is
+        // unavailable; there is no recovery path, so the panic surfaces
+        // through `Watching::finished` and live updates stay off.
+        #[allow(clippy::expect_used)]
+        let mut watcher =
+            open(EventSink(tx)).expect("failed to create filesystem watcher");
+        register(&mut watcher, &dirs);
+        let _ = registered_tx.send(true);
+        watcher
+    });
 
-    // Use recursive watches so editor atomic-rename patterns and nested
-    // tier layouts produce events. Scope is preserved by the is_markdown
-    // filter and the canonical-path index inside the handler.
-    for dir in &dirs {
-        if dir.exists() {
-            if let Err(e) = watcher.watch(dir, RecursiveMode::Recursive) {
-                tracing::warn!(dir = %dir.display(), error = %e, "failed to watch dir");
-            } else {
-                tracing::debug!(dir = %dir.display(), "watching");
-            }
-        }
-    }
-
-    tokio::spawn(async move {
-        let _watcher = watcher;
+    let events = tokio::spawn(async move {
+        let _watcher = match registration.await {
+            Ok(watcher) => watcher,
+            Err(e) => std::panic::resume_unwind(e.into_panic()),
+        };
         let mut pending: HashMap<PathBuf, JoinHandle<()>> = HashMap::new();
 
         while let Some(result) = rx.recv().await {
@@ -110,7 +147,20 @@ pub fn spawn(
                 }
             }
         }
-    })
+    });
+    Watching { registered, events }
+}
+
+fn register(watcher: &mut impl DirectoryWatcher, dirs: &[PathBuf]) {
+    for dir in dirs {
+        if dir.exists() {
+            if let Err(e) = watcher.watch_recursively(dir) {
+                tracing::warn!(dir = %dir.display(), error = %e, "failed to watch dir");
+            } else {
+                tracing::debug!(dir = %dir.display(), "watching");
+            }
+        }
+    }
 }
 
 // Forwards the same set of narrow shared-state handles `spawn` holds, plus
@@ -567,6 +617,87 @@ mod tests {
         (doc_paths, indexer, hub, activity_feed, clusters)
     }
 
+    const REGISTRATION_HOLD: Duration = Duration::from_secs(2);
+
+    struct HeldRegistration {
+        release: std::sync::mpsc::Receiver<()>,
+    }
+
+    impl DirectoryWatcher for HeldRegistration {
+        fn watch_recursively(&mut self, _dir: &Path) -> notify::Result<()> {
+            let _ = self.release.recv_timeout(REGISTRATION_HOLD);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn starting_does_not_wait_for_watch_registration() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
+        let (release, held) = std::sync::mpsc::channel();
+
+        let started = std::time::Instant::now();
+        let mut watching = spawn(
+            move |_sink| Ok(HeldRegistration { release: held }),
+            doc_paths.values().cloned().collect(),
+            tmp.path().to_path_buf(),
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+            None,
+            Settings::DEFAULT,
+        );
+        let start_took = started.elapsed();
+        let pending_while_held = tokio::time::timeout(
+            Duration::from_millis(100),
+            watching.registered(),
+        )
+        .await;
+        drop(release);
+
+        assert!(
+            start_took < REGISTRATION_HOLD / 2,
+            "spawn waited {start_took:?} for watch registration",
+        );
+        assert!(
+            pending_while_held.is_err(),
+            "registered() resolved before its watches were registered",
+        );
+        tokio::time::timeout(Duration::from_secs(5), watching.registered())
+            .await
+            .expect("registration never completed once released");
+    }
+
+    #[tokio::test]
+    async fn a_watcher_that_cannot_open_gives_up_registering_and_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
+
+        let mut watching = spawn(
+            |_sink| -> notify::Result<HeldRegistration> {
+                Err(notify::Error::generic("backend unavailable"))
+            },
+            doc_paths.values().cloned().collect(),
+            tmp.path().to_path_buf(),
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+            None,
+            Settings::DEFAULT,
+        );
+
+        tokio::time::timeout(Duration::from_secs(5), watching.registered())
+            .await
+            .expect("registration never gave up");
+        assert!(watching.finished().await.is_err());
+    }
+
     #[tokio::test]
     async fn file_change_produces_doc_changed_event() {
         if !watcher_fires_in_this_env().await {
@@ -579,6 +710,7 @@ mod tests {
         let mut rx = hub.subscribe();
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -590,7 +722,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(5),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -634,6 +768,7 @@ mod tests {
         let original = std::fs::read_to_string(&path).unwrap();
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -645,7 +780,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(5),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -683,6 +820,7 @@ mod tests {
         // tight debounce, splitting the burst into two broadcasts.
         let debounce = Duration::from_millis(300);
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -692,7 +830,9 @@ mod tests {
             Arc::new(WriteCoordinator::new()),
             None,
             Settings { debounce },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -736,6 +876,7 @@ mod tests {
         let mut rx = hub.subscribe();
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -747,7 +888,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(5),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -780,6 +923,7 @@ mod tests {
         let mut rx = hub.subscribe();
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -791,7 +935,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(5),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -857,6 +1003,7 @@ mod tests {
         let path = tmp.path().join("meta/plans/2026-01-01-foo.md");
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -868,7 +1015,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(5),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -913,6 +1062,7 @@ mod tests {
         let mut rx = hub.subscribe();
 
         spawn(
+            os_watcher,
             doc_paths.values().cloned().collect(),
             tmp.path().to_path_buf(),
             indexer,
@@ -924,7 +1074,9 @@ mod tests {
             Settings {
                 debounce: Duration::from_millis(20),
             },
-        );
+        )
+        .registered()
+        .await;
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 

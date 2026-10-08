@@ -6,25 +6,31 @@ use migrate::ports::WorkingCopyObservation;
 use migrate::run_base::RunBase;
 use tracing::warn;
 use vcs::VcsKind;
-use vcs_adapters::library::InProcessProbe;
-use vcs_adapters::library::WorkingCopyState;
+use vcs::WorkingCopyState;
+use vcs::WorkingCopyStateProbe;
 
-pub struct VcsWorkingCopy {
+pub struct VcsWorkingCopy<'a> {
     root: PathBuf,
     kind: VcsKind,
+    probe: &'a dyn WorkingCopyStateProbe,
 }
 
-impl VcsWorkingCopy {
+impl<'a> VcsWorkingCopy<'a> {
     #[must_use]
-    pub fn new(root: impl Into<PathBuf>, kind: VcsKind) -> Self {
+    pub fn new(
+        root: impl Into<PathBuf>,
+        kind: VcsKind,
+        probe: &'a dyn WorkingCopyStateProbe,
+    ) -> Self {
         Self {
             root: root.into(),
             kind,
+            probe,
         }
     }
 }
 
-impl WorkingCopy for VcsWorkingCopy {
+impl WorkingCopy for VcsWorkingCopy<'_> {
     /// A status/diff read that fails (an unreadable or half-initialised
     /// `.git`/`.jj`) is logged and treated as no run base and no changes,
     /// rather than surfaced as a hard error.
@@ -32,7 +38,8 @@ impl WorkingCopy for VcsWorkingCopy {
         &self,
         roots: &[&str],
     ) -> Result<WorkingCopyObservation, MigrationError> {
-        let state = InProcessProbe
+        let state = self
+            .probe
             .working_copy_state(&self.root, self.kind)
             .unwrap_or_else(|error| {
                 warn!(

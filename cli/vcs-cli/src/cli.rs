@@ -1,7 +1,5 @@
 //! The clap inbound adapter: the `accelerator-vcs` command-line surface.
 
-use std::path::PathBuf;
-
 use clap::Parser;
 use clap::Subcommand;
 use clap::ValueEnum;
@@ -52,12 +50,6 @@ pub enum Command {
     /// `jj workspace root` return. In a jj secondary workspace this is the
     /// workspace root, not the shared main repository.
     Root,
-    /// Print `tracked` or `untracked` for a file, failing when a repository
-    /// enclosing it cannot say.
-    Tracking {
-        #[arg(long)]
-        path: PathBuf,
-    },
     /// Block or warn about a git VCS command with a jj equivalent, for the
     /// `PreToolUse` hook. Reads the tool call's command from stdin.
     Guard {

@@ -388,3 +388,77 @@ fn a_rename_collision_refuses_without_mutating() -> Result<(), TestError> {
     );
     Ok(())
 }
+
+fn unified_work_item(id: &str, title: &str, parent: Option<&str>) -> String {
+    let parent = parent
+        .map(|parent| format!("parent: \"{parent}\"\n"))
+        .unwrap_or_default();
+    format!(
+        "---\ntype: work-item\nid: \"{id}\"\ntitle: {title}\n\
+         date: \"2026-01-01T00:00:00Z\"\nauthor: a\ntags: []\nkind: task\n\
+         status: draft\npriority: medium\n{parent}\
+         last_updated: \"2026-01-01T00:00:00Z\"\nlast_updated_by: a\n\
+         schema_version: 1\n---\n\n# {id}: {title}\nBody\n"
+    )
+}
+
+#[test]
+fn a_modern_id_field_stays_unprefixed_while_its_file_is_renamed(
+) -> Result<(), TestError> {
+    let dir = TempDir::new()?;
+    let root = dir.path();
+    write(
+        root,
+        ".accelerator/config.md",
+        "---\nwork:\n  id_pattern: \"{project}-{number:04d}\"\n  \
+         default_project_code: ENG\n---\n",
+    )?;
+    write(
+        root,
+        "meta/work/0001-foo.md",
+        &unified_work_item("0001", "Foo", None),
+    )?;
+    write(
+        root,
+        "meta/work/0002-bar.md",
+        &unified_work_item("0002", "Bar", Some("0001")),
+    )?;
+    write(
+        root,
+        "meta/plans/2026-01-01-0001-foo.md",
+        "---\ntype: plan\nwork_item_id: \"0001\"\n---\n\n\
+         # Plan\n\nImplements 0001.\n",
+    )?;
+    write(
+        root,
+        ".accelerator/state/migrations-applied",
+        "0001-rename-tickets-to-work\n0003-relocate-accelerator-state\n\
+         0004-restructure-meta-research-into-subject-subcategories\n\
+         0005-rename-work-item-type-to-kind\n\
+         0006-canonicalise-work-item-id-and-author\n\
+         0007-unify-meta-corpus-frontmatter\n\
+         0008-canonical-frontmatter-quoting\n\
+         0009-split-work-key-from-tracker-scope-key\n\
+         0010-strip-research-title-prefix\n",
+    )?;
+
+    let output = Command::new(BIN).current_dir(root).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(!root.join("meta/work/0001-foo.md").exists());
+    assert!(!root.join("meta/work/0002-bar.md").exists());
+    assert_eq!(
+        fs::read_to_string(root.join("meta/work/ENG-0001-foo.md"))?,
+        unified_work_item("0001", "Foo", None)
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("meta/work/ENG-0002-bar.md"))?,
+        unified_work_item("0002", "Bar", Some("ENG-0001"))
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("meta/plans/2026-01-01-0001-foo.md"))?,
+        "---\ntype: plan\nwork_item_id: \"ENG-0001\"\n---\n\n\
+         # Plan\n\nImplements 0001.\n"
+    );
+    Ok(())
+}

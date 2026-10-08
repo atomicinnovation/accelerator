@@ -353,27 +353,15 @@ pub struct SearchScope {
     pub filters: Vec<(String, String)>,
 }
 
-/// The filter-field keys a tracker accepts on a `pull` block.
-///
-/// A validation vocabulary, not part of the request port: the config-surface
-/// filter keys a `pull` block may name, held so the structural validator can
-/// reject an unsupported key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FilterSchema {
-    /// The accepted filter-field keys.
-    pub accepted: &'static [&'static str],
-}
-
 /// A ceiling on a counted quantity: a finite bound, or none at all.
 ///
 /// One value object for both pull ceilings — the pull-direction write bound and
 /// the transport page cap — so `unlimited` is representable rather than a
 /// magic number, and a bound is compared through [`Ceiling::exceeds`] /
 /// [`Ceiling::reached`] rather than open-coding the `Unlimited` case at each
-/// call. Carried on the request and the transport config; the sole authority on
-/// a valid ceiling string is one conversion in `tracker-support`, which both
-/// config validation and the CLI parse route through, so a value here has
-/// already been accepted.
+/// call. Carried on the request and the transport config; a value here has
+/// already been accepted by the one ceiling-string conversion in
+/// `tracker-support`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ceiling {
     /// At most this many.

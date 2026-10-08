@@ -23,6 +23,7 @@ use vcs::VcsKind;
 use vcs::VcsProbe as _;
 use vcs::VcsReporter;
 use vcs_adapters::library::InProcessProbe;
+use vcs_adapters::panic_message;
 
 /// The failing adapter's backend token. Deliberately distinct from the
 /// library adapter's own `vcs = "git"/"jj"` warnings, so a log consumer knows
@@ -32,14 +33,6 @@ const fn adapter_token(kind: VcsKind) -> &'static str {
         VcsKind::Jj => "jj-lib",
         VcsKind::Git | VcsKind::None => "gix",
     }
-}
-
-fn panic_message(payload: &(dyn std::any::Any + Send)) -> &str {
-    payload
-        .downcast_ref::<&str>()
-        .copied()
-        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-        .unwrap_or("panic")
 }
 
 /// Reads and renders one subcommand's report, never failing. `subject` names the

@@ -31,11 +31,13 @@ members join enforcement with no per-member wiring. `format:cli:*` and
 rust `components` field is silently skipped for an already-present toolchain, so
 rustfmt/clippy are provisioned explicitly. `lint:cli:fix` applies only clippy's
 machine-rewritable subset (lints such as `unwrap_used` cannot be auto-fixed), so
-`cli:check` must still be run for the remainder. It also folds three Python
+`cli:check` must still be run for the remainder. It also folds six Python
 guards over the same tree — `lint:vendor-shims:check`,
-`lint:store-duplication:check` and `lint:claude-coupling:check`. Those three are
-wired into `lint:check` as well: `cli:check` is what CI runs, but the bare
-`default` task depends on `lint:check` and not on `check`, so a `cli:check`-only
+`lint:store-duplication:check`, `lint:claude-coupling:check`,
+`lint:vcs-settings:check`, `lint:config-test-support:check` and
+`lint:crate-dependencies:check`. All six are wired into `lint:check` as well:
+`cli:check` is what CI runs, but the bare `default` task depends on
+`lint:check` and not on `check`, so a `cli:check`-only
 guard stays green in a full local run however badly its invariant is broken.
 `tests/unit/tasks/test_mise.py` pins both placements. `build-system:check`
 carries `lint:dispatch-coherence:check` under the same reasoning: it is a
@@ -235,6 +237,26 @@ every triple is stripped, so gating darwin would put a 9%-margin heuristic on
 When it fires: re-measure, then adjust the constants in `tasks/build.py` only if
 the drop is understood.
 
+### Debug builds for the test lanes
+
+`tasks/shared/dev_builds.py` models the debug binaries the integration lanes
+run. Each named build is one `invoke build.cli-dev --group <name>` and so one
+`cargo build`:
+
+| Leaf | Builds |
+|---|---|
+| `build:cli:dev` | the launcher alone |
+| `build:cli:<token>:dev` | one dispatched sub-binary (every token but `visualiser`, which `build:server:dev` builds with its `dev-frontend` feature) |
+
+A lane depends on exactly the leaves for the binaries it runs, and
+`_CLI_DEV_BUILDS` in `tests/unit/tasks/test_mise.py` pins each lane's set.
+
+A binary whose package declares `test-loopback` (`jira`, `linear`,
+`research`) is built with it in every debug build. Two builds of one
+`target/debug/<bin>` with different features overwrite each other, so a lane
+would otherwise run whichever ran last. The feature's compile guard refuses a
+release build that carries it.
+
 ### The measure namespace
 
 `measure:*` and `test:integration:measure` drive the warm-dispatch latency
@@ -257,6 +279,29 @@ contracts: the digest-backend selection, the cache-root derivation, the
 launcher's cache/verify layout, the hook envelope shape, `jj`'s colocation
 default, and a revset anchoring two deleted files. `measure:teardown` is the
 documented escape from the stale-manifest start-up refusal.
+
+**Launcher size and summary latency.** `measure:launcher-size` builds the
+launcher with the shipped (stripped) release profile for
+`aarch64-apple-darwin` and prints its byte size with the host model, OS and
+load. `measure:summary-latency` builds the release launcher and
+`accelerator-vcs`, then times `accelerator config summary --format=hook` in a
+git, a non-colocated jj and a colocated jj fixture repository, each tracking an
+owner-only `.accelerator/config.local.md`. Each repository is timed in two
+modes, 3 discarded warm-ups then 20 timed runs apiece, reported as median and
+p90. **Cold** gives every run a fresh empty launcher cache and a fresh
+repository copy; it means a cold launcher cache, not a cold filesystem cache.
+**Warm** repeats against one shared cache and repository. The tracking path is
+pinned so that before and after a change time the same question:
+`ACCELERATOR_VCS_BIN` points at the locally built `accelerator-vcs`,
+`ACCELERATOR_RELEASE_BASE_URL` points at a refusing loopback address, and a run
+whose output lacks the tracked-file warning, or carries a "was not checked"
+note, fails the task rather than recording a figure. `--repository <path>
+--revision <rev>` also times a snapshot of that revision of a realistically
+sized repository: the commit's history is fetched into a fresh bare store, so
+the source is never written, and checked out in the source's own engine. The
+report records the commit, the index entry count and, for jj, the operation-log
+length. Before and after figures are comparable only when taken on the same
+host.
 
 **What a run requires.** A quiet darwin-arm64 host with no other Claude Code
 session active against the same plugin root; no `ACCELERATOR_*` override set
@@ -513,7 +558,13 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
    `_SUBBINARY_DESCRIPTIONS` entry, which `KeyError`s without one. The upload
    count is derived from the registry rather than written down, and
    `_setup_release` stages every token by looping it, so neither needs
-   touching. **[PR]**
+   touching. Then **add** its `build:cli:<token>:dev` leaf to `mise.toml`
+   (see [Debug builds for the test lanes](#debug-builds-for-the-test-lanes)),
+   and, in `tasks/shared/dev_builds.py`, list the token in `_LOOPBACK_SEAMED`
+   when its package declares `test-loopback`, or in
+   `_PACKAGES_NAMED_AFTER_THEIR_DIRECTORY` when its package is not
+   `accelerator-<token>`. `test_mise.py` and `test_dev_builds.py` name each
+   omission. **[PR]**
 2. **Add** an entry to `_SUBBINARY_MANIFESTS` (`tasks/manifest.py`) when the
    crate is not at `cli/<token>/`. Every dispatched token has an entry today,
    because each has a domain crate at `cli/<token>/` and a binary crate
@@ -635,6 +686,12 @@ test or a per-PR CI gate catches it, **[release]** it fails the release job,
 13. **Extend** `cli/deny.toml` when the new crate's dependency graph needs a
     licence or advisory exception, with a comment giving the justification. **No
     action when** `mise run deny:check` is already green. **[PR]**
+14. **Add** the crate's `[package.metadata.accelerator]` declaration, with
+    `role = "composition-root"`, and its row in
+    `tests/unit/tasks/test_crate_dependencies.py`'s `_EXPECTED_DECLARATIONS`
+    table. `lint:crate-dependencies:check` (`tasks/lint/crate_dependencies.py`)
+    rejects an undeclared member and any normal or build dependency the role
+    forbids. **[PR]**
 
 Points 1, 2, 3, 4, 7 and 8 must land in the **same change**. The release path
 resolves them together, and only the 1↔7 pair is caught before the release job —
@@ -667,8 +724,8 @@ by the dispatch guard.
 ## Adding a subcommand to an existing sub-binary
 
 A new subcommand of an already-dispatched token owes much less, because the
-token, its manifest entry and its release staging exist already. `vcs
-tracking` is the worked example.
+token, its manifest entry and its release staging exist already. `vcs guard`
+is the worked example.
 
 - **Dispatch coherence.** No action. The guard binds tokens, not
   subcommands, so the new subcommand is covered by its token's existing skill
@@ -679,30 +736,16 @@ tracking` is the worked example.
 - **Bash permission rules.** A skill that invokes the new subcommand through
   the `!` preprocessor needs a `Bash(...)` rule that covers it. A rule scoped
   to another subcommand of the same token does not. **No action when** only
-  the launcher or a hook runs it.
+  the launcher or a hook runs it, as `hooks/hooks.json` runs `vcs guard`.
 - **The public-API fixture.** A subcommand usually lives in the binary crate,
   which is exempt from pinning. A type it adds to a pinned domain crate moves
   that crate's snapshot, so regenerate it with `mise run public-api:update`
   after reading the diff.
-- **Output the launcher captures.** When the launcher runs the subcommand as
-  a captured child instead of `exec`ing it, the output is a contract between
-  two binaries released together. Put the rendered type in `kernel`, which
-  both sides already depend on and which carries no VCS or config libraries,
-  with `Display` for the sub-binary and `FromStr` for the launcher. Add a
-  contract test in the sub-binary's `tests/` that parses the real
-  subcommand's stdout through that `FromStr`, so a renamed token fails there
-  and not silently in the launcher. `kernel::TrackingAnswer` and
-  `cli/vcs-cli/tests/tracking.rs` are the pattern.
-- **The launcher's test fixture.** `accelerator-fixture` impersonates a
-  captured subcommand, rendering through the same `kernel` type, and every
-  launcher test that reaches the capture points `ACCELERATOR_<TOKEN>_BIN` at
-  it. Without that, a test resolves the real sub-binary from the release
-  host.
 
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
-owes five things. `cli/tracker/` is the worked example.
+owes six things. `cli/tracker/` is the worked example.
 
 - **Workspace membership.** Add the directory to `[workspace].members` in
   `cli/Cargo.toml`, then sync the lockfile with `cargo metadata
@@ -715,6 +758,13 @@ owes five things. `cli/tracker/` is the worked example.
   version passes the coherence check today and breaks at the next bump; a
   missing `[lints]` table silently exempts the crate from every lint the rest
   of the workspace is held to.
+- **A role declaration.** Add `[package.metadata.accelerator]` with the
+  crate's `role`, plus its `context` for a domain or adapter, and the
+  context's `kind` and `downstreams` where the context is new. Add the same
+  row to `_EXPECTED_DECLARATIONS` in
+  `tests/unit/tasks/test_crate_dependencies.py`.
+  `lint:crate-dependencies:check` rejects an undeclared member, and any
+  normal or build dependency the declared role forbids.
 - **A `cli/pup.ron` rule.** Nothing derives architectural enforcement from
   membership, so a crate without a rule has none and no check reports it
   missing.
@@ -758,10 +808,10 @@ owes five things. `cli/tracker/` is the worked example.
 
 Then run `mise run deny:check`.
 
-One placement rule decides where a new config adapter goes: it belongs in
-`cli/consent-adapters` only when it needs VCS. A VCS-free adapter stays in
-`cli/config-adapters`, whose dependents include the launcher and the
-visualiser server, so `gix` and `jj-lib` stay out of both.
+A config adapter that needs VCS asks the `vcs` domain's ports, injected at
+the composition root, and never depends on `vcs-adapters`.
+`cli/config-adapters`' dependents include the launcher and the visualiser
+server, so `gix` and `jj-lib` stay out of both.
 
 ## CI job → local command
 

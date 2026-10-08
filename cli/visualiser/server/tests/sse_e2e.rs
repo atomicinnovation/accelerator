@@ -72,40 +72,14 @@ async fn file_mutation_arrives_as_sse_event() {
         .expect("GET /api/events failed");
     assert_eq!(sse_response.status(), 200);
 
-    // Give the watcher time to register with the OS.
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    // Mutate a watched file.
-    std::fs::write(
-        plans.join("2026-01-01-test.md"),
+    let event = write_until_event(
+        &mut sse_response,
+        &plans.join("2026-01-01-test.md"),
         "---\ntitle: Updated\n---\n",
+        "doc-changed",
     )
-    .unwrap();
-
-    // Read SSE frames until we see "doc-changed" or time out.
-    // 2000ms deadline: 100ms debounce + OS notification latency + reqwest
-    // round-trip, with generous headroom for slow CI runners.
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(2000);
-    let mut found = false;
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(
-            Duration::from_millis(300),
-            sse_response.chunk(),
-        )
-        .await
-        {
-            Ok(Ok(Some(chunk))) => {
-                let text = std::str::from_utf8(&chunk).unwrap_or("");
-                if text.contains("doc-changed") {
-                    found = true;
-                    break;
-                }
-            }
-            Ok(Ok(None)) | Err(_) => break,
-            Ok(Err(e)) => panic!("reqwest error reading SSE stream: {e}"),
-        }
-    }
-    assert!(found, "expected doc-changed SSE event within 2000ms");
+    .await;
+    assert!(event.is_some(), "expected doc-changed SSE event");
 }
 
 async fn start_server_with_template(
@@ -132,31 +106,38 @@ async fn start_server_with_template(
     }
 }
 
-async fn read_until_substring(
+/// Saturated `FSEvents` has been seen to take minutes to register watches.
+const WATCH_REGISTRATION_BUDGET: Duration = Duration::from_secs(300);
+
+/// Rewrites `path` with `contents` until an SSE frame containing `needle`
+/// arrives. The server answers HTTP before its filesystem watches are
+/// registered, so a single write can land before anything is listening;
+/// identical rewrites after the first observed one are suppressed server-side.
+async fn write_until_event(
     sse_response: &mut reqwest::Response,
+    path: &std::path::Path,
+    contents: &str,
     needle: &str,
-    deadline_ms: u64,
 ) -> Option<String> {
-    let deadline =
-        tokio::time::Instant::now() + Duration::from_millis(deadline_ms);
+    let deadline = tokio::time::Instant::now() + WATCH_REGISTRATION_BUDGET;
     let mut accumulated = String::new();
     while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(
-            Duration::from_millis(300),
-            sse_response.chunk(),
-        )
-        .await
+        std::fs::write(path, contents).unwrap();
+        let rewrite_at = (tokio::time::Instant::now()
+            + Duration::from_millis(250))
+        .min(deadline);
+        while let Ok(read) =
+            tokio::time::timeout_at(rewrite_at, sse_response.chunk()).await
         {
-            Ok(Ok(Some(chunk))) => {
-                if let Ok(text) = std::str::from_utf8(&chunk) {
-                    accumulated.push_str(text);
+            match read {
+                Ok(Some(chunk)) => {
+                    accumulated.push_str(&String::from_utf8_lossy(&chunk));
                     if accumulated.contains(needle) {
                         return Some(accumulated);
                     }
                 }
+                Ok(None) | Err(_) => return None,
             }
-            Ok(Ok(None) | Err(_)) => return None,
-            Err(_) => {}
         }
     }
     None
@@ -214,13 +195,11 @@ async fn template_file_mutation_arrives_as_template_changed_sse_event() {
         client.get(&url).send().await.expect("GET /api/events");
     assert_eq!(sse_response.status(), 200);
 
-    tokio::time::sleep(Duration::from_millis(150)).await;
-    std::fs::write(&tier_file, "v2").unwrap();
-
-    let chunk = read_until_substring(
+    let chunk = write_until_event(
         &mut sse_response,
+        &tier_file,
+        "v2",
         "\"type\":\"template-changed\"",
-        3_000,
     )
     .await
     .expect("expected template-changed SSE event");
@@ -256,13 +235,11 @@ async fn template_file_emptied_arrives_as_template_changed_with_no_sha256() {
         client.get(&url).send().await.expect("GET /api/events");
     assert_eq!(sse_response.status(), 200);
 
-    tokio::time::sleep(Duration::from_millis(150)).await;
-    std::fs::write(&tier_file, "").unwrap();
-
-    let chunk = read_until_substring(
+    let chunk = write_until_event(
         &mut sse_response,
+        &tier_file,
+        "",
         "\"type\":\"template-changed\"",
-        3_000,
     )
     .await
     .expect("expected template-changed SSE event");

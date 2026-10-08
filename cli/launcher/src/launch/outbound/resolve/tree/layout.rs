@@ -8,6 +8,8 @@
 
 use std::path::{Path, PathBuf};
 
+use kernel::TEMP_PREFIX;
+
 use crate::launch::core::tree::TreeError;
 
 /// The extraction and sealing policy this launcher applies.
@@ -32,7 +34,6 @@ const POINTER_SUFFIX: &str = ".ref";
 const ATTESTATION_SUFFIX: &str = ".sealed";
 const ATTESTATION_SIGNATURE_SUFFIX: &str = ".sealed.sig";
 const LEASE_SUFFIX: &str = ".lease";
-const TEMP_PREFIX: &str = ".tmp-";
 const ARCHIVE_SUFFIX: &str = ".archive";
 
 /// Hex characters of CSPRNG output in a generation suffix.

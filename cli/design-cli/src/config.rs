@@ -20,9 +20,10 @@ use config_adapters::credentials::SystemEnvironment;
 use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
 use config_adapters::paths::SystemExecutablePaths;
 use config_adapters::FileConfigStore;
-use consent_adapters::VcsConfigFileTracking;
+use config_adapters::TrackedConfigFile;
 use design::executor::launch::LaunchFailure;
 use design::runtime::browser_path::HatchDecision;
+use vcs_adapters::InProcessTracking;
 
 const BROWSER_PATH: &str = "design.browser_path";
 
@@ -64,13 +65,17 @@ pub fn browser_hatch(cwd: &Path) -> Result<HatchDecision, LaunchFailure> {
     let config_root = FileConfigStore::discover_root(cwd);
     let provenance = ProvenanceContext {
         config: &composed.service,
-        tracking: &VcsConfigFileTracking,
+        tracking: &TrackedConfigFile(InProcessTracking),
         environment: &SystemEnvironment,
         personal_config: config_root.join(PERSONAL_CONFIG_RELATIVE),
     };
     resolve_browser_hatch(
         &provenance,
-        &consent_adapters::repository_roots(&config_root, cwd),
+        &config_adapters::repository_roots(
+            &InProcessTracking,
+            &config_root,
+            cwd,
+        ),
         &SystemExecutablePaths,
     )
 }
@@ -146,8 +151,9 @@ mod tests {
     use config_adapters::credentials::PERSONAL_CONFIG_RELATIVE;
     use config_adapters::paths::SystemExecutablePaths;
     use config_adapters::LegacyPolicy;
-    use consent_adapters::VcsConfigFileTracking;
+    use config_adapters::TrackedConfigFile;
     use design::runtime::browser_path::HatchDecision;
+    use vcs_adapters::InProcessTracking;
     use vcs_test_support::hermetic::Hermetic;
 
     use super::resolve_browser_hatch;
@@ -267,11 +273,12 @@ mod tests {
                     .unwrap();
             let provenance = ProvenanceContext {
                 config: &composed.service,
-                tracking: &VcsConfigFileTracking,
+                tracking: &TrackedConfigFile(InProcessTracking),
                 environment: &self.environment,
                 personal_config: self.checkout.join(PERSONAL_CONFIG_RELATIVE),
             };
-            let roots = consent_adapters::repository_roots(
+            let roots = config_adapters::repository_roots(
+                &InProcessTracking,
                 &self.checkout,
                 &self.checkout,
             );

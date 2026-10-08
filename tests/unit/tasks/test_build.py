@@ -288,6 +288,18 @@ class TestVendorShimMarkerDigest:
         )
         assert vendor_shim_marker_digest(root=tmp_path) == baseline
 
+    def test_ignores_package_metadata(self, tmp_path):
+        baseline = vendor_shim_marker_digest()
+        cli_dst = _seed_digest_inputs(tmp_path)
+        manifest = cli_dst / "verify" / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text().replace(
+                "[lints]",
+                "[package.metadata.other]\nkey = 1\n\n[lints]",
+            )
+        )
+        assert vendor_shim_marker_digest(root=tmp_path) == baseline
+
 
 # ── validate_version_coherence() ─────────────────────────────────────
 

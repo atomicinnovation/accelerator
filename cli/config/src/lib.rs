@@ -19,6 +19,7 @@ pub mod paths;
 pub mod precedence;
 pub mod render;
 pub mod service;
+pub mod tracker_block;
 
 pub use crate::error::ConfigError;
 pub use crate::error::Existing;

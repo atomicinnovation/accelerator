@@ -7,8 +7,9 @@ import tomllib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-from invoke import Context, task
+from invoke import Context, Exit, task
 
+from tasks.shared.dev_builds import DEV_BUILDS, cargo_build_command
 from tasks.shared.errors import InvalidVersionError
 from tasks.shared.files import atomic_write_text
 from tasks.shared.limits import raise_descriptor_limit
@@ -305,27 +306,22 @@ def server_dev(context: Context) -> None:
     )
 
 
-@task
-def cli_dev(context: Context) -> None:
-    """Build the debug cli launcher and its dev-dispatched sub-binaries.
+@task(help={"group": f"one of: {', '.join(DEV_BUILDS)}"})
+def cli_dev(context: Context, group: str = "launcher") -> None:
+    """Build one named group of debug cli binaries into cli/target/debug/.
 
-    cli/target/debug/accelerator is the local launcher the pytest lanes and
-    cargo integration tests invoke through ACCELERATOR_BIN;
-    cli/target/debug/accelerator-vcs is the sub-binary the vcs-detect
-    launcher-dispatch guard dispatches through it via the ACCELERATOR_VCS_BIN
-    dev-only override; cli/target/debug/accelerator-corpus is the sub-binary the
-    conformance guard dispatches through it via the ACCELERATOR_CORPUS_BIN
-    dev-only override; cli/target/debug/accelerator-research is the guard the
-    research-guard registration smoke and the lexer differential run.
-    Declared as a mise build dependency of the test tasks so
-    build ordering lives in the task graph, not in ad-hoc cargo calls inside the
-    tests.
+    Each group is one cargo invocation, so its members compile in a single
+    parallel pass rather than queueing on the target lock. Declared as a mise
+    build dependency of the test tasks so build ordering lives in the task
+    graph, not in ad-hoc cargo calls inside the tests.
     """
-    context.run(
-        f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} "
-        f"--bin accelerator --bin accelerator-vcs --bin accelerator-corpus "
-        f"--bin accelerator-research"
-    )
+    binaries = DEV_BUILDS.get(group)
+    if binaries is None:
+        raise Exit(
+            f"unknown dev build {group!r}; known: {', '.join(DEV_BUILDS)}",
+            code=1,
+        )
+    context.run(cargo_build_command(binaries))
 
 
 @task
@@ -494,27 +490,37 @@ def _dev_only_dependency_names(manifest_path: Path) -> set[str]:
     return dev - normal
 
 
-def _strip_dev_dependencies_table(text: str) -> str:
-    """Return `text` with any `[dev-dependencies]` table removed.
+_NON_BUILD_TABLES = (
+    "[dev-dependencies]",
+    "[dev-dependencies.",
+    "[package.metadata.",
+)
 
-    Mirrors the tests exclusion: dev-dependencies are not shim build inputs,
-    so a change to them must not perturb the drift marker. The single blank
-    separator preceding the table is dropped too, so removing a table appended
-    with a separator reproduces the pre-table bytes exactly.
+
+def _strip_non_build_tables(text: str) -> str:
+    """Return `text` without its `[dev-dependencies]` and metadata tables.
+
+    Mirrors the tests exclusion: neither table builds into the shim, so a
+    change to one must not perturb the drift marker. Each table goes with one
+    blank separator, so removing a table inserted with a separator reproduces
+    the pre-table bytes exactly.
     """
     lines = text.splitlines(keepends=True)
     kept: list[str] = []
     index = 0
     while index < len(lines):
         header = lines[index].lstrip()
-        if header.startswith(("[dev-dependencies]", "[dev-dependencies.")):
-            if kept and kept[-1].strip() == "":
+        if header.startswith(_NON_BUILD_TABLES):
+            separated = bool(kept) and kept[-1].strip() == ""
+            if separated:
                 kept.pop()
             index += 1
             while index < len(lines) and not lines[index].lstrip().startswith(
                 "["
             ):
                 index += 1
+            if separated and index < len(lines):
+                kept.append("\n")
             continue
         kept.append(lines[index])
         index += 1
@@ -542,8 +548,9 @@ def _strip_lock_dependencies(block: str, names: set[str]) -> str:
 def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
     """SHA-256 over the verify shim's build inputs.
 
-    Covers `cli/verify` source (excluding the crate's own tests and its
-    `[dev-dependencies]`, neither of which builds into the shim) plus the
+    Covers `cli/verify` source (excluding the crate's own tests, its
+    `[dev-dependencies]` and its `[package.metadata.*]` tables, none of which
+    builds into the shim) plus the
     `minisign-verify` pin and its resolved lockfile closure, so a dependency
     bump that never touches `cli/verify/**` still trips the drift guard. The
     `accelerator-verify` lock block's own version line and its dev-only
@@ -561,9 +568,7 @@ def vendor_shim_marker_digest(root: Path = REPO_ROOT) -> str:
         hasher.update(path.relative_to(verify_dir).as_posix().encode())
         hasher.update(b"\0")
         if path == manifest_path:
-            hasher.update(
-                _strip_dev_dependencies_table(path.read_text()).encode()
-            )
+            hasher.update(_strip_non_build_tables(path.read_text()).encode())
         else:
             hasher.update(path.read_bytes())
         hasher.update(b"\0")

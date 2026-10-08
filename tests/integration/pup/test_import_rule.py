@@ -944,29 +944,6 @@ def test_vcs_adapters_zero_spawn_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-def test_consent_adapters_zero_spawn_rule_rejects_spawning(
-    tmp_path: Path,
-) -> None:
-    _require_tools()
-    _write_shared_crate_probe(tmp_path, "consent-adapters", _SPAWN_VIOLATION)
-    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
-    output = _ANSI.sub("", result.stdout + result.stderr)
-    assert result.returncode != 0, output
-    assert "is denied" in output, output
-    assert "consent_adapters_is_zero_spawn" in output, output
-
-
-def test_consent_adapters_zero_spawn_rule_permits_std_imports(
-    tmp_path: Path,
-) -> None:
-    _require_tools()
-    _write_shared_crate_probe(
-        tmp_path, "consent-adapters", _PROJECTION_COMPLIANT
-    )
-    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
-    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
-
-
 # accelerator-vcs must stay free of config: it answers the launcher's tracking
 # question for config files, so it is the one place a config edge would look
 # natural. The probe crate depends on stubs of both config and vcs, so the
@@ -1666,14 +1643,11 @@ _DOMAIN_RULES = [
     ("vcs", "vcs_domain_imports_only_permitted", ()),
     ("research", "research_domain_imports_only_permitted", ()),
     ("work", "work_domain_imports_only_permitted", ("corpus", "tracker")),
-    (
-        "migrate",
-        "migrate_domain_imports_only_permitted",
-        ("corpus", "document"),
-    ),
+    ("migrate", "migrate_domain_imports_only_permitted", ("corpus",)),
 ]
 
-# The full universe of extra allowances any domain rule widens with. A probed
+# Every extra allowance a domain rule widens with, plus `document`, which
+# migrate's rule once granted and must now be proven to refuse. A probed
 # crate depends on every one of these except itself, so the converse
 # (cross-rejection) cases below can attempt an import that its own rule does
 # not permit and have cargo-pup reject it, rather than the import failing to

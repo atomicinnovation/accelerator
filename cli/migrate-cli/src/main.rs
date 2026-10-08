@@ -4,6 +4,7 @@
 mod cli;
 mod discoverability;
 mod render;
+mod sync_baselines;
 
 use std::io::IsTerminal as _;
 use std::path::Path;
@@ -12,7 +13,14 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use clap::Parser as _;
+use config_adapters::Composed;
 use config_adapters::FileConfigStore;
+use config_adapters::LegacyPolicy;
+use corpus_adapters::metadata::SystemClock;
+use corpus_adapters::FileCorpusStore;
+use corpus_adapters::PatternCanonicaliser;
+use corpus_adapters::RealFs;
+use corpus_adapters::YamlFrontmatter;
 use migrate::ledger;
 use migrate::ports::DecisionSource;
 use migrate::ports::LedgerStore as _;
@@ -22,6 +30,7 @@ use migrate::ports::RunLock as _;
 use migrate::preflight::Preflight;
 use migrate::preflight::PreflightError;
 use migrate::preflight::PreflightOutcome;
+use migrate_adapters::context::Capabilities;
 use migrate_adapters::context::FileMigrationContext;
 use migrate_adapters::decisions_file_decision_source::DecisionsFileDecisionSource;
 use migrate_adapters::ledger_store::FileLedgerStore;
@@ -30,10 +39,13 @@ use migrate_adapters::run_lock::FileRunLock;
 use migrate_adapters::session_log_factory::FileSessionLogFactory;
 use migrate_adapters::tty_decision_source::TtyDecisionSource;
 use migrate_adapters::working_copy::VcsWorkingCopy;
+use time::UtcOffset;
 use vcs::VcsKind;
+use vcs_adapters::library::InProcessProbe;
 
 use crate::cli::Cli;
 use crate::render::StdoutReporter;
+use crate::sync_baselines::WorkSyncBaselines;
 
 const RUNNER_APPLIED: &str = ".accelerator/state/migrations-applied";
 const RUNNER_SKIPPED: &str = ".accelerator/state/migrations-skipped";
@@ -58,6 +70,31 @@ fn vcs_kind(root: &Path) -> VcsKind {
     } else {
         VcsKind::None
     }
+}
+
+fn compose_config(root: &Path) -> Result<Composed, kernel::Error> {
+    let composed = Composed::over(
+        FileConfigStore::at(root).with_legacy_policy(LegacyPolicy::Allow),
+    )?;
+    composed.report_ignored_personal_file();
+    Ok(composed)
+}
+
+fn capabilities(composed: &Composed) -> Capabilities<'_> {
+    Capabilities {
+        config: &composed.service,
+        walker: &RealFs,
+        reader: &RealFs,
+        frontmatter: &YamlFrontmatter,
+        canonicaliser: &PatternCanonicaliser,
+        sync_baselines: &WorkSyncBaselines,
+    }
+}
+
+/// `now_utc_iso` never reads the clock's offset, so pinning it to UTC avoids
+/// `SystemClock::try_new`'s `date +%z` subprocess.
+const fn session_log_clock() -> SystemClock {
+    SystemClock::with_offset(UtcOffset::UTC)
 }
 
 fn force_requested() -> bool {
@@ -159,8 +196,11 @@ fn run_list(
     root: &Path,
     ledger_store: &FileLedgerStore,
 ) -> Result<(), kernel::Error> {
-    let ctx = FileMigrationContext::new(root)?;
-    let session_logs = FileSessionLogFactory::new(root);
+    let composed = compose_config(root)?;
+    let ctx = FileMigrationContext::new(root, capabilities(&composed));
+    let records = FileCorpusStore::new(root);
+    let clock = session_log_clock();
+    let session_logs = FileSessionLogFactory::new(root, &records, &clock);
     let entries = migrate::registry::registry();
     let applied = ledger_store.applied()?;
     let skipped = ledger_store.skipped()?;
@@ -219,10 +259,12 @@ fn run_default(
             ))
         })?;
 
-    let ctx = FileMigrationContext::new(root)?;
-    ctx.require_readable_personal_file()?;
+    let composed = compose_config(root)?;
+    composed.require_readable_personal_file()?;
+    let ctx = FileMigrationContext::new(root, capabilities(&composed));
     let manifest_store = FileManifestStore::new(root);
-    let working_copy = VcsWorkingCopy::new(root, vcs_kind(root));
+    let working_copy =
+        VcsWorkingCopy::new(root, vcs_kind(root), &InProcessProbe);
     let session_log_decisions = session_log_decision_count(root);
     let preflight = Preflight {
         lock: run_lock,
@@ -256,7 +298,9 @@ fn run_default(
         root: root.to_path_buf(),
     };
     let entries = migrate::registry::registry();
-    let session_logs = FileSessionLogFactory::new(root);
+    let records = FileCorpusStore::new(root);
+    let clock = session_log_clock();
+    let session_logs = FileSessionLogFactory::new(root, &records, &clock);
     let decisions_file_source = decisions_file_content
         .as_deref()
         .map(DecisionsFileDecisionSource::new);

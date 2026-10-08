@@ -30,6 +30,7 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
         .args(["serve", "--owner-pid", "0"])
         .current_dir(project)
         .env("ACCELERATOR_PLUGIN_ROOT", project)
+        .env("RUST_LOG", "accelerator_visualiser=debug")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true)
@@ -75,8 +76,14 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
             Ok(resp) => break resp.json().await.unwrap(),
             Err(e) => {
                 if std::time::Instant::now() >= probe_deadline {
+                    let exit = child.try_wait();
                     let _ = child.kill().await;
-                    panic!("server never became reachable on {base}: {e}");
+                    panic!(
+                        "server never became reachable on {base}: {e}\n\
+                         server exit status: {exit:?}\n\
+                         server log:\n{}",
+                        server_log(project)
+                    );
                 }
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
@@ -175,4 +182,10 @@ async fn api_surface_is_fully_reachable_against_fixture_meta() {
     assert!(!lc["clusters"].as_array().unwrap().is_empty());
 
     let _ = child.kill().await;
+}
+
+fn server_log(project: &std::path::Path) -> String {
+    let path = project.join(".accelerator/tmp/visualiser/server.log");
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| format!("<unreadable {}: {e}>", path.display()))
 }

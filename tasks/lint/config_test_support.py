@@ -14,18 +14,12 @@ Not a cargo-deny rule: cargo-deny's feature bans apply to external crates,
 and cannot tell a dev-dependency edge from a normal one.
 """
 
-import json
-import subprocess
-from typing import Any
-
 from invoke import Context, Exit, task
 
-from tasks.shared.paths import CLI_DIR
+from tasks.shared.cargo_metadata import Package, workspace_packages
 
 FEATURE = "test-support"
 PERMITTED = frozenset({"config", "config-adapters"})
-
-Package = dict[str, Any]
 
 
 def _config_keys(package: Package) -> set[str]:
@@ -65,26 +59,6 @@ def violations(packages: list[Package]) -> list[str]:
                     f"'{feature}'"
                 )
     return found
-
-
-def workspace_packages() -> list[Package]:
-    """Read the workspace members as ``cargo metadata`` declares them."""
-    completed = subprocess.run(
-        [
-            "cargo",
-            "metadata",
-            "--format-version",
-            "1",
-            "--no-deps",
-            "--locked",
-            "--manifest-path",
-            str(CLI_DIR / "Cargo.toml"),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return json.loads(completed.stdout)["packages"]
 
 
 @task

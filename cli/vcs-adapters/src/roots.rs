@@ -18,7 +18,6 @@ use crate::tracking::Enclosing;
 use crate::tracking::FilesystemMarkers;
 
 /// The roots of every repository enclosing `directory`.
-#[must_use]
 pub fn repository_roots(directory: &Path) -> RootsAnswer {
     let mut answer = RootsAnswer {
         roots: Vec::new(),

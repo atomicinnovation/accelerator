@@ -15,6 +15,18 @@ pub struct OwnerRepo {
     pub repo: String,
 }
 
+/// Reads the URL of a repository's `origin` remote.
+pub trait RepositoryOrigin {
+    /// `Ok(None)` when no `origin` remote is configured, distinct from `Err`
+    /// when the repository could not be read.
+    ///
+    /// # Errors
+    ///
+    /// When the repository cannot be opened or its remote configuration
+    /// cannot be read.
+    fn origin_url(&self, root: &Path) -> Result<Option<String>, kernel::Error>;
+}
+
 /// Recognizes and parses a remote URL according to one forge's own
 /// conventions.
 ///
@@ -43,10 +55,10 @@ pub trait RemoteUrlRecognizer {
 /// See above.
 pub fn resolve_origin_owner_repo(
     root: &Path,
-    origin_remote: &dyn vcs::origin_remote::OriginRemote,
+    origin: &dyn RepositoryOrigin,
     recognizer: &dyn RemoteUrlRecognizer,
 ) -> Result<OwnerRepo, kernel::Error> {
-    let Some(url) = origin_remote.origin_url(root)? else {
+    let Some(url) = origin.origin_url(root)? else {
         return Err(kernel::Error::Refusal(
             "no origin remote is configured for this repository".to_owned(),
         ));
@@ -136,13 +148,14 @@ pub enum ForgeApiError {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use vcs::origin_remote::OriginRemote;
+    use super::{
+        resolve_origin_owner_repo, OwnerRepo, RemoteUrlRecognizer,
+        RepositoryOrigin,
+    };
 
-    use super::{resolve_origin_owner_repo, OwnerRepo, RemoteUrlRecognizer};
+    struct StubRepositoryOrigin(Result<Option<&'static str>, &'static str>);
 
-    struct StubOriginRemote(Result<Option<&'static str>, &'static str>);
-
-    impl OriginRemote for StubOriginRemote {
+    impl RepositoryOrigin for StubRepositoryOrigin {
         fn origin_url(
             &self,
             _root: &Path,
@@ -168,7 +181,7 @@ mod tests {
     fn resolves_the_owner_repo_a_recognizer_parses() -> Result<(), kernel::Error>
     {
         let origin =
-            StubOriginRemote(Ok(Some("https://example.test/owner/repo")));
+            StubRepositoryOrigin(Ok(Some("https://example.test/owner/repo")));
         let recognizer = StubRecognizer(Some(OwnerRepo {
             owner: "owner".to_owned(),
             repo: "repo".to_owned(),
@@ -190,7 +203,7 @@ mod tests {
 
     #[test]
     fn no_origin_remote_configured_is_a_refusal() {
-        let origin = StubOriginRemote(Ok(None));
+        let origin = StubRepositoryOrigin(Ok(None));
         let recognizer = StubRecognizer(None);
         let result = resolve_origin_owner_repo(
             &PathBuf::from("/repo"),
@@ -203,7 +216,7 @@ mod tests {
     #[test]
     fn an_unrecognized_remote_shape_is_a_refusal() {
         let origin =
-            StubOriginRemote(Ok(Some("https://example.test/owner/repo")));
+            StubRepositoryOrigin(Ok(Some("https://example.test/owner/repo")));
         let recognizer = StubRecognizer(None);
         let result = resolve_origin_owner_repo(
             &PathBuf::from("/repo"),
@@ -215,7 +228,7 @@ mod tests {
 
     #[test]
     fn a_probe_failure_propagates() {
-        let origin = StubOriginRemote(Err("could not read git config"));
+        let origin = StubRepositoryOrigin(Err("could not read git config"));
         let recognizer = StubRecognizer(None);
         let result = resolve_origin_owner_repo(
             &PathBuf::from("/repo"),

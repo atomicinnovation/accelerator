@@ -10,6 +10,7 @@ assertion proves the shipped workspace is clean.
 """
 
 from tasks.lint import config_test_support
+from tasks.shared.cargo_metadata import workspace_packages
 
 
 def _package(
@@ -98,7 +99,7 @@ def test_forwarding_through_a_renamed_dependency_is_flagged() -> None:
 
 
 def test_the_shipped_workspace_is_clean() -> None:
-    packages = config_test_support.workspace_packages()
+    packages = workspace_packages()
     names = {package["name"] for package in packages}
     assert {"config", "config-adapters", "jira-cli"} <= names
     assert config_test_support.violations(packages) == []

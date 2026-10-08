@@ -220,6 +220,24 @@ fn the_working_directory_is_never_home_or_inside_the_repository() {
 }
 
 #[test]
+fn a_base_reached_through_a_repository_symlink_is_not_used() {
+    let fixture = Fixture::new();
+    let target = fixture.outside.join("target");
+    fs::create_dir_all(&target).unwrap();
+    let link = fixture.repo.join("link");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    let runner = BashCommandRunner::new(
+        RepositoryRoots::complete(vec![fixture.repo.clone()]),
+        Box::new(Map(fixture.parent())),
+        link,
+    );
+
+    let cwd = PathBuf::from(runner.run("pwd -P", &base()).unwrap());
+
+    assert!(!cwd.starts_with(&target), "{}", cwd.display());
+}
+
+#[test]
 fn a_repository_enclosing_every_temporary_directory_cannot_start() {
     let fixture = Fixture::new();
     let runner = BashCommandRunner::new(

@@ -9,7 +9,7 @@ mod common;
 use common::repo_root;
 use common::TestError;
 
-use corpus_adapters::frontmatter_validation::validate_templates;
+use corpus::frontmatter_validation::pipeline::validate_templates;
 use corpus_adapters::RealFs;
 
 #[test]

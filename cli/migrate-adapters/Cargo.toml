@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "adapter"
+context = "migrate"
+
 [lints]
 workspace = true
 
@@ -19,16 +23,15 @@ bash-parity = []
 migrate = { path = "../migrate" }
 kernel = { path = "../kernel" }
 config = { path = "../config" }
-config-adapters = { path = "../config-adapters" }
 vcs = { path = "../vcs" }
-vcs-adapters = { path = "../vcs-adapters" }
 store = { path = "../store" }
+document = { path = "../document" }
 corpus = { path = "../corpus" }
-corpus-adapters = { path = "../corpus-adapters" }
-work-adapters = { path = "../work-adapters" }
 tracing = { workspace = true }
-time = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+config-adapters = { path = "../config-adapters" }
+corpus-adapters = { path = "../corpus-adapters" }
+vcs-adapters = { path = "../vcs-adapters" }
 vcs-test-support = { path = "../vcs-test-support" }

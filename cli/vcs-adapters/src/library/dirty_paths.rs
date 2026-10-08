@@ -10,10 +10,11 @@
 
 use std::path::Path;
 
+use vcs::WorkingCopyState;
+
 use crate::library::is_unborn_head;
 use crate::library::snapshot;
 use crate::library::Error;
-use crate::library::WorkingCopyState;
 
 pub(super) fn git_working_copy_state(
     root: &Path,

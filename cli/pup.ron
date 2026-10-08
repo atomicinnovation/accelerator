@@ -145,13 +145,9 @@
             ],
         )),
         // The whole work crate is domain (no adapter modules live in it); it
-        // additionally permits corpus for WorkItemIdScheme/IdScanner, tracker
-        // for the sync engine's RemoteTracker vocabulary, and config for the
-        // pull-scope block's value model. corpus and tracker are
-        // zero-dependency port crates; config is not, but its only edge is the
-        // shared kernel error taxonomy — already within work's permitted
-        // transitive set — so reading the config representation drags no
-        // infrastructure into the domain.
+        // additionally permits corpus for WorkItemIdScheme/IdScanner and
+        // tracker for the sync engine's RemoteTracker vocabulary, both
+        // zero-dependency port crates.
         Module((
             name: "work_domain_imports_only_permitted",
             matches: Module("^work($|::)"),
@@ -160,7 +156,6 @@
                     allowed_only: Some([
                         "^(std|core|alloc)(::|$)",
                         "^kernel::Error(::|$)",
-                        "^config(::|$)",
                         "^corpus(::|$)",
                         "^tracker(::|$)",
                         "^crate(::|$)",
@@ -361,8 +356,9 @@
             ],
         )),
         // work-adapters spawns no subprocess: its section-diff renders
-        // in-process and its VCS identity reads through vcs-adapters' library
-        // path. This crate-wide deny catches use-path std::process imports.
+        // in-process and its VCS identity reads through the injected
+        // vcs::RepositoryProbe. This crate-wide deny catches use-path
+        // std::process imports.
         Module((
             name: "work_adapters_is_zero_spawn",
             matches: Module("^work_adapters($|::)"),
@@ -416,24 +412,8 @@
                 ),
             ],
         )),
-        // consent-adapters answers the consent policy's VCS questions through
-        // vcs-adapters' in-process probes, so it spawns nothing itself.
-        Module((
-            name: "consent_adapters_is_zero_spawn",
-            matches: Module("^consent_adapters($|::)"),
-            rules: [
-                RestrictImports(
-                    allowed_only: None,
-                    denied: Some([
-                        "^std::process(::|$)",
-                    ]),
-                    severity: Error,
-                ),
-            ],
-        )),
-        // The VCS sub-binary answers the launcher's tracking question about
-        // config files by path alone, so the VCS context never learns what a
-        // config file is.
+        // The VCS sub-binary detects, reports on and guards a checkout; what a
+        // config file is stays outside the VCS context.
         Module((
             name: "vcs_cli_is_free_of_config",
             matches: Module("^accelerator_vcs($|::)"),
@@ -451,10 +431,11 @@
         // Only the consent policy runs a command, so no consumer may name the
         // runner port or its production adapter; a consumer holds the opaque
         // `Runner` instead. The regex cannot negate, so it lists every crate
-        // but config, config_adapters and consent_adapters, on one line
-        // because a RON string cannot split. A grouped import resolves to an
-        // empty module name and slips past a denied list; the opaque `Runner`
-        // is the primary guarantee, this the second line.
+        // but config and config_adapters, whose consent module holds the
+        // production runner, on one line because a RON string cannot split.
+        // A grouped import resolves to an empty module name and slips past a
+        // denied list; the opaque `Runner` is the primary guarantee, this the
+        // second line.
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
@@ -508,12 +489,11 @@
         // The whole migrate crate is domain (no adapter modules live in it).
         // Unlike corpus/vcs, it also reuses `corpus`'s own `Record`/
         // `RecordStore`/`linkage` directly (its session log is a
-        // `corpus`-typed record, not a new record type) and `document`'s
-        // zero-infrastructure value tree — both narrow, justified widenings
-        // beyond the std/kernel::Error/crate baseline every other domain
-        // crate here is held to. `config`/`vcs` stay excluded: migrate
-        // reaches them only through its own locally-declared port traits,
-        // bridged by migrate-adapters.
+        // `corpus`-typed record, not a new record type) — a narrow, justified
+        // widening beyond the std/kernel::Error/crate baseline every other
+        // domain crate here is held to. `config`/`vcs` and frontmatter YAML
+        // stay excluded: migrate reaches them only through its own
+        // locally-declared port traits, bridged by migrate-adapters.
         Module((
             name: "migrate_domain_imports_only_permitted",
             matches: Module("^migrate($|::)"),
@@ -524,7 +504,6 @@
                         "^kernel::Error(::|$)",
                         "^crate(::|$)",
                         "^corpus(::|$)",
-                        "^document(::|$)",
                     ]),
                     denied: None,
                     severity: Error,

@@ -2,10 +2,9 @@
 //!
 //! Each test builds a throwaway git repository, so root discovery is bounded
 //! inside the fixture rather than escaping into the real working tree, and
-//! the session-start tracking check asks about a real checkout. Every run
-//! points `ACCELERATOR_VCS_BIN` at the fixture binary, so none reaches the
-//! network for the `vcs` sub-binary. Byte-exact assertions compare
-//! `output.stdout` directly, never through `from_utf8_lossy`.
+//! the session-start tracking check asks about a real checkout. Byte-exact
+//! assertions compare `output.stdout` directly, never through
+//! `from_utf8_lossy`.
 
 use std::error::Error;
 use std::ffi::OsStr;
@@ -75,21 +74,13 @@ impl Fixture {
     }
 }
 
-const TRACKING_ANSWER: &str = "ACCELERATOR_FIXTURE_VCS_TRACKING";
-
-/// The launcher at `cwd`, isolated from the caller's environment, with the
-/// `vcs` sub-binary impersonated by the fixture answering `untracked`.
+/// The launcher at `cwd`, isolated from the caller's environment.
 fn accelerator(cwd: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_accelerator"));
     command.current_dir(cwd);
     command.env_remove("ACCELERATOR_LOG");
     command.env_remove("ACCELERATOR_CACHE_DIR");
     command.env_remove("ACCELERATOR_RELEASE_BASE_URL");
-    command.env_remove(TRACKING_ANSWER);
-    command.env(
-        "ACCELERATOR_VCS_BIN",
-        env!("CARGO_BIN_EXE_accelerator-fixture"),
-    );
     command
 }
 
@@ -1100,6 +1091,42 @@ fn dump_refusal_of_a_pull_block_never_degrades_under_fail_safe() -> TestResult {
     assert_ne!(code(&output), 0);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("colour"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn dump_under_fail_safe_renders_a_valid_pull_block_as_usual() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+         max_items: 3\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump", "--fail-safe"])?;
+    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, fixture.run(&["config", "dump"])?.stdout);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(
+            "`jira.pull.max_items` | `3` | team (.accelerator/config.md)"
+        ),
+        "{stdout}"
+    );
+    Ok(())
+}
+
+#[test]
+fn dump_renders_an_empty_pull_block_exactly_as_an_unset_one() -> TestResult {
+    let unset =
+        Fixture::new()?.team("---\nwork:\n  integration: jira\n---\n")?;
+    let empty = Fixture::new()?
+        .team("---\nwork:\n  integration: jira\njira:\n  pull: {}\n---\n")?;
+    let output = empty.run(&["config", "dump"])?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("`jira.pull.max_items` | *(not set)* | default"),
+        "{stdout}"
+    );
+    assert_eq!(output.stdout, unset.run(&["config", "dump"])?.stdout);
     Ok(())
 }
 
@@ -2869,15 +2896,9 @@ fn session_start(output: &Output) -> Result<Envelope, Box<dyn Error>> {
     })
 }
 
-fn summary_hook(
-    fixture: &Fixture,
-    answer: Option<&str>,
-) -> Result<Output, Box<dyn Error>> {
+fn summary_hook(fixture: &Fixture) -> Result<Output, Box<dyn Error>> {
     let mut command = accelerator(&fixture.root);
     command.env_remove("ACCELERATOR_PLUGIN_ROOT");
-    if let Some(answer) = answer {
-        command.env(TRACKING_ANSWER, answer);
-    }
     command.args(["config", "summary", "--format", "hook"]);
     Ok(command.output()?)
 }
@@ -2902,7 +2923,7 @@ fn assert_in_both_fields(envelope: &Envelope, needle: &str) {
 fn a_team_consent_key_is_warned_about_in_both_hook_fields() -> TestResult {
     let fixture = Fixture::new()?.team(TEAM_TOKEN_CMD)?;
 
-    let output = summary_hook(&fixture, None)?;
+    let output = summary_hook(&fixture)?;
 
     assert_eq!(code(&output), 0);
     let envelope = session_start(&output)?;
@@ -2911,41 +2932,91 @@ fn a_team_consent_key_is_warned_about_in_both_hook_fields() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn a_tracked_personal_file_is_warned_about_in_both_hook_fields() -> TestResult {
-    let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+#[derive(Clone, Copy)]
+enum Checkout {
+    Git,
+    #[cfg(feature = "bash-parity")]
+    Jj,
+    #[cfg(feature = "bash-parity")]
+    ColocatedJj,
+}
 
-    let output = summary_hook(&fixture, Some("tracked"))?;
+impl Checkout {
+    fn init(self, hermetic: &Hermetic, root: &Path) -> TestResult {
+        match self {
+            Self::Git => hermetic.git(&["init", "--quiet"], root).map(drop)?,
+            #[cfg(feature = "bash-parity")]
+            Self::Jj => hermetic.jj(&["git", "init"], root).map(drop)?,
+            #[cfg(feature = "bash-parity")]
+            Self::ColocatedJj => hermetic
+                .jj(&["git", "init", "--colocate"], root)
+                .map(drop)?,
+        }
+        Ok(())
+    }
+
+    fn track(self, hermetic: &Hermetic, root: &Path, file: &str) -> TestResult {
+        match self {
+            Self::Git => hermetic.git(&["add", file], root).map(drop)?,
+            #[cfg(feature = "bash-parity")]
+            Self::Jj | Self::ColocatedJj => hermetic
+                .jj(&["commit", "-m", "track the personal file"], root)
+                .map(drop)?,
+        }
+        Ok(())
+    }
+}
+
+fn assert_a_tracked_personal_file_warns(checkout: Checkout) -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().join("repo");
+    fs::create_dir_all(&root)?;
+    let hermetic = Hermetic::rooted_at(guard.path())?;
+    checkout.init(&hermetic, &root)?;
+    let fixture = Fixture {
+        root,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    checkout.track(&hermetic, &fixture.root, ".accelerator/config.local.md")?;
+
+    let output = summary_hook(&fixture)?;
 
     assert_eq!(code(&output), 0);
     assert_in_both_fields(&session_start(&output)?, "E_CONSENT_KEY_TRACKED");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
     Ok(())
 }
 
 #[test]
-fn a_vcs_binary_that_fails_or_hangs_leaves_the_tracking_unknown() -> TestResult
-{
-    for answer in ["fail", "hang"] {
-        let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
-
-        let output = summary_hook(&fixture, Some(answer))?;
-
-        assert_eq!(code(&output), 0, "{answer}");
-        assert_in_both_fields(
-            &session_start(&output)?,
-            "E_CONSENT_KEY_TRACKING_UNKNOWN",
-        );
-    }
-    Ok(())
-}
-
-#[test]
-fn a_vcs_override_naming_a_missing_file_does_not_silence_the_warning(
+fn a_personal_file_tracked_by_git_is_warned_about_in_both_hook_fields(
 ) -> TestResult {
-    let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
+    assert_a_tracked_personal_file_warns(Checkout::Git)
+}
+
+#[test]
+fn a_corrupt_index_with_logging_off_is_unknown_and_silent() -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().join("repo");
+    fs::create_dir_all(&root)?;
+    let hermetic = Hermetic::rooted_at(guard.path())?;
+    Checkout::Git.init(&hermetic, &root)?;
+    let fixture = Fixture {
+        root,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    Checkout::Git.track(
+        &hermetic,
+        &fixture.root,
+        ".accelerator/config.local.md",
+    )?;
+    fs::write(fixture.root.join(".git/index"), b"DIRC-not-an-index")?;
     let mut command = accelerator(&fixture.root);
     command.env_remove("ACCELERATOR_PLUGIN_ROOT");
-    command.env("ACCELERATOR_VCS_BIN", fixture.root.join("no-such-vcs"));
+    command.env("ACCELERATOR_LOG", "off");
     command.args(["config", "summary", "--format", "hook"]);
 
     let output = command.output()?;
@@ -2955,7 +3026,22 @@ fn a_vcs_override_naming_a_missing_file_does_not_silence_the_warning(
         &session_start(&output)?,
         "E_CONSENT_KEY_TRACKING_UNKNOWN",
     );
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
     Ok(())
+}
+
+#[cfg(feature = "bash-parity")]
+#[test]
+fn a_personal_file_tracked_by_jj_is_warned_about_in_both_hook_fields(
+) -> TestResult {
+    assert_a_tracked_personal_file_warns(Checkout::Jj)
+}
+
+#[cfg(feature = "bash-parity")]
+#[test]
+fn a_personal_file_tracked_by_colocated_jj_is_warned_about_in_both_hook_fields(
+) -> TestResult {
+    assert_a_tracked_personal_file_warns(Checkout::ColocatedJj)
 }
 
 #[test]
@@ -2964,7 +3050,7 @@ fn an_untracked_personal_file_and_no_team_consent_key_warn_of_nothing(
     let fixture = Fixture::new()?.team(SEEDED)?.local(LOCAL)?;
     let plain = fixture.run(&["config", "summary"])?;
 
-    let output = summary_hook(&fixture, None)?;
+    let output = summary_hook(&fixture)?;
 
     let envelope = session_start(&output)?;
     assert_eq!(envelope.system_message, None);
@@ -2972,6 +3058,60 @@ fn an_untracked_personal_file_and_no_team_consent_key_warn_of_nothing(
         format!("{}\n", envelope.context).as_bytes(),
         plain.stdout.as_slice()
     );
+    Ok(())
+}
+
+#[test]
+fn a_personal_file_outside_any_repository_warns_of_nothing() -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().join("project");
+    fs::create_dir_all(&root)?;
+    let fixture = Fixture {
+        root,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    let plain = fixture.run(&["config", "summary"])?;
+
+    let output = summary_hook(&fixture)?;
+
+    assert_eq!(code(&output), 0);
+    let envelope = session_start(&output)?;
+    assert_eq!(envelope.system_message, None);
+    assert_eq!(
+        format!("{}\n", envelope.context).as_bytes(),
+        plain.stdout.as_slice()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_personal_file_the_inner_of_two_nested_git_repositories_tracks_warns(
+) -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let outer = guard.path().join("outer");
+    let inner = outer.join("inner");
+    fs::create_dir_all(&inner)?;
+    let hermetic = Hermetic::rooted_at(guard.path())?;
+    Checkout::Git.init(&hermetic, &outer)?;
+    Checkout::Git.init(&hermetic, &inner)?;
+    let fixture = Fixture {
+        root: inner,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    Checkout::Git.track(
+        &hermetic,
+        &fixture.root,
+        ".accelerator/config.local.md",
+    )?;
+
+    let output = summary_hook(&fixture)?;
+
+    assert_eq!(code(&output), 0);
+    assert_in_both_fields(&session_start(&output)?, "E_CONSENT_KEY_TRACKED");
     Ok(())
 }
 
@@ -3021,7 +3161,7 @@ fn an_insecure_personal_file_is_warned_about_beside_the_consent_warnings(
         fs::Permissions::from_mode(0o644),
     )?;
 
-    let output = summary_hook(&fixture, None)?;
+    let output = summary_hook(&fixture)?;
 
     assert_eq!(code(&output), 0);
     let envelope = session_start(&output)?;

@@ -109,7 +109,69 @@ pub fn corpus::doc_type::DocTypeKey::hash<__H: core::hash::Hasher>(&self, state:
 impl core::marker::Copy for corpus::doc_type::DocTypeKey
 impl core::marker::StructuralPartialEq for corpus::doc_type::DocTypeKey
 pub fn corpus::doc_type::infer(path: &std::path::Path, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<corpus::doc_type::DocTypeKey>
+pub mod corpus::frontmatter
+pub enum corpus::frontmatter::FrontmatterState
+pub corpus::frontmatter::FrontmatterState::Absent
+pub corpus::frontmatter::FrontmatterState::Malformed
+pub corpus::frontmatter::FrontmatterState::Parsed(corpus::value::Mapping)
+impl core::clone::Clone for corpus::frontmatter::FrontmatterState
+pub fn corpus::frontmatter::FrontmatterState::clone(&self) -> corpus::frontmatter::FrontmatterState
+impl core::cmp::PartialEq for corpus::frontmatter::FrontmatterState
+pub fn corpus::frontmatter::FrontmatterState::eq(&self, other: &corpus::frontmatter::FrontmatterState) -> bool
+impl core::fmt::Debug for corpus::frontmatter::FrontmatterState
+pub fn corpus::frontmatter::FrontmatterState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter::FrontmatterState
+pub struct corpus::frontmatter::FrontmatterError(pub alloc::string::String)
+impl core::clone::Clone for corpus::frontmatter::FrontmatterError
+pub fn corpus::frontmatter::FrontmatterError::clone(&self) -> corpus::frontmatter::FrontmatterError
+impl core::cmp::Eq for corpus::frontmatter::FrontmatterError
+impl core::cmp::PartialEq for corpus::frontmatter::FrontmatterError
+pub fn corpus::frontmatter::FrontmatterError::eq(&self, other: &corpus::frontmatter::FrontmatterError) -> bool
+impl core::error::Error for corpus::frontmatter::FrontmatterError
+impl core::fmt::Debug for corpus::frontmatter::FrontmatterError
+pub fn corpus::frontmatter::FrontmatterError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::frontmatter::FrontmatterError
+pub fn corpus::frontmatter::FrontmatterError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter::FrontmatterError
+pub struct corpus::frontmatter::ParsedDocument
+pub corpus::frontmatter::ParsedDocument::body: alloc::string::String
+pub corpus::frontmatter::ParsedDocument::state: corpus::frontmatter::FrontmatterState
+impl core::clone::Clone for corpus::frontmatter::ParsedDocument
+pub fn corpus::frontmatter::ParsedDocument::clone(&self) -> corpus::frontmatter::ParsedDocument
+impl core::fmt::Debug for corpus::frontmatter::ParsedDocument
+pub fn corpus::frontmatter::ParsedDocument::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait corpus::frontmatter::FrontmatterParser
+pub fn corpus::frontmatter::FrontmatterParser::classify(&self, raw: &[u8]) -> corpus::frontmatter::ParsedDocument
+pub fn corpus::frontmatter::FrontmatterParser::parse_value(&self, content: &str) -> core::result::Result<corpus::value::FrontmatterValue, corpus::frontmatter::FrontmatterError>
+pub fn corpus::frontmatter::FrontmatterParser::split_frontmatter(&self, content: &str) -> core::result::Result<alloc::string::String, corpus::frontmatter::FrontmatterError>
 pub mod corpus::frontmatter_validation
+pub mod corpus::frontmatter_validation::pipeline
+pub enum corpus::frontmatter_validation::pipeline::TargetOutcome
+pub corpus::frontmatter_validation::pipeline::TargetOutcome::Skipped
+pub corpus::frontmatter_validation::pipeline::TargetOutcome::Violations(alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>)
+impl core::clone::Clone for corpus::frontmatter_validation::pipeline::TargetOutcome
+pub fn corpus::frontmatter_validation::pipeline::TargetOutcome::clone(&self) -> corpus::frontmatter_validation::pipeline::TargetOutcome
+impl core::cmp::Eq for corpus::frontmatter_validation::pipeline::TargetOutcome
+impl core::cmp::PartialEq for corpus::frontmatter_validation::pipeline::TargetOutcome
+pub fn corpus::frontmatter_validation::pipeline::TargetOutcome::eq(&self, other: &corpus::frontmatter_validation::pipeline::TargetOutcome) -> bool
+impl core::fmt::Debug for corpus::frontmatter_validation::pipeline::TargetOutcome
+pub fn corpus::frontmatter_validation::pipeline::TargetOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::frontmatter_validation::pipeline::TargetOutcome
+pub struct corpus::frontmatter_validation::pipeline::Checks
+pub corpus::frontmatter_validation::pipeline::Checks::canonical: bool
+pub corpus::frontmatter_validation::pipeline::Checks::references: bool
+pub corpus::frontmatter_validation::pipeline::Checks::structure: bool
+impl core::clone::Clone for corpus::frontmatter_validation::pipeline::Checks
+pub fn corpus::frontmatter_validation::pipeline::Checks::clone(&self) -> corpus::frontmatter_validation::pipeline::Checks
+impl core::fmt::Debug for corpus::frontmatter_validation::pipeline::Checks
+pub fn corpus::frontmatter_validation::pipeline::Checks::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::frontmatter_validation::pipeline::Checks
+pub fn corpus::frontmatter_validation::pipeline::build_index(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<corpus::frontmatter_validation::Index, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::corpus_files(table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], walker: &dyn corpus::scan::CorpusWalker) -> core::result::Result<alloc::vec::Vec<std::path::PathBuf>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::validate_path(path: &std::path::Path, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::validate_targets(files: &[std::path::PathBuf], table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)], index: &corpus::frontmatter_validation::Index, checks: corpus::frontmatter_validation::pipeline::Checks, reader: &dyn corpus::scan::FileReader, parser: &dyn corpus::frontmatter::FrontmatterParser) -> core::result::Result<alloc::vec::Vec<(std::path::PathBuf, corpus::frontmatter_validation::pipeline::TargetOutcome)>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::validate_templates<R: corpus::scan::FileReader>(project_root: &std::path::Path, reader: &R) -> core::result::Result<alloc::vec::Vec<corpus::frontmatter_validation::template_shape::TemplateViolation>, kernel::Error>
+pub fn corpus::frontmatter_validation::pipeline::validate_text(content: &str, parser: &dyn corpus::frontmatter::FrontmatterParser) -> alloc::vec::Vec<corpus::frontmatter_validation::violation::Violation>
 pub mod corpus::frontmatter_validation::schema
 pub struct corpus::frontmatter_validation::schema::SchemaRow
 pub corpus::frontmatter_validation::schema::SchemaRow::code_state_anchored: bool
@@ -552,6 +614,7 @@ pub trait corpus::store::FileRemove
 pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
@@ -612,6 +675,23 @@ impl core::iter::traits::collect::FromIterator<(alloc::string::String, corpus::v
 pub fn corpus::value::Mapping::from_iter<I: core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, corpus::value::FrontmatterValue)>>(iter: I) -> Self
 impl core::marker::StructuralPartialEq for corpus::value::Mapping
 pub mod corpus::work_item_id
+pub enum corpus::work_item_id::CanonicaliseError
+pub corpus::work_item_id::CanonicaliseError::EmptyInput
+pub corpus::work_item_id::CanonicaliseError::MalformedPattern(alloc::string::String)
+pub corpus::work_item_id::CanonicaliseError::MissingKey
+pub corpus::work_item_id::CanonicaliseError::NoMatch
+pub corpus::work_item_id::CanonicaliseError::UnrecognisedIdShape(alloc::string::String)
+impl core::clone::Clone for corpus::work_item_id::CanonicaliseError
+pub fn corpus::work_item_id::CanonicaliseError::clone(&self) -> corpus::work_item_id::CanonicaliseError
+impl core::cmp::Eq for corpus::work_item_id::CanonicaliseError
+impl core::cmp::PartialEq for corpus::work_item_id::CanonicaliseError
+pub fn corpus::work_item_id::CanonicaliseError::eq(&self, other: &corpus::work_item_id::CanonicaliseError) -> bool
+impl core::error::Error for corpus::work_item_id::CanonicaliseError
+impl core::fmt::Debug for corpus::work_item_id::CanonicaliseError
+pub fn corpus::work_item_id::CanonicaliseError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::work_item_id::CanonicaliseError
+pub fn corpus::work_item_id::CanonicaliseError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::work_item_id::CanonicaliseError
 pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
@@ -635,6 +715,8 @@ impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub trait corpus::work_item_id::IdScanner
 pub fn corpus::work_item_id::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
+pub trait corpus::work_item_id::WorkItemIdCanonicaliser
+pub fn corpus::work_item_id::WorkItemIdCanonicaliser::canonicalise(&self, input: &str, pattern: &str, key_value: &str) -> core::result::Result<alloc::string::String, corpus::work_item_id::CanonicaliseError>
 pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
 pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
 pub enum corpus::Band
@@ -888,6 +970,7 @@ pub trait corpus::IdScanner
 pub fn corpus::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::RecordStore
 pub fn corpus::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>

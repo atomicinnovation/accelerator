@@ -30,20 +30,33 @@ from tasks.measure import (
     FAST_BACKEND,
     FLOOR_RETRY_CAP,
     GUARDED_FILES,
+    LAUNCHER_TARGET,
     MANIFEST_DIRNAME,
     MANIFEST_NAME,
+    PERSONAL_CONFIG,
     PLATFORM_TABLE,
     RATIO_TARGET,
     RATIO_THRESHOLD,
     RECOVERED_FILES,
+    REFUSING_RELEASE_URL,
+    SUMMARY_RUNS,
+    SUMMARY_WARMUPS,
+    TRACKED_WARNING,
+    UNCHECKED_NOTE,
     WALL_CLOCK_BUDGET_S,
     ArtefactKind,
+    CacheMode,
+    Host,
+    LargeRepository,
+    LatencyFigure,
     LauncherTerms,
     Manifest,
     MeasurementSession,
     PreconditionFailureError,
+    RepositoryKind,
     RunResult,
     StaleManifestError,
+    SummarySetting,
     analyse,
     assemble_terms_report,
     assert_backends,
@@ -54,15 +67,20 @@ from tasks.measure import (
     build_target_triple,
     calibration_note,
     cells_for,
+    checkout_commands,
     classify_cell,
+    commit_argv,
     create_fixture,
     criterion_constants,
     digest_backend_population,
     fallback_backend_available,
     farm_environment,
+    fetch_commands,
     gate_floors,
+    initialise_commands,
     jj_pin,
     last_floors,
+    launcher_size_report,
     measure_digest_bracket,
     measure_floors,
     measure_shell_terms,
@@ -76,11 +94,19 @@ from tasks.measure import (
     ratio_threshold_for,
     recover_baseline,
     recovery_argv,
+    repository_kind,
+    require_tracked_warning,
     sample_blocks,
     staged_shim_targets,
+    store_argv,
+    summary_environment,
+    summary_latency_report,
+    time_summaries,
     tool_provenance,
+    track_commands,
     unwind_signals,
     warm_cache_gaps,
+    write_personal_config,
 )
 from tasks.shared.measurement import (
     PLATFORM_KEY_ENV,
@@ -3330,3 +3356,440 @@ class TestGuardedFiles:
         with fake_session(plugin_root, tmp_path) as session:
             (plugin_root / "hooks/hooks.json").unlink()
         assert any("hooks.json changed" in f for f in session.failures)
+
+
+HOST = Host(model="Mac15,8", os="macOS-26.3-arm64", load=(1.5, 1.25, 1.0))
+
+
+class TestLauncherSize:
+    def test_the_report_names_the_binary_its_size_and_the_host(self):
+        report = launcher_size_report(
+            Path("/target/release/accelerator"), 4_194_304, HOST
+        )
+        assert report == (
+            "launcher size: 4194304 bytes (/target/release/accelerator)\n"
+            "host: Mac15,8, macOS-26.3-arm64, load 1.50 1.25 1.00"
+        )
+
+    def test_the_size_is_measured_for_the_shipped_target(self):
+        assert LAUNCHER_TARGET == "aarch64-apple-darwin"
+
+
+class TestRepositoryKindDetection:
+    def test_a_directory_with_only_git_is_git(self, tmp_path):
+        (tmp_path / ".git").mkdir()
+        assert repository_kind(tmp_path) is RepositoryKind.GIT
+
+    def test_a_directory_with_only_jj_is_jj(self, tmp_path):
+        (tmp_path / ".jj").mkdir()
+        assert repository_kind(tmp_path) is RepositoryKind.JJ
+
+    def test_a_directory_with_both_is_colocated_jj(self, tmp_path):
+        (tmp_path / ".jj").mkdir()
+        (tmp_path / ".git").mkdir()
+        assert repository_kind(tmp_path) is RepositoryKind.COLOCATED_JJ
+
+    def test_a_directory_with_neither_is_refused(self, tmp_path):
+        with pytest.raises(PreconditionFailureError, match="not a git or jj"):
+            repository_kind(tmp_path)
+
+
+class TestSummaryFixtureCommands:
+    def test_git_initialises_a_plain_repository(self, tmp_path):
+        assert initialise_commands(RepositoryKind.GIT, tmp_path) == [
+            ["git", "init", "--quiet", str(tmp_path)]
+        ]
+
+    def test_jj_pins_colocation_off(self, tmp_path):
+        assert initialise_commands(RepositoryKind.JJ, tmp_path) == [
+            [
+                "jj",
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                str(tmp_path),
+            ]
+        ]
+
+    def test_colocated_jj_pins_colocation_on(self, tmp_path):
+        assert initialise_commands(RepositoryKind.COLOCATED_JJ, tmp_path) == [
+            [
+                "jj",
+                "--config",
+                "git.colocate=true",
+                "git",
+                "init",
+                "--quiet",
+                str(tmp_path),
+            ]
+        ]
+
+    def test_git_tracks_the_personal_config_even_when_ignored(self, tmp_path):
+        assert track_commands(RepositoryKind.GIT, tmp_path) == [
+            [
+                "git",
+                "-C",
+                str(tmp_path),
+                "add",
+                "--force",
+                str(tmp_path / PERSONAL_CONFIG),
+            ],
+            ["git", "-C", str(tmp_path), "commit", "--quiet", "-m", "track"],
+        ]
+
+    @pytest.mark.parametrize(
+        "kind", [RepositoryKind.JJ, RepositoryKind.COLOCATED_JJ]
+    )
+    def test_jj_tracks_the_personal_config_even_when_ignored(
+        self, kind, tmp_path
+    ):
+        assert track_commands(kind, tmp_path) == [
+            [
+                "jj",
+                "-R",
+                str(tmp_path),
+                "file",
+                "track",
+                "--include-ignored",
+                str(tmp_path / PERSONAL_CONFIG),
+            ],
+            ["jj", "-R", str(tmp_path), "commit", "--quiet", "-m", "track"],
+        ]
+
+    def test_the_personal_config_is_written_owner_only(self, tmp_path):
+        write_personal_config(tmp_path)
+        written = tmp_path / PERSONAL_CONFIG
+        assert written.read_text().startswith("---\n")
+        assert written.stat().st_mode & 0o777 == 0o600
+
+
+class TestLargeRepositorySnapshot:
+    def test_a_git_revision_resolves_to_its_commit(self, tmp_path):
+        assert commit_argv(RepositoryKind.GIT, tmp_path, "main") == [
+            "git",
+            "-C",
+            str(tmp_path),
+            "rev-parse",
+            "--verify",
+            "main^{commit}",
+        ]
+
+    @pytest.mark.parametrize(
+        "kind", [RepositoryKind.JJ, RepositoryKind.COLOCATED_JJ]
+    )
+    def test_a_jj_revision_resolves_without_snapshotting(self, kind, tmp_path):
+        assert commit_argv(kind, tmp_path, "main") == [
+            "jj",
+            "-R",
+            str(tmp_path),
+            "log",
+            "--ignore-working-copy",
+            "--no-graph",
+            "-r",
+            "main",
+            "-T",
+            "commit_id",
+        ]
+
+    def test_a_git_store_is_its_git_directory(self, tmp_path):
+        assert store_argv(RepositoryKind.GIT, tmp_path) == [
+            "git",
+            "-C",
+            str(tmp_path),
+            "rev-parse",
+            "--absolute-git-dir",
+        ]
+
+    def test_a_jj_store_is_its_backing_git_directory(self, tmp_path):
+        assert store_argv(RepositoryKind.JJ, tmp_path) == [
+            "jj",
+            "-R",
+            str(tmp_path),
+            "git",
+            "root",
+            "--ignore-working-copy",
+        ]
+
+    def test_the_commit_is_fetched_into_a_fresh_bare_store(self, tmp_path):
+        source = tmp_path / "source.git"
+        store = tmp_path / "store.git"
+        assert fetch_commands(source, "abc123", store) == [
+            ["git", "init", "--quiet", "--bare", str(store)],
+            [
+                "git",
+                "-C",
+                str(store),
+                "fetch",
+                "--quiet",
+                str(source),
+                "abc123:refs/heads/measured",
+            ],
+        ]
+
+    def test_git_checks_the_commit_out_by_cloning_the_store(self, tmp_path):
+        store = tmp_path / "store.git"
+        copy = tmp_path / "copy"
+        assert checkout_commands(RepositoryKind.GIT, store, copy) == [
+            [
+                "git",
+                "clone",
+                "--quiet",
+                "--branch",
+                "measured",
+                str(store),
+                str(copy),
+            ]
+        ]
+
+    def test_jj_checks_the_commit_out_over_the_store(self, tmp_path):
+        store = tmp_path / "store.git"
+        copy = tmp_path / "copy"
+        assert checkout_commands(RepositoryKind.JJ, store, copy) == [
+            [
+                "jj",
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                "--git-repo",
+                str(store),
+                str(copy),
+            ],
+            ["jj", "-R", str(copy), "new", "--quiet", "measured"],
+        ]
+
+    def test_colocated_jj_colocates_over_a_git_clone(self, tmp_path):
+        store = tmp_path / "store.git"
+        copy = tmp_path / "copy"
+        assert checkout_commands(RepositoryKind.COLOCATED_JJ, store, copy) == [
+            [
+                "git",
+                "clone",
+                "--quiet",
+                "--branch",
+                "measured",
+                str(store),
+                str(copy),
+            ],
+            [
+                "jj",
+                "--config",
+                "git.colocate=true",
+                "git",
+                "init",
+                "--quiet",
+                str(copy),
+            ],
+        ]
+
+    def test_the_record_describes_a_jj_snapshot_with_its_operations(self):
+        record = LargeRepository(
+            path=Path("/src/repo"),
+            revision="main",
+            commit="abc123",
+            kind=RepositoryKind.JJ,
+            index_entries=4200,
+            operations=17,
+        )
+        assert record.describe() == (
+            "large repository /src/repo at main (abc123): jj, "
+            "4200 index entries, 17 operations"
+        )
+
+    def test_the_record_of_a_git_snapshot_has_no_operations(self):
+        record = LargeRepository(
+            path=Path("/src/repo"),
+            revision="main",
+            commit="abc123",
+            kind=RepositoryKind.GIT,
+            index_entries=4200,
+            operations=None,
+        )
+        assert record.describe() == (
+            "large repository /src/repo at main (abc123): git, "
+            "4200 index entries"
+        )
+
+
+class TestSummaryEnvironment:
+    def environment(self, tmp_path):
+        return summary_environment(
+            temp_root=tmp_path,
+            cache=tmp_path / "cache",
+            vcs_binary=tmp_path / "accelerator-vcs",
+        )
+
+    def test_tracking_dispatches_to_the_local_vcs_binary(self, tmp_path):
+        env = self.environment(tmp_path)
+        assert env["ACCELERATOR_VCS_BIN"] == str(tmp_path / "accelerator-vcs")
+
+    def test_a_release_fetch_is_refused_on_loopback(self, tmp_path):
+        env = self.environment(tmp_path)
+        assert env["ACCELERATOR_RELEASE_BASE_URL"] == REFUSING_RELEASE_URL
+        assert REFUSING_RELEASE_URL.startswith("http://127.0.0.1:")
+
+    def test_the_launcher_cache_is_the_given_directory(self, tmp_path):
+        env = self.environment(tmp_path)
+        assert env["ACCELERATOR_CACHE_DIR"] == str(tmp_path / "cache")
+
+    def test_the_host_vcs_configuration_is_isolated(self, tmp_path):
+        env = self.environment(tmp_path)
+        assert env["HOME"] == str(tmp_path / "home")
+        assert env["XDG_CONFIG_HOME"] == str(tmp_path / "home/.config")
+        assert env["GIT_CONFIG_NOSYSTEM"] == "1"
+        assert env["GIT_CONFIG_GLOBAL"] == os.devnull
+        assert env["GIT_CEILING_DIRECTORIES"] == ceiling_directories(tmp_path)
+
+    def test_no_ambient_accelerator_override_leaks_in(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("ACCELERATOR_PLUGIN_ROOT", "/elsewhere")
+        env = self.environment(tmp_path)
+        assert "ACCELERATOR_PLUGIN_ROOT" not in env
+
+
+class TestTrackedWarningRequirement:
+    def result(self, stdout, exit_code=0):
+        return RunResult(stdout, "", exit_code, 1.0)
+
+    def test_the_tracked_warning_satisfies_it(self):
+        require_tracked_warning(
+            self.result(f"...config.local.md {TRACKED_WARNING}, so...")
+        )
+
+    def test_a_missing_warning_is_refused(self):
+        with pytest.raises(PreconditionFailureError, match="tracked-file"):
+            require_tracked_warning(self.result("{}"))
+
+    def test_the_unchecked_note_is_refused_even_beside_the_warning(self):
+        with pytest.raises(PreconditionFailureError, match="not checked"):
+            require_tracked_warning(
+                self.result(f"{TRACKED_WARNING} ... {UNCHECKED_NOTE}")
+            )
+
+    def test_a_failing_run_is_refused(self):
+        with pytest.raises(PreconditionFailureError, match="exited 1"):
+            require_tracked_warning(self.result(TRACKED_WARNING, exit_code=1))
+
+
+class TestSummaryScheduling:
+    def run(self, mode, *, warmups=3, runs=20):
+        prepared: list[int] = []
+        invocations: list[Path] = []
+
+        def prepare():
+            prepared.append(len(prepared))
+            return SummarySetting(
+                cwd=Path(f"/repo/{len(prepared)}"), env={"N": "1"}
+            )
+
+        def runner(argv, *, cwd, env):
+            invocations.append(cwd)
+            return RunResult(TRACKED_WARNING, "", 0, float(len(invocations)))
+
+        samples = time_summaries(
+            Path("/bin/accelerator"),
+            mode,
+            prepare,
+            runner,
+            warmups=warmups,
+            runs=runs,
+        )
+        return samples, prepared, invocations
+
+    def test_warm_ups_are_run_then_discarded(self):
+        samples, _, invocations = self.run(CacheMode.WARM)
+        assert len(invocations) == 23
+        assert samples == [float(n) for n in range(4, 24)]
+
+    def test_a_cold_run_prepares_a_fresh_setting_every_time(self):
+        _, prepared, invocations = self.run(CacheMode.COLD)
+        assert len(prepared) == 23
+        assert len(set(invocations)) == 23
+
+    def test_a_warm_run_prepares_one_shared_setting(self):
+        _, prepared, invocations = self.run(CacheMode.WARM)
+        assert len(prepared) == 1
+        assert set(invocations) == {Path("/repo/1")}
+
+    def test_the_summary_hook_is_what_runs(self):
+        seen = []
+
+        def runner(argv, *, cwd, env):
+            seen.append(list(argv))
+            return RunResult(TRACKED_WARNING, "", 0, 1.0)
+
+        time_summaries(
+            Path("/bin/accelerator"),
+            CacheMode.WARM,
+            lambda: SummarySetting(cwd=Path("/repo"), env={}),
+            runner,
+            warmups=0,
+            runs=1,
+        )
+        assert seen == [
+            ["/bin/accelerator", "config", "summary", "--format=hook"]
+        ]
+
+    def test_a_run_without_the_warning_fails_the_measurement(self):
+        def runner(argv, *, cwd, env):
+            return RunResult("{}", "", 0, 1.0)
+
+        with pytest.raises(PreconditionFailureError):
+            time_summaries(
+                Path("/bin/accelerator"),
+                CacheMode.WARM,
+                lambda: SummarySetting(cwd=Path("/repo"), env={}),
+                runner,
+            )
+
+    def test_at_least_twenty_timed_runs_follow_three_warm_ups(self):
+        assert SUMMARY_WARMUPS == 3
+        assert SUMMARY_RUNS >= 20
+
+
+class TestSummaryLatencyReport:
+    def test_each_figure_reports_its_median_and_p90(self):
+        report = summary_latency_report(
+            [
+                LatencyFigure(
+                    RepositoryKind.GIT, CacheMode.COLD, summarise([10.0, 20.0])
+                )
+            ],
+            HOST,
+            None,
+        )
+        assert report == (
+            "summary latency\n"
+            "host: Mac15,8, macOS-26.3-arm64, load 1.50 1.25 1.00\n"
+            "git cold: median 15.00 ms, p90 19.00 ms (n=2)"
+        )
+
+    def test_the_large_repository_figure_follows_its_record(self):
+        record = LargeRepository(
+            path=Path("/src/repo"),
+            revision="main",
+            commit="abc123",
+            kind=RepositoryKind.GIT,
+            index_entries=10,
+            operations=None,
+        )
+        report = summary_latency_report(
+            [],
+            HOST,
+            (
+                record,
+                [
+                    LatencyFigure(
+                        RepositoryKind.GIT, CacheMode.WARM, summarise([4.0])
+                    )
+                ],
+            ),
+        )
+        assert report.splitlines()[-2:] == [
+            record.describe(),
+            "large git warm: median 4.00 ms, p90 4.00 ms (n=1)",
+        ]

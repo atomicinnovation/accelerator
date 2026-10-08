@@ -1,5 +1,6 @@
 import shlex
 import sys
+from collections.abc import Callable
 
 from invoke import Context, Exit, task
 
@@ -13,6 +14,7 @@ from tasks.shared.playwright import (
     playwright_image,
     resolved_playwright_version,
 )
+from tasks.shared.ports import free_port
 
 SERVER_BIN = CLI_TARGET_DIR / "debug/accelerator-visualiser"
 
@@ -27,8 +29,21 @@ def visualiser(context: Context) -> None:
     """
     context.run(
         f"npm --prefix {FRONTEND} run test:e2e",
-        env={"ACCELERATOR_VISUALISER_BIN": str(SERVER_BIN)},
+        env=playwright_environment(free_port=free_port),
     )
+
+
+def playwright_environment(free_port: Callable[[], int]) -> dict[str, str]:
+    """Environment for one Playwright run of the visualiser specs.
+
+    The health port is allocated per run so concurrent checkouts each get
+    their own: a fixed port either fails to bind or, outside CI, lets
+    Playwright adopt another checkout's server.
+    """
+    return {
+        "ACCELERATOR_VISUALISER_BIN": str(SERVER_BIN),
+        "E2E_HEALTH_PORT": str(free_port()),
+    }
 
 
 def docker_visual_command(

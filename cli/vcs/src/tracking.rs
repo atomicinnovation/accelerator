@@ -1,7 +1,17 @@
 //! Whether a file is tracked, and which repositories enclose a directory, as
 //! every repository enclosing it answers.
 
+use std::path::Path;
 use std::path::PathBuf;
+
+/// Answers the tracking questions a trust decision rests on, failing closed.
+pub trait RepositoryTracking {
+    /// The tracking status of `path` across every repository enclosing it.
+    fn file_tracking(&self, path: &Path) -> FileTracking;
+
+    /// The roots of every repository enclosing `directory`.
+    fn repository_roots(&self, directory: &Path) -> RootsAnswer;
+}
 
 /// A file's tracking status across every enclosing repository. `Unknown`
 /// means a repository was detected but could not answer.

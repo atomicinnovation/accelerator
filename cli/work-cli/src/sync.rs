@@ -5,12 +5,16 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use ::config::catalogue::TRACKERS;
+use ::config::tracker_block::read_block;
+use ::config::tracker_block::BlockName;
 use ::config::ConfigAccess;
 use corpus::store::AtomicWrite;
 use corpus::WorkItemIdScheme;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
 use tracker::ExternalId;
+use vcs_adapters::library::InProcessProbe;
 use work::section_diff::SectionDiff;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -299,7 +303,7 @@ fn clear_stale_dossiers(dir: &Path, scheme: &WorkItemIdScheme) {
         let is_stale_dossier = name
             .strip_suffix(".md")
             .is_some_and(|stem| id_is_token_safe(scheme, stem));
-        let is_write_artefact = name.starts_with(store::TEMP_PREFIX);
+        let is_write_artefact = name.starts_with(kernel::TEMP_PREFIX);
         if is_stale_dossier || is_write_artefact {
             let _ = std::fs::remove_file(&path);
         }
@@ -743,34 +747,13 @@ fn validate_pull_config(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<(), String> {
-    let Some(tracker) =
-        tracker_support::pull::Tracker::from_integration(integration)
-    else {
-        return Ok(());
-    };
-    let key = ::config::Key::parse(&format!("{integration}.pull"))
-        .map_err(|error| error.to_string())?;
-    let ::config::Resolved::Found(value) =
-        config.get(&key, None).map_err(|error| error.to_string())?
-    else {
-        return Ok(());
-    };
-    if matches!(&value, ::config::Value::Mapping(entries) if entries.is_empty())
-    {
-        return Ok(());
+    match read_tracker_block(config, integration, BlockName::Pull)? {
+        Some((value, level)) => {
+            tracker_support::pull::validate(integration, &value)
+                .map_err(|error| error.detail(level))
+        }
+        None => Ok(()),
     }
-    let level = match config
-        .effective(&key, None)
-        .map_err(|error| error.to_string())?
-        .source()
-    {
-        ::config::Source::Personal => ::config::Level::Personal,
-        _ => ::config::Level::Team,
-    };
-    let parsed = tracker_support::pull::parse(&value)
-        .map_err(|error| error.detail(level))?;
-    tracker_support::pull::validate(&parsed, tracker)
-        .map_err(|error| error.detail(level))
 }
 
 /// Validates the active tracker's `<tracker>.push` block before the run, so a
@@ -782,11 +765,24 @@ fn validate_push_config(
     config: &dyn ConfigAccess,
     integration: &str,
 ) -> Result<(), String> {
-    match tracker_support::push::read(config, integration)? {
-        Some((push, level)) => tracker_support::push::validate(&push)
-            .map_err(|error| error.detail(level)),
+    match read_tracker_block(config, integration, BlockName::Push)? {
+        Some((value, level)) => {
+            tracker_support::push::validate(integration, &value)
+                .map_err(|error| error.detail(level))
+        }
         None => Ok(()),
     }
+}
+
+fn read_tracker_block(
+    config: &dyn ConfigAccess,
+    integration: &str,
+    name: BlockName,
+) -> Result<Option<(::config::Value, ::config::Level)>, String> {
+    if TRACKERS.block(integration, name).is_none() {
+        return Ok(None);
+    }
+    read_block(config, integration, name).map_err(|error| error.to_string())
 }
 
 /// The resolved pull-direction write bound and the config level it resolved
@@ -1194,7 +1190,7 @@ pub fn run_sync(
     let corpus_store = FileCorpusStore::new(baseline_dir);
     let mut baseline_store =
         BaselineStore::new(baseline_path, &file_reader, &corpus_store);
-    let status = VcsWorkingCopyStatus::probed_from(&root);
+    let status = VcsWorkingCopyStatus::probed_from(&root, &InProcessProbe);
     let clock = SystemClock;
     let author =
         crate::sync_author::ConfiguredLocalAuthor::new(config, root, work_dir);
@@ -2132,7 +2128,7 @@ mod tests {
         std::fs::write(conflicts.join("0001.md"), "stale").expect("seed");
         std::fs::write(conflicts.join("notes.md"), "mine").expect("seed");
         std::fs::write(
-            conflicts.join(format!("{}sweep", store::TEMP_PREFIX)),
+            conflicts.join(format!("{}sweep", kernel::TEMP_PREFIX)),
             "artefact",
         )
         .expect("seed");
@@ -2154,7 +2150,7 @@ mod tests {
         );
         assert!(
             !conflicts
-                .join(format!("{}sweep", store::TEMP_PREFIX))
+                .join(format!("{}sweep", kernel::TEMP_PREFIX))
                 .exists(),
             "a stray write artefact is swept"
         );

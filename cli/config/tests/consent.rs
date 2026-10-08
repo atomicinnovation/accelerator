@@ -18,8 +18,8 @@ use config::consent::{
     CommandKey, CommandPolicy, CommandRunner, ConfigFileTracking, ConsentKey,
     Consented, Distrust, Environment, ExecutablePathKey, ExecutablePaths,
     FailureCause, Ladder, ProvenanceContext, Refusal, RefusalReason,
-    RepositoryRoots, Rung, Runner, StartFailure, Tracking, TrackingCheck,
-    Usable, SYMLINK_HOP_LIMIT,
+    RepositoryRoots, Rung, Runner, StartFailure, Tracking, Usable,
+    SYMLINK_HOP_LIMIT,
 };
 use config::{
     ConfigAccess, ConfigError, Key, Level, PersonalFile, Resolved, Scalar,
@@ -83,7 +83,6 @@ impl ConfigAccess for FixedConfig {
 
 struct FixedTracking {
     answer: Tracking,
-    unchecked: bool,
     asked: RefCell<Vec<PathBuf>>,
 }
 
@@ -91,14 +90,6 @@ impl ConfigFileTracking for FixedTracking {
     fn tracking(&self, path: &Path) -> Tracking {
         self.asked.borrow_mut().push(path.to_path_buf());
         self.answer
-    }
-
-    fn check(&self, path: &Path) -> TrackingCheck {
-        if self.unchecked {
-            self.asked.borrow_mut().push(path.to_path_buf());
-            return TrackingCheck::Unchecked;
-        }
-        TrackingCheck::Known(self.tracking(path))
     }
 }
 
@@ -127,7 +118,6 @@ impl Project {
             },
             tracking: FixedTracking {
                 answer: Tracking::Untracked,
-                unchecked: false,
                 asked: RefCell::new(Vec::new()),
             },
             environment: FixedEnvironment(BTreeMap::new()),
@@ -158,11 +148,6 @@ impl Project {
 
     const fn tracking(mut self, answer: Tracking) -> Self {
         self.tracking.answer = answer;
-        self
-    }
-
-    const fn unchecked(mut self) -> Self {
-        self.tracking.unchecked = true;
         self
     }
 
@@ -563,31 +548,6 @@ fn audit_reports_an_ignored_tracked_file_both_ways() {
         finding,
         AuditFinding::PersonalFile(Distrust::Tracked)
     )));
-}
-
-#[test]
-fn audit_tells_an_unchecked_file_apart_from_an_unknown_one() {
-    let findings = audit(&Project::new().unchecked().context()).unwrap();
-
-    assert!(matches!(
-        &findings[..],
-        [AuditFinding::PersonalFileUnchecked]
-    ));
-}
-
-#[test]
-fn the_default_check_wraps_the_tracking_answer() {
-    struct Plain;
-    impl ConfigFileTracking for Plain {
-        fn tracking(&self, _path: &Path) -> Tracking {
-            Tracking::Tracked
-        }
-    }
-
-    assert!(matches!(
-        Plain.check(Path::new(PERSONAL)),
-        TrackingCheck::Known(Tracking::Tracked)
-    ));
 }
 
 #[test]

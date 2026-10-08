@@ -39,6 +39,7 @@ from tasks.shared.measurement import (
     Decision,
     Interval,
     PlatformEntry,
+    Summary,
     Validity,
     Variant,
     accelerator_override_keys,
@@ -78,12 +79,15 @@ from tasks.shared.measurement import (
     validate_dispatch,
     validate_sample,
 )
-from tasks.shared.paths import REPO_ROOT
+from tasks.shared.paths import (
+    CLI_TARGET_DIR,
+    CLI_WORKSPACE_CARGO_TOML,
+    REPO_ROOT,
+)
 
-# --- Criterion constants --------------------------------------------------
-# Held in lockstep with `tasks/README.md`, bidirectionally: every constant
-# appears there and every number there resolves to a name here.
-
+# The criterion constants, held in lockstep with `tasks/README.md`'s
+# "Criterion constants" section, bidirectionally: every constant appears there
+# and every number there resolves to a name here.
 RESAMPLES = 10000
 CONFIDENCE = 0.95
 RATIO_THRESHOLD = 1.4
@@ -320,9 +324,6 @@ def criterion_constants() -> dict[str, float]:
     return constants
 
 
-# --- Artefact manifest ----------------------------------------------------
-
-
 @unique
 class ArtefactKind(StrEnum):
     """Every throwaway the harness creates.
@@ -387,9 +388,6 @@ class Manifest:
     def load(cls, path: Path) -> Manifest:
         payload = json.loads(path.read_text())
         return cls(**payload)
-
-
-# --- Ports ----------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -565,8 +563,6 @@ def ambient_diagnostic_runner(argv: Sequence[str]) -> str:
     return completed.stdout.strip()
 
 
-# --- The session ----------------------------------------------------------
-
 _UNWIND_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 
 
@@ -606,8 +602,6 @@ class MeasurementSession:
         self.baseline: Baseline | None = None
         self.failures: list[str] = []
         self._previous_handlers: dict[int, object] = {}
-
-    # -- entry --
 
     def __enter__(self) -> Self:
         if self.manifest_path.exists():
@@ -707,16 +701,12 @@ class MeasurementSession:
     def _unverified_log(self) -> Path:
         return self.cache_root / ".accelerator-unverified.log"
 
-    # -- artefacts --
-
     def register_artefact(self, kind: ArtefactKind, path: Path) -> Path:
         """Record an artefact before creating it, and return its path."""
         resolved = Path(path).resolve()
         self.manifest.artefacts[str(kind)] = str(resolved)
         self.manifest.write(self.manifest_path)
         return resolved
-
-    # -- exit --
 
     def restore(self) -> None:
         """Remove every recorded artefact, containment-checked, then stop.
@@ -866,9 +856,6 @@ class MeasurementSession:
         return problems
 
 
-# --- Cells ----------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class Cell:
     name: str
@@ -998,9 +985,6 @@ def classify_cell(
     return CellOutcome(cell.name, gates=cell.gates, branch=branch)
 
 
-# --- Fixture and farms ----------------------------------------------------
-
-
 def create_fixture(root: Path, *, runner: DiagnosticRunner) -> Path:
     """Create a pure-jj fixture, colocation pinned off and asserted.
 
@@ -1126,9 +1110,6 @@ def recover_baseline(
             )
     guard.chmod(0o755)
     return guard
-
-
-# --- Tasks ----------------------------------------------------------------
 
 
 def entry_platform() -> str:
@@ -2897,9 +2878,6 @@ def percentile_of(values: Sequence[float], quantile: float) -> float:
     return percentile(values, quantile)
 
 
-# --- Instrument floors, provenance and the composition budget -------------
-
-
 def measure_floors(
     runner: MeasurementRunner,
     *,
@@ -3149,3 +3127,600 @@ def jj_pin(plugin_root: Path) -> str:
 
     tools = tomllib.loads((plugin_root / "mise.toml").read_text())["tools"]
     return str(tools["jj"])
+
+
+LAUNCHER_PACKAGE = "accelerator"
+LAUNCHER_TARGET = "aarch64-apple-darwin"
+VCS_PACKAGE = "accelerator-vcs"
+
+PERSONAL_CONFIG = ".accelerator/config.local.md"
+TRACKED_WARNING = "is tracked by version control"
+UNCHECKED_NOTE = "was not checked"
+# Port 9 is discard, which nothing on a development host listens on, so a
+# release fetch is refused at connect rather than timing out.
+REFUSING_RELEASE_URL = "http://127.0.0.1:9/"
+SUMMARY_ARGS = ("config", "summary", "--format=hook")
+SUMMARY_WARMUPS = 3
+SUMMARY_RUNS = 20
+MEASURED_REF = "measured"
+FIXTURE_IDENTITY = {
+    "GIT_AUTHOR_NAME": "Measure",
+    "GIT_AUTHOR_EMAIL": "measure@example.invalid",
+    "GIT_COMMITTER_NAME": "Measure",
+    "GIT_COMMITTER_EMAIL": "measure@example.invalid",
+    "JJ_USER": "Measure",
+    "JJ_EMAIL": "measure@example.invalid",
+}
+
+
+@dataclass(frozen=True)
+class Host:
+    model: str
+    os: str
+    load: tuple[float, float, float]
+
+    def describe(self) -> str:
+        one, five, fifteen = self.load
+        return (
+            f"{self.model}, {self.os}, load {one:.2f} {five:.2f} {fifteen:.2f}"
+        )
+
+
+def observed_host(diagnostics: DiagnosticRunner) -> Host:
+    try:
+        model = diagnostics(["sysctl", "-n", "hw.model"]).strip()
+    except FileNotFoundError, PermissionError:
+        model = ""
+    return Host(
+        model=model or platform.machine(),
+        os=platform.platform(),
+        load=os.getloadavg(),
+    )
+
+
+def launcher_size_report(path: Path, size: int, host: Host) -> str:
+    return f"launcher size: {size} bytes ({path})\nhost: {host.describe()}"
+
+
+@unique
+class RepositoryKind(StrEnum):
+    GIT = "git"
+    JJ = "jj"
+    COLOCATED_JJ = "colocated-jj"
+
+    @property
+    def is_jj(self) -> bool:
+        return self is not RepositoryKind.GIT
+
+
+@unique
+class CacheMode(StrEnum):
+    COLD = "cold"
+    WARM = "warm"
+
+
+def repository_kind(path: Path) -> RepositoryKind:
+    has_jj = (path / ".jj").is_dir()
+    has_git = (path / ".git").exists()
+    if has_jj:
+        return RepositoryKind.COLOCATED_JJ if has_git else RepositoryKind.JJ
+    if has_git:
+        return RepositoryKind.GIT
+    raise PreconditionFailureError(f"{path} is not a git or jj repository")
+
+
+def _jj_init(
+    copy: Path, *, colocate: bool, extra: Sequence[str] = ()
+) -> list[str]:
+    return [
+        "jj",
+        "--config",
+        f"git.colocate={'true' if colocate else 'false'}",
+        "git",
+        "init",
+        "--quiet",
+        *extra,
+        str(copy),
+    ]
+
+
+def initialise_commands(kind: RepositoryKind, root: Path) -> list[list[str]]:
+    if kind is RepositoryKind.GIT:
+        return [["git", "init", "--quiet", str(root)]]
+    return [_jj_init(root, colocate=kind is RepositoryKind.COLOCATED_JJ)]
+
+
+def track_commands(kind: RepositoryKind, root: Path) -> list[list[str]]:
+    """Track the personal config even where the repository ignores it."""
+    if kind is RepositoryKind.GIT:
+        return [
+            [
+                "git",
+                "-C",
+                str(root),
+                "add",
+                "--force",
+                str(root / PERSONAL_CONFIG),
+            ],
+            ["git", "-C", str(root), "commit", "--quiet", "-m", "track"],
+        ]
+    return [
+        [
+            "jj",
+            "-R",
+            str(root),
+            "file",
+            "track",
+            "--include-ignored",
+            str(root / PERSONAL_CONFIG),
+        ],
+        ["jj", "-R", str(root), "commit", "--quiet", "-m", "track"],
+    ]
+
+
+def write_personal_config(root: Path) -> None:
+    """Write a personal config the launcher reads rather than ignores.
+
+    Owner-only, because a group- or world-readable personal config is ignored
+    before its tracking is ever reported.
+    """
+    path = root / PERSONAL_CONFIG
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("---\nwork:\n  integration: jira\n---\n")
+    path.chmod(0o600)
+
+
+def commit_argv(kind: RepositoryKind, source: Path, revision: str) -> list[str]:
+    if kind is RepositoryKind.GIT:
+        return [
+            "git",
+            "-C",
+            str(source),
+            "rev-parse",
+            "--verify",
+            f"{revision}^{{commit}}",
+        ]
+    return [
+        "jj",
+        "-R",
+        str(source),
+        "log",
+        "--ignore-working-copy",
+        "--no-graph",
+        "-r",
+        revision,
+        "-T",
+        "commit_id",
+    ]
+
+
+def store_argv(kind: RepositoryKind, source: Path) -> list[str]:
+    if kind is RepositoryKind.GIT:
+        return ["git", "-C", str(source), "rev-parse", "--absolute-git-dir"]
+    return [
+        "jj",
+        "-R",
+        str(source),
+        "git",
+        "root",
+        "--ignore-working-copy",
+    ]
+
+
+def fetch_commands(
+    source_store: Path, commit: str, store: Path
+) -> list[list[str]]:
+    """Copy one commit's history out of the source, never writing to it."""
+    return [
+        ["git", "init", "--quiet", "--bare", str(store)],
+        [
+            "git",
+            "-C",
+            str(store),
+            "fetch",
+            "--quiet",
+            str(source_store),
+            f"{commit}:refs/heads/{MEASURED_REF}",
+        ],
+    ]
+
+
+def checkout_commands(
+    kind: RepositoryKind, store: Path, copy: Path
+) -> list[list[str]]:
+    clone = [
+        "git",
+        "clone",
+        "--quiet",
+        "--branch",
+        MEASURED_REF,
+        str(store),
+        str(copy),
+    ]
+    if kind is RepositoryKind.GIT:
+        return [clone]
+    if kind is RepositoryKind.COLOCATED_JJ:
+        return [clone, _jj_init(copy, colocate=True)]
+    return [
+        _jj_init(copy, colocate=False, extra=("--git-repo", str(store))),
+        ["jj", "-R", str(copy), "new", "--quiet", MEASURED_REF],
+    ]
+
+
+@dataclass(frozen=True)
+class LargeRepository:
+    path: Path
+    revision: str
+    commit: str
+    kind: RepositoryKind
+    index_entries: int
+    operations: int | None
+
+    def describe(self) -> str:
+        operations = (
+            "" if self.operations is None else f", {self.operations} operations"
+        )
+        return (
+            f"large repository {self.path} at {self.revision} "
+            f"({self.commit}): {self.kind}, "
+            f"{self.index_entries} index entries{operations}"
+        )
+
+
+def summary_environment(
+    *, temp_root: Path, cache: Path, vcs_binary: Path
+) -> dict[str, str]:
+    """Build the environment a summary is timed under.
+
+    Tracking is pinned to the locally built `vcs` binary, and any release
+    fetch is refused, so before and after time the same question rather than
+    a network round trip.
+    """
+    home = temp_root / "home"
+    return {
+        "PATH": "/usr/bin:/bin",
+        "LC_ALL": "C",
+        "LANG": "C",
+        "TZ": "UTC",
+        "HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CEILING_DIRECTORIES": ceiling_directories(temp_root),
+        "ACCELERATOR_CACHE_DIR": str(cache),
+        "ACCELERATOR_VCS_BIN": str(vcs_binary),
+        "ACCELERATOR_RELEASE_BASE_URL": REFUSING_RELEASE_URL,
+    }
+
+
+def require_tracked_warning(result: RunResult) -> None:
+    """Refuse a figure that did not time the in-repository tracking answer."""
+    if result.exit_code != 0:
+        raise PreconditionFailureError(
+            f"the summary exited {result.exit_code}: {result.stderr}"
+        )
+    if UNCHECKED_NOTE in result.stdout:
+        raise PreconditionFailureError(
+            "the summary reports tracking as not checked, so the figure "
+            "would time a refused fetch rather than the tracking answer"
+        )
+    if TRACKED_WARNING not in result.stdout:
+        raise PreconditionFailureError(
+            f"the summary carries no tracked-file warning: {result.stdout}"
+        )
+
+
+@dataclass(frozen=True)
+class SummarySetting:
+    cwd: Path
+    env: Mapping[str, str]
+
+
+def summary_measurement_runner(
+    argv: Sequence[str], *, cwd: Path, env: Mapping[str, str]
+) -> RunResult:
+    """Time one run with no stdin, as the SessionStart hook invokes it."""
+    started = time.perf_counter()
+    completed = subprocess.run(
+        list(argv),
+        check=False,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+        cwd=cwd,
+        env=dict(env),
+    )
+    elapsed_ms = (time.perf_counter() - started) * 1000.0
+    return RunResult(
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        exit_code=completed.returncode,
+        elapsed_ms=elapsed_ms,
+    )
+
+
+def time_summaries(
+    launcher: Path,
+    mode: CacheMode,
+    prepare: Callable[[], SummarySetting],
+    runner: MeasurementRunner,
+    *,
+    warmups: int = SUMMARY_WARMUPS,
+    runs: int = SUMMARY_RUNS,
+) -> list[float]:
+    """Time the summary, discarding warm-ups.
+
+    A cold run prepares a fresh cache and repository copy for every
+    invocation; a warm run prepares one and repeats against it.
+    """
+    argv = [str(launcher), *SUMMARY_ARGS]
+    setting: SummarySetting | None = None
+    samples: list[float] = []
+    for index in range(warmups + runs):
+        if setting is None or mode is CacheMode.COLD:
+            setting = prepare()
+        result = runner(argv, cwd=setting.cwd, env=setting.env)
+        require_tracked_warning(result)
+        if index >= warmups:
+            samples.append(result.elapsed_ms)
+    return samples
+
+
+@dataclass(frozen=True)
+class LatencyFigure:
+    kind: RepositoryKind
+    mode: CacheMode
+    summary: Summary
+
+    def describe(self) -> str:
+        return (
+            f"{self.kind} {self.mode}: median {self.summary.median:.2f} ms, "
+            f"p90 {self.summary.p90:.2f} ms (n={self.summary.n})"
+        )
+
+
+def summary_latency_report(
+    figures: Sequence[LatencyFigure],
+    host: Host,
+    large: tuple[LargeRepository, Sequence[LatencyFigure]] | None,
+) -> str:
+    lines = ["summary latency", f"host: {host.describe()}"]
+    lines += [figure.describe() for figure in figures]
+    if large is not None:
+        record, large_figures = large
+        lines.append(record.describe())
+        lines += [f"large {figure.describe()}" for figure in large_figures]
+    return "\n".join(lines)
+
+
+def _fixture_environment(scratch: Path) -> dict[str, str]:
+    ambient = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith(("ACCELERATOR_", "JJ_", "GIT_"))
+    }
+    home = scratch / "home"
+    return {
+        **ambient,
+        **FIXTURE_IDENTITY,
+        "HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CEILING_DIRECTORIES": ceiling_directories(scratch),
+    }
+
+
+def _run_checked(argv: Sequence[str], *, env: Mapping[str, str]) -> str:
+    completed = subprocess.run(
+        list(argv), check=False, capture_output=True, text=True, env=dict(env)
+    )
+    if completed.returncode != 0:
+        raise PreconditionFailureError(
+            f"{' '.join(argv)} exited {completed.returncode}: "
+            f"{completed.stderr.strip()}"
+        )
+    return completed.stdout.strip()
+
+
+def _track_personal_config(
+    kind: RepositoryKind, root: Path, env: Mapping[str, str]
+) -> None:
+    write_personal_config(root)
+    for argv in track_commands(kind, root):
+        _run_checked(argv, env=env)
+
+
+def build_summary_fixture(
+    kind: RepositoryKind, root: Path, env: Mapping[str, str]
+) -> Path:
+    root.mkdir(parents=True)
+    for argv in initialise_commands(kind, root):
+        _run_checked(argv, env=env)
+    _track_personal_config(kind, root, env)
+    return root
+
+
+def _lines(output: str) -> int:
+    return len([line for line in output.splitlines() if line])
+
+
+def snapshot_large_repository(
+    source: Path, revision: str, scratch: Path, env: Mapping[str, str]
+) -> tuple[LargeRepository, Path]:
+    kind = repository_kind(source)
+    commit = _run_checked(commit_argv(kind, source, revision), env=env)
+    source_store = Path(_run_checked(store_argv(kind, source), env=env))
+    store = scratch / "large-store.git"
+    copy = scratch / "large-template"
+    for argv in [
+        *fetch_commands(source_store, commit, store),
+        *checkout_commands(kind, store, copy),
+    ]:
+        _run_checked(argv, env=env)
+    _track_personal_config(kind, copy, env)
+    if kind.is_jj:
+        entries = _run_checked(
+            ["jj", "-R", str(copy), "file", "list", "--ignore-working-copy"],
+            env=env,
+        )
+        operations: int | None = _lines(
+            _run_checked(
+                [
+                    "jj",
+                    "-R",
+                    str(copy),
+                    "op",
+                    "log",
+                    "--ignore-working-copy",
+                    "--no-graph",
+                    "-T",
+                    'id ++ "\\n"',
+                ],
+                env=env,
+            )
+        )
+    else:
+        entries = _run_checked(["git", "-C", str(copy), "ls-files"], env=env)
+        operations = None
+    record = LargeRepository(
+        path=source,
+        revision=revision,
+        commit=commit,
+        kind=kind,
+        index_entries=_lines(entries),
+        operations=operations,
+    )
+    return record, copy
+
+
+def summary_preparer(
+    template: Path, mode: CacheMode, *, scratch: Path, vcs_binary: Path
+) -> Callable[[], SummarySetting]:
+    """Prepare a repository copy and an empty launcher cache per call."""
+    prepared = 0
+
+    def prepare() -> SummarySetting:
+        nonlocal prepared
+        prepared += 1
+        run_root = scratch / f"{template.name}-{mode}-{prepared}"
+        copy = run_root / "repository"
+        shutil.copytree(template, copy, symlinks=True)
+        cache = run_root / "cache"
+        cache.mkdir()
+        return SummarySetting(
+            cwd=copy,
+            env=summary_environment(
+                temp_root=scratch, cache=cache, vcs_binary=vcs_binary
+            ),
+        )
+
+    return prepare
+
+
+def _figures_for(
+    kind: RepositoryKind,
+    template: Path,
+    *,
+    launcher: Path,
+    vcs_binary: Path,
+    scratch: Path,
+    runner: MeasurementRunner,
+) -> list[LatencyFigure]:
+    figures = []
+    for mode in CacheMode:
+        prepare = summary_preparer(
+            template, mode, scratch=scratch, vcs_binary=vcs_binary
+        )
+        samples = time_summaries(launcher, mode, prepare, runner)
+        figures.append(LatencyFigure(kind, mode, summarise(samples)))
+    return figures
+
+
+def measure_summary_latency(
+    *,
+    launcher: Path,
+    vcs_binary: Path,
+    large: tuple[Path, str] | None,
+    runner: MeasurementRunner = summary_measurement_runner,
+) -> str:
+    host = observed_host(ambient_diagnostic_runner)
+    with tempfile.TemporaryDirectory() as temporary:
+        scratch = Path(temporary).resolve()
+        (scratch / "home").mkdir()
+        env = _fixture_environment(scratch)
+        figures: list[LatencyFigure] = []
+        for kind in RepositoryKind:
+            template = build_summary_fixture(
+                kind, scratch / f"template-{kind}", env
+            )
+            figures += _figures_for(
+                kind,
+                template,
+                launcher=launcher,
+                vcs_binary=vcs_binary,
+                scratch=scratch,
+                runner=runner,
+            )
+        large_figures = None
+        if large is not None:
+            source, revision = large
+            record, template = snapshot_large_repository(
+                source.resolve(), revision, scratch, env
+            )
+            large_figures = (
+                record,
+                _figures_for(
+                    record.kind,
+                    template,
+                    launcher=launcher,
+                    vcs_binary=vcs_binary,
+                    scratch=scratch,
+                    runner=runner,
+                ),
+            )
+    return summary_latency_report(figures, host, large_figures)
+
+
+@task(name="launcher-size")
+def launcher_size(context: Context) -> None:
+    """Report the stripped release launcher's size for the shipped target."""
+    context.run(
+        f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} --release "
+        f"--locked --target {LAUNCHER_TARGET} -p {LAUNCHER_PACKAGE}"
+    )
+    binary = CLI_TARGET_DIR / LAUNCHER_TARGET / "release" / LAUNCHER_PACKAGE
+    host = observed_host(ambient_diagnostic_runner)
+    print(launcher_size_report(binary, binary.stat().st_size, host))
+
+
+@task(name="summary-latency")
+def summary_latency(
+    context: Context,
+    repository: str | None = None,
+    revision: str | None = None,
+) -> None:
+    """Time the SessionStart config summary, cold and warm, per engine.
+
+    `--repository` with `--revision` also times a snapshot of that revision
+    of a realistically sized repository.
+    """
+    if (repository is None) != (revision is None):
+        raise Exit("--repository and --revision are given together", code=1)
+    context.run(
+        f"cargo build --manifest-path {CLI_WORKSPACE_CARGO_TOML} --release "
+        f"-p {LAUNCHER_PACKAGE} -p {VCS_PACKAGE}"
+    )
+    release = CLI_TARGET_DIR / "release"
+    large = (
+        None
+        if repository is None or revision is None
+        else (Path(repository), revision)
+    )
+    print(
+        measure_summary_latency(
+            launcher=release / LAUNCHER_PACKAGE,
+            vcs_binary=release / VCS_PACKAGE,
+            large=large,
+        )
+    )

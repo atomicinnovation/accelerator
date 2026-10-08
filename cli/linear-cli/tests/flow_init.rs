@@ -264,6 +264,36 @@ fn init_discover_writes_nothing_when_a_fetch_fails() {
     assert_eq!(raw, SYNCED_TEAM_Y);
 }
 
+#[cfg(unix)]
+#[test]
+fn init_discover_under_a_read_only_state_dir_fails_with_a_cache_io_error() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let server = MockGraphQLServer::start();
+    install_graphql(&server, "team-states-200");
+    let dir = support::scratch(support::CONFIG);
+    let state = state_file(dir.path(), "");
+    std::fs::create_dir_all(&state).expect("mkdir state dir");
+    std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o555))
+        .expect("seal the state dir");
+
+    let output = discover(dir.path(), server.http());
+
+    std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o755))
+        .expect("unseal the state dir");
+    assert_eq!(output.status.code(), Some(1));
+    let lock = std::fs::canonicalize(&state)
+        .expect("the state dir resolves")
+        .join(".lock");
+    let lock = lock.display();
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        format!(
+            "E_CACHE_IO: {lock}: cannot write under '{lock}': not writable\n"
+        )
+    );
+}
+
 #[test]
 fn init_discover_refuses_a_damaged_catalogue_naming_the_recovery() {
     let server = MockGraphQLServer::start();

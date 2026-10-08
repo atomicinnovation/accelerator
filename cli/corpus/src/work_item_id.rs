@@ -1,8 +1,12 @@
-//! The work-item-ID runtime predicate and the injected scan port.
+//! The work-item-ID runtime predicate and the injected scan and
+//! canonicalisation ports.
 //!
 //! The pattern-DSL compiler that turns `work.id_pattern` into a scan regex is a
-//! work/config concern; this crate takes the compiled scanner by injection so it
-//! never depends on `regex`.
+//! work/config concern; this crate takes the compiled scanner and canonicaliser
+//! by injection so it never depends on `regex`.
+
+use std::fmt::Display;
+use std::fmt::Formatter;
 
 /// A match produced by an [`IdScanner`] over a filename.
 pub struct IdScan {
@@ -14,6 +18,57 @@ pub struct IdScan {
 /// layer over the compiled scan regex.
 pub trait IdScanner {
     fn scan(&self, text: &str) -> Option<IdScan>;
+}
+
+/// Why a work-item ID could not be canonicalised: a refusal of the input, or
+/// a pattern that is itself malformed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanonicaliseError {
+    EmptyInput,
+    MissingKey,
+    UnrecognisedIdShape(String),
+    NoMatch,
+    MalformedPattern(String),
+}
+
+impl Display for CanonicaliseError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyInput => write!(formatter, "empty input"),
+            Self::MissingKey => write!(
+                formatter,
+                "pattern references the {{key}} prefix but no value supplied"
+            ),
+            Self::UnrecognisedIdShape(input) => write!(
+                formatter,
+                "input '{input}' is not a recognised ID shape"
+            ),
+            Self::NoMatch => {
+                write!(formatter, "input does not match the pattern")
+            }
+            Self::MalformedPattern(reason) => formatter.write_str(reason),
+        }
+    }
+}
+
+impl std::error::Error for CanonicaliseError {}
+
+/// Canonicalises a work-item ID under an `id_pattern`. Implemented in the
+/// adapter layer over the compiled pattern DSL.
+pub trait WorkItemIdCanonicaliser {
+    /// The canonical form of `input`, a full ID or a bare number, with
+    /// `key_value` supplying the `{key}` prefix for a bare number.
+    ///
+    /// # Errors
+    ///
+    /// A [`CanonicaliseError`] when `input` is not an ID under `pattern`, or
+    /// `pattern` is malformed.
+    fn canonicalise(
+        &self,
+        input: &str,
+        pattern: &str,
+        key_value: &str,
+    ) -> Result<String, CanonicaliseError>;
 }
 
 /// The identity scheme a workspace configures for its work items.

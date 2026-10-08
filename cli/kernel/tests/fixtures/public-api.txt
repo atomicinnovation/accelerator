@@ -19,33 +19,4 @@ impl core::fmt::Debug for kernel::Error
 pub fn kernel::Error::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for kernel::Error
 pub fn kernel::Error::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum kernel::TrackingAnswer
-pub kernel::TrackingAnswer::Tracked
-pub kernel::TrackingAnswer::Untracked
-impl core::clone::Clone for kernel::TrackingAnswer
-pub fn kernel::TrackingAnswer::clone(&self) -> kernel::TrackingAnswer
-impl core::cmp::Eq for kernel::TrackingAnswer
-impl core::cmp::PartialEq for kernel::TrackingAnswer
-pub fn kernel::TrackingAnswer::eq(&self, other: &kernel::TrackingAnswer) -> bool
-impl core::fmt::Debug for kernel::TrackingAnswer
-pub fn kernel::TrackingAnswer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for kernel::TrackingAnswer
-pub fn kernel::TrackingAnswer::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for kernel::TrackingAnswer
-impl core::marker::StructuralPartialEq for kernel::TrackingAnswer
-impl core::str::traits::FromStr for kernel::TrackingAnswer
-pub type kernel::TrackingAnswer::Err = kernel::UnrecognisedTrackingAnswer
-pub fn kernel::TrackingAnswer::from_str(printed: &str) -> core::result::Result<Self, Self::Err>
-pub struct kernel::UnrecognisedTrackingAnswer
-impl core::clone::Clone for kernel::UnrecognisedTrackingAnswer
-pub fn kernel::UnrecognisedTrackingAnswer::clone(&self) -> kernel::UnrecognisedTrackingAnswer
-impl core::cmp::Eq for kernel::UnrecognisedTrackingAnswer
-impl core::cmp::PartialEq for kernel::UnrecognisedTrackingAnswer
-pub fn kernel::UnrecognisedTrackingAnswer::eq(&self, other: &kernel::UnrecognisedTrackingAnswer) -> bool
-impl core::error::Error for kernel::UnrecognisedTrackingAnswer
-impl core::fmt::Debug for kernel::UnrecognisedTrackingAnswer
-pub fn kernel::UnrecognisedTrackingAnswer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for kernel::UnrecognisedTrackingAnswer
-pub fn kernel::UnrecognisedTrackingAnswer::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for kernel::UnrecognisedTrackingAnswer
-impl core::marker::StructuralPartialEq for kernel::UnrecognisedTrackingAnswer
+pub const kernel::TEMP_PREFIX: &str

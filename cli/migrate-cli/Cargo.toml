@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 description = "Apply pending meta-directory schema migrations"
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [lints]
 workspace = true
 
@@ -21,11 +24,15 @@ path = "src/main.rs"
 migrate = { path = "../migrate" }
 migrate-adapters = { path = "../migrate-adapters" }
 config-adapters = { path = "../config-adapters" }
+corpus = { path = "../corpus" }
+corpus-adapters = { path = "../corpus-adapters" }
 vcs = { path = "../vcs" }
+vcs-adapters = { path = "../vcs-adapters" }
+work-adapters = { path = "../work-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
+time = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }
-work-adapters = { path = "../work-adapters" }

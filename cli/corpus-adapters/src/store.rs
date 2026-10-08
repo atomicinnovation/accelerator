@@ -1,7 +1,7 @@
 //! The filesystem corpus store: whole-file atomic writes and canonical-order
 //! JSONL append/remove behind the corpus ports.
 //!
-//! Built over the shared `store` crate's `atomic_write` and the mkdir-lock.
+//! Built over the shared `store` crate's `atomic_write` and mkdir-lock.
 //! Every write is bounded by the store's root, so a target resolving outside it
 //! through a symlink is refused.
 
@@ -10,10 +10,10 @@ use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 
 use corpus::{AtomicWrite, FileRemove, Record, RecordStore, StoreError};
+use store::lock::{self, LockOptions};
 use store::{NewFileMode, WriteBounds, WriteError};
 
-use crate::jsonl::{compose_record, remove_prefix};
-use crate::lock::{self, LockOptions};
+use crate::jsonl::{compose_record, parse_record, remove_prefix};
 
 /// A corpus store rooted at a directory that bounds every write.
 ///
@@ -83,7 +83,8 @@ impl FileCorpusStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
         }
-        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        let _guard = lock::acquire(&lockdir(path), self.lock)
+            .map_err(from_lock_error)?;
         self.write_atomic(path, bytes)
     }
 }
@@ -117,6 +118,16 @@ fn to_store_error(error: WriteError) -> StoreError {
             path: String::new(),
             detail: other.to_string(),
         },
+    }
+}
+
+fn from_lock_error(error: lock::LockError) -> StoreError {
+    match error {
+        lock::LockError::Timeout { path } => StoreError::LockTimeout { path },
+        lock::LockError::NotWritable { path } => {
+            StoreError::NotWritable { path }
+        }
+        lock::LockError::Io { path, detail } => StoreError::Io { path, detail },
     }
 }
 
@@ -154,7 +165,8 @@ impl RecordStore for FileCorpusStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
         }
-        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        let _guard = lock::acquire(&lockdir(path), self.lock)
+            .map_err(from_lock_error)?;
         let mut content = store::read_within(path, &self.bounds())
             .map_err(to_store_error)?
             .unwrap_or_default();
@@ -173,7 +185,8 @@ impl RecordStore for FileCorpusStore {
         store::ensure_contained(path, &self.bounds())
             .map_err(to_store_error)?;
         let prefix = remove_prefix(key)?;
-        let _guard = lock::acquire(&lockdir(path), self.lock)?;
+        let _guard = lock::acquire(&lockdir(path), self.lock)
+            .map_err(from_lock_error)?;
         let Some(bytes) =
             store::read_within(path, &self.bounds()).map_err(to_store_error)?
         else {
@@ -193,6 +206,28 @@ impl RecordStore for FileCorpusStore {
         }
         self.write_atomic(path, out.as_bytes())
     }
+
+    fn read_records(&self, path: &Path) -> Result<Vec<Record>, StoreError> {
+        let bytes = match fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Vec::new())
+            }
+            Err(error) => return Err(io(path, &error)),
+        };
+        let text =
+            String::from_utf8(bytes).map_err(|error| validation(&error))?;
+        text.lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| parse_record(line).map_err(|error| validation(&error)))
+            .collect()
+    }
+}
+
+fn validation(error: &impl ToString) -> StoreError {
+    StoreError::Validation {
+        detail: error.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -202,9 +237,10 @@ mod tests {
     use corpus::{
         AtomicWrite, FileRemove, Outcome, Record, RecordStore, StoreError,
     };
+    use store::lock::{acquire, LockError, LockOptions};
     use tempfile::TempDir;
 
-    use super::FileCorpusStore;
+    use super::{from_lock_error, FileCorpusStore};
 
     type TestError = Box<dyn std::error::Error>;
 
@@ -330,12 +366,12 @@ mod tests {
         let dir = TempDir::new()?;
         let target = dir.path().join("log.jsonl");
         fs::write(&target, b"existing\n")?;
-        let fast = crate::lock::LockOptions {
+        let fast = LockOptions {
             ceiling_ms: 1,
             base_ms: 1,
             cap_ms: 1,
         };
-        let held = crate::lock::acquire(&super::lockdir(&target), fast)?;
+        let held = acquire(&super::lockdir(&target), fast)?;
         let result = FileCorpusStore::with_lock_options(dir.path(), fast)
             .replace_locked(&target, b"blocked");
         assert!(matches!(result, Err(StoreError::LockTimeout { .. })));
@@ -374,5 +410,52 @@ mod tests {
         assert!(matches!(result, Err(StoreError::UnsafePath { .. })));
         assert!(outside.exists());
         Ok(())
+    }
+
+    #[test]
+    fn a_lock_timeout_is_a_store_lock_timeout_with_the_same_text() {
+        let lock = LockError::Timeout {
+            path: "/c/log.jsonl.lockdir".to_owned(),
+        };
+        let store = from_lock_error(lock.clone());
+        assert_eq!(
+            store,
+            StoreError::LockTimeout {
+                path: "/c/log.jsonl.lockdir".to_owned()
+            }
+        );
+        assert_eq!(store.to_string(), lock.to_string());
+    }
+
+    #[test]
+    fn an_unwritable_lockdir_is_a_store_not_writable_with_the_same_text() {
+        let lock = LockError::NotWritable {
+            path: "/c/log.jsonl.lockdir".to_owned(),
+        };
+        let store = from_lock_error(lock.clone());
+        assert_eq!(
+            store,
+            StoreError::NotWritable {
+                path: "/c/log.jsonl.lockdir".to_owned()
+            }
+        );
+        assert_eq!(store.to_string(), lock.to_string());
+    }
+
+    #[test]
+    fn a_lock_io_failure_is_a_store_io_failure_with_the_same_text() {
+        let lock = LockError::Io {
+            path: "/c/log.jsonl.lockdir".to_owned(),
+            detail: "Not a directory".to_owned(),
+        };
+        let store = from_lock_error(lock.clone());
+        assert_eq!(
+            store,
+            StoreError::Io {
+                path: "/c/log.jsonl.lockdir".to_owned(),
+                detail: "Not a directory".to_owned()
+            }
+        );
+        assert_eq!(store.to_string(), lock.to_string());
     }
 }

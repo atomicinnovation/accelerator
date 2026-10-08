@@ -11,6 +11,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use http_test_support::{MockHTTPServer, RequestKey, Route};
+use vcs_test_support::hermetic::Hermetic;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -33,6 +34,27 @@ fn scratch_repo() -> Result<tempfile::TempDir, TestError> {
         .current_dir(dir.path())
         .status()?;
     assert!(remote_status.success(), "git remote add failed");
+    Ok(dir)
+}
+
+fn colocated_jj_repo() -> Result<tempfile::TempDir, TestError> {
+    let dir = tempfile::Builder::new()
+        .prefix("collaboration-cli-e2e-jj-")
+        .tempdir()?;
+    let repo = dir.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    let jj = Hermetic::rooted_at(dir.path())?;
+    jj.jj(&["git", "init", "--colocate"], &repo)?;
+    jj.jj(
+        &[
+            "git",
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/candidate-owner/candidate-repo.git",
+        ],
+        &repo,
+    )?;
     Ok(dir)
 }
 
@@ -95,6 +117,42 @@ fn base_repo_prints_owner_slash_repo_on_success() -> Result<(), TestError> {
     );
 
     let output = run(repo.path(), &server, &["pr", "base-repo", "42"])?;
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        String::from_utf8(output.stdout)?,
+        "candidate-owner/candidate-repo\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn base_repo_resolves_the_origin_of_a_colocated_jj_repository(
+) -> Result<(), TestError> {
+    let dir = colocated_jj_repo()?;
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
+        Route::Json {
+            status: 200,
+            body: repository_json("candidate-owner", "candidate-repo"),
+        },
+    );
+    server.route(
+        RequestKey::new(
+            "GET",
+            "/repos/candidate-owner/candidate-repo/pulls/42",
+        ),
+        Route::Json {
+            status: 200,
+            body: pull_request_json(42),
+        },
+    );
+
+    let output = run(
+        &dir.path().join("repo"),
+        &server,
+        &["pr", "base-repo", "42"],
+    )?;
     assert!(output.status.success(), "{output:?}");
     assert_eq!(
         String::from_utf8(output.stdout)?,

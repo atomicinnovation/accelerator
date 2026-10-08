@@ -5,9 +5,12 @@
 //! bytes and the publishing rename are both fsynced, so a committed write
 //! survives a crash.
 //!
-//! Infrastructure only: depends on std, `tempfile` and `rustix`. Both consumers
-//! translate [`WriteError`] into their own taxonomy, so this crate does not
-//! depend on `kernel`.
+//! Infrastructure only: of the workspace crates it depends on `kernel` alone,
+//! for naming constants. Every consumer translates [`WriteError`] and
+//! [`lock::LockError`] into its own taxonomy, so this crate never produces a
+//! `kernel::Error`.
+
+pub mod lock;
 
 use std::fs;
 use std::io::Error as IoError;
@@ -16,12 +19,8 @@ use std::io::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 
+use kernel::TEMP_PREFIX;
 use tempfile::{Builder, NamedTempFile};
-
-/// The staged temp-file name prefix. Pinned so a `tempfile` default change
-/// cannot silently stop the `.accelerator/.gitignore` rule matching; a caller
-/// writing that rule must use the same literal.
-pub const TEMP_PREFIX: &str = ".tmp-";
 
 /// An atomic-write failure.
 #[derive(Debug, Clone, PartialEq, Eq)]

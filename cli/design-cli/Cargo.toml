@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 description = "Validate and process design sources"
 
+[package.metadata.accelerator]
+role = "composition-root"
+
 [lints]
 workspace = true
 
@@ -19,7 +22,6 @@ design = { path = "../design" }
 design-adapters = { path = "../design-adapters" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
-consent-adapters = { path = "../consent-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }

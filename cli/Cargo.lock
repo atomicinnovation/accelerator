@@ -20,13 +20,12 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "store",
  "tar",
  "tempfile",
  "time",
  "toml",
  "tracing",
- "tracker-support",
+ "vcs-adapters",
  "vcs-test-support",
  "vergen",
  "vergen-gitcl",
@@ -40,7 +39,6 @@ dependencies = [
  "collaboration",
  "config",
  "config-adapters",
- "consent-adapters",
  "github",
  "http",
  "http-test-support",
@@ -49,6 +47,7 @@ dependencies = [
  "tokio",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
 ]
 
 [[package]]
@@ -64,6 +63,7 @@ dependencies = [
  "kernel",
  "serde_json",
  "tempfile",
+ "vcs-adapters",
  "vcs-test-support",
 ]
 
@@ -74,7 +74,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "design",
  "design-adapters",
  "kernel",
@@ -90,11 +89,15 @@ version = "1.24.0-pre.74"
 dependencies = [
  "clap",
  "config-adapters",
+ "corpus",
+ "corpus-adapters",
  "kernel",
  "migrate",
  "migrate-adapters",
  "tempfile",
+ "time",
  "vcs",
+ "vcs-adapters",
  "vcs-test-support",
  "work-adapters",
 ]
@@ -106,7 +109,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "corpus",
  "corpus-adapters",
  "http-test-support",
@@ -198,7 +200,6 @@ dependencies = [
  "clap",
  "config",
  "config-adapters",
- "consent-adapters",
  "corpus",
  "corpus-adapters",
  "document",
@@ -216,6 +217,7 @@ dependencies = [
  "tracker-test-support",
  "vcs",
  "vcs-adapters",
+ "vcs-test-support",
  "work",
  "work-adapters",
 ]
@@ -784,7 +786,6 @@ name = "collaboration"
 version = "1.24.0-pre.74"
 dependencies = [
  "kernel",
- "vcs",
 ]
 
 [[package]]
@@ -833,17 +834,7 @@ dependencies = [
  "signal-hook",
  "store",
  "tempfile",
-]
-
-[[package]]
-name = "consent-adapters"
-version = "1.24.0-pre.74"
-dependencies = [
- "config",
- "config-adapters",
- "tempfile",
  "vcs",
- "vcs-adapters",
 ]
 
 [[package]]
@@ -882,14 +873,12 @@ dependencies = [
  "corpus",
  "document",
  "kernel",
- "rand 0.9.5",
  "regex",
- "rustix",
  "serde_json",
  "store",
  "tempfile",
  "time",
- "vcs-adapters",
+ "vcs",
 ]
 
 [[package]]
@@ -2874,7 +2863,6 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
- "consent-adapters",
  "http-test-support",
  "jira-client",
  "kernel",
@@ -2892,8 +2880,6 @@ version = "1.24.0-pre.74"
 dependencies = [
  "config",
  "config-adapters",
- "corpus",
- "corpus-adapters",
  "hex",
  "http-test-support",
  "rand 0.9.5",
@@ -3098,7 +3084,6 @@ dependencies = [
  "cli-test-support",
  "config",
  "config-adapters",
- "consent-adapters",
  "graphql-test-support",
  "http-test-support",
  "kernel",
@@ -3117,8 +3102,6 @@ version = "1.24.0-pre.74"
 dependencies = [
  "config",
  "config-adapters",
- "corpus",
- "corpus-adapters",
  "graphql-test-support",
  "http-test-support",
  "remote-projection",
@@ -3254,7 +3237,6 @@ name = "migrate"
 version = "1.24.0-pre.74"
 dependencies = [
  "corpus",
- "document",
  "kernel",
 ]
 
@@ -3266,16 +3248,15 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "document",
  "kernel",
  "migrate",
  "store",
  "tempfile",
- "time",
  "tracing",
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
- "work-adapters",
 ]
 
 [[package]]
@@ -4602,6 +4583,8 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "store"
 version = "1.24.0-pre.74"
 dependencies = [
+ "kernel",
+ "rand 0.9.5",
  "rustix",
  "tempfile",
 ]
@@ -5245,6 +5228,7 @@ dependencies = [
  "prost",
  "tempfile",
  "tracing",
+ "tracing-subscriber",
  "vcs",
  "vcs-test-support",
  "whoami",
@@ -5736,7 +5720,6 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 name = "work"
 version = "1.24.0-pre.74"
 dependencies = [
- "config",
  "corpus",
  "kernel",
  "serde_json",
@@ -5767,7 +5750,6 @@ dependencies = [
  "tracker-support",
  "tracker-test-support",
  "vcs",
- "vcs-adapters",
  "vcs-test-support",
  "work",
 ]

@@ -117,6 +117,56 @@ pub trait UserIdentityProbe {
     fn user_name(&self, root: &Path, kind: VcsKind) -> Option<String>;
 }
 
+/// The commits a working copy is based on and the paths that differ from
+/// them, taken from a single read of the repository.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkingCopyState {
+    pub base_commits: Vec<String>,
+    pub dirty_paths: Vec<String>,
+}
+
+/// Reads a working copy's base commits and dirty paths together.
+pub trait WorkingCopyStateProbe {
+    /// The commits the working copy at `root` is based on, and the
+    /// repo-relative paths that differ from them, read in one pass so the two
+    /// cannot disagree. Untracked files count as dirty and ignored files do
+    /// not, in either idiom: an untracked file is the least recoverable thing
+    /// in a working copy, so a caller gating a destructive write must see it.
+    ///
+    /// # Errors
+    ///
+    /// When `root` carries the named idiom but its status or diff cannot be
+    /// computed.
+    fn working_copy_state(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<WorkingCopyState, kernel::Error>;
+}
+
+/// The repository questions a consumer asks from wherever it starts, rather
+/// than from a root it has already discovered.
+pub trait RepositoryProbe: WorkingCopyStateProbe {
+    /// See [`facts`].
+    fn facts_at(&self, start: &Path) -> Option<RepoFacts>;
+
+    /// See [`user_name`].
+    fn user_name_at(&self, start: &Path) -> Option<String>;
+}
+
+impl<T> RepositoryProbe for T
+where
+    T: RepoRoot + VcsProbe + UserIdentityProbe + WorkingCopyStateProbe,
+{
+    fn facts_at(&self, start: &Path) -> Option<RepoFacts> {
+        facts(start, self, self)
+    }
+
+    fn user_name_at(&self, start: &Path) -> Option<String> {
+        user_name(start, self, self, self)
+    }
+}
+
 /// The configured VCS user name for the repository containing `start`.
 ///
 /// `None` outside a repository and when the probe cannot answer.
@@ -161,8 +211,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        facts, user_name, RepoFacts, RepoRoot, UserIdentityProbe, VcsKind,
-        VcsProbe,
+        facts, user_name, RepoFacts, RepoRoot, RepositoryProbe,
+        UserIdentityProbe, VcsKind, VcsProbe, WorkingCopyState,
+        WorkingCopyStateProbe,
     };
 
     struct FixedRoot(Option<PathBuf>);
@@ -306,5 +357,86 @@ mod tests {
         );
 
         assert_eq!(derived, None);
+    }
+
+    struct StubRepository {
+        root: Option<PathBuf>,
+        user_name: Option<&'static str>,
+    }
+
+    impl RepoRoot for StubRepository {
+        fn discover(&self, _start: &Path) -> Option<PathBuf> {
+            self.root.clone()
+        }
+    }
+
+    impl VcsProbe for StubRepository {
+        fn kind(&self, _root: &Path) -> VcsKind {
+            VcsKind::Git
+        }
+
+        fn revision(&self, _root: &Path, _kind: VcsKind) -> Option<String> {
+            Some("abc123".to_owned())
+        }
+    }
+
+    impl UserIdentityProbe for StubRepository {
+        fn user_name(&self, _root: &Path, _kind: VcsKind) -> Option<String> {
+            self.user_name.map(str::to_owned)
+        }
+    }
+
+    impl WorkingCopyStateProbe for StubRepository {
+        fn working_copy_state(
+            &self,
+            _root: &Path,
+            _kind: VcsKind,
+        ) -> Result<WorkingCopyState, kernel::Error> {
+            Ok(WorkingCopyState::default())
+        }
+    }
+
+    fn repository_at(root: &str) -> StubRepository {
+        StubRepository {
+            root: Some(PathBuf::from(root)),
+            user_name: Some("Toby Clemson"),
+        }
+    }
+
+    #[test]
+    fn a_repository_probe_composes_the_facts_of_the_discovered_repository() {
+        let probe: &dyn RepositoryProbe = &repository_at("/tmp/some-repo");
+
+        assert_eq!(
+            probe.facts_at(Path::new("/tmp/some-repo/meta/work")),
+            Some(RepoFacts {
+                root: PathBuf::from("/tmp/some-repo"),
+                name: "some-repo".to_owned(),
+                kind: VcsKind::Git,
+                revision: Some("abc123".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn a_repository_probe_composes_the_user_name_of_the_discovered_repository()
+    {
+        let probe: &dyn RepositoryProbe = &repository_at("/tmp/some-repo");
+
+        assert_eq!(
+            probe.user_name_at(Path::new("/tmp/some-repo/meta/work")),
+            Some("Toby Clemson".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_repository_probe_outside_a_repository_has_no_facts_or_user_name() {
+        let probe: &dyn RepositoryProbe = &StubRepository {
+            root: None,
+            user_name: Some("Toby Clemson"),
+        };
+
+        assert_eq!(probe.facts_at(Path::new("/tmp/loose")), None);
+        assert_eq!(probe.user_name_at(Path::new("/tmp/loose")), None);
     }
 }

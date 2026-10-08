@@ -213,7 +213,43 @@ run = "invoke build.server-dev"
 
 [tasks."build:cli:dev"]
 description = "Build the debug cli launcher (cli/target/debug/accelerator) the test suites invoke through ACCELERATOR_BIN"
-run = "invoke build.cli-dev"
+run = "invoke build.cli-dev --group launcher"
+
+[tasks."build:cli:vcs:dev"]
+description = "Build the debug accelerator-vcs sub-binary (cli/target/debug/accelerator-vcs)"
+run = "invoke build.cli-dev --group vcs"
+
+[tasks."build:cli:work:dev"]
+description = "Build the debug accelerator-work sub-binary (cli/target/debug/accelerator-work)"
+run = "invoke build.cli-dev --group work"
+
+[tasks."build:cli:corpus:dev"]
+description = "Build the debug accelerator-corpus sub-binary (cli/target/debug/accelerator-corpus)"
+run = "invoke build.cli-dev --group corpus"
+
+[tasks."build:cli:collaboration:dev"]
+description = "Build the debug accelerator-collaboration sub-binary (cli/target/debug/accelerator-collaboration)"
+run = "invoke build.cli-dev --group collaboration"
+
+[tasks."build:cli:migrate:dev"]
+description = "Build the debug accelerator-migrate sub-binary (cli/target/debug/accelerator-migrate)"
+run = "invoke build.cli-dev --group migrate"
+
+[tasks."build:cli:design:dev"]
+description = "Build the debug accelerator-design sub-binary (cli/target/debug/accelerator-design)"
+run = "invoke build.cli-dev --group design"
+
+[tasks."build:cli:linear:dev"]
+description = "Build the debug accelerator-linear sub-binary (cli/target/debug/accelerator-linear)"
+run = "invoke build.cli-dev --group linear"
+
+[tasks."build:cli:jira:dev"]
+description = "Build the debug accelerator-jira sub-binary (cli/target/debug/accelerator-jira)"
+run = "invoke build.cli-dev --group jira"
+
+[tasks."build:cli:research:dev"]
+description = "Build the debug accelerator-research sub-binary (cli/target/debug/accelerator-research)"
+run = "invoke build.cli-dev --group research"
 
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
@@ -338,7 +374,7 @@ run = "invoke test.integration.skill-invocation"
 
 [tasks."test:integration:conformance"]
 description = "Run the producer-conformance guard (drives the real corpus validator through the launcher)"
-depends = ["build:cli:dev"]
+depends = ["build:cli:dev", "build:cli:corpus:dev"]
 run = "invoke test.integration.conformance"
 
 [tasks."test:integration:deny"]
@@ -354,6 +390,16 @@ run = "invoke test.integration.deny"
 description = "Measure warm-dispatch latency vs the shell baseline (quiet host, network egress, ~8 min, up to ~30 min if the interval escalates)"
 depends = ["deps:install:python"]
 run = "invoke measure.warm-dispatch"
+
+[tasks."measure:launcher-size"]
+description = "Report the stripped release launcher's byte size for aarch64-apple-darwin"
+depends = ["deps:install:python"]
+run = "invoke measure.launcher-size"
+
+[tasks."measure:summary-latency"]
+description = "Time the SessionStart config summary, cold and warm, in git, jj and colocated jj (quiet host, same host before and after)"
+depends = ["deps:install:python"]
+run = "invoke measure.summary-latency"
 
 [tasks."measure:teardown"]
 description = "Replay the measurement harness's restore and verify phases from a stale manifest"
@@ -377,12 +423,12 @@ run = "invoke test.integration.tracker-contract"
 
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
-depends = ["build:cli:dev"]
+depends = ["build:cli:dev", "build:cli:vcs:dev", "build:cli:research:dev"]
 run = "invoke test.integration.hooks"
 
 [tasks."test:integration:research"]
 description = "Run the research guard's lexer differential against real bash and zsh (fixed-seed mutant sample), and the academic profiles' invocations through the guard"
-depends = ["build:cli:dev"]
+depends = ["build:cli:research:dev"]
 run = "invoke test.integration.research"
 
 # Deliberately absent from `test:integration` and the bare default task: it
@@ -390,7 +436,7 @@ run = "invoke test.integration.research"
 # than the default lane's fixed sample.
 [tasks."test:integration:research-exhaustive"]
 description = "Run the research guard's lexer differential at every splice position (opt-in: minutes)"
-depends = ["build:cli:dev"]
+depends = ["build:cli:research:dev"]
 run = "invoke test.integration.research-exhaustive"
 
 # A depends-only shim: it lets the fixture-size guard join the test:integration
@@ -599,6 +645,11 @@ description = "Confine config/test-support to config's and config-adapters' dev-
 depends = ["deps:install:python"]
 run = "invoke lint.config-test-support.check"
 
+[tasks."lint:crate-dependencies:check"]
+description = "Hold every cli/ crate's normal and build dependencies to the injection rules, read from each manifest's [package.metadata.accelerator] role declaration"
+depends = ["deps:install:python"]
+run = "invoke lint.crate-dependencies.check"
+
 [tasks."lint:skill-permissions:check"]
 description = "Guard every SKILL.md !-preprocessor invocation against its allowed-tools rules (coverage, --fail-safe, no metacharacters, no bare-launcher grant) plus the injection census"
 depends = ["deps:install:python"]
@@ -611,7 +662,7 @@ run = "invoke lint.claude-coupling.check"
 
 [tasks."cli:check"]
 description = "Run all cli/ workspace format and lint checks (workspace-wide rustfmt + clippy + vendored-shim drift guard; read-only, no tests)"
-depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check"]
+depends = ["format:cli:check", "lint:cli:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:vcs-settings:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
 
 [tasks."deny:check"]
 description = "Check the cli/ workspace dependency graph with cargo-deny (advisories, licenses, bans, sources)"
@@ -673,7 +724,7 @@ depends = ["format:frontend:check", "lint:frontend:check", "types:frontend:check
 
 [tasks."lint:check"]
 description = "Run all lint checks"
-depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check"]
+depends = ["lint:frontend:check", "lint:server:check", "lint:cli:check", "lint:build-system:check", "lint:scripts:check", "lint:skill-permissions:check", "lint:vendor-shims:check", "lint:store-duplication:check", "lint:claude-coupling:check", "lint:dispatch-coherence:check", "lint:integration-skills:check", "lint:bare-invocation:check", "lint:vcs-settings:check", "lint:git-tokens:check", "lint:skill-cli-refs:check", "lint:config-test-support:check", "lint:crate-dependencies:check"]
 
 [tasks."lint:fix"]
 description = "Apply all safe lint fixes (shell has no autofixer — run `mise run scripts:check` for remaining shell findings)"

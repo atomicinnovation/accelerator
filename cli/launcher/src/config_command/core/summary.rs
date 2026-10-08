@@ -40,8 +40,6 @@ pub struct SummaryWarnings {
     /// For the user and the session alike: only the user can act on them,
     /// and the session must be able to explain them.
     pub session: Vec<String>,
-    /// For the session alone: nothing the user need act on.
-    pub context_notes: Vec<String>,
 }
 
 const PERSONAL_CONFIG: &str = ".accelerator/config.local.md";
@@ -91,11 +89,6 @@ pub(crate) fn consent_warnings(
             }
             AuditFinding::PersonalFile(distrust) => {
                 warnings.session.push(distrusted_personal_file(distrust));
-            }
-            AuditFinding::PersonalFileUnchecked => {
-                warnings.context_notes.push(format!(
-                    "tracking of {PERSONAL_CONFIG} was not checked this session"
-                ));
             }
         }
     }
@@ -274,7 +267,6 @@ mod tests {
             consent_warnings(Ok(vec![AuditFinding::Key(refusal.clone())]));
 
         assert_eq!(warnings.session, vec![refusal.to_string()]);
-        assert!(warnings.context_notes.is_empty());
         assert!(warnings.operator.is_empty());
         Ok(())
     }
@@ -313,20 +305,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unchecked_personal_file_is_a_context_note_alone() {
-        let warnings =
-            consent_warnings(Ok(vec![AuditFinding::PersonalFileUnchecked]));
-
-        assert!(warnings.session.is_empty());
-        assert_eq!(
-            warnings.context_notes,
-            vec![format!(
-                "tracking of {PERSONAL} was not checked this session"
-            )]
-        );
-    }
-
-    #[test]
     fn a_failed_audit_is_one_fixed_warning_with_the_detail_for_the_operator(
     ) -> Result<(), String> {
         let error = ConfigError::Io {
@@ -340,7 +318,6 @@ mod tests {
             warnings.session,
             vec![format!("consent keys could not be checked in {PERSONAL}")]
         );
-        assert!(warnings.context_notes.is_empty());
         let [detail] = warnings.operator.as_slice() else {
             return Err(format!("not one warning: {:?}", warnings.operator));
         };

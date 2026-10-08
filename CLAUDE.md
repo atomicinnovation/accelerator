@@ -12,7 +12,7 @@ repo, each with its own checks; see Architecture below.
 All dev tasks run through **`mise run <task>`** (declared in `mise.toml`,
 implemented as [invoke](https://www.pyinvoke.org/) tasks under `tasks/`). Run
 `mise tasks` for the full leaf list; `tasks/README.md` documents the *shape* of
-the task tree (learn it once) and carries the thirteen-point checklist for
+the task tree (learn it once) and carries the fourteen-point checklist for
 registering a dispatched sub-binary, plus a shorter one for registering a
 plain library crate.
 

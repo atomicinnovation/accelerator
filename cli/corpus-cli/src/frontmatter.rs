@@ -6,14 +6,15 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::frontmatter_validation::pipeline::build_index;
+use corpus::frontmatter_validation::pipeline::corpus_files;
+use corpus::frontmatter_validation::pipeline::validate_targets;
+use corpus::frontmatter_validation::pipeline::Checks;
+use corpus::frontmatter_validation::pipeline::TargetOutcome;
 use corpus::scan::CorpusWalker;
 use corpus::scan::FileReader;
 use corpus::DocTypeKey;
-use corpus_adapters::frontmatter_validation::build_index;
-use corpus_adapters::frontmatter_validation::corpus_files;
-use corpus_adapters::frontmatter_validation::validate_targets;
-use corpus_adapters::frontmatter_validation::Checks;
-use corpus_adapters::frontmatter_validation::TargetOutcome;
+use corpus_adapters::YamlFrontmatter;
 
 use crate::outcome::Outcome;
 
@@ -78,10 +79,21 @@ pub fn run_validate<W: CorpusWalker + FileReader>(
     table: &[(DocTypeKey, PathBuf)],
     walker_and_reader: &W,
 ) -> Result<Outcome, kernel::Error> {
-    let index = build_index(table, walker_and_reader)?;
+    let index = build_index(
+        table,
+        walker_and_reader,
+        walker_and_reader,
+        &YamlFrontmatter,
+    )?;
     let target = target_files(dirs, files, table, walker_and_reader)?;
-    let results =
-        validate_targets(&target, table, &index, checks, walker_and_reader)?;
+    let results = validate_targets(
+        &target,
+        table,
+        &index,
+        checks,
+        walker_and_reader,
+        &YamlFrontmatter,
+    )?;
 
     let mut stderr = String::new();
     let mut any_violations = false;
@@ -159,10 +171,10 @@ mod tests {
     use std::path::Path;
     use std::path::PathBuf;
 
+    use corpus::frontmatter_validation::pipeline::Checks;
     use corpus::scan::CorpusWalker;
     use corpus::scan::FileReader;
     use corpus::DocTypeKey;
-    use corpus_adapters::frontmatter_validation::Checks;
 
     use super::run_validate;
 

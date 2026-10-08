@@ -9,7 +9,6 @@
 //! not import each other; a common downward dependency is how they share a
 //! rule without doing so.
 
-pub mod block;
 pub mod ceiling;
 pub mod identifier;
 pub mod mime;

@@ -125,7 +125,11 @@ pub fn build_client(intent: Intent) -> Result<Built, ContextError> {
     let root = FileConfigStore::discover_root(&start);
     let integrations_root = integrations_dir(service, &root)?;
 
-    let ports = consent_adapters::credential_ports(&root, &start);
+    let ports = config_adapters::credential_ports(
+        vcs_adapters::InProcessTracking,
+        &root,
+        &start,
+    );
     let context = project_credential_context(
         &root,
         &ports,

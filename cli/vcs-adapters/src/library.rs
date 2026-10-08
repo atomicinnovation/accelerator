@@ -55,6 +55,8 @@ use vcs::RepoRoot;
 use vcs::UserIdentityProbe;
 use vcs::VcsKind;
 use vcs::VcsProbe;
+use vcs::WorkingCopyState;
+use vcs::WorkingCopyStateProbe;
 
 use crate::library::jj_config::JjConfigEnvironment;
 use crate::library::jj_config::JjConfigSources;
@@ -187,14 +189,6 @@ impl std::error::Error for Error {
             }
         }
     }
-}
-
-/// The commits a working copy is based on and the paths that differ from
-/// them, taken from a single read of the repository.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct WorkingCopyState {
-    pub base_commits: Vec<String>,
-    pub dirty_paths: Vec<String>,
 }
 
 /// Reads a repository's root, idiom and revision in-process.
@@ -387,46 +381,6 @@ impl InProcessProbe {
             .map(|value| value.to_string()))
     }
 
-    /// Every repo-relative path that differs from the last committed tree —
-    /// git via `gix::Repository::status`, jj via a real snapshot-then-diff.
-    ///
-    /// Untracked files count on both sides, and ignored files on neither, so
-    /// the two idioms return the same list for the same tree. An untracked
-    /// file is the least recoverable thing in a working copy — no commit
-    /// holds its content — so a caller gating a destructive write on this
-    /// must see it.
-    ///
-    /// # Errors
-    ///
-    /// When `root` is present but its status/diff cannot be computed.
-    pub fn dirty_paths(
-        &self,
-        root: &Path,
-        kind: VcsKind,
-    ) -> Result<Vec<String>, Error> {
-        Ok(self.working_copy_state(root, kind)?.dirty_paths)
-    }
-
-    /// The commits the working copy is based on, and its dirty paths relative
-    /// to them, read in one pass over the repository so the two cannot
-    /// disagree: `HEAD` on git (none while it is unborn), the working-copy
-    /// commit's parents on jj.
-    ///
-    /// # Errors
-    ///
-    /// When `root` is present but its status/diff cannot be computed.
-    pub fn working_copy_state(
-        &self,
-        root: &Path,
-        kind: VcsKind,
-    ) -> Result<WorkingCopyState, Error> {
-        match kind {
-            VcsKind::Git => dirty_paths::git_working_copy_state(root),
-            VcsKind::Jj => dirty_paths::jj_working_copy_state(root),
-            VcsKind::None => Ok(WorkingCopyState::default()),
-        }
-    }
-
     /// Whether `relpath` (repo-relative) is tracked in the repository at
     /// `root` — git via the index, jj via the working-copy commit's tree.
     ///
@@ -594,6 +548,24 @@ impl UserIdentityProbe for InProcessProbe {
             },
             VcsKind::None => None,
         }
+    }
+}
+
+/// `HEAD` is the base on git (none while it is unborn), and the working-copy
+/// commit's parents on jj. Dirty paths come from `gix::Repository::status` on
+/// git and a real snapshot-then-diff on jj.
+impl WorkingCopyStateProbe for InProcessProbe {
+    fn working_copy_state(
+        &self,
+        root: &Path,
+        kind: VcsKind,
+    ) -> Result<WorkingCopyState, kernel::Error> {
+        match kind {
+            VcsKind::Git => dirty_paths::git_working_copy_state(root),
+            VcsKind::Jj => dirty_paths::jj_working_copy_state(root),
+            VcsKind::None => Ok(WorkingCopyState::default()),
+        }
+        .map_err(Into::into)
     }
 }
 

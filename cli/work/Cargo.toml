@@ -6,11 +6,15 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "domain"
+context = "work"
+kind = "product"
+
 [lints]
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
 corpus = { path = "../corpus" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }

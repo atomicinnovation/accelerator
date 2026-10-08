@@ -6,23 +6,12 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[package.metadata.accelerator]
+role = "adapter"
+context = "work"
+
 [lints]
 workspace = true
-
-[features]
-# Gates the tests that need real VCS binaries on `PATH`:
-# sync_working_copy_status.rs's real-repo `jj`/`git` tests. On, an absent
-# binary hard-fails; off, those tests are skipped entirely. CI enables it
-# (tasks/test/cli.py). Mirrors vcs-adapters' own bash-parity convention.
-bash-parity = []
-
-# Black-box test entry point, not a shipped artifact. Lives under
-# tests/fixtures/ so it stays off the crate's normal build surface; tests
-# locate it via CARGO_BIN_EXE_work-adapters-fixture and run it under a
-# hermetic environment, which in-process calls cannot have.
-[[bin]]
-name = "work-adapters-fixture"
-path = "tests/fixtures/work_adapters_fixture.rs"
 
 [dependencies]
 work = { path = "../work" }
@@ -30,7 +19,6 @@ kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
 vcs = { path = "../vcs" }
-vcs-adapters = { path = "../vcs-adapters" }
 similar = { workspace = true }
 sha2 = { workspace = true }
 time = { workspace = true }

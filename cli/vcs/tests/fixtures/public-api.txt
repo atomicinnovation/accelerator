@@ -208,6 +208,9 @@ pub fn vcs::tracking::RootsAnswer::eq(&self, other: &vcs::tracking::RootsAnswer)
 impl core::fmt::Debug for vcs::tracking::RootsAnswer
 pub fn vcs::tracking::RootsAnswer::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::tracking::RootsAnswer
+pub trait vcs::tracking::RepositoryTracking
+pub fn vcs::tracking::RepositoryTracking::file_tracking(&self, path: &std::path::Path) -> vcs::tracking::FileTracking
+pub fn vcs::tracking::RepositoryTracking::repository_roots(&self, directory: &std::path::Path) -> vcs::tracking::RootsAnswer
 pub enum vcs::VcsKind
 pub vcs::VcsKind::Git
 pub vcs::VcsKind::Jj
@@ -236,9 +239,28 @@ pub fn vcs::RepoFacts::eq(&self, other: &vcs::RepoFacts) -> bool
 impl core::fmt::Debug for vcs::RepoFacts
 pub fn vcs::RepoFacts::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for vcs::RepoFacts
+pub struct vcs::WorkingCopyState
+pub vcs::WorkingCopyState::base_commits: alloc::vec::Vec<alloc::string::String>
+pub vcs::WorkingCopyState::dirty_paths: alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for vcs::WorkingCopyState
+pub fn vcs::WorkingCopyState::clone(&self) -> vcs::WorkingCopyState
+impl core::cmp::Eq for vcs::WorkingCopyState
+impl core::cmp::PartialEq for vcs::WorkingCopyState
+pub fn vcs::WorkingCopyState::eq(&self, other: &vcs::WorkingCopyState) -> bool
+impl core::default::Default for vcs::WorkingCopyState
+pub fn vcs::WorkingCopyState::default() -> vcs::WorkingCopyState
+impl core::fmt::Debug for vcs::WorkingCopyState
+pub fn vcs::WorkingCopyState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for vcs::WorkingCopyState
 pub trait vcs::RepoRoot
 pub fn vcs::RepoRoot::discover(&self, start: &std::path::Path) -> core::option::Option<std::path::PathBuf>
 pub fn vcs::RepoRoot::repository_root(&self, working_copy_root: &std::path::Path) -> std::path::PathBuf
+pub trait vcs::RepositoryProbe: vcs::WorkingCopyStateProbe
+pub fn vcs::RepositoryProbe::facts_at(&self, start: &std::path::Path) -> core::option::Option<vcs::RepoFacts>
+pub fn vcs::RepositoryProbe::user_name_at(&self, start: &std::path::Path) -> core::option::Option<alloc::string::String>
+impl<T> vcs::RepositoryProbe for T where T: vcs::RepoRoot + vcs::VcsProbe + vcs::UserIdentityProbe + vcs::WorkingCopyStateProbe
+pub fn T::facts_at(&self, start: &std::path::Path) -> core::option::Option<vcs::RepoFacts>
+pub fn T::user_name_at(&self, start: &std::path::Path) -> core::option::Option<alloc::string::String>
 pub trait vcs::UserIdentityProbe
 pub fn vcs::UserIdentityProbe::user_name(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::option::Option<alloc::string::String>
 pub trait vcs::VcsProbe
@@ -247,5 +269,7 @@ pub fn vcs::VcsProbe::revision(&self, root: &std::path::Path, kind: vcs::VcsKind
 pub trait vcs::VcsReporter
 pub fn vcs::VcsReporter::log_report(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::result::Result<vcs::log::LogReport, kernel::Error>
 pub fn vcs::VcsReporter::status_report(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::result::Result<vcs::status::StatusReport, kernel::Error>
+pub trait vcs::WorkingCopyStateProbe
+pub fn vcs::WorkingCopyStateProbe::working_copy_state(&self, root: &std::path::Path, kind: vcs::VcsKind) -> core::result::Result<vcs::WorkingCopyState, kernel::Error>
 pub fn vcs::facts(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe) -> core::option::Option<vcs::RepoFacts>
 pub fn vcs::user_name(start: &std::path::Path, root: &dyn vcs::RepoRoot, probe: &dyn vcs::VcsProbe, identity: &dyn vcs::UserIdentityProbe) -> core::option::Option<alloc::string::String>

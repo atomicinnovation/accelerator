@@ -10,8 +10,6 @@ use ::config::ReadTemplate;
 use corpus::AtomicWrite;
 use corpus::FilenameTimestampFormat;
 use corpus_adapters::compile_scan_regex;
-use corpus_adapters::lock::acquire;
-use corpus_adapters::lock::LockOptions;
 use corpus_adapters::metadata::derive_at;
 use corpus_adapters::metadata::VcsBackedRepoFactsProbe;
 use corpus_adapters::FileCorpusStore;
@@ -19,10 +17,13 @@ use corpus_adapters::RegexScanner;
 use document::Mapping;
 use document::Scalar;
 use document::Yaml;
+use store::lock::acquire;
+use store::lock::LockOptions;
 use tracker::CreatePreview;
 use tracker::ExternalId;
 use tracker::FieldResolution;
 use tracker::TrackerError;
+use vcs_adapters::library::InProcessProbe;
 use work::create::assert_matches_template_schema;
 use work::create::compose_frontmatter;
 use work::create::resolve_author;
@@ -633,11 +634,13 @@ fn try_run(
     let metadata = derive_at(
         &root,
         FilenameTimestampFormat::DateTimeUnderscored,
-        &VcsBackedRepoFactsProbe,
+        &VcsBackedRepoFactsProbe::new(&InProcessProbe),
     )
     .map_err(|error| error.to_string())?;
-    let author =
-        resolve_author(args.author.as_deref(), &VcsBackedIdentityProbe)?;
+    let author = resolve_author(
+        args.author.as_deref(),
+        &VcsBackedIdentityProbe::new(&InProcessProbe),
+    )?;
     let resolved_template = resolve_and_check_template(config, templates)?;
     let body = resolve_body(args, &resolved_template, &id)?;
 
