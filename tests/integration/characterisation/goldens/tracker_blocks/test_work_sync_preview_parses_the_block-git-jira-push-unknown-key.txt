@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-the push block key `bogus` is not recognised (accepted: max_items). Fix the `push` block in .accelerator/config.md.

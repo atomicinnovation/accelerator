@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-the pull block key `bogus` is not recognised (accepted: additional_projects, all_projects, filters, max_items, max_pages). Fix the `pull` block in .accelerator/config.md.

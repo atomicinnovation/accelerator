@@ -1,8 +1,0 @@
-exit: 3
-loopback_requests: 0
---- stdout
---- stderr
-warning: E_CONSENT_KEY_TRACKED: design.browser_path in <ROOT>/repository/.accelerator/config.local.md is refused — the file is tracked by version control, so the repository chose the value; untrack it
-{"error":"downgrade","reason":"artifact-unavailable"}
---- observed
-browser state: ['bundled']

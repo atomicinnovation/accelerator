@@ -1,5 +1,0 @@
-exit: 0
-loopback_requests: 0
---- stdout
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Accelerator plugin configuration detected:\n- Team config: .accelerator/config.md\n- Personal config: .accelerator/config.local.md\n- Configured sections: work jira\n\nSkills will read this configuration at invocation time. To view or edit configuration, use /accelerator:configure.\n\nE_CONSENT_KEY_TRACKING_UNKNOWN: whether .accelerator/config.local.md is tracked by version control could not be determined, so every consent key it sets is refused"},"systemMessage":"[accelerator] E_CONSENT_KEY_TRACKING_UNKNOWN: whether .accelerator/config.local.md is tracked by version control could not be determined, so every consent key it sets is refused"}
---- stderr

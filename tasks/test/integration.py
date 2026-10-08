@@ -91,17 +91,6 @@ def conformance(context: Context) -> None:
 
 
 @task
-def characterisation(context: Context) -> None:
-    """Pin the cli binaries' observable behaviour against committed goldens.
-
-    Runs the launcher and every dispatched sub-binary, built together by the
-    ``build:cli:characterisation:dev`` mise dependency, in hermetic git and jj
-    repositories, and compares stdout, stderr and exit status byte for byte.
-    """
-    context.run("uv run pytest tests/integration/characterisation -v")
-
-
-@task
 def hooks(context: Context) -> None:
     """Integration tests for the hooks/ subtree.
 

@@ -1,4 +1,0 @@
----
-just a string
----
-body

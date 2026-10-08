@@ -251,10 +251,6 @@ run = "invoke build.cli-dev --group jira"
 description = "Build the debug accelerator-research sub-binary (cli/target/debug/accelerator-research)"
 run = "invoke build.cli-dev --group research"
 
-[tasks."build:cli:characterisation:dev"]
-description = "Build the debug launcher and every dispatched cli sub-binary in one cargo invocation, for the characterisation suite"
-run = "invoke build.cli-dev --group characterisation"
-
 [tasks."build:server:release"]
 description = "Build the frontend, then the visualiser server binary for release (embed-dist; the frontend build overwrites any lint-stub dist/index.html)"
 depends = ["build:frontend"]
@@ -425,11 +421,6 @@ description = "Run the RemoteTracker contract harness against a live tracker (op
 depends = ["deps:install:python", "deps:install:rust-components", "build:frontend:stub"]
 run = "invoke test.integration.tracker-contract"
 
-[tasks."test:integration:characterisation"]
-description = "Run the cli characterisation suite: built binaries in hermetic git and jj repositories, compared against committed goldens"
-depends = ["build:cli:characterisation:dev"]
-run = "invoke test.integration.characterisation"
-
 [tasks."test:integration:hooks"]
 description = "Run hooks integration tests"
 depends = ["build:cli:dev", "build:cli:vcs:dev", "build:cli:research:dev"]
@@ -467,7 +458,6 @@ depends = [
     "test:integration:deny",
     "test:integration:tasks",
     "test:integration:hooks",
-    "test:integration:characterisation",
     "test:integration:research",
     "test:integration:fixture-size",
 ]

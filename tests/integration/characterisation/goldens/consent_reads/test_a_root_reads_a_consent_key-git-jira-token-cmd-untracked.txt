@@ -1,5 +1,0 @@
-exit: 25
-loopback_requests: 0
---- stdout
---- stderr
-E_TOKEN_CMD_FAILED: jira.token_cmd exited with status 3

@@ -44,10 +44,6 @@ def test_the_launcher_build_is_the_launcher_alone():
     assert LAUNCHER.name == "accelerator"
 
 
-def test_the_characterisation_build_is_the_launcher_and_every_subbinary():
-    assert DEV_BUILDS["characterisation"] == (LAUNCHER, *SUBBINARIES)
-
-
 def test_the_server_is_not_a_dev_subbinary():
     assert "accelerator-visualiser" not in {b.name for b in SUBBINARIES}
 
@@ -118,16 +114,14 @@ class TestCliDevTask:
         return mocker.MagicMock(spec=Context)
 
     def test_runs_the_named_build(self, ctx):
-        cli_dev(ctx, group="characterisation")
-        ctx.run.assert_called_once_with(
-            cargo_build_command(DEV_BUILDS["characterisation"])
-        )
+        cli_dev(ctx, group="jira")
+        ctx.run.assert_called_once_with(cargo_build_command(DEV_BUILDS["jira"]))
 
     def test_defaults_to_the_launcher(self, ctx):
         cli_dev(ctx)
         ctx.run.assert_called_once_with(cargo_build_command((LAUNCHER,)))
 
     def test_refuses_an_unknown_build_naming_the_known_ones(self, ctx):
-        with pytest.raises(Exit, match="characterisation"):
+        with pytest.raises(Exit, match="launcher"):
             cli_dev(ctx, group="nonesuch")
         ctx.run.assert_not_called()

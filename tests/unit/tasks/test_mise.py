@@ -71,7 +71,6 @@ _CLI_DEV_BUILDS = {
     "test:integration:research": {"build:cli:research:dev"},
     "test:integration:research-exhaustive": {"build:cli:research:dev"},
     "test:integration:visualiser": {_LAUNCHER},
-    "test:integration:characterisation": {"build:cli:characterisation:dev"},
 }
 
 # Integration tasks that deliberately need no prebuilt launcher, each with a

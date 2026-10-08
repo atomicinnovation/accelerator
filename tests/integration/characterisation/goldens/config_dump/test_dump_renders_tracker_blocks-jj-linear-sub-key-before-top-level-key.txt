@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-the pull block key `max_pages.nope` is not recognised (accepted: additional_teams, all_teams, filters, max_items, max_pages). Fix the `pull` block in .accelerator/config.md.

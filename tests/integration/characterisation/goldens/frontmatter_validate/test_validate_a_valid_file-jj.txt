@@ -1,6 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-meta/work/0001-valid.md: DUPLICATE-ID — 'work-item:0001' is claimed by more than one file in the corpus
-

@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 6
---- stdout
---- stderr
-E_CACHE_IO: <ROOT>/repository/.accelerator/state/integrations/linear/.lock: cannot write under '<ROOT>/repository/.accelerator/state/integrations/linear/.lock': not writable

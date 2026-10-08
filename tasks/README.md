@@ -241,14 +241,12 @@ the drop is understood.
 
 `tasks/shared/dev_builds.py` models the debug binaries the integration lanes
 run. Each named build is one `invoke build.cli-dev --group <name>` and so one
-`cargo build`, whose members compile in a single parallel pass instead of
-queueing on `cli/target`'s lock:
+`cargo build`:
 
 | Leaf | Builds |
 |---|---|
 | `build:cli:dev` | the launcher alone |
 | `build:cli:<token>:dev` | one dispatched sub-binary (every token but `visualiser`, which `build:server:dev` builds with its `dev-frontend` feature) |
-| `build:cli:characterisation:dev` | the launcher and every sub-binary |
 
 A lane depends on exactly the leaves for the binaries it runs, and
 `_CLI_DEV_BUILDS` in `tests/unit/tasks/test_mise.py` pins each lane's set.
@@ -258,22 +256,6 @@ A binary whose package declares `test-loopback` (`jira`, `linear`,
 `target/debug/<bin>` with different features overwrite each other, so a lane
 would otherwise run whichever ran last. The feature's compile guard refuses a
 release build that carries it.
-
-### The characterisation lane
-
-`test:integration:characterisation` runs the launcher and every sub-binary as
-black boxes in hermetic git and jj repositories, and compares exit status,
-stdout, stderr, loopback request count and any observed side effects against
-the committed goldens under `tests/integration/characterisation/goldens/`. It
-calls no Rust API, so a refactor that reshapes the crates cannot reshape it.
-
-- Every `ACCELERATOR_RELEASE_BASE_URL` and `ACCELERATOR_*_API_URL` points at
-  one loopback server, and `ACCELERATOR_LOG=off` keeps tracing (timestamps,
-  module targets) out of the goldens.
-- A case runs in both git and jj unless it is marked `vcs_specific`;
-  `test_every_case_runs_in_git_and_jj` enforces that at collection.
-- `UPDATE_GOLDEN=1` rewrites the goldens, and is refused under `CI`. Review
-  the diff before committing it: a changed golden is a changed behaviour.
 
 ### The measure namespace
 

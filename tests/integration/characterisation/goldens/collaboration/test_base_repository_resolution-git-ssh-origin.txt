@@ -1,5 +1,0 @@
-exit: 0
-loopback_requests: 2
---- stdout
-candidate-owner/candidate-repo
---- stderr

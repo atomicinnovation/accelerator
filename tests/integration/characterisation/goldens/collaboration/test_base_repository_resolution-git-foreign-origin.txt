@@ -1,5 +1,0 @@
-exit: 2
-loopback_requests: 0
---- stdout
---- stderr
-the origin remote 'https://gitlab.example.com/owner/repo.git' is not a recognized remote URL

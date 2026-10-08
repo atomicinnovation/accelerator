@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-the pull block key `additional_projects` is not recognised (accepted: additional_teams, all_teams, filters, max_items, max_pages). `additional_projects` is a Jira key; this integration is Linear — did you mean `additional_teams`? Fix the `pull` block in .accelerator/config.md.

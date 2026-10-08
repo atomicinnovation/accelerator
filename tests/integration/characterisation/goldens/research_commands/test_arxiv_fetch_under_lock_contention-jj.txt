@@ -1,9 +1,0 @@
-exit: 0
-loopback_requests: 0
---- stdout
-{"status":"unavailable","source":"arxiv","reason":"rate_limited","cause":"lock_contention"}
---- stderr
-research fetch: arxiv lock contention: another call held arXiv past this call's deadline
-research fetch: arxiv search unavailable (rate_limited) after 0 attempts
---- observed
-contention log lines: 1

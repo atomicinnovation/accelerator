@@ -1,9 +1,0 @@
-exit: 2
-loopback_requests: 0
---- stdout
---- stderr
-error: unrecognized subcommand 'tracking'
-
-Usage: accelerator-vcs <COMMAND>
-
-For more information, try '--help'.

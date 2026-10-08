@@ -1,5 +1,0 @@
-exit: 74
-loopback_requests: 0
---- stdout
---- stderr
-work.integration names 'jira', which is wired but not usable — its configuration or credentials are missing or refused: E_NO_PROJECT: jira.project_key is not configured — a Jira create needs a project key

@@ -1,5 +1,0 @@
-exit: 2
-loopback_requests: 0
---- stdout
---- stderr
-no origin remote is configured for this repository

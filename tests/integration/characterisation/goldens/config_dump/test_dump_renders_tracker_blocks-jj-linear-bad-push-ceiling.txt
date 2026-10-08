@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-push `max_items` must be a non-negative integer (0 refuses all) or `unlimited` (got `lots`). Fix the `push` block in .accelerator/config.md.

@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-Another accelerator migrate run is already in progress (pid <LIVE_PID>).

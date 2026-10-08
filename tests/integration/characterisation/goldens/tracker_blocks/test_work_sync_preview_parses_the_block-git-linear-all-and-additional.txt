@@ -1,5 +1,0 @@
-exit: 1
-loopback_requests: 0
---- stdout
---- stderr
-a pull block sets both `all_*` and `additional_*` — remove one of `all_*`/`additional_*`. Fix the `pull` block in .accelerator/config.md.

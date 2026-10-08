@@ -1,4 +1,0 @@
----
-key: !custom v
----
-body

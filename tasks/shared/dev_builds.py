@@ -61,7 +61,6 @@ DEV_BUILDS: Mapping[str, tuple[DevBinary, ...]] = MappingProxyType(
                 _SUBBINARY_TOKENS, SUBBINARIES, strict=True
             )
         },
-        "characterisation": (LAUNCHER, *SUBBINARIES),
     }
 )
 
