@@ -9,6 +9,7 @@ use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::ExclusiveCreate;
 use corpus::store::FileRemove;
@@ -35,6 +36,7 @@ use work::promotion::Promotion;
 use work::promotion::PromotionMode;
 use work::promotion::PromotionRecord;
 use work::promotion::PromotionStage;
+use work::promotion::ReadBack;
 use work::promotion::RemoteHash;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
@@ -239,6 +241,16 @@ fn promote_in(
     store: &Store,
     mode: &PromotionMode,
 ) -> Result<Promotion, NotPromoted> {
+    promote_reading(repo, tracker, store, mode, &RealFs)
+}
+
+fn promote_reading(
+    repo: &Repo,
+    tracker: &RecordingTracker,
+    store: &Store,
+    mode: &PromotionMode,
+    reader: &dyn FileReader,
+) -> Result<Promotion, NotPromoted> {
     let roots = vec![repo.path("meta")];
     let work_dir = repo.path("meta/work");
     let locks = LockdirLock::with_options(&work_dir, FAST);
@@ -249,7 +261,7 @@ fn promote_in(
     let baseline = BaselineStore::new(repo.path(BASELINE), &RealFs, store);
     let retirement = RetirementPorts {
         files: RetirementFiles {
-            reader: &RealFs,
+            reader,
             writer: store,
             creator: store,
             remover: store,
@@ -745,6 +757,62 @@ fn a_kill_between_the_h1_update_and_its_record_resumes_as_retitled_not_edited()
         "the tool's own update is recognised, so the item syncs as synced"
     );
     assert_eq!(entry.remote_hash, digest::remote_body(&retitled));
+}
+
+/// Serves the draft without its closing fence once the tracker has been
+/// asked about the issue, as if someone broke it mid-promotion.
+struct DraftUnfencedOnceShown<'a> {
+    tracker: &'a RecordingTracker,
+    draft: PathBuf,
+}
+
+impl FileReader for DraftUnfencedOnceShown<'_> {
+    fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+        let shown = self
+            .tracker
+            .calls()
+            .iter()
+            .any(|call| matches!(call, Call::Show { .. }));
+        if shown && path == self.draft {
+            return Ok(Some(DRAFT_CONTENT.replacen("---\n\n", "\n", 1)));
+        }
+        RealFs.read(path)
+    }
+}
+
+#[test]
+fn a_draft_unfenced_mid_promotion_is_refused_before_anything_is_written() {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding(&draft_projection());
+    repo.save(&record_at(PromotionStage::RemoteRetitled {
+        key: key(),
+        read_back: ReadBack {
+            hash: digest::remote_body(&draft_projection()),
+            updated: RemoteTimestamp::Reported("t0".to_owned()),
+        },
+    }));
+    let reader = DraftUnfencedOnceShown {
+        tracker: &tracker,
+        draft: repo.path(DRAFT),
+    };
+
+    let promoted = promote_reading(
+        &repo,
+        &tracker,
+        &Store::new(repo.root()),
+        &PromotionMode::Standard,
+        &reader,
+    );
+
+    assert_eq!(
+        promoted,
+        Err(NotPromoted::Refused(RetirementRefusal::ItemNotFound(
+            DRAFT_ID.to_owned()
+        )))
+    );
+    assert!(updates(&tracker).is_empty());
+    assert_eq!(repo.baseline_entry(KEY), None);
+    assert_eq!(repo.read(DRAFT).as_deref(), Some(DRAFT_CONTENT));
 }
 
 #[test]
