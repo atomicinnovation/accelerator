@@ -1,8 +1,7 @@
 //! The consent policy's adapters over the VCS tracking port.
 //!
-//! The port is injected, so this crate depends on the VCS domain alone and
-//! keeps `gix` and `jj-lib` out of its dependents, the launcher and the
-//! visualiser server among them.
+//! The port is injected, so this crate depends on the `vcs` domain alone and
+//! links neither `gix` nor `jj-lib`; each composition root chooses whether to.
 
 mod credentials;
 mod roots;
