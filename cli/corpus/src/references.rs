@@ -104,7 +104,7 @@ fn typed_link(doc_type: &str, id: &str) -> String {
 }
 
 const fn joins_a_token(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'-'
+    byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_'
 }
 
 /// Replaces each ASCII-case-insensitive occurrence of `needle` whose
@@ -199,6 +199,20 @@ mod tests {
                 &distinctive("MY_PROJ-12", "ENG-3")
             ),
             "Blocked on ENG-3.\n"
+        );
+    }
+
+    #[test]
+    fn a_retired_key_inside_an_underscored_token_is_left() {
+        let content = "MY_PROJ-12 and PP-760_notes\n";
+
+        assert_eq!(
+            rewrite_references(content, &distinctive("PROJ-12", "ENG-3")),
+            content
+        );
+        assert_eq!(
+            rewrite_references(content, &distinctive("PP-760", "ENG-42")),
+            content
         );
     }
 
