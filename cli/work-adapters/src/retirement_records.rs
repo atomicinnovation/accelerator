@@ -1,6 +1,7 @@
 //! Where the records of retirements in progress are kept, so an interrupted
 //! one is finished by the next sync.
 
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -46,9 +47,18 @@ impl<'a> FileRetirementRecords<'a> {
         }
     }
 
-    fn path_of(&self, record: &RetirementRecord) -> PathBuf {
-        self.dir
-            .join(format!("{}--{}.json", record.old, record.new))
+    fn path_of(
+        &self,
+        record: &RetirementRecord,
+    ) -> Result<PathBuf, StoreError> {
+        let name = format!("{}--{}.json", record.old, record.new);
+        let mut components = Path::new(&name).components();
+        match (components.next(), components.next()) {
+            (Some(Component::Normal(_)), None) => Ok(self.dir.join(name)),
+            _ => Err(StoreError::Validation {
+                detail: format!("'{name}' is not a record file name"),
+            }),
+        }
     }
 
     fn prepare(&self) -> Result<(), StoreError> {
@@ -117,7 +127,7 @@ impl RetirementRecords for FileRetirementRecords<'_> {
     fn save(&self, record: &RetirementRecord) -> Result<(), StoreError> {
         self.prepare()?;
         self.writer
-            .write(&self.path_of(record), encode(record).as_bytes())
+            .write(&self.path_of(record)?, encode(record).as_bytes())
     }
 
     fn outstanding(&self) -> Result<Vec<RetirementRecord>, StoreError> {
@@ -154,7 +164,7 @@ impl RetirementRecords for FileRetirementRecords<'_> {
     }
 
     fn remove(&self, record: &RetirementRecord) -> Result<(), StoreError> {
-        let path = self.path_of(record);
+        let path = self.path_of(record)?;
         match std::fs::remove_file(&path) {
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
                 Err(StoreError::Io {
@@ -209,6 +219,27 @@ mod tests {
 
         records.remove(&record()).unwrap();
         assert!(records.outstanding().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_record_whose_ids_would_name_a_path_is_refused() {
+        let state = tempfile::tempdir().unwrap();
+        let records = FileRetirementRecords::new(state.path(), &PlainWrite);
+        let escaping = RetirementRecord::of(&Retirement {
+            old_id: "PP-760",
+            new_id: "../../escaped",
+            new_external_id: Some("../../escaped"),
+        });
+
+        assert!(matches!(
+            records.save(&escaping),
+            Err(StoreError::Validation { .. })
+        ));
+        assert!(matches!(
+            records.remove(&escaping),
+            Err(StoreError::Validation { .. })
+        ));
+        assert!(!state.path().join("escaped.json").exists());
     }
 
     #[test]

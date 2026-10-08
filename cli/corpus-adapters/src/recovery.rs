@@ -36,6 +36,22 @@ impl FileRecoveryCopies {
         self.state_root.join(dir)
     }
 
+    fn contained(&self, dir: &Path) -> Result<PathBuf, StoreError> {
+        if dir
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+        {
+            Ok(self.location(dir))
+        } else {
+            Err(StoreError::Validation {
+                detail: format!(
+                    "{} would reach outside the recovery state directory",
+                    dir.display()
+                ),
+            })
+        }
+    }
+
     fn mirrored(&self, dir: &Path, original: &Path) -> PathBuf {
         let relative = original.strip_prefix(&self.corpus_root).map_or_else(
             |_| {
@@ -84,7 +100,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     }
 
     fn prepare(&self, dir: &Path) -> Result<(), StoreError> {
-        let location = self.location(dir);
+        let location = self.contained(dir)?;
         fs::create_dir_all(&location).map_err(|error| io(&location, &error))?;
         let ignore = location.join(".gitignore");
         fs::write(&ignore, IGNORE_EVERYTHING)
@@ -107,6 +123,7 @@ impl RecoveryCopies for FileRecoveryCopies {
         original: &Path,
         bytes: &[u8],
     ) -> Result<(), StoreError> {
+        self.contained(dir)?;
         let copy = self.mirrored(dir, original);
         if let Some(parent) = copy.parent() {
             fs::create_dir_all(parent).map_err(|error| io(parent, &error))?;
@@ -119,7 +136,7 @@ impl RecoveryCopies for FileRecoveryCopies {
         dir: &Path,
         unrestored: &[PathBuf],
     ) -> Result<(), StoreError> {
-        let marker = self.location(dir).join(RESTORE_PENDING);
+        let marker = self.contained(dir)?.join(RESTORE_PENDING);
         let listing = unrestored.iter().fold(String::new(), |listing, path| {
             listing + &path.display().to_string() + "\n"
         });
@@ -131,7 +148,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     }
 
     fn mark_completed(&self, dir: &Path) -> Result<(), StoreError> {
-        let location = self.location(dir);
+        let location = self.contained(dir)?;
         let notice = location.join(COMPLETED);
         fs::write(
             &notice,
@@ -145,7 +162,7 @@ impl RecoveryCopies for FileRecoveryCopies {
     }
 
     fn remove_dir(&self, dir: &Path) -> Result<(), StoreError> {
-        let location = self.location(dir);
+        let location = self.contained(dir)?;
         match fs::remove_dir_all(&location) {
             Err(error) if error.kind() != ErrorKind::NotFound => {
                 Err(io(&location, &error))
@@ -215,6 +232,23 @@ mod tests {
 
     fn dir() -> &'static Path {
         Path::new("retirement-recovery/draft-k7mq3x--PP-900")
+    }
+
+    #[test]
+    fn a_directory_escaping_the_state_root_is_never_written_or_removed(
+    ) -> Result<(), TestError> {
+        let parent = TempDir::new()?;
+        let state = parent.path().join("state");
+        let victim = parent.path().join("victim");
+        fs::create_dir_all(&victim)?;
+        let store = FileRecoveryCopies::new(&state, "/repo/meta");
+        let escaping = Path::new("retirement-recovery/PP-1--ENG-1/../../..");
+
+        assert!(store.prepare(escaping).is_err());
+        assert!(store.mark_completed(escaping).is_err());
+        assert!(store.remove_dir(escaping).is_err());
+        assert!(victim.is_dir(), "nothing outside the state root is removed");
+        Ok(())
     }
 
     #[test]
