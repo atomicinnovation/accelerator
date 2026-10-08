@@ -651,15 +651,51 @@ mod tests {
             Settings::DEFAULT,
         );
         let start_took = started.elapsed();
+        let pending_while_held = tokio::time::timeout(
+            Duration::from_millis(100),
+            watching.registered(),
+        )
+        .await;
         drop(release);
 
         assert!(
             start_took < REGISTRATION_HOLD / 2,
             "spawn waited {start_took:?} for watch registration",
         );
+        assert!(
+            pending_while_held.is_err(),
+            "registered() resolved before its watches were registered",
+        );
         tokio::time::timeout(Duration::from_secs(5), watching.registered())
             .await
             .expect("registration never completed once released");
+    }
+
+    #[tokio::test]
+    async fn a_watcher_that_cannot_open_gives_up_registering_and_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (doc_paths, indexer, hub, activity_feed, clusters) =
+            setup(tmp.path()).await;
+
+        let mut watching = spawn(
+            |_sink| -> notify::Result<HeldRegistration> {
+                Err(notify::Error::generic("backend unavailable"))
+            },
+            doc_paths.values().cloned().collect(),
+            tmp.path().to_path_buf(),
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+            None,
+            Settings::DEFAULT,
+        );
+
+        tokio::time::timeout(Duration::from_secs(5), watching.registered())
+            .await
+            .expect("registration never gave up");
+        assert!(watching.finished().await.is_err());
     }
 
     #[tokio::test]
