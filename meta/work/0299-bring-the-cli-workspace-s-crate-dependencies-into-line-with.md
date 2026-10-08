@@ -135,8 +135,9 @@ The violations, by rule:
 10. The launcher's binary size, warm-dispatch latency and SessionStart config
     summary latency (cold and warm, in a git and a jj repository) are measured
     before any launcher change and again after, by the method in Technical
-    Notes. An after/before ratio of 10 or more in binary size, or in any latency
-    median, stops implementation for a decision by the work item's author. Every
+    Notes. An after/before ratio of 10 or more in binary size or in any
+    summary latency median, or of 1.4 or more in the warm-dispatch median,
+    stops implementation for a decision by the work item's author. Every
     sub-binary, the launcher and the visualiser are checked by symbol count for
     whether they link `gix`, `jj-lib` or `uluru` (which carries an MPL-2.0
     notice obligation), and the `deny.toml` symbol-count table is rewritten to
@@ -283,8 +284,8 @@ The violations, by rule:
   in Technical Notes, with the after warm-dispatch figure taken from a
   signed prerelease of the finished change before merge, then the raw
   figures and their ratios are recorded in 0299's implementation plan.
-  An after/before ratio of 10 or more in binary size, or in any latency
-  median, stops
+  An after/before ratio of 10 or more in binary size or in any summary
+  latency median, or of 1.4 or more in the warm-dispatch median, stops
   implementation for a decision by the work item's author, recorded in that
   plan.
 - [ ] Given every sub-binary, the launcher and the visualiser re-measured by

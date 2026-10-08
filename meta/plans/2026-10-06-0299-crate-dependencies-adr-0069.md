@@ -1663,11 +1663,14 @@ the diff.
   is cold for that version: warm it first with `bin/accelerator vcs detect`.
   Compare its C1 cell with Phase 1's 44.00 ms.
 - Record raw figures and after/before ratios under Implementation Notes.
-- 🔴 A ratio of 10 or more in size, or in any latency median (the
-  large-repository run included), stops for the author's decision, recorded
-  here. Size and summary latency are gated before merge; warm dispatch is
-  gated after it, so a trip there is answered by a follow-up change or a
-  revert rather than by holding the merge.
+- 🔴 A ratio of 10 or more in size or in any summary latency median (the
+  large-repository run included), or of 1.4 or more in the warm-dispatch
+  median, stops for the author's decision, recorded here. Warm dispatch sits
+  on every PreToolUse hook, so it takes `measure.py`'s own
+  `RATIO_THRESHOLD` rather than the 10× stop. Size and summary latency are
+  gated before merge; warm dispatch is gated after it, so a trip there is
+  answered by a follow-up change or a revert rather than by holding the
+  merge.
 
 ### Success Criteria:
 
@@ -1748,7 +1751,8 @@ the diff.
 
 - ⏱️ The launcher now links `gix` and `jj-lib`. Its size, warm-dispatch
   latency and summary latency are measured in Phase 1 and Phase 13 by
-  committed tasks, and 10× is the stop threshold.
+  committed tasks. 10× is the stop threshold for size and summary latency,
+  and 1.4 for warm dispatch.
 - In-process tracking has no deadline. A slow repository delays SessionStart.
   The fixture figures cannot show this, so a pinned large-repository run
   measures it at realistic scale and falls under the 10× stop. A panic folds to `Unknown` (Phase 7); a
@@ -1892,8 +1896,30 @@ Host: Mac16,5, macOS 26.3 (arm64), the Phase 1 host, at the tree of
   546 to 2177 once it composed `InProcessProbe` behind the `vcs` repository
   ports. The visualiser
   links none of the three, so its gate did not trip.
+- Bootstrap overhead, pre-merge: `bin/accelerator version` through the
+  bootstrap's cache-hit path (shim staging check, `accelerator-verify` over the
+  whole launcher, exec), so the verification cost that grows with launcher
+  size is included. Each arm is a scratch plugin root whose
+  `keys/accelerator-release.pub` is a throwaway minisign key that signed its
+  launcher, so no release key is needed. `ACCELERATOR_LAUNCHER_BIN` is not used:
+  it bypasses verification. The before arm is the installed `1.24.0-pre.74`
+  release launcher (8 690 464 bytes); the after arm is this tree's
+  `--release` build (16 667 376 bytes). 300 interleaved runs per arm after 10
+  discarded warm-ups, at load 45.09 / 25.04 / 16.57 at start and
+  28.15 / 23.09 / 16.20 at end.
+
+  | Path | Before median | After median | Ratio |
+  |---|---|---|---|
+  | `accelerator-verify` alone | 9.69 ms | 16.01 ms | 1.65 |
+  | `bin/accelerator version` | 32.81 ms | 39.54 ms | 1.21 |
+
+  The launcher's growth costs ~6.7 ms per invocation, so ~13 ms per Bash tool
+  call (two PreToolUse hooks). That is under the 1.4 warm-dispatch stop, and
+  is accepted: a verification cache would weaken the root of trust, streaming
+  saves an allocation rather than the hashing, and a dispatched tracking
+  helper would restore the child process this work removed.
 - Warm dispatch: pending the `main` pipeline's prerelease for this work's
-  merge.
+  merge, gated at 1.4.
 
 ### Progress
 
