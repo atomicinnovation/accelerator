@@ -49,6 +49,7 @@ use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
 use crate::scratch::ScratchDir;
 
+const QUEUE_DIRECTORY: &str = "arxiv-queue";
 const QUEUE_LOCK: &str = "queue.lock";
 const SCHEMA_VERSION: u32 = 1;
 
@@ -72,13 +73,13 @@ pub struct FileArxivQueue {
 
 impl FileArxivQueue {
     pub fn new(
-        scratch: ScratchDir,
+        research: &ScratchDir,
         clock: Rc<dyn Clock>,
         diagnostics: Rc<dyn Diagnostics>,
         nonces: Box<dyn Fn() -> Nonce>,
     ) -> Self {
         Self {
-            scratch,
+            scratch: research.nested(QUEUE_DIRECTORY),
             clock,
             diagnostics,
             nonces,

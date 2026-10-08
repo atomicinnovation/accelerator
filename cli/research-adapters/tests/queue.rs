@@ -75,7 +75,7 @@ impl Harness {
     fn queue(&self) -> FileArxivQueue {
         let issued = self.issued.clone();
         FileArxivQueue::new(
-            self.scratch.queue_dir(),
+            &self.scratch.dir(),
             self.clock.clone(),
             self.diagnostics.clone(),
             Box::new(move || {
@@ -632,7 +632,7 @@ fn a_probe_that_has_unlocked_but_kept_its_file_open_does_not_block_own() {
 
 fn real_time_queue(scratch: &Scratch) -> FileArxivQueue {
     FileArxivQueue::new(
-        scratch.queue_dir(),
+        &scratch.dir(),
         Rc::new(SystemClock),
         Rc::new(RecordedDiagnostics::default()),
         Box::new(random_nonce),
@@ -996,20 +996,16 @@ fn a_stale_temp_file_is_removed_and_a_fresh_one_kept() {
 #[test]
 fn concurrent_joins_issue_distinct_consecutive_numbers() {
     let scratch = Scratch::new();
-    let root = scratch.root_path();
-    let queue_directory = scratch.queue_directory();
+    let research = scratch.dir();
     let (issued, numbers) = std::sync::mpsc::channel();
 
     std::thread::scope(|joiners| {
         for _ in 0..8 {
             let issued = issued.clone();
-            let (root, queue_directory) = (&root, &queue_directory);
+            let research = research.clone();
             joiners.spawn(move || {
                 let queue = FileArxivQueue::new(
-                    research_adapters::scratch::ScratchDir::new(
-                        root,
-                        queue_directory,
-                    ),
+                    &research,
                     Rc::new(SystemClock),
                     Rc::new(RecordedDiagnostics::default()),
                     Box::new(random_nonce),

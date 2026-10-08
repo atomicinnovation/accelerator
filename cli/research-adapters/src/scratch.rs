@@ -17,6 +17,7 @@ use store::WriteBounds;
 
 const STATE_MODE: u32 = 0o644;
 
+#[derive(Clone)]
 pub struct ScratchDir {
     project_root: PathBuf,
     directory: PathBuf,

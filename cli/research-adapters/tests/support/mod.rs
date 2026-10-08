@@ -109,10 +109,6 @@ impl Scratch {
         self.root.path().join("tmp/research")
     }
 
-    pub fn queue_dir(&self) -> ScratchDir {
-        self.dir().nested("arxiv-queue")
-    }
-
     pub fn queue_directory(&self) -> PathBuf {
         self.directory().join("arxiv-queue")
     }

@@ -283,22 +283,22 @@ fn source_call(
                     transport: Box::new(transport),
                     decoder: Box::new(XmlArxivDecoder),
                     gate: Box::new(FilePacingGate::new(
-                        ScratchDir::new(&project.root, &scratch),
+                        research.clone(),
                         clock.clone(),
                         diagnostics.clone(),
                     )),
                     confirmations: Box::new(FileConfirmationCache::new(
-                        ScratchDir::new(&project.root, &scratch),
+                        research.clone(),
                         diagnostics.clone(),
                     )),
                     queue: Box::new(FileArxivQueue::new(
-                        research.nested("arxiv-queue"),
+                        &research,
                         clock.clone(),
                         diagnostics.clone(),
                         Box::new(random_nonce),
                     )),
                     contention: Box::new(FileContentionLog::new(
-                        ScratchDir::new(&project.root, &scratch),
+                        research,
                         clock.clone(),
                         diagnostics,
                     )),
