@@ -445,6 +445,32 @@ fn validation_reports_the_first_fault_in_stage_order() {
     ));
 }
 
+#[test]
+fn within_a_stage_the_fault_written_first_is_reported() {
+    assert_eq!(
+        pull(
+            "jira",
+            vec![
+                ("max_pages", block(vec![("nope", int(1))])),
+                ("bogus", int(1)),
+            ]
+        ),
+        pull_fault(unrecognised("max_pages.nope", JIRA_PULL_KEYS))
+    );
+    assert_eq!(
+        pull(
+            "jira",
+            vec![(
+                "filters",
+                block(vec![("any", seq(&["x"])), ("colour", seq(&["red"]))])
+            )]
+        ),
+        pull_fault(BlockFault::NestedFiltersUnsupported {
+            key: "any".to_owned(),
+        })
+    );
+}
+
 fn assert_renders(cases: Vec<(BlockError, String)>) {
     for (error, expected) in cases {
         assert_eq!(error.detail(Level::Personal), expected);

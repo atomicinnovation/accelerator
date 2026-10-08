@@ -1095,6 +1095,42 @@ fn dump_refusal_of_a_pull_block_never_degrades_under_fail_safe() -> TestResult {
 }
 
 #[test]
+fn dump_under_fail_safe_renders_a_valid_pull_block_as_usual() -> TestResult {
+    let fixture = Fixture::new()?.team(
+        "---\nwork:\n  integration: jira\njira:\n  pull:\n    \
+         max_items: 3\n---\n",
+    )?;
+    let output = fixture.run(&["config", "dump", "--fail-safe"])?;
+    assert_eq!(code(&output), 0);
+    assert_eq!(output.stdout, fixture.run(&["config", "dump"])?.stdout);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(
+            "`jira.pull.max_items` | `3` | team (.accelerator/config.md)"
+        ),
+        "{stdout}"
+    );
+    Ok(())
+}
+
+#[test]
+fn dump_renders_an_empty_pull_block_exactly_as_an_unset_one() -> TestResult {
+    let unset =
+        Fixture::new()?.team("---\nwork:\n  integration: jira\n---\n")?;
+    let empty = Fixture::new()?
+        .team("---\nwork:\n  integration: jira\njira:\n  pull: {}\n---\n")?;
+    let output = empty.run(&["config", "dump"])?;
+    assert_eq!(code(&output), 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("`jira.pull.max_items` | *(not set)* | default"),
+        "{stdout}"
+    );
+    assert_eq!(output.stdout, unset.run(&["config", "dump"])?.stdout);
+    Ok(())
+}
+
+#[test]
 fn dump_hides_credential_values() -> TestResult {
     let workspace = workspace("dump")?;
     let output = run_in(&workspace, &["config", "dump"])?;
@@ -3022,6 +3058,60 @@ fn an_untracked_personal_file_and_no_team_consent_key_warn_of_nothing(
         format!("{}\n", envelope.context).as_bytes(),
         plain.stdout.as_slice()
     );
+    Ok(())
+}
+
+#[test]
+fn a_personal_file_outside_any_repository_warns_of_nothing() -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let root = guard.path().join("project");
+    fs::create_dir_all(&root)?;
+    let fixture = Fixture {
+        root,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    let plain = fixture.run(&["config", "summary"])?;
+
+    let output = summary_hook(&fixture)?;
+
+    assert_eq!(code(&output), 0);
+    let envelope = session_start(&output)?;
+    assert_eq!(envelope.system_message, None);
+    assert_eq!(
+        format!("{}\n", envelope.context).as_bytes(),
+        plain.stdout.as_slice()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_personal_file_the_inner_of_two_nested_git_repositories_tracks_warns(
+) -> TestResult {
+    let guard = tempfile::Builder::new().prefix("config-read-").tempdir()?;
+    let outer = guard.path().join("outer");
+    let inner = outer.join("inner");
+    fs::create_dir_all(&inner)?;
+    let hermetic = Hermetic::rooted_at(guard.path())?;
+    Checkout::Git.init(&hermetic, &outer)?;
+    Checkout::Git.init(&hermetic, &inner)?;
+    let fixture = Fixture {
+        root: inner,
+        _guard: guard,
+    }
+    .team(SEEDED)?
+    .local(LOCAL)?;
+    Checkout::Git.track(
+        &hermetic,
+        &fixture.root,
+        ".accelerator/config.local.md",
+    )?;
+
+    let output = summary_hook(&fixture)?;
+
+    assert_eq!(code(&output), 0);
+    assert_in_both_fields(&session_start(&output)?, "E_CONSENT_KEY_TRACKED");
     Ok(())
 }
 

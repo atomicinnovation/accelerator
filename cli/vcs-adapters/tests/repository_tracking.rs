@@ -266,6 +266,34 @@ fn a_nested_repository_yields_only_its_own_root() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_file_the_inner_of_two_nested_git_repositories_tracks_is_tracked(
+) -> Result<(), TestError> {
+    let scratch = Scratch::new("nested-inner-tracks")?;
+    scratch.git_repo("outer")?;
+    let inner = scratch.git_repo("outer/inner")?;
+    let path = personal(&inner)?;
+    scratch.env.git(&["add", PERSONAL], &inner)?;
+
+    assert_eq!(TRACKING.file_tracking(&path), FileTracking::Tracked);
+    Ok(())
+}
+
+#[test]
+fn an_outer_git_repository_tracking_the_path_cannot_overrule_the_inner(
+) -> Result<(), TestError> {
+    let scratch = Scratch::new("nested-outer-tracks")?;
+    let outer = scratch.git_repo("outer")?;
+    let path = personal(&outer.join("inner"))?;
+    scratch
+        .env
+        .git(&["add", "inner/.accelerator/config.local.md"], &outer)?;
+    scratch.git_repo("outer/inner")?;
+
+    assert_eq!(TRACKING.file_tracking(&path), FileTracking::Untracked);
+    Ok(())
+}
+
+#[test]
 fn a_jj_repository_yields_its_root() -> Result<(), TestError> {
     let scratch = Scratch::new("jj-roots")?;
     let root = scratch.jj_repo(false)?;
