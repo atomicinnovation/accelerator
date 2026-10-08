@@ -12,7 +12,7 @@ pub mod evidence;
 pub mod seed;
 mod shared;
 
-pub use shared::SharedTracker;
+pub use crate::shared::SharedTracker;
 
 use std::cell::RefCell;
 use std::sync::Arc;
