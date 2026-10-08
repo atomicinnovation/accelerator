@@ -11,7 +11,8 @@
       7,
       8,
       9,
-      10
+      10,
+      11
     ]
   },
   "runs": [
@@ -467,6 +468,45 @@
         }
       ],
       "notes": []
+    },
+    {
+      "eval_id": 11,
+      "eval_name": "an_unpushed_batch_that_fails_partway_reruns_only_the_entries_never_written",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 0.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "commands.md shows exactly two accelerator work create-batch --manifest calls, neither with --push",
+          "passed": true,
+          "evidence": "Two create-batch --manifest calls, the initial batch and the retry; neither carries --push after the declined offer."
+        },
+        {
+          "text": "The second manifest in manifests.md has exactly one entry, Search analytics",
+          "passed": true,
+          "evidence": "manifest-retry.json holds the single search-analytics entry."
+        },
+        {
+          "text": "The second manifest's entry has parent \"work-item:draft-a1b2c3\", not an in-batch {\"ref\": ...} parent",
+          "passed": true,
+          "evidence": "Retry entry has \"parent\": \"work-item:draft-a1b2c3\", taken from the epic's printed draft filename."
+        },
+        {
+          "text": "Neither the epic nor Typo-tolerant search appears in the second manifest",
+          "passed": true,
+          "evidence": "The retry manifest omits search-overhaul and typo-tolerant-search, whose item lines were printed."
+        }
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -480,6 +520,7 @@
     }
   },
   "notes": [
-    "Evals 8-10 ({tracker} batch creation through work create-batch) were run with_skill only on 2026-09-28, by claude-sonnet-5; the old skill has no {tracker} flow. Eval 10 first failed one expectation (it told the user to fix the rejected item and re-run the batch); a per-keyword recovery table was added to Step 4 under {tracker} and the rerun passed."
+    "Evals 8-10 ({tracker} batch creation through work create-batch) were run with_skill only on 2026-09-28, by claude-sonnet-5; the old skill has no {tracker} flow. Eval 10 first failed one expectation (it told the user to fix the rejected item and re-run the batch); a per-keyword recovery table was added to Step 4 under {tracker} and the rerun passed.",
+    "Eval 11 (an unpushed {tracker} batch that fails partway reruns only the entries never written) was run with_skill only on 2026-10-09, by claude-sonnet-5, and passed first time."
   ]
 }

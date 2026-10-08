@@ -664,8 +664,12 @@ before completing.
    or its parents form a cycle, and nothing was written: relay the
    message, fix the manifest, and call again. 1 means an item could not be
    created: the items printed before it were; relay the error, and once it
-   is fixed call `create-batch` again with the same manifest — a pushed
-   batch creates only the entries it never reached.
+   is fixed call `create-batch` again. With `--push`, pass the same
+   manifest: a pushed batch creates only the entries it never reached.
+   Without `--push`, a rerun writes every entry again, so pass a manifest
+   of only the entries no item line printed, with each `{"ref": …}`
+   parent naming a printed entry replaced by `"work-item:<id>"` from that
+   entry's line.
 
 8. **Validate the frontmatter** of every item whose line names a path:
 

@@ -151,6 +151,19 @@
         "Gamma's outcome reads 'draft — already pending as meta/work/drafts/draft-c3c3c3-gamma.md; run work sync'",
         "The response does not suggest re-running the batch"
       ]
+    },
+    {
+      "id": 11,
+      "name": "an_unpushed_batch_that_fails_partway_reruns_only_the_entries_never_written",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Three candidates were approved in Step 3, in this order: an epic \"Search overhaul\" (priority high) and two stories under it, \"Typo-tolerant search\" (priority medium) and \"Search analytics\" (priority low). The author resolves to \"Ada Lovelace\". You are at Step 4. Present the push offer; the user declines. Simulate `accelerator work create-batch` exiting 1 with this stdout:\n\nsearch-overhaul\tmeta/work/drafts/draft-a1b2c3-search-overhaul.md\tdeclined\t\ntypo-tolerant-search\tmeta/work/drafts/draft-d4e5f6-typo-tolerant-search.md\tdeclined\t\n\nand this stderr:\n\nError: search-analytics: could not create meta/work/drafts: Permission denied\n\nThe user then says the permissions are fixed and asks you to finish the batch.\n\nSave to outputs/:\n- manifests.md: every manifest you pass to create-batch, in order, in full.\n- commands.md: every `accelerator` command you run, in order, in full.",
+      "expected_output": "Two create-batch calls, neither with --push. The first manifest has all three entries; the second has only search-analytics, whose parent is the string \"work-item:draft-a1b2c3\" rather than {\"ref\": ...}.",
+      "files": [],
+      "expectations": [
+        "commands.md shows exactly two accelerator work create-batch --manifest calls, neither with --push",
+        "The second manifest in manifests.md has exactly one entry, Search analytics",
+        "The second manifest's entry has parent \"work-item:draft-a1b2c3\", not an in-batch {\"ref\": ...} parent",
+        "Neither the epic nor Typo-tolerant search appears in the second manifest"
+      ]
     }
   ]
 }
