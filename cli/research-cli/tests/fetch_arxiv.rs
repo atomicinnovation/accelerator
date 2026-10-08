@@ -574,13 +574,73 @@ fn a_ticket_with_another_query_exits_2_naming_it_and_changes_nothing() {
         run.stderr
     );
     assert!(
-        run.stderr.contains("query 'attention heads'"),
+        run.stderr.contains(
+            "issued for search 'attention heads' --limit 10 (differing: query)"
+        ),
         "{}",
         run.stderr
     );
     assert_eq!(run.stdout, "");
     assert_eq!(server.hits(&query()), 0);
     assert_eq!(project.queue_files(), before);
+}
+
+fn mismatch_line(issued: &str, presented: &[&str]) -> String {
+    let project = Project::new();
+    let server = server_with(vec![(query(), feed("search-3.xml"))]);
+    project.seed_ticket("5-eeeeee", &SeededTicket::absent(issued, 20, 10));
+
+    let run = fetch(&project, &server, &presenting(presented, "5-eeeeee"), &[]);
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    run.stderr
+        .lines()
+        .find(|line| line.starts_with("E_ARXIV_TICKET_MISMATCH"))
+        .unwrap_or_else(|| panic!("no mismatch line in {}", run.stderr))
+        .to_owned()
+}
+
+#[test]
+fn a_ticket_with_another_limit_names_the_issued_call_and_its_limit() {
+    let line = mismatch_line(
+        &graphs(),
+        &["arxiv", "search", "graphs", "--limit", "5"],
+    );
+
+    assert!(
+        line.contains(
+            "issued for search 'graphs' --limit 10 (differing: --limit)"
+        ),
+        "{line}"
+    );
+}
+
+#[test]
+fn a_search_ticket_presented_for_a_lookup_names_the_whole_issued_search() {
+    let line = mismatch_line(&graphs(), &["arxiv", "lookup", "2608.21129"]);
+
+    assert!(
+        line.contains(
+            "issued for search 'graphs' --limit 10 (differing: verb)"
+        ),
+        "{line}"
+    );
+}
+
+#[test]
+fn a_ticket_with_another_query_and_limit_names_both() {
+    let line = mismatch_line(
+        &search_binding("attention heads", 10),
+        &["arxiv", "search", "graphs", "--limit", "5"],
+    );
+
+    assert!(
+        line.contains(
+            "issued for search 'attention heads' --limit 10 \
+             (differing: query, --limit)"
+        ),
+        "{line}"
+    );
 }
 
 #[test]

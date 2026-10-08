@@ -681,7 +681,6 @@ pub research::sources::queue::Binding::Search::query: research::sources::request
 impl research::sources::queue::Binding
 pub fn research::sources::queue::Binding::differing(&self, other: &Self) -> alloc::vec::Vec<research::sources::queue::Argument>
 pub fn research::sources::queue::Binding::of(request: &research::sources::request::ArxivRequest) -> Self
-pub fn research::sources::queue::Binding::value_of(&self, argument: research::sources::queue::Argument) -> alloc::string::String
 impl core::clone::Clone for research::sources::queue::Binding
 pub fn research::sources::queue::Binding::clone(&self) -> research::sources::queue::Binding
 impl core::cmp::Eq for research::sources::queue::Binding

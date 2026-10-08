@@ -168,23 +168,6 @@ impl Binding {
             _ => vec![Argument::Verb],
         }
     }
-
-    /// The value as the caller spelled it, or empty for an argument this
-    /// verb does not take.
-    pub fn value_of(&self, argument: Argument) -> String {
-        match (self, argument) {
-            (Self::Search { .. }, Argument::Verb) => "search".to_owned(),
-            (Self::Lookup(_), Argument::Verb) => "lookup".to_owned(),
-            (Self::Search { query, .. }, Argument::Query) => {
-                query.spelled().to_owned()
-            }
-            (Self::Search { limit, .. }, Argument::Limit) => {
-                limit.get().to_string()
-            }
-            (Self::Lookup(id), Argument::Id) => id.to_string(),
-            _ => String::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

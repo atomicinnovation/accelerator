@@ -4,7 +4,7 @@
 
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
-use research::sources::queue::Argument;
+use research::sources::queue::Binding;
 use research::sources::queue::TicketRejection;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
@@ -48,22 +48,16 @@ pub fn rejection(fetched: &Fetched) -> Option<String> {
             issued,
             differing,
         } => {
-            let arguments = differing
+            let differing = differing
                 .iter()
-                .map(|argument| {
-                    let value = issued.value_of(*argument);
-                    match argument {
-                        Argument::Query => format!("query '{value}'"),
-                        Argument::Verb | Argument::Id | Argument::Limit => {
-                            format!("{} {value}", argument.code())
-                        }
-                    }
-                })
+                .map(|argument| argument.code())
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "E_ARXIV_TICKET_MISMATCH: ticket {ticket} was issued for \
-                 {arguments}; re-present it with that call, or drop --ticket"
+                "E_ARXIV_TICKET_MISMATCH: ticket {ticket} was issued for {} \
+                 (differing: {differing}); re-present it with that call, or \
+                 drop --ticket",
+                call_as_typed(issued)
             )
         }
         TicketRejection::AlreadyLive(ticket) => format!(
@@ -72,6 +66,15 @@ pub fn rejection(fetched: &Fetched) -> Option<String> {
              that call has returned"
         ),
     })
+}
+
+fn call_as_typed(binding: &Binding) -> String {
+    match binding {
+        Binding::Search { query, limit } => {
+            format!("search '{}' --limit {}", query.spelled(), limit.get())
+        }
+        Binding::Lookup(id) => format!("lookup {id}"),
+    }
 }
 
 /// The line naming the source, verb and final status of a call that did not

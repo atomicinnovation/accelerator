@@ -261,9 +261,7 @@ fn a_search_and_a_lookup_differ_only_by_verb() {
 }
 
 #[test]
-fn an_argument_is_named_as_the_profile_spells_it_with_its_issued_value() {
-    let issued = search("attention heads", "7");
-
+fn an_argument_is_named_as_the_profile_spells_it() {
     assert_eq!(
         [
             Argument::Verb,
@@ -273,13 +271,6 @@ fn an_argument_is_named_as_the_profile_spells_it_with_its_issued_value() {
         ]
         .map(Argument::code),
         ["verb", "query", "id", "--limit"]
-    );
-    assert_eq!(issued.value_of(Argument::Verb), "search");
-    assert_eq!(issued.value_of(Argument::Query), "attention heads");
-    assert_eq!(issued.value_of(Argument::Limit), "7");
-    assert_eq!(
-        lookup("2608.21129v2").value_of(Argument::Id),
-        "2608.21129v2"
     );
 }
 

@@ -113,7 +113,7 @@ as `unavailable`, reporting the status verbatim as its reason.
 | `E_OPENALEX_ID_MALFORMED`         | 2    | A `lookup` ID that is neither a `W…` ID nor a DOI            |
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
 | `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
-| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names each issued value |
+| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names the call it was issued for and which arguments differ |
 | `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now; clears once that call returns |
 | `E_OPENALEX_KEY_REJECTED`         | 1    | OpenAlex refused the key; names the rung that supplied it    |
 | `E_OPENALEX_UNAUTHENTICATED`      | 1    | OpenAlex refused a keyless request                           |
