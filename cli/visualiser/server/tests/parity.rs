@@ -187,6 +187,7 @@ fn entry(
         rel_path: PathBuf::from(path),
         slug: Some(slug.to_string()),
         work_item_id: None,
+        draft: false,
         title: slug.to_string(),
         frontmatter,
         frontmatter_state: "parsed".to_string(),

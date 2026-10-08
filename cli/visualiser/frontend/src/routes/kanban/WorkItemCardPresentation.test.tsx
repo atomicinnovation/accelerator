@@ -53,4 +53,18 @@ describe("WorkItemCardPresentation", () => {
     expect(card.hasAttribute("data-dragging")).toBe(false);
     expect(card.hasAttribute("data-overlay")).toBe(false);
   });
+
+  it("badges a draft no tracker has confirmed yet", () => {
+    render(
+      <WorkItemCardPresentation
+        entry={{ ...entry, workItemId: "draft-k7mq3x", draft: true }}
+      />,
+    );
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+  });
+
+  it("does not badge an item the tracker has keyed", () => {
+    render(<WorkItemCardPresentation entry={entry} />);
+    expect(screen.queryByText("Draft")).not.toBeInTheDocument();
+  });
 });

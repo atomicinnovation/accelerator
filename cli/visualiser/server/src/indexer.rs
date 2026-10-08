@@ -162,10 +162,11 @@ pub struct IndexEntry {
     pub path: PathBuf,
     pub rel_path: PathBuf,
     pub slug: Option<String>,
-    /// Filename-derived work-item ID (via the configured scan regex).
-    /// `Some(id)` when the entry is a work-item and the filename matches;
-    /// `None` for non-work-item types or unmatched filenames.
+    /// The work item's `id` frontmatter, normalised under the configured
+    /// scheme; `None` for other types or an `id` the scheme does not admit.
     pub work_item_id: Option<String>,
+    /// A work item whose `id` is a draft's, which no tracker has confirmed.
+    pub draft: bool,
     pub title: String,
     pub frontmatter: serde_json::Value,
     pub frontmatter_state: String,
@@ -1353,6 +1354,9 @@ fn build_entry(
         path,
         rel_path,
         slug: slug_val,
+        draft: work_item_id
+            .as_deref()
+            .is_some_and(|id| corpus::canonical_draft_id(id).is_some()),
         work_item_id,
         title,
         frontmatter: fm_json,
@@ -1915,6 +1919,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: Some(work_item_id.to_string()),
+            draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
             frontmatter_state: "absent".into(),
@@ -1936,6 +1941,7 @@ mod tests {
             rel_path: PathBuf::from("x.md"),
             slug: None,
             work_item_id: None,
+            draft: false,
             title: "Sample".into(),
             frontmatter: serde_json::Value::Null,
             frontmatter_state: "absent".into(),

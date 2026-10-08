@@ -255,7 +255,17 @@ impl FileDriver for LocalFileDriver {
             Ok(r) => r.to_path_buf(),
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
-        let nested_manifest = kind.nested_manifest_filename();
+        let Some(nested_manifest) = kind.nested_manifest_filename() else {
+            return Box::pin(async move {
+                let mut entries = markdown_files_in(&root).await?;
+                if kind == DocTypeKey::WorkItems {
+                    entries.extend(
+                        markdown_files_in(&root.join(DRAFTS_DIR)).await?,
+                    );
+                }
+                Ok(entries)
+            });
+        };
         Box::pin(async move {
             let read = match tokio::fs::read_dir(&root).await {
                 Ok(r) => r,
@@ -287,34 +297,24 @@ impl FileDriver for LocalFileDriver {
                     }
                 };
 
-                if let Some(manifest_name) = nested_manifest {
-                    // Nested-manifest doc type (e.g. design inventories):
-                    // each artifact lives at `<root>/<slug-dir>/<manifest>.md`.
-                    if !file_type.is_dir() {
-                        continue;
-                    }
-                    // Skip dot-prefixed in-flight directories (e.g.
-                    // `.YYYY-MM-DD-HHMMSS-{source-id}.tmp/`).
-                    if path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.starts_with('.'))
-                    {
-                        continue;
-                    }
-                    let candidate = path.join(manifest_name);
-                    match tokio::fs::metadata(&candidate).await {
-                        Ok(meta) if meta.is_file() => entries.push(candidate),
-                        _ => {}
-                    }
-                } else {
-                    if path.extension().and_then(|s| s.to_str()) != Some("md") {
-                        continue;
-                    }
-                    if !file_type.is_file() {
-                        continue;
-                    }
-                    entries.push(path);
+                // Nested-manifest doc type (e.g. design inventories):
+                // each artifact lives at `<root>/<slug-dir>/<manifest>.md`.
+                if !file_type.is_dir() {
+                    continue;
+                }
+                // Skip dot-prefixed in-flight directories (e.g.
+                // `.YYYY-MM-DD-HHMMSS-{source-id}.tmp/`).
+                if path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with('.'))
+                {
+                    continue;
+                }
+                let candidate = path.join(nested_manifest);
+                match tokio::fs::metadata(&candidate).await {
+                    Ok(meta) if meta.is_file() => entries.push(candidate),
+                    _ => {}
                 }
             }
             Ok(entries)
@@ -531,6 +531,54 @@ pub fn template_extra_roots(
     dirs.into_iter().collect()
 }
 
+/// Where a work item no tracker has confirmed yet waits, beside the rest.
+const DRAFTS_DIR: &str = "drafts";
+
+/// The markdown files directly in `dir`; none when it does not exist.
+async fn markdown_files_in(
+    dir: &Path,
+) -> Result<Vec<PathBuf>, FileDriverError> {
+    let mut stream = match tokio::fs::read_dir(dir).await {
+        Ok(read) => read,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(vec![]);
+        }
+        Err(source) => {
+            return Err(FileDriverError::Io {
+                path: dir.to_path_buf(),
+                source,
+            })
+        }
+    };
+    let mut entries = Vec::new();
+    while let Some(entry) =
+        stream
+            .next_entry()
+            .await
+            .map_err(|source| FileDriverError::Io {
+                path: dir.to_path_buf(),
+                source,
+            })?
+    {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+        let file_type =
+            entry
+                .file_type()
+                .await
+                .map_err(|source| FileDriverError::Io {
+                    path: path.clone(),
+                    source,
+                })?;
+        if file_type.is_file() {
+            entries.push(path);
+        }
+    }
+    Ok(entries)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -560,6 +608,32 @@ mod tests {
         for p in &got {
             assert!(p.to_string_lossy().ends_with(".md"));
         }
+    }
+
+    #[tokio::test]
+    async fn work_items_are_listed_with_the_drafts_beside_them() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("work");
+        let drafts = work.join("drafts");
+        std::fs::create_dir_all(drafts.join("nested")).unwrap();
+        std::fs::write(work.join("PP-1-item.md"), "# Item\n").unwrap();
+        std::fs::write(drafts.join("draft-k7mq3x-idea.md"), "# Idea\n")
+            .unwrap();
+        std::fs::write(drafts.join("nested/deeper.md"), "# No\n").unwrap();
+        let mut map = HashMap::new();
+        map.insert("work".into(), work);
+        let d = LocalFileDriver::new(&map, vec![], vec![]);
+
+        let mut got: Vec<String> = d
+            .list(DocTypeKey::WorkItems)
+            .await
+            .unwrap()
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        got.sort();
+
+        assert_eq!(got, vec!["PP-1-item.md", "draft-k7mq3x-idea.md"]);
     }
 
     #[tokio::test]

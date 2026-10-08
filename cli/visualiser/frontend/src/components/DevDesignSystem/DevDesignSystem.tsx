@@ -941,6 +941,7 @@ const KANBAN_ENTRY: IndexEntry = {
   relPath: "meta/work/0086-kanban-drag-and-drop.md",
   slug: "kanban-drag-and-drop",
   workItemId: "0086",
+  draft: false,
   title: "Kanban drag-and-drop",
   frontmatter: { kind: "feature", status: "in-progress" },
   frontmatterState: "parsed",

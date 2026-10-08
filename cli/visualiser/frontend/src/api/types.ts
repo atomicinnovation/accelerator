@@ -127,9 +127,13 @@ export interface IndexEntry {
   path: string;
   relPath: string;
   slug: string | null;
-  /** Filename-derived work-item ID (regex-extracted). Present for work-item
-   *  entries whose filename matches the configured scan pattern; null otherwise. */
+  /** The work item's `id`, normalised under the configured scheme; null for
+   *  other types or an `id` the scheme does not admit. */
   workItemId: string | null;
+  /** A work item whose `id` is a draft's, which no tracker has confirmed.
+   *  Older servers omitting the field are normalised to `false` at the API
+   *  client boundary. */
+  draft: boolean;
   title: string;
   frontmatter: Record<string, unknown>;
   frontmatterState: "parsed" | "absent" | "malformed";

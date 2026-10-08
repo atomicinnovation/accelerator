@@ -21,6 +21,7 @@ function entry(overrides: Partial<IndexEntry>): IndexEntry {
     relPath: "meta/work/0007-foo.md",
     slug: "0007-foo",
     workItemId: "0007",
+    draft: false,
     title: "Foo",
     frontmatter: {},
     frontmatterState: "parsed",

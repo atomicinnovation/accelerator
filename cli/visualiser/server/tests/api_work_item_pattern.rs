@@ -49,7 +49,9 @@ fn config_for(
     let work = tmp.join("meta/work");
     std::fs::create_dir_all(&work).unwrap();
     for (name, content) in files {
-        std::fs::write(work.join(name), content).unwrap();
+        let path = work.join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
     }
 
     let tpl_dir = tmp.join("plugin-templates");
@@ -155,6 +157,59 @@ async fn tracker_pattern_keys_and_drafts_each_have_a_work_item_id() {
     assert_eq!(
         indexed_work_item_ids(cfg).await,
         vec!["ABC2-15", "MY_PROJ-7", "draft-k7mq3x"]
+    );
+}
+
+#[tokio::test]
+async fn a_draft_awaiting_its_tracker_key_is_indexed_and_flagged_as_a_draft() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = config_for(
+        tmp.path(),
+        &[
+            ("PP-1-kept.md", "---\nid: \"PP-1\"\ntitle: Kept\n---\n"),
+            (
+                "drafts/draft-k7mq3x-idea.md",
+                "---\nid: \"draft-k7mq3x\"\ntitle: Idea\n---\n",
+            ),
+        ],
+        RawWorkItemConfig {
+            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
+            id_pattern: "{tracker}".to_string(),
+            key: None,
+        },
+    );
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let mut flagged: Vec<(String, bool)> = body["docs"]
+        .as_array()
+        .expect("docs array")
+        .iter()
+        .map(|doc| {
+            (
+                doc["workItemId"].as_str().unwrap_or_default().to_owned(),
+                doc["draft"].as_bool().unwrap_or_default(),
+            )
+        })
+        .collect();
+    flagged.sort();
+
+    assert_eq!(
+        flagged,
+        vec![
+            ("PP-1".to_owned(), false),
+            ("draft-k7mq3x".to_owned(), true)
+        ]
     );
 }
 
