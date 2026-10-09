@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 tags: ["rust", "cli", "migration", "epic"]
-last_updated: "2026-08-31T00:00:00+00:00"
+last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-157"
@@ -95,8 +95,6 @@ post-migration remnants recovered from an audit of work items numbered above
   - 0212 — Work-Item Script Cutover
   - 0213 — Conversational Conflict Resolution Flow for Sync
 - 0172 — Migration Engine Subdomain
-- 0202 — Reconcile Migration-Engine ADRs Against the Rust Port *(ADR-0038's
-  shape drifted when 0172 ported the engine to native Rust)*
 - 0173 — Remaining Subdomains: corpus, design, collaboration *(abandoned
   2026-08-05 — split into 0195/0196/0197, see Drafting Notes)*
 - 0195 — accelerator-corpus: ADR, Metadata, Frontmatter Validation, and
@@ -197,7 +195,7 @@ questions are answered:)*
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
 - Children (direct, parented to this epic): 0162–0174, 0185–0191, 0194–0200,
-  0202–0205, 0215–0219 and 0221.
+  0203–0205, 0215–0219 and 0221.
 - Grandchildren (covered transitively by their parent's completion): 0178–0180
   under 0166; 0210–0213 under 0171; 0206, 0207, 0209 and 0214 under 0196.
 
