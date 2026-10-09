@@ -12,29 +12,47 @@ use std::collections::HashMap;
 use tower::ServiceExt;
 
 fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
+    config_for(
+        tmp,
+        &[
+            (
+                "PROJ-0042-foo.md",
+                "---\nid: \"PROJ-0042\"\ntitle: Foo Work Item\nstatus: ready\n---\n# body\n",
+            ),
+            (
+                "PROJ-0007-bar.md",
+                "---\nid: \"PROJ-0007\"\ntitle: Bar Work Item\nstatus: done\n---\n# body\n",
+            ),
+            // Mixed-pattern: a bare-numeric file that predates the project
+            // prefix and carries NO `id:`. Post-contract, the filename is no
+            // longer an identity fallback, so this file resolves to no
+            // work-item id (see the dedicated test below).
+            (
+                "0001-legacy.md",
+                "---\ntitle: Legacy Work Item\nstatus: todo\n---\n# body\n",
+            ),
+        ],
+        RawWorkItemConfig {
+            // Captures only the digit run; project code literal is outside group 1.
+            scan_regex: "^PROJ-([0-9]+)-".to_string(),
+            id_pattern: "{project}-{number:04d}".to_string(),
+            key: Some("PROJ".to_string()),
+        },
+    )
+}
+
+fn config_for(
+    tmp: &std::path::Path,
+    files: &[(&str, &str)],
+    work_item: RawWorkItemConfig,
+) -> Config {
     let work = tmp.join("meta/work");
     std::fs::create_dir_all(&work).unwrap();
-
-    std::fs::write(
-        work.join("PROJ-0042-foo.md"),
-        "---\nid: \"PROJ-0042\"\ntitle: Foo Work Item\nstatus: ready\n---\n# body\n",
-    )
-    .unwrap();
-    std::fs::write(
-        work.join("PROJ-0007-bar.md"),
-        "---\nid: \"PROJ-0007\"\ntitle: Bar Work Item\nstatus: done\n---\n# body\n",
-    )
-    .unwrap();
-
-    // Mixed-pattern: a bare-numeric file that predates the project prefix and
-    // carries NO `id:`. Post-contract, the filename is no longer an identity
-    // fallback, so this file resolves to no work-item id (see the dedicated
-    // test below).
-    std::fs::write(
-        work.join("0001-legacy.md"),
-        "---\ntitle: Legacy Work Item\nstatus: todo\n---\n# body\n",
-    )
-    .unwrap();
+    for (name, content) in files {
+        let path = work.join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
 
     let tpl_dir = tmp.join("plugin-templates");
     std::fs::create_dir_all(&tpl_dir).unwrap();
@@ -76,12 +94,7 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
         log_path: tmp.join("server.log"),
         doc_paths,
         templates,
-        work_item: Some(RawWorkItemConfig {
-            // Captures only the digit run; project code literal is outside group 1.
-            scan_regex: "^PROJ-([0-9]+)-".to_string(),
-            id_pattern: "{project}-{number:04d}".to_string(),
-            key: Some("PROJ".to_string()),
-        }),
+        work_item: Some(work_item),
         kanban_columns: None,
         idle_timeout: None,
         editor: None,
@@ -92,6 +105,112 @@ fn build_project_pattern_config(tmp: &std::path::Path) -> Config {
 async fn json_body(res: axum::response::Response) -> serde_json::Value {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null)
+}
+
+async fn indexed_work_item_ids(cfg: Config) -> Vec<String> {
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let mut ids: Vec<String> = body["docs"]
+        .as_array()
+        .expect("docs array")
+        .iter()
+        .filter_map(|doc| doc["workItemId"].as_str().map(str::to_owned))
+        .collect();
+    ids.sort();
+    ids
+}
+
+#[tokio::test]
+async fn tracker_pattern_keys_and_drafts_each_have_a_work_item_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = config_for(
+        tmp.path(),
+        &[
+            (
+                "MY_PROJ-7-foo.md",
+                "---\nid: \"MY_PROJ-7\"\ntitle: Foo\n---\n",
+            ),
+            ("ABC2-15-bar.md", "---\nid: \"ABC2-15\"\ntitle: Bar\n---\n"),
+            (
+                "draft-k7mq3x-baz.md",
+                "---\nid: \"draft-k7mq3x\"\ntitle: Baz\n---\n",
+            ),
+        ],
+        RawWorkItemConfig {
+            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
+            id_pattern: "{tracker}".to_string(),
+            key: None,
+        },
+    );
+
+    assert_eq!(
+        indexed_work_item_ids(cfg).await,
+        vec!["ABC2-15", "MY_PROJ-7", "draft-k7mq3x"]
+    );
+}
+
+#[tokio::test]
+async fn a_draft_awaiting_its_tracker_key_is_indexed_and_flagged_as_a_draft() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cfg = config_for(
+        tmp.path(),
+        &[
+            ("PP-1-kept.md", "---\nid: \"PP-1\"\ntitle: Kept\n---\n"),
+            (
+                "drafts/draft-k7mq3x-idea.md",
+                "---\nid: \"draft-k7mq3x\"\ntitle: Idea\n---\n",
+            ),
+        ],
+        RawWorkItemConfig {
+            scan_regex: "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-".to_string(),
+            id_pattern: "{tracker}".to_string(),
+            key: None,
+        },
+    );
+    let state = AppState::build(cfg, Arc::new(Activity::new()))
+        .await
+        .unwrap();
+    let res = build_router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/docs?type=work-items")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = json_body(res).await;
+    let mut flagged: Vec<(String, bool)> = body["docs"]
+        .as_array()
+        .expect("docs array")
+        .iter()
+        .map(|doc| {
+            (
+                doc["workItemId"].as_str().unwrap_or_default().to_owned(),
+                doc["draft"].as_bool().unwrap_or_default(),
+            )
+        })
+        .collect();
+    flagged.sort();
+
+    assert_eq!(
+        flagged,
+        vec![
+            ("PP-1".to_owned(), false),
+            ("draft-k7mq3x".to_owned(), true)
+        ]
+    );
 }
 
 #[tokio::test]

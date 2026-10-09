@@ -63,6 +63,22 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
 }
 
 #[test]
+fn a_created_identifier_not_shaped_like_an_issue_key_is_unwritable() {
+    let server = MockHTTPServer::start();
+    let body = "{\"data\":{\"issueCreate\":{\"issue\":\
+                {\"id\":\"u\",\"identifier\":\"PP-1/../../..\"}}}}";
+    server.route(RequestKey::post(GRAPHQL), json(200, body));
+
+    let client = client_for(&server, brief());
+    let failure = client.create_op("t", "b", "story").expect_err("unwritable");
+
+    assert!(
+        matches!(failure, LinearFailure::UnwritableIdentifier { .. }),
+        "{failure:?}"
+    );
+}
+
+#[test]
 fn a_show_wire_failure_carries_the_granular_ratelimit_code() {
     let server = MockHTTPServer::start();
     server.route(

@@ -7,7 +7,10 @@ mod support;
 use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::JiraClient;
 use serde_json::Value;
-use support::client::{brief, client_for, PROJECT};
+use support::client::{
+    brief, client_for, client_for_project, client_with, PROJECT,
+};
+use support::RecordingSleeper;
 use tracker::{
     Ceiling, Completeness, ExternalId, RemoteTimestamp, RemoteTracker as _,
     SearchScope, TrackerError,
@@ -115,6 +118,30 @@ fn create_posts_the_issue_and_returns_its_key() {
     assert_eq!(sent["fields"]["summary"], "A title");
     assert_eq!(sent["fields"]["issuetype"]["name"], "Bug");
     assert_eq!(sent["fields"]["description"]["type"], "doc");
+}
+
+#[test]
+fn create_targets_the_configured_jira_project() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(ISSUE);
+    server.route(
+        key.clone(),
+        Route::Json {
+            status: 201,
+            body: "{\"key\":\"OPS-7\"}".to_owned(),
+        },
+    );
+
+    let created = client_for_project(&server, "OPS")
+        .create("A title", "A body\n", "Task")
+        .expect("create succeeds");
+
+    assert_eq!(created, id("OPS-7"));
+    let sent: Value = serde_json::from_slice(
+        &server.last_body(&key).expect("the request carried a body"),
+    )
+    .expect("the body is JSON");
+    assert_eq!(sent["fields"]["project"]["key"], "OPS");
 }
 
 #[test]
@@ -461,7 +488,7 @@ fn a_stamp_absent_from_a_bulk_row_is_still_found() {
 }
 
 #[test]
-fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
+fn a_slash_bearing_identifier_is_percent_encoded_and_its_answer_refused() {
     let server = MockHTTPServer::start();
     let key = RequestKey::get("/rest/api/3/issue/OWNER%2FREPO-1");
     server.route(
@@ -473,11 +500,10 @@ fn an_identifier_containing_a_slash_survives_encoding_and_validation() {
     );
     let client = client_for(&server, brief());
 
-    client
-        .show(&id("OWNER/REPO-1"))
-        .expect("a legitimate slash is accepted end to end");
+    let shown = client.show(&id("OWNER/REPO-1"));
 
     assert_eq!(server.hits(&key), 1, "the segment is percent-encoded");
+    assert!(shown.is_err(), "an answer under a non-key is refused");
 }
 
 #[test]
@@ -665,4 +691,147 @@ fn the_page_cap_and_chunk_size_are_the_transcribed_ones() {
         client.transport().config().keyed_read_max_pages,
         tracker::Ceiling::Bounded(50)
     );
+}
+
+#[test]
+fn a_body_that_cannot_be_converted_is_rejected_and_names_its_cause() {
+    let server = MockHTTPServer::start();
+    let client = client_for(&server, brief());
+
+    let error = client
+        .create("A title", "| a | b |\n|---|---|\n| 1 | 2 |\n", "task")
+        .expect_err("a table has no ADF conversion");
+
+    let TrackerError::Rejected { detail } = error else {
+        panic!("an unconvertible body is rejected: {error}");
+    };
+    assert!(detail.contains("table"), "{detail}");
+    assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0);
+}
+
+#[test]
+fn a_bad_path_is_rejected_without_being_sent() {
+    let client = client_with(
+        &http_test_support::refused_base_url(),
+        brief(),
+        &RecordingSleeper::new(),
+    );
+
+    let error = client
+        .update(&id("../ENG-1"), "A title", "A body\n")
+        .expect_err("the identifier cannot be composed into a path");
+
+    assert!(matches!(error, TrackerError::Rejected { .. }), "{error}");
+}
+
+fn fixture(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("the fixture exists")
+}
+
+#[test]
+fn show_reports_the_key_the_tracker_returned() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: fixture("issue-project-moved.golden.json"),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("PP-76")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("OPS-5"));
+}
+
+#[test]
+fn locate_reports_not_found_for_a_404() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-404"),
+        Route::Status(404),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-404")).expect("a 404 is an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_an_error_for_a_401() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-401"),
+        Route::Status(401),
+    );
+    let client = client_for(&server, brief());
+
+    let error = client
+        .locate(&id("PP-401"))
+        .expect_err("a 401 is a failed read, not an absence");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn locate_refuses_an_answer_under_a_key_not_shaped_like_an_issue_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: issue_payload("PP-1/../../..", None),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    assert!(client.locate(&id("PP-76")).is_err());
+}
+
+#[test]
+fn a_discovery_page_holding_a_key_not_shaped_like_an_issue_key_is_incomplete() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(SEARCH),
+        Route::Json {
+            status: 200,
+            body: search_page(&["ENG-1", "../../etc"], None),
+        },
+    );
+
+    let discovery = client_for(&server, brief())
+        .search(&scope())
+        .expect("search returns a degraded result, not an error");
+
+    assert_eq!(discovery.completeness, Completeness::Transient);
+    assert!(discovery
+        .found
+        .iter()
+        .all(|(key, _)| key.as_str() != "../../etc"));
+}
+
+#[test]
+fn locate_of_a_moved_key_finds_the_issue_under_its_new_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::get("/rest/api/3/issue/PP-76"),
+        Route::Json {
+            status: 200,
+            body: fixture("issue-project-moved.golden.json"),
+        },
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-76")).expect("locate succeeds");
+
+    let tracker::Located::Found(issue) = located else {
+        panic!("the moved issue is found");
+    };
+    assert_eq!(issue.key, id("OPS-5"));
 }

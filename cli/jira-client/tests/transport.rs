@@ -12,10 +12,13 @@ use http_test_support::{MockHTTPServer, RequestKey, Route};
 use jira_client::transport::Transport;
 use jira_client::{ClientError, Credentials};
 use reqwest::{Method, Url};
+use support::client::client_with;
 use support::{NoJitter, RecordingSleeper};
+use tracker::{ExternalId, RemoteTracker as _, TrackerError};
 use tracker_support::TransportConfig;
 
 const MYSELF: &str = "/rest/api/3/myself";
+const ISSUE: &str = "/rest/api/3/issue";
 
 fn credentials(base: &str) -> Credentials {
     Credentials {
@@ -129,6 +132,48 @@ fn a_request_carries_its_credentials_body_and_query() {
 }
 
 #[test]
+fn an_unrepeatable_request_answered_5xx_is_sent_exactly_once() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(ISSUE);
+    server.route(key.clone(), Route::Status(502));
+    let sleeper = RecordingSleeper::new();
+    let transport = transport_with(&server.base_url(), brief(), &sleeper);
+
+    let received = transport
+        .send_unrepeatable(&Method::POST, ISSUE, &[], Some("{}"))
+        .expect("the 502 is returned, not resent");
+
+    assert_eq!(received.status, 502);
+    assert_eq!(server.hits(&key), 1);
+    assert!(sleeper.slept().is_empty());
+}
+
+#[test]
+fn an_unrepeatable_request_that_was_throttled_is_resent() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(ISSUE);
+    server.route(
+        key.clone(),
+        Route::Sequence(vec![
+            Route::Status(429),
+            Route::Json {
+                status: 201,
+                body: "{\"key\":\"ENG-1\"}".to_owned(),
+            },
+        ]),
+    );
+    let sleeper = RecordingSleeper::new();
+    let transport = transport_with(&server.base_url(), brief(), &sleeper);
+
+    let received = transport
+        .send_unrepeatable(&Method::POST, ISSUE, &[], Some("{}"))
+        .expect("the throttled request is resent");
+
+    assert_eq!(received.status, 201);
+    assert_eq!(server.hits(&key), 2);
+}
+
+#[test]
 fn a_persistent_5xx_is_attempted_exactly_four_times() {
     let server = MockHTTPServer::start();
     let key = RequestKey::get(MYSELF);
@@ -191,16 +236,19 @@ fn retry_after_is_honoured_as_a_duration_not_merely_as_a_trigger() {
 }
 
 #[test]
-fn a_transport_failure_makes_exactly_one_attempt() {
+fn a_refused_connection_is_not_sent_and_makes_exactly_one_attempt() {
     let sleeper = RecordingSleeper::new();
-    // Port 1 on loopback refuses immediately: a connect failure, not a status.
-    let transport = transport_with("http://127.0.0.1:1", brief(), &sleeper);
+    let transport = transport_with(
+        &http_test_support::refused_base_url(),
+        brief(),
+        &sleeper,
+    );
 
     let error = transport
         .send(&Method::GET, MYSELF, &[], None)
         .expect_err("a refused connection is an error, not a response");
 
-    assert!(matches!(error, ClientError::Transport { .. }), "{error}");
+    assert!(matches!(error, ClientError::NotSent { .. }), "{error}");
     assert!(
         sleeper.slept().is_empty(),
         "a transport failure resolves on the first attempt, with no retry"
@@ -312,4 +360,85 @@ fn a_bad_path_is_refused_before_anything_is_sent() {
 
     assert!(matches!(error, ClientError::BadPath { .. }), "{error}");
     assert_eq!(server.hits(&key), 0);
+}
+
+#[test]
+fn create_against_a_refused_connection_is_retryable() {
+    let sleeper = RecordingSleeper::new();
+    let client =
+        client_with(&http_test_support::refused_base_url(), brief(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "task")
+        .expect_err("nothing listens on the port");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn create_that_stalls_after_sending_is_terminal() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(ISSUE),
+        Route::Stall(Duration::from_secs(30)),
+    );
+    let sleeper = RecordingSleeper::new();
+    let client = client_with(&server.base_url(), brief(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "task")
+        .expect_err("the stalled response times out");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+}
+
+#[test]
+fn a_create_answered_5xx_is_sent_once_and_its_outcome_unknown() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(ISSUE);
+    server.route(key.clone(), Route::Status(502));
+    let sleeper = RecordingSleeper::new();
+    let client = client_with(&server.base_url(), brief(), &sleeper);
+
+    let error = client
+        .create("A title", "A body\n", "task")
+        .expect_err("the 502 may follow an applied create");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+    assert_eq!(server.hits(&key), 1);
+}
+
+#[test]
+fn an_update_answered_503_then_a_refused_connection_is_terminal() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::put(&format!("{ISSUE}/ENG-1"));
+    server.route(key.clone(), Route::StatusThenShutdown(503));
+    let sleeper = RecordingSleeper::new();
+    let client = client_with(&server.base_url(), brief(), &sleeper);
+
+    let error = client
+        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
+        .expect_err("the retry after the 503 is refused");
+
+    assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
+    assert_eq!(server.hits(&key), 1, "one request reached the server");
+    assert_eq!(
+        sleeper.slept().len(),
+        1,
+        "one backoff, so a second attempt followed the 503"
+    );
+    assert!(error.to_string().contains("could not connect"), "{error}");
+}
+
+#[test]
+fn an_update_against_a_refused_connection_is_retryable() {
+    let sleeper = RecordingSleeper::new();
+    let client =
+        client_with(&http_test_support::refused_base_url(), brief(), &sleeper);
+
+    let error = client
+        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
+        .expect_err("nothing listens on the port");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
 }

@@ -4,7 +4,7 @@ description: Reconcile local work items in meta/work/ with the active remote
   tracker named by work.integration. Use when the user wants to sync, push, or
   pull work items to or from Jira or Linear, preview what a sync would change, or
   reconcile divergent local and remote state.
-argument-hint: "[--push-only|--pull-only] [--preview] [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] [--allow-unbounded] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
+argument-hint: "[--push-only|--pull-only] [--preview] [--no-promote] [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] [--allow-unbounded] [--resolve id=remote|local|skip]… [--target <id|external-id|path>]…"
 allowed-tools:
   - Bash(accelerator config *)
   - Bash(accelerator work *)
@@ -16,6 +16,7 @@ allowed-tools:
 **Active integration**: !`accelerator config work integration --fail-safe`
 **Local ID prefix**: !`accelerator config work key --fail-safe`
 **Work items directory**: !`accelerator config path work --fail-safe`
+**ID pattern**: !`accelerator config work id_pattern --fail-safe`
 
 `/sync-work-items` reconciles the local work items under the work directory with
 the remote tracker named by `work.integration`. It is **on-demand** (never
@@ -29,6 +30,15 @@ detection, the dirty-overwrite guard, and the per-item commit sequence
 (side-effect first, baseline last). This skill gates on configuration, parses
 the user's arguments into the engine's flags, runs it, renders its report, and
 drives the interactive conflict and pull-overwrite gates around it.
+
+When **ID pattern** is `{tracker}`, the tracker owns every item's `id`, and an
+item no tracker has confirmed is a **draft** under a provisional `draft-` ID.
+A sync **promotes every draft by default**: it creates the draft's issue,
+retires the draft ID to the tracker key across `meta/` (the old ID joins
+`aliases`), and moves the file to `<KEY>-<slug>.md`. Each promotion counts as
+a push against `--max-pushes`. `--no-promote` leaves drafts as they are;
+`--pull-only` never promotes. One draft is promoted on its own with
+`accelerator work promote <draft-id>`.
 
 ## Step 0: Config gate
 
@@ -82,8 +92,11 @@ Translate the user's arguments into `accelerator work sync`'s flags:
 - `--push-only` / `--pull-only` — the directional mode. They are
   **mutually exclusive**; passing both makes `work sync` exit **2** (usage) —
   surface that and stop. Omitting both means **bidirectional** (the default).
+- `--no-promote` — under a `{tracker}` ID pattern, leave every draft as it is
+  instead of promoting it. Drafts left this way do not affect the exit code.
 - `--preview` — report the full set of intended changes (push, pull, conflict,
-  create-from-local, untracked-pull, targeted-pull) **without** any local write
+  create-from-local, untracked-pull, targeted-pull, drafts to promote)
+  **without** any local write
   or remote
   mutation, and **without** touching the baseline. Combinable with a directional
   flag.
@@ -146,7 +159,7 @@ local→remote pushes. `/sync-work-items --target 0257` reconciles only item
 
 ```
 accelerator work sync \
-  [--push-only|--pull-only] [--preview] \
+  [--push-only|--pull-only] [--preview] [--no-promote] \
   [--max-pulls <N|unlimited>] [--max-pushes <N|unlimited>] \
   [--resolve <id>=<remote|local|skip>]…
 ```
@@ -182,8 +195,10 @@ mistaken for a skip.
 **The stdout report is authoritative.** Read it for `unresolved` lines
 regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
-remote-absent or indeterminate items); `5` refused (would exceed
-`--max-pulls`/`--max-pushes`, zero writes); `7` the keyed reconcile read hit its
+remote-absent, not-found or indeterminate items, or a key change refused or
+rolled back); `5` refused (would exceed
+`--max-pulls`/`--max-pushes`, zero writes; promotions count as pushes); `7`
+the keyed reconcile read hit its
 `<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
 un-read items' remote state is unknown and nothing was written — raise the cap
 or set it to `unlimited` and re-run; the read feeds both directions, so
@@ -194,10 +209,15 @@ a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried); a per-item `unconfigured` detail in the report is a write the
-tracker refused on configuration — other items may already have applied, so an
-exit 74 carrying that token is not a pre-flight refusal, and it ranks below
-`4`; `72` tracker recognised but no client built; `73`
+auto-retried), or a retirement stopped with `retirement-incomplete` (see Step
+5); `75` a per-item request was rejected before sending — its
+failed row carries the `rejected` detail: nothing was sent for that item, but
+the same request would be refused again, so it must change (for example, its
+body) before a re-run; a per-item `unconfigured` detail in the report is a write
+the tracker refused on configuration — other items may already have applied, so
+an exit 74 carrying that token is not a pre-flight refusal, and it ranks below
+`4`; where a run yields several, the exit code follows the precedence
+`71 > 4 > 75 > 74 > 70`; `72` tracker recognised but no client built; `73`
 `work.integration` unset or unrecognised; `74` wired but a run cannot proceed on
 its config — missing/refused credentials, or a non-push-only run whose discovery
 scope names no valid target (nothing sent; set the key or run `--push-only`). A
@@ -345,14 +365,87 @@ the engine's report:
 pushed:                <ids>
 pulled:                <ids>
 pushed-unsynced:       <ids>   (new external_id written back)
-pulled-untracked:      <ids>   (remote key → new local id; includes a
-                                 targeted create-from-remote)
+pulled-untracked:      <ids>   (remote key → local id, equal under
+                                 {tracker}; includes a targeted
+                                 create-from-remote)
+promoted:              <draft-id> → <KEY>
+not promoted (reason): <draft-id> (<reason>)
+key-changed:           <id>: <old>-><new>
+resumed:               <old-id>: <old>-><new>
+not-found:             <ids>   (no issue under the stored key)
 conflicts-skipped:     <ids>
 overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
 needs-retry:           <ids>
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
+
+Before the engine plans, the run settles identity changes, and reports them in
+the same four-column record, keyed by the id the item had when the run started:
+
+- `key-changed` (`<id>\tkey-changed\t<state>\t<old>-><new>`): the item's remote
+  issue now answers to another key, because it moved to another project or
+  team. The item's `external_id` follows it. Where the item's `id` was the old
+  key, the old key is retired: the file is renamed to the new key, the old
+  key joins `aliases`, and references across `meta/` are rewritten.
+- `resumed` (`<old-id>\tresumed\t<state>\t<old>-><new>`): a retirement an
+  earlier run left unfinished was completed.
+- `not-found` (`<id>\tnot-found\tremote-absent\t<key>`): the tracker answered
+  that no issue has the stored key. The item is left unchanged for a human.
+- A key change that would give two items one identity, or that rolled back,
+  is a `failed` row naming both items; the item is left unchanged.
+
+Under a `{tracker}` ID pattern the run then promotes each draft, reported in
+the same record keyed by the draft ID:
+
+- `promoted` (`<draft-id>\tpromoted\t<state>\t<KEY>`): the draft is now
+  `<KEY>-<slug>.md`, and `<state>` is what the next sync will find: `synced`;
+  `locally-modified` when the next sync pushes the key into the issue's title
+  line (the H1 update failed, or an adopted issue differs only by the ID); or
+  `conflict` when an adopted issue's content differs, so the next sync raises a
+  conflict dossier for the promoted item. Nothing further is needed now.
+- `already-promoted` (`<draft-id>\talready-promoted\tsynced\t<KEY>`): another
+  run promoted the draft first.
+- `promote` (`<draft-id>\tpromote\tunsynced\t-`): under `--preview`, the
+  draft would be promoted.
+- `not-promoted` (`<draft-id>\tnot-promoted\tunsynced\t<reason>`): the draft
+  is unchanged; the reason keyword maps to its recovery below.
+
+Trailing `#\tdetail\t<id>\t<source>\t<path>[\t<recovery-dir>]` lines name
+what a person needs to look at, one per path. Match each to its row by the
+`<id>` field, never by position. `<source>` is `holder` (the item already
+claiming the key, or the file in the target's way), `vcs` (a path to restore
+from version control), `recovery` (a path to restore from its copy in the
+fifth field's recovery directory) or `item` (the draft, or the promoted item a
+`conflict` row will raise a dossier for).
+
+| Reason | Exit | Recovery |
+|---|---|---|
+| `tracker-unreachable` | 70 | Nothing was sent. Sync again once the tracker is reachable. |
+| `remote-may-exist` | 71 | This run's create had no confirmed outcome. Check the tracker: `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `--create`. |
+| `possible-duplicate` | 4 | An earlier run's create had no confirmed outcome. Recover as for `remote-may-exist`. |
+| `rejected` | 75 | Nothing was sent, but the same request would be refused again. Change the draft (for example, its body), then sync. |
+| `id-taken`, `key-linked` | 4 | The issue exists, and the `holder` item already carries its key. If it is the same issue, delete the draft or merge it into the holder; otherwise fix the holder. Then `accelerator work promote <draft-id>`. |
+| `target-exists` | 4 | Move the `holder` file aside, then `accelerator work promote <draft-id>`. |
+| `item-not-found` | 4 (71 once an issue exists) | The draft vanished. An issue it created is unlinked; the next sync imports it. |
+| `adopted-issue-missing` | 4 | The tracker has no issue under the `--adopt` key. Check the key, or use `--create`. |
+| `adopt-conflicts-with-recorded-key` | 4 | The draft's record already holds another key. `accelerator work promote <draft-id>` resumes onto that key. |
+| `read-back-failed`, `retirement-failed` | 71 | The issue exists; the next sync finishes the promotion onto it. Do not re-create. |
+| `retirement-incomplete` | 71 | Restore the `vcs` paths from version control and the `recovery` paths from the named recovery directory, then sync. `work sync` stops the whole run on it and names the paths in its message instead, as for a key change. |
+| `record-unwritable` | 71 (1 before a create) | The promotion record could not be written. Fix the state directory's permissions or space, then sync. |
+
+`#\tnote\tdeferred-to-next-run\tN` counts items written while the run was
+reading the remote; the next sync reconciles them. When the run is refused
+after identity changes landed, it still prints each identity and promotion
+row the pass reported, then `#\tnote\tidentity-applied-before-refusal\tN`:
+each landed change is complete and stands.
+
+A run that stops with `retirement-incomplete` (exit `71`) could not restore
+every file a failed retirement had written. Relay the message, which names both
+ids, each unrestored path and the recovery directory: restore the named paths
+from version control, or from the recovery directory for files with
+uncommitted changes, then sync again. Until every path matches its recovery
+copy, each sync warns about the directory.
 
 When the report carries the targeted discovery line, render it with exact human
 phrasing so the machine TSV token never leaks verbatim, passing it through

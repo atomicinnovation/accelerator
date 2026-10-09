@@ -15,6 +15,7 @@ use tracker::ExternalId;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::client::JiraClient;
+use crate::error::ClientError;
 use crate::failure::JiraFailure;
 
 /// The issue type a create sets: by name, by numeric id (which wins over a
@@ -85,14 +86,9 @@ impl JiraClient {
         &self,
         fields: &CreateFields<'_>,
     ) -> Result<ExternalId, JiraFailure> {
-        let description = crate::adf::markdown_to_document(fields.body, None)
-            .map_err(|error| {
-            JiraFailure::wire(
-                Outcome::Transport,
-                Operation::Create,
-                error.to_string(),
-            )
-        })?;
+        let description =
+            crate::adf::markdown_to_document(fields.body, None)
+                .map_err(|error| rejected(Operation::Create, &error))?;
         let mut payload = Map::new();
         payload.insert(
             "project".to_owned(),
@@ -136,17 +132,12 @@ impl JiraClient {
         for (id, value) in fields.custom {
             payload.insert(id.clone(), value.clone());
         }
-        let body = json!({ "fields": Value::Object(payload) });
+        let body = serialise(&json!({ "fields": Value::Object(payload) }))
+            .map_err(|error| rejected(Operation::Create, &error))?;
         let received = self
             .transport()
-            .send(&Method::POST, ISSUE_PATH, &[], Some(&serialise(&body)))
-            .map_err(|error| {
-                JiraFailure::wire(
-                    Outcome::Transport,
-                    Operation::Create,
-                    error.to_string(),
-                )
-            })?;
+            .send_unrepeatable(&Method::POST, ISSUE_PATH, &[], Some(&body))
+            .map_err(|error| send_failure(Operation::Create, &error))?;
         let created = crate::client::json_body_op(
             &received,
             Operation::Create,
@@ -163,7 +154,7 @@ impl JiraClient {
         // The issue exists remotely, so an unusable identifier is Terminal: a
         // repeat would duplicate it, and the caller must be told rather than
         // handed a value that would corrupt the work item.
-        tracker_support::identifier_is_safe(key).map_err(|refusal| {
+        tracker_support::issue_key_is_safe(key).map_err(|refusal| {
             JiraFailure::UnwritableIdentifier {
                 identifier: key.to_owned(),
                 reason: refusal.to_string(),
@@ -185,20 +176,12 @@ impl JiraClient {
         id: &ExternalId,
         edit: &UpdateFields<'_>,
     ) -> Result<(), JiraFailure> {
-        let body = update_payload(edit).map_err(|error| {
-            JiraFailure::wire(
-                Outcome::Transport,
-                Operation::Update,
-                error.to_string(),
-            )
-        })?;
-        let path = Self::issue_path(id.as_str(), "").map_err(|error| {
-            JiraFailure::wire(
-                Outcome::Transport,
-                Operation::Update,
-                error.to_string(),
-            )
-        })?;
+        let body = update_payload(edit)
+            .map_err(|error| rejected(Operation::Update, &error))?;
+        let body = serialise(&body)
+            .map_err(|error| rejected(Operation::Update, &error))?;
+        let path = Self::issue_path(id.as_str(), "")
+            .map_err(|error| rejected(Operation::Update, &error))?;
         let query: Vec<(&str, &str)> = if edit.no_notify {
             vec![("notifyUsers", "false")]
         } else {
@@ -206,14 +189,8 @@ impl JiraClient {
         };
         let received = self
             .transport()
-            .send(&Method::PUT, &path, &query, Some(&serialise(&body)))
-            .map_err(|error| {
-                JiraFailure::wire(
-                    Outcome::Transport,
-                    Operation::Update,
-                    error.to_string(),
-                )
-            })?;
+            .send(&Method::PUT, &path, &query, Some(&body))
+            .map_err(|error| send_failure(Operation::Update, &error))?;
         if (200..300).contains(&received.status) {
             return Ok(());
         }
@@ -327,6 +304,24 @@ fn add_remove_ops(
     ops
 }
 
-fn serialise(value: &Value) -> String {
-    serde_json::to_string(value).unwrap_or_else(|_| "{}".to_owned())
+fn serialise(value: &Value) -> Result<String, serde_json::Error> {
+    serde_json::to_string(value)
+}
+
+fn rejected(
+    operation: Operation,
+    cause: &dyn std::fmt::Display,
+) -> JiraFailure {
+    JiraFailure::wire(Outcome::RequestInvalid, operation, cause.to_string())
+}
+
+fn send_failure(operation: Operation, error: &ClientError) -> JiraFailure {
+    let outcome = match error {
+        ClientError::NotSent { .. } => Outcome::NotSent,
+        ClientError::BadPath { .. }
+        | ClientError::BadIdentifier { .. }
+        | ClientError::RequestInvalid { .. } => Outcome::RequestInvalid,
+        _ => Outcome::Transport,
+    };
+    JiraFailure::wire(outcome, operation, error.to_string())
 }

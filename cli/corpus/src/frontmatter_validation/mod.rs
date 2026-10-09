@@ -564,6 +564,30 @@ mod tests {
     }
 
     #[test]
+    fn a_work_item_with_aliases_validates() {
+        let inline = format!(
+            "{}\naliases: [\"draft-k7mq3x\", \"0042\"]",
+            minimal_valid_work_item()
+        );
+        let block = format!(
+            "{}\naliases:\n  - \"draft-k7mq3x\"",
+            minimal_valid_work_item()
+        );
+
+        assert_eq!(validate_file(&inline), Vec::new());
+        assert_eq!(validate_file(&block), Vec::new());
+    }
+
+    #[test]
+    fn aliases_is_an_optional_work_item_extra() {
+        let optional_extras = super::schema::row_for("work-item", "")
+            .map(|row| row.optional_extras)
+            .unwrap_or_default();
+
+        assert!(optional_extras.contains(&"aliases"));
+    }
+
+    #[test]
     fn an_absent_type_is_invalid_type_and_nothing_else() {
         let violations = validate_file("id: \"0042\"\n");
         assert_eq!(

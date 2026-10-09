@@ -115,6 +115,26 @@ fn a_created_but_unwritable_identifier_is_a_distinct_variant() {
 }
 
 #[test]
+fn a_created_key_not_shaped_like_an_issue_key_is_unwritable() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(ISSUE),
+        json(201, "{\"key\":\"PP-1/../../..\"}"),
+    );
+
+    let client = client_for(&server, brief());
+    let custom = Map::new();
+    let failure = client
+        .create_op(&create("t", "b", "story", &custom))
+        .expect_err("unwritable");
+
+    assert!(
+        matches!(failure, JiraFailure::UnwritableIdentifier { .. }),
+        "{failure:?}"
+    );
+}
+
+#[test]
 fn an_update_wire_failure_carries_the_granular_not_found_code() {
     let server = MockHTTPServer::start();
     server.route(RequestKey::put(&format!("{ISSUE}/ENG-1")), json(404, "{}"));

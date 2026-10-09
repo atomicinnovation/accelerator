@@ -11,6 +11,13 @@ The filename prefix defaults to a 4-digit number
 `linear` today); when unset, everything stays local with no external API
 calls. See [Issue Trackers](issue-trackers.mdx) for the integrations.
 
+With `work.id_pattern: "{tracker}"` the tracker owns each item's `id`: an
+item pushed at creation is named by its Jira or Linear key, and one no
+tracker has confirmed is a **draft** in `meta/work/drafts/` under a
+`draft-xxxxxx` ID. `sync-work-items` promotes drafts onto their keys by
+default, and `accelerator work promote <draft-id>` promotes one. See
+[Let the tracker own IDs](../guides/sync-work-items.mdx#let-the-tracker-own-ids).
+
 ```
 existing docs (specs, PRDs, notes)
        │
@@ -31,7 +38,9 @@ interactively drafts a single well-formed item (and can enrich an
 existing one), while
 [`extract-work-items`](../reference/skills/work/extract-work-items.md)
 mines a batch from existing documents — specs, PRDs, research, plans,
-meeting notes, design docs.
+meeting notes, design docs. Under `{tracker}` it creates the batch
+through `accelerator work create-batch` after one push offer, linking each
+child to its parent's key or draft.
 
 ## Sharpening before planning
 

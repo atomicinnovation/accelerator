@@ -1,6 +1,7 @@
 //! The baseline's persistence wrapper: read-modify-write through injected
 //! ports on both sides.
 
+use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::scan::FileReader;
@@ -58,6 +59,11 @@ impl<'a> BaselineStore<'a> {
         Ok(Baseline::read(content.as_deref()))
     }
 
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
     fn write_document(&self, baseline: &Baseline) -> Result<(), StoreError> {
         self.writer.write(&self.path, baseline.render().as_bytes())
     }
@@ -65,7 +71,7 @@ impl<'a> BaselineStore<'a> {
     /// # Errors
     ///
     /// [`StoreError`] on either the read or the write.
-    pub fn set(&mut self, id: &str, entry: Entry) -> Result<(), StoreError> {
+    pub fn set(&self, id: &str, entry: Entry) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         baseline.set(id, entry);
         self.write_document(&baseline)
@@ -77,6 +83,22 @@ impl<'a> BaselineStore<'a> {
     pub fn remove(&mut self, id: &str) -> Result<(), StoreError> {
         let (mut baseline, _) = self.load()?;
         baseline.remove(id);
+        self.write_document(&baseline)
+    }
+
+    /// Moves `old`'s entry to `new` in one write, leaving every other
+    /// entry as the re-read document has it; an absent entry writes nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError`] on either the read or the write.
+    pub fn rename(&self, old: &str, new: &str) -> Result<(), StoreError> {
+        let (mut baseline, _) = self.load()?;
+        let Some(entry) = baseline.get(old).cloned() else {
+            return Ok(());
+        };
+        baseline.remove(old);
+        baseline.set(new, entry);
         self.write_document(&baseline)
     }
 
@@ -123,5 +145,86 @@ impl<'a> BaselineStore<'a> {
             baseline.set_timestamp(run_start_epoch);
         }
         self.write_document(&baseline)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
+    use std::path::{Path, PathBuf};
+
+    use corpus::scan::FileReader;
+    use corpus::store::AtomicWrite;
+    use corpus::store::StoreError;
+
+    use tracker::RemoteTimestamp;
+
+    use super::BaselineStore;
+    use crate::sync::baseline::Entry;
+
+    #[derive(Default)]
+    struct MemoryFile {
+        files: RefCell<BTreeMap<PathBuf, String>>,
+        writes: RefCell<usize>,
+    }
+
+    impl FileReader for MemoryFile {
+        fn read(&self, path: &Path) -> Result<Option<String>, kernel::Error> {
+            Ok(self.files.borrow().get(path).cloned())
+        }
+    }
+
+    impl AtomicWrite for MemoryFile {
+        fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+            *self.writes.borrow_mut() += 1;
+            self.files.borrow_mut().insert(
+                path.to_path_buf(),
+                String::from_utf8_lossy(bytes).into_owned(),
+            );
+            Ok(())
+        }
+    }
+
+    fn entry(local_hash: &str) -> Entry {
+        Entry {
+            remote_updated_at: RemoteTimestamp::NotRead,
+            remote_hash: String::new(),
+            local_hash: local_hash.to_owned(),
+            local_synced_at: 0,
+        }
+    }
+
+    #[test]
+    fn renaming_an_entry_moves_it_in_one_write() -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+        store.set("draft-k7mq3x", entry("moved"))?;
+        store.set("0001", entry("kept"))?;
+        *file.writes.borrow_mut() = 0;
+
+        store.rename("draft-k7mq3x", "PP-900")?;
+
+        let (baseline, _) = store.load()?;
+        assert_eq!(*file.writes.borrow(), 1);
+        assert_eq!(baseline.get("draft-k7mq3x"), None);
+        assert_eq!(baseline.get("PP-900"), Some(&entry("moved")));
+        assert_eq!(baseline.get("0001"), Some(&entry("kept")));
+        Ok(())
+    }
+
+    #[test]
+    fn renaming_an_absent_entry_is_a_no_op() -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+        store.set("0001", entry("kept"))?;
+        *file.writes.borrow_mut() = 0;
+
+        store.rename("draft-k7mq3x", "PP-900")?;
+
+        assert_eq!(*file.writes.borrow(), 0);
+        Ok(())
     }
 }

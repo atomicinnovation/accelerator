@@ -8,7 +8,8 @@ use std::time::Duration;
 
 use tracker_support::identifier::IdentifierRefusal;
 use tracker_support::{
-    identifier_is_safe, port_body, Jitter, RetryPolicy, TransportConfig,
+    identifier_is_safe, issue_key_is_safe, port_body, Jitter, RetryPolicy,
+    TransportConfig,
 };
 
 fn unescape(raw: &str) -> String {
@@ -66,6 +67,21 @@ fn identifier_safety_matches_the_committed_fixture_exactly() {
             "identifier {candidate:?}"
         );
     }
+}
+
+#[test]
+fn an_issue_key_must_be_safe_and_shaped_like_a_key() {
+    for accepted in ["ENG-1", "MY_PROJ-12", "ABC2-15"] {
+        assert_eq!(issue_key_is_safe(accepted), Ok(()), "{accepted}");
+    }
+    for refused in ["PP-1/../../..", "../../etc", "/abs-1", "ENG", "ENG-1a"] {
+        assert_eq!(
+            issue_key_is_safe(refused),
+            Err(IdentifierRefusal::NotAnIssueKey),
+            "{refused}"
+        );
+    }
+    assert_eq!(issue_key_is_safe(""), Err(IdentifierRefusal::Empty));
 }
 
 #[test]

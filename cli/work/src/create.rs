@@ -64,6 +64,7 @@ pub const KNOWN_FRONTMATTER_KEYS: &[&str] = &[
     "relates_to",
     "source",
     "external_id",
+    "aliases",
     "tags",
     "last_updated",
     "last_updated_by",

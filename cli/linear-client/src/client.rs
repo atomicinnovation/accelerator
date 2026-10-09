@@ -22,6 +22,7 @@ use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -395,14 +396,27 @@ impl LinearClient {
         operation: Operation,
         detail: &str,
     ) -> Result<Value, LinearFailure> {
-        let received =
-            self.transport.send(document, variables).map_err(|error| {
-                LinearFailure::wire(
-                    Outcome::Transport,
-                    operation,
-                    error.to_string(),
-                )
-            })?;
+        let sent = self.transport.send(document, variables);
+        Self::answer_to(sent, operation, detail)
+    }
+
+    fn call_unrepeatable_op(
+        &self,
+        document: &str,
+        variables: &Value,
+        operation: Operation,
+        detail: &str,
+    ) -> Result<Value, LinearFailure> {
+        let sent = self.transport.send_unrepeatable(document, variables);
+        Self::answer_to(sent, operation, detail)
+    }
+
+    fn answer_to(
+        sent: Result<Received, ClientError>,
+        operation: Operation,
+        detail: &str,
+    ) -> Result<Value, LinearFailure> {
+        let received = sent.map_err(|error| send_failure(operation, &error))?;
         Self::interpret_outcome(&received).map_err(|outcome| {
             LinearFailure::wire(outcome, operation, detail.to_owned())
         })
@@ -472,6 +486,9 @@ impl LinearClient {
                 if let Some(identifier) =
                     node.get("identifier").and_then(Value::as_str)
                 {
+                    tracker_support::issue_key_is_safe(identifier).map_err(
+                        |refusal| format!("{identifier:?}: {refusal}"),
+                    )?;
                     found.push((
                         identifier.to_owned(),
                         stamp(node.get("updatedAt")),
@@ -669,8 +686,12 @@ impl LinearClient {
             "title": title,
             "description": body,
         }});
-        let response =
-            self.call_op(CREATE, &variables, Operation::Create, title)?;
+        let response = self.call_unrepeatable_op(
+            CREATE,
+            &variables,
+            Operation::Create,
+            title,
+        )?;
         let identifier = response
             .pointer("/data/issueCreate/issue/identifier")
             .and_then(Value::as_str)
@@ -682,10 +703,10 @@ impl LinearClient {
                 )
             })?;
         // The issue exists remotely, so an unusable identifier is Terminal.
-        check_identifier(identifier).map_err(|error| {
+        tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
             LinearFailure::UnwritableIdentifier {
                 identifier: identifier.to_owned(),
-                reason: error.to_string(),
+                reason: refusal.to_string(),
             }
         })?;
         Ok(ExternalId::new(identifier.to_owned()))
@@ -722,17 +743,45 @@ impl LinearClient {
         id: &ExternalId,
     ) -> Result<RemoteIssue, LinearFailure> {
         refuse_identifier_op(id, Operation::Read)?;
-        let received = self
-            .transport
+        let received = self.send_show(id)?;
+        Self::issue_from(id, &received)
+    }
+
+    /// `locate`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] for every failed read other than Linear answering
+    /// that no issue has the identifier.
+    pub fn locate_op(&self, id: &ExternalId) -> Result<Located, LinearFailure> {
+        refuse_identifier_op(id, Operation::Read)?;
+        let received = self.send_show(id)?;
+        if received
+            .json()
+            .is_some_and(|body| crate::classify::answers_not_found(&body))
+        {
+            return Ok(Located::NotFound);
+        }
+        Self::issue_from(id, &received).map(Located::Found)
+    }
+
+    fn send_show(&self, id: &ExternalId) -> Result<Received, LinearFailure> {
+        self.transport
             .send(SHOW, &json!({"id": id.as_str()}))
             .map_err(|error| {
-            LinearFailure::wire(
-                Outcome::Transport,
-                Operation::Read,
-                error.to_string(),
-            )
-        })?;
-        let body = Self::interpret_outcome(&received).map_err(|outcome| {
+                LinearFailure::wire(
+                    Outcome::Transport,
+                    Operation::Read,
+                    error.to_string(),
+                )
+            })
+    }
+
+    fn issue_from(
+        id: &ExternalId,
+        received: &Received,
+    ) -> Result<RemoteIssue, LinearFailure> {
+        let body = Self::interpret_outcome(received).map_err(|outcome| {
             LinearFailure::wire(
                 outcome,
                 Operation::Read,
@@ -752,10 +801,36 @@ impl LinearClient {
             )
         })?;
         Ok(RemoteIssue {
+            key: current_identifier(&body, id)?,
             updated: stamp(body.pointer("/data/issue/updatedAt")),
             body: port_body(&projected),
         })
     }
+}
+
+/// The identifier Linear answered under, which is the issue's new one when
+/// the requested identifier belonged to it before a team move.
+fn current_identifier(
+    body: &Value,
+    requested: &ExternalId,
+) -> Result<ExternalId, LinearFailure> {
+    let Some(identifier) = body
+        .pointer("/data/issue/identifier")
+        .and_then(Value::as_str)
+    else {
+        return Ok(requested.clone());
+    };
+    tracker_support::issue_key_is_safe(identifier).map_err(|refusal| {
+        LinearFailure::wire(
+            Outcome::RequestInvalid,
+            Operation::Read,
+            format!(
+                "{requested} answered under {identifier:?}, which cannot be \
+                 written back — {refusal}"
+            ),
+        )
+    })?;
+    Ok(ExternalId::new(identifier.to_owned()))
 }
 
 /// One `teams` node as a [`VisibleEntity`]: a Linear team's key is its
@@ -806,7 +881,11 @@ fn refuse_identifier_op(
     operation: Operation,
 ) -> Result<(), LinearFailure> {
     check_identifier(id.as_str()).map_err(|error| {
-        LinearFailure::wire(Outcome::Transport, operation, error.to_string())
+        LinearFailure::wire(
+            Outcome::RequestInvalid,
+            operation,
+            error.to_string(),
+        )
     })
 }
 
@@ -839,6 +918,10 @@ impl RemoteTracker for LinearClient {
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
         self.show_op(id).map_err(TrackerError::from)
+    }
+
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        self.locate_op(id).map_err(TrackerError::from)
     }
 
     fn fetch_all(
@@ -1032,4 +1115,13 @@ impl RemoteTracker for LinearClient {
             ValidationOutcome::Valid
         }
     }
+}
+
+fn send_failure(operation: Operation, error: &ClientError) -> LinearFailure {
+    let outcome = match error {
+        ClientError::NotSent { .. } => Outcome::NotSent,
+        ClientError::RequestInvalid { .. } => Outcome::RequestInvalid,
+        _ => Outcome::Transport,
+    };
+    LinearFailure::wire(outcome, operation, error.to_string())
 }

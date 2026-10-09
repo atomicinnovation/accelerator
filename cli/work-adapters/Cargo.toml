@@ -13,11 +13,18 @@ context = "work"
 [lints]
 workspace = true
 
+[features]
+# The retirement suite's real-repository tests build real git and jj
+# repositories. On, an absent binary hard-fails; off, they are skipped.
+# Mirrors vcs-adapters' own bash-parity convention.
+bash-parity = []
+
 [dependencies]
 work = { path = "../work" }
 kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
+document = { path = "../document" }
 vcs = { path = "../vcs" }
 similar = { workspace = true }
 sha2 = { workspace = true }
@@ -25,12 +32,16 @@ time = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 config = { path = "../config" }
 tempfile = { workspace = true }
+corpus-adapters = { path = "../corpus-adapters" }
 remote-projection = { path = "../remote-projection" }
+store = { path = "../store" }
 tracker-test-support = { path = "../tracker-test-support" }
+vcs-adapters = { path = "../vcs-adapters" }
 vcs-test-support = { path = "../vcs-test-support" }
 jira-client = { path = "../jira-client" }
 linear-client = { path = "../linear-client" }

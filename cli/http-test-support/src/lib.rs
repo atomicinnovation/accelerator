@@ -69,6 +69,10 @@ pub enum Route {
     /// tell its requests apart. The answer is sent as given, so it must
     /// already be one response rather than a per-hit route.
     ByBody(Responder),
+    /// Close the listener, then answer this status with an empty body — so a
+    /// client that retries the response is refused at connect, after a
+    /// request that reached the server.
+    StatusThenShutdown(u16),
 }
 
 /// Answers a request from its body; see [`Route::ByBody`].
@@ -156,6 +160,7 @@ struct Shared {
     routes: Mutex<HashMap<RequestKey, Route>>,
     records: Mutex<HashMap<RequestKey, Record>>,
     stop: AtomicBool,
+    closed: AtomicBool,
 }
 
 pub struct MockHTTPServer {
@@ -175,9 +180,14 @@ impl MockHTTPServer {
             routes: Mutex::new(HashMap::new()),
             records: Mutex::new(HashMap::new()),
             stop: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
         });
         let server_shared = Arc::clone(&shared);
-        thread::spawn(move || serve(&listener, &server_shared));
+        thread::spawn(move || {
+            serve(&listener, &server_shared);
+            drop(listener);
+            server_shared.closed.store(true, Ordering::SeqCst);
+        });
         Self { port, shared }
     }
 
@@ -404,6 +414,10 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
             http_response(status, &[], &body)
         }
         Some(Route::Status(status)) => http_response(status, &[], &[]),
+        Some(Route::StatusThenShutdown(status)) => {
+            close_listener(shared);
+            http_response(status, &[], &[])
+        }
         Some(Route::Headers {
             status,
             headers,
@@ -455,6 +469,31 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut sink = Vec::new();
     let _ = reader.get_mut().read_to_end(&mut sink);
     Ok(())
+}
+
+fn close_listener(shared: &Shared) {
+    shared.stop.store(true, Ordering::SeqCst);
+    while !shared.closed.load(Ordering::SeqCst) {
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+
+/// A loopback base URL on a port nothing listens on, so a request to it is
+/// refused at connect. A drawn port another process has since bound is
+/// redrawn, up to three times.
+#[must_use]
+pub fn refused_base_url() -> String {
+    (0..3)
+        .find_map(|_| {
+            let port = TcpListener::bind("127.0.0.1:0")
+                .and_then(|listener| listener.local_addr())
+                .expect("bind a probe port")
+                .port();
+            TcpStream::connect(("127.0.0.1", port))
+                .is_err()
+                .then(|| format!("http://127.0.0.1:{port}"))
+        })
+        .expect("every drawn loopback port was rebound before it was probed")
 }
 
 /// Records the request and returns how many requests to its key preceded it.

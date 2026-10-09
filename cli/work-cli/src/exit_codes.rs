@@ -31,9 +31,9 @@
 //!   acknowledge the blast radius, or sets a finite `max_items`. The work skill
 //!   drives that confirmation.
 //!
-//! Tracker-error codes (`70`/`71`), two of the three [`TrackerError`] classes
-//! [`for_tracker_error`] maps; the third, `Unconfigured`, maps to `74` below.
-//! This distinction is safety-critical — the work skills branch on it:
+//! Tracker-error codes (`70`/`71`/`75`), three of the four [`TrackerError`]
+//! classes [`for_tracker_error`] maps; the fourth, `Unconfigured`, maps to `74`
+//! below. This distinction is safety-critical — the work skills branch on it:
 //!
 //! - `70` `RETRYABLE` — the failure is provably *before* any remote mutation
 //!   (argument/validation/auth/connect, a read that failed, or a discovery
@@ -45,6 +45,14 @@
 //!   issue) — a remote issue may already exist; a whole-item `update` is
 //!   idempotent, so there the hazard is response *uncertainty*, not
 //!   double-apply. Either way the operator reconciles by hand.
+//! - `75` `REJECTED` — provably unapplied; the request itself must change. The
+//!   client refused it as invalid before sending it (a body that cannot be
+//!   converted, a path that cannot be composed), so no remote issue exists,
+//!   but a retry would fail identically. **Never auto-retried.** Distinct from
+//!   `71`, whose meaning stays "a remote issue may already exist".
+//!
+//! Where one run yields several outcomes, the exit code takes the highest in
+//! the precedence `71 > 4 > 75 > 74 > 70`.
 //!
 //! Tracker selection/configuration codes (`72`–`74`), a failure to *select or
 //! configure* a tracker. `72`/`73` and the credential branch of `74` come from
@@ -68,6 +76,49 @@
 //!   create that never happened. A sync report whose worst outcome is a
 //!   per-item `unconfigured` failure also exits `74`: that item sent nothing,
 //!   but other items in the same run may already have applied.
+//!
+//! `work create --push` outcomes once an issue exists, each printed as its
+//! keyword and key:
+//!
+//! - `created-unwritten` (`71`) — no local item carries the new issue; under
+//!   a numeric pattern no file exists, so the path line is empty. The next
+//!   sync links it.
+//! - `created-blocked` (`4`) — a local item already claims the new key; a
+//!   person resolves the collision, then promotes the draft.
+//! - `retirement-incomplete` (`71`) — retiring the draft onto the key could
+//!   not restore every path it wrote.
+//!
+//! A `work create --push` that finds an earlier create of the same content
+//! still pending sends nothing and exits `4` (`E_PUSH_PENDING`,
+//! `E_DRAFT_EXISTS`).
+//!
+//! `work create-batch` reports each entry with a `create --push` keyword, or
+//! with `declined` (`0`, created without a push) or `pending` (`4`, an
+//! earlier create of the same content awaits promotion), and exits with the
+//! entry code that ranks highest in the precedence above; `0` when every
+//! entry's is. A refused manifest or a parent cycle exits `2` before
+//! anything is written.
+//!
+//! `work sync` and `work promote` report a draft left unpromoted as
+//! `not-promoted` with a reason keyword, each folded into the precedence
+//! above, with `1` ranked just below `71`:
+//!
+//! - `tracker-unreachable` — `70`.
+//! - `remote-may-exist`, `read-back-failed`, `retirement-failed`,
+//!   `retirement-incomplete` — `71`: an issue may exist, or does, and no item
+//!   carries it.
+//! - `rejected` — `75`.
+//! - `possible-duplicate`, `id-taken`, `key-linked`, `target-exists`,
+//!   `adopted-issue-missing`, `adopt-conflicts-with-recorded-key` — `4`.
+//! - `item-not-found` — `4`, or `71` once an issue exists for the vanished
+//!   draft.
+//! - `record-unwritable` — `71` once an issue exists, otherwise `1`.
+//!
+//! Three reasons exit differently from `work create --push`, whose job is to
+//! save the user's intent rather than to reconcile: an unreachable tracker is
+//! `0` there (`local-save`, the draft is saved), an earlier unconfirmed
+//! create is `71` there (`loud-terminal`), and an unwritable first record is
+//! `0` there (`local-save`).
 
 use tracker::TrackerError;
 
@@ -86,6 +137,7 @@ pub const TERMINAL: u8 = 71;
 pub const NOT_AVAILABLE: u8 = 72;
 pub const UNRECOGNISED: u8 = 73;
 pub const UNCONFIGURED: u8 = 74;
+pub const REJECTED: u8 = 75;
 
 #[must_use]
 pub const fn for_tracker_error(error: &TrackerError) -> u8 {
@@ -93,6 +145,7 @@ pub const fn for_tracker_error(error: &TrackerError) -> u8 {
         TrackerError::Retryable { .. } => RETRYABLE,
         TrackerError::Terminal { .. } => TERMINAL,
         TrackerError::Unconfigured { .. } => UNCONFIGURED,
+        TrackerError::Rejected { .. } => REJECTED,
     }
 }
 
@@ -115,6 +168,7 @@ mod tests {
             NOT_AVAILABLE,
             UNRECOGNISED,
             UNCONFIGURED,
+            REJECTED,
         ];
         assert!(
             !others.contains(&KEYED_READ_CAPPED),
@@ -122,6 +176,16 @@ mod tests {
              especially the exit-4 indeterminate code"
         );
         assert_ne!(KEYED_READ_CAPPED, UNRESOLVED);
+    }
+
+    #[test]
+    fn a_rejected_tracker_error_exits_75() {
+        assert_eq!(
+            for_tracker_error(&TrackerError::Rejected {
+                detail: String::new(),
+            }),
+            75
+        );
     }
 
     #[test]

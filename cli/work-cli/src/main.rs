@@ -1,20 +1,28 @@
 //! `accelerator-work` — the `work create|show|resolve|diff|update`
 //! sub-binary, dispatched by the `accelerator` launcher.
 
+mod batch_journal;
+mod batch_manifest;
 mod canonicalise_id;
 mod cli;
 mod config;
 mod create;
+mod create_batch;
 mod diff;
 mod exit_codes;
 mod finaliser;
+mod identity_workspace;
 mod list;
 mod next_number;
+mod promote;
+mod promotion_report;
 mod resolve;
 mod show;
 mod sync;
 mod sync_author;
 mod template_hints;
+#[cfg(test)]
+mod test_support;
 mod tracker_registry;
 mod update;
 
@@ -98,6 +106,19 @@ fn run_resolve(input: &str) -> ExitCode {
             }
             ExitCode::from(exit_codes::USAGE)
         }
+        Ok(RunOutcome::Conflicting(candidates)) => {
+            eprintln!(
+                "E_RESOLVE_AMBIGUOUS: multiple work items match '{input}':"
+            );
+            for candidate in candidates {
+                eprintln!(
+                    "  {} [{}]",
+                    candidate.path.display(),
+                    candidate.field.frontmatter_key()
+                );
+            }
+            ExitCode::from(exit_codes::USAGE)
+        }
         Ok(RunOutcome::NotFound(message)) => {
             eprintln!("E_RESOLVE_NOT_FOUND: {message}");
             ExitCode::from(exit_codes::RESOLVE_NOT_FOUND)
@@ -109,6 +130,10 @@ fn run_resolve(input: &str) -> ExitCode {
         Ok(RunOutcome::OutsideWorkDir(message)) => {
             eprintln!("E_RESOLVE_OUTSIDE_WORKDIR: {message}");
             ExitCode::from(exit_codes::RESOLVE_OUTSIDE_WORKDIR)
+        }
+        Ok(RunOutcome::Unlistable(message)) => {
+            eprintln!("E_RESOLVE_UNLISTABLE: {message}");
+            ExitCode::FAILURE
         }
         Err(error) => {
             eprintln!("{error}");
@@ -226,25 +251,24 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
         &tracker_registry::ConfiguredTrackers::new(service, root),
     ) {
         create::RunOutcome::Created { path, push } => {
-            println!("{}", path.display());
-            let exit_code = push.as_ref().map_or(exit_codes::CLEAN, |report| {
-                if matches!(
-                    report.outcome,
-                    work::sync::PushOutcome::LoudTerminal
-                ) {
-                    exit_codes::TERMINAL
-                } else {
-                    exit_codes::CLEAN
-                }
-            });
-            if let Some(report) = &push {
-                println!(
-                    "{}\t{}",
-                    report.outcome.keyword(),
-                    report.external_id.as_deref().unwrap_or("")
-                );
+            println!(
+                "{}",
+                path.as_deref()
+                    .map(Path::display)
+                    .map_or_else(String::new, |shown| shown.to_string())
+            );
+            let Some(report) = push else {
+                return ExitCode::SUCCESS;
+            };
+            println!(
+                "{}\t{}",
+                report.outcome.keyword(),
+                report.external_id.as_deref().unwrap_or("")
+            );
+            if let Some(cause) = &report.cause {
+                eprintln!("Error: {cause}");
             }
-            ExitCode::from(exit_code)
+            ExitCode::from(report.outcome.exit_code())
         }
         create::RunOutcome::Previewed(line) => {
             println!("{line}");
@@ -254,7 +278,62 @@ fn run_create(cli_args: cli::CreateArgs) -> ExitCode {
             eprintln!("Error: {message}");
             ExitCode::from(code)
         }
+        create::RunOutcome::Pending(message) => {
+            eprintln!("Error: {message}");
+            ExitCode::from(exit_codes::UNRESOLVED)
+        }
         create::RunOutcome::Failed(message) => {
+            eprintln!("Error: {message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_create_batch(args: &cli::CreateBatchArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    let store = composed.store.with_plugin_root(plugin_root_from_env());
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    let print = |report: &create_batch::BatchReport| {
+        for line in &report.lines {
+            println!("{line}");
+        }
+        for cause in &report.causes {
+            eprintln!("Error: {cause}");
+        }
+    };
+    match create_batch::run(
+        &start,
+        service,
+        &store,
+        args,
+        &tracker_registry::ConfiguredTrackers::new(service, root),
+    ) {
+        create_batch::BatchOutcome::Reported(report) => {
+            print(&report);
+            ExitCode::from(report.code)
+        }
+        create_batch::BatchOutcome::Invalid(problems) => {
+            for problem in problems {
+                eprintln!("{problem}");
+            }
+            ExitCode::from(exit_codes::USAGE)
+        }
+        create_batch::BatchOutcome::Failed { report, message } => {
+            print(&report);
             eprintln!("Error: {message}");
             ExitCode::FAILURE
         }
@@ -298,6 +377,10 @@ fn run_update(cli_args: &cli::UpdateArgs) -> ExitCode {
         update::RunOutcome::PushTerminal(message) => {
             eprintln!("{message}");
             ExitCode::from(exit_codes::TERMINAL)
+        }
+        update::RunOutcome::PushRejected(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::REJECTED)
         }
     }
 }
@@ -426,6 +509,49 @@ fn run_sync(args: &cli::SyncArgs) -> ExitCode {
     sync::run_sync(&start, service, args, &registry, finaliser)
 }
 
+fn run_promote(args: &cli::PromoteArgs) -> ExitCode {
+    let start = match current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let composed = match compose(&start, LegacyPolicy::Reject) {
+        Ok(composed) => composed,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let service: &dyn ConfigAccess = &composed.service;
+    let root = config_adapters::FileConfigStore::discover_root(&start);
+    let registry = tracker_registry::ConfiguredTrackers::new(service, root);
+    match promote::run(&start, service, args, &registry) {
+        promote::PromoteOutcome::Reported {
+            lines,
+            remedy,
+            code,
+        } => {
+            for line in lines {
+                println!("{line}");
+            }
+            if let Some(remedy) = remedy {
+                eprintln!("Error: {remedy}");
+            }
+            ExitCode::from(code)
+        }
+        promote::PromoteOutcome::NotADraft(message) => {
+            eprintln!("{message}");
+            ExitCode::from(exit_codes::USAGE)
+        }
+        promote::PromoteOutcome::Failed { message, code } => {
+            eprintln!("{message}");
+            ExitCode::from(code)
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
@@ -434,6 +560,7 @@ fn main() -> ExitCode {
         Command::Show { path, field } => run_show(&path, field.as_deref()),
         Command::Diff { local, remote } => run_diff(&local, &remote),
         Command::Create(args) => run_create(*args),
+        Command::CreateBatch(args) => run_create_batch(&args),
         Command::Update(args) => run_update(&args),
         Command::LinkExternalId { path, external_id } => {
             run_link_external_id(&path, &external_id)
@@ -444,5 +571,6 @@ fn main() -> ExitCode {
         }
         Command::List(args) => run_list(&args),
         Command::Sync(args) => run_sync(&args),
+        Command::Promote(args) => run_promote(&args),
     }
 }

@@ -62,6 +62,17 @@ describe("fetchDocs", () => {
     expect(docs).toHaveLength(1);
   });
 
+  it("reads an entry from a server that predates drafts as no draft", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        docs: [{ type: "work-items", path: "/p", relPath: "r" }],
+      }),
+    });
+    const [doc] = await fetchDocs("work-items");
+    expect(doc.draft).toBe(false);
+  });
+
   it("url-encodes the type parameter", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

@@ -43,7 +43,11 @@ pub enum ClientError {
     #[error("E_REQ_BAD_PATH: {path:?} rejected — {reason}")]
     BadPath { path: String, reason: String },
     #[error("E_REQ_CONNECT: {detail}")]
+    NotSent { detail: String },
+    #[error("E_REQ_CONNECT: {detail}")]
     Transport { detail: String },
+    #[error("E_REQ_INVALID: {detail}")]
+    RequestInvalid { detail: String },
     #[error(
         "E_REQ_OVERSIZED: the response exceeded the {limit}-byte bound \
          before it could be parsed"

@@ -170,17 +170,44 @@ impl Transport {
     ///
     /// # Errors
     ///
-    /// [`ClientError::Transport`] for a connect, DNS or timeout failure, and
+    /// [`ClientError::RequestInvalid`] for a payload that cannot be built,
+    /// [`ClientError::NotSent`] for a connect or DNS failure on the first
+    /// attempt, [`ClientError::Transport`] for a timeout or for a connect
+    /// failure after an earlier attempt drew a response, and
     /// [`ClientError::OversizedResponse`] for a body beyond the bound.
     pub fn send(
         &self,
         document: &str,
         variables: &Value,
     ) -> Result<Received, ClientError> {
+        self.execute(document, variables, Resend::WhileRetryable)
+    }
+
+    /// Sends one request that must not be applied twice, resending it only
+    /// when Linear rate-limited it: a 5xx can arrive after the request was
+    /// applied, so it is returned rather than resent.
+    ///
+    /// # Errors
+    ///
+    /// As [`Transport::send`].
+    pub fn send_unrepeatable(
+        &self,
+        document: &str,
+        variables: &Value,
+    ) -> Result<Received, ClientError> {
+        self.execute(document, variables, Resend::OnlyWhenRateLimited)
+    }
+
+    fn execute(
+        &self,
+        document: &str,
+        variables: &Value,
+        resend: Resend,
+    ) -> Result<Received, ClientError> {
         let payload = serde_json::to_string(
             &json!({"query": document, "variables": variables}),
         )
-        .map_err(|error| ClientError::Transport {
+        .map_err(|error| ClientError::RequestInvalid {
             detail: format!("the request body could not be built: {error}"),
         })?;
 
@@ -192,15 +219,13 @@ impl Transport {
                 .header("Authorization", self.credentials.token.expose())
                 .body(payload.clone())
                 .send()
-                .map_err(|error| ClientError::Transport {
-                    detail: connect_detail(&error),
-                })?;
+                .map_err(|error| send_failure(&error, attempt))?;
             let status = response.status().as_u16();
             let retry_after = retry_after(&response);
             let body = self.read_bounded(response)?;
             tracing::debug!(status, attempt, "linear request attempt");
 
-            if !Self::retryable(status, &body) {
+            if !resend.allows(status, &body) {
                 return Ok(Received { status, body });
             }
 
@@ -231,21 +256,6 @@ impl Transport {
         })
     }
 
-    /// A 5xx retries, and so does a 400 whose body classifies as
-    /// `RATELIMITED`. Nothing else does — least of all a 200.
-    fn retryable(status: u16, body: &str) -> bool {
-        if matches!(status, 500..600) {
-            return true;
-        }
-        if status != 400 {
-            return false;
-        }
-        serde_json::from_str::<Value>(body).is_ok_and(|parsed| {
-            crate::classify::classify_errors(&parsed)
-                == crate::classify::GraphQlError::RateLimited
-        })
-    }
-
     fn read_bounded(
         &self,
         response: reqwest::blocking::Response,
@@ -263,6 +273,34 @@ impl Transport {
         }
         Ok(String::from_utf8_lossy(&buffer).into_owned())
     }
+}
+
+/// Which answers a request may be sent again after. Nothing is resent
+/// after a 200.
+#[derive(Clone, Copy)]
+enum Resend {
+    WhileRetryable,
+    /// Only a rate limit proves the request was not applied.
+    OnlyWhenRateLimited,
+}
+
+impl Resend {
+    fn allows(self, status: u16, body: &str) -> bool {
+        match self {
+            Self::WhileRetryable => {
+                matches!(status, 500..600) || is_rate_limited(status, body)
+            }
+            Self::OnlyWhenRateLimited => is_rate_limited(status, body),
+        }
+    }
+}
+
+fn is_rate_limited(status: u16, body: &str) -> bool {
+    status == 400
+        && serde_json::from_str::<Value>(body).is_ok_and(|parsed| {
+            crate::classify::classify_errors(&parsed)
+                == crate::classify::GraphQlError::RateLimited
+        })
 }
 
 /// `rustls-tls-webpki-roots-no-provider` installs no crypto provider, and the
@@ -293,6 +331,17 @@ fn body_read_detail(error: &std::io::Error) -> String {
         "the response body could not be read — a stalled, truncated or \
          dropped body: {error}"
     )
+}
+
+/// Only a first-attempt connect failure is provably unsent: once an earlier
+/// attempt drew a retryable response, that request may have been applied.
+fn send_failure(error: &reqwest::Error, attempt: usize) -> ClientError {
+    let detail = connect_detail(error);
+    if attempt == 1 && error.is_connect() {
+        ClientError::NotSent { detail }
+    } else {
+        ClientError::Transport { detail }
+    }
 }
 
 fn connect_detail(error: &reqwest::Error) -> String {

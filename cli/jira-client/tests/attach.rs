@@ -61,6 +61,20 @@ fn attach_sends_multipart_with_the_no_check_token_and_one_part_per_file() {
 }
 
 #[test]
+fn an_upload_answered_5xx_is_sent_once() {
+    let root = TempDir::new().expect("a temp root");
+    let one = write(root.path(), "a.txt", b"alpha");
+    let server = MockHTTPServer::start();
+    server.route(RequestKey::post(ATTACH), Route::Status(502));
+    let client = client_for(&server, TransportConfig::default());
+
+    let uploaded = client.attach(KEY, &[one.as_path()], root.path());
+
+    assert!(uploaded.is_err());
+    assert_eq!(server.hits(&RequestKey::post(ATTACH)), 1);
+}
+
+#[test]
 fn a_missing_file_is_refused() {
     let root = TempDir::new().expect("a temp root");
     let server = MockHTTPServer::start();

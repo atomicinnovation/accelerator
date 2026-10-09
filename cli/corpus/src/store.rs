@@ -1,10 +1,15 @@
-//! The atomic-store error taxonomy and the two driven ports the adapter
-//! implements: `AtomicWrite` for whole-file atomic replacement and
-//! `RecordStore` for canonical-order JSONL append, remove and read.
+//! The atomic-store error taxonomy and the driven ports the adapter
+//! implements.
+//!
+//! `AtomicWrite` replaces a whole file atomically, `ExclusiveCreate` and
+//! `FileRemove` move one, `RecordStore` appends, removes and reads
+//! canonical-order JSONL, and `RecoveryCopies` keeps the pre-change bytes of a
+//! multi-file change until it lands.
 
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::record::Record;
 
@@ -16,6 +21,7 @@ pub enum StoreError {
     LockTimeout { path: String },
     CrossFilesystem { path: String },
     UnsafePath { path: String },
+    AlreadyExists { path: String },
     Validation { detail: String },
     Io { path: String, detail: String },
 }
@@ -37,6 +43,9 @@ impl Display for StoreError {
                 formatter,
                 "refusing to write through an unsafe path '{path}'"
             ),
+            Self::AlreadyExists { path } => {
+                write!(formatter, "'{path}' already exists")
+            }
             Self::Validation { detail } => {
                 write!(formatter, "invalid record: {detail}")
             }
@@ -70,6 +79,91 @@ pub trait FileRemove {
     /// [`StoreError`] when the path resolves outside the store's root or the
     /// removal fails.
     fn remove(&self, path: &Path) -> Result<(), StoreError>;
+}
+
+/// Creation that never replaces: a reader sees either no file or the whole
+/// new one.
+pub trait ExclusiveCreate {
+    /// # Errors
+    /// [`StoreError`] when `path` already exists, the destination is not
+    /// writable, or the write fails.
+    fn create_new(&self, path: &Path, bytes: &[u8]) -> Result<(), StoreError>;
+}
+
+/// Why a recovery directory outlived the change it was made for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeptState {
+    /// These originals could not be restored and still await a person.
+    RestorePending(Vec<PathBuf>),
+    /// The change has since completed; the copies remain for reference.
+    Completed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeptRecovery {
+    pub dir: PathBuf,
+    pub state: KeptState,
+}
+
+/// Write-once copies of files a change is about to overwrite, kept in a
+/// named directory outside the corpus until the change has landed.
+///
+/// Each copy mirrors the original's position in the corpus, so a person can
+/// find it without a manifest.
+pub trait RecoveryCopies {
+    fn exists(&self, dir: &Path) -> bool;
+
+    /// Creates `dir` with an ignore rule for everything in it, verified
+    /// before any copy is written, so copies of uncommitted content can never
+    /// be committed.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the directory or its ignore rule cannot be
+    /// written or verified.
+    fn prepare(&self, dir: &Path) -> Result<(), StoreError>;
+
+    /// # Errors
+    /// [`StoreError`] when a copy of `original` already exists in `dir`, so
+    /// the first copy of a file is never replaced, or the write fails.
+    fn write_once(
+        &self,
+        dir: &Path,
+        original: &Path,
+        bytes: &[u8],
+    ) -> Result<(), StoreError>;
+
+    /// Records in `dir` that `unrestored` still differ from their copies.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the record cannot be written.
+    fn mark_restore_pending(
+        &self,
+        dir: &Path,
+        unrestored: &[PathBuf],
+    ) -> Result<(), StoreError>;
+
+    fn is_restore_pending(&self, dir: &Path) -> bool;
+
+    /// Replaces a restore-pending record with a notice that the change has
+    /// since completed and the copies remain for reference.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the notice cannot be written.
+    fn mark_completed(&self, dir: &Path) -> Result<(), StoreError>;
+
+    /// # Errors
+    /// [`StoreError`] when `dir` exists but cannot be removed.
+    fn remove_dir(&self, dir: &Path) -> Result<(), StoreError>;
+
+    /// Every directory under `parent` kept past its change, in name order.
+    ///
+    /// # Errors
+    /// [`StoreError`] when `parent` exists but cannot be listed.
+    fn kept(&self, parent: &Path) -> Result<Vec<KeptRecovery>, StoreError>;
+
+    /// Whether a person has dealt with `original`'s copy in `dir`: the
+    /// original matches it again, or the copy has been deleted.
+    fn copy_settled(&self, dir: &Path, original: &Path) -> bool;
 }
 
 /// Canonical-order JSONL append, anchored-prefix remove-by-key, and read.
@@ -127,6 +221,14 @@ mod tests {
             error.to_string(),
             "atomic rename to '/x/log' crossed a filesystem boundary"
         );
+    }
+
+    #[test]
+    fn already_exists_names_the_path() {
+        let error = StoreError::AlreadyExists {
+            path: "/x/item.md".to_owned(),
+        };
+        assert_eq!(error.to_string(), "'/x/item.md' already exists");
     }
 
     #[test]

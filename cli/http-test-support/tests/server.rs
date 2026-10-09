@@ -456,3 +456,30 @@ fn a_delayed_route_answers_its_inner_route_after_the_delay() {
     assert_eq!(answered.status, 200);
     assert_eq!(answered.body, b"payload");
 }
+
+#[test]
+fn a_status_then_shutdown_route_answers_once_then_refuses_every_connection() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post("/issue");
+    server.route(key.clone(), Route::StatusThenShutdown(503));
+    let address = server.base_url().replace("http://", "");
+
+    let response = request(&server, "POST", "/issue", &[], b"{}");
+
+    assert_eq!(response.status, 503);
+    assert_eq!(server.hits(&key), 1);
+    let refused = TcpStream::connect(&address)
+        .expect_err("the listener closed before the response was sent");
+    assert_eq!(refused.kind(), std::io::ErrorKind::ConnectionRefused);
+}
+
+#[test]
+fn a_refused_base_url_names_a_loopback_port_nothing_listens_on() {
+    let base = http_test_support::refused_base_url();
+
+    let address = base.strip_prefix("http://").expect("an http base URL");
+
+    let refused = TcpStream::connect(address)
+        .expect_err("nothing listens on the drawn port");
+    assert_eq!(refused.kind(), std::io::ErrorKind::ConnectionRefused);
+}

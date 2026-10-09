@@ -121,7 +121,9 @@ impl Transport {
     /// # Errors
     ///
     /// [`ClientError::BadPath`] before anything is sent,
-    /// [`ClientError::Transport`] for a connect, DNS or timeout failure, and
+    /// [`ClientError::NotSent`] for a connect or DNS failure on the first
+    /// attempt, [`ClientError::Transport`] for a timeout or for a connect
+    /// failure after an earlier attempt drew a response, and
     /// [`ClientError::OversizedResponse`] for a body beyond the bound.
     pub fn send(
         &self,
@@ -130,9 +132,37 @@ impl Transport {
         query: &[(&str, &str)],
         body: Option<&str>,
     ) -> Result<Received, ClientError> {
+        self.send_json(method, path, query, body, Resend::WhileRetryable)
+    }
+
+    /// Sends one request that must not be applied twice, resending it only
+    /// when the tracker throttled it: a 5xx can arrive after the request was
+    /// applied, so it is returned rather than resent.
+    ///
+    /// # Errors
+    ///
+    /// As [`Transport::send`].
+    pub fn send_unrepeatable(
+        &self,
+        method: &Method,
+        path: &str,
+        query: &[(&str, &str)],
+        body: Option<&str>,
+    ) -> Result<Received, ClientError> {
+        self.send_json(method, path, query, body, Resend::OnlyWhenThrottled)
+    }
+
+    fn send_json(
+        &self,
+        method: &Method,
+        path: &str,
+        query: &[(&str, &str)],
+        body: Option<&str>,
+        resend: Resend,
+    ) -> Result<Received, ClientError> {
         path::validate(path)?;
         let url = self.url(path, query)?;
-        self.execute(method, &url, path, &|request| match body {
+        self.execute(method, &url, path, resend, &|request| match body {
             Some(body) => request
                 .header("Content-Type", "application/json")
                 .body(body.to_owned()),
@@ -146,7 +176,8 @@ impl Transport {
     /// `X-Atlassian-Token: no-check`.
     ///
     /// The path is validated as [`Transport::send`] validates it. Attachment
-    /// paths carry no query.
+    /// paths carry no query. An upload must not land twice, so it is resent
+    /// only as [`Transport::send_unrepeatable`] resends.
     ///
     /// # Errors
     ///
@@ -161,13 +192,19 @@ impl Transport {
     ) -> Result<Received, ClientError> {
         path::validate(path)?;
         let url = self.url(path, &[])?;
-        self.execute(method, &url, path, &|request| {
-            let mut request = request.header("Content-Type", content_type);
-            for (name, value) in headers {
-                request = request.header(*name, *value);
-            }
-            request.body(body.to_vec())
-        })
+        self.execute(
+            method,
+            &url,
+            path,
+            Resend::OnlyWhenThrottled,
+            &|request| {
+                let mut request = request.header("Content-Type", content_type);
+                for (name, value) in headers {
+                    request = request.header(*name, *value);
+                }
+                request.body(body.to_vec())
+            },
+        )
     }
 
     /// The shared retry loop. `apply` attaches the body and any per-request
@@ -178,6 +215,7 @@ impl Transport {
         method: &Method,
         url: &Url,
         path: &str,
+        resend: Resend,
         apply: &dyn Fn(
             reqwest::blocking::RequestBuilder,
         ) -> reqwest::blocking::RequestBuilder,
@@ -190,10 +228,9 @@ impl Transport {
                 );
             let request = apply(request);
 
-            let response =
-                request.send().map_err(|error| ClientError::Transport {
-                    detail: connect_detail(&error),
-                })?;
+            let response = request
+                .send()
+                .map_err(|error| send_failure(&error, attempt))?;
             let status = response.status().as_u16();
             let retry_after = retry_after(&response);
             tracing::debug!(
@@ -204,7 +241,7 @@ impl Transport {
                 "jira request attempt"
             );
 
-            if !is_retryable_status(status) {
+            if !resend.allows(status) {
                 return Ok(Received {
                     status,
                     body: self.read_bounded(response)?,
@@ -289,8 +326,21 @@ fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
 }
 
-const fn is_retryable_status(status: u16) -> bool {
-    status == 429 || matches!(status, 500..600)
+/// Which answers a request may be sent again after.
+#[derive(Clone, Copy)]
+enum Resend {
+    WhileRetryable,
+    /// Only a 429 proves the request was not applied.
+    OnlyWhenThrottled,
+}
+
+impl Resend {
+    const fn allows(self, status: u16) -> bool {
+        match self {
+            Self::WhileRetryable => status == 429 || matches!(status, 500..600),
+            Self::OnlyWhenThrottled => status == 429,
+        }
+    }
 }
 
 fn retry_after(response: &reqwest::blocking::Response) -> Option<Duration> {
@@ -327,6 +377,17 @@ fn body_read_detail(error: &std::io::Error) -> String {
         "the response body could not be read — a stalled, truncated or \
          dropped body: {error}"
     )
+}
+
+/// Only a first-attempt connect failure is provably unsent: once an earlier
+/// attempt drew a retryable response, that request may have been applied.
+fn send_failure(error: &reqwest::Error, attempt: usize) -> ClientError {
+    let detail = connect_detail(error);
+    if attempt == 1 && error.is_connect() {
+        ClientError::NotSent { detail }
+    } else {
+        ClientError::Transport { detail }
+    }
 }
 
 fn connect_detail(error: &reqwest::Error) -> String {

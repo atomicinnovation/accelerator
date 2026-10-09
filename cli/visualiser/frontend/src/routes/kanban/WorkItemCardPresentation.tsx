@@ -1,5 +1,6 @@
 import { formatMtime } from "../../api/format";
 import type { IndexEntry } from "../../api/types";
+import { Chip } from "../../components/Chip/Chip";
 import { PipelineMini } from "../../components/PipelineMini/PipelineMini";
 import { formatDocId } from "../library/doc-type-id";
 import { LinkIcon } from "./icons";
@@ -60,6 +61,7 @@ export function WorkItemCardPresentation({
             {idLabel !== null && (
               <span className={`${styles.cardId} ac-kcard__id`}>{idLabel}</span>
             )}
+            {entry.draft && <Chip variant="amber">Draft</Chip>}
           </span>
           {entry.completeness != null && (
             <PipelineMini completeness={entry.completeness} />

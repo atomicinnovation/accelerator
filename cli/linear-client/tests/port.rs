@@ -81,6 +81,31 @@ fn search_body(identifiers: &[&str], next: Option<&str>) -> String {
 }
 
 #[test]
+fn create_targets_the_configured_linear_team() {
+    let server = MockHTTPServer::start();
+    let key = RequestKey::post(GRAPHQL);
+    server.route(
+        key.clone(),
+        json_route(
+            "{\"data\":{\"issueCreate\":{\"success\":true,\
+             \"issue\":{\"id\":\"u\",\"identifier\":\"ENG-7\"}}}}"
+                .to_owned(),
+        ),
+    );
+
+    let created = client_for(&server, brief())
+        .create("A title", "A body\n", "task")
+        .expect("create succeeds");
+
+    assert_eq!(created, id("ENG-7"));
+    let sent: Value =
+        serde_json::from_slice(&server.last_body(&key).expect("a body"))
+            .expect("JSON");
+    assert_eq!(TEAM_KEY, "ENG");
+    assert_eq!(sent["variables"]["input"]["teamId"], TEAM_ID);
+}
+
+#[test]
 fn create_sends_the_mutation_and_returns_the_identifier() {
     let server = MockHTTPServer::start();
     let key = RequestKey::post(GRAPHQL);
@@ -431,6 +456,25 @@ fn a_failed_search_reports_every_unfound_id_indeterminate() {
         .fetch_all(&[id("ENG-1"), id("ENG-2")])
         .expect("a transport-level failure is an Ok with the partition");
 
+    assert!(outcome.absent.is_empty());
+    assert_eq!(outcome.indeterminate.len(), 2);
+}
+
+#[test]
+fn a_page_holding_an_identifier_not_shaped_like_an_issue_key_is_indeterminate()
+{
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(search_body(&["ENG-1", "../../etc"], None)),
+    );
+    let client = client_for(&server, brief());
+
+    let outcome = client
+        .fetch_all(&[id("ENG-1"), id("ENG-2")])
+        .expect("a malformed page is an Ok with the partition");
+
+    assert!(outcome.found.is_empty());
     assert!(outcome.absent.is_empty());
     assert_eq!(outcome.indeterminate.len(), 2);
 }
@@ -1160,4 +1204,122 @@ fn a_label_filter_fetches_workspace_labels_only_when_the_catalogue_lacks_them()
         );
         assert_eq!(sent_filter(&server)["labels"]["id"]["eq"], "l-bug");
     }
+}
+
+fn fixture(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("the fixture exists")
+}
+
+#[test]
+fn show_reports_the_identifier_the_tracker_returned() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(issue_body("ENG-7", "2026-01-01T00:00:00.000Z", "\"\"")),
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("ENG-7")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("ENG-7"));
+}
+
+#[test]
+fn show_of_a_team_moved_identifier_reports_the_new_identifier() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-team-moved.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let issue = client.show(&id("PP-760")).expect("show succeeds");
+
+    assert_eq!(issue.key, id("ENG-42"));
+}
+
+#[test]
+fn show_refuses_an_answer_under_an_identifier_not_shaped_like_an_issue_key() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(issue_body(
+            "PP-1/../../..",
+            "2026-01-01T00:00:00.000Z",
+            "null",
+        )),
+    );
+    let client = client_for(&server, brief());
+
+    assert!(client.show(&id("PP-760")).is_err());
+}
+
+#[test]
+fn locate_reports_not_found_for_an_unknown_identifier() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-not-found.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("ENG-999")).expect("an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_not_found_for_a_null_issue() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route("{\"data\":{\"issue\":null}}".to_owned()),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("ENG-999")).expect("an answer");
+
+    assert_eq!(located, tracker::Located::NotFound);
+}
+
+#[test]
+fn locate_reports_an_error_for_a_non_not_found_graphql_error() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(
+            "{\"errors\":[{\"message\":\"Entity not found: Issue\",\
+             \"extensions\":{\"code\":\"INTERNAL_SERVER_ERROR\"}}],\
+             \"data\":null}"
+                .to_owned(),
+        ),
+    );
+    let client = client_for(&server, brief());
+
+    let error = client
+        .locate(&id("ENG-999"))
+        .expect_err("only the structured not-found code is an absence");
+
+    assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");
+}
+
+#[test]
+fn locate_of_a_team_moved_identifier_finds_the_issue_under_its_new_one() {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post(GRAPHQL),
+        json_route(fixture("issue-team-moved.golden.json")),
+    );
+    let client = client_for(&server, brief());
+
+    let located = client.locate(&id("PP-760")).expect("an answer");
+
+    let tracker::Located::Found(issue) = located else {
+        panic!("the moved issue is found");
+    };
+    assert_eq!(issue.key, id("ENG-42"));
 }

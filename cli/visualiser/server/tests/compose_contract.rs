@@ -183,6 +183,27 @@ fn unconfigured_project_uses_catalogue_defaults() {
     assert!(work_item.key.is_none());
 }
 
+#[test]
+fn the_visualiser_composes_under_a_tracker_pattern() {
+    let tmp = tempfile::tempdir().unwrap();
+    let acc = tmp.path().join(".accelerator");
+    std::fs::create_dir_all(&acc).unwrap();
+    std::fs::write(
+        acc.join("config.md"),
+        "---
+work:
+  id_pattern: \"{tracker}\"\n  integration: linear\n---\n",
+    )
+    .unwrap();
+
+    let cfg = compose(tmp.path());
+
+    let work_item = cfg.work_item.as_ref().unwrap();
+    assert_eq!(work_item.id_pattern, "{tracker}");
+    assert_eq!(work_item.scan_regex, "^([A-Za-z][A-Za-z0-9_]*-[0-9]+)-");
+    assert!(work_item.key.is_none());
+}
+
 /// The emptiness rule lives in `with_plugin_root`, so the server inherits it:
 /// an empty root refuses rather than resolving plugin templates against cwd.
 #[test]

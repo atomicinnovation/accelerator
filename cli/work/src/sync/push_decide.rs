@@ -11,6 +11,14 @@ pub enum PushOutcome {
     Retry,
     LocalSave,
     LoudTerminal,
+    Rejected,
+    /// An issue exists and no local item carries it.
+    CreatedUnwritten,
+    /// An issue exists, but a local item already claims its key.
+    CreatedBlocked,
+    /// An issue exists, and retiring the draft onto it could not restore
+    /// every path it had written.
+    RetirementIncomplete,
 }
 
 impl PushOutcome {
@@ -21,14 +29,35 @@ impl PushOutcome {
             Self::Retry => "retry",
             Self::LocalSave => "local-save",
             Self::LoudTerminal => "loud-terminal",
+            Self::Rejected => "rejected",
+            Self::CreatedUnwritten => "created-unwritten",
+            Self::CreatedBlocked => "created-blocked",
+            Self::RetirementIncomplete => "retirement-incomplete",
+        }
+    }
+
+    /// The code `work create --push` exits with once this outcome is final.
+    #[must_use]
+    pub const fn exit_code(self) -> u8 {
+        match self {
+            Self::WriteOnce | Self::LocalSave => 0,
+            Self::Retry => RETRYABLE,
+            Self::LoudTerminal
+            | Self::CreatedUnwritten
+            | Self::RetirementIncomplete => TERMINAL,
+            Self::Rejected => REJECTED,
+            Self::CreatedBlocked => AWAITING_HUMAN,
         }
     }
 }
 
+const AWAITING_HUMAN: u8 = 4;
 const RETRYABLE: u8 = 70;
+const TERMINAL: u8 = 71;
 const NOT_AVAILABLE: u8 = 72;
 const UNRECOGNISED: u8 = 73;
 const UNCONFIGURED: u8 = 74;
+const REJECTED: u8 = 75;
 
 /// Maps a dispatcher outcome to the next action.
 ///
@@ -43,7 +72,7 @@ pub const fn push_decide(
 ) -> PushOutcome {
     if code == 0 {
         return if write_failed {
-            PushOutcome::LoudTerminal
+            PushOutcome::CreatedUnwritten
         } else {
             PushOutcome::WriteOnce
         };
@@ -58,6 +87,7 @@ pub const fn push_decide(
             }
         }
         NOT_AVAILABLE | UNRECOGNISED | UNCONFIGURED => PushOutcome::LocalSave,
+        REJECTED => PushOutcome::Rejected,
         // A known terminal failure and an unknown dispatcher code both mean
         // a remote issue may exist, so both take the conservative default.
         _ => PushOutcome::LoudTerminal,

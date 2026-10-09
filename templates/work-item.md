@@ -1,6 +1,6 @@
 ---
 type: "work-item"                            # artifact-type discriminator
-id: "NNNN"                                   # local own-identity from accelerator work create; always a quoted string
+id: "NNNN"                                   # own-identity from accelerator work create (the tracker key under {tracker}, a draft- ID until promoted); always a quoted string
 title: "Title as Short Noun Phrase"
 date: "YYYY-MM-DDTHH:MM:SS+00:00"
 author: "Author Name"
@@ -17,6 +17,7 @@ derived_from: []                             # typed-linkage list: ["plan:NNNN",
 relates_to: []                               # typed-linkage list: ["work-item:NNNN", ...] or []
 source: ""                                   # typed-linkage ref: "issue-research:NNNN" or ""
 external_id: ""                              # remote tracker identifier (Jira/Linear key); may equal id or differ; presence = synced; omit when not linked
+aliases: []                                  # retired IDs of this item; omit when empty
 tags: []
 last_updated: "YYYY-MM-DDTHH:MM:SS+00:00"
 last_updated_by: "Author Name"

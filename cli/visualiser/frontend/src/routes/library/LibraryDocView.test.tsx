@@ -15,6 +15,7 @@ const mockEntry: IndexEntry = {
   relPath: "meta/plans/2026-01-01-foo.md",
   slug: "foo",
   workItemId: null,
+  draft: false,
   title: "Foo Plan",
   frontmatter: { status: "draft" },
   frontmatterState: "parsed",

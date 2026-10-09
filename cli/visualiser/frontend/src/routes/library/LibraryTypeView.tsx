@@ -281,6 +281,7 @@ export function LibraryTypeView({ type: propType }: Props) {
                 {/* biome-ignore lint/a11y/useSemanticElements: ARIA grid cell — div/span layout preserved */}
                 <span role="cell" className={styles.firstCol}>
                   {first.kind === "empty" ? "—" : first.value}
+                  {entry.draft && <Chip variant="amber">Draft</Chip>}
                 </span>
                 {/* biome-ignore lint/a11y/useSemanticElements: ARIA grid cell — div/span layout preserved */}
                 <span role="cell" className={styles.titleCell}>

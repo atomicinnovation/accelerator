@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import * as fetchModule from "../../api/fetch";
+import { makeIndexEntry } from "../../api/test-fixtures";
 import type { IndexEntry, LibraryStructureResponse } from "../../api/types";
 import {
   UnseenDocTypesContext,
@@ -55,6 +56,7 @@ const mockEntries: IndexEntry[] = [
     relPath: "meta/plans/2026-01-01-foo.md",
     slug: "foo",
     workItemId: null,
+    draft: false,
     title: "Foo Plan",
     frontmatter: { status: "draft", date: "2026-01-01" },
     frontmatterState: "parsed",
@@ -73,6 +75,7 @@ const mockEntries: IndexEntry[] = [
     relPath: "meta/plans/2026-02-01-bar.md",
     slug: "bar",
     workItemId: null,
+    draft: false,
     title: "Bar Plan",
     frontmatter: { status: "complete", date: "2026-02-01" },
     frontmatterState: "parsed",
@@ -115,6 +118,23 @@ describe("LibraryTypeView", () => {
       screen.getByRole("heading", { level: 1, name: "Plans" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/2 documents/i)).toBeInTheDocument();
+  });
+
+  it("badges a draft beside its ID", async () => {
+    vi.spyOn(fetchModule, "fetchDocs").mockResolvedValue([
+      makeIndexEntry({
+        type: "work-items",
+        relPath: "meta/work/drafts/draft-k7mq3x-idea.md",
+        slug: "idea",
+        workItemId: "draft-k7mq3x",
+        title: "An idea",
+        draft: true,
+      }),
+    ]);
+    spyOnStructure();
+    render(<LibraryTypeView type="work-items" />, { wrapper: Wrapper });
+    await screen.findByText("An idea");
+    expect(screen.getByText("Draft")).toBeInTheDocument();
   });
 
   it("renders a row for each doc", async () => {

@@ -1,6 +1,7 @@
 //! The whole-corpus sync run: plan-then-apply over the gathered facts.
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use corpus::store::AtomicWrite;
@@ -13,6 +14,7 @@ use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use work::draft_id::DraftId;
 use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
@@ -24,6 +26,8 @@ use work::sync::SyncDirection;
 use work::sync::SyncPlan;
 use work::sync::SyncState;
 
+use crate::create_request_fields;
+use crate::promotion::PromotionRow;
 use crate::sync::apply::ApplyError;
 use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
@@ -40,6 +44,7 @@ use crate::sync::fetch::GatheredRemote;
 use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
+use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::ordering;
 use crate::sync::scope;
 
@@ -80,6 +85,11 @@ pub enum RunError {
     /// `keyed_read` override), or set it to `unlimited` — is named by the
     /// caller, which resolves the cap and the config file it came from.
     KeyedReadCapped,
+    /// A retirement failed and could not restore every path it had written,
+    /// so the corpus is not known to be consistent. Nothing after it ran.
+    RetirementIncomplete {
+        message: String,
+    },
     Read(TrackerError),
     Internal(kernel::Error),
 }
@@ -119,6 +129,12 @@ pub enum ItemSelection<'a> {
         items: &'a [LocalItem],
         pull_ids: &'a [ExternalId],
     },
+    /// A whole-corpus run after the identity pass, reconciling only the
+    /// items the pass gathered facts for. Discovery and the document
+    /// watermark behave as under `All`.
+    Settled {
+        items: &'a [LocalItem],
+    },
 }
 
 pub struct SyncRequest<'a> {
@@ -144,6 +160,8 @@ pub struct SyncRequest<'a> {
     /// The scope untracked-remote discovery searches. Team/project-scoped by
     /// default so the untracked set stays bounded on a shared workspace.
     pub scope: SearchScope,
+    /// Whether a run under a tracker-owned pattern promotes its drafts.
+    pub promote: bool,
 }
 
 impl<'a> SyncRequest<'a> {
@@ -151,7 +169,8 @@ impl<'a> SyncRequest<'a> {
     pub const fn reconciled(&self) -> &'a [LocalItem] {
         match self.selection {
             ItemSelection::All => self.corpus,
-            ItemSelection::Targeted { items, .. } => items,
+            ItemSelection::Targeted { items, .. }
+            | ItemSelection::Settled { items } => items,
         }
     }
 
@@ -209,7 +228,64 @@ pub enum DiscoveryStatus {
     Failed { detail: String },
 }
 
+/// What the identity pass settled before the engine planned, so the engine
+/// treats a key it saw move as tracked even when the move was not applied.
+///
+/// Obtained only from a settlement; a run with nothing to settle uses the
+/// empty view.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SettledView {
+    followed_keys: BTreeSet<String>,
+    promoted_keys: BTreeSet<String>,
+}
+
+impl SettledView {
+    pub(crate) fn following(
+        keys: impl IntoIterator<Item = ExternalId>,
+    ) -> Self {
+        Self {
+            followed_keys: keys
+                .into_iter()
+                .map(|key| canonical_external_key(&key))
+                .collect(),
+            promoted_keys: BTreeSet::new(),
+        }
+    }
+
+    /// The same view, also knowing the keys this run promoted drafts onto:
+    /// the engine leaves those items for the next run.
+    pub(crate) fn promoting(
+        self,
+        keys: impl IntoIterator<Item = ExternalId>,
+    ) -> Self {
+        Self {
+            promoted_keys: keys
+                .into_iter()
+                .map(|key| canonical_external_key(&key))
+                .collect(),
+            ..self
+        }
+    }
+
+    pub(crate) fn promoted(&self, id: &str) -> bool {
+        self.promoted_keys
+            .contains(&canonical_external_key(&ExternalId::new(id.to_owned())))
+    }
+
+    fn follows(&self, key: &ExternalId) -> bool {
+        self.followed_keys.contains(&canonical_external_key(key))
+    }
+}
+
 pub struct RunReport {
+    /// The identity pass's rows, each keyed by the item's id when the run
+    /// started. The engine's row for the same item is not rendered.
+    pub identity: Vec<IdentityRow>,
+    /// Every draft the run set out to promote, in id order.
+    pub promotions: Vec<PromotionRow>,
+    /// Items that appeared after the identity pass read the remote, left
+    /// for the next run.
+    pub deferred: usize,
     pub reported: Vec<ReportedItem>,
     pub read_failure: Option<TrackerError>,
     pub baseline_degradation: Degradation,
@@ -264,7 +340,10 @@ fn finalise_baseline(
         .filter(|item| definitively_reconciled(item))
         .map(|item| item.planned.id.as_str())
         .collect();
-    let advance_document = matches!(selection, ItemSelection::All);
+    let advance_document = matches!(
+        selection,
+        ItemSelection::All | ItemSelection::Settled { .. }
+    );
     baseline
         .finalise_run(
             &blank_refs,
@@ -288,11 +367,11 @@ const fn definitively_reconciled(item: &ReportedItem) -> bool {
 }
 
 fn local_title_and_body(content: &str) -> (String, String) {
-    let (frontmatter, body) =
-        crate::sync::digest::split_frontmatter_and_body(content)
-            .unwrap_or_default();
-    let title =
-        work::show::read_field_raw(&frontmatter, "title").unwrap_or_default();
+    let (_, body) = crate::sync::digest::split_frontmatter_and_body(content)
+        .unwrap_or_default();
+    let title = create_request_fields::read(content)
+        .map(|fields| fields.title)
+        .unwrap_or_default();
     (title, body)
 }
 
@@ -532,12 +611,17 @@ struct Discovered {
 /// folds equal — the same folding untracked discovery applies. Shared by the
 /// targeted-pull filter (so a `pull_id` already bound locally is never
 /// re-imported) and the create-from-local double-binding guard.
-fn corpus_carries(corpus: &[LocalItem], candidate: &ExternalId) -> bool {
+fn corpus_carries(
+    corpus: &[LocalItem],
+    settled: &SettledView,
+    candidate: &ExternalId,
+) -> bool {
     let key = canonical_external_key(candidate);
-    corpus
-        .iter()
-        .filter_map(|item| item.external_id.as_ref())
-        .any(|external| canonical_external_key(external) == key)
+    settled.follows(candidate)
+        || corpus
+            .iter()
+            .filter_map(|item| item.external_id.as_ref())
+            .any(|external| canonical_external_key(external) == key)
 }
 
 /// The untracked remote issues: a `search` over `scope` minus the
@@ -547,6 +631,7 @@ fn discover_untracked(
     tracker: &dyn RemoteTracker,
     scope: &SearchScope,
     items: &[LocalItem],
+    settled: &SettledView,
 ) -> Result<Discovered, TrackerError> {
     let discovery = tracker.search(scope)?;
     let local: std::collections::BTreeSet<String> = items
@@ -564,6 +649,7 @@ fn discover_untracked(
         .map(|(id, _)| id)
         .filter(|id| seen.insert(canonical_external_key(id)))
         .filter(|id| !local.contains(&canonical_external_key(id)))
+        .filter(|id| !settled.follows(id))
         .collect();
     ids.sort_by(ordering::discovered_order);
     Ok(Discovered {
@@ -572,8 +658,9 @@ fn discover_untracked(
     })
 }
 
-/// The unsynced local drafts eligible for create-from-local: state `Unsynced`
-/// (no `external_id`), under a push-capable direction.
+/// The unsynced local items eligible for create-from-local: state `Unsynced`
+/// (no `external_id`), under a push-capable direction. A draft is excluded:
+/// it reaches the tracker only through promotion, which retires its ID.
 fn unsynced_creates<'a>(
     plan: &work::sync::SyncPlan,
     items: &'a [LocalItem],
@@ -586,6 +673,7 @@ fn unsynced_creates<'a>(
         .iter()
         .filter(|planned| planned.state == SyncState::Unsynced)
         .filter_map(|planned| items.iter().find(|item| item.id == planned.id))
+        .filter(|item| DraftId::parse(&item.id).is_none())
         .collect()
 }
 
@@ -593,13 +681,10 @@ fn unsynced_creates<'a>(
 /// own frontmatter and body. `None` when the file is unreadable or malformed.
 fn create_inputs(path: &Path) -> Option<(String, String, String)> {
     let content = std::fs::read_to_string(path).ok()?;
-    let (frontmatter, body) =
+    let (_, body) =
         crate::sync::digest::split_frontmatter_and_body(&content).ok()?;
-    let title =
-        work::show::read_field_raw(&frontmatter, "title").unwrap_or_default();
-    let kind =
-        work::show::read_field_raw(&frontmatter, "kind").unwrap_or_default();
-    Some((title, body, kind))
+    let fields = create_request_fields::read(&content).ok()?;
+    Some((fields.title, body, fields.kind))
 }
 
 /// A create report line, always `Unsynced`-stated so it renders as an action
@@ -814,12 +899,13 @@ const fn classify_keyed_read(
 fn untracked_to_import(
     ports: &SyncPorts<'_>,
     request: &SyncRequest<'_>,
+    settled: &SettledView,
 ) -> Result<(Vec<ExternalId>, DiscoveryStatus), RunError> {
     Ok(match &request.selection {
         ItemSelection::Targeted { pull_ids, .. } => {
             let confirmed: Vec<ExternalId> = pull_ids
                 .iter()
-                .filter(|id| !corpus_carries(request.corpus, id))
+                .filter(|id| !corpus_carries(request.corpus, settled, id))
                 .cloned()
                 .collect();
             if confirmed.is_empty() {
@@ -829,18 +915,13 @@ fn untracked_to_import(
                 (confirmed, DiscoveryStatus::TargetedPull { attempted })
             }
         }
-        ItemSelection::All
+        ItemSelection::All | ItemSelection::Settled { .. }
             if matches!(request.direction, SyncDirection::PushOnly) =>
         {
             (Vec::new(), DiscoveryStatus::SkippedPushOnly)
         }
-        ItemSelection::All => {
-            let prepared = ports
-                .tracker
-                .resolve_scope(&request.scope)
-                .map_err(|error| RunError::DiscoveryUnconfigured {
-                    detail: error.detail,
-                })?;
+        ItemSelection::All | ItemSelection::Settled { .. } => {
+            let prepared = resolve_discovery_scope(ports, request)?;
             let resolved = if scope::is_broadened(&request.scope) {
                 match scope::resolve_entities(ports.tracker, &prepared) {
                     Ok(resolved) => resolved,
@@ -861,7 +942,12 @@ fn untracked_to_import(
             } else {
                 prepared
             };
-            match discover_untracked(ports.tracker, &resolved, request.corpus) {
+            match discover_untracked(
+                ports.tracker,
+                &resolved,
+                request.corpus,
+                settled,
+            ) {
                 Ok(discovered) if !discovered.completeness.is_complete() => {
                     return Err(RunError::DiscoveryIncomplete {
                         found: discovered.ids.len(),
@@ -886,6 +972,39 @@ fn untracked_to_import(
     })
 }
 
+/// The configuration-only half of discovery's pre-flight: the scope must name
+/// a valid target before anything is read or written.
+fn resolve_discovery_scope(
+    ports: &SyncPorts<'_>,
+    request: &SyncRequest<'_>,
+) -> Result<SearchScope, RunError> {
+    ports
+        .tracker
+        .resolve_scope(&request.scope)
+        .map_err(|error| RunError::DiscoveryUnconfigured {
+            detail: error.detail,
+        })
+}
+
+/// Refuses a run whose discovery is misconfigured, before the identity pass
+/// changes anything.
+///
+/// # Errors
+///
+/// [`RunError::DiscoveryUnconfigured`] when a run that would search names no
+/// valid target.
+pub fn preflight(
+    ports: &SyncPorts<'_>,
+    request: &SyncRequest<'_>,
+) -> Result<(), RunError> {
+    if request.discovery_search_suppressed()
+        || matches!(request.direction, SyncDirection::PushOnly)
+    {
+        return Ok(());
+    }
+    resolve_discovery_scope(ports, request).map(|_| ())
+}
+
 /// Gathers facts, plans, discovers both create sets, and refuses before any
 /// write when the plan's pull or push count exceeds its bound.
 ///
@@ -899,6 +1018,8 @@ fn prepare_run<'a>(
     ports: &SyncPorts<'_>,
     baseline: &BaselineStore<'_>,
     request: &SyncRequest<'a>,
+    facts: Option<GatheredFacts>,
+    settled: &SettledView,
 ) -> Result<PreparedRun<'a>, RunError> {
     let run_start_epoch =
         ports.clock.run_start_epoch().map_err(RunError::Internal)?;
@@ -907,13 +1028,15 @@ fn prepare_run<'a>(
         .load()
         .map_err(|error| RunError::Internal(error.into()))?;
 
-    let facts = fetch::gather(
-        request.reconciled(),
-        &loaded_baseline,
-        ports.tracker,
-        ports.status,
-        request.strategy,
-    );
+    let facts = facts.unwrap_or_else(|| {
+        fetch::gather(
+            request.reconciled(),
+            &loaded_baseline,
+            ports.tracker,
+            ports.status,
+            request.strategy,
+        )
+    });
 
     // A capped keyed read leaves the un-read items' remote state unknown for
     // both pull and push, so abort here — before any planning or write.
@@ -940,7 +1063,7 @@ fn prepare_run<'a>(
 
     let read_failure = facts.read_failure.clone();
 
-    let (untracked, discovery) = untracked_to_import(ports, request)?;
+    let (untracked, discovery) = untracked_to_import(ports, request, settled)?;
     let creates_from_local =
         unsynced_creates(&plan, request.reconciled(), request.direction);
 
@@ -990,11 +1113,38 @@ fn prepare_run<'a>(
 ///
 /// [`RunError::Internal`] for a clock, baseline-store or planning failure;
 /// [`RunError::Refused`] when the plan would exceed the write bounds.
-#[allow(clippy::too_many_lines)]
 pub fn run<'a>(
     ports: &SyncPorts<'a>,
     baseline: &mut BaselineStore<'a>,
     request: &SyncRequest<'_>,
+) -> Result<RunReport, RunError> {
+    execute(ports, baseline, request, None, &SettledView::default())
+}
+
+/// Runs the engine over facts an identity pass already gathered, so the
+/// remote is read once per run. The facts carry each item's dirtiness, so
+/// `ports.status` is not consulted.
+///
+/// # Errors
+///
+/// As [`run`].
+pub fn run_with<'a>(
+    ports: &SyncPorts<'a>,
+    baseline: &mut BaselineStore<'a>,
+    request: &SyncRequest<'_>,
+    facts: GatheredFacts,
+    settled: &SettledView,
+) -> Result<RunReport, RunError> {
+    execute(ports, baseline, request, Some(facts), settled)
+}
+
+#[allow(clippy::too_many_lines)]
+fn execute<'a>(
+    ports: &SyncPorts<'a>,
+    baseline: &mut BaselineStore<'a>,
+    request: &SyncRequest<'_>,
+    facts: Option<GatheredFacts>,
+    settled: &SettledView,
 ) -> Result<RunReport, RunError> {
     let PreparedRun {
         run_start_epoch,
@@ -1008,7 +1158,7 @@ pub fn run<'a>(
         creates_from_local,
         index,
         dossiers,
-    } = prepare_run(ports, baseline, request)?;
+    } = prepare_run(ports, baseline, request, facts, settled)?;
 
     if matches!(request.mode, RunMode::Preview) {
         let mut reported =
@@ -1028,6 +1178,9 @@ pub fn run<'a>(
             ));
         }
         return Ok(RunReport {
+            identity: Vec::new(),
+            promotions: Vec::new(),
+            deferred: 0,
             reported,
             read_failure,
             baseline_degradation: degradation,
@@ -1042,8 +1195,9 @@ pub fn run<'a>(
         plan.actions.len() + untracked.len() + creates_from_local.len(),
     );
     let mut blank_local_hash: Vec<String> = Vec::new();
-    let carries =
-        |candidate: &ExternalId| corpus_carries(request.corpus, candidate);
+    let carries = |candidate: &ExternalId| {
+        corpus_carries(request.corpus, settled, candidate)
+    };
 
     {
         let mut applier = ItemApplier::new(
@@ -1097,6 +1251,9 @@ pub fn run<'a>(
     );
 
     Ok(RunReport {
+        identity: Vec::new(),
+        promotions: Vec::new(),
+        deferred: 0,
         reported,
         read_failure,
         baseline_degradation: degradation,

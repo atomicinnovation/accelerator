@@ -154,10 +154,68 @@ both directions.
 
 </Steps>
 
+## Let the tracker own IDs
+
+With `work.id_pattern: "{tracker}"` a work item's `id` is its Jira or
+Linear key, so `meta/work/ENG-42-add-search.md` is issue `ENG-42`. See
+the [configuration cookbook](configuration-cookbook.md#let-the-tracker-own-work-item-ids)
+for the setting and its rules.
+
+- **Pushed at creation.** When you accept the push, the tracker creates
+  the issue first and the item takes its key as `id`, filename prefix and
+  H1. The issue's description is updated to carry the same H1.
+- **Drafts.** An item no tracker has confirmed — the push was declined,
+  the tracker was unreachable, or the request failed — is saved as a
+  **draft** in `meta/work/drafts/` under a provisional `draft-xxxxxx` ID.
+  Drafts are ordinary work items: you can link to them, list them and
+  resolve them.
+- **Promotion.** `sync-work-items` promotes every draft by default: it
+  creates the issue, moves the file to the key's path, and rewrites the
+  draft ID to the key across `meta/`, recording the old ID in the item's
+  `aliases` so the draft ID still resolves. Pass `--no-promote` to leave
+  drafts alone. The summary reports `promoted` and `not promoted
+  (reason)` groups; each reason names its recovery.
+- **One draft at a time.** `accelerator work promote <draft-id>`
+  promotes one draft as sync would. For a draft whose earlier create may
+  already have reached the tracker, `--adopt <KEY>` adopts an issue that
+  exists (it is never rewritten) and `--create` accepts the risk of a
+  duplicate.
+- **Moved issues.** Under every pattern, sync follows an issue moved to
+  another project or team. Under `{tracker}` the item is renamed to the
+  new key, with the old one kept in `aliases`.
+- **Legacy items keep their IDs.** Items created before the switch keep
+  their numeric or project-coded IDs and sync by `external_id` as before.
+
+### Batches
+
+[`extract-work-items`](../reference/skills/work/extract-work-items.md)
+creates a whole batch through one `accelerator work create-batch` call
+after a single push offer. Parents are created before their children, and
+each child's `parent` names the ID its parent actually took: the key, or
+the parent's draft when it stayed one (promotion rewrites the link). Its
+summary renders one outcome per item:
+
+| Outcome | Meaning |
+|---|---|
+| `created <KEY>` | The issue exists and the item carries its key. |
+| `created <KEY> — local write failed` | The issue exists; the next sync links it. |
+| `draft — push declined` | Saved as a draft; sync promotes it. |
+| `draft — tracker unreachable` | Nothing was sent; sync promotes it. |
+| `draft — remote issue may exist` | Check the tracker, then `work promote <draft> --adopt <KEY>` or `--create`. |
+| `draft — request rejected` | Nothing was sent; the request must change. |
+| `created <KEY> — blocked by <holder>` | Another item claims the key; resolve it, then promote. |
+| `created <KEY> — local write incomplete` | Restore the named paths, then sync. |
+| `draft — already pending as <draft>` | An earlier create of the same content awaits promotion. |
+
+A pushed batch journals each entry under `.accelerator/state/`, so
+re-running it after an interruption creates only the entries it never
+reached, even when the manifest is regenerated or reordered.
+
 ## Day-to-day usage
 
 - [`create-work-item`](../reference/skills/work/create-work-item.md)
-  offers to push each new item to the tracker as it is created.
+  offers to push each new item to the tracker as it is created. Under
+  `{tracker}`, declining reads **No, save as draft**.
 - [`show-jira-issue`](../reference/skills/integrations/jira/show-jira-issue.md) /
   [`show-linear-issue`](../reference/skills/integrations/linear/show-linear-issue.md)
   and their search counterparts read the tracker directly without

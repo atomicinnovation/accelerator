@@ -88,9 +88,13 @@ export async function fetchTypes(): Promise<DocType[]> {
  *  `completeness` and `linkedCount` fields. The exported `IndexEntry`
  *  type requires both; we accept the broader shape here and narrow at
  *  the boundary. */
-type WireIndexEntry = Omit<IndexEntry, "completeness" | "linkedCount"> & {
+type WireIndexEntry = Omit<
+  IndexEntry,
+  "completeness" | "linkedCount" | "draft"
+> & {
   completeness?: IndexEntry["completeness"];
   linkedCount?: number;
+  draft?: boolean;
 };
 
 /** Normalises an `IndexEntry` shape from the wire. Servers older than the
@@ -102,6 +106,7 @@ function normaliseEntry(raw: WireIndexEntry): IndexEntry {
     ...raw,
     completeness: raw.completeness ?? null,
     linkedCount: raw.linkedCount ?? 0,
+    draft: raw.draft ?? false,
   };
 }
 

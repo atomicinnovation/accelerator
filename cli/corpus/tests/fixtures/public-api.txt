@@ -436,6 +436,25 @@ pub fn corpus::linkage::path_roots(table: &[(corpus::doc_type::DocTypeKey, std::
 pub fn corpus::linkage::pr_number(stem: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::linkage::resolve_path_target(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<(&'static str, alloc::string::String)>
 pub fn corpus::linkage::type_from_path(path: &str, table: &[(corpus::doc_type::DocTypeKey, std::path::PathBuf)]) -> core::option::Option<&'static str>
+pub mod corpus::lock
+pub enum corpus::lock::LockName
+pub corpus::lock::LockName::BatchJournal
+pub corpus::lock::LockName::Create
+pub corpus::lock::LockName::ForFile(std::path::PathBuf)
+pub corpus::lock::LockName::Retirement
+impl core::clone::Clone for corpus::lock::LockName
+pub fn corpus::lock::LockName::clone(&self) -> corpus::lock::LockName
+impl core::cmp::Eq for corpus::lock::LockName
+impl core::cmp::PartialEq for corpus::lock::LockName
+pub fn corpus::lock::LockName::eq(&self, other: &corpus::lock::LockName) -> bool
+impl core::fmt::Debug for corpus::lock::LockName
+pub fn corpus::lock::LockName::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::lock::LockName
+pub struct corpus::lock::HeldLock
+impl corpus::lock::HeldLock
+pub fn corpus::lock::HeldLock::new(guard: impl core::marker::Send + 'static) -> Self
+pub trait corpus::lock::ExclusiveLock
+pub fn corpus::lock::ExclusiveLock::acquire(&self, name: &corpus::lock::LockName) -> core::result::Result<corpus::lock::HeldLock, corpus::store::StoreError>
 pub mod corpus::metadata
 pub enum corpus::metadata::FilenameTimestampFormat
 pub corpus::metadata::FilenameTimestampFormat::CompactTime
@@ -511,6 +530,34 @@ pub fn corpus::record::Record::eq(&self, other: &corpus::record::Record) -> bool
 impl core::fmt::Debug for corpus::record::Record
 pub fn corpus::record::Record::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::record::Record
+pub mod corpus::references
+pub enum corpus::references::IdShape
+pub corpus::references::IdShape::Distinctive
+pub corpus::references::IdShape::NumericOnly
+impl core::clone::Clone for corpus::references::IdShape
+pub fn corpus::references::IdShape::clone(&self) -> corpus::references::IdShape
+impl core::cmp::Eq for corpus::references::IdShape
+impl core::cmp::PartialEq for corpus::references::IdShape
+pub fn corpus::references::IdShape::eq(&self, other: &corpus::references::IdShape) -> bool
+impl core::fmt::Debug for corpus::references::IdShape
+pub fn corpus::references::IdShape::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::references::IdShape
+impl core::marker::StructuralPartialEq for corpus::references::IdShape
+pub struct corpus::references::Renaming<'a>
+pub corpus::references::Renaming::doc_type: &'a str
+pub corpus::references::Renaming::new_id: &'a str
+pub corpus::references::Renaming::old_id: &'a str
+pub corpus::references::Renaming::path_spellings: &'a [(alloc::string::String, alloc::string::String)]
+pub corpus::references::Renaming::shape: corpus::references::IdShape
+impl<'a> core::clone::Clone for corpus::references::Renaming<'a>
+pub fn corpus::references::Renaming<'a>::clone(&self) -> corpus::references::Renaming<'a>
+impl<'a> core::cmp::Eq for corpus::references::Renaming<'a>
+impl<'a> core::cmp::PartialEq for corpus::references::Renaming<'a>
+pub fn corpus::references::Renaming<'a>::eq(&self, other: &corpus::references::Renaming<'a>) -> bool
+impl<'a> core::fmt::Debug for corpus::references::Renaming<'a>
+pub fn corpus::references::Renaming<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::StructuralPartialEq for corpus::references::Renaming<'a>
+pub fn corpus::references::rewrite_references(content: &str, renaming: &corpus::references::Renaming<'_>) -> alloc::string::String
 pub mod corpus::resolve
 pub enum corpus::resolve::InputClass
 pub corpus::resolve::InputClass::Invalid
@@ -581,7 +628,20 @@ pub fn corpus::slug::humanise_slug(stem: &str) -> alloc::string::String
 pub fn corpus::slug::strip_humanise_prefix(stem: &str) -> &str
 pub fn corpus::slug::title_case_segment(segment: &str) -> alloc::string::String
 pub mod corpus::store
+pub enum corpus::store::KeptState
+pub corpus::store::KeptState::Completed
+pub corpus::store::KeptState::RestorePending(alloc::vec::Vec<std::path::PathBuf>)
+impl core::clone::Clone for corpus::store::KeptState
+pub fn corpus::store::KeptState::clone(&self) -> corpus::store::KeptState
+impl core::cmp::Eq for corpus::store::KeptState
+impl core::cmp::PartialEq for corpus::store::KeptState
+pub fn corpus::store::KeptState::eq(&self, other: &corpus::store::KeptState) -> bool
+impl core::fmt::Debug for corpus::store::KeptState
+pub fn corpus::store::KeptState::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::KeptState
 #[non_exhaustive] pub enum corpus::store::StoreError
+pub corpus::store::StoreError::AlreadyExists
+pub corpus::store::StoreError::AlreadyExists::path: alloc::string::String
 pub corpus::store::StoreError::CrossFilesystem
 pub corpus::store::StoreError::CrossFilesystem::path: alloc::string::String
 pub corpus::store::StoreError::Io
@@ -608,14 +668,37 @@ pub fn corpus::store::StoreError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -
 impl core::fmt::Display for corpus::store::StoreError
 pub fn corpus::store::StoreError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::store::StoreError
+pub struct corpus::store::KeptRecovery
+pub corpus::store::KeptRecovery::dir: std::path::PathBuf
+pub corpus::store::KeptRecovery::state: corpus::store::KeptState
+impl core::clone::Clone for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::clone(&self) -> corpus::store::KeptRecovery
+impl core::cmp::Eq for corpus::store::KeptRecovery
+impl core::cmp::PartialEq for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::eq(&self, other: &corpus::store::KeptRecovery) -> bool
+impl core::fmt::Debug for corpus::store::KeptRecovery
+pub fn corpus::store::KeptRecovery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::store::KeptRecovery
 pub trait corpus::store::AtomicWrite
 pub fn corpus::store::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::store::ExclusiveCreate
+pub fn corpus::store::ExclusiveCreate::create_new(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::FileRemove
 pub fn corpus::store::FileRemove::remove(&self, path: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::store::RecordStore
 pub fn corpus::store::RecordStore::append_record(&self, path: &std::path::Path, record: &corpus::record::Record) -> core::result::Result<(), corpus::store::StoreError>
 pub fn corpus::store::RecordStore::read_records(&self, path: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::record::Record>, corpus::store::StoreError>
 pub fn corpus::store::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
+pub trait corpus::store::RecoveryCopies
+pub fn corpus::store::RecoveryCopies::copy_settled(&self, dir: &std::path::Path, original: &std::path::Path) -> bool
+pub fn corpus::store::RecoveryCopies::exists(&self, dir: &std::path::Path) -> bool
+pub fn corpus::store::RecoveryCopies::is_restore_pending(&self, dir: &std::path::Path) -> bool
+pub fn corpus::store::RecoveryCopies::kept(&self, parent: &std::path::Path) -> core::result::Result<alloc::vec::Vec<corpus::store::KeptRecovery>, corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::mark_completed(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::mark_restore_pending(&self, dir: &std::path::Path, unrestored: &[std::path::PathBuf]) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::prepare(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::remove_dir(&self, dir: &std::path::Path) -> core::result::Result<(), corpus::store::StoreError>
+pub fn corpus::store::RecoveryCopies::write_once(&self, dir: &std::path::Path, original: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub mod corpus::typed_ref
 pub enum corpus::typed_ref::TypedRef
 pub corpus::typed_ref::TypedRef::Adr(alloc::string::String)
@@ -692,6 +775,33 @@ pub fn corpus::work_item_id::CanonicaliseError::fmt(&self, f: &mut core::fmt::Fo
 impl core::fmt::Display for corpus::work_item_id::CanonicaliseError
 pub fn corpus::work_item_id::CanonicaliseError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::work_item_id::CanonicaliseError
+pub enum corpus::work_item_id::IdOwnership
+pub corpus::work_item_id::IdOwnership::Local
+pub corpus::work_item_id::IdOwnership::Tracker
+impl core::clone::Clone for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::clone(&self) -> corpus::work_item_id::IdOwnership
+impl core::cmp::Eq for corpus::work_item_id::IdOwnership
+impl core::cmp::PartialEq for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::eq(&self, other: &corpus::work_item_id::IdOwnership) -> bool
+impl core::fmt::Debug for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdOwnership
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
+pub enum corpus::work_item_id::IdPatternError
+pub corpus::work_item_id::IdPatternError::TrackerNeedsJiraOrLinear
+pub corpus::work_item_id::IdPatternError::TrackerNotSoleToken
+impl core::clone::Clone for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::clone(&self) -> corpus::work_item_id::IdPatternError
+impl core::cmp::Eq for corpus::work_item_id::IdPatternError
+impl core::cmp::PartialEq for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::eq(&self, other: &corpus::work_item_id::IdPatternError) -> bool
+impl core::error::Error for corpus::work_item_id::IdPatternError
+impl core::fmt::Debug for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdPatternError
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdPatternError
 pub struct corpus::work_item_id::IdScan
 pub corpus::work_item_id::IdScan::digits: alloc::string::String
 pub corpus::work_item_id::IdScan::match_end: usize
@@ -706,6 +816,7 @@ pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, toke
 pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
 pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::ownership(&self) -> corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
@@ -713,12 +824,16 @@ impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
 impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub const corpus::work_item_id::TRACKER_TOKEN: &str
 pub trait corpus::work_item_id::IdScanner
 pub fn corpus::work_item_id::IdScanner::scan(&self, text: &str) -> core::option::Option<corpus::work_item_id::IdScan>
 pub trait corpus::work_item_id::WorkItemIdCanonicaliser
 pub fn corpus::work_item_id::WorkItemIdCanonicaliser::canonicalise(&self, input: &str, pattern: &str, key_value: &str) -> core::result::Result<alloc::string::String, corpus::work_item_id::CanonicaliseError>
+pub fn corpus::work_item_id::canonical_draft_id(token: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::is_key_token(token: &str) -> bool
+pub fn corpus::work_item_id::is_tracker_key(token: &str) -> bool
 pub fn corpus::work_item_id::references_key(pattern: &str) -> bool
+pub fn corpus::work_item_id::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>
 pub enum corpus::Band
 pub corpus::Band::Ambiguous
 pub corpus::Band::Resolved
@@ -798,6 +913,33 @@ pub fn corpus::value::FrontmatterValue::eq(&self, other: &corpus::value::Frontma
 impl core::fmt::Debug for corpus::value::FrontmatterValue
 pub fn corpus::value::FrontmatterValue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::value::FrontmatterValue
+pub enum corpus::IdOwnership
+pub corpus::IdOwnership::Local
+pub corpus::IdOwnership::Tracker
+impl core::clone::Clone for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::clone(&self) -> corpus::work_item_id::IdOwnership
+impl core::cmp::Eq for corpus::work_item_id::IdOwnership
+impl core::cmp::PartialEq for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::eq(&self, other: &corpus::work_item_id::IdOwnership) -> bool
+impl core::fmt::Debug for corpus::work_item_id::IdOwnership
+pub fn corpus::work_item_id::IdOwnership::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdOwnership
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdOwnership
+pub enum corpus::IdPatternError
+pub corpus::IdPatternError::TrackerNeedsJiraOrLinear
+pub corpus::IdPatternError::TrackerNotSoleToken
+impl core::clone::Clone for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::clone(&self) -> corpus::work_item_id::IdPatternError
+impl core::cmp::Eq for corpus::work_item_id::IdPatternError
+impl core::cmp::PartialEq for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::eq(&self, other: &corpus::work_item_id::IdPatternError) -> bool
+impl core::error::Error for corpus::work_item_id::IdPatternError
+impl core::fmt::Debug for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for corpus::work_item_id::IdPatternError
+pub fn corpus::work_item_id::IdPatternError::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::work_item_id::IdPatternError
+impl core::marker::StructuralPartialEq for corpus::work_item_id::IdPatternError
 pub enum corpus::Outcome
 pub corpus::Outcome::Accepted
 pub corpus::Outcome::Edited
@@ -827,6 +969,8 @@ impl core::fmt::Debug for corpus::value::Scalar
 pub fn corpus::value::Scalar::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::value::Scalar
 #[non_exhaustive] pub enum corpus::StoreError
+pub corpus::StoreError::AlreadyExists
+pub corpus::StoreError::AlreadyExists::path: alloc::string::String
 pub corpus::StoreError::CrossFilesystem
 pub corpus::StoreError::CrossFilesystem::path: alloc::string::String
 pub corpus::StoreError::Io
@@ -952,6 +1096,7 @@ pub fn corpus::work_item_id::WorkItemIdScheme::is_canonical_id_token(&self, toke
 pub fn corpus::work_item_id::WorkItemIdScheme::is_legacy_id(id: &str) -> bool
 pub fn corpus::work_item_id::WorkItemIdScheme::normalise_id(&self, raw: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::work_item_id::WorkItemIdScheme::numeric() -> Self
+pub fn corpus::work_item_id::WorkItemIdScheme::ownership(&self) -> corpus::work_item_id::IdOwnership
 pub fn corpus::work_item_id::WorkItemIdScheme::pad_legacy_number(input: &str) -> core::option::Option<alloc::string::String>
 impl core::clone::Clone for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::clone(&self) -> corpus::work_item_id::WorkItemIdScheme
@@ -959,6 +1104,7 @@ impl core::default::Default for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::default() -> Self
 impl core::fmt::Debug for corpus::work_item_id::WorkItemIdScheme
 pub fn corpus::work_item_id::WorkItemIdScheme::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub const corpus::TRACKER_TOKEN: &str
 pub trait corpus::AtomicWrite
 pub fn corpus::AtomicWrite::write(&self, path: &std::path::Path, bytes: &[u8]) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::Clock
@@ -974,6 +1120,9 @@ pub fn corpus::RecordStore::read_records(&self, path: &std::path::Path) -> core:
 pub fn corpus::RecordStore::remove_by_key(&self, path: &std::path::Path, key: &str) -> core::result::Result<(), corpus::store::StoreError>
 pub trait corpus::RepoFactsProbe
 pub fn corpus::RepoFactsProbe::facts(&self, start: &std::path::Path) -> core::option::Option<corpus::metadata::RepositoryFacts>
+pub fn corpus::canonical_draft_id(token: &str) -> core::option::Option<alloc::string::String>
 pub fn corpus::is_key_token(token: &str) -> bool
+pub fn corpus::is_tracker_key(token: &str) -> bool
 pub fn corpus::parse_typed_ref(raw: &str) -> core::option::Option<corpus::typed_ref::TypedRef>
 pub fn corpus::references_key(pattern: &str) -> bool
+pub fn corpus::validate_id_pattern(pattern: &str, supports_tracker_ids: bool) -> core::result::Result<(), corpus::work_item_id::IdPatternError>

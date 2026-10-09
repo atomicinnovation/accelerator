@@ -18,6 +18,7 @@ use tracker::EntityScope;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::FieldResolution;
+use tracker::Located;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -412,6 +413,7 @@ impl JiraClient {
         if let Some(array) = page_body.get("issues").and_then(Value::as_array) {
             for issue in array {
                 if let Some(key) = issue.get("key").and_then(Value::as_str) {
+                    tracker_support::issue_key_is_safe(key).ok()?;
                     issues.push((
                         ExternalId::new(key.to_owned()),
                         timestamp(issue),
@@ -468,12 +470,48 @@ impl JiraClient {
             remote_projection::project_raw(Integration::Jira, Op::Body, &raw)
                 .map_err(|error| read_failure(&error.to_string()))?;
         Ok(RemoteIssue {
+            key: current_key(&payload, id)?,
             updated: timestamp(&payload),
             // The projection deliberately emits no trailing newline; the port
             // requires exactly one.
             body: port_body(&projected),
         })
     }
+
+    /// `locate`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`JiraFailure`] for every failed read other than a 404, which is the
+    /// tracker answering that no issue has the key.
+    pub fn locate_op(&self, id: &ExternalId) -> Result<Located, JiraFailure> {
+        match self.show_op(id) {
+            Ok(issue) => Ok(Located::Found(issue)),
+            Err(JiraFailure::Wire {
+                outcome: Outcome::Status(404),
+                ..
+            }) => Ok(Located::NotFound),
+            Err(failure) => Err(failure),
+        }
+    }
+}
+
+/// The key Jira answered under, which is the issue's new key when the
+/// requested one belonged to it before a project move.
+fn current_key(
+    payload: &Value,
+    requested: &ExternalId,
+) -> Result<ExternalId, JiraFailure> {
+    let Some(key) = payload.get("key").and_then(Value::as_str) else {
+        return Ok(requested.clone());
+    };
+    tracker_support::issue_key_is_safe(key).map_err(|refusal| {
+        read_failure(&format!(
+            "{requested} answered under {key:?}, which cannot be written \
+             back — {refusal}"
+        ))
+    })?;
+    Ok(ExternalId::new(key.to_owned()))
 }
 
 /// A read never produces `Terminal`: every read failure carries the `Read`
@@ -661,6 +699,10 @@ impl RemoteTracker for JiraClient {
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
         self.show_op(id).map_err(TrackerError::from)
+    }
+
+    fn locate(&self, id: &ExternalId) -> Result<Located, TrackerError> {
+        self.locate_op(id).map_err(TrackerError::from)
     }
 
     fn fetch_all(

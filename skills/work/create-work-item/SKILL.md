@@ -23,6 +23,7 @@ accelerator:web-search-researcher.
 
 **Work items directory**: !`accelerator config path work --fail-safe`
 **Active integration**: !`accelerator config work integration --fail-safe`
+**ID pattern**: !`accelerator config work id_pattern --fail-safe`
 
 The **Active integration** line gates the post-draft push offer (Step 5). The
 `accelerator config work integration` command above prints an **empty line**
@@ -31,6 +32,11 @@ when no integration is configured, so branch on the **string**: a non-empty valu
 (no push offer — behave exactly as today). This is the single resolution of the
 active tracker for this invocation; the push dispatcher is told which tracker to
 use from **this** value, so the gate and the route cannot diverge.
+
+When **ID pattern** is `{tracker}`, the tracker owns every item's `id`: a
+pushed item takes the issue's key as its `id`, and an item no tracker has
+confirmed is saved as a **draft** in `drafts/` under a provisional `draft-`
+ID, which `/sync-work-items` promotes later.
 
 ## Work Item Template
 
@@ -417,6 +423,10 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
+Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
+assigns the key on a push, and `accelerator work create` mints the draft ID
+itself, so its first stdout line is the only path to report.
+
 1. **Call `accelerator work next-number`** to get the next full ID under the
    configured pattern:
 
@@ -513,8 +523,9 @@ concurrently. Please re-run /create-work-item.
         `unresolvable` means the configured `jira.project_key` names a
         project the tracker does not hold — surface that as a pre-create
         failure **before** the gate (name `jira.project_key`) and do
-        **not** offer the push; save locally instead. A `default` source is a
-        benign fallback, not a failure.
+        **not** offer the push; save locally instead, through the step 6
+        call (no `--push`). A `default` source is a benign fallback, not a
+        failure.
       - **Exit 0, linear** → `linear\t(no user-resolvable type/project fields)`
         (the team and issue-type catalogue are fixed by `/init-linear`).
         Offer the push.
@@ -523,6 +534,14 @@ concurrently. Please re-run /create-work-item.
         could not be resolved and offer to save locally now, or retry the
         preview. The push itself carries its own retry (below), so a transient
         outage here must not strand the draft.
+      - **Any other non-zero exit** → the tracker is not usable for a push
+        (not available, unrecognised, or unconfigured). Relay the stderr
+        message and save locally.
+
+      Every "save locally" above is the step 6 `accelerator work create`
+      call with no `--push`, so under `{tracker}` it writes a draft that
+      `/sync-work-items` promotes later. Never write the file with the
+      `Write` tool, and never call `accelerator work next-number` for it.
 
       Then, when a push is still on the table:
 
@@ -534,9 +553,13 @@ concurrently. Please re-run /create-work-item.
          `/sync-work-items` (it offers to create unsynced local drafts on the
          remote), which shares this `external_id` contract.
 
+      Under `{tracker}` the second option reads **No, save as draft** —
+      save it as a draft in `drafts/`; `/sync-work-items` promotes it onto
+      a tracker key later.
+
    2. **On decline** → write the file now with `external_id` omitted (unsynced)
       via the `accelerator work create` call from step 6 (no `--push`), then go
-      to step 8.
+      to step 8. Under `{tracker}` that call writes a draft.
 
    3. **On accept** → run the **same** `accelerator work create` call with
       `--push` added (never a re-derived tracker — the CLI reads **Active
@@ -553,18 +576,39 @@ concurrently. Please re-run /create-work-item.
       duplicate-create guard all live inside `work create --push`; do **not**
       drive a retry loop yourself. On stdout it prints the written path on the
       first line and `<keyword>\t<external_id>` on the second, where the keyword
-      is one of `write-once`, `local-save`, or `loud-terminal`. Render per the
-      table below.
+      is one of `write-once`, `local-save`, `loud-terminal`, `rejected`,
+      `created-blocked`, `created-unwritten` or `retirement-incomplete`. The
+      first line is empty only for a `created-unwritten` under a numeric ID
+      pattern, where no file exists. Render per the table below.
+
+      Under `{tracker}` the call first saves the item as a draft, then creates
+      the issue and promotes the draft onto its key, so the written path is
+      `<KEY>-<slug>.md` on success and the draft's path otherwise. If it exits
+      `4` with `E_PUSH_PENDING` or `E_DRAFT_EXISTS` on stderr, an earlier
+      create of the same content is still pending and nothing was sent: relay
+      the named draft and the recovery the message gives, and do **not**
+      re-run the create.
 
    **Outcome table** (`work create --push` returns the keyword; you render the
-   message). The 70-retryable / 71-terminal contract the keywords derive from
-   is documented in `exit_codes` and cross-referenced by `work create --help`:
+   message). The 70-retryable / 71-terminal / 75-rejected contract the keywords
+   derive from is documented in `exit_codes` and cross-referenced by
+   `work create --help`:
 
    | Second-line keyword | Exit | Action |
    |---|---|---|
    | `write-once` | 0 | The remote issue was created and the file written with its `external_id`. Confirm success (step 8), echoing the returned identifier. |
-   | `local-save` | 0 | The push could not be sent (retryable and retried once, or the tracker is not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`. |
-   | `loud-terminal` | 71 | A terminal failure **at or after** the create, or the create succeeded but the write-back failed — a remote issue **may already exist**. The file was saved unsynced. Print loud non-idempotent guidance naming the saved path: do **not** blindly re-run `/create-work-item`; check the tracker, and if the issue exists reconcile via `/sync-work-items` **or** set `external_id: <KEY>` by hand. |
+   | `local-save` | 0 | The push could not be sent (the tracker is unreachable, retryable and retried once, or not available/recognised/configured) and nothing left the machine — the file was written **unsynced**. Tell the user it saved unsynced and can be pushed later via `/sync-work-items`. |
+   | `loud-terminal` | 71 | A terminal failure **at or after** the create — a remote issue **may already exist**. Print loud non-idempotent guidance naming the saved path: do **not** blindly re-run `/create-work-item`. Under a numeric ID pattern the file was saved unsynced: check the tracker, and if the issue exists reconcile via `/sync-work-items` **or** set `external_id: <KEY>` by hand. Under `{tracker}` the item is a draft whose ID is the `draft-` prefix of its filename: check the tracker, then run `accelerator work promote <draft-id> --adopt <KEY>` if the issue exists, otherwise `accelerator work promote <draft-id> --create`; never set `external_id` by hand on a draft. |
+| `rejected` | 75 | The client refused the request as invalid before sending it, so **no remote issue exists**, but re-sending the same request would be refused again. The file was saved unsynced (a draft under `{tracker}`). Relay the cause printed on stderr and tell the user the request must change (for example, the body) before it is pushed via `/sync-work-items`. |
+| `created-blocked` | 4 | The remote issue **exists**, but a local item already claims its key. The draft is kept. Relay the holder and the remedy printed on stderr; the user resolves the collision, then runs `accelerator work promote <draft>`. |
+| `created-unwritten` | 71 | The remote issue **exists** and no local item carries it yet. The next `/sync-work-items` links it (under `{tracker}`, by promoting the draft onto it). Do **not** re-run the create. |
+| `retirement-incomplete` | 71 | The remote issue **exists**, and moving the draft onto its key could not restore every file it had written. Relay the paths and the recovery directory printed on stderr; the user restores them, then runs `/sync-work-items`. |
+| `E_PUSH_PENDING` (stderr) | 4 | An earlier create of the same content is still pending. Relay the named draft and the stage-specific recovery the message gives. |
+| `E_DRAFT_EXISTS` (stderr) | 4 | The same draft already exists. Tell the user to run `accelerator work promote <draft>` or `/sync-work-items`. |
+
+   Under `{tracker}`, `local-save` and `rejected` leave the item as a draft,
+   and `loud-terminal` leaves the draft with a record that a create may have
+   reached the tracker.
 
    Because the create and the local write are one atomic CLI operation, there
    is no in-skill window where a remote issue exists but no file does — that
@@ -584,7 +628,11 @@ Work item created: `<path>`
    (`--push`) — since its slugification is authoritative; do not re-derive it
    or assume it matches step 2's preview path. When the item was saved unsynced
    (decline, `local-save`, or `loud-terminal`), say so: `Work item created
-   (unsynced): … — push later with /sync-work-items`.
+   (unsynced): … — push later with /sync-work-items`. Under `{tracker}`, report
+   the tracker key on `write-once` (`Work item created: <KEY> at <path>`), and
+   otherwise the draft path and why it is still a draft (`Work item saved as
+   draft: <path> — <reason>; /sync-work-items promotes it`), where the reason
+   is "push declined", "tracker unreachable", or the outcome table's cause.
 
 ### In enrich-existing mode
 

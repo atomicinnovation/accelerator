@@ -38,8 +38,13 @@ pub enum Outcome {
     Status(u16),
     /// A 2xx whose body is not JSON.
     NonJsonBody,
-    /// A connect, DNS or timeout failure.
+    /// A timeout, or a connect failure after the request may have been
+    /// applied.
     Transport,
+    /// A connect or DNS failure before the request left the client.
+    NotSent,
+    /// A request the client refused as invalid before sending it.
+    RequestInvalid,
 }
 
 /// Whether a wire outcome proves no mutation happened, for this operation.
@@ -50,11 +55,17 @@ pub fn classify(
     detail: &str,
 ) -> TrackerError {
     let provably_unapplied = match outcome {
-        Outcome::Status(400 | 401 | 403 | 404 | 410 | 429) => true,
+        Outcome::NotSent
+        | Outcome::RequestInvalid
+        | Outcome::Status(400 | 401 | 403 | 404 | 410 | 429) => true,
         Outcome::Status(_) | Outcome::NonJsonBody | Outcome::Transport => false,
     };
     let detail = format!("jira {}: {detail}", operation.name());
-    if provably_unapplied || !operation.mutates() {
+    if !operation.mutates() {
+        TrackerError::Retryable { detail }
+    } else if outcome == Outcome::RequestInvalid {
+        TrackerError::Rejected { detail }
+    } else if provably_unapplied {
         TrackerError::Retryable { detail }
     } else {
         TrackerError::Terminal { detail }
