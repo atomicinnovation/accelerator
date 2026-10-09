@@ -8,10 +8,10 @@ producer: "create-work-item"
 status: "ready"
 kind: "task"
 priority: "medium"
-parent: "work-item:0136"
-relates_to: ["work-item:0172", "work-item:0070", "work-item:0119", "work-item:0241", "work-item:0298", "work-item:0115", "work-item:0116", "work-item:0117", "work-item:0214", "work-item:0157"]
+parent: "work-item:0312"
+relates_to: ["work-item:0172", "work-item:0070", "work-item:0119", "work-item:0241", "work-item:0298", "work-item:0115", "work-item:0116", "work-item:0117", "work-item:0214", "work-item:0157", "work-item:0136", "work-item:0313", "work-item:0318"]
 tags: ["rust", "migration-engine", "adr", "reconciliation"]
-last_updated: "2026-10-08T23:25:59+00:00"
+last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-732"
@@ -198,7 +198,9 @@ the deleted machinery or the stale ledger path and are out of scope.
        persisted before `apply_decision` mutates the artefact
      - sticky skip and source drift
      - that the repeatable callbacks must be deterministic and
-       side-effect-free
+       side-effect-free (`emit_transformations` enumerates and never
+       mutates; m0007's mechanical phase is recorded as known
+       non-compliance tracked by work-item:0313)
      - that an unanswered TTY prompt fails the run after 30 seconds
      - the purpose of `verify_applied` and of `finalise` (see Technical
        Notes)
@@ -267,8 +269,7 @@ the deleted machinery or the stale ledger path and are out of scope.
   - In scope: body text under `skills/` and work items under `meta/work/`
     whose status is not `done`, other than this one. Today that is
     `skills/config/migrate/SKILL.md` (line 68 and the Cross-references
-    section) and work-item:0136, all of which are replaced rather than
-    annotated.
+    section), all of which are replaced rather than annotated.
   - `docs-site/src/content/docs/reference/skills/config/migrate.md` is
     gitignored and generated from `SKILL.md` by the docs build; it is
     regenerated, not edited.
@@ -358,9 +359,9 @@ the deleted machinery or the stale ledger path and are out of scope.
       `[0-9][0-9][0-9][0-9]-*.sh`, and `skills/config/migrate/migrations/`,
       then every hit lies in the ADR's Context section or its "Superseded
       design" subsection.
-- [ ] Given `skills/config/migrate/SKILL.md` and work-item:0136, when this
-      item completes, then each citation of ADR-0023, ADR-0037, or ADR-0038
-      they held before this item now cites that ADR's successor from the
+- [ ] Given `skills/config/migrate/SKILL.md`, when this item completes,
+      then each citation of ADR-0023, ADR-0037, or ADR-0038 it held before
+      this item now cites that ADR's successor from the
       Dispositions table, with no `superseded by` annotation.
 - [ ] Given body text under `skills/` and work items
       under `meta/work/` whose status is not `done` (excluding
@@ -385,9 +386,8 @@ None.
 
 - Blocked by: work-item:0172 (done — the Rust shape this item reconciles
   against stabilised at 0172's Phase 10 cutover).
-- Blocks: completion of parent work-item:0136, which closes only when every
-  child reaches a terminal status. 0136 also cites these ADRs and is
-  repointed as part of this item.
+- Blocks: completion of parent work-item:0312, which closes only when every
+  child reaches a terminal status.
 - Approval: Toby Clemson accepts each successor. The three acceptances are
   sequential gates on the critical path, and each predecessor sits in
   `superseded` from its successor's draft until that acceptance.
