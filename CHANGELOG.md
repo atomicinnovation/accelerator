@@ -62,6 +62,33 @@
   usable, it exits 25 for a failed, timed-out or oversized token command, 27
   for a token carrying a control character, and 29 for an insecure
   `config.local.md`, where all three used to exit 24.
+- **`work create --push` reports new outcomes under every ID pattern.** An
+  issue created but not written to a local file now prints
+  `created-unwritten\t<key>` and exits 71, where it printed `loud-terminal`
+  with the key. A request the tracker refuses as invalid exits 75 as
+  `rejected`, where it exited 71. Scripts that parse `work create` or
+  `work sync` outcomes need updating.
+- **A create, transition or attachment upload is no longer resent after a
+  5xx.** The Jira and Linear transports resend these only when the tracker
+  throttled them (Jira `429`, Linear `RATELIMITED`), since a gateway 5xx can
+  arrive after the request was applied. A create answered with any other 5xx
+  now reports `loud-terminal` at once and leaves a pending-push record, so the
+  next run asks before creating again rather than risking a duplicate issue.
+- **A tracker answer under a key not shaped like an issue key is refused.**
+  Jira and Linear keys must match `[A-Za-z][A-Za-z0-9_]*-[0-9]+` when they come
+  back from a create, a show or a search. A create answered otherwise is
+  `loud-terminal`; a search page holding one reports discovery as
+  incomplete.
+- **`work resolve` matches `aliases` and `external_id` as well as `id`, and
+  ignores case.** A token that names different items through different fields
+  fails with `E_RESOLVE_AMBIGUOUS` (exit 2), where the item whose `id`
+  matched exactly used to win.
+- **The Jira CLI exits 34 for a request it refuses as invalid**, where it
+  exited 21, the code for a connection failure.
+- **Downgrading needs finished promotions.** An older binary cannot read a
+  promotion record written past its first stage and aborts on it. Run
+  `work sync` or `work promote` until no draft is mid-promotion before
+  installing an earlier release.
 
 ### Added
 
@@ -176,6 +203,34 @@
   consent keys, the rule they share, and every refusal code they can report
   with its remedy. The configuration, research, collaboration and visualiser
   docs link to it.
+
+- **Tracker-owned work item IDs.** Setting `work.id_pattern: "{tracker}"`
+  with `work.integration` set to `jira` or `linear` makes the tracker's key
+  the item's `id`, filename and H1, so `meta/work/PP-760-search.md` carries
+  `id: "PP-760"`. Until the tracker confirms an issue, the item is a draft at
+  `meta/work/drafts/draft-xxxxxx-<slug>.md`. `{tracker}` must be the only
+  token in the pattern; `{{tracker}}` is a literal.
+- **Drafts are promoted on sync.** `work sync` creates each draft's issue and
+  retires the draft ID onto its key, renaming the file, recording the old ID
+  in a new `aliases` field and rewriting references across `meta/`.
+  `--no-promote` skips promotion. A draft that stays local is reported as
+  `not-promoted` with its reason.
+- **`work promote <DRAFT_ID> [--adopt <KEY> | --create]`.** Promotes one
+  draft. `--adopt` binds it to an existing issue after checking the tracker
+  holds it, and `--create` accepts the risk of a duplicate when an earlier
+  create's outcome is unknown.
+- **`work create-batch --manifest <json> [--push]`.** Creates a batch of
+  items, parents before children, linking each child to the ID its parent
+  took. A pushed batch is journalled under
+  `.accelerator/state/batch-journal/`, so rerunning it after a failure creates
+  only the entries it never reached. `extract-work-items` now creates its
+  items through this command, with a single push offer.
+- **Sync follows key changes made on the tracker.** When an issue moves
+  project or team, sync updates the item's `external_id`, and under
+  `{tracker}` retires its `id` onto the new key.
+- **Drafts in the visualiser.** Drafts in `meta/work/drafts/` appear as work
+  items, with a "Draft" badge on the kanban card and in the library list.
+  `work list` shows them as `draft`.
 
 ### Changed
 
