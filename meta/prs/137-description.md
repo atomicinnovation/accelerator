@@ -12,9 +12,9 @@ relates_to: ["work-item:0302", "work-item:0296", "work-item:0297", "work-item:02
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/137"
 pr_number: 137
 tags: []
-revision: "8025407ec5f8024c669f89c01e434a0dba9d65dc"
+revision: "021cadb4f92020ec5a4d0d9e6022381ebac90e0f"
 repository: "accelerator"
-last_updated: "2026-10-04T22:39:14+00:00"
+last_updated: "2026-10-09T18:13:29+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -103,18 +103,26 @@ later. ADR-0070 records the decision and supersedes ADR-0044.
 
 ## Testing
 
-- [x] `mise run check` exits 0. That covers format, lint and types for all four
-  components.
-- [x] Full `mise run` exits 0 after the rebase onto `main`. That includes
-  4,921 CLI unit tests (1 skipped), 2,927 tasks unit tests, 2,611 frontend
-  unit tests, 355 visualiser e2e tests, the visualiser unit and integration
-  lanes, the integration, conformance, skill-invocation and docs lanes, and
-  `public-api:check` and `pup:check`.
-  - One earlier `mise run test` failed `api_smoke` with
-    `server never became reachable`. It passed alone and on the full run; it
-    matches the server-readiness flake noted in earlier validations.
-- [x] `mise run test:integration:pup` (92 tests). The default task does not run
-  it.
+- [x] `mise run check` exits 0 after the rebase onto #149 and #150. That
+  covers format, lint, types and the crate-dependency lint for all four
+  components. The renumbering and snapshot fixes made after it touch only
+  `meta/`, `public-api.txt` and eval files.
+- [x] `public-api:check` passes at the tip and at each of the 6 commits whose
+  snapshots were corrected.
+- [x] Every CI job on the previous push (`08d30c61`) passed except the unit-test
+  lane, including integration, E2E, visual regression and `Check cli`. The
+  unit-test lane failed only on eval 11's missing benchmark run, fixed here.
+- [x] 3,095 Python unit tests pass, including `test_evals_structure.py`.
+- [ ] `cargo nextest run --workspace --all-features`: 5,540 of 5,554 passed
+  before the renumbering. Of the 14 failures:
+  - `this_repositorys_own_corpus_is_clean` caught the duplicate `0299` and
+    `ADR-0069`. It passes after the renumbering.
+  - 10 `github::octocrab_client` tests failed together, each after about 30s.
+    `update_body_succeeds` passed when rerun alone. Neither crate is changed on
+    this branch.
+  - 3 `visualiser::sse_e2e` tests timed out after about 1,900s on a loaded
+    machine.
+- [ ] Full `mise run` has not been rerun since this rebase.
 - [x] Every one of 0230's 76 acceptance-criteria tests exists: 69 Rust tests, 4
   skill evals, and 3 cases inside parameterised tests.
 - [x] Nine defects found in validation (P1–P9) are fixed, each with a test.
@@ -157,14 +165,28 @@ later. ADR-0070 records the decision and supersedes ADR-0044.
     tests that cover them.
   - `rerunning_a_create_sends_no_second_create_at_any_record_stage` does not
     exercise the `RemoteKept` or `Retiring` stages.
-- **Since the last revision.** Rebased onto `main` after #136.
-  - The docs-site audit-exceptions change is dropped. `main`'s
-    `docs-site/audit-ignores.toml` ignores the same advisory, and its check
-    also fails once a review-by date passes.
-  - This branch's `RemoveFile` port is folded into `main`'s `FileRemove`,
-    under which an already-absent file counts as removed. Retirement still
-    verifies every file it touches, under per-file locks, before its first
-    step.
-  - The re-key work item is now 0302, because `main` took 0295 and 0299.
+- **Since the last revision.** Rebased onto `main` after #149, which brings
+  the CLI crates in line with the crate-dependency rules (0299), and #150.
+  - `LockdirLock` stays in `corpus-adapters`, but builds on `store::lock`,
+    where `main` moved `acquire` and `LockOptions`. `corpus-adapters` now only
+    maps each `LockName` to its lockdir.
+  - `work-adapters` no longer reaches `vcs-adapters`. `VcsWorkingCopyStatus`
+    and the identity probes take a `vcs::RepositoryProbe`, and `work-cli`
+    injects `InProcessProbe`, including in `identity_workspace.rs` and
+    `promote.rs`.
+  - `work-adapters` keeps its real-repository retirement tests behind
+    `bash-parity`, with `vcs-adapters` as a dev-dependency only, as
+    `migrate-adapters` does. The crate-dependency lint ignores
+    dev-dependencies.
+  - `main`'s new `PatternCanonicaliser` maps this branch's
+    `PatternError::Invalid` and `TrackerHasNoNumber` to `MalformedPattern`.
+  - `main` took `0299` and `ADR-0069`, so the re-key work item is now 0302 and
+    this branch's decision is ADR-0070. The Linear sync baseline entry moved
+    with it, so the next sync sees 0302 as locally modified.
+  - `extract-work-items` eval 11 now has a recorded benchmark run.
+  - From the earlier rebase onto #136: this branch's `RemoveFile` port is
+    folded into `main`'s `FileRemove`, under which an already-absent file
+    counts as removed. Retirement still verifies every file it touches, under
+    per-file locks, before its first step.
 - ❓ The plan stays `in-progress` until the manual checks above are done.
   Decide whether to merge before or after them.
