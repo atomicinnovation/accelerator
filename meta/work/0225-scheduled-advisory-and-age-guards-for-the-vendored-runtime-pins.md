@@ -11,9 +11,9 @@ priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0196", "work-item:0219"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories"]
-last_updated: "2026-10-09T17:29:19+00:00"
+last_updated: "2026-10-09T22:01:37+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Revised after review 1 pass 6: empty browsers array is a feed failure, populated-without-revision is a pin-inconsistency abort; checks evaluated before issues open; bump-date format, future dates and initial-value rule; issue-tracker test seam; multi-request feed failures; live-feed confirmation procedure; OSV database_specific and gh dependencies."
+last_updated_note: "Initial bump dates are taken from the commit that last changed the pinned runtime version, not the specifier or a placeholder; keyring seed narrowed to the two keyring files."
 schema_version: 1
 external_id: "PP-755"
 ---
@@ -88,10 +88,14 @@ notifying an owner.
   the pin or refreshes the keyring. `pins.toml` is authoritative;
   `RELEASING.md` points at it rather than copying the dates. Age is measured
   from the bump date, never from VCS history. A bump date is a TOML local
-  date (`2026-10-09`). When first added, each is the UTC date of the
-  default-branch commit that last changed the pin's value, or for the keyring
-  the last commit changing a file under `keys/`; never the date of the change
-  that adds it.
+  date (`2026-10-09`). When first added, each is the UTC committer date of
+  the default-branch commit that last changed the **pinned runtime version**:
+  for `playwright-core`, the version the lockfile resolved, not a change to
+  the version specifier alone; for Chromium, the commit that moved
+  `playwright-core` to the version whose `browsers.json` names the pinned
+  revision, not the replacement of a placeholder; for the keyring, the last
+  commit changing `keys/nodejs-release.asc` or `keys/npm-registry.pem`.
+  It is never the date of the change that adds the bump date.
 - **Feeds** — the four external sources and the checks each serves:
 
   | Feed | Checks it serves |
@@ -429,8 +433,9 @@ Workflow and documentation:
       date form (`2026-13-01`), when the guard runs, then it exits non-zero
       naming it and opens no issue.
 - [ ] `pins.toml` carries a bump date for each pin and the keyring, each equal
-      to the UTC date of the default-branch commit that last changed that
-      pin's value, or for the keyring the last commit changing `keys/`.
+      to the UTC committer date of the default-branch commit that last
+      changed the pinned runtime version, as defined under Bump date in
+      Terms.
 - [ ] `RELEASING.md` carries a parseable `Owner:` line, each pin's and the
       keyring's maximum age, the warning window, where the bump dates live and
       the instruction to update them in the same change, the four feeds and
@@ -581,6 +586,13 @@ Decided during implementation:
 - Age is measured from an explicit bump date rather than VCS history so that
   reformatting `pins.toml` cannot reset it and fixtures stay deterministic.
   The dates sit in `pins.toml` beside the pins they describe.
+- Initial bump dates follow the pinned runtime version, not the literal
+  value in `pins.toml` or `package.json`. Playwright 1.55.1 has been the
+  resolved runtime since the 2026-05-18 bump that closed GHSA-7mvr-c777-76hp.
+  The 2026-08-24 specifier tightening and the Chromium placeholder
+  replacement did not change what users run, and seeding from them would
+  hide an already-stale runtime for 98 days. The computed seeds are in
+  `meta/research/codebase/2026-10-09-0225-scheduled-advisory-and-age-guards.md`.
 - 90 days for pins reflects Playwright's roughly monthly releases.
 - `kind` stays `task` despite the size; the two-change delivery above records
   it. The title names the runtime pins only; the keyring guards are in scope,
