@@ -9,9 +9,10 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
+blocked_by: ["work-item:0310"]
 relates_to: ["work-item:0282", "work-item:0283", "work-item:0309"]
 tags: ["research", "deep-research", "conduct", "web-profile"]
-last_updated: "2026-10-09T17:58:47+00:00"
+last_updated: "2026-10-10T17:18:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---

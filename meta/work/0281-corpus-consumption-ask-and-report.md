@@ -9,10 +9,10 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-blocked_by: ["work-item:0277", "work-item:0279"]
+blocked_by: ["work-item:0277", "work-item:0278", "work-item:0279"]
 relates_to: ["work-item:0280"]
 tags: ["research", "skills", "consumption"]
-last_updated: "2026-09-23T16:24:06+00:00"
+last_updated: "2026-10-10T17:18:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-865"
@@ -88,7 +88,8 @@ gap-detection `conduct` exist to act on it, so this item records `blocked_by`
 
 ## Dependencies
 
-- Blocked by: 0277 (findings + synthesis to read), 0279 (gap-proposal
+- Blocked by: 0277 (findings + synthesis to read), 0278 (the frontend
+  registration that renders the `report` kind), 0279 (gap-proposal
   activation — the read-only verbs depend only on 0277, but the proposed focus
   area is inert without 0279's re-invocation machinery).
 - Related: 0280 defines the multi-finding layout, the `— profiles:` suffix, and
