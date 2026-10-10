@@ -9,11 +9,11 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
-blocks: ["work-item:0290", "work-item:0320"]
+blocks: ["work-item:0290", "work-item:0320", "work-item:0330", "work-item:0331"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
-last_updated: "2026-10-10T12:40:58+00:00"
+last_updated: "2026-10-10T21:43:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -175,8 +175,18 @@ new-recipe one.
   pulled: the remote body replaces the local body and the local frontmatter
   is kept.
 - A pull of a real remote edit, or a `remote` resolution, writes the remote
-  body as defined in Defect 1. Jira pulls accept the converter's losses
-  (`strike`, `underline`, a list item's later children).
+  body as defined in Defect 1. Jira pulls accept the converter's remaining
+  losses: `underline`, which has no Markdown form.
+- The `adf` converter is extended in both directions to blockquotes, pipe
+  tables, thematic breaks, nested lists, multi-paragraph list items and
+  `strike`. Nodes with no Markdown form (`panel`, `mention`, `emoji`,
+  `inlineCard` and similar) stay unsupported.
+- A remote Jira description that `document_to_markdown` cannot render
+  (malformed ADF), or whose rendering contains an unsupported-node
+  placeholder, is never equivalent; a pull or `remote` resolution of it fails
+  that item and writes no file.
+- Promotion's check that the remote is untouched since the draft was pushed
+  compares titles exactly and bodies by equivalence.
 - A conflict dossier strips the projected title line from the remote side and
   omits sections that are equivalent. When the remote title differs from the
   local `title`, the header's `title:` line reads `<local> → <remote>`;
@@ -249,8 +259,10 @@ update.
 - Normalising anything beyond the equivalence definition above.
 - Fixing Linear's meaning-changing rewrites on push.
 - Deciding the sync authority model beyond this item's representation rule.
-- Removing the legacy recipe; a follow-up does so once `last-sync.json` holds no
+- Removing the legacy recipe; 0331 does so once `last-sync.json` holds no
   unmarked entry.
+- Migrating the string-based document consumers onto a rich document model
+  (0330).
 
 ## Acceptance Criteria
 
@@ -261,10 +273,19 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       equals the remote body as defined in Defect 1, with no projected title
       line above the H1.
 - [ ] Given a `remotely-modified` Jira-linked item whose ADF contains
-      `strike` and `underline` text and a list item with a later child, when
-      it is pulled, then the local body equals `document_to_markdown` of the
-      remote ADF, with the strike, underline and later child dropped and no
-      projected title line above the H1.
+      `strike` and `underline` text, a table and a list item with a later
+      child, when it is pulled, then the local body equals
+      `document_to_markdown` of the remote ADF, with the strike, table and
+      later child kept, the underline dropped, and no projected title line
+      above the H1.
+- [ ] Given a Jira-linked item whose remote ADF is malformed or renders with
+      an unsupported-node placeholder, when it is pulled or resolved with
+      `--resolve <id>=remote`, then the item fails and its local file's bytes
+      are unchanged.
+- [ ] Given Markdown containing a blockquote, a pipe table, a thematic break,
+      a nested list, a multi-paragraph list item or `~~strike~~`, when it is
+      converted with `markdown_to_document` then `document_to_markdown`, then
+      the result equals the input in canonical form.
 - [ ] Given a targeted pull-create (`work sync --target <remote-id>`), a
       frontmatter-kept pull and a conflict resolved with
       `--resolve <id>=remote`, each for a Linear-linked and a Jira-linked
@@ -341,15 +362,15 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       `markdown_to_document` then `document_to_markdown`, equals
       `document_to_markdown` of the remote ADF, when bodies are compared, then
       they are equivalent; given a local body `markdown_to_document` rejects
-      (blockquote, pipe table, nested list), then they are not.
+      (one containing a `\u{1e}` control character), then they are not.
 - [ ] Given a Jira-linked item whose remote ADF paragraph text differs from
       the local body, when bodies are compared, then they are not equivalent.
-- [ ] Given a baselined Jira-linked item whose local body contains a pipe
-      table and no edits on either side, when `work sync` runs, then it
-      reports `synced`.
+- [ ] Given a baselined Jira-linked item whose local body
+      `markdown_to_document` rejects and no edits on either side, when
+      `work sync` runs, then it reports `synced`.
 - [ ] Given a Jira-linked item with no baseline entry whose local body
-      contains a pipe table, when `work sync` runs, then it reports an
-      unresolved conflict.
+      `markdown_to_document` rejects, when `work sync` runs, then it reports
+      an unresolved conflict.
 - [ ] Given a golden-digest fixture holding one body per Equivalence-table
       row plus fenced code and a table, with the recipe marker and pinned
       parser version recorded beside the digests, when it runs, then every
@@ -405,22 +426,28 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       rewrite (`remote-absent`: the issue no longer exists remotely;
       `indeterminate`: the remote could not be read; an unresolved conflict;
       `--preview`), when the run ends, then the entry still has no recipe
-      marker and its hashes are byte-identical, and a later sync with no edits
-      on either side reports `synced`.
+      marker and its hashes are byte-identical, except that an unresolved
+      conflict's `local_hash` is emptied as today; and a later sync with no
+      edits on either side reports `synced`.
+- [ ] Given a promotion whose pushed draft Linear has re-serialised only by
+      cosmetic rewrites, when promotion checks the remote, then it treats the
+      remote as untouched; a remote title or real body edit is not.
 
 ## Open Questions
 
-The first three are resolved before work starts.
-
-- Which parser: `pulldown-cmark` or `comrak`? Either is pinned to an exact
-  version.
-- Does `remote-projection` depend on `jira-client`, or does `adf` move down a
-  crate?
 - Does a captured `issueCreate` read-back reproduce the Equivalence table?
-  If it does not, the table and its criteria are updated before
-  implementation.
+  If it does not, the table and its criteria are updated before equivalence
+  work starts (plan Phase 0).
 - Do the corpus items without baselines predate the `create --push` read-back
   fix? The recovery rule covers them either way.
+
+Resolved during planning:
+
+- Parser: `pulldown-cmark`, exact-pinned, `default-features = false`.
+- `adf` moves out of `jira-client` into its own technical-library crate.
+- The Markdown model and equivalence live in `corpus` (`corpus::body`); the
+  parser lives in `document` (`document::markdown`); `corpus-adapters`
+  implements the `BodyParser` port between them. 0330 builds the full model.
 
 ## Dependencies
 
@@ -450,12 +477,13 @@ The first three are resolved before work starts.
   no-title-line regression tests.
 - Related: 0213 — Conversational Conflict Resolution Flow, which defined the
   conflict dossier this item amends.
-- Internal: `split_projected` moves below `work-cli`, and Jira equivalence needs
-  `remote-projection` to reach the `adf` converter, by depending on
-  `jira-client` or by moving `adf` down a crate.
-- Before equivalence work starts: the parser is chosen and clears the repo's
-  dependency checks, the `adf` crate placement is decided, and the
-  `issueCreate` read-back is captured.
+- Internal: `split_projected` moves into `remote-projection`; `adf` moves into
+  its own crate, which `jira-client` re-exports and `work-adapters` uses for
+  the Jira round trip.
+- Before equivalence work starts: the `issueCreate` read-back is captured.
+- Follow-up: 0330 — Rich Document Model for Corpus Documents builds out the
+  minimal `corpus::body` model this item introduces.
+- Follow-up: 0331 — Remove the Legacy Sync Digest Recipe.
 - External: credentialed access to the PP Linear workspace, for the
   read-back capture, the fixture capture and the merge-time preview, whose
   result also depends on live corpus and Linear state.
@@ -523,7 +551,9 @@ The first three are resolved before work starts.
   `jira-client` or moving `adf` down a crate.
 - The `adf` dialect drops `strike`, `underline` and a `listItem`'s later
   children when rendering, and `markdown_to_document` rejects blockquotes,
-  pipe tables and nested lists; Jira pulls accept that loss.
+  pipe tables and nested lists; this item extends both directions so that
+  only `underline` and nodes with no Markdown form remain lossy.
+- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`.
 
 ## Drafting Notes
 
