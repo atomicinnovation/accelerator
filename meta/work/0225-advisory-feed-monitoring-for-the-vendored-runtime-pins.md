@@ -9,11 +9,11 @@ status: "draft"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
-relates_to: ["work-item:0196"]
+relates_to: ["work-item:0196", "work-item:0219"]
 tags: ["security", "distribution", "runtime", "playwright", "ci"]
-last_updated: "2026-09-05T00:00:00+00:00"
+last_updated: "2026-10-10T17:32:15+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Reparented under epic 0136 (Migrate Shell Scripts into a Rust CLI): belongs to the shell-to-Rust migration, its shipped cli/ crates, or the launcher runtime-cache cluster."
+last_updated_note: "Linked to 0219, whose open-or-comment issue step this item can reuse."
 schema_version: 1
 external_id: "PP-755"
 ---
@@ -68,6 +68,10 @@ the actual revisions against disclosed advisories rather than only their age.
 
 - Relates to: 0196 — the vendored-runtime work that shipped the pins and the
   age-based half of the guard.
+- Relates to: 0219 — builds an open-or-comment step that opens a GitHub issue
+  per dedup key or comments on the open one, through a dedicated measurement
+  GitHub App. Whichever of the two lands second reuses the other's step;
+  neither waits for the other.
 
 ## References
 

@@ -122,18 +122,13 @@ post-migration remnants recovered from an audit of work items numbered above
 - 0190 — acquire_lock Misclassifies an Unusable Lock Directory and Can Spin
   Unbounded on Reclaim
 - 0191 — Batch the Bootstrap's Two Shim Hashes into One sha256 Invocation
-- 0205 — Close the Warm-Dispatch Latency Measurement Method *(spike)*
 - 0215 — Remove the Cache-Hit sha256 from Warm Dispatch *(filed 2026-08-17 from
   0189's measurement; 6.05 ms of a 35.53 ms dispatch; must preserve the
   name/version binding the signature does not carry)*
 - 0216 — Close the sha2 Hardware-Intrinsics Gap *(spike: sha256 at ~550 MB/s
   against openssl's 1,708, and BLAKE2b outruns it 2.6x; may make 0215 moot)*
-- 0217 — Measure Warm Dispatch on Linux *(0189 verified darwin-arm64 only;
-  darwin-x64 and linux-arm64 have no CI lane at all)*
 - 0218 — Bound Cache-Root Growth *(`cache::find` scans a never-evicted directory
   on every dispatch)*
-- 0219 — Own the Recurring Absolute-Budget Check *(0189's primary gate is
-  re-runnable in principle and re-run by nothing)*
 
 **Post-migration remnants (reconciled 2026-09-05):** recovered from an audit of
 work items numbered above 0136 that belonged to the migration or its shipped
@@ -195,7 +190,7 @@ questions are answered:)*
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
 - Children (direct, parented to this epic): 0162–0174, 0185–0191, 0194–0200,
-  0203–0205, 0215–0219 and 0221.
+  0203, 0204, 0215, 0216, 0218 and 0221.
 - Grandchildren (covered transitively by their parent's completion): 0178–0180
   under 0166; 0210–0213 under 0171; 0206, 0207, 0209 and 0214 under 0196.
 
@@ -250,6 +245,11 @@ questions are answered:)*
   unlisted. The list, the Children line and the second Acceptance Criterion now
   derive from the real closure; the criterion references the Decomposition list
   itself rather than an ID range, which is the form that drifted.
+- **Moved the warm-dispatch measurement items out on 2026-10-10.** 0219 became
+  a standalone epic owning recurring latency measurement, and 0205 and 0217
+  moved under it. That work runs for at least 20 merges after the port is
+  complete, so it would otherwise hold this epic open. 0189 stays here, since
+  its subject is the launcher's at-most-once guarantee.
 
 ## References
 

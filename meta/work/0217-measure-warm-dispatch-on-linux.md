@@ -8,13 +8,12 @@ producer: "implement-plan"
 status: "done"
 kind: "task"
 priority: "medium"
-parent: "work-item:0136"
-blocks: ["work-item:0219"]
+parent: "work-item:0219"
 blocked_by: ["work-item:0216"]
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
-relates_to: ["work-item:0189", "work-item:0205"]
+relates_to: ["work-item:0189", "work-item:0205", "work-item:0219"]
 tags: ["cli", "launcher", "performance", "measurement"]
-last_updated: "2026-10-02T10:02:41+00:00"
+last_updated: "2026-10-10T18:25:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-746"
@@ -182,9 +181,10 @@ item resolves.
   runtime prerequisite.
 - **Relates to** 0189, which committed the harness and measured darwin-arm64,
   and 0205, which established that its findings do not transfer.
-- **Consumed by** 0219, which owns the recurring absolute-budget lane and reads
-  this item's calibrated linux entry as its calibration source.
-- **Parent**: epic 0136.
+- **Relates to** 0219, which owns the recurring warm-dispatch lane, reuses this
+  item's ceiling and floor derivation rules, and replaces this item's VM-scoped
+  linux entry with one calibrated on GitHub-hosted runners.
+- **Parent**: epic 0219.
 
 ## Assumptions
 
