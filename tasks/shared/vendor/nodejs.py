@@ -11,8 +11,8 @@ a different artifact listed in the same signed manifest.
 
 The trust anchor is the committed keyring, not anything fetched over the channel
 being verified. Populating ``keys/nodejs-release.asc`` and
-``NODE_RELEASE_FINGERPRINTS`` is a trust-anchor operation gated by
-second-person review, under the refresh procedure recorded in RELEASING.md.
+``NODE_RELEASE_FINGERPRINTS`` is a trust-anchor operation, under the refresh
+procedure recorded in RELEASING.md.
 """
 
 import hashlib

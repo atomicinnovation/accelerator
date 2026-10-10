@@ -644,3 +644,29 @@ def test_smoke_runtime_covers_every_target_natively(wf):
 
 def test_smoke_runtime_needs_the_assembly(wf):
     assert "assemble-runtime" in _needs(wf["jobs"]["smoke-runtime"])
+
+
+# --- Action pinning ----------------------------------------------------
+
+_PINNED_ACTION = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
+
+
+def _workflow_uses(path):
+    workflow = yaml.safe_load(path.read_text())
+    for job_name, step in _all_steps(workflow["jobs"]):
+        if "uses" in step:
+            yield job_name, step["uses"]
+
+
+@pytest.mark.parametrize(
+    "workflow_path",
+    sorted((REPO_ROOT / ".github/workflows").glob("*.yml")),
+    ids=lambda path: path.name,
+)
+def test_every_action_is_pinned_to_a_commit(workflow_path):
+    uses = list(_workflow_uses(workflow_path))
+    assert uses, f"{workflow_path.name} uses no action"
+    for job_name, action in uses:
+        assert _PINNED_ACTION.match(action), (
+            f"{workflow_path.name} {job_name} uses {action}, not a 40-hex SHA"
+        )
