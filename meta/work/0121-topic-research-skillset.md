@@ -9,9 +9,9 @@ status: "in-progress"
 kind: "epic"
 priority: "high"
 relates_to: ["work-item:0056"]
-children: ["work-item:0277", "work-item:0278", "work-item:0279", "work-item:0280", "work-item:0281", "work-item:0282", "work-item:0283", "work-item:0284", "work-item:0295"]
+children: ["work-item:0277", "work-item:0278", "work-item:0279", "work-item:0280", "work-item:0281", "work-item:0282", "work-item:0283", "work-item:0284", "work-item:0295", "work-item:0301", "work-item:0303", "work-item:0304", "work-item:0305", "work-item:0306", "work-item:0307", "work-item:0308", "work-item:0309", "work-item:0310", "work-item:0311"]
 tags: ["research", "skills", "deep-research", "visualiser", "infrastructure"]
-last_updated: "2026-10-08T11:53:50+00:00"
+last_updated: "2026-10-09T18:02:46+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-22"

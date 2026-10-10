@@ -105,9 +105,16 @@
   <openalex|arxiv> <search|lookup>` returns normalised records as JSON, each
   carrying a reputation tier the CLI derives from venue, version, retraction,
   and confirmed arXiv withdrawal, within a 100 s deadline. A throttled,
-  budget-exhausted, or failing source degrades to `status: "unavailable"`
-  rather than an error, and arXiv requests are paced three seconds apart
-  across every process in the project.
+  budget-exhausted, or failing source reports `status: "unavailable"`
+  rather than an error. arXiv fetches take a ticket in a project-wide
+  first-in, first-out queue, and their requests are paced three seconds
+  apart across every process in the project. A call that cannot be served
+  within its deadline reports `status: "waiting"` with its `ticket` and
+  `position`; re-presenting it with `--ticket` resumes its place, and the
+  arXiv profile does so until the call settles. A ticket that is malformed,
+  presented with other arguments, or in use by another call exits 2 with
+  `E_ARXIV_TICKET_MALFORMED`, `E_ARXIV_TICKET_MISMATCH` or
+  `E_ARXIV_TICKET_LIVE`.
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths

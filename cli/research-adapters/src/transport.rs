@@ -44,7 +44,7 @@ impl HttpTransport {
     /// `per_request`.
     ///
     /// No connection outlives its request, so nothing reaches a paced source
-    /// between the gate passes that admit each request.
+    /// outside the attempt its serving turn admits.
     ///
     /// # Errors
     ///

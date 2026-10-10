@@ -10,7 +10,6 @@ use research::sources::classify::Reason;
 use research::sources::classify::Received;
 use research::sources::classify::Response;
 use research::sources::fetch::fetch_openalex;
-use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
 use research::sources::fetch::OpenAlexFetch;
 use research::sources::fetch::OpenAlexPorts;
@@ -363,39 +362,25 @@ fn an_undecodable_body_fails() {
 
 #[test]
 fn a_gate_refusal_ends_the_call_unavailable() {
-    let harness = Harness::with_gate(RecordingGate::refusing_from(
-        1,
-        Unavailable::lock_contention(),
-    ));
+    let harness = Harness::with_gate(RecordingGate::default().refusing_from(1));
     let transport =
         ScriptedTransport::immediate(&harness.clock, vec![body(b"page")]);
 
     let outcome = harness.fetch(&transport, &search("10"), None);
 
-    assert_eq!(
-        outcome,
-        FetchOutcome::Unavailable(Unavailable::lock_contention())
-    );
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
     assert_eq!(transport.hits(), 0);
 }
 
 #[test]
 fn a_gate_refusal_after_a_retryable_attempt_reports_that_attempt() {
-    let harness = Harness::with_gate(RecordingGate::refusing_from(
-        2,
-        Unavailable::lock_contention(),
-    ));
+    let harness = Harness::with_gate(RecordingGate::default().refusing_from(2));
     let transport =
         ScriptedTransport::immediate(&harness.clock, vec![status(500)]);
 
-    let FetchOutcome::Unavailable(unavailable) =
-        harness.fetch(&transport, &search("10"), None)
-    else {
-        panic!("expected unavailable");
-    };
+    let outcome = harness.fetch(&transport, &search("10"), None);
 
-    assert_eq!(unavailable.reason(), Reason::UpstreamError);
-    assert_eq!(unavailable.cause(), Some(Cause::LockContention));
+    assert_eq!(outcome, unavailable(Reason::UpstreamError));
 }
 
 #[test]
@@ -430,6 +415,19 @@ fn no_attempt_fits_once_too_little_of_the_deadline_remains() {
     harness.clock.advance(secs(70) + Duration::from_millis(1));
     let transport =
         ScriptedTransport::immediate(&harness.clock, vec![status(500)]);
+
+    let outcome = harness.fetch(&transport, &search("10"), None);
+
+    assert_eq!(outcome, unavailable(Reason::RateLimited));
+    assert_eq!(transport.hits(), 0);
+}
+
+#[test]
+fn an_openalex_fetch_never_waits() {
+    let harness = Harness::new();
+    harness.clock.advance(secs(71));
+    let transport =
+        ScriptedTransport::immediate(&harness.clock, vec![body(b"page")]);
 
     let outcome = harness.fetch(&transport, &search("10"), None);
 

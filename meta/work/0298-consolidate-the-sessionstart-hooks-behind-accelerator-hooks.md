@@ -15,6 +15,7 @@ tags: ["hooks", "session-start", "launcher"]
 last_updated: "2026-09-25T17:53:43+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-883"
 ---
 # 0298: Consolidate the SessionStart Hooks Behind accelerator hooks session-start
 

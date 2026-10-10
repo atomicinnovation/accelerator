@@ -24,6 +24,7 @@ rustls = { workspace = true }
 roxmltree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+rand = { workspace = true }
 rustix = { workspace = true }
 sha2 = { workspace = true }
 icu_normalizer = { workspace = true }

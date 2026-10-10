@@ -10,7 +10,9 @@ use support::config_with;
 use support::fetch;
 use support::openalex_fixture;
 use support::page_of;
+use support::search_binding;
 use support::Project;
+use support::SeededTicket;
 use support::SELECT;
 
 const KEY: &str = "openalex-sentinel-key";
@@ -131,8 +133,20 @@ fn help_documents_the_families_verbs_limit_range_and_deadline() {
     let help = String::from_utf8_lossy(&output.stdout);
 
     assert_eq!(output.status.code(), Some(0));
-    for expected in ["openalex", "arxiv", "search", "lookup", "1–25", "100 s"]
-    {
+    for expected in [
+        "openalex",
+        "arxiv",
+        "search",
+        "lookup",
+        "1–25",
+        "100 s",
+        "--ticket",
+        "Re-present the ticket a waiting arXiv call printed",
+        "waiting",
+        "other than ok, unavailable or waiting",
+        "clears once that call returns",
+        "up to about 1,000 s to settle",
+    ] {
         assert!(help.contains(expected), "{expected:?} missing from {help}");
     }
 }
@@ -819,4 +833,41 @@ fn no_key_leaks_into_the_url_or_any_output() {
         assert!(!run.stderr.contains(KEY), "{}", run.stderr);
     }
     assert_eq!(failing_command.code, Some(1));
+}
+
+#[test]
+fn a_ticket_on_openalex_is_a_usage_error() {
+    let server = MockHTTPServer::start();
+
+    let run = fetch(
+        &Project::new(),
+        &server,
+        &["openalex", "search", "graphs", "--ticket", "1-aaaaaa"],
+        &[],
+    );
+
+    assert_eq!(run.code, Some(2));
+    assert_eq!(
+        run.stderr.trim(),
+        "E_RESEARCH_USAGE: --ticket applies only to arxiv fetches"
+    );
+    assert_eq!(server.hits(&works()), 0);
+}
+
+#[test]
+fn an_openalex_fetch_ignores_a_held_arxiv_lock_and_queue() {
+    let project = Project::new();
+    let server =
+        server_with(works(), json(200, openalex_fixture("search-30.json")));
+    let _arxiv = project.hold("arxiv.lock");
+    let graphs = search_binding("graphs", 10);
+    project.seed_ticket("1-aaaaaa", &SeededTicket::live(&graphs, 10));
+    let _live = project.hold_ticket("1-aaaaaa");
+    let before = project.queue_files();
+
+    let run = fetch(&project, &server, &["openalex", "search", "graphs"], &[]);
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(run.json()["status"], "ok");
+    assert_eq!(project.queue_files(), before);
 }

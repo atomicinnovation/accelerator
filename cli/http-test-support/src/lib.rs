@@ -258,6 +258,26 @@ impl MockHTTPServer {
             .unwrap_or_default()
     }
 
+    /// Every query string matching `key`, without its leading `?`, in the
+    /// order the requests arrived — the per-hit log a test needs when several
+    /// requests to one key carry different queries.
+    #[must_use]
+    pub fn queries(&self, key: &RequestKey) -> Vec<Option<String>> {
+        self.shared
+            .records
+            .lock()
+            .expect("records")
+            .get(key)
+            .map(|record| {
+                record
+                    .all
+                    .iter()
+                    .map(|received| received.query.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// The query string of the most recent request matching `key`, without
     /// its leading `?`, or `None` if there was no such request or it carried
     /// no query.

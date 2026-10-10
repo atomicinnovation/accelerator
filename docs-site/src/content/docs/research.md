@@ -45,12 +45,15 @@ OpenAlex; parentheses, quotes, and the `AND`, `OR`, and `ANDNOT` operators for
 arXiv, which then requires every remaining word), and the query is
 percent-encoded as one value, so it cannot smuggle an operator or a second
 parameter. A query empty once they are removed is a usage error. `--limit`
-takes 1–25 and defaults to 10.
+takes 1–25 and defaults to 10. `--ticket` re-presents the ticket a `waiting`
+arXiv call printed (see [Output](#output)); an OpenAlex call refuses it.
 
 **Every call finishes within 100 s of the process starting**, whatever it is
 waiting on: the credential command, pacing, retries, and each request's own
 30 s timeout all draw on that one budget. Give the call a Bash timeout of at
-least 120 s.
+least 120 s. An arXiv call that prints `waiting` keeps its place across
+re-presentations instead, so its result can take up to about 1,000 s from the
+first call to settle.
 
 ### Output
 
@@ -77,27 +80,44 @@ A source that cannot answer now:
 | `reason`           | Means                                                                  |
 |--------------------|------------------------------------------------------------------------|
 | `budget_exhausted` | OpenAlex's daily budget is spent; `authenticated` says whether a key was sent |
-| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when arXiv's pacing lock stayed held elsewhere |
+| `rate_limited`     | Throttled past every retry; `"cause":"lock_contention"` when a queued arXiv fetch passed its 900 s cap, or a fresh one ran out of budget while the queue was unusable (a re-presented one keeps its place and waits). Either way, a call that ran out mid-retry reports that retry's reason instead |
 | `upstream_error`   | Server errors, connection failures, or timeouts past every retry       |
 
 `authenticated` appears only for OpenAlex, which is how `conduct` tells a
 missing key from a spent one. A failed or unavailable call also writes one
-line to stderr naming the source, verb, final status, and attempt count, and
-never the key.
+line to stderr naming the source, verb, final status, and attempt count; a
+waiting call writes one naming its position and the `--ticket` to re-present.
+Neither line ever names the key.
+
+An arXiv call that could not be served in time keeps its place in the queue
+(see [Pacing](#pacing)):
+
+```json
+{"status":"waiting","source":"arxiv","ticket":"42-9f1c2a","position":3}
+```
+
+Re-present the same call with `--ticket 42-9f1c2a`, and repeat until the
+status is no longer `waiting`.
+
+A caller should treat any status other than `ok`, `unavailable` or `waiting`
+as `unavailable`, reporting the status verbatim as its reason.
 
 ### Exit codes
 
 | Exit | Meaning                                                          |
 |------|------------------------------------------------------------------|
-| 0    | `ok` or `unavailable` — the call worked; the source may not have |
+| 0    | `ok`, `unavailable` or `waiting` — the call worked; the source may not have |
 | 1    | A credential refusal or a rejected request, with one `E_*` line  |
-| 2    | Usage error, before any request is sent                          |
+| 2    | Usage error or refused ticket, before any request is sent; only `E_ARXIV_TICKET_LIVE` can clear without changing the call |
 
 | Code                              | Exit | Cause                                                        |
 |-----------------------------------|------|--------------------------------------------------------------|
-| `E_RESEARCH_USAGE`                | 2    | Unknown family or verb, `--limit` outside 1–25, a missing or empty query |
+| `E_RESEARCH_USAGE`                | 2    | Unknown family or verb, `--limit` outside 1–25, a missing or empty query, or `--ticket` on an OpenAlex call |
 | `E_OPENALEX_ID_MALFORMED`         | 2    | A `lookup` ID that is neither a `W…` ID nor a DOI            |
 | `E_ARXIV_ID_MALFORMED`            | 2    | A `lookup` ID that is not an arXiv ID                        |
+| `E_ARXIV_TICKET_MALFORMED`        | 2    | A `--ticket` that is not a ticket such as `42-9f1c2a`        |
+| `E_ARXIV_TICKET_MISMATCH`         | 2    | A ticket presented with other arguments than it was issued for; names the call it was issued for and which arguments differ |
+| `E_ARXIV_TICKET_LIVE`             | 2    | A ticket another call is presenting right now; clears once that call returns |
 | `E_OPENALEX_KEY_REJECTED`         | 1    | OpenAlex refused the key; names the rung that supplied it    |
 | `E_OPENALEX_UNAUTHENTICATED`      | 1    | OpenAlex refused a keyless request                           |
 | `E_RESEARCH_CLIENT_ERROR`         | 1    | Any other `4xx`, an unfollowed redirect, or an arXiv error feed |
@@ -108,8 +128,9 @@ never the key.
 ### Retries and deadlines
 
 A retryable response waits 3 s, 6 s, then 12 s between attempts, or the
-server's `Retry-After` capped at 30 s. The call stops early with
-`unavailable` when the deadline would not admit the next wait. OpenAlex budget
+server's `Retry-After` capped at 30 s. When the deadline would not admit the
+next wait, an arXiv call stops early with `waiting` and an OpenAlex call with
+`unavailable`. OpenAlex budget
 exhaustion (`409`, or a `429` whose remaining budget is below the cost of the
 request) is not retried.
 
@@ -156,16 +177,73 @@ whole call is `unavailable`: an unconfirmed withdrawal is never cited as
 arXiv admits one request every three seconds. Every arXiv request in a
 project, across processes, passes through an exclusive file lock at
 `<paths.tmp>/research/arxiv.lock` (`paths.tmp` defaults to
-`.accelerator/tmp`), which spaces requests at least 3 s from the end of the
-previous response and holds one connection at a time. A `429` or `403` defers
-every waiting process together, by up to 30 s. A call that cannot take the
-lock before its deadline ends `rate_limited` with `cause: lock_contention`,
-which in practice means too many concurrent arXiv researchers in one round.
+`.accelerator/tmp`), which holds one connection at a time and spaces each
+request at least 3 s from the end of the previous request's response. When a
+call was killed before its response ended, the next request is spaced 3.1 s
+from the killed request's send instead, since its arrival was never seen. A
+`429` or `403` defers every waiting process together, by up to 30 s. The
+lock does not coordinate across repositories on one machine. OpenAlex is not paced; its budget is enforced server-side.
 
-`arxiv-requests.log` and `arxiv-contention.log` beside the lock record one
-timestamped line per request sent and per contention. The lock does not
-coordinate across repositories on one machine. OpenAlex is not paced; its
-budget is enforced server-side.
+### The fetch queue
+
+arXiv calls take turns in a first-in, first-out queue of tickets under
+`<paths.tmp>/research/arxiv-queue/`:
+
+- **Whole-call admission.** The front ticket is admitted once the lock is
+  free and at least 33 s of its 100 s budget remain: one 3 s spacing and one
+  30 s request. It then holds the lock for every request, retry and backoff
+  it makes, including its withdrawal confirmations, and checks the same
+  serving window before each attempt.
+- **`waiting`.** A call that runs out of budget, before or after admission,
+  prints its ticket and position and keeps its place. Re-presenting the same
+  call with `--ticket` resumes it; the researcher does this until the call
+  settles. A ticket presented with other arguments exits 2 with
+  `E_ARXIV_TICKET_MISMATCH`, and one another call is presenting exits 2 with
+  `E_ARXIV_TICKET_LIVE`.
+- **Expiry and the cap.** A ticket keeps its place for 300 s after its last
+  call ended; after that it rejoins at the back with a fresh ticket. More than
+  900 s after issue, a re-presentation ends `rate_limited` with
+  `cause: lock_contention`, unless its last call ran out mid-retry, which
+  reports that retry's reason instead. A ticket issued more than 1000 s ago
+  is treated as abandoned, whatever its lock says.
+- **Killed calls.** A killed call releases its ticket's lock, so the tickets
+  behind it stop waiting on it at once. The ticket keeps its place for
+  re-presentation until 300 s after the call could last have ended.
+
+### Logs
+
+`arxiv-requests.log` beside the lock records one timestamped line per request
+sent. `arxiv-contention.log` records one line per call that ended in
+`lock_contention` with no upstream failure behind it, in the form
+`<wall ms> <kind>[ <ticket>]`. A line with only a timestamp comes from a
+session running an earlier prerelease of the plugin.
+
+| Kind              | Means                                      | Next step                                                                                                   |
+|-------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `ticket_past_cap` | The ticket waited past its 900 s cap       | Avoid overlapping `conduct` runs in one project, or re-run once the other run has finished                  |
+| `queue_unusable`  | The call ran out of budget with no place to keep | Check that `<paths.tmp>/research/arxiv-queue/` is a writable directory on a filesystem with working `flock`. While no `conduct` run is active, remove it; it is rebuilt on demand |
+
+### Limits
+
+- When `arxiv.lock` cannot be locked, on a filesystem without working `flock`
+  or after a per-call lock error, pacing runs unlocked. Neither one
+  connection at a time nor 3 s spacing is then guaranteed, and only the
+  stderr diagnostic records it.
+- When the queue itself cannot be used, a call is served without a place, and
+  ends in `lock_contention` rather than `waiting` if its budget runs out. A
+  re-presented call keeps the place its ticket already holds and still ends
+  in `waiting`.
+- The queue is fair only while every session in the project runs a plugin
+  version with this queue. An earlier one still paces through `arxiv.lock`
+  but ignores the queue, so calls queued behind it see more
+  `lock_contention`. A version whose queue records it cannot read removes
+  them once their tickets are free.
+- A ticket that has just found itself at the front takes `arxiv.lock` a
+  moment later. An earlier ticket re-presented in that moment can be passed
+  for one turn; spacing is unaffected.
+- Wall-clock steps, and a host that sleeps mid-run, can delay or hasten
+  expiry, abandonment and the cap. That costs fairness or an occasional node,
+  never spacing, which the lock enforces on every request.
 
 ## Credentials
 

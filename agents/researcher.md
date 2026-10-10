@@ -24,7 +24,8 @@ the profile's sources, and write one self-contained document.
    document.
 2. **Research the focus question** through the profile's sources. Start wide,
    then narrow. Stop when the question is answered well enough to stand on its
-   own — you are not writing a survey.
+   own — you are not writing a survey. Follow your profile's outcomes exactly,
+   including any that tell you to repeat a call before ending.
 3. **Compose the document** per the outputter, filling the frontmatter from the
    values injected into your task prompt. Run no CLI except
    `accelerator research fetch`, and only as your profile directs — every other

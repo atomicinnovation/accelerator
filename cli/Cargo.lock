@@ -4075,6 +4075,7 @@ dependencies = [
  "icu_normalizer",
  "icu_properties",
  "kernel",
+ "rand 0.9.5",
  "reqwest",
  "research",
  "roxmltree",

@@ -84,6 +84,8 @@ _NO_LAUNCHER_NEEDED = {
     "test:integration:pup": "cargo-pup, built through build:frontend:stub",
     "test:integration:tracker-contract": "cargo nextest against a live "
     "tracker; reaches no accelerator binary",
+    "test:integration:arxiv-queue-stress": "cargo nextest builds "
+    "accelerator-research itself",
     "test:integration:design-automation": "node --test against a Playwright "
     "runtime; reaches no accelerator binary",
     "test:integration:measure": "fetches the released launcher; builds nothing",
@@ -234,6 +236,8 @@ _NOT_IN_INTEGRATION_ROLLUP = {
     "holds; the offline conformance run is the enforcing route",
     "test:integration:research-exhaustive": "splices at every position, so "
     "it runs for minutes; the fixed-seed sample is the enforcing route",
+    "test:integration:arxiv-queue-stress": "real-time 30-process run takes "
+    "minutes; the default lane's queue tests are the enforcing route",
 }
 
 

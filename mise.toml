@@ -439,6 +439,14 @@ description = "Run the research guard's lexer differential at every splice posit
 depends = ["build:cli:research:dev"]
 run = "invoke test.integration.research-exhaustive"
 
+# Deliberately absent from `test:integration` and the bare default task: thirty
+# real-time fetch processes take minutes, and the default lane's queue tests
+# already enforce the queue's behaviour.
+[tasks."test:integration:arxiv-queue-stress"]
+description = "Run 30 concurrent arXiv fetches through the fair queue on the real clock (opt-in: minutes)"
+depends = ["deps:install:rust-components"]
+run = "invoke test.integration.arxiv-queue-stress"
+
 # A depends-only shim: it lets the fixture-size guard join the test:integration
 # roll-up while keeping the roll-up's guarded invariant that every member is a
 # test:integration:* task. It runs no command of its own — do not delete it as

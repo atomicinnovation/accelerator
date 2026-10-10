@@ -1,8 +1,11 @@
-//! What a call prints: compact JSON on stdout for records and unavailability,
-//! and one non-secret stderr line for a call that did not deliver.
+//! What a call prints: compact JSON on stdout for records, unavailability
+//! and a waiting ticket, and one non-secret stderr line for a call that did
+//! not deliver.
 
 use research::sources::fetch::Cause;
 use research::sources::fetch::FetchOutcome;
+use research::sources::queue::Binding;
+use research::sources::queue::TicketRejection;
 use research::sources::record::Record;
 use research::sources::record::VenueSignals;
 use research::sources::request::Family;
@@ -10,8 +13,8 @@ use serde::Serialize;
 
 use crate::fetch_command::Fetched;
 
-/// The stdout document, or `None` for a failed call, which prints only its
-/// diagnostics.
+/// The stdout document, or `None` for a failed or rejected call, which
+/// prints only its diagnostics.
 pub fn document(fetched: &Fetched) -> Option<String> {
     let document = match &fetched.outcome {
         FetchOutcome::Records(records) => Document::Ok {
@@ -24,16 +27,71 @@ pub fn document(fetched: &Fetched) -> Option<String> {
                 .then_some(fetched.authenticated),
             cause: unavailable.cause().map(Cause::code),
         },
-        FetchOutcome::Failed(_) => return None,
+        FetchOutcome::Waiting { ticket, position } => Document::Waiting {
+            source: fetched.family.code(),
+            ticket: ticket.to_string(),
+            position: position.get(),
+        },
+        FetchOutcome::Failed(_) | FetchOutcome::Rejected(_) => return None,
     };
     serde_json::to_string(&document).ok()
 }
 
-/// The line naming the source, verb, final status and attempts of a call
-/// that did not deliver records.
+/// The usage line for a ticket presented in a way the queue refuses.
+pub fn rejection(fetched: &Fetched) -> Option<String> {
+    let FetchOutcome::Rejected(rejection) = &fetched.outcome else {
+        return None;
+    };
+    Some(match rejection {
+        TicketRejection::Mismatch {
+            ticket,
+            issued,
+            differing,
+        } => {
+            let differing = differing
+                .iter()
+                .map(|argument| argument.code())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "E_ARXIV_TICKET_MISMATCH: ticket {ticket} was issued for {} \
+                 (differing: {differing}); re-present it with that call, or \
+                 drop --ticket",
+                call_as_typed(issued)
+            )
+        }
+        TicketRejection::AlreadyLive(ticket) => format!(
+            "E_ARXIV_TICKET_LIVE: ticket {ticket} is already being presented \
+             by another call; use that call's output, or re-present it once \
+             that call has returned"
+        ),
+    })
+}
+
+fn call_as_typed(binding: &Binding) -> String {
+    match binding {
+        Binding::Search { query, limit } => {
+            format!("search '{}' --limit {}", query.spelled(), limit.get())
+        }
+        Binding::Lookup(id) => format!("lookup {id}"),
+    }
+}
+
+/// The line naming the source, verb and final status of a call that did not
+/// deliver records: with its attempts, or for a waiting call its position
+/// and the ticket to re-present.
 pub fn summary(fetched: &Fetched) -> Option<String> {
     let status = match &fetched.outcome {
-        FetchOutcome::Records(_) => return None,
+        FetchOutcome::Records(_) | FetchOutcome::Rejected(_) => return None,
+        FetchOutcome::Waiting { ticket, position } => {
+            return Some(format!(
+                "research fetch: {} {} waiting at position {}; re-present \
+                 with --ticket {ticket}",
+                fetched.family.code(),
+                fetched.verb.code(),
+                position.get(),
+            ))
+        }
         FetchOutcome::Unavailable(unavailable) => {
             format!("unavailable ({})", unavailable.reason().code())
         }
@@ -63,6 +121,11 @@ enum Document<'a> {
         authenticated: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
         cause: Option<&'static str>,
+    },
+    Waiting {
+        source: &'static str,
+        ticket: String,
+        position: u32,
     },
 }
 

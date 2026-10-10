@@ -7,11 +7,11 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use research::sources::classify::Reason;
 use research::sources::fetch::Attempted;
 use research::sources::fetch::Clock;
 use research::sources::fetch::PacingGate;
-use research::sources::fetch::Unavailable;
+use research::sources::fetch::ServingTurn;
+use research::sources::fetch::WaitTooLong;
 use research::sources::schedule::Deadline;
 use rustix::fs::flock;
 use rustix::fs::FlockOperation;
@@ -19,19 +19,32 @@ use rustix::io::Errno;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::clock::millis_since_epoch;
 use crate::diagnostics::Diagnostics;
 use crate::scratch::ScratchDir;
 
-/// Admits every attempt at once. OpenAlex meters callers by budget rather
-/// than by request spacing, so there is nothing to hold or defer.
+/// Serves every call at once. OpenAlex meters callers by budget rather than
+/// by request spacing, so there is nothing to hold or defer.
 pub struct NoPacing;
 
 impl PacingGate for NoPacing {
+    fn spacing(&self) -> Duration {
+        Duration::ZERO
+    }
+
+    fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
+        Some(Box::new(Unpaced))
+    }
+}
+
+struct Unpaced;
+
+impl ServingTurn for Unpaced {
     fn paced(
         &self,
         attempt: &mut dyn FnMut() -> Attempted,
         _deadline: &Deadline,
-    ) -> Result<(), Unavailable> {
+    ) -> Result<(), WaitTooLong> {
         attempt();
         Ok(())
     }
@@ -40,18 +53,20 @@ impl PacingGate for NoPacing {
 const LOCK: &str = "arxiv.lock";
 const STATE: &str = "arxiv-pacing";
 const REQUEST_LOG: &str = "arxiv-requests.log";
-const CONTENTION_LOG: &str = "arxiv-contention.log";
 
 const SPACING: Duration = Duration::from_secs(3);
+/// A send is stamped before its request leaves, so its arrival at arXiv is
+/// unobserved and can trail the stamp by more than the next request's does.
+const SEND_MARGIN: Duration = Duration::from_millis(100);
+const SPACED_SEND: Duration = SPACING.saturating_add(SEND_MARGIN);
 const DEFERRAL_CEILING: Duration = Duration::from_secs(30);
-const POLL: Duration = Duration::from_millis(100);
 
-/// Serialises arXiv requests across every call in the project through an
-/// exclusive `flock`, holding it until the response body has been read.
+/// Serialises arXiv calls across the project through an exclusive `flock`,
+/// held by each call's turn from its first request to its last.
 ///
-/// Spacing runs from when the last request finished, not when it was sent:
-/// only then is it certain arXiv has seen it, so the next request can never
-/// arrive sooner than three seconds after it.
+/// Spacing runs from the last request's finish, when arXiv has certainly
+/// seen it. A send with no finish after it, from a call killed mid-request,
+/// is spaced from the send instead, with a margin for its unseen arrival.
 ///
 /// Its waits run on the caller's clock, so time spent here is spent from
 /// the same deadline the caller measures.
@@ -74,41 +89,6 @@ impl FilePacingGate {
         }
     }
 
-    /// The lock, once no other call holds it; `None` when this filesystem
-    /// cannot lock, in which case pacing still spaces this call's requests.
-    fn hold(&self, deadline: &Deadline) -> Result<Option<File>, Unavailable> {
-        let lock = match self.scratch.open(LOCK) {
-            Ok(lock) => lock,
-            Err(error) => {
-                self.report(&format!("{error}; pacing without the lock"));
-                return Ok(None);
-            }
-        };
-        loop {
-            match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
-                Ok(()) => return Ok(Some(lock)),
-                Err(Errno::WOULDBLOCK) => {
-                    if !deadline.admits_attempt_after(self.clock.now(), POLL) {
-                        self.report(
-                            "lock contention: another call held arXiv past \
-                             this call's deadline",
-                        );
-                        self.log(CONTENTION_LOG);
-                        return Err(Unavailable::lock_contention());
-                    }
-                    self.clock.sleep(POLL);
-                }
-                Err(errno) => {
-                    self.report(&format!(
-                        "could not lock {}: {errno}; pacing without the lock",
-                        self.scratch.path(LOCK).display()
-                    ));
-                    return Ok(None);
-                }
-            }
-        }
-    }
-
     fn stored(&self) -> PacingState {
         self.scratch
             .read(STATE)
@@ -123,15 +103,15 @@ impl FilePacingGate {
     fn store(&self, state: PacingState) {
         let written = serde_json::to_vec(&StoredState::from(state))
             .map_err(|error| error.to_string())
-            .and_then(|bytes| self.scratch.replace(STATE, &bytes));
+            .and_then(|bytes| self.scratch.replace_without_sync(STATE, &bytes));
         if let Err(error) = written {
             self.report(&error);
         }
     }
 
-    fn log(&self, name: &str) {
+    fn log_request(&self) {
         let line = millis_since_epoch(self.clock.wall_now()).to_string();
-        if let Err(error) = self.scratch.append_line(name, &line) {
+        if let Err(error) = self.scratch.append_line(REQUEST_LOG, &line) {
             self.report(&error);
         }
     }
@@ -140,28 +120,67 @@ impl FilePacingGate {
         self.diagnostics
             .report(&format!("research fetch: arxiv {detail}"));
     }
+
+    fn unlocked_turn(&self, detail: &str) -> Box<dyn ServingTurn + '_> {
+        self.report(&format!("{detail}; pacing without the lock"));
+        Box::new(ArxivTurn {
+            gate: self,
+            _lock: None,
+        })
+    }
 }
 
 impl PacingGate for FilePacingGate {
+    fn spacing(&self) -> Duration {
+        SPACING
+    }
+
+    /// A filesystem that cannot lock still gets a turn, so pacing still
+    /// spaces this call's own requests.
+    fn try_serve(&self) -> Option<Box<dyn ServingTurn + '_>> {
+        let lock = match self.scratch.open(LOCK) {
+            Ok(lock) => lock,
+            Err(error) => return Some(self.unlocked_turn(&error)),
+        };
+        match flock(&lock, FlockOperation::NonBlockingLockExclusive) {
+            Ok(()) => Some(Box::new(ArxivTurn {
+                gate: self,
+                _lock: Some(lock),
+            })),
+            Err(Errno::WOULDBLOCK) => None,
+            Err(errno) => Some(self.unlocked_turn(&format!(
+                "could not lock {}: {errno}",
+                self.scratch.path(LOCK).display()
+            ))),
+        }
+    }
+}
+
+struct ArxivTurn<'g> {
+    gate: &'g FilePacingGate,
+    _lock: Option<File>,
+}
+
+impl ServingTurn for ArxivTurn<'_> {
     fn paced(
         &self,
         attempt: &mut dyn FnMut() -> Attempted,
         deadline: &Deadline,
-    ) -> Result<(), Unavailable> {
-        let _held = self.hold(deadline)?;
-        let stored = self.stored();
-        let wait = stored.wait_at(self.clock.wall_now());
-        if !deadline.admits_attempt_after(self.clock.now(), wait) {
-            return Err(Unavailable::new(Reason::RateLimited));
+    ) -> Result<(), WaitTooLong> {
+        let gate = self.gate;
+        let wait = gate.stored().wait_at(gate.clock.wall_now());
+        if !deadline.admits_attempt_after(gate.clock.now(), wait) {
+            return Err(WaitTooLong);
         }
         if !wait.is_zero() {
-            self.clock.sleep(wait);
+            gate.clock.sleep(wait);
         }
-        self.log(REQUEST_LOG);
+        gate.store(gate.stored().sent_at(gate.clock.wall_now()));
+        gate.log_request();
         let attempted = attempt();
-        let now = self.clock.wall_now();
-        let finished = self.stored().finished_at(now);
-        self.store(attempted.defer_until.map_or(finished, |defer_until| {
+        let now = gate.clock.wall_now();
+        let finished = gate.stored().finished_at(now);
+        gate.store(attempted.defer_until.map_or(finished, |defer_until| {
             finished.deferred_until(defer_until, now)
         }));
         Ok(())
@@ -170,6 +189,7 @@ impl PacingGate for FilePacingGate {
 
 #[derive(Debug, Clone, Copy, Default)]
 struct PacingState {
+    last_sent: Option<SystemTime>,
     last_finish: Option<SystemTime>,
     not_before: Option<SystemTime>,
 }
@@ -191,10 +211,23 @@ impl PacingState {
             at.and_then(|at| at.duration_since(now).ok())
                 .map_or(Duration::ZERO, |wait| wait.min(ceiling))
         };
-        let spacing =
-            until(self.last_finish.map(|finish| finish + SPACING), SPACING);
+        let spacing = match (self.last_sent, self.last_finish) {
+            (Some(sent), finish) if finish < Some(sent) => {
+                until(Some(sent + SPACED_SEND), SPACED_SEND)
+            }
+            (_, finish) => {
+                until(finish.map(|finish| finish + SPACING), SPACING)
+            }
+        };
         let deferral = until(self.not_before, DEFERRAL_CEILING);
         spacing.max(deferral)
+    }
+
+    const fn sent_at(self, sent: SystemTime) -> Self {
+        Self {
+            last_sent: Some(sent),
+            ..self
+        }
     }
 
     const fn finished_at(self, finish: SystemTime) -> Self {
@@ -219,8 +252,12 @@ impl PacingState {
 
 #[derive(Serialize, Deserialize)]
 struct StoredState {
-    last_finish_ms: Option<u64>,
-    not_before_ms: Option<u64>,
+    #[serde(rename = "last_sent_ms", default)]
+    last_sent: Option<u64>,
+    #[serde(rename = "last_finish_ms")]
+    last_finish: Option<u64>,
+    #[serde(rename = "not_before_ms")]
+    not_before: Option<u64>,
 }
 
 impl From<StoredState> for PacingState {
@@ -229,8 +266,9 @@ impl From<StoredState> for PacingState {
             SystemTime::UNIX_EPOCH + Duration::from_millis(millis)
         };
         Self {
-            last_finish: stored.last_finish_ms.map(at),
-            not_before: stored.not_before_ms.map(at),
+            last_sent: stored.last_sent.map(at),
+            last_finish: stored.last_finish.map(at),
+            not_before: stored.not_before.map(at),
         }
     }
 }
@@ -238,20 +276,15 @@ impl From<StoredState> for PacingState {
 impl From<PacingState> for StoredState {
     fn from(state: PacingState) -> Self {
         Self {
-            last_finish_ms: state.last_finish.map(millis_since_epoch),
-            not_before_ms: state.not_before.map(millis_since_epoch),
+            last_sent: state.last_sent.map(millis_since_epoch),
+            last_finish: state.last_finish.map(millis_since_epoch),
+            not_before: state.not_before.map(millis_since_epoch),
         }
     }
 }
 
-fn millis_since_epoch(at: SystemTime) -> u64 {
-    at.duration_since(SystemTime::UNIX_EPOCH)
-        .ok()
-        .and_then(|since| u64::try_from(since.as_millis()).ok())
-        .unwrap_or_default()
-}
-
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use std::time::Duration;
     use std::time::Instant;
@@ -263,7 +296,7 @@ mod tests {
     use super::NoPacing;
 
     #[test]
-    fn every_attempt_runs_exactly_once() {
+    fn every_attempt_runs_exactly_once_without_spacing() {
         let deadline = Deadline::starting(
             Instant::now(),
             Duration::from_secs(100),
@@ -271,7 +304,8 @@ mod tests {
         );
         let mut runs = 0;
 
-        let passed = NoPacing.paced(
+        let turn = NoPacing.try_serve().expect("always served");
+        let passed = turn.paced(
             &mut || {
                 runs += 1;
                 Attempted { defer_until: None }
@@ -281,5 +315,6 @@ mod tests {
 
         assert_eq!(passed, Ok(()));
         assert_eq!(runs, 1);
+        assert_eq!(NoPacing.spacing(), Duration::ZERO);
     }
 }

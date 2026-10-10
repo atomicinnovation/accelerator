@@ -20,8 +20,9 @@ Result: pass. The Phase 5 attended checks and all 17 Phase 7 steps pass.
 Step 10 first failed on a `web` pair, because the web profile had no
 write-no-file outcome for a denied fetch. The profile now has one, and the
 re-run passes. Step 17 measured arXiv lock contention at a material rate,
-which work item 0295 takes up as a per-profile batch cap. Every scratch
-corpus validates after the runs.
+which work item 0295 takes up as a per-profile batch cap. 0295 was
+rescoped from a per-profile batch cap to a fair arXiv fetch queue. Every
+scratch corpus validates after the runs.
 
 ### Method
 
@@ -74,7 +75,7 @@ Each check used its own scratch git repository.
 | 14. Configured composer | pass | `agents.composer: my-composer` was the spawned `subagent_type`; its sentinel sentence is in the finding |
 | 15. Adversarial follow-up | pass | `1.md` refused as "follow-up 2 contains a link or host name", quarantined, and root `1` re-researched; no spawn prompt or subagent tool call contains `attacker.example`. The summary paraphrased the refusal line rather than quoting its template |
 | 16. Run ledger | pass | interrupted after batch 1 with `.conduct-run.json` present; the fresh run warned it replaced that ledger, completed and left none. A second start superseded the first, which stopped with `E_TOPIC_RESEARCH_RUN_SUPERSEDED`. A hand overwrite of `2-1.md` between batches appeared in `unexpected` and in the summary |
-| 17. arXiv contention | measured, material; 0295 raised | see below |
+| 17. arXiv contention | measured, material; 0295 raised | see below; 0295 was rescoped from a per-profile batch cap to a fair arXiv fetch queue |
 
 Whole-corpus `accelerator corpus frontmatter validate` exits 0 in all 29
 scratch projects after the runs, and none holds a `.conduct-run.json`.
@@ -117,7 +118,8 @@ offered exactly 24 level-3 nodes at cap 1.
 | Known questions within it | 13 per node, 22.4k characters, about 5.6k tokens |
 
 One node in six failing at the default concurrency is material. Work item
-0295 takes it up as a per-profile batch cap for arXiv. The
+0295 takes it up as a per-profile batch cap for arXiv. 0295 was
+rescoped from a per-profile batch cap to a fair arXiv fetch queue. The
 known-questions volume is well below the plan's 8k–24k estimate, so passing
 known questions by reference is not needed.
 

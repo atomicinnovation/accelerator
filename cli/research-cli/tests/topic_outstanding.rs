@@ -1254,3 +1254,29 @@ fn a_malformed_limit_or_run_exits_1() -> Result<(), TestError> {
     assert!(!project.ledger().exists());
     Ok(())
 }
+
+#[test]
+fn a_24_limit_offers_24_arxiv_spawns_and_counts_the_rest(
+) -> Result<(), TestError> {
+    let items = (1..=25)
+        .map(|n| format!("- [ ] Question {n}? — profiles: arxiv"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let project = small_set("arxiv-batch", &items)?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"arxiv\"]\n---\n",
+    )?;
+
+    let (plan, _) = started(&project, &["--limit", "24"])?;
+
+    let spawns = spawns_of(&plan)?;
+    assert_eq!(spawns.len(), 24, "{plan}");
+    assert!(
+        spawns.iter().all(|spawn| spawn.contains("-arxiv")),
+        "{spawns:?}"
+    );
+    assert_eq!(plan["remaining"], json!(1));
+    Ok(())
+}

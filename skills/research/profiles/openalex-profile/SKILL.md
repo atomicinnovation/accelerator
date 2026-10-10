@@ -68,7 +68,8 @@ End in exactly one of these:
 - **Records** — write the finding from the relevant records.
 - **Unavailable** — a call printed `"status":"unavailable"`. Write no file;
   your summary returns its `source`, `reason`, `authenticated`, and any
-  `cause`. If the Bash tool is not granted at all, return "Bash unavailable".
+  `cause`. Any other status counts as Unavailable, with the status as its
+  reason. If the Bash tool is not granted at all, return "Bash unavailable".
 - **Failed** — a call exited `1`. Write no file; your summary returns the
   CLI's `E_*` line verbatim.
 - **Denied** — Claude Code refused to run the fetch. Write no file; your

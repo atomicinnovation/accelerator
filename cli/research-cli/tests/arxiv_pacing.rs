@@ -20,9 +20,14 @@ use support::Project;
 const SPACING: Duration = Duration::from_secs(3);
 const STALL: Duration = Duration::from_secs(5);
 const SEARCH: [&str; 3] = ["arxiv", "search", "graphs"];
+const WITHDRAWN: &str = "2608.21129";
 
 fn query() -> RequestKey {
     RequestKey::get("/api/query")
+}
+
+fn oai() -> RequestKey {
+    RequestKey::get("/oai")
 }
 
 fn feed(name: &str) -> Route {
@@ -95,16 +100,79 @@ fn a_withdrawal_confirmation_is_spaced_three_seconds_after_its_search() {
     let project = Project::new();
     let server = MockHTTPServer::start();
     server.route(query(), feed("lookup-2608.21129.xml"));
-    server.route(RequestKey::get("/oai"), feed("oai-2608.21129.xml"));
+    server.route(oai(), feed("oai-2608.21129.xml"));
 
     finish(spawn_in_real_time(&project, &server, &SEARCH));
 
     let search = server.hit_instants(&query());
-    let confirmation = server.hit_instants(&RequestKey::get("/oai"));
+    let confirmation = server.hit_instants(&oai());
     assert_eq!(confirmation.len(), 1);
     assert!(
         confirmation[0] - search[0] >= SPACING,
         "{:?}",
         confirmation[0] - search[0]
+    );
+}
+
+#[test]
+fn no_other_invocations_request_interleaves_with_a_served_call() {
+    let project = Project::new();
+    let server = MockHTTPServer::start();
+    server.route(query(), feed("lookup-2608.21129.xml"));
+    server.route(
+        oai(),
+        Route::Sequence(vec![Route::Status(503), feed("oai-2608.21129.xml")]),
+    );
+
+    let lookup =
+        spawn_in_real_time(&project, &server, &["arxiv", "lookup", WITHDRAWN]);
+    wait_for_hits(&server, &query(), 1);
+    let search = spawn_in_real_time(&project, &server, &SEARCH);
+    wait_for_hits(&server, &query(), 2);
+    finish(search);
+    finish(lookup);
+
+    let queries = server.hit_instants(&query());
+    let confirmations = server.hit_instants(&oai());
+    assert_eq!(confirmations.len(), 2);
+    assert!(
+        queries[1] > confirmations[1],
+        "the search was sent between the lookup's requests"
+    );
+    let mut every_hit = [queries, confirmations].concat();
+    every_hit.sort();
+    for pair in every_hit.windows(2) {
+        assert!(pair[1] - pair[0] >= SPACING, "{:?}", pair[1] - pair[0]);
+    }
+}
+
+#[test]
+fn a_killed_calls_request_still_spaces_the_next() {
+    let project = Project::new();
+    let server = MockHTTPServer::start();
+    server.route(
+        query(),
+        Route::Sequence(vec![
+            Route::Stall(Duration::from_secs(60)),
+            feed("search-3.xml"),
+        ]),
+    );
+
+    let mut killed = spawn_in_real_time(&project, &server, &SEARCH);
+    wait_for_hits(&server, &query(), 1);
+    killed.kill().expect("kill");
+    killed.wait().expect("reap");
+    let reaped = Instant::now();
+    let next = spawn_in_real_time(&project, &server, &SEARCH);
+    wait_for_hits(&server, &query(), 2);
+    finish(next);
+
+    let hits = server.hit_instants(&query());
+    assert!(hits[1] - hits[0] >= SPACING, "{:?}", hits[1] - hits[0]);
+    let released = reaped.max(hits[0] + SPACING);
+    assert!(
+        hits[1] <= released + SPACING,
+        "the next request came {:?} after the lock was released",
+        hits[1] - released
     );
 }
