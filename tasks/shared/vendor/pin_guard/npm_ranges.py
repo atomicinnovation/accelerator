@@ -19,7 +19,7 @@ _OPERATOR_GAP = re.compile(r"(>=|<=|>|<|\^)\s+")
 
 
 class RangeSyntaxError(ValueError):
-    """The range uses syntax outside the supported subset."""
+    pass
 
 
 class Operator(StrEnum):

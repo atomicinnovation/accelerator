@@ -34,8 +34,6 @@ _JSON_TIMEOUT = 60
 
 
 class PayloadTooLargeError(ValueError):
-    """A response body grew past the size its caller allows."""
-
     def __init__(self, url: str, max_bytes: int) -> None:
         super().__init__(f"{url}: body exceeds {max_bytes} bytes")
         self.max_bytes = max_bytes
@@ -74,7 +72,6 @@ def post_json(
     client: httpx.Client | None = None,
     now: Now = time.monotonic,
 ) -> object:
-    """POST ``body`` as JSON to ``url`` and return the parsed JSON reply."""
     return json.loads(
         _body(
             "POST", url, json_body=body, timeout=timeout, client=client, now=now

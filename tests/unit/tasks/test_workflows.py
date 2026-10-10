@@ -646,8 +646,6 @@ def test_smoke_runtime_needs_the_assembly(wf):
     assert "assemble-runtime" in _needs(wf["jobs"]["smoke-runtime"])
 
 
-# --- Action pinning ----------------------------------------------------
-
 _PINNED_ACTION = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 

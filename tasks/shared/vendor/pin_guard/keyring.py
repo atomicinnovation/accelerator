@@ -18,7 +18,7 @@ type KeyLister = Callable[[Path], tuple[ListedKey, ...]]
 
 
 class KeyringError(LocalInputError):
-    """The Node keyring could not be listed."""
+    pass
 
 
 @dataclass(frozen=True, slots=True)
