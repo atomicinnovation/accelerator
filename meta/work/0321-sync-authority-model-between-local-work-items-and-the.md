@@ -37,8 +37,9 @@ for the filename; 0230 makes the tracker the source of truth for ids under
 canonical and trackers map onto them, while its field conflicts use last-
 writer-wins. 0051 made remote the conflict default; 0213 removed the Enter
 default; `skills/work/sync-work-items/SKILL.md` still labels the remote side
-"recommended, newer". 0296 adopted "local work items are authoritative for
-markdown representation; sync is symmetric for content".
+"recommended, newer". 0296 adopted "neither side has priority for content"
+and "the local side owns representation only while the bodies are
+equivalent".
 
 ## Requirements
 
