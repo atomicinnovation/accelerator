@@ -9,8 +9,9 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-relates_to: ["work-item:0228", "work-item:0229", "work-item:0291"]
-tags: ["sync", "tracker", "jira", "linear", "mapping", "status", "priority", "kind"]
+blocked_by: ["work-item:0296"]
+relates_to: ["work-item:0228", "work-item:0229", "work-item:0291", "work-item:0296"]
+tags: ["sync", "tracker", "jira", "linear", "mapping", "status", "priority", "kind", "title"]
 last_updated: "2026-09-20T19:15:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
@@ -26,11 +27,11 @@ external_id: "PP-876"
 
 ## Summary
 
-Synchronise work item status, kind, and priority bidirectionally between local
-items and remote trackers (Jira, Linear), via per-tracker mapping tables with
-built-in defaults and config overrides, last-writer-wins conflict resolution, and
-skip-and-warn on unmappable values. Closes two of epic 0146's field-mapping
-acceptance criteria.
+Synchronise work item status, kind, priority and title bidirectionally between
+local items and remote trackers (Jira, Linear), via per-tracker mapping tables
+with built-in defaults and config overrides, last-writer-wins conflict
+resolution, and skip-and-warn on unmappable values. Closes two of epic 0146's
+field-mapping acceptance criteria.
 
 ## Context
 
@@ -40,13 +41,17 @@ status/kind/priority mapped bidirectionally, unrealised by any child. The tracke
 differ materially: Jira has native issue type, a priority scheme, and workflow
 status changed only through transitions; Linear has native workflow state (direct
 `stateId` write) and integer priority (0=none,1=urgent,2=high,3=medium,4=low), but
-no native issue type — kind is labels-only.
+no native issue type — kind is labels-only. The title crosses the port only as
+the projected first line of `body`; 0296 strips that line and stops comparing
+it, so a remote title edit goes undetected until this story lands.
 
 ## Requirements
 
-- Extend the `RemoteTracker` port so status, kind, and priority cross it as
-  structured fields on both read (`RemoteIssue`) and write (push draft), not
+- Extend the `RemoteTracker` port so status, kind, priority and title cross it
+  as structured fields on both read (`RemoteIssue`) and write (push draft), not
   embedded in `body`.
+- Title: maps identically to Linear's `title` and Jira's `summary`, with no
+  mapping table.
 - Ship built-in per-tracker default mapping tables between Accelerator's fixed
   vocabularies (status: draft/ready/in-progress/review/done/blocked/abandoned;
   kind: story/epic/task/bug/spike; priority: high/medium/low) and each tracker's
@@ -70,6 +75,8 @@ no native issue type — kind is labels-only.
   the item, warn with item/field/value.
 - Mapped fields join the digest and baseline so divergence is detected (today only
   body is digested).
+- The baseline stores each mapped field's last-synced value, so three-way
+  resolution works per field rather than per frontmatter hash.
 
 ## Acceptance Criteria
 
@@ -90,8 +97,10 @@ no native issue type — kind is labels-only.
       field is neither pushed nor pulled for that tracker.
 - [ ] Given a Jira target status has no valid transition from the current status,
       when sync pushes, then the status is left unchanged and a warning is surfaced.
-- [ ] Given the port, when an issue is read or pushed, then status/kind/priority
-      cross it as structured fields.
+- [ ] Given the port, when an issue is read or pushed, then
+      status/kind/priority/title cross it as structured fields.
+- [ ] Given a remote title change and an unchanged local `title`, when sync
+      pulls, then the local `title` equals the remote title.
 
 ## Open Questions
 
@@ -103,18 +112,18 @@ no native issue type — kind is labels-only.
   which Jira value is written on push back?
 - Opt-out granularity: per-field per-tracker is assumed; is a global per-field
   switch also wanted?
+- Does a pulled title also rewrite the body's H1, which repeats it?
 
 ## Dependencies
 
-- Blocked by: none. 0228 (config key model) is done and 0229 (pull scope) is ready;
-  both are orthogonal.
+- Blocked by: 0296 — this story extends its baseline `Entry` and bumps its
+  digest-recipe marker. 0228 (config key model) is done and 0229 (pull scope)
+  is ready; both are orthogonal.
 - Blocks: none.
 
 ## Assumptions
 
 - Accelerator's template vocabularies are canonical; trackers map onto them.
-- The baseline already stores enough to detect three-way divergence once mapped
-  fields join the digest.
 - Jira priority and issue-type resolution is by id via the project's schemes (names
   are not guaranteed to be the defaults).
 
@@ -143,8 +152,10 @@ no native issue type — kind is labels-only.
   well"; confirm whether a global switch is also wanted.
 - Linear kind via user-defined labels, per the user's decision; no built-in default
   label table, so Linear kind mapping is config-required when enabled.
+- Title joined the field set when 0296 stopped the projected title line
+  registering as a body change.
 
 ## References
 
 - Source: `meta/work/0146-work-item-sync-enhancements.md`
-- Related: 0146 (parent), 0228, 0229, 0291
+- Related: 0146 (parent), 0228, 0229, 0291, 0296
