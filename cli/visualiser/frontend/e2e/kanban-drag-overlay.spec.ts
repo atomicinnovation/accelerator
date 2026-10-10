@@ -9,6 +9,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startDrag } from "./dnd.js";
 import { expect, test } from "./fixtures.js";
+import {
+  WATCH_REGISTRATION_BUDGET_MS,
+  writeUntilVisible,
+} from "./watched-writes.js";
 
 const FIXTURES_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -39,6 +43,7 @@ test("source card persists in its column while the lifted overlay clone renders 
 test("Escape-cancelling a drag clears the SSE gate so later updates still render", async ({
   page,
 }) => {
+  test.setTimeout(WATCH_REGISTRATION_BUDGET_MS + 30_000);
   const original = readFileSync(WORK_ITEM_0005_PATH, "utf-8");
   try {
     await page.goto("/kanban");
@@ -69,13 +74,11 @@ test("Escape-cancelling a drag clears the SSE gate so later updates still render
     // An external edit now arrives via SSE. If the cancel path left the gate
     // stuck true, this invalidation would be queued forever and the card would
     // never move — the stuck-gate failure mode this guards.
-    writeFileSync(
+    await writeUntilVisible(
       WORK_ITEM_0005_PATH,
       original.replace(/^status:.*$/m, "status: done"),
-    );
-    await expect(
       page.locator(`section[data-column="done"] ${CARD_0005}`),
-    ).toBeVisible({ timeout: 10000 });
+    );
   } finally {
     writeFileSync(WORK_ITEM_0005_PATH, original);
   }
