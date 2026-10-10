@@ -5,7 +5,7 @@ title: "Bring the CLI Workspace's Crate Dependencies into Line with ADR-0069"
 date: "2026-10-05T10:02:05+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "ready"
+status: "done"
 kind: "task"
 priority: "medium"
 relates_to: ["work-item:0226", "work-item:0219", "adr:ADR-0069", "adr:ADR-0054"]
@@ -18,7 +18,7 @@ schema_version: 1
 # 0299: Bring the CLI Workspace's Crate Dependencies into Line with ADR-0069
 
 **Kind**: Task
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
