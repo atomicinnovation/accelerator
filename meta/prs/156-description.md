@@ -12,9 +12,9 @@ relates_to: ["work-item:0146", "work-item:0230", "work-item:0290", "work-item:02
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/156"
 pr_number: 156
 tags: ["sync", "work-item-review", "linear", "jira"]
-revision: "1694027b3a352f14e1ef88d3b307363c3bc0380c"
+revision: "67bf68772c25b2000d4481d18e1c40de47452caa"
 repository: "accelerator"
-last_updated: "2026-10-10T20:54:03+00:00"
+last_updated: "2026-10-10T21:01:13+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -58,7 +58,8 @@ deliberately leaves out.
   `crates.io` included. It is blocked by 0296, and gains a criterion for
   repairing 0161, 0203, 0276 and 0293 once it lands.
 - **0321 (new):** an ADR task to decide which side is the authority for each
-  thing sync touches. 0296 goes ahead without waiting for it.
+  thing sync touches. 0296 goes ahead without waiting for it. Its Context
+  quotes 0296's revised rule.
 - **0290:** the title joins the synced fields, with Linear `title` and Jira
   `summary` mapped directly. The baseline stores each field's last-synced
   value. It is blocked by 0296.
@@ -105,12 +106,8 @@ re-captured with `accelerator linear show` before implementation starts.
   - where `adf` lives: `remote-projection` depending on `jira-client`, or
     `adf` moving down a crate;
   - capturing an `issueCreate` read-back.
-- **Known follow-ups.**
-  - No work item yet removes the legacy digest recipe. Its trigger is
-    reachable, because one full sync migrates every entry it classifies.
-  - 0321's Context still quotes 0296's earlier wording, "local work items
-    are authoritative for markdown representation". The ADR should use the
-    revised rule: the local side owns representation only while the bodies
-    are equivalent.
+- **Known follow-up.** No work item yet removes the legacy digest recipe.
+  Its trigger is reachable, because one full sync migrates every entry it
+  classifies.
 - **Title on PP-880.** 0296's local title changed. Title sync is outside
   this item's scope, so the Linear issue's title needs a manual rename.
