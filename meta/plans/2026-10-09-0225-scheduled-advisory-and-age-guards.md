@@ -1844,8 +1844,8 @@ syntax or renamed environments show as a feed failure).
 
 #### Automated Verification:
 
-- [ ] Node tests pass: `uv run pytest tests/unit/tasks -k pin_guard`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Node tests pass: `uv run pytest tests/unit/tasks -k pin_guard`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2373,6 +2373,41 @@ code departs from or adds to the plan:
 - `mise run vendor:guard-pins` on 2026-10-10 reached OSV, drafted no
   `playwright-core` advisory for 1.55.1 and no feed failure, and printed the
   five Phase 3 drafts.
+- `mise run` exited 0 on its first run.
+
+### Phase 6
+
+Committed as `Report Node advisories from vuln/core`. Where the code departs
+from or adds to the plan:
+
+- `npm_ranges` reduces every form to `>=` and `<` comparators over a
+  partial version, so an operator before an X-range follows npm generally
+  (`>1` is `>=2.0.0`) rather than special-casing `<= N`. `=`, `*`, `~`,
+  hyphen ranges, a bare `x` and a caret on an X-range are refused.
+- `vuln_core_entries` parses the whole feed as the request's `parse`, so
+  every document error, including a non-object feed (`unexpected document
+  shape`), is a `vuln-core` feed failure. Document reasons are
+  `unexpected entry key <key>`, `unexpected CVE <cve>` and
+  `unparseable range <text>`. Entries are ordered by numeric key.
+- The finding's fix is the `patched` text with its leading whitespace
+  stripped.
+- `tests/unit/tasks/shared/doubles.py` gains `clear_feeds()`, the default
+  world's feeds, which tests extend with `.answer(...)` rather than building
+  `FakeFeeds` from scratch; `vuln_core_url`, `vuln_core_entry` and
+  `vuln_core_fixture`. `FakeIssueTracker.issues()` now lists the issues it
+  opened as open and authored by the trusted bot, so one tracker carries a
+  guard's issues across two runs.
+- `vuln-core/index.json` was recorded on 2026-10-10 (194 entries). Against
+  it, 21 entries affect Node 22.22.2 — keys 172–194 except 181 and 190, each
+  patched from `^22.23.0` or `^22.23.2`. With the five Phase 3 drafts that
+  is 26 new findings, so `mise run vendor:guard-pins` on 2026-10-10 drafted
+  a `guard-tripped` issue for 26 held-back findings and failed; with
+  `--maximum-new-issues 30` it exited 0 and printed all 26 drafts. The first
+  dispatched run after merge trips the cap unless Node is bumped to 22.23.2
+  or later first, or the run is dispatched with `maximum-new-issues` above
+  26.
+- An issue title reads `194 affects the vendored node pin`, since the plan
+  makes the entry key the advisory ID; the body names the CVEs.
 - `mise run` exited 0 on its first run.
 
 ## References

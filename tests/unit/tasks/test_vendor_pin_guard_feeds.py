@@ -20,12 +20,16 @@ from tasks.shared.vendor.pin_guard.feeds import (
     field,
 )
 from tasks.shared.vendor.pin_guard.findings import RELEASING_FEEDS_URL
+from tasks.shared.vendor.pin_guard.guard import evaluate
 from tasks.shared.vendor.pin_guard.issues import (
     ExistingIssue,
     IssuePolicy,
     reconcile,
 )
-from tasks.shared.vendor.pin_guard.local_inputs import Owner
+from tasks.shared.vendor.pin_guard.local_inputs import (
+    Owner,
+    read_local_inputs,
+)
 from tasks.shared.vendor.pin_guard.markers import IssueMarker, MarkerKind
 from tasks.shared.vendor.pin_guard.report import GuardReport
 from tasks.vendor.commands import guard_pins_with
@@ -35,12 +39,15 @@ from tests.unit.tasks.shared.doubles import (
     FakeFeeds,
     FakeIssueTracker,
     StubFinding,
+    clear_feeds,
     clear_repository,
     fake_ports,
     osv_batch,
     osv_fixture,
     osv_record,
     successive,
+    vuln_core_fixture,
+    vuln_core_url,
 )
 
 KEV_URL = "https://kev.test/feed.json"
@@ -315,11 +322,14 @@ def test_a_failed_record_fetch_skips_only_its_check_and_fails_the_run(
 ):
     today = dt.date(2026, 10, 10)
     stale = {s: today - dt.timedelta(days=400) for s in BUMP_SUBJECTS}
-    feeds = FakeFeeds(
-        {
-            osv_batch("1.55.0"): osv_fixture("querybatch-playwright-only.json"),
-            osv_record("GHSA-7mvr-c777-76hp"): FeedUnreachableError("HTTP 404"),
-        }
+    feeds = (
+        clear_feeds()
+        .answer(
+            osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
+        )
+        .answer(
+            osv_record("GHSA-7mvr-c777-76hp"), FeedUnreachableError("HTTP 404")
+        )
     )
     ports = fake_ports(feeds=feeds)
     paths = clear_repository(tmp_path, today, bumped=stale, playwright="1.55.0")
@@ -331,3 +341,60 @@ def test_a_failed_record_fetch_skips_only_its_check_and_fails_the_run(
     ]
     assert not any(m.parts[0] == "advisory" for m in markers)
     assert sum(m.parts[0] == "pin-age" for m in markers) == 3
+
+
+class TestVulnCoreFailures:
+    @pytest.mark.parametrize(
+        ("response", "reason"),
+        [
+            (FeedUnreachableError("HTTP 503"), "unreachable"),
+            ("not json", "unparseable"),
+            (
+                vuln_core_fixture("missing-field.json"),
+                "missing field vulnerable",
+            ),
+        ],
+    )
+    def test_each_failure_kind_names_its_reason(
+        self, tmp_path, response, reason
+    ):
+        today = dt.date(2026, 10, 10)
+        feeds = clear_feeds().answer(vuln_core_url(), response)
+        report = evaluate(
+            read_local_inputs(clear_repository(tmp_path, today), today),
+            today,
+            fake_ports(feeds=feeds),
+        )
+        assert [
+            (f.feed, f.check, f.request, f.reason) for f in report.feed_failures
+        ] == [
+            (
+                Feed.VULN_CORE,
+                CheckName.NODE_ADVISORIES,
+                vuln_core_url(),
+                reason,
+            )
+        ]
+
+
+def test_vuln_core_failing_opens_no_node_issue_but_osv_still_runs(tmp_path):
+    today = dt.date(2026, 10, 10)
+    feeds = (
+        clear_feeds()
+        .answer(
+            osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
+        )
+        .answer(
+            osv_record("GHSA-7mvr-c777-76hp"),
+            osv_fixture("GHSA-7mvr-c777-76hp.json"),
+        )
+        .answer(vuln_core_url(), FeedUnreachableError("HTTP 503"))
+    )
+    ports = fake_ports(feeds=feeds)
+    paths = clear_repository(tmp_path, today, playwright="1.55.0")
+    with pytest.raises(Exit):
+        guard_pins_with(paths, today, ports, IssuePolicy(BOT))
+    assert [m.parts for m in ports.tracker.opened_markers] == [
+        ("vuln-core", "node-advisories"),
+        ("advisory", "GHSA-7mvr-c777-76hp", "playwright-core"),
+    ]
