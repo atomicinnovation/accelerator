@@ -7,9 +7,18 @@ during evaluation still precedes any write.
 import datetime as dt
 from dataclasses import dataclass
 
+from tasks.shared.clock import Clock
 from tasks.shared.vendor.pin_guard.ages import (
     keyring_age_findings,
     pin_age_findings,
+)
+from tasks.shared.vendor.pin_guard.checks import CheckOutcome
+from tasks.shared.vendor.pin_guard.feeds import (
+    GUARD_FEED_DEADLINE_SECONDS,
+    FeedBudget,
+    FeedClient,
+    FeedOutage,
+    FeedSession,
 )
 from tasks.shared.vendor.pin_guard.issues import (
     IssuePolicy,
@@ -26,6 +35,7 @@ from tasks.shared.vendor.pin_guard.local_inputs import (
     LocalInputs,
     read_local_inputs,
 )
+from tasks.shared.vendor.pin_guard.osv import playwright_core_advisories
 from tasks.shared.vendor.pin_guard.report import GuardReport
 
 
@@ -33,6 +43,8 @@ from tasks.shared.vendor.pin_guard.report import GuardReport
 class GuardPorts:
     tracker: IssueTracker
     key_lister: KeyLister
+    feeds: FeedClient
+    clock: Clock
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,12 +66,26 @@ class GuardRun:
             f"could not open {failed.draft.title!r}: {failed.error}"
             for failed in self.outcome.failed
         )
-        return tripped + failed
+        dark = tuple(
+            f"the {outage.feed} feed failed {len(outage.failures)} "
+            f"request(s), skipping {', '.join(outage.skipped_checks)}"
+            for outage in FeedOutage.of(self.report.feed_failures)
+        )
+        return dark + tripped + failed
 
 
 def evaluate(
     inputs: LocalInputs, today: dt.date, ports: GuardPorts
 ) -> GuardReport:
+    session = FeedSession(
+        ports.feeds,
+        FeedBudget(
+            ports.clock.now() + GUARD_FEED_DEADLINE_SECONDS, ports.clock
+        ),
+    )
+    advisories: tuple[CheckOutcome, ...] = (
+        playwright_core_advisories(inputs.playwright_core, session),
+    )
     return GuardReport(
         (
             *pin_age_findings(inputs, today),
@@ -67,7 +93,9 @@ def evaluate(
             *node_keyring_expiry_findings(
                 inputs.node_keyring, ports.key_lister, today
             ),
-        )
+            *(finding for check in advisories for finding in check.findings),
+        ),
+        tuple(failure for check in advisories for failure in check.failures),
     )
 
 

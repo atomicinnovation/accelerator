@@ -11,9 +11,9 @@ priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0196", "work-item:0219"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories"]
-last_updated: "2026-10-10T17:27:45+00:00"
+last_updated: "2026-10-10T21:40:21+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Recorded the task name, owner login and key-listing choice; dedup lists issues with gh api --paginate and trusts only the workflow bot; added the dry-run default and the per-run issue cap."
+last_updated_note: "A feed failure is identified by its feed and the checks it skipped; dedup marker forms cover feed failures and the tripped cap."
 schema_version: 1
 external_id: "PP-755"
 ---
@@ -132,7 +132,8 @@ notifying an owner.
   expiry is one finding.
 - **Feed failure** — not a finding: a request to a feed that is unreachable,
   or whose response does not parse or lacks the expected fields. It is
-  identified by feed name alone. The expected fields are:
+  identified by its feed and the set of checks it skipped. The expected
+  fields are:
 
   | Feed | Expected fields |
   |------|-----------------|
@@ -177,11 +178,13 @@ notifying an owner.
   | Chromium advisories | KEV, an OSV record fetch for a KEV CVE, or the npm registry |
 - Every other check, including the age and expiry checks, still runs and opens
   its issues; the guard run then fails.
-- A feed failure ensures one open feed-failure issue exists for that feed.
-  Feed-failure issues are deduplicated against open issues only: while one is
-  open, later failures add nothing; once it is closed, the next failure opens
-  a new one. A persistent outage thus stays visible without a daily stream of
-  issues.
+- A feed failure ensures one open feed-failure issue exists for that feed
+  covering every check the failure skipped. Feed-failure issues are
+  deduplicated against open issues only: while an open issue for the feed
+  covers every check a later failure skips, the later failure adds nothing; a
+  failure that skips a further check opens a new one; once the issue is
+  closed, the next failure opens a new one. A persistent outage thus stays
+  visible without a daily stream of issues.
 
 **Local inputs**
 
@@ -412,8 +415,9 @@ and missing-field responses:
 - [ ] Given a `browsers.json` with an empty `browsers` array, when the guard
       runs, then it opens an npm-registry feed-failure issue and does not
       abort.
-- [ ] Given an open feed-failure issue for F, when F fails again, then the
-      guard opens nothing more for F.
+- [ ] Given an open feed-failure issue for F, when F fails again, skipping
+      no check that issue does not cover, then the guard opens nothing more
+      for F.
 - [ ] Given only a closed feed-failure issue for F, when F fails again, then
       the guard opens a new feed-failure issue for F.
 
@@ -544,9 +548,10 @@ Decided during implementation:
   parse it directly.
 - KEV: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`;
   entries carry no version fields, hence the OSV join.
-- Dedup: the `runtime-pin-guard` label plus a hidden body marker —
-  `<!-- finding: <kind> <identity> -->` for findings and
-  `<!-- feed-failure: <feed> -->` for feed failures — checked against every
+- Dedup: the `runtime-pin-guard` label plus a hidden marker on an issue
+  body's last line — `<!-- finding: <kind> <identity> -->` for findings,
+  `<!-- feed-failure: <feed> <check> … -->` for feed failures and
+  `<!-- guard-tripped: <digest> -->` for a tripped cap — checked against every
   labelled issue listed with `gh api --paginate
   repos/{owner}/{repo}/issues?labels=runtime-pin-guard&state=all` (not
   `gh issue list`, which truncates at `--limit`) and filtered locally rather
@@ -609,6 +614,11 @@ Decided during implementation:
   closure would then suppress the genuine ones, and a matcher defect or a
   feed change must not flood the owner with issues that each need closing by
   hand; one `guard-tripped` issue and a red run surface it instead.
+- A feed failure was first identified by its feed alone. That let a
+  standing issue for a narrow failure, such as one OSV record fetch for
+  `playwright-core`, hide a later outage that also darkened the Chromium
+  check. Keying the issue on the feed and the checks it skipped keeps a
+  narrower repeat silent while surfacing a broader one.
 - `kind` stays `task` despite the size; the two-change delivery above records
   it. The title names the runtime pins only; the keyring guards are in scope,
   as Summary and Terms state.

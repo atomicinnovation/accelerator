@@ -1,0 +1,11 @@
+{
+  "id": "GHSA-cfgh-jmpq-rvwx",
+  "affected": [
+    {
+      "package": {"name": "playwright", "ecosystem": "npm"},
+      "ranges": [
+        {"type": "SEMVER", "events": [{"introduced": "1.50.0"}, {"last_affected": "1.55.1"}]}
+      ]
+    }
+  ]
+}
