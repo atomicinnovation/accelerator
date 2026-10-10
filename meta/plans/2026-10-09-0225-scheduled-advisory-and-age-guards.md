@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T20:17:07+00:00"
+last_updated: "2026-10-10T21:25:05+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2236,7 +2236,7 @@ issues`. Where the code departs from or adds to the plan:
   - run 1: `config-adapters::runner
     output_is_capped_across_stdout_and_stderr_combined`, an output-capping
     test unrelated to file events. It passed 5 of 5 alone and in every later
-    run; its cause was not investigated;
+    run; Phase 4's notes record its cause and fix;
   - run 2: two visualiser `sse_e2e` template-watcher tests, which exhausted
     their 300 s re-write budget;
   - runs 3 and 4: `kanban-drag-overlay.spec.ts:39`, the Phase 1 flake, on its
@@ -2317,8 +2317,9 @@ Where the code departs from or adds to the plan:
 - The trust-anchor error now names the `Refreshing the anchors` procedure, and
   a test reads that name from the raised message and finds the heading in
   `RELEASING.md`.
-- `mise run` failed twice before exiting 0 on the third run, every failure in
-  Rust this phase does not touch:
+- `mise run` failed twice, every failure in Rust this phase does not touch,
+  then a third run with `--continue-on-error` reported no failure in any
+  lane. After the runner fix below, a plain `mise run` exited 0:
   - run 1: `config-adapters::runner
     output_is_capped_across_stdout_and_stderr_combined`, the Phase 2 flake,
     which returned the output rather than `OutputExceeded` under load. It
