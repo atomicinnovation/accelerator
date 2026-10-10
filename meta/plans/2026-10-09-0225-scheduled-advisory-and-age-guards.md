@@ -1849,7 +1849,7 @@ syntax or renamed environments show as a feed failure).
 
 #### Manual Verification:
 
-- [ ] After merge, a dispatched run reaches `vuln/core` without a feed-failure issue, and any Node advisory issue it opens matches a manual reading of the feed for 22.22.2
+- [ ] After merge, a dispatched run reaches `vuln/core` without a feed-failure issue, and any Node advisory issue it opens matches a manual reading of the feed for 22.23.2
 
 ---
 
@@ -2402,10 +2402,15 @@ from or adds to the plan:
   patched from `^22.23.0` or `^22.23.2`. With the five Phase 3 drafts that
   is 26 new findings, so `mise run vendor:guard-pins` on 2026-10-10 drafted
   a `guard-tripped` issue for 26 held-back findings and failed; with
-  `--maximum-new-issues 30` it exited 0 and printed all 26 drafts. The first
-  dispatched run after merge trips the cap unless Node is bumped to 22.23.2
-  or later first, or the run is dispatched with `maximum-new-issues` above
-  26.
+  `--maximum-new-issues 30` it exited 0 and printed all 26 drafts.
+- To keep the first dispatched run under the cap, the separate commit `Bump
+  the vendored Node runtime to 22.23.2` moves `node.version` to 22.23.2 and
+  `node.bumped` to 2026-10-10 under the refresh procedure. 22.23.2's
+  `SHASUMS256.txt` is signed by `CC68F5A3…5B0A215F`, already in the keyring,
+  so the keyring and `keyring.bumped` are unchanged. Re-assembly moved the
+  four driver digests and left the browser digests alone, and a second
+  assembly reproduced them. The dry run then drafted no Node advisory, only
+  the five Phase 3 drafts.
 - An issue title reads `194 affects the vendored node pin`, since the plan
   makes the entry key the advisory ID; the body names the CVEs.
 - `mise run` exited 0 on its first run.
