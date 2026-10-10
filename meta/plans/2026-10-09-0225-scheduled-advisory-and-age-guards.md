@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T21:25:05+00:00"
+last_updated: "2026-10-10T21:59:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1228,7 +1228,7 @@ implementer confirms against the pinned `mise-action` SHA's `action.yml`
 that `install_args` exists, and that `mise run` does not then auto-install the
 remaining tools; if it does, the restriction is dropped to match `main.yml`
 and the setup estimate revised. The job budget is setup (about 5
-minutes cold), evaluation (at most 12 minutes, Phase 5) and reconciliation (at
+minutes cold), evaluation (at most 13 minutes, Phase 5) and reconciliation (at
 most 17 `gh` calls of 30 s at the default cap), inside 30 minutes.
 
 #### 2. Workflow tests
@@ -1461,8 +1461,9 @@ def field[T](document: object, key: str, kind: type[T]) -> T: ...
   it never retries any other status or a parse failure.
 
 The evaluation bound: no request starts at or after the 600 s deadline, and one
-in-flight request costs at most three 20 s attempts plus two waits of at most
-30 s, so 120 s. Evaluation therefore ends within 12 minutes. The timing seam
+in-flight request costs at most three attempts of 40 s (the 20 s total plus
+one 20 s read blocked past it) and two waits of at most 30 s, so 180 s.
+Evaluation therefore ends within 13 minutes. The timing seam
 is the shared `tasks/shared/clock.Clock`, and tests drive it with the existing
 `FakeClock`.
 
@@ -1709,8 +1710,8 @@ URL.
 
 #### Automated Verification:
 
-- [ ] Feed and OSV tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or fetch"`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Feed and OSV tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or fetch"`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2148,9 +2149,9 @@ being outside OSV's core schema.
 order of 100 sequential requests daily — plus one `playwright-core` tarball
 download (a few MB, capped at 32 MiB). On a healthy day this takes well under
 a minute. The worst case is bounded by the feed deadline: no request starts
-at or after 600 s, and one in-flight request costs at most three 20 s
-wall-clock attempts plus two retry waits of at most 30 s, so evaluation ends
-within 12 minutes. Reconciliation at the default cap is at most about 17 `gh`
+at or after 600 s, and one in-flight request costs at most three 40 s
+attempts (a 20 s wall-clock total plus one blocked 20 s read) and two retry
+waits of at most 30 s, so evaluation ends within 13 minutes. Reconciliation at the default cap is at most about 17 `gh`
 calls of 30 s, and setup about 5 minutes on a cold cache, so the job fits
 inside `timeout-minutes: 30`; a dispatched run with a raised cap adds at most
 30 s per extra draft. A feed that fails three times running is skipped for the
@@ -2303,9 +2304,9 @@ Where the code departs from or adds to the plan:
   have been undone by the guard step itself. The workflow test asserts the
   absence of `install_args` so the restriction is not reintroduced. Setup on a
   cold cache now includes the Rust and Node toolchains, which may push it past
-  the plan's 5-minute estimate; with evaluation bounded at 12 minutes and
-  reconciliation at about 8.5, the 30-minute budget still holds below about
-  9 minutes of setup. `MISE_TASK_RUN_AUTO_INSTALL=false` (or
+  the plan's 5-minute estimate; with evaluation bounded at 13 minutes (Phase
+  5's notes) and reconciliation at about 8.5, the 30-minute budget still
+  holds below about 8.5 minutes of setup. `MISE_TASK_RUN_AUTO_INSTALL=false` (or
   `mise run --skip-tools`) would keep the restriction if the first runs show
   setup is too slow.
 - The documentation tests match each limit through the phrase that states it
@@ -2334,6 +2335,45 @@ Where the code departs from or adds to the plan:
     that load stalled with and without the command sandbox while the
     `security` CLI read the same keychains instantly. The stall cleared by
     itself; its cause was not found.
+
+### Phase 5
+
+Committed as `Report playwright-core advisories and feed failures`. Where the
+code departs from or adds to the plan:
+
+- `fetch.py` cannot set each read's timeout to the time remaining:
+  `httpcore` 1.0.9 fixes the read timeout once a body starts streaming
+  (`_sync/http11.py`). The total is checked as each chunk arrives, so a read
+  blocked on the next chunk can overrun it by one 20 s read timeout. One
+  attempt costs at most 40 s, an in-flight request at most 3 × 40 + 2 × 30 =
+  180 s, and evaluation ends within 13 minutes rather than 12. With
+  reconciliation at about 8.5 minutes, the 30-minute job budget holds below
+  about 8.5 minutes of setup.
+- `get_json` keeps its `dict[str, Any]` return, which `upstream.py`'s
+  `JsonFetcher` relies on; `post_json` returns `object`.
+- `FeedFailure` gains `detail` (the status or transport error), rendered
+  beside the reason in the feed-failure body. `reason` stays the exact kind
+  the tests assert.
+- `FeedOutage` (in `feeds.py`) groups a run's failures by feed and owns the
+  feed-failure marker, its coverage rule and its draft, so `reconcile` only
+  filters and orders drafts.
+- A `FeedDocumentError` resets a feed's unreachable count, since the feed
+  responded.
+- OSV document reasons are `truncated at next_page_token`,
+  `unexpected advisory id <id>` and `unparseable version <v>`.
+  `lowest_fix_above` considers only ranges that hold the pin, and
+  `RangeEvent.is_passed_by` carries the `last_affected` rule.
+- `tests/unit/tasks/shared/doubles.py` gains `FakeFeeds` (GETs keyed by URL,
+  POSTs by `(url, json.dumps(body))`, a response being a document, a raw
+  body, an exception or `successive(...)` of those), `fake_session`,
+  `osv_batch`, `osv_record` and `osv_fixture`.
+- `RELEASING.md`'s `### Feeds` follows `### Acting on an issue`, and
+  `### Closing issues` now says a closed feed-failure issue suppresses
+  nothing.
+- `mise run vendor:guard-pins` on 2026-10-10 reached OSV, drafted no
+  `playwright-core` advisory for 1.55.1 and no feed failure, and printed the
+  five Phase 3 drafts.
+- `mise run` exited 0 on its first run.
 
 ## References
 

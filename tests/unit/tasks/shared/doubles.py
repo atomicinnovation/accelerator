@@ -208,11 +208,140 @@ def listing_lister(fixture_name):
 
 
 def fake_ports(**overrides):
-    """``GuardPorts`` built from fakes only, describing a clear world."""
+    """``GuardPorts`` built from fakes only, describing a clear world.
+
+    Every feed answers as it would for ``clear_repository``'s pins, so a
+    later default that drifts into a finding or a feed failure shows here.
+    """
+    from tasks.shared.clock import Clock
     from tasks.shared.vendor.pin_guard.guard import GuardPorts
 
+    clock = FakeClock()
     defaults = {
         "tracker": FakeIssueTracker(),
         "key_lister": listing_lister("clear-keyring.colons"),
+        "feeds": FakeFeeds(
+            {
+                osv_batch(CLEAR_PLAYWRIGHT_VERSION): osv_fixture(
+                    "querybatch-empty.json"
+                )
+            }
+        ),
+        "clock": Clock(sleep=clock.sleep, now=clock.now),
     }
     return GuardPorts(**(defaults | overrides))
+
+
+class Successive:
+    """Responses a ``FakeFeeds`` request gives in turn, the last repeating."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+
+    def next(self):
+        if len(self.responses) > 1:
+            return self.responses.pop(0)
+        return self.responses[0]
+
+
+def successive(*responses):
+    return Successive(responses)
+
+
+class FakeFeeds:
+    """A ``FeedClient`` answering recorded documents keyed by request.
+
+    A GET is keyed by its URL and a POST by ``(url, json.dumps(body))``. A
+    response is a document, a raw ``str``/``bytes`` body (decoded as JSON for
+    the JSON calls, so ``"not json"`` is unparseable), an exception to raise,
+    or ``successive(...)`` of those.
+    """
+
+    def __init__(self, responses=None):
+        self.responses = dict(responses or {})
+        self.calls = []
+
+    def answer(self, key, response):
+        self.responses[key] = response
+        return self
+
+    def get_json(self, url):
+        self.calls.append(("GET", url))
+        return self._json(self._respond(url))
+
+    def post_json(self, url, body):
+        import json
+
+        self.calls.append(("POST", url))
+        return self._json(self._respond((url, json.dumps(body))))
+
+    def get_bytes(self, url, max_bytes):
+        from tasks.shared.vendor.pin_guard.feeds import FeedDocumentError
+
+        self.calls.append(("GET", url))
+        body = self._respond(url)
+        payload = body.encode() if isinstance(body, str) else body
+        if len(payload) > max_bytes:
+            raise FeedDocumentError(f"payload over {max_bytes} bytes")
+        return payload
+
+    def _respond(self, key):
+        if key not in self.responses:
+            raise AssertionError(f"FakeFeeds has no response for {key!r}")
+        response = self.responses[key]
+        if isinstance(response, Successive):
+            response = response.next()
+        if isinstance(response, BaseException):
+            raise response
+        return response
+
+    @staticmethod
+    def _json(response):
+        import json
+
+        from tasks.shared.vendor.pin_guard.feeds import FeedDocumentError
+
+        if not isinstance(response, str | bytes):
+            return response
+        try:
+            return json.loads(response)
+        except ValueError as error:
+            raise FeedDocumentError("unparseable") from error
+
+
+def fake_session(feeds, clock=None):
+    """A ``FeedSession`` over ``feeds`` with the run's deadline far off."""
+    from tasks.shared.clock import Clock
+    from tasks.shared.vendor.pin_guard.feeds import (
+        GUARD_FEED_DEADLINE_SECONDS,
+        FeedBudget,
+        FeedSession,
+    )
+
+    clock = clock or FakeClock()
+    return FeedSession(
+        feeds,
+        FeedBudget(
+            clock.now() + GUARD_FEED_DEADLINE_SECONDS,
+            Clock(sleep=clock.sleep, now=clock.now),
+        ),
+    )
+
+
+def osv_batch(version):
+    """The ``FakeFeeds`` key of the OSV batch query for ``version``."""
+    import json
+
+    from tasks.shared.vendor.pin_guard.osv import QUERYBATCH_URL, batch_query
+
+    return (QUERYBATCH_URL, json.dumps(batch_query(version)))
+
+
+def osv_record(advisory_id):
+    from tasks.shared.vendor.pin_guard.osv import record_url
+
+    return record_url(advisory_id)
+
+
+def osv_fixture(name):
+    return (PIN_GUARD_FIXTURES / "osv" / name).read_text()

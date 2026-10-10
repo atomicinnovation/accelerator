@@ -1,8 +1,10 @@
 """Reconciling a guard report against the issues already filed.
 
 Each finding opens at most one issue across that issue's lifecycle, so an
-issue of any state suppresses its finding. Only issues the guard itself wrote
-count: a labelled issue anyone else wrote could otherwise silence a finding.
+issue of any state suppresses its finding. A feed outage is suppressed only
+while an open issue covers it, so a later outage is reported afresh. Only
+issues the guard itself wrote count: a labelled issue anyone else wrote could
+otherwise silence a finding.
 """
 
 import hashlib
@@ -10,6 +12,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol, Self, TextIO
 
+from tasks.shared.vendor.pin_guard.feeds import FeedOutage
 from tasks.shared.vendor.pin_guard.findings import (
     RELEASING_GUARD_URL,
     IssueDraft,
@@ -95,8 +98,17 @@ def reconcile(
     owner: Owner,
     policy: IssuePolicy,
 ) -> ReconcileOutcome:
-    """Open an issue for every finding no trusted issue already reports."""
+    """Open an issue for every finding and outage no trusted issue reports.
+
+    Outage issues open first and never count towards the cap, so a tripped
+    cap cannot hide a dark feed.
+    """
     filed = _FiledMarkers.trusted(tracker.issues(), policy.trusted_author)
+    outages = [
+        outage.draft(owner)
+        for outage in FeedOutage.of(report.feed_failures)
+        if not any(outage.is_covered_by(m) for m in filed.still_open)
+    ]
     findings = {finding.marker: finding for finding in report.findings}
     drafts = [
         findings[marker].draft(owner)
@@ -104,14 +116,16 @@ def reconcile(
         if marker not in filed.any_state
     ]
     if len(drafts) <= policy.maximum_new_issues:
-        return _open_all(drafts, tracker, owner, held_back=0)
+        return _open_all([*outages, *drafts], tracker, owner, held_back=0)
     tripped = _guard_tripped_draft(
         [draft.marker for draft in drafts], policy.maximum_new_issues
     )
     stand_in: list[IssueDraft] = (
         [] if tripped.marker in filed.still_open else [tripped]
     )
-    return _open_all(stand_in, tracker, owner, held_back=len(drafts))
+    return _open_all(
+        [*outages, *stand_in], tracker, owner, held_back=len(drafts)
+    )
 
 
 def _open_all(

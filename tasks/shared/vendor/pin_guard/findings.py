@@ -13,6 +13,10 @@ RELEASING_GUARD_URL = (
     "https://github.com/atomicinnovation/accelerator/blob/main/"
     "RELEASING.md#vendored-runtime-pin-guard"
 )
+RELEASING_FEEDS_URL = (
+    "https://github.com/atomicinnovation/accelerator/blob/main/"
+    "RELEASING.md#feeds"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,3 +142,54 @@ class KeyExpiryFinding:
         if self.days_to_expiry == 0:
             return "today"
         return f"in {self.days_to_expiry} days"
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisoryFinding:
+    advisory_id: str
+    pin: Pin
+    fix: str | None
+    cves: tuple[str, ...] = ()
+    browser_version: str | None = None
+
+    @property
+    def marker(self) -> IssueMarker:
+        return IssueMarker(
+            MarkerKind.FINDING, ("advisory", self.advisory_id, self.pin.name)
+        )
+
+    def draft(self, owner: Owner) -> IssueDraft:
+        return IssueDraft(
+            self.marker,
+            f"{self.advisory_id} affects the vendored {self.pin.name} pin",
+            issue_body(
+                self.marker,
+                f"Advisory {code_span(self.advisory_id)} affects the vendored "
+                f"`{self.pin.name}` pin, version {code_span(self.pin.version)}"
+                f"{self._browser}.",
+                *self._cves,
+                self._remedy,
+                f"Owner: @{owner.login}. Bump the pin past the fix and close "
+                "this issue once the bump merges; closing it earlier accepts "
+                "the risk for every later version of the pin. See "
+                f"{RELEASING_FEEDS_URL}.",
+            ),
+        )
+
+    @property
+    def _browser(self) -> str:
+        if self.browser_version is None:
+            return ""
+        return f" (browser version {code_span(self.browser_version)})"
+
+    @property
+    def _cves(self) -> tuple[str, ...]:
+        if not self.cves:
+            return ()
+        return ("CVEs: " + ", ".join(code_span(cve) for cve in self.cves),)
+
+    @property
+    def _remedy(self) -> str:
+        if self.fix is None:
+            return "No fixed version is available."
+        return f"Fixed in {code_span(self.fix)}."

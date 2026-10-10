@@ -270,10 +270,46 @@ otherwise: a Playwright bump that keeps the Chromium revision leaves
   count, then close the tripped issue. A changed set opens a fresh tripped
   issue, so close any it supersedes.
 
+Advisory and feed-failure issues are covered under [Feeds](#feeds).
+
+### Feeds
+
+Each advisory check reads only its own feeds, so a failing feed skips only the
+checks that depend on it. Every other check, the age and expiry checks
+included, still runs and opens its issues, and the run then fails.
+
+| Feed | Covers | Check |
+|------|--------|-------|
+| OSV (`api.osv.dev`) | npm `playwright` and `playwright-core` advisories | `playwright-core-advisories` |
+
+Blind spots:
+
+- an advisory filed only outside OSV, such as on the Playwright repository
+  without a GitHub advisory, is missed;
+- no guard issue is ever closed automatically;
+- bump dates are kept in step by hand, and nothing enforces it; forgetting to
+  move one errs safe, reporting the pin as older than it is.
+
+A request is retried at most twice, after a transport error, a 5xx or a 429,
+waiting 2 s then 8 s, or the server's `Retry-After` capped at 30 s. Each
+attempt is limited to 20 s. A feed unreachable three times running is
+skipped for the rest of the run, and no request starts more than 10 minutes
+into the run; a skipped request counts as a feed failure.
+
+- **Advisory.** Bump the pin past the named fix, and close the issue once the
+  bump merges. Closing it silences that advisory for every later version of
+  the pin, so close it earlier only as an explicit risk acceptance, recorded
+  in a comment.
+- **Feed failure.** Request the failed URLs from outside GitHub Actions, and
+  close the issue once the feed is healthy, since a later failure opens a
+  fresh one. A feed-failure issue is keyed on its feed and the checks it
+  skipped, so a failure that blinds a further check opens a new issue even
+  while one stands.
+
 ### Closing issues
 
-Closing a guard issue permanently suppresses its finding, so close one only
-once it is resolved. Only issues authored by `github-actions[bot]` count: an
+Closing a finding's issue permanently suppresses that finding, so close one
+only once it is resolved. A closed feed-failure issue suppresses nothing. Only issues authored by `github-actions[bot]` count: an
 issue opened or re-filed by hand suppresses nothing, and a change to the
 workflow's token identity needs `--issue-author` to match. Running the task
 locally prints drafts and writes nothing unless `--open-issues` is passed.

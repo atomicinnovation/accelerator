@@ -4,7 +4,9 @@ import io
 import pytest
 
 from tasks.shared.vendor.pin_guard.findings import (
+    RELEASING_FEEDS_URL,
     RELEASING_GUARD_URL,
+    AdvisoryFinding,
     KeyExpiryFinding,
     KeyringAgeFinding,
     PinAgeFinding,
@@ -239,11 +241,27 @@ class TestTrackerFailures:
             _reconcile(Unreachable(), _pin_age())
 
 
+def _advisory(fix="1.55.1"):
+    return AdvisoryFinding(
+        "GHSA-7mvr-c777-76hp",
+        Pin(PinName.PLAYWRIGHT_CORE, "1.55.0", BUMPED),
+        fix,
+    )
+
+
 @pytest.mark.parametrize(
-    ("finding", "facts"),
+    ("finding", "facts", "guide"),
     [
-        (_pin_age(), ["chromium", "`1193`", "145 days", "@tobyclemson"]),
-        (_keyring_age(), ["keyring", "412 days", "@tobyclemson"]),
+        (
+            _pin_age(),
+            ["chromium", "`1193`", "145 days", "@tobyclemson"],
+            RELEASING_GUARD_URL,
+        ),
+        (
+            _keyring_age(),
+            ["keyring", "412 days", "@tobyclemson"],
+            RELEASING_GUARD_URL,
+        ),
         (
             _key_expiry(),
             [
@@ -252,21 +270,48 @@ class TestTrackerFailures:
                 "in 60 days",
                 "@tobyclemson",
             ],
+            RELEASING_GUARD_URL,
         ),
         (
             _key_expiry(dt.date(2026, 7, 8), days_to_expiry=-94),
             ["expired on 2026-07-08", "94 days ago"],
+            RELEASING_GUARD_URL,
+        ),
+        (
+            _advisory(),
+            [
+                "`GHSA-7mvr-c777-76hp`",
+                "`playwright-core`",
+                "`1.55.0`",
+                "Fixed in `1.55.1`",
+                "@tobyclemson",
+            ],
+            RELEASING_FEEDS_URL,
+        ),
+        (
+            _advisory(fix=None),
+            ["No fixed version is available"],
+            RELEASING_FEEDS_URL,
         ),
     ],
-    ids=["pin-age", "keyring-age", "key-expiry", "key-expired"],
+    ids=[
+        "pin-age",
+        "keyring-age",
+        "key-expiry",
+        "key-expired",
+        "advisory",
+        "advisory-unfixed",
+    ],
 )
-def test_each_kind_drafts_a_body_naming_what_the_owner_needs(finding, facts):
+def test_each_kind_drafts_a_body_naming_what_the_owner_needs(
+    finding, facts, guide
+):
     tracker = FakeIssueTracker()
     _reconcile(tracker, finding)
     [(draft, assignee)] = tracker.opened
     for fact in facts:
         assert fact in draft.body
-    assert RELEASING_GUARD_URL in draft.body
+    assert guide in draft.body
     assert draft.body.splitlines()[-1] == finding.marker.render()
     assert assignee == OWNER.login
 
