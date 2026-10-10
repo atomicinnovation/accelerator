@@ -10,7 +10,7 @@ kind: "story"
 priority: "medium"
 parent: "work-item:0121"
 blocks: ["work-item:0304"]
-relates_to: ["work-item:0283"]
+relates_to: ["work-item:0283", "work-item:0303"]
 tags: ["research", "deep-research", "conduct"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
@@ -107,6 +107,11 @@ stop-reset-re-run recovery.
 - Blocked by: none known
 - Blocks: 0304, whose stop rule joins the halting-failure class defined
   here.
+- Relates to: 0303. Both edit step 5 and the failure-reason table.
+  0303's capacity-exhaustion reason is not a halting failure. Either item
+  may land first; the second reconciles the table. 0303's retry rounds stop
+  early once any spawn the batch message or a round accepted ended with a
+  halting failure; whichever item lands second adds that rule.
 
 ## Assumptions
 
@@ -129,4 +134,4 @@ stop-reset-re-run recovery.
 ## References
 
 - Source: https://github.com/atomicinnovation/accelerator/issues/147
-- Related: 0121, 0283, 0304
+- Related: 0121, 0283, 0303, 0304

@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
-relates_to: ["work-item:0283", "work-item:0308"]
+relates_to: ["work-item:0283", "work-item:0303", "work-item:0308"]
 tags: ["research", "deep-research", "conduct", "cli"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
@@ -120,6 +120,10 @@ makes it constant per spawn.
 - Blocks: none known
 - Related: 0308, which also changes what the research guard lets
   researchers run.
+- Related: 0303, which re-issues capacity-refused spawns of an offered
+  batch in follow-up messages within step 4. This item owns making the
+  "current offered batch" node query answer for those re-issued spawns,
+  and its per-response ceiling applies to each follow-up message.
 
 ## Assumptions
 
@@ -147,4 +151,4 @@ makes it constant per spawn.
 ## References
 
 - Source: https://github.com/atomicinnovation/accelerator/issues/144
-- Related: 0121, 0283, 0308
+- Related: 0121, 0283, 0303, 0308
