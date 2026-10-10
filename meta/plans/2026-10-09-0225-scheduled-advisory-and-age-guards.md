@@ -5,7 +5,7 @@ title: "Scheduled Advisory and Age Guards for the Vendored Runtime Pins Implemen
 date: "2026-10-09T22:26:01+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0225"
 parent: "work-item:0225"
 derived_from: ["codebase-research:2026-10-09-0225-scheduled-advisory-and-age-guards"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T14:33:53+00:00"
+last_updated: "2026-10-10T17:18:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -323,10 +323,10 @@ tests of the wrong-bytes path, since `test_vendor_upstream.py` stubs it.
 
 #### Automated Verification:
 
-- [ ] Browsers and assembly tests pass: `uv run pytest tests/unit/tasks/test_vendor_browsers.py tests/unit/tasks/test_vendor_assemble.py tests/unit/tasks/test_vendor_chromium.py`
-- [ ] No references remain: `rg 'verify_chromium|assert_version_pairing|browser_revision' tasks tests` returns nothing
-- [ ] Build-system checks pass: `mise run build-system:check`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Browsers and assembly tests pass: `uv run pytest tests/unit/tasks/test_vendor_browsers.py tests/unit/tasks/test_vendor_assemble.py tests/unit/tasks/test_vendor_chromium.py`
+- [x] No references remain: `rg 'verify_chromium|assert_version_pairing|browser_revision' tasks tests` returns nothing
+- [x] Build-system checks pass: `mise run build-system:check`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2170,6 +2170,34 @@ rest of the run. No concurrency is needed.
   passed; only the workflow passes it.
 - `today_or_now` joins `tasks/shared/clock.py`; the guard's timing uses the
   existing `Clock` seam and the tests the existing `FakeClock`.
+
+## Implementation Notes
+
+### Phase 1
+
+Committed as `Check the pinned Chromium revision against browsers.json at
+assembly`. Where the code departs from or adds to the plan:
+
+- `BrowserBuild.parse` validates one entry, so `BrowsersManifest.parse`
+  delegates to it. A non-string `browserVersion` becomes `None`, the same as
+  an absent one.
+- `BrowsersManifest.read` turns unparseable JSON into
+  `BrowsersManifestError` naming the path. The plan did not say how an
+  unreadable file should fail.
+- `chromium._HEADLESS_SHELL` was deleted rather than replaced by
+  `browsers.HEADLESS_SHELL`: once `verify_chromium` was gone, nothing in
+  `chromium.py` used it.
+- `tests/unit/tasks/fixtures/pin-guard/browsers-1.55.1.json` is the
+  `browsers.json` that unpkg served for `playwright-core@1.55.1` on
+  2026-10-10, unedited.
+- The full `mise run` passed except for one test in
+  `test:e2e:visualiser`, `kanban-drag-overlay.spec.ts:39` ("Escape-cancelling
+  a drag clears the SSE gate so later updates still render"), which failed on
+  its first attempt and its retry. It passed 3 of 3 runs on its own, and the
+  whole e2e suite then passed (355 tests). It is a timing flake under
+  full-suite load; this phase touches no visualiser code.
+- The manual check, that the `assemble-runtime` job assembles the real
+  1.55.1 tarball, waits for the PR.
 
 ## References
 

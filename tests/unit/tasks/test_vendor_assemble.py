@@ -81,6 +81,7 @@ def _package_json(path, version="1.55.1"):
 
 
 def _browsers_json(path, revision="1181"):
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         '{"browsers": ['
         '{"name": "chromium", "revision": "' + revision + '"},'
@@ -88,6 +89,11 @@ def _browsers_json(path, revision="1181"):
         '{"name": "ffmpeg", "revision": "1011"}'
         "]}\n"
     )
+    return path
+
+
+def _chromium_pins(path, revision="1181"):
+    path.write_text(f'[chromium]\nrevision = "{revision}"\n')
     return path
 
 
@@ -106,51 +112,6 @@ def test_a_caret_ranged_playwright_pin_is_refused(tmp_path):
     with pytest.raises(ValueError, match="exact"):
         pinned_playwright_version(
             _package_json(tmp_path / "package.json", "^1.55.1")
-        )
-
-
-def test_the_headless_shell_revision_is_read_from_browsers_json(tmp_path):
-    from tasks.shared.vendor.assemble import browser_revision
-
-    revision = browser_revision(
-        _browsers_json(tmp_path / "browsers.json"),
-        "chromium-headless-shell",
-    )
-    assert revision == "1181"
-
-
-def test_a_matching_pairing_passes_the_guard(tmp_path):
-    from tasks.shared.vendor.assemble import assert_version_pairing
-
-    assert_version_pairing(
-        fetched_playwright_version="1.55.1",
-        expected_playwright_version="1.55.1",
-        fetched_chromium_revision="1181",
-        expected_chromium_revision="1181",
-    )
-
-
-def test_a_playwright_version_mismatch_fails_the_release(tmp_path):
-    from tasks.shared.vendor.assemble import assert_version_pairing
-
-    with pytest.raises(ValueError, match="playwright"):
-        assert_version_pairing(
-            fetched_playwright_version="1.55.2",
-            expected_playwright_version="1.55.1",
-            fetched_chromium_revision="1181",
-            expected_chromium_revision="1181",
-        )
-
-
-def test_a_chromium_revision_mismatch_fails_the_release(tmp_path):
-    from tasks.shared.vendor.assemble import assert_version_pairing
-
-    with pytest.raises(ValueError, match="Chromium"):
-        assert_version_pairing(
-            fetched_playwright_version="1.55.1",
-            expected_playwright_version="1.55.1",
-            fetched_chromium_revision="1180",
-            expected_chromium_revision="1181",
         )
 
 
@@ -422,7 +383,8 @@ def _miniature_inputs(tmp_path):
     node_tree = tmp_path / "node-src"
     _executable(node_tree / "node", "#!/bin/sh\necho v20\n")
     pw_tree = tmp_path / "pw-src"
-    _licence(pw_tree / "index.js", "module.exports = {}")
+    _licence(pw_tree / "package/index.js", "module.exports = {}")
+    _browsers_json(pw_tree / "package/browsers.json")
     chromium_tree = tmp_path / "chromium-src"
     _executable(
         chromium_tree / "chrome-headless-shell", "#!/bin/sh\necho v1181\n"
@@ -449,7 +411,8 @@ def _mini_spec_builder(tmp_path):
             placements=(
                 TreePlacement(extracted.node / "node", "node"),
                 TreePlacement(
-                    extracted.playwright_core, "node_modules/playwright-core"
+                    extracted.playwright_core / "package",
+                    "node_modules/playwright-core",
                 ),
             ),
             notices=(
@@ -486,12 +449,34 @@ def test_assemble_tree_artifacts_produces_archives_and_attestations(tmp_path):
         staging_dir=tmp_path / "staging",
         dist_dir=tmp_path / "dist",
         spec_builder=_mini_spec_builder(tmp_path),
+        pins_path=_chromium_pins(tmp_path / "pins.toml"),
     )
     assert set(stats) == {"driver", "browser"}
     for name in ("driver", "browser"):
         archive = tmp_path / "dist" / f"accelerator-{name}-linux-x64.tar.gz"
         assert archive.exists()
         assert archive.with_name(archive.name + ".sealed").exists()
+
+
+def test_assembly_refuses_a_chromium_revision_playwright_does_not_pin(
+    tmp_path,
+):
+    from tasks.shared.vendor.assemble import assemble_tree_artifacts
+    from tasks.shared.vendor.browsers import UnpinnedRevisionError
+
+    node_tar, pw_tar, chromium_zip = _miniature_inputs(tmp_path)
+    with pytest.raises(UnpinnedRevisionError, match="1180"):
+        assemble_tree_artifacts(
+            playwright_tarball=pw_tar,
+            node_tarball=node_tar,
+            chromium_archive=chromium_zip,
+            platform="linux-x64",
+            staging_dir=tmp_path / "staging",
+            dist_dir=tmp_path / "dist",
+            spec_builder=_mini_spec_builder(tmp_path),
+            pins_path=_chromium_pins(tmp_path / "pins.toml", "1180"),
+        )
+    assert not (tmp_path / "dist").exists()
 
 
 def test_assemble_tree_artifacts_runs_the_structural_and_smoke_gates(tmp_path):
@@ -514,6 +499,7 @@ def test_assemble_tree_artifacts_runs_the_structural_and_smoke_gates(tmp_path):
             staging_dir=tmp_path / "staging",
             dist_dir=tmp_path / "dist",
             spec_builder=_mini_spec_builder(tmp_path),
+            pins_path=_chromium_pins(tmp_path / "pins.toml"),
         )
 
 
@@ -526,6 +512,7 @@ def _realistic_inputs(tmp_path):
     pw = tmp_path / "pw-src"
     _licence(pw / "package/index.js", "module.exports={}")
     _licence(pw / "package/LICENSE")
+    _browsers_json(pw / "package/browsers.json")
     chromium = tmp_path / "chromium-src"
     # Upstream ships `chrome-<platform>/headless_shell`; the spec builder
     # renames it to `chrome-headless-shell` at the tree root.
@@ -560,6 +547,7 @@ def test_default_spec_builder_maps_the_real_layout(tmp_path):
         staging_dir=tmp_path / "staging",
         dist_dir=tmp_path / "dist",
         spec_builder=default_spec_builder,
+        pins_path=_chromium_pins(tmp_path / "pins.toml"),
     )
     assert set(stats) == {"driver", "browser"}
 
