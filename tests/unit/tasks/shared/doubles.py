@@ -1,5 +1,11 @@
 """Shared test doubles for the tasks helper suites."""
 
+from pathlib import Path
+
+PIN_GUARD_FIXTURES = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "pin-guard"
+)
+
 
 class FakeClock:
     """Deterministic clock: every ``sleep(dt)`` advances ``now`` by ``dt``."""
@@ -193,9 +199,20 @@ class StubFinding:
         )
 
 
+def listing_lister(fixture_name):
+    """A ``KeyLister`` answering any keyring with a recorded colon listing."""
+    from tasks.shared.vendor.gpg import listed_keys
+
+    listing = (PIN_GUARD_FIXTURES / fixture_name).read_text().splitlines()
+    return lambda _keyring: listed_keys(listing)
+
+
 def fake_ports(**overrides):
     """``GuardPorts`` built from fakes only, describing a clear world."""
     from tasks.shared.vendor.pin_guard.guard import GuardPorts
 
-    defaults = {"tracker": FakeIssueTracker()}
+    defaults = {
+        "tracker": FakeIssueTracker(),
+        "key_lister": listing_lister("clear-keyring.colons"),
+    }
     return GuardPorts(**(defaults | overrides))

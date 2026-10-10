@@ -17,6 +17,10 @@ from tasks.shared.vendor.pin_guard.issues import (
     ReconcileOutcome,
     reconcile,
 )
+from tasks.shared.vendor.pin_guard.keyring import (
+    KeyLister,
+    node_keyring_expiry_findings,
+)
 from tasks.shared.vendor.pin_guard.local_inputs import (
     LocalInputPaths,
     LocalInputs,
@@ -28,6 +32,7 @@ from tasks.shared.vendor.pin_guard.report import GuardReport
 @dataclass(frozen=True, slots=True)
 class GuardPorts:
     tracker: IssueTracker
+    key_lister: KeyLister
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +64,9 @@ def evaluate(
         (
             *pin_age_findings(inputs, today),
             *keyring_age_findings(inputs, today),
+            *node_keyring_expiry_findings(
+                inputs.node_keyring, ports.key_lister, today
+            ),
         )
     )
 

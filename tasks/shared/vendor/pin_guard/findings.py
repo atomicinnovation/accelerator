@@ -95,3 +95,46 @@ class KeyringAgeFinding:
                 f"band and update `keyring.bumped`; see {RELEASING_GUARD_URL}.",
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class KeyExpiryFinding:
+    fingerprint: str
+    expires_on: dt.date
+    days_to_expiry: int
+
+    @property
+    def marker(self) -> IssueMarker:
+        return IssueMarker(
+            MarkerKind.FINDING,
+            ("key-expiry", self.fingerprint, self.expires_on.isoformat()),
+        )
+
+    def draft(self, owner: Owner) -> IssueDraft:
+        return IssueDraft(
+            self.marker,
+            f"Node release key {self.fingerprint[-16:]} {self._lapse}",
+            issue_body(
+                self.marker,
+                f"The Node release key {code_span(self.fingerprint)} in "
+                f"`keys/nodejs-release.asc` {self._lapse}, "
+                f"{self._distance}.",
+                f"Owner: @{owner.login}. Fetch the extended key from "
+                "`nodejs/release-keys`, verify it out of band, replace "
+                "`keys/nodejs-release.asc` and update `keyring.bumped`; see "
+                f"{RELEASING_GUARD_URL}.",
+            ),
+        )
+
+    @property
+    def _lapse(self) -> str:
+        verb = "expired" if self.days_to_expiry < 0 else "expires"
+        return f"{verb} on {self.expires_on.isoformat()}"
+
+    @property
+    def _distance(self) -> str:
+        if self.days_to_expiry < 0:
+            return f"{-self.days_to_expiry} days ago"
+        if self.days_to_expiry == 0:
+            return "today"
+        return f"in {self.days_to_expiry} days"

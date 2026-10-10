@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T19:53:59+00:00"
+last_updated: "2026-10-10T20:17:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1144,8 +1144,8 @@ translating `KeyListingError` to `KeyringError` naming
 
 #### Automated Verification:
 
-- [ ] Key listing and keyring tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or gpg or nodejs"`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Key listing and keyring tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or gpg or nodejs"`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2260,6 +2260,36 @@ issues`. Where the code departs from or adds to the plan:
   server starts but before its watches register is never broadcast (a
   rescan once registration completes would close that gap), and a cancelled
   e2e lane can leave `start-server.mjs` and its server running.
+
+### Phase 3
+
+Committed as `Open key-expiry issues for the Node release keys`. Where the
+code departs from or adds to the plan:
+
+- `keyring.node_keyring_expiry_findings(keyring, list_keys, today)` lists,
+  selects and checks the keys and translates `KeyListingError` to
+  `KeyringError`, so `evaluate` makes one call rather than holding the
+  translation itself.
+- `CheckedKey` gains an `expires_on` property (the UTC date) beside
+  `days_to_expiry`, so the finding's date and its day count come from one
+  conversion.
+- `gpg.list_keys` also maps an `OSError` or `subprocess.TimeoutExpired` from
+  its runner to `KeyListingError`, so a hung or unexecutable gpg aborts like a
+  missing one.
+- `nodejs-release.colons` was recorded on 2026-10-10 with GnuPG 2.5.24 from
+  the exact argv `list_keys` runs. `clear-keyring.colons` carries an
+  encryption-only subkey that expired in 2001 beside a signing subkey
+  expiring in 2099, so the default world stays clear only because the
+  selection rule holds.
+- `tests/unit/tasks/shared/doubles.py` gains `PIN_GUARD_FIXTURES` and
+  `listing_lister(fixture_name)`, a `KeyLister` answering with a recorded
+  listing.
+- `mise run vendor:guard-pins` on 2026-10-10 printed key-expiry drafts for
+  `86C8D746…E737BC9F` (expires 2026-12-09, in 60 days), `890C08DB…CF555EF4`
+  (expired 2026-07-08) and `A6023530…DE079578` (expired 2025-06-01) beside the
+  two pin-age drafts, and opened nothing.
+- The fingerprint-consistency test ran locally against GnuPG 2.5.24; the CI
+  check that it runs rather than skips waits for the PR.
 
 ## References
 
