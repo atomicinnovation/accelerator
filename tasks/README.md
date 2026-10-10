@@ -379,7 +379,8 @@ carries the `runtime-pin-guard` label.
   deduplication, so a change to the workflow's token identity needs
   `--issue-author` to match.
 - **Issue cap.** More than `--maximum-new-issues` (default 10) new findings in
-  one run opens a single `guard-tripped` issue instead, and fails the run.
+  one run opens a single `guard-tripped` issue instead, and fails the run. The
+  workflow's `maximum-new-issues` dispatch input raises the cap for one run.
 
 Try it against a throwaway repository:
 

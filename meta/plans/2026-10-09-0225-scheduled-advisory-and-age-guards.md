@@ -1322,9 +1322,9 @@ Phase 2 gains the `maximum-new-issues` dispatch input.
 
 #### Automated Verification:
 
-- [ ] Workflow and docs tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or workflows or trust_anchors or lint"`
-- [ ] actionlint covers both workflows: `mise run lint:workflows:check`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Workflow and docs tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or workflows or trust_anchors or lint"`
+- [x] actionlint covers both workflows: `mise run lint:workflows:check`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2290,6 +2290,45 @@ code departs from or adds to the plan:
   two pin-age drafts, and opened nothing.
 - The fingerprint-consistency test ran locally against GnuPG 2.5.24; the CI
   check that it runs rather than skips waits for the PR.
+
+### Phase 4
+
+Committed as `Schedule the runtime pin guard and document the owner's side`.
+Where the code departs from or adds to the plan:
+
+- The workflow installs the whole `mise` toolset, as `main.yml` does. The
+  pinned `mise-action` accepts `install_args`, but `mise run` installs every
+  missing tool in the toolset before a task runs (`task.run_auto_install`
+  defaults to true, in `src/cli/run.rs`), so `install_args: python uv gh` would
+  have been undone by the guard step itself. The workflow test asserts the
+  absence of `install_args` so the restriction is not reintroduced. Setup on a
+  cold cache now includes the Rust and Node toolchains, which may push it past
+  the plan's 5-minute estimate; with evaluation bounded at 12 minutes and
+  reconciliation at about 8.5, the 30-minute budget still holds below about
+  9 minutes of setup. `MISE_TASK_RUN_AUTO_INSTALL=false` (or
+  `mise run --skip-tools`) would keep the restriction if the first runs show
+  setup is too slow.
+- The documentation tests match each limit through the phrase that states it
+  (`60-day key-expiry warning window`, `more than 10 new findings`, a
+  `| <subject> | … | <n> days |` table row), since a bare number such as `10`
+  also matches dates in the section.
+- `RELEASING.md`'s guard section holds `### Limits`, `### Bump dates`,
+  `### Acting on an issue`, `### Closing issues` and `### Schedule health`.
+- The trust-anchor error now names the `Refreshing the anchors` procedure, and
+  a test reads that name from the raised message and finds the heading in
+  `RELEASING.md`.
+- `mise run` failed twice before exiting 0 on the third run, every failure in
+  Rust this phase does not touch:
+  - run 1: `config-adapters::runner
+    output_is_capped_across_stdout_and_stderr_combined`, the Phase 2 flake,
+    which returned the output rather than `OutputExceeded` under load. It
+    passed 5 of 5 alone;
+  - run 2: all 10 `github::octocrab_client` tests, each failing in
+    `OctocrabClient::with_base_uri` after about 23 s with `"Other"`, before any
+    request. octocrab 0.54.1 loads the macOS native trust roots there, and
+    that load stalled with and without the command sandbox while the
+    `security` CLI read the same keychains instantly. The stall cleared by
+    itself; its cause was not found.
 
 ## References
 

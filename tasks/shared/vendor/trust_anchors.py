@@ -1,12 +1,10 @@
 """The release-lane guard on the vendored runtime's trust anchors.
 
-A fresh checkout ships ``pins.toml`` with placeholder digests and no publisher
-keys, so a release cut before a human runs the refresh procedure would sign a
-manifest
-whose tree digests are placeholders and verify its upstream inputs against keys
-that do not exist. Both failures otherwise surface deep in assembly as a digest
-mismatch or a missing-file traceback; this predicate names them up front, so the
-operator is pointed at the refresh procedure rather than at a stack trace.
+A release signed while ``pins.toml`` carried a placeholder digest, or while a
+publisher key was missing, would ship a manifest no launcher could verify. Both
+failures otherwise surface deep in assembly as a digest mismatch or a
+missing-file traceback; this predicate names them up front, so the operator is
+pointed at the refresh procedure rather than at a stack trace.
 
 Pure over its inputs: the pins document and the keys directory are parameters,
 so the check is exercised against fixtures without a real release.
@@ -18,8 +16,6 @@ from pathlib import Path
 
 from tasks.shared.paths import KEYS_DIR, PINS_TOML
 
-# The publisher keys the upstream verification reads: Node's release keyring and
-# the npm registry's signing key. Absent until the refresh procedure adds them.
 PUBLISHER_KEYS = ("nodejs-release.asc", "npm-registry.pem")
 
 
@@ -124,6 +120,6 @@ def assert_ready(
         "the vendored-runtime trust anchors are still placeholders, so this "
         "release would ship inputs no launcher could verify:\n"
         f"{listed}\n"
-        'Refresh them with the "Refreshing the vendored-runtime trust anchors" '
-        "procedure in RELEASING.md before cutting a release."
+        'Refresh them with the "Refreshing the anchors" procedure in '
+        "RELEASING.md before cutting a release."
     )

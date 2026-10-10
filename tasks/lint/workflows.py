@@ -4,8 +4,6 @@ from invoke import Context, Exit, task
 
 from tasks.shared.paths import REPO_ROOT
 
-_WORKFLOW = ".github/workflows/main.yml"
-
 # actionlint's bundled schema predates the GA `concurrency.queue` key (shipped
 # 2026-05-07) and rejects `queue: max` as an unknown sub-key. That key is valid
 # and deliberate (see .github/workflows/main.yml). actionlint's role here is
@@ -23,7 +21,7 @@ def actionlint(context: Context) -> None:
     ignore = shlex.quote(_QUEUE_SCHEMA_LAG)
     with context.cd(str(REPO_ROOT)):
         result = context.run(
-            f"actionlint -ignore {ignore} {_WORKFLOW}", warn=True, pty=False
+            f"actionlint -ignore {ignore}", warn=True, pty=False
         )
     if result.exited != 0:
         raise Exit("actionlint reported findings — fix them", code=1)
