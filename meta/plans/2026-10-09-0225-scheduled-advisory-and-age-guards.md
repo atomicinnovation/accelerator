@@ -2322,7 +2322,11 @@ Where the code departs from or adds to the plan:
   - run 1: `config-adapters::runner
     output_is_capped_across_stdout_and_stderr_combined`, the Phase 2 flake,
     which returned the output rather than `OutputExceeded` under load. It
-    passed 5 of 5 alone;
+    passed 5 of 5 alone. The cause was a runner defect, fixed in the
+    separate commit `Read a command's output to the end after it exits`: once
+    the leader had exited and its group was empty, the runner dropped output
+    still unread in the pipes, so it undercounted the cap and could truncate
+    a helper's value;
   - run 2: all 10 `github::octocrab_client` tests, each failing in
     `OctocrabClient::with_base_uri` after about 23 s with `"Other"`, before any
     request. octocrab 0.54.1 loads the macOS native trust roots there, and
