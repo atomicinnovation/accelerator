@@ -359,6 +359,34 @@ verifier::sha256_hex throughput (decimal MB/s) =
     asset_bytes / (median_ms * 1000)
 ```
 
+### The runtime pin guard
+
+`vendor:guard-pins` checks the vendored runtime's pins and trust-anchor
+keyring, and files a GitHub issue for each finding. The names line up:
+the task `vendor:guard-pins` runs the package `tasks/shared/vendor/pin_guard/`,
+which the `runtime-pin-guard` workflow schedules, and every issue it opens
+carries the `runtime-pin-guard` label.
+
+- **Networked.** It reads GitHub issues through `gh`, so it is in neither
+  `check` nor `default`. A transitive-closure guard in
+  `tests/unit/tasks/test_mise.py`, keyed on the `run` string as for `measure`,
+  enforces that.
+- **Dry by default.** It prints the issues it would open and writes nothing
+  unless `--open-issues` is passed, which only `runtime-pin-guard.yml` does.
+  `--today <date>` evaluates as of another date and is refused with
+  `--open-issues`.
+- **Trusted author.** Only issues authored by `github-actions[bot]` count for
+  deduplication, so a change to the workflow's token identity needs
+  `--issue-author` to match.
+- **Issue cap.** More than `--maximum-new-issues` (default 10) new findings in
+  one run opens a single `guard-tripped` issue instead, and fails the run.
+
+Try it against a throwaway repository:
+
+```bash
+GH_REPO=<owner>/<throwaway> mise run vendor:guard-pins -- --open-issues --issue-author <your-login>
+```
+
 ### Criterion constants
 
 The pre-registered numbers a run is judged by, held in lockstep with

@@ -20,13 +20,20 @@ darwin-x64 = "4a91a7f65a432a9418cb5a7b4961c8dd2b78dde6542d84ef7d91791aaad8a4ae"
 linux-arm64 = "654d82a39be7ffa5741222750d940895d42f995731921e1c2cfb8e473ce17cab"
 linux-x64 = "aa6061e8c3460e75abea72ba82a3c614d3b16400a6653ed6dc5a4c6719d6962d"
 
-# The vendored Chromium and Node pins. CHROMIUM_REVISION mirrors the pinned
+# The playwright-core version itself is declared in the vendored package.json.
+[playwright-core]
+bumped = 2026-05-18
+
+# The vendored Chromium and Node pins. chromium.revision mirrors the pinned
 # playwright-core's browsers.json and is cross-checked against it at assembly;
-# the per-platform sha256 makes the CDN-served bytes reviewable.
-# NODE version mirrors the pairing upstream ships. A Playwright pin bump
-# refreshes all of them under the trust-anchor procedure.
+# the per-platform sha256 makes the CDN-served bytes reviewable. node.version
+# mirrors the pairing upstream ships. The revision, digests and Node version
+# follow a Playwright pin bump under the trust-anchor procedure. Each `bumped`
+# date moves only with its own subject, under the bump-date rule in
+# RELEASING.md's "Vendored-runtime pin guard" section.
 [chromium]
 revision = "1193"
+bumped = 2026-05-18
 
 [chromium.sha256]
 darwin-arm64 = "412e3b12e4479d93965c638a7a7415ceb44c1eab7241363e36bfe57d70704926"
@@ -36,3 +43,7 @@ linux-x64 = "7d93c385edba3ac9f10f13037e600353f29f84691f09d26b935bfc117bbceb98"
 
 [node]
 version = "22.22.2"
+bumped = 2026-08-24
+
+[keyring]
+bumped = 2026-08-24

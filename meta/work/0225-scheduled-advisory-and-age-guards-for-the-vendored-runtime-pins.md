@@ -11,9 +11,9 @@ priority: "medium"
 parent: "work-item:0136"
 relates_to: ["work-item:0196", "work-item:0219"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories"]
-last_updated: "2026-10-09T22:01:37+00:00"
+last_updated: "2026-10-10T17:27:45+00:00"
 last_updated_by: "Toby Clemson"
-last_updated_note: "Initial bump dates are taken from the commit that last changed the pinned runtime version, not the specifier or a placeholder; keyring seed narrowed to the two keyring files."
+last_updated_note: "Recorded the task name, owner login and key-listing choice; dedup lists issues with gh api --paginate and trusts only the workflow bot; added the dry-run default and the per-run issue cap."
 schema_version: 1
 external_id: "PP-755"
 ---
@@ -157,6 +157,12 @@ notifying an owner.
   same finding, whether it is open or closed.
 - A guard run that opens issues for findings, with every feed responding,
   exits 0; findings are reported through issues, not through a red run.
+- The guard writes issues only when passed `--open-issues`, which only the
+  workflow passes; otherwise it prints the issues it would open. One run opens
+  at most 10 finding issues: above that it opens a single `guard-tripped`
+  issue keyed on the would-be set of findings instead, and exits non-zero.
+  `--maximum-new-issues`, exposed as a `workflow_dispatch` input, raises the
+  cap for one dispatched run.
 
 **Feed failure**
 
@@ -372,8 +378,8 @@ Issue lifecycle:
       new bump date also exceeds the maximum age, then a new issue opens.
 - [ ] Given every pin and key is clear, when the guard runs, then it opens
       nothing and exits 0.
-- [ ] Given findings exist and every feed responded, when the guard runs, then
-      it opens their issues and exits 0.
+- [ ] Given findings exist, every feed responded and the cap was not
+      exceeded, when the guard runs, then it opens their issues and exits 0.
 
 Feed failure, with one fixture per feed for each of unreachable, unparseable
 and missing-field responses:
@@ -447,15 +453,16 @@ Workflow and documentation:
 
 Decided by the owner before planning:
 
-- What is the owner's GitHub login?
+- What is the owner's GitHub login? `tobyclemson`.
 
 Decided during implementation:
 
 - Which OpenPGP parser reads key and subkey expiry: the `gpg` runner the
   release workflow already uses to verify Node (`tasks/shared/vendor/nodejs`)
   or a Python library? Whichever is chosen must be pinned or probed on the
-  runner as that `gpg` is.
-- What is the guard's `mise` task called?
+  runner as that `gpg` is. `gpg --show-keys --with-colons`, probed by a
+  behavioural check on its output rather than pinned.
+- What is the guard's `mise` task called? `vendor:guard-pins`.
 
 ## Dependencies
 
@@ -539,11 +546,14 @@ Decided during implementation:
   entries carry no version fields, hence the OSV join.
 - Dedup: the `runtime-pin-guard` label plus a hidden body marker —
   `<!-- finding: <kind> <identity> -->` for findings and
-  `<!-- feed-failure: <feed> -->` for feed failures — checked against
-  `gh issue list --label runtime-pin-guard --state all --json
-  number,state,body` filtered locally rather than via search, which lags. The
-  workflow needs `permissions: issues: write` and a `concurrency` group so
-  overlapping runs cannot double-create.
+  `<!-- feed-failure: <feed> -->` for feed failures — checked against every
+  labelled issue listed with `gh api --paginate
+  repos/{owner}/{repo}/issues?labels=runtime-pin-guard&state=all` (not
+  `gh issue list`, which truncates at `--limit`) and filtered locally rather
+  than via search, which lags. Pull requests the endpoint also returns are
+  filtered out, and only the marker on the last line of an issue authored by
+  `github-actions[bot]` counts. The workflow needs `permissions: issues:
+  write` and a `concurrency` group so overlapping runs cannot double-create.
 - Keep the matching logic in the `tasks/` Python toolchain so it is driven
   test-first against recorded feed fixtures, with the workflow a thin
   scheduler.
@@ -594,6 +604,11 @@ Decided during implementation:
   hide an already-stale runtime for 98 days. The computed seeds are in
   `meta/research/codebase/2026-10-09-0225-scheduled-advisory-and-age-guards.md`.
 - 90 days for pins reflects Playwright's roughly monthly releases.
+- The dry-run default and the per-run issue cap were added during planning.
+  A guard run from a contributor's checkout must not write issues whose
+  closure would then suppress the genuine ones, and a matcher defect or a
+  feed change must not flood the owner with issues that each need closing by
+  hand; one `guard-tripped` issue and a red run surface it instead.
 - `kind` stays `task` despite the size; the two-change delivery above records
   it. The title names the runtime pins only; the keyring guards are in scope,
   as Summary and Terms state.

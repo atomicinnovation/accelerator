@@ -82,6 +82,10 @@ PRERELEASE_MARKETPLACE_JSON = (
     REPO_ROOT / ".claude-plugin/marketplace-prerelease.json"
 )
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
+RELEASING_MD = REPO_ROOT / "RELEASING.md"
+PLAYWRIGHT_PACKAGE_JSON = (
+    REPO_ROOT / "skills/design/inventory-design/scripts/playwright/package.json"
+)
 
 
 def load_toml(path: Path) -> dict[str, Any]:

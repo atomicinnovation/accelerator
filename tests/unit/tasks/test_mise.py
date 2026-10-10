@@ -299,6 +299,33 @@ def test_no_measure_reaching_task_is_in_the_ci_mirror(mise, root):
     )
 
 
+# The pin guard is networked and, with --open-issues, writes GitHub issues; the
+# scheduled runtime-pin-guard workflow owns it.
+_GUARD_INVOCATION = "invoke vendor.guard-pins"
+
+
+def _tasks_reaching_the_pin_guard(mise: dict) -> set[str]:
+    return {
+        name
+        for name, body in mise["tasks"].items()
+        if _GUARD_INVOCATION in str(body.get("run", ""))
+    }
+
+
+def test_the_pin_guard_is_reached_by_its_own_task(mise):
+    assert "vendor:guard-pins" in _tasks_reaching_the_pin_guard(mise)
+
+
+@pytest.mark.parametrize("root", ["check", "default"])
+def test_no_pin_guard_reaching_task_is_in_the_ci_mirror(mise, root):
+    closure = _transitive_depends(mise, root)
+    offenders = sorted(closure & _tasks_reaching_the_pin_guard(mise))
+    assert not offenders, (
+        f"{offenders} reach the runtime pin guard from the transitive closure "
+        f"of {root}.depends — every `mise run` would need network egress"
+    )
+
+
 @pytest.mark.parametrize("root", ["default", "test", "check"])
 def test_no_local_mirror_task_reaches_the_live_contract_lane(mise, root):
     # The lane needs a real tenant, credentials no CI job holds and network

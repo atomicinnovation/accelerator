@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T17:18:47+00:00"
+last_updated: "2026-10-10T19:53:59+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -952,17 +952,17 @@ It names the task → package → workflow/label mapping.
 
 #### Automated Verification:
 
-- [ ] Guard tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or clock"`
-- [ ] Existing `pins.toml` readers still pass: `uv run pytest tests/unit/tasks/test_tree_artifact_pins.py tests/unit/tasks/test_vendor_trust_anchors.py`
-- [ ] `docs:audit-check` behaviour unchanged: `uv run pytest tests/unit/tasks/test_docs_audit_check.py`
-- [ ] `vendor:check-trust-anchors` still passes: `mise run vendor:check-trust-anchors`
-- [ ] CI-mirror guard passes: `uv run pytest tests/unit/tasks/test_mise.py`
-- [ ] Launcher still builds against the edited `pins.toml`: `mise run cli:check`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Guard tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or clock"`
+- [x] Existing `pins.toml` readers still pass: `uv run pytest tests/unit/tasks/test_tree_artifact_pins.py tests/unit/tasks/test_vendor_trust_anchors.py`
+- [x] `docs:audit-check` behaviour unchanged: `uv run pytest tests/unit/tasks/test_docs_audit_check.py`
+- [x] `vendor:check-trust-anchors` still passes: `mise run vendor:check-trust-anchors`
+- [x] CI-mirror guard passes: `uv run pytest tests/unit/tasks/test_mise.py`
+- [x] Launcher still builds against the edited `pins.toml`: `mise run cli:check`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `mise run vendor:guard-pins` from a checkout prints pin-age drafts for `playwright-core` (1.55.1) and Chromium (1193), each with its age on the run date, and opens nothing
+- [x] `mise run vendor:guard-pins` from a checkout prints pin-age drafts for `playwright-core` (1.55.1) and Chromium (1193), each with its age on the run date, and opens nothing
 - [ ] `GH_REPO=<throwaway> mise run vendor:guard-pins -- --open-issues --issue-author <your-login>` opens those two issues, labelled and assigned; a second run opens nothing
 
 ---
@@ -2194,10 +2194,72 @@ assembly`. Where the code departs from or adds to the plan:
   `test:e2e:visualiser`, `kanban-drag-overlay.spec.ts:39` ("Escape-cancelling
   a drag clears the SSE gate so later updates still render"), which failed on
   its first attempt and its retry. It passed 3 of 3 runs on its own, and the
-  whole e2e suite then passed (355 tests). It is a timing flake under
-  full-suite load; this phase touches no visualiser code.
+  whole e2e suite then passed (355 tests). This phase touches no visualiser
+  code; Phase 2's notes record the cause and the fix.
 - The manual check, that the `assemble-runtime` job assembles the real
   1.55.1 tarball, waits for the PR.
+
+### Phase 2
+
+Committed as `Guard the vendored pins' and keyring's age with deduplicated
+issues`. Where the code departs from or adds to the plan:
+
+- `GuardAbort` is `GuardAbortError`: ruff's N818 requires the suffix, and no
+  exception in `tasks/` suppresses it.
+- `PinAgeFinding` and `KeyringAgeFinding` carry `maximum_age_days`, so the
+  body names the breached limit without `findings.py` importing `ages.py`,
+  which the one-way import order forbids. Neither field is in the marker.
+- `ReconcileOutcome` holds `held_back: int` (0 unless tripped) with `tripped`
+  as a property, so the failure reason names how many findings the
+  `guard-tripped` issue stands in for.
+- `findings.issue_body` joins a draft's paragraphs and appends its marker, so
+  every finding kind and the `guard-tripped` draft end with the marker the same
+  way. Pin-age and keyring-age bodies name the owner as `@login`; the login is
+  constrained by the `Owner:` pattern, while the name is free text.
+- `run_gh` also maps a missing `gh` (`OSError`) to `IssueTrackerError`, and
+  `ensure_label` maps an unreadable label listing the same way.
+- `clear_repository(root, today, *, bumped, pins, owner_line, playwright)`
+  writes the fixture repository and returns its `LocalInputPaths`; `pins_text`
+  builds a `pins.toml` with any bump date omitted. `StubFinding` stands in for
+  a finding kind in reconciliation tests, which need eleven distinct markers.
+- `tests/unit/tasks/test_vendor_pins.py` (new) covers `pins.bump_date`.
+- `RELEASING.md`'s guard section sits between the trust-anchor section and
+  `## Vendored verify shims`; the bump-date rule is its `### Bump dates`
+  subsection, which step 4 of the refresh procedure links to.
+- `tasks/README.md`'s subsection is `### The runtime pin guard`, after the
+  measure namespace.
+- `mise run vendor:guard-pins` printed pin-age drafts for `chromium` 1193
+  and `playwright-core` 1.55.1 at 145 days on 2026-10-10 and opened nothing.
+  The throwaway-repository run opens real issues, so it is left to the owner.
+- `mise run` failed in each of four runs before exiting 0 on the fifth,
+  every failure in code this phase does not touch:
+  - run 1: `config-adapters::runner
+    output_is_capped_across_stdout_and_stderr_combined`, an output-capping
+    test unrelated to file events. It passed 5 of 5 alone and in every later
+    run; its cause was not investigated;
+  - run 2: two visualiser `sse_e2e` template-watcher tests, which exhausted
+    their 300 s re-write budget;
+  - runs 3 and 4: `kanban-drag-overlay.spec.ts:39`, the Phase 1 flake, on its
+    first attempt and its retry.
+- The `sse_e2e` and kanban failures share one cause. The visualiser serves
+  HTTP before its FSEvents watches are registered, and with fseventsd
+  saturated by the full run, registration took minutes: a debug-logged
+  server registered its first directory 48 s after start and its last after
+  more than 2 minutes, and in a failing run none had registered when the spec
+  wrote its fixture. The spec's single write therefore landed before anything
+  was listening. The separate commit `Re-write the kanban SSE-gate fixture
+  until the board observes it` re-writes it until the card moves, within the
+  300 s budget `sse_e2e.rs` already uses for this cause, and `mise run` then
+  exited 0. A stuck SSE gate still never moves the card, so the spec still
+  guards it, failing after 300 s rather than 10 s.
+- Registering all 15 watch directories in one batch through `notify` 8.2.0's
+  `paths_mut` was tried and reverted: a single batched registration still
+  stalled for 72 s while `test:integration:visualiser` ran, so the stall is
+  fseventsd itself, not the number of stream rebuilds.
+- Two visualiser defects surfaced and remain unfixed: a file edited after the
+  server starts but before its watches register is never broadcast (a
+  rescan once registration completes would close that gap), and a cancelled
+  e2e lane can leave `start-server.mjs` and its server running.
 
 ## References
 
