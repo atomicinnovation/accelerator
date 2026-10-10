@@ -17,6 +17,8 @@ signature, but the ones it made while valid stand, and Node's release keys
 expire faster than the upstream repo extends them.
 """
 
+import datetime as dt
+import re
 import shutil
 import subprocess
 import tempfile
@@ -26,6 +28,9 @@ from pathlib import Path
 from typing import NamedTuple, Self
 
 _STATUS_PREFIX = "[GNUPG:] "
+_FINGERPRINT = re.compile(r"^[0-9A-F]{40}$")
+_ISO_BASIC_TIMESTAMP = re.compile(r"^\d{8}T\d{6}$")
+_KEY_RECORDS = {"pub": True, "sub": False}
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,3 +192,117 @@ def _primary_fingerprint(args: list[str]) -> str | None:
     if not args:
         return None
     return (args[9] if len(args) >= 10 else args[0]).upper()
+
+
+class KeyListingError(Exception):
+    """gpg could not list a keyring, or listed it in an unrecognised form."""
+
+
+@dataclass(frozen=True, slots=True)
+class ListedKey:
+    fingerprint: str
+    is_primary: bool
+    capabilities: str
+    expires_at: dt.datetime | None
+
+
+def listed_keys(colon_listing: Iterable[str]) -> tuple[ListedKey, ...]:
+    """Parse ``gpg --with-colons`` output into its primary keys and subkeys.
+
+    Raises ``KeyListingError`` for any shape outside the documented colon
+    format, which is what stands in for pinning the host's gpg.
+    """
+    keys: list[ListedKey] = []
+    pending: list[str] | None = None
+    for line in colon_listing:
+        fields = line.split(":")
+        record = fields[0]
+        if record in _KEY_RECORDS:
+            _refuse_unfingerprinted(pending)
+            pending = fields
+        elif record == "fpr" and pending is not None:
+            keys.append(_listed_key(pending, _field(fields, 9)))
+            pending = None
+    _refuse_unfingerprinted(pending)
+    if not any(key.is_primary for key in keys):
+        raise KeyListingError("the listing holds no public key")
+    return tuple(keys)
+
+
+type GpgRunner = Callable[[list[str]], subprocess.CompletedProcess[str]]
+
+
+def _run_gpg_listing(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        argv, check=False, capture_output=True, text=True, timeout=60
+    )
+
+
+def list_keys(
+    keyring: Path,
+    *,
+    run: GpgRunner = _run_gpg_listing,
+    which: Callable[[str], str | None] = shutil.which,
+) -> tuple[ListedKey, ...]:
+    """List ``keyring``'s keys without importing it into any keyring."""
+    if which("gpg") is None:
+        raise KeyListingError("gpg is not installed to list the keyring")
+    with tempfile.TemporaryDirectory() as home:
+        argv = [
+            "gpg",
+            "--homedir",
+            home,
+            "--batch",
+            "--with-colons",
+            "--fixed-list-mode",
+            "--with-subkey-fingerprint",
+            "--show-keys",
+            str(keyring),
+        ]
+        try:
+            result = run(argv)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise KeyListingError(
+                f"gpg could not list keys: {error}"
+            ) from error
+    if result.returncode != 0:
+        raise KeyListingError(
+            f"gpg exited {result.returncode} listing keys: "
+            f"{result.stderr.strip()}"
+        )
+    return listed_keys(result.stdout.splitlines())
+
+
+def _field(fields: list[str], index: int) -> str:
+    return fields[index] if index < len(fields) else ""
+
+
+def _refuse_unfingerprinted(pending: list[str] | None) -> None:
+    if pending is not None:
+        raise KeyListingError(
+            f"the {pending[0]} record for {_field(pending, 4)} has no "
+            "fingerprint record"
+        )
+
+
+def _listed_key(fields: list[str], fingerprint: str) -> ListedKey:
+    if not _FINGERPRINT.match(fingerprint):
+        raise KeyListingError(f"malformed fingerprint {fingerprint!r}")
+    return ListedKey(
+        fingerprint,
+        is_primary=_KEY_RECORDS[fields[0]],
+        capabilities=_field(fields, 11),
+        expires_at=_expiry(_field(fields, 6)),
+    )
+
+
+def _expiry(text: str) -> dt.datetime | None:
+    if not text:
+        return None
+    if text.isdigit():
+        return dt.datetime.fromtimestamp(int(text), tz=dt.UTC)
+    if _ISO_BASIC_TIMESTAMP.match(text):
+        return dt.datetime.strptime(text, "%Y%m%dT%H%M%S").replace(
+            tzinfo=dt.UTC
+        )
+    raise KeyListingError(f"unrecognised expiry {text!r}")

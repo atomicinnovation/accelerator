@@ -161,8 +161,8 @@ keeps its separate `approve-release` human gate.
 The design tooling vendors its Playwright driver and a headless Chromium. The
 release pipeline assembles both in CI from upstream inputs it verifies against
 their publishers' own signatures, then publishes the archives under the project's
-release key. Two committed anchors make that verification meaningful, and both are
-placeholders in a fresh checkout:
+release key. The committed anchors below make that verification meaningful; a
+guard refuses any that still holds a placeholder value:
 
 | Anchor | File | What it pins |
 |--------|------|--------------|
@@ -172,7 +172,7 @@ placeholders in a fresh checkout:
 | Node keyring | `keys/nodejs-release.asc` | The Node release team's GPG keys, used to verify Node's `SHASUMS256.txt` |
 | npm signing key | `keys/npm-registry.pem` | The npm registry's ECDSA-P256 public key, used to verify the `playwright-core` packument signature |
 
-A guard fails the assembly job — and so any release — while any anchor is still a
+The guard fails the assembly job — and so any release — if any anchor is a
 placeholder, listing every one:
 
 ```bash
@@ -213,7 +213,170 @@ change only when their publishers rotate them.
 4. **Confirm and commit.** `mise run vendor:check-trust-anchors` must now pass.
    Commit `pins.toml` and both key files together; the drift test holds the
    assembled digests, the launcher's compiled-in map and `manifest.example.json`
-   in agreement.
+   in agreement. In the same change, update each bump date whose subject moved
+   (see [Bump dates](#bump-dates)): `playwright-core.bumped` when the
+   `playwright` version moves, `chromium.bumped` only when `chromium.revision`
+   changes, `node.bumped` only when `node.version` changes, and
+   `keyring.bumped` only when step 1 replaced or re-verified the keys.
+
+## Vendored-runtime pin guard
+
+Owner: Toby Clemson (@tobyclemson)
+
+The `vendor:guard-pins` task parses the line above to assign the issues it
+opens, so it must stay the only line in this file of the form
+`Owner: Name (@login)`.
+
+The `runtime-pin-guard` workflow runs the task daily and opens one GitHub
+issue per finding, labelled `runtime-pin-guard` and assigned to the owner.
+
+### Limits
+
+| Subject | Bump date | Maximum age |
+|---------|-----------|-------------|
+| `playwright-core` | `playwright-core.bumped` | 90 days |
+| Node | `node.bumped` | 90 days |
+| Chromium | `chromium.bumped` | 90 days |
+| Node keyring | `keyring.bumped` | 365 days |
+
+A subject breaches its limit once its age exceeds the maximum. Separately, any
+primary or signing key in `keys/nodejs-release.asc` within the 60-day
+key-expiry warning window, or already expired, is a finding.
+
+### Bump dates
+
+Each pin and the keyring carries a bump date in `pins.toml`
+(`playwright-core.bumped`, `chromium.bumped`, `node.bumped`,
+`keyring.bumped`), written as a TOML local date such as `2026-10-09`. The
+guard measures age from these dates, never from VCS history. Update a bump
+date in the same change that moves its own subject or refreshes the keyring
+(including re-verifying the keyring and finding it unchanged), and never
+otherwise: a Playwright bump that keeps the Chromium revision leaves
+`chromium.bumped` alone.
+
+### Acting on an issue
+
+- **Pin age.** Bump the pin under
+  [Refreshing the anchors](#refreshing-the-anchors), the only remedy, and
+  close the issue once the bump merges.
+- **Keyring age.** Re-verify or replace the keys out of band, then update
+  `keyring.bumped`.
+- **Key expiry.** Fetch the extended key from `nodejs/release-keys`, verify it
+  out of band, replace `keys/nodejs-release.asc`, and update `keyring.bumped`.
+- **Guard tripped.** The run found more than 10 new findings, so it opened
+  none of them and failed. Read the listed findings, or run the task
+  locally to print their drafts, and look for a matcher defect first. If they
+  are genuine, dispatch the workflow with `maximum-new-issues` above the
+  count, then close the tripped issue. A changed set opens a fresh tripped
+  issue, so close any it supersedes.
+
+Advisory and feed-failure issues are covered under [Feeds](#feeds).
+
+### Feeds
+
+Each advisory check reads only its own feeds, so a failing feed skips only the
+checks that depend on it. Every other check, the age and expiry checks
+included, still runs and opens its issues, and the run then fails.
+
+| Feed | Covers | Check |
+|------|--------|-------|
+| OSV (`api.osv.dev`) | npm `playwright` and `playwright-core` advisories | `playwright-core-advisories` |
+| Node security working group `vuln/core` | Node core advisories | `node-advisories` |
+| npm registry (`registry.npmjs.org`) | the browser version the pinned `playwright-core` declares | `chromium-advisories` |
+| CISA Known Exploited Vulnerabilities (KEV) | exploited Chromium CVEs | `chromium-advisories` |
+| OSV (`api.osv.dev`) | fixed Chromium versions for those CVEs | `chromium-advisories` |
+
+A `vuln/core` entry applies only when its `affectedEnvironments` include
+`all`, `darwin` or `linux`, the platforms the runtime ships for. Its
+`vulnerable` and `patched` ranges are read in the npm syntax the feed uses
+today: `||`, space-separated comparators, `N.x` and `N.M.x`, `^X.Y.Z`, and
+bare or operator-prefixed versions. Any other syntax, or a feed in which no
+entry names a supported environment, is a feed failure rather than a silent
+miss, so a change to the feed's format surfaces as an issue.
+
+The Chromium check reads the pinned `playwright-core` tarball from the npm
+registry, checks its sha512 against the registry's `integrity`, and takes the
+`browserVersion` of the `chromium-headless-shell` build at `chromium.revision`
+from its `browsers.json`. A release that declares no build at that revision
+aborts the run before any issue opens. The guard ships nothing, so it does
+not verify the registry signature or provenance; the release lane does.
+
+A KEV entry is a Chromium component when its vendor is `Google` and its
+product starts with `Chromium` or `Chrome`, or is `Skia` or `Dawn`; any other
+Google product, such as `Pixel`, is ignored. A KEV feed with no Chromium
+component at all is a feed failure, so a renamed vendor or product surfaces.
+
+For each such CVE, OSV's `unresolved_ranges` give the fixed versions. Only
+four-part versions are read: the same record lists Apple, WebKitGTK and other
+products' fixes without saying which is which. Among those, the guard takes
+the lowest major at or above the browser's, and holds the browser against the
+highest fix in that major, so a browser between two fixed majors is not taken
+as covered by the older one, and one platform's earlier fix does not cover
+another's later one. Edge's builds sit below Chrome's in the same major, so
+the highest fix is Chrome's. The pin is affected when that fix is strictly
+higher than the browser version.
+
+A CVE for which OSV holds no record, or whose record names no four-part fix,
+cannot be assessed. It opens an issue saying so, keyed like any advisory on
+the CVE, so a fix OSV publishes later adds nothing new.
+
+Blind spots:
+
+- an advisory filed only outside OSV, such as on the Playwright repository
+  without a GitHub advisory, is missed;
+- a Node advisory missing from `vuln/core`, or listed against an environment
+  name the guard does not know, is missed;
+- a Chromium CVE that is not known to be exploited, and so absent from KEV,
+  is missed;
+- while OSV lags a fresh KEV entry, its record may be missing; the CVE then
+  opens an issue to assess by hand rather than being matched;
+- `unresolved_ranges` sits outside OSV's core schema and names no product, so
+  a fixed version shaped like Chrome's but belonging to another product is
+  read as Chrome's;
+- no guard issue is ever closed automatically;
+- bump dates are kept in step by hand, and nothing enforces it; forgetting to
+  move one errs safe, reporting the pin as older than it is.
+
+A request is retried at most twice, after a transport error, a 5xx or a 429,
+waiting 2 s then 8 s, or the server's `Retry-After` capped at 30 s. Each
+attempt is limited to 20 s. A feed unreachable three times running is
+skipped for the rest of the run, and no request starts more than 10 minutes
+into the run; a skipped request counts as a feed failure.
+
+- **Advisory.** Bump the pin past the named fix, and close the issue once the
+  bump merges. Closing it silences that advisory for every later version of
+  the pin, so close it earlier only as an explicit risk acceptance, recorded
+  in a comment.
+- **Chromium CVE to assess.** Check the Chrome release notes for the CVE's
+  fix. Bump the pin if the vendored browser version is below it, then close
+  the issue once the bump merges; if it is not affected, close the issue with
+  a comment recording why. Either way, closing it silences the CVE for every
+  later version of the pin.
+- **Feed failure.** Request the failed URLs from outside GitHub Actions, and
+  close the issue once the feed is healthy, since a later failure opens a
+  fresh one. A feed-failure issue is keyed on its feed and the checks it
+  skipped, so a failure that blinds a further check opens a new issue even
+  while one stands.
+
+### Closing issues
+
+Closing a finding's issue permanently suppresses that finding, so close one
+only once it is resolved. A closed feed-failure issue suppresses nothing. Only issues authored by `github-actions[bot]` count: an
+issue opened or re-filed by hand suppresses nothing, and a change to the
+workflow's token identity needs `--issue-author` to match. Running the task
+locally prints drafts and writes nothing unless `--open-issues` is passed.
+
+Never edit a guard issue's body. The guard reads only the marker on its last
+line, so a line added beneath it makes the issue stop counting and the finding
+reopens. Record decisions as comments.
+
+### Schedule health
+
+- `gh run list --workflow runtime-pin-guard.yml --limit 1` shows a run in the
+  last 48 hours.
+- `gh workflow view runtime-pin-guard.yml` shows the workflow enabled.
+- GitHub disables schedules after 60 days without repository activity;
+  re-enable with `gh workflow enable runtime-pin-guard.yml`.
 
 ## Vendored verify shims
 

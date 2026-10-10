@@ -77,6 +77,7 @@ ns_vendor.add_task(vendor_commands.verify_upstream_inputs)
 ns_vendor.add_task(vendor_commands.assemble_tree_artifacts)
 ns_vendor.add_task(vendor_commands.smoke_runtime)
 ns_vendor.add_task(vendor_commands.build_archive)
+ns_vendor.add_task(vendor_commands.guard_pins)
 ns.add_collection(ns_vendor)
 
 ns_format = Collection("format")

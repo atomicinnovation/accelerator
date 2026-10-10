@@ -8,12 +8,19 @@ and producing the archives; and ``smoke_runtime`` runs per platform on a native
 host, executing the downloaded binaries.
 """
 
+import datetime as dt
 import os
 from pathlib import Path
 
-from invoke import Context, task
+from invoke import Context, Exit, task
 
-from tasks.shared.paths import KEYS_DIR, RELEASE_STAGING, REPO_ROOT
+from tasks.shared.clock import today_or_now
+from tasks.shared.paths import (
+    KEYS_DIR,
+    PLAYWRIGHT_PACKAGE_JSON,
+    RELEASE_STAGING,
+    REPO_ROOT,
+)
 from tasks.shared.targets import TARGETS, parse_platform
 from tasks.shared.vendor import (
     archive,
@@ -22,11 +29,18 @@ from tasks.shared.vendor import (
     trust_anchors,
     upstream,
 )
+from tasks.shared.vendor.pin_guard.aborts import GuardAbortError
+from tasks.shared.vendor.pin_guard.guard import GuardPorts, run_guard
+from tasks.shared.vendor.pin_guard.issues import (
+    MAXIMUM_NEW_ISSUES,
+    IssuePolicy,
+    IssueTrackerError,
+)
+from tasks.shared.vendor.pin_guard.local_inputs import LocalInputPaths
+from tasks.shared.vendor.pin_guard.wiring import real_ports
 
 VENDOR_INPUTS = REPO_ROOT / "dist" / "vendor-inputs"
-PLAYWRIGHT_PACKAGE_JSON = (
-    REPO_ROOT / "skills/design/inventory-design/scripts/playwright/package.json"
-)
+GUARD_ISSUE_AUTHOR = "github-actions[bot]"
 
 
 @task(name="check-trust-anchors")
@@ -105,3 +119,45 @@ def build_archive(
     Path(f"{dest}.sealed").write_bytes(
         attestation.build_attestation("driver", parse_platform(platform), stats)
     )
+
+
+@task(name="guard-pins")
+def guard_pins(
+    context: Context,
+    today: str | None = None,
+    open_issues: bool = False,
+    issue_author: str = GUARD_ISSUE_AUTHOR,
+    maximum_new_issues: int = MAXIMUM_NEW_ISSUES,
+) -> None:
+    """Report runtime-pin-guard findings on the vendored pins and keyring.
+
+    Prints the issues it would open unless ``--open-issues`` is passed. A
+    ``--today`` run opening real issues early would let their closure suppress
+    the genuine ones later, so the two are refused together.
+    """
+    if open_issues and today is not None:
+        raise Exit("--today cannot be combined with --open-issues", code=1)
+    if maximum_new_issues < 1:
+        raise Exit("--maximum-new-issues must be at least 1", code=1)
+    guard_pins_with(
+        LocalInputPaths.repository(),
+        today_or_now(today),
+        real_ports(open_issues=open_issues),
+        IssuePolicy(issue_author, maximum_new_issues),
+    )
+
+
+def guard_pins_with(
+    paths: LocalInputPaths,
+    today: dt.date,
+    ports: GuardPorts,
+    policy: IssuePolicy,
+) -> None:
+    try:
+        run = run_guard(paths, today, ports, policy)
+    except (GuardAbortError, IssueTrackerError) as error:
+        raise Exit(str(error), code=1) from error
+    reasons = run.failure_reasons()
+    if reasons:
+        listed = "\n".join(f"  - {reason}" for reason in reasons)
+        raise Exit(f"the runtime pin guard run failed:\n{listed}", code=1)

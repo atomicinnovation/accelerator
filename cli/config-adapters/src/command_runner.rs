@@ -258,6 +258,10 @@ impl Output {
         }
     }
 
+    const fn drained(&self) -> bool {
+        self.stdout.is_none() && self.stderr.is_none()
+    }
+
     fn close_all(&mut self) {
         self.stdout = None;
         self.stderr = None;
@@ -341,13 +345,14 @@ impl Supervision {
         }
     }
 
-    /// Lets the rest of the group finish after `SIGTERM`, until it is empty,
-    /// or until a second or the deadline, whichever is sooner, has passed.
     fn grace_period(&mut self) {
         let end = (Instant::now() + GRACE).min(self.deadline);
         loop {
             self.reap_if_exited();
-            if self.reaped.is_some() && self.group_is_empty() {
+            if self.reaped.is_some()
+                && self.group_is_empty()
+                && self.output.drained()
+            {
                 return;
             }
             if Instant::now() >= end {
@@ -425,4 +430,76 @@ fn exit_code(status: ExitStatus) -> i32 {
         .code()
         .or_else(|| status.signal().map(|signal| 128 + signal))
         .unwrap_or(-1)
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, clippy::panic)]
+
+    use super::*;
+
+    fn burst(bytes: usize, stream: &str) -> String {
+        let redirect = if stream == "stderr" { " >&2" } else { "" };
+        format!(
+            "printf %s \"$(head -c {bytes} /dev/zero | tr '\\0' a)\"{redirect}; "
+        )
+    }
+
+    fn exited_with_output_unread(command: &str) -> Child {
+        let child = Command::new("bash")
+            .arg("-c")
+            .arg(command)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .expect("spawn bash");
+        let started = Instant::now();
+        while rustix::process::waitid(
+            WaitId::Pid(Pid::from_child(&child)),
+            WaitIdOptions::EXITED
+                | WaitIdOptions::NOWAIT
+                | WaitIdOptions::NOHANG,
+        )
+        .expect("waitid")
+        .is_none()
+        {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "the command blocked on a full pipe"
+            );
+            std::thread::sleep(TICK);
+        }
+        child
+    }
+
+    fn concluded(command: &str) -> Result<String, CommandFailure> {
+        let run = ActiveRun::begin();
+        Supervision::of(
+            exited_with_output_unread(command),
+            Duration::from_secs(5),
+        )
+        .conclude(&run)
+    }
+
+    #[test]
+    fn output_left_in_the_pipe_by_an_exited_command_is_returned() {
+        assert_eq!(
+            concluded(&burst(16_000, "stdout")).map(|value| value.len()),
+            Ok(16_000)
+        );
+    }
+
+    #[test]
+    fn output_left_in_the_pipes_by_an_exited_command_counts_towards_the_cap() {
+        assert_eq!(
+            concluded(&format!(
+                "{}{}",
+                burst(40_000, "stdout"),
+                burst(30_000, "stderr")
+            )),
+            Err(CommandFailure::OutputExceeded)
+        );
+    }
 }

@@ -1,0 +1,12 @@
+{
+  "id": "GHSA-2222-3333-4444",
+  "affected": [
+    {
+      "package": {"name": "playwright-core", "ecosystem": "npm"},
+      "ranges": [
+        {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.40.0"}]},
+        {"type": "SEMVER", "events": [{"introduced": "1.55.0"}, {"fixed": "1.56.2"}]}
+      ]
+    }
+  ]
+}

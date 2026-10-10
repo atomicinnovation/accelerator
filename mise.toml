@@ -301,6 +301,10 @@ run = "invoke vendor.smoke-runtime"
 description = "Build one deterministic tree archive and its attestation from a tree dir (cross-language contract test helper)"
 run = "invoke vendor.build-archive"
 
+[tasks."vendor:guard-pins"]
+description = "Report runtime-pin-guard findings for the vendored-runtime pins and keyring (networked; prints drafts unless --open-issues)"
+run = "invoke vendor.guard-pins"
+
 [tasks."test:unit:visualiser"]
 description = "Run visualiser unit tests"
 depends = ["build:frontend"]

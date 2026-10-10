@@ -8,10 +8,17 @@ host GnuPG or crafted keyring is needed.
 """
 
 import hashlib
+import shutil
 
 import pytest
 
-from tasks.shared.vendor.nodejs import digest_for_filename, verify_node_runtime
+from tasks.shared.paths import KEYS_DIR
+from tasks.shared.vendor.gpg import list_keys
+from tasks.shared.vendor.nodejs import (
+    NODE_RELEASE_FINGERPRINTS,
+    digest_for_filename,
+    verify_node_runtime,
+)
 
 _FINGERPRINT = "AAAABBBBCCCCDDDDEEEEFFFF0000111122223333"
 
@@ -117,3 +124,12 @@ def test_a_digest_mismatch_fails_the_release(tmp_path):
             fingerprints=(_FINGERPRINT,),
             runner=_good_runner,
         )
+
+
+@pytest.mark.skipif(
+    shutil.which("gpg") is None, reason="gpg is not installed on this host"
+)
+def test_the_committed_keyring_holds_exactly_the_allowlisted_primaries():
+    keys = list_keys(KEYS_DIR / "nodejs-release.asc")
+    primaries = {key.fingerprint for key in keys if key.is_primary}
+    assert primaries == set(NODE_RELEASE_FINGERPRINTS)

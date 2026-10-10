@@ -15,18 +15,25 @@ linux-arm64 = "9a168abd0c9545773100661256f6d8100e896f993fb96afdbac017c3b9db606f"
 linux-x64 = "b50ef6e9a3500e48275ccb8df41323fe8a904d0737c9d2159d6c06559af99262"
 
 [assembled_sha256.driver]
-darwin-arm64 = "553e194bf1155319f4db270a0001d320a5e5261f361d99e1540f19bf9306aa1a"
-darwin-x64 = "4a91a7f65a432a9418cb5a7b4961c8dd2b78dde6542d84ef7d91791aaad8a4ae"
-linux-arm64 = "654d82a39be7ffa5741222750d940895d42f995731921e1c2cfb8e473ce17cab"
-linux-x64 = "aa6061e8c3460e75abea72ba82a3c614d3b16400a6653ed6dc5a4c6719d6962d"
+darwin-arm64 = "5f4bfb98e66a4acb4f86f52e47acc31d9ad6e0706bbbda4c2fa7ca8ae7e2cf93"
+darwin-x64 = "ab36abbdfe660b799271dea88200f14703ecf40da837dfac2cb7c4d7081a5a0a"
+linux-arm64 = "dc4ade129a56b368f84fbba635038222091da36c9b76bceb1d456c132e03eab5"
+linux-x64 = "2ef0e93f1ac0a6f3facff8a6cfdddbb12989ad63c4a7a46dc4bdf616d776e130"
 
-# The vendored Chromium and Node pins. CHROMIUM_REVISION mirrors the pinned
-# playwright-core's browsers.json and is cross-checked against it at assembly;
-# the per-platform sha256 makes the CDN-served bytes reviewable.
-# NODE version mirrors the pairing upstream ships. A Playwright pin bump
-# refreshes all of them under the trust-anchor procedure.
+# The playwright-core version itself is declared in the vendored package.json.
+[playwright-core]
+bumped = 2026-05-18
+
+# chromium.revision mirrors the pinned playwright-core's browsers.json and is
+# cross-checked against it at assembly; the per-platform sha256 makes the
+# CDN-served bytes reviewable. node.version mirrors the pairing upstream ships.
+# The revision, digests and Node version follow a Playwright pin bump under the
+# trust-anchor procedure. Each `bumped` date moves only with its own subject,
+# under the bump-date rule in RELEASING.md's "Vendored-runtime pin guard"
+# section.
 [chromium]
 revision = "1193"
+bumped = 2026-05-18
 
 [chromium.sha256]
 darwin-arm64 = "412e3b12e4479d93965c638a7a7415ceb44c1eab7241363e36bfe57d70704926"
@@ -35,4 +42,8 @@ linux-arm64 = "5bb2a87e1e332afeb185cd7a368f255d75d67f9033ef92e01f691c9698e6ba41"
 linux-x64 = "7d93c385edba3ac9f10f13037e600353f29f84691f09d26b935bfc117bbceb98"
 
 [node]
-version = "22.22.2"
+version = "22.23.2"
+bumped = 2026-10-10
+
+[keyring]
+bumped = 2026-08-24
