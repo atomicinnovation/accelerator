@@ -8,10 +8,10 @@ producer: "create-work-item"
 status: "ready"
 kind: "task"
 priority: "medium"
-relates_to: ["work-item:0226", "adr:ADR-0069", "adr:ADR-0054"]
+relates_to: ["work-item:0226", "work-item:0219", "adr:ADR-0069", "adr:ADR-0054"]
 external_id: "PP-881"
 tags: ["cli", "architecture", "dependencies", "refactor"]
-last_updated: "2026-10-06T00:19:54+00:00"
+last_updated: "2026-10-10T17:32:15+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -334,6 +334,13 @@ The violations, by rule:
   launcher and the 7 tracking roots). Once the lint is in `mise run check`,
   new crates must declare roles and follow the updated registration
   checklists.
+- Coordinates with: 0219, which changes the `measure:warm-dispatch` harness
+  (two-version interleaved sessions, an entry-free warm-up path, runner
+  identity). This item does not wait for it, but takes its before and after
+  figures on the same harness revision; if 0219's interleaved mode has landed,
+  one interleaved session pairing the current release with this item's signed
+  prerelease replaces the separate before and after runs. The locally cut
+  prerelease enters the version sequence 0219's lane pairs against.
 
 ## Assumptions
 

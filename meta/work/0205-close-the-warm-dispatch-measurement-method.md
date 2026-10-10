@@ -8,11 +8,11 @@ producer: "create-work-item"
 status: "done"
 kind: "spike"
 priority: "medium"
-parent: "work-item:0136"
+parent: "work-item:0219"
 relates_to: ["work-item:0189", "work-item:0169", "work-item:0186", "work-item:0188", "work-item:0191"]
 derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 tags: ["cli", "launcher", "performance", "bootstrap", "measurement"]
-last_updated: "2026-08-13T15:28:00+00:00"
+last_updated: "2026-10-10T18:25:09+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-735"
@@ -205,7 +205,7 @@ as satisfied a criterion whose stated artefact never existed.
   discharged. The plan consumed these answers and is `status: ready`.
 - Relates to: work-item:0189 (owns the obligation this spike unblocks),
   work-item:0169 (deferred the gate; closed `done` with the criterion unticked).
-- Parent: epic 0136.
+- Parent: epic 0219.
 
 ## Assumptions
 
