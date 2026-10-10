@@ -13,7 +13,7 @@ relates_to: ["plan:2026-08-11-0196-design-vendored-runtime-distribution"]
 tags: ["security", "distribution", "runtime", "playwright", "ci", "advisories", "runtime-pin-guard"]
 revision: "5dffc3f3c99f82e44cb67c9acb3cf7eedb21ee61"
 repository: "accelerator"
-last_updated: "2026-10-10T21:59:01+00:00"
+last_updated: "2026-10-10T22:33:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -105,8 +105,8 @@ Facts verified live during planning (2026-10-09):
   `--open-issues`, `issues: write` and a `concurrency` group; a dispatch can
   raise the per-run issue cap through its `maximum-new-issues` input.
 - `pins.toml` carries `playwright-core.bumped = 2026-05-18`,
-  `chromium.bumped = 2026-05-18`, `node.bumped = 2026-08-24`,
-  `keyring.bumped = 2026-08-24`.
+  `chromium.bumped = 2026-05-18`, `node.version = "22.23.2"` with
+  `node.bumped = 2026-10-10`, and `keyring.bumped = 2026-08-24`.
 - `RELEASING.md` carries `Owner: Toby Clemson (@tobyclemson)`, the maximum ages,
   the warning window, the bump-date instruction, the four feeds, the KEV
   filter, the blind spots, the owner's action per issue kind and schedule
@@ -2163,6 +2163,11 @@ rest of the run. No concurrency is needed.
 - The first dispatched run after Phase 4 opens five issues (two pin age, three
   key expiry, the third once 2026-12-09 is within 60 days); these are the
   intended signal.
+- Phase 6 lands with the vendored Node runtime bumped from 22.22.2 to
+  22.23.2, moving the four driver digests in `pins.toml` and
+  `manifest.example.json`. Against 22.22.2, `vuln/core` holds 21 matching
+  entries, which with the five issues above would trip the cap on the first
+  run.
 - `PLAYWRIGHT_PACKAGE_JSON` moves to `tasks/shared/paths.py`;
   `tasks/vendor/commands.py` imports it from there.
 - `docs.audit_check` switches to the shared `today_or_now`, with unchanged
