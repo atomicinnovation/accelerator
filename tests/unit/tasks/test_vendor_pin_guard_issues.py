@@ -10,6 +10,7 @@ from tasks.shared.vendor.pin_guard.findings import (
     KeyExpiryFinding,
     KeyringAgeFinding,
     PinAgeFinding,
+    UnassessableAdvisoryFinding,
 )
 from tasks.shared.vendor.pin_guard.issues import (
     LABEL,
@@ -241,6 +242,9 @@ class TestTrackerFailures:
             _reconcile(Unreachable(), _pin_age())
 
 
+CHROMIUM_PIN = Pin(PinName.CHROMIUM, "1193", BUMPED)
+
+
 def _advisory(fix="1.55.1"):
     return AdvisoryFinding(
         "GHSA-7mvr-c777-76hp",
@@ -293,6 +297,41 @@ def _advisory(fix="1.55.1"):
             ["No fixed version is available"],
             RELEASING_FEEDS_URL,
         ),
+        (
+            AdvisoryFinding(
+                "CVE-2025-13223",
+                CHROMIUM_PIN,
+                "142.0.7444.175",
+                browser_version="140.0.7339.186",
+            ),
+            [
+                "`CVE-2025-13223`",
+                "`chromium`",
+                "`1193`",
+                "browser version `140.0.7339.186`",
+                "Fixed in `142.0.7444.175`",
+                "@tobyclemson",
+            ],
+            RELEASING_FEEDS_URL,
+        ),
+        (
+            UnassessableAdvisoryFinding(
+                "CVE-2026-87491",
+                CHROMIUM_PIN,
+                "140.0.7339.186",
+                "OSV holds no record for it",
+            ),
+            [
+                "`CVE-2026-87491`",
+                "`chromium`",
+                "`1193`",
+                "browser version `140.0.7339.186`",
+                "OSV holds no record for it",
+                "Assess the CVE by hand",
+                "@tobyclemson",
+            ],
+            RELEASING_FEEDS_URL,
+        ),
     ],
     ids=[
         "pin-age",
@@ -301,6 +340,8 @@ def _advisory(fix="1.55.1"):
         "key-expired",
         "advisory",
         "advisory-unfixed",
+        "chromium-advisory",
+        "chromium-unassessable",
     ],
 )
 def test_each_kind_drafts_a_body_naming_what_the_owner_needs(

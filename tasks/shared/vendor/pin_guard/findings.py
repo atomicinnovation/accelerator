@@ -193,3 +193,42 @@ class AdvisoryFinding:
         if self.fix is None:
             return "No fixed version is available."
         return f"Fixed in {code_span(self.fix)}."
+
+
+@dataclass(frozen=True, slots=True)
+class UnassessableAdvisoryFinding:
+    """An exploited CVE whose fix the feeds do not say, assessed by hand.
+
+    It shares an assessed advisory's marker, so one issue covers the CVE
+    whether or not a fixed version is later published.
+    """
+
+    advisory_id: str
+    pin: Pin
+    browser_version: str
+    gap: str
+
+    @property
+    def marker(self) -> IssueMarker:
+        return IssueMarker(
+            MarkerKind.FINDING, ("advisory", self.advisory_id, self.pin.name)
+        )
+
+    def draft(self, owner: Owner) -> IssueDraft:
+        return IssueDraft(
+            self.marker,
+            f"{self.advisory_id} may affect the vendored {self.pin.name} pin",
+            issue_body(
+                self.marker,
+                f"KEV lists {code_span(self.advisory_id)} as exploited in a "
+                f"Chromium component, but {self.gap}, so the guard cannot tell "
+                f"whether the vendored `{self.pin.name}` pin, version "
+                f"{code_span(self.pin.version)} (browser version "
+                f"{code_span(self.browser_version)}), is affected.",
+                f"Owner: @{owner.login}. Assess the CVE by hand against the "
+                "Chrome release notes and bump the pin if it is affected. "
+                "Closing this issue records that assessment and silences the "
+                f"CVE for every later version of the pin. See "
+                f"{RELEASING_FEEDS_URL}.",
+            ),
+        )

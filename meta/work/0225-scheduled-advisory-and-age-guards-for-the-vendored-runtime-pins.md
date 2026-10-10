@@ -138,10 +138,10 @@ notifying an owner.
   | Feed | Expected fields |
   |------|-----------------|
   | OSV batch query | `results`, each with `vulns[].id` |
-  | OSV record | `id`, `affected`; for a KEV Chromium CVE, a fixed version in `database_specific.unresolved_ranges` (an OSV not-found counts as missing) |
+  | OSV record | `id`, `affected`; for a KEV Chromium CVE, `affected` alone (an OSV not-found, or a record naming no four-part fixed version, is an unassessable finding, not a feed failure) |
   | `vuln/core` | per entry: `vulnerable`, `patched`, `affectedEnvironments` |
   | KEV | `vulnerabilities`, each with `cveID`, `vendorProject`, `product` |
-  | npm registry | the `playwright-core` tarball, and in its `browsers.json` a `browsers` array whose entries carry `revision` and `browserVersion` |
+  | npm registry | the `playwright-core` version document's `version` and `dist.tarball` on `registry.npmjs.org`, the tarball matching `dist.integrity`, and in its `browsers.json` a `browsers` array whose `chromium-headless-shell` entries carry `revision` and a four-part `browserVersion` |
 
 ## Requirements
 
@@ -215,12 +215,17 @@ notifying an owner.
   `affectedEnvironments` include `all`, `darwin` or `linux`. One entry is one
   finding regardless of how many CVEs it names.
 - Chromium: match the Chromium pin's browser version against CISA KEV entries
-  with `vendorProject == "Google"` and a `product` beginning `Chromium`, taking
-  each CVE's fixed version from OSV and comparing the four-part versions
-  numerically. Where a record lists several fixed versions, compare against
-  the lowest one sharing the browser version's major version, or the lowest
-  overall if none does. A pin is affected only when that fixed version is
-  strictly higher than the browser version.
+  with `vendorProject == "Google"` and a `product` beginning `Chromium` or
+  `Chrome`, or equal to `Skia` or `Dawn`; any other Google product (e.g.
+  `Pixel`) opens nothing. Take each CVE's fixed versions from OSV, reading
+  only four-part versions, and compare them numerically. Take the lowest major
+  among the fixed versions that is at or above the browser version's major,
+  and compare against the highest fixed version in that major. A pin is
+  affected only when that fix exists and is strictly higher than the browser
+  version.
+- A KEV Chromium CVE for which OSV holds no record, or whose record names no
+  four-part fixed version, opens one issue stating that the guard cannot
+  assess it, keyed like an advisory on the CVE and the Chromium pin.
 - An advisory issue names the advisory ID (and, for Node, the entry's CVEs),
   the affected pin and its version (for Chromium, both the revision and the
   browser version), and the fix: the fixed version for `playwright-core` and
@@ -306,14 +311,29 @@ Advisory matching:
       `121.0.6167.85`, when the guard runs, then it opens an issue naming
       `121.0.6167.85`.
 - [ ] Given the same OSV record and a pinned browser version of
-      `122.0.6261.5`, when the guard runs, then it opens nothing (the lowest
-      overall, `120.0.6099.300`, is not higher); given a pinned browser
-      version of `119.0.6045.5`, then it opens an issue naming
-      `120.0.6099.300`.
+      `122.0.6261.5`, when the guard runs, then it opens nothing (no fixed
+      version has a major at or above 122); given a pinned browser version of
+      `119.0.6045.5`, then it opens an issue naming `120.0.6099.300`.
+- [ ] Given a pinned browser version of `137.0.7151.40` and a KEV Chromium CVE
+      whose OSV record lists fixed versions `136.0.7103.113` and
+      `138.0.7204.96`, when the guard runs, then it opens an issue naming
+      `138.0.7204.96`; given `139.0.7258.5`, then it opens nothing.
+- [ ] Given a pinned browser version of `138.0.7204.94` and a KEV Chromium CVE
+      whose OSV record lists fixed versions `138.0.7204.92` and
+      `138.0.7204.96`, when the guard runs, then it opens an issue naming
+      `138.0.7204.96`; given `138.0.7204.96`, then it opens nothing.
+- [ ] Given a KEV Chromium CVE whose OSV record lists other products' fixed
+      versions (`26.2`, `18.7.3`) beside a four-part one, when the guard runs,
+      then it compares against the four-part one only.
+- [ ] Given a KEV Chromium CVE for which OSV returns not-found, or a record
+      naming no four-part fixed version, when the guard runs, then it opens
+      one issue naming the CVE, the Chromium revision and the browser
+      version, stating that it cannot be assessed, and does not fail the run.
 - [ ] Given a Chromium CVE fixed after the pinned browser version that is not
       in KEV, when the guard runs, then it opens nothing for it.
-- [ ] Given a KEV entry with `vendorProject == "Google"` whose `product` does
-      not begin `Chromium`, when the guard runs, then it opens nothing for it.
+- [ ] Given a KEV entry with `vendorProject == "Google"` whose `product`
+      begins neither `Chromium` nor `Chrome` and is neither `Skia` nor `Dawn`
+      (e.g. `Pixel`), when the guard runs, then it opens nothing for it.
 
 Age and expiry:
 
@@ -395,10 +415,10 @@ and missing-field responses:
       no Chromium advisory issue opens and an npm-registry feed-failure issue
       opens.
 - [ ] Given a KEV Chromium CVE for which OSV returns not-found, or a record
-      without a fixed version, and a `playwright-core` advisory present in
-      OSV, when the guard runs, then it exits non-zero, opens one OSV
-      feed-failure issue, opens no Chromium advisory issue, and opens the
-      `playwright-core` advisory issue.
+      without a four-part fixed version, and a `playwright-core` advisory
+      present in OSV, when the guard runs, then it exits 0, opens no
+      feed-failure issue, opens an issue stating the CVE cannot be assessed,
+      and opens the `playwright-core` advisory issue.
 - [ ] Given OSV's batch query succeeds but the record fetch for one of its
       `playwright-core` advisories fails, when the guard runs, then it opens
       no `playwright-core` advisory issue, opens an OSV feed-failure issue, and
@@ -486,8 +506,8 @@ Decided during implementation:
   service-level agreement, and the first three have no versioned schema; a
   failure skips the checks it serves and fails the guard run. Chromium fixed
   versions come from OSV's `database_specific.unresolved_ranges`, a
-  source-specific extension outside OSV's core schema; a change there shows
-  as a persistent OSV feed failure.
+  source-specific extension outside OSV's core schema that names no product;
+  a change there shows as Chromium CVEs the guard cannot assess.
 - GitHub Actions scheduling: cron runs can be delayed or skipped under load,
   and GitHub disables scheduled workflows in a public repository after 60 days
   without repository activity. A disabled schedule stops every check
@@ -527,9 +547,10 @@ Decided during implementation:
 - Keeping a bump date in step with its pin is a manual step in the same
   change, not enforced by a check. Forgetting it errs safe: the pin looks
   older than it is and the age issue opens early.
-- OSV can lag a fresh KEV Chromium entry. Until it records a fixed version,
-  the Chromium check is skipped and one OSV feed-failure issue stays open;
-  this is accepted over guessing whether the pin is affected.
+- OSV can lag a fresh KEV Chromium entry, and holds no usable fixed version
+  for some older ones. Such a CVE opens one issue for the owner to assess by
+  hand rather than darkening the whole Chromium check; this is accepted over
+  guessing whether the pin is affected.
 
 ## Technical Notes
 
@@ -548,6 +569,26 @@ Decided during implementation:
   parse it directly.
 - KEV: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`;
   entries carry no version fields, hence the OSV join.
+- npm: the guard reads `https://registry.npmjs.org/playwright-core/<version>`
+  (2.6 KB) rather than the packument (17.7 MB); its `dist` block is the
+  packument's `versions[<version>].dist`.
+- KEV×OSV join, scanned on 2026-10-10 against KEV catalogue `2026.10.08`: 73
+  Google CVEs pass the Chromium filter.
+  - 11 have no OSV record (HTTP 404), among them `CVE-2026-11645`,
+    `CVE-2026-5281` and `CVE-2026-87491`.
+  - 5 have a record with no `unresolved_ranges` fixed version, only GIT
+    ranges (e.g. `CVE-2023-4863`, `CVE-2026-85046`).
+  - None carries only `last_affected` events or exact `versions`.
+  - 5 carry fixed values that are not four-part Chromium versions (Apple
+    `26.2`/`18.7.3`, V8 `7.1.5`, WebKitGTK `2.48.0`), always beside a
+    four-part one.
+  - 10 carry several fixes in one major: platform splits (`138.0.7204.92` and
+    `.96`) and Edge builds (`143.0.3650.80` beside `143.0.7499.110`).
+  - `unresolved_ranges` entries carry only `events`, with no product or CPE
+    discriminator.
+  - Against browser `140.0.7339.186`, the rule finds 5 affecting CVEs:
+    `CVE-2025-13223`, `CVE-2025-14174`, `CVE-2026-2441`, `CVE-2026-3909` and
+    `CVE-2026-3910`.
 - Dedup: the `runtime-pin-guard` label plus a hidden marker on an issue
   body's last line — `<!-- finding: <kind> <identity> -->` for findings,
   `<!-- feed-failure: <feed> <check> … -->` for feed failures and
@@ -619,6 +660,18 @@ Decided during implementation:
   `playwright-core`, hide a later outage that also darkened the Chromium
   check. Keying the issue on the feed and the checks it skipped keeps a
   narrower repeat silent while surfacing a broader one.
+- Two Chromium rules changed during implementation. The KEV filter widened
+  from `Chromium*` to `Chromium*`, `Chrome*`, `Skia` and `Dawn`, because KEV
+  files Chromium components under all four forms. The fixed-version rule
+  changed because "lowest in the same major, else lowest overall" read a
+  `137` browser as unaffected by fixes at `136` and `138`, and a
+  `138.0.7204.94` browser as fixed when one platform was fixed only at
+  `138.0.7204.96`.
+- A CVE OSV cannot place was first a feed failure. The join scan found 16 of
+  73 KEV Chromium CVEs in that state, 11 of them permanent 404s, so every run
+  would have failed and the whole Chromium check stayed dark. The owner chose
+  instead one issue per such CVE to assess by hand, and to ignore non-four-part
+  fixed versions as other products' rather than refusing the record.
 - `kind` stays `task` despite the size; the two-change delivery above records
   it. The title names the runtime pins only; the keyring guards are in scope,
   as Summary and Terms state.

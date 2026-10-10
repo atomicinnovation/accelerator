@@ -2088,9 +2088,9 @@ being outside OSV's core schema.
 
 #### Automated Verification:
 
-- [ ] Chromium tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or browsers or npm"`
-- [ ] Every guard test passes: `uv run pytest tests/unit/tasks -k pin_guard`
-- [ ] Full local CI mirror passes: `mise run`
+- [x] Chromium tests pass: `uv run pytest tests/unit/tasks -k "pin_guard or browsers or npm"`
+- [x] Every guard test passes: `uv run pytest tests/unit/tasks -k pin_guard`
+- [x] Full local CI mirror passes: `mise run`
 
 #### Manual Verification:
 
@@ -2168,6 +2168,10 @@ rest of the run. No concurrency is needed.
   `manifest.example.json`. Against 22.22.2, `vuln/core` holds 21 matching
   entries, which with the five issues above would trip the cap on the first
   run.
+- Phase 7's first dispatched run drafts 26 new findings: the five above, 5
+  Chromium advisories and 16 Chromium CVEs to assess by hand. It trips the
+  cap, opening one `guard-tripped` issue and failing. The owner then
+  dispatches with `maximum-new-issues` at 30 and closes the tripped issue.
 - `PLAYWRIGHT_PACKAGE_JSON` moves to `tasks/shared/paths.py`;
   `tasks/vendor/commands.py` imports it from there.
 - `docs.audit_check` switches to the shared `today_or_now`, with unchanged
@@ -2419,6 +2423,56 @@ from or adds to the plan:
 - An issue title reads `194 affects the vendored node pin`, since the plan
   makes the entry key the advisory ID; the body names the CVEs.
 - `mise run` exited 0 on its first run.
+
+### Phase 7
+
+Committed as `Report exploited Chromium CVEs against the vendored browser`.
+Where the code departs from or adds to the plan:
+
+- The step 1 scan (recorded in the work item's Technical Notes) found 16 of
+  73 KEV Chromium CVEs without a usable fixed version: 11 OSV 404s and 5
+  records with only GIT ranges. Under the plan's default, every run would
+  have failed with the Chromium check dark. The owner chose:
+  - such a CVE opens an `UnassessableAdvisoryFinding`, sharing the advisory
+    marker `advisory <cve> chromium`, whose body asks for a hand
+    assessment;
+  - a fixed value that is not four-part (Apple, WebKitGTK, V8) is ignored as
+    another product's, not refused as a document error.
+- `unresolved_ranges` has no product discriminator. Edge's four-part builds
+  sit there too, but below Chrome's in the same major, so the
+  highest-in-major rule picks Chrome's.
+- A 404 now raises `FeedRecordNotFoundError` rather than
+  `FeedUnreachableError`. The session reports it as `not found` and does not
+  count it towards the unreachable streak, which 11 Chromium 404s would
+  otherwise have tripped. A `playwright-core` record 404 is still a feed
+  failure, now with reason `not found`.
+- The guard reads the version document
+  `registry.npmjs.org/playwright-core/<version>` (2.6 KB) rather than the
+  packument (17.7 MB), whose `versions[<version>].dist` it equals. It
+  requires `version` to match the pin, and `dist.tarball` to be `https` on
+  `registry.npmjs.org`.
+- `pinned_browser_build` maps every headless-shell revision to its
+  `ChromiumVersion` inside the request's `parse`, then looks the pinned
+  revision up outside it. It does not call
+  `BrowsersManifest.pinned_headless_shell`, whose build carries an unparsed
+  `browser_version`.
+- `CheckOutcome.findings` holds any `Finding`, so the unassessable kind fits.
+- No recorded packument fixture: `npm/playwright-core-1.55.1.json` is the
+  recorded version document, re-pointed at a test-built tarball by
+  `npm_version_document`. The KEV fixtures are `kev/google-products.json`
+  (one entry per Google product in the catalogue, plus a Microsoft one) and
+  `kev/no-chromium-component.json`.
+- `mise run vendor:guard-pins` on 2026-10-10 reached all four feeds with no
+  feed failure, drafted the 26 findings above and tripped the cap; with
+  `--maximum-new-issues 40` it exited 0 and printed them all.
+- The first `mise run` failed in `test:integration:research`:
+  `test_lexer_differential.py::test_no_string_the_guard_passes_smuggles_anything`
+  reported three strings reaching the network at seed 280. That lane covers
+  the research CLI's shell guard, which this phase does not touch. It passed
+  alone at seed 280, and a second `mise run` exited 0. Its cause was not
+  found.
+- The step 1 scan was settled with the owner before any Chromium test was
+  written, but recorded in the work item afterwards.
 
 ## References
 

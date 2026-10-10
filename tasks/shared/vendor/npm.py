@@ -123,13 +123,21 @@ def assert_integrity_binds_tarball(*, integrity: str, tarball: Path) -> None:
     ``integrity`` is npm's ``sha512-<base64>`` form; anything else is refused
     rather than silently accepted as a weaker digest.
     """
+    _assert_sha512_matches(integrity, _sha512_file(tarball))
+
+
+def assert_integrity_binds_bytes(*, integrity: str, payload: bytes) -> None:
+    """Fail unless ``payload``'s sha512 equals the ``integrity`` value."""
+    _assert_sha512_matches(integrity, hashlib.sha512(payload).digest())
+
+
+def _assert_sha512_matches(integrity: str, digest: bytes) -> None:
     algorithm, _, encoded = integrity.partition("-")
     if algorithm != "sha512":
         raise ValueError(
             f"npm integrity is not sha512: {integrity.split('-', 1)[0]!r}"
         )
-    expected = base64.b64decode(encoded)
-    if _sha512_file(tarball) != expected:
+    if digest != base64.b64decode(encoded):
         raise ValueError(
             "tarball sha512 does not match the registry-signed integrity"
         )

@@ -9,11 +9,13 @@ from tasks.shared.vendor import fetch
 from tasks.shared.vendor.pin_guard.feeds import (
     REQUEST_TIMEOUT_SECONDS,
     FeedDocumentError,
+    FeedRecordNotFoundError,
     FeedUnreachableError,
 )
 
 RETRY_WAITS_SECONDS = (2, 8)
 MAXIMUM_RETRY_AFTER_SECONDS = 30
+_NOT_FOUND = 404
 _TOO_MANY_REQUESTS = 429
 
 
@@ -73,6 +75,10 @@ class HttpFeedClient:
                 raise FeedDocumentError("unparseable") from error
             except httpx.HTTPStatusError as error:
                 response = error.response
+                if response.status_code == _NOT_FOUND:
+                    raise FeedRecordNotFoundError(
+                        f"{url}: HTTP {response.status_code}"
+                    ) from error
                 if wait is None or not _is_transient(response.status_code):
                     raise FeedUnreachableError(
                         f"{url}: HTTP {response.status_code}"

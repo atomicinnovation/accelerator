@@ -6,6 +6,7 @@ import pytest
 from tasks.shared.vendor.pin_guard.feeds import (
     CheckName,
     Feed,
+    FeedRecordNotFoundError,
     FeedUnreachableError,
 )
 from tasks.shared.vendor.pin_guard.local_inputs import Pin, PinName
@@ -175,13 +176,13 @@ class TestFeedFailures:
             "1.55.0",
             _batch(GHSA, TWO_RANGES, LAST_AFFECTED),
             {
-                GHSA: FeedUnreachableError("HTTP 404"),
+                GHSA: FeedRecordNotFoundError("HTTP 404"),
                 TWO_RANGES: osv_fixture("two-ranges.json"),
-                LAST_AFFECTED: FeedUnreachableError("HTTP 404"),
+                LAST_AFFECTED: FeedUnreachableError("HTTP 503"),
             },
         )
         assert self._reasons(outcome) == [
-            (GHSA, "unreachable"),
+            (GHSA, "not found"),
             (LAST_AFFECTED, "unreachable"),
         ]
         assert {f.feed for f in outcome.failures} == {Feed.OSV}
