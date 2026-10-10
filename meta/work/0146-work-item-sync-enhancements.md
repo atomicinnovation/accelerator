@@ -249,9 +249,9 @@ Resolved during refinement (2026-08-30):
 - 0285 — Targeted pull of remote-only work items (`work sync --target` imports a
   named remote issue absent locally; normalises targeted local/remote resolution
   and collision behaviour via shared `resolve_targets`).
-- 0290 — Bidirectional field mapping (status / kind / priority via per-tracker
-  mapping tables, last-writer-wins, skip-and-warn on unmappable values); closes
-  the field-mapping acceptance criteria.
+- 0290 — Bidirectional field mapping (status / kind / priority / title via
+  per-tracker mapping tables, last-writer-wins, skip-and-warn on unmappable
+  values); closes the field-mapping acceptance criteria.
 - 0291 — Parent-child relationship synchronisation (push/pull the single parent
   edge, parents-before-children ordering, last-writer-wins); closes the
   parent-child acceptance criterion.
@@ -262,6 +262,13 @@ Resolved during refinement (2026-08-30):
 - 0293 — Negated pull filters (`not_in` / not-equal across Jira and Linear;
   promotes Jira's dormant `NOT IN` seam and adds Linear `nin` / `every`
   lowering, bounded to set-membership negation as Linear has no top-level `not`).
+- 0296 — Sync round-trip defects between local work items and the tracker
+  (body equivalence, title-line stripping, corpus recovery, digest-recipe
+  migration); lands before 0320 and 0290.
+- 0320 — Linear push corrupts markdown content (push-side fixes for the three
+  meaning-changing rewrites); blocked by 0296.
+- 0321 — Sync authority model between local work items and the tracker (ADR
+  ratifying or revising 0296's representation rule).
 
 ### Future candidates (deferred from 0229 refinement)
 

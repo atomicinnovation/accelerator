@@ -10,7 +10,7 @@ kind: "story"
 priority: "low"
 parent: "work-item:0146"
 blocked_by: ["work-item:0228"]
-relates_to: ["work-item:0227", "work-item:0229", "work-item:0291"]
+relates_to: ["work-item:0227", "work-item:0229", "work-item:0291", "work-item:0296"]
 blocks: ["work-item:0302"]
 tags: ["sync", "tracker", "id-generation", "drafts", "promotion"]
 last_updated: "2026-09-27T13:04:38+00:00"
@@ -471,6 +471,11 @@ would gate the whole item; the gated portion is named here.
 - Blocks: 0302 (Work Item Re-Key Command) — builds on `aliases`, alias
   resolution, the draft form, ID retirement, and tracker-side key-change
   detection.
+- Relates to: 0296 (Sync Round-Trip Defects Between Local Work Items and the
+  Tracker) — both change the baseline entry and the pull paths. Whichever
+  lands second adapts: this story's baseline writes use the entry shape
+  current at the time, and its pull paths join 0296's no-title-line
+  regression tests.
 
 ## Assumptions
 
