@@ -11,7 +11,7 @@ priority: "medium"
 source: "note:2026-06-22-ideas-backlog"
 relates_to: ["codebase-research:2026-06-28-0136-rust-cli-migration-scope-and-architecture", "codebase-research:2026-06-23-0136-shell-scripts-rust-cli-migration-surface"]
 tags: ["rust", "cli", "migration", "epic"]
-last_updated: "2026-10-09T09:34:53+00:00"
+last_updated: "2026-10-10T12:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-157"
@@ -20,7 +20,7 @@ external_id: "PP-157"
 # 0136: Migrate Shell Scripts into a Rust CLI
 
 **Kind**: Epic
-**Status**: Ready
+**Status**: In Progress
 **Priority**: Medium
 **Author**: Toby Clemson
 
@@ -79,7 +79,7 @@ post-migration remnants recovered from an audit of work items numbered above
 - 0168 — Fold the Visualiser into the cli/ Workspace
 - 0188 — Library-Backed VCS Adapter over gix and jj-lib *(precedes 0169)*
 - 0169 — VCS Subdomain and Hooks Migration
-- 0198 — Migrate vcs status/log off subprocess onto library-backed adapters
+- 0198 — Replace vcs status/log with a VCS-agnostic library-backed renderer
   *(revisits 0169's deliberate subprocess choice for `status`/`log`)*
 - 0200 — Decide whether git log/diff belong in vcs guard's blocked subcommand
   set *(spike; reconsiders the blocklist 0169 carried over verbatim)*
@@ -100,34 +100,34 @@ post-migration remnants recovered from an audit of work items numbered above
 - 0195 — accelerator-corpus: ADR, Metadata, Frontmatter Validation, and
   Linkage CLI
 - 0196 — accelerator-design: Design Inventory and Gap Tooling CLI
-  - 0206 — Classify Navigation URLs, Not Only the Initial Location
-  - 0207 — Detect Encoded Credentials in Scrubbed Artefacts
-  - 0209 — Wire Up or Retire the Header-Auth Path
-  - 0214 — Settle the Vendored-Runtime Tree-Artifact Mechanisms
+  - 0206 — Classify Navigation URLs, Not Only The Initial Location
+  - 0207 — Detect Encoded Credentials In Scrubbed Artefacts
+  - 0209 — Wire Up The Browser Auth-Header Path In Design Skills
+  - 0214 — Settle the vendored-runtime tree-artifact mechanisms
 - 0197 — accelerator-collaboration: PR Helper CLI
 
 **Cleanup (Phase 11):**
 - 0185 — Converge corpus-adapters on the Library-Backed VCS Adapter
-- 0199 — Retire `scripts/vcs-common.sh`'s Residual Shell Callers and
+- 0199 — Retire `scripts/vcs-common.sh`'s residual shell callers and
   `hooks/launcher-link-refresh.sh`
 - 0174 — Empty scripts/ and Retire Shell Tooling and CI Guards
 - 0221 — Canonical Quoting Standard for All Frontmatter
-- 0203 — Ship an MPL-2.0 Attribution Artefact with the Release Uploads *(filed
-  2026-08-10 from 0185's licensing finding; joins the release upload set 0165
-  owns, and the notice obligation predates 0185 for four of the five affected
-  binaries)*
+- 0203 — Ship a Third-Party Attribution Artefact with the Release Uploads
+  *(filed 2026-08-10 from 0185's licensing finding; joins the release upload set
+  0165 owns, and the notice obligation predates 0185 for four of the five
+  affected binaries)*
 
 **Launcher hardening and warm-path performance:**
 - 0189 — At-Most-Once Guarantee for the Launcher's Cache-Root Probe
-- 0190 — acquire_lock Misclassifies an Unusable Lock Directory and Can Spin
-  Unbounded on Reclaim
-- 0191 — Batch the Bootstrap's Two Shim Hashes into One sha256 Invocation
-- 0215 — Remove the Cache-Hit sha256 from Warm Dispatch *(filed 2026-08-17 from
+- 0190 — acquire_lock misclassifies an unusable lock directory and can spin
+  unbounded on reclaim
+- 0191 — Batch the bootstrap's two shim hashes into one sha256 invocation
+- 0215 — Remove the cache-hit sha256 from warm dispatch *(filed 2026-08-17 from
   0189's measurement; 6.05 ms of a 35.53 ms dispatch; must preserve the
   name/version binding the signature does not carry)*
-- 0216 — Close the sha2 Hardware-Intrinsics Gap *(spike: sha256 at ~550 MB/s
+- 0216 — Close the sha2 hardware-intrinsics gap *(spike: sha256 at ~550 MB/s
   against openssl's 1,708, and BLAKE2b outruns it 2.6x; may make 0215 moot)*
-- 0218 — Bound Cache-Root Growth *(`cache::find` scans a never-evicted directory
+- 0218 — Bound cache-root growth *(`cache::find` scans a never-evicted directory
   on every dispatch)*
 
 **Post-migration remnants (reconciled 2026-09-05):** recovered from an audit of
@@ -136,27 +136,31 @@ crates but had been left parentless. Post-migration *evolution* of the workspace
 (refactors, ergonomics, crate renames) is out of scope here and lives under the
 successor epic 0276.
 
-- 0158 — Modular Rust CLI Architecture and Hexagonal Workspace Layout *(the
-  foundational architecture spike, ported from luminosity, that feeds this epic)*
-- 0182 — bin/accelerator Requires CLAUDE_PLUGIN_ROOT in the Environment *(launcher
-  bug)*
-- 0184 — template_names Succeeds-With-Nothing on a Non-Installation Plugin Root
-  *(bug in the shipped config-adapters crate)*
+- 0158 — Modular Rust CLI Architecture & Hexagonal Workspace Layout *(the
+  foundational architecture spike, ported from luminosity, that feeds this
+  epic)*
+- 0182 — bin/accelerator requires CLAUDE_PLUGIN_ROOT in the environment (never
+  exported to skills) *(launcher bug)*
+- 0184 — Template resolution succeeds silently on a plugin root that is not an
+  installation *(bug in the shipped config-adapters crate)*
 - 0201 — In-Process Section Diff *(removes work-adapters' shell-out to `diff -u`)*
 - 0240 — Corpus Update Frontmatter Quote Roundtrip *(bug in the shipped corpus
   crate; pairs with 0221)*
-- 0241 — Migrate False Dirty-Tree Detection *(bug in the shipped migrate crate)*
-- 0245 — Invoke accelerator Directly in Skills *(completes the invocation-contract
-  cutover)*
+- 0241 — False Dirty-Tree Detection on jj Repositories *(bug in the shipped
+  migrate crate)*
+- 0245 — Invoke Accelerator Directly In Skills *(completes the
+  invocation-contract cutover)*
 - 0264 — Remove Bash-Migration Negative-Assertion Tests *(retires migration
   scaffolding)*
-- 0269 — Remove Bash References from the Jira and Linear Clients *(retires
-  shell-to-Rust residue)*
+- 0269 — Remove Bash Vocabulary And Redesign Exit-Code Classification In Jira
+  And Linear Clients *(retires shell-to-Rust residue)*
 - 0222 — Offline Populate Route for the Runtime Cache *(runtime-cache cluster)*
 - 0223 — Bounding the Default Runtime Cache Root *(sibling of 0218)*
 - 0225 — Advisory-Feed Monitoring for the Vendored Runtime Pins *(sibling of 0214)*
-- 0226 — Audit Repo-Settable Config Keys for Executable-Path Injection *(hardens
-  the shipped config crates)*
+- 0226 — Unify the Trust Barrier for Consent Config Keys *(hardens the shipped
+  config crates)*
+- 0286 — Make Accelerator skills VCS-agnostic by eradicating direct git calls
+  *(completes the skill-side half of the VCS subdomain)*
 
 The target architecture (git-style `accelerator` launcher dispatching to
 on-demand `accelerator-<sub>` static binaries, each a hexagonal crate; the
@@ -189,10 +193,13 @@ questions are answered:)*
 
 - Blocked by: None.
 - Blocks: None directly (the children carry the internal dependency spine).
-- Children (direct, parented to this epic): 0162–0174, 0185–0191, 0194–0200,
-  0203, 0204, 0215, 0216, 0218 and 0221.
+- Children (direct, parented to this epic): 0158, 0162–0174, 0182, 0184–0191,
+  0194–0201, 0203, 0204, 0215, 0216, 0218, 0221–0223, 0225, 0226, 0240, 0241,
+  0245, 0264, 0269 and 0286.
 - Grandchildren (covered transitively by their parent's completion): 0178–0180
   under 0166; 0210–0213 under 0171; 0206, 0207, 0209 and 0214 under 0196.
+- Outside this epic, blocked by its children: 0227 and 0298 (by 0226); 0271
+  and 0273 (by 0269). Closing this epic does not track them.
 
 ## Assumptions
 
@@ -250,6 +257,14 @@ questions are answered:)*
   moved under it. That work runs for at least 20 merges after the port is
   complete, so it would otherwise hold this epic open. 0189 stays here, since
   its subject is the launcher's at-most-once guarantee.
+- **Reconciled again on 2026-10-10.** A parent-link walk over all work items
+  found 0286 missing from the Decomposition list, and the Children line still
+  carrying the pre-2026-09-05 set — fourteen direct children (0158, 0182, 0184,
+  0201, 0222, 0223, 0225, 0226, 0240, 0241, 0245, 0264, 0269, 0286) were absent.
+  The body status also still read Ready against an in-progress frontmatter.
+  Decomposition titles now match each item's `title` verbatim; twenty had
+  drifted, nine in wording (0158, 0182, 0184, 0198, 0203, 0209, 0226, 0241,
+  0269).
 
 ## References
 
