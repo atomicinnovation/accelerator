@@ -5,9 +5,22 @@ predicate is tested without crafting revoked or expired keyrings or depending on
 a particular host GnuPG.
 """
 
+import datetime as dt
+import subprocess
+import time
 from pathlib import Path
 
-from tasks.shared.vendor.gpg import classify_status_lines, verify_detached
+import pytest
+
+from tasks.shared.vendor.gpg import (
+    KeyListingError,
+    ListedKey,
+    classify_status_lines,
+    list_keys,
+    listed_keys,
+    verify_detached,
+)
+from tests.unit.tasks.shared.doubles import PIN_GUARD_FIXTURES
 
 # A plausible Node release primary-key fingerprint and a subkey under it.
 PRIMARY = "4ED778F539E3634C779C87C6D7062848A1AB005C"
@@ -126,3 +139,145 @@ def test_verify_detached_feeds_the_runner_output_to_the_classifier() -> None:
         runner=lambda _s, _t, _k: _good(),
     )
     assert verdict.trusted
+
+
+def _listing(name: str) -> list[str]:
+    return (PIN_GUARD_FIXTURES / name).read_text().splitlines()
+
+
+def _utc(*parts: int) -> dt.datetime:
+    return dt.datetime(*parts, tzinfo=dt.UTC)
+
+
+class TestListedKeys:
+    def test_the_recorded_node_keyring_lists_every_primary(self) -> None:
+        keys = listed_keys(_listing("nodejs-release.colons"))
+        primaries = [key for key in keys if key.is_primary]
+        assert len(primaries) == 9
+        assert (
+            ListedKey(
+                "86C8D74642E67846F8E120284DAA80D1E737BC9F",
+                is_primary=False,
+                capabilities="s",
+                expires_at=_utc(2026, 12, 9, 13, 8, 52),
+            )
+            in keys
+        )
+
+    def test_a_gnupg_2_4_listing_parses_iso_and_epoch_expiries(self) -> None:
+        assert listed_keys(_listing("gpg-2.4-details.colons")) == (
+            ListedKey(
+                "0123456789ABCDEF012345671A2B3C4D5E6F7081",
+                is_primary=True,
+                capabilities="scESC",
+                expires_at=_utc(2027, 12, 31, 12),
+            ),
+            ListedKey(
+                "FEDCBA9876543210FEDCBA988090A0B0C0D0E0F0",
+                is_primary=False,
+                capabilities="s",
+                expires_at=_utc(2030, 3, 17, 17, 46, 40),
+            ),
+            ListedKey(
+                "00112233445566778899AABB1112131415161718",
+                is_primary=False,
+                capabilities="e",
+                expires_at=None,
+            ),
+        )
+
+    def test_an_empty_listing_is_refused(self) -> None:
+        with pytest.raises(KeyListingError, match="no public key"):
+            listed_keys([])
+
+    def test_a_key_without_its_fingerprint_is_refused(self) -> None:
+        lines = _listing("gpg-2.4-details.colons")
+        without_fpr = [line for line in lines if line != lines[2]]
+        with pytest.raises(KeyListingError, match="fingerprint"):
+            listed_keys(without_fpr)
+
+    def test_a_malformed_fingerprint_is_refused(self) -> None:
+        lines = [
+            line.replace("7081:", "70:")
+            for line in _listing("gpg-2.4-details.colons")
+        ]
+        with pytest.raises(KeyListingError, match="fingerprint"):
+            listed_keys(lines)
+
+    def test_an_unknown_expiry_form_is_refused(self) -> None:
+        lines = [
+            line.replace("20271231T120000", "2027-12-31")
+            for line in _listing("gpg-2.4-details.colons")
+        ]
+        with pytest.raises(KeyListingError, match="2027-12-31"):
+            listed_keys(lines)
+
+    def test_an_iso_expiry_keeps_its_utc_date_in_any_local_zone(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("TZ", "Pacific/Auckland")
+        time.tzset()
+        try:
+            lines = [
+                line.replace("20271231T120000", "20261209T233000")
+                for line in _listing("gpg-2.4-details.colons")
+            ]
+            [primary, *_] = listed_keys(lines)
+        finally:
+            monkeypatch.undo()
+            time.tzset()
+        assert primary.expires_at == _utc(2026, 12, 9, 23, 30)
+
+
+class TestListKeys:
+    def _recording(self, calls, *, returncode=0, stderr=""):
+        def run(argv):
+            home = Path(argv[2])
+            calls.append((argv, home.is_dir()))
+            return subprocess.CompletedProcess(
+                argv,
+                returncode,
+                stdout="\n".join(_listing("gpg-2.4-details.colons")),
+                stderr=stderr,
+            )
+
+        return run
+
+    def test_it_lists_the_keyring_in_an_ephemeral_home(self) -> None:
+        calls = []
+        keys = list_keys(
+            Path("keys/nodejs-release.asc"),
+            run=self._recording(calls),
+            which=lambda _name: "/usr/bin/gpg",
+        )
+        [(argv, home_existed)] = calls
+        assert home_existed
+        assert not Path(argv[2]).exists()
+        assert argv[:2] == ["gpg", "--homedir"]
+        assert argv[3:] == [
+            "--batch",
+            "--with-colons",
+            "--fixed-list-mode",
+            "--with-subkey-fingerprint",
+            "--show-keys",
+            "keys/nodejs-release.asc",
+        ]
+        assert len(keys) == 3
+
+    def test_an_absent_gpg_is_refused(self) -> None:
+        with pytest.raises(KeyListingError, match="gpg"):
+            list_keys(
+                Path("keyring.asc"),
+                run=self._recording([]),
+                which=lambda _name: None,
+            )
+
+    def test_a_failing_gpg_is_refused_with_its_stderr(self) -> None:
+        with pytest.raises(KeyListingError, match="no valid OpenPGP data"):
+            list_keys(
+                Path("keyring.asc"),
+                run=self._recording(
+                    [], returncode=2, stderr="gpg: no valid OpenPGP data\n"
+                ),
+                which=lambda _name: "/usr/bin/gpg",
+            )

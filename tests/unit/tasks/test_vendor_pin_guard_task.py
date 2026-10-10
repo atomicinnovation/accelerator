@@ -3,6 +3,7 @@ import datetime as dt
 import pytest
 from invoke import Context, Exit
 
+from tasks.shared.vendor.gpg import KeyListingError, list_keys
 from tasks.shared.vendor.pin_guard import wiring
 from tasks.shared.vendor.pin_guard.github_issues import GhIssueTracker
 from tasks.shared.vendor.pin_guard.guard import evaluate
@@ -27,6 +28,7 @@ from tests.unit.tasks.shared.doubles import (
     FakeIssueTracker,
     clear_repository,
     fake_ports,
+    listing_lister,
 )
 
 TODAY = dt.date(2026, 10, 10)
@@ -48,6 +50,29 @@ def test_a_local_input_error_exits_before_any_tracker_call(tmp_path):
         guard_pins_with(paths, TODAY, ports, POLICY)
     assert raised.value.code == 1
     assert ports.tracker.calls == []
+
+
+def test_an_unlistable_keyring_exits_before_any_tracker_call(tmp_path):
+    def unlistable(_keyring):
+        raise KeyListingError("gpg is not installed")
+
+    ports = fake_ports(key_lister=unlistable)
+    paths = clear_repository(tmp_path, TODAY, bumped=STALE)
+    with pytest.raises(Exit) as raised:
+        guard_pins_with(paths, TODAY, ports, POLICY)
+    assert raised.value.code == 1
+    assert "keys/nodejs-release.asc" in str(raised.value.message)
+    assert "gpg is not installed" in str(raised.value.message)
+    assert ports.tracker.calls == []
+
+
+def test_key_expiry_findings_open_beside_the_age_findings(tmp_path):
+    ports = fake_ports(key_lister=listing_lister("nodejs-release.colons"))
+    paths = clear_repository(tmp_path, TODAY, bumped=STALE)
+    guard_pins_with(paths, TODAY, ports, POLICY)
+    kinds = [m.parts[0] for m in ports.tracker.opened_markers]
+    assert kinds.count("key-expiry") == 3
+    assert kinds.count("pin-age") == 3
 
 
 def test_a_clear_run_returns_and_opens_nothing(tmp_path):
@@ -140,6 +165,10 @@ class TestTaskBoundary:
         assert seen["policy"] == IssuePolicy(
             "github-actions[bot]", MAXIMUM_NEW_ISSUES
         )
+
+
+def test_production_keys_are_listed_by_gpg():
+    assert wiring.real_ports(open_issues=False).key_lister is list_keys
 
 
 def test_a_dry_run_wraps_the_gh_tracker():

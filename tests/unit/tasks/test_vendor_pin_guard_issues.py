@@ -5,6 +5,7 @@ import pytest
 
 from tasks.shared.vendor.pin_guard.findings import (
     RELEASING_GUARD_URL,
+    KeyExpiryFinding,
     KeyringAgeFinding,
     PinAgeFinding,
 )
@@ -33,6 +34,12 @@ def _pin_age(version="1193", name=PinName.CHROMIUM):
 
 def _keyring_age(bumped=dt.date(2025, 8, 24)):
     return KeyringAgeFinding(bumped, 412, 365)
+
+
+def _key_expiry(expires_on=dt.date(2026, 12, 9), days_to_expiry=60):
+    return KeyExpiryFinding(
+        "86C8D74642E67846F8E120284DAA80D1E737BC9F", expires_on, days_to_expiry
+    )
 
 
 def _issue(finding_or_marker, *, is_open=True, author=BOT, number=1, tail=""):
@@ -112,6 +119,20 @@ class TestSuppression:
         tracker = FakeIssueTracker([_issue(earlier, is_open=False)])
         _reconcile(tracker, _keyring_age())
         assert tracker.opened_markers == [_keyring_age().marker]
+
+    def test_a_closed_key_expiry_issue_does_not_cover_a_re_signed_key(self):
+        before = _key_expiry(dt.date(2026, 12, 9))
+        after = _key_expiry(dt.date(2028, 12, 9), days_to_expiry=-1)
+        tracker = FakeIssueTracker([_issue(before, is_open=False)])
+        _reconcile(tracker, after)
+        assert tracker.opened_markers == [after.marker]
+
+    def test_a_key_expiry_issue_from_the_window_covers_the_lapsed_key(self):
+        nearing = _key_expiry(days_to_expiry=60)
+        lapsed = _key_expiry(days_to_expiry=-3)
+        tracker = FakeIssueTracker([_issue(nearing, is_open=False)])
+        _reconcile(tracker, lapsed)
+        assert tracker.opened == []
 
 
 class TestIssueCap:
@@ -223,8 +244,21 @@ class TestTrackerFailures:
     [
         (_pin_age(), ["chromium", "`1193`", "145 days", "@tobyclemson"]),
         (_keyring_age(), ["keyring", "412 days", "@tobyclemson"]),
+        (
+            _key_expiry(),
+            [
+                "`86C8D74642E67846F8E120284DAA80D1E737BC9F`",
+                "2026-12-09",
+                "in 60 days",
+                "@tobyclemson",
+            ],
+        ),
+        (
+            _key_expiry(dt.date(2026, 7, 8), days_to_expiry=-94),
+            ["expired on 2026-07-08", "94 days ago"],
+        ),
     ],
-    ids=["pin-age", "keyring-age"],
+    ids=["pin-age", "keyring-age", "key-expiry", "key-expired"],
 )
 def test_each_kind_drafts_a_body_naming_what_the_owner_needs(finding, facts):
     tracker = FakeIssueTracker()
