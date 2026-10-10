@@ -282,6 +282,9 @@ included, still runs and opens its issues, and the run then fails.
 |------|--------|-------|
 | OSV (`api.osv.dev`) | npm `playwright` and `playwright-core` advisories | `playwright-core-advisories` |
 | Node security working group `vuln/core` | Node core advisories | `node-advisories` |
+| npm registry (`registry.npmjs.org`) | the browser version the pinned `playwright-core` declares | `chromium-advisories` |
+| CISA Known Exploited Vulnerabilities (KEV) | exploited Chromium CVEs | `chromium-advisories` |
+| OSV (`api.osv.dev`) | fixed Chromium versions for those CVEs | `chromium-advisories` |
 
 A `vuln/core` entry applies only when its `affectedEnvironments` include
 `all`, `darwin` or `linux`, the platforms the runtime ships for. Its
@@ -291,12 +294,45 @@ bare or operator-prefixed versions. Any other syntax, or a feed in which no
 entry names a supported environment, is a feed failure rather than a silent
 miss, so a change to the feed's format surfaces as an issue.
 
+The Chromium check reads the pinned `playwright-core` tarball from the npm
+registry, checks its sha512 against the registry's `integrity`, and takes the
+`browserVersion` of the `chromium-headless-shell` build at `chromium.revision`
+from its `browsers.json`. A release that declares no build at that revision
+aborts the run before any issue opens. The guard ships nothing, so it does
+not verify the registry signature or provenance; the release lane does.
+
+A KEV entry is a Chromium component when its vendor is `Google` and its
+product starts with `Chromium` or `Chrome`, or is `Skia` or `Dawn`; any other
+Google product, such as `Pixel`, is ignored. A KEV feed with no Chromium
+component at all is a feed failure, so a renamed vendor or product surfaces.
+
+For each such CVE, OSV's `unresolved_ranges` give the fixed versions. Only
+four-part versions are read: the same record lists Apple, WebKitGTK and other
+products' fixes without saying which is which. Among those, the guard takes
+the lowest major at or above the browser's, and holds the browser against the
+highest fix in that major, so a browser between two fixed majors is not taken
+as covered by the older one, and one platform's earlier fix does not cover
+another's later one. Edge's builds sit below Chrome's in the same major, so
+the highest fix is Chrome's. The pin is affected when that fix is strictly
+higher than the browser version.
+
+A CVE for which OSV holds no record, or whose record names no four-part fix,
+cannot be assessed. It opens an issue saying so, keyed like any advisory on
+the CVE, so a fix OSV publishes later adds nothing new.
+
 Blind spots:
 
 - an advisory filed only outside OSV, such as on the Playwright repository
   without a GitHub advisory, is missed;
 - a Node advisory missing from `vuln/core`, or listed against an environment
   name the guard does not know, is missed;
+- a Chromium CVE that is not known to be exploited, and so absent from KEV,
+  is missed;
+- while OSV lags a fresh KEV entry, its record may be missing; the CVE then
+  opens an issue to assess by hand rather than being matched;
+- `unresolved_ranges` sits outside OSV's core schema and names no product, so
+  a fixed version shaped like Chrome's but belonging to another product is
+  read as Chrome's;
 - no guard issue is ever closed automatically;
 - bump dates are kept in step by hand, and nothing enforces it; forgetting to
   move one errs safe, reporting the pin as older than it is.
@@ -311,6 +347,11 @@ into the run; a skipped request counts as a feed failure.
   bump merges. Closing it silences that advisory for every later version of
   the pin, so close it earlier only as an explicit risk acceptance, recorded
   in a comment.
+- **Chromium CVE to assess.** Check the Chrome release notes for the CVE's
+  fix. Bump the pin if the vendored browser version is below it, then close
+  the issue once the bump merges; if it is not affected, close the issue with
+  a comment recording why. Either way, closing it silences the CVE for every
+  later version of the pin.
 - **Feed failure.** Request the failed URLs from outside GitHub Actions, and
   close the issue once the feed is healthy, since a later failure opens a
   fresh one. A feed-failure issue is keyed on its feed and the checks it

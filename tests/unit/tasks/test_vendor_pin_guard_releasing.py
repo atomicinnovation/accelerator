@@ -5,6 +5,11 @@ from tasks.shared.vendor.pin_guard.ages import (
     KEYRING_MAXIMUM_AGE_DAYS,
     PIN_MAXIMUM_AGE_DAYS,
 )
+from tasks.shared.vendor.pin_guard.chromium_advisories import (
+    CHROMIUM_COMPONENT_PREFIXES,
+    CHROMIUM_COMPONENTS,
+    CHROMIUM_VENDOR,
+)
 from tasks.shared.vendor.pin_guard.issues import MAXIMUM_NEW_ISSUES
 from tasks.shared.vendor.pin_guard.keyring import KEY_EXPIRY_WARNING_DAYS
 from tasks.shared.vendor.pin_guard.local_inputs import Owner
@@ -55,3 +60,21 @@ def test_the_limits_table_gives_every_pin_and_the_keyring_its_age():
             section,
             re.MULTILINE,
         ), subject
+
+
+def _feeds_subsection() -> str:
+    section = _guard_section()
+    start = section.index("### Feeds")
+    following = re.search(r"^### ", section[start + 1 :], re.MULTILINE)
+    end = start + 1 + following.start() if following else None
+    return section[start:end]
+
+
+def test_the_feeds_subsection_names_every_chromium_component_rule():
+    feeds = _feeds_subsection()
+    for name in [
+        CHROMIUM_VENDOR,
+        *CHROMIUM_COMPONENT_PREFIXES,
+        *sorted(CHROMIUM_COMPONENTS),
+    ]:
+        assert f"`{name}`" in feeds, name

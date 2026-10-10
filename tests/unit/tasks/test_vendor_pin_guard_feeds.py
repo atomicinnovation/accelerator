@@ -13,6 +13,7 @@ from tasks.shared.vendor.pin_guard.feeds import (
     FeedDocumentError,
     FeedFailure,
     FeedOutage,
+    FeedRecordNotFoundError,
     FeedRequestError,
     FeedSession,
     FeedUnreachableError,
@@ -39,13 +40,19 @@ from tests.unit.tasks.shared.doubles import (
     FakeFeeds,
     FakeIssueTracker,
     StubFinding,
+    chromium_record,
     clear_feeds,
     clear_repository,
     fake_ports,
+    kev_document,
+    kev_entry,
+    kev_url,
+    npm_version_url,
     osv_batch,
     osv_fixture,
     osv_record,
     successive,
+    vuln_core_entry,
     vuln_core_fixture,
     vuln_core_url,
 )
@@ -113,6 +120,12 @@ class TestFailureKinds:
         failure = _failure(_session(FakeFeeds({URL: {}})), parse=parse)
         assert failure.reason == "missing field results"
 
+    def test_a_missing_record_is_reported_as_not_found(self):
+        failure = _failure(
+            _session(FakeFeeds({URL: FeedRecordNotFoundError("HTTP 404")}))
+        )
+        assert (failure.reason, failure.detail) == ("not found", "HTTP 404")
+
     def test_any_other_error_propagates(self):
         def parse(_document):
             raise KeyError("a programming error")
@@ -148,6 +161,14 @@ class TestBudget:
         session = _session(feeds)
         for _ in range(3):
             assert _failure(session).reason == "unparseable"
+        assert _get(session) == {}
+
+    def test_missing_records_do_not_count(self):
+        missing = FeedRecordNotFoundError("HTTP 404")
+        feeds = FakeFeeds({URL: successive(*[missing] * 3, {})})
+        session = _session(feeds)
+        for _ in range(3):
+            assert _failure(session).reason == "not found"
         assert _get(session) == {}
 
     def test_each_feed_counts_separately(self):
@@ -323,7 +344,7 @@ def test_a_failed_record_fetch_skips_only_its_check_and_fails_the_run(
     today = dt.date(2026, 10, 10)
     stale = {s: today - dt.timedelta(days=400) for s in BUMP_SUBJECTS}
     feeds = (
-        clear_feeds()
+        clear_feeds("1.55.0")
         .answer(
             osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
         )
@@ -380,7 +401,7 @@ class TestVulnCoreFailures:
 def test_vuln_core_failing_opens_no_node_issue_but_osv_still_runs(tmp_path):
     today = dt.date(2026, 10, 10)
     feeds = (
-        clear_feeds()
+        clear_feeds("1.55.0")
         .answer(
             osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
         )
@@ -398,3 +419,130 @@ def test_vuln_core_failing_opens_no_node_issue_but_osv_still_runs(tmp_path):
         ("vuln-core", "node-advisories"),
         ("advisory", "GHSA-7mvr-c777-76hp", "playwright-core"),
     ]
+
+
+TODAY = dt.date(2026, 10, 10)
+STALE = {s: TODAY - dt.timedelta(days=400) for s in BUMP_SUBJECTS}
+GHSA = "GHSA-7mvr-c777-76hp"
+KEV_CVE = "CVE-2026-0001"
+EVERY_ADVISORY = {
+    PLAYWRIGHT: ("advisory", GHSA, "playwright-core"),
+    CheckName.NODE_ADVISORIES: ("advisory", "7", "node"),
+    CHROMIUM: ("advisory", KEV_CVE, "chromium"),
+}
+
+
+def _every_check_matching():
+    return (
+        clear_feeds("1.55.0")
+        .answer(
+            osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
+        )
+        .answer(osv_record(GHSA), osv_fixture(f"{GHSA}.json"))
+        .answer(vuln_core_url(), {"7": vuln_core_entry()})
+        .answer(kev_url(), kev_document(kev_entry(KEV_CVE)))
+        .answer(osv_record(KEV_CVE), chromium_record(KEV_CVE, "141.0.7390.54"))
+    )
+
+
+def _guarded(tmp_path, feeds, *, bumped=None):
+    """Run the guard, returning its tracker and the ``Exit`` it raised."""
+    ports = fake_ports(feeds=feeds)
+    paths = clear_repository(
+        tmp_path, TODAY, bumped=bumped, playwright="1.55.0"
+    )
+    try:
+        guard_pins_with(paths, TODAY, ports, IssuePolicy(BOT))
+    except Exit as error:
+        return ports.tracker, error
+    return ports.tracker, None
+
+
+ISOLATED_FAILURES = {
+    "osv batch": (osv_batch("1.55.0"), Feed.OSV, PLAYWRIGHT),
+    "osv playwright-core record": (osv_record(GHSA), Feed.OSV, PLAYWRIGHT),
+    "vuln/core": (
+        vuln_core_url(),
+        Feed.VULN_CORE,
+        CheckName.NODE_ADVISORIES,
+    ),
+    "kev": (kev_url(), Feed.KEV, CHROMIUM),
+    "osv kev record": (osv_record(KEV_CVE), Feed.OSV, CHROMIUM),
+    "npm registry": (npm_version_url("1.55.0"), Feed.NPM_REGISTRY, CHROMIUM),
+}
+
+
+@pytest.mark.parametrize(
+    ("request_key", "feed", "check"),
+    list(ISOLATED_FAILURES.values()),
+    ids=list(ISOLATED_FAILURES),
+)
+def test_a_failing_request_darkens_only_its_own_check(
+    tmp_path, request_key, feed, check
+):
+    feeds = _every_check_matching().answer(
+        request_key, FeedUnreachableError("HTTP 503")
+    )
+    tracker, exited = _guarded(tmp_path, feeds, bumped=STALE)
+    assert exited is not None
+    assert exited.code == 1
+    opened = [marker.parts for marker in tracker.opened_markers]
+    assert (feed, check) in opened
+    assert {parts for parts in opened if parts[0] == "advisory"} == (
+        set(EVERY_ADVISORY.values()) - {EVERY_ADVISORY[check]}
+    )
+    assert [parts[0] for parts in opened].count("pin-age") == 3
+    assert [parts[0] for parts in opened].count("keyring-age") == 1
+
+
+def test_every_check_matching_opens_every_advisory_and_returns(tmp_path):
+    tracker, exited = _guarded(tmp_path, _every_check_matching())
+    assert exited is None
+    assert [m.parts for m in tracker.opened_markers] == sorted(
+        EVERY_ADVISORY.values()
+    )
+
+
+@pytest.mark.parametrize(
+    "record",
+    [FeedRecordNotFoundError("HTTP 404"), chromium_record(KEV_CVE, "26.2")],
+    ids=["no record", "no chromium fix"],
+)
+def test_an_unassessable_kev_cve_opens_beside_the_other_advisories(
+    tmp_path, record
+):
+    feeds = _every_check_matching().answer(osv_record(KEV_CVE), record)
+    tracker, exited = _guarded(tmp_path, feeds)
+    assert exited is None
+    [chromium] = [
+        draft
+        for draft, _ in tracker.opened
+        if draft.marker.parts[2] == "chromium"
+    ]
+    assert chromium.title == f"{KEV_CVE} may affect the vendored chromium pin"
+    assert not any(
+        m.kind is MarkerKind.FEED_FAILURE for m in tracker.opened_markers
+    )
+    assert len(tracker.opened) == len(EVERY_ADVISORY)
+
+
+def test_two_failed_osv_records_open_one_issue_naming_both(tmp_path):
+    feeds = (
+        _every_check_matching()
+        .answer(osv_record(GHSA), FeedUnreachableError("HTTP 503"))
+        .answer(osv_record(KEV_CVE), FeedUnreachableError("HTTP 503"))
+    )
+    tracker, exited = _guarded(tmp_path, feeds)
+    assert exited is not None
+    [outage] = [
+        draft
+        for draft, _ in tracker.opened
+        if draft.marker.kind is MarkerKind.FEED_FAILURE
+    ]
+    assert outage.marker.parts == (
+        "osv",
+        "chromium-advisories",
+        "playwright-core-advisories",
+    )
+    assert f"`{GHSA}`" in outage.body
+    assert f"`{KEV_CVE}`" in outage.body

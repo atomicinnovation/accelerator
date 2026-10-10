@@ -4,6 +4,7 @@ import pytest
 from tasks.shared.clock import Clock
 from tasks.shared.vendor.pin_guard.feeds import (
     FeedDocumentError,
+    FeedRecordNotFoundError,
     FeedUnreachableError,
 )
 from tasks.shared.vendor.pin_guard.http_feeds import HttpFeedClient
@@ -106,10 +107,10 @@ def test_a_429_honours_retry_after_up_to_a_cap(retry_after, wait):
     assert clock.sleeps == [wait]
 
 
-def test_a_404_is_unreachable_without_a_retry():
+def test_a_404_is_a_missing_record_without_a_retry():
     not_found = httpx.Response(404, content=osv_fixture("not-found.json"))
     feeds, clock = _client(Scripted(not_found))
-    with pytest.raises(FeedUnreachableError, match="404"):
+    with pytest.raises(FeedRecordNotFoundError, match="404"):
         feeds.get_json(URL)
     assert clock.sleeps == []
 

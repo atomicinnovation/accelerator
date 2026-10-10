@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from typing import Self
 
 from tasks.shared.vendor.pin_guard.feeds import FeedFailure
-from tasks.shared.vendor.pin_guard.findings import AdvisoryFinding
+from tasks.shared.vendor.pin_guard.findings import Finding
 
 
 @dataclass(frozen=True, slots=True)
 class CheckOutcome:
-    findings: tuple[AdvisoryFinding, ...] = ()
+    findings: tuple[Finding, ...] = ()
     failures: tuple[FeedFailure, ...] = ()
 
     def __post_init__(self) -> None:
@@ -20,7 +20,7 @@ class CheckOutcome:
             )
 
     @classmethod
-    def matched(cls, findings: Iterable[AdvisoryFinding]) -> Self:
+    def matched(cls, findings: Iterable[Finding]) -> Self:
         return cls(findings=tuple(findings))
 
     @classmethod

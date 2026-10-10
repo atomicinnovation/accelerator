@@ -13,6 +13,9 @@ from tasks.shared.vendor.pin_guard.ages import (
     pin_age_findings,
 )
 from tasks.shared.vendor.pin_guard.checks import CheckOutcome
+from tasks.shared.vendor.pin_guard.chromium_advisories import (
+    chromium_advisories,
+)
 from tasks.shared.vendor.pin_guard.feeds import (
     GUARD_FEED_DEADLINE_SECONDS,
     FeedBudget,
@@ -87,6 +90,7 @@ def evaluate(
     advisories: tuple[CheckOutcome, ...] = (
         playwright_core_advisories(inputs.playwright_core, session),
         node_advisories(inputs.node, session),
+        chromium_advisories(inputs.playwright_core, inputs.chromium, session),
     )
     return GuardReport(
         (

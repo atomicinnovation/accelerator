@@ -25,6 +25,7 @@ GUARD_FEED_DEADLINE_SECONDS = 600
 REQUEST_TIMEOUT_SECONDS = 20
 CONSECUTIVE_FAILURES_BEFORE_SKIP = 3
 UNREACHABLE = "unreachable"
+NOT_FOUND = "not found"
 
 
 class Feed(StrEnum):
@@ -119,6 +120,10 @@ class FeedUnreachableError(Exception):
     """The feed gave no usable response once its retries were spent."""
 
 
+class FeedRecordNotFoundError(Exception):
+    """The feed responded that it holds nothing at the requested address."""
+
+
 class FeedDocumentError(ValueError):
     """The feed responded, but not with the document the check expects."""
 
@@ -197,6 +202,11 @@ class FeedSession:
             self._budget.record(feed, reachable=False)
             raise FeedRequestError(
                 FeedFailure(feed, check, label, UNREACHABLE, str(error))
+            ) from error
+        except FeedRecordNotFoundError as error:
+            self._budget.record(feed, reachable=True)
+            raise FeedRequestError(
+                FeedFailure(feed, check, label, NOT_FOUND, str(error))
             ) from error
         except FeedDocumentError as error:
             self._budget.record(feed, reachable=True)

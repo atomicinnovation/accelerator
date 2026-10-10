@@ -29,9 +29,13 @@ from tests.unit.tasks.shared.doubles import (
     BUMP_SUBJECTS,
     CLEAR_PLAYWRIGHT_VERSION,
     FakeIssueTracker,
+    chromium_record,
     clear_feeds,
     clear_repository,
     fake_ports,
+    kev_document,
+    kev_entry,
+    kev_url,
     listing_lister,
     osv_batch,
     osv_fixture,
@@ -61,7 +65,7 @@ def _osv_down():
 
 def _osv_matching(version):
     return (
-        clear_feeds()
+        clear_feeds(version)
         .answer(
             osv_batch(version), osv_fixture("querybatch-playwright-only.json")
         )
@@ -84,6 +88,20 @@ def test_a_node_advisory_opens_through_the_task(tmp_path):
     guard_pins_with(clear_repository(tmp_path, TODAY), TODAY, ports, POLICY)
     assert [m.parts for m in ports.tracker.opened_markers] == [
         ("advisory", "7", "node")
+    ]
+
+
+def test_a_chromium_advisory_opens_through_the_task(tmp_path):
+    cve = "CVE-2026-0001"
+    feeds = (
+        clear_feeds()
+        .answer(kev_url(), kev_document(kev_entry(cve)))
+        .answer(osv_record(cve), chromium_record(cve, "141.0.7390.54"))
+    )
+    ports = fake_ports(feeds=feeds)
+    guard_pins_with(clear_repository(tmp_path, TODAY), TODAY, ports, POLICY)
+    assert [m.parts for m in ports.tracker.opened_markers] == [
+        ("advisory", cve, "chromium")
     ]
 
 

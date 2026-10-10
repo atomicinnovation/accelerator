@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from tasks.shared.vendor.npm import (
+    assert_integrity_binds_bytes,
     assert_integrity_binds_tarball,
     signed_message,
     verify_registry_signature,
@@ -211,3 +212,21 @@ def test_a_document_without_slsa_provenance_is_refused():
     doc = {"attestations": [{"predicateType": "https://github.com/npm/..."}]}
     with pytest.raises(ValueError, match="SLSA"):
         provenance_bundle(doc)
+
+
+def test_matching_integrity_binds_the_bytes():
+    assert_integrity_binds_bytes(
+        integrity=_integrity(b"payload"), payload=b"payload"
+    )
+
+
+def test_bytes_not_matching_the_integrity_fail():
+    with pytest.raises(ValueError, match="sha512"):
+        assert_integrity_binds_bytes(
+            integrity=_integrity(b"original"), payload=b"tampered"
+        )
+
+
+def test_a_non_sha512_integrity_is_refused_for_bytes():
+    with pytest.raises(ValueError, match="sha512"):
+        assert_integrity_binds_bytes(integrity="sha1-abc", payload=b"x")

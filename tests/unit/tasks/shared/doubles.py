@@ -251,18 +251,26 @@ def fake_ports(**overrides):
     return GuardPorts(**(defaults | overrides))
 
 
-def clear_feeds():
-    """Feeds answering every check with a populated, non-matching document."""
-    return FakeFeeds(
+CLEAR_KEV_CVE = "CVE-2025-10585"
+
+
+def clear_feeds(playwright=CLEAR_PLAYWRIGHT_VERSION):
+    """Feeds answering every check with a populated, non-matching document.
+
+    The one KEV Chromium CVE was fixed in ``140.0.7339.185``, just below the
+    browser version the clear ``playwright-core`` declares.
+    """
+    feeds = FakeFeeds(
         {
-            osv_batch(CLEAR_PLAYWRIGHT_VERSION): osv_fixture(
-                "querybatch-empty.json"
-            ),
+            osv_batch(playwright): osv_fixture("querybatch-empty.json"),
             vuln_core_url(): {
                 "1": vuln_core_entry(vulnerable="20.x", patched="^20.99.0")
             },
+            kev_url(): kev_document(kev_entry(CLEAR_KEV_CVE)),
+            osv_record(CLEAR_KEV_CVE): osv_fixture(f"{CLEAR_KEV_CVE}.json"),
         }
     )
+    return publish_playwright_core(feeds, playwright_tarball(), playwright)
 
 
 class Successive:
@@ -404,3 +412,113 @@ def vuln_core_entry(
 
 def vuln_core_fixture(name):
     return (PIN_GUARD_FIXTURES / "vuln-core" / name).read_text()
+
+
+def kev_url():
+    from tasks.shared.vendor.pin_guard.chromium_advisories import KEV_URL
+
+    return KEV_URL
+
+
+def kev_entry(cve, product="Chromium V8", vendor="Google"):
+    return {"cveID": cve, "vendorProject": vendor, "product": product}
+
+
+def kev_document(*entries):
+    return {"vulnerabilities": list(entries)}
+
+
+def kev_fixture(name):
+    return (PIN_GUARD_FIXTURES / "kev" / name).read_text()
+
+
+def chromium_record(cve, *fixes):
+    """An OSV CVE record whose unresolved ranges close at each of ``fixes``."""
+    ranges = [
+        {"events": [{"introduced": "0"}, {"fixed": fix}]} for fix in fixes
+    ]
+    return {
+        "id": cve,
+        "affected": [{"database_specific": {"unresolved_ranges": ranges}}],
+    }
+
+
+def browsers_document(browser_version="140.0.7339.186", revision="1193"):
+    """A ``browsers.json`` declaring one headless-shell build."""
+    return {
+        "browsers": [
+            {
+                "name": "chromium-headless-shell",
+                "revision": revision,
+                "browserVersion": browser_version,
+            }
+        ]
+    }
+
+
+def playwright_tarball(
+    browsers=None, *, member="package/browsers.json", gzipped=True
+):
+    """A ``playwright-core`` tarball holding ``browsers`` at ``member``.
+
+    ``browsers`` defaults to the recorded 1.55.1 ``browsers.json``; a mapping
+    is serialised and ``str`` or ``bytes`` is stored as given.
+    """
+    import gzip
+    import io
+    import json
+    import tarfile
+
+    if browsers is None:
+        browsers = (PIN_GUARD_FIXTURES / "browsers-1.55.1.json").read_bytes()
+    if isinstance(browsers, dict):
+        browsers = json.dumps(browsers)
+    content = browsers.encode() if isinstance(browsers, str) else browsers
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        info = tarfile.TarInfo(member)
+        info.size = len(content)
+        archive.addfile(info, io.BytesIO(content))
+    archive_bytes = buffer.getvalue()
+    return gzip.compress(archive_bytes, mtime=0) if gzipped else archive_bytes
+
+
+def integrity_of(payload):
+    import base64
+    import hashlib
+
+    digest = hashlib.sha512(payload).digest()
+    return "sha512-" + base64.b64encode(digest).decode()
+
+
+def npm_version_url(version=CLEAR_PLAYWRIGHT_VERSION):
+    from tasks.shared.vendor.pin_guard.npm_registry import version_url
+
+    return version_url(version)
+
+
+def npm_tarball_url(version=CLEAR_PLAYWRIGHT_VERSION):
+    return (
+        "https://registry.npmjs.org/playwright-core/-/"
+        f"playwright-core-{version}.tgz"
+    )
+
+
+def npm_version_document(tarball, version=CLEAR_PLAYWRIGHT_VERSION):
+    """The recorded 1.55.1 version document, re-pointed at ``tarball``."""
+    import json
+
+    document = json.loads(
+        (PIN_GUARD_FIXTURES / "npm" / "playwright-core-1.55.1.json").read_text()
+    )
+    document["version"] = version
+    document["dist"]["tarball"] = npm_tarball_url(version)
+    document["dist"]["integrity"] = integrity_of(tarball)
+    return document
+
+
+def publish_playwright_core(feeds, tarball, version=CLEAR_PLAYWRIGHT_VERSION):
+    """Answer the npm registry with ``tarball`` as ``version``'s release."""
+    return feeds.answer(
+        npm_version_url(version), npm_version_document(tarball, version)
+    ).answer(npm_tarball_url(version), tarball)
