@@ -30,7 +30,7 @@ _CHROMIUM_REVISION = re.compile(r"^\d+$")
 
 
 class LocalInputError(GuardAbortError):
-    """A local input is missing or malformed."""
+    pass
 
 
 class PinName(StrEnum):
@@ -96,7 +96,6 @@ class LocalInputs:
 
 
 def read_local_inputs(paths: LocalInputPaths, today: dt.date) -> LocalInputs:
-    """Read and validate every local input, raising ``LocalInputError``."""
     pins_file = _PinsFile(paths.pins, today)
     return LocalInputs(
         playwright_core=Pin(

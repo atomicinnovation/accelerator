@@ -345,9 +345,6 @@ impl Supervision {
         }
     }
 
-    /// Lets the rest of the group finish after `SIGTERM`, until it is empty
-    /// and both pipes are read to their end, or until a second or the
-    /// deadline, whichever is sooner, has passed.
     fn grace_period(&mut self) {
         let end = (Instant::now() + GRACE).min(self.deadline);
         loop {

@@ -6,10 +6,9 @@ import { expect } from "./fixtures.js";
 export const WATCH_REGISTRATION_BUDGET_MS = 300_000;
 
 /**
- * Rewrites `path` with `contents` until `observed` is visible. The server
- * answers HTTP before its filesystem watches are registered, so a single
- * write can land before anything is listening; identical rewrites after the
- * first observed one are suppressed server-side.
+ * The server answers HTTP before its filesystem watches are registered, so a
+ * single write can land before anything is listening; identical rewrites after
+ * the first observed one are suppressed server-side.
  */
 export async function writeUntilVisible(
   path: string,

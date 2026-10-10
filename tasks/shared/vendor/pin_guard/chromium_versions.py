@@ -8,7 +8,7 @@ _FOUR_PART = re.compile(r"(\d+)\.(\d+)\.(\d+)\.(\d+)", re.ASCII)
 
 
 class ChromiumVersionError(ValueError):
-    """The text is not a four-part Chromium version."""
+    pass
 
 
 @dataclass(frozen=True, order=True, slots=True)

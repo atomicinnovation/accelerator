@@ -29,7 +29,7 @@ _TRIPPED_DIGEST_LENGTH = 12
 
 
 class IssueTrackerError(Exception):
-    """The issue tracker refused or failed a read or a write."""
+    pass
 
 
 @dataclass(frozen=True, slots=True)

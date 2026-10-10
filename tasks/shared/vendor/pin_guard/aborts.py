@@ -2,4 +2,4 @@
 
 
 class GuardAbortError(Exception):
-    """A local input or pin inconsistency that stops the run outright."""
+    pass
