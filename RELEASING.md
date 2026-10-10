@@ -281,11 +281,22 @@ included, still runs and opens its issues, and the run then fails.
 | Feed | Covers | Check |
 |------|--------|-------|
 | OSV (`api.osv.dev`) | npm `playwright` and `playwright-core` advisories | `playwright-core-advisories` |
+| Node security working group `vuln/core` | Node core advisories | `node-advisories` |
+
+A `vuln/core` entry applies only when its `affectedEnvironments` include
+`all`, `darwin` or `linux`, the platforms the runtime ships for. Its
+`vulnerable` and `patched` ranges are read in the npm syntax the feed uses
+today: `||`, space-separated comparators, `N.x` and `N.M.x`, `^X.Y.Z`, and
+bare or operator-prefixed versions. Any other syntax, or a feed in which no
+entry names a supported environment, is a feed failure rather than a silent
+miss, so a change to the feed's format surfaces as an issue.
 
 Blind spots:
 
 - an advisory filed only outside OSV, such as on the Playwright repository
   without a GitHub advisory, is missed;
+- a Node advisory missing from `vuln/core`, or listed against an environment
+  name the guard does not know, is missed;
 - no guard issue is ever closed automatically;
 - bump dates are kept in step by hand, and nothing enforces it; forgetting to
   move one errs safe, reporting the pin as older than it is.

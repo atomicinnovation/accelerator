@@ -135,10 +135,22 @@ def clear_repository(
 
 
 class FakeIssueTracker:
-    """In-memory ``IssueTracker`` seeded with open and closed issues."""
+    """In-memory ``IssueTracker`` seeded with open and closed issues.
 
-    def __init__(self, issues=(), *, label_exists=True, failing=()):
+    Every issue it opens is listed by later reads as open and authored by
+    ``author``, so one tracker carries a guard's issues from run to run.
+    """
+
+    def __init__(
+        self,
+        issues=(),
+        *,
+        label_exists=True,
+        failing=(),
+        author="github-actions[bot]",
+    ):
         self.existing = list(issues)
+        self.author = author
         self.label_exists = label_exists
         self.failing = set(failing)
         self.opened = []
@@ -146,8 +158,21 @@ class FakeIssueTracker:
         self.calls = []
 
     def issues(self):
+        from tasks.shared.vendor.pin_guard.issues import ExistingIssue
+
         self.calls.append("issues")
-        return list(self.existing)
+        return [
+            *self.existing,
+            *(
+                ExistingIssue(
+                    1001 + index,
+                    is_open=True,
+                    author=self.author,
+                    body=draft.body,
+                )
+                for index, (draft, _) in enumerate(self.opened)
+            ),
+        ]
 
     def ensure_label(self):
         self.calls.append("ensure_label")
@@ -220,16 +245,24 @@ def fake_ports(**overrides):
     defaults = {
         "tracker": FakeIssueTracker(),
         "key_lister": listing_lister("clear-keyring.colons"),
-        "feeds": FakeFeeds(
-            {
-                osv_batch(CLEAR_PLAYWRIGHT_VERSION): osv_fixture(
-                    "querybatch-empty.json"
-                )
-            }
-        ),
+        "feeds": clear_feeds(),
         "clock": Clock(sleep=clock.sleep, now=clock.now),
     }
     return GuardPorts(**(defaults | overrides))
+
+
+def clear_feeds():
+    """Feeds answering every check with a populated, non-matching document."""
+    return FakeFeeds(
+        {
+            osv_batch(CLEAR_PLAYWRIGHT_VERSION): osv_fixture(
+                "querybatch-empty.json"
+            ),
+            vuln_core_url(): {
+                "1": vuln_core_entry(vulnerable="20.x", patched="^20.99.0")
+            },
+        }
+    )
 
 
 class Successive:
@@ -345,3 +378,29 @@ def osv_record(advisory_id):
 
 def osv_fixture(name):
     return (PIN_GUARD_FIXTURES / "osv" / name).read_text()
+
+
+def vuln_core_url():
+    from tasks.shared.vendor.pin_guard.node_advisories import VULN_CORE_URL
+
+    return VULN_CORE_URL
+
+
+def vuln_core_entry(
+    *,
+    vulnerable="22.x",
+    patched="^22.23.0",
+    environments=("linux",),
+    cves=("CVE-2026-0001",),
+):
+    """One ``vuln/core`` entry, by default affecting the clear Node pin."""
+    return {
+        "cve": list(cves),
+        "vulnerable": vulnerable,
+        "patched": patched,
+        "affectedEnvironments": list(environments),
+    }
+
+
+def vuln_core_fixture(name):
+    return (PIN_GUARD_FIXTURES / "vuln-core" / name).read_text()

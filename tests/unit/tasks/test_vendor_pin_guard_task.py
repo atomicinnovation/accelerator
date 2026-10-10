@@ -28,14 +28,16 @@ from tasks.vendor.commands import (
 from tests.unit.tasks.shared.doubles import (
     BUMP_SUBJECTS,
     CLEAR_PLAYWRIGHT_VERSION,
-    FakeFeeds,
     FakeIssueTracker,
+    clear_feeds,
     clear_repository,
     fake_ports,
     listing_lister,
     osv_batch,
     osv_fixture,
     osv_record,
+    vuln_core_entry,
+    vuln_core_url,
 )
 
 TODAY = dt.date(2026, 10, 10)
@@ -52,17 +54,18 @@ def test_the_default_fake_world_is_clear(tmp_path):
 
 
 def _osv_down():
-    return FakeFeeds(
-        {osv_batch(CLEAR_PLAYWRIGHT_VERSION): FeedUnreachableError("HTTP 503")}
+    return clear_feeds().answer(
+        osv_batch(CLEAR_PLAYWRIGHT_VERSION), FeedUnreachableError("HTTP 503")
     )
 
 
 def _osv_matching(version):
-    return FakeFeeds(
-        {
-            osv_batch(version): osv_fixture("querybatch-playwright-only.json"),
-            osv_record(GHSA): osv_fixture(f"{GHSA}.json"),
-        }
+    return (
+        clear_feeds()
+        .answer(
+            osv_batch(version), osv_fixture("querybatch-playwright-only.json")
+        )
+        .answer(osv_record(GHSA), osv_fixture(f"{GHSA}.json"))
     )
 
 
@@ -72,6 +75,15 @@ def test_an_advisory_with_every_feed_responding_opens_and_returns(tmp_path):
     guard_pins_with(paths, TODAY, ports, POLICY)
     assert [m.parts for m in ports.tracker.opened_markers] == [
         ("advisory", GHSA, "playwright-core")
+    ]
+
+
+def test_a_node_advisory_opens_through_the_task(tmp_path):
+    feeds = clear_feeds().answer(vuln_core_url(), {"7": vuln_core_entry()})
+    ports = fake_ports(feeds=feeds)
+    guard_pins_with(clear_repository(tmp_path, TODAY), TODAY, ports, POLICY)
+    assert [m.parts for m in ports.tracker.opened_markers] == [
+        ("advisory", "7", "node")
     ]
 
 

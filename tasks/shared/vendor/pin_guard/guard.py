@@ -35,6 +35,7 @@ from tasks.shared.vendor.pin_guard.local_inputs import (
     LocalInputs,
     read_local_inputs,
 )
+from tasks.shared.vendor.pin_guard.node_advisories import node_advisories
 from tasks.shared.vendor.pin_guard.osv import playwright_core_advisories
 from tasks.shared.vendor.pin_guard.report import GuardReport
 
@@ -85,6 +86,7 @@ def evaluate(
     )
     advisories: tuple[CheckOutcome, ...] = (
         playwright_core_advisories(inputs.playwright_core, session),
+        node_advisories(inputs.node, session),
     )
     return GuardReport(
         (
