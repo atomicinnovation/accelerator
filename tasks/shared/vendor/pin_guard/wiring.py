@@ -1,0 +1,16 @@
+"""The one place the guard's production collaborators are wired."""
+
+import sys
+
+from tasks.shared.vendor.pin_guard.github_issues import GhIssueTracker
+from tasks.shared.vendor.pin_guard.guard import GuardPorts
+from tasks.shared.vendor.pin_guard.issues import DryRunIssueTracker
+
+
+def real_ports(*, open_issues: bool) -> GuardPorts:
+    tracker = GhIssueTracker()
+    return GuardPorts(
+        tracker=tracker
+        if open_issues
+        else DryRunIssueTracker(tracker, sys.stdout)
+    )

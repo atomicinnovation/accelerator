@@ -213,7 +213,30 @@ change only when their publishers rotate them.
 4. **Confirm and commit.** `mise run vendor:check-trust-anchors` must now pass.
    Commit `pins.toml` and both key files together; the drift test holds the
    assembled digests, the launcher's compiled-in map and `manifest.example.json`
-   in agreement.
+   in agreement. In the same change, update each bump date whose subject moved
+   (see [Bump dates](#bump-dates)): `playwright-core.bumped` when the
+   `playwright` version moves, `chromium.bumped` only when `chromium.revision`
+   changes, `node.bumped` only when `node.version` changes, and
+   `keyring.bumped` only when step 1 replaced or re-verified the keys.
+
+## Vendored-runtime pin guard
+
+Owner: Toby Clemson (@tobyclemson)
+
+The `vendor:guard-pins` task parses the line above to assign the issues it
+opens, so it must stay the only line in this file of the form
+`Owner: Name (@login)`.
+
+### Bump dates
+
+Each pin and the keyring carries a bump date in `pins.toml`
+(`playwright-core.bumped`, `chromium.bumped`, `node.bumped`,
+`keyring.bumped`), written as a TOML local date such as `2026-10-09`. The
+guard measures age from these dates, never from VCS history. Update a bump
+date in the same change that moves its own subject or refreshes the keyring
+(including re-verifying the keyring and finding it unchanged), and never
+otherwise: a Playwright bump that keeps the Chromium revision leaves
+`chromium.bumped` alone.
 
 ## Vendored verify shims
 
