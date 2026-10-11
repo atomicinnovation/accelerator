@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T18:00:00+00:00"
+last_updated: "2026-10-11T23:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1450,13 +1450,22 @@ transcript:
 
 **Holder setup.** A holder is a background `general-purpose` subagent told
 to poll for a named stop file without the shell `sleep` command. It runs
-a foreground
-`python3 -c "import os,time\nwhile not os.path.exists('<stop>'): time.sleep(2)"`
-with a 600000 ms Bash timeout, and repeats it until the file exists.
+a foreground `python3 hold.py <stop>`, a script that polls every 2 s for
+up to 570 s, with a 600000 ms Bash timeout, and repeats it until the file
+exists. An inline `python3 -c` loop needs a newline that a one-line Bash
+command cannot carry.
 Before each hold run, a probe spawn validates the fixture and must finish
 before `conduct` starts:
 - the partial-hold probe is accepted;
 - the full-hold probe is capacity-refused.
+
+**Permissions.** Each run is headless, `claude -p --permission-mode
+acceptEdits --plugin-dir <repo> --add-dir <repo>`, with `Read`, `Agent`,
+`WebSearch`, `WebFetch` and the holder script allowed. The session also
+allows `Bash(accelerator research topic *)`, `Bash(accelerator config *)`
+and `Bash(accelerator corpus *)`: once background subagents had returned,
+Claude Code 2.1.296 stopped applying the skill's `allowed-tools`, and every
+later `outstanding` call needed approval.
 
 A run whose probe gives the other result is invalid rather than failed.
 So is a run whose first batch offers fewer spawns than it needs, and a
@@ -1464,9 +1473,9 @@ hold run whose first plan reports a `remaining` other than 0. If the
 issue #140 brief is no longer retrievable, the full-load run uses any brief
 whose batches offered more than 20 spawns before the fix.
 
-- [ ] **Full load:** with default config and no holders, run `conduct <slug> --depth 3`. At least one batch offers exactly 20 spawns, all accepted by the batch message. Every plan reports `concurrency` 20, and no capacity refusal appears.
-- [ ] **Partial hold:** launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=4`, start 3 holders, then run `conduct <slug> --depth 2` on a brief with exactly 4 level-1 spawns, so the first plan offers 4 with `remaining` 0. The batch message has 1 spawn accepted and 3 refused, and rounds then accept 1 spawn each until none is left. The summary has no capacity failure, and the re-plan lists no re-issued spawn as `unfinished`.
-- [ ] **Full hold:** launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=4`, start 4 holders, then run `conduct <slug> --depth 2` on the same brief. The batch message and exactly one round are fully refused. The summary lists each spawn once with the capacity reason. After the stop file is created, a fresh `conduct` run offers those spawns again.
+- [x] **Full load:** with default config and no holders, run `conduct <slug> --depth 3`. At least one batch offers exactly 20 spawns, all accepted by the batch message. Every plan reports `concurrency` 20, and no capacity refusal appears. Run on a 6-area brief, since the issue #140 brief is not in the issue: 9 plans, all `concurrency` 20; batches 1–3 offered exactly 20, and 108 spawns met no refusal
+- [x] **Partial hold:** launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=4`, start 3 holders, then run `conduct <slug> --depth 2` on a brief with exactly 4 level-1 spawns, so the first plan offers 4 with `remaining` 0. The batch message has 1 spawn accepted and 3 refused, and rounds then accept 1 spawn each until none is left. The summary has no capacity failure, and the re-plan lists no re-issued spawn as `unfinished`. Rounds 1–3 accepted 1 each; the holders were released at the first re-plan, so later batches ran at full width
+- [x] **Full hold:** launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=4`, start 4 holders, then run `conduct <slug> --depth 2` on the same brief. The batch message and exactly one round are fully refused. The summary lists each spawn once with the capacity reason. After the stop file is created, a fresh `conduct` run offers those spawns again.
 
 ---
 
