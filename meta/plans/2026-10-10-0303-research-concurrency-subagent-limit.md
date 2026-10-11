@@ -969,14 +969,14 @@ short concurrency paragraph after it.
 
 #### Automated Verification:
 
-- [ ] Domain and window tests pass: `cargo nextest run -p research` (from `cli/`)
-- [ ] CLI unit and integration tests pass: `cargo nextest run -p research-cli` (from `cli/`)
-- [ ] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] The skill permission lint passes: `mise run check`
-- [ ] The public API snapshot matches: `mise run public-api:check`
-- [ ] No `--limit` invocation or code remains: `rg -n -- '--limit \{concurrency\}|E_TOPIC_RESEARCH_LIMIT' skills docs-site/src/content/docs/research.md cli/research-cli` prints nothing
-- [ ] The CLI names no harness variable: `mise run lint:claude-coupling:check` exits 0
-- [ ] `mise run` exits 0, including `docs:check`
+- [x] Domain and window tests pass: `cargo nextest run -p research` (from `cli/`)
+- [x] CLI unit and integration tests pass: `cargo nextest run -p research-cli` (from `cli/`)
+- [x] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] The skill permission lint passes: `mise run check`
+- [x] The public API snapshot matches: `mise run public-api:check`
+- [x] No `--limit` invocation or code remains: `rg -n -- '--limit \{concurrency\}|E_TOPIC_RESEARCH_LIMIT' skills docs-site/src/content/docs/research.md cli/research-cli` prints nothing
+- [x] The CLI names no harness variable: `mise run lint:claude-coupling:check` exits 0
+- [x] `mise run` exits 0, including `docs:check`
 
 #### Manual Verification:
 
