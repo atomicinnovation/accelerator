@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T12:54:58+00:00"
+last_updated: "2026-10-11T15:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1250,14 +1250,14 @@ becomes "the subagent cap, read from `ACCELERATOR_SUBAGENT_CAP` or
 
 #### Automated Verification:
 
-- [ ] Domain tests pass: `cargo nextest run -p research --test concurrency` (from `cli/`)
-- [ ] CLI tests pass: `cargo nextest run -p accelerator-research` (from `cli/`)
-- [ ] Guard tests pass: `uv run pytest tests/unit/tasks/test_claude_coupling.py`
-- [ ] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] No plan or CLI flag names the cap transport: `rg -n -- '--subagent-cap' skills cli/research-cli/src docs-site/src/content/docs/research.md CHANGELOG.md` prints nothing
-- [ ] The guard admits only the reader: `rg -ln CLAUDE_ cli` prints exactly `cli/research-cli/src/subagent_cap.rs` and `cli/research-cli/tests/topic_outstanding.rs`
-- [ ] `mise run public-api:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Domain tests pass: `cargo nextest run -p research --test concurrency` (from `cli/`)
+- [x] CLI tests pass: `cargo nextest run -p accelerator-research` (from `cli/`)
+- [x] Guard tests pass: `uv run pytest tests/unit/tasks/test_claude_coupling.py`
+- [x] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] No plan or CLI flag names the cap transport: `rg -n -- '--subagent-cap' skills cli/research-cli/src docs-site/src/content/docs/research.md CHANGELOG.md` prints nothing
+- [x] The guard admits only the reader: `rg -ln CLAUDE_ cli` prints exactly `cli/research-cli/src/subagent_cap.rs` and `cli/research-cli/tests/topic_outstanding.rs`
+- [x] `mise run public-api:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
