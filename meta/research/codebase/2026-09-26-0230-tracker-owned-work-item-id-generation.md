@@ -424,7 +424,7 @@ are new capability. The load-bearing findings:
   APPROVE after four passes; last three majors fixed but not re-reviewed;
   open minors include orphaned `created` marker adoption, literal text around
   `{tracker}`, and the undefined "sync baseline".
-- `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-linear.md`
+- `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
   — high-priority draft bug: `execute_push` records no baseline, so every
   `{tracker}` create and promotion would show as a conflict on the next sync.
   No dependency edge to 0230.

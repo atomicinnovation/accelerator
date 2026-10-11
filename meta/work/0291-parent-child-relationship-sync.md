@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0146"
-relates_to: ["work-item:0229", "work-item:0230", "work-item:0290"]
+relates_to: ["work-item:0229", "work-item:0230", "work-item:0290", "work-item:0296"]
 tags: ["sync", "tracker", "jira", "linear", "hierarchy", "parent-child", "relationships"]
 last_updated: "2026-09-20T19:15:54+00:00"
 last_updated_by: "Toby Clemson"
@@ -100,6 +100,9 @@ nesting. Both expose a single parent pointer, matching the local model.
 
 - Blocked by: 0230 (Tracker-Owned Work Item ID Generation), for the
   draft-deferral requirement only — it needs 0230's draft form and promotion.
+- Blocked by: 0296 (Sync Round-Trip Defects Between Local Work Items and the
+  Tracker), for pull-path changes only — its title-line strip lands first and
+  this item adds its pull entry points to 0296's regression tests.
 - Blocks: none.
 
 ## Assumptions

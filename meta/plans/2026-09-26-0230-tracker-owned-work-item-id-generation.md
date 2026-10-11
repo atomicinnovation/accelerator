@@ -3710,7 +3710,7 @@ One row per acceptance criterion in 0230, in the work item's order.
   `meta/research/codebase/2026-09-26-0230-tracker-owned-work-item-id-generation.md`
 - Work item review: `meta/reviews/work/0230-tracker-owned-work-item-id-generation-review-1.md`
 - Superseded decision: `meta/decisions/ADR-0044-remote-work-item-identity-in-external-id.md`
-- Absorbed defect: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-linear.md`
+- Absorbed defect: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
   (Defect 1)
 - Downstream: `meta/work/0302-work-item-re-key-command.md`,
   `meta/work/0291-parent-child-relationship-sync.md`,
