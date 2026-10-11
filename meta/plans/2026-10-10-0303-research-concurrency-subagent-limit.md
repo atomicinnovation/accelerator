@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T08:30:18+00:00"
+last_updated: "2026-10-11T11:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -26,10 +26,10 @@ schema_version: 1
 starts at most 20 subagents at once, so 4 spawns per full batch are refused
 and lost. This plan lowers the default to 20 and moves concurrency
 resolution into `accelerator research topic outstanding`. The CLI clamps the
-value to the harness subagent cap, which the skill passes as
-`--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"`: the CLI never
-names a `CLAUDE_*` variable itself. The skill gains retry rounds for spawns
-the harness refuses for capacity.
+value to the subagent cap, which it reads from `ACCELERATOR_SUBAGENT_CAP` or
+Claude Code's `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, in one module the
+coupling guard admits by variable name. The skill gains retry rounds for
+spawns the harness refuses for capacity.
 
 ## Current State Analysis
 
@@ -60,22 +60,26 @@ the harness refuses for capacity.
   `outstanding` plan offers at most 20 spawns and reports `concurrency: 20`.
 - `outstanding --concurrency N`, or `research.topic.concurrency` when no
   flag is given, is validated and then clamped to the harness cap. The cap
-  is `--subagent-cap V`, read as the harness reads
-  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, or 20 without the flag. The CLI
-  warns on `--start` when a flag or config value was clamped, naming
-  `--concurrency` or `research.topic.concurrency` as the value's source.
+  is the first of `ACCELERATOR_SUBAGENT_CAP` and
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` holding a value the harness would
+  honour, each read as the harness reads its own setting, or 20 when neither
+  does. The CLI warns on `--start` when a flag or config value was clamped,
+  naming `--concurrency` or `research.topic.concurrency` as the value's
+  source.
 - Every plan, a plain query included, offers at most the resolved
   concurrency. The spawn window takes a `Concurrency`, which code outside
   the research crate can obtain only by resolving against the cap.
-- `conduct` passes the invocation's `--concurrency` and the shell-expanded
-  `--subagent-cap` through to every plan, the tick plan included, and
+- `conduct` passes the invocation's `--concurrency` through to every plan,
+  the tick plan included, with no shell variable in any command, and
   re-issues capacity-refused spawns in rounds before checking them.
-- `rg -n 'CLAUDE_' cli bin/accelerator` prints nothing new:
-  `lint:claude-coupling:check` stays green.
+- `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is the only `CLAUDE_*` name under
+  `cli/`, and appears only in its reader and that reader's integration test.
+  `lint:claude-coupling:check` enforces this by variable name, and ADR-0071
+  records why.
 - `mise run` exits 0.
 
 Verify with the Rust and structural tests named in each phase, plus the
-manual runs in Phase 3 and Phase 4.
+manual runs in Phase 4 and Phase 5.
 
 ### Key Discoveries:
 
@@ -86,16 +90,32 @@ manual runs in Phase 3 and Phase 4.
   so the empty-value error stays reachable.
 - **Coupling guard:** `lint:claude-coupling:check`
   (`tasks/lint/claude_coupling.py`) fails on any `CLAUDE_*` text under
-  `cli/**` or in `bin/accelerator`, with no allowlist by design. Only the
-  adapter layer, the skills and hooks, may name the variable. So the skill's
-  Bash command expands `$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` into
-  `--subagent-cap`, and the CLI reads no environment for the cap. An unset
-  variable expands to an empty value, which the cap parser already treats
-  as the harness default.
+  `cli/**` or in `bin/accelerator`, with no file allowlist by design. Its
+  invariant is that no entry point may *require* a `CLAUDE_*` variable: it
+  was written after a launcher-layer read of `CLAUDE_PLUGIN_ROOT`, which the
+  Bash tool never receives, broke every CLI-invoking skill. An optional
+  tuning variable with a default does not share that failure mode, so the
+  guard can admit one by name, confined to its reader, without a file
+  exemption.
+- **Variable expansion prompts:** Claude Code 2.1.296 refuses to auto-allow
+  any Bash command containing a shell variable, whatever the skill grants.
+  Under `--permission-mode default` with only
+  `Bash(accelerator research topic *)` allowed, `--subagent-cap 8` ran, while
+  `--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"` and its
+  `${…:-}` form were both blocked: "A variable in this command can't be
+  checked before it runs". Phase 3 shipped that form, so every interactive
+  `conduct` plan would prompt; Phase 4 replaces it.
+- **Environment reaches the CLI:** a cap exported in the shell that launches
+  Claude Code reaches `accelerator research` through the Bash tool
+  (Phase 3's first manual run, `concurrency` 8). Settings-file `env` is not
+  yet verified.
 - **Why not `!`:** the skill permission lint (`tasks/lint/skill_permissions.py`)
   bans shell metacharacters in a `!` command. A `!` read of an unset
   variable also fails, discarding the prompt, so the cap cannot be injected
   at invocation time.
+- **Composition-root env reads:** `linear-cli/src/context.rs:51` reads
+  `ACCELERATOR_LINEAR_API_URL` with `std::env::var_os` in the composition
+  root, not an adapter crate. The cap reader follows it, in `research-cli`.
 - **Warning precedent:** the replaced-ledger notice is the precedent for a
   warning raised on `--start` only. It is gated on `RunMode::Start`, lands
   in both the JSON `warnings` and stderr (`topic_command.rs:225-228,267-278`),
@@ -139,14 +159,17 @@ manual runs in Phase 3 and Phase 4.
   has two homes: Rust is authoritative for concurrency, skill prose for
   breadth and depth. A structural test keeps their invalid-value wording
   in step.
-- Reading `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` in the CLI, or exempting
-  it from the coupling guard. The skill passes its value as a flag.
+- Reading any other agent's cap variable. The reader's table starts with
+  Claude Code's alone; another agent's name is added only once that agent
+  documents one.
+- Exempting a file from the coupling guard. It admits named variables, each
+  in its reader, and nothing else.
 - Hand-editing the generated docs-site skill mirrors under
   `docs-site/src/content/docs/reference/skills/`, which are gitignored.
 
 ## Implementation Approach
 
-The work is split into four phases, and each leaves `mise run` green:
+The work is split into five phases, and each leaves `mise run` green:
 
 1. Lower the default. This alone fixes the default-config case.
 2. Add the concurrency rule to the research domain as a pure, fully
@@ -156,7 +179,11 @@ The work is split into four phases, and each leaves `mise run` green:
    switch the skill to pass both flags through. These land together,
    because the flag rename and the skill's use of the flag break each
    other if split.
-4. Add the retry rounds to skill prose.
+4. Move the cap into the CLI: read it from the environment, admit the one
+   `CLAUDE_*` name in the coupling guard, record the decision as ADR-0071,
+   and drop `--subagent-cap` from the CLI and the skill. This replaces
+   Phase 3's flag transport, which the permission checker blocks.
+5. Add the retry rounds to skill prose.
 
 Every phase starts with failing tests. The Rust phases are driven by unit
 and integration tests, and the prose phases by structural tests in
@@ -460,7 +487,8 @@ only the `research::conduct::concurrency` items.
 Replace `--limit` with `--concurrency` on `outstanding`, and add
 `--subagent-cap`. The CLI resolves the flag or configured value through the
 Phase 2 rule against the cap that `--subagent-cap` carries, read by
-`SubagentCap::from_setting`. The spawn window takes the resulting
+`SubagentCap::from_setting`. Phase 4 replaces this flag transport: Claude
+Code blocks a Bash command that expands a shell variable. The spawn window takes the resulting
 `Concurrency`. The CLI reports the result as `concurrency`, and emits
 concurrency warnings on `--start`. The skill stops resolving concurrency
 and passes both flags through, expanding
@@ -980,19 +1008,268 @@ short concurrency paragraph after it.
 
 #### Manual Verification:
 
-Run these in a fresh Claude Code session against an installed build. Each
-run may stop once its first `outstanding` plan and any warnings have
-appeared. Each cap source is set alone, with the others unset.
-
-- [ ] Launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported in the shell and no override; the first plan reports `concurrency` 8 and no warning
-- [ ] Launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: "8"` in the project `.claude/settings.json` `env` and no override; the first plan reports `concurrency` 8 and no warning
-- [ ] Repeat with the value in the project `.claude/settings.local.json` `env`, then in the user `~/.claude/settings.json` `env`; each first plan reports `concurrency` 8. If a source does not reach the CLI, list only the verified sources in the configure docs
-- [ ] Launch with the variable unset and run `conduct <slug> --concurrency 50`; the first plan reports `concurrency` 20, and `conduct` reports the clamp warning naming `--concurrency`, 50 and 20 before spawning the first batch
-- [ ] In every run above, no `outstanding` command raises a permission prompt, and each transcript shows `--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"` unaltered. If the `$` expansion prompts, stop and revisit how the cap crosses into the CLI
+- [x] Launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported in the shell and no override; the first plan reports `concurrency` 8 and no warning
+- [x] Check that no `outstanding` command raises a permission prompt: it does. Under `--permission-mode default`, the expanded `--subagent-cap` is blocked, so the remaining cap-source runs move to Phase 4
 
 ---
 
-## Phase 4: Capacity-Refusal Retry Rounds
+## Phase 4: The CLI Reads the Subagent Cap
+
+### Overview
+
+Read the cap from the environment in one `research-cli` module, and drop
+`--subagent-cap` from `outstanding` and from every plan in the skill. The
+cap is the first of `ACCELERATOR_SUBAGENT_CAP` and
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` that holds a value the harness would
+honour, else 20. `ACCELERATOR_SUBAGENT_CAP` comes first because it is the
+explicit, agent-neutral setting. A value the harness would ignore falls
+through to the next variable, silently, as the harness itself ignores it.
+The coupling guard admits `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` by name, in
+its reader and that reader's integration test only.
+
+### Changes Required:
+
+#### 1. Precedence in the domain (red, then green)
+
+**File**: `cli/research/tests/concurrency.rs`
+**Changes**: Add `the_first_honoured_setting_is_the_cap`, table-driven:
+
+| Settings, in order | Expected |
+|---|---|
+| `"30"`, `"8"` | 30 |
+| `"abc"`, `"8"` | 8 |
+| `"0"`, `" 8 "` | 8 |
+| unset, `"8"` | 8 |
+| `"abc"`, `"-5"` | 20 |
+| unset, unset | 20 |
+
+**File**: `cli/research/src/conduct/concurrency.rs`
+**Changes**: Add the rule, and express `from_setting` through it.
+
+```rust
+impl SubagentCap {
+    #[must_use]
+    pub fn first_honoured<'a>(
+        settings: impl IntoIterator<Item = Option<&'a str>>,
+    ) -> Self {
+        settings
+            .into_iter()
+            .flatten()
+            .find_map(harness_slots)
+            .map_or(Self::HARNESS_DEFAULT, Self)
+    }
+
+    #[must_use]
+    pub fn from_setting(setting: Option<&str>) -> Self {
+        Self::first_honoured([setting])
+    }
+}
+```
+
+**File**: `cli/research/tests/fixtures/public-api.txt`
+**Changes**: Regenerate; the diff adds only `first_honoured`.
+
+#### 2. The reader (red, then green)
+
+**File**: `cli/research-cli/src/subagent_cap.rs` (new), declared in
+`main.rs`
+
+```rust
+//! The subagent cap, read from the environment `conduct` runs in.
+
+use research::conduct::concurrency::SubagentCap;
+
+const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
+const HARNESS_CAPS: [&str; 1] = ["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
+
+pub fn from_environment(
+    lookup: impl Fn(&str) -> Option<String>,
+) -> SubagentCap {
+    let settings: Vec<Option<String>> = [ACCELERATOR_CAP]
+        .into_iter()
+        .chain(HARNESS_CAPS)
+        .map(&lookup)
+        .collect();
+    SubagentCap::first_honoured(settings.iter().map(Option::as_deref))
+}
+```
+
+Its `tests` module drives `from_environment` with a lookup over a fixed
+map: `the_accelerator_cap_wins_over_the_harness_cap` (30 and 8 → 30),
+`an_accelerator_cap_the_harness_would_ignore_falls_through` (`abc` and 8 →
+8), `the_harness_cap_alone_is_read` (8), and
+`without_either_variable_the_cap_is_the_harness_default` (20).
+
+#### 3. Drop the flag
+
+**File**: `cli/research-cli/src/topic_command.rs`
+**Changes**:
+- `OutstandingFlags` loses `subagent_cap`, and `parse` its `subagent_cap`
+  parameter.
+- `resolve_concurrency` keeps its `cap` parameter.
+- `the_subagent_cap_flag_bounds_the_configured_value` becomes
+  `a_lowered_cap_bounds_the_configured_value`, resolving a configured `24`
+  under `SubagentCap::from_setting(Some("8"))`.
+- `without_a_subagent_cap_flag_the_cap_is_the_harness_default` is deleted;
+  the reader's tests own that case.
+
+**File**: `cli/research-cli/src/cli.rs`
+**Changes**: Remove `subagent_cap`. The `concurrency` doc ends "and is
+clamped to the subagent cap, read from `ACCELERATOR_SUBAGENT_CAP` or the
+harness's own setting".
+
+**File**: `cli/research-cli/src/main.rs`
+**Changes**: `outstanding` passes
+`subagent_cap::from_environment(|name| std::env::var(name).ok())` to
+`resolve_concurrency`.
+
+#### 4. Integration tests over the environment (red, then green)
+
+**File**: `cli/research-cli/tests/topic_outstanding.rs`
+**Changes**:
+- Every `Command` the harness builds removes both variables first, so a
+  cap in the developer's environment, or in the Claude Code session
+  running `mise run`, never reaches a test.
+- `Project` gains `outstanding_in(args, cap: &[(&str, &str)])` and
+  `plan_in`, which set the given variables on top.
+- Every Phase 3 test passing `--subagent-cap V` sets
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=V` instead, keeping its name and
+  expectations. The empty-value case sets the variable to `""`.
+- New: `the_accelerator_cap_wins_over_the_harness_cap` (config 24,
+  `ACCELERATOR_SUBAGENT_CAP=30`, `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8`,
+  `--start` → 24, no warnings).
+- New: `an_accelerator_cap_the_harness_would_ignore_falls_through`
+  (`ACCELERATOR_SUBAGENT_CAP=abc`, `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8`,
+  `--start` → 8, no warnings).
+- New: `subagent_cap_is_not_an_outstanding_flag` (`--subagent-cap 8` → exit
+  2, stderr names `--subagent-cap` as unexpected).
+
+#### 5. Coupling guard admits the cap by name (red, then green)
+
+**File**: `tests/unit/tasks/test_claude_coupling.py`
+**Changes**: Add a `TestOptionalHarnessVariables` class, each probe in
+`tmp_path` like its siblings:
+- `test_permits_the_cap_in_its_reader_and_its_test`;
+- `test_flags_the_cap_anywhere_else_under_cli`;
+- `test_flags_the_cap_in_bin_accelerator`;
+- `test_flags_another_claude_name_in_the_reader`;
+- `test_flags_a_line_naming_the_cap_beside_a_banned_name`;
+- `test_the_admitted_set_is_exactly_the_subagent_cap`, pinning the mapping,
+  so admitting a name is a reviewed change to this test;
+- `test_a_missing_reader_raises`, as `test_a_missing_named_file_raises`
+  does for `_FILES`.
+
+**File**: `tasks/lint/claude_coupling.py`
+**Changes**: Add the mapping, and flag a `CLAUDE_*` match unless the
+mapping names it and lists the file. A missing listed file raises, as a
+missing `_FILES` entry does.
+
+```python
+_OPTIONAL_HARNESS_VARIABLES = {
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": (
+        "cli/research-cli/src/subagent_cap.rs",
+        "cli/research-cli/tests/topic_outstanding.rs",
+    ),
+}
+```
+
+The docstring keeps the invariant and states the admission rule: a name
+is admitted only if the CLI works without it, with the default stated
+where it is read; admission is by name and file, never by file alone.
+
+#### 6. ADR-0071
+
+**File**: `meta/decisions/ADR-0071-optional-harness-variables-in-the-cli.md`
+**Changes**: Draft with `/accelerator:create-adr`, status `proposed`:
+- **Context:** the guard's origin in `CLAUDE_PLUGIN_ROOT`, and the
+  permission checker blocking a variable expanded in a Bash command.
+- **Decision:** the CLI may read an optional harness variable that has a
+  stated default, admitted by name and confined to its reader. An
+  `ACCELERATOR_` variable for the same setting takes precedence.
+- **Consequences:** the guard stays a textual rule with a pinned admission
+  set; another agent's variable needs the same admission; tests must clear
+  admitted variables.
+
+#### 7. Skill and structural tests (red, then green)
+
+**File**: `tests/unit/tasks/test_research_structure.py`
+**Changes**:
+- `PLAN_AT_DEPTH` becomes `f"--depth {{depth}} {CONCURRENCY_FLAG}"`, and
+  `SUBAGENT_CAP_FLAG` goes.
+- `test_every_plan_passes_the_shell_expanded_subagent_cap` becomes
+  `test_no_plan_expands_a_shell_variable`. It asserts that no `outstanding`
+  line contains `--subagent-cap`, `$CLAUDE_CODE` or `${CLAUDE_CODE`, and
+  that the "Pass `--subagent-cap` exactly as written" sentence is gone.
+- The knob test asserts "clamped to `ACCELERATOR_SUBAGENT_CAP`, else
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20" and "`conduct` passes the
+  flag through and never resolves concurrency itself".
+
+**File**: `skills/research/research-topic/SKILL.md`
+**Changes**:
+- The knob block reads: "`outstanding` resolves concurrency itself and
+  bounds it by the subagent cap: an `--concurrency N` flag on `conduct`,
+  else the configured value, validated and then clamped to
+  `ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
+  else 20. `conduct` passes the flag through and never resolves concurrency
+  itself."
+- Step 1 drops the `--subagent-cap` sentence.
+- All three plan commands drop
+  `--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"`.
+- The tick plan reads "with `{concurrency flag}` and no run flag".
+
+#### 8. Docs and changelog
+
+**File**: `tests/unit/tasks/test_research_structure.py`,
+`skills/config/configure/SKILL.md`
+**Changes**: The configure paragraph names the cap as
+"`ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
+each when set to a value Claude Code would accept, otherwise 20". It gains
+the bullet "Set `ACCELERATOR_SUBAGENT_CAP` to pin a cap no higher than
+Claude Code's; above it, Claude Code refuses the extra spawns." Its "To
+spawn more than 20 at once" bullet is unchanged. The configure test pins
+both new sentences.
+
+**File**: `docs-site/src/content/docs/research.md`
+**Changes**: The cap paragraph drops `--subagent-cap`. The cap is read from
+`ACCELERATOR_SUBAGENT_CAP`, then `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
+each read as Claude Code reads its own setting, else 20, so a hand run in
+the same shell sees the cap `conduct` does.
+
+**File**: `CHANGELOG.md`
+**Changes**: "the subagent cap given by `--subagent-cap` (20 without it)"
+becomes "the subagent cap, read from `ACCELERATOR_SUBAGENT_CAP` or
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` (20 without either)".
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Domain tests pass: `cargo nextest run -p research --test concurrency` (from `cli/`)
+- [ ] CLI tests pass: `cargo nextest run -p accelerator-research` (from `cli/`)
+- [ ] Guard tests pass: `uv run pytest tests/unit/tasks/test_claude_coupling.py`
+- [ ] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [ ] No plan or CLI flag names the cap transport: `rg -n -- '--subagent-cap' skills cli/research-cli/src docs-site/src/content/docs/research.md CHANGELOG.md` prints nothing
+- [ ] The guard admits only the reader: `rg -ln CLAUDE_ cli` prints exactly `cli/research-cli/src/subagent_cap.rs` and `cli/research-cli/tests/topic_outstanding.rs`
+- [ ] `mise run public-api:check` exits 0
+- [ ] `mise run` exits 0
+
+#### Manual Verification:
+
+Run each in a fresh headless session, `claude -p --permission-mode
+default --allowedTools Skill --plugin-dir <repo>`, with
+`ACCELERATOR_RESEARCH_BIN` pointing at the local build, against a copy of
+the `topic-research-quarantine-set` fixture. Each run stops after the first
+plan. Set each cap source alone.
+
+- [ ] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 8, no warning and no permission denial
+- [ ] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: "8"` under `env` in the project `.claude/settings.json`, then `.claude/settings.local.json`, then the user `~/.claude/settings.json`, each first plan reports `concurrency` 8. If a source does not reach the CLI, list only the verified sources in the configure docs
+- [ ] With `ACCELERATOR_SUBAGENT_CAP=4` and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 4
+- [ ] With neither set, `conduct <slug> --concurrency 50` reports `concurrency` 20 and the clamp warning naming `--concurrency`, 50 and 20 before spawning
+- [ ] No run records a permission denial for an `accelerator` command
+
+---
+
+## Phase 5: Capacity-Refusal Retry Rounds
 
 ### Overview
 
@@ -1066,6 +1343,7 @@ def test_the_capacity_row_names_re_running_conduct() -> None:
     row = _capacity_row()
     assert "re-run `conduct`" in row
     assert "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`" in row
+    assert "any `ACCELERATOR_SUBAGENT_CAP` is no higher" in row
     assert "below the `concurrency` the summary reports" in row
     assert "a smaller `--concurrency` or `research.topic.concurrency`" in row
 ```
@@ -1112,7 +1390,7 @@ of these; the spawn step handles it."
 **Changes**: Add a row after "a refused note, or "wrote no note"":
 
 ```markdown
-| "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished, and the new run offers the spawn again; if it recurs with no other subagents running, make sure `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it, or lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
+| "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished, and the new run offers the spawn again; if it recurs with no other subagents running, make sure `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it, that any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap, or lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
 ```
 
 #### 5. Changelog
@@ -1181,23 +1459,27 @@ whose batches offered more than 20 spawns before the fix.
   tests over a `Concurrency`.
 - **Wording:** every concurrency diagnostic names its source
   (`plan_wording.rs`).
-- **Precedence:** a flag is resolved without reading config, config is
-  the fallback, and the cap comes from `--subagent-cap`, defaulting to the
-  harness default (`topic_command.rs`).
+- **Precedence:** a flag is resolved without reading config, and config
+  is the fallback (`topic_command.rs`). The cap is the first honoured of
+  `ACCELERATOR_SUBAGENT_CAP` and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`
+  (`concurrency.rs` tests, `subagent_cap.rs`).
+- **Coupling guard:** the cap is admitted by name in its reader and its
+  test only, and the admitted set is pinned (`test_claude_coupling.py`).
 - **Default at the cap:** the catalogue default equals
   `SubagentCap::HARNESS_DEFAULT` (`context.rs`).
 
 ### Integration Tests:
 
 - **`outstanding` binary end to end:**
-  - `--subagent-cap` and team and personal config files set explicitly;
+  - both cap variables cleared on every call, then set explicitly, with
+    team and personal config files;
   - exact `warnings`, stderr and `concurrency`, with clean stderr where no
     warning is expected;
   - the offered spawns and `remaining` under each clamp;
   - warnings on `--start` only, ahead of a replaced-ledger notice;
   - the empty-value exit with no ledger written, and a flag standing in
     for an empty configured value;
-  - `--limit` rejected.
+  - `--limit` and `--subagent-cap` rejected.
 - **Structural tests:**
   - the skill's flag pass-through, including the tick plan;
   - the knob block, and knob-rule wording parity with the CLI;
@@ -1207,8 +1489,8 @@ whose batches offered more than 20 spawns before the fix.
 ### Manual Testing Steps:
 
 1. Phase 1: `accelerator config get research.topic.concurrency` prints `20`.
-2. Phase 3: the three cap-reaches-the-CLI runs.
-3. Phase 4: the full-load, partial-hold and full-hold runs.
+2. Phase 4: the cap-reaches-the-CLI runs, with no permission denial.
+3. Phase 5: the full-load, partial-hold and full-hold runs.
 
 ## Performance Considerations
 
@@ -1246,6 +1528,10 @@ Code 2.1.296. On a harness upgrade, recheck the refusal text and
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` parsing against the spawn step and
 `a_cap_is_parsed_as_the_harness_parses_it`.
 
+`--subagent-cap` existed only between Phase 3 and Phase 4, unreleased, so
+its removal needs no deprecation path. `ACCELERATOR_SUBAGENT_CAP` is new and
+optional.
+
 The default of 20 and `SubagentCap::HARNESS_DEFAULT` encode one decision,
 that the default sits at the harness cap.
 `the_built_in_default_sits_at_the_harness_cap` ties them together, so a
@@ -1257,5 +1543,7 @@ change to the harness cap forces a decision about the default.
 - Codebase research: `meta/research/codebase/2026-10-10-0303-research-concurrency-subagent-limit.md`
 - Run ledger and `--limit`: `meta/plans/2026-09-26-0283-recursive-finding-deepening.md`
 - Knob rule: `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
+- Coupling guard: `tasks/lint/claude_coupling.py`; the decision to admit
+  optional harness variables: ADR-0071 (Phase 4)
 - Models: `cli/research/src/topic/tree.rs:19-43` (`Depth`),
   `topic_command.rs:225-228` (`--start`-only notice)
