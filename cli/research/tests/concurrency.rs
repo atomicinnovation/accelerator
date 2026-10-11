@@ -81,6 +81,24 @@ fn a_cap_too_large_for_u32_saturates() {
 }
 
 #[test]
+fn the_first_honoured_setting_is_the_cap() {
+    for (settings, slots) in [
+        ([Some("30"), Some("8")], 30),
+        ([Some("abc"), Some("8")], 8),
+        ([Some("0"), Some(" 8 ")], 8),
+        ([None, Some("8")], 8),
+        ([Some("abc"), Some("-5")], 20),
+        ([None, None], 20),
+    ] {
+        assert_eq!(
+            SubagentCap::first_honoured(settings).slots().get(),
+            slots,
+            "settings {settings:?}"
+        );
+    }
+}
+
+#[test]
 fn a_valid_request_at_or_below_the_cap_passes_unwarned() {
     for (value, provenance, setting, expected) in [
         ("20", Provenance::ConfigFile, "20", 20),

@@ -13,14 +13,25 @@ impl SubagentCap {
         None => Self(NonZeroU32::MIN),
     };
 
-    /// Reads the harness setting as the harness's JavaScript parser does:
-    /// trimmed as `String.prototype.trim` trims, an optionally signed run
-    /// of ASCII digits, at least 1; anything else leaves the default.
+    /// The first setting the harness would honour, else the default.
+    ///
+    /// Each setting is read as the harness's JavaScript parser reads its
+    /// own: trimmed as `String.prototype.trim` trims, an optionally signed
+    /// run of ASCII digits, at least 1.
+    #[must_use]
+    pub fn first_honoured<'a>(
+        settings: impl IntoIterator<Item = Option<&'a str>>,
+    ) -> Self {
+        settings
+            .into_iter()
+            .flatten()
+            .find_map(harness_slots)
+            .map_or(Self::HARNESS_DEFAULT, Self)
+    }
+
     #[must_use]
     pub fn from_setting(setting: Option<&str>) -> Self {
-        setting
-            .and_then(harness_slots)
-            .map_or(Self::HARNESS_DEFAULT, Self)
+        Self::first_honoured([setting])
     }
 
     #[must_use]
