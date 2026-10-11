@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T16:00:00+00:00"
+last_updated: "2026-10-11T16:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -104,7 +104,7 @@ manual runs in Phase 4 and Phase 5.
   `--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"` and its
   `${…:-}` form were both blocked: "A variable in this command can't be
   checked before it runs". Phase 3 shipped that form, so every interactive
-  `conduct` plan would prompt; Phase 4 replaces it.
+  `conduct` plan prompted until Phase 4 replaced it.
 - **Environment reaches the CLI:** a cap exported in the shell that launches
   Claude Code, or set under `env` in the project `settings.json`, the project
   `settings.local.json` or the user `settings.json`, reaches
@@ -1055,6 +1055,11 @@ its reader and that reader's integration test only.
 
 ```rust
 impl SubagentCap {
+    /// The first setting the harness would honour, else the default.
+    ///
+    /// Each setting is read as the harness's JavaScript parser reads its
+    /// own: trimmed as `String.prototype.trim` trims, an optionally signed
+    /// run of ASCII digits, at least 1.
     #[must_use]
     pub fn first_honoured<'a>(
         settings: impl IntoIterator<Item = Option<&'a str>>,
@@ -1089,17 +1094,21 @@ use research::conduct::concurrency::SubagentCap;
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAPS: [&str; 1] = ["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
 
+/// The first cap variable holding a value the harness would honour, the
+/// accelerator's own before any harness's, else the harness default.
 pub fn from_environment(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> SubagentCap {
-    let settings: Vec<Option<String>> = [ACCELERATOR_CAP]
-        .into_iter()
+    let settings: Vec<Option<String>> = std::iter::once(ACCELERATOR_CAP)
         .chain(HARNESS_CAPS)
         .map(&lookup)
         .collect();
     SubagentCap::first_honoured(settings.iter().map(Option::as_deref))
 }
 ```
+
+`std::iter::once` stands in for a one-item array, which clippy's
+`iter_on_single_items` rejects.
 
 Its `tests` module drives `from_environment` with a lookup over a fixed
 map: `the_accelerator_cap_wins_over_the_harness_cap` (30 and 8 → 30),
@@ -1134,9 +1143,10 @@ harness's own setting".
 
 **File**: `cli/research-cli/tests/topic_outstanding.rs`
 **Changes**:
-- Every `Command` the harness builds removes both variables first, so a
-  cap in the developer's environment, or in the Claude Code session
-  running `mise run`, never reaches a test.
+- Every `Command` the harness builds comes from one `command()` helper
+  that removes both variables first, so a cap in the developer's
+  environment, or in the Claude Code session running `mise run`, never
+  reaches a test.
 - `Project` gains `outstanding_in(args, cap: &[(&str, &str)])` and
   `plan_in`, which set the given variables on top.
 - Every Phase 3 test passing `--subagent-cap V` sets
@@ -1166,6 +1176,10 @@ harness's own setting".
 - `test_a_missing_reader_raises`, as `test_a_missing_named_file_raises`
   does for `_FILES`.
 
+The probe tree helper `_tree` writes every admitted file beside the
+`_FILES` entries. Without them, every existing probe raises for a missing
+reader once the guard checks the admitted files exist.
+
 **File**: `tasks/lint/claude_coupling.py`
 **Changes**: Add the mapping, and flag a `CLAUDE_*` match unless the
 mapping names it and lists the file. A missing listed file raises, as a
@@ -1180,14 +1194,17 @@ _OPTIONAL_HARNESS_VARIABLES = {
 }
 ```
 
-The docstring keeps the invariant and states the admission rule: a name
+A line is flagged unless every `CLAUDE_*` name on it is admitted for that
+file, so a banned name beside the cap still fails. The docstring keeps the
+invariant and states the admission rule: a name
 is admitted only if the CLI works without it, with the default stated
 where it is read; admission is by name and file, never by file alone.
 
 #### 6. ADR-0071
 
 **File**: `meta/decisions/ADR-0071-optional-harness-variables-in-the-cli.md`
-**Changes**: Draft with `/accelerator:create-adr`, status `proposed`:
+**Changes**: Draft from the ADR template, status `proposed`;
+`/accelerator:create-adr` is interactive, so it was written directly:
 - **Context:** the guard's origin in `CLAUDE_PLUGIN_ROOT`, and the
   permission checker blocking a variable expanded in a Bash command.
 - **Decision:** the CLI may read an optional harness variable that has a
@@ -1232,9 +1249,10 @@ where it is read; admission is by name and file, never by file alone.
 "`ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
 each when set to a value Claude Code would accept, otherwise 20". It gains
 the bullet "Set `ACCELERATOR_SUBAGENT_CAP` to pin a cap no higher than
-Claude Code's; above it, Claude Code refuses the extra spawns." Its "To
-spawn more than 20 at once" bullet is unchanged. The configure test pins
-both new sentences.
+Claude Code's; above it, Claude Code refuses the extra spawns." The
+settings bullet says "Set either variable", and the parsing bullet "Each
+variable accepts". Its "To spawn more than 20 at once" bullet is
+unchanged. The configure test pins both new sentences.
 
 **File**: `docs-site/src/content/docs/research.md`
 **Changes**: The cap paragraph drops `--subagent-cap`. The cap is read from
@@ -1245,7 +1263,9 @@ the same shell sees the cap `conduct` does.
 **File**: `CHANGELOG.md`
 **Changes**: "the subagent cap given by `--subagent-cap` (20 without it)"
 becomes "the subagent cap, read from `ACCELERATOR_SUBAGENT_CAP` or
-`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` (20 without either)".
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` (20 without either)". The
+concurrency entry's cap becomes "`ACCELERATOR_SUBAGENT_CAP`, else
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20".
 
 ### Success Criteria:
 
