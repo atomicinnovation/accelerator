@@ -137,7 +137,7 @@
   collaborator on this version or later: an older plugin reports its notes
   as an unknown kind and researches the pair again under a new stem.
 - **`research.topic.concurrency` and `conduct --concurrency N` cap how many
-  agents `research-topic`'s `conduct` spawns at once** (default 24). `conduct`
+  agents `research-topic`'s `conduct` spawns at once** (default 20). `conduct`
   spawns its outstanding pairs in batches of at most that many, waiting on
   each batch before the next.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional

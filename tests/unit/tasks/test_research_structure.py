@@ -28,6 +28,7 @@ LEVEL_NOTE_OUTPUTTER = (
 )
 PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
+CONFIGURE = REPO_ROOT / "skills/config/configure/SKILL.md"
 PROFILES_DIR = Path("skills/research/profiles")
 
 FETCH = "accelerator research fetch "
@@ -156,13 +157,28 @@ def _research_topic_prose() -> str:
     return _prose(RESEARCH_TOPIC)
 
 
-def _section(prose: str, start: str, end: str) -> str:
+def _section(
+    prose: str, start: str, end: str, path: Path = RESEARCH_TOPIC
+) -> str:
     begin = prose.find(start)
-    assert begin >= 0, f"{RESEARCH_TOPIC.name} lacks {start!r}"
+    assert begin >= 0, f"{path.name} lacks {start!r}"
     rest = prose[begin:]
     finish = rest.find(end)
-    assert finish >= 0, f"{RESEARCH_TOPIC.name} lacks {end!r}"
+    assert finish >= 0, f"{path.name} lacks {end!r}"
     return rest[:finish]
+
+
+def _configure_research_section() -> str:
+    return _section(
+        _prose(CONFIGURE),
+        "### research",
+        "Example configuration",
+        path=CONFIGURE,
+    )
+
+
+def test_configure_documents_a_concurrency_default_of_20() -> None:
+    assert "| `concurrency` | `20` |" in _configure_research_section()
 
 
 def test_research_topic_batches_through_the_spawn_window() -> None:

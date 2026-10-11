@@ -435,7 +435,7 @@ are distinct from the `paths.research_*` output-directory keys under `### paths`
 |---------------|---------|----------------------------------------|
 | `breadth`     | `8`     | Focus-area ceiling per `outline` round |
 | `depth`       | `1`     | Recursion limit within a finding       |
-| `concurrency` | `24`    | Most agents `conduct` spawns at once   |
+| `concurrency` | `20`    | Most agents `conduct` spawns at once   |
 
 Resolution order for each knob is **flag > personal (`config.local.md`) > team
 (`config.md`) > built-in default**: an `outline SLUG --breadth N`, `conduct

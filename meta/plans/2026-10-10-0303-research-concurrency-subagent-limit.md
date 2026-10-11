@@ -5,7 +5,7 @@ title: "Research Concurrency Within the Subagent Limit Implementation Plan"
 date: "2026-10-10T21:22:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0303"
 parent: "work-item:0303"
 derived_from: ["codebase-research:2026-10-10-0303-research-concurrency-subagent-limit"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-10T23:37:11+00:00"
+last_updated: "2026-10-11T07:12:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -222,15 +222,15 @@ the right file.
 
 #### Automated Verification:
 
-- [ ] The catalogue test passes: `cargo nextest run -p config default_for_the_research_knobs_are_typed_scalars` (from `cli/`)
-- [ ] The golden matches: `cargo nextest run -p launcher dump_matches_the_committed_golden` (from `cli/`)
-- [ ] The configure pin passes: `uv run pytest tests/unit/tasks/test_research_structure.py -k concurrency_default`
-- [ ] `mise run check` exits 0
-- [ ] `mise run` exits 0
+- [x] The catalogue test passes: `cargo nextest run -p config default_for_the_research_knobs_are_typed_scalars` (from `cli/`)
+- [x] The golden matches: `cargo nextest run -p accelerator dump_matches_the_committed_golden` (from `cli/`)
+- [x] The configure pin passes: `uv run pytest tests/unit/tasks/test_research_structure.py -k concurrency_default`
+- [x] `mise run check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] `accelerator config get research.topic.concurrency` in a project with no override prints `20`
+- [x] `accelerator config get research.topic.concurrency` in a project with no override prints `20`
 
 ---
 

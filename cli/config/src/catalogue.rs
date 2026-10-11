@@ -390,7 +390,7 @@ pub const REVIEW_KEYS: &[(&str, Default)] = &[
 pub const RESEARCH_KEYS: &[(&str, Default)] = &[
     ("research.topic.breadth", Default::Scalar("8")),
     ("research.topic.depth", Default::Scalar("1")),
-    ("research.topic.concurrency", Default::Scalar("24")),
+    ("research.topic.concurrency", Default::Scalar("20")),
 ];
 
 /// Built-in review lens names for code reviews (pr and plan modes).
@@ -539,7 +539,7 @@ mod tests {
         );
         assert_eq!(
             default_for("research.topic.concurrency"),
-            Some(Value::Scalar(Scalar::String("24".to_owned())))
+            Some(Value::Scalar(Scalar::String("20".to_owned())))
         );
     }
 
