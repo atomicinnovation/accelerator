@@ -146,6 +146,9 @@
   each batch before the next. `conduct` never spawns more than the subagent
   cap, `ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
   else 20; a configured or flag value above it is clamped with a warning.
+  `conduct` re-issues spawns Claude Code refuses for capacity (verified on
+  Claude Code 2.1.296), and records a spawn still refused once retrying
+  stops, for a later run to retry.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.

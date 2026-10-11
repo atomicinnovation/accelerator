@@ -363,12 +363,37 @@ allocate a finding or note path yourself.
    boundary, exactly as `skills/vcs/commit/SKILL.md` wraps injected VCS
    context.
 
+   **Capacity refusals.** A Task call the harness refuses with a refusal
+   citing the concurrent subagent limit (today "Concurrent subagent limit
+   reached") never started: it is a capacity refusal, not a spawn that
+   failed. Re-issue capacity-refused spawns, unchanged, in rounds within
+   this step, before step 5 and before any re-plan. This retry deliberately
+   overrides the harness's "Do not retry". A round is one follow-up message
+   of re-issued spawns; the batch message is not a round. Like the batch
+   message, a round returns once its accepted spawns have finished.
+
+   When the batch message capacity-refuses any spawn:
+
+   - The first round always runs. It carries every spawn the batch message
+     capacity-refused, with no added delay.
+   - Each later round re-issues the spawns the latest round
+     capacity-refused. A later round runs only when the latest round had at
+     least one spawn accepted.
+   - Once a round has every spawn capacity-refused, stop retrying. Record
+     each spawn still refused as failed, by pair and lineage, with the
+     reason "refused by the concurrent subagent limit — other subagents
+     held the slots, or the harness cap is below the resolved concurrency".
+     The step 6 re-plan lists it as `unfinished`; it is already recorded,
+     so it is not recorded again. The final summary states the
+     `concurrency` the plans reported beside any such failure.
+
 5. **Check each spawn** once the whole batch returns:
 
    - A spawn that wrote **no file** (an unavailable source, a failed or
      denied fetch, a blocked command, an agent error, or a refusal) is
      recorded as failed, by pair and lineage, with the reason its summary
-     gives, and left outstanding. There is nothing to quarantine.
+     gives, and left outstanding. There is nothing to quarantine. A
+     capacity refusal is not one of these; the spawn step handles it.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
      existing marker — and recorded as failed. The dot-prefix keeps it
@@ -457,6 +482,7 @@ allocate a finding or note path yourself.
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
    | "Bash unavailable" | grant `Bash` to the custom researcher agent |
    | a refused note, or "wrote no note" | re-run `conduct`, which researches the node afresh |
+   | "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished, and the new run offers the spawn again; if it recurs with no other subagents running, make sure `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it, that any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap, or lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
 

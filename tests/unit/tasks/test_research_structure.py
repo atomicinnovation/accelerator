@@ -584,6 +584,69 @@ def test_lock_contention_row_names_re_running_conduct() -> None:
     assert "--concurrency" not in row
 
 
+CAPACITY_REASON = (
+    "refused by the concurrent subagent limit — other subagents held the "
+    "slots, or the harness cap is below the resolved concurrency"
+)
+
+
+def _spawn_step() -> str:
+    return _section(
+        _research_topic_prose(), "**Spawn the batch**", "**Check each spawn**"
+    )
+
+
+def _check_step() -> str:
+    return _section(
+        _research_topic_prose(), "**Check each spawn**", "**Loop.**"
+    )
+
+
+def test_the_spawn_step_re_issues_capacity_refused_spawns_in_rounds() -> None:
+    spawn = _spawn_step()
+    for sentence in (
+        "Concurrent subagent limit reached",
+        "a refusal citing the concurrent subagent limit",
+        'This retry deliberately overrides the harness\'s "Do not retry".',
+        "before step 5 and before any re-plan",
+        "When the batch message capacity-refuses any spawn:",
+        "The first round always runs.",
+        "A later round runs only when the latest round had at least one "
+        "spawn accepted.",
+        "Once a round has every spawn capacity-refused, stop retrying.",
+        "it is already recorded, so it is not recorded again",
+        "The final summary states the `concurrency` the plans reported",
+        CAPACITY_REASON,
+    ):
+        assert sentence in spawn, f"the spawn step must state {sentence!r}"
+
+
+def test_the_check_step_leaves_capacity_refusals_to_the_spawn_step() -> None:
+    assert (
+        "A capacity refusal is not one of these; the spawn step handles it."
+        in _check_step()
+    )
+
+
+def _capacity_row() -> str:
+    rows = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith(f'| "{CAPACITY_REASON}"')
+    ]
+    assert len(rows) == 1, "research-topic must carry one capacity row"
+    return rows[0]
+
+
+def test_the_capacity_row_names_re_running_conduct() -> None:
+    row = _capacity_row()
+    assert "re-run `conduct`" in row
+    assert "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`" in row
+    assert "any `ACCELERATOR_SUBAGENT_CAP` is no higher" in row
+    assert "below the `concurrency` the summary reports" in row
+    assert "a smaller `--concurrency` or `research.topic.concurrency`" in row
+
+
 def test_unrepresented_waiting_has_a_reason_row() -> None:
     assert any(
         line.lstrip().startswith("| `waiting` never re-presented |")
