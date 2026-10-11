@@ -67,8 +67,9 @@ built-in default`, are below:
 
 `outstanding` resolves concurrency itself and bounds it by the subagent cap:
 an `--concurrency N` flag on `conduct`, else the configured value, validated
-and then clamped to `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` or 20. `conduct`
-passes the flag and the cap through and never resolves concurrency itself.
+and then clamped to `ACCELERATOR_SUBAGENT_CAP`, else
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20. `conduct` passes the flag
+through and never resolves concurrency itself.
 
 A verb resolves breadth or depth as **flag > resolved value above**: an
 `--<knob> N` flag on the invocation wins over the configured value. Then apply
@@ -238,9 +239,7 @@ allocate a finding or note path yourself.
 1. **Resolve knobs.** Resolve depth per the knob-resolution rule above,
    reading any `--depth N` flag on the invocation. Set `{concurrency flag}` to
    `--concurrency 'N'` when the invocation carries `--concurrency N`, and to
-   nothing otherwise. Pass `--subagent-cap` exactly as written: the shell
-   expands it to the cap Claude Code enforces, or to nothing when it is
-   unset. When the researcher and composer agent names (the two
+   nothing otherwise. When the researcher and composer agent names (the two
    `subagent_type` values in step 4) resolve to the same name, print one
    warning:
 
@@ -249,7 +248,7 @@ allocate a finding or note path yourself.
 2. **Plan.** The first plan starts the run:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS" --start
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --start
    ```
 
    Every later plan continues it, with `--run {run} --spawned {batch}` in
@@ -257,7 +256,7 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS" --run {run} --spawned {batch}
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch}
    ```
 
    The CLI records the run in its ledger, so carry no list of attempted
@@ -401,11 +400,11 @@ allocate a finding or note path yourself.
 
       If it exits non-zero, report its error and stop before ticking or
       editing the manifest, printing only the summary so far.
-   2. **Tick from disk.** Run the plain plan, with `{concurrency flag}`, the
-      subagent cap and no run flag:
+   2. **Tick from disk.** Run the plain plan, with `{concurrency flag}` and
+      no run flag:
 
       ```bash
-      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"
+      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag}
       ```
 
       Set every outline item's checkbox, at its `line`, to its `complete`

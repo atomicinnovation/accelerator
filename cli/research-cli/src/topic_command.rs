@@ -94,7 +94,6 @@ pub enum RunFlag {
 pub struct OutstandingFlags {
     pub depth: Depth,
     pub requested_concurrency: Option<RequestedConcurrency>,
-    pub subagent_cap: SubagentCap,
     pub run: RunFlag,
 }
 
@@ -106,7 +105,6 @@ impl OutstandingFlags {
     pub fn parse(
         depth: &str,
         concurrency: Option<&str>,
-        subagent_cap: Option<&str>,
         start: bool,
         run: Option<&str>,
         spawned: Option<&str>,
@@ -125,7 +123,6 @@ impl OutstandingFlags {
                     provenance: Provenance::Flag,
                 }
             }),
-            subagent_cap: SubagentCap::from_setting(subagent_cap),
             run: run_flag(start, run, spawned)?,
         })
     }
@@ -573,7 +570,6 @@ mod tests {
     use research::conduct::concurrency::SubagentCap;
 
     use super::resolve_concurrency;
-    use super::OutstandingFlags;
 
     fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
         RequestedConcurrency {
@@ -590,10 +586,6 @@ mod tests {
 
     fn unreadable() -> Result<RequestedConcurrency, String> {
         Err("unreadable".to_owned())
-    }
-
-    fn parsed(subagent_cap: Option<&str>) -> Result<OutstandingFlags, String> {
-        OutstandingFlags::parse("1", None, subagent_cap, false, None, None)
     }
 
     fn agents(
@@ -630,10 +622,9 @@ mod tests {
     }
 
     #[test]
-    fn the_subagent_cap_flag_bounds_the_configured_value() {
-        let cap = parsed(Some("8")).map(|flags| flags.subagent_cap);
-        let resolved = cap
-            .and_then(|cap| resolve_concurrency(None, configured("24"), cap));
+    fn a_lowered_cap_bounds_the_configured_value() {
+        let cap = SubagentCap::from_setting(Some("8"));
+        let resolved = resolve_concurrency(None, configured("24"), cap);
 
         assert_eq!(
             resolved.as_ref().map(|r| r.concurrency.agents().get()),
@@ -644,16 +635,8 @@ mod tests {
             Ok(vec![ConcurrencyWarning::AboveCap {
                 given: "24".to_owned(),
                 provenance: Provenance::ConfigFile,
-                cap: SubagentCap::from_setting(Some("8")),
+                cap,
             }])
-        );
-    }
-
-    #[test]
-    fn without_a_subagent_cap_flag_the_cap_is_the_harness_default() {
-        assert_eq!(
-            parsed(None).map(|flags| flags.subagent_cap),
-            Ok(SubagentCap::HARNESS_DEFAULT)
         );
     }
 

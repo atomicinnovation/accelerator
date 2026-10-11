@@ -16,6 +16,8 @@ type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const TOPICS: &str = "meta/research/topics";
+const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
+const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
 
 struct Project {
     _dir: tempfile::TempDir,
@@ -55,7 +57,7 @@ impl Project {
         slug: &str,
         profiles_dir: &Path,
     ) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
+        Ok(command()
             .current_dir(&self.root)
             .args(["topic", "outstanding", slug, "--profiles-dir"])
             .arg(profiles_dir)
@@ -63,14 +65,31 @@ impl Project {
     }
 
     fn run(&self, args: &[&str]) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
+        self.run_in(args, &[])
+    }
+
+    fn run_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<Output, TestError> {
+        Ok(command()
             .current_dir(&self.root)
+            .envs(cap.iter().copied())
             .arg("topic")
             .args(args)
             .output()?)
     }
 
     fn outstanding_with(&self, args: &[&str]) -> Result<Output, TestError> {
+        self.outstanding_in(args, &[])
+    }
+
+    fn outstanding_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<Output, TestError> {
         let profiles = installed_profiles();
         let mut all = vec![
             "outstanding",
@@ -79,11 +98,19 @@ impl Project {
             profiles.to_str().ok_or("non-utf8")?,
         ];
         all.extend_from_slice(args);
-        self.run(&all)
+        self.run_in(&all, cap)
     }
 
     fn plan_with(&self, args: &[&str]) -> Result<(Value, String), TestError> {
-        let output = self.outstanding_with(args)?;
+        self.plan_in(args, &[])
+    }
+
+    fn plan_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<(Value, String), TestError> {
+        let output = self.outstanding_in(args, cap)?;
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
         assert!(output.status.success(), "{stderr}");
         Ok((serde_json::from_slice(&output.stdout)?, stderr))
@@ -123,6 +150,14 @@ impl Project {
         );
         Ok(serde_json::from_slice(&output.stdout)?)
     }
+}
+
+/// The binary with no subagent cap inherited, so a cap set where the tests
+/// run never reaches them.
+fn command() -> Command {
+    let mut command = Command::new(BIN);
+    command.env_remove(ACCELERATOR_CAP).env_remove(HARNESS_CAP);
+    command
 }
 
 /// The committed topic-research sets live beside the frontmatter goldens that
@@ -1385,7 +1420,7 @@ fn a_raised_cap_admits_a_higher_concurrency() -> Result<(), TestError> {
     project.configure_team_concurrency("24")?;
 
     let (plan, stderr) =
-        project.plan_with(&["--subagent-cap", "30", "--start"])?;
+        project.plan_in(&["--start"], &[(HARNESS_CAP, "30")])?;
 
     assert_offers_arxiv_spawns(&plan, 24, 1)?;
     assert_eq!(plan["concurrency"], json!(24));
@@ -1398,7 +1433,7 @@ fn a_lowered_cap_clamps_the_default_silently() -> Result<(), TestError> {
     let project = arxiv_set("lowered-cap")?;
 
     let (plan, stderr) =
-        project.plan_with(&["--subagent-cap", "8", "--start"])?;
+        project.plan_in(&["--start"], &[(HARNESS_CAP, "8")])?;
 
     assert_offers_arxiv_spawns(&plan, 8, 17)?;
     assert_eq!(plan["concurrency"], json!(8));
@@ -1440,7 +1475,7 @@ fn the_cap_is_read_as_the_harness_reads_it() -> Result<(), TestError> {
         let project = a_set()?;
 
         let (plan, stderr) =
-            project.plan_with(&["--subagent-cap", cap, "--start"])?;
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
 
         assert_eq!(plan["concurrency"], json!(slots), "{cap:?}");
         assert_no_concurrency_diagnostic(&plan, &stderr);
@@ -1458,7 +1493,7 @@ fn a_cap_the_harness_ignores_leaves_the_default_unwarned(
         let project = a_set()?;
 
         let (plan, stderr) =
-            project.plan_with(&["--subagent-cap", cap, "--start"])?;
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
 
         assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
         assert_no_concurrency_diagnostic(&plan, &stderr);
@@ -1474,11 +1509,41 @@ fn a_cap_the_harness_ignores_still_clamps_a_configured_concurrency(
         project.configure_team_concurrency("24")?;
 
         let (plan, stderr) =
-            project.plan_with(&["--subagent-cap", cap, "--start"])?;
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
 
         assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
         assert_warned(&plan, &stderr, &[clamped(KNOB, "24", 20)]);
     }
+    Ok(())
+}
+
+#[test]
+fn the_accelerator_cap_wins_over_the_harness_cap() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(ACCELERATOR_CAP, "30"), (HARNESS_CAP, "8")],
+    )?;
+
+    assert_eq!(plan["concurrency"], json!(24));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn an_accelerator_cap_the_harness_would_ignore_falls_through(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(ACCELERATOR_CAP, "abc"), (HARNESS_CAP, "8")],
+    )?;
+
+    assert_eq!(plan["concurrency"], json!(8));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
     Ok(())
 }
 
@@ -1622,5 +1687,20 @@ fn limit_is_no_longer_an_outstanding_flag() -> Result<(), TestError> {
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("unexpected argument '--limit'"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn subagent_cap_is_not_an_outstanding_flag() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let output = project.outstanding_with(&["--subagent-cap", "8"])?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unexpected argument '--subagent-cap'"),
+        "{stderr}"
+    );
     Ok(())
 }

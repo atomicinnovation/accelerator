@@ -9,6 +9,7 @@ mod guard;
 mod loopback;
 mod plan_wording;
 mod render;
+mod subagent_cap;
 mod topic_command;
 mod write_target;
 
@@ -179,14 +180,12 @@ fn topic(action: TopicAction) -> ExitCode {
             profiles_dir,
             depth,
             concurrency,
-            subagent_cap,
             start,
             run,
             spawned,
         } => OutstandingFlags::parse(
             &depth,
             concurrency.as_deref(),
-            subagent_cap.as_deref(),
             start,
             run.as_deref(),
             spawned.as_deref(),
@@ -219,7 +218,7 @@ fn outstanding(
                 .configured_concurrency()
                 .map_err(|error| error.to_string())
         },
-        flags.subagent_cap,
+        subagent_cap::from_environment(|name| std::env::var(name).ok()),
     )?;
     let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let mode = match flags.run {

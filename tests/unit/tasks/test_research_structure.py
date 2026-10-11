@@ -185,9 +185,12 @@ def test_configure_documents_a_concurrency_default_of_20() -> None:
 def test_configure_documents_the_subagent_cap_clamp() -> None:
     research = _configure_research_section()
     for sentence in (
-        "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`",
+        "`ACCELERATOR_SUBAGENT_CAP`, else "
+        "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each when set to a value "
+        "Claude Code would accept, otherwise 20",
         "A `concurrency` above the subagent cap is clamped to the cap",
-        "otherwise 20",
+        "Set `ACCELERATOR_SUBAGENT_CAP` to pin a cap no higher than Claude "
+        "Code's; above it, Claude Code refuses the extra spawns.",
         "An empty value is refused rather than clamped.",
         "To spawn more than 20 at once, raise both "
         "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.",
@@ -196,8 +199,7 @@ def test_configure_documents_the_subagent_cap_clamp() -> None:
 
 
 CONCURRENCY_FLAG = "{concurrency flag}"
-SUBAGENT_CAP_FLAG = '--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"'
-PLAN_AT_DEPTH = f"--depth {{depth}} {CONCURRENCY_FLAG} {SUBAGENT_CAP_FLAG}"
+PLAN_AT_DEPTH = f"--depth {{depth}} {CONCURRENCY_FLAG}"
 
 
 def _conduct() -> str:
@@ -244,7 +246,7 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     ) in conduct
 
 
-def test_every_plan_passes_the_shell_expanded_subagent_cap() -> None:
+def test_no_plan_expands_a_shell_variable() -> None:
     plans = [
         line
         for line in _read(RESEARCH_TOPIC).splitlines()
@@ -252,13 +254,11 @@ def test_every_plan_passes_the_shell_expanded_subagent_cap() -> None:
     ]
     assert plans, "research-topic must plan through outstanding"
     for plan in plans:
-        assert SUBAGENT_CAP_FLAG in plan, (
-            f"every plan must pass the subagent cap: {plan!r}"
-        )
-    assert (
-        "Pass `--subagent-cap` exactly as written: the shell expands it to "
-        "the cap Claude Code enforces, or to nothing when it is unset."
-    ) in _conduct()
+        for expansion in ("--subagent-cap", "$CLAUDE_CODE", "${CLAUDE_CODE"):
+            assert expansion not in plan, (
+                f"Claude Code prompts for a plan expanding a variable: {plan!r}"
+            )
+    assert "Pass `--subagent-cap` exactly as written" not in _conduct()
 
 
 def test_research_topic_leaves_concurrency_to_outstanding() -> None:
@@ -274,6 +274,14 @@ def test_research_topic_leaves_concurrency_to_outstanding() -> None:
     assert (
         "`outstanding` resolves concurrency itself and bounds it by the "
         "subagent cap"
+    ) in knobs
+    assert (
+        "clamped to `ACCELERATOR_SUBAGENT_CAP`, else "
+        "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20"
+    ) in knobs
+    assert (
+        "`conduct` passes the flag through and never resolves concurrency "
+        "itself"
     ) in knobs
     assert (
         "(`--depth` or `--concurrency` on `outline`, `--breadth` on `conduct`)"
