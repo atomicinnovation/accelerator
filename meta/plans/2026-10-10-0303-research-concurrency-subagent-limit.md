@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T15:00:00+00:00"
+last_updated: "2026-10-11T16:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -106,9 +106,10 @@ manual runs in Phase 4 and Phase 5.
   checked before it runs". Phase 3 shipped that form, so every interactive
   `conduct` plan would prompt; Phase 4 replaces it.
 - **Environment reaches the CLI:** a cap exported in the shell that launches
-  Claude Code reaches `accelerator research` through the Bash tool
-  (Phase 3's first manual run, `concurrency` 8). Settings-file `env` is not
-  yet verified.
+  Claude Code, or set under `env` in the project `settings.json`, the project
+  `settings.local.json` or the user `settings.json`, reaches
+  `accelerator research` through the Bash tool (Phase 4's manual runs,
+  `concurrency` 8 each, Claude Code 2.1.296).
 - **Why not `!`:** the skill permission lint (`tasks/lint/skill_permissions.py`)
   bans shell metacharacters in a `!` command. A `!` read of an unset
   variable also fails, discarding the prompt, so the cap cannot be injected
@@ -1267,11 +1268,11 @@ default --allowedTools Skill --plugin-dir <repo>`, with
 the `topic-research-quarantine-set` fixture. Each run stops after the first
 plan. Set each cap source alone.
 
-- [ ] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 8, no warning and no permission denial
-- [ ] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: "8"` under `env` in the project `.claude/settings.json`, then `.claude/settings.local.json`, then the user `~/.claude/settings.json`, each first plan reports `concurrency` 8. If a source does not reach the CLI, list only the verified sources in the configure docs
-- [ ] With `ACCELERATOR_SUBAGENT_CAP=4` and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 4
-- [ ] With neither set, `conduct <slug> --concurrency 50` reports `concurrency` 20 and the clamp warning naming `--concurrency`, 50 and 20 before spawning
-- [ ] No run records a permission denial for an `accelerator` command
+- [x] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 8, no warning and no permission denial
+- [x] With `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: "8"` under `env` in the project `.claude/settings.json`, then `.claude/settings.local.json`, then the user `~/.claude/settings.json`, each first plan reports `concurrency` 8. If a source does not reach the CLI, list only the verified sources in the configure docs
+- [x] With `ACCELERATOR_SUBAGENT_CAP=4` and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported, the first plan reports `concurrency` 4
+- [x] With neither set, `conduct <slug> --concurrency 50` reports `concurrency` 20 and the clamp warning naming `--concurrency`, 50 and 20 before spawning
+- [x] No run records a permission denial for an `accelerator` command. Each run's only denial was a compound `cd … && ls`/`grep` the model composed to inspect the set, not a command the skill prescribes
 
 ---
 
