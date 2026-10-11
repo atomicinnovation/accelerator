@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-2
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T11:00:00+00:00"
+last_updated: "2026-10-11T12:54:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -126,7 +126,10 @@ manual runs in Phase 4 and Phase 5.
   models. A new public type changes `cli/research/tests/fixtures/public-api.txt`.
 - **Config fixtures:** config levels are read from YAML frontmatter, so a
   test config must be fenced in `---`, as `support::config_with` does
-  (`cli/research-cli/tests/support/mod.rs:321-323`).
+  (`cli/research-cli/tests/support/mod.rs:321-323`). The loader ignores a
+  `config.local.md` readable by group or others, so a test's personal
+  config must be written with mode `0o600`, as `support::personal_config`
+  lets its callers choose.
 - **Whole-plan assertions:** three `topic_outstanding.rs` tests compare the
   entire plan object (`a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding`,
   `a_quarantined_single_profile_pair_reuses_its_markers_index`,
@@ -545,8 +548,9 @@ fn concurrency_config(value: &str) -> String {
   passes no concurrency, expects 20 spawns, `remaining` 5 and
   `concurrency` 20.
 - **New tests.** Each asserts `plan["concurrency"]` and the exact
-  `plan["warnings"]`. Where a warning is expected, it asserts the exact
-  stderr. Where none is, it asserts stderr carries no line naming
+  `plan["warnings"]`. Where a warning is expected, it asserts stderr's
+  exact lines, each `warning: {warning}`; collecting them into one string
+  with `format!` trips clippy's `format_collect`. Where none is, it asserts stderr carries no line naming
   `--concurrency` or `research.topic.concurrency`. Tests marked † run on
   the 25-item arXiv set and also assert the offered spawns and `remaining`.
 
@@ -565,7 +569,7 @@ fn concurrency_config(value: &str) -> String {
 | `a_malformed_configured_concurrency_clamps_to_1_with_a_warning` | config `0`, config `many`; `--start` | 1; only the config invalid-value warning |
 | `an_empty_concurrency_exits_1_and_writes_no_ledger` | `concurrency: ""` in config, `--concurrency ""`; each with `--start` and as a plain query | exit 1, the matching empty-value error, empty stdout, no ledger |
 | `a_concurrency_flag_stands_in_for_an_empty_configured_value` | `concurrency: ""` in config, `--concurrency 5`; with `--start` and as a plain query | 5; no warnings |
-| `an_unreadable_config_exits_1` | `.accelerator/config.md` with unterminated frontmatter | exit 1, the config error on stderr, empty stdout; green on arrival, since `working_project` already composes config |
+| `an_unreadable_config_exits_1` | `.accelerator/config.md` with unterminated frontmatter | exit 1, non-empty stderr, empty stdout; green on arrival, since `working_project` already composes config. The config error's wording is the config crate's, so it is not pinned here |
 | `concurrency_warnings_precede_a_replaced_ledger_notice` | config 24, a stale ledger, `--start` | the clamp warning then the replaced-ledger notice, in `warnings` and stderr |
 | `concurrency_warnings_are_raised_only_when_a_run_starts` † | config 24; `--run R --spawned 0` after a start, and a plain query | continuation: 5 offered, `remaining` 0, 20 `unfinished`; plain query: 20 offered, `remaining` 5; no concurrency warning in either |
 | `limit_is_no_longer_an_outstanding_flag` | a valid set, `--limit 2` | exit 2, stderr names `--limit` as unexpected |
@@ -615,9 +619,11 @@ expected strings with `\`-continuations, as the sibling tests do.
 **Changes**: The window and ledger unit tests pass a `Concurrency`. A test
 that passed `Some(n)` passes `concurrency(n)`, and one that passed `None`
 passes `unbounded()`, which is `Concurrency::new(NonZeroU32::MAX)`. Both
-helpers live once, in a `#[cfg(test)] pub(crate) mod test_support` in
+helpers live once, as `pub` functions in a
+`#[cfg(test)] pub(crate) mod test_support` in
 `cli/research/src/conduct/concurrency.rs`, which the window and ledger
-test modules import. `concurrency(n: u32)` builds its `NonZeroU32` with
+test modules import. Clippy's `redundant_pub_crate` rejects `pub(crate)`
+items inside the crate-private module. `concurrency(n: u32)` builds its `NonZeroU32` with
 `unwrap_or(NonZeroU32::MIN)`, as `plan_wording.rs:176` does, because
 `unwrap_used` applies to test code too. The
 retired `limit` vocabulary goes with it:
@@ -998,7 +1004,7 @@ short concurrency paragraph after it.
 #### Automated Verification:
 
 - [x] Domain and window tests pass: `cargo nextest run -p research` (from `cli/`)
-- [x] CLI unit and integration tests pass: `cargo nextest run -p research-cli` (from `cli/`)
+- [x] CLI unit and integration tests pass: `cargo nextest run -p accelerator-research` (from `cli/`)
 - [x] Structural tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
 - [x] The skill permission lint passes: `mise run check`
 - [x] The public API snapshot matches: `mise run public-api:check`
@@ -1009,7 +1015,7 @@ short concurrency paragraph after it.
 #### Manual Verification:
 
 - [x] Launch with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=8` exported in the shell and no override; the first plan reports `concurrency` 8 and no warning
-- [x] Check that no `outstanding` command raises a permission prompt: it does. Under `--permission-mode default`, the expanded `--subagent-cap` is blocked, so the remaining cap-source runs move to Phase 4
+- [x] Check that no `outstanding` command raises a permission prompt. Run; the check failed: under `--permission-mode default`, Claude Code blocks the expanded `--subagent-cap`, so Phase 4 replaces the flag and the remaining cap-source runs move there
 
 ---
 
