@@ -435,14 +435,14 @@ only the `research::conduct::concurrency` items.
 
 #### Automated Verification:
 
-- [ ] Domain tests pass: `cargo nextest run -p research --test concurrency` (from `cli/`)
-- [ ] The public API snapshot matches: `mise run public-api:check`
-- [ ] `mise run cli:check` exits 0
-- [ ] `mise run` exits 0
+- [x] Domain tests pass: `cargo nextest run -p research --test concurrency` (from `cli/`)
+- [x] The public API snapshot matches: `mise run public-api:check`
+- [x] `mise run cli:check` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Review the case table against the work item's parser and clamp criteria; every case in the work item appears
+- [x] Review the case table against the work item's parser and clamp criteria; every case in the work item appears
 
 ---
 
