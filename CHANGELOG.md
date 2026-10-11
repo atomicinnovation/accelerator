@@ -121,9 +121,12 @@
   itself.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   reports each pair's `stage`, the level-note `nodes` it still needs or the
-  `notes` its composer reads, `trims` and `shallow` findings; `--limit`,
+  `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
-  and the new `end-run` verb closes one. A run keeps a transient
+  and the new `end-run` verb closes one. `--concurrency` falls back to
+  `research.topic.concurrency`, is clamped to the subagent cap given by
+  `--subagent-cap` (20 without it), and is reported as `concurrency`, and an
+  empty value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY`. A run keeps a transient
   `<set>/.conduct-run.json`, removed on completion and safe to delete after an
   interrupted run; consider adding `**/.conduct-run.json` to your
   `.gitignore`.
@@ -139,7 +142,9 @@
 - **`research.topic.concurrency` and `conduct --concurrency N` cap how many
   agents `research-topic`'s `conduct` spawns at once** (default 20). `conduct`
   spawns its outstanding pairs in batches of at most that many, waiting on
-  each batch before the next.
+  each batch before the next. `conduct` never spawns more than the subagent
+  cap, `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` or 20; a configured or flag
+  value above it is clamped with a warning.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
