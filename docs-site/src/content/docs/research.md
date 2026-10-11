@@ -491,12 +491,10 @@ The JSON then also carries:
 
 `--concurrency N` falls back to `research.topic.concurrency`, is validated,
 is clamped to the subagent cap, and is reported as `concurrency`. The cap is
-`--subagent-cap V`, read as Claude Code reads
-`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, or 20 when the flag is absent or holds
-a value Claude Code would ignore. `outstanding` reads no environment variable
-for it: `conduct` passes
-`--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"`, and a hand run
-passes the same to match. Every plan is bounded, a plain query included. The
+read from `ACCELERATOR_SUBAGENT_CAP`, then
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each read as Claude Code reads its own
+setting, else 20, so a hand run in the same shell sees the cap `conduct` does.
+Every plan is bounded, a plain query included. The
 reported `concurrency` is the clamped value, so it can differ from the
 configured knob; the reason appears in `warnings` on `--start` only.
 
