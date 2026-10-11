@@ -234,7 +234,7 @@ pub fn research::conduct::window::Window::eq(&self, other: &research::conduct::w
 impl core::fmt::Debug for research::conduct::window::Window
 pub fn research::conduct::window::Window::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::window::Window
-pub fn research::conduct::window::window(plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, limit: core::option::Option<usize>, memory: core::option::Option<&research::conduct::memory::RunMemory>) -> research::conduct::window::Window
+pub fn research::conduct::window::window(plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, concurrency: research::conduct::concurrency::Concurrency, memory: core::option::Option<&research::conduct::memory::RunMemory>) -> research::conduct::window::Window
 pub mod research::confinement
 pub enum research::confinement::Action
 pub research::confinement::Action::Command(alloc::string::String)

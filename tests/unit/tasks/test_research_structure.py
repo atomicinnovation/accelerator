@@ -29,6 +29,7 @@ LEVEL_NOTE_OUTPUTTER = (
 PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
 CONFIGURE = REPO_ROOT / "skills/config/configure/SKILL.md"
+PLAN_WORDING = REPO_ROOT / "cli/research-cli/src/plan_wording.rs"
 PROFILES_DIR = Path("skills/research/profiles")
 
 FETCH = "accelerator research fetch "
@@ -181,15 +182,38 @@ def test_configure_documents_a_concurrency_default_of_20() -> None:
     assert "| `concurrency` | `20` |" in _configure_research_section()
 
 
+def test_configure_documents_the_subagent_cap_clamp() -> None:
+    research = _configure_research_section()
+    for sentence in (
+        "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`",
+        "A `concurrency` above the subagent cap is clamped to the cap",
+        "otherwise 20",
+        "An empty value is refused rather than clamped.",
+        "To spawn more than 20 at once, raise both "
+        "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.",
+    ):
+        assert sentence in research, f"configure must state {sentence!r}"
+
+
+CONCURRENCY_FLAG = "{concurrency flag}"
+SUBAGENT_CAP_FLAG = '--subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"'
+PLAN_AT_DEPTH = f"--depth {{depth}} {CONCURRENCY_FLAG} {SUBAGENT_CAP_FLAG}"
+
+
+def _conduct() -> str:
+    return _section(_research_topic_prose(), "### conduct", "### synthesise")
+
+
 def test_research_topic_batches_through_the_spawn_window() -> None:
-    conduct = _section(_research_topic_prose(), "### conduct", "### synthesise")
+    conduct = _conduct()
     for step in (
-        "--limit {concurrency} --start",
-        "--run {run} --spawned {batch}",
+        f"{PLAN_AT_DEPTH} --start",
+        f"{PLAN_AT_DEPTH} --run {{run}} --spawned {{batch}}",
     ):
         assert step in conduct, (
             f"conduct must plan through the spawn window with {step!r}"
         )
+    assert "--limit" not in conduct, "outstanding no longer takes --limit"
     end_run = conduct.find(
         "accelerator research topic end-run SLUG --run {run}"
     )
@@ -201,21 +225,73 @@ def test_research_topic_batches_through_the_spawn_window() -> None:
     )
 
 
-def test_research_topic_clamps_concurrency_under_the_knob_rule() -> None:
-    knobs = _section(
-        _research_topic_prose(),
-        "knobs bound the research",
-        "## Shared Preamble",
+def test_research_topic_ticks_with_the_invocations_concurrency() -> None:
+    tick = _section(_conduct(), "**Tick from disk.**", "**Edit `manifest.md`**")
+    assert PLAN_AT_DEPTH in tick, (
+        "the tick plan must resolve concurrency as every other plan does"
     )
+
+
+def test_research_topic_passes_the_concurrency_flag_through() -> None:
+    conduct = _conduct()
     assert (
-        "- concurrency: !`accelerator config get "
-        "research.topic.concurrency --fail-safe`"
-    ) in knobs, (
-        "the knob block must resolve concurrency beside breadth and depth"
+        "Set `{concurrency flag}` to `--concurrency 'N'` when the invocation "
+        "carries `--concurrency N`, and to nothing otherwise."
+    ) in conduct
+    assert (
+        "report the first plan's `warnings` as soon as it returns — a "
+        "replaced ledger or a clamped concurrency"
+    ) in conduct
+
+
+def test_every_plan_passes_the_shell_expanded_subagent_cap() -> None:
+    plans = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith("accelerator research topic outstanding")
+    ]
+    assert plans, "research-topic must plan through outstanding"
+    for plan in plans:
+        assert SUBAGENT_CAP_FLAG in plan, (
+            f"every plan must pass the subagent cap: {plan!r}"
+        )
+    assert (
+        "Pass `--subagent-cap` exactly as written: the shell expands it to "
+        "the cap Claude Code enforces, or to nothing when it is unset."
+    ) in _conduct()
+
+
+def test_research_topic_leaves_concurrency_to_outstanding() -> None:
+    prose = _research_topic_prose()
+    assert "config get research.topic.concurrency" not in prose, (
+        "the skill must not read concurrency; outstanding resolves it"
     )
+    knobs = _section(prose, "knobs bound the research", "## Shared Preamble")
+    assert (
+        "Breadth's and depth's configured values, each resolved "
+        "`personal > team > built-in default`, are below"
+    ) in knobs
+    assert (
+        "`outstanding` resolves concurrency itself and bounds it by the "
+        "subagent cap"
+    ) in knobs
     assert (
         "(`--depth` or `--concurrency` on `outline`, `--breadth` on `conduct`)"
     ) in knobs, "the misplaced-flag rule must name --concurrency on outline"
+
+
+def _rust_text(path: Path) -> str:
+    return re.sub(r"\\\n\s*", "", _read(path))
+
+
+def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
+    cli = _rust_text(PLAN_WORDING)
+    for fragment in (
+        "must be a positive integer, got '",
+        "' — clamping to 1",
+    ):
+        assert fragment in _research_topic_prose()
+        assert fragment in cli
 
 
 def test_the_composer_agent_grants_only_read_and_write() -> None:
@@ -258,22 +334,6 @@ def test_research_topic_emits_no_dormant_depth_notice() -> None:
         "profile))"
     ) not in _research_topic_prose(), (
         "depth is live, so conduct must not announce it as dormant"
-    )
-
-
-@pytest.mark.parametrize(
-    "plan",
-    [
-        "--depth {depth} --limit {concurrency} --start",
-        "--depth {depth} --limit {concurrency} --run {run} --spawned {batch}",
-    ],
-)
-def test_research_topic_plans_each_batch_at_the_resolved_depth(
-    plan: str,
-) -> None:
-    conduct = _section(_research_topic_prose(), "### conduct", "### synthesise")
-    assert plan in conduct, (
-        f"conduct must plan every batch at the resolved depth: {plan!r}"
     )
 
 

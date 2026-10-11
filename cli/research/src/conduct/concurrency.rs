@@ -155,3 +155,18 @@ const fn is_javascript_whitespace(character: char) -> bool {
     (character.is_whitespace() && character != '\u{85}')
         || character == '\u{FEFF}'
 }
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::num::NonZeroU32;
+
+    use super::Concurrency;
+
+    pub fn concurrency(agents: u32) -> Concurrency {
+        Concurrency::new(NonZeroU32::new(agents).unwrap_or(NonZeroU32::MIN))
+    }
+
+    pub const fn unbounded() -> Concurrency {
+        Concurrency::new(NonZeroU32::MAX)
+    }
+}

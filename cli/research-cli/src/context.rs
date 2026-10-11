@@ -10,6 +10,8 @@ use config_adapters::compose;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus::DocTypeKey;
+use research::conduct::concurrency::Provenance;
+use research::conduct::concurrency::RequestedConcurrency;
 
 pub struct ProjectContext {
     pub root: PathBuf,
@@ -44,6 +46,27 @@ impl ProjectContext {
         let tmp = self.config.effective_nonempty(&key, None)?.rendered();
         Ok(self.root.join(tmp).join("research"))
     }
+
+    /// The configured concurrency and whether a config file set it.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError`] when the key cannot be resolved.
+    pub fn configured_concurrency(
+        &self,
+    ) -> Result<RequestedConcurrency, ConfigError> {
+        let key = Key::parse("research.topic.concurrency")?;
+        let resolution = self.config.effective(&key, None)?;
+        let provenance = if resolution.is_from_config() {
+            Provenance::ConfigFile
+        } else {
+            Provenance::BuiltInDefault
+        };
+        Ok(RequestedConcurrency {
+            value: resolution.rendered(),
+            provenance,
+        })
+    }
 }
 
 impl ProjectContext {
@@ -68,5 +91,22 @@ impl ProjectContext {
         )
         .map_err(|error| error.to_string())?;
         Ok(self.root.join(raw))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use config::catalogue::default_for;
+    use config::render_value;
+    use research::conduct::concurrency::SubagentCap;
+
+    #[test]
+    fn the_built_in_default_sits_at_the_harness_cap() {
+        assert_eq!(
+            default_for("research.topic.concurrency")
+                .as_ref()
+                .map(render_value),
+            Some(SubagentCap::HARNESS_DEFAULT.slots().to_string())
+        );
     }
 }

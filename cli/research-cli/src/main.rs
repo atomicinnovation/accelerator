@@ -178,13 +178,15 @@ fn topic(action: TopicAction) -> ExitCode {
             slug,
             profiles_dir,
             depth,
-            limit,
+            concurrency,
+            subagent_cap,
             start,
             run,
             spawned,
         } => OutstandingFlags::parse(
             &depth,
-            limit.as_deref(),
+            concurrency.as_deref(),
+            subagent_cap.as_deref(),
             start,
             run.as_deref(),
             spawned.as_deref(),
@@ -210,6 +212,15 @@ fn outstanding(
     flags: OutstandingFlags,
 ) -> Result<Printed, String> {
     let (cwd, project) = working_project()?;
+    let resolved = topic_command::resolve_concurrency(
+        flags.requested_concurrency,
+        || {
+            project
+                .configured_concurrency()
+                .map_err(|error| error.to_string())
+        },
+        flags.subagent_cap,
+    )?;
     let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let mode = match flags.run {
         RunFlag::Query => RunMode::Query,
@@ -222,7 +233,7 @@ fn outstanding(
         &set_root,
         profiles_dir,
         flags.depth,
-        flags.limit,
+        &resolved,
         mode,
         &RealFs,
         &FileCorpusStore::new(&set_root),

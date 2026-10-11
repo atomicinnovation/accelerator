@@ -58,17 +58,21 @@ SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
 Three knobs bound the research. **breadth** is the ceiling on focus areas an
 `outline` round may commission; **depth** is the recursion limit within a
-finding; **concurrency** is the most agents `conduct` spawns at once. Each
-knob's configured value, resolved `personal > team > built-in default`, is
-below:
+finding; **concurrency** is the most agents `conduct` spawns at once.
+Breadth's and depth's configured values, each resolved `personal > team >
+built-in default`, are below:
 
 - breadth: !`accelerator config get research.topic.breadth --fail-safe`
 - depth: !`accelerator config get research.topic.depth --fail-safe`
-- concurrency: !`accelerator config get research.topic.concurrency --fail-safe`
 
-A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
-flag on the invocation wins over the configured value. Then apply these rules
-in order:
+`outstanding` resolves concurrency itself and bounds it by the subagent cap:
+an `--concurrency N` flag on `conduct`, else the configured value, validated
+and then clamped to `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` or 20. `conduct`
+passes the flag and the cap through and never resolves concurrency itself.
+
+A verb resolves breadth or depth as **flag > resolved value above**: an
+`--<knob> N` flag on the invocation wins over the configured value. Then apply
+these rules in order:
 
 - **Empty value** — if the resolved value is empty (an unreadable config, or a
   knob explicitly set to an empty value), do not proceed or guess a default:
@@ -231,9 +235,12 @@ its notes, fetching nothing. `accelerator research topic outstanding`
 owns which pairs and nodes are outstanding and where their files go; never
 allocate a finding or note path yourself.
 
-1. **Resolve knobs.** Resolve depth and concurrency per the knob-resolution
-   rule above, reading any `--depth N` and `--concurrency N` flags on the
-   invocation. When the researcher and composer agent names (the two
+1. **Resolve knobs.** Resolve depth per the knob-resolution rule above,
+   reading any `--depth N` flag on the invocation. Set `{concurrency flag}` to
+   `--concurrency 'N'` when the invocation carries `--concurrency N`, and to
+   nothing otherwise. Pass `--subagent-cap` exactly as written: the shell
+   expands it to the cap Claude Code enforces, or to nothing when it is
+   unset. When the researcher and composer agent names (the two
    `subagent_type` values in step 4) resolve to the same name, print one
    warning:
 
@@ -242,7 +249,7 @@ allocate a finding or note path yourself.
 2. **Plan.** The first plan starts the run:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} --limit {concurrency} --start
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS" --start
    ```
 
    Every later plan continues it, with `--run {run} --spawned {batch}` in
@@ -250,12 +257,13 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} --limit {concurrency} --run {run} --spawned {batch}
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS" --run {run} --spawned {batch}
    ```
 
    The CLI records the run in its ledger, so carry no list of attempted
-   spawns yourself. Keep `run` for the whole of `conduct`, and report any
-   warning that a stored ledger was replaced. Any non-zero exit, including
+   spawns yourself. Keep `run` for the whole of `conduct`, and report the
+   first plan's `warnings` as soon as it returns — a replaced ledger or a
+   clamped concurrency. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
@@ -393,11 +401,11 @@ allocate a finding or note path yourself.
 
       If it exits non-zero, report its error and stop before ticking or
       editing the manifest, printing only the summary so far.
-   2. **Tick from disk.** Run the plain plan, without `--limit` or any run
-      flag:
+   2. **Tick from disk.** Run the plain plan, with `{concurrency flag}`, the
+      subagent cap and no run flag:
 
       ```bash
-      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth}
+      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --subagent-cap "$CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"
       ```
 
       Set every outline item's checkbox, at its `line`, to its `complete`

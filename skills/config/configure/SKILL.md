@@ -442,8 +442,23 @@ Resolution order for each knob is **flag > personal (`config.local.md`) > team
 SLUG --depth N` or `conduct SLUG --concurrency N` flag on the invocation
 overrides config, which overrides the built-in default. A resolved value that is
 not an integer of 1 or more is clamped to 1 with a warning naming the invalid
-value. There is no upper bound — breadth is
-the per-round cost guard.
+value. An empty value is refused rather than clamped. Breadth and depth have no
+upper bound — breadth is the per-round cost guard.
+
+**Concurrency and the subagent cap.** A `concurrency` above the subagent cap is
+clamped to the cap: the cap is `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` when set
+to a positive integer, otherwise 20, Claude Code's own limit. A flag or
+configured value above the cap warns; the built-in default clamps silently.
+
+- Set the variable in the shell that launches Claude Code, or under `env` in a
+  Claude Code settings file. `conduct` reads it through Claude Code's Bash
+  tool, so it must reach that tool's environment.
+- The variable accepts surrounding whitespace and a leading `+`, as Claude Code
+  does; `concurrency` accepts only plain digits.
+- To spawn more than 20 at once, raise both
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.
+- The clamp applies on every Claude Code version and mode, including those that
+  enforce no cap.
 
 At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
 `depth` above 1, it researches each pair as a tree: every node writes a level

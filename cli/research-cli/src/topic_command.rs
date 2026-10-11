@@ -14,6 +14,11 @@ use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::YamlFrontmatter;
+use research::conduct::concurrency::Concurrency;
+use research::conduct::concurrency::Provenance;
+use research::conduct::concurrency::RequestedConcurrency;
+use research::conduct::concurrency::ResolvedConcurrency;
+use research::conduct::concurrency::SubagentCap;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
@@ -88,7 +93,8 @@ pub enum RunFlag {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutstandingFlags {
     pub depth: Depth,
-    pub limit: Option<usize>,
+    pub requested_concurrency: Option<RequestedConcurrency>,
+    pub subagent_cap: SubagentCap,
     pub run: RunFlag,
 }
 
@@ -99,7 +105,8 @@ impl OutstandingFlags {
     /// combined with one it excludes.
     pub fn parse(
         depth: &str,
-        limit: Option<&str>,
+        concurrency: Option<&str>,
+        subagent_cap: Option<&str>,
         start: bool,
         run: Option<&str>,
         spawned: Option<&str>,
@@ -110,24 +117,39 @@ impl OutstandingFlags {
                  got '{depth}'"
             ))
         })?;
-        let limit = limit
-            .map(|limit| {
-                positive(limit)
-                    .and_then(|limit| usize::try_from(limit).ok())
-                    .ok_or_else(|| {
-                        failed(format!(
-                            "E_TOPIC_RESEARCH_LIMIT: --limit must be a \
-                             positive integer, got '{limit}'"
-                        ))
-                    })
-            })
-            .transpose()?;
         Ok(Self {
             depth,
-            limit,
+            requested_concurrency: concurrency.map(|value| {
+                RequestedConcurrency {
+                    value: value.to_owned(),
+                    provenance: Provenance::Flag,
+                }
+            }),
+            subagent_cap: SubagentCap::from_setting(subagent_cap),
             run: run_flag(start, run, spawned)?,
         })
     }
+}
+
+/// # Errors
+///
+/// A message when the configured value cannot be read, or when the
+/// requested concurrency is empty.
+pub fn resolve_concurrency(
+    flag: Option<RequestedConcurrency>,
+    configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
+    cap: SubagentCap,
+) -> Result<ResolvedConcurrency, String> {
+    let requested = match flag {
+        Some(requested) => requested,
+        None => configured()?,
+    };
+    requested.resolve(cap).map_err(|empty| {
+        failed(format!(
+            "E_TOPIC_RESEARCH_CONCURRENCY: {}",
+            plan_wording::empty_concurrency(empty)
+        ))
+    })
 }
 
 fn run_flag(
@@ -208,7 +230,7 @@ pub fn run_outstanding<F, S>(
     set_root: &Path,
     profiles_dir: &Path,
     depth: Depth,
-    limit: Option<usize>,
+    resolved: &ResolvedConcurrency,
     mode: RunMode,
     fs: &F,
     store: &S,
@@ -223,6 +245,12 @@ where
             Some(continued_ledger(set_root, run, *spawned, fs)?)
         }
         RunMode::Start(_) => {
+            notices.extend(
+                resolved
+                    .warnings
+                    .iter()
+                    .map(plan_wording::concurrency_warning),
+            );
             notices.extend(replaced_ledger_notice(set_root, fs)?);
             None
         }
@@ -252,7 +280,7 @@ where
     let window = window(
         &plan,
         &observed,
-        limit,
+        resolved.concurrency,
         ledger.as_ref().map(RunLedger::memory),
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
@@ -281,6 +309,7 @@ where
         window: &window,
         set_root,
         depth,
+        concurrency: resolved.concurrency,
         ledger: ledger.as_ref(),
         warnings,
     };
@@ -375,6 +404,7 @@ struct PlanOutput<'a> {
     window: &'a Window,
     set_root: &'a Path,
     depth: Depth,
+    concurrency: Concurrency,
     ledger: Option<&'a RunLedger>,
     warnings: Vec<String>,
 }
@@ -452,6 +482,7 @@ impl PlanOutput<'_> {
             "skipped": skipped,
             "warnings": self.warnings,
             "depth": self.depth.levels(),
+            "concurrency": self.concurrency.agents().get(),
             "remaining": self.window.remaining,
             "unfinished": unfinished,
             "trims": trims,
@@ -531,5 +562,122 @@ impl PlanOutput<'_> {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use research::conduct::concurrency::ConcurrencyWarning;
+    use research::conduct::concurrency::Provenance;
+    use research::conduct::concurrency::RequestedConcurrency;
+    use research::conduct::concurrency::SubagentCap;
+
+    use super::resolve_concurrency;
+    use super::OutstandingFlags;
+
+    fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
+        RequestedConcurrency {
+            value: value.to_owned(),
+            provenance,
+        }
+    }
+
+    fn configured(
+        value: &str,
+    ) -> impl FnOnce() -> Result<RequestedConcurrency, String> + '_ {
+        move || Ok(requested(value, Provenance::ConfigFile))
+    }
+
+    fn unreadable() -> Result<RequestedConcurrency, String> {
+        Err("unreadable".to_owned())
+    }
+
+    fn parsed(subagent_cap: Option<&str>) -> Result<OutstandingFlags, String> {
+        OutstandingFlags::parse("1", None, subagent_cap, false, None, None)
+    }
+
+    fn agents(
+        flag: Option<RequestedConcurrency>,
+        configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
+        cap: SubagentCap,
+    ) -> Result<u32, String> {
+        resolve_concurrency(flag, configured, cap)
+            .map(|resolved| resolved.concurrency.agents().get())
+    }
+
+    #[test]
+    fn a_concurrency_flag_never_reads_the_configured_value() {
+        assert_eq!(
+            agents(
+                Some(requested("5", Provenance::Flag)),
+                unreadable,
+                SubagentCap::HARNESS_DEFAULT
+            ),
+            Ok(5)
+        );
+    }
+
+    #[test]
+    fn without_a_flag_the_configured_value_is_resolved() {
+        assert_eq!(
+            agents(
+                None,
+                configured("24"),
+                SubagentCap::from_setting(Some("30"))
+            ),
+            Ok(24)
+        );
+    }
+
+    #[test]
+    fn the_subagent_cap_flag_bounds_the_configured_value() {
+        let cap = parsed(Some("8")).map(|flags| flags.subagent_cap);
+        let resolved = cap
+            .and_then(|cap| resolve_concurrency(None, configured("24"), cap));
+
+        assert_eq!(
+            resolved.as_ref().map(|r| r.concurrency.agents().get()),
+            Ok(8)
+        );
+        assert_eq!(
+            resolved.map(|r| r.warnings),
+            Ok(vec![ConcurrencyWarning::AboveCap {
+                given: "24".to_owned(),
+                provenance: Provenance::ConfigFile,
+                cap: SubagentCap::from_setting(Some("8")),
+            }])
+        );
+    }
+
+    #[test]
+    fn without_a_subagent_cap_flag_the_cap_is_the_harness_default() {
+        assert_eq!(
+            parsed(None).map(|flags| flags.subagent_cap),
+            Ok(SubagentCap::HARNESS_DEFAULT)
+        );
+    }
+
+    #[test]
+    fn an_empty_concurrency_names_its_source_in_the_error() {
+        assert_eq!(
+            agents(
+                Some(requested("", Provenance::Flag)),
+                unreadable,
+                SubagentCap::HARNESS_DEFAULT
+            ),
+            Err(
+                "E_TOPIC_RESEARCH_CONCURRENCY: --concurrency is empty; pass \
+                 a positive integer"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn a_configured_value_that_cannot_be_read_is_an_error() {
+        assert_eq!(
+            agents(None, unreadable, SubagentCap::HARNESS_DEFAULT),
+            Err("unreadable".to_owned())
+        );
     }
 }

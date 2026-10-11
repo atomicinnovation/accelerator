@@ -102,8 +102,14 @@ pub enum TopicAction {
         #[arg(long, default_value = "1", allow_hyphen_values = true)]
         depth: String,
         /// The most spawns to offer; the rest are counted in `remaining`.
+        /// Defaults to `research.topic.concurrency`, and is clamped to
+        /// `--subagent-cap`.
         #[arg(long, allow_hyphen_values = true)]
-        limit: Option<String>,
+        concurrency: Option<String>,
+        /// How many subagents the harness runs at once, read as the harness
+        /// reads its own setting; a value it would ignore, or none, means 20.
+        #[arg(long, allow_hyphen_values = true)]
+        subagent_cap: Option<String>,
         /// Begin a `conduct` run, recording its ledger in the set.
         #[arg(long)]
         start: bool,

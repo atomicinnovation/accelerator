@@ -1,6 +1,10 @@
 //! How a round plan's warnings, trims, skipped pairs and refused notes read
-//! to whoever runs `conduct`.
+//! to whoever runs `conduct`, and how a resolved concurrency's diagnostics
+//! read.
 
+use research::conduct::concurrency::ConcurrencyWarning;
+use research::conduct::concurrency::EmptyConcurrency;
+use research::conduct::concurrency::Provenance;
 use research::topic::evidence::NoteRejection;
 use research::topic::plan::Skip;
 use research::topic::plan::SkipReason;
@@ -86,11 +90,59 @@ pub fn rejection(rejection: &NoteRejection) -> String {
     }
 }
 
+pub fn concurrency_warning(warning: &ConcurrencyWarning) -> String {
+    match warning {
+        ConcurrencyWarning::NotAPositiveInteger { given, provenance } => {
+            format!(
+                "{} must be a positive integer, got '{given}' — clamping to 1",
+                concurrency_source(*provenance)
+            )
+        }
+        ConcurrencyWarning::AboveCap {
+            given,
+            provenance,
+            cap,
+        } => {
+            let cap = cap.slots();
+            format!(
+                "{} is {given}, above the subagent cap of {cap} — clamping \
+                 to {cap}",
+                concurrency_source(*provenance)
+            )
+        }
+    }
+}
+
+pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
+    let source = concurrency_source(empty.provenance);
+    match empty.provenance {
+        Provenance::Flag => {
+            format!("{source} is empty; pass a positive integer")
+        }
+        Provenance::ConfigFile | Provenance::BuiltInDefault => format!(
+            "{source} is empty; set it to a positive integer or remove it"
+        ),
+    }
+}
+
+const fn concurrency_source(provenance: Provenance) -> &'static str {
+    match provenance {
+        Provenance::Flag => "--concurrency",
+        Provenance::ConfigFile | Provenance::BuiltInDefault => {
+            "research.topic.concurrency"
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
     use std::num::NonZeroUsize;
 
+    use research::conduct::concurrency::ConcurrencyWarning;
+    use research::conduct::concurrency::EmptyConcurrency;
+    use research::conduct::concurrency::Provenance;
+    use research::conduct::concurrency::SubagentCap;
     use research::topic::evidence::NoteRejection;
     use research::topic::layout::lineage::Lineage;
     use research::topic::layout::note_ref::NoteRef;
@@ -102,6 +154,8 @@ mod tests {
     use research::topic::question::PlainQuestionRule;
     use research::topic::tree::Trim;
 
+    use super::concurrency_warning;
+    use super::empty_concurrency;
     use super::rejection;
     use super::skip_reason;
     use super::trim;
@@ -227,6 +281,54 @@ mod tests {
         ];
         for (given, text) in rows {
             assert_eq!(rejection(&given), text);
+        }
+    }
+
+    #[test]
+    fn every_concurrency_diagnostic_names_its_source() {
+        let cap = SubagentCap::from_setting(Some("20"));
+        let rows = [
+            (
+                Provenance::Flag,
+                "--concurrency must be a positive integer, got 'many' — \
+                 clamping to 1",
+                "--concurrency is 50, above the subagent cap of 20 — \
+                 clamping to 20",
+                "--concurrency is empty; pass a positive integer",
+            ),
+            (
+                Provenance::ConfigFile,
+                "research.topic.concurrency must be a positive integer, got \
+                 'many' — clamping to 1",
+                "research.topic.concurrency is 50, above the subagent cap of \
+                 20 — clamping to 20",
+                "research.topic.concurrency is empty; set it to a positive \
+                 integer or remove it",
+            ),
+        ];
+        for (provenance, invalid, above_cap, empty) in rows {
+            assert_eq!(
+                concurrency_warning(&ConcurrencyWarning::NotAPositiveInteger {
+                    given: "many".into(),
+                    provenance,
+                }),
+                invalid,
+                "{provenance:?}"
+            );
+            assert_eq!(
+                concurrency_warning(&ConcurrencyWarning::AboveCap {
+                    given: "50".into(),
+                    provenance,
+                    cap,
+                }),
+                above_cap,
+                "{provenance:?}"
+            );
+            assert_eq!(
+                empty_concurrency(EmptyConcurrency { provenance }),
+                empty,
+                "{provenance:?}"
+            );
         }
     }
 }

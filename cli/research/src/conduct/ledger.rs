@@ -151,6 +151,7 @@ mod tests {
     use super::RunId;
     use super::RunLedger;
     use super::Superseded;
+    use crate::conduct::concurrency::test_support::unbounded;
     use crate::conduct::observed::Observed;
     use crate::conduct::spawn::SpawnRef;
     use crate::conduct::window::window;
@@ -217,7 +218,7 @@ mod tests {
     }
 
     fn offering(stems: &[&str]) -> Window {
-        window(&planning(stems), &Observed::default(), None, None)
+        window(&planning(stems), &Observed::default(), unbounded(), None)
     }
 
     fn recorded(ledger: RunLedger, stems: &[&str]) -> RunLedger {
@@ -322,7 +323,7 @@ mod tests {
         let again = window(
             &planning(&["01-a"]),
             &Observed::default(),
-            None,
+            unbounded(),
             Some(ledger.memory()),
         );
         assert_eq!(again.offered, spawns(&["01-a"]));
@@ -365,7 +366,7 @@ mod tests {
     fn acknowledging_a_batch_drops_its_nodes_seen_digests() {
         let observed = showing(&[("01-a:1", SEEN), ("02-b:1", SEEN)]);
         let ledger = RunLedger::start(run("r1"), &observed);
-        let mut offer = window(&empty_plan(), &observed, None, None);
+        let mut offer = window(&empty_plan(), &observed, unbounded(), None);
         offer.offered = spawns(&["01-a:1"]);
         let ledger =
             continued(ledger.record(&empty_plan(), &observed, &offer), Some(0));
@@ -395,7 +396,7 @@ mod tests {
         let ledger = ledger.record(
             &empty_plan(),
             &observed,
-            &window(&empty_plan(), &observed, None, None),
+            &window(&empty_plan(), &observed, unbounded(), None),
         );
         assert_eq!(
             ledger.memory().seen.notes.get(&note_ref("01-a:1")),
@@ -422,7 +423,7 @@ mod tests {
             .answered
             .insert(Stem::parse("01-a").expect("a stem"));
         let answered = |ledger: &RunLedger| {
-            window(&empty_plan(), &observed, None, Some(ledger.memory()))
+            window(&empty_plan(), &observed, unbounded(), Some(ledger.memory()))
         };
         let ledger = continued(recorded(started(), &["01-a"]), Some(0));
         let first = answered(&ledger);
