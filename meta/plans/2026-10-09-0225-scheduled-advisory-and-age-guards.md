@@ -2474,6 +2474,45 @@ Where the code departs from or adds to the plan:
 - The step 1 scan was settled with the owner before any Chromium test was
   written, but recorded in the work item afterwards.
 
+### Post-validation fixes
+
+The validation report
+(`meta/validations/2026-10-09-0225-scheduled-advisory-and-age-guards-validation.md`)
+raised issues fixed in separate commits after it:
+
+- `test_the_repository_own_inputs_parse` reads the real `pins.toml` against
+  the real UTC date and no longer asserts the Chromium revision or the owner.
+- A TOML error at the end of `pins.toml` aborts with `is not valid TOML`
+  rather than an `IndexError`.
+- `gpg.list_keys`'s `OSError` and `TimeoutExpired` mapping has tests.
+- A `browsers.json` that is not a regular tar member is the npm feed failure
+  `package/browsers.json is not a regular file`, so a link cannot bypass the
+  manifest cap.
+- CVE and GHSA IDs and `vuln/core` entry keys must match exactly and in ASCII
+  digits.
+- An OSV record whose `id` is not the requested advisory is the document
+  failure `record for <id>`, for both `playwright-core` and Chromium.
+- `evaluate` lists the Node keyring before any feed request, so a missing gpg
+  aborts without spending the feed budget.
+- The workflow passes `${{ inputs.maximum-new-issues }}` through and defaults
+  it in the shell (`${MAXIMUM_NEW_ISSUES:-10}`), so a dispatched `0` reaches
+  the task and is refused rather than read as 10. This supersedes the Phase 4
+  workflow snippet.
+- `RELEASING.md` no longer claims a 20 s bound per attempt: httpx bounds each
+  step (connect, send, response headers, each read) at 20 s, so one attempt
+  can take about 80 s and the Performance Considerations' 13-minute
+  evaluation bound does not hold; the 30-minute job timeout is the hard stop.
+  It also gives the guard-tripped advice `--maximum-new-issues`, covers
+  key-expiry findings a refresh cannot clear, and warns against removing the
+  label. `tasks/README.md` notes a dry run needs `gh` authenticated.
+- Docstrings that restated their names were removed.
+
+Left as they are: the workflow reinstalls Rust each run (no `RUSTUP_HOME`
+under the cache, unlike `main.yml`), to revisit once the first runs show the
+setup time; an off-host redirect of the tarball, whose bytes the integrity
+check still binds; and npm prerelease semantics in `npm_ranges`, which no
+release pin exercises.
+
 ## References
 
 - Original work item: `meta/work/0225-scheduled-advisory-and-age-guards-for-the-vendored-runtime-pins.md`
