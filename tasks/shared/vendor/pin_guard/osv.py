@@ -123,7 +123,6 @@ class NpmAdvisory:
 
 
 def playwright_core_advisories(pin: Pin, session: FeedSession) -> CheckOutcome:
-    """Every OSV advisory affecting the pinned version, or why it is unknown."""
     try:
         ids = session.request(
             Feed.OSV,

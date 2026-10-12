@@ -87,7 +87,6 @@ def get_bytes(
     client: httpx.Client | None = None,
     now: Now = time.monotonic,
 ) -> bytes:
-    """GET ``url``'s body, refusing one longer than ``max_bytes``."""
     return _body(
         "GET",
         url,

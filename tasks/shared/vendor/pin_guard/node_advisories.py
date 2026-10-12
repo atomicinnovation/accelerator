@@ -91,7 +91,6 @@ def vuln_core_entries(document: object) -> tuple[VulnCoreEntry, ...]:
 
 
 def node_advisories(pin: Pin, session: FeedSession) -> CheckOutcome:
-    """Every ``vuln/core`` entry affecting the pinned Node version."""
     try:
         entries = session.request(
             Feed.VULN_CORE,

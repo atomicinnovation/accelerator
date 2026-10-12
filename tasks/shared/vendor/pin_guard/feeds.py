@@ -192,7 +192,6 @@ class FeedSession:
         call: Callable[[FeedClient], object],
         parse: Callable[[object], T],
     ) -> T:
-        """Make one request, raising ``FeedRequestError`` if it fails."""
         skipped = self._budget.skip_reason(feed)
         if skipped is not None:
             raise FeedRequestError(FeedFailure(feed, check, label, skipped))

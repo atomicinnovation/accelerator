@@ -130,7 +130,6 @@ class ChromiumAdvisory:
 def chromium_advisories(
     playwright_core: Pin, chromium: Pin, session: FeedSession
 ) -> CheckOutcome:
-    """Every exploited Chromium CVE affecting the pinned browser build."""
     try:
         browser = pinned_browser_build(playwright_core, chromium, session)
         cves = session.request(

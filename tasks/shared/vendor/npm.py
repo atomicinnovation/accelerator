@@ -127,7 +127,6 @@ def assert_integrity_binds_tarball(*, integrity: str, tarball: Path) -> None:
 
 
 def assert_integrity_binds_bytes(*, integrity: str, payload: bytes) -> None:
-    """Fail unless ``payload``'s sha512 equals the ``integrity`` value."""
     _assert_sha512_matches(integrity, hashlib.sha512(payload).digest())
 
 

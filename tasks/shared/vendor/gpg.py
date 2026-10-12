@@ -1,4 +1,4 @@
-"""GPG detached-signature verification for the vendored Node runtime.
+"""GPG signature verification and keyring listing for the vendored Node runtime.
 
 The predicate is a pure function over GnuPG ``--status-fd`` lines, kept separate
 from invoking ``gpg`` so every combination is a table-driven unit test over
@@ -195,7 +195,7 @@ def _primary_fingerprint(args: list[str]) -> str | None:
 
 
 class KeyListingError(Exception):
-    """gpg could not list a keyring, or listed it in an unrecognised form."""
+    pass
 
 
 @dataclass(frozen=True, slots=True)

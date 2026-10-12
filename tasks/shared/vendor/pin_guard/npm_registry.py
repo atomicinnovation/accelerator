@@ -77,7 +77,6 @@ class PublishedTarball:
         return cls(url, field(dist, "integrity", str))
 
     def headless_shell_versions(self, payload: object) -> HeadlessShellVersions:
-        """Every headless-shell build's version, from the bound tarball."""
         if not isinstance(payload, bytes):
             raise FeedDocumentError("unreadable tarball")
         try:

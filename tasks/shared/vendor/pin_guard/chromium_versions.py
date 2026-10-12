@@ -1,5 +1,3 @@
-"""Chromium's four-part browser versions, compared part by part."""
-
 import re
 from dataclasses import dataclass
 from typing import Self, override

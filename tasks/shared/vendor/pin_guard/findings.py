@@ -40,7 +40,6 @@ def code_span(text: str) -> str:
 
 
 def issue_body(marker: IssueMarker, *paragraphs: str) -> str:
-    """Join ``paragraphs`` and close the body with ``marker``'s last line."""
     return "\n\n".join((*paragraphs, marker.render()))
 
 

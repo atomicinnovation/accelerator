@@ -1,5 +1,3 @@
-"""The HTTP adapter for the guard's feeds, with bounded retries."""
-
 from collections.abc import Callable
 
 import httpx
