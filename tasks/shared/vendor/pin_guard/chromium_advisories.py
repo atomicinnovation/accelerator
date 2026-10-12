@@ -38,7 +38,7 @@ from tasks.shared.vendor.pin_guard.npm_registry import (
     PinnedBrowser,
     pinned_browser_build,
 )
-from tasks.shared.vendor.pin_guard.osv import record_url
+from tasks.shared.vendor.pin_guard.osv import record_of, record_url
 
 KEV_URL = (
     "https://www.cisa.gov/sites/default/files/feeds/"
@@ -106,13 +106,10 @@ class ChromiumAdvisory:
         """Read the Chromium fixes from ``record``, ``None`` being no record."""
         if record is None:
             return cls(cve, (), NO_RECORD)
+        affected = field(record_of(cve, record), "affected", list)
         return cls(
             cve,
-            tuple(
-                fix
-                for affected in field(record, "affected", list)
-                for fix in _chromium_fixes(affected)
-            ),
+            tuple(fix for each in affected for fix in _chromium_fixes(each)),
             NO_FIX,
         )
 

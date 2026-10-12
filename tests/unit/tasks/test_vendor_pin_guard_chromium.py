@@ -342,6 +342,12 @@ class TestFeedFailures:
             (Feed.OSV, "CVE-2026-0002", "unreachable")
         ]
 
+    def test_a_record_for_another_cve_is_a_failure(self):
+        records = {CVE: chromium_record("CVE-2026-9999", "141.0.7390.54")}
+        assert self._reasons(records) == [
+            (Feed.OSV, CVE, "record for CVE-2026-9999")
+        ]
+
     def test_a_record_without_affected_is_a_failure(self):
         assert self._reasons({CVE: {"id": CVE}}) == [
             (Feed.OSV, CVE, "missing field affected")

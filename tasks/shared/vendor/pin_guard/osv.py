@@ -154,8 +154,15 @@ def _fetch_advisory(advisory_id: str, session: FeedSession) -> NpmAdvisory:
         _CHECK,
         advisory_id,
         lambda client: client.get_json(record_url(advisory_id)),
-        NpmAdvisory.parse,
+        lambda record: NpmAdvisory.parse(record_of(advisory_id, record)),
     )
+
+
+def record_of(advisory_id: str, record: object) -> object:
+    recorded_id = field(record, "id", str)
+    if recorded_id != advisory_id:
+        raise FeedDocumentError(f"record for {recorded_id}")
+    return record
 
 
 def _findings(

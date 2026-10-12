@@ -151,6 +151,12 @@ class TestFeedFailures:
             (QUERYBATCH_URL, f"unexpected advisory id {GHSA}\n")
         ]
 
+    def test_a_record_for_another_advisory_is_a_failure(self):
+        outcome, _ = _check(
+            "1.55.0", _batch(GHSA), {GHSA: osv_fixture("two-ranges.json")}
+        )
+        assert self._reasons(outcome) == [(GHSA, f"record for {TWO_RANGES}")]
+
     def test_a_batch_vuln_without_an_id_is_a_missing_field(self):
         outcome, _ = _check(
             "1.55.0", osv_fixture("querybatch-missing-field.json")
