@@ -4,6 +4,7 @@
 //! both live elsewhere; this crate is the seam between them and holds no
 //! logic.
 
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
@@ -580,6 +581,66 @@ pub enum ValidationOutcome {
     Rejected { reasons: Vec<String> },
 }
 
+/// A description the tracker holds content in that has no local Markdown form.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unrenderable {
+    /// What could not be rendered, for a human.
+    pub detail: String,
+}
+
+impl Display for Unrenderable {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "the tracker description has no Markdown form: {}",
+            self.detail
+        )
+    }
+}
+
+impl std::error::Error for Unrenderable {}
+
+/// How a tracker's descriptions relate to the Markdown bodies of local work
+/// items.
+///
+/// A tracker that stores Markdown verbatim keeps the identity defaults; one
+/// that stores a structured document overrides them. Separate from
+/// [`RemoteTracker`] so the rules can be applied without a client able to
+/// mutate anything.
+pub trait BodyDialect {
+    /// The local Markdown body for a description, as the tracker's projection
+    /// carries it.
+    ///
+    /// # Errors
+    ///
+    /// [`Unrenderable`] when the description holds content with no Markdown
+    /// form, or cannot be read as the tracker's own format.
+    fn local_body(&self, description: &str) -> Result<String, Unrenderable> {
+        Ok(description.to_owned())
+    }
+
+    /// The body as the tracker would hold it once pushed and read back.
+    fn as_pushed<'a>(&self, body: &'a str) -> Cow<'a, str> {
+        Cow::Borrowed(body)
+    }
+
+    /// Whether `body` is the tracker's own stored document rather than local
+    /// Markdown.
+    ///
+    /// No default, so an implementer delegating to a dialect cannot silently
+    /// answer for it.
+    fn is_wire_document(&self, body: &str) -> bool;
+}
+
+/// The dialect of a tracker that stores Markdown descriptions verbatim.
+pub struct PlainDialect;
+
+impl BodyDialect for PlainDialect {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 /// The operations a remote issue tracker exposes to the sync engine.
 ///
 /// Synchronous and `&self`-taking so the trait stays dyn-compatible: the sync
@@ -591,7 +652,9 @@ pub enum ValidationOutcome {
 /// Every call blocks until it resolves. Timeouts, retries and backoff are
 /// wholly the implementing client's responsibility, and a client must bound its
 /// own calls, because a caller has no way to.
-pub trait RemoteTracker {
+///
+/// [`BodyDialect`] is a supertrait so the tracker's body rules travel with it.
+pub trait RemoteTracker: BodyDialect {
     /// Creates a new remote issue and returns the identifier assigned to it.
     ///
     /// An identifier that cannot be safely written back to frontmatter is a
@@ -644,6 +707,17 @@ pub trait RemoteTracker {
         title: &str,
         body: &str,
     ) -> Result<(), TrackerError>;
+
+    /// Replaces the remote issue's title, leaving its description untouched.
+    ///
+    /// No default: a tracker that rewrote the description to change the title
+    /// would reintroduce the round-trip loss this operation exists to avoid.
+    ///
+    /// # Errors
+    ///
+    /// Classified as for [`RemoteTracker::update`].
+    fn retitle(&self, id: &ExternalId, title: &str)
+        -> Result<(), TrackerError>;
 
     /// Reads one remote issue in full, including its projected body.
     ///

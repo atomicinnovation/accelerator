@@ -223,6 +223,45 @@ pub fn update_replaces_whole_content_property(subject: &dyn ContractSubject) {
 /// # Errors
 ///
 /// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn retitle_keeps_the_description(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    retitle_keeps_the_description_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// See [`create_then_show_round_trips_property`].
+pub fn retitle_keeps_the_description_property(subject: &dyn ContractSubject) {
+    let tracker = subject.tracker();
+    let id = tracker
+        .create("Original title", "Original body\n", "")
+        .expect("create must succeed for a conformant implementation");
+    let before = tracker.show(&id).expect("show must succeed after create");
+
+    tracker
+        .retitle(&id, "Retitled")
+        .expect("retitle must succeed for a conformant implementation");
+    let after = tracker.show(&id).expect("show must succeed after retitle");
+
+    let (before_title, before_description) = projected_parts(&before.body);
+    let (after_title, after_description) = projected_parts(&after.body);
+    assert_ne!(before_title, after_title, "retitle must replace the title");
+    assert_eq!(
+        before_description, after_description,
+        "retitle must leave the description byte-identical"
+    );
+}
+
+fn projected_parts(projected: &str) -> (&str, &str) {
+    projected.split_once('\n').unwrap_or((projected, ""))
+}
+
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
 pub fn fetch_all_partitions_totally(
     subject: &dyn ContractSubject,
     ids: &[ExternalId],
@@ -514,11 +553,12 @@ pub fn run_all(
     create_then_show_round_trips(subject)?;
     locate_finds_a_created_issue(subject)?;
     update_replaces_whole_content(subject)?;
+    retitle_keeps_the_description(subject)?;
     fetch_all_partitions_totally(subject, ids)?;
     preview_create_makes_no_mutation(subject)?;
     validate_update_reports_outcome(subject)?;
 
-    Ok(6)
+    Ok(7)
 }
 
 /// Run the full conformance set against a live subject, timing each property,
@@ -560,6 +600,9 @@ pub fn timed_conformance(
     }));
     records.push(run("update_replaces_whole_content", 1, &|| {
         update_replaces_whole_content_property(subject);
+    }));
+    records.push(run("retitle_keeps_the_description", 1, &|| {
+        retitle_keeps_the_description_property(subject);
     }));
     records.push(run(
         "fetch_all_partitions_totally",
@@ -615,6 +658,9 @@ mod tests {
             }),
             ("update_replaces_whole_content", |subject| {
                 super::update_replaces_whole_content(subject)
+            }),
+            ("retitle_keeps_the_description", |subject| {
+                super::retitle_keeps_the_description(subject)
             }),
             ("fetch_all_partitions_totally", |subject| {
                 super::fetch_all_partitions_totally(subject, &[])

@@ -8,6 +8,7 @@
 
 pub mod attach;
 pub mod auth;
+pub mod body_dialect;
 pub mod cache;
 pub mod classify;
 pub mod client;
@@ -28,6 +29,7 @@ pub mod transport;
 
 pub use crate::auth::resolve_credentials;
 pub use crate::auth::Credentials;
+pub use crate::body_dialect::JiraBodyDialect;
 pub use crate::classify::classify;
 pub use crate::classify::Operation;
 pub use crate::classify::Outcome;

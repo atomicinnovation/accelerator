@@ -14,24 +14,28 @@ mod shared;
 
 pub use crate::shared::SharedTracker;
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::Mutex;
 use std::sync::PoisonError;
 
+use tracker::BodyDialect;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
 use tracker::Located;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use tracker::ValidationOutcome;
 use tracker::VisibleEntity;
 
@@ -48,6 +52,10 @@ pub enum Call {
         id: ExternalId,
         title: String,
         body: String,
+    },
+    Retitle {
+        id: ExternalId,
+        title: String,
     },
     Show {
         id: ExternalId,
@@ -159,12 +167,13 @@ pub struct RecordingTracker {
     next_id: RefCell<u32>,
     /// The prefix created issues' keys take; `REC` when unset.
     key_prefix: Option<String>,
+    dialect: Box<dyn BodyDialect + Send>,
     calls: RefCell<Vec<Call>>,
 }
 
 impl RecordingTracker {
     #[must_use]
-    pub const fn holding(issues: Vec<(ExternalId, RemoteIssue)>) -> Self {
+    pub fn holding(issues: Vec<(ExternalId, RemoteIssue)>) -> Self {
         Self {
             issues: RefCell::new(issues),
             unprovable: Vec::new(),
@@ -188,8 +197,20 @@ impl RecordingTracker {
             preview: RefCell::new(None),
             next_id: RefCell::new(1),
             key_prefix: None,
+            dialect: Box::new(PlainDialect),
             calls: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Answers every body rule through `dialect`, so a test can drive a
+    /// tracker whose stored descriptions differ from local Markdown.
+    #[must_use]
+    pub fn with_dialect(
+        mut self,
+        dialect: Box<dyn BodyDialect + Send>,
+    ) -> Self {
+        self.dialect = dialect;
+        self
     }
 
     /// Creates each issue under `<prefix>-<n>`, as a tracker answering with
@@ -484,6 +505,20 @@ impl RecordingTracker {
     }
 }
 
+impl BodyDialect for RecordingTracker {
+    fn local_body(&self, description: &str) -> Result<String, Unrenderable> {
+        self.dialect.local_body(description)
+    }
+
+    fn as_pushed<'a>(&self, body: &'a str) -> Cow<'a, str> {
+        self.dialect.as_pushed(body)
+    }
+
+    fn is_wire_document(&self, body: &str) -> bool {
+        self.dialect.is_wire_document(body)
+    }
+}
+
 impl RemoteTracker for RecordingTracker {
     fn create(
         &self,
@@ -564,6 +599,39 @@ impl RemoteTracker for RecordingTracker {
             }
             None => Err(TrackerError::Retryable {
                 detail: format!("fake: update {id} rejected, no such issue"),
+            }),
+        }
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.calls.borrow_mut().push(Call::Retitle {
+            id: id.clone(),
+            title: title.to_owned(),
+        });
+
+        if let Some((_, error)) =
+            self.update_failures.iter().find(|(known, _)| known == id)
+        {
+            return Err(error.clone());
+        }
+
+        let mut issues = self.issues.borrow_mut();
+        match issues.iter_mut().find(|(known, _)| known == id) {
+            Some(entry) => {
+                let description = entry
+                    .1
+                    .body
+                    .split_once('\n')
+                    .map_or("", |(_, description)| description);
+                entry.1.body = format!("{title}\n{description}");
+                Ok(())
+            }
+            None => Err(TrackerError::Retryable {
+                detail: format!("fake: retitle {id} rejected, no such issue"),
             }),
         }
     }
@@ -908,6 +976,79 @@ mod tests {
                 ("label".to_owned(), "resolved:bug".to_owned()),
                 ("state".to_owned(), "resolved:Todo".to_owned()),
             ]
+        );
+    }
+
+    struct StubDialect;
+
+    impl BodyDialect for StubDialect {
+        fn local_body(
+            &self,
+            description: &str,
+        ) -> Result<String, tracker::Unrenderable> {
+            if description == "unrenderable" {
+                return Err(tracker::Unrenderable {
+                    detail: "stub".to_owned(),
+                });
+            }
+            Ok(format!("local:{description}"))
+        }
+
+        fn as_pushed<'a>(&self, body: &'a str) -> Cow<'a, str> {
+            Cow::Owned(format!("pushed:{body}"))
+        }
+
+        fn is_wire_document(&self, body: &str) -> bool {
+            body == "wire"
+        }
+    }
+
+    #[test]
+    fn a_recording_tracker_answers_body_rules_through_its_dialect() {
+        let tracker = RecordingTracker::holding(Vec::new())
+            .with_dialect(Box::new(StubDialect));
+
+        assert_eq!(tracker.local_body("body"), Ok("local:body".to_owned()));
+        assert_eq!(
+            tracker.local_body("unrenderable"),
+            Err(tracker::Unrenderable {
+                detail: "stub".to_owned()
+            })
+        );
+        assert_eq!(tracker.as_pushed("body"), "pushed:body");
+        assert!(tracker.is_wire_document("wire"));
+        assert!(!tracker.is_wire_document("body"));
+    }
+
+    #[test]
+    fn a_plain_recording_tracker_uses_the_identity_dialect() {
+        let tracker = RecordingTracker::holding(Vec::new());
+
+        assert_eq!(tracker.local_body("body\n"), Ok("body\n".to_owned()));
+        assert_eq!(tracker.as_pushed("body\n"), "body\n");
+        assert!(!tracker.is_wire_document("{\"type\":\"doc\"}"));
+    }
+
+    #[test]
+    fn retitle_is_recorded_and_leaves_the_stored_description() {
+        let id = ExternalId::new("REC-1".to_owned());
+        let tracker = RecordingTracker::holding(vec![(
+            id.clone(),
+            issue("t", "Old title\nThe description\n"),
+        )]);
+
+        tracker.retitle(&id, "New title").expect("retitle succeeds");
+
+        assert_eq!(
+            tracker.calls(),
+            vec![Call::Retitle {
+                id: id.clone(),
+                title: "New title".to_owned(),
+            }]
+        );
+        assert_eq!(
+            tracker.show(&id).expect("held").body,
+            "New title\nThe description\n"
         );
     }
 

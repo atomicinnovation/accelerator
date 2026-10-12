@@ -14,6 +14,7 @@ use remote_projection::Integration;
 use remote_projection::Op;
 use serde_json::json;
 use serde_json::Value;
+use tracker::BodyDialect;
 use tracker::Ceiling;
 use tracker::Completeness;
 use tracker::CreatePreview;
@@ -732,6 +733,25 @@ impl LinearClient {
         Ok(())
     }
 
+    /// `retitle`, surfacing the structured discriminant.
+    ///
+    /// # Errors
+    ///
+    /// [`LinearFailure`] for a refused identifier or a wire failure.
+    pub fn retitle_op(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), LinearFailure> {
+        refuse_identifier_op(id, Operation::Update)?;
+        let variables = json!({
+            "id": id.as_str(),
+            "input": {"title": title},
+        });
+        self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
+        Ok(())
+    }
+
     /// `show`, surfacing the structured discriminant.
     ///
     /// # Errors
@@ -896,6 +916,12 @@ fn refuse_identifier(
     refuse_identifier_op(id, operation).map_err(TrackerError::from)
 }
 
+impl BodyDialect for LinearClient {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl RemoteTracker for LinearClient {
     fn create(
         &self,
@@ -914,6 +940,14 @@ impl RemoteTracker for LinearClient {
         body: &str,
     ) -> Result<(), TrackerError> {
         self.update_op(id, title, body).map_err(TrackerError::from)
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.retitle_op(id, title).map_err(TrackerError::from)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

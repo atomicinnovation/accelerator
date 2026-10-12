@@ -2250,6 +2250,12 @@ struct MarkerObservingTracker {
     calls: RefCell<Vec<Call>>,
 }
 
+impl tracker::BodyDialect for MarkerObservingTracker {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl tracker::RemoteTracker for MarkerObservingTracker {
     fn create(
         &self,
@@ -2271,6 +2277,14 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
         _id: &ExternalId,
         _title: &str,
         _body: &str,
+    ) -> Result<(), TrackerError> {
+        Ok(())
+    }
+
+    fn retitle(
+        &self,
+        _id: &ExternalId,
+        _title: &str,
     ) -> Result<(), TrackerError> {
         Ok(())
     }

@@ -1,6 +1,7 @@
 //! `impl RemoteTracker for JiraClient`: the four port operations over the
 //! bounded transport.
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use config::consent::Notice;
@@ -11,6 +12,7 @@ use remote_projection::Op;
 use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
+use tracker::BodyDialect;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
@@ -25,6 +27,7 @@ use tracker::RemoteTracker;
 use tracker::ScopeError;
 use tracker::SearchScope;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use tracker::ValidationOutcome;
 use tracker::VisibleEntity;
 use tracker_support::port_body;
@@ -33,6 +36,7 @@ use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
 
 use crate::auth::resolve_credentials;
+use crate::body_dialect::JiraBodyDialect;
 use crate::classify::Operation;
 use crate::classify::Outcome;
 use crate::error::ClientError;
@@ -639,6 +643,48 @@ fn families_from_filters(filters: &[(String, String)]) -> Vec<Family> {
     families
 }
 
+impl JiraClient {
+    fn edit_summary_and_body(
+        &self,
+        id: &ExternalId,
+        title: &str,
+        body: Option<&str>,
+    ) -> Result<(), TrackerError> {
+        let custom = serde_json::Map::new();
+        let edit = crate::mutation::UpdateFields {
+            summary: Some(title),
+            body,
+            priority: None,
+            assignee: None,
+            reporter: None,
+            parent: None,
+            labels: None,
+            add_labels: &[],
+            remove_labels: &[],
+            components: None,
+            add_components: &[],
+            remove_components: &[],
+            custom: &custom,
+            no_notify: false,
+        };
+        self.update_op(id, &edit).map_err(TrackerError::from)
+    }
+}
+
+impl BodyDialect for JiraClient {
+    fn local_body(&self, description: &str) -> Result<String, Unrenderable> {
+        JiraBodyDialect.local_body(description)
+    }
+
+    fn as_pushed<'a>(&self, body: &'a str) -> Cow<'a, str> {
+        JiraBodyDialect.as_pushed(body)
+    }
+
+    fn is_wire_document(&self, body: &str) -> bool {
+        JiraBodyDialect.is_wire_document(body)
+    }
+}
+
 impl RemoteTracker for JiraClient {
     fn create(
         &self,
@@ -674,24 +720,15 @@ impl RemoteTracker for JiraClient {
         title: &str,
         body: &str,
     ) -> Result<(), TrackerError> {
-        let custom = serde_json::Map::new();
-        let edit = crate::mutation::UpdateFields {
-            summary: Some(title),
-            body: Some(body),
-            priority: None,
-            assignee: None,
-            reporter: None,
-            parent: None,
-            labels: None,
-            add_labels: &[],
-            remove_labels: &[],
-            components: None,
-            add_components: &[],
-            remove_components: &[],
-            custom: &custom,
-            no_notify: false,
-        };
-        self.update_op(id, &edit).map_err(TrackerError::from)
+        self.edit_summary_and_body(id, title, Some(body))
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.edit_summary_and_body(id, title, None)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

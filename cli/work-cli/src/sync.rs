@@ -3544,6 +3544,12 @@ mod tests {
     /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
     struct FetchFailingTracker;
 
+    impl tracker::BodyDialect for FetchFailingTracker {
+        fn is_wire_document(&self, _body: &str) -> bool {
+            false
+        }
+    }
+
     impl RemoteTracker for FetchFailingTracker {
         fn fetch_all(
             &self,
@@ -3568,6 +3574,14 @@ mod tests {
             _id: &ExternalId,
             _title: &str,
             _body: &str,
+        ) -> Result<(), TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn retitle(
+            &self,
+            _id: &ExternalId,
+            _title: &str,
         ) -> Result<(), TrackerError> {
             unimplemented!("not exercised by the fetch_all failure path")
         }

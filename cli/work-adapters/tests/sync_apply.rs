@@ -100,6 +100,12 @@ impl AtomicWrite for Fake {
     }
 }
 
+impl tracker::BodyDialect for Fake {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl RemoteTracker for Fake {
     fn create(
         &self,
@@ -118,6 +124,14 @@ impl RemoteTracker for Fake {
     ) -> Result<(), TrackerError> {
         self.calls.borrow_mut().push(format!("update:{id}"));
         self.update_fails.borrow().clone().map_or(Ok(()), Err)
+    }
+
+    fn retitle(
+        &self,
+        _id: &ExternalId,
+        _title: &str,
+    ) -> Result<(), TrackerError> {
+        unimplemented!("not exercised by the apply suite")
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

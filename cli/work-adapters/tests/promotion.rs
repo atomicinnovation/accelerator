@@ -369,7 +369,7 @@ fn updates(tracker: &RecordingTracker) -> Vec<(String, String)> {
         .collect()
 }
 
-const fn fresh_tracker() -> RecordingTracker {
+fn fresh_tracker() -> RecordingTracker {
     RecordingTracker::holding(Vec::new())
 }
 

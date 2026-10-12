@@ -3,6 +3,7 @@
 //! because the sync engine's composition root holds one.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use tracker::BodyDialect;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
@@ -64,6 +65,12 @@ impl FixedTracker {
     }
 }
 
+impl BodyDialect for FixedTracker {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl RemoteTracker for FixedTracker {
     fn create(
         &self,
@@ -95,6 +102,14 @@ impl RemoteTracker for FixedTracker {
                 "jira: update {id} rejected, HTTP 404 no such issue"
             ),
         })
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.update(id, title, "")
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {

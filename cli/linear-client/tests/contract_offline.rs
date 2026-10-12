@@ -227,3 +227,27 @@ fn the_partition_stays_total_over_a_mixed_request() {
         "another team's id is not"
     );
 }
+
+#[test]
+fn retitle_sends_only_the_title() {
+    let (server, subject) = scripted(vec![json(
+        "{\"data\":{\"issueUpdate\":{\"success\":true,\
+         \"issue\":{\"identifier\":\"ENG-1\"}}}}",
+    )]);
+
+    subject
+        .tracker()
+        .retitle(&ExternalId::new(CREATED.to_owned()), "Retitled")
+        .expect("retitle succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server
+            .last_body(&RequestKey::post(GRAPHQL))
+            .expect("the retitle was sent"),
+    )
+    .expect("a JSON request");
+    assert_eq!(
+        sent["variables"]["input"],
+        serde_json::json!({"title": "Retitled"})
+    );
+}

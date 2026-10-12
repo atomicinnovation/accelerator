@@ -346,3 +346,20 @@ fn the_partition_stays_total_over_a_mixed_request() {
         "a failed search proves nothing about absence"
     );
 }
+
+#[test]
+fn retitle_sends_only_the_title() {
+    let server = conformant_server();
+    let issue = RequestKey::put(&format!("/rest/api/3/issue/{CREATED}"));
+
+    subject(&server)
+        .tracker()
+        .retitle(&ExternalId::new(CREATED.to_owned()), "Retitled")
+        .expect("retitle succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server.last_body(&issue).expect("the retitle was sent"),
+    )
+    .expect("a JSON request");
+    assert_eq!(sent["fields"], serde_json::json!({"summary": "Retitled"}));
+}
