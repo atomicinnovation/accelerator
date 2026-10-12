@@ -57,14 +57,12 @@ impl ProjectContext {
     ) -> Result<RequestedConcurrency, ConfigError> {
         let key = Key::parse("research.topic.concurrency")?;
         let resolution = self.config.effective(&key, None)?;
-        let provenance = if resolution.is_from_config() {
-            Provenance::ConfigFile
-        } else {
-            Provenance::BuiltInDefault
-        };
-        Ok(RequestedConcurrency {
+        if !resolution.is_from_config() {
+            return Ok(RequestedConcurrency::BuiltInDefault);
+        }
+        Ok(RequestedConcurrency::Given {
             value: resolution.rendered(),
-            provenance,
+            provenance: Provenance::ConfigFile,
         })
     }
 }

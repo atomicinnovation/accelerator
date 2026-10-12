@@ -18,7 +18,6 @@ impl core::fmt::Debug for research::conduct::concurrency::ConcurrencyWarning
 pub fn research::conduct::concurrency::ConcurrencyWarning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::ConcurrencyWarning
 pub enum research::conduct::concurrency::Provenance
-pub research::conduct::concurrency::Provenance::BuiltInDefault
 pub research::conduct::concurrency::Provenance::ConfigFile
 pub research::conduct::concurrency::Provenance::Flag
 impl core::clone::Clone for research::conduct::concurrency::Provenance
@@ -30,6 +29,21 @@ impl core::fmt::Debug for research::conduct::concurrency::Provenance
 pub fn research::conduct::concurrency::Provenance::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::concurrency::Provenance
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::Provenance
+pub enum research::conduct::concurrency::RequestedConcurrency
+pub research::conduct::concurrency::RequestedConcurrency::BuiltInDefault
+pub research::conduct::concurrency::RequestedConcurrency::Given
+pub research::conduct::concurrency::RequestedConcurrency::Given::provenance: research::conduct::concurrency::Provenance
+pub research::conduct::concurrency::RequestedConcurrency::Given::value: alloc::string::String
+impl research::conduct::concurrency::RequestedConcurrency
+pub fn research::conduct::concurrency::RequestedConcurrency::resolve(&self, cap: research::conduct::concurrency::SubagentCap) -> core::result::Result<research::conduct::concurrency::ResolvedConcurrency, research::conduct::concurrency::EmptyConcurrency>
+impl core::clone::Clone for research::conduct::concurrency::RequestedConcurrency
+pub fn research::conduct::concurrency::RequestedConcurrency::clone(&self) -> research::conduct::concurrency::RequestedConcurrency
+impl core::cmp::Eq for research::conduct::concurrency::RequestedConcurrency
+impl core::cmp::PartialEq for research::conduct::concurrency::RequestedConcurrency
+pub fn research::conduct::concurrency::RequestedConcurrency::eq(&self, other: &research::conduct::concurrency::RequestedConcurrency) -> bool
+impl core::fmt::Debug for research::conduct::concurrency::RequestedConcurrency
+pub fn research::conduct::concurrency::RequestedConcurrency::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::concurrency::RequestedConcurrency
 pub struct research::conduct::concurrency::Concurrency(_)
 impl research::conduct::concurrency::Concurrency
 pub fn research::conduct::concurrency::Concurrency::admits(self, waiting: usize) -> usize
@@ -54,19 +68,6 @@ impl core::fmt::Debug for research::conduct::concurrency::EmptyConcurrency
 pub fn research::conduct::concurrency::EmptyConcurrency::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::concurrency::EmptyConcurrency
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::EmptyConcurrency
-pub struct research::conduct::concurrency::RequestedConcurrency
-pub research::conduct::concurrency::RequestedConcurrency::provenance: research::conduct::concurrency::Provenance
-pub research::conduct::concurrency::RequestedConcurrency::value: alloc::string::String
-impl research::conduct::concurrency::RequestedConcurrency
-pub fn research::conduct::concurrency::RequestedConcurrency::resolve(&self, cap: research::conduct::concurrency::SubagentCap) -> core::result::Result<research::conduct::concurrency::ResolvedConcurrency, research::conduct::concurrency::EmptyConcurrency>
-impl core::clone::Clone for research::conduct::concurrency::RequestedConcurrency
-pub fn research::conduct::concurrency::RequestedConcurrency::clone(&self) -> research::conduct::concurrency::RequestedConcurrency
-impl core::cmp::Eq for research::conduct::concurrency::RequestedConcurrency
-impl core::cmp::PartialEq for research::conduct::concurrency::RequestedConcurrency
-pub fn research::conduct::concurrency::RequestedConcurrency::eq(&self, other: &research::conduct::concurrency::RequestedConcurrency) -> bool
-impl core::fmt::Debug for research::conduct::concurrency::RequestedConcurrency
-pub fn research::conduct::concurrency::RequestedConcurrency::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::conduct::concurrency::RequestedConcurrency
 pub struct research::conduct::concurrency::ResolvedConcurrency
 pub research::conduct::concurrency::ResolvedConcurrency::concurrency: research::conduct::concurrency::Concurrency
 pub research::conduct::concurrency::ResolvedConcurrency::warnings: alloc::vec::Vec<research::conduct::concurrency::ConcurrencyWarning>

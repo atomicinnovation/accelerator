@@ -14,7 +14,7 @@ fn cap(setting: &str) -> SubagentCap {
 }
 
 fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
-    RequestedConcurrency {
+    RequestedConcurrency::Given {
         value: value.to_owned(),
         provenance,
     }
@@ -140,10 +140,14 @@ fn a_request_above_the_cap_clamps_with_a_warning_when_set_explicitly() {
 }
 
 #[test]
-fn the_built_in_default_clamps_silently() {
-    let resolved = resolve("20", Provenance::BuiltInDefault, cap("8"));
-    assert_eq!(agents(&resolved), 8);
-    assert_eq!(resolved.warnings, []);
+fn the_built_in_default_is_the_harness_default_bounded_silently_by_the_cap() {
+    for (setting, expected) in [("8", 8), ("50", 20)] {
+        let resolved = RequestedConcurrency::BuiltInDefault
+            .resolve(cap(setting))
+            .expect("the built-in default resolves");
+        assert_eq!(agents(&resolved), expected, "cap {setting:?}");
+        assert_eq!(resolved.warnings, [], "cap {setting:?}");
+    }
 }
 
 #[test]

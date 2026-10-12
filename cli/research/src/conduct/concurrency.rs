@@ -41,13 +41,15 @@ impl SubagentCap {
 pub enum Provenance {
     Flag,
     ConfigFile,
-    BuiltInDefault,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestedConcurrency {
-    pub value: String,
-    pub provenance: Provenance,
+pub enum RequestedConcurrency {
+    Given {
+        value: String,
+        provenance: Provenance,
+    },
+    BuiltInDefault,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,33 +106,49 @@ impl RequestedConcurrency {
         &self,
         cap: SubagentCap,
     ) -> Result<ResolvedConcurrency, EmptyConcurrency> {
-        if self.value.is_empty() {
-            return Err(EmptyConcurrency {
-                provenance: self.provenance,
-            });
+        match self {
+            Self::Given { value, provenance } => {
+                resolve_given(value, *provenance, cap)
+            }
+            Self::BuiltInDefault => Ok(ResolvedConcurrency {
+                concurrency: Concurrency::new(
+                    SubagentCap::HARNESS_DEFAULT.slots().min(cap.slots()),
+                ),
+                warnings: Vec::new(),
+            }),
         }
-        let mut warnings = Vec::new();
-        let valid = positive_integer(&self.value);
-        if valid.is_none() {
-            warnings.push(ConcurrencyWarning::NotAPositiveInteger {
-                given: self.value.clone(),
-                provenance: self.provenance,
-            });
-        }
-        let requested = valid.unwrap_or(NonZeroU32::MIN);
-        let agents = requested.min(cap.slots());
-        if agents < requested && self.provenance != Provenance::BuiltInDefault {
-            warnings.push(ConcurrencyWarning::AboveCap {
-                given: self.value.clone(),
-                provenance: self.provenance,
-                cap,
-            });
-        }
-        Ok(ResolvedConcurrency {
-            concurrency: Concurrency::new(agents),
-            warnings,
-        })
     }
+}
+
+fn resolve_given(
+    value: &str,
+    provenance: Provenance,
+    cap: SubagentCap,
+) -> Result<ResolvedConcurrency, EmptyConcurrency> {
+    if value.is_empty() {
+        return Err(EmptyConcurrency { provenance });
+    }
+    let mut warnings = Vec::new();
+    let valid = positive_integer(value);
+    if valid.is_none() {
+        warnings.push(ConcurrencyWarning::NotAPositiveInteger {
+            given: value.to_owned(),
+            provenance,
+        });
+    }
+    let requested = valid.unwrap_or(NonZeroU32::MIN);
+    let agents = requested.min(cap.slots());
+    if agents < requested {
+        warnings.push(ConcurrencyWarning::AboveCap {
+            given: value.to_owned(),
+            provenance,
+            cap,
+        });
+    }
+    Ok(ResolvedConcurrency {
+        concurrency: Concurrency::new(agents),
+        warnings,
+    })
 }
 
 fn saturating_digits(text: &str) -> Option<u32> {

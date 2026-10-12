@@ -119,7 +119,7 @@ pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
         Provenance::Flag => {
             format!("{source} is empty; pass a positive integer")
         }
-        Provenance::ConfigFile | Provenance::BuiltInDefault => format!(
+        Provenance::ConfigFile => format!(
             "{source} is empty; set it to a positive integer or remove it"
         ),
     }
@@ -128,9 +128,7 @@ pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
 const fn concurrency_source(provenance: Provenance) -> &'static str {
     match provenance {
         Provenance::Flag => "--concurrency",
-        Provenance::ConfigFile | Provenance::BuiltInDefault => {
-            "research.topic.concurrency"
-        }
+        Provenance::ConfigFile => "research.topic.concurrency",
     }
 }
 

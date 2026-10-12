@@ -118,7 +118,7 @@ impl OutstandingFlags {
         Ok(Self {
             depth,
             requested_concurrency: concurrency.map(|value| {
-                RequestedConcurrency {
+                RequestedConcurrency::Given {
                     value: value.to_owned(),
                     provenance: Provenance::Flag,
                 }
@@ -572,7 +572,7 @@ mod tests {
     use super::resolve_concurrency;
 
     fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
-        RequestedConcurrency {
+        RequestedConcurrency::Given {
             value: value.to_owned(),
             provenance,
         }
