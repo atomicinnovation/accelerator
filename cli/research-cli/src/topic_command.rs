@@ -250,6 +250,13 @@ where
             Some(continued_ledger(set_root, run, *spawned, fs)?)
         }
         RunMode::Start(_) => {
+            notices.extend(
+                concurrency
+                    .cap
+                    .unhonoured
+                    .iter()
+                    .map(plan_wording::unhonoured_cap),
+            );
             notices.extend(concurrency.resolved.warnings.iter().map(
                 |warning| {
                     plan_wording::concurrency_warning(

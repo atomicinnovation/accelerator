@@ -14,6 +14,7 @@ use research::topic::question::LONGEST_PLAIN_QUESTION;
 use research::topic::tree::Trim;
 
 use crate::subagent_cap::CapSource;
+use crate::subagent_cap::UnhonouredCap;
 
 pub fn warning(warning: &Warning) -> String {
     match warning {
@@ -90,6 +91,13 @@ pub fn rejection(rejection: &NoteRejection) -> String {
             "answers a different question from its node".to_owned()
         }
     }
+}
+
+pub fn unhonoured_cap(unhonoured: &UnhonouredCap) -> String {
+    format!(
+        "{} is '{}', not a positive integer — ignoring it",
+        unhonoured.variable, unhonoured.value
+    )
 }
 
 pub fn concurrency_warning(

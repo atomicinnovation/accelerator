@@ -144,7 +144,9 @@
   spawns its outstanding pairs in batches of at most that many, waiting on
   each batch before the next. `conduct` never spawns more than the subagent
   cap, `ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
-  else 20; a configured or flag value above it is clamped with a warning.
+  else 20; a configured or flag value above it is clamped with a warning, and
+  a set `ACCELERATOR_SUBAGENT_CAP` Claude Code would not honour is ignored
+  with one.
   `conduct` re-issues spawns Claude Code refuses for capacity (verified on
   Claude Code 2.1.296), and records a spawn still refused once retrying
   stops, for a later run to retry.

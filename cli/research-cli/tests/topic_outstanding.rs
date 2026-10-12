@@ -1582,9 +1582,10 @@ fn the_accelerator_cap_wins_over_the_harness_cap() -> Result<(), TestError> {
 }
 
 #[test]
-fn an_accelerator_cap_the_harness_would_ignore_falls_through(
+fn an_accelerator_cap_the_harness_would_ignore_falls_through_with_a_warning(
 ) -> Result<(), TestError> {
     let project = a_set()?;
+    project.configure_team_concurrency("24")?;
 
     let (plan, stderr) = project.plan_in(
         &["--start"],
@@ -1592,7 +1593,30 @@ fn an_accelerator_cap_the_harness_would_ignore_falls_through(
     )?;
 
     assert_eq!(plan["concurrency"], json!(8));
-    assert_no_concurrency_diagnostic(&plan, &stderr);
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            format!(
+                "{ACCELERATOR_CAP} is 'abc', not a positive integer — \
+                 ignoring it"
+            ),
+            clamped_by(KNOB, "24", 8, HARNESS_CAP),
+        ],
+    );
+    Ok(())
+}
+
+#[test]
+fn a_blank_accelerator_cap_is_unset() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(ACCELERATOR_CAP, "")])?;
+
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(!stderr.contains(ACCELERATOR_CAP), "{stderr}");
     Ok(())
 }
 

@@ -497,6 +497,8 @@ value exits 1, with `E_TOPIC_RESEARCH_CONCURRENCY`. The cap is
 read from `ACCELERATOR_SUBAGENT_CAP`, then
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each read as Claude Code reads its own
 setting, else 20, so a hand run in the same shell sees the cap `conduct` does.
+A set `ACCELERATOR_SUBAGENT_CAP` Claude Code would not honour is ignored with a
+warning.
 Every plan is bounded, a plain query included. The
 reported `concurrency` is the clamped value, so it can differ from the
 configured knob; the reason appears in `warnings` on `--start` only.
