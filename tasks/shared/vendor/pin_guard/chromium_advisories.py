@@ -21,7 +21,6 @@ from tasks.shared.vendor.pin_guard.feeds import (
     Feed,
     FeedClient,
     FeedDocumentError,
-    FeedFailure,
     FeedRecordNotFoundError,
     FeedRequestError,
     FeedSession,
@@ -141,19 +140,14 @@ def chromium_advisories(
         )
     except FeedRequestError as error:
         return CheckOutcome.failed([error.failure])
-    advisories: list[ChromiumAdvisory] = []
-    failures: list[FeedFailure] = []
-    for cve in cves:
-        try:
-            advisories.append(_fetch_advisory(cve, session))
-        except FeedRequestError as error:
-            failures.append(error.failure)
-    if failures:
-        return CheckOutcome.failed(failures)
-    return CheckOutcome.matched(
-        finding
-        for advisory in advisories
-        if (finding := advisory.finding(chromium, browser)) is not None
+    return CheckOutcome.gathered(
+        cves,
+        lambda cve: _fetch_advisory(cve, session),
+        lambda advisories: (
+            finding
+            for advisory in advisories
+            if (finding := advisory.finding(chromium, browser)) is not None
+        ),
     )
 
 

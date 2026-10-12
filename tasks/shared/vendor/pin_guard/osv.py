@@ -13,7 +13,6 @@ from tasks.shared.vendor.pin_guard.feeds import (
     CheckName,
     Feed,
     FeedDocumentError,
-    FeedFailure,
     FeedRequestError,
     FeedSession,
     MissingFieldError,
@@ -135,16 +134,11 @@ def playwright_core_advisories(pin: Pin, session: FeedSession) -> CheckOutcome:
         )
     except FeedRequestError as error:
         return CheckOutcome.failed([error.failure])
-    advisories: list[NpmAdvisory] = []
-    failures: list[FeedFailure] = []
-    for advisory_id in sorted(ids):
-        try:
-            advisories.append(_fetch_advisory(advisory_id, session))
-        except FeedRequestError as error:
-            failures.append(error.failure)
-    if failures:
-        return CheckOutcome.failed(failures)
-    return CheckOutcome.matched(_findings(pin, advisories))
+    return CheckOutcome.gathered(
+        sorted(ids),
+        lambda advisory_id: _fetch_advisory(advisory_id, session),
+        lambda advisories: _findings(pin, advisories),
+    )
 
 
 def _fetch_advisory(advisory_id: str, session: FeedSession) -> NpmAdvisory:
