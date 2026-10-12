@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-12T17:46:06+00:00"
+last_updated: "2026-10-12T19:31:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -454,6 +454,9 @@ to `adf::AdfError` and `jira-cli` gains the dependency.
   nor `jira-client`; the cause is unidentified.
 - `jira-client` drops its `sha2` and `hex` dev-dependencies, which only the
   moved oracle-manifest test used.
+- The manual check above was not run before Phase 3 deliberately changed
+  `--render-adf` output, so it can no longer be run as written; Phase 3's
+  manual read-back of a real issue covers the extracted crate end to end.
 
 ---
 
@@ -654,6 +657,22 @@ escapes, and keeps an ordered list's start number.
   runs there.
 - The `kanban-drag-overlay.spec.ts` flake recorded in Phase 2 failed the
   first `mise run` again; the immediate re-run exited 0.
+- Beyond the listed cases, the extension corpus adds
+  `render-text-like-after-hard-break`, `render-text-like-backslash`,
+  `render-list-item-hard-break` and `assemble-escaped-markers`; the pin is
+  35 cases. Every `~` is escaped, not only `~~`, because `CommonMark`'s
+  strikethrough also reads a single tilde.
+- A backslash is escaped only before ASCII punctuation or at the end of a
+  run, and unescaped by the `CommonMark` rule, so `C:\dir` renders bare.
+- The escape set covers what this tokeniser reads, plus `_` and `~`.
+  `CommonMark` constructs it does not read are left bare: `<` and `&`, a
+  lone `-` or `=` line after a hard break (a setext underline), a block
+  marker indented by one to three spaces, and a heading ending in ` #`.
+  Phase 6's equivalence parses those differently from the ADF they came
+  from.
+- The manual checks ran against a Jira sandbox with the workspace's
+  `accelerator-jira` binary, since the installed plugin still carries the
+  old converter. Tables assemble without `attrs` and Jira accepted them.
 
 ---
 
