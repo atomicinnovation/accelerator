@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-12T19:31:07+00:00"
+last_updated: "2026-10-12T22:47:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -366,7 +366,7 @@ files no longer carry the tracker title as a first line. Scripts that parse
 - The real-client table has no targeted pull-create variant: the split lives
   in `ConfiguredLocalAuthor` until Phase 4, which `work-adapters` cannot reach.
   `a_targeted_pull_create_writes_no_projected_title_line` in `work-cli`
-  covers it for both trackers; Phase 4 or 0291 adds the variant.
+  covers it for both trackers. Phase 4 added the variant.
 - `ApplyError::class()` returns `FailureClass` rather than an `Option`.
 - The shared splitter keeps the description verbatim, so the author now
   appends a terminating newline only when the description lacks one
@@ -2097,7 +2097,9 @@ and refuses `Action::Overwrite` for such an item as `unrenderable`, so
 `--resolve <id>=local` sends nothing; its unit rows, written first: legacy
 with an unrenderable remote and an overwrite is refused as `unrenderable`;
 split with an unrenderable remote and an overwrite is not refused; legacy
-holding residue and an overwrite is refused as `pull-residue`.
+holding residue and an overwrite is refused as `pull-residue`; and
+`a_retitle_of_an_item_holding_residue_is_not_refused`, which Phase 4 could
+not write before the retitle action existed.
 
 The `local-pull-residue` dossier gains, from this phase, the remedy the
 absent-hash `VerbatimRemote` record makes work: when the residue is the
