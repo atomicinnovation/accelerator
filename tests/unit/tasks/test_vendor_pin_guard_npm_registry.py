@@ -1,4 +1,7 @@
 import datetime as dt
+import gzip
+import io
+import tarfile
 
 import pytest
 
@@ -77,6 +80,20 @@ def _answered(document):
     return clear_feeds().answer(npm_version_url(), document)
 
 
+def _manifest_linked_to_an_oversized_member():
+    oversized = b" " * (MAXIMUM_MANIFEST_BYTES + 1)
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        target = tarfile.TarInfo("package/oversized.json")
+        target.size = len(oversized)
+        archive.addfile(target, io.BytesIO(oversized))
+        link = tarfile.TarInfo("package/browsers.json")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "oversized.json"
+        archive.addfile(link)
+    return gzip.compress(buffer.getvalue(), mtime=0)
+
+
 def _headless_shell(**fields):
     return {
         "browsers": [
@@ -139,6 +156,11 @@ FAILURES = {
         ),
         npm_tarball_url(),
         f"package/browsers.json over {MAXIMUM_MANIFEST_BYTES} bytes",
+    ),
+    "browsers.json linked to another member": (
+        lambda: _published(_manifest_linked_to_an_oversized_member()),
+        npm_tarball_url(),
+        "package/browsers.json is not a regular file",
     ),
     "unparseable browsers.json": (
         lambda: _published(playwright_tarball("not json")),

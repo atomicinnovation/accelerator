@@ -132,6 +132,10 @@ def _browsers_member(payload: bytes) -> bytes:
     try:
         with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
             member = archive.getmember(BROWSERS_MEMBER)
+            if not member.isfile():
+                raise FeedDocumentError(
+                    f"{BROWSERS_MEMBER} is not a regular file"
+                )
             if member.size > MAXIMUM_MANIFEST_BYTES:
                 raise FeedDocumentError(
                     f"{BROWSERS_MEMBER} over {MAXIMUM_MANIFEST_BYTES} bytes"
