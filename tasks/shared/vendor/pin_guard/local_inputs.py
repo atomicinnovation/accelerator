@@ -153,11 +153,7 @@ class _PinsFile:
         try:
             value = read()
         except tomllib.TOMLDecodeError as error:
-            line = error.doc.splitlines()[error.lineno - 1]
-            raise LocalInputError(
-                f"{self.path.name} line {error.lineno}: {line} "
-                f"is not valid TOML ({error.msg})"
-            ) from error
+            raise LocalInputError(self._invalid_toml(error)) from error
         except OSError as error:
             raise LocalInputError(f"{self.path.name}: {error}") from error
         except (KeyError, TypeError) as error:
@@ -167,6 +163,15 @@ class _PinsFile:
         if value is None:
             raise LocalInputError(f"{self.path.name}: {field} is missing")
         return value
+
+    def _invalid_toml(self, error: tomllib.TOMLDecodeError) -> str:
+        lines = error.doc.splitlines()
+        if error.lineno > len(lines):
+            return f"{self.path.name} is not valid TOML ({error.msg})"
+        return (
+            f"{self.path.name} line {error.lineno}: {lines[error.lineno - 1]} "
+            f"is not valid TOML ({error.msg})"
+        )
 
 
 def _playwright_version(package_json: Path) -> str:

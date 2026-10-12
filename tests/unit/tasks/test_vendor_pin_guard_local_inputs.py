@@ -79,6 +79,13 @@ def test_an_impossible_date_names_the_line(tmp_path):
         read_local_inputs(paths, TODAY)
 
 
+def test_a_value_unterminated_at_the_end_of_the_file_names_the_file(tmp_path):
+    text = pins_text(FRESH) + 'unterminated = """\n'
+    paths = clear_repository(tmp_path, TODAY, pins=text)
+    with pytest.raises(LocalInputError, match=r"pins\.toml .*not valid TOML"):
+        read_local_inputs(paths, TODAY)
+
+
 def test_a_missing_node_table_names_the_node_version(tmp_path):
     text = pins_text(FRESH).replace(
         f'[node]\nversion = "22.22.2"\nbumped = {TODAY}\n', ""
