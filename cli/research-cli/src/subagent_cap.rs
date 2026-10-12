@@ -5,8 +5,6 @@ use research::conduct::concurrency::SubagentCap;
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAPS: [&str; 1] = ["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
 
-/// The first cap variable holding a value the harness would honour, the
-/// accelerator's own before any harness's, else the harness default.
 pub fn from_environment(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> SubagentCap {
