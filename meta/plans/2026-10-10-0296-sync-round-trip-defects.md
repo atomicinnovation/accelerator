@@ -1028,20 +1028,20 @@ release's pull left raw ADF JSON in is never sent: such a send fails as
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p tracker -p jira-client -p linear-client -p tracker-test-support -p work -p work-adapters -p accelerator-work`
-- [ ] `mise run pup:check` and `mise run test:integration:pup`
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p tracker -p jira-client -p linear-client -p tracker-test-support -p work -p work-adapters -p accelerator-work`
+- [x] `mise run pup:check` and `mise run test:integration:pup`
       (`work_adapters_reach_tracker_bodies_through_the_port` denies
       `^adf(::|$)`, with a probe pair;
       `tracker_test_support_imports_only_permitted` is unchanged; the second
       runs outside `mise run`)
-- [ ] `rg -n 'reason: remote-unrenderable' skills/work/sync-work-items/SKILL.md`
-- [ ] `rg -n 'reason: local-pull-residue' skills/work/sync-work-items/SKILL.md`
+- [x] `rg -n 'reason: remote-unrenderable' skills/work/sync-work-items/SKILL.md`
+- [x] `rg -n 'reason: local-pull-residue' skills/work/sync-work-items/SKILL.md`
       and `rg -n 'pull-residue' skills/work/sync-work-items/SKILL.md` each match
       and `rg -n '\[local/skip\]' skills/work/sync-work-items/SKILL.md`
       each match
-- [ ] `mise run public-api:check` (after `public-api:update` for `tracker`
+- [x] `mise run public-api:check` (after `public-api:update` for `tracker`
       and `work`)
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1050,6 +1050,43 @@ release's pull left raw ADF JSON in is never sent: such a send fails as
       byte-identical
 - [ ] Against a Jira sandbox, `work sync --target <key>` writes readable
       Markdown with no title line
+
+#### Implementation Notes:
+
+- `RecordingTracker::with_dialect` is a builder on `holding` (there is no
+  `new`) and takes `Box<dyn BodyDialect + Send>`, because a parking test moves
+  the tracker across threads.
+- `JiraBodyDialect` appends a terminating newline to a non-empty render, since
+  the converter emits none and a local file ends in one; `as_pushed` does the
+  same so it agrees with a read-back.
+- A `retitle_keeps_the_description` property joins the contract conformance
+  set (`run_all` now counts 7), so the manual tracker-contract run covers
+  `retitle` per tracker.
+- `Action::Overwrite`'s domain keyword is `overwrite`; `work sync`'s report
+  renders it as `push`.
+- `SendRefusal` has a third variant, `RemoteUnfetched`, which maps to
+  `RemoteBodyUnavailable`. Preview reports a refused send as a failed row with
+  no payload check.
+- `a_retitle_of_an_item_holding_residue_is_not_refused` waits for Phase 8's
+  retitle action; `an_action_sending_no_description_is_not_refused` covers the
+  non-sending actions until then.
+- Residue detection skips the blank lines after the frontmatter fence before
+  taking the optional first line
+  (`residue_below_the_blank_line_after_the_frontmatter_is_residue`).
+- `a_dossier_for_an_unreadable_local_file_names_its_reason` is the existing
+  unit test in `run.rs`, now asserting `reason: local-unreadable`: the
+  real-client harness cannot hold an unreadable file without failing
+  classification first.
+- The real-client pull table gains the targeted pull-create variant Phase 1
+  deferred, through a recording `LocalAuthor`. Its dossier variant compares
+  line-trimmed text, because `differing_sections` trims every line; Phase 9
+  owns dossier presentation.
+- Phase 1's `a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing`
+  reached an unfetched body through a blank `local_hash`, which now forces the
+  read; it now reaches one through a dirty working copy over an unmoved local
+  digest.
+- The skill had no per-item detail table for `work sync`, so one sits beside
+  the exit codes naming `rejected`, `unrenderable` and `pull-residue`.
 
 ---
 
