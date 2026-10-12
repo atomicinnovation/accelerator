@@ -24,6 +24,8 @@ use work::sync::RemoteFacts;
 use work::sync::RemotePresence;
 
 use crate::sync::baseline::Baseline;
+use crate::sync::baseline::Entry;
+use crate::sync::digest;
 use crate::sync::digest::LazyItemDigests;
 
 #[derive(Clone, Debug)]
@@ -144,11 +146,13 @@ impl GatheredFacts {
     }
 }
 
-fn present_ids(items: &[LocalItem]) -> Vec<(&str, &ExternalId)> {
+fn present_ids(items: &[LocalItem]) -> Vec<(&str, &ExternalId, &Path)> {
     items
         .iter()
         .filter_map(|item| {
-            item.external_id.as_ref().map(|id| (item.id.as_str(), id))
+            item.external_id
+                .as_ref()
+                .map(|id| (item.id.as_str(), id, item.path.as_path()))
         })
         .collect()
 }
@@ -257,7 +261,7 @@ pub fn gather(
 
     match strategy {
         RetrievalStrategy::PerItem => {
-            for (id, external_id) in &present {
+            for (id, external_id, _) in &present {
                 match tracker.show(external_id) {
                     Ok(issue) => gathering.record_issue(id, external_id, issue),
                     Err(_) => gathering.locate(
@@ -271,11 +275,11 @@ pub fn gather(
         }
         RetrievalStrategy::Bulk => {
             let ids: Vec<ExternalId> =
-                present.iter().map(|(_, id)| (*id).clone()).collect();
+                present.iter().map(|(_, id, _)| (*id).clone()).collect();
             match tracker.fetch_all(&ids) {
                 Err(error) => {
                     read_failure = Some(error);
-                    for (id, _) in &present {
+                    for (id, _, _) in &present {
                         gathering.record(
                             id,
                             unaccounted(RemotePresence::Indeterminate),
@@ -284,11 +288,12 @@ pub fn gather(
                 }
                 Ok(outcome) => {
                     keyed_read = outcome.completeness;
-                    for (id, external_id) in &present {
+                    for (id, external_id, path) in &present {
                         gather_from_bulk(
                             &mut gathering,
                             id,
                             external_id,
+                            path,
                             &outcome,
                             baseline,
                             tracker,
@@ -317,10 +322,22 @@ pub fn gather(
     }
 }
 
+/// Whether the local file still hashes to the entry's recorded digest. A
+/// send is planned only for a moved local side, and a send must see the
+/// fetched remote, so any doubt here forces the read.
+fn local_side_unmoved(path: &Path, entry: &Entry) -> bool {
+    !entry.local_hash.is_empty()
+        && std::fs::read_to_string(path)
+            .ok()
+            .and_then(|content| digest::local(&content).ok())
+            .is_some_and(|local_hash| local_hash == entry.local_hash)
+}
+
 fn gather_from_bulk(
     gathering: &mut Gathering,
     id: &str,
     external_id: &ExternalId,
+    path: &Path,
     outcome: &FetchOutcome,
     baseline: &Baseline,
     tracker: &dyn RemoteTracker,
@@ -340,6 +357,7 @@ fn gather_from_bulk(
     };
     let unchanged = baseline.get(id).is_some_and(|entry| {
         stamp.proves_unchanged_since(&entry.remote_updated_at)
+            && local_side_unmoved(path, entry)
     });
     if unchanged {
         gathering.record(

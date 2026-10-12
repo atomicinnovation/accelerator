@@ -1351,20 +1351,20 @@ fn execute_resolving(
     scenario: &Scenario,
     resolutions: &BTreeMap<String, Resolution>,
 ) -> Result<RunReport, RunError> {
-    execute_resolving_in(scenario, resolutions, RunMode::Apply)
+    execute_resolving_in(scenario, resolutions, RunMode::Apply, &AlwaysClean)
 }
 
 fn execute_resolving_in(
     scenario: &Scenario,
     resolutions: &BTreeMap<String, Resolution>,
     mode: RunMode,
+    status: &dyn WorkingCopyStatus,
 ) -> Result<RunReport, RunError> {
     let clock = FixedClock(1_700_000_000);
-    let status = AlwaysClean;
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
-        status: &status,
+        status,
         writer: &scenario.spy,
         clock: &clock,
         author: &author,
@@ -1444,6 +1444,7 @@ fn a_previewed_overwrite_carries_a_payload_check() -> Result<(), TestError> {
         &scenario,
         &pushing_local("0009"),
         RunMode::Preview,
+        &AlwaysClean,
     )
     .map_err(|_| "a resolved conflict is within the bounds")?;
 
@@ -1574,15 +1575,22 @@ fn a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing(
         "local body\n",
         "Item nine\nremote body\n",
     )?;
-    let blank_hashes = format!(
-        "\"0009\":{{\"remote_updated_at\":\"{MOVED_STAMP}\",\"remote_hash\":\"\",\"local_hash\":\"\"}}"
+    let unmoved_local_hash =
+        digest::local(&std::fs::read_to_string(&scenario.items[0].path)?)?;
+    let blank_remote_hash = format!(
+        "\"0009\":{{\"remote_updated_at\":\"{MOVED_STAMP}\",\"remote_hash\":\"\",\"local_hash\":\"{unmoved_local_hash}\"}}"
     );
     scenario
         .spy
-        .seed(BASELINE_PATH, &baseline_document(&[blank_hashes]));
+        .seed(BASELINE_PATH, &baseline_document(&[blank_remote_hash]));
 
-    let report = execute_resolving(&scenario, &accepting_remote("0009"))
-        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+    let report = execute_resolving_in(
+        &scenario,
+        &accepting_remote("0009"),
+        RunMode::Apply,
+        &AlwaysDirty,
+    )
+    .map_err(|_| "a resolved conflict within bounds must proceed")?;
 
     assert!(
         matches!(
