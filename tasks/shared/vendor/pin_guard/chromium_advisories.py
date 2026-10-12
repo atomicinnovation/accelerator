@@ -106,7 +106,7 @@ class ChromiumAdvisory:
         """Read the Chromium fixes from ``record``, ``None`` being no record."""
         if record is None:
             return cls(cve, (), NO_RECORD)
-        affected = field(record_of(cve, record), "affected", list)
+        affected = _optional(record_of(cve, record), "affected", list, [])
         return cls(
             cve,
             tuple(fix for each in affected for fix in _chromium_fixes(each)),
@@ -187,10 +187,10 @@ def _chromium_fixes(affected: object) -> list[ChromiumVersion]:
     ]
 
 
-def _optional[T](
-    document: dict[str, object], key: str, kind: type[T], absent: T
-) -> T:
-    return field(document, key, kind) if key in document else absent
+def _optional[T](document: object, key: str, kind: type[T], absent: T) -> T:
+    if isinstance(document, dict) and key not in document:
+        return absent
+    return field(document, key, kind)
 
 
 def _as_chromium_version(text: str) -> ChromiumVersion | None:

@@ -237,8 +237,14 @@ class TestUnassessable:
             chromium_record(CVE, "26.2", "18.7.3"),
             {"id": CVE, "affected": [{"ranges": [{"type": "GIT"}]}]},
             {"id": CVE, "affected": []},
+            {"id": CVE},
         ],
-        ids=["other products only", "git ranges only", "nothing affected"],
+        ids=[
+            "other products only",
+            "git ranges only",
+            "nothing affected",
+            "affected absent",
+        ],
     )
     def test_a_record_naming_no_chromium_fix_is_unassessable(self, record):
         draft = self._unassessable(record)
@@ -348,8 +354,8 @@ class TestFeedFailures:
             (Feed.OSV, CVE, "record for CVE-2026-9999")
         ]
 
-    def test_a_record_without_affected_is_a_failure(self):
-        assert self._reasons({CVE: {"id": CVE}}) == [
+    def test_a_record_whose_affected_is_not_a_list_is_a_failure(self):
+        assert self._reasons({CVE: {"id": CVE, "affected": "all"}}) == [
             (Feed.OSV, CVE, "missing field affected")
         ]
 
