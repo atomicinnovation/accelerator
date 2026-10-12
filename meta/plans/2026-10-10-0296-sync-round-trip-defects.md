@@ -352,9 +352,18 @@ files no longer carry the tracker title as a first line. Scripts that parse
 
 #### Manual Verification:
 
-- [ ] `work sync --preview` on this repo: dossiers under
+- [x] `work sync --preview` on this repo: dossiers under
       `.accelerator/state/integrations/linear/conflicts/` no longer show the
       title line in `(preamble)`
+
+#### Manual Verification Notes:
+
+- Run with the workspace's `accelerator-work` and `--max-pulls unlimited
+  --max-pushes unlimited`, since preview refuses on the bounds too. Four
+  dossiers (0207, 0227, 0296, 0299) carry no title line; each remote
+  preamble opens with a blank line, because pushes send the body with the
+  blank line after the frontmatter fence, which Phase 6's equivalence
+  absorbs.
 
 #### Implementation Notes:
 
