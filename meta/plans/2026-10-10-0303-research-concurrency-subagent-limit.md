@@ -5,15 +5,15 @@ title: "Research Concurrency Within the Subagent Limit Implementation Plan"
 date: "2026-10-10T21:22:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0303"
 parent: "work-item:0303"
 derived_from: ["codebase-research:2026-10-10-0303-research-concurrency-subagent-limit"]
-relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-20-0282-tunable-depth-and-breadth"]
+relates_to: ["plan:2026-09-26-0283-recursive-finding-deepening", "plan:2026-09-20-0282-tunable-depth-and-breadth", "work-item:0330", "work-item:0331"]
 tags: ["research", "research-topic", "conduct", "concurrency"]
 revision: "6451d97d7135f0b04eb5a9d349d24a657dc36c6b"
 repository: "accelerator"
-last_updated: "2026-10-11T23:30:00+00:00"
+last_updated: "2026-10-12T02:19:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -105,6 +105,14 @@ manual runs in Phase 4 and Phase 5.
   `${…:-}` form were both blocked: "A variable in this command can't be
   checked before it runs". Phase 3 shipped that form, so every interactive
   `conduct` plan prompted until Phase 4 replaced it.
+- **Skill grants lapse across queries:** Claude Code 2.1.296 applies a
+  skill's `allowed-tools` only within the query that invoked the skill. A
+  background subagent's completion, arriving after `conduct` has ended its
+  turn, opens a new query and clears the grant, so every later
+  `outstanding`, `end-run` and validate call needs approval. Phase 4's runs
+  stopped after the first plan and could not see this; Phase 5's runs
+  allowed the `accelerator` commands in session settings. It affects most
+  skills that spawn agents and predates this plan; 0330 tracks it.
 - **Environment reaches the CLI:** a cap exported in the shell that launches
   Claude Code, or set under `env` in the project `settings.json`, the project
   `settings.local.json` or the user `settings.json`, reaches
@@ -1465,7 +1473,8 @@ acceptEdits --plugin-dir <repo> --add-dir <repo>`, with `Read`, `Agent`,
 allows `Bash(accelerator research topic *)`, `Bash(accelerator config *)`
 and `Bash(accelerator corpus *)`: once background subagents had returned,
 Claude Code 2.1.296 stopped applying the skill's `allowed-tools`, and every
-later `outstanding` call needed approval.
+later `outstanding` call needed approval (see "Skill grants lapse across
+queries").
 
 A run whose probe gives the other result is invalid rather than failed.
 So is a run whose first batch offers fewer spawns than it needs, and a
@@ -1581,5 +1590,8 @@ change to the harness cap forces a decision about the default.
 - Knob rule: `meta/plans/2026-09-20-0282-tunable-depth-and-breadth.md`
 - Coupling guard: `tasks/lint/claude_coupling.py`; the decision to admit
   optional harness variables: ADR-0071 (Phase 4)
+- Follow-ups found during Phase 5's manual runs:
+  `meta/work/0330-skill-command-grants-that-survive-across-queries.md` and
+  `meta/work/0331-exact-match-skill-grants-that-never-cover-their-commands.md`
 - Models: `cli/research/src/topic/tree.rs:19-43` (`Depth`),
   `topic_command.rs:225-228` (`--start`-only notice)
