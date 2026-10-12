@@ -253,6 +253,14 @@ class TestFeedFailureIssues:
         _reconcile_failures(tracker, _osv_failure())
         assert tracker.opened_markers == [marker]
 
+    def test_an_open_issue_for_another_feed_does_not_suppress(self):
+        kev = FeedFailure(Feed.KEV, CHROMIUM, KEV_URL, "unparseable")
+        tracker = FakeIssueTracker([_filed(_outage_marker(kev))])
+        _reconcile_failures(tracker, _osv_failure(check=CHROMIUM))
+        assert tracker.opened_markers == [
+            _outage_marker(_osv_failure(check=CHROMIUM))
+        ]
+
     def test_a_narrower_open_issue_does_not_cover_a_broader_failure(self):
         narrow = _outage_marker(_osv_failure())
         tracker = FakeIssueTracker([_filed(narrow)])
