@@ -343,7 +343,7 @@ files no longer carry the tracker title as a first line. Scripts that parse
 - [x] `cargo nextest run --manifest-path cli/Cargo.toml -p remote-projection -p work-adapters -p accelerator-work`
 - [x] `mise run public-api:check` (after `public-api:update` for `remote-projection`)
 - [x] `mise run lint:crate-dependencies:check`
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -368,10 +368,6 @@ files no longer carry the tracker title as a first line. Scripts that parse
   (`a_pulled_description_ends_with_exactly_one_newline`).
 - The dossier fixtures in `sync_run.rs` gained the title line every
   projection carries.
-- `mise run` is not yet green end-to-end: `e2e/kanban-drag-overlay.spec.ts`
-  ("Escape-cancelling a drag clears the SSE gate…") failed in two of three
-  full runs and passed when `test:e2e:visualiser` ran alone. Every other task
-  passed.
 
 ---
 
