@@ -21,6 +21,8 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use document::Scalar;
 use document::Yaml;
+use remote_projection::split_projected;
+use remote_projection::ProjectedIssue;
 use store::lock::acquire;
 use store::lock::LockOptions;
 use tracker::ExternalId;
@@ -206,15 +208,6 @@ fn same_key(left: &ExternalId, right: &ExternalId) -> bool {
     left.as_str().eq_ignore_ascii_case(right.as_str())
 }
 
-/// Splits a projected remote body — a title line, then the description — into
-/// `(title, description)`.
-fn split_projected(projected: &str) -> (String, String) {
-    let mut lines = projected.lines();
-    let title = lines.next().unwrap_or_default().to_owned();
-    let description = lines.collect::<Vec<_>>().join("\n");
-    (title, description)
-}
-
 fn failed(message: impl std::fmt::Display) -> kernel::Error {
     kernel::Error::Failed(message.to_string())
 }
@@ -252,7 +245,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
     ) -> Result<AuthoredLocal, kernel::Error> {
         let scheme = resolve_scheme(self.config)?;
         let project = scheme.key.clone();
-        let (title, description) = split_projected(&issue.issue.body);
+        let ProjectedIssue { title, description } =
+            split_projected(&issue.issue.body);
 
         std::fs::create_dir_all(&self.work_dir).map_err(failed)?;
         let retirement_locks = LockdirLock::new(&self.work_dir);
@@ -289,7 +283,7 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
 
         let inputs = CreateInputs {
             id: &id,
-            title: &title,
+            title,
             kind: IMPORTED_KIND,
             priority: IMPORTED_PRIORITY,
             status: IMPORTED_STATUS,
@@ -309,9 +303,14 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
         };
         let frontmatter_block =
             crate::create::render_frontmatter(&inputs).map_err(failed)?;
-        let content = format!("{frontmatter_block}\n{description}\n");
+        let terminator = if description.ends_with('\n') {
+            ""
+        } else {
+            "\n"
+        };
+        let content = format!("{frontmatter_block}\n{description}{terminator}");
 
-        let slug = crate::create::slugify(&title);
+        let slug = crate::create::slugify(title);
         let target = self.work_dir.join(format!("{id}-{slug}.md"));
         let store = FileCorpusStore::new(&self.work_dir);
         work_adapters::sync::create::exclusive_write(
@@ -446,6 +445,14 @@ mod tests {
         }
 
         fn pull(&self, key: &str) -> Result<AuthoredLocal, kernel::Error> {
+            self.pull_projected(key, "A pulled title\nWhat it is.")
+        }
+
+        fn pull_projected(
+            &self,
+            key: &str,
+            projected: &str,
+        ) -> Result<AuthoredLocal, kernel::Error> {
             let key = ExternalId::new(key.to_owned());
             self.author().author_from_remote(&DiscoveredIssue {
                 external_id: key.clone(),
@@ -454,7 +461,7 @@ mod tests {
                     updated: RemoteTimestamp::Reported(
                         "2026-06-01T00:00:00Z".to_owned(),
                     ),
-                    body: "A pulled title\nWhat it is.".to_owned(),
+                    body: projected.to_owned(),
                 },
             })
         }
@@ -523,6 +530,24 @@ mod tests {
         let identity = identity_at(&authored.path);
         assert_eq!(identity.id, "ENG-42");
         assert_eq!(identity.external_id.as_deref(), Some("ENG-42"));
+    }
+
+    #[test]
+    fn a_pulled_description_ends_with_exactly_one_newline() {
+        for projected in [
+            "A pulled title\nWhat it is.",
+            "A pulled title\nWhat it is.\n",
+        ] {
+            let repo = TrackerRepo::new();
+
+            let authored = repo
+                .pull_projected("ENG-42", projected)
+                .expect("the pull authors a file");
+
+            let content =
+                std::fs::read_to_string(&authored.path).expect("read");
+            assert!(content.ends_with("---\n\nWhat it is.\n"), "{content:?}");
+        }
     }
 
     #[test]

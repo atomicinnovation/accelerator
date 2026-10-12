@@ -215,6 +215,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "remote-projection",
  "serde_json",
  "sha2",
  "store",

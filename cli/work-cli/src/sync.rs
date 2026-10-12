@@ -4133,6 +4133,52 @@ mod tests {
         );
     }
 
+    fn sync_repo_integrated_with(integration: &str) -> tempfile::TempDir {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            format!("---\nwork:\n  integration: {integration}\n---\n"),
+        )
+        .expect("write config");
+        dir
+    }
+
+    #[test]
+    fn a_targeted_pull_create_writes_no_projected_title_line() {
+        for (integration, description) in [
+            ("linear", "Remote body"),
+            (
+                "jira",
+                "{\"content\":[{\"content\":[{\"text\":\"Remote body\",\
+                 \"type\":\"text\"}],\"type\":\"paragraph\"}],\
+                 \"type\":\"doc\",\"version\":1}",
+            ),
+        ] {
+            let dir = sync_repo_integrated_with(integration);
+            let tracker = Rc::new(RecordingTracker::holding(vec![(
+                ExternalId::new("PP-999".to_owned()),
+                issue(&format!("Imported\n{description}")),
+            )]));
+
+            drive_sync(
+                dir.path(),
+                &tracker,
+                &sync_args(vec!["PP-999".to_owned()]),
+            );
+
+            let files = new_work_files(dir.path());
+            let content = std::fs::read_to_string(
+                dir.path().join("meta/work").join(&files[0]),
+            )
+            .expect("read created file");
+            assert!(content.contains(description), "{integration}: {content}");
+            assert!(
+                !content.lines().any(|line| line == "Imported"),
+                "{integration}: the bare title line leaked: {content}"
+            );
+        }
+    }
+
     #[test]
     fn a_previewed_remote_only_target_writes_nothing_yet_confirms_it() {
         let dir = sync_repo();
