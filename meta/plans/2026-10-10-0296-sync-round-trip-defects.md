@@ -451,7 +451,10 @@ to `adf::AdfError` and `jira-cli` gains the dependency.
 
 #### Manual Verification:
 
-- [ ] `accelerator jira show <key> --render-adf` output unchanged on a real issue
+- [x] ~~`accelerator jira show <key> --render-adf` output unchanged on a real
+      issue~~ Superseded: Phase 3 changed the output deliberately, and Phase
+      3's read-back and Phase 4's `work sync --target KAN-18` exercise the
+      extracted crate end to end against a real issue
 
 #### Implementation Notes:
 
@@ -464,8 +467,8 @@ to `adf::AdfError` and `jira-cli` gains the dependency.
 - `jira-client` drops its `sha2` and `hex` dev-dependencies, which only the
   moved oracle-manifest test used.
 - The manual check above was not run before Phase 3 deliberately changed
-  `--render-adf` output, so it can no longer be run as written; Phase 3's
-  manual read-back of a real issue covers the extracted crate end to end.
+  `--render-adf` output, so it can no longer be run as written, and is marked
+  superseded.
 
 ---
 
