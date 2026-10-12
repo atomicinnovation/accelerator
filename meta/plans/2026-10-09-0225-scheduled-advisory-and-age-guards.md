@@ -5,7 +5,7 @@ title: "Scheduled Advisory and Age Guards for the Vendored Runtime Pins Implemen
 date: "2026-10-09T22:26:01+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0225"
 parent: "work-item:0225"
 derived_from: ["codebase-research:2026-10-09-0225-scheduled-advisory-and-age-guards"]
