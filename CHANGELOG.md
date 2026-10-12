@@ -89,6 +89,13 @@
   promotion record written past its first stage and aborts on it. Run
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
+- **A `work sync` local file read or write failure exits 71** (`terminal`),
+  where it exited 0 with a `-` detail. A pull whose remote body could not be
+  fetched fails as `retryable` (exit 70) instead of writing an empty body, and
+  a `show` that fails after the remote stamp moved leaves the item
+  `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
+  a first line above the description. Scripts that parse `work sync` exit codes
+  need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
