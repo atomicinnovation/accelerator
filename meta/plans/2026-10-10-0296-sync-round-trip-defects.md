@@ -1057,7 +1057,7 @@ release's pull left raw ADF JSON in is never sent: such a send fails as
 
 #### Manual Verification:
 
-- [ ] `mise run test:integration:tracker-contract` with a configured tenant,
+- [x] `mise run test:integration:tracker-contract` with a configured tenant,
       including a `retitle` case per tracker that leaves the description
       byte-identical
 - [x] Against a Jira sandbox, `work sync --target <key>` writes readable
@@ -1068,8 +1068,9 @@ release's pull left raw ADF JSON in is never sent: such a send fails as
 - The Jira contract run (`cargo nextest run --profile contract -p
   jira-client` against project `KAN`) passed all four tests, the conformance
   set's `retitle_keeps_the_description` included; `KAN-22` is its retitled
-  issue. The Linear half has not run: its harness reads only environment
-  variables, and the one configured team, `PP`, is not a sandbox.
+  issue. The Linear run (`-p linear-client` against the `TES` sandbox team,
+  with `ACCELERATOR_LINEAR_CONTRACT_STATE` pointed at a scratch directory so
+  this repository's catalogue was untouched) passed all five tests.
 - `work sync --target KAN-18`, from a scratch repository configured for Jira,
   wrote readable Markdown with no title line: strike, an escaped `*`, a
   blockquote holding a list, a pipe table with an escaped `|`, a rule, an
