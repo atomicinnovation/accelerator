@@ -124,10 +124,9 @@
   `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
   and the new `end-run` verb closes one. `--concurrency` falls back to
-  `research.topic.concurrency`, is clamped to the subagent cap, read from
-  `ACCELERATOR_SUBAGENT_CAP` or `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` (20
-  without either), and is reported as `concurrency`, and an empty value exits
-  1 with `E_TOPIC_RESEARCH_CONCURRENCY`. A run keeps a transient
+  `research.topic.concurrency` and is reported as `concurrency`, clamped to
+  the subagent cap described below. An empty value exits 1 with
+  `E_TOPIC_RESEARCH_CONCURRENCY`. A run keeps a transient
   `<set>/.conduct-run.json`, removed on completion and safe to delete after an
   interrupted run; consider adding `**/.conduct-run.json` to your
   `.gitignore`.
