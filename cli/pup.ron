@@ -255,6 +255,24 @@
                 ),
             ],
         )),
+        // adf is the Jira document codec, Markdown in and out of a JSON value
+        // held in memory: no process spawning, no filesystem, no transport.
+        Module((
+            name: "adf_is_a_pure_codec",
+            matches: Module("^adf($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                        "^std::fs(::|$)",
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // tracker-support carries the policy both provider clients share —
         // retry schedule, identifier safety, transport bounds. It spawns
         // nothing, and what it must never grow is a transport of its own,
@@ -492,7 +510,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|adf|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(

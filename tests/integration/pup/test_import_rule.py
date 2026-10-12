@@ -1035,6 +1035,31 @@ def test_markdown_rule_permits_text_transformation(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+_FILESYSTEM_VIOLATION = (
+    "use std::fs::read_to_string;\n\n"
+    "pub fn make() -> String {\n"
+    '    read_to_string("doc.json").unwrap_or_default()\n'
+    "}\n"
+)
+
+
+def test_adf_rule_rejects_reading_the_filesystem(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "adf", _FILESYSTEM_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "adf_is_a_pure_codec" in output, output
+
+
+def test_adf_rule_permits_in_memory_conversion(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "adf", _PROJECTION_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 def test_work_adapters_zero_spawn_rule_rejects_spawning(
     tmp_path: Path,
 ) -> None:
