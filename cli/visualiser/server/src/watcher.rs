@@ -79,7 +79,6 @@ impl Watching {
 pub fn spawn<W: DirectoryWatcher>(
     open: impl FnOnce(EventSink) -> notify::Result<W> + Send + 'static,
     dirs: Vec<PathBuf>,
-    project_root: PathBuf,
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
@@ -120,8 +119,6 @@ pub fn spawn<W: DirectoryWatcher>(
                         if !is_markdown(&path) {
                             continue;
                         }
-                        let pre = indexer.get(&path).await;
-
                         if let Some(h) = pending.remove(&path) {
                             h.abort();
                         }
@@ -129,7 +126,6 @@ pub fn spawn<W: DirectoryWatcher>(
 
                         let h = tokio::spawn(on_path_changed_debounced(
                             path.clone(),
-                            project_root.clone(),
                             indexer.clone(),
                             clusters.clone(),
                             hub.clone(),
@@ -137,7 +133,6 @@ pub fn spawn<W: DirectoryWatcher>(
                             write_coordinator.clone(),
                             template_change_handler.clone(),
                             settings.debounce,
-                            pre,
                         ));
                         pending.insert(path, h);
                     }
@@ -164,11 +159,10 @@ fn register(watcher: &mut impl DirectoryWatcher, dirs: &[PathBuf]) {
 }
 
 // Forwards the same set of narrow shared-state handles `spawn` holds, plus
-// the changed path and pre-change entry; a param struct would not aid clarity.
+// the changed path; a param struct would not aid clarity.
 #[allow(clippy::too_many_arguments)]
 pub async fn on_path_changed_debounced(
     path: PathBuf,
-    project_root: PathBuf,
     indexer: Arc<Indexer>,
     clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
     hub: Arc<SseHub>,
@@ -176,10 +170,33 @@ pub async fn on_path_changed_debounced(
     write_coordinator: Arc<WriteCoordinator>,
     template_change_handler: Option<Arc<TemplateChangeHandler>>,
     debounce: Duration,
-    pre: Option<IndexEntry>,
 ) {
     tokio::time::sleep(debounce).await;
 
+    // Detached: a later event for the same path aborts only the debounce
+    // above. Aborting after the rescan would leave its changes in the index
+    // but never broadcast, and no later rescan would see them as changes.
+    let _ = tokio::spawn(on_path_changed(
+        path,
+        indexer,
+        clusters,
+        hub,
+        activity_feed,
+        write_coordinator,
+        template_change_handler,
+    ))
+    .await;
+}
+
+async fn on_path_changed(
+    path: PathBuf,
+    indexer: Arc<Indexer>,
+    clusters: Arc<RwLock<Vec<LifecycleCluster>>>,
+    hub: Arc<SseHub>,
+    activity_feed: Arc<ActivityRingBuffer>,
+    write_coordinator: Arc<WriteCoordinator>,
+    template_change_handler: Option<Arc<TemplateChangeHandler>>,
+) {
     // Walk-up canonicalisation so that delete events (where canonicalize
     // fails because the inode is gone) still match the canonical paths
     // stored by the WriteCoordinator and the TierPathIndex.
@@ -202,6 +219,7 @@ pub async fn on_path_changed_debounced(
         return;
     }
 
+    let before = indexer.all().await;
     if let Err(e) = indexer.rescan().await {
         tracing::warn!(path = %path.display(), error = %e, "rescan failed after watch event");
         return;
@@ -234,61 +252,70 @@ pub async fn on_path_changed_debounced(
     indexer.apply_linked_count_backfill(linked_counts).await;
     *clusters.write().await = new_clusters;
 
-    let rel = path
-        .strip_prefix(&project_root)
-        .unwrap_or(&path)
-        .to_string_lossy()
-        .replace('\\', "/");
-
-    let now = Utc::now();
-
-    match indexer.get(&path).await {
-        Some(entry) => {
-            // Suppress no-op re-broadcasts. A filesystem event does not imply
-            // the indexed content changed: editors touch metadata, and macOS
-            // FSEvents replays coalesced historical events for files that
-            // existed before the watch began plus multi-event bursts per
-            // write. When the post-rescan content hash matches the hash
-            // captured before the event, nothing the frontend renders has
-            // changed, so broadcasting would only churn SSE clients. Both
-            // states must be well-formed — any transition into or out of the
-            // malformed state is a real change the frontend must observe.
-            let unchanged = pre.as_ref().is_some_and(|p| {
-                entry.frontmatter_state != FRONTMATTER_MALFORMED
-                    && p.frontmatter_state != FRONTMATTER_MALFORMED
-                    && p.etag == entry.etag
-            });
-            if unchanged {
-                tracing::debug!(
-                    file = %path.display(),
-                    "watcher suppressed no-op re-broadcast (content unchanged)",
-                );
-                return;
-            }
-            emit(
-                payload_for_entry(&entry, rel, pre.as_ref(), now),
-                hub.as_ref(),
-                activity_feed.as_ref(),
-            );
-            tracing::debug!(file = %path.display(), "SSE event broadcast");
-        }
-        None => {
-            if let Some(pre_entry) = pre {
-                emit(
-                    SsePayload::DocChanged {
-                        action: ActionKind::Deleted,
-                        doc_type: pre_entry.r#type,
-                        path: rel,
-                        etag: None,
-                        timestamp: now,
-                    },
-                    hub.as_ref(),
-                    activity_feed.as_ref(),
-                );
-                tracing::debug!(file = %path.display(), "SSE doc-changed broadcast for deleted file");
-            }
-        }
+    // The rescan reindexes every file, not just `path`, so it broadcasts every
+    // change it applied: a change another file's rescan absorbs is otherwise
+    // indistinguishable from a no-op by the time its own event arrives.
+    for payload in rescan_changes(&before, &snapshot, Utc::now())
+        .into_iter()
+        .filter(|change| !write_coordinator.should_suppress(&change.path))
+        .map(|change| change.payload)
+    {
+        emit(payload, hub.as_ref(), activity_feed.as_ref());
     }
+}
+
+struct RescanChange {
+    path: PathBuf,
+    payload: SsePayload,
+}
+
+/// The broadcasts a rescan owes its subscribers, from the index before and
+/// after it.
+///
+/// An entry whose etag and frontmatter state are unchanged is not a change:
+/// macOS `FSEvents` replays coalesced historical events and multi-event bursts
+/// per write, and broadcasting those would only churn SSE clients.
+fn rescan_changes(
+    before: &[IndexEntry],
+    after: &[IndexEntry],
+    now: DateTime<Utc>,
+) -> Vec<RescanChange> {
+    let before_by_path: HashMap<&Path, &IndexEntry> = before
+        .iter()
+        .map(|entry| (entry.path.as_path(), entry))
+        .collect();
+    let after_paths: std::collections::HashSet<&Path> =
+        after.iter().map(|entry| entry.path.as_path()).collect();
+
+    let edited_or_created = after.iter().filter_map(|entry| {
+        let pre = before_by_path.get(entry.path.as_path()).copied();
+        let unchanged = pre.is_some_and(|p| {
+            p.etag == entry.etag
+                && p.frontmatter_state == entry.frontmatter_state
+        });
+        (!unchanged).then(|| RescanChange {
+            path: entry.path.clone(),
+            payload: payload_for_entry(entry, rel_of(entry), pre, now),
+        })
+    });
+    let deleted = before
+        .iter()
+        .filter(|entry| !after_paths.contains(entry.path.as_path()))
+        .map(|entry| RescanChange {
+            path: entry.path.clone(),
+            payload: SsePayload::DocChanged {
+                action: ActionKind::Deleted,
+                doc_type: entry.r#type,
+                path: rel_of(entry),
+                etag: None,
+                timestamp: now,
+            },
+        });
+    edited_or_created.chain(deleted).collect()
+}
+
+fn rel_of(entry: &IndexEntry) -> String {
+    entry.rel_path.to_string_lossy().replace('\\', "/")
 }
 
 /// Single fan-out point for SSE events: pushes a derived `ActivityEvent`
@@ -641,7 +668,6 @@ mod tests {
         let mut watching = spawn(
             move |_sink| Ok(HeldRegistration { release: held }),
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -682,7 +708,6 @@ mod tests {
                 Err(notify::Error::generic("backend unavailable"))
             },
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -712,7 +737,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -749,6 +773,89 @@ mod tests {
         }
     }
 
+    struct ScriptedWatcher;
+
+    impl DirectoryWatcher for ScriptedWatcher {
+        fn watch_recursively(&mut self, _dir: &Path) -> notify::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct ScriptedEvents {
+        sink: EventSink,
+    }
+
+    impl ScriptedEvents {
+        fn modified(&mut self, path: &Path) {
+            use notify::EventHandler;
+            self.sink
+                .handle_event(Ok(Event::new(notify::EventKind::Modify(
+                    notify::event::ModifyKind::Any,
+                ))
+                .add_path(path.to_path_buf())));
+        }
+    }
+
+    async fn spawn_scripted(
+        indexer: Arc<Indexer>,
+        hub: Arc<SseHub>,
+        activity_feed: Arc<ActivityRingBuffer>,
+        clusters: Arc<RwLock<Vec<crate::clusters::LifecycleCluster>>>,
+    ) -> ScriptedEvents {
+        let (sink_tx, sink_rx) = std::sync::mpsc::channel();
+        spawn(
+            move |sink| {
+                sink_tx.send(sink).unwrap();
+                Ok(ScriptedWatcher)
+            },
+            Vec::new(),
+            indexer,
+            clusters,
+            hub,
+            activity_feed,
+            Arc::new(WriteCoordinator::new()),
+            None,
+            Settings {
+                debounce: Duration::from_millis(5),
+            },
+        )
+        .registered()
+        .await;
+        ScriptedEvents {
+            sink: sink_rx.recv().unwrap(),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_change_another_files_rescan_absorbed_still_broadcasts() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let (_, indexer, hub, activity_feed, clusters) = setup(&root).await;
+        let foo = root.join("meta/plans/2026-01-01-foo.md");
+        let bar = root.join("meta/plans/2026-01-02-bar.md");
+        std::fs::write(&bar, "---\ntitle: Bar\n---\n# Body\n").unwrap();
+        indexer.rescan().await.unwrap();
+        let mut rx = hub.subscribe();
+        let mut events =
+            spawn_scripted(indexer, hub, activity_feed, clusters).await;
+
+        std::fs::write(&foo, "---\ntitle: Foo updated\n---\n").unwrap();
+        events.modified(&bar);
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        events.modified(&foo);
+
+        let event = tokio::time::timeout(EVENT_BUDGET, rx.recv())
+            .await
+            .expect("the absorbed change was never broadcast")
+            .expect("channel closed");
+        match event {
+            SsePayload::DocChanged { path, .. } => {
+                assert_eq!(path, "meta/plans/2026-01-01-foo.md");
+            }
+            other => panic!("expected DocChanged, got {other:?}"),
+        }
+    }
+
     #[tokio::test]
     async fn unchanged_content_rewrite_is_suppressed() {
         // A filesystem event whose rescan yields content identical to what was
@@ -770,7 +877,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -822,7 +928,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -878,7 +983,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -925,7 +1029,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -1005,7 +1108,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,
@@ -1064,7 +1166,6 @@ mod tests {
         spawn(
             os_watcher,
             doc_paths.values().cloned().collect(),
-            tmp.path().to_path_buf(),
             indexer,
             clusters,
             hub,

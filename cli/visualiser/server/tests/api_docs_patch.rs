@@ -785,7 +785,6 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         .unwrap();
     watcher::on_path_changed_debounced(
         canonical,
-        tmp.path().to_path_buf(),
         state.indexer.clone(),
         clusters,
         state.sse_hub.clone(),
@@ -793,7 +792,6 @@ async fn patch_emits_exactly_one_doc_changed_event() {
         state.write_coordinator.clone(),
         None,
         Duration::ZERO,
-        None,
     )
     .await;
 
@@ -869,7 +867,6 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
     let symlink_path = link_dir.join("0001-todo-fixture.md");
     watcher::on_path_changed_debounced(
         symlink_path,
-        tmp.path().to_path_buf(),
         state.indexer.clone(),
         clusters,
         state.sse_hub.clone(),
@@ -877,7 +874,6 @@ async fn patch_dedup_works_when_watcher_event_path_is_non_canonical() {
         state.write_coordinator.clone(),
         None,
         Duration::ZERO,
-        None,
     )
     .await;
 
