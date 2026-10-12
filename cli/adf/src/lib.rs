@@ -1,19 +1,21 @@
 //! Both conversion directions between Atlassian Document Format and a
 //! bespoke Markdown subset.
 //!
-//! The dialect is not `CommonMark` and not ADF-complete: no text escaping, a
-//! fixed `code → em → strong → link` mark pipeline, `attrs.order` always 1 on
-//! the way in, seeded `localId`s, and silent drops for `strike`, `underline`
-//! and a `listItem`'s second and later children. No third-party crate
-//! reproduces it byte for byte, so it is hand-built.
+//! The dialect is not `CommonMark` and not ADF-complete: a fixed
+//! `code → em → strong → strike → link` mark pipeline, seeded `localId`s, and
+//! silent drops for `underline` and every other mark without a Markdown form.
+//! No third-party crate reproduces it byte for byte, so it is hand-built.
 //!
-//! The two directions accept different languages, deliberately. Rendering
-//! accepts a strictly larger one and degrades unknown nodes to a placeholder;
-//! assembly hard-rejects three constructs. `tests/fixtures/adf-fidelity-quirks.txt`
-//! records every behaviour that is knowingly wrong but faithful.
+//! Text that the tokeniser would read as syntax is backslash-escaped on the
+//! way out, so every body rendered strictly is a fixed point of the round
+//! trip. Rendering accepts a strictly larger language than assembly produces:
+//! a node with no Markdown form degrades to a placeholder, or refuses the
+//! render when it is strict. `tests/fixtures/adf-fidelity-quirks.txt` records
+//! every behaviour that is knowingly wrong but faithful.
 
 mod assemble;
 mod render;
+mod syntax;
 mod tokenise;
 
 use std::error::Error;
@@ -21,15 +23,15 @@ use std::fmt;
 
 use serde_json::Value;
 
+use render::NoMarkdownForm;
+
 /// Why a conversion could not be performed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdfError {
     RootNotDoc { found: String },
     HeadingWithoutLevel,
     ListWithoutContent { node: String },
-    UnsupportedBlockquote,
-    UnsupportedTable,
-    UnsupportedNestedList,
+    Unrepresentable { node: String },
     BadInput,
 }
 
@@ -49,17 +51,9 @@ impl fmt::Display for AdfError {
                 formatter,
                 "E_BAD_JSON: a {node} carries no content array"
             ),
-            Self::UnsupportedBlockquote => write!(
+            Self::Unrepresentable { node } => write!(
                 formatter,
-                "E_ADF_UNSUPPORTED_BLOCKQUOTE: blockquote is not supported"
-            ),
-            Self::UnsupportedTable => write!(
-                formatter,
-                "E_ADF_UNSUPPORTED_TABLE: pipe tables are not supported"
-            ),
-            Self::UnsupportedNestedList => write!(
-                formatter,
-                "E_ADF_UNSUPPORTED_NESTED_LIST: nested lists are not supported"
+                "E_ADF_UNREPRESENTABLE: a {node} has no Markdown form"
             ),
             Self::BadInput => write!(
                 formatter,
@@ -80,7 +74,7 @@ impl Error for AdfError {}
 ///
 /// # Errors
 ///
-/// [`AdfError`] for the three rejected constructs and for a control byte.
+/// [`AdfError::BadInput`] for a control byte.
 pub fn markdown_to_document(
     markdown: &str,
     seed: Option<&str>,
@@ -96,5 +90,20 @@ pub fn markdown_to_document(
 /// [`AdfError`] when the root is not a `doc`, a heading carries no level, or a
 /// list carries no content.
 pub fn document_to_markdown(document: &Value) -> Result<String, AdfError> {
-    render::to_markdown(document)
+    render::to_markdown(document, NoMarkdownForm::Placeholder)
+}
+
+/// The ADF-to-markdown direction that sync relies on: it refuses, rather than
+/// degrades, a node with no Markdown form, so what it renders reads back as
+/// the same Markdown.
+///
+/// # Errors
+///
+/// [`AdfError::Unrepresentable`] at the first node with no Markdown form,
+/// including a heading above level six, and every error
+/// [`document_to_markdown`] raises.
+pub fn document_to_markdown_strict(
+    document: &Value,
+) -> Result<String, AdfError> {
+    render::to_markdown(document, NoMarkdownForm::Refusal)
 }

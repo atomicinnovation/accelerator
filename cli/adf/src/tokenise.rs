@@ -1,12 +1,16 @@
 //! Markdown to the block-token stream.
 //!
-//! Two guards are reproduced with their quirks intact, because a work item's
-//! body already round-tripped through them: the table guard is narrow (a line
-//! must both start and end with `|`), and the nested-list guard has no space
-//! requirement after the marker, so an indented `-word` continuation line is
-//! rejected as a nested list. `tests/fixtures/adf-fidelity-quirks.txt` records
-//! why each is preserved.
+//! Containers — blockquotes and list items — are read recursively: their lines
+//! are stripped of the `> ` prefix or the item's indentation and tokenised
+//! again. A list item's first line is always paragraph text, and the
+//! following indented lines that open no block continue that paragraph.
+//!
+//! The table guard is narrow by design: a row must both start and end with
+//! `|`, and a table needs a delimiter row beneath its first row.
+//! `tests/fixtures/adf-fidelity-quirks.txt` records why.
 
+use crate::syntax;
+use crate::syntax::{is_blank, ListKind, ListMarker};
 use crate::AdfError;
 
 /// One block record from the tokeniser.
@@ -14,14 +18,17 @@ use crate::AdfError;
 pub enum Token {
     Paragraph(String),
     Heading { level: u8, text: String },
-    Bullet(String),
-    Ordered { number: String, text: String },
+    Bullet(Vec<Token>),
+    Ordered { number: String, item: Vec<Token> },
     TaskTodo(String),
     TaskDone(String),
     CodeOpen(String),
     CodeLine(String),
     CodeClose,
     HardBreak,
+    BlockQuote(Vec<Token>),
+    Table(Vec<Vec<String>>),
+    Rule,
 }
 
 /// The token stream plus any non-fatal notices.
@@ -31,19 +38,19 @@ pub struct Tokenised {
     pub notices: Vec<String>,
 }
 
+impl Tokenised {
+    fn absorb(&mut self, nested: Self) -> Vec<Token> {
+        self.notices.extend(nested.notices);
+        nested.tokens
+    }
+}
+
 pub const UNDERSCORE_NOTICE: &str =
     "Notice: '__...__' is not emphasis in this subset; use **...** for bold";
 
-const SPACE: [char; 6] = [' ', '\t', '\n', '\u{b}', '\u{c}', '\r'];
-
-fn is_space(character: char) -> bool {
-    SPACE.contains(&character)
-}
-
 #[derive(Default)]
 struct State {
-    tokens: Vec<Token>,
-    notices: Vec<String>,
+    tokenised: Tokenised,
     in_code: bool,
     in_paragraph: bool,
     paragraph: String,
@@ -51,10 +58,14 @@ struct State {
 }
 
 impl State {
+    fn push(&mut self, token: Token) {
+        self.tokenised.tokens.push(token);
+    }
+
     fn emit_paragraph_segment(&mut self) {
         if !self.paragraph.is_empty() {
             let text = std::mem::take(&mut self.paragraph);
-            self.tokens.push(Token::Paragraph(text));
+            self.push(Token::Paragraph(text));
         }
     }
 
@@ -69,76 +80,110 @@ impl State {
 ///
 /// # Errors
 ///
-/// [`AdfError`] for a blockquote, a pipe table, an indented list marker, or a
-/// `\x1e`/`\x1f` byte in the input.
+/// [`AdfError::BadInput`] for a `\x1e`/`\x1f` byte in the input.
 pub fn tokenise(markdown: &str) -> Result<Tokenised, AdfError> {
+    if markdown.contains(['\u{1e}', '\u{1f}']) {
+        return Err(AdfError::BadInput);
+    }
+    let lines: Vec<&str> = markdown
+        .lines()
+        .map(|raw| raw.strip_suffix('\r').unwrap_or(raw))
+        .collect();
+    Ok(read_blocks(&lines))
+}
+
+fn read_blocks(lines: &[&str]) -> Tokenised {
     let mut state = State::default();
+    let mut index = 0;
 
-    for raw in markdown.lines() {
-        let line = raw.strip_suffix('\r').unwrap_or(raw);
-
-        if line.contains('\u{1e}') || line.contains('\u{1f}') {
-            return Err(AdfError::BadInput);
-        }
+    while let Some(&line) = lines.get(index) {
+        index += 1;
 
         if state.in_code {
-            if line.starts_with("```") {
-                state.tokens.push(Token::CodeClose);
+            if line.starts_with(syntax::FENCE) {
+                state.push(Token::CodeClose);
                 state.in_code = false;
             } else {
-                state.tokens.push(Token::CodeLine(line.to_owned()));
+                state.push(Token::CodeLine(line.to_owned()));
             }
             continue;
         }
 
-        if line.chars().all(is_space) {
+        if is_blank(line) {
             state.flush_paragraph();
             continue;
         }
 
-        if line.starts_with('>') {
+        if syntax::is_quote(line) {
             state.flush_paragraph();
-            return Err(AdfError::UnsupportedBlockquote);
+            let quoted: Vec<&str> = lines[index - 1..]
+                .iter()
+                .take_while(|line| syntax::is_quote(line))
+                .map(|line| syntax::unquoted(line))
+                .collect();
+            index += quoted.len() - 1;
+            let content = state.tokenised.absorb(read_blocks(&quoted));
+            state.push(Token::BlockQuote(content));
+            continue;
         }
 
-        if line.starts_with('|')
-            && line.trim_end_matches(is_space).ends_with('|')
-        {
+        if starts_table(line, lines.get(index)) {
             state.flush_paragraph();
-            return Err(AdfError::UnsupportedTable);
+            let rows: Vec<Vec<String>> = std::iter::once(line)
+                .chain(
+                    lines[index + 1..]
+                        .iter()
+                        .copied()
+                        .take_while(|line| syntax::is_table_row(line)),
+                )
+                .map(syntax::table_cells)
+                .collect();
+            index += rows.len();
+            state.push(Token::Table(rows));
+            continue;
         }
 
-        if starts_indented_list(line) {
+        if syntax::is_rule(line) {
             state.flush_paragraph();
-            return Err(AdfError::UnsupportedNestedList);
+            state.push(Token::Rule);
+            continue;
         }
 
-        if let Some(language) = line.strip_prefix("```") {
+        if let Some(language) = syntax::fence_language(line) {
             state.flush_paragraph();
-            state.tokens.push(Token::CodeOpen(language.to_owned()));
+            state.push(Token::CodeOpen(language.to_owned()));
             state.in_code = true;
             continue;
         }
 
-        if let Some(level) = heading_level(line) {
+        if let Some((level, text)) = syntax::heading(line) {
             state.flush_paragraph();
-            let text = line[usize::from(level)..].trim_start_matches(is_space);
-            state.tokens.push(Token::Heading {
+            state.push(Token::Heading {
                 level,
                 text: text.to_owned(),
             });
             continue;
         }
 
-        if let Some(rest) = list_item_text(line) {
+        if let Some(marker) = syntax::list_marker(line) {
             state.flush_paragraph();
-            state.tokens.push(classify_list_item(rest));
-            continue;
-        }
-
-        if let Some((number, text)) = ordered_item(line) {
-            state.flush_paragraph();
-            state.tokens.push(Token::Ordered { number, text });
+            if let Some(task) = task(&marker) {
+                state.push(task);
+                continue;
+            }
+            let continuation =
+                continuation(&lines[index..], marker.content_column);
+            index += continuation.len();
+            let item = state
+                .tokenised
+                .absorb(read_item(marker.text, &continuation));
+            state.push(match marker.kind {
+                ListKind::Bullet => Token::Bullet(item),
+                ListKind::Ordered { number } => Token::Ordered {
+                    number: number.to_owned(),
+                    item,
+                },
+            });
             continue;
         }
 
@@ -146,86 +191,99 @@ pub fn tokenise(markdown: &str) -> Result<Tokenised, AdfError> {
     }
 
     state.flush_paragraph();
-    Ok(Tokenised {
-        tokens: state.tokens,
-        notices: state.notices,
+    state.tokenised
+}
+
+fn starts_table(line: &str, next: Option<&&str>) -> bool {
+    syntax::is_table_row(line)
+        && next.is_some_and(|next| {
+            syntax::is_delimiter_row(next, syntax::table_cells(line).len())
+        })
+}
+
+fn task(marker: &ListMarker<'_>) -> Option<Token> {
+    if marker.kind != ListKind::Bullet {
+        return None;
+    }
+    if let Some(rest) = marker.text.strip_prefix("[ ] ") {
+        return Some(Token::TaskTodo(rest.to_owned()));
+    }
+    ["[x] ", "[X] "].into_iter().find_map(|done| {
+        marker
+            .text
+            .strip_prefix(done)
+            .map(|rest| Token::TaskDone(rest.to_owned()))
     })
 }
 
-/// `^[[:space:]]+[-*+]` or `^[[:space:]]+[0-9]+\.` — deliberately without a
-/// space requirement after the marker.
-fn starts_indented_list(line: &str) -> bool {
-    let trimmed = line.trim_start_matches(is_space);
-    if trimmed.len() == line.len() {
-        return false;
-    }
-    if trimmed.starts_with(['-', '*', '+']) {
-        return true;
-    }
-    let digits: String =
-        trimmed.chars().take_while(char::is_ascii_digit).collect();
-    !digits.is_empty() && trimmed[digits.len()..].starts_with('.')
-}
-
-/// `^#{1,6} ` — seven hashes do not match, so the line becomes a paragraph.
-fn heading_level(line: &str) -> Option<u8> {
-    let hashes = line
-        .chars()
-        .take_while(|character| *character == '#')
-        .count();
-    if !(1..=6).contains(&hashes) || !line[hashes..].starts_with(' ') {
-        return None;
-    }
-    u8::try_from(hashes).ok()
-}
-
-/// `^[-*+] `, with all following whitespace stripped from the text.
-fn list_item_text(line: &str) -> Option<&str> {
-    let rest = line.strip_prefix(['-', '*', '+'])?;
-    if !rest.starts_with(' ') {
-        return None;
-    }
-    Some(rest.trim_start_matches(is_space))
-}
-
-fn classify_list_item(text: &str) -> Token {
-    if let Some(rest) = text.strip_prefix("[ ] ") {
-        return Token::TaskTodo(rest.to_owned());
-    }
-    for marker in ["[x] ", "[X] "] {
-        if let Some(rest) = text.strip_prefix(marker) {
-            return Token::TaskDone(rest.to_owned());
+/// The lines after an item's first that belong to it, with the item's
+/// indentation removed: every line indented to its content column, and the
+/// blank lines between them.
+fn continuation<'a>(
+    following: &[&'a str],
+    content_column: usize,
+) -> Vec<&'a str> {
+    let mut belonging = 0;
+    for (index, line) in following.iter().enumerate() {
+        if is_blank(line) {
+            continue;
         }
+        if syntax::indentation(line) < content_column {
+            break;
+        }
+        belonging = index + 1;
     }
-    Token::Bullet(text.to_owned())
+    following[..belonging]
+        .iter()
+        .map(|line| {
+            if is_blank(line) {
+                ""
+            } else {
+                &line[content_column..]
+            }
+        })
+        .collect()
 }
 
-/// `^[0-9]+\. `, with the number taken from the digits before the first
-/// `". "`.
-fn ordered_item(line: &str) -> Option<(String, String)> {
-    let digits: String =
-        line.chars().take_while(char::is_ascii_digit).collect();
-    if digits.is_empty() {
-        return None;
+/// A list item's first line keeps its trailing spaces as text when nothing
+/// continues it, as a heading does.
+fn read_item(first: &str, continuation: &[&str]) -> Tokenised {
+    let continues = continuation
+        .iter()
+        .take_while(|line| !is_blank(line) && !syntax::opens_block(line))
+        .count();
+
+    let mut state = State::default();
+    if continues == 0 {
+        state.push(Token::Paragraph(first.to_owned()));
+    } else {
+        for line in std::iter::once(&first).chain(&continuation[..continues]) {
+            accumulate_paragraph(&mut state, line);
+        }
+        state.flush_paragraph();
     }
-    let rest = line[digits.len()..].strip_prefix(". ")?;
-    Some((digits, rest.to_owned()))
+
+    let rest = read_blocks(&continuation[continues..]);
+    let mut tokenised = state.tokenised;
+    let mut blocks = tokenised.absorb(rest);
+    tokenised.tokens.append(&mut blocks);
+    tokenised
 }
 
 fn accumulate_paragraph(state: &mut State, line: &str) {
     if line.contains("__") {
-        state.notices.push(UNDERSCORE_NOTICE.to_owned());
+        state.tokenised.notices.push(UNDERSCORE_NOTICE.to_owned());
     }
 
     if state.in_paragraph && state.pending_hard_break {
         state.emit_paragraph_segment();
-        state.tokens.push(Token::HardBreak);
+        state.push(Token::HardBreak);
     }
     state.pending_hard_break = false;
 
     let mut line = line;
     if has_hard_break_marker(line) {
-        line = line.trim_end_matches(is_space);
+        line = line.trim_end_matches(syntax::is_space);
         state.pending_hard_break = true;
     }
 
@@ -239,7 +297,7 @@ fn accumulate_paragraph(state: &mut State, line: &str) {
 }
 
 /// `  +$` — two or more trailing spaces, and only in a paragraph. A heading or
-/// list item keeps them inside its text.
+/// a list item's lone line keeps them inside its text.
 fn has_hard_break_marker(line: &str) -> bool {
     line.len() - line.trim_end_matches(' ').len() >= 2
 }

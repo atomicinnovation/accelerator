@@ -12,27 +12,30 @@
 #
 # assemble values:
 #   handled       an assembler arm emits this node or mark
-#   hard-reject   the tokeniser refuses the construct (exit 41)
 #   absent        no markdown spelling produces it
 #
-# The round trip is deliberately asymmetric: render accepts a strictly larger
-# language and degrades, assemble refuses three constructs outright.
+# The round trip is asymmetric only where Markdown has no form: render accepts
+# a strictly larger language and degrades it to a placeholder, or refuses it
+# when rendering strictly.
 
 node  doc          handled  handled       assemble always emits {"version":1,"type":"doc",...}
 node  paragraph    handled  handled
-node  heading      handled  handled       render reads attrs.level with NO default; assemble accepts H1-H6 only
+node  heading      handled  handled       render reads attrs.level with NO default; assemble accepts H1-H6 only; a strict render refuses any other level
 node  bulletList   handled  handled       assemble emits no attrs
-node  orderedList  handled  handled       render honours attrs.order // 1; assemble ALWAYS emits order 1
-node  listItem     handled  handled       render uses .content[0].content only — 2nd+ children dropped
+node  orderedList  handled  handled       render honours attrs.order // 1; assemble emits the first item's number
+node  listItem     handled  handled       every child renders; later children are indented by the marker's width
 node  taskList     handled  handled       assemble adds attrs.localId
 node  taskItem     handled  handled       content is a bare inline array, not paragraph-wrapped
 node  codeBlock    handled  handled       render uses .content[0].text only
 node  text         handled  handled
 node  hardBreak    handled  handled       assemble drops it when no paragraph is open
+node  blockquote   handled  handled       every line prefixed with `> `
+node  table        handled  handled       the first row is the header; assemble needs a delimiter row and drops alignment
+node  tableRow     handled  handled
+node  tableHeader  handled  handled       one paragraph per cell
+node  tableCell    handled  handled       one paragraph per cell
+node  rule         handled  handled       `---`
 
-node  blockquote        block-placeholder  hard-reject
-node  table             block-placeholder  hard-reject
-node  rule              block-placeholder  absent  `---` becomes paragraph text
 node  panel             block-placeholder  absent
 node  expand            block-placeholder  absent
 node  decisionList      block-placeholder  absent
@@ -52,11 +55,6 @@ node  inlineCard        inline-placeholder  absent
 node  inlineExtension   inline-placeholder  absent
 node  placeholder       inline-placeholder  absent
 
-node  nestedList        ignored  hard-reject  a list nested as a listItem's SECOND child is dropped; as its FIRST child it renders one inline placeholder per listItem
-
-node  tableRow      unreachable  absent
-node  tableCell     unreachable  absent
-node  tableHeader   unreachable  absent
 node  media         unreachable  absent
 node  caption       unreachable  absent
 node  layoutColumn  unreachable  absent
@@ -66,9 +64,9 @@ node  nestedExpand  unreachable  absent
 mark  code    handled  handled  innermost; the assemble token is `[^`]+` so the span cannot be empty
 mark  em      handled  handled  _x_ is NOT em in this subset
 mark  strong  handled  handled
+mark  strike  handled  handled  `~~`, outside strong and inside link
 mark  link    handled  handled  render applies an href allowlist; assemble appends the mark LAST
 
-mark  strike            ignored  absent
 mark  underline         ignored  absent
 mark  subsup            ignored  absent
 mark  textColor         ignored  absent
@@ -86,10 +84,7 @@ mark  fragment          ignored  absent
 placeholder  block   [unsupported ADF node: <type>]      jira-adf-render.jq:77
 placeholder  inline  [unsupported ADF inline: <type>]    jira-adf-render.jq:42
 
-# The assemble direction's four refusals, verbatim from jira-md-tokenise.awk.
-reject  41  E_ADF_UNSUPPORTED_BLOCKQUOTE   blockquote is not supported                       T:71-72
-reject  41  E_ADF_UNSUPPORTED_TABLE        pipe tables are not supported                     T:78-79
-reject  41  E_ADF_UNSUPPORTED_NESTED_LIST  nested lists are not supported                    T:85-86
+# The assemble direction's one refusal, verbatim from jira-md-tokenise.awk.
 reject  42  E_ADF_BAD_INPUT                input contains control byte \x1e or \x1f          T:45-47
 #
 # The render direction's aborts: inputs on which the jq raises and the whole
@@ -104,8 +99,8 @@ abort  heading-without-level  [range(null)] raises                jira-adf-rende
 abort  root-not-doc           error("E_BAD_JSON")                 jira-adf-render.jq:81
 abort  list-without-content   `null | map` / `to_entries` raises  jira-adf-render.jq:60-71
 #
-# NOT an abort, verified by running the pinned jq: a text node with no .text.
-# jq defines null + x == x, so a marked node yields the delimiters around an
-# empty string (`` for code, [](href) for a link) and an unmarked one
-# contributes nothing to join(""). Making either an error would reject a
-# document the oracle renders.
+# NOT an abort: a text node with no .text, or an empty one. The oracle
+# rendered a marked one as delimiters around nothing (`` for code, [](href) for
+# a link); it now renders nothing at all, because empty delimiters do not read
+# back as the same node. Making it an error would reject a document Jira
+# returns.

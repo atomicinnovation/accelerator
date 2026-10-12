@@ -62,6 +62,8 @@ pub const JQL_EMPTY_VALUE: u8 = 33;
 pub const REQ_BAD_REQUEST: u8 = 34;
 
 pub const BAD_JSON: u8 = 40;
+/// Reserved and never reissued: nothing is refused as unsupported any more,
+/// but the frozen captured exit-code table still names it.
 pub const ADF_UNSUPPORTED: u8 = 41;
 pub const ADF_BAD_INPUT: u8 = 42;
 
@@ -237,15 +239,14 @@ pub const fn for_cache(error: &CacheError) -> u8 {
     }
 }
 
-/// The exit code for an ADF conversion failure, in the `40`–`42` band.
+/// The exit code for an ADF conversion failure. Only the placeholder render
+/// runs here, so an unrepresentable node never reaches it.
 const fn for_adf(error: &AdfError) -> u8 {
     match error {
         AdfError::RootNotDoc { .. }
         | AdfError::HeadingWithoutLevel
         | AdfError::ListWithoutContent { .. } => BAD_JSON,
-        AdfError::UnsupportedBlockquote
-        | AdfError::UnsupportedTable
-        | AdfError::UnsupportedNestedList => ADF_UNSUPPORTED,
+        AdfError::Unrepresentable { .. } => ERROR,
         AdfError::BadInput => ADF_BAD_INPUT,
     }
 }
@@ -452,9 +453,12 @@ mod tests {
             }),
             BAD_JSON
         );
-        assert_eq!(for_adf(&AdfError::UnsupportedBlockquote), ADF_UNSUPPORTED);
-        assert_eq!(for_adf(&AdfError::UnsupportedTable), ADF_UNSUPPORTED);
-        assert_eq!(for_adf(&AdfError::UnsupportedNestedList), ADF_UNSUPPORTED);
+        assert_eq!(
+            for_adf(&AdfError::Unrepresentable {
+                node: String::new()
+            }),
+            ERROR
+        );
         assert_eq!(for_adf(&AdfError::BadInput), ADF_BAD_INPUT);
     }
 }

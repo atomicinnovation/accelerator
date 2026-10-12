@@ -1,13 +1,14 @@
 //! The block-token stream to ADF.
 //!
-//! Marks cannot nest except inside link text, which recurses and then appends
-//! the link mark to every child — giving the array order `[inner…, link]`.
-//! Adjacent text nodes are never merged, so `a*b` yields three of them.
+//! Emphasis, strike and link text recurse, then append their own marks to
+//! every child — giving the array order `[inner…, outer]`. Adjacent text
+//! nodes are never merged, so `a*b` yields three of them.
 
 use serde_json::json;
 use serde_json::Map;
 use serde_json::Value;
 
+use crate::syntax;
 use crate::tokenise::Token;
 
 /// Assembles a `doc` from a token stream.
@@ -17,12 +18,36 @@ use crate::tokenise::Token;
 /// string.
 #[must_use]
 pub fn to_document(tokens: &[Token], seed: Option<&str>) -> Value {
-    let mut state = Assembler::new(seed);
-    for token in tokens {
-        state.process(token);
+    let mut local_ids = LocalIds {
+        issued: 0,
+        seeded: seed.is_some(),
+    };
+    json!({"version": 1, "type": "doc", "content": blocks(tokens, &mut local_ids)})
+}
+
+struct LocalIds {
+    issued: u64,
+    seeded: bool,
+}
+
+impl LocalIds {
+    fn next(&mut self) -> String {
+        self.issued += 1;
+        if self.seeded {
+            format!("00000000-0000-4000-8000-{:012}", self.issued)
+        } else {
+            self.issued.to_string()
+        }
     }
-    state.flush_all();
-    json!({"version": 1, "type": "doc", "content": state.nodes})
+}
+
+fn blocks(tokens: &[Token], local_ids: &mut LocalIds) -> Vec<Value> {
+    let mut assembler = Assembler::new(local_ids);
+    for token in tokens {
+        assembler.process(token);
+    }
+    assembler.flush_all();
+    assembler.nodes
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -33,40 +58,31 @@ enum ListKind {
 }
 
 struct Assembler<'a> {
+    local_ids: &'a mut LocalIds,
     nodes: Vec<Value>,
     paragraph: Option<Vec<Value>>,
     previous_hard_break: bool,
     list_kind: Option<ListKind>,
+    list_start: u64,
     list_items: Vec<Value>,
     code_open: bool,
     code_language: String,
     code_lines: Vec<String>,
-    local_ids: u64,
-    seed: Option<&'a str>,
 }
 
 impl<'a> Assembler<'a> {
-    const fn new(seed: Option<&'a str>) -> Self {
+    const fn new(local_ids: &'a mut LocalIds) -> Self {
         Self {
+            local_ids,
             nodes: Vec::new(),
             paragraph: None,
             previous_hard_break: false,
             list_kind: None,
+            list_start: 1,
             list_items: Vec::new(),
             code_open: false,
             code_language: String::new(),
             code_lines: Vec::new(),
-            local_ids: 0,
-            seed,
-        }
-    }
-
-    fn next_local_id(&mut self) -> String {
-        self.local_ids += 1;
-        if self.seed.is_some() {
-            format!("00000000-0000-4000-8000-{:012}", self.local_ids)
-        } else {
-            self.local_ids.to_string()
         }
     }
 
@@ -87,11 +103,11 @@ impl<'a> Assembler<'a> {
             ListKind::Bullet => json!({"type": "bulletList", "content": items}),
             ListKind::Ordered => json!({
                 "type": "orderedList",
-                "attrs": {"order": 1},
+                "attrs": {"order": self.list_start},
                 "content": items
             }),
             ListKind::Task => {
-                let local_id = self.next_local_id();
+                let local_id = self.local_ids.next();
                 json!({
                     "type": "taskList",
                     "attrs": {"localId": local_id},
@@ -122,11 +138,19 @@ impl<'a> Assembler<'a> {
         self.flush_code();
     }
 
-    fn open_list(&mut self, kind: ListKind) {
-        if self.list_kind != Some(kind) {
-            self.flush_list();
-            self.list_kind = Some(kind);
+    fn start_block(&mut self, node: Value) {
+        self.flush_paragraph();
+        self.flush_list();
+        self.nodes.push(node);
+    }
+
+    fn open_list(&mut self, kind: ListKind) -> bool {
+        if self.list_kind == Some(kind) {
+            return false;
         }
+        self.flush_list();
+        self.list_kind = Some(kind);
+        true
     }
 
     fn process(&mut self, token: &Token) {
@@ -150,29 +174,27 @@ impl<'a> Assembler<'a> {
                     self.previous_hard_break = true;
                 }
             }
-            Token::Heading { level, text } => {
-                self.flush_paragraph();
-                self.flush_list();
-                self.nodes.push(json!({
-                    "type": "heading",
-                    "attrs": {"level": level},
-                    "content": parse_inlines(text)
-                }));
-            }
-            Token::Bullet(text) => {
+            Token::Heading { level, text } => self.start_block(json!({
+                "type": "heading",
+                "attrs": {"level": level},
+                "content": parse_inlines(text)
+            })),
+            Token::Bullet(item) => {
                 self.flush_paragraph();
                 self.open_list(ListKind::Bullet);
-                self.push_list_item(text);
+                self.push_list_item(item);
             }
-            Token::Ordered { text, .. } => {
+            Token::Ordered { number, item } => {
                 self.flush_paragraph();
-                self.open_list(ListKind::Ordered);
-                self.push_list_item(text);
+                if self.open_list(ListKind::Ordered) {
+                    self.list_start = number.parse().unwrap_or(1);
+                }
+                self.push_list_item(item);
             }
             Token::TaskTodo(text) | Token::TaskDone(text) => {
                 self.flush_paragraph();
                 self.open_list(ListKind::Task);
-                let local_id = self.next_local_id();
+                let local_id = self.local_ids.next();
                 let state = if matches!(token, Token::TaskDone(_)) {
                     "DONE"
                 } else {
@@ -197,20 +219,50 @@ impl<'a> Assembler<'a> {
                 }
             }
             Token::CodeClose => self.flush_code(),
+            Token::BlockQuote(content) => {
+                let content = blocks(content, self.local_ids);
+                self.start_block(
+                    json!({"type": "blockquote", "content": content}),
+                );
+            }
+            Token::Table(rows) => self.start_block(table(rows)),
+            Token::Rule => self.start_block(json!({"type": "rule"})),
         }
     }
 
-    fn push_list_item(&mut self, text: &str) {
-        self.list_items.push(json!({
-            "type": "listItem",
-            "content": [{"type": "paragraph", "content": parse_inlines(text)}]
-        }));
+    fn push_list_item(&mut self, item: &[Token]) {
+        let content = blocks(item, self.local_ids);
+        self.list_items
+            .push(json!({"type": "listItem", "content": content}));
     }
 }
 
+/// The first row's cells are headers; every cell holds one paragraph.
+fn table(rows: &[Vec<String>]) -> Value {
+    let rows: Vec<Value> = rows
+        .iter()
+        .enumerate()
+        .map(|(index, cells)| {
+            let kind = if index == 0 { "tableHeader" } else { "tableCell" };
+            let cells: Vec<Value> = cells
+                .iter()
+                .map(|cell| {
+                    json!({
+                        "type": kind,
+                        "content": [{"type": "paragraph", "content": parse_inlines(cell)}]
+                    })
+                })
+                .collect();
+            json!({"type": "tableRow", "content": cells})
+        })
+        .collect();
+    json!({"type": "table", "content": rows})
+}
+
 /// The inline scan, in the alternation's own priority order: code span,
-/// `***`, `**`, `*`, `[text](url)`, bare `[text]`, a plain run, then a
-/// single-character catch-all.
+/// `***`, `**`, `*`, `~~`, `[text](url)`, bare `[text]`, a plain run, then a
+/// single-character catch-all. Every scan but the code span's skips a
+/// backslash-escaped character.
 ///
 /// The catch-all is why an unbalanced `*` becomes an em-marked **empty**
 /// string rather than a literal asterisk: the token is `*`, the classifier
@@ -230,10 +282,11 @@ pub fn parse_inlines(text: &str) -> Vec<Value> {
 
 fn next_token(text: &str) -> (&str, &str) {
     let candidates = [
-        delimited(text, "`", "`", |inner| !inner.contains('`')),
-        delimited(text, "***", "***", |inner| !inner.contains('*')),
-        delimited(text, "**", "**", |inner| !inner.contains('*')),
-        delimited(text, "*", "*", |inner| !inner.contains('*')),
+        code_span(text),
+        delimited(text, "***", |inner| !contains_unescaped(inner, "*")),
+        delimited(text, "**", |inner| !contains_unescaped(inner, "*")),
+        delimited(text, "*", |inner| !contains_unescaped(inner, "*")),
+        delimited(text, syntax::STRIKE, |_| true),
         link_token(text),
         bracket_token(text),
         plain_run(text),
@@ -245,44 +298,68 @@ fn next_token(text: &str) -> (&str, &str) {
     text.split_at(width)
 }
 
-/// `<open><inner><close>` where `inner` is non-empty and satisfies `admissible`.
+fn contains_unescaped(text: &str, pattern: &str) -> bool {
+    syntax::find_unescaped(text, pattern).is_some()
+}
+
+/// `` `[^`]+` `` — a backslash escapes nothing inside a code span.
+fn code_span(text: &str) -> Option<usize> {
+    let after_open = text.strip_prefix('`')?;
+    let end = after_open.find('`')?;
+    (end > 0).then_some(end + 2)
+}
+
+/// `<delimiter><inner><delimiter>` where `inner` is non-empty and satisfies
+/// `admissible`.
 fn delimited(
     text: &str,
-    open: &str,
-    close: &str,
+    delimiter: &str,
     admissible: impl Fn(&str) -> bool,
 ) -> Option<usize> {
-    let after_open = text.strip_prefix(open)?;
-    let end = after_open.find(close)?;
+    let after_open = text.strip_prefix(delimiter)?;
+    let end = syntax::find_unescaped(after_open, delimiter)?;
     let inner = &after_open[..end];
     if inner.is_empty() || !admissible(inner) {
         return None;
     }
-    Some(open.len() + inner.len() + close.len())
+    Some(2 * delimiter.len() + inner.len())
 }
 
 /// `\[[^\]]*\]\([^)]+\)`
 fn link_token(text: &str) -> Option<usize> {
-    let after_open = text.strip_prefix('[')?;
-    let close = after_open.find(']')?;
-    let after_text = after_open.get(close + 1..)?.strip_prefix('(')?;
-    let end = after_text.find(')')?;
-    if end == 0 {
+    let (label, href) = link_parts(text)?;
+    if href.is_empty() {
         return None;
     }
-    Some(1 + close + 2 + end + 1)
+    Some(label.len() + href.len() + 4)
 }
 
 /// `\[[^\]]*\]`
 fn bracket_token(text: &str) -> Option<usize> {
     let after_open = text.strip_prefix('[')?;
-    let close = after_open.find(']')?;
+    let close = syntax::find_unescaped(after_open, "]")?;
     Some(close + 2)
 }
 
-/// A run of characters that are none of a backtick, an asterisk or `[`.
+/// A run of characters up to the first unescaped backtick, asterisk, `[` or
+/// `~~`.
 fn plain_run(text: &str) -> Option<usize> {
-    let length = text.find(['`', '*', '[']).unwrap_or(text.len());
+    let mut characters = text.char_indices().peekable();
+    let mut length = 0;
+    while let Some((offset, character)) = characters.next() {
+        let opens_strike = text[offset..].starts_with(syntax::STRIKE);
+        if matches!(character, '`' | '*' | '[') || opens_strike {
+            break;
+        }
+        length = offset + character.len_utf8();
+        if character == syntax::ESCAPE {
+            if let Some((next_offset, next)) =
+                characters.next_if(|(_, next)| syntax::is_escapable(*next))
+            {
+                length = next_offset + next.len_utf8();
+            }
+        }
+    }
     (length > 0).then_some(length)
 }
 
@@ -300,17 +377,15 @@ fn classify(token: &str) -> Vec<Value> {
     if let Some(inner) = strip_pair(token, "`") {
         return vec![text_node(inner, &[json!({"type": "code"})])];
     }
-    if let Some(inner) = strip_pair(token, "***") {
-        return vec![text_node(
-            inner,
-            &[json!({"type": "strong"}), json!({"type": "em"})],
-        )];
-    }
-    if let Some(inner) = strip_pair(token, "**") {
-        return vec![text_node(inner, &[json!({"type": "strong"})])];
-    }
-    if let Some(inner) = strip_pair(token, "*") {
-        return vec![text_node(inner, &[json!({"type": "em"})])];
+    for (delimiter, marks) in [
+        ("***", &["strong", "em"][..]),
+        ("**", &["strong"][..]),
+        ("*", &["em"][..]),
+        (syntax::STRIKE, &["strike"][..]),
+    ] {
+        if let Some(inner) = strip_pair(token, delimiter) {
+            return marked(inner, marks);
+        }
     }
     if let Some((label, href)) = link_parts(token) {
         // A link requires a non-empty label; a token with an empty label is
@@ -324,7 +399,24 @@ fn classify(token: &str) -> Vec<Value> {
             .map(|node| with_mark(node, &mark))
             .collect();
     }
-    vec![text_node(token, &[])]
+    vec![text_node(&syntax::unescape(token), &[])]
+}
+
+/// An empty inner, as the catch-all leaves, still yields one empty node.
+fn marked(inner: &str, marks: &[&str]) -> Vec<Value> {
+    let children = if inner.is_empty() {
+        vec![text_node("", &[])]
+    } else {
+        parse_inlines(inner)
+    };
+    children
+        .into_iter()
+        .map(|node| {
+            marks.iter().fold(node, |node, mark| {
+                with_mark(node, &json!({"type": mark}))
+            })
+        })
+        .collect()
 }
 
 /// Strips one delimiter from each end, so a one-character token yields an
@@ -341,10 +433,11 @@ fn strip_pair<'a>(token: &'a str, delimiter: &str) -> Option<&'a str> {
 
 fn link_parts(token: &str) -> Option<(&str, &str)> {
     let after_open = token.strip_prefix('[')?;
-    let close = after_open.find("](")?;
+    let close = syntax::find_unescaped(after_open, "]")?;
     let label = &after_open[..close];
-    let href = after_open.get(close + 2..)?.strip_suffix(')')?;
-    Some((label, href))
+    let after_label = after_open[close + 1..].strip_prefix('(')?;
+    let end = after_label.find(')')?;
+    Some((label, &after_label[..end]))
 }
 
 fn with_mark(node: Value, mark: &Value) -> Value {

@@ -6,7 +6,10 @@
 
 use std::path::Path;
 
-use adf::{document_to_markdown, markdown_to_document, AdfError};
+use adf::{
+    document_to_markdown, document_to_markdown_strict, markdown_to_document,
+    AdfError,
+};
 use serde_json::json;
 use serde_json::Value;
 
@@ -39,93 +42,87 @@ fn refusal(markdown: &str) -> AdfError {
     markdown_to_document(markdown, SEED).expect_err("the markdown is refused")
 }
 
+fn strict(document: &Value) -> Result<String, AdfError> {
+    document_to_markdown_strict(document)
+}
+
+fn round_trip(markdown: &str) -> String {
+    strict(&assemble(markdown)).expect("the assembled document renders")
+}
+
+fn paragraph(inlines: &Value) -> Value {
+    json!({"type": "doc", "content": [{"type": "paragraph", "content": inlines}]})
+}
+
 #[test]
 fn both_placeholder_strings_are_verbatim_and_position_dependent() {
     let block = render(&json!({
         "type": "doc",
-        "content": [{"type": "blockquote"}]
+        "content": [{"type": "panel"}]
     }));
     let inline = render(&json!({
         "type": "doc",
         "content": [{"type": "paragraph", "content": [{"type": "emoji"}]}]
     }));
 
-    assert_eq!(block, "[unsupported ADF node: blockquote]");
+    assert_eq!(block, "[unsupported ADF node: panel]");
     assert_eq!(inline, "[unsupported ADF inline: emoji]");
 }
 
 #[test]
-fn each_of_the_four_refusals_carries_its_message() {
-    for (markdown, message) in [
-        (
-            "> quoted\n",
-            "E_ADF_UNSUPPORTED_BLOCKQUOTE: blockquote is not supported",
-        ),
-        (
-            "| a | b |\n",
-            "E_ADF_UNSUPPORTED_TABLE: pipe tables are not supported",
-        ),
-        (
-            "  - nested\n",
-            "E_ADF_UNSUPPORTED_NESTED_LIST: nested lists are not supported",
-        ),
-        (
-            "bad\u{1f}byte\n",
-            "E_ADF_BAD_INPUT: input contains control byte \\x1e or \\x1f",
-        ),
-    ] {
-        let error = refusal(markdown);
-        assert_eq!(error.to_string(), message, "{markdown:?}");
+fn the_one_remaining_refusal_carries_its_message() {
+    let error = refusal("bad\u{1f}byte\n");
+
+    assert_eq!(
+        error.to_string(),
+        "E_ADF_BAD_INPUT: input contains control byte \\x1e or \\x1f"
+    );
+    for markdown in ["> quoted\n", "| a | b |\n", "  - nested\n"] {
+        assert!(
+            markdown_to_document(markdown, SEED).is_ok(),
+            "{markdown:?} assembles"
+        );
     }
 }
 
 #[test]
-fn the_round_trip_is_asymmetric_rather_than_lossless() {
+fn the_round_trip_is_asymmetric_only_for_underline_and_unknown_nodes() {
     let inventory = fixture("tests/fixtures/adf-node-types.txt");
     let rejected: Vec<&str> = inventory
         .lines()
         .filter(|line| line.starts_with("node "))
         .filter(|line| line.contains("hard-reject"))
         .collect();
-
-    assert_eq!(
-        rejected.len(),
-        3,
-        "assemble hard-rejects exactly three constructs: {rejected:?}"
+    assert!(
+        rejected.is_empty(),
+        "assemble hard-rejects no construct: {rejected:?}"
     );
-    for node in ["blockquote", "table"] {
-        let rendered = render(&json!({
-            "type": "doc",
-            "content": [{"type": node}]
-        }));
-        assert!(
-            rendered.starts_with("[unsupported ADF node:"),
-            "render accepts {node} and degrades: {rendered}"
-        );
-        assert!(
-            markdown_to_document(
-                if node == "table" { "| a |\n" } else { "> q\n" },
-                SEED
-            )
-            .is_err(),
-            "assemble refuses {node}"
-        );
-    }
+
+    let underlined = paragraph(&json!([{
+        "type": "text", "text": "under", "marks": [{"type": "underline"}]
+    }]));
+    assert_eq!(
+        assemble(&render(&underlined))["content"][0]["content"],
+        json!([{"type": "text", "text": "under"}]),
+        "underline does not survive the round trip"
+    );
+
+    let panel = json!({"type": "doc", "content": [{"type": "panel"}]});
+    assert_eq!(
+        assemble(&render(&panel))["content"][0]["type"],
+        "paragraph",
+        "an unknown node comes back as its placeholder text"
+    );
 }
 
 #[test]
-fn an_ordered_list_always_assembles_with_order_one() {
-    let _ = quirk("ordered-list-order-always-one");
+fn an_ordered_list_assembles_with_the_start_its_markdown_used() {
     let document = assemble("3. three\n");
     let list = &document["content"][0];
 
     assert_eq!(list["type"], "orderedList");
-    assert_eq!(list["attrs"]["order"], 1);
-    assert_eq!(
-        render(&document),
-        "1. three",
-        "and it renders back with the number it did not keep"
-    );
+    assert_eq!(list["attrs"]["order"], 3);
+    assert_eq!(render(&document), "3. three");
 }
 
 #[test]
@@ -231,48 +228,52 @@ fn the_marks_pipeline_nests_in_one_fixed_order_whatever_the_array_order() {
 }
 
 #[test]
-fn marks_outside_the_pipeline_are_dropped_without_a_placeholder() {
+fn strike_renders_and_other_marks_outside_the_pipeline_are_dropped() {
     let _ = quirk("marks-ignored-without-a-placeholder");
     let rendered = render(&json!({
         "type": "doc",
-        "content": [{"type": "paragraph", "content": [{
-            "type": "text", "text": "struck",
-            "marks": [{"type": "strike"}, {"type": "underline"}]
-        }]}]
+        "content": [{"type": "paragraph", "content": [
+            {"type": "text", "text": "struck", "marks": [{"type": "strike"}]},
+            {"type": "text", "text": "under", "marks": [{"type": "underline"}]}
+        ]}]
     }));
 
-    assert_eq!(rendered, "struck");
+    assert_eq!(rendered, "~~struck~~under");
 }
 
 #[test]
-fn a_list_item_renders_its_first_child_only() {
-    let _ = quirk("listitem-second-child-dropped");
+fn a_list_item_renders_every_child() {
     let rendered = render(&json!({
         "type": "doc",
         "content": [{"type": "bulletList", "content": [{
             "type": "listItem",
             "content": [
-                {"type": "paragraph", "content": [{"type": "text", "text": "kept"}]},
-                {"type": "paragraph", "content": [{"type": "text", "text": "dropped"}]}
+                {"type": "paragraph", "content": [{"type": "text", "text": "first"}]},
+                {"type": "paragraph", "content": [{"type": "text", "text": "second"}]},
+                {"type": "bulletList", "content": [{"type": "listItem", "content": [
+                    {"type": "paragraph", "content": [{"type": "text", "text": "nested"}]}
+                ]}]}
             ]
         }]}]
     }));
 
-    assert_eq!(rendered, "- kept");
+    assert_eq!(rendered, "- first\n\n  second\n  - nested");
 }
 
 #[test]
-fn a_nested_list_as_a_first_child_renders_inline_placeholders() {
-    let _ = quirk("nested-list-as-first-child-renders-inline-placeholders");
+fn a_nested_list_as_a_first_child_renders_as_a_nested_list() {
     let rendered = render(&json!({
         "type": "doc",
         "content": [{"type": "bulletList", "content": [{
             "type": "listItem",
-            "content": [{"type": "bulletList", "content": [{"type": "listItem"}]}]
+            "content": [{"type": "bulletList", "content": [{"type": "listItem", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "deep"}]}
+            ]}]}]
         }]}]
     }));
 
-    assert_eq!(rendered, "- [unsupported ADF inline: listItem]");
+    assert_eq!(rendered, "- \n  - deep");
+    assert_eq!(round_trip(&rendered), rendered);
 }
 
 #[test]
@@ -299,11 +300,15 @@ fn the_table_guard_is_narrow_by_design() {
 }
 
 #[test]
-fn the_nested_list_guard_rejects_an_indented_continuation_line() {
-    let _ = quirk("nested-list-guard-has-no-space-requirement");
-    let error = refusal("paragraph\n  -word continuation\n");
+fn an_indented_continuation_line_stays_a_paragraph_continuation() {
+    let document = assemble("paragraph\n  -word continuation\n");
 
-    assert_eq!(error, AdfError::UnsupportedNestedList);
+    assert_eq!(
+        document["content"],
+        json!([{"type": "paragraph", "content": [
+            {"type": "text", "text": "paragraph   -word continuation"}
+        ]}])
+    );
 }
 
 #[test]
@@ -340,8 +345,7 @@ fn an_empty_link_text_contributes_nothing() {
 }
 
 #[test]
-fn text_is_never_escaped_on_the_way_out() {
-    let _ = quirk("no-text-escaping");
+fn only_text_that_would_read_as_syntax_is_escaped() {
     let rendered = render(&json!({
         "type": "doc",
         "content": [{"type": "paragraph", "content": [
@@ -349,7 +353,10 @@ fn text_is_never_escaped_on_the_way_out() {
         ]}]
     }));
 
-    assert_eq!(rendered, "*not em* `not code` [not a link] # | _x_");
+    assert_eq!(
+        rendered,
+        "\\*not em\\* \\`not code\\` \\[not a link] # | \\_x\\_"
+    );
 }
 
 #[test]
@@ -367,4 +374,154 @@ fn a_seeded_local_id_is_deterministic_and_an_unseeded_one_is_a_counter() {
         counted["content"][0]["content"][0]["attrs"]["localId"], "1",
         "without a seed the bare counter is used, as the oracle does"
     );
+}
+
+#[test]
+fn a_blockquote_round_trips() {
+    let markdown = "> quoted\n>\n> second";
+    let document = assemble(markdown);
+
+    assert_eq!(
+        document["content"],
+        json!([{"type": "blockquote", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "quoted"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "second"}]}
+        ]}])
+    );
+    assert_eq!(render(&document), markdown);
+}
+
+#[test]
+fn a_pipe_table_round_trips_with_a_header_row() {
+    let markdown = "| h1 | h2 |\n| --- | --- |\n| a | b |";
+    let document = assemble(markdown);
+    let rows = &document["content"][0]["content"];
+
+    assert_eq!(document["content"][0]["type"], "table");
+    assert_eq!(rows[0]["type"], "tableRow");
+    assert_eq!(rows[0]["content"][0]["type"], "tableHeader");
+    assert_eq!(rows[1]["content"][1]["type"], "tableCell");
+    assert_eq!(
+        rows[1]["content"][1]["content"],
+        json!([{"type": "paragraph", "content": [{"type": "text", "text": "b"}]}])
+    );
+    assert_eq!(render(&document), markdown);
+}
+
+#[test]
+fn table_alignment_is_dropped_on_assembly() {
+    let document = assemble("| a | b |\n| :-: | --: |\n| c | d |\n");
+
+    assert!(
+        !adf_text(&document).contains("align"),
+        "no alignment attribute: {document}"
+    );
+    assert_eq!(render(&document), "| a | b |\n| --- | --- |\n| c | d |");
+}
+
+#[test]
+fn a_thematic_break_assembles_to_a_rule() {
+    assert_eq!(assemble("---\n")["content"], json!([{"type": "rule"}]));
+}
+
+#[test]
+fn a_nested_bullet_list_round_trips() {
+    let markdown = "- one\n  - two\n    - three\n- four";
+
+    assert_eq!(round_trip(markdown), markdown);
+    assert_eq!(
+        assemble(markdown)["content"][0]["content"][0]["content"][1]["type"],
+        "bulletList"
+    );
+}
+
+#[test]
+fn a_list_item_with_two_paragraphs_round_trips() {
+    let markdown = "1. first\n\n   second\n2. next";
+    let document = assemble(markdown);
+
+    assert_eq!(
+        document["content"][0]["content"][0]["content"],
+        json!([
+            {"type": "paragraph", "content": [{"type": "text", "text": "first"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "second"}]}
+        ])
+    );
+    assert_eq!(render(&document), markdown);
+}
+
+#[test]
+fn strike_round_trips() {
+    let document = assemble("~~gone~~\n");
+
+    assert_eq!(
+        document["content"][0]["content"],
+        json!([{"type": "text", "text": "gone", "marks": [{"type": "strike"}]}])
+    );
+    assert_eq!(render(&document), "~~gone~~");
+}
+
+#[test]
+fn underline_is_still_dropped() {
+    let rendered = render(&paragraph(&json!([{
+        "type": "text", "text": "under", "marks": [{"type": "underline"}]
+    }])));
+
+    assert_eq!(rendered, "under");
+}
+
+#[test]
+fn an_unknown_node_still_renders_a_placeholder() {
+    let rendered = render(&json!({
+        "type": "doc",
+        "content": [{"type": "panel", "content": []}]
+    }));
+
+    assert_eq!(rendered, "[unsupported ADF node: panel]");
+}
+
+#[test]
+fn a_strict_render_refuses_a_panel() {
+    let error = strict(&json!({
+        "type": "doc",
+        "content": [{"type": "panel", "content": []}]
+    }))
+    .expect_err("a panel has no Markdown form");
+
+    assert_eq!(
+        error,
+        AdfError::Unrepresentable {
+            node: "panel".to_owned()
+        }
+    );
+}
+
+#[test]
+fn a_strict_render_refuses_a_mention() {
+    let error = strict(&paragraph(&json!([
+        {"type": "text", "text": "hi "},
+        {"type": "mention", "attrs": {"id": "1"}}
+    ])))
+    .expect_err("a mention has no Markdown form");
+
+    assert_eq!(
+        error,
+        AdfError::Unrepresentable {
+            node: "mention".to_owned()
+        }
+    );
+}
+
+#[test]
+fn a_strict_render_drops_underline() {
+    let rendered = strict(&paragraph(&json!([{
+        "type": "text", "text": "under", "marks": [{"type": "underline"}]
+    }])))
+    .expect("underline is dropped, not refused");
+
+    assert_eq!(rendered, "under");
+}
+
+fn adf_text(document: &Value) -> String {
+    serde_json::to_string(document).expect("a Value serialises")
 }

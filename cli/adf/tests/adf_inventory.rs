@@ -60,9 +60,16 @@ fn render_marks() -> BTreeSet<String> {
 }
 
 /// Nodes the renderer handles structurally rather than through an arm: `doc`
-/// is the root check, and a `listItem` / `taskItem` is consumed by its list's
-/// own arm.
-const HANDLED_WITHOUT_AN_ARM: &[&str] = &["doc", "listItem", "taskItem"];
+/// is the root check, a `listItem` / `taskItem` is consumed by its list's own
+/// arm, and a table's rows and cells by the table's.
+const HANDLED_WITHOUT_AN_ARM: &[&str] = &[
+    "doc",
+    "listItem",
+    "taskItem",
+    "tableRow",
+    "tableHeader",
+    "tableCell",
+];
 
 #[test]
 fn every_node_the_renderer_dispatches_on_has_an_inventory_row() {
@@ -157,14 +164,11 @@ fn both_placeholder_strings_appear_verbatim_in_the_renderer() {
 #[test]
 fn every_committed_refusal_matches_the_typed_error() {
     let refusals = rows("reject");
-    assert_eq!(refusals.len(), 4, "three exit-41 refusals and one exit-42");
+    assert_eq!(refusals.len(), 1, "the control-byte refusal alone remains");
 
     for row in refusals {
         let name = &row[2];
         let error = match name.as_str() {
-            "E_ADF_UNSUPPORTED_BLOCKQUOTE" => AdfError::UnsupportedBlockquote,
-            "E_ADF_UNSUPPORTED_TABLE" => AdfError::UnsupportedTable,
-            "E_ADF_UNSUPPORTED_NESTED_LIST" => AdfError::UnsupportedNestedList,
             "E_ADF_BAD_INPUT" => AdfError::BadInput,
             other => panic!("unrecognised refusal {other}"),
         };

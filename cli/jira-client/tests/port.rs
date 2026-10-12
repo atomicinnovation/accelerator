@@ -699,13 +699,13 @@ fn a_body_that_cannot_be_converted_is_rejected_and_names_its_cause() {
     let client = client_for(&server, brief());
 
     let error = client
-        .create("A title", "| a | b |\n|---|---|\n| 1 | 2 |\n", "task")
-        .expect_err("a table has no ADF conversion");
+        .create("A title", "bad\u{1f}byte\n", "task")
+        .expect_err("a control byte has no ADF conversion");
 
     let TrackerError::Rejected { detail } = error else {
         panic!("an unconvertible body is rejected: {error}");
     };
-    assert!(detail.contains("table"), "{detail}");
+    assert!(detail.contains("control byte"), "{detail}");
     assert_eq!(server.hits(&RequestKey::post(ISSUE)), 0);
 }
 

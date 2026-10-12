@@ -7,6 +7,11 @@
 //! whether or not it agrees with the oracle. The frozen `oracle.out` removes
 //! that doubt, and every case's committed `expected.*` cross-checks the
 //! capture, so neither the corpus nor the Rust is the other's sole anchor.
+//!
+//! The converter has since been extended past the oracle. Each case whose
+//! output the extension changes is listed in [`DELIBERATE_DIVERGENCES`] with
+//! its new output and the reason, and the list is exact: a listed case that
+//! no longer diverges fails, as does an unlisted one that does.
 
 #![allow(clippy::expect_used, clippy::panic)]
 
@@ -20,6 +25,98 @@ use adf_oracle::{
 use serde_json::Value;
 
 const SEED: Option<&str> = Some("1");
+
+struct Divergence {
+    case: &'static str,
+    reason: &'static str,
+    now: &'static str,
+}
+
+const DELIBERATE_DIVERGENCES: &[Divergence] = &[
+    Divergence {
+        case: "assemble-ordered-order-always-one",
+        reason: "an ordered list keeps its start number",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"orderedList","attrs":{"order":3},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"three"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"four"}]}]}]}]}"#,
+    },
+    Divergence {
+        case: "assemble-reject-blockquote",
+        reason: "a blockquote assembles",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"blockquote","content":[{"type":"paragraph","content":[{"type":"text","text":"quoted"}]}]}]}"#,
+    },
+    Divergence {
+        case: "assemble-reject-nested-list",
+        reason: "an indented bullet with no parent item is a list item",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"nested"}]}]}]}]}"#,
+    },
+    Divergence {
+        case: "assemble-reject-nested-list-no-space",
+        reason: "a marker without a following space is paragraph text",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"  -word continuation"}]}]}"#,
+    },
+    Divergence {
+        case: "assemble-reject-nested-ordered",
+        reason: "an indented ordered item with no parent item is a list item",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"orderedList","attrs":{"order":1},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"nested"}]}]}]}]}"#,
+    },
+    Divergence {
+        case: "assemble-reject-table",
+        reason: "a pipe row without a delimiter row is paragraph text",
+        now: r#"{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"| a | b |"}]}]}"#,
+    },
+    Divergence {
+        case: "render-block-placeholders",
+        reason: "a blockquote and a rule render, and an empty table renders \
+                 nothing",
+        now: "> quoted\n\n---\n\n[unsupported ADF node: panel]\n\n\
+              [unsupported ADF node: expand]\n\n\
+              [unsupported ADF node: decisionList]\n\n\
+              [unsupported ADF node: mediaSingle]\n\n\
+              [unsupported ADF node: blockCard]",
+    },
+    Divergence {
+        case: "render-listitem-nested-list-first-child",
+        reason: "a nested list renders",
+        now: "- \n  - deep",
+    },
+    Divergence {
+        case: "render-listitem-second-child-dropped",
+        reason: "a list item's later children render",
+        now: "- kept\n\n  dropped\n  - also dropped",
+    },
+    Divergence {
+        case: "render-marks-pipeline",
+        reason: "adjacent runs sharing one mark set render as one run",
+        now: "`code`*em***strong*****bothboth-reversed***\
+              [linked](https://example.com/a)[**`all`**](https://x)",
+    },
+    Divergence {
+        case: "render-marks-silently-ignored",
+        reason: "strike renders as ~~",
+        now: "~~struck~~undercolouredsubsup",
+    },
+    Divergence {
+        case: "render-paragraph",
+        reason: "text that would read as syntax is escaped",
+        now: "plain text with \\* and \\_ and \\` unescaped",
+    },
+    Divergence {
+        case: "render-text-without-text-field",
+        reason: "a text node without text renders nothing",
+        now: "",
+    },
+];
+
+fn divergence(case: &str) -> Option<&'static Divergence> {
+    DELIBERATE_DIVERGENCES
+        .iter()
+        .find(|divergence| divergence.case == case)
+}
+
+fn canonical_json(json: &str) -> String {
+    adf_oracle::canonical(
+        &serde_json::from_str(json).expect("a divergence's document is JSON"),
+    )
+}
 
 fn read(case: &std::path::Path, name: &str) -> Option<String> {
     std::fs::read_to_string(case.join(name)).ok()
@@ -40,9 +137,7 @@ const fn class_of(error: &AdfError) -> &'static str {
         AdfError::RootNotDoc { .. } => "root-not-doc",
         AdfError::HeadingWithoutLevel => "heading-without-level",
         AdfError::ListWithoutContent { .. } => "list-without-content",
-        AdfError::UnsupportedBlockquote => "unsupported-blockquote",
-        AdfError::UnsupportedTable => "unsupported-table",
-        AdfError::UnsupportedNestedList => "unsupported-nested-list",
+        AdfError::Unrepresentable { .. } => "unrepresentable",
         AdfError::BadInput => "bad-input",
     }
 }
@@ -51,10 +146,8 @@ const fn expected_adf_exit(error: &AdfError) -> u16 {
     match *error {
         AdfError::RootNotDoc { .. }
         | AdfError::HeadingWithoutLevel
-        | AdfError::ListWithoutContent { .. } => 40,
-        AdfError::UnsupportedBlockquote
-        | AdfError::UnsupportedTable
-        | AdfError::UnsupportedNestedList => 41,
+        | AdfError::ListWithoutContent { .. }
+        | AdfError::Unrepresentable { .. } => 40,
         AdfError::BadInput => 42,
     }
 }
@@ -71,6 +164,17 @@ fn the_render_direction_agrees_with_the_running_jq() {
         let document: Value =
             serde_json::from_str(&adf).expect("the fixture is JSON");
         let rendered = document_to_markdown(&document);
+
+        if let Some(divergence) = divergence(&name) {
+            if rendered.as_deref() != Ok(divergence.now) {
+                disagreements.push(format!(
+                    "{name}: diverges deliberately ({}) to {:?}, got {rendered:?}",
+                    divergence.reason, divergence.now
+                ));
+            }
+            compared += 1;
+            continue;
+        }
 
         match (oracle.status, rendered) {
             (0, Ok(markdown)) => {
@@ -126,6 +230,19 @@ fn the_assemble_direction_agrees_with_the_running_awk_and_jq() {
         let oracle = frozen_oracle(&case);
         let assembled = markdown_to_document(&markdown, SEED);
 
+        if let Some(divergence) = divergence(&name) {
+            let now = canonical_json(divergence.now);
+            match assembled {
+                Ok(document) if adf_oracle::canonical(&document) == now => {}
+                other => disagreements.push(format!(
+                    "{name}: diverges deliberately ({}) to {now}, got {other:?}",
+                    divergence.reason
+                )),
+            }
+            compared += 1;
+            continue;
+        }
+
         match (oracle.status, assembled) {
             (0, Ok(document)) => {
                 if let Some(message) =
@@ -177,6 +294,51 @@ fn the_assemble_direction_agrees_with_the_running_awk_and_jq() {
         compared > 0,
         "no case was compared — the differential proved nothing"
     );
+}
+
+#[test]
+fn every_deliberate_divergence_names_a_case_the_oracle_disagrees_with() {
+    let render: Vec<String> = cases("render-")
+        .iter()
+        .map(|case| case_name(case))
+        .collect();
+    let assemble: Vec<String> = cases("assemble-")
+        .iter()
+        .map(|case| case_name(case))
+        .collect();
+
+    for divergence in DELIBERATE_DIVERGENCES {
+        let name = divergence.case;
+        let case = adf_oracle::fixtures().join(name);
+        let oracle = frozen_oracle(&case);
+        if render.iter().any(|case| case == name) {
+            assert!(
+                oracle.status != 0
+                    || render_disagreement(
+                        name,
+                        &oracle.stdout,
+                        divergence.now
+                    )
+                    .is_some(),
+                "{name}: the oracle already renders {:?}",
+                divergence.now
+            );
+        } else {
+            assert!(
+                assemble.iter().any(|case| case == name),
+                "{name}: no such frozen case"
+            );
+            assert!(
+                oracle.status != 0
+                    || adf_oracle::canonical(
+                        &serde_json::from_slice(&oracle.stdout)
+                            .expect("the oracle emits JSON on success")
+                    ) != canonical_json(divergence.now),
+                "{name}: the oracle already assembles {}",
+                divergence.now
+            );
+        }
+    }
 }
 
 #[test]

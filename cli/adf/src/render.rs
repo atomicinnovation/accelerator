@@ -4,15 +4,23 @@
 //! and its declaration-order serialisation would silently rehash every Jira
 //! item.
 //!
-//! Byte-fidelity rules that are easy to lose: no indentation anywhere (nested
-//! structure is unrepresentable), no text escaping at all, blocks joined with
-//! a blank line and inlines with nothing, an empty `doc.content` producing
-//! zero bytes rather than a newline, and a hard break emitted as two spaces
-//! then a newline.
+//! Byte-fidelity rules that are easy to lose: blocks joined with a blank line
+//! and inlines with nothing, an empty `doc.content` producing zero bytes rather
+//! than a newline, and a hard break emitted as two spaces then a newline. Text
+//! is escaped only where the tokeniser would read it as syntax, so every
+//! rendered body reads back as itself.
 
 use serde_json::Value;
 
+use crate::syntax;
 use crate::AdfError;
+
+/// What a node with no Markdown form becomes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum NoMarkdownForm {
+    Placeholder,
+    Refusal,
+}
 
 /// Renders a `doc` to the markdown subset, without a trailing newline.
 ///
@@ -22,8 +30,12 @@ use crate::AdfError;
 ///
 /// # Errors
 ///
-/// [`AdfError`] on an unrenderable shape.
-pub fn to_markdown(document: &Value) -> Result<String, AdfError> {
+/// [`AdfError`] on an unrenderable shape, or on a node with no Markdown form
+/// when that is a [`NoMarkdownForm::Refusal`].
+pub fn to_markdown(
+    document: &Value,
+    no_markdown_form: NoMarkdownForm,
+) -> Result<String, AdfError> {
     let kind = document.get("type").and_then(Value::as_str);
     if kind != Some("doc") {
         return Err(AdfError::RootNotDoc {
@@ -34,11 +46,7 @@ pub fn to_markdown(document: &Value) -> Result<String, AdfError> {
         return Ok(String::new());
     };
     let blocks = blocks.as_array().map_or_else(Vec::new, Clone::clone);
-    let mut rendered = Vec::with_capacity(blocks.len());
-    for block in &blocks {
-        rendered.push(render_block(block)?);
-    }
-    Ok(rendered.join("\n\n"))
+    Renderer { no_markdown_form }.blocks(&blocks)
 }
 
 fn node_type(node: &Value) -> &str {
@@ -69,44 +77,101 @@ fn children(node: &Value) -> Vec<Value> {
         .map_or_else(Vec::new, Clone::clone)
 }
 
-fn render_block(block: &Value) -> Result<String, AdfError> {
-    match node_type(block) {
-        "paragraph" => Ok(render_inlines(&children(block))),
-        "heading" => {
-            let level = attribute(block, "level")
-                .and_then(Value::as_u64)
-                .ok_or(AdfError::HeadingWithoutLevel)?;
-            let hashes = "#".repeat(usize::try_from(level).unwrap_or(0));
-            Ok(format!("{hashes} {}", render_inlines(&children(block))))
+fn is_list(node: &Value) -> bool {
+    matches!(node_type(node), "bulletList" | "orderedList" | "taskList")
+}
+
+fn lines_prefixed(body: &str, first: &str, rest: &str) -> String {
+    body.split('\n')
+        .enumerate()
+        .map(|(index, line)| {
+            let prefix = if index == 0 { first } else { rest };
+            if line.is_empty() {
+                prefix.trim_end().to_owned()
+            } else {
+                format!("{prefix}{line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Where a run of text sits, which decides the characters escaped beyond the
+/// inline markers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Surroundings {
+    Prose,
+    TableCell,
+}
+
+struct Renderer {
+    no_markdown_form: NoMarkdownForm,
+}
+
+impl Renderer {
+    fn admit_unrepresentable(&self, node: &str) -> Result<(), AdfError> {
+        match self.no_markdown_form {
+            NoMarkdownForm::Placeholder => Ok(()),
+            NoMarkdownForm::Refusal => Err(AdfError::Unrepresentable {
+                node: node.to_owned(),
+            }),
         }
-        "bulletList" => {
-            let items = required_children(block, "bulletList")?;
-            Ok(items
-                .iter()
-                .map(|item| format!("- {}", list_item_text(item)))
-                .collect::<Vec<_>>()
-                .join("\n"))
+    }
+
+    fn block_placeholder(&self, node: &str) -> Result<String, AdfError> {
+        self.admit_unrepresentable(node)?;
+        Ok(format!("[unsupported ADF node: {node}]"))
+    }
+
+    fn inline_placeholder(&self, node: &str) -> Result<String, AdfError> {
+        self.admit_unrepresentable(node)?;
+        Ok(format!("[unsupported ADF inline: {node}]"))
+    }
+
+    /// Blocks that render to nothing leave no blank line behind.
+    fn blocks(&self, blocks: &[Value]) -> Result<String, AdfError> {
+        let mut rendered = Vec::with_capacity(blocks.len());
+        for block in blocks {
+            let block = self.block(block)?;
+            if !block.is_empty() {
+                rendered.push(block);
+            }
         }
-        "orderedList" => {
-            let start = attribute(block, "order")
-                .and_then(Value::as_u64)
-                .unwrap_or(1);
-            let items = required_children(block, "orderedList")?;
-            Ok(items
-                .iter()
-                .enumerate()
-                .map(|(index, item)| {
-                    let number = start.saturating_add(index as u64);
-                    format!("{number}. {}", list_item_text(item))
+        Ok(rendered.join("\n\n"))
+    }
+
+    fn block(&self, block: &Value) -> Result<String, AdfError> {
+        match node_type(block) {
+            "paragraph" => self.paragraph(block),
+            "heading" => {
+                let level = attribute(block, "level")
+                    .and_then(Value::as_u64)
+                    .ok_or(AdfError::HeadingWithoutLevel)?;
+                if !(1..=6).contains(&level) {
+                    self.admit_unrepresentable("heading")?;
+                }
+                let hashes = "#".repeat(usize::try_from(level).unwrap_or(0));
+                let text =
+                    self.inlines(&children(block), Surroundings::Prose)?;
+                Ok(format!("{hashes} {text}"))
+            }
+            "bulletList" => {
+                let items = required_children(block, "bulletList")?;
+                self.list_items(items, |_| "- ".to_owned())
+            }
+            "orderedList" => {
+                let start = attribute(block, "order")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                let items = required_children(block, "orderedList")?;
+                self.list_items(items, |index| {
+                    format!("{}. ", start.saturating_add(index as u64))
                 })
-                .collect::<Vec<_>>()
-                .join("\n"))
-        }
-        "taskList" => {
-            let items = required_children(block, "taskList")?;
-            Ok(items
-                .iter()
-                .map(|item| {
+            }
+            "taskList" => {
+                let items = required_children(block, "taskList")?;
+                let mut rendered = Vec::with_capacity(items.len());
+                for item in items {
                     let marker = if attribute(item, "state")
                         .and_then(Value::as_str)
                         == Some("DONE")
@@ -115,99 +180,245 @@ fn render_block(block: &Value) -> Result<String, AdfError> {
                     } else {
                         "- [ ] "
                     };
-                    format!("{marker}{}", render_inlines(&children(item)))
-                })
-                .collect::<Vec<_>>()
-                .join("\n"))
+                    let text =
+                        self.inlines(&children(item), Surroundings::Prose)?;
+                    rendered.push(format!("{marker}{text}"));
+                }
+                Ok(rendered.join("\n"))
+            }
+            "codeBlock" => {
+                let language = attribute(block, "language")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let body = block
+                    .get("content")
+                    .and_then(|content| content.get(0))
+                    .and_then(|first| first.get("text"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                Ok(format!("```{language}\n{body}\n```"))
+            }
+            "blockquote" => {
+                let body = self.blocks(&children(block))?;
+                if body.is_empty() {
+                    return Ok(body);
+                }
+                Ok(lines_prefixed(&body, "> ", "> "))
+            }
+            "table" => self.table(block),
+            "rule" => Ok(syntax::RULE.to_owned()),
+            other => self.block_placeholder(other),
         }
-        "codeBlock" => {
-            let language = attribute(block, "language")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let body = block
-                .get("content")
-                .and_then(|content| content.get(0))
-                .and_then(|first| first.get("text"))
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            Ok(format!("```{language}\n{body}\n```"))
+    }
+
+    fn paragraph(&self, paragraph: &Value) -> Result<String, AdfError> {
+        let text = self.inlines(&children(paragraph), Surroundings::Prose)?;
+        Ok(text
+            .split('\n')
+            .map(syntax::escape_line_start)
+            .collect::<Vec<_>>()
+            .join("\n"))
+    }
+
+    fn list_items(
+        &self,
+        items: &[Value],
+        marker: impl Fn(usize) -> String,
+    ) -> Result<String, AdfError> {
+        let mut rendered = Vec::with_capacity(items.len());
+        for (index, item) in items.iter().enumerate() {
+            rendered.push(self.list_item(item, &marker(index))?);
         }
-        other => Ok(format!("[unsupported ADF node: {other}]")),
+        Ok(rendered.join("\n"))
+    }
+
+    /// The first paragraph follows the marker; every later child is indented
+    /// to the marker's width. A nested list needs no blank line before it, and
+    /// anything else does, so it reads back as a block of its own.
+    fn list_item(
+        &self,
+        item: &Value,
+        marker: &str,
+    ) -> Result<String, AdfError> {
+        let children = children(item);
+        let (lead, rest) = match children.split_first() {
+            Some((first, rest)) if node_type(first) == "paragraph" => {
+                (self.paragraph(first)?, rest)
+            }
+            _ => (String::new(), children.as_slice()),
+        };
+        let indent = " ".repeat(marker.len());
+
+        let mut rendered = if lead.is_empty() {
+            marker.to_owned()
+        } else {
+            lines_prefixed(&lead, marker, &indent)
+        };
+        for block in rest {
+            let body = self.block(block)?;
+            if body.is_empty() {
+                continue;
+            }
+            rendered.push_str(if is_list(block) { "\n" } else { "\n\n" });
+            rendered.push_str(&lines_prefixed(&body, &indent, &indent));
+        }
+        Ok(rendered)
+    }
+
+    /// The first row is the header, whatever its cells' types.
+    fn table(&self, table: &Value) -> Result<String, AdfError> {
+        let mut lines = Vec::new();
+        for (index, row) in children(table).iter().enumerate() {
+            let mut cells = Vec::new();
+            for cell in children(row) {
+                cells.push(self.cell(&cell)?);
+            }
+            lines.push(format!("| {} |", cells.join(" | ")));
+            if index == 0 {
+                lines.push(format!(
+                    "| {} |",
+                    vec!["---"; cells.len()].join(" | ")
+                ));
+            }
+        }
+        Ok(lines.join("\n"))
+    }
+
+    fn cell(&self, cell: &Value) -> Result<String, AdfError> {
+        match children(cell).as_slice() {
+            [] => Ok(String::new()),
+            [paragraph] if node_type(paragraph) == "paragraph" => {
+                self.inlines(&children(paragraph), Surroundings::TableCell)
+            }
+            _ => self.block_placeholder(node_type(cell)),
+        }
+    }
+
+    /// Adjacent text nodes carrying the same marks render as one run.
+    fn inlines(
+        &self,
+        inlines: &[Value],
+        surroundings: Surroundings,
+    ) -> Result<String, AdfError> {
+        let mut rendered = String::new();
+        let mut run: Option<(Marks, String)> = None;
+        let flush = |run: &mut Option<(Marks, String)>,
+                     rendered: &mut String| {
+            if let Some((marks, text)) = run.take() {
+                rendered.push_str(&marks.wrap(&text, surroundings));
+            }
+        };
+
+        for node in inlines {
+            match node_type(node) {
+                "text" => {
+                    let marks = Marks::of(node);
+                    let text =
+                        node.get("text").and_then(Value::as_str).unwrap_or("");
+                    match run.as_mut() {
+                        Some((open, joined)) if *open == marks => {
+                            joined.push_str(text);
+                        }
+                        _ => {
+                            flush(&mut run, &mut rendered);
+                            run = Some((marks, text.to_owned()));
+                        }
+                    }
+                }
+                "hardBreak" => {
+                    flush(&mut run, &mut rendered);
+                    rendered.push_str("  \n");
+                }
+                other => {
+                    flush(&mut run, &mut rendered);
+                    rendered.push_str(&self.inline_placeholder(other)?);
+                }
+            }
+        }
+        flush(&mut run, &mut rendered);
+        Ok(rendered)
     }
 }
 
-/// A list item renders its **first** child's content only. A second paragraph
-/// or a nested list under the same item is dropped without a placeholder;
-/// a nested list as the *first* child renders one inline placeholder per
-/// `listItem`, because its children are list items rather than inlines.
-fn list_item_text(item: &Value) -> String {
-    let inlines = item
-        .get("content")
-        .and_then(|content| content.get(0))
-        .map(children)
-        .unwrap_or_default();
-    render_inlines(&inlines)
+/// The marks with a Markdown form. Membership decides, not array order, so an
+/// ADF node's `marks` order is irrelevant.
+#[derive(PartialEq, Eq)]
+struct Marks {
+    code: bool,
+    emphasis: Vec<&'static str>,
+    link: Option<String>,
 }
 
-fn render_inlines(inlines: &[Value]) -> String {
-    inlines.iter().map(render_inline).collect()
-}
+impl Marks {
+    fn of(node: &Value) -> Self {
+        let marks = node
+            .get("marks")
+            .and_then(Value::as_array)
+            .map_or_else(Vec::new, Clone::clone);
+        let has = |kind: &str| {
+            marks.iter().any(|mark| {
+                mark.get("type").and_then(Value::as_str) == Some(kind)
+            })
+        };
+        let link = has("link")
+            .then(|| {
+                marks
+                    .iter()
+                    .find(|mark| {
+                        mark.get("type").and_then(Value::as_str) == Some("link")
+                    })
+                    .and_then(|mark| mark.get("attrs"))
+                    .and_then(|attrs| attrs.get("href"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
+            })
+            .filter(|href| href_is_safe(href));
+        let emphasis = [
+            (has("em"), "*"),
+            (has("strong"), "**"),
+            (has("strike"), syntax::STRIKE),
+        ]
+        .into_iter()
+        .filter_map(|(present, delimiter)| present.then_some(delimiter))
+        .collect();
+        Self {
+            code: has("code"),
+            emphasis,
+            link,
+        }
+    }
 
-fn render_inline(node: &Value) -> String {
-    match node_type(node) {
-        "text" => render_text(node),
-        "hardBreak" => "  \n".to_owned(),
-        other => format!("[unsupported ADF inline: {other}]"),
-    }
-}
+    /// Applied as a fixed pipeline, innermost first: `code`, `em`, `strong`,
+    /// `strike`, then `link`. A run without text renders nothing, since empty
+    /// delimiters would not read back as the same node.
+    ///
+    /// The emitted href is the untrimmed original: only the scheme check
+    /// trims, so leading whitespace survives into the output.
+    fn wrap(&self, text: &str, surroundings: Surroundings) -> String {
+        if text.is_empty() {
+            return String::new();
+        }
+        let mut also = Vec::new();
+        if surroundings == Surroundings::TableCell {
+            also.push('|');
+        }
+        if self.link.is_some() {
+            also.push(']');
+        }
 
-/// Marks are applied as a fixed pipeline, innermost first: `code`, `em`,
-/// `strong`, then `link`. Membership decides, not array order, so an ADF
-/// node's `marks` order is irrelevant and the nesting is always this one.
-///
-/// A text node with no `.text` is not an error: the missing text is treated
-/// as an empty string, leaving any surrounding delimiters in place.
-fn render_text(node: &Value) -> String {
-    let marks = node
-        .get("marks")
-        .and_then(Value::as_array)
-        .map_or_else(Vec::new, Clone::clone);
-    let has = |kind: &str| {
-        marks
-            .iter()
-            .any(|mark| mark.get("type").and_then(Value::as_str) == Some(kind))
-    };
-
-    let mut rendered = node
-        .get("text")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
-    if has("code") {
-        rendered = format!("`{rendered}`");
-    }
-    if has("em") {
-        rendered = format!("*{rendered}*");
-    }
-    if has("strong") {
-        rendered = format!("**{rendered}**");
-    }
-    if !has("link") {
-        return rendered;
-    }
-    let href = marks
-        .iter()
-        .find(|mark| mark.get("type").and_then(Value::as_str) == Some("link"))
-        .and_then(|mark| mark.get("attrs"))
-        .and_then(|attrs| attrs.get("href"))
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    if href_is_safe(href) {
-        // The emitted href is the UNTRIMMED original: only the scheme check
-        // trims, so leading whitespace survives into the output.
-        format!("[{rendered}]({href})")
-    } else {
-        rendered
+        let mut rendered = if self.code {
+            format!("`{text}`")
+        } else {
+            syntax::escape_inline(text, &also)
+        };
+        for delimiter in &self.emphasis {
+            rendered = format!("{delimiter}{rendered}{delimiter}");
+        }
+        match &self.link {
+            Some(href) => format!("[{rendered}]({href})"),
+            None => rendered,
+        }
     }
 }
 
