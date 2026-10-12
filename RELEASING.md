@@ -354,7 +354,8 @@ Act on each advisory and feed issue as follows:
 - **Advisory.** Bump the pin past the named fix, and close the issue once the
   bump merges. Closing it silences that advisory for every later version of
   the pin, so close it earlier only as an explicit risk acceptance, recorded
-  in a comment.
+  in a comment. If no fixed version exists yet, leave the issue open, mitigate
+  where possible, and bump once a fix ships.
 - **Chromium CVE to assess.** Check the Chrome release notes for the CVE's
   fix. Bump the pin if the vendored browser version is below it, then close
   the issue once the bump merges; if it is not affected, close the issue with

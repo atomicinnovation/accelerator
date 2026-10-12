@@ -176,9 +176,7 @@ class AdvisoryFinding:
                 f"{self._browser}.",
                 *self._cves,
                 self._remedy,
-                f"Owner: @{owner.login}. Bump the pin past the fix and close "
-                "this issue once the bump merges; closing it earlier accepts "
-                "the risk for every later version of the pin. See "
+                f"Owner: @{owner.login}. {self._owner_action} See "
                 f"{RELEASING_FEEDS_URL}.",
             ),
         )
@@ -200,6 +198,21 @@ class AdvisoryFinding:
         if self.fix is None:
             return "No fixed version is available."
         return f"Fixed in {code_span(self.fix)}."
+
+    @property
+    def _owner_action(self) -> str:
+        if self.fix is None:
+            return (
+                "No release fixes this yet: leave this issue open, mitigate "
+                "if you can, and bump the pin once a fix ships. Closing it "
+                "before then accepts the risk for every later version of the "
+                "pin, so record why in a comment."
+            )
+        return (
+            "Bump the pin past the fix and close this issue once the bump "
+            "merges; closing it earlier accepts the risk for every later "
+            "version of the pin."
+        )
 
 
 @dataclass(frozen=True, slots=True)

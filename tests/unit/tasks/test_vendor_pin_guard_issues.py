@@ -357,6 +357,20 @@ def test_each_kind_drafts_a_body_naming_what_the_owner_needs(
     assert assignee == OWNER.login
 
 
+@pytest.mark.parametrize(
+    ("fix", "advice", "absent"),
+    [
+        ("1.55.1", "Bump the pin past the fix", "No release fixes this yet"),
+        (None, "No release fixes this yet", "Bump the pin past the fix"),
+    ],
+    ids=["fixed", "unfixed"],
+)
+def test_the_owner_is_told_what_the_fix_allows(fix, advice, absent):
+    body = " ".join(_advisory(fix=fix).draft(OWNER).body.split())
+    assert advice in body
+    assert absent not in body
+
+
 class TestDryRun:
     def test_it_reads_through_and_prints_instead_of_writing(self):
         tracker = FakeIssueTracker([_issue(_keyring_age())], label_exists=False)
