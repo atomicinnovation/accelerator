@@ -5,7 +5,7 @@ title: "Sync Round-Trip Defects Implementation Plan"
 date: "2026-10-10T21:43:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0296"
 parent: "work-item:0296"
 derived_from: ["codebase-research:2026-10-10-0296-sync-round-trip-defects"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-12T03:06:40+00:00"
+last_updated: "2026-10-12T17:46:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -219,6 +219,11 @@ leading blank line in the pushed body survives.
 - [ ] Re-applying the recorded allowlist to each committed JSON fixture
       leaves it unchanged
 - [ ] The scratch issue no longer exists in the sandbox team
+
+#### Implementation Notes:
+
+- Deferred: capture needs PP Linear credentials, and only Phase 5 onwards
+  reads the fixtures, so Phases 1 to 4 proceed without it.
 
 ---
 
@@ -428,16 +433,27 @@ to `adf::AdfError` and `jira-cli` gains the dependency.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p adf -p jira-client -p jira-cli`
-- [ ] `adf_oracle_manifest` still counts 57 cases
-- [ ] `uv run pytest tests/unit/tasks/test_crate_dependencies.py tests/unit/tasks/test_rust.py`
-- [ ] `mise run pup:check && mise run deny:check && mise run public-api:check`
-- [ ] `mise run test:integration:pup` (the new probe pair; outside `mise run`)
-- [ ] `mise run` exits 0
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p adf -p jira-client -p jira-cli`
+- [x] `adf_oracle_manifest` still counts 57 cases
+- [x] `uv run pytest tests/unit/tasks/test_crate_dependencies.py tests/unit/tasks/test_rust.py`
+- [x] `mise run pup:check && mise run deny:check && mise run public-api:check`
+- [x] `mise run test:integration:pup` (the new probe pair; outside `mise run`)
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
 - [ ] `accelerator jira show <key> --render-adf` output unchanged on a real issue
+
+#### Implementation Notes:
+
+- `kanban-drag-overlay.spec.ts` ("Escape-cancelling a drag clears the SSE
+  gate so later updates still render") failed in two consecutive
+  `test:e2e:visualiser` runs, its retry included, then passed in every
+  later run: alone, in the full suite, under saturated CPU, fifteen
+  repeats, and a full `mise run`. The visualiser depends on neither `adf`
+  nor `jira-client`; the cause is unidentified.
+- `jira-client` drops its `sha2` and `hex` dev-dependencies, which only the
+  moved oracle-manifest test used.
 
 ---
 
