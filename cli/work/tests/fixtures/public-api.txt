@@ -714,6 +714,7 @@ pub enum work::sync::decide::Action
 pub work::sync::decide::Action::CreateFromLocal
 pub work::sync::decide::Action::CreateFromRemote
 pub work::sync::decide::Action::Noop
+pub work::sync::decide::Action::Overwrite
 pub work::sync::decide::Action::Prompt
 pub work::sync::decide::Action::Pull
 pub work::sync::decide::Action::Push
@@ -721,6 +722,7 @@ pub work::sync::decide::Action::SkipConflict
 pub work::sync::decide::Action::SkipDirty
 impl work::sync::decide::Action
 pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+pub const fn work::sync::decide::Action::sends_to_tracker(self) -> bool
 impl core::clone::Clone for work::sync::decide::Action
 pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
 impl core::cmp::Eq for work::sync::decide::Action
@@ -990,6 +992,7 @@ pub enum work::sync::Action
 pub work::sync::Action::CreateFromLocal
 pub work::sync::Action::CreateFromRemote
 pub work::sync::Action::Noop
+pub work::sync::Action::Overwrite
 pub work::sync::Action::Prompt
 pub work::sync::Action::Pull
 pub work::sync::Action::Push
@@ -997,6 +1000,7 @@ pub work::sync::Action::SkipConflict
 pub work::sync::Action::SkipDirty
 impl work::sync::decide::Action
 pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+pub const fn work::sync::decide::Action::sends_to_tracker(self) -> bool
 impl core::clone::Clone for work::sync::decide::Action
 pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
 impl core::cmp::Eq for work::sync::decide::Action

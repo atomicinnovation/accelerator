@@ -254,9 +254,9 @@ fn a_resolution_of_accept_remote_turns_a_prompt_into_a_pull(
     Ok(())
 }
 
-#[test]
-fn a_resolution_of_push_local_turns_a_prompt_into_a_push(
-) -> Result<(), kernel::Error> {
+fn resolved_conflict(
+    resolution: Resolution,
+) -> Result<work::sync::SyncPlan, kernel::Error> {
     let baseline_updated = RemoteTimestamp::Reported("old".to_owned());
     let subject_updated = RemoteTimestamp::Reported("new".to_owned());
     let digests = digests_agreeing_with("does-not-matter");
@@ -268,14 +268,48 @@ fn a_resolution_of_push_local_turns_a_prompt_into_a_push(
         &baseline_updated,
         &digests,
     );
-    let mut resolutions = BTreeMap::new();
-    resolutions.insert("0007".to_owned(), Resolution::PushLocal);
+    let resolutions = BTreeMap::from([("0007".to_owned(), resolution)]);
 
-    let result =
-        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+    plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)
+}
 
-    assert_eq!(result.actions[0].action, work::sync::Action::Push);
+#[test]
+fn a_resolved_local_push_is_an_overwrite() -> Result<(), kernel::Error> {
+    let result = resolved_conflict(Resolution::PushLocal)?;
+
+    assert_eq!(result.actions[0].action, work::sync::Action::Overwrite);
     Ok(())
+}
+
+#[test]
+fn a_resolved_local_overwrite_counts_against_max_pushes(
+) -> Result<(), kernel::Error> {
+    let result = resolved_conflict(Resolution::PushLocal)?;
+
+    assert_eq!(result.push_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn only_a_push_or_an_overwrite_sends_to_the_tracker() {
+    use work::sync::Action;
+
+    let sending: Vec<Action> = [
+        Action::Push,
+        Action::Overwrite,
+        Action::Pull,
+        Action::SkipConflict,
+        Action::SkipDirty,
+        Action::Prompt,
+        Action::Noop,
+        Action::CreateFromRemote,
+        Action::CreateFromLocal,
+    ]
+    .into_iter()
+    .filter(|action| action.sends_to_tracker())
+    .collect();
+
+    assert_eq!(sending, [Action::Push, Action::Overwrite]);
 }
 
 #[test]
@@ -332,6 +366,40 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert(
 
     assert_eq!(result.actions[0].state, SyncState::Synced);
     assert_eq!(result.actions[0].action, work::sync::Action::Noop);
+    Ok(())
+}
+
+#[test]
+fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert(
+) -> Result<(), kernel::Error> {
+    let updated = RemoteTimestamp::Reported("old".to_owned());
+    let moved = RemoteTimestamp::Reported("new".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-11".to_owned());
+    let item = PlanInput {
+        id: "0011".to_owned(),
+        external_id: Some(&id),
+        facts: RemoteFacts {
+            presence: RemotePresence::Present,
+            remote_updated: &moved,
+        },
+        dirty: work::sync::Dirtiness::Clean,
+        baseline: BaselineEntry {
+            remote_updated_at: &updated,
+            remote_hash: Some("stale"),
+            local_hash: Some("h"),
+        },
+        baseline_timestamp: 0,
+        digests: &digests,
+    };
+    let resolutions =
+        BTreeMap::from([("0011".to_owned(), Resolution::PushLocal)]);
+
+    let result =
+        plan::plan(&[item], SyncDirection::Bidirectional, &resolutions)?;
+
+    assert_eq!(result.actions[0].state, SyncState::RemotelyModified);
+    assert_eq!(result.actions[0].action, work::sync::Action::Pull);
     Ok(())
 }
 

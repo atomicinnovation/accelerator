@@ -303,7 +303,7 @@ fn parse_resolutions(
 
 const fn action_keyword(action: work::sync::Action) -> &'static str {
     match action {
-        work::sync::Action::Push => "push",
+        work::sync::Action::Push | work::sync::Action::Overwrite => "push",
         work::sync::Action::Pull => "pull",
         work::sync::Action::SkipConflict => "skip-conflict",
         work::sync::Action::SkipDirty => "skip-dirty",

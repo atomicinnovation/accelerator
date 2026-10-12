@@ -18,9 +18,13 @@ pub enum SyncDirection {
 /// table entry. The sync engine produces the two create actions out-of-band and
 /// reports them under these keywords; they exist here so a report round-trips and
 /// the engine's exhaustive action match names them.
+///
+/// `Overwrite` is never returned by [`decide`] either: it is a `Prompt`
+/// resolved in the local side's favour, which replaces the remote whole.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Push,
+    Overwrite,
     Pull,
     SkipConflict,
     SkipDirty,
@@ -31,10 +35,17 @@ pub enum Action {
 }
 
 impl Action {
+    /// Whether the action sends a description to the tracker.
+    #[must_use]
+    pub const fn sends_to_tracker(self) -> bool {
+        matches!(self, Self::Push | Self::Overwrite)
+    }
+
     #[must_use]
     pub fn from_keyword(raw: &str) -> Option<Self> {
         Some(match raw {
             "push" => Self::Push,
+            "overwrite" => Self::Overwrite,
             "pull" => Self::Pull,
             "skip-conflict" => Self::SkipConflict,
             "skip-dirty" => Self::SkipDirty,
@@ -51,6 +62,7 @@ impl std::fmt::Display for Action {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::Push => "push",
+            Self::Overwrite => "overwrite",
             Self::Pull => "pull",
             Self::SkipConflict => "skip-conflict",
             Self::SkipDirty => "skip-dirty",
@@ -142,6 +154,7 @@ mod tests {
     fn every_action_round_trips_through_its_keyword() {
         let variants = [
             Action::Push,
+            Action::Overwrite,
             Action::Pull,
             Action::SkipConflict,
             Action::SkipDirty,

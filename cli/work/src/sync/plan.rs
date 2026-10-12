@@ -50,7 +50,7 @@ impl SyncPlan {
     pub fn push_count(&self) -> usize {
         self.actions
             .iter()
-            .filter(|planned| planned.action == Action::Push)
+            .filter(|planned| planned.action.sends_to_tracker())
             .count()
     }
 }
@@ -121,7 +121,7 @@ pub fn plan(
             if let Some(resolution) = resolutions.get(&item.id) {
                 action = match resolution {
                     Resolution::AcceptRemote => Action::Pull,
-                    Resolution::PushLocal => Action::Push,
+                    Resolution::PushLocal => Action::Overwrite,
                     Resolution::Skip => Action::Prompt,
                 };
             }

@@ -1351,6 +1351,14 @@ fn execute_resolving(
     scenario: &Scenario,
     resolutions: &BTreeMap<String, Resolution>,
 ) -> Result<RunReport, RunError> {
+    execute_resolving_in(scenario, resolutions, RunMode::Apply)
+}
+
+fn execute_resolving_in(
+    scenario: &Scenario,
+    resolutions: &BTreeMap<String, Resolution>,
+    mode: RunMode,
+) -> Result<RunReport, RunError> {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
     let author = UnusedAuthor;
@@ -1376,13 +1384,78 @@ fn execute_resolving(
             scenario.dir.path(),
             25,
             25,
-            RunMode::Apply,
+            mode,
         ),
     )
 }
 
 fn accepting_remote(id: &str) -> BTreeMap<String, Resolution> {
     BTreeMap::from([(id.to_owned(), Resolution::AcceptRemote)])
+}
+
+fn pushing_local(id: &str) -> BTreeMap<String, Resolution> {
+    BTreeMap::from([(id.to_owned(), Resolution::PushLocal)])
+}
+
+#[test]
+fn a_local_resolution_overwrites_the_remote_title_and_description(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Local title",
+        "Local body\n",
+        "Title\nRemote body\n",
+    )?;
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Overwrite
+    );
+    assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
+    let updates: Vec<(String, String)> = scenario
+        .tracker
+        .calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            Call::Update { title, body, .. } => {
+                Some((title, body.trim().to_owned()))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        updates,
+        [("Local title".to_owned(), "Local body".to_owned())]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_previewed_overwrite_carries_a_payload_check() -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Local title",
+        "Local body\n",
+        "Title\nRemote body\n",
+    )?;
+
+    let report = execute_resolving_in(
+        &scenario,
+        &pushing_local("0009"),
+        RunMode::Preview,
+    )
+    .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        report.reported[0].planned.action,
+        work::sync::Action::Overwrite
+    );
+    assert_eq!(
+        report.reported[0].validation,
+        Some(tracker::ValidationOutcome::Valid)
+    );
+    Ok(())
 }
 
 fn conflict_scenario(

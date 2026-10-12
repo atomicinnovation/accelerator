@@ -633,7 +633,9 @@ fn validate_pushes(
     plan.actions
         .iter()
         .map(|planned| {
-            let validation = (planned.action == Action::Push)
+            let validation = planned
+                .action
+                .sends_to_tracker()
                 .then(|| validate_push(planned, items, tracker))
                 .flatten();
             ReportedItem {
@@ -852,7 +854,7 @@ fn apply_planned_action(
 ) -> ReportedItem {
     let item = index.get(&planned.id);
     let outcome = match planned.action {
-        Action::Push => {
+        Action::Push | Action::Overwrite => {
             match item
                 .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
             {
