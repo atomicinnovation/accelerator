@@ -81,6 +81,13 @@ class GuardRun:
 def evaluate(
     inputs: LocalInputs, today: dt.date, ports: GuardPorts
 ) -> GuardReport:
+    local_findings = (
+        *pin_age_findings(inputs, today),
+        *keyring_age_findings(inputs, today),
+        *node_keyring_expiry_findings(
+            inputs.node_keyring, ports.key_lister, today
+        ),
+    )
     session = FeedSession(
         ports.feeds,
         FeedBudget(
@@ -94,11 +101,7 @@ def evaluate(
     )
     return GuardReport(
         (
-            *pin_age_findings(inputs, today),
-            *keyring_age_findings(inputs, today),
-            *node_keyring_expiry_findings(
-                inputs.node_keyring, ports.key_lister, today
-            ),
+            *local_findings,
             *(finding for check in advisories for finding in check.findings),
         ),
         tuple(failure for check in advisories for failure in check.failures),

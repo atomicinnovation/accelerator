@@ -142,7 +142,9 @@ def test_a_local_input_error_exits_before_any_tracker_call(tmp_path):
     assert ports.tracker.calls == []
 
 
-def test_an_unlistable_keyring_exits_before_any_tracker_call(tmp_path):
+def test_an_unlistable_keyring_exits_before_any_feed_or_tracker_call(
+    tmp_path,
+):
     def unlistable(_keyring):
         raise KeyListingError("gpg is not installed")
 
@@ -153,6 +155,7 @@ def test_an_unlistable_keyring_exits_before_any_tracker_call(tmp_path):
     assert raised.value.code == 1
     assert "keys/nodejs-release.asc" in str(raised.value.message)
     assert "gpg is not installed" in str(raised.value.message)
+    assert ports.feeds.calls == []
     assert ports.tracker.calls == []
 
 
