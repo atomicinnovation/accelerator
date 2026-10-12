@@ -263,9 +263,13 @@ otherwise: a Playwright bump that keeps the Chromium revision leaves
   `keyring.bumped`.
 - **Key expiry.** Fetch the extended key from `nodejs/release-keys`, verify it
   out of band, replace `keys/nodejs-release.asc`, and update `keyring.bumped`.
+  A refresh cannot clear a signing subkey that expired beside its
+  replacement, or the key of a releaser who no longer signs releases; close
+  such an issue with a comment saying why.
 - **Guard tripped.** The run found more than 10 new findings, so it opened
   none of them and failed. Read the listed findings, or run the task
-  locally to print their drafts, and look for a matcher defect first. If they
+  locally with `--maximum-new-issues` above the count to print their drafts,
+  and look for a matcher defect first. If they
   are genuine, dispatch the workflow with `maximum-new-issues` above the
   count, then close the tripped issue. A changed set opens a fresh tripped
   issue, so close any it supersedes.
@@ -339,9 +343,13 @@ Blind spots:
 
 A request is retried at most twice, after a transport error, a 5xx or a 429,
 waiting 2 s then 8 s, or the server's `Retry-After` capped at 30 s. Each
-attempt is limited to 20 s. A feed unreachable three times running is
+step of an attempt (connecting, sending, awaiting the response, each read) is
+limited to 20 s, and a body still arriving 20 s after the attempt began is
+abandoned when its next chunk lands. A feed unreachable three times running is
 skipped for the rest of the run, and no request starts more than 10 minutes
 into the run; a skipped request counts as a feed failure.
+
+Act on each advisory and feed issue as follows:
 
 - **Advisory.** Bump the pin past the named fix, and close the issue once the
   bump merges. Closing it silences that advisory for every later version of
@@ -361,14 +369,16 @@ into the run; a skipped request counts as a feed failure.
 ### Closing issues
 
 Closing a finding's issue permanently suppresses that finding, so close one
-only once it is resolved. A closed feed-failure issue suppresses nothing. Only issues authored by `github-actions[bot]` count: an
-issue opened or re-filed by hand suppresses nothing, and a change to the
-workflow's token identity needs `--issue-author` to match. Running the task
+only once it is resolved. A closed feed-failure issue suppresses nothing.
+Only issues authored by `github-actions[bot]` count: an issue opened or
+re-filed by hand suppresses nothing, and a change to the workflow's token
+identity needs `--issue-author` to match. Running the task
 locally prints drafts and writes nothing unless `--open-issues` is passed.
 
-Never edit a guard issue's body. The guard reads only the marker on its last
-line, so a line added beneath it makes the issue stop counting and the finding
-reopens. Record decisions as comments.
+Never edit a guard issue's body or remove its `runtime-pin-guard` label. The
+guard lists only labelled issues and reads only the marker on the body's last
+line, so either change makes the issue stop counting and the finding reopens.
+Record decisions as comments.
 
 ### Schedule health
 

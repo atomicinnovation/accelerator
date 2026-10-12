@@ -373,6 +373,7 @@ carries the `runtime-pin-guard` label.
   enforces that.
 - **Dry by default.** It prints the issues it would open and writes nothing
   unless `--open-issues` is passed, which only `runtime-pin-guard.yml` does.
+  It still lists the existing issues, so `gh` must be authenticated.
   `--today <date>` evaluates as of another date and is refused with
   `--open-issues`.
 - **Trusted author.** Only issues authored by `github-actions[bot]` count for
