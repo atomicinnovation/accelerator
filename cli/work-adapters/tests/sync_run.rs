@@ -6,6 +6,8 @@
 //! and writer, which is what lets a spy count writes.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -30,8 +32,10 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
 use work_adapters::sync::run::DiscoveryStatus;
+use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemOutcome;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunError;
@@ -2353,5 +2357,207 @@ fn max_items_counts_the_post_dedup_discovered_set() -> Result<(), TestError> {
         matches!(over, Err(RunError::Refused { .. })),
         "the deduped count, not the raw count, is bounded by max_items"
     );
+    Ok(())
+}
+
+const JIRA_PANEL_DESCRIPTION: &str = "{\"content\":[{\"attrs\":{\
+    \"panelType\":\"info\"},\"content\":[],\"type\":\"panel\"}],\
+    \"type\":\"doc\",\"version\":1}";
+const JIRA_MENTION_DESCRIPTION: &str = "{\"content\":[{\"content\":[{\
+    \"attrs\":{\"id\":\"u1\",\"text\":\"@someone\"},\"type\":\"mention\"}],\
+    \"type\":\"paragraph\"}],\"type\":\"doc\",\"version\":1}";
+const JIRA_OTHER_DESCRIPTION: &str = "{\"content\":[{\"content\":[{\
+    \"text\":\"Earlier\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\
+    \"type\":\"doc\",\"version\":1}";
+
+fn jira_projection(description: &str) -> String {
+    format!("Title\n{description}\n")
+}
+
+/// One Jira item whose local body is `local_body` and whose remote holds
+/// `description`, with `entry` as its baseline (or none).
+fn jira_scenario(
+    local_body: &str,
+    description: &str,
+    remote_stamp: &str,
+    entry: Option<&dyn Fn(&str) -> String>,
+) -> Result<Scenario, TestError> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("0009.md");
+    let content = conflict_content(9, "Local title", local_body);
+    std::fs::write(&path, &content)?;
+    let external = ExternalId::new("ENG-9".to_owned());
+    let issue = RemoteIssue {
+        key: external.clone(),
+        updated: RemoteTimestamp::Reported(remote_stamp.to_owned()),
+        body: jira_projection(description),
+    };
+    let spy = Spy::default();
+    let entries: Vec<String> =
+        entry.map(|entry| entry(&content)).into_iter().collect();
+    spy.seed(BASELINE_PATH, &baseline_document(&entries));
+    Ok(Scenario {
+        items: vec![LocalItem {
+            id: "0009".to_owned(),
+            path,
+            external_id: Some(external.clone()),
+        }],
+        tracker: support::jira_recording_tracker(vec![(external, issue)]),
+        spy,
+        dir,
+    })
+}
+
+/// A baseline the remote has not moved from and the local side has.
+fn locally_modified_entry(description: &str) -> impl Fn(&str) -> String {
+    let remote_hash = digest::remote_body(&jira_projection(description));
+    move |_| {
+        format!(
+            "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\
+             \"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
+        )
+    }
+}
+
+fn both_moved_entry(_: &str) -> String {
+    format!(
+        "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\
+         \"remote_hash\":\"stale\",\"local_hash\":\"stale\"}}"
+    )
+}
+
+fn sent_nothing(tracker: &RecordingTracker) -> bool {
+    !tracker.calls().iter().any(|call| {
+        matches!(
+            call,
+            Call::Update { .. } | Call::Retitle { .. } | Call::Create { .. }
+        )
+    })
+}
+
+fn failure_class_of(
+    report: &RunReport,
+) -> work_adapters::sync::apply::FailureClass {
+    only_failure(report).class()
+}
+
+#[test]
+fn a_push_over_an_unrenderable_jira_description_is_refused_and_sends_nothing(
+) -> Result<(), TestError> {
+    let scenario = jira_scenario(
+        "Edited locally\n",
+        JIRA_PANEL_DESCRIPTION,
+        STAMP,
+        Some(&locally_modified_entry(JIRA_PANEL_DESCRIPTION)),
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a push within bounds must proceed")?;
+
+    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::Unrenderable
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn resolve_local_overwrites_an_unrenderable_jira_description(
+) -> Result<(), TestError> {
+    let scenario = jira_scenario(
+        "Edited locally\n",
+        JIRA_PANEL_DESCRIPTION,
+        MOVED_STAMP,
+        Some(&both_moved_entry),
+    )?;
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
+    assert!(scenario.tracker.calls().iter().any(|call| matches!(
+        call,
+        Call::Update { title, body, .. }
+            if title == "Local title" && body.contains("Edited locally")
+    )));
+    Ok(())
+}
+
+#[test]
+fn resolving_local_on_an_entryless_residue_item_sends_nothing(
+) -> Result<(), TestError> {
+    let residue = format!("Old title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let scenario =
+        jira_scenario(&residue, JIRA_MENTION_DESCRIPTION, MOVED_STAMP, None)?;
+
+    let unresolved = execute_resolving(&scenario, &BTreeMap::new())
+        .map_err(|_| "a conflict is within the bounds")?;
+    let DossierRender::Unrenderable(dossier) =
+        render_dossier(&unresolved.dossiers[0], &|_| String::new())
+    else {
+        panic!("residue over an unrenderable remote has no sections");
+    };
+    assert!(dossier.contains("reason: local-pull-residue"), "{dossier}");
+    assert!(dossier.contains("--resolve 0009=remote"), "{dossier}");
+
+    let report = execute_resolving(&scenario, &pushing_local("0009"))
+        .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
+) -> Result<(), TestError> {
+    let residue = format!("Title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let scenario = jira_scenario(
+        &residue,
+        JIRA_OTHER_DESCRIPTION,
+        STAMP,
+        Some(&locally_modified_entry(JIRA_OTHER_DESCRIPTION)),
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a push within bounds must proceed")?;
+
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
+    Ok(())
+}
+
+#[test]
+fn a_previewed_residue_overwrite_reports_pull_residue() -> Result<(), TestError>
+{
+    let residue = format!("Title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let scenario = jira_scenario(
+        &residue,
+        JIRA_PANEL_DESCRIPTION,
+        MOVED_STAMP,
+        Some(&both_moved_entry),
+    )?;
+
+    let report = execute_resolving_in(
+        &scenario,
+        &pushing_local("0009"),
+        RunMode::Preview,
+        &AlwaysClean,
+    )
+    .map_err(|_| "a resolved conflict is within the bounds")?;
+
+    assert_eq!(
+        failure_class_of(&report),
+        work_adapters::sync::apply::FailureClass::PullResidue
+    );
+    assert!(sent_nothing(&scenario.tracker));
     Ok(())
 }

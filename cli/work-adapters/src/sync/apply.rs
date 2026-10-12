@@ -31,6 +31,7 @@ pub enum FailureClass {
     Unconfigured,
     Rejected,
     Unrenderable,
+    PullResidue,
 }
 
 #[derive(Debug)]
@@ -52,6 +53,9 @@ pub enum ApplyError {
         item_id: String,
         cause: Unrenderable,
     },
+    LocalPullResidue {
+        item_id: String,
+    },
 }
 
 impl ApplyError {
@@ -69,6 +73,7 @@ impl ApplyError {
             Self::Io { .. } => FailureClass::Terminal,
             Self::RemoteBodyUnavailable { .. } => FailureClass::Retryable,
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
+            Self::LocalPullResidue { .. } => FailureClass::PullResidue,
         }
     }
 }
@@ -93,6 +98,14 @@ impl std::fmt::Display for ApplyError {
             Self::RemoteUnrenderable { item_id, cause } => {
                 write!(formatter, "{item_id}: {cause}")
             }
+            Self::LocalPullResidue { item_id } => write!(
+                formatter,
+                "{item_id}: the local file still holds the raw tracker \
+                 document an earlier pull wrote, so nothing was sent; replace \
+                 it with Markdown (`jira show <key> --render-adf` prints a \
+                 starting point) and sync, or resolve with --resolve \
+                 {item_id}=remote to discard local changes"
+            ),
         }
     }
 }

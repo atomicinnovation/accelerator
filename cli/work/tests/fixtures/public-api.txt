@@ -881,6 +881,19 @@ pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
 pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub mod work::sync::pull_residue
+pub enum work::sync::pull_residue::PullResidue
+pub work::sync::pull_residue::PullResidue::TrackerWireDocument
+pub work::sync::pull_residue::PullResidue::VerbatimRemote
+impl core::clone::Clone for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::clone(&self) -> work::sync::pull_residue::PullResidue
+impl core::cmp::Eq for work::sync::pull_residue::PullResidue
+impl core::cmp::PartialEq for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::eq(&self, other: &work::sync::pull_residue::PullResidue) -> bool
+impl core::fmt::Debug for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::pull_residue::PullResidue
+impl core::marker::StructuralPartialEq for work::sync::pull_residue::PullResidue
 pub mod work::sync::push_decide
 pub enum work::sync::push_decide::PushOutcome
 pub work::sync::push_decide::PushOutcome::CreatedBlocked
@@ -1081,6 +1094,18 @@ pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync:
 impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::PullResidue
+pub work::sync::PullResidue::TrackerWireDocument
+pub work::sync::PullResidue::VerbatimRemote
+impl core::clone::Clone for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::clone(&self) -> work::sync::pull_residue::PullResidue
+impl core::cmp::Eq for work::sync::pull_residue::PullResidue
+impl core::cmp::PartialEq for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::eq(&self, other: &work::sync::pull_residue::PullResidue) -> bool
+impl core::fmt::Debug for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::pull_residue::PullResidue
+impl core::marker::StructuralPartialEq for work::sync::pull_residue::PullResidue
 pub enum work::sync::PushOutcome
 pub work::sync::PushOutcome::CreatedBlocked
 pub work::sync::PushOutcome::CreatedUnwritten

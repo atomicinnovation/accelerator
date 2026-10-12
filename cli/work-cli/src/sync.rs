@@ -438,6 +438,9 @@ fn render_report(report: &RunReport) -> String {
                     work_adapters::sync::apply::FailureClass::Unrenderable => {
                         "unrenderable"
                     }
+                    work_adapters::sync::apply::FailureClass::PullResidue => {
+                        "pull-residue"
+                    }
                 },
             ),
             _ => (action_keyword(item.planned.action), "-"),
@@ -493,7 +496,8 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
             exit_codes::UNCONFIGURED
         }
         work_adapters::sync::apply::FailureClass::Rejected
-        | work_adapters::sync::apply::FailureClass::Unrenderable => {
+        | work_adapters::sync::apply::FailureClass::Unrenderable
+        | work_adapters::sync::apply::FailureClass::PullResidue => {
             exit_codes::REJECTED
         }
     }
@@ -2296,6 +2300,12 @@ mod tests {
                         },
                     },
                 ),
+                failed_with(
+                    "0012",
+                    ApplyError::LocalPullResidue {
+                        item_id: "0012".to_owned(),
+                    },
+                ),
             ],
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -3288,6 +3298,23 @@ mod tests {
         assert_eq!(
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
+        );
+    }
+
+    #[test]
+    fn a_pull_residue_refusal_reports_pull_residue_and_exits_75() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::LocalPullResidue {
+                item_id: "0001".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tpull-residue"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
         );
     }
 

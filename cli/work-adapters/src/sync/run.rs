@@ -48,6 +48,8 @@ use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::ordering;
 use crate::sync::scope;
+use crate::sync::send_refusal::send_refusal;
+use crate::sync::send_refusal::SendRefusal;
 
 #[derive(Debug)]
 pub enum RunError {
@@ -404,6 +406,7 @@ pub struct ConflictDossier {
 pub enum UnrenderableReason {
     LocalUnreadable,
     RemoteUnrenderable,
+    LocalPullResidue,
 }
 
 impl UnrenderableReason {
@@ -411,6 +414,7 @@ impl UnrenderableReason {
         match self {
             Self::LocalUnreadable => "local-unreadable",
             Self::RemoteUnrenderable => "remote-unrenderable",
+            Self::LocalPullResidue => "local-pull-residue",
         }
     }
 
@@ -428,6 +432,13 @@ impl UnrenderableReason {
                  renders and re-run the sync, or resolve with --resolve \
                  {id}=local, which replaces the remote description with the \
                  local body."
+            ),
+            Self::LocalPullResidue => format!(
+                "This conflict could not be rendered: the local file still \
+                 holds the raw tracker document an earlier pull wrote, and \
+                 the remote description holds content with no Markdown form. \
+                 Item {id} was left unresolved. Edit the description in Jira \
+                 until it renders, then resolve with --resolve {id}=remote."
             ),
         }
     }
@@ -596,12 +607,22 @@ fn readable_dossier(
     local_content: &str,
     comparison: &BodyComparison<'_>,
 ) -> ConflictDossier {
-    let (title, _) = local_title_and_body(local_content);
+    let (title, local_body) = local_title_and_body(local_content);
     let remote_projection =
         remote.and_then(|r| r.body.as_deref()).unwrap_or("");
+    let unrenderable_reason = || {
+        if comparison
+            .pull_residue(&local_body, remote_projection)
+            .is_some()
+        {
+            UnrenderableReason::LocalPullResidue
+        } else {
+            UnrenderableReason::RemoteUnrenderable
+        }
+    };
     let (sections, unrenderable) =
         comparison.local_body(remote_projection).map_or_else(
-            |_| (Vec::new(), Some(UnrenderableReason::RemoteUnrenderable)),
+            |_| (Vec::new(), Some(unrenderable_reason())),
             |remote_body| {
                 let reconstructed =
                     reconstruct_pulled_content(local_content, &remote_body);
@@ -618,45 +639,91 @@ fn readable_dossier(
     }
 }
 
-/// Reports the whole plan for a preview, attaching a local payload-validation
-/// outcome to each `Push` entry.
+/// Reports the whole plan for a preview, attaching to each send either the
+/// refusal the run would meet, as a failure, or a local payload-validation
+/// outcome.
 ///
-/// Every planned action is reported `NotApplied`, so the report never shrinks
-/// below the plan. The `validate_update` call is a local composition check —
+/// Every other planned action is reported `NotApplied`, so the report never
+/// shrinks below the plan. The `validate_update` call is a local composition check —
 /// it makes no remote call — so a `Rejected` outcome names a locally-detectable
 /// missing field without reproducing the tracker's own field validation.
 fn validate_pushes(
     plan: &work::sync::SyncPlan,
     items: &[LocalItem],
     tracker: &dyn RemoteTracker,
+    facts: &GatheredFacts,
 ) -> Vec<ReportedItem> {
+    let comparison = BodyComparison::new(tracker);
     plan.actions
         .iter()
         .map(|planned| {
-            let validation = planned
+            let checked = planned
                 .action
                 .sends_to_tracker()
-                .then(|| validate_push(planned, items, tracker))
+                .then(|| {
+                    check_send(planned, items, tracker, facts, &comparison)
+                })
                 .flatten();
-            ReportedItem {
-                planned: planned.clone(),
-                outcome: ItemOutcome::NotApplied,
-                validation,
+            match checked {
+                Some(Err(refused)) => ReportedItem {
+                    planned: planned.clone(),
+                    outcome: ItemOutcome::Failed(refused),
+                    validation: None,
+                },
+                validated => ReportedItem {
+                    planned: planned.clone(),
+                    outcome: ItemOutcome::NotApplied,
+                    validation: validated.and_then(Result::ok),
+                },
             }
         })
         .collect()
 }
 
-fn validate_push(
+/// The refusal a send would meet, or else the tracker's payload check.
+fn check_send(
     planned: &PlannedAction,
     items: &[LocalItem],
     tracker: &dyn RemoteTracker,
-) -> Option<tracker::ValidationOutcome> {
+    facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
+) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
     let item = items.iter().find(|candidate| candidate.id == planned.id)?;
     let external_id = item.external_id.as_ref()?;
     let content = std::fs::read_to_string(&item.path).ok()?;
     let (title, body) = local_title_and_body(&content);
-    Some(tracker.validate_update(external_id, &title, &body))
+    if let Some(refusal) = send_refusal(
+        comparison,
+        planned.action,
+        &body,
+        fetched_projection(facts, &item.id),
+    ) {
+        return Some(Err(refused_send(&item.id, refusal)));
+    }
+    Some(Ok(tracker.validate_update(external_id, &title, &body)))
+}
+
+fn fetched_projection<'a>(
+    facts: &'a GatheredFacts,
+    id: &str,
+) -> Option<&'a str> {
+    facts
+        .per_id
+        .get(id)
+        .and_then(|(remote, _)| remote.body.as_deref())
+}
+
+fn refused_send(item_id: &str, refusal: SendRefusal) -> ApplyError {
+    let item_id = item_id.to_owned();
+    match refusal {
+        SendRefusal::PullResidue => ApplyError::LocalPullResidue { item_id },
+        SendRefusal::RemoteUnrenderable(cause) => {
+            ApplyError::RemoteUnrenderable { item_id, cause }
+        }
+        SendRefusal::RemoteUnfetched => {
+            ApplyError::RemoteBodyUnavailable { item_id }
+        }
+    }
 }
 
 struct Discovered {
@@ -773,14 +840,25 @@ fn read_local(item: &LocalItem) -> Result<String, ApplyError> {
 
 fn push_outcome(
     applier: &mut ItemApplier<'_, '_>,
+    planned: &PlannedAction,
     item: &LocalItem,
     external_id: &ExternalId,
+    facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
 ) -> ItemOutcome {
     let content = match read_local(item) {
         Ok(content) => content,
         Err(error) => return ItemOutcome::Failed(error),
     };
     let (title, body) = local_title_and_body(&content);
+    if let Some(refusal) = send_refusal(
+        comparison,
+        planned.action,
+        &body,
+        fetched_projection(facts, &item.id),
+    ) {
+        return ItemOutcome::Failed(refused_send(&item.id, refusal));
+    }
     match applier.push(&PushRequest {
         id: &item.id,
         external_id,
@@ -858,9 +936,14 @@ fn apply_planned_action(
             match item
                 .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
             {
-                Some((item, external_id)) => {
-                    push_outcome(applier, item, external_id)
-                }
+                Some((item, external_id)) => push_outcome(
+                    applier,
+                    &planned,
+                    item,
+                    external_id,
+                    facts,
+                    comparison,
+                ),
                 None => return not_applied(planned),
             }
         }
@@ -1245,7 +1328,7 @@ fn execute<'a>(
 
     if matches!(request.mode, RunMode::Preview) {
         let mut reported =
-            validate_pushes(&plan, request.reconciled(), ports.tracker);
+            validate_pushes(&plan, request.reconciled(), ports.tracker, &facts);
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),

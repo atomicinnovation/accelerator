@@ -16,5 +16,6 @@ pub mod pending_push;
 pub mod realign;
 pub mod run;
 pub mod scope;
+pub mod send_refusal;
 pub mod settled_run;
 pub mod working_copy_status;
