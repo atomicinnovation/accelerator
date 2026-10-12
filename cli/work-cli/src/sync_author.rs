@@ -21,8 +21,6 @@ use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use document::Scalar;
 use document::Yaml;
-use remote_projection::split_projected;
-use remote_projection::ProjectedIssue;
 use store::lock::acquire;
 use store::lock::LockOptions;
 use tracker::ExternalId;
@@ -245,8 +243,8 @@ impl LocalAuthor for ConfiguredLocalAuthor<'_> {
     ) -> Result<AuthoredLocal, kernel::Error> {
         let scheme = resolve_scheme(self.config)?;
         let project = scheme.key.clone();
-        let ProjectedIssue { title, description } =
-            split_projected(&issue.issue.body);
+        let title = issue.title.as_str();
+        let description = issue.body.as_str();
 
         std::fs::create_dir_all(&self.work_dir).map_err(failed)?;
         let retirement_locks = LockdirLock::new(&self.work_dir);
@@ -445,23 +443,25 @@ mod tests {
         }
 
         fn pull(&self, key: &str) -> Result<AuthoredLocal, kernel::Error> {
-            self.pull_projected(key, "A pulled title\nWhat it is.")
+            self.pull_body(key, "What it is.")
         }
 
-        fn pull_projected(
+        fn pull_body(
             &self,
             key: &str,
-            projected: &str,
+            body: &str,
         ) -> Result<AuthoredLocal, kernel::Error> {
             let key = ExternalId::new(key.to_owned());
             self.author().author_from_remote(&DiscoveredIssue {
                 external_id: key.clone(),
+                title: "A pulled title".to_owned(),
+                body: body.to_owned(),
                 issue: RemoteIssue {
                     key,
                     updated: RemoteTimestamp::Reported(
                         "2026-06-01T00:00:00Z".to_owned(),
                     ),
-                    body: projected.to_owned(),
+                    body: format!("A pulled title\n{body}"),
                 },
             })
         }
@@ -534,14 +534,11 @@ mod tests {
 
     #[test]
     fn a_pulled_description_ends_with_exactly_one_newline() {
-        for projected in [
-            "A pulled title\nWhat it is.",
-            "A pulled title\nWhat it is.\n",
-        ] {
+        for body in ["What it is.", "What it is.\n"] {
             let repo = TrackerRepo::new();
 
             let authored = repo
-                .pull_projected("ENG-42", projected)
+                .pull_body("ENG-42", body)
                 .expect("the pull authors a file");
 
             let content =

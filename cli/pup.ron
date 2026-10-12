@@ -426,6 +426,21 @@
                 ),
             ],
         )),
+        // work-adapters applies tracker body rules only through the tracker
+        // port's BodyDialect, so no Jira-specific conversion leaks into sync.
+        Module((
+            name: "work_adapters_reach_tracker_bodies_through_the_port",
+            matches: Module("^work_adapters($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^adf(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // Confines work-adapters' pure-read filesystem module to its
         // std/kernel::Error/work/crate import set — a tighter allow-list than
         // the crate-wide zero-spawn deny above, same shape as

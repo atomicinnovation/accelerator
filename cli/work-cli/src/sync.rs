@@ -435,6 +435,9 @@ fn render_report(report: &RunReport) -> String {
                     work_adapters::sync::apply::FailureClass::Rejected => {
                         "rejected"
                     }
+                    work_adapters::sync::apply::FailureClass::Unrenderable => {
+                        "unrenderable"
+                    }
                 },
             ),
             _ => (action_keyword(item.planned.action), "-"),
@@ -489,7 +492,8 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
         work_adapters::sync::apply::FailureClass::Unconfigured => {
             exit_codes::UNCONFIGURED
         }
-        work_adapters::sync::apply::FailureClass::Rejected => {
+        work_adapters::sync::apply::FailureClass::Rejected
+        | work_adapters::sync::apply::FailureClass::Unrenderable => {
             exit_codes::REJECTED
         }
     }
@@ -1704,6 +1708,7 @@ mod tests {
     use work_adapters::sync::run::ItemOutcome;
     use work_adapters::sync::run::ReportedItem;
     use work_adapters::sync::run::RunReport;
+    use work_adapters::sync::run::UnrenderableReason;
 
     use std::path::Path;
     use std::path::PathBuf;
@@ -2216,7 +2221,8 @@ mod tests {
                 local: "local".to_owned(),
                 remote: "remote".to_owned(),
             }],
-            local_unreadable,
+            unrenderable: local_unreadable
+                .then_some(UnrenderableReason::LocalUnreadable),
         }
     }
 
@@ -2281,6 +2287,15 @@ mod tests {
                 reported("0008", SyncState::Synced, Action::Noop),
                 reported("0009", SyncState::RemoteAbsent, Action::Noop),
                 reported("0010", SyncState::Indeterminate, Action::Noop),
+                failed_with(
+                    "0011",
+                    ApplyError::RemoteUnrenderable {
+                        item_id: "0011".to_owned(),
+                        cause: tracker::Unrenderable {
+                            detail: "panel".to_owned(),
+                        },
+                    },
+                ),
             ],
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -3274,6 +3289,27 @@ mod tests {
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
         );
+    }
+
+    #[test]
+    fn an_unrenderable_pull_exits_75() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::RemoteUnrenderable {
+                item_id: "0001".to_owned(),
+                cause: tracker::Unrenderable {
+                    detail: "panel".to_owned(),
+                },
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tunrenderable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+        assert_eq!(super::exit_codes::REJECTED, 75);
     }
 
     #[test]

@@ -39,6 +39,7 @@ use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
 use work_adapters::sync::run::SyncPorts;
 use work_adapters::sync::run::SyncRequest;
+use work_adapters::sync::run::UnrenderableReason;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -1310,7 +1311,7 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .iter()
         .find(|d| d.id == "0001")
         .expect("the multi-section conflict has a dossier");
-    assert!(!multi.local_unreadable);
+    assert_eq!(multi.unrenderable, None);
     assert!(multi.local_modified.is_some(), "a real file has an mtime");
     assert!(
         matches!(multi.remote_updated, RemoteTimestamp::Reported(ref s) if s == MOVED_STAMP),
@@ -1611,8 +1612,9 @@ fn a_prompt_item_with_an_unreadable_local_file_is_marked_local_unreadable(
     );
     assert_eq!(report.dossiers.len(), 1);
     let dossier = &report.dossiers[0];
-    assert!(
-        dossier.local_unreadable,
+    assert_eq!(
+        dossier.unrenderable,
+        Some(UnrenderableReason::LocalUnreadable),
         "the unreadable local file is flagged"
     );
     assert!(

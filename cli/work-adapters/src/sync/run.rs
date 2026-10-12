@@ -5,7 +5,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use corpus::store::AtomicWrite;
-use remote_projection::split_projected;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracker::Ceiling;
@@ -36,6 +35,7 @@ use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest::LazyItemDigests;
@@ -378,12 +378,12 @@ fn local_title_and_body(content: &str) -> (String, String) {
 
 fn reconstruct_pulled_content(
     local_content: &str,
-    remote_description: &str,
+    remote_body: &str,
 ) -> String {
     let (frontmatter, _) =
         crate::sync::digest::split_frontmatter_and_body(local_content)
             .unwrap_or_default();
-    format!("---\n{frontmatter}\n---\n\n{remote_description}")
+    format!("---\n{frontmatter}\n---\n\n{remote_body}")
 }
 
 /// The six fields a user needs to choose a side of one conflict, gathered
@@ -396,11 +396,45 @@ pub struct ConflictDossier {
     pub local_modified: Option<u64>,
     pub remote_updated: RemoteTimestamp,
     pub sections: Vec<SectionDiff>,
-    pub local_unreadable: bool,
+    pub unrenderable: Option<UnrenderableReason>,
 }
 
-/// A dossier rendered to text, tagged by whether the local file could be
-/// read and its sections shown.
+/// Why a dossier's sections cannot be shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnrenderableReason {
+    LocalUnreadable,
+    RemoteUnrenderable,
+}
+
+impl UnrenderableReason {
+    const fn keyword(self) -> &'static str {
+        match self {
+            Self::LocalUnreadable => "local-unreadable",
+            Self::RemoteUnrenderable => "remote-unrenderable",
+        }
+    }
+
+    fn remedy(self, id: &str) -> String {
+        match self {
+            Self::LocalUnreadable => format!(
+                "This conflict could not be rendered: the local file could \
+                 not be read. Item {id} was left unresolved. Fix the file and \
+                 re-run the sync, or edit the work item by hand."
+            ),
+            Self::RemoteUnrenderable => format!(
+                "This conflict could not be rendered: the remote description \
+                 holds content with no Markdown form. Item {id} was left \
+                 unresolved. Either edit the description in Jira until it \
+                 renders and re-run the sync, or resolve with --resolve \
+                 {id}=local, which replaces the remote description with the \
+                 local body."
+            ),
+        }
+    }
+}
+
+/// A dossier rendered to text, tagged by whether its sections could be
+/// shown.
 pub enum DossierRender {
     Renderable(String),
     Unrenderable(String),
@@ -424,12 +458,11 @@ fn render_local_modified(local_modified: Option<u64>) -> String {
     local_modified.map_or_else(|| "(unavailable)".to_owned(), format_epoch_utc)
 }
 
-fn dossier_header(dossier: &ConflictDossier, status: &str) -> String {
+fn dossier_header(dossier: &ConflictDossier, status_lines: &str) -> String {
     format!(
-        "# Conflict: {}\nstatus: {}\ntitle: {}\nlocal modified: {}\nremote \
+        "# Conflict: {}\n{status_lines}title: {}\nlocal modified: {}\nremote \
          updated: {}\n\n",
         dossier.id,
-        status,
         dossier.title,
         render_local_modified(dossier.local_modified),
         render_stamp(&dossier.remote_updated),
@@ -437,30 +470,35 @@ fn dossier_header(dossier: &ConflictDossier, status: &str) -> String {
 }
 
 fn renderable_header(dossier: &ConflictDossier) -> String {
-    dossier_header(dossier, "renderable")
+    dossier_header(dossier, "status: renderable\n")
 }
 
-fn unrenderable_header(dossier: &ConflictDossier) -> String {
+fn unrenderable_header(
+    dossier: &ConflictDossier,
+    reason: UnrenderableReason,
+) -> String {
+    let status_lines =
+        format!("status: unrenderable\nreason: {}\n", reason.keyword());
     format!(
-        "{}This conflict could not be rendered: the local file could not be \
-         read. Item {} was left unresolved. Fix the file and re-run the sync, \
-         or edit the work item by hand.\n\n",
-        dossier_header(dossier, "unrenderable"),
-        dossier.id,
+        "{}{}\n\n",
+        dossier_header(dossier, &status_lines),
+        reason.remedy(&dossier.id),
     )
 }
 
 /// Renders a dossier to text.
 ///
-/// An infallible header, then each section through the injected `render`. An
-/// unreadable local file is the only downgrade to
-/// [`DossierRender::Unrenderable`].
+/// An infallible header, then each section through the injected `render`.
+/// A dossier with an [`UnrenderableReason`] downgrades to
+/// [`DossierRender::Unrenderable`] without rendering any section.
 pub fn render_dossier(
     dossier: &ConflictDossier,
     render: &dyn Fn(&SectionDiff) -> String,
 ) -> DossierRender {
-    if dossier.local_unreadable {
-        return DossierRender::Unrenderable(unrenderable_header(dossier));
+    if let Some(reason) = dossier.unrenderable {
+        return DossierRender::Unrenderable(unrenderable_header(
+            dossier, reason,
+        ));
     }
     let mut sections = String::new();
     for section in &dossier.sections {
@@ -501,13 +539,14 @@ fn build_dossiers(
     plan: &SyncPlan,
     items: &ItemIndex<'_>,
     facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
         .filter(|planned| planned.action == Action::Prompt)
         .filter_map(|planned| {
             let item = items.get(&planned.id)?;
-            Some(dossier_for(&planned.id, item, facts))
+            Some(dossier_for(&planned.id, item, facts, comparison))
         })
         .collect()
 }
@@ -516,6 +555,7 @@ fn dossier_for(
     id: &str,
     item: &LocalItem,
     facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
 ) -> ConflictDossier {
     let remote = facts.per_id.get(id).map(|(remote, _)| remote);
     let remote_updated =
@@ -523,9 +563,14 @@ fn dossier_for(
 
     match std::fs::read_to_string(&item.path) {
         Err(_) => unreadable_dossier(id, remote_updated),
-        Ok(local_content) => {
-            readable_dossier(id, item, remote, remote_updated, &local_content)
-        }
+        Ok(local_content) => readable_dossier(
+            id,
+            item,
+            remote,
+            remote_updated,
+            &local_content,
+            comparison,
+        ),
     }
 }
 
@@ -539,7 +584,7 @@ fn unreadable_dossier(
         local_modified: None,
         remote_updated,
         sections: Vec::new(),
-        local_unreadable: true,
+        unrenderable: Some(UnrenderableReason::LocalUnreadable),
     }
 }
 
@@ -549,21 +594,27 @@ fn readable_dossier(
     remote: Option<&GatheredRemote>,
     remote_updated: RemoteTimestamp,
     local_content: &str,
+    comparison: &BodyComparison<'_>,
 ) -> ConflictDossier {
     let (title, _) = local_title_and_body(local_content);
     let remote_projection =
         remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let reconstructed = reconstruct_pulled_content(
-        local_content,
-        split_projected(remote_projection).description,
-    );
+    let (sections, unrenderable) =
+        comparison.local_body(remote_projection).map_or_else(
+            |_| (Vec::new(), Some(UnrenderableReason::RemoteUnrenderable)),
+            |remote_body| {
+                let reconstructed =
+                    reconstruct_pulled_content(local_content, &remote_body);
+                (differing_sections(local_content, &reconstructed), None)
+            },
+        );
     ConflictDossier {
         id: id.to_owned(),
         title,
         local_modified: file_mtime_secs(&item.path),
         remote_updated,
-        sections: differing_sections(local_content, &reconstructed),
-        local_unreadable: false,
+        sections,
+        unrenderable,
     }
 }
 
@@ -744,6 +795,7 @@ fn pull_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
 ) -> ItemOutcome {
     let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
     let Some(projected_body) = remote.and_then(|r| r.body.as_deref()) else {
@@ -751,14 +803,20 @@ fn pull_outcome(
             item_id: item.id.clone(),
         });
     };
+    let remote_body = match comparison.local_body(projected_body) {
+        Ok(body) => body,
+        Err(cause) => {
+            return ItemOutcome::Failed(ApplyError::RemoteUnrenderable {
+                item_id: item.id.clone(),
+                cause,
+            })
+        }
+    };
     let local_content = match read_local(item) {
         Ok(content) => content,
         Err(error) => return ItemOutcome::Failed(error),
     };
-    let content = reconstruct_pulled_content(
-        &local_content,
-        split_projected(projected_body).description,
-    );
+    let content = reconstruct_pulled_content(&local_content, &remote_body);
     let remote_updated =
         remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
     match applier.pull(&PullRequest {
@@ -789,6 +847,7 @@ fn apply_planned_action(
     planned: PlannedAction,
     index: &ItemIndex<'_>,
     facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = index.get(&planned.id);
@@ -804,7 +863,7 @@ fn apply_planned_action(
             }
         }
         Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, facts),
+            Some(item) => pull_outcome(applier, item, facts, comparison),
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
@@ -1101,7 +1160,12 @@ fn prepare_run<'a>(
     }
 
     let index = ItemIndex::build(request.reconciled());
-    let dossiers = build_dossiers(&plan, &index, &facts);
+    let dossiers = build_dossiers(
+        &plan,
+        &index,
+        &facts,
+        &BodyComparison::new(ports.tracker),
+    );
 
     Ok(PreparedRun {
         run_start_epoch,
@@ -1215,6 +1279,7 @@ fn execute<'a>(
     let carries = |candidate: &ExternalId| {
         corpus_carries(request.corpus, settled, candidate)
     };
+    let comparison = BodyComparison::new(ports.tracker);
 
     {
         let mut applier = ItemApplier::new(
@@ -1243,6 +1308,7 @@ fn execute<'a>(
                 planned,
                 &index,
                 &facts,
+                &comparison,
                 &mut blank_local_hash,
             ));
         }
@@ -1315,7 +1381,7 @@ mod tests {
             local_modified,
             remote_updated,
             sections,
-            local_unreadable: false,
+            unrenderable: None,
         }
     }
 
@@ -1404,13 +1470,15 @@ mod tests {
         };
         let mut unreadable =
             dossier(None, RemoteTimestamp::NotRead, Vec::new());
-        unreadable.local_unreadable = true;
+        unreadable.unrenderable =
+            Some(super::UnrenderableReason::LocalUnreadable);
 
         let rendered = render_dossier(&unreadable, &must_not_render);
         let DossierRender::Unrenderable(text) = rendered else {
             panic!("an unreadable local file downgrades to unrenderable");
         };
         assert!(text.contains("status: unrenderable"), "{text}");
+        assert!(text.contains("reason: local-unreadable"), "{text}");
         assert!(text.contains("left unresolved"), "{text}");
     }
 }

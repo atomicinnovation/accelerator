@@ -57,7 +57,9 @@ use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::run::render_dossier;
 use work_adapters::sync::run::run;
+use work_adapters::sync::run::DossierRender;
 use work_adapters::sync::run::ItemSelection;
 use work_adapters::sync::run::RunMode;
 use work_adapters::sync::run::RunReport;
@@ -1126,6 +1128,9 @@ fn a_later_pull_after_recording_makes_no_section_fetch() -> Result<(), TestError
 
 const LINEAR_MOVED: &str = "2026-07-01T00:00:00.000Z";
 
+const JIRA_PULL_REMOTE: &str = include_str!("fixtures/jira-pull/remote.json");
+const JIRA_PULL_EXPECTED: &str = include_str!("fixtures/jira-pull/expected.md");
+
 #[derive(Debug, Clone, Copy)]
 enum Tracker {
     Jira,
@@ -1140,13 +1145,29 @@ impl Tracker {
         }
     }
 
-    const fn projected_description(self) -> &'static str {
+    const fn expected_local_body(self) -> &'static str {
         match self {
-            Self::Jira => {
-                "{\"content\":[{\"content\":[{\"text\":\"Remote body\",\
-                 \"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"}\n"
-            }
+            Self::Jira => JIRA_PULL_EXPECTED,
             Self::Linear => "Remote body\n",
+        }
+    }
+
+    /// Serves the issue to a keyed read only, as a pull-create reaches it.
+    fn serve_discovered(self) -> (MockHTTPServer, Box<dyn RemoteTracker>) {
+        match self {
+            Self::Jira => self.serve(),
+            Self::Linear => {
+                let server = MockHTTPServer::start();
+                server.route(
+                    RequestKey::post("/graphql"),
+                    Route::Sequence(vec![linear_shown()]),
+                );
+                let client = Box::new(linear_client(
+                    &server.base_url(),
+                    TransportConfig::default(),
+                ));
+                (server, client)
+            }
         }
     }
 
@@ -1168,7 +1189,7 @@ impl Tracker {
                     RequestKey::get("/rest/api/3/issue/ENG-1"),
                     Route::Json {
                         status: 200,
-                        body: jira_show_route("ENG-1", "Remote body"),
+                        body: JIRA_PULL_REMOTE.to_owned(),
                     },
                 );
                 Box::new(jira_client(
@@ -1191,15 +1212,7 @@ impl Tracker {
                                  \"endCursor\":null}}}}}}}}"
                             ),
                         },
-                        Route::Json {
-                            status: 200,
-                            body: format!(
-                                "{{\"data\":{{\"issue\":{{\"id\":\"i\",\
-                                 \"identifier\":\"ENG-1\",\"title\":\"Title\",\
-                                 \"updatedAt\":\"{LINEAR_MOVED}\",\
-                                 \"description\":\"Remote body\"}}}}}}"
-                            ),
-                        },
+                        linear_shown(),
                     ]),
                 );
                 Box::new(linear_client(
@@ -1212,11 +1225,24 @@ impl Tracker {
     }
 }
 
+fn linear_shown() -> Route {
+    Route::Json {
+        status: 200,
+        body: format!(
+            "{{\"data\":{{\"issue\":{{\"id\":\"i\",\
+             \"identifier\":\"ENG-1\",\"title\":\"Title\",\
+             \"updatedAt\":\"{LINEAR_MOVED}\",\
+             \"description\":\"Remote body\"}}}}}}"
+        ),
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 enum PullEntryPoint {
     ReconcilePull,
     FrontmatterKeptPull,
     RemoteResolution,
+    TargetedPullCreate,
     ConflictDossier,
 }
 
@@ -1244,24 +1270,69 @@ fn execute_targeted(
     items: &[LocalItem],
     resolutions: &BTreeMap<String, Resolution>,
 ) -> RunReport {
+    execute_targeted_pulling(
+        tracker,
+        spy,
+        items,
+        resolutions,
+        &[],
+        &UnusedAuthor,
+    )
+}
+
+/// Authors each discovered issue as a file holding its body, keeping the
+/// body it was handed.
+struct RecordingAuthor {
+    dir: PathBuf,
+    bodies: RefCell<Vec<String>>,
+}
+
+impl work_adapters::sync::create::LocalAuthor for RecordingAuthor {
+    fn author_from_remote(
+        &self,
+        issue: &work_adapters::sync::create::DiscoveredIssue,
+    ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error> {
+        self.bodies.borrow_mut().push(issue.body.clone());
+        let path = self.dir.join("ENG-1.md");
+        std::fs::write(&path, format!("{LOCAL_FRONTMATTER}\n{}", issue.body))
+            .map_err(|error| kernel::Error::Failed(error.to_string()))?;
+        Ok(work_adapters::sync::create::AuthoredLocal {
+            id: "ENG-1".to_owned(),
+            path,
+        })
+    }
+
+    fn link_external_id(
+        &self,
+        _path: &Path,
+        _external_id: &ExternalId,
+    ) -> Result<(), kernel::Error> {
+        panic!("a pull-create never links an external id")
+    }
+}
+
+fn execute_targeted_pulling(
+    tracker: &dyn RemoteTracker,
+    spy: &Spy,
+    items: &[LocalItem],
+    resolutions: &BTreeMap<String, Resolution>,
+    pull_ids: &[ExternalId],
+    author: &dyn work_adapters::sync::create::LocalAuthor,
+) -> RunReport {
     let clock = FixedClock(1_700_000_000);
     let status = AlwaysClean;
-    let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker,
         status: &status,
         writer: spy,
         clock: &clock,
-        author: &author,
+        author,
     };
     let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
     let integrations_root = std::env::temp_dir();
     let request = SyncRequest {
         corpus: items,
-        selection: ItemSelection::Targeted {
-            items,
-            pull_ids: &[],
-        },
+        selection: ItemSelection::Targeted { items, pull_ids },
         direction: SyncDirection::Bidirectional,
         strategy: RetrievalStrategy::Bulk,
         resolutions,
@@ -1285,9 +1356,29 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
             PullEntryPoint::ReconcilePull,
             PullEntryPoint::FrontmatterKeptPull,
             PullEntryPoint::RemoteResolution,
+            PullEntryPoint::TargetedPullCreate,
             PullEntryPoint::ConflictDossier,
         ] {
             let case = format!("{tracker:?}/{entry_point:?}");
+            let description = tracker.expected_local_body();
+            if matches!(entry_point, PullEntryPoint::TargetedPullCreate) {
+                let dir = tempfile::tempdir()?;
+                let author = RecordingAuthor {
+                    dir: dir.path().to_path_buf(),
+                    bodies: RefCell::new(Vec::new()),
+                };
+                let (_server, client) = tracker.serve_discovered();
+                execute_targeted_pulling(
+                    client.as_ref(),
+                    &Spy::default(),
+                    &[],
+                    &BTreeMap::new(),
+                    &[ExternalId::new("ENG-1".to_owned())],
+                    &author,
+                );
+                assert_eq!(author.bodies.into_inner(), [description], "{case}");
+                continue;
+            }
             let dir = tempfile::tempdir()?;
             let path = dir.path().join("0001.md");
             let local_content = format!("{LOCAL_FRONTMATTER}\nLocal body\n");
@@ -1321,14 +1412,17 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
                 &entry_point.resolutions(),
             );
 
-            let description = tracker.projected_description();
             if matches!(entry_point, PullEntryPoint::ConflictDossier) {
                 let remote_sides: Vec<&str> = report.dossiers[0]
                     .sections
                     .iter()
                     .map(|section| section.remote.trim_start_matches('\n'))
                     .collect();
-                assert_eq!(remote_sides, [description], "{case}");
+                let line_trimmed: String = description
+                    .lines()
+                    .flat_map(|line| [line.trim(), "\n"])
+                    .collect();
+                assert_eq!(remote_sides, [line_trimmed], "{case}");
                 continue;
             }
             let written = spy
@@ -1343,5 +1437,183 @@ fn every_pull_entry_point_writes_the_description_without_a_title_line(
             );
         }
     }
+    Ok(())
+}
+
+#[test]
+fn jira_pull_writes_rendered_markdown_through_the_real_client(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("0001.md");
+    let local_content = format!("{LOCAL_FRONTMATTER}\nLocal body\n");
+    std::fs::write(&path, &local_content)?;
+    let items = [linked_item(&path)];
+    let spy = Spy::default();
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&entry(
+            "0001",
+            STAMP,
+            "stale",
+            &digest::local(&local_content)?,
+        )),
+    );
+    let (_server, client) = Tracker::Jira.serve();
+
+    execute_targeted(client.as_ref(), &spy, &items, &BTreeMap::new());
+
+    assert_eq!(
+        written(&spy, &path),
+        Some(format!("{LOCAL_FRONTMATTER}\n{JIRA_PULL_EXPECTED}"))
+    );
+    Ok(())
+}
+
+const JIRA_UNRENDERABLE: &str = "{\"key\":\"ENG-1\",\"fields\":{\
+    \"updated\":\"2026-07-01T00:00:00.000+0000\",\"summary\":\"Title\",\
+    \"description\":{\"type\":\"doc\",\"version\":1,\"content\":[{\
+    \"type\":\"panel\",\"attrs\":{\"panelType\":\"info\"},\"content\":[{\
+    \"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\
+    \"text\":\"Inside a panel\"}]}]}]}}}";
+
+fn serve_unrenderable_jira() -> (MockHTTPServer, JiraClient) {
+    let server = MockHTTPServer::start();
+    server.route(
+        RequestKey::post("/rest/api/3/search/jql"),
+        Route::Json {
+            status: 200,
+            body: format!(
+                "{{\"issues\":[{{\"key\":\"ENG-1\",\
+                 \"fields\":{{\"updated\":\"{MOVED}\"}}}}]}}"
+            ),
+        },
+    );
+    server.route(
+        RequestKey::get("/rest/api/3/issue/ENG-1"),
+        Route::Json {
+            status: 200,
+            body: JIRA_UNRENDERABLE.to_owned(),
+        },
+    );
+    let client = jira_client(&server.base_url(), TransportConfig::default());
+    (server, client)
+}
+
+fn linked_item(path: &Path) -> LocalItem {
+    LocalItem {
+        id: "0001".to_owned(),
+        path: path.to_path_buf(),
+        external_id: Some(ExternalId::new("ENG-1".to_owned())),
+    }
+}
+
+fn written(spy: &Spy, path: &Path) -> Option<String> {
+    spy.files
+        .borrow()
+        .get(path)
+        .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+}
+
+fn failure_class(
+    report: &RunReport,
+) -> Option<work_adapters::sync::apply::FailureClass> {
+    report.reported.iter().find_map(|item| match &item.outcome {
+        work_adapters::sync::run::ItemOutcome::Failed(error) => {
+            Some(error.class())
+        }
+        _ => None,
+    })
+}
+
+#[test]
+fn every_pull_entry_point_refuses_unrenderable_jira_adf_and_writes_nothing(
+) -> Result<(), TestError> {
+    for entry_point in [
+        PullEntryPoint::ReconcilePull,
+        PullEntryPoint::FrontmatterKeptPull,
+        PullEntryPoint::RemoteResolution,
+    ] {
+        let case = format!("{entry_point:?}");
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("0001.md");
+        let local_content = format!("{LOCAL_FRONTMATTER}\nLocal body\n");
+        std::fs::write(&path, &local_content)?;
+        let local_hash = if entry_point.local_side_changed() {
+            "stale".to_owned()
+        } else {
+            digest::local(&local_content)?
+        };
+        let spy = Spy::default();
+        spy.seed(
+            BASELINE_PATH,
+            &baseline_document(&entry("0001", STAMP, "stale", &local_hash)),
+        );
+        let (_server, client) = serve_unrenderable_jira();
+
+        let report = execute_targeted(
+            &client,
+            &spy,
+            &[linked_item(&path)],
+            &entry_point.resolutions(),
+        );
+
+        assert_eq!(
+            failure_class(&report),
+            Some(work_adapters::sync::apply::FailureClass::Unrenderable),
+            "{case}"
+        );
+        assert_eq!(written(&spy, &path), None, "{case}");
+    }
+
+    let spy = Spy::default();
+    let (_server, client) = serve_unrenderable_jira();
+    let report = execute_targeted_pulling(
+        &client,
+        &spy,
+        &[],
+        &BTreeMap::new(),
+        &[ExternalId::new("ENG-1".to_owned())],
+        &UnusedAuthor,
+    );
+    assert_eq!(
+        failure_class(&report),
+        Some(work_adapters::sync::apply::FailureClass::Unrenderable),
+        "a targeted pull-create reaches no author"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_dossier_for_an_unrenderable_remote_names_the_reason_instead_of_a_body(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, format!("{LOCAL_FRONTMATTER}\nLocal body\n"))?;
+    let spy = Spy::default();
+    spy.seed(
+        BASELINE_PATH,
+        &baseline_document(&entry("0001", STAMP, "stale", "stale")),
+    );
+    let (_server, client) = serve_unrenderable_jira();
+
+    let report = execute_targeted(
+        &client,
+        &spy,
+        &[linked_item(&path)],
+        &BTreeMap::new(),
+    );
+
+    let rendered = render_dossier(&report.dossiers[0], &|_| {
+        panic!("an unrenderable remote has no sections to render")
+    });
+    let DossierRender::Unrenderable(text) = rendered else {
+        panic!("an unrenderable remote downgrades the dossier");
+    };
+    let header = text.split("=== ").next().unwrap_or_default();
+    assert!(header.contains("status: unrenderable"), "{text}");
+    assert!(header.contains("reason: remote-unrenderable"), "{text}");
+    assert!(header.contains("edit the description in Jira"), "{text}");
+    assert!(header.contains("--resolve 0001=local"), "{text}");
+    assert!(!text.contains("=== "), "{text}");
     Ok(())
 }

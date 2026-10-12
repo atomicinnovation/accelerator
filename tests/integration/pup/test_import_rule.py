@@ -1081,6 +1081,91 @@ def test_work_adapters_zero_spawn_rule_permits_std_imports(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# work-adapters reaches tracker body rules only through the tracker port, so
+# the probe gives it a literal `adf` crate to import. The compliant control
+# imports the same crate's sibling, so a matcher that resolved nothing could
+# not pass it silently.
+
+_ADF_PORT_WORKSPACE = """\
+[workspace]
+resolver = "2"
+members = ["work-adapters", "adf", "tracker"]
+"""
+
+_ADF_PORT_MANIFEST = """\
+[package]
+name = "work-adapters"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+adf = { path = "../adf" }
+tracker = { path = "../tracker" }
+"""
+
+_ADF_PORT_STUB_MANIFEST = """\
+[package]
+name = "{crate}"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+"""
+
+_ADF_PORT_STUB_LIB = "pub fn render() -> String {\n    String::new()\n}\n"
+
+_WORK_ADAPTERS_IMPORTS_ADF = (
+    "use adf::render;\n\npub fn make() -> String {\n    render()\n}\n"
+)
+_WORK_ADAPTERS_IMPORTS_TRACKER = (
+    "use tracker::render;\n\npub fn make() -> String {\n    render()\n}\n"
+)
+
+
+def _write_adf_port_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(_ADF_PORT_WORKSPACE)
+    adapters_src = root / "work-adapters/src"
+    adapters_src.mkdir(parents=True, exist_ok=True)
+    (root / "work-adapters/Cargo.toml").write_text(_ADF_PORT_MANIFEST)
+    (adapters_src / "lib.rs").write_text(lib_body)
+    for crate in ("adf", "tracker"):
+        stub_src = root / crate / "src"
+        stub_src.mkdir(parents=True, exist_ok=True)
+        (root / crate / "Cargo.toml").write_text(
+            _ADF_PORT_STUB_MANIFEST.format(crate=crate)
+        )
+        (stub_src / "lib.rs").write_text(_ADF_PORT_STUB_LIB)
+
+
+def test_work_adapters_body_rule_rejects_importing_adf(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_adf_port_probe(tmp_path, _WORK_ADAPTERS_IMPORTS_ADF)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "work_adapters_reach_tracker_bodies_through_the_port" in output, (
+        output
+    )
+
+
+def test_work_adapters_body_rule_permits_importing_the_tracker_port(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_adf_port_probe(tmp_path, _WORK_ADAPTERS_IMPORTS_TRACKER)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 def test_vcs_adapters_zero_spawn_rule_rejects_spawning_outside_library(
     tmp_path: Path,
 ) -> None:

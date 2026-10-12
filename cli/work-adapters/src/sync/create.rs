@@ -31,12 +31,14 @@ pub struct AuthoredLocal {
 /// A remote issue with no local counterpart, ready to be authored as a new
 /// local work item.
 ///
-/// Carries the full [`RemoteIssue`] — not just the discovery stamp — because
-/// authoring the local file needs the projected body, and the baseline entry
-/// the create writes afterwards needs both the body and the stamp.
+/// `title` and `body` are what the local file holds, the body already
+/// rendered through the tracker's dialect. The full [`RemoteIssue`] rides
+/// along for the baseline entry the create writes afterwards.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiscoveredIssue {
     pub external_id: ExternalId,
+    pub title: String,
+    pub body: String,
     pub issue: RemoteIssue,
 }
 

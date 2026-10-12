@@ -1,0 +1,143 @@
+{
+  "key": "ENG-1",
+  "fields": {
+    "updated": "2026-07-01T00:00:00.000+0000",
+    "summary": "Title",
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Struck",
+              "marks": [
+                {
+                  "type": "strike"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "text": "underlined",
+              "marks": [
+                {
+                  "type": "underline"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " text."
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "content": [
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Name"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Value"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "alpha"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "1"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First paragraph."
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Second paragraph."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

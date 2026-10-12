@@ -5,6 +5,7 @@
 pub mod apply;
 pub mod baseline;
 pub mod baseline_store;
+pub mod body_comparison;
 pub mod create;
 pub mod created_baseline;
 pub mod digest;

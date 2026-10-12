@@ -8,6 +8,7 @@ use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use tracker::Unrenderable;
 use work::sync::push_precondition;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
@@ -17,6 +18,7 @@ use work::sync::RequestFingerprint;
 
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_store::BaselineStore;
+use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
 use crate::sync::digest;
@@ -28,6 +30,7 @@ pub enum FailureClass {
     Terminal,
     Unconfigured,
     Rejected,
+    Unrenderable,
 }
 
 #[derive(Debug)]
@@ -45,6 +48,10 @@ pub enum ApplyError {
     RemoteBodyUnavailable {
         item_id: String,
     },
+    RemoteUnrenderable {
+        item_id: String,
+        cause: Unrenderable,
+    },
 }
 
 impl ApplyError {
@@ -61,6 +68,7 @@ impl ApplyError {
             },
             Self::Io { .. } => FailureClass::Terminal,
             Self::RemoteBodyUnavailable { .. } => FailureClass::Retryable,
+            Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
         }
     }
 }
@@ -82,6 +90,9 @@ impl std::fmt::Display for ApplyError {
                 formatter,
                 "{item_id}: pull failed: the remote body was not fetched"
             ),
+            Self::RemoteUnrenderable { item_id, cause } => {
+                write!(formatter, "{item_id}: {cause}")
+            }
         }
     }
 }
@@ -291,9 +302,20 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 source,
             }
         })?;
+        let body = BodyComparison::new(self.tracker)
+            .local_body(&issue.body)
+            .map_err(|cause| ApplyError::RemoteUnrenderable {
+                item_id: external_id.as_str().to_owned(),
+                cause,
+            })?;
+        let title = remote_projection::split_projected(&issue.body)
+            .title
+            .to_owned();
         let authored = author
             .author_from_remote(&DiscoveredIssue {
                 external_id: external_id.clone(),
+                title,
+                body,
                 issue: issue.clone(),
             })
             .map_err(|error| {
