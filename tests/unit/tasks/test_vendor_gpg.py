@@ -281,3 +281,21 @@ class TestListKeys:
                 ),
                 which=lambda _name: "/usr/bin/gpg",
             )
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            PermissionError("gpg: permission denied"),
+            subprocess.TimeoutExpired(["gpg"], timeout=30),
+        ],
+    )
+    def test_a_gpg_that_cannot_run_is_refused(self, failure) -> None:
+        def run(_argv):
+            raise failure
+
+        with pytest.raises(KeyListingError, match="could not list keys"):
+            list_keys(
+                Path("keyring.asc"),
+                run=run,
+                which=lambda _name: "/usr/bin/gpg",
+            )
