@@ -218,7 +218,7 @@ fn outstanding(
                 .configured_concurrency()
                 .map_err(|error| error.to_string())
         },
-        subagent_cap::from_environment(|name| std::env::var(name).ok()),
+        subagent_cap::from_environment(|name| std::env::var(name).ok()).cap,
     )?;
     let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let mode = match flags.run {

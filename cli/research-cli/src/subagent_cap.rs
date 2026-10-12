@@ -13,17 +13,37 @@ pub const HARNESS_DEFAULT: SubagentCap =
         None => NonZeroU32::MIN,
     });
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapSource {
+    Variable(&'static str),
+    HarnessDefault,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnvironmentCap {
+    pub cap: SubagentCap,
+    pub source: CapSource,
+}
+
 /// Each variable is read as the harness's JavaScript parser reads its own:
 /// trimmed as `String.prototype.trim` trims, an optionally signed run of
 /// ASCII digits, at least 1.
 pub fn from_environment(
     lookup: impl Fn(&str) -> Option<String>,
-) -> SubagentCap {
+) -> EnvironmentCap {
     std::iter::once(ACCELERATOR_CAP)
         .chain(HARNESS_CAPS)
-        .filter_map(lookup)
-        .find_map(|setting| harness_slots(&setting))
-        .map_or(HARNESS_DEFAULT, SubagentCap::new)
+        .find_map(|name| {
+            let slots = harness_slots(&lookup(name)?)?;
+            Some(EnvironmentCap {
+                cap: SubagentCap::new(slots),
+                source: CapSource::Variable(name),
+            })
+        })
+        .unwrap_or(EnvironmentCap {
+            cap: HARNESS_DEFAULT,
+            source: CapSource::HarnessDefault,
+        })
 }
 
 fn harness_slots(setting: &str) -> Option<NonZeroU32> {
@@ -51,16 +71,45 @@ mod tests {
     use research::conduct::concurrency::BUILT_IN_CONCURRENCY;
 
     use super::from_environment;
+    use super::CapSource;
+    use super::EnvironmentCap;
     use super::ACCELERATOR_CAP;
     use super::HARNESS_DEFAULT;
 
-    fn cap_in(variables: &[(&str, &str)]) -> u32 {
+    const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
+
+    fn environment_cap(variables: &[(&str, &str)]) -> EnvironmentCap {
         let environment: HashMap<_, _> = variables.iter().copied().collect();
         from_environment(|name| {
             environment.get(name).map(|value| (*value).to_owned())
         })
-        .slots()
-        .get()
+    }
+
+    fn cap_in(variables: &[(&str, &str)]) -> u32 {
+        environment_cap(variables).cap.slots().get()
+    }
+
+    #[test]
+    fn the_cap_names_the_variable_it_was_read_from() {
+        let rows: [(&[(&str, &str)], CapSource); 4] = [
+            (
+                &[(ACCELERATOR_CAP, "30"), (HARNESS_CAP, "8")],
+                CapSource::Variable(ACCELERATOR_CAP),
+            ),
+            (
+                &[(ACCELERATOR_CAP, "abc"), (HARNESS_CAP, "8")],
+                CapSource::Variable(HARNESS_CAP),
+            ),
+            (&[(ACCELERATOR_CAP, "0")], CapSource::HarnessDefault),
+            (&[], CapSource::HarnessDefault),
+        ];
+        for (variables, source) in rows {
+            assert_eq!(
+                environment_cap(variables).source,
+                source,
+                "{variables:?}"
+            );
+        }
     }
 
     #[test]
