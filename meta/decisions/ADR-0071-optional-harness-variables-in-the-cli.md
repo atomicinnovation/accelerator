@@ -8,7 +8,7 @@ producer: "create-adr"
 status: "proposed"
 parent: "work-item:0303"
 tags: ["cli", "harness", "coupling", "research", "concurrency"]
-last_updated: "2026-10-11T14:00:00+00:00"
+last_updated: "2026-10-13T00:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -87,6 +87,9 @@ failure the guard exists to prevent.
   list, pinned by a test, that must not grow by convenience.
 - Tests that run the binary must clear every admitted variable, or a cap set
   in the developer's environment leaks into them.
+- The default of 20 and the parsing rules mirror Claude Code 2.1.296, which
+  publishes neither as a contract. A harness upgrade needs both rechecked, or
+  the CLI may offer more spawns than the harness admits.
 
 ### Neutral
 

@@ -135,6 +135,7 @@ const fn concurrency_source(provenance: Provenance) -> &'static str {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::num::NonZeroU32;
     use std::num::NonZeroUsize;
 
     use research::conduct::concurrency::ConcurrencyWarning;
@@ -284,7 +285,8 @@ mod tests {
 
     #[test]
     fn every_concurrency_diagnostic_names_its_source() {
-        let cap = SubagentCap::from_setting(Some("20"));
+        let cap =
+            SubagentCap::new(NonZeroU32::new(20).expect("a non-zero cap"));
         let rows = [
             (
                 Provenance::Flag,

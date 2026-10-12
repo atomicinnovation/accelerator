@@ -564,12 +564,18 @@ impl PlanOutput<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU32;
+
     use research::conduct::concurrency::ConcurrencyWarning;
     use research::conduct::concurrency::Provenance;
     use research::conduct::concurrency::RequestedConcurrency;
     use research::conduct::concurrency::SubagentCap;
 
     use super::resolve_concurrency;
+
+    fn cap(slots: u32) -> SubagentCap {
+        SubagentCap::new(NonZeroU32::new(slots).unwrap_or(NonZeroU32::MIN))
+    }
 
     fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
         RequestedConcurrency::Given {
@@ -600,30 +606,19 @@ mod tests {
     #[test]
     fn a_concurrency_flag_never_reads_the_configured_value() {
         assert_eq!(
-            agents(
-                Some(requested("5", Provenance::Flag)),
-                unreadable,
-                SubagentCap::HARNESS_DEFAULT
-            ),
+            agents(Some(requested("5", Provenance::Flag)), unreadable, cap(20)),
             Ok(5)
         );
     }
 
     #[test]
     fn without_a_flag_the_configured_value_is_resolved() {
-        assert_eq!(
-            agents(
-                None,
-                configured("24"),
-                SubagentCap::from_setting(Some("30"))
-            ),
-            Ok(24)
-        );
+        assert_eq!(agents(None, configured("24"), cap(30)), Ok(24));
     }
 
     #[test]
     fn a_lowered_cap_bounds_the_configured_value() {
-        let cap = SubagentCap::from_setting(Some("8"));
+        let cap = cap(8);
         let resolved = resolve_concurrency(None, configured("24"), cap);
 
         assert_eq!(
@@ -643,11 +638,7 @@ mod tests {
     #[test]
     fn an_empty_concurrency_names_its_source_in_the_error() {
         assert_eq!(
-            agents(
-                Some(requested("", Provenance::Flag)),
-                unreadable,
-                SubagentCap::HARNESS_DEFAULT
-            ),
+            agents(Some(requested("", Provenance::Flag)), unreadable, cap(20)),
             Err(
                 "E_TOPIC_RESEARCH_CONCURRENCY: --concurrency is empty; pass \
                  a positive integer"
@@ -659,7 +650,7 @@ mod tests {
     #[test]
     fn a_configured_value_that_cannot_be_read_is_an_error() {
         assert_eq!(
-            agents(None, unreadable, SubagentCap::HARNESS_DEFAULT),
+            agents(None, unreadable, cap(20)),
             Err("unreadable".to_owned())
         );
     }

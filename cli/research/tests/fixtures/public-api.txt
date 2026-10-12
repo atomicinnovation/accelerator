@@ -81,9 +81,7 @@ pub fn research::conduct::concurrency::ResolvedConcurrency::fmt(&self, f: &mut c
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::ResolvedConcurrency
 pub struct research::conduct::concurrency::SubagentCap(_)
 impl research::conduct::concurrency::SubagentCap
-pub const research::conduct::concurrency::SubagentCap::HARNESS_DEFAULT: Self
-pub fn research::conduct::concurrency::SubagentCap::first_honoured<'a>(settings: impl core::iter::traits::collect::IntoIterator<Item = core::option::Option<&'a str>>) -> Self
-pub fn research::conduct::concurrency::SubagentCap::from_setting(setting: core::option::Option<&str>) -> Self
+pub const fn research::conduct::concurrency::SubagentCap::new(slots: core::num::nonzero::NonZeroU32) -> Self
 pub const fn research::conduct::concurrency::SubagentCap::slots(self) -> core::num::nonzero::NonZeroU32
 impl core::clone::Clone for research::conduct::concurrency::SubagentCap
 pub fn research::conduct::concurrency::SubagentCap::clone(&self) -> research::conduct::concurrency::SubagentCap
@@ -94,6 +92,7 @@ impl core::fmt::Debug for research::conduct::concurrency::SubagentCap
 pub fn research::conduct::concurrency::SubagentCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::conduct::concurrency::SubagentCap
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::SubagentCap
+pub const research::conduct::concurrency::BUILT_IN_CONCURRENCY: core::num::nonzero::NonZeroU32
 pub mod research::conduct::ledger
 pub struct research::conduct::ledger::RunId(_)
 impl research::conduct::ledger::RunId

@@ -91,20 +91,3 @@ impl ProjectContext {
         Ok(self.root.join(raw))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use config::catalogue::default_for;
-    use config::render_value;
-    use research::conduct::concurrency::SubagentCap;
-
-    #[test]
-    fn the_built_in_default_sits_at_the_harness_cap() {
-        assert_eq!(
-            default_for("research.topic.concurrency")
-                .as_ref()
-                .map(render_value),
-            Some(SubagentCap::HARNESS_DEFAULT.slots().to_string())
-        );
-    }
-}

@@ -3,32 +3,18 @@
 
 use std::num::NonZeroU32;
 
+pub const BUILT_IN_CONCURRENCY: NonZeroU32 = match NonZeroU32::new(20) {
+    Some(agents) => agents,
+    None => NonZeroU32::MIN,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SubagentCap(NonZeroU32);
 
 impl SubagentCap {
-    pub const HARNESS_DEFAULT: Self = match NonZeroU32::new(20) {
-        Some(slots) => Self(slots),
-        None => Self(NonZeroU32::MIN),
-    };
-
-    /// Each setting is read as the harness's JavaScript parser reads its
-    /// own: trimmed as `String.prototype.trim` trims, an optionally signed
-    /// run of ASCII digits, at least 1.
     #[must_use]
-    pub fn first_honoured<'a>(
-        settings: impl IntoIterator<Item = Option<&'a str>>,
-    ) -> Self {
-        settings
-            .into_iter()
-            .flatten()
-            .find_map(harness_slots)
-            .map_or(Self::HARNESS_DEFAULT, Self)
-    }
-
-    #[must_use]
-    pub fn from_setting(setting: Option<&str>) -> Self {
-        Self::first_honoured([setting])
+    pub const fn new(slots: NonZeroU32) -> Self {
+        Self(slots)
     }
 
     #[must_use]
@@ -112,7 +98,7 @@ impl RequestedConcurrency {
             }
             Self::BuiltInDefault => Ok(ResolvedConcurrency {
                 concurrency: Concurrency::new(
-                    SubagentCap::HARNESS_DEFAULT.slots().min(cap.slots()),
+                    BUILT_IN_CONCURRENCY.min(cap.slots()),
                 ),
                 warnings: Vec::new(),
             }),
@@ -164,21 +150,6 @@ fn saturating_digits(text: &str) -> Option<u32> {
 
 fn positive_integer(text: &str) -> Option<NonZeroU32> {
     saturating_digits(text).and_then(NonZeroU32::new)
-}
-
-fn harness_slots(setting: &str) -> Option<NonZeroU32> {
-    let trimmed = setting.trim_matches(is_javascript_whitespace);
-    if trimmed.starts_with('-') {
-        return None;
-    }
-    positive_integer(trimmed.strip_prefix('+').unwrap_or(trimmed))
-}
-
-/// JavaScript's `trim` keeps U+0085, which Rust counts as whitespace, and
-/// strips U+FEFF, which Rust does not.
-const fn is_javascript_whitespace(character: char) -> bool {
-    (character.is_whitespace() && character != '\u{85}')
-        || character == '\u{FEFF}'
 }
 
 #[cfg(test)]
