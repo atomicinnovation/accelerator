@@ -211,11 +211,12 @@ every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
 auto-retried), a local file read or write failed (whether the write landed
 is unknown), or a retirement stopped with `retirement-incomplete` (see Step
-5); `75` a per-item request was rejected before sending — its
-failed row carries the `rejected` detail: nothing was sent for that item, but
-the same request would be refused again, so it must change (for example, its
-body) before a re-run; a per-item `unconfigured` detail in the report is a write
-the tracker refused on configuration — other items may already have applied, so
+5); `75` a per-item request was refused before sending — its failed row
+carries the `rejected`, `unrenderable` or `pull-residue` detail (see the table
+below): nothing was sent or written for that item, but the same request would
+be refused again, so something must change before a re-run; a per-item
+`unconfigured` detail in the report is a write the tracker refused on
+configuration — other items may already have applied, so
 an exit 74 carrying that token is not a pre-flight refusal, and it ranks below
 `4`; where a run yields several, the exit code follows the precedence
 `71 > 4 > 75 > 74 > 70`; `72` tracker recognised but no client built; `73`
@@ -230,7 +231,14 @@ target-abort codes under Step 1. A *targeted* exit-70 aborts before any write,
 distinguishing it from an engine-level exit-70 that can follow partial writes,
 so the operator knows whether a re-run is a clean retry or a resume. Under
 `--preview` no baseline mutation occurs and every planned
-push carries a locally-validated payload check.
+push carries a locally-validated payload check, or the `pull-residue` or
+`unrenderable` failure the run would meet.
+
+| Detail | Meaning | Remedy |
+|---|---|---|
+| `rejected` | The tracker client refused the request as invalid. | Change the request (for example, its body), then sync. |
+| `unrenderable` | The Jira description holds content with no Markdown form, so a pull cannot write it and a push would discard it. | Edit the description in Jira. A local edit over it cannot be pushed until then; a conflict over it can be resolved `local`. |
+| `pull-residue` | The local file still holds the raw Jira document an earlier pull wrote. | Replace it with Markdown (`accelerator jira show <key> --render-adf` prints a starting point) and sync, or resolve `remote` to discard local changes. |
 
 ## Step 3: Conflict resolution (bidirectional only)
 
@@ -243,14 +251,21 @@ and `accelerator config path integrations`), never a hardcoded path.
 
 For each `unresolved` line in the report, read that item's dossier:
 
-- **A missing or unreadable dossier, or one carrying `status: unrenderable`**, is
-  handled **fail-safe**: report that the conflict could not be rendered and was
-  left unresolved, and do **not** prompt. A missing dossier is treated
-  identically to an unrenderable one — a dropped write (the binary surfaces it on
-  stderr) must never become a blind prompt. Read the renderability verdict from
-  the dossier's `status:` line in the **header region above the first `=== `
-  delimiter** only, never by grepping the whole file, so a crafted body line
-  cannot spoof the verdict.
+- **A dossier carrying `status: unrenderable` and
+  `reason: remote-unrenderable`** has no sections to show: the Jira description
+  holds content this plugin cannot display. Print its header and prompt with the
+  **reduced** `[local/skip]` token below, saying that `local` overwrites Jira
+  content the plugin cannot display.
+- **A missing or unreadable dossier, or any other dossier carrying `status:
+  unrenderable`** (including `reason: local-unreadable` and
+  `reason: local-pull-residue`), is handled **fail-safe**: report that the
+  conflict could not be rendered and was left unresolved, relay the remedy the
+  dossier names, and do **not** prompt. A missing dossier is treated
+  identically to an unrenderable one — a dropped write (the binary surfaces it
+  on stderr) must never become a blind prompt. Read the renderability verdict
+  from the dossier's `status:` and `reason:` lines in the **header region above
+  the first `=== ` delimiter** only, never by grepping the whole file, so a
+  crafted body line cannot spoof the verdict.
 - **Otherwise print the dossier**, which shows all six render fields: the
   **work-item id**, the **title**, the **local-modified** and **remote-updated**
   timestamps, and, per differing **section**, the **local value** and the
@@ -284,6 +299,17 @@ Type 'remote' to OVERWRITE your local edits with the remote version,
 No default — Enter (or an unrecognised entry) re-asks once, then skips.
 ```
 
+For a `reason: remote-unrenderable` dossier, pin the reduced prompt instead:
+
+```text
+Conflict on <id> (<external_id>). The Jira description holds content this
+plugin cannot display. Type 'local' to OVERWRITE it, and any edits made
+in Jira since the last sync, with your local version, or 'skip' to leave
+both unchanged and edit it in Jira.
+[local/skip]
+No default — Enter, 'remote' or an unrecognised entry re-asks once, then skips.
+```
+
 Both `remote` and `local` are **destructive overwrites** of the losing side — the
 wording says OVERWRITE on both, since choosing `local` discards the
 (recommended, newer) remote version, not a benign "push". `<external_id>` is not
@@ -291,7 +317,8 @@ one of the six dossier fields; read it from the local work-item frontmatter you
 already have (or omit the parenthetical if absent), so the dossier surface is
 unchanged.
 
-**Normalise the typed token to one of `remote|local|skip` in the skill** before
+**Normalise the typed token to one of `remote|local|skip` (or `local|skip` for
+the reduced prompt) in the skill** before
 emitting — empty or unrecognised input **re-asks once, then resolves to `skip`**
 — never routing the raw token into `--resolve`, whose warn-and-skip would discard
 a typo silently. There is deliberately **no Enter default**: 'Recommended: keep

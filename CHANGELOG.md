@@ -105,6 +105,11 @@
   `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
   a first line above the description. Scripts that parse `work sync` exit codes
   need updating.
+- **A `work sync` pull or push over a Jira description with no Markdown form
+  fails as `unrenderable`** (exit 75), where it exited 0, and writes and sends
+  nothing. A local edit over such a description cannot be pushed until the
+  description is edited in Jira or a later release makes it a resolvable
+  conflict. Scripts that parse `work sync` exit codes need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -294,6 +299,14 @@
 
 ### Changed
 
+- **Jira pulls write Markdown.** `work sync` renders a Jira description to
+  Markdown where it wrote the raw ADF JSON. A conflict over a description with
+  no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
+  offers only `local` or `skip`.
+- **A file an earlier release's pull left raw ADF JSON in is never sent.** Such
+  a push or `--resolve <id>=local` fails as `pull-residue` (exit 75); replace
+  the JSON with Markdown (`jira show <key> --render-adf` prints a starting
+  point) and sync, or resolve with `=remote` to discard local changes.
 - **`catalogue.json` now records each synced team's states, labels, members
   and projects, plus the workspace labels no team owns.** `init-linear`
   writes a complete entry for the base team and for every team already
