@@ -210,6 +210,13 @@ class TestOptionalHarnessVariables:
 
         assert _found(tmp_path) == [f"{_CAP_READER}:1:" + _READ.strip()]
 
+    def test_flags_a_name_extending_the_cap_in_the_reader(self, tmp_path: Path):
+        _tree(tmp_path)
+        line = f'std::env::var_os("{_CAP}_OVERRIDE")\n'
+        _write(tmp_path / _CAP_READER, line)
+
+        assert _found(tmp_path) == [f"{_CAP_READER}:1:" + line.strip()]
+
     def test_flags_a_line_naming_the_cap_beside_a_banned_name(
         self, tmp_path: Path
     ):
