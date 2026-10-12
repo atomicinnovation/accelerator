@@ -55,10 +55,19 @@ def _refused():
     return httpx.ConnectError("refused")
 
 
-def test_a_503_then_200_returns_the_body_after_one_wait():
-    feeds, clock = _client(Scripted(httpx.Response(503), _ok()))
+@pytest.mark.parametrize("status", [500, 503])
+def test_a_server_error_then_200_returns_the_body_after_one_wait(status):
+    feeds, clock = _client(Scripted(httpx.Response(status), _ok()))
     assert feeds.get_json(URL) == {"a": 1}
     assert clock.sleeps == [2]
+
+
+@pytest.mark.parametrize("status", [400, 403, 499])
+def test_a_client_error_is_unreachable_without_a_retry(status):
+    feeds, clock = _client(Scripted(httpx.Response(status)))
+    with pytest.raises(FeedUnreachableError, match=str(status)):
+        feeds.get_json(URL)
+    assert clock.sleeps == []
 
 
 def test_a_transport_error_then_200_returns_the_body():
