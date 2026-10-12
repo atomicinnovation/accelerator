@@ -4,6 +4,15 @@
 
 ### Breaking
 
+- **Jira Markdown conversion covers more of Markdown, and escapes text that
+  would read as syntax.** `jira show` and `jira search --render-adf` now render
+  strike as `~~`, blockquotes, pipe tables, rules, nested lists and a list
+  item's later children, and backslash-escape any text that would otherwise
+  read as Markdown syntax, including ordinary `*`, `_` and `[` in prose.
+  Markdown given to `jira create`, `update` and `comment` reads `~~x~~` as
+  strike, honours those escapes, keeps an ordered list's start number, and
+  accepts blockquotes, pipe tables, rules and nested lists that it used to
+  refuse with exit code 41.
 - **Credential commands run under a hardened runner.** `jira.token_cmd`,
   `linear.token_cmd`, `openalex.api_key_cmd` and their `ACCELERATOR_*_CMD`
   overrides now run in a fresh temporary directory outside the repository
