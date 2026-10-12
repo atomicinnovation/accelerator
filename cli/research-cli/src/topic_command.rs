@@ -317,7 +317,7 @@ where
         set_root,
         depth,
         concurrency: concurrency.resolved.concurrency,
-        cap: concurrency.cap,
+        cap: &concurrency.cap,
         ledger: ledger.as_ref(),
         warnings,
     };
@@ -413,7 +413,7 @@ struct PlanOutput<'a> {
     set_root: &'a Path,
     depth: Depth,
     concurrency: Concurrency,
-    cap: EnvironmentCap,
+    cap: &'a EnvironmentCap,
     ledger: Option<&'a RunLedger>,
     warnings: Vec<String>,
 }
@@ -597,6 +597,7 @@ mod tests {
                 NonZeroU32::new(slots).unwrap_or(NonZeroU32::MIN),
             ),
             source: CapSource::Variable("ACCELERATOR_SUBAGENT_CAP"),
+            unhonoured: None,
         }
     }
 
@@ -642,7 +643,7 @@ mod tests {
     #[test]
     fn a_lowered_cap_bounds_the_configured_value() {
         let cap = cap(8);
-        let resolved = resolve_concurrency(None, configured("24"), cap);
+        let resolved = resolve_concurrency(None, configured("24"), cap.clone());
 
         assert_eq!(
             resolved

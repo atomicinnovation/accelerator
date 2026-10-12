@@ -35,10 +35,17 @@ impl CapSource {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnvironmentCap {
     pub cap: SubagentCap,
     pub source: CapSource,
+    pub unhonoured: Option<UnhonouredCap>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnhonouredCap {
+    pub variable: &'static str,
+    pub value: String,
 }
 
 /// Each variable is read as the harness's JavaScript parser reads its own:
@@ -47,19 +54,32 @@ pub struct EnvironmentCap {
 pub fn from_environment(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> EnvironmentCap {
-    std::iter::once(ACCELERATOR_CAP)
-        .chain(HARNESS_CAPS)
-        .find_map(|name| {
-            let slots = harness_slots(&lookup(name)?)?;
-            Some(EnvironmentCap {
-                cap: SubagentCap::new(slots),
-                source: CapSource::Variable(name),
-            })
-        })
-        .unwrap_or(EnvironmentCap {
-            cap: HARNESS_DEFAULT,
-            source: CapSource::HarnessDefault,
-        })
+    let accelerator = lookup(ACCELERATOR_CAP);
+    let unhonoured = accelerator
+        .as_deref()
+        .filter(|value| is_set(value) && harness_slots(value).is_none())
+        .map(|value| UnhonouredCap {
+            variable: ACCELERATOR_CAP,
+            value: value.to_owned(),
+        });
+    let honoured = std::iter::once((ACCELERATOR_CAP, accelerator))
+        .chain(HARNESS_CAPS.into_iter().map(|name| (name, lookup(name))))
+        .find_map(|(name, setting)| {
+            Some((CapSource::Variable(name), harness_slots(&setting?)?))
+        });
+    let (source, cap) = honoured.map_or(
+        (CapSource::HarnessDefault, HARNESS_DEFAULT),
+        |(source, slots)| (source, SubagentCap::new(slots)),
+    );
+    EnvironmentCap {
+        cap,
+        source,
+        unhonoured,
+    }
+}
+
+fn is_set(setting: &str) -> bool {
+    !setting.trim_matches(is_javascript_whitespace).is_empty()
 }
 
 fn harness_slots(setting: &str) -> Option<NonZeroU32> {
@@ -89,6 +109,7 @@ mod tests {
     use super::from_environment;
     use super::CapSource;
     use super::EnvironmentCap;
+    use super::UnhonouredCap;
     use super::ACCELERATOR_CAP;
     use super::HARNESS_DEFAULT;
 
@@ -158,6 +179,42 @@ mod tests {
     #[test]
     fn without_either_variable_the_cap_is_the_harness_default() {
         assert_eq!(cap_in(&[]), HARNESS_DEFAULT.slots().get());
+    }
+
+    #[test]
+    fn an_accelerator_cap_the_harness_would_not_honour_is_reported() {
+        for value in ["abc", "0", "-5"] {
+            assert_eq!(
+                environment_cap(&[
+                    (ACCELERATOR_CAP, value),
+                    (HARNESS_CAP, "8")
+                ])
+                .unhonoured,
+                Some(UnhonouredCap {
+                    variable: ACCELERATOR_CAP,
+                    value: value.to_owned(),
+                }),
+                "{value:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_blank_or_honoured_accelerator_cap_and_any_harness_cap_go_unreported() {
+        let rows: [&[(&str, &str)]; 5] = [
+            &[(ACCELERATOR_CAP, "")],
+            &[(ACCELERATOR_CAP, "  ")],
+            &[(ACCELERATOR_CAP, "8")],
+            &[(HARNESS_CAP, "abc")],
+            &[],
+        ];
+        for variables in rows {
+            assert_eq!(
+                environment_cap(variables).unhonoured,
+                None,
+                "{variables:?}"
+            );
+        }
     }
 
     #[test]
