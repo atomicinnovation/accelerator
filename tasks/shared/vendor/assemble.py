@@ -40,6 +40,7 @@ from tasks.shared.vendor.archive import (
     write_deterministic_archive,
 )
 from tasks.shared.vendor.attestation import build_attestation
+from tasks.shared.vendor.browsers import BrowsersManifest
 
 type Artifact = Literal["driver", "browser"]
 
@@ -110,46 +111,6 @@ def pinned_playwright_version(package_json: Path) -> str:
             f"playwright must be pinned to an exact version, got {version!r}"
         )
     return version
-
-
-def browser_revision(browsers_json: Path, name: str) -> str:
-    """Return the revision the vendored ``browsers.json`` records for ``name``.
-
-    ``name`` is the upstream browser id (``chromium-headless-shell``), matched
-    exactly against the ``browsers`` array rather than searched for, so a
-    neighbouring entry sharing a revision is never mistaken for it.
-    """
-    document = json.loads(browsers_json.read_text())
-    for entry in document.get("browsers", []):
-        if entry.get("name") == name:
-            return str(entry["revision"])
-    raise ValueError(f"{name} is absent from {browsers_json}")
-
-
-def assert_version_pairing(
-    *,
-    fetched_playwright_version: str,
-    expected_playwright_version: str,
-    fetched_chromium_revision: str,
-    expected_chromium_revision: str,
-) -> None:
-    """Fail the release unless the fetched inputs match their pins.
-
-    The Node/Chromium pairing is structural, so this guards the
-    construction rather than testing compatibility after the fact.
-    """
-    if fetched_playwright_version != expected_playwright_version:
-        raise ValueError(
-            "fetched playwright "
-            f"{fetched_playwright_version} != pinned "
-            f"{expected_playwright_version}"
-        )
-    if fetched_chromium_revision != expected_chromium_revision:
-        raise ValueError(
-            "fetched Chromium revision "
-            f"{fetched_chromium_revision} != pinned "
-            f"{expected_chromium_revision}"
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,16 +312,18 @@ def assemble_tree_artifacts(
     dist_dir: Path = RELEASE_STAGING,
     spec_builder: SpecBuilder,
     run_smoke: bool = True,
+    pins_path: Path = PINS_TOML,
 ) -> dict[str, ArchiveStats]:
     """Extract, compose, pack, attest and gate the tree artifacts.
 
     ``spec_builder`` maps the extracted upstream trees to the composition — the
     version-specific layout, kept out of the orchestration so it is validated
     against the real ``playwright-core`` separately. Every produced tree is
-    walked (structural) before it is trusted. ``run_smoke`` executes the
-    binaries too; it is left off when assembling other platforms' archives on a
-    host that cannot run them, and the per-platform matrix runs the smoke check
-    natively instead.
+    walked (structural) before it is trusted. The pinned Chromium revision must
+    be the headless-shell build the extracted ``playwright-core`` declares.
+    ``run_smoke`` executes the binaries too; it is left off when assembling
+    other platforms' archives on a host that cannot run them, and the
+    per-platform matrix runs the smoke check natively instead.
     """
     extracted = ExtractedInputs(
         playwright_core=_extract_into(
@@ -373,6 +336,9 @@ def assemble_tree_artifacts(
             extract_zip, chromium_archive, staging_dir / "extracted/chromium"
         ),
     )
+    BrowsersManifest.read(
+        extracted.playwright_core / "package" / "browsers.json"
+    ).pinned_headless_shell(pins.chromium_revision(pins_path))
     specs = spec_builder(extracted)
     stats = assemble_specs(
         specs,

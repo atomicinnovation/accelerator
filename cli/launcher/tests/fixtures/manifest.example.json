@@ -62,28 +62,28 @@
       "description": "Vendored Node runtime and playwright-core driver bundle",
       "platforms": {
         "darwin-arm64": {
-          "sha256": "553e194bf1155319f4db270a0001d320a5e5261f361d99e1540f19bf9306aa1a",
+          "sha256": "5f4bfb98e66a4acb4f86f52e47acc31d9ad6e0706bbbda4c2fa7ca8ae7e2cf93",
           "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: timestamp:0\tfile:accelerator-driver-darwin-arm64.tar.gz\thashed\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n",
           "archive_size": 41943040,
           "uncompressed_size": 121634816,
           "entry_count": 492
         },
         "darwin-x64": {
-          "sha256": "4a91a7f65a432a9418cb5a7b4961c8dd2b78dde6542d84ef7d91791aaad8a4ae",
+          "sha256": "ab36abbdfe660b799271dea88200f14703ecf40da837dfac2cb7c4d7081a5a0a",
           "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: timestamp:0\tfile:accelerator-driver-darwin-x64.tar.gz\thashed\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n",
           "archive_size": 41943040,
           "uncompressed_size": 121634816,
           "entry_count": 492
         },
         "linux-arm64": {
-          "sha256": "654d82a39be7ffa5741222750d940895d42f995731921e1c2cfb8e473ce17cab",
+          "sha256": "dc4ade129a56b368f84fbba635038222091da36c9b76bceb1d456c132e03eab5",
           "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: timestamp:0\tfile:accelerator-driver-linux-arm64.tar.gz\thashed\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n",
           "archive_size": 41943040,
           "uncompressed_size": 121634816,
           "entry_count": 492
         },
         "linux-x64": {
-          "sha256": "aa6061e8c3460e75abea72ba82a3c614d3b16400a6653ed6dc5a4c6719d6962d",
+          "sha256": "2ef0e93f1ac0a6f3facff8a6cfdddbb12989ad63c4a7a46dc4bdf616d776e130",
           "signature": "untrusted comment: signature from accelerator release key\nRWTexampleSignatureBytesBase64Placeholder0000000000000000000000==\ntrusted comment: timestamp:0\tfile:accelerator-driver-linux-x64.tar.gz\thashed\nAAAAexampleGlobalSignatureBase64Placeholder000000000000000000==\n",
           "archive_size": 41943040,
           "uncompressed_size": 121634816,

@@ -1,10 +1,10 @@
 """Documentation-site tasks (Astro Starlight in docs-site/)."""
 
-import datetime as dt
 from pathlib import Path
 
 from invoke import Context, Exit, task
 
+from tasks.shared.clock import today_or_now
 from tasks.shared.npm_audit import (
     IgnoreListError,
     blocking_advisories,
@@ -45,11 +45,7 @@ def audit_check(
 ) -> None:
     """Fail on high/critical npm advisories in the docs-site tree."""
     ignores_path = Path(ignores) if ignores else DOCS_AUDIT_IGNORES
-    on = (
-        dt.date.fromisoformat(today)
-        if today
-        else dt.datetime.now(tz=dt.UTC).date()
-    )
+    on = today_or_now(today)
     try:
         advisory_ignores = parse_ignores(ignores_path.read_text())
     except IgnoreListError as error:

@@ -5,6 +5,8 @@ the tests exercise that discrimination against fixtures rather than asserting
 the repository's live anchors are ready — which, pre-refresh, they are not.
 """
 
+import re
+
 import pytest
 
 from tasks.shared.vendor.trust_anchors import (
@@ -96,3 +98,12 @@ def test_an_empty_key_file_counts_as_absent(tmp_path):
     (keys_dir / "npm-registry.pem").write_text("")
     reasons = placeholder_reasons(_pins(tmp_path, _REAL_PINS), keys_dir)
     assert reasons == ["keys/npm-registry.pem is absent or empty"]
+
+
+def test_the_procedure_the_error_names_exists_in_releasing(tmp_path):
+    from tasks.shared.paths import RELEASING_MD
+
+    with pytest.raises(TrustAnchorsNotReadyError) as raised:
+        assert_ready(_pins(tmp_path, _PLACEHOLDER_PINS), tmp_path / "keys")
+    (procedure,) = re.findall(r'"([^"]+)" procedure', str(raised.value))
+    assert f"### {procedure}\n" in RELEASING_MD.read_text()

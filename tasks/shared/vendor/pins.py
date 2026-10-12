@@ -55,3 +55,15 @@ def chromium_sha256(platform: str, path: Path = PINS_TOML) -> str:
 def node_version(path: Path = PINS_TOML) -> str:
     """Return the pinned Node version (mirrors the driver's pairing)."""
     return str(_document(path)["node"]["version"])
+
+
+def bump_date(subject: str, path: Path = PINS_TOML) -> object:
+    """Return ``<subject>.bumped`` exactly as TOML parsed it, or ``None``.
+
+    The value is unvalidated, so the caller decides what a well-formed bump
+    date is; a syntax error in the file propagates as ``TOMLDecodeError``.
+    """
+    table = _document(path).get(subject)
+    if not isinstance(table, dict):
+        return None
+    return table.get("bumped")

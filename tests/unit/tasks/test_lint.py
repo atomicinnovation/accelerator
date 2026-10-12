@@ -1,3 +1,4 @@
+import shlex
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -5,6 +6,7 @@ import pytest
 from invoke import Context, Exit
 
 from tasks.lint import scripts as lint
+from tasks.lint import workflows
 
 
 @pytest.fixture
@@ -162,3 +164,15 @@ class TestBashismsScanner:
             '#!/usr/bin/env bash\nfor i in 1 2 3; do echo "$i"; done\n',
         )
         assert found == []
+
+
+class TestActionlintTask:
+    def test_lints_every_workflow_by_discovery(self, ctx):
+        workflows.actionlint(ctx)
+        ignore = shlex.quote(workflows._QUEUE_SCHEMA_LAG)
+        assert _command(ctx) == f"actionlint -ignore {ignore}"
+
+    def test_raises_on_findings(self, ctx):
+        ctx.run.return_value = MagicMock(exited=1)
+        with pytest.raises(Exit):
+            workflows.actionlint(ctx)

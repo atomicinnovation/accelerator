@@ -1,0 +1,11 @@
+{
+  "id": "GHSA-5555-6666-7777",
+  "affected": [
+    {
+      "package": {"name": "playwright", "ecosystem": "PyPI"},
+      "ranges": [
+        {"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.56.0"}]}
+      ]
+    }
+  ]
+}
