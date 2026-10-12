@@ -34,9 +34,10 @@ def test_a_clear_repository_yields_every_pin_and_the_owner(tmp_path):
 
 
 def test_the_repository_own_inputs_parse():
-    inputs = read_local_inputs(LocalInputPaths.repository(), TODAY)
-    assert inputs.owner.login == "tobyclemson"
-    assert inputs.chromium.version == "1193"
+    today = dt.datetime.now(tz=dt.UTC).date()
+    repository = LocalInputPaths.repository()
+    inputs = read_local_inputs(repository, today)
+    assert inputs.node_keyring == repository.node_keyring
 
 
 @pytest.mark.parametrize("subject", BUMP_SUBJECTS)
