@@ -127,9 +127,10 @@ class FeedRecordNotFoundError(Exception):
 class FeedDocumentError(ValueError):
     """The feed responded, but not with the document the check expects."""
 
-    def __init__(self, reason: str) -> None:
+    def __init__(self, reason: str, detail: str = "") -> None:
         super().__init__(reason)
         self.reason = reason
+        self.detail = detail
 
 
 class MissingFieldError(FeedDocumentError):
@@ -210,7 +211,7 @@ class FeedSession:
         except FeedDocumentError as error:
             self._budget.record(feed, reachable=True)
             raise FeedRequestError(
-                FeedFailure(feed, check, label, error.reason)
+                FeedFailure(feed, check, label, error.reason, error.detail)
             ) from error
         self._budget.record(feed, reachable=True)
         try:

@@ -346,8 +346,8 @@ class FakeFeeds:
             return response
         try:
             return json.loads(response)
-        except ValueError as error:
-            raise FeedDocumentError("unparseable") from error
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            raise FeedDocumentError("unparseable", str(error)) from error
 
 
 def fake_session(feeds, clock=None):

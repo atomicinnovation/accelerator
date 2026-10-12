@@ -129,7 +129,26 @@ def test_a_non_json_body_is_unparseable_without_a_retry():
     with pytest.raises(FeedDocumentError) as raised:
         feeds.get_json(URL)
     assert raised.value.reason == "unparseable"
+    assert "Expecting value" in raised.value.detail
     assert clock.sleeps == []
+
+
+def test_a_body_that_is_not_utf8_is_unparseable():
+    feeds, _ = _client(Scripted(httpx.Response(200, content=b'"\xff"')))
+    with pytest.raises(FeedDocumentError) as raised:
+        feeds.get_json(URL)
+    assert raised.value.reason == "unparseable"
+    assert "utf-8" in raised.value.detail
+
+
+def test_a_stray_value_error_is_not_mistaken_for_feed_drift():
+    def broken(_request):
+        raise ValueError("a bug")
+
+    feeds, _ = _client(broken)
+    with pytest.raises(ValueError, match="a bug") as raised:
+        feeds.get_json(URL)
+    assert not isinstance(raised.value, FeedDocumentError)
 
 
 def test_post_json_sends_the_body():

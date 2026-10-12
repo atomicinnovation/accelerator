@@ -113,6 +113,14 @@ class TestFailureKinds:
         failure = _failure(_session(FakeFeeds({URL: "not json"})))
         assert failure.reason == "unparseable"
 
+    def test_a_document_error_carries_its_detail(self):
+        error = FeedDocumentError("unparseable", detail="Expecting value")
+        failure = _failure(_session(FakeFeeds({URL: error})))
+        assert (failure.reason, failure.detail) == (
+            "unparseable",
+            "Expecting value",
+        )
+
     def test_a_document_error_raised_while_parsing_is_reported(self):
         def parse(document):
             return field(document, "results", list)

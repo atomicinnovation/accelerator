@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 
 import httpx
@@ -69,8 +70,8 @@ class HttpFeedClient:
                 raise FeedDocumentError(
                     f"payload over {error.max_bytes} bytes"
                 ) from error
-            except ValueError as error:
-                raise FeedDocumentError("unparseable") from error
+            except (json.JSONDecodeError, UnicodeDecodeError) as error:
+                raise FeedDocumentError("unparseable", str(error)) from error
             except httpx.HTTPStatusError as error:
                 response = error.response
                 if response.status_code == _NOT_FOUND:
