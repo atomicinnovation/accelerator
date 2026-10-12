@@ -1634,9 +1634,11 @@ fn an_unreadable_config_exits_1() -> Result<(), TestError> {
 
     let output = project.outstanding_with(&["--start"])?;
 
-    assert_eq!(output.status.code(), Some(1));
-    assert!(!output.stderr.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("has malformed frontmatter"), "{stderr}");
     assert!(output.stdout.is_empty());
+    assert!(!project.ledger().exists());
     Ok(())
 }
 
