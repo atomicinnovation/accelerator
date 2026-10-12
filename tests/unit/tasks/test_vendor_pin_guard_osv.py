@@ -145,6 +145,12 @@ class TestFeedFailures:
             (QUERYBATCH_URL, "unexpected advisory id MAL-2026-1234")
         ]
 
+    def test_an_advisory_id_with_trailing_text_is_a_failure(self):
+        outcome, _ = _check("1.55.0", _batch(f"{GHSA}\n"))
+        assert self._reasons(outcome) == [
+            (QUERYBATCH_URL, f"unexpected advisory id {GHSA}\n")
+        ]
+
     def test_a_batch_vuln_without_an_id_is_a_missing_field(self):
         outcome, _ = _check(
             "1.55.0", osv_fixture("querybatch-missing-field.json")

@@ -47,7 +47,7 @@ KEV_URL = (
 CHROMIUM_VENDOR = "Google"
 CHROMIUM_COMPONENT_PREFIXES = ("Chromium", "Chrome")
 CHROMIUM_COMPONENTS = frozenset({"Skia", "Dawn"})
-CVE_ID = re.compile(r"^CVE-\d{4}-\d{4,}$")
+CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}", re.ASCII)
 NO_RECORD = "OSV holds no record for it"
 NO_FIX = "its OSV record names no fixed Chromium version"
 _CHECK = CheckName.CHROMIUM_ADVISORIES
@@ -87,7 +87,7 @@ def kev_chromium_cves(document: object) -> tuple[str, ...]:
             field(entry, "vendorProject", str), field(entry, "product", str)
         ):
             cve = field(entry, "cveID", str)
-            if not CVE_ID.match(cve):
+            if not CVE_ID.fullmatch(cve):
                 raise FeedDocumentError(f"unexpected CVE {cve}")
             cves.add(cve)
     if not cves:

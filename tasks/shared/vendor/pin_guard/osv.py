@@ -25,7 +25,7 @@ from tasks.shared.vendor.pin_guard.local_inputs import Pin
 OSV_API = "https://api.osv.dev/v1"
 QUERYBATCH_URL = f"{OSV_API}/querybatch"
 NPM_PACKAGES = ("playwright-core", "playwright")
-GHSA_ID = re.compile(r"^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$")
+GHSA_ID = re.compile(r"GHSA(-[23456789cfghjmpqrvwx]{4}){3}")
 _CHECK = CheckName.PLAYWRIGHT_CORE_ADVISORIES
 _RANGE_TYPES = frozenset({"SEMVER", "ECOSYSTEM"})
 
@@ -75,7 +75,7 @@ def advisory_ids(response: object) -> frozenset[str]:
             continue
         for vuln in field(result, "vulns", list):
             advisory_id = field(vuln, "id", str)
-            if not GHSA_ID.match(advisory_id):
+            if not GHSA_ID.fullmatch(advisory_id):
                 raise FeedDocumentError(f"unexpected advisory id {advisory_id}")
             ids.add(advisory_id)
     return frozenset(ids)

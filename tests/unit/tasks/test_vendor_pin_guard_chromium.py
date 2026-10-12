@@ -320,6 +320,14 @@ class TestFeedFailures:
                 kev_document(kev_entry("CVE-26-1")),
                 "unexpected CVE CVE-26-1",
             ),
+            (
+                kev_document(kev_entry("CVE-2026-1234\n")),
+                "unexpected CVE CVE-2026-1234\n",
+            ),
+            (
+                kev_document(kev_entry("CVE-\u0662\u0660\u0662\u0666-1234")),
+                "unexpected CVE CVE-\u0662\u0660\u0662\u0666-1234",
+            ),
         ],
     )
     def test_each_kev_failure_names_its_reason(self, kev, reason):

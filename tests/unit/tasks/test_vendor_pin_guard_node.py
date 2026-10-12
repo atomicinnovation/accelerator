@@ -143,10 +143,19 @@ class TestFeedFailures:
             (VULN_CORE_URL, "unexpected entry key abc")
         ]
 
-    def test_a_malformed_cve_is_a_failure(self):
-        entry = vuln_core_entry(cves=("CVE-26-1",))
+    def test_a_non_ascii_digit_key_is_a_failure(self):
+        assert self._reasons(_feed(**{"\u00b2": vuln_core_entry()})) == [
+            (VULN_CORE_URL, "unexpected entry key \u00b2")
+        ]
+
+    @pytest.mark.parametrize(
+        "cve",
+        ["CVE-26-1", "CVE-2026-1234\n", "CVE-\u0662\u0660\u0662\u0666-1234"],
+    )
+    def test_a_malformed_cve_is_a_failure(self, cve):
+        entry = vuln_core_entry(cves=(cve,))
         assert self._reasons(_feed(**{"2": entry})) == [
-            (VULN_CORE_URL, "unexpected CVE CVE-26-1")
+            (VULN_CORE_URL, f"unexpected CVE {cve}")
         ]
 
     def test_renamed_environments_are_a_missing_field(self):

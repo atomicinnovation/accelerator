@@ -29,7 +29,8 @@ VULN_CORE_URL = (
 )
 SUPPORTED_ENVIRONMENTS = frozenset({"all", "darwin", "linux"})
 _ENVIRONMENTS = "affectedEnvironments"
-_CVE = re.compile(r"^CVE-\d{4}-\d{4,}$")
+_CVE = re.compile(r"CVE-\d{4}-\d{4,}", re.ASCII)
+_ENTRY_KEY = re.compile(r"\d+", re.ASCII)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +44,7 @@ class VulnCoreEntry:
 
     @classmethod
     def parse(cls, key: str, entry: object) -> Self:
-        if not key.isdigit():
+        if not _ENTRY_KEY.fullmatch(key):
             raise FeedDocumentError(f"unexpected entry key {key}")
         patched_text = field(entry, "patched", str).strip()
         return cls(
@@ -121,7 +122,7 @@ def _cves(entry: object) -> tuple[str, ...]:
         return ()
     cves = field(entry, "cve", list)
     for cve in cves:
-        if not isinstance(cve, str) or not _CVE.match(cve):
+        if not isinstance(cve, str) or not _CVE.fullmatch(cve):
             raise FeedDocumentError(f"unexpected CVE {cve}")
     return tuple(cves)
 
