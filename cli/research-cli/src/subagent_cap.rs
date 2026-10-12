@@ -26,6 +26,13 @@ impl CapSource {
             Self::HarnessDefault => HARNESS_CAPS[0],
         }
     }
+
+    pub const fn reported_as(self) -> &'static str {
+        match self {
+            Self::Variable(name) => name,
+            Self::HarnessDefault => "default",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

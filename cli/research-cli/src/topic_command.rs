@@ -317,6 +317,7 @@ where
         set_root,
         depth,
         concurrency: concurrency.resolved.concurrency,
+        cap: concurrency.cap,
         ledger: ledger.as_ref(),
         warnings,
     };
@@ -412,6 +413,7 @@ struct PlanOutput<'a> {
     set_root: &'a Path,
     depth: Depth,
     concurrency: Concurrency,
+    cap: EnvironmentCap,
     ledger: Option<&'a RunLedger>,
     warnings: Vec<String>,
 }
@@ -490,6 +492,10 @@ impl PlanOutput<'_> {
             "warnings": self.warnings,
             "depth": self.depth.levels(),
             "concurrency": self.concurrency.agents().get(),
+            "subagent_cap": {
+                "slots": self.cap.cap.slots().get(),
+                "source": self.cap.source.reported_as(),
+            },
             "remaining": self.window.remaining,
             "unfinished": unfinished,
             "trims": trims,

@@ -244,6 +244,7 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "warnings": [],
             "depth": 1,
             "concurrency": 20,
+            "subagent_cap": {"slots": 20, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -279,6 +280,7 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "warnings": [],
             "depth": 1,
             "concurrency": 20,
+            "subagent_cap": {"slots": 20, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -786,6 +788,7 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
                 "warnings": [],
                 "depth": depth.parse::<u32>()?,
                 "concurrency": 20,
+                "subagent_cap": {"slots": 20, "source": "default"},
                 "remaining": 0,
                 "unfinished": [],
                 "trims": [],
@@ -1433,6 +1436,29 @@ fn a_clamp_names_the_variable_that_set_the_cap() -> Result<(), TestError> {
 
         assert_eq!(plan["concurrency"], json!(8), "{variable}");
         assert_warned(&plan, &stderr, &[clamped_by(KNOB, "24", 8, variable)]);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_plan_reports_the_subagent_cap_and_its_source() -> Result<(), TestError> {
+    let rows: [(&[(&str, &str)], Value); 3] = [
+        (&[], json!({"slots": 20, "source": "default"})),
+        (
+            &[(ACCELERATOR_CAP, "8"), (HARNESS_CAP, "30")],
+            json!({"slots": 8, "source": ACCELERATOR_CAP}),
+        ),
+        (
+            &[(HARNESS_CAP, "30")],
+            json!({"slots": 30, "source": HARNESS_CAP}),
+        ),
+    ];
+    for (variables, reported) in rows {
+        let project = a_set()?;
+
+        let (plan, _) = project.plan_in(&[], variables)?;
+
+        assert_eq!(plan["subagent_cap"], reported, "{variables:?}");
     }
     Ok(())
 }

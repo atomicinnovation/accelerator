@@ -125,11 +125,11 @@
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
   and the new `end-run` verb closes one. `--concurrency` falls back to
   `research.topic.concurrency` and is reported as `concurrency`, clamped to
-  the subagent cap described below. An empty value exits 1 with
-  `E_TOPIC_RESEARCH_CONCURRENCY`. A run keeps a transient
-  `<set>/.conduct-run.json`, removed on completion and safe to delete after an
-  interrupted run; consider adding `**/.conduct-run.json` to your
-  `.gitignore`.
+  the subagent cap described below, which is reported as `subagent_cap` with
+  its source. An empty value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY`. A
+  run keeps a transient `<set>/.conduct-run.json`, removed on completion and
+  safe to delete after an interrupted run; consider adding
+  `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
