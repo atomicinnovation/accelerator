@@ -123,11 +123,33 @@ pub fn project_raw(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProjectedIssue<'a> {
+    pub title: &'a str,
+    pub description: &'a str,
+}
+
+/// The inverse of the [`Op::Body`] projection. The title is taken by
+/// position, so a description that repeats the title keeps its own line.
+#[must_use]
+pub fn split_projected(projected: &str) -> ProjectedIssue<'_> {
+    projected.split_once('\n').map_or(
+        ProjectedIssue {
+            title: projected,
+            description: "",
+        },
+        |(title, description)| ProjectedIssue { title, description },
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
-    use super::{parse_integration, project, Integration, Op};
+    use super::{
+        parse_integration, project, split_projected, Integration, Op,
+        ProjectedIssue,
+    };
 
     #[test]
     fn jira_updated() {
@@ -199,5 +221,49 @@ mod tests {
         assert_eq!(parse_integration("jira"), Some(Integration::Jira));
         assert_eq!(parse_integration("linear"), Some(Integration::Linear));
         assert_eq!(parse_integration("bogus"), None);
+    }
+
+    #[test]
+    fn splitting_takes_the_first_line_as_the_title() {
+        assert_eq!(
+            split_projected("Title\nRemote body\n"),
+            ProjectedIssue {
+                title: "Title",
+                description: "Remote body\n",
+            }
+        );
+    }
+
+    #[test]
+    fn an_empty_description_splits_to_an_empty_body() {
+        assert_eq!(split_projected("Title\n").description, "");
+    }
+
+    #[test]
+    fn a_description_whose_first_line_equals_the_title_keeps_that_line() {
+        assert_eq!(
+            split_projected("Title\nTitle\nRemote body").description,
+            "Title\nRemote body"
+        );
+    }
+
+    #[test]
+    fn splitting_preserves_the_description_verbatim_including_blank_lines() {
+        let description = "\n# Heading\n\n\nparagraph  \n\n";
+        assert_eq!(
+            split_projected(&format!("Title\n{description}")).description,
+            description
+        );
+    }
+
+    #[test]
+    fn a_projection_without_a_newline_is_all_title() {
+        assert_eq!(
+            split_projected("Title"),
+            ProjectedIssue {
+                title: "Title",
+                description: "",
+            }
+        );
     }
 }
