@@ -9,9 +9,9 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
-relates_to: ["work-item:0283", "work-item:0303", "work-item:0308"]
+relates_to: ["work-item:0283", "work-item:0303", "work-item:0308", "work-item:0310"]
 tags: ["research", "deep-research", "conduct", "cli"]
-last_updated: "2026-10-09T17:58:47+00:00"
+last_updated: "2026-10-12T22:28:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -124,6 +124,9 @@ makes it constant per spawn.
   batch in follow-up messages within step 4. This item owns making the
   "current offered batch" node query answer for those re-issued spawns,
   and its per-response ceiling applies to each follow-up message.
+- Related: 0310, which reads a replaced ledger's pending spawn refs at
+  `outstanding --start` to report an interrupted run. It needs no ledger
+  change, and the snapshot fields added here leave those refs unchanged.
 
 ## Assumptions
 

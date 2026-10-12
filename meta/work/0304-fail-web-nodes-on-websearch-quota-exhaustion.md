@@ -11,7 +11,7 @@ priority: "high"
 parent: "work-item:0121"
 relates_to: ["work-item:0282", "work-item:0283", "work-item:0303", "work-item:0309", "work-item:0310"]
 tags: ["research", "deep-research", "conduct", "web-profile"]
-last_updated: "2026-10-12T17:44:44+00:00"
+last_updated: "2026-10-12T22:28:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -149,9 +149,13 @@ further spawn on it would fail.
 - Blocked by: none known
 - Blocks: none known
 - Related: 0310, which recovers on the next run from interruptions the
-  orchestrator does not survive; 0303, landed, whose capacity-refusal rounds
-  this item stops early; 0309, which takes the same no-fallback stance for
-  background knowledge.
+  orchestrator does not survive. Either may land first; the second
+  reconciles the failure-reason table. If 0310 lands first, its
+  "unfinished run" row carries the agent-usage-limit wait-or-raise step
+  inline, and this item replaces it with a reference to its own row.
+- Related: 0303, landed, whose capacity-refusal rounds this item stops
+  early; 0309, which takes the same no-fallback stance for background
+  knowledge.
 
 ## Assumptions
 
