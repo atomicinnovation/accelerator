@@ -1555,8 +1555,8 @@ fn an_unreadable_local_file_fails_the_pull_and_writes_nothing(
 }
 
 #[test]
-fn an_empty_fetched_description_pulls_to_an_empty_body(
-) -> Result<(), TestError> {
+fn an_empty_fetched_description_pulls_to_an_empty_body() -> Result<(), TestError>
+{
     let scenario =
         conflict_scenario("Item nine", "local body\n", "Item nine\n")?;
 

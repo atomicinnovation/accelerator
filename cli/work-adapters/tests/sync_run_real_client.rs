@@ -1123,3 +1123,225 @@ fn a_later_pull_after_recording_makes_no_section_fetch() -> Result<(), TestError
     );
     Ok(())
 }
+
+const LINEAR_MOVED: &str = "2026-07-01T00:00:00.000Z";
+
+#[derive(Debug, Clone, Copy)]
+enum Tracker {
+    Jira,
+    Linear,
+}
+
+impl Tracker {
+    const fn baseline_stamp(self) -> &'static str {
+        match self {
+            Self::Jira => STAMP,
+            Self::Linear => LINEAR_STAMP,
+        }
+    }
+
+    const fn projected_description(self) -> &'static str {
+        match self {
+            Self::Jira => {
+                "{\"content\":[{\"content\":[{\"text\":\"Remote body\",\
+                 \"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"}\n"
+            }
+            Self::Linear => "Remote body\n",
+        }
+    }
+
+    fn serve(self) -> (MockHTTPServer, Box<dyn RemoteTracker>) {
+        let server = MockHTTPServer::start();
+        let client: Box<dyn RemoteTracker> = match self {
+            Self::Jira => {
+                server.route(
+                    RequestKey::post("/rest/api/3/search/jql"),
+                    Route::Json {
+                        status: 200,
+                        body: format!(
+                            "{{\"issues\":[{{\"key\":\"ENG-1\",\
+                             \"fields\":{{\"updated\":\"{MOVED}\"}}}}]}}"
+                        ),
+                    },
+                );
+                server.route(
+                    RequestKey::get("/rest/api/3/issue/ENG-1"),
+                    Route::Json {
+                        status: 200,
+                        body: jira_show_route("ENG-1", "Remote body"),
+                    },
+                );
+                Box::new(jira_client(
+                    &server.base_url(),
+                    TransportConfig::default(),
+                ))
+            }
+            Self::Linear => {
+                server.route(
+                    RequestKey::post("/graphql"),
+                    Route::Sequence(vec![
+                        Route::Json {
+                            status: 200,
+                            body: format!(
+                                "{{\"data\":{{\"issues\":{{\"nodes\":[{{\
+                                 \"id\":\"i\",\"identifier\":\"ENG-1\",\
+                                 \"title\":\"Title\",\
+                                 \"updatedAt\":\"{LINEAR_MOVED}\"}}],\
+                                 \"pageInfo\":{{\"hasNextPage\":false,\
+                                 \"endCursor\":null}}}}}}}}"
+                            ),
+                        },
+                        Route::Json {
+                            status: 200,
+                            body: format!(
+                                "{{\"data\":{{\"issue\":{{\"id\":\"i\",\
+                                 \"identifier\":\"ENG-1\",\"title\":\"Title\",\
+                                 \"updatedAt\":\"{LINEAR_MOVED}\",\
+                                 \"description\":\"Remote body\"}}}}}}"
+                            ),
+                        },
+                    ]),
+                );
+                Box::new(linear_client(
+                    &server.base_url(),
+                    TransportConfig::default(),
+                ))
+            }
+        };
+        (server, client)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum PullEntryPoint {
+    ReconcilePull,
+    FrontmatterKeptPull,
+    RemoteResolution,
+    ConflictDossier,
+}
+
+impl PullEntryPoint {
+    const fn local_side_changed(self) -> bool {
+        matches!(self, Self::RemoteResolution | Self::ConflictDossier)
+    }
+
+    fn resolutions(self) -> BTreeMap<String, Resolution> {
+        match self {
+            Self::RemoteResolution => {
+                BTreeMap::from([("0001".to_owned(), Resolution::AcceptRemote)])
+            }
+            _ => BTreeMap::new(),
+        }
+    }
+}
+
+const LOCAL_FRONTMATTER: &str =
+    "---\ntitle: \"Local title\"\nstatus: ready\nexternal_id: \"ENG-1\"\n---\n";
+
+fn execute_targeted(
+    tracker: &dyn RemoteTracker,
+    spy: &Spy,
+    items: &[LocalItem],
+    resolutions: &BTreeMap<String, Resolution>,
+) -> RunReport {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker,
+        status: &status,
+        writer: spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(PathBuf::from(BASELINE_PATH), spy, spy);
+    let integrations_root = std::env::temp_dir();
+    let request = SyncRequest {
+        corpus: items,
+        selection: ItemSelection::Targeted {
+            items,
+            pull_ids: &[],
+        },
+        direction: SyncDirection::Bidirectional,
+        strategy: RetrievalStrategy::Bulk,
+        resolutions,
+        max_pulls: tracker::Ceiling::Bounded(25),
+        max_pushes: tracker::Ceiling::Bounded(25),
+        mode: RunMode::Apply,
+        integrations_root: &integrations_root,
+        integration: "jira",
+        promote: true,
+        scope: tracker::SearchScope::default(),
+    };
+    run(&ports, &mut store, &request)
+        .unwrap_or_else(|_| panic!("the run must not refuse"))
+}
+
+#[test]
+fn every_pull_entry_point_writes_the_description_without_a_title_line(
+) -> Result<(), TestError> {
+    for tracker in [Tracker::Jira, Tracker::Linear] {
+        for entry_point in [
+            PullEntryPoint::ReconcilePull,
+            PullEntryPoint::FrontmatterKeptPull,
+            PullEntryPoint::RemoteResolution,
+            PullEntryPoint::ConflictDossier,
+        ] {
+            let case = format!("{tracker:?}/{entry_point:?}");
+            let dir = tempfile::tempdir()?;
+            let path = dir.path().join("0001.md");
+            let local_content = format!("{LOCAL_FRONTMATTER}\nLocal body\n");
+            std::fs::write(&path, &local_content)?;
+            let items = [LocalItem {
+                id: "0001".to_owned(),
+                path: path.clone(),
+                external_id: Some(ExternalId::new("ENG-1".to_owned())),
+            }];
+            let local_hash = if entry_point.local_side_changed() {
+                "stale".to_owned()
+            } else {
+                digest::local(&local_content)?
+            };
+            let spy = Spy::default();
+            spy.seed(
+                BASELINE_PATH,
+                &baseline_document(&entry(
+                    "0001",
+                    tracker.baseline_stamp(),
+                    "stale",
+                    &local_hash,
+                )),
+            );
+            let (_server, client) = tracker.serve();
+
+            let report = execute_targeted(
+                client.as_ref(),
+                &spy,
+                &items,
+                &entry_point.resolutions(),
+            );
+
+            let description = tracker.projected_description();
+            if matches!(entry_point, PullEntryPoint::ConflictDossier) {
+                let remote_sides: Vec<&str> = report.dossiers[0]
+                    .sections
+                    .iter()
+                    .map(|section| section.remote.trim_start_matches('\n'))
+                    .collect();
+                assert_eq!(remote_sides, [description], "{case}");
+                continue;
+            }
+            let written = spy
+                .files
+                .borrow()
+                .get(&path)
+                .map(|bytes| String::from_utf8_lossy(bytes).into_owned());
+            assert_eq!(
+                written,
+                Some(format!("{LOCAL_FRONTMATTER}\n{description}")),
+                "{case}"
+            );
+        }
+    }
+    Ok(())
+}
