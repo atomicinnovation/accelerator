@@ -632,9 +632,9 @@ escapes, and keeps an ordered list's start number.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p adf -p jira-client -p jira-cli`
-- [ ] `mise run public-api:check` (after reviewing the `adf` snapshot diff)
-- [ ] `mise run` exits 0
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p adf -p jira-client -p jira-cli`
+- [x] `mise run public-api:check` (after reviewing the `adf` snapshot diff)
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -642,6 +642,18 @@ escapes, and keeps an ordered list's start number.
       list via `accelerator jira create`; it renders correctly in the Jira UI
 - [ ] `accelerator jira show <key> --render-adf` renders it back to the same
       Markdown
+
+#### Implementation Notes:
+
+- `jira-client`'s `a_body_that_cannot_be_converted_is_rejected_and_names_its_cause`
+  used a pipe table as its unconvertible body; it now uses a control byte,
+  the one refusal that remains.
+- An indented list marker with no parent item is a list item, a pipe row
+  without a delimiter row is paragraph text, and `AdfError::Unrepresentable`
+  maps to `jira-cli`'s generic exit code 1, since only the placeholder render
+  runs there.
+- The `kanban-drag-overlay.spec.ts` flake recorded in Phase 2 failed the
+  first `mise run` again; the immediate re-run exited 0.
 
 ---
 
