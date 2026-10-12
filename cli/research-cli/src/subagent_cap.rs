@@ -19,6 +19,15 @@ pub enum CapSource {
     HarnessDefault,
 }
 
+impl CapSource {
+    pub const fn raised_by(self) -> &'static str {
+        match self {
+            Self::Variable(name) => name,
+            Self::HarnessDefault => HARNESS_CAPS[0],
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnvironmentCap {
     pub cap: SubagentCap,
@@ -142,6 +151,15 @@ mod tests {
     #[test]
     fn without_either_variable_the_cap_is_the_harness_default() {
         assert_eq!(cap_in(&[]), HARNESS_DEFAULT.slots().get());
+    }
+
+    #[test]
+    fn the_harness_default_is_raised_by_the_harness_variable() {
+        assert_eq!(CapSource::HarnessDefault.raised_by(), HARNESS_CAP);
+        assert_eq!(
+            CapSource::Variable(ACCELERATOR_CAP).raised_by(),
+            ACCELERATOR_CAP
+        );
     }
 
     #[test]

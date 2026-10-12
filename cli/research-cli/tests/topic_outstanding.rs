@@ -1355,10 +1355,18 @@ fn concurrency_config(value: &str) -> String {
     format!("---\nresearch:\n  topic:\n    concurrency: {value}\n---\n")
 }
 
-fn clamped(source: &str, given: &str, cap: u32) -> String {
+fn clamped_to_the_default(source: &str, given: &str) -> String {
     format!(
-        "{source} is {given}, above the subagent cap of {cap} — clamping to \
-         {cap}"
+        "{source} is {given}, above the subagent cap of 20, Claude Code's \
+         default — clamping to 20; lower it, or raise the cap with \
+         {HARNESS_CAP}"
+    )
+}
+
+fn clamped_by(source: &str, given: &str, cap: u32, variable: &str) -> String {
+    format!(
+        "{source} is {given}, above the subagent cap of {cap} from \
+         {variable} — clamping to {cap}; lower it, or raise {variable}"
     )
 }
 
@@ -1397,7 +1405,7 @@ fn a_configured_concurrency_above_the_cap_clamps_with_a_warning(
 
     assert_offers_arxiv_spawns(&plan, 20, 5)?;
     assert_eq!(plan["concurrency"], json!(20));
-    assert_warned(&plan, &stderr, &[clamped(KNOB, "24", 20)]);
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
     Ok(())
 }
 
@@ -1411,6 +1419,21 @@ fn a_configured_concurrency_at_the_cap_is_not_clamped() -> Result<(), TestError>
 
     assert_eq!(plan["concurrency"], json!(20));
     assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_clamp_names_the_variable_that_set_the_cap() -> Result<(), TestError> {
+    for variable in [ACCELERATOR_CAP, HARNESS_CAP] {
+        let project = a_set()?;
+        project.configure_team_concurrency("24")?;
+
+        let (plan, stderr) =
+            project.plan_in(&["--start"], &[(variable, "8")])?;
+
+        assert_eq!(plan["concurrency"], json!(8), "{variable}");
+        assert_warned(&plan, &stderr, &[clamped_by(KNOB, "24", 8, variable)]);
+    }
     Ok(())
 }
 
@@ -1451,7 +1474,7 @@ fn a_concurrency_flag_wins_over_config_and_clamps_with_a_warning(
         project.plan_with(&["--concurrency", "50", "--start"])?;
 
     assert_eq!(plan["concurrency"], json!(20));
-    assert_warned(&plan, &stderr, &[clamped(FLAG, "50", 20)]);
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(FLAG, "50")]);
     Ok(())
 }
 
@@ -1465,7 +1488,7 @@ fn a_personal_concurrency_wins_over_the_team_and_warns() -> Result<(), TestError
     let (plan, stderr) = project.plan_with(&["--start"])?;
 
     assert_eq!(plan["concurrency"], json!(20));
-    assert_warned(&plan, &stderr, &[clamped(KNOB, "24", 20)]);
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
     Ok(())
 }
 
@@ -1512,7 +1535,7 @@ fn a_cap_the_harness_ignores_still_clamps_a_configured_concurrency(
             project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
 
         assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
-        assert_warned(&plan, &stderr, &[clamped(KNOB, "24", 20)]);
+        assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
     }
     Ok(())
 }
@@ -1654,7 +1677,7 @@ fn concurrency_warnings_precede_a_replaced_ledger_notice(
     assert_warned(
         &plan,
         &stderr,
-        &[clamped(KNOB, "24", 20), replaced_warning(&first)],
+        &[clamped_to_the_default(KNOB, "24"), replaced_warning(&first)],
     );
     Ok(())
 }

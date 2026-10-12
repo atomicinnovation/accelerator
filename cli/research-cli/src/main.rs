@@ -211,14 +211,14 @@ fn outstanding(
     flags: OutstandingFlags,
 ) -> Result<Printed, String> {
     let (cwd, project) = working_project()?;
-    let resolved = topic_command::resolve_concurrency(
+    let concurrency = topic_command::resolve_concurrency(
         flags.requested_concurrency,
         || {
             project
                 .configured_concurrency()
                 .map_err(|error| error.to_string())
         },
-        subagent_cap::from_environment(|name| std::env::var(name).ok()).cap,
+        subagent_cap::from_environment(|name| std::env::var(name).ok()),
     )?;
     let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let mode = match flags.run {
@@ -232,7 +232,7 @@ fn outstanding(
         &set_root,
         profiles_dir,
         flags.depth,
-        &resolved,
+        &concurrency,
         mode,
         &RealFs,
         &FileCorpusStore::new(&set_root),

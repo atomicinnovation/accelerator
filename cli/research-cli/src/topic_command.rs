@@ -18,7 +18,6 @@ use research::conduct::concurrency::Concurrency;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
 use research::conduct::concurrency::ResolvedConcurrency;
-use research::conduct::concurrency::SubagentCap;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
@@ -44,6 +43,7 @@ use serde_json::Value;
 
 use crate::context::ProjectContext;
 use crate::plan_wording;
+use crate::subagent_cap::EnvironmentCap;
 
 const DOC_TYPE: &str = "topic-research";
 
@@ -128,6 +128,11 @@ impl OutstandingFlags {
     }
 }
 
+pub struct CappedConcurrency {
+    pub resolved: ResolvedConcurrency,
+    pub cap: EnvironmentCap,
+}
+
 /// # Errors
 ///
 /// A message when the configured value cannot be read, or when the
@@ -135,18 +140,21 @@ impl OutstandingFlags {
 pub fn resolve_concurrency(
     flag: Option<RequestedConcurrency>,
     configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
-    cap: SubagentCap,
-) -> Result<ResolvedConcurrency, String> {
+    cap: EnvironmentCap,
+) -> Result<CappedConcurrency, String> {
     let requested = match flag {
         Some(requested) => requested,
         None => configured()?,
     };
-    requested.resolve(cap).map_err(|empty| {
-        failed(format!(
-            "E_TOPIC_RESEARCH_CONCURRENCY: {}",
-            plan_wording::empty_concurrency(empty)
-        ))
-    })
+    requested
+        .resolve(cap.cap)
+        .map(|resolved| CappedConcurrency { resolved, cap })
+        .map_err(|empty| {
+            failed(format!(
+                "E_TOPIC_RESEARCH_CONCURRENCY: {}",
+                plan_wording::empty_concurrency(empty)
+            ))
+        })
 }
 
 fn run_flag(
@@ -227,7 +235,7 @@ pub fn run_outstanding<F, S>(
     set_root: &Path,
     profiles_dir: &Path,
     depth: Depth,
-    resolved: &ResolvedConcurrency,
+    concurrency: &CappedConcurrency,
     mode: RunMode,
     fs: &F,
     store: &S,
@@ -242,12 +250,14 @@ where
             Some(continued_ledger(set_root, run, *spawned, fs)?)
         }
         RunMode::Start(_) => {
-            notices.extend(
-                resolved
-                    .warnings
-                    .iter()
-                    .map(plan_wording::concurrency_warning),
-            );
+            notices.extend(concurrency.resolved.warnings.iter().map(
+                |warning| {
+                    plan_wording::concurrency_warning(
+                        warning,
+                        concurrency.cap.source,
+                    )
+                },
+            ));
             notices.extend(replaced_ledger_notice(set_root, fs)?);
             None
         }
@@ -277,7 +287,7 @@ where
     let window = window(
         &plan,
         &observed,
-        resolved.concurrency,
+        concurrency.resolved.concurrency,
         ledger.as_ref().map(RunLedger::memory),
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
@@ -306,7 +316,7 @@ where
         window: &window,
         set_root,
         depth,
-        concurrency: resolved.concurrency,
+        concurrency: concurrency.resolved.concurrency,
         ledger: ledger.as_ref(),
         warnings,
     };
@@ -572,9 +582,16 @@ mod tests {
     use research::conduct::concurrency::SubagentCap;
 
     use super::resolve_concurrency;
+    use crate::subagent_cap::CapSource;
+    use crate::subagent_cap::EnvironmentCap;
 
-    fn cap(slots: u32) -> SubagentCap {
-        SubagentCap::new(NonZeroU32::new(slots).unwrap_or(NonZeroU32::MIN))
+    fn cap(slots: u32) -> EnvironmentCap {
+        EnvironmentCap {
+            cap: SubagentCap::new(
+                NonZeroU32::new(slots).unwrap_or(NonZeroU32::MIN),
+            ),
+            source: CapSource::Variable("ACCELERATOR_SUBAGENT_CAP"),
+        }
     }
 
     fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
@@ -597,10 +614,10 @@ mod tests {
     fn agents(
         flag: Option<RequestedConcurrency>,
         configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
-        cap: SubagentCap,
+        cap: EnvironmentCap,
     ) -> Result<u32, String> {
         resolve_concurrency(flag, configured, cap)
-            .map(|resolved| resolved.concurrency.agents().get())
+            .map(|capped| capped.resolved.concurrency.agents().get())
     }
 
     #[test]
@@ -622,15 +639,17 @@ mod tests {
         let resolved = resolve_concurrency(None, configured("24"), cap);
 
         assert_eq!(
-            resolved.as_ref().map(|r| r.concurrency.agents().get()),
+            resolved
+                .as_ref()
+                .map(|r| r.resolved.concurrency.agents().get()),
             Ok(8)
         );
         assert_eq!(
-            resolved.map(|r| r.warnings),
+            resolved.map(|r| r.resolved.warnings),
             Ok(vec![ConcurrencyWarning::AboveCap {
                 given: "24".to_owned(),
                 provenance: Provenance::ConfigFile,
-                cap,
+                cap: cap.cap,
             }])
         );
     }
