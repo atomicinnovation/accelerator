@@ -1278,14 +1278,14 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         1,
         "Item one",
         "## Summary\nlocal summary\n## Requirements\nlocal reqs\n",
-        "## Summary\nremote summary\n## Requirements\nremote reqs\n",
+        "Item one\n## Summary\nremote summary\n## Requirements\nremote reqs\n",
     )?;
     let (item_b, issue_b, entry_b) = conflicting(
         dir.path(),
         2,
         "Item two",
         "## Summary\nlocal only\n",
-        "## Summary\nremote only\n",
+        "Item two\n## Summary\nremote only\n",
     )?;
 
     let spy = Spy::default();
@@ -1343,6 +1343,227 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .find(|d| d.id == "0002")
         .expect("the single-section conflict has a dossier");
     assert_eq!(single.sections.len(), 1);
+    Ok(())
+}
+
+fn execute_resolving(
+    scenario: &Scenario,
+    resolutions: &BTreeMap<String, Resolution>,
+) -> Result<RunReport, RunError> {
+    let clock = FixedClock(1_700_000_000);
+    let status = AlwaysClean;
+    let author = UnusedAuthor;
+    let ports = SyncPorts {
+        tracker: &scenario.tracker,
+        status: &status,
+        writer: &scenario.spy,
+        clock: &clock,
+        author: &author,
+    };
+    let mut store = BaselineStore::new(
+        PathBuf::from(BASELINE_PATH),
+        &scenario.spy,
+        &scenario.spy,
+    );
+    run(
+        &ports,
+        &mut store,
+        &request(
+            &scenario.items,
+            ItemSelection::All,
+            resolutions,
+            scenario.dir.path(),
+            25,
+            25,
+            RunMode::Apply,
+        ),
+    )
+}
+
+fn accepting_remote(id: &str) -> BTreeMap<String, Resolution> {
+    BTreeMap::from([(id.to_owned(), Resolution::AcceptRemote)])
+}
+
+fn conflict_scenario(
+    title: &str,
+    local_body: &str,
+    remote_projection: &str,
+) -> Result<Scenario, TestError> {
+    let dir = tempfile::tempdir()?;
+    let (item, issue, entry) =
+        conflicting(dir.path(), 9, title, local_body, remote_projection)?;
+    let spy = Spy::default();
+    spy.seed(BASELINE_PATH, &baseline_document(&[entry]));
+    Ok(Scenario {
+        items: vec![item],
+        tracker: RecordingTracker::holding(vec![issue]),
+        spy,
+        dir,
+    })
+}
+
+fn written_body(spy: &Spy, path: &Path) -> String {
+    let written = spy
+        .content_of(path)
+        .expect("the pulled item was written through the writer");
+    let (_, body) = written
+        .split_once("\n---\n\n")
+        .expect("the pulled item keeps its frontmatter fence");
+    body.to_owned()
+}
+
+fn only_failure(report: &RunReport) -> &work_adapters::sync::apply::ApplyError {
+    match &report.reported[0].outcome {
+        ItemOutcome::Failed(error) => error,
+        _ => panic!("the item must fail"),
+    }
+}
+
+#[test]
+fn a_pulled_file_carries_no_projected_title_line() -> Result<(), TestError> {
+    let scenario = scenario(1, 0)?;
+
+    execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a single pull within bounds must proceed")?;
+
+    assert_eq!(
+        written_body(&scenario.spy, &scenario.items[0].path),
+        "Remote body\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_remote_resolution_writes_no_projected_title_line() -> Result<(), TestError>
+{
+    let scenario = conflict_scenario(
+        "Item nine",
+        "## Summary\nlocal summary\n",
+        "Item nine\n## Summary\nremote summary\n",
+    )?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(
+        written_body(&scenario.spy, &scenario.items[0].path),
+        "## Summary\nremote summary\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_frontmatter_kept_pull_keeps_local_frontmatter_and_no_title_line(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Item nine",
+        "local body\n",
+        "Remote title\nremote body\n",
+    )?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(
+        scenario.spy.content_of(&scenario.items[0].path),
+        Some(conflict_content(9, "Item nine", "remote body\n"))
+    );
+    Ok(())
+}
+
+#[test]
+fn a_dossier_remote_side_begins_with_the_description() -> Result<(), TestError>
+{
+    let scenario = conflict_scenario(
+        "Item nine",
+        "## Summary\nlocal summary\n",
+        "Item nine\n## Summary\nremote summary\n",
+    )?;
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a conflict is not a write, so bounds cannot refuse it")?;
+
+    let names: Vec<&str> = report.dossiers[0]
+        .sections
+        .iter()
+        .map(|section| section.name.as_str())
+        .collect();
+    assert_eq!(names, ["Summary"]);
+    Ok(())
+}
+
+#[test]
+fn a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Item nine",
+        "local body\n",
+        "Item nine\nremote body\n",
+    )?;
+    let blank_hashes = format!(
+        "\"0009\":{{\"remote_updated_at\":\"{MOVED_STAMP}\",\"remote_hash\":\"\",\"local_hash\":\"\"}}"
+    );
+    scenario
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[blank_hashes]));
+
+    let report = execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert!(
+        matches!(
+            only_failure(&report),
+            work_adapters::sync::apply::ApplyError::RemoteBodyUnavailable { item_id }
+                if item_id == "0009"
+        ),
+        "an unfetched body must not pull as empty"
+    );
+    assert_eq!(scenario.spy.content_of(&scenario.items[0].path), None);
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_local_file_fails_the_pull_and_writes_nothing(
+) -> Result<(), TestError> {
+    let scenario = conflict_scenario(
+        "Item nine",
+        "local body\n",
+        "Item nine\nremote body\n",
+    )?;
+    let path = scenario.items[0].path.clone();
+    std::fs::remove_file(&path)?;
+    std::fs::create_dir(&path)?;
+    let blank_local_hash = format!(
+        "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"stale\",\"local_hash\":\"\"}}"
+    );
+    scenario
+        .spy
+        .seed(BASELINE_PATH, &baseline_document(&[blank_local_hash]));
+
+    let report = execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a blank baseline local_hash needs no local read")?;
+
+    assert!(
+        matches!(
+            only_failure(&report),
+            work_adapters::sync::apply::ApplyError::Io { .. }
+        ),
+        "an unreadable local file must not pull over empty frontmatter"
+    );
+    assert_eq!(scenario.spy.content_of(&path), None);
+    Ok(())
+}
+
+#[test]
+fn an_empty_fetched_description_pulls_to_an_empty_body(
+) -> Result<(), TestError> {
+    let scenario =
+        conflict_scenario("Item nine", "local body\n", "Item nine\n")?;
+
+    execute_resolving(&scenario, &accepting_remote("0009"))
+        .map_err(|_| "a resolved conflict within bounds must proceed")?;
+
+    assert_eq!(written_body(&scenario.spy, &scenario.items[0].path), "");
     Ok(())
 }
 

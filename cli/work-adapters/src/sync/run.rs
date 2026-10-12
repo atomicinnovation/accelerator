@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use corpus::store::AtomicWrite;
+use remote_projection::split_projected;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracker::Ceiling;
@@ -377,12 +378,12 @@ fn local_title_and_body(content: &str) -> (String, String) {
 
 fn reconstruct_pulled_content(
     local_content: &str,
-    remote_body: &str,
+    remote_description: &str,
 ) -> String {
     let (frontmatter, _) =
         crate::sync::digest::split_frontmatter_and_body(local_content)
             .unwrap_or_default();
-    format!("---\n{frontmatter}\n---\n\n{remote_body}")
+    format!("---\n{frontmatter}\n---\n\n{remote_description}")
 }
 
 /// The six fields a user needs to choose a side of one conflict, gathered
@@ -550,8 +551,12 @@ fn readable_dossier(
     local_content: &str,
 ) -> ConflictDossier {
     let (title, _) = local_title_and_body(local_content);
-    let remote_body = remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let reconstructed = reconstruct_pulled_content(local_content, remote_body);
+    let remote_projection =
+        remote.and_then(|r| r.body.as_deref()).unwrap_or("");
+    let reconstructed = reconstruct_pulled_content(
+        local_content,
+        split_projected(remote_projection).description,
+    );
     ConflictDossier {
         id: id.to_owned(),
         title,
@@ -705,20 +710,22 @@ const fn create_report(
     }
 }
 
+fn read_local(item: &LocalItem) -> Result<String, ApplyError> {
+    std::fs::read_to_string(&item.path).map_err(|error| ApplyError::Io {
+        item_id: item.id.clone(),
+        operation: "read-local",
+        detail: error.to_string(),
+    })
+}
+
 fn push_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     external_id: &ExternalId,
 ) -> ItemOutcome {
-    let content = match std::fs::read_to_string(&item.path) {
+    let content = match read_local(item) {
         Ok(content) => content,
-        Err(error) => {
-            return ItemOutcome::Failed(ApplyError::Io {
-                item_id: item.id.clone(),
-                operation: "read-local",
-                detail: error.to_string(),
-            });
-        }
+        Err(error) => return ItemOutcome::Failed(error),
     };
     let (title, body) = local_title_and_body(&content);
     match applier.push(&PushRequest {
@@ -739,9 +746,19 @@ fn pull_outcome(
     facts: &GatheredFacts,
 ) -> ItemOutcome {
     let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
-    let projected_body = remote.and_then(|r| r.body.as_deref()).unwrap_or("");
-    let local_content = std::fs::read_to_string(&item.path).unwrap_or_default();
-    let content = reconstruct_pulled_content(&local_content, projected_body);
+    let Some(projected_body) = remote.and_then(|r| r.body.as_deref()) else {
+        return ItemOutcome::Failed(ApplyError::RemoteBodyUnavailable {
+            item_id: item.id.clone(),
+        });
+    };
+    let local_content = match read_local(item) {
+        Ok(content) => content,
+        Err(error) => return ItemOutcome::Failed(error),
+    };
+    let content = reconstruct_pulled_content(
+        &local_content,
+        split_projected(projected_body).description,
+    );
     let remote_updated =
         remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
     match applier.pull(&PullRequest {

@@ -25,6 +25,7 @@ kernel = { path = "../kernel" }
 tracker = { path = "../tracker" }
 corpus = { path = "../corpus" }
 document = { path = "../document" }
+remote-projection = { path = "../remote-projection" }
 vcs = { path = "../vcs" }
 similar = { workspace = true }
 sha2 = { workspace = true }
@@ -38,7 +39,6 @@ rand = { workspace = true }
 config = { path = "../config" }
 tempfile = { workspace = true }
 corpus-adapters = { path = "../corpus-adapters" }
-remote-projection = { path = "../remote-projection" }
 store = { path = "../store" }
 tracker-test-support = { path = "../tracker-test-support" }
 vcs-adapters = { path = "../vcs-adapters" }
