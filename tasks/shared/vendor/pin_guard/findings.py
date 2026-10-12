@@ -1,6 +1,7 @@
 """The conditions the guard reports, each drafting the issue it opens."""
 
 import datetime as dt
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -17,6 +18,9 @@ RELEASING_FEEDS_URL = (
     "https://github.com/atomicinnovation/accelerator/blob/main/"
     "RELEASING.md#feeds"
 )
+
+_MAXIMUM_SPAN_CHARACTERS = 200
+_LINE_BREAKING = re.compile(r"[\s\x00-\x1f\x7f]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +39,11 @@ class Finding(Protocol):
 
 def code_span(text: str) -> str:
     """Render ``text`` as one inert code span, whatever it contains."""
-    inert = text.translate(str.maketrans("", "", "`<>"))
+    inert = _LINE_BREAKING.sub(
+        " ", text.translate(str.maketrans("", "", "`<>"))
+    )
+    if len(inert) > _MAXIMUM_SPAN_CHARACTERS:
+        inert = inert[: _MAXIMUM_SPAN_CHARACTERS - 1] + "…"
     return f"`{inert}`"
 
 
