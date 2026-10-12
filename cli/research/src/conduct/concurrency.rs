@@ -3,7 +3,6 @@
 
 use std::num::NonZeroU32;
 
-/// How many subagents the harness runs at once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SubagentCap(NonZeroU32);
 
@@ -13,8 +12,6 @@ impl SubagentCap {
         None => Self(NonZeroU32::MIN),
     };
 
-    /// The first setting the harness would honour, else the default.
-    ///
     /// Each setting is read as the harness's JavaScript parser reads its
     /// own: trimmed as `String.prototype.trim` trims, an optionally signed
     /// run of ASCII digits, at least 1.
@@ -53,7 +50,6 @@ pub struct RequestedConcurrency {
     pub provenance: Provenance,
 }
 
-/// The most agents `conduct` spawns at once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Concurrency(NonZeroU32);
 
