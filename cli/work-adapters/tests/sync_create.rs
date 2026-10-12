@@ -2155,7 +2155,7 @@ fn an_unreachable_tracker_leaves_no_marker_for_a_local_create(
     );
     assert_eq!(
         create_from_local_failure(&report).class(),
-        Some(work_adapters::sync::apply::FailureClass::Retryable)
+        work_adapters::sync::apply::FailureClass::Retryable
     );
     Ok(())
 }
@@ -2185,7 +2185,7 @@ fn a_rejected_create_leaves_no_marker_and_reports_its_cause(
     let failure = create_from_local_failure(&report);
     assert_eq!(
         failure.class(),
-        Some(work_adapters::sync::apply::FailureClass::Rejected)
+        work_adapters::sync::apply::FailureClass::Rejected
     );
     assert!(
         failure.to_string().contains("the body has a table"),

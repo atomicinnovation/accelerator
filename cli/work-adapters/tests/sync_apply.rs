@@ -307,7 +307,7 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
             .expect_err("the tracker refused the push")
     };
 
-    assert_eq!(error.class(), Some(FailureClass::Unconfigured));
+    assert_eq!(error.class(), FailureClass::Unconfigured);
     assert!(error.to_string().contains("no team in scope carries label"));
     let (baseline, _) = store.load()?;
     assert!(baseline.get("0001").is_none());

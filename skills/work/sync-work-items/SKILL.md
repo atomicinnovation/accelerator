@@ -209,7 +209,8 @@ a finite `max_items` (see the unbounded-scope gate below); `70` a read failed, a
 search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
-auto-retried), or a retirement stopped with `retirement-incomplete` (see Step
+auto-retried), a local file read or write failed (whether the write landed
+is unknown), or a retirement stopped with `retirement-incomplete` (see Step
 5); `75` a per-item request was rejected before sending — its
 failed row carries the `rejected` detail: nothing was sent for that item, but
 the same request would be refused again, so it must change (for example, its

@@ -423,19 +423,18 @@ fn render_report(report: &RunReport) -> String {
             ItemOutcome::Failed(error) => (
                 "failed",
                 match error.class() {
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Retryable,
-                    ) => "retryable",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Terminal,
-                    ) => "terminal",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Unconfigured,
-                    ) => "unconfigured",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Rejected,
-                    ) => "rejected",
-                    None => "-",
+                    work_adapters::sync::apply::FailureClass::Retryable => {
+                        "retryable"
+                    }
+                    work_adapters::sync::apply::FailureClass::Terminal => {
+                        "terminal"
+                    }
+                    work_adapters::sync::apply::FailureClass::Unconfigured => {
+                        "unconfigured"
+                    }
+                    work_adapters::sync::apply::FailureClass::Rejected => {
+                        "rejected"
+                    }
                 },
             ),
             _ => (action_keyword(item.planned.action), "-"),
@@ -502,7 +501,7 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
             .reported
             .iter()
             .filter_map(|item| match &item.outcome {
-                ItemOutcome::Failed(error) => error.class().map(failure_code),
+                ItemOutcome::Failed(error) => Some(failure_code(error.class())),
                 ItemOutcome::Applied | ItemOutcome::NotApplied => None,
             });
     let awaiting_human = (report.awaiting_human().next().is_some()
@@ -3220,6 +3219,61 @@ mod tests {
         ] {
             assert_eq!(exit_for(items), expected);
         }
+    }
+
+    fn failed_with(id: &str, error: ApplyError) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state: SyncState::RemotelyModified,
+                action: Action::Pull,
+            },
+            outcome: ItemOutcome::Failed(error),
+            validation: None,
+        }
+    }
+
+    fn report_of(items: Vec<ReportedItem>) -> RunReport {
+        RunReport {
+            reported: items,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        }
+    }
+
+    #[test]
+    fn a_local_io_failure_reports_terminal_and_exits_71() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::Io {
+                item_id: "0001".to_owned(),
+                operation: "write-local",
+                detail: "disk full".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tterminal"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::TERMINAL
+        );
+    }
+
+    #[test]
+    fn a_remote_body_unavailable_failure_reports_retryable_and_exits_70() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::RemoteBodyUnavailable {
+                item_id: "0001".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
     }
 
     #[test]

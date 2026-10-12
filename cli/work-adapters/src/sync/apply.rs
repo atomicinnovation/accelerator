@@ -42,21 +42,25 @@ pub enum ApplyError {
         operation: &'static str,
         detail: String,
     },
+    RemoteBodyUnavailable {
+        item_id: String,
+    },
 }
 
 impl ApplyError {
-    /// `None` for a store-originated failure, which carries no class the
-    /// report can render.
+    /// A local read or write failure is terminal: whether a write landed is
+    /// unknown, so a blind retry is unsafe.
     #[must_use]
-    pub const fn class(&self) -> Option<FailureClass> {
+    pub const fn class(&self) -> FailureClass {
         match self {
-            Self::Tracker { source, .. } => Some(match source {
+            Self::Tracker { source, .. } => match source {
                 TrackerError::Retryable { .. } => FailureClass::Retryable,
                 TrackerError::Terminal { .. } => FailureClass::Terminal,
                 TrackerError::Unconfigured { .. } => FailureClass::Unconfigured,
                 TrackerError::Rejected { .. } => FailureClass::Rejected,
-            }),
-            Self::Io { .. } => None,
+            },
+            Self::Io { .. } => FailureClass::Terminal,
+            Self::RemoteBodyUnavailable { .. } => FailureClass::Retryable,
         }
     }
 }
@@ -74,6 +78,10 @@ impl std::fmt::Display for ApplyError {
                 operation,
                 detail,
             } => write!(formatter, "{item_id}: {operation} failed: {detail}"),
+            Self::RemoteBodyUnavailable { item_id } => write!(
+                formatter,
+                "{item_id}: pull failed: the remote body was not fetched"
+            ),
         }
     }
 }
