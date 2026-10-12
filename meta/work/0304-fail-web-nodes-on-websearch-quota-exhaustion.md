@@ -9,10 +9,9 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0121"
-blocked_by: ["work-item:0310"]
-relates_to: ["work-item:0282", "work-item:0283", "work-item:0309"]
+relates_to: ["work-item:0282", "work-item:0283", "work-item:0303", "work-item:0309", "work-item:0310"]
 tags: ["research", "deep-research", "conduct", "web-profile"]
-last_updated: "2026-10-10T17:18:06+00:00"
+last_updated: "2026-10-12T17:44:44+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -31,7 +30,10 @@ which web researchers silently fall back to WebFetch of URLs they already
 know, so coverage depends on scheduling order rather than the question. Give
 the web profile a depth-scaled per-node search budget to make exhaustion
 rarer, and when it does happen, fail the node, tell the user, and direct
-them to clear the session and re-run `conduct`.
+them to clear the session and re-run `conduct`. Introduce a halting-failure
+class in `conduct` — failures after which every further spawn in the session
+would fail too — with quota exhaustion as its first member: `conduct` stops
+spawning, ends the run cleanly, and prints the recovery.
 
 ## Context
 
@@ -54,6 +56,16 @@ note researched without search is lower quality and indistinguishable from a
 searched one. Failing the node leaves it outstanding so a later run in a
 fresh session researches it properly.
 
+Quota exhaustion leaves the orchestrator running: it makes no `WebSearch`
+calls of its own, so it can stop further batches, run step 7 and summarise.
+That distinguishes it from an account-wide agent usage limit, which also
+refuses the orchestrator's next turn; recovery from that is 0310's, on the
+next run. The halting-failure class therefore covers only failures the
+orchestrator survives. A model-specific agent usage limit (`You've hit your
+Opus limit`, `… Sonnet limit`) that the orchestrator observes is one: the
+orchestrator, alive to see it, is not on that model's quota, but every
+further spawn on it would fail.
+
 ## Requirements
 
 - The web profile sets a per-node `WebSearch` budget that decreases with
@@ -66,13 +78,29 @@ fresh session researches it properly.
   or from memory.
 - `conduct` records a Quota exhausted node as failed with that reason, and
   the node stays outstanding.
-- Quota exhausted is a halting failure (0310): when any spawn in a batch
-  reports it, `conduct` spawns no further batches, tells the user the
-  session's WebSearch quota is exhausted, names the failed nodes, and gives
-  the recovery: run `/clear`, then re-run `conduct <slug>`. The recovery
-  also mentions `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` to raise the cap.
-- The `conduct` failure-reason table documents Quota exhausted and its
-  recovery.
+- **Halting-failure class**: `conduct` defines, in one place, the failure
+  reasons after which every further spawn in this session would also fail,
+  each with its recovery. Its members are "web search quota exhausted" and
+  "agent usage limit" — a spawn that ended `Agent terminated early due to an
+  API error: You've hit your …`, recorded with the message's reset time when
+  it gives one.
+- **Halting**: after step 5, if any spawn in the batch failed with a halting
+  reason, `conduct` spawns no further batches. It still runs step 7 in full —
+  `end-run`, tick from disk, manifest update — so the re-run starts with no
+  stale ledger.
+- **Retry rounds**: once any spawn accepted by the batch message or a
+  capacity-refusal round ends with a halting failure, no further
+  capacity-refusal round runs. Spawns still capacity-refused keep the
+  concurrent-subagent-limit reason.
+- **Summary**: a halted run's summary opens with a halt notice, above
+  Failures, naming the halting reason, the affected spawns, and that
+  reason's recovery. The affected spawns are also listed under Failures.
+- **Recoveries**: for quota exhausted, run `/clear`, then re-run `conduct
+  <slug>`, mentioning `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` to raise
+  the cap. For an agent usage limit, re-run `conduct <slug>` after the reset
+  time in the message, or after raising the limit when it gives none.
+- The `conduct` failure-reason table has a row for each halting reason with
+  its recovery, distinct from `rate_limited`.
 
 ## Acceptance Criteria
 
@@ -85,13 +113,29 @@ fresh session researches it properly.
       says "web search quota exhausted".
 - [ ] Given a batch in which one or more spawns report quota exhaustion, when
       `conduct` checks the batch, then those nodes are recorded as failed
-      with reason "web search quota exhausted", no further batch is spawned,
-      and the user is told to run `/clear` and re-run `conduct <slug>`.
+      with reason "web search quota exhausted" and no further batch is
+      spawned.
+- [ ] Given a batch in which a spawn ended `Agent terminated early due to an
+      API error: You've hit your Opus limit · resets 3:45pm`, when `conduct`
+      checks the batch, then the spawn is recorded as failed with reason
+      "agent usage limit" and the reset time, and no further batch is
+      spawned.
+- [ ] Given a batch where other spawns succeeded alongside a halting failure,
+      when `conduct` checks the batch, then the successful spawns are
+      retained and validated as normal.
+- [ ] Given a run stopped by a halting failure, when `conduct` ends, then
+      `end-run` has removed the run's ledger, the outline checkboxes and
+      manifest counts reflect disk, and the summary opens with the halt
+      notice naming the reason, the affected spawns and the recovery.
+- [ ] Given a batch message with capacity-refused spawns and a spawn that
+      ended with a halting failure, when `conduct` handles refusals, then no
+      capacity-refusal round runs and the refused spawns are recorded with
+      the concurrent-subagent-limit reason.
 - [ ] Given a run stopped by quota exhaustion, when the user runs `/clear`
-      and re-runs `conduct <slug>`, then the new run offers the failed nodes
-      again.
-- [ ] The `conduct` failure-reason table has a Quota exhausted row with its
-      recovery.
+      and re-runs `conduct <slug>`, then the new run reports no replaced
+      ledger and offers the failed nodes again.
+- [ ] The skill defines halting failures in one place, listing their member
+      reasons, and the failure-reason table has a row for each.
 
 ## Open Questions
 
@@ -102,30 +146,35 @@ fresh session researches it properly.
 
 ## Dependencies
 
-- Blocked by: 0310 (halting failures in `conduct`), whose class this
-  outcome joins.
+- Blocked by: none known
 - Blocks: none known
-- Related: 0309, which takes the same no-fallback stance for background
-  knowledge.
+- Related: 0310, which recovers on the next run from interruptions the
+  orchestrator does not survive; 0303, landed, whose capacity-refusal rounds
+  this item stops early; 0309, which takes the same no-fallback stance for
+  background knowledge.
 
 ## Assumptions
 
 - A researcher can recognise the session-limit notice in its WebSearch
   result. Claude Code documents no exact error string, so the profile must
   describe the notice rather than match text.
-- Re-running `conduct` after `/clear` replaces the interrupted run's ledger
-  and offers only outstanding spawns, as observed in the 0310 source run.
+- An orchestrator that observes a `You've hit your …` termination survived
+  it, so the limit is model-specific; every further spawn on that model
+  would fail until the reset.
 
 ## Technical Notes
 
-- Web profile outcomes: `skills/research/profiles/web-profile/SKILL.md:58-70`
-  (Denied at 62–63).
+- Web profile outcomes: `skills/research/profiles/web-profile/SKILL.md:57-70`
+  (Denied at 62).
 - Budget pattern to mirror:
   `skills/research/profiles/openalex-profile/SKILL.md:39`.
-- Spawn checking and failure recording:
-  `skills/research/research-topic/SKILL.md:359-364`.
+- Capacity-refusal rounds: `skills/research/research-topic/SKILL.md:366-387`.
+- Spawn checks (step 5): `skills/research/research-topic/SKILL.md:390-401`.
+- Step 7 and its summary order: `skills/research/research-topic/SKILL.md:418-469`.
+- Failure-reason table: `skills/research/research-topic/SKILL.md:474-488`.
 - Claude Code docs: `code.claude.com/docs/en/tools-reference` ("Session
-  search limit") and `code.claude.com/docs/en/env-vars`.
+  search limit"), `code.claude.com/docs/en/env-vars`, and
+  `code.claude.com/docs/en/errors` (subagent termination wording).
 
 ## Drafting Notes
 
@@ -133,12 +182,20 @@ fresh session researches it properly.
   it in favour of failing the node, with `/clear` plus a re-run as the
   recovery.
 - Depth-scaled budget was a user decision; the numbers are left open.
-- Stopping further batches follows from the halting-failure class in 0310:
-  every later web node in the same session would fail too.
+- The halting-failure class moved here from 0310 once it was clear an
+  account-wide usage limit also stops the orchestrator, so halting works
+  only for failures the orchestrator survives. This drops the dependency on
+  0310.
+- Adding "agent usage limit" as a second member is my call: it costs one
+  reason and one recovery, and gives the class a second member to keep its
+  definition honest. Drop it if the scope should stay on the web profile.
+- Running step 7 after a halt, stopping capacity-refusal rounds early, and
+  placing the halt notice above Failures were agreed while reworking 0310.
 
 ## References
 
 - Source: https://github.com/atomicinnovation/accelerator/issues/141
-- Related: 0121, 0282, 0283, 0309, 0310
+- Related: 0121, 0282, 0283, 0303, 0309, 0310
 - External: https://code.claude.com/docs/en/tools-reference,
-  https://code.claude.com/docs/en/env-vars
+  https://code.claude.com/docs/en/env-vars,
+  https://code.claude.com/docs/en/errors

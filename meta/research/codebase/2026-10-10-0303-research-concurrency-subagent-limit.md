@@ -323,7 +323,7 @@ concurrency-only carve-out as research-topic line 83. The example YAML
   the Requirements, no holder-exit detection, no fallback if holders prove
   infeasible, and an incomplete External dependency entry.
 - Siblings, all draft with no plan:
-  - `meta/work/0310-halting-failures-in-conduct.md` - halting-failure class in
+  - `meta/work/0310-recovering-from-an-interrupted-conduct-run.md` - halting-failure class in
     step 5 and the table; whichever of 0303/0310 lands second adds "a halting
     failure stops retry rounds early" and fixes the reason for spawns left
     refused after such a stop.
