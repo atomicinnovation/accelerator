@@ -340,9 +340,9 @@ files no longer carry the tracker title as a first line. Scripts that parse
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p remote-projection -p work-adapters -p accelerator-work`
-- [ ] `mise run public-api:check` (after `public-api:update` for `remote-projection`)
-- [ ] `mise run lint:crate-dependencies:check`
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p remote-projection -p work-adapters -p accelerator-work`
+- [x] `mise run public-api:check` (after `public-api:update` for `remote-projection`)
+- [x] `mise run lint:crate-dependencies:check`
 - [ ] `mise run` exits 0
 
 #### Manual Verification:
@@ -350,6 +350,28 @@ files no longer carry the tracker title as a first line. Scripts that parse
 - [ ] `work sync --preview` on this repo: dossiers under
       `.accelerator/state/integrations/linear/conflicts/` no longer show the
       title line in `(preamble)`
+
+#### Implementation Notes:
+
+- `a_pulled_item_syncs_again_as_synced_with_no_update` is deferred until
+  0300 lands. Production wires `SyncPorts.writer` to the baseline-rooted
+  `FileCorpusStore`, so every reconcile pull's work-item write is refused as
+  an unsafe path; the test cannot pass through `run_sync` until then. Until
+  0300 lands, that refusal now exits `71` where it exited `0`.
+- The real-client table has no targeted pull-create variant: the split lives
+  in `ConfiguredLocalAuthor` until Phase 4, which `work-adapters` cannot reach.
+  `a_targeted_pull_create_writes_no_projected_title_line` in `work-cli`
+  covers it for both trackers; Phase 4 or 0291 adds the variant.
+- `ApplyError::class()` returns `FailureClass` rather than an `Option`.
+- The shared splitter keeps the description verbatim, so the author now
+  appends a terminating newline only when the description lacks one
+  (`a_pulled_description_ends_with_exactly_one_newline`).
+- The dossier fixtures in `sync_run.rs` gained the title line every
+  projection carries.
+- `mise run` is not yet green end-to-end: `e2e/kanban-drag-overlay.spec.ts`
+  ("Escape-cancelling a drag clears the SSE gate…") failed in two of three
+  full runs and passed when `test:e2e:visualiser` ran alone. Every other task
+  passed.
 
 ---
 
