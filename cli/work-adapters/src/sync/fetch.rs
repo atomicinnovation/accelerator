@@ -364,7 +364,7 @@ fn gather_from_bulk(
         Err(_) => gathering.record(
             id,
             GatheredRemote {
-                presence: RemotePresence::Present,
+                presence: RemotePresence::Indeterminate,
                 remote_updated: stamp.clone(),
                 body: None,
             },

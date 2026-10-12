@@ -1138,6 +1138,35 @@ fn an_applied_pull_writes_the_item_and_advances_the_baseline(
 }
 
 #[test]
+fn a_failed_show_after_a_stamp_change_is_indeterminate_and_writes_nothing(
+) -> Result<(), TestError> {
+    let mut scenario = scenario(1, 0)?;
+    let item = scenario.items[0].clone();
+    let external = item.external_id.clone().expect("a tracked item");
+    scenario.tracker = std::mem::replace(
+        &mut scenario.tracker,
+        RecordingTracker::holding(Vec::new()),
+    )
+    .failing_show(
+        external,
+        tracker::TrackerError::Retryable {
+            detail: "show timed out".to_owned(),
+        },
+    );
+
+    let report = execute(&scenario, 25, 25, RunMode::Apply)
+        .map_err(|_| "a single item within bounds must proceed")?;
+
+    assert_eq!(report.reported[0].planned.state, SyncState::Indeterminate);
+    assert_eq!(
+        scenario.spy.content_of(&item.path),
+        None,
+        "nothing is written over the item"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_unresolved_conflict_blanks_its_local_hash_and_still_finalises(
 ) -> Result<(), TestError> {
     let dir = tempfile::tempdir()?;
