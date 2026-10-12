@@ -1,6 +1,6 @@
 # Frozen bash-ADF oracle corpus — sha256 per frozen file.
 #
-# Captured by cli/jira-client/tests/support/capture-adf-oracle.sh against
+# Captured by cli/adf/tests/support/capture-adf-oracle.sh against
 # the bash drivers at these revisions:
 #   skills/integrations/jira/scripts/jira-adf-to-md.sh   064636c2785c0dcac6c07fc1635dcefad6df3796
 #   skills/integrations/jira/scripts/jira-md-to-adf.sh   00fba079c0d54e5920cd137053edee261f366de5

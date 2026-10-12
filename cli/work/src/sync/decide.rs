@@ -35,7 +35,6 @@ pub enum Action {
 }
 
 impl Action {
-    /// Whether the action sends a description to the tracker.
     #[must_use]
     pub const fn sends_to_tracker(self) -> bool {
         matches!(self, Self::Push | Self::Overwrite)

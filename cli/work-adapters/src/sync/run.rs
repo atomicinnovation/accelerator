@@ -644,9 +644,10 @@ fn readable_dossier(
 /// outcome.
 ///
 /// Every other planned action is reported `NotApplied`, so the report never
-/// shrinks below the plan. The `validate_update` call is a local composition check —
-/// it makes no remote call — so a `Rejected` outcome names a locally-detectable
-/// missing field without reproducing the tracker's own field validation.
+/// shrinks below the plan. The `validate_update` call is a local composition
+/// check — it makes no remote call — so a `Rejected` outcome names a
+/// locally-detectable missing field without reproducing the tracker's own
+/// field validation.
 fn validate_pushes(
     plan: &work::sync::SyncPlan,
     items: &[LocalItem],
