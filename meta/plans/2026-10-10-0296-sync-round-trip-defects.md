@@ -638,9 +638,9 @@ escapes, and keeps an ordered list's start number.
 
 #### Manual Verification:
 
-- [ ] Create a Jira issue from Markdown with a table, blockquote and nested
+- [x] Create a Jira issue from Markdown with a table, blockquote and nested
       list via `accelerator jira create`; it renders correctly in the Jira UI
-- [ ] `accelerator jira show <key> --render-adf` renders it back to the same
+- [x] `accelerator jira show <key> --render-adf` renders it back to the same
       Markdown
 
 #### Implementation Notes:
