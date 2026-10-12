@@ -18,6 +18,7 @@ from tasks.shared.vendor.pin_guard.feeds import (
 )
 from tasks.shared.vendor.pin_guard.findings import RELEASING_FEEDS_URL
 from tasks.shared.vendor.pin_guard.issues import (
+    CloseReason,
     ExistingIssue,
     IssuePolicy,
     reconcile,
@@ -90,8 +91,10 @@ def _open(tracker, findings):
     )
 
 
-def _filed(marker, *, is_open=True):
-    return ExistingIssue(7, is_open, BOT, f"Body.\n\n{marker.render()}")
+def _filed(marker, *, is_open=True, closed_as=None):
+    return ExistingIssue(
+        7, is_open, BOT, f"Body.\n\n{marker.render()}", closed_as
+    )
 
 
 class TestComparableFix:
@@ -250,14 +253,22 @@ class TestUnassessable:
         draft = self._unassessable(record)
         assert "names no fixed Chromium version" in draft.body
 
-    def test_a_closed_unassessable_issue_suppresses_a_later_assessment(self):
+    def test_an_assessment_closed_as_not_planned_suppresses_a_later_one(self):
         [unassessable] = _matched(
             "140.0.7339.186", {CVE: FeedRecordNotFoundError("HTTP 404")}
         )
         [assessed] = _matched(
             "140.0.7339.186", {CVE: chromium_record(CVE, "141.0.7390.54")}
         )
-        tracker = FakeIssueTracker([_filed(unassessable.marker, is_open=False)])
+        tracker = FakeIssueTracker(
+            [
+                _filed(
+                    unassessable.marker,
+                    is_open=False,
+                    closed_as=CloseReason.NOT_PLANNED,
+                )
+            ]
+        )
         _open(tracker, [assessed])
         assert tracker.opened == []
 

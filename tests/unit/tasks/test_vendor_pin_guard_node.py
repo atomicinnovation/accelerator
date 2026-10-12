@@ -9,6 +9,7 @@ from tasks.shared.vendor.pin_guard.feeds import (
     FeedUnreachableError,
 )
 from tasks.shared.vendor.pin_guard.issues import (
+    CloseReason,
     ExistingIssue,
     IssuePolicy,
     reconcile,
@@ -110,11 +111,19 @@ class TestMatching:
         _open(tracker, [first, second])
         assert tracker.opened_markers == [second.marker]
 
-    def test_a_closed_issue_suppresses_its_entry_after_a_bump(self):
+    def test_a_risk_accepted_issue_suppresses_its_entry_after_a_bump(self):
         feed = _feed(**{"2": vuln_core_entry(patched="^22.23.0")})
         [before] = _matched(feed)
         [after] = _matched(feed, version="22.22.3")
-        tracker = FakeIssueTracker([_filed(before.marker, is_open=False)])
+        tracker = FakeIssueTracker(
+            [
+                _filed(
+                    before.marker,
+                    is_open=False,
+                    closed_as=CloseReason.NOT_PLANNED,
+                )
+            ]
+        )
         _open(tracker, [after])
         assert tracker.opened == []
 
@@ -125,8 +134,10 @@ class TestMatching:
         assert "1" not in keys
 
 
-def _filed(marker, *, is_open=True):
-    return ExistingIssue(7, is_open, BOT, f"Body.\n\n{marker.render()}")
+def _filed(marker, *, is_open=True, closed_as=None):
+    return ExistingIssue(
+        7, is_open, BOT, f"Body.\n\n{marker.render()}", closed_as
+    )
 
 
 class TestFeedFailures:

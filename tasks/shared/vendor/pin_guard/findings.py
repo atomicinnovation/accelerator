@@ -204,14 +204,14 @@ class AdvisoryFinding:
         if self.fix is None:
             return (
                 "No release fixes this yet: leave this issue open, mitigate "
-                "if you can, and bump the pin once a fix ships. Closing it "
-                "before then accepts the risk for every later version of the "
-                "pin, so record why in a comment."
+                "if you can, and bump the pin once a fix ships. Closing it as "
+                "not planned instead accepts the risk for every later version "
+                "of the pin, so record why in a comment."
             )
         return (
-            "Bump the pin past the fix and close this issue once the bump "
-            "merges; closing it earlier accepts the risk for every later "
-            "version of the pin."
+            "Bump the pin past the fix and close this issue as completed once "
+            "the bump merges. Closing it as not planned instead accepts the "
+            "risk for every later version of the pin."
         )
 
 
@@ -246,9 +246,10 @@ class UnassessableAdvisoryFinding:
                 f"{code_span(self.pin.version)} (browser version "
                 f"{code_span(self.browser_version)}), is affected.",
                 f"Owner: @{owner.login}. Assess the CVE by hand against the "
-                "Chrome release notes and bump the pin if it is affected. "
-                "Closing this issue records that assessment and silences the "
-                f"CVE for every later version of the pin. See "
-                f"{RELEASING_FEEDS_URL}.",
+                "Chrome release notes. If the pin is affected, bump it and "
+                "close this issue as completed once the bump merges. If not, "
+                "close it as not planned with a comment recording the "
+                "assessment; that silences the CVE for every later version of "
+                f"the pin. See {RELEASING_FEEDS_URL}.",
             ),
         )

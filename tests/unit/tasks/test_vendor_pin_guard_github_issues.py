@@ -7,6 +7,7 @@ from tasks.shared.vendor.pin_guard import github_issues
 from tasks.shared.vendor.pin_guard.findings import IssueDraft
 from tasks.shared.vendor.pin_guard.github_issues import GhIssueTracker, run_gh
 from tasks.shared.vendor.pin_guard.issues import (
+    CloseReason,
     ExistingIssue,
     IssueTrackerError,
 )
@@ -39,7 +40,27 @@ def test_issues_are_listed_by_paginated_api_without_pull_requests():
                 "author": "github-actions[bot]",
                 "body": "Body.\n<!-- finding: x -->",
             },
-            {"number": 8, "state": "closed", "author": "someone", "body": ""},
+            {
+                "number": 8,
+                "state": "closed",
+                "state_reason": "not_planned",
+                "author": "someone",
+                "body": "",
+            },
+            {
+                "number": 9,
+                "state": "closed",
+                "state_reason": "completed",
+                "author": "someone",
+                "body": "",
+            },
+            {
+                "number": 10,
+                "state": "closed",
+                "state_reason": "duplicate",
+                "author": "someone",
+                "body": "",
+            },
         ]
     )
     gh = RecordingGh(**{"api_--paginate": lines + "\n"})
@@ -51,7 +72,21 @@ def test_issues_are_listed_by_paginated_api_without_pull_requests():
             author="github-actions[bot]",
             body="Body.\n<!-- finding: x -->",
         ),
-        ExistingIssue(number=8, is_open=False, author="someone", body=""),
+        ExistingIssue(
+            number=8,
+            is_open=False,
+            author="someone",
+            body="",
+            closed_as=CloseReason.NOT_PLANNED,
+        ),
+        ExistingIssue(
+            number=9,
+            is_open=False,
+            author="someone",
+            body="",
+            closed_as=CloseReason.COMPLETED,
+        ),
+        ExistingIssue(number=10, is_open=False, author="someone", body=""),
     ]
     [(argv, stdin)] = gh.calls
     assert argv == [
@@ -61,7 +96,8 @@ def test_issues_are_listed_by_paginated_api_without_pull_requests():
         "?labels=runtime-pin-guard&state=all&per_page=100",
         "--jq",
         ".[] | select(.pull_request == null) | "
-        '{number, state, author: .user.login, body: (.body // "")}',
+        "{number, state, state_reason, author: .user.login, "
+        'body: (.body // "")}',
     ]
     assert stdin is None
 

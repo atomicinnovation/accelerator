@@ -61,9 +61,10 @@ along the way.
     run deadline. Unknown range syntax, renamed environments or an empty KEV
     Chromium set count as feed failures, not as "clear".
   - **Reconciliation.** Each issue body ends with a hidden marker that names
-    the finding. Any existing issue with that marker suppresses the finding,
-    whether open or closed. An outage is suppressed only while its issue is
-    still open. Only issues authored by `github-actions[bot]` count.
+    the finding. An issue with that marker suppresses the finding while it is
+    open or closed as not planned; one closed as completed lets a recurrence
+    open a fresh issue. An outage is suppressed only while its issue is still
+    open. Only issues authored by `github-actions[bot]` count.
     - **Issue cap.** One run opens at most 10 new finding issues. If there are
       more, it opens a single guard-tripped issue that lists them and fails.
 - **Task and workflow.**
@@ -140,11 +141,13 @@ along the way.
 - ❓ **Old CVEs to assess by hand.** 11 of the 16 assess-by-hand CVEs date
   from 2016 to 2023 and are almost certainly fixed in Chromium 140. They fall
   through because OSV gives no four-part fix, a documented blind spot. Options:
-  - **Dispatch with a higher cap** and close those issues with a comment.
+  - **Dispatch with a higher cap** and close those issues as not planned,
+    with a comment.
   - **Add a cutoff** by KEV `dateAdded` or by CVE year, before merging.
-- **Closing an issue suppresses its finding for good.** For advisories, that
-  covers every later version of the pin, so the rules in `RELEASING.md` under
-  "Closing issues" matter.
+- **Closing an issue as not planned suppresses its finding for good.** For
+  advisories, that covers every later version of the pin, so the rules in
+  `RELEASING.md` under "Closing issues" matter. Closing as completed does not
+  suppress, so a revert re-alerts.
 - **Out of scope** (see the plan's "What We're NOT Doing"):
   - auto-closing issues;
   - verifying registry signatures or provenance in the guard;

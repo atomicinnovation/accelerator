@@ -14,6 +14,7 @@ from tasks.shared.vendor.pin_guard.findings import (
 )
 from tasks.shared.vendor.pin_guard.issues import (
     LABEL,
+    CloseReason,
     DryRunIssueTracker,
     ExistingIssue,
     IssuePolicy,
@@ -45,10 +46,22 @@ def _key_expiry(expires_on=dt.date(2026, 12, 9), days_to_expiry=60):
     )
 
 
-def _issue(finding_or_marker, *, is_open=True, author=BOT, number=1, tail=""):
+def _issue(
+    finding_or_marker,
+    *,
+    is_open=True,
+    closed_as=None,
+    author=BOT,
+    number=1,
+    tail="",
+):
     marker = getattr(finding_or_marker, "marker", finding_or_marker)
     return ExistingIssue(
-        number, is_open, author, f"Body.\n\n{marker.render()}{tail}"
+        number,
+        is_open,
+        author,
+        f"Body.\n\n{marker.render()}{tail}",
+        closed_as,
     )
 
 
@@ -94,12 +107,33 @@ class TestOpening:
 
 
 class TestSuppression:
-    @pytest.mark.parametrize("is_open", [True, False])
-    def test_a_trusted_issue_of_either_state_suppresses(self, is_open):
-        tracker = FakeIssueTracker([_issue(_pin_age(), is_open=is_open)])
+    @pytest.mark.parametrize(
+        ("is_open", "closed_as"),
+        [(True, None), (False, CloseReason.NOT_PLANNED)],
+        ids=["open", "closed as not planned"],
+    )
+    def test_a_standing_trusted_issue_suppresses(self, is_open, closed_as):
+        tracker = FakeIssueTracker(
+            [_issue(_pin_age(), is_open=is_open, closed_as=closed_as)]
+        )
         _reconcile(tracker, _pin_age())
         assert tracker.opened == []
         assert "ensure_label" not in tracker.calls
+
+    @pytest.mark.parametrize(
+        "closed_as",
+        [CloseReason.COMPLETED, None],
+        ids=["closed as completed", "closed for no stated reason"],
+    )
+    def test_a_finding_back_after_its_issue_was_resolved_reopens(
+        self, closed_as
+    ):
+        advisory = _advisory()
+        tracker = FakeIssueTracker(
+            [_issue(advisory, is_open=False, closed_as=closed_as)]
+        )
+        _reconcile(tracker, advisory)
+        assert tracker.opened_markers == [advisory.marker]
 
     def test_the_same_marker_by_another_author_does_not_suppress(self):
         tracker = FakeIssueTracker([_issue(_pin_age(), author="mallory")])
@@ -133,7 +167,9 @@ class TestSuppression:
     def test_a_key_expiry_issue_from_the_window_covers_the_lapsed_key(self):
         nearing = _key_expiry(days_to_expiry=60)
         lapsed = _key_expiry(days_to_expiry=-3)
-        tracker = FakeIssueTracker([_issue(nearing, is_open=False)])
+        tracker = FakeIssueTracker(
+            [_issue(nearing, is_open=False, closed_as=CloseReason.NOT_PLANNED)]
+        )
         _reconcile(tracker, lapsed)
         assert tracker.opened == []
 
@@ -167,7 +203,7 @@ class TestIssueCap:
 
     def test_suppressed_findings_do_not_count_towards_the_cap(self):
         stubs = _stubs(11)
-        tracker = FakeIssueTracker([_issue(stubs[0], is_open=False)])
+        tracker = FakeIssueTracker([_issue(stubs[0])])
         outcome = _reconcile(tracker, *stubs)
         assert len(tracker.opened) == 10
         assert not outcome.tripped

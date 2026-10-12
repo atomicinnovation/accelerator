@@ -1,15 +1,18 @@
 """Reconciling a guard report against the issues already filed.
 
-Each finding opens at most one issue across that issue's lifecycle, so an
-issue of any state suppresses its finding. A feed outage is suppressed only
-while an open issue covers it, so a later outage is reported afresh. Only
-issues the guard itself wrote count: a labelled issue anyone else wrote could
-otherwise silence a finding.
+A finding is suppressed while its issue stands: open, or closed as not
+planned, which records an accepted risk. An issue closed as completed says
+the finding was resolved, so a finding that comes back, after a revert say,
+opens a fresh issue. A feed outage is suppressed only while an open issue
+covers it, so a later outage is reported afresh. Only issues the guard itself
+wrote count: a labelled issue anyone else wrote could otherwise silence a
+finding.
 """
 
 import hashlib
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol, Self, TextIO
 
 from tasks.shared.vendor.pin_guard.feeds import FeedOutage
@@ -32,12 +35,22 @@ class IssueTrackerError(Exception):
     pass
 
 
+class CloseReason(StrEnum):
+    COMPLETED = "completed"
+    NOT_PLANNED = "not_planned"
+
+
 @dataclass(frozen=True, slots=True)
 class ExistingIssue:
     number: int
     is_open: bool
     author: str
     body: str
+    closed_as: CloseReason | None = None
+
+    @property
+    def stands(self) -> bool:
+        return self.is_open or self.closed_as is CloseReason.NOT_PLANNED
 
 
 class IssueTracker(Protocol):
@@ -73,7 +86,7 @@ class ReconcileOutcome:
 
 @dataclass(frozen=True, slots=True)
 class _FiledMarkers:
-    any_state: frozenset[IssueMarker]
+    standing: frozenset[IssueMarker]
     still_open: frozenset[IssueMarker]
 
     @classmethod
@@ -81,14 +94,14 @@ class _FiledMarkers:
         cls, issues: Iterable[ExistingIssue], trusted_author: str
     ) -> Self:
         filed = [
-            (marker, issue.is_open)
+            (marker, issue)
             for issue in issues
             if issue.author == trusted_author
             and (marker := IssueMarker.of_body(issue.body)) is not None
         ]
         return cls(
-            frozenset(marker for marker, _ in filed),
-            frozenset(marker for marker, is_open in filed if is_open),
+            frozenset(marker for marker, issue in filed if issue.stands),
+            frozenset(marker for marker, issue in filed if issue.is_open),
         )
 
 
@@ -113,7 +126,7 @@ def reconcile(
     drafts = [
         findings[marker].draft(owner)
         for marker in sorted(findings)
-        if marker not in filed.any_state
+        if marker not in filed.standing
     ]
     if len(drafts) <= policy.maximum_new_issues:
         return _open_all([*outages, *drafts], tracker, owner, held_back=0)

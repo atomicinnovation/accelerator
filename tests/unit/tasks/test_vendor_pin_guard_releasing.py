@@ -10,7 +10,10 @@ from tasks.shared.vendor.pin_guard.chromium_advisories import (
     CHROMIUM_COMPONENTS,
     CHROMIUM_VENDOR,
 )
-from tasks.shared.vendor.pin_guard.issues import MAXIMUM_NEW_ISSUES
+from tasks.shared.vendor.pin_guard.issues import (
+    MAXIMUM_NEW_ISSUES,
+    CloseReason,
+)
 from tasks.shared.vendor.pin_guard.keyring import KEY_EXPIRY_WARNING_DAYS
 from tasks.shared.vendor.pin_guard.local_inputs import Owner
 
@@ -78,3 +81,9 @@ def test_the_feeds_subsection_names_every_chromium_component_rule():
         *sorted(CHROMIUM_COMPONENTS),
     ]:
         assert f"`{name}`" in feeds, name
+
+
+def test_the_guard_section_names_each_close_reason_the_guard_reads():
+    prose = _guard_prose()
+    for reason in CloseReason:
+        assert f"as {reason.replace('_', ' ')}" in prose, reason

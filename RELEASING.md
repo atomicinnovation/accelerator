@@ -265,7 +265,7 @@ otherwise: a Playwright bump that keeps the Chromium revision leaves
   out of band, replace `keys/nodejs-release.asc`, and update `keyring.bumped`.
   A refresh cannot clear a signing subkey that expired beside its
   replacement, or the key of a releaser who no longer signs releases; close
-  such an issue with a comment saying why.
+  such an issue as not planned, with a comment saying why.
 - **Guard tripped.** The run found more than 10 new findings, so it opened
   none of them and failed. Read the listed findings, or run the task
   locally with `--maximum-new-issues` above the count to print their drafts,
@@ -351,16 +351,16 @@ into the run; a skipped request counts as a feed failure.
 
 Act on each advisory and feed issue as follows:
 
-- **Advisory.** Bump the pin past the named fix, and close the issue once the
-  bump merges. Closing it silences that advisory for every later version of
-  the pin, so close it earlier only as an explicit risk acceptance, recorded
-  in a comment. If no fixed version exists yet, leave the issue open, mitigate
-  where possible, and bump once a fix ships.
+- **Advisory.** Bump the pin past the named fix, and close the issue as
+  completed once the bump merges. If no fixed version exists yet, leave the
+  issue open, mitigate where possible, and bump once a fix ships. To accept
+  the risk instead, close it as not planned, with a comment recording why;
+  that silences the advisory for every later version of the pin.
 - **Chromium CVE to assess.** Check the Chrome release notes for the CVE's
   fix. Bump the pin if the vendored browser version is below it, then close
-  the issue once the bump merges; if it is not affected, close the issue with
-  a comment recording why. Either way, closing it silences the CVE for every
-  later version of the pin.
+  the issue as completed once the bump merges. If it is not affected, close
+  the issue as not planned, with a comment recording why; that silences the
+  CVE for every later version of the pin.
 - **Feed failure.** Request the failed URLs from outside GitHub Actions, and
   close the issue once the feed is healthy, since a later failure opens a
   fresh one. A feed-failure issue is keyed on its feed and the checks it
@@ -369,8 +369,12 @@ Act on each advisory and feed issue as follows:
 
 ### Closing issues
 
-Closing a finding's issue permanently suppresses that finding, so close one
-only once it is resolved. A closed feed-failure issue suppresses nothing.
+Close a finding's issue as completed once the finding is resolved. A finding
+that comes back, after a revert say, then opens a fresh issue. Close it as not
+planned only to accept the risk or record that the pin is not affected: that
+suppresses the finding until the issue is reopened and closed as completed.
+Any other close reason suppresses nothing, so the finding reopens on the next
+run. A closed feed-failure issue suppresses nothing.
 Only issues authored by `github-actions[bot]` count: an issue opened or
 re-filed by hand suppresses nothing, and a change to the workflow's token
 identity needs `--issue-author` to match. Running the task

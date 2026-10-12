@@ -8,6 +8,7 @@ from typing import Protocol
 from tasks.shared.vendor.pin_guard.findings import IssueDraft
 from tasks.shared.vendor.pin_guard.issues import (
     LABEL,
+    CloseReason,
     ExistingIssue,
     IssueTrackerError,
 )
@@ -22,7 +23,8 @@ _ISSUES_ENDPOINT = (
 )
 _ISSUE_FIELDS = (
     ".[] | select(.pull_request == null) | "
-    '{number, state, author: .user.login, body: (.body // "")}'
+    "{number, state, state_reason, author: .user.login, "
+    'body: (.body // "")}'
 )
 _ISSUE_URL = re.compile(r"/issues/(\d+)\s*$")
 
@@ -120,11 +122,19 @@ def _existing_issue(line: str) -> ExistingIssue:
             is_open=entry["state"] == "open",
             author=str(entry["author"]),
             body=str(entry["body"]),
+            closed_as=_close_reason(entry.get("state_reason")),
         )
     except (ValueError, KeyError, TypeError) as error:
         raise IssueTrackerError(
             f"gh api returned an unreadable issue: {line}"
         ) from error
+
+
+def _close_reason(state_reason: object) -> CloseReason | None:
+    try:
+        return CloseReason(state_reason)
+    except ValueError:
+        return None
 
 
 def _label_names(listing: str) -> set[str]:
