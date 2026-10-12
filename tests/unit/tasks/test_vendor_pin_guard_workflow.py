@@ -65,7 +65,7 @@ def test_the_guard_step_opens_issues_under_the_dispatched_cap(job):
     run = _guard_step(job)["run"]
     assert "mise run vendor:guard-pins" in run
     assert "--open-issues" in run
-    assert '--maximum-new-issues "$MAXIMUM_NEW_ISSUES"' in run
+    assert '--maximum-new-issues "${MAXIMUM_NEW_ISSUES:-10}"' in run
 
 
 def test_the_guard_step_authenticates_with_the_workflow_token(job):
@@ -77,9 +77,7 @@ def test_the_cap_comes_from_the_dispatch_input_defaulting_to_ten(workflow, job):
     cap = workflow[True]["workflow_dispatch"]["inputs"]["maximum-new-issues"]
     assert cap["default"] == 10
     env = _guard_step(job)["env"]
-    assert env["MAXIMUM_NEW_ISSUES"] == (
-        "${{ inputs.maximum-new-issues || 10 }}"
-    )
+    assert env["MAXIMUM_NEW_ISSUES"] == "${{ inputs.maximum-new-issues }}"
 
 
 def test_no_run_interpolates_an_expression(job):

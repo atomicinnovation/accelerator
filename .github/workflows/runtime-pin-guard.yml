@@ -42,8 +42,8 @@ jobs:
         run: >-
           mise run vendor:guard-pins --
           --open-issues
-          --maximum-new-issues "$MAXIMUM_NEW_ISSUES"
+          --maximum-new-issues "${MAXIMUM_NEW_ISSUES:-10}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          MAXIMUM_NEW_ISSUES: ${{ inputs.maximum-new-issues || 10 }}
+          MAXIMUM_NEW_ISSUES: ${{ inputs.maximum-new-issues }}
