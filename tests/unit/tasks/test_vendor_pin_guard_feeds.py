@@ -349,7 +349,7 @@ def test_a_failed_record_fetch_skips_only_its_check_and_fails_the_run(
             osv_batch("1.55.0"), osv_fixture("querybatch-playwright-only.json")
         )
         .answer(
-            osv_record("GHSA-7mvr-c777-76hp"), FeedUnreachableError("HTTP 404")
+            osv_record("GHSA-7mvr-c777-76hp"), FeedUnreachableError("HTTP 503")
         )
     )
     ports = fake_ports(feeds=feeds)
