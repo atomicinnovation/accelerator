@@ -19,7 +19,12 @@ from pathlib import Path
 from tasks.shared.paths import PINS_TOML
 from tasks.shared.targets import Platform
 from tasks.shared.vendor import assemble, chromium, nodejs, npm, pins
-from tasks.shared.vendor.fetch import Fetcher, JsonFetcher, download, get_json
+from tasks.shared.vendor.fetch import (
+    Fetcher,
+    JsonFetcher,
+    download,
+    get_release_json,
+)
 
 NPM_REGISTRY = "https://registry.npmjs.org"
 NODE_DIST = "https://nodejs.org/dist"
@@ -87,7 +92,7 @@ def verify_upstream_inputs(
     keys_dir: Path,
     pins_path: Path = PINS_TOML,
     fetch: Fetcher = download,
-    fetch_json: JsonFetcher = get_json,
+    fetch_json: JsonFetcher = get_release_json,
     slsa_runner: npm.SlsaRunner | None = None,
     gpg_runner: nodejs.gpg.Runner | None = None,
 ) -> VerifiedInputs:

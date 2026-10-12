@@ -7,6 +7,7 @@ from tasks.shared.vendor.fetch import (
     PayloadTooLargeError,
     get_bytes,
     get_json,
+    get_release_json,
     post_json,
 )
 from tests.unit.tasks.shared.doubles import FakeClock
@@ -129,3 +130,23 @@ def test_a_body_finishing_just_inside_the_total_timeout_returns():
         now=clock.now,
     )
     assert reply == {"a": 1}
+
+
+def test_the_release_lane_tolerates_a_body_trickling_past_a_minute():
+    clock = FakeClock()
+    reply = get_release_json(
+        "https://registry.test/playwright-core",
+        client=_trickling(clock, 40),
+        now=clock.now,
+    )
+    assert reply == {"a": 1}
+
+
+def test_the_release_lane_still_bounds_a_body_that_never_finishes():
+    clock = FakeClock()
+    with pytest.raises(httpx.TimeoutException):
+        get_release_json(
+            "https://registry.test/playwright-core",
+            client=_trickling(clock, 100),
+            now=clock.now,
+        )

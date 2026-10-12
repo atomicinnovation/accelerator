@@ -30,7 +30,7 @@ type Now = Callable[[], float]
 
 _CHUNK = 64 * 1024
 _DOWNLOAD_TIMEOUT = 300
-_JSON_TIMEOUT = 60
+_RELEASE_JSON_TIMEOUT = 300
 
 
 class PayloadTooLargeError(ValueError):
@@ -54,7 +54,7 @@ def download(url: str, dest: Path) -> None:
 def get_json(
     url: str,
     *,
-    timeout: float = _JSON_TIMEOUT,
+    timeout: float,
     client: httpx.Client | None = None,
     now: Now = time.monotonic,
 ) -> dict[str, Any]:
@@ -62,6 +62,15 @@ def get_json(
     return json.loads(
         _body("GET", url, timeout=timeout, client=client, now=now)
     )
+
+
+def get_release_json(
+    url: str,
+    *,
+    client: httpx.Client | None = None,
+    now: Now = time.monotonic,
+) -> dict[str, Any]:
+    return get_json(url, timeout=_RELEASE_JSON_TIMEOUT, client=client, now=now)
 
 
 def post_json(
