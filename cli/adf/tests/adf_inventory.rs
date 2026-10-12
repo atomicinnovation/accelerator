@@ -8,7 +8,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use jira_client::adf::AdfError;
+use adf::AdfError;
 
 fn source(name: &str) -> String {
     std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(name))
@@ -38,7 +38,7 @@ fn rows(kind: &str) -> Vec<Vec<String>> {
 /// The `"type" =>` match arms in the renderer, which is what "handled" means
 /// for a node the renderer dispatches on directly.
 fn render_arms() -> BTreeSet<String> {
-    let render = source("src/adf/render.rs");
+    let render = source("src/render.rs");
     render
         .lines()
         .filter_map(|line| {
@@ -51,7 +51,7 @@ fn render_arms() -> BTreeSet<String> {
 }
 
 fn render_marks() -> BTreeSet<String> {
-    let render = source("src/adf/render.rs");
+    let render = source("src/render.rs");
     render
         .split("has(\"")
         .skip(1)
@@ -127,8 +127,7 @@ fn every_ignored_mark_really_renders_bare() {
             }]}]
         });
         assert_eq!(
-            jira_client::document_to_markdown(&document)
-                .expect("the document renders"),
+            adf::document_to_markdown(&document).expect("the document renders"),
             "x",
             "{mark} must render bare, with no placeholder"
         );
@@ -137,7 +136,7 @@ fn every_ignored_mark_really_renders_bare() {
 
 #[test]
 fn both_placeholder_strings_appear_verbatim_in_the_renderer() {
-    let render = source("src/adf/render.rs");
+    let render = source("src/render.rs");
     let placeholders = rows("placeholder");
     assert_eq!(placeholders.len(), 2, "block and inline");
 

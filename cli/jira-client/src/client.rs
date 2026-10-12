@@ -32,7 +32,6 @@ use tracker_support::ClockJitter;
 use tracker_support::SystemSleeper;
 use tracker_support::TransportConfig;
 
-use crate::adf::markdown_to_document;
 use crate::auth::resolve_credentials;
 use crate::classify::Operation;
 use crate::classify::Outcome;
@@ -49,6 +48,7 @@ use crate::path;
 use crate::transport::Deadline;
 use crate::transport::Received;
 use crate::transport::Transport;
+use adf::markdown_to_document;
 
 /// Jira's own bulk-read bounds.
 const CHUNK: usize = 50;
@@ -555,10 +555,7 @@ fn timestamp(payload: &Value) -> RemoteTimestamp {
 /// The `{fields: {summary, description}}` an update sends, shared by `update`
 /// and `validate_update` so the previewed payload is the one that would be
 /// pushed.
-fn update_fields(
-    title: &str,
-    body: &str,
-) -> Result<Value, crate::adf::AdfError> {
+fn update_fields(title: &str, body: &str) -> Result<Value, adf::AdfError> {
     let description = markdown_to_document(body, None)?;
     Ok(json!({"fields": {"summary": title, "description": description}}))
 }

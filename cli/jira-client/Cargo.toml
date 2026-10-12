@@ -32,6 +32,7 @@ config = { path = "../config" }
 # enforces this, and the mkdir-lock's owner.<nonce> sentinel never reclaims a
 # legacy holder.pid lock, so the two exclude safely on the shared path.
 store = { path = "../store" }
+adf = { path = "../adf" }
 remote-projection = { path = "../remote-projection" }
 tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }
@@ -41,6 +42,4 @@ config-adapters = { path = "../config-adapters" }
 http-test-support = { path = "../http-test-support" }
 tracker-test-support = { path = "../tracker-test-support" }
 serde_json = { workspace = true }
-sha2 = { workspace = true }
-hex = { workspace = true }
 tempfile = { workspace = true }

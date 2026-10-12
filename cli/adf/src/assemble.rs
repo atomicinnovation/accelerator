@@ -8,7 +8,7 @@ use serde_json::json;
 use serde_json::Map;
 use serde_json::Value;
 
-use crate::adf::tokenise::Token;
+use crate::tokenise::Token;
 
 /// Assembles a `doc` from a token stream.
 ///

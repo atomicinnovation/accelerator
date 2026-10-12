@@ -12,9 +12,9 @@
 //! assembly hard-rejects three constructs. `tests/fixtures/adf-fidelity-quirks.txt`
 //! records every behaviour that is knowingly wrong but faithful.
 
-pub mod assemble;
-pub mod render;
-pub mod tokenise;
+mod assemble;
+mod render;
+mod tokenise;
 
 use std::error::Error;
 use std::fmt;

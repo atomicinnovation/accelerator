@@ -134,10 +134,10 @@ pub const ATTACH_NO_FILES: u8 = 131;
 pub const ATTACH_FILE_MISSING: u8 = 132;
 pub const ATTACH_BAD_FLAG: u8 = 133;
 
+use adf::AdfError;
 use config::consent::Refusal;
 use config::consent::RefusalReason;
 use config::credentials::CredentialError;
-use jira_client::adf::AdfError;
 use jira_client::cache::CacheError;
 use jira_client::classify::Outcome;
 use jira_client::{ClientError, JiraFailure, SurfaceError};

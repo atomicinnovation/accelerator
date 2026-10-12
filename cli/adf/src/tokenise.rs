@@ -7,7 +7,7 @@
 //! rejected as a nested list. `tests/fixtures/adf-fidelity-quirks.txt` records
 //! why each is preserved.
 
-use crate::adf::AdfError;
+use crate::AdfError;
 
 /// One block record from the tokeniser.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -242,4 +242,50 @@ fn accumulate_paragraph(state: &mut State, line: &str) {
 /// list item keeps them inside its text.
 fn has_hard_break_marker(line: &str) -> bool {
     line.len() - line.trim_end_matches(' ').len() >= 2
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use std::path::Path;
+
+    use super::{tokenise, Token, UNDERSCORE_NOTICE};
+
+    fn notice_case(name: &str) -> String {
+        std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/adf/assemble-notice-underscores")
+                .join(name),
+        )
+        .expect("the notice case is committed")
+    }
+
+    #[test]
+    fn the_tokeniser_emits_the_notice_without_failing() {
+        let tokenised =
+            tokenise("__not bold__\n").expect("a notice is not fatal");
+
+        assert_eq!(tokenised.notices, vec![UNDERSCORE_NOTICE.to_owned()]);
+        assert_eq!(
+            tokenised.tokens,
+            vec![Token::Paragraph("__not bold__".to_owned())]
+        );
+    }
+
+    #[test]
+    fn the_underscore_notice_is_emitted_without_failing() {
+        let expected = notice_case("expected-notice.txt");
+        let tokenised = tokenise(&notice_case("input.md"))
+            .expect("a notice is not a failure");
+
+        assert_eq!(
+            notice_case("oracle-status.txt").trim(),
+            "0",
+            "the notice leaves the exit status at zero"
+        );
+        let oracle_stderr = notice_case("oracle.err");
+        assert!(oracle_stderr.contains(expected.trim()), "{oracle_stderr}");
+        assert_eq!(tokenised.notices, vec![expected.trim().to_owned()]);
+    }
 }

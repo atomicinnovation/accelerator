@@ -232,6 +232,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "adf"
+version = "1.24.0-pre.78"
+dependencies = [
+ "hex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2871,6 +2881,7 @@ dependencies = [
 name = "jira-cli"
 version = "1.24.0-pre.82"
 dependencies = [
+ "adf",
  "clap",
  "cli-test-support",
  "config",
@@ -2890,16 +2901,15 @@ dependencies = [
 name = "jira-client"
 version = "1.24.0-pre.82"
 dependencies = [
+ "adf",
  "config",
  "config-adapters",
- "hex",
  "http-test-support",
  "rand 0.9.5",
  "remote-projection",
  "reqwest",
  "rustls",
  "serde_json",
- "sha2",
  "store",
  "tempfile",
  "thiserror",

@@ -9,9 +9,9 @@
 
 use thiserror::Error;
 
-use crate::adf::AdfError;
 use crate::error::ClientError;
 use crate::transition::Transition;
+use adf::AdfError;
 
 #[derive(Debug, Error)]
 pub enum SurfaceError {

@@ -12,7 +12,7 @@
 
 use serde_json::Value;
 
-use crate::adf::AdfError;
+use crate::AdfError;
 
 /// Renders a `doc` to the markdown subset, without a trailing newline.
 ///

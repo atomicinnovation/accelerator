@@ -6,9 +6,7 @@
 
 use std::path::Path;
 
-use jira_client::adf::tokenise::{tokenise, Token};
-use jira_client::adf::AdfError;
-use jira_client::{document_to_markdown, markdown_to_document};
+use adf::{document_to_markdown, markdown_to_document, AdfError};
 use serde_json::json;
 use serde_json::Value;
 
@@ -368,19 +366,5 @@ fn a_seeded_local_id_is_deterministic_and_an_unseeded_one_is_a_counter() {
     assert_eq!(
         counted["content"][0]["content"][0]["attrs"]["localId"], "1",
         "without a seed the bare counter is used, as the oracle does"
-    );
-}
-
-#[test]
-fn the_tokeniser_emits_the_notice_without_failing() {
-    let tokenised = tokenise("__not bold__\n").expect("a notice is not fatal");
-
-    assert_eq!(
-        tokenised.notices,
-        vec![jira_client::adf::tokenise::UNDERSCORE_NOTICE.to_owned()]
-    );
-    assert_eq!(
-        tokenised.tokens,
-        vec![Token::Paragraph("__not bold__".to_owned())]
     );
 }

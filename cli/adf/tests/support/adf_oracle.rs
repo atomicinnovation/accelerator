@@ -76,9 +76,8 @@ pub fn frozen_oracle(case: &Path) -> Run {
 
 /// The render direction's comparison: the oracle's `jq -r` adds exactly one
 /// trailing newline to a non-empty document and nothing at all to an empty
-/// one, while [`jira_client::adf::render::to_markdown`] returns the joined
-/// blocks — so the newline is added back here rather than baked into the
-/// renderer.
+/// one, while [`adf::document_to_markdown`] returns the joined blocks — so the
+/// newline is added back here rather than baked into the renderer.
 pub fn render_disagreement(
     case: &str,
     oracle_stdout: &[u8],

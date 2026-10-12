@@ -86,9 +86,8 @@ impl JiraClient {
         &self,
         fields: &CreateFields<'_>,
     ) -> Result<ExternalId, JiraFailure> {
-        let description =
-            crate::adf::markdown_to_document(fields.body, None)
-                .map_err(|error| rejected(Operation::Create, &error))?;
+        let description = adf::markdown_to_document(fields.body, None)
+            .map_err(|error| rejected(Operation::Create, &error))?;
         let mut payload = Map::new();
         payload.insert(
             "project".to_owned(),
@@ -202,15 +201,13 @@ impl JiraClient {
     }
 }
 
-fn update_payload(
-    edit: &UpdateFields<'_>,
-) -> Result<Value, crate::adf::AdfError> {
+fn update_payload(edit: &UpdateFields<'_>) -> Result<Value, adf::AdfError> {
     let mut fields = Map::new();
     if let Some(summary) = edit.summary {
         fields.insert("summary".to_owned(), json!(summary));
     }
     if let Some(body) = edit.body {
-        let description = crate::adf::markdown_to_document(body, None)?;
+        let description = adf::markdown_to_document(body, None)?;
         fields.insert("description".to_owned(), description);
     }
     if let Some(priority) = edit.priority {

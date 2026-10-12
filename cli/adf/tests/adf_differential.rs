@@ -13,11 +13,10 @@
 #[path = "support/adf_oracle.rs"]
 mod adf_oracle;
 
+use adf::{document_to_markdown, markdown_to_document, AdfError};
 use adf_oracle::{
     assemble_disagreement, case_name, cases, frozen_oracle, render_disagreement,
 };
-use jira_client::adf::AdfError;
-use jira_client::{document_to_markdown, markdown_to_document};
 use serde_json::Value;
 
 const SEED: Option<&str> = Some("1");
@@ -212,28 +211,6 @@ fn every_committed_expectation_still_matches_the_frozen_oracle() {
         }
     }
     assert!(checked > 0, "no committed expectation was checked");
-}
-
-#[test]
-fn the_underscore_notice_is_emitted_without_failing() {
-    let case = cases("assemble-")
-        .into_iter()
-        .find(|case| case_name(case) == "assemble-notice-underscores")
-        .expect("the notice case is committed");
-    let markdown = read(&case, "input.md").expect("input.md");
-    let expected = read(&case, "expected-notice.txt")
-        .expect("the oracle's notice is committed");
-
-    let oracle = frozen_oracle(&case);
-    let tokenised = jira_client::adf::tokenise::tokenise(&markdown)
-        .expect("a notice is not a failure");
-
-    assert_eq!(
-        oracle.status, 0,
-        "the notice leaves the exit status at zero"
-    );
-    assert!(oracle.stderr.contains(expected.trim()), "{}", oracle.stderr);
-    assert_eq!(tokenised.notices, vec![expected.trim().to_owned()]);
 }
 
 #[test]
