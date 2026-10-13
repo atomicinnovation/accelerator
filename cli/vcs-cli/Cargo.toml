@@ -13,12 +13,6 @@ role = "composition-root"
 [lints]
 workspace = true
 
-[features]
-# The golden-fixture comparison test builds real jj and git repositories. Same
-# contract as vcs-adapters: on, an absent binary hard-fails; off, that suite is
-# skipped entirely. CI enables it (tasks/test/cli.py).
-bash-parity = []
-
 [[bin]]
 name = "accelerator-vcs"
 path = "src/main.rs"

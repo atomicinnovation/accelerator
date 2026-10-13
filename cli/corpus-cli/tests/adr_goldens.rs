@@ -1,12 +1,9 @@
 //! `accelerator-corpus adr` against pre-captured expected values,
 //! transliterated from the reference implementation's own golden suite.
 //!
-//! Unconditional: unlike this codebase's other binary-spawning golden suites
-//! (which compare against a live process under the `bash-parity` feature),
-//! these compare against values captured once, during development, from a
-//! reference implementation that no longer exists — there is nothing left to
-//! compare against live, so this suite runs in the default `cargo test`
-//! invocation with no feature gate.
+//! The values were captured once, during development, from a reference
+//! implementation that no longer exists, so there is nothing to compare
+//! against live.
 
 use std::fs;
 use std::path::Path;

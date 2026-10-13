@@ -125,7 +125,7 @@ pub(super) fn jj_is_tracked(root: &Path, relpath: &str) -> Result<bool, Error> {
     Ok(value.is_present())
 }
 
-#[cfg(all(test, feature = "bash-parity"))]
+#[cfg(test)]
 mod tests {
     use std::fs;
 

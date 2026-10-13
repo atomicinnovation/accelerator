@@ -13,9 +13,6 @@ role = "composition-root"
 [lints]
 workspace = true
 
-[features]
-bash-parity = []
-
 [[bin]]
 name = "accelerator-migrate"
 path = "src/main.rs"

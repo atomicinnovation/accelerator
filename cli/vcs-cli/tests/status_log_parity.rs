@@ -7,7 +7,6 @@
 //! masking, never by equating the two masked blobs (which carry distinct
 //! `<HEX_OBJECT_ID>`/`<JJ_CHANGE_ID>` tokens), with an unmasked control proving
 //! the mask touched only the id span.
-#![cfg(feature = "bash-parity")]
 
 use std::path::Path;
 use std::path::PathBuf;

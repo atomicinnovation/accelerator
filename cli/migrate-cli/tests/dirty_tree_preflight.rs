@@ -1,6 +1,5 @@
 //! The dirty-tree pre-flight driven end to end against the compiled binary
 //! over real git/jj repositories: unowned changes refuse, `FORCE` bypasses.
-#![cfg(feature = "bash-parity")]
 
 mod common;
 

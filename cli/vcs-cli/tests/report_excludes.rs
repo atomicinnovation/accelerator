@@ -1,7 +1,6 @@
 //! `accelerator-vcs status` on jj lists the changes `jj status` does: files
 //! the git excludes hide, and new files over `snapshot.max-new-file-size`, are
 //! left out, and everything else is listed.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::Path;

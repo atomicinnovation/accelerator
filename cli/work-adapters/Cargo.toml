@@ -13,12 +13,6 @@ context = "work"
 [lints]
 workspace = true
 
-[features]
-# The retirement suite's real-repository tests build real git and jj
-# repositories. On, an absent binary hard-fails; off, they are skipped.
-# Mirrors vcs-adapters' own bash-parity convention.
-bash-parity = []
-
 [dependencies]
 work = { path = "../work" }
 kernel = { path = "../kernel" }

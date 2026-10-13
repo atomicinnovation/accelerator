@@ -6,7 +6,6 @@
 //! Setting `REGENERATE_GOLDENS=1` rewrites the golden files from the current
 //! binary output (masked) instead of comparing — the generation path the
 //! goldens are produced through, reviewed by hand before they are committed.
-#![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeMap;
 use std::fs;

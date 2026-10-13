@@ -1,7 +1,6 @@
 //! `InProcessProbe::dirty_paths`, through `vcs-adapters-fixture`, against real
 //! jj/git repositories, compared against the shape
 //! `git status --porcelain`/`jj diff --name-only` reports.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

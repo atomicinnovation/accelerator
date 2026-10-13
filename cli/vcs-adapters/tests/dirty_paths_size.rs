@@ -1,7 +1,6 @@
 //! The jj dirty paths honour `snapshot.max-new-file-size` from every layer jj
 //! reads for `jj status`, conditional scopes included, read through the
 //! fixture binary under a hermetic environment and compared with `jj status`.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

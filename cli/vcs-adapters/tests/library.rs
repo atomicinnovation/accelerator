@@ -11,7 +11,6 @@
 //! These need real `jj` and `git` binaries and hard-fail when one is absent:
 //! Rust's harness has no skip primitive, so an early return would register as a
 //! green PASS.
-#![cfg(feature = "bash-parity")]
 
 use std::fs;
 use std::path::Path;

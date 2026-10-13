@@ -2,7 +2,6 @@
 //! repository, pinned byte for byte: the per-migration progress log, the
 //! migrated work item, the relocated scaffold, and — when the chain halts —
 //! the run's own bookkeeping.
-#![cfg(feature = "bash-parity")]
 
 mod common;
 

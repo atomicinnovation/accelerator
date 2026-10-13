@@ -932,7 +932,6 @@ fn a_held_retirement_lock_blocks_a_second_retirement() -> Result<(), TestError>
     Ok(())
 }
 
-#[cfg(feature = "bash-parity")]
 mod in_a_real_repository {
     use std::fs;
 

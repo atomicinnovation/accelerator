@@ -17,12 +17,6 @@ workspace = true
 name = "accelerator-work"
 path = "src/main.rs"
 
-[features]
-# Gates sync_working_copy_status.rs's real-repo `jj`/`git` tests. On, an absent
-# binary hard-fails; off, those tests are skipped entirely. CI enables it
-# (tasks/test/cli.py).
-bash-parity = []
-
 # Black-box test entry point, not a shipped artifact. Lives under
 # tests/fixtures/ so it stays off the crate's normal build surface; tests
 # locate it via CARGO_BIN_EXE_work-cli-fixture and run it under a hermetic

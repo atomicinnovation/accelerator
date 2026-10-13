@@ -1,9 +1,9 @@
 //! The shared VCS test apparatus: the checkout fixture matrix, the hermetic
 //! environment it is built in, and the marker stubs.
 //!
-//! A crate rather than a feature on `vcs-adapters`, so that crate's `[features]`
-//! stays at exactly `bash-parity` and CI's `--all-features` cannot turn a fixture
-//! feature on workspace-wide.
+//! A crate rather than a feature on `vcs-adapters`, so that crate declares no
+//! `[features]` and CI's `--all-features` cannot turn a fixture feature on
+//! workspace-wide.
 
 pub mod fixtures;
 pub mod hermetic;
