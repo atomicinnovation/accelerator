@@ -281,11 +281,17 @@ where
     )
     .map_err(|error| error.to_string())?;
     let replaced_batch = replaced.judging_findings(&reading.inputs);
-    let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
+    let inputs = match &replaced_batch {
+        Some(replaced_batch) => {
+            replaced_batch.quarantining(reading.inputs, &UnicodeTables)
+        }
+        None => reading.inputs,
+    };
+    let plan = RoundPlan::of(&inputs, &UnicodeTables);
     let replaced_run = replaced_batch.map(|replaced_batch| {
-        replaced_batch.report(&reading.inputs, &plan, &UnicodeTables)
+        replaced_batch.report(&inputs, &plan, &UnicodeTables)
     });
-    let observed = Observed::of(&reading.inputs);
+    let observed = Observed::of(&inputs);
     let ledger = match mode {
         RunMode::Start(run) => Some(RunLedger::start(run, &observed)),
         RunMode::Continue { .. } => continued,

@@ -1137,16 +1137,33 @@ fn an_invalid_or_misdirected_finding_from_a_replaced_batch_is_listed_for_quarant
     Ok(())
 }
 
-#[test]
-fn a_finding_answering_a_sibling_pair_is_listed_for_quarantine(
-) -> Result<(), TestError> {
-    let project = small_set("replaced-sibling", "- [ ] A?\n- [ ] B?")?;
+fn sibling_answered(tag: &str) -> Result<Project, TestError> {
+    let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
     started(&project, &[])?;
     write_finding(
         &project,
         "02-b-web",
         &finding("02-b-web", "A?", "depth: 1\n"),
     )?;
+    Ok(project)
+}
+
+fn quarantine_as_the_report_would(plan: &Value) -> Result<(), TestError> {
+    for path in plan["replaced_run"]["quarantine"]
+        .as_array()
+        .ok_or("no quarantine")?
+    {
+        let path = Path::new(path.as_str().ok_or("not a path")?);
+        let name = path.file_name().ok_or("no name")?.to_string_lossy();
+        fs::rename(path, path.with_file_name(format!(".{name}.invalid")))?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_finding_answering_a_sibling_pair_is_listed_for_quarantine(
+) -> Result<(), TestError> {
+    let project = sibling_answered("replaced-sibling")?;
 
     let (plan, _) = started(&project, &[])?;
 
@@ -1156,6 +1173,72 @@ fn a_finding_answering_a_sibling_pair_is_listed_for_quarantine(
     assert_eq!(
         replaced["quarantine"],
         json!([finding_at(&project, "02-b-web")?])
+    );
+    assert_eq!(spawns_of(&plan)?, ["02-a-web", "03-b-web"]);
+    assert_eq!(plan["batch"], json!(0));
+    Ok(())
+}
+
+#[test]
+fn a_quarantine_never_strands_an_offered_spawn() -> Result<(), TestError> {
+    let project = sibling_answered("replaced-stranded")?;
+    let one_at_a_time = ["--concurrency", "1"];
+    let (plan, run) = started(&project, &one_at_a_time)?;
+    assert_eq!(spawns_of(&plan)?, ["02-a-web"]);
+    quarantine_as_the_report_would(&plan)?;
+    write_finding(
+        &project,
+        "02-a-web",
+        &finding("02-a-web", "A?", "depth: 1\n"),
+    )?;
+
+    let next = continued(
+        &project,
+        &run,
+        &["--concurrency", "1", "--spawned", "0"],
+    )?;
+
+    assert_eq!(spawns_of(&next)?, ["03-b-web"]);
+    assert_eq!(next["unfinished"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn the_first_plan_after_a_replaced_batch_matches_the_plan_once_quarantined(
+) -> Result<(), TestError> {
+    let project = sibling_answered("replaced-equivalent")?;
+    let (plan, run) = started(&project, &[])?;
+    quarantine_as_the_report_would(&plan)?;
+
+    let quarantined = continued(&project, &run, &[])?;
+
+    assert_eq!(quarantined["pairs"], plan["pairs"]);
+    Ok(())
+}
+
+#[test]
+fn quarantined_leftovers_keep_their_fresh_stems_for_the_rest_of_the_run(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-fresh", "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "Z?", "depth: 1\n"),
+    )?;
+    let (plan, run) = started(&project, &[])?;
+    quarantine_as_the_report_would(&plan)?;
+
+    let next = continued(&project, &run, &[])?;
+    let (query, _) = project.plan_with(&[])?;
+
+    assert_eq!(spawns_of(&next)?, ["03-a-web", "04-b-web"]);
+    assert_eq!(next.get("replaced_run"), None);
+    assert_eq!(query["warnings"], json!([]));
+    assert_eq!(
+        query["items"],
+        json!([item(6, "A?", false), item(7, "B?", false)])
     );
     Ok(())
 }
