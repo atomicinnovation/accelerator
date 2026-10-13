@@ -8,7 +8,6 @@ use crate::topic::claims::ClaimedIndexes;
 use crate::topic::claims::IndexClaim;
 use crate::topic::evidence::Finding;
 use crate::topic::evidence::LevelsDirectory;
-use crate::topic::layout::slug::QuestionSlug;
 use crate::topic::layout::stem::Stem;
 use crate::topic::outline::Outline;
 use crate::topic::outline::OutlineItem;
@@ -206,11 +205,8 @@ impl<'a> Planner<'a> {
             }
             self.claimed.insert(question, index);
             if let Some(index) = index {
-                let slug = QuestionSlug::from(item.question.as_str());
                 for profile in outstanding.iter().copied() {
-                    let Some(stem) =
-                        Stem::allocated(index, slug.as_str(), profile)
-                    else {
+                    let Some(stem) = item.stem_at(index, profile) else {
                         continue;
                     };
                     let stage = self.stage_for(&stem, &item.question, plan);

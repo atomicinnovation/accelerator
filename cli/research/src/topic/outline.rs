@@ -1,6 +1,9 @@
 //! The focus areas an `outline.md` asks for, and the profiles each is
 //! researched through.
 
+use crate::topic::layout::slug::QuestionSlug;
+use crate::topic::layout::stem::Stem;
+
 /// The profile an outline item is researched through when it names none.
 pub const DEFAULT_PROFILE: &str = "web";
 
@@ -90,6 +93,11 @@ impl OutlineItem {
             profile: profile.to_owned(),
         }
     }
+
+    pub(crate) fn stem_at(&self, index: u32, profile: &str) -> Option<Stem> {
+        let slug = QuestionSlug::from(self.question.as_str());
+        Stem::allocated(index, slug.as_str(), profile)
+    }
 }
 
 fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
@@ -118,6 +126,7 @@ fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
 mod tests {
     use super::Outline;
     use super::OutlineItem;
+    use crate::topic::layout::stem::Stem;
 
     fn only_item(line: &str) -> Option<OutlineItem> {
         Outline::parse(line).items.into_iter().next()
@@ -168,5 +177,23 @@ mod tests {
     fn items_carry_their_one_based_line_number() {
         let outline = Outline::parse("---\nkind: outline\n---\n- [ ] A?");
         assert_eq!(outline.items[0].line, 4);
+    }
+
+    fn stem(text: &str) -> Option<Stem> {
+        Stem::parse(text)
+    }
+
+    #[test]
+    fn an_item_allocates_its_stem_from_its_slug_and_profile(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] How do heads specialise? — profiles: openalex")
+                .ok_or("an item")?;
+        assert_eq!(
+            item.stem_at(3, "openalex"),
+            stem("03-how-do-heads-specialise-openalex")
+        );
+        assert_eq!(item.stem_at(3, "Web"), None);
+        Ok(())
     }
 }
