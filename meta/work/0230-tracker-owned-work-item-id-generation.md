@@ -5,7 +5,7 @@ title: "Tracker-Owned Work Item ID Generation"
 date: "2026-08-30T14:35:09+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "in-progress"
+status: "done"
 kind: "story"
 priority: "low"
 parent: "work-item:0146"
@@ -21,7 +21,7 @@ external_id: "PP-760"
 # 0230: Tracker-Owned Work Item ID Generation
 
 **Kind**: Story
-**Status**: In Progress
+**Status**: Done
 **Priority**: Low
 **Author**: Toby Clemson
 
