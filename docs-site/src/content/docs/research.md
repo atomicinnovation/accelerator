@@ -493,7 +493,8 @@ Every plan also carries these fields, whether or not `--depth` is given:
 `--concurrency N` falls back to `research.topic.concurrency` and is reported
 as `concurrency`. A value that is not a positive integer clamps to 1, and one
 above the subagent cap clamps to the cap, each with a warning; only an empty
-value exits 1, with `E_TOPIC_RESEARCH_CONCURRENCY`. The cap is
+value exits 1, with `E_TOPIC_RESEARCH_CONCURRENCY`. Each diagnostic names the
+flag, or the config file that set the value. The cap is
 read from `ACCELERATOR_SUBAGENT_CAP`, then
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each read as Claude Code reads its own
 setting, else 20, so a hand run in the same shell sees the cap `conduct` does.

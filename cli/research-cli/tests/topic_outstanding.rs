@@ -1330,6 +1330,9 @@ fn a_run_offers_20_arxiv_spawns_by_default_and_counts_the_rest(
 
 const FLAG: &str = "--concurrency";
 const KNOB: &str = "research.topic.concurrency";
+const TEAM_KNOB: &str = "research.topic.concurrency in .accelerator/config.md";
+const PERSONAL_KNOB: &str =
+    "research.topic.concurrency in .accelerator/config.local.md";
 
 impl Project {
     fn configure_team_concurrency(&self, value: &str) -> Result<(), TestError> {
@@ -1406,7 +1409,7 @@ fn a_configured_concurrency_above_the_cap_clamps_with_a_warning(
 
     assert_offers_arxiv_spawns(&plan, 20, 5)?;
     assert_eq!(plan["concurrency"], json!(20));
-    assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(TEAM_KNOB, "24")]);
     Ok(())
 }
 
@@ -1433,7 +1436,11 @@ fn a_clamp_names_the_variable_that_set_the_cap() -> Result<(), TestError> {
             project.plan_in(&["--start"], &[(variable, "8")])?;
 
         assert_eq!(plan["concurrency"], json!(8), "{variable}");
-        assert_warned(&plan, &stderr, &[clamped_by(KNOB, "24", 8, variable)]);
+        assert_warned(
+            &plan,
+            &stderr,
+            &[clamped_by(TEAM_KNOB, "24", 8, variable)],
+        );
     }
     Ok(())
 }
@@ -1512,7 +1519,11 @@ fn a_personal_concurrency_wins_over_the_team_and_warns() -> Result<(), TestError
     let (plan, stderr) = project.plan_with(&["--start"])?;
 
     assert_eq!(plan["concurrency"], json!(20));
-    assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
+    assert_warned(
+        &plan,
+        &stderr,
+        &[clamped_to_the_default(PERSONAL_KNOB, "24")],
+    );
     Ok(())
 }
 
@@ -1558,7 +1569,11 @@ fn a_cap_the_harness_ignores_still_clamps_a_configured_concurrency(
             project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
 
         assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
-        assert_warned(&plan, &stderr, &[clamped_to_the_default(KNOB, "24")]);
+        assert_warned(
+            &plan,
+            &stderr,
+            &[clamped_to_the_default(TEAM_KNOB, "24")],
+        );
     }
     Ok(())
 }
@@ -1598,7 +1613,7 @@ fn an_accelerator_cap_the_harness_would_ignore_falls_through_with_a_warning(
                 "{ACCELERATOR_CAP} is 'abc', not a positive integer — \
                  ignoring it"
             ),
-            clamped_by(KNOB, "24", 8, HARNESS_CAP),
+            clamped_by(TEAM_KNOB, "24", 8, HARNESS_CAP),
         ],
     );
     Ok(())
@@ -1643,7 +1658,11 @@ fn a_malformed_configured_concurrency_clamps_to_1_with_a_warning(
         let (plan, stderr) = project.plan_with(&["--start"])?;
 
         assert_eq!(plan["concurrency"], json!(1), "{given}");
-        assert_warned(&plan, &stderr, &[not_a_positive_integer(KNOB, given)]);
+        assert_warned(
+            &plan,
+            &stderr,
+            &[not_a_positive_integer(TEAM_KNOB, given)],
+        );
     }
     Ok(())
 }
@@ -1735,7 +1754,10 @@ fn concurrency_warnings_precede_a_replaced_ledger_notice(
     assert_warned(
         &plan,
         &stderr,
-        &[clamped_to_the_default(KNOB, "24"), replaced_warning(&first)],
+        &[
+            clamped_to_the_default(TEAM_KNOB, "24"),
+            replaced_warning(&first),
+        ],
     );
     Ok(())
 }

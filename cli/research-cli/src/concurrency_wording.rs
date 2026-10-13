@@ -58,10 +58,8 @@ pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
         Provenance::Flag => {
             format!("{source} is empty; pass a positive integer")
         }
-        Provenance::ConfigFile(file) => format!(
-            "{source} in {} is empty; set it to a positive integer or remove \
-             it",
-            path_of(file)
+        Provenance::ConfigFile(_) => format!(
+            "{source} is empty; set it to a positive integer or remove it"
         ),
     }
 }
@@ -73,10 +71,12 @@ const fn path_of(file: ConfigFile) -> &'static str {
     }
 }
 
-const fn concurrency_source(provenance: Provenance) -> &'static str {
+fn concurrency_source(provenance: Provenance) -> String {
     match provenance {
-        Provenance::Flag => "--concurrency",
-        Provenance::ConfigFile(_) => "research.topic.concurrency",
+        Provenance::Flag => "--concurrency".to_owned(),
+        Provenance::ConfigFile(file) => {
+            format!("research.topic.concurrency in {}", path_of(file))
+        }
     }
 }
 
@@ -112,11 +112,11 @@ mod tests {
             ),
             (
                 Provenance::ConfigFile(ConfigFile::Team),
-                "research.topic.concurrency must be a positive integer, got \
-                 'many' — clamping to 1",
-                "research.topic.concurrency is 50, above the subagent cap of \
-                 20 from ACCELERATOR_SUBAGENT_CAP — clamping to 20; lower it, \
-                 or raise ACCELERATOR_SUBAGENT_CAP",
+                "research.topic.concurrency in .accelerator/config.md must be \
+                 a positive integer, got 'many' — clamping to 1",
+                "research.topic.concurrency in .accelerator/config.md is 50, \
+                 above the subagent cap of 20 from ACCELERATOR_SUBAGENT_CAP — \
+                 clamping to 20; lower it, or raise ACCELERATOR_SUBAGENT_CAP",
                 "research.topic.concurrency in .accelerator/config.md is \
                  empty; set it to a positive integer or remove it",
             ),
@@ -169,9 +169,9 @@ mod tests {
                 CapSource::HarnessDefault,
             ),
             format!(
-                "research.topic.concurrency is 24, above the subagent cap of \
-                 20, Claude Code's default — clamping to 20; lower it, or \
-                 raise the cap with {raised_by}"
+                "research.topic.concurrency in .accelerator/config.md is 24, \
+                 above the subagent cap of 20, Claude Code's default — \
+                 clamping to 20; lower it, or raise the cap with {raised_by}"
             )
         );
     }
