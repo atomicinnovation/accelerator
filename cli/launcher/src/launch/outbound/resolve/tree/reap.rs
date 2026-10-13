@@ -431,6 +431,10 @@ mod tests {
         let paths = trees(dir.path());
         let fresh = paths.generation(&gen_name());
         fs::create_dir(&fresh).expect("fresh");
+        let sidecars = sidecars_of(&paths, &gen_name());
+        for sidecar in &sidecars {
+            fs::write(sidecar, b"").expect("sidecar");
+        }
 
         // The clock reads the present, so a just-renamed generation — between
         // its rename and its pointer write — is inside the backstop window.
@@ -439,6 +443,9 @@ mod tests {
                 .expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(fresh.exists(), "a freshly renamed generation was reaped");
+        for sidecar in &sidecars {
+            assert!(sidecar.exists(), "{} was removed", sidecar.display());
+        }
     }
 
     #[test]

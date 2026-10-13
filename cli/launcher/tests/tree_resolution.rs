@@ -1171,6 +1171,31 @@ fn plant_unreferenced_generation(harness: &Harness) -> std::path::PathBuf {
     generation
 }
 
+fn sidecars_of(
+    harness: &Harness,
+    generation: &std::path::Path,
+) -> [std::path::PathBuf; 3] {
+    let paths = tree_paths(harness);
+    let name = generation_name_of(generation);
+    [
+        paths.lease(&name),
+        paths.attestation(&name),
+        paths.attestation_signature(&name),
+    ]
+}
+
+fn plant_sidecars(harness: &Harness, generation: &std::path::Path) {
+    for sidecar in sidecars_of(harness, generation) {
+        std::fs::write(sidecar, b"").unwrap();
+    }
+}
+
+fn assert_sidecars_survive(harness: &Harness, generation: &std::path::Path) {
+    for sidecar in sidecars_of(harness, generation) {
+        assert!(sidecar.exists(), "{} was removed", sidecar.display());
+    }
+}
+
 #[test]
 fn an_injected_held_probe_spares_a_stale_sibling_in_prune() {
     let minisign = minisign_or_skip!();
@@ -1217,6 +1242,7 @@ fn an_injected_held_probe_spares_an_aged_orphan_in_prune() {
         .materialise(ARTIFACT)
         .expect("materialise");
     let orphan = plant_unreferenced_generation(&harness);
+    plant_sidecars(&harness, &orphan);
 
     harness
         .resolver_with(&aged(), &FixedLiveness(Liveness::Held), &NoSteps)
@@ -1224,6 +1250,7 @@ fn an_injected_held_probe_spares_an_aged_orphan_in_prune() {
         .expect("prune");
 
     assert!(orphan.exists());
+    assert_sidecars_survive(&harness, &orphan);
 }
 
 #[test]
@@ -1358,6 +1385,7 @@ fn a_superseded_unknown_generation_is_kept() {
         .expect("forced repair");
 
     assert!(old.path.exists());
+    assert_sidecars_survive(&harness, &old.path);
 }
 
 #[test]
