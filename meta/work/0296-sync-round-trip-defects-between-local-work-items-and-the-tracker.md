@@ -13,7 +13,7 @@ blocks: ["work-item:0290", "work-item:0320", "work-item:0330", "work-item:0331"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
-last_updated: "2026-10-13T11:58:00+00:00"
+last_updated: "2026-10-13T13:25:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -402,9 +402,10 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
 - [ ] Given fixtures for 0275, 0276, 0293, 0294 and 0302 (local file, no
       baseline entry, and the remote description captured with `accelerator
       linear show` and committed before implementation), when sync classifies
-      them, then 0275, 0294 and 0302 report `synced`, and 0276 and 0293
-      report an unresolved conflict while their remote bodies still carry
-      the rewrites 0320 fixes.
+      them, then 0275 and 0294 report `synced`; 0276 and 0293 report an
+      unresolved conflict while their remote bodies still carry the
+      rewrites 0320 fixes; and 0302, whose remote holds an older revision,
+      reports an unresolved conflict.
 - [ ] Given this repo's corpus at merge time, when `work sync --preview` runs,
       then every planned pull is for an item whose bodies are not
       equivalent, and every unresolved conflict's dossier lists at least one
