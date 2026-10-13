@@ -48,6 +48,7 @@ use serde_json::Value;
 
 use crate::concurrency_wording;
 use crate::context::ProjectContext;
+use crate::ledger_wording;
 use crate::plan_wording;
 use crate::subagent_cap::EnvironmentCap;
 
@@ -261,7 +262,7 @@ where
         RunMode::Start(_) => {
             notices.extend(start_notices(concurrency));
             let replaced = replaced_ledger(set_root, fs)?;
-            notices.extend(replaced.notice());
+            notices.extend(ledger_wording::corrupt_notice(&replaced));
             (None, replaced)
         }
         RunMode::Query => (None, ReplacedLedger::Absent),
@@ -313,8 +314,10 @@ where
         })?;
     }
     let mut stderr = String::new();
+    let replaced_notice =
+        replaced_run.as_ref().map(ledger_wording::replaced_notice);
     let trims = plan.trims.iter().map(plan_wording::trim);
-    for warning in notices.iter().cloned().chain(trims) {
+    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
         let _ = writeln!(stderr, "warning: {warning}");
     }
     let warnings = plan
@@ -401,7 +404,7 @@ fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
     unhonoured.chain(clamps).collect()
 }
 
-enum ReplacedLedger {
+pub enum ReplacedLedger {
     Absent,
     Readable(RunLedger),
     Corrupt,
@@ -420,23 +423,6 @@ fn replaced_ledger<F: FileReader>(
 }
 
 impl ReplacedLedger {
-    fn notice(&self) -> Option<String> {
-        const CONSEQUENCE: &str = "stops at its next batch, and notes its \
-                                   last batch writes may show as unexpected";
-        match self {
-            Self::Absent => None,
-            Self::Readable(stored) => Some(format!(
-                "replaced the ledger of run {}; if that run is still going \
-                 it {CONSEQUENCE}",
-                stored.run()
-            )),
-            Self::Corrupt => Some(format!(
-                "replaced a corrupt run ledger; if its run is still going \
-                 it {CONSEQUENCE}"
-            )),
-        }
-    }
-
     fn judging_findings(&self, inputs: &RoundInputs) -> Option<ReplacedBatch> {
         match self {
             Self::Readable(stored) => Some(ReplacedBatch::judging_findings(

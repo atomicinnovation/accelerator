@@ -969,16 +969,28 @@ fn a_started_run_returns_its_minted_id_and_first_batch() -> Result<(), TestError
     Ok(())
 }
 
-fn replaced_warning(run: &str) -> String {
+fn replaced_notice(run: &str) -> String {
     format!(
-        "replaced the ledger of run {run}; if that run is still going it \
-         stops at its next batch, and notes its last batch writes may show \
-         as unexpected"
+        "replaced the ledger of run {run}; if it is still going it stops at \
+         its next batch"
     )
 }
 
+fn replaced_notice_with_quarantine(run: &str) -> String {
+    format!(
+        "{}; rename each replaced_run quarantine path to .<name>.invalid \
+         beside it, never deleting it, before acting on this plan",
+        replaced_notice(run)
+    )
+}
+
+const CORRUPT_LEDGER: &str = "replaced a corrupt run ledger; if its run is \
+                              still going it stops at its next batch, and \
+                              notes its last batch writes may show as \
+                              unexpected";
+
 #[test]
-fn starting_over_a_stale_ledger_replaces_it_with_a_warning(
+fn starting_over_a_stale_ledger_reports_it_without_a_warning(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     let (_, first) = started(&project, &[])?;
@@ -987,10 +999,10 @@ fn starting_over_a_stale_ledger_replaces_it_with_a_warning(
 
     let plan: Value = serde_json::from_slice(&output.stdout)?;
     assert_ne!(plan["run"], json!(first));
-    assert_eq!(plan["warnings"], json!([replaced_warning(&first)]));
+    assert_eq!(plan["warnings"], json!([]));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        format!("warning: {}\n", replaced_warning(&first))
+        format!("warning: {}\n", replaced_notice(&first))
     );
     let stored: Value =
         serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
@@ -1006,14 +1018,7 @@ fn starting_over_a_corrupt_ledger_replaces_it_with_a_warning(
 
     let (plan, _) = started(&project, &[])?;
 
-    assert_eq!(
-        plan["warnings"],
-        json!([
-            "replaced a corrupt run ledger; if its run is still going it \
-             stops at its next batch, and notes its last batch writes may \
-             show as unexpected"
-        ])
-    );
+    assert_eq!(plan["warnings"], json!([CORRUPT_LEDGER]));
     assert_eq!(plan.get("replaced_run"), None);
     Ok(())
 }
@@ -1137,6 +1142,23 @@ fn an_invalid_or_misdirected_finding_from_a_replaced_batch_is_listed_for_quarant
     Ok(())
 }
 
+#[test]
+fn a_stale_ledger_with_findings_to_quarantine_asks_a_hand_run_to_rename_them(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-hand-run", "- [ ] A?\n- [ ] B?")?;
+    let (_, first) = started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_eq!(plan["warnings"], json!([]));
+    assert_eq!(
+        stderr,
+        format!("warning: {}\n", replaced_notice_with_quarantine(&first))
+    );
+    Ok(())
+}
+
 fn sibling_answered(tag: &str) -> Result<Project, TestError> {
     let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
     started(&project, &[])?;
@@ -1192,11 +1214,8 @@ fn a_quarantine_never_strands_an_offered_spawn() -> Result<(), TestError> {
         &finding("02-a-web", "A?", "depth: 1\n"),
     )?;
 
-    let next = continued(
-        &project,
-        &run,
-        &["--concurrency", "1", "--spawned", "0"],
-    )?;
+    let next =
+        continued(&project, &run, &["--concurrency", "1", "--spawned", "0"])?;
 
     assert_eq!(spawns_of(&next)?, ["03-b-web"]);
     assert_eq!(next["unfinished"], json!([]));
@@ -2208,11 +2227,11 @@ fn an_unknown_set_is_reported_before_an_empty_concurrency(
 }
 
 #[test]
-fn concurrency_warnings_precede_a_replaced_ledger_notice(
+fn concurrency_warnings_precede_a_corrupt_ledger_notice(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     project.configure_team_concurrency("24")?;
-    let (_, first) = started(&project, &[])?;
+    fs::write(project.ledger(), "{")?;
 
     let (plan, stderr) = project.plan_with(&["--start"])?;
 
@@ -2221,8 +2240,38 @@ fn concurrency_warnings_precede_a_replaced_ledger_notice(
         &stderr,
         &[
             clamped_to_the_default(TEAM_KNOB, "24"),
-            replaced_warning(&first),
+            CORRUPT_LEDGER.to_owned(),
         ],
+    );
+    Ok(())
+}
+
+#[test]
+fn stderr_orders_a_clamp_a_replaced_ledger_and_a_trim() -> Result<(), TestError>
+{
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+    project.write_note(
+        "01-a-web",
+        "1",
+        "A?",
+        &["B?", "C?", "D?", "E?", "F?"],
+    )?;
+    let (_, first) = started(&project, &["--depth", "2"])?;
+
+    let (plan, stderr) = project.plan_with(&["--start", "--depth", "2"])?;
+
+    let clamp = clamped_to_the_default(TEAM_KNOB, "24");
+    assert_eq!(plan["warnings"], json!([clamp]));
+    assert_eq!(
+        stderr.lines().collect::<Vec<_>>(),
+        [
+            format!("warning: {clamp}"),
+            format!("warning: {}", replaced_notice(&first)),
+            "warning: level note 01-a-web.levels/1 records 5 follow-ups, \
+             over its cap of 4; trimmed 1"
+                .to_owned(),
+        ]
     );
     Ok(())
 }
