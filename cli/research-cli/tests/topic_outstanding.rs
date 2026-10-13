@@ -1758,6 +1758,21 @@ fn an_unreadable_config_is_not_reported_as_an_unresolved_set(
 }
 
 #[test]
+fn an_unknown_set_is_reported_before_an_empty_concurrency(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("\"\"")?;
+
+    let output = project.outstanding("no-such-set", &installed_profiles())?;
+
+    assert_exits_1(
+        &output,
+        "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set 'no-such-set'",
+    );
+    Ok(())
+}
+
+#[test]
 fn concurrency_warnings_precede_a_replaced_ledger_notice(
 ) -> Result<(), TestError> {
     let project = a_set()?;

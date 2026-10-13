@@ -212,6 +212,7 @@ fn outstanding(
     flags: OutstandingFlags,
 ) -> Result<Printed, String> {
     let (cwd, project) = working_project()?;
+    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let concurrency = topic_command::resolve_concurrency(
         flags.requested_concurrency,
         || {
@@ -221,7 +222,6 @@ fn outstanding(
         },
         subagent_cap::from_environment(|name| std::env::var(name).ok()),
     )?;
-    let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
     let mode = match flags.run {
         RunFlag::Query => RunMode::Query,
         RunFlag::Start => RunMode::Start(minted_run()?),
