@@ -21,6 +21,9 @@ from tasks.lint.claude_coupling import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _READ = 'std::env::var_os("CLAUDE_PLUGIN_ROOT")\n'
+_ADMITTED = [
+    rel for files in _OPTIONAL_HARNESS_VARIABLES.values() for rel in files
+]
 
 
 def _write(path: Path, text: str) -> None:
@@ -30,10 +33,7 @@ def _write(path: Path, text: str) -> None:
 
 def _tree(root: Path) -> Path:
     """A minimal in-scope tree: every named file plus one cli/ source."""
-    admitted = [
-        rel for files in _OPTIONAL_HARNESS_VARIABLES.values() for rel in files
-    ]
-    for rel in [*_FILES, *admitted]:
+    for rel in [*_FILES, *_ADMITTED]:
         _write(root / rel, "clean\n")
     _write(root / "cli/launcher/src/main.rs", "fn main() {}\n")
     return root
@@ -229,9 +229,12 @@ class TestOptionalHarnessVariables:
     def test_the_admitted_set_is_exactly_the_subagent_cap(self):
         assert _OPTIONAL_HARNESS_VARIABLES == {_CAP: (_CAP_READER, _CAP_TEST)}
 
-    def test_a_missing_reader_raises(self, tmp_path: Path):
+    @pytest.mark.parametrize("admitted", _ADMITTED)
+    def test_a_missing_admitted_file_raises(
+        self, tmp_path: Path, admitted: str
+    ):
         _tree(tmp_path)
-        (tmp_path / _CAP_READER).unlink()
+        (tmp_path / admitted).unlink()
 
         with pytest.raises(Exit, match="silently dropped out"):
             _found(tmp_path)
