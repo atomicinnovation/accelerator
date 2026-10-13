@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-13T13:25:00+00:00"
+last_updated: "2026-10-13T20:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1860,16 +1860,16 @@ parse `work sync` output need updating.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters -p accelerator-work -p accelerator-migrate`
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters -E 'binary(=sync_baseline_corpus) | binary(=corpus_hashes)'` (legacy oracle unchanged)
-- [ ] `mise run public-api:check` (after `public-api:update` for `work`)
-- [ ] `rg -n 'unsupported-recipe' skills/work/sync-work-items/SKILL.md` and
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters -p accelerator-work -p accelerator-migrate`
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work-adapters -E 'binary(=sync_baseline_corpus) | binary(=corpus_hashes)'` (legacy oracle unchanged)
+- [x] `mise run public-api:check` (after `public-api:update` for `work`)
+- [x] `rg -n 'unsupported-recipe' skills/work/sync-work-items/SKILL.md` and
       `rg -n '^needs-upgrade:' skills/work/sync-work-items/SKILL.md` each match
-- [ ] `mise run lint:crate-dependencies:check` (`corpus-adapters` stays a
+- [x] `mise run lint:crate-dependencies:check` (`corpus-adapters` stays a
       dev-only dependency of `work-adapters` now that `BodyComparison` takes
       the `BodyParser` port)
-- [ ] `mise run test:integration:conformance`
-- [ ] `mise run` exits 0
+- [x] `mise run test:integration:conformance`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1878,6 +1878,55 @@ parse `work sync` output need updating.
       classified entry other than a residue conflict gains
       `"digest_recipe":1` with no work-item file changed (`jj diff --stat
       meta/work` empty)
+
+#### Implementation Notes:
+
+- `work-item-sync-classify.json` and `work-item-sync-decide.golden` are
+  the frozen bash oracle (`bash_parity_baseline.rs` pins their hashes and
+  each suite's `#[test]` count), so neither gains a row. The recipe-1 and
+  residue rows live in `work-item-sync-classify-recipes.json`, read by
+  `sync_classify_recipes.rs`; the frozen suite compares
+  `classification.state()`. `RecordOnly → RecordBaseline` is pinned by a
+  `decide.rs` unit test over every direction and dirtiness, and by
+  `a_synced_legacy_entry_plans_a_baseline_record_in_every_direction` in
+  `sync_plan.rs`.
+- `SplitFingerprints` holds `local: Option<LocalFingerprints>` and
+  `remote: Option<RemoteFingerprints>`: a side whose keys are not all
+  recorded reads as absent, so it can only classify as changed.
+  `SyncStamps` keeps `RemoteTimestamp` and a `u64` watermark.
+  `ItemDigests` answers `legacy_local`, `legacy_remote`, `local` and
+  `remote`.
+- `IntendedBaseline` is `{ remote_hash: RemoteHash, local: LocalDigests }`,
+  with `fingerprints()` and `legacy()` in place of a stored field and
+  `entry()`; `ReadBack` and `LocalDigests` carry
+  `fingerprints: Option<…>`, absent for a schema-2 record. `Retiring`
+  boxes its baseline. `next_sync` compares the legacy digest.
+- `created_remote_hash` stays a legacy digest in both schemas, so the
+  untouched-remote check compares like with like whatever the record's
+  schema. A schema-2 `Created` record therefore resumes onto a recipe-1
+  baseline, pinned as
+  `a_schema_two_created_marker_resumes_comparing_its_create_hash_under_the_legacy_recipe`;
+  a schema-2 read-back resumes onto a legacy one
+  (`a_resumed_schema_two_promotion_predicts_under_the_legacy_recipe`).
+- Schema-3 fingerprint keys are optional on read, so a schema-2 record this
+  binary resumes and saves as schema 3 keeps the legacy recipe.
+- The run-level migration tests live in `sync_recipe_migration.rs`;
+  `a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseline`
+  drives `ItemApplier::record_baseline` in `sync_apply.rs`, since nothing
+  in a run can edit the file between the two. The failure is
+  `ApplyError::LocalChangedSinceClassified` (`retryable`).
+- An unknown-recipe item is reported through a new
+  `ItemOutcome::UnsupportedRecipe`, which `work sync` renders as
+  `noop\tindeterminate\tunsupported-recipe`.
+- `realign_baselines` takes the integration's body dialect and the parser,
+  so `accelerator-migrate` now depends on `tracker` and `jira-client`.
+- `SyncedTrackerFields::digest_input` is `title=<byte length>:<value>\n`,
+  injective as fields are added.
+- The goldens are one `golden-digests/pairs.json` (40 body pairs, one
+  fields pair) beside `recipe.json`; the recipe guard checks the history
+  extends one pinned in `golden_digests.rs`.
+- `a_recipe_one_entry_carries_legacy_hashes_of_the_recorded_bodies` is a
+  `baseline_digester.rs` unit test.
 
 ---
 
