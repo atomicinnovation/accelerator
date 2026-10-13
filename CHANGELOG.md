@@ -110,6 +110,13 @@
   nothing. A local edit over such a description cannot be pushed until the
   description is edited in Jira or a later release makes it a resolvable
   conflict. Scripts that parse `work sync` exit codes need updating.
+- **Pending-push records move to schema 3**, which earlier releases refuse,
+  so finish every outstanding promotion before downgrading.
+- **`work sync` reports two new rows.** An item whose baseline entry was
+  written by a newer release reports `noop\tindeterminate\tunsupported-recipe`
+  (exit 4) and is left untouched, and a baseline record whose local file
+  changed mid-run reports `failed\tsynced\tretryable` (exit 70). Scripts that
+  parse `work sync` output need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -599,6 +606,13 @@
 
 ### Migrations
 
+- **The first sync rewrites `last-sync.json` under digest recipe 1.** Every
+  entry the run classifies is rewritten in one large diff, with no work-item
+  file changed and nothing sent to the tracker; commit the result. A Jira file
+  that is exactly what an earlier pull wrote for the current remote migrates
+  as it is, while one holding raw Jira ADF that has since changed is reported
+  as a conflict. A title line an earlier pull left above a description stays
+  as ordinary text.
 - **No manual step for the Linear catalogue.** An existing `catalogue.json`
   reads as incomplete entries, and filtered pulls fetch what they lack. The
   first apply-mode sync whose pull runs completes every synced team's entry

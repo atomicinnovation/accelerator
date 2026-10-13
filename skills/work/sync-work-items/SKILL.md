@@ -193,10 +193,15 @@ id (`#\tdiscovery\tskipped\ttargeted`), pulled **N** remote-only targets by id
 mistaken for a skip.
 
 **The stdout report is authoritative.** Read it for `unresolved` lines
-regardless of exit code — a `71` run may also carry conflicts. Exit codes: `0`
+regardless of exit code — a `71` run may also carry conflicts. A `failed` row
+may carry state `synced`: the run was rewriting that item's baseline under the
+current digest recipe and found its local file changed mid-run, so nothing was
+recorded; re-run the sync. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent, not-found or indeterminate items, or a key change refused or
-rolled back); `5` refused (would exceed
+rolled back) — an `indeterminate` row with detail `unsupported-recipe` means
+the item's baseline entry was written by a newer plugin, so nothing was read
+or written for it; upgrade the plugin before syncing that item; `5` refused (would exceed
 `--max-pulls`/`--max-pushes`, zero writes; promotions count as pushes); `7`
 the keyed reconcile read hit its
 `<work.integration>.pull.max_pages` cap (its `keyed_read` override), so the
@@ -403,7 +408,8 @@ resumed:               <old-id>: <old>-><new>
 not-found:             <ids>   (no issue under the stored key)
 conflicts-skipped:     <ids>
 overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
-needs-retry:           <ids>
+needs-retry:           <ids>   (includes a failed baseline record)
+needs-upgrade:         <ids>   (baseline written by a newer plugin)
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```
