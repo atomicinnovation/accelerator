@@ -1400,7 +1400,7 @@ any change that moves a golden digest bumps the recipe.
 
 #### Manual Verification:
 
-- [ ] The twenty-three equivalence tests above map one-to-one onto 0296's
+- [x] The twenty-three equivalence tests above map one-to-one onto 0296's
       table rows and near-miss criterion
 
 #### Implementation Notes:
