@@ -474,9 +474,9 @@ consumers ignore fields they do not know. It exits `1` with
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`. It defaults to `1` and is never read from
 `research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
-The JSON then also carries:
+Every plan also carries these fields, whether or not `--depth` is given:
 
-- `depth`, the depth planned for;
+- `depth`, the depth planned for, `1` unless `--depth` says otherwise;
 - each pair's `stage`: `single_pass` (one researcher writes the finding),
   `research_nodes` (its missing `nodes`, each with `lineage`, `level`,
   `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
