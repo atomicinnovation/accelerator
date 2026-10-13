@@ -6,6 +6,7 @@
 //! network. No Playwright behaviour is exercised here.
 
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
@@ -145,15 +146,128 @@ impl Runtime {
             .output()?)
     }
 
+    /// Writes the fake launcher the cold path reaches through
+    /// `ACCELERATOR_LAUNCHER_PATH`. Each `cache ensure` call takes the next
+    /// scripted answer; calls past the script return the real trees.
+    fn fake_launcher(&self, script: &[EnsureCall]) -> Result<(), TestError> {
+        let mut answers = String::new();
+        for (index, call) in (1..).zip(script) {
+            let answer = match call {
+                EnsureCall::Trees { driver, browser } => format!(
+                    "driver={}; browser={}",
+                    quoted(driver),
+                    quoted(browser)
+                ),
+                EnsureCall::FailsWith(cause) => format!(
+                    "printf '%s\\n' '{{\"error\":\"cache\",\"cause\":\"{cause}\"}}' >&2; exit 1"
+                ),
+            };
+            writeln!(answers, "  {index}) {answer} ;;")?;
+        }
+        let body = format!(
+            r#"#!/bin/sh
+[ "$1 $2" = "cache ensure" ] || exit 64
+shift 2
+printf '%s\n' "$@" >> {arguments}
+call=$(( $(cat {calls} 2>/dev/null || echo 0) + 1 ))
+echo "$call" > {calls}
+driver={driver}; browser={browser}
+case "$call" in
+{answers}esac
+for artifact in "$@"; do
+  case "$artifact" in
+    driver) tree=$driver ;;
+    browser) tree=$browser ;;
+    *) exit 65 ;;
+  esac
+  printf '%s\t%s\t%s\n' "$artifact" "$tree" "$tree.lease"
+done
+"#,
+            arguments = quoted(&self.ensure_arguments()),
+            calls = quoted(&self.ensure_calls_path()),
+            driver = quoted(&self.driver_tree()),
+            browser = quoted(&self.browser_tree()),
+        );
+        let launcher = self.launcher();
+        fs::write(&launcher, body)?;
+        fs::set_permissions(&launcher, fs::Permissions::from_mode(0o755))?;
+        Ok(())
+    }
+
+    fn launcher(&self) -> PathBuf {
+        self.work.path().join("accelerator")
+    }
+
+    fn ensure_arguments(&self) -> PathBuf {
+        self.work.path().join("ensure-args")
+    }
+
+    fn ensure_calls_path(&self) -> PathBuf {
+        self.work.path().join("ensure-calls")
+    }
+
+    fn ensure_calls(&self) -> Result<u32, TestError> {
+        Ok(fs::read_to_string(self.ensure_calls_path())?
+            .trim()
+            .parse()?)
+    }
+
+    fn gone_tree(&self, artifact: &str) -> PathBuf {
+        self.cache().join(format!("reclaimed-{artifact}-tree"))
+    }
+
+    fn cold(&self, environment: &[(&str, &Path)]) -> Result<Output, TestError> {
+        let mut command = self.command(BIN);
+        command.env("ACCELERATOR_LAUNCHER_PATH", self.launcher());
+        for (name, value) in environment {
+            command.env(name, value);
+        }
+        Ok(command.args(["executor", "ping"]).output()?)
+    }
+
     fn daemon(&self, output: &Output) -> Result<DaemonGroup, TestError> {
-        DaemonGroup::from_state(
-            &self.state_dir(),
+        self.daemon_holding(
+            output,
             vec![self.driver_lease(), self.browser_lease()],
         )
-        .map_err(|error| {
+    }
+
+    fn daemon_holding(
+        &self,
+        output: &Output,
+        leases: Vec<PathBuf>,
+    ) -> Result<DaemonGroup, TestError> {
+        DaemonGroup::from_state(&self.state_dir(), leases).map_err(|error| {
             format!("{error}; the executor said: {}", stderr_of(output)).into()
         })
     }
+
+    fn marker_reason(&self) -> Result<Option<String>, TestError> {
+        let marker = self.state_dir().join("downgrade-marker.json");
+        if !marker.exists() {
+            return Ok(None);
+        }
+        let record: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(marker)?)?;
+        Ok(record["reason"].as_str().map(str::to_owned))
+    }
+}
+
+/// One scripted answer of the fake launcher's `cache ensure`.
+enum EnsureCall {
+    Trees { driver: PathBuf, browser: PathBuf },
+    FailsWith(&'static str),
+}
+
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display())
+}
+
+fn downgrade_line(output: &Output) -> Option<String> {
+    stderr_of(output)
+        .lines()
+        .find(|line| line.contains(r#""error":"downgrade""#))
+        .map(str::to_owned)
 }
 
 fn lease_of(tree: &Path) -> PathBuf {
@@ -257,4 +371,169 @@ fn a_warm_daemon_holds_every_lease_after_the_client_exits(
         "the browser lease is not held once the client has exited"
     );
     daemon.terminate()
+}
+
+#[test]
+fn a_cold_daemon_holds_every_lease_after_the_client_exits(
+) -> Result<(), TestError> {
+    runtime_or_skip!();
+    let runtime = Runtime::new()?;
+    runtime.fake_launcher(&[])?;
+
+    let output = runtime.cold(&[])?;
+    let mut daemon = runtime.daemon(&output)?;
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr_of(&output));
+    assert!(
+        held(&runtime.driver_lease())?,
+        "the driver lease is not held once the client has exited"
+    );
+    assert!(
+        held(&runtime.browser_lease())?,
+        "the browser lease is not held once the client has exited"
+    );
+    assert_eq!(runtime.ensure_calls()?, 1);
+    daemon.terminate()
+}
+
+#[test]
+fn a_driver_exported_without_its_browser_takes_the_cold_path_and_holds_both(
+) -> Result<(), TestError> {
+    runtime_or_skip!();
+    let runtime = Runtime::new()?;
+    runtime.fake_launcher(&[])?;
+
+    let driver = runtime.driver_tree();
+    let output = runtime.cold(&[("ACCELERATOR_TREE_DRIVER", &driver)])?;
+    let mut daemon = runtime.daemon(&output)?;
+
+    let ensured = fs::read_to_string(runtime.ensure_arguments())?;
+    assert_eq!(ensured.lines().collect::<Vec<_>>(), ["driver", "browser"]);
+    assert!(
+        held(&runtime.driver_lease())?,
+        "the driver lease is not held"
+    );
+    assert!(
+        held(&runtime.browser_lease())?,
+        "the browser lease is not held"
+    );
+    daemon.terminate()
+}
+
+#[test]
+fn an_unleasable_tree_is_skipped_and_the_others_held() -> Result<(), TestError>
+{
+    runtime_or_skip!();
+    let runtime = Runtime::new()?;
+    runtime.fake_launcher(&[])?;
+    fs::create_dir_all(runtime.browser_lease())?;
+
+    let output = runtime.cold(&[])?;
+    let mut daemon =
+        runtime.daemon_holding(&output, vec![runtime.driver_lease()])?;
+
+    let stderr = stderr_of(&output);
+    assert_eq!(output.status.code(), Some(0), "{stderr}");
+    assert!(
+        held(&runtime.driver_lease())?,
+        "the driver lease is not held"
+    );
+    assert_eq!(runtime.ensure_calls()?, 1);
+    let warnings: Vec<&str> = stderr
+        .lines()
+        .filter(|line| line.starts_with("warning:"))
+        .collect();
+    assert_eq!(warnings.len(), 1, "{stderr}");
+    assert!(warnings[0].contains("'browser'"), "{stderr}");
+    let lease = runtime.browser_lease().display().to_string();
+    assert_eq!(warnings[0].matches(&lease).count(), 1, "{stderr}");
+    daemon.terminate()
+}
+
+#[test]
+fn a_tree_reclaimed_before_its_lease_is_ensured_again() -> Result<(), TestError>
+{
+    runtime_or_skip!();
+    let runtime = Runtime::new()?;
+    runtime.fake_launcher(&[EnsureCall::Trees {
+        driver: runtime.gone_tree("driver"),
+        browser: runtime.browser_tree(),
+    }])?;
+
+    let output = runtime.cold(&[])?;
+    let mut daemon = runtime.daemon(&output)?;
+
+    assert_eq!(runtime.ensure_calls()?, 2);
+    assert!(
+        held(&runtime.driver_lease())?,
+        "the driver lease is not held"
+    );
+    assert!(
+        held(&runtime.browser_lease())?,
+        "the browser lease is not held"
+    );
+    daemon.terminate()
+}
+
+#[test]
+fn a_tree_still_gone_after_ensuring_again_downgrades_without_a_marker(
+) -> Result<(), TestError> {
+    runtime_or_skip!();
+    let runtime = Runtime::new()?;
+    let gone = EnsureCall::Trees {
+        driver: runtime.gone_tree("driver"),
+        browser: runtime.browser_tree(),
+    };
+    let still_gone = EnsureCall::Trees {
+        driver: runtime.gone_tree("driver"),
+        browser: runtime.browser_tree(),
+    };
+    runtime.fake_launcher(&[gone, still_gone])?;
+
+    let output = runtime.cold(&[])?;
+
+    assert_eq!(
+        downgrade_line(&output).as_deref(),
+        Some(r#"{"error":"downgrade","reason":"artifact-unavailable"}"#),
+        "{}",
+        stderr_of(&output)
+    );
+    assert_eq!(runtime.ensure_calls()?, 2);
+    assert_eq!(runtime.marker_reason()?, None);
+    assert!(
+        !runtime.state_dir().join("server-info.json").exists(),
+        "a daemon was started"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_failed_second_ensure_is_classified_as_any_failed_ensure(
+) -> Result<(), TestError> {
+    runtime_or_skip!();
+    let first_failure = Runtime::new()?;
+    first_failure
+        .fake_launcher(&[EnsureCall::FailsWith("cache-unwritable")])?;
+    let expected = first_failure.cold(&[])?;
+
+    let runtime = Runtime::new()?;
+    runtime.fake_launcher(&[
+        EnsureCall::Trees {
+            driver: runtime.gone_tree("driver"),
+            browser: runtime.browser_tree(),
+        },
+        EnsureCall::FailsWith("cache-unwritable"),
+    ])?;
+    let output = runtime.cold(&[])?;
+
+    assert_eq!(runtime.ensure_calls()?, 2);
+    assert!(
+        downgrade_line(&expected).is_some(),
+        "{}",
+        stderr_of(&expected)
+    );
+    assert_eq!(downgrade_line(&output), downgrade_line(&expected));
+    assert!(first_failure.marker_reason()?.is_some());
+    assert_eq!(runtime.marker_reason()?, first_failure.marker_reason()?);
+    Ok(())
 }

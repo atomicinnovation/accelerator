@@ -446,6 +446,24 @@ fn a_second_resolution_of_the_same_digest_reuses_the_generation() {
     );
 }
 
+/// The design executor leases a cold-path tree only at its `.lease` sibling,
+/// so a layout change here would silently leave every such tree unleased.
+#[test]
+fn every_sealed_tree_carries_its_lease_beside_it() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    let fresh = resolver.materialise(ARTIFACT).expect("fresh");
+    let reused = resolver.materialise(ARTIFACT).expect("reused");
+
+    for sealed in [fresh, reused] {
+        let mut beside = sealed.path.clone().into_os_string();
+        beside.push(".lease");
+        assert_eq!(sealed.lease_path, PathBuf::from(beside));
+    }
+}
+
 #[test]
 fn verify_reports_a_sound_tree_and_detects_a_substitution() {
     let minisign = minisign_or_skip!();

@@ -938,11 +938,11 @@ unavailable.
 
 #### Automated Verification
 
-- [ ] The six cold-path tests fail before items 2-3 and pass after: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design --test executor_runtime`. The first three fail on a lease not observed held, and the last three on the missing second `ensure`.
-- [ ] `TreeLeases` tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-adapters --test tree_leases`
-- [ ] Existing executor tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design`
-- [ ] Dependency rules hold: `mise run lint:crate-dependencies:check` and `mise run deny:check`
-- [ ] `mise run check` exits 0
+- [x] The six cold-path tests fail before items 2-3 and pass after: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design --test executor_runtime`. The first three fail on a lease not observed held, and the last three on the missing second `ensure`.
+- [x] `TreeLeases` tests pass: `cargo test --manifest-path cli/Cargo.toml -p design-adapters --test tree_leases`
+- [x] Existing executor tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design`
+- [x] Dependency rules hold: `mise run lint:crate-dependencies:check` and `mise run deny:check`
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
