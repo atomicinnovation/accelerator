@@ -13,7 +13,7 @@ blocks: ["work-item:0290", "work-item:0320", "work-item:0330", "work-item:0331"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
-last_updated: "2026-10-13T11:18:01+00:00"
+last_updated: "2026-10-13T11:58:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -45,8 +45,8 @@ Change detection compares each side only against its own baseline digest; a
 missing digest counts as changed. Digests normalise only per-line whitespace.
 The Linear port body is deliberately `"{title}\n{description}"`, and the port
 contract states that a push followed by a read is not the identity. Linear
-re-serialises `description` in thirteen ways, tabulated under Equivalence: ten
-are cosmetic and three change meaning. The Jira port body is
+re-serialises `description` in thirteen ways, tabulated under Equivalence: eleven
+are cosmetic and two change meaning. The Jira port body is
 `"{summary}\n{description}"` where the description is canonicalised ADF
 (Atlassian Document Format) JSON, not markdown.
 
@@ -105,9 +105,9 @@ Linear's rewrites, from the 2026-10-10 inspection, and how each is treated:
 | Inserted blank lines | `p⏎- a` → `p⏎⏎- a` | cosmetic: parsing |
 | Wrapped digit lines | `⏎  0160.` → `160.` list item | meaning: difference |
 | Dotted tokens autolinked | `crates.io` → `[crates.io](<http://crates.io>)` | meaning: difference |
-| Code-span indentation | `` `a⏎  b` `` → `` `a   b` `` | meaning: difference |
+| Code-span indentation | `` `a⏎  b` `` → `` `a   b` `` | cosmetic: parsing |
 
-0320 fixes the three meaning-changing rewrites on push.
+0320 fixes the two meaning-changing rewrites on push.
 
 For Jira, the local body is round-tripped through the local converter
 (`markdown_to_document` then `document_to_markdown`), the remote ADF is
@@ -295,12 +295,12 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       side, for a Linear-linked and a Jira-linked item, then it reports
       `synced` and sends no update to the tracker.
 - [ ] Given a linked item whose remote `description` differs from the remote
-      body at the last sync only by one of the ten cosmetic rewrites in the
+      body at the last sync only by one of the eleven cosmetic rewrites in the
       Equivalence table, for each rewrite separately, when `work sync` runs,
       then it reports `synced` and its baseline entry's hashes are unchanged.
 - [ ] Given each Equivalence-table row, when the body hash and remote hash are
       computed for the row's local and remote forms, then they are equal for
-      the ten cosmetic rows and differ for the three meaning-changing rows.
+      the eleven cosmetic rows and differ for the two meaning-changing rows.
 - [ ] Given a baselined item whose remote title changed but whose
       description did not, when `work sync` runs, then it reports `synced`,
       the local file's bytes are unchanged, and no update is sent to the
@@ -310,7 +310,7 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       new-recipe baseline is recorded and the local file's bytes are
       unchanged.
 - [ ] Given a remote `description` that differs from the local body only by
-      one of the three meaning-changing rewrites in the Equivalence table, for
+      one of the two meaning-changing rewrites in the Equivalence table, for
       each rewrite separately, when bodies are compared, then they are not
       equivalent.
 - [ ] Given a `*`/`-` swap inside a fenced code block, when bodies are
@@ -327,7 +327,7 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
 - [ ] Given a remote body whose description is empty, or whose first
       description line equals the title, when the projected title line is
       stripped, then only the first line is removed.
-- [ ] Given a new-recipe entry and a local edit made only of one of the ten
+- [ ] Given a new-recipe entry and a local edit made only of one of the eleven
       cosmetic rewrites, for each rewrite separately, when `work sync` runs,
       then it reports `synced`, sends no update to the tracker and leaves the
       local file's bytes unchanged.
