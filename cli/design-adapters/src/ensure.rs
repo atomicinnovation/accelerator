@@ -100,8 +100,8 @@ impl TreeLeases {
     }
 }
 
-/// The launcher's layout: a tree's lease is its `.lease` sibling. The path
-/// arrives on a subprocess's stdout, so nothing else is created or removed.
+/// The lease path arrives on a subprocess's stdout, so only the launcher's own
+/// layout is trusted, and no other file is created or removed.
 fn lease_beside(tree: &Path) -> PathBuf {
     let mut lease = tree.as_os_str().to_owned();
     lease.push(".lease");

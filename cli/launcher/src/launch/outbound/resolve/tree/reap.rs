@@ -170,7 +170,7 @@ fn is_reclaimable_generation(
 }
 
 /// Whether `reclaim_unclaimed` may remove a pointed-at generation whose claim
-/// has lapsed. A holder that cannot be determined is given the age backstop.
+/// has lapsed.
 pub(super) const fn unclaimed_is_reclaimable(
     liveness: Liveness,
     aged: bool,

@@ -697,8 +697,6 @@ fn residual_generations(harness: &Harness) -> Vec<String> {
         .collect()
 }
 
-// ---- the `accelerator cache` built-in ----
-
 use accelerator::launch::cache;
 use accelerator::launch::inbound::cli::CacheAction;
 
@@ -895,8 +893,6 @@ fn cache_prune_reclaims_orphan_residue() {
     assert!(!orphan.exists(), "prune left an orphan temp tree");
 }
 
-// ---- retention claims ----
-
 use accelerator::launch::outbound::resolve::tree::claims;
 
 /// Publish a second pointer for a *different* digest (a sibling install's pin)
@@ -1005,8 +1001,6 @@ fn prune_older_than_overrides_the_window() {
         "--older-than must override the default window"
     );
 }
-
-// ---- ownership, verify shapes, and lease sparing ----
 
 #[test]
 fn a_cache_root_at_0775_still_resolves_since_the_launcher_owns_trees() {
@@ -1136,8 +1130,6 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
     let _ = sealed;
 }
 
-// ---- the injected liveness probe ----
-
 use accelerator::launch::outbound::resolve::tree::layout::TreePaths;
 
 /// Answers every probe the same way, so `Held` and `Unknown` can be exercised
@@ -1172,7 +1164,6 @@ fn sibling_generation(digest: &str) -> String {
     format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}-1-0011223344556677")
 }
 
-/// A generation directory no pointer names.
 fn plant_unreferenced_generation(harness: &Harness) -> std::path::PathBuf {
     let generation =
         tree_paths(harness).generation(&sibling_generation(&"c".repeat(64)));
@@ -1249,8 +1240,6 @@ fn an_injected_held_probe_spares_an_aged_orphan_while_materialising() {
 
     assert!(orphan.exists());
 }
-
-// ---- honouring an undeterminable holder ----
 
 fn fresh() -> FixedClock {
     FixedClock(wall_clock_now())
@@ -1488,8 +1477,6 @@ const fn describe_kind(
     }
 }
 
-// ---- cross-process Range resume ----
-
 #[test]
 fn an_interrupted_download_resumes_with_a_range_request() {
     let minisign = minisign_or_skip!();
@@ -1561,8 +1548,6 @@ fn make_read_only(dir: &std::path::Path) {
     let _ =
         std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555));
 }
-
-// ---- corrupt archive, offline resolution, and digest sharing ----
 
 #[test]
 fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
@@ -1735,8 +1720,6 @@ fn verify_succeeds_with_the_host_unreachable() {
     );
 }
 
-// ---- the signed table anchor, and generation/pointer identity ----
-
 #[test]
 fn a_table_rewritten_to_match_a_substitution_is_caught_by_its_signed_digest() {
     let minisign = minisign_or_skip!();
@@ -1816,8 +1799,6 @@ fn a_symlinked_generation_or_group_writable_pointer_is_a_miss() {
         "a group-writable pointer must be a miss"
     );
 }
-
-// ---- repair under failure and live consumers ----
 
 #[test]
 fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
@@ -2007,8 +1988,6 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
         .to_string_lossy()
         .contains(other_platform));
 }
-
-// ---- a second launcher sharing the cache root ----
 
 const LEASE_HOLDER: &str = env!("CARGO_BIN_EXE_launcher-fixture-lease-holder");
 

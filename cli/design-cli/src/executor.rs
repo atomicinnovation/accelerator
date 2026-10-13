@@ -362,10 +362,10 @@ fn ensure_runtime(
     }
 }
 
-/// Ensure the trees and pin each one with its lease. A tree reclaimed before
-/// its lease is a transient race, so the whole attempt is dropped and the
-/// trees are ensured again; one still gone after that is reported as
-/// reclaimed rather than as a failed ensure, so it records no marker.
+/// A tree reclaimed before its lease is a transient race, so the whole attempt
+/// is dropped and the trees are ensured again; one still gone after that is
+/// reported as reclaimed rather than as a failed ensure, so it records no
+/// marker.
 fn ensure_and_pin(
     launcher: &Path,
     trees: &[&str],

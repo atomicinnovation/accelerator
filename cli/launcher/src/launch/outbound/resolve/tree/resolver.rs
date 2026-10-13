@@ -694,8 +694,6 @@ impl TreeResolver<'_> {
         Ok(sealed)
     }
 
-    /// Remove a superseded generation and its sidecars, but only if no live
-    /// process holds its lease.
     fn reap_superseded(
         paths: &TreePaths,
         liveness: &dyn LivenessProbe,
