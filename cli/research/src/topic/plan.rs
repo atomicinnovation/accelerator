@@ -100,33 +100,47 @@ impl RoundPlan {
     }
 }
 
+impl RoundInputs {
+    pub(crate) fn file_claims(
+        &self,
+        unicode: &dyn UnicodeText,
+    ) -> Vec<IndexClaim> {
+        self.quarantined
+            .iter()
+            .cloned()
+            .chain(self.tree_claims(unicode))
+            .collect()
+    }
+
+    fn tree_claims(&self, unicode: &dyn UnicodeText) -> Vec<IndexClaim> {
+        self.levels
+            .iter()
+            .map(|levels| levels.claim(unicode))
+            .collect()
+    }
+}
+
 struct Planner<'a> {
     inputs: &'a RoundInputs,
     unicode: &'a dyn UnicodeText,
-    file_claims: Vec<IndexClaim>,
+    tree_claims: Vec<IndexClaim>,
     next_unclaimed: Option<u32>,
     claimed: BTreeMap<NormalisedQuestion, Option<u32>>,
 }
 
 impl<'a> Planner<'a> {
     fn new(inputs: &'a RoundInputs, unicode: &'a dyn UnicodeText) -> Self {
-        let file_claims: Vec<IndexClaim> = inputs
-            .quarantined
-            .iter()
-            .cloned()
-            .chain(inputs.levels.iter().map(|levels| levels.claim(unicode)))
-            .collect();
         let highest = inputs
             .findings
             .iter()
             .filter_map(Finding::index)
-            .chain(file_claims.iter().map(IndexClaim::index))
+            .chain(inputs.file_claims(unicode).iter().map(IndexClaim::index))
             .chain(inputs.claims.indexes())
             .max();
         Self {
             inputs,
             unicode,
-            file_claims,
+            tree_claims: inputs.tree_claims(unicode),
             next_unclaimed: highest
                 .map_or(Some(1), |index| index.checked_add(1)),
             claimed: BTreeMap::new(),
@@ -270,8 +284,9 @@ impl<'a> Planner<'a> {
     }
 
     /// The run's claim first, then the lowest index a retained finding for
-    /// the question carries, then the lowest a quarantined file or `.levels/`
-    /// directory holds, and only then a fresh one.
+    /// the question carries, then the lowest a `.levels/` directory holds,
+    /// then the lowest a quarantined file holds, and only then a fresh one.
+    /// A tree holds research where a marker only reserves an index.
     fn claim_index(&mut self, question: &NormalisedQuestion) -> Option<u32> {
         let retained = || {
             self.inputs
@@ -285,8 +300,8 @@ impl<'a> Planner<'a> {
                 .filter_map(Finding::index)
                 .min()
         };
-        let claimed_by_a_file = || {
-            self.file_claims
+        let lowest_for = |claims: &[IndexClaim]| {
+            claims
                 .iter()
                 .filter(|claim| claim.is_for(question))
                 .map(IndexClaim::index)
@@ -296,7 +311,8 @@ impl<'a> Planner<'a> {
             .claims
             .index_for(question)
             .or_else(retained)
-            .or_else(claimed_by_a_file)
+            .or_else(|| lowest_for(&self.tree_claims))
+            .or_else(|| lowest_for(&self.inputs.quarantined))
             .or_else(|| {
                 let index = self.next_unclaimed?;
                 self.next_unclaimed = index.checked_add(1);
@@ -837,14 +853,38 @@ mod tests {
     }
 
     #[test]
-    fn the_lowest_index_a_marker_or_levels_directory_holds_wins() {
+    fn a_levels_directory_outranks_a_marker_for_its_question() {
         let mut inputs =
             inputs(outline(&["- [ ] A? — profiles: web, openalex"]));
         inputs.quarantined = quarantined(".06-a-web.md.invalid", Some("A?"));
         inputs.levels = levels("04-a-openalex", Some("A?"), Vec::new());
         assert_eq!(stems(&plan(&inputs)), ["04-a-web", "04-a-openalex"]);
         inputs.quarantined = quarantined(".02-a-web.md.invalid", Some("A?"));
-        assert_eq!(stems(&plan(&inputs)), ["02-a-web", "02-a-openalex"]);
+        assert_eq!(stems(&plan(&inputs)), ["04-a-web", "04-a-openalex"]);
+    }
+
+    #[test]
+    fn the_lowest_index_among_markers_wins() {
+        let mut inputs =
+            inputs(outline(&["- [ ] A? — profiles: web, openalex"]));
+        inputs.quarantined = [
+            quarantined(".06-a-web.md.invalid", Some("A?")),
+            quarantined(".03-a-openalex.md.invalid", Some("A?")),
+        ]
+        .concat();
+        assert_eq!(stems(&plan(&inputs)), ["03-a-web", "03-a-openalex"]);
+    }
+
+    #[test]
+    fn the_lowest_index_among_levels_directories_wins() {
+        let mut inputs =
+            inputs(outline(&["- [ ] A? — profiles: web, openalex"]));
+        inputs.levels = [
+            levels("06-a-web", Some("A?"), Vec::new()),
+            levels("03-a-openalex", Some("A?"), Vec::new()),
+        ]
+        .concat();
+        assert_eq!(stems(&plan(&inputs)), ["03-a-web", "03-a-openalex"]);
     }
 
     #[test]
