@@ -183,6 +183,7 @@ fn table_delimiter_rows_are_noise() -> Result<(), TestError> {
 
 #[test]
 fn a_blank_line_before_a_list_is_noise() -> Result<(), TestError> {
+    assert_noise("p\n- a\n", "p\n\n- a\n");
     captured_row_is_noise("X03")
 }
 
