@@ -1283,7 +1283,7 @@ findings, and `--start` plans as if they were quarantined.
       stopped, and renames the listed findings before the first batch
 - [x] After the report, the invalid leftover is a `.invalid` marker and the
       manifest's `finding_count` excludes it
-- [ ] An empty-batch stale ledger shows the opening sentence alone
+- [x] An empty-batch stale ledger shows the opening sentence alone
 
 ---
 
