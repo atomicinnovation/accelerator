@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0223", "work-item:0196", "work-item:0218"]
 tags: ["runtime", "cache", "lease", "prune", "design"]
-last_updated: "2026-10-12T02:48:29+00:00"
+last_updated: "2026-10-13T09:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -187,31 +187,31 @@ and it can be checked from any crate. Each daemon criterion starts with no
 design daemon running for the cache root, so the invocation under test spawns
 its own daemon.
 
-- [ ] The `tree-lease` crate exists and defines `hold_shared_lease` and
+- [x] The `tree-lease` crate exists and defines `hold_shared_lease` and
       `SharedLease`. `launcher` and `design-adapters` both depend on it, and
       `launcher` no longer defines them. Every item of the plain library-crate
       checklist in `tasks/README.md` is satisfied for it.
-- [ ] Given a cold design invocation, when the executor client has exited and
+- [x] Given a cold design invocation, when the executor client has exited and
       the daemon is still running, then the lease of each of the daemon's
       generations is observed held. This holds both for an empty
       cache root and for a driver exported without its browser.
-- [ ] Given a warm design invocation, when the executor client has exited and
+- [x] Given a warm design invocation, when the executor client has exited and
       the daemon is still running, then the lease of each of the daemon's
       generations is observed held.
-- [ ] Given two launchers with different compiled-in digests sharing one
+- [x] Given two launchers with different compiled-in digests sharing one
       `ACCELERATOR_CACHE_DIR` root on a filesystem where `flock` reports
       liveness, when the first launcher has started a daemon and
       `accelerator cache prune --older-than 0` runs from the second, then none
       of the daemon's generations is removed. This holds separately for a daemon
       started by a warm invocation and for one started by a cold invocation.
-- [ ] Given the same shared root where the first launcher has materialised its
+- [x] Given the same shared root where the first launcher has materialised its
       trees by `cache ensure` but started no daemon, when the same `prune`
       runs, then those generations are removed.
-- [ ] Given the daemon's process group has been terminated and the executor
+- [x] Given the daemon's process group has been terminated and the executor
       client has exited, when the same `prune` runs, then the daemon's
       generations are removed. This holds separately for a daemon started by a
       warm invocation and for one started by a cold invocation.
-- [ ] Given a generation outside the claim window, `reclaim_unclaimed` behaves
+- [x] Given a generation outside the claim window, `reclaim_unclaimed` behaves
       as follows:
 
       | Liveness  | mtime age < `AGE_BACKSTOP` | mtime age ≥ `AGE_BACKSTOP` |
@@ -220,20 +220,20 @@ its own daemon.
       | `Free`    | reclaimed                  | reclaimed                  |
       | `Unknown` | kept                       | reclaimed                  |
 
-- [ ] Given the launcher's `repair` entry point is called in-process with
+- [x] Given the launcher's `repair` entry point is called in-process with
       `force`, an injected liveness probe returning `Unknown`, and an existing
       generation, then the superseded generation is kept. This proves the
       entry point passes the injected probe through to `reap_superseded`.
-- [ ] Given a superseded generation, `reap_superseded` keeps it when liveness is
+- [x] Given a superseded generation, `reap_superseded` keeps it when liveness is
       `Held` or `Unknown` and reclaims it when liveness is `Free`. A later
       `reap_orphans` reclaims the kept `Unknown` generation once its mtime age
       reaches `AGE_BACKSTOP`.
-- [ ] Given the launcher's `prune` entry point is called in-process with an
+- [x] Given the launcher's `prune` entry point is called in-process with an
       injected liveness probe returning `Unknown`, `older_than` of zero, and a
       generation outside the claim window whose mtime age is under
       `AGE_BACKSTOP`, then the generation is kept. This proves the entry point
       passes the injected probe through to `reclaim_unclaimed`.
-- [ ] `mise run` (bare default task) exits 0 end-to-end.
+- [x] `mise run` (bare default task) exits 0 end-to-end.
 
 ## Open Questions
 
@@ -245,6 +245,10 @@ its own daemon.
   that follow-up, not this one. The acceptance
   criteria terminate the daemon's whole process group, so they do not depend
   on the answer.
+
+  Unanswered at implementation: it needs `lsof` on the browser processes
+  during a crawl against a real runtime, which the implementation did not
+  provision.
 
 ## Dependencies
 
@@ -280,10 +284,13 @@ its own daemon.
   daemon's tree whose claim is stale can still be reclaimed. This is accepted
   because the alternative leaves such trees unreclaimable.
 - On the cold path, `cache ensure` exits before the executor takes its leases.
-  In that gap another launcher's `prune` could reclaim the trees, but only with
-  an `--older-than` shorter than the gap, because `cache ensure` has just
-  refreshed the claim. In practice that means `--older-than 0`. This is
-  accepted.
+  `cache ensure` does not always refresh the claim: `materialise` returns
+  early on a located generation without writing one. The gap is instead
+  narrowed by the executor re-checking each tree after leasing it, and by one
+  further `cache ensure` when a tree has gone. Every reclaimer probes the
+  lease, releases the probe and only then removes the generation, so a lease
+  taken inside that window still sees the directory. The launcher's `acquire`
+  shares that window. It is accepted.
 - Daemons started by launchers released before this fix hold no lease on the
   cold path, so a fixed launcher's `prune` can still reclaim their trees on a
   shared root. This residual exposure is accepted.
@@ -340,6 +347,22 @@ its own daemon.
   releasing leases when the daemon fails to spawn after they are taken. The
   executor reports a downgrade or an error and exits on that branch, which
   releases them with the process.
+
+- The warm-path fix went beyond clearing `FD_CLOEXEC`, with the user's
+  approval during planning. `DaemonSpawner` `dup2`s its identity pipe onto
+  fd 3, which closed the first lease the daemon inherited. `tree-lease` now
+  raises every lease to `LOWEST_LEASE_DESCRIPTOR` (10) or above, which fixes
+  the warm and cold paths alike.
+- The cross-launcher criteria are proven by two suites together. The
+  executor's runtime suite proves a warm or cold daemon holds every lease and
+  releases them when its group is killed. The launcher's two-digest fixture,
+  with a stand-in daemon holding a real lease, proves a second launcher's
+  `prune` spares a held lease and reclaims a free one.
+- Backstop limits: a superseded generation that `repair` keeps as `Unknown`
+  has its mtime reset, best-effort, so it gets a full `AGE_BACKSTOP` from
+  the deferral. `reclaim_unclaimed`'s `Unknown` gate still counts from
+  extraction, as the table above specifies, so the claim window is what
+  protects a pointed-at generation there.
 
 ## References
 

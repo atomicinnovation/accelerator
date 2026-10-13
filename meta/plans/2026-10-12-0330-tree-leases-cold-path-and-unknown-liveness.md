@@ -1417,9 +1417,9 @@ use `/accelerator:update-work-item` to:
 #### Manual Verification
 
 - [ ] The descendant question is answered and recorded on 0330
-- [ ] 0330 records the scope deviation, the test split and the corrected
+- [x] 0330 records the scope deviation, the test split and the corrected
       accepted-gap assumption
-- [ ] Every acceptance criterion on 0330 is ticked against the map
+- [x] Every acceptance criterion on 0330 is ticked against the map
 
 ---
 
