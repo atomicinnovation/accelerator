@@ -304,15 +304,31 @@ def test_the_report_marks_quarantined_entries() -> None:
     ) in report
 
 
-def test_the_report_is_printed_verbatim_as_its_own_message() -> None:
+def test_the_report_is_printed_verbatim_before_any_other_tool_call() -> None:
     report = _report()
     for phrase in (
-        "print the report below verbatim, as its own message, before "
-        "renaming anything and before step 3",
+        "print the report below verbatim before any other tool call",
         "never summarise or paraphrase it",
+        "Rename, clear and spawn nothing until the report is printed.",
         f"```text {OPENING}",
+        "Only once the report is printed, and whether or not the plan offers "
+        "a spawn, attempt every rename",
     ):
         assert phrase in report, f"the report must state {phrase!r}"
+
+
+def test_clearing_waits_for_the_report() -> None:
+    clear = _section(_conduct(), "**Clear.**", "**Spawn the batch**")
+    assert "only once any step 2 report is printed" in clear
+
+
+def test_the_summary_opens_with_the_report() -> None:
+    summary = _section(_conduct(), "**Summarise**", "| Reason |")
+    assert (
+        "**Unfinished run.** The step 2 report, unchanged, when the first "
+        "plan carried `replaced_run`."
+    ) in summary
+    assert summary.index("**Unfinished run.**") < summary.index("**Failures.**")
 
 
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
