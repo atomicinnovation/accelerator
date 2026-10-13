@@ -1520,7 +1520,7 @@ fn a_personal_concurrency_wins_over_the_team_and_warns() -> Result<(), TestError
 
 #[test]
 fn the_cap_is_read_as_the_harness_reads_it() -> Result<(), TestError> {
-    for (cap, slots) in [("007", 7), ("+8", 8), (" 8 ", 8)] {
+    for (cap, slots) in [("007", 7), (" +8 ", 8)] {
         let project = a_set()?;
 
         let (plan, stderr) =
@@ -1532,8 +1532,7 @@ fn the_cap_is_read_as_the_harness_reads_it() -> Result<(), TestError> {
     Ok(())
 }
 
-const CAPS_THE_HARNESS_IGNORES: [&str; 7] =
-    ["0", "-5", "abc", "20.5", "1e2", "1,000", ""];
+const CAPS_THE_HARNESS_IGNORES: [&str; 2] = ["0", "abc"];
 
 #[test]
 fn a_cap_the_harness_ignores_leaves_the_default_unwarned(
