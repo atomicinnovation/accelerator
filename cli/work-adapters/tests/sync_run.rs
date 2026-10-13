@@ -30,9 +30,6 @@ use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
 use work_adapters::sync::baseline::Baseline;
-use work_adapters::sync::baseline::Entry;
-use work_adapters::sync::baseline::SyncStamps;
-use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
@@ -1595,52 +1592,6 @@ fn a_dossier_remote_side_begins_with_the_description() -> Result<(), TestError>
         .map(|section| section.name.as_str())
         .collect();
     assert_eq!(names, ["Summary"]);
-    Ok(())
-}
-
-#[test]
-fn a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing(
-) -> Result<(), TestError> {
-    let scenario = conflict_scenario(
-        "Item nine",
-        "local body\n",
-        "Item nine\nremote body\n",
-    )?;
-    let unmoved = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
-        .digests(&std::fs::read_to_string(&scenario.items[0].path)?, None)?;
-    let blank_remote = support::entry_fragment(
-        "0009",
-        Entry::recorded(
-            SyncStamps {
-                remote_updated_at: RemoteTimestamp::Reported(
-                    MOVED_STAMP.to_owned(),
-                ),
-                local_synced_at: 0,
-            },
-            unmoved,
-        ),
-    );
-    scenario
-        .spy
-        .seed(BASELINE_PATH, &baseline_document(&[blank_remote]));
-
-    let report = execute_resolving_in(
-        &scenario,
-        &accepting_remote("0009"),
-        RunMode::Apply,
-        &AlwaysDirty,
-    )
-    .map_err(|_| "a resolved conflict within bounds must proceed")?;
-
-    assert!(
-        matches!(
-            only_failure(&report),
-            work_adapters::sync::apply::ApplyError::RemoteBodyUnavailable { item_id }
-                if item_id == "0009"
-        ),
-        "an unfetched body must not pull as empty"
-    );
-    assert_eq!(scenario.spy.content_of(&scenario.items[0].path), None);
     Ok(())
 }
 

@@ -17,17 +17,19 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work::sync::local_change;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
 use work::sync::Dirtiness;
 use work::sync::LegacyHashes;
+use work::sync::LocalChange;
 use work::sync::PlanInput;
 use work::sync::RemoteFacts;
 use work::sync::RemotePresence;
 
 use crate::sync::baseline::Baseline;
 use crate::sync::baseline::Entry;
-use crate::sync::digest;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::item_snapshot::ItemSnapshot;
 
 #[derive(Clone, Debug)]
@@ -113,12 +115,7 @@ impl GatheredFacts {
                     .per_id
                     .get(&item.id)
                     .expect("gather populates every item");
-                let baseline_entry = baseline.get(&item.id);
-                let stamps = baseline_entry.and_then(Entry::stamps);
-                let watermark = stamps.map_or_else(
-                    || baseline.timestamp(),
-                    |stamps| stamps.local_synced_at,
-                );
+                let (entry, watermark) = domain_entry(baseline, &item.id);
                 PlanInput {
                     id: item.id.clone(),
                     external_id: item.external_id.as_ref(),
@@ -127,19 +124,7 @@ impl GatheredFacts {
                         remote_updated: &remote.remote_updated,
                     },
                     dirty: *dirty,
-                    baseline: BaselineEntry {
-                        remote_updated_at: stamps
-                            .map_or(&RemoteTimestamp::NotRead, |stamps| {
-                                &stamps.remote_updated_at
-                            }),
-                        fingerprints: baseline_entry
-                            .and_then(Entry::fingerprints)
-                            .unwrap_or_else(|| {
-                                BaselineFingerprints::Legacy(
-                                    LegacyHashes::default(),
-                                )
-                            }),
-                    },
+                    baseline: entry,
                     baseline_timestamp: watermark,
                     digests: snapshot,
                     comparison: snapshot,
@@ -147,6 +132,31 @@ impl GatheredFacts {
             })
             .collect()
     }
+}
+
+/// `id`'s entry as the domain compares with it, and the watermark its local
+/// side was last synced at; an item with no entry compares against empty
+/// legacy hashes and the document's own timestamp.
+fn domain_entry<'a>(
+    baseline: &'a Baseline,
+    id: &str,
+) -> (BaselineEntry<'a>, u64) {
+    let entry = baseline.get(id);
+    let stamps = entry.and_then(Entry::stamps);
+    let watermark = stamps
+        .map_or_else(|| baseline.timestamp(), |stamps| stamps.local_synced_at);
+    (
+        BaselineEntry {
+            remote_updated_at: stamps
+                .map_or(&RemoteTimestamp::NotRead, |stamps| {
+                    &stamps.remote_updated_at
+                }),
+            fingerprints: entry.and_then(Entry::fingerprints).unwrap_or_else(
+                || BaselineFingerprints::Legacy(LegacyHashes::default()),
+            ),
+        },
+        watermark,
+    )
 }
 
 fn present_ids(items: &[LocalItem]) -> Vec<(&str, &ExternalId, &Path)> {
@@ -246,6 +256,9 @@ impl Gathering {
 }
 
 /// Gathers the facts `work::sync::plan` needs, for every item.
+///
+/// `digester` fingerprints each local side, so the two-tier read skips a
+/// `show` only where classification will find the local side unchanged.
 #[must_use]
 pub fn gather(
     items: &[LocalItem],
@@ -253,6 +266,7 @@ pub fn gather(
     tracker: &dyn RemoteTracker,
     status: &dyn WorkingCopyStatus,
     strategy: RetrievalStrategy,
+    digester: &BaselineDigester<'_>,
 ) -> GatheredFacts {
     let mut gathering = Gathering {
         per_id: BTreeMap::new(),
@@ -299,12 +313,15 @@ pub fn gather(
                     for (id, external_id, path) in &present {
                         gather_from_bulk(
                             &mut gathering,
-                            id,
-                            external_id,
-                            path,
+                            &BulkItem {
+                                id,
+                                external_id,
+                                path,
+                            },
                             &outcome,
                             baseline,
                             tracker,
+                            digester,
                         );
                     }
                 }
@@ -336,46 +353,51 @@ fn recipe_unsupported(baseline: &Baseline, id: &str) -> bool {
     matches!(baseline.get(id), Some(Entry::Unsupported { .. }))
 }
 
-/// Whether the entry lets the stamp alone stand for the remote body: only a
-/// recipe-1 entry whose stamp proves the remote unchanged and whose local
-/// file still digests as recorded. A legacy entry always needs the body,
-/// so the run can rewrite it, or find the residue an earlier pull left.
+/// Whether the stamp alone can stand for the remote body: only for a
+/// recipe-1 entry recording both sides, whose stamp proves the remote
+/// unchanged and whose local side classification will find unchanged. A
+/// legacy entry always needs the body, so the run can rewrite it or find the
+/// residue an earlier pull left; any local change needs it, so equivalence
+/// and the remote title are decidable.
 fn remote_read_unneeded(
-    path: &Path,
-    entry: &Entry,
+    item: &BulkItem<'_>,
+    baseline: &Baseline,
     stamp: &RemoteTimestamp,
+    digester: &BaselineDigester<'_>,
 ) -> bool {
-    matches!(entry, Entry::Split { .. })
-        && entry.stamps().is_some_and(|stamps| {
-            stamp.proves_unchanged_since(&stamps.remote_updated_at)
-        })
-        && local_side_unmoved(path, entry)
-}
-
-/// Whether the local file still hashes to the entry's recorded digest. A
-/// send is planned only for a moved local side, and a send must see the
-/// fetched remote, so any doubt here forces the read.
-fn local_side_unmoved(path: &Path, entry: &Entry) -> bool {
-    let Some(recorded) =
-        entry.legacy().and_then(|legacy| legacy.local.as_ref())
-    else {
+    let Some(Entry::Split { split, .. }) = baseline.get(item.id) else {
         return false;
     };
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|content| digest::local(&content).ok())
-        .is_some_and(|local_hash| &local_hash == recorded)
+    if split.local.is_none() || split.remote.is_none() {
+        return false;
+    }
+    let (entry, watermark) = domain_entry(baseline, item.id);
+    stamp.proves_unchanged_since(entry.remote_updated_at)
+        && local_change(
+            &entry,
+            watermark,
+            &ItemSnapshot::new(item.path, None, digester),
+        )
+        .is_ok_and(LocalChange::is_unchanged)
+}
+
+struct BulkItem<'a> {
+    id: &'a str,
+    external_id: &'a ExternalId,
+    path: &'a Path,
 }
 
 fn gather_from_bulk(
     gathering: &mut Gathering,
-    id: &str,
-    external_id: &ExternalId,
-    path: &Path,
+    item: &BulkItem<'_>,
     outcome: &FetchOutcome,
     baseline: &Baseline,
     tracker: &dyn RemoteTracker,
+    digester: &BaselineDigester<'_>,
 ) {
+    let BulkItem {
+        id, external_id, ..
+    } = *item;
     let found = outcome
         .found
         .iter()
@@ -400,10 +422,7 @@ fn gather_from_bulk(
         );
         return;
     }
-    let unchanged = baseline
-        .get(id)
-        .is_some_and(|entry| remote_read_unneeded(path, entry, stamp));
-    if unchanged {
+    if remote_read_unneeded(item, baseline, stamp, digester) {
         gathering.record(
             id,
             GatheredRemote {

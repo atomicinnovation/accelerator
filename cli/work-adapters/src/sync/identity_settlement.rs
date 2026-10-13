@@ -44,6 +44,7 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementPorts;
 use crate::retirement_records::RetirementRecords;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
@@ -393,6 +394,7 @@ fn detect_identity_changes(
         ports.tracker,
         ports.status,
         request.strategy,
+        &BaselineDigester::new(ports.tracker, ports.parser),
     );
     if facts.keyed_read == Completeness::CapHit {
         return Err(RunError::KeyedReadCapped);

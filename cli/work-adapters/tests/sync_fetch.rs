@@ -35,6 +35,10 @@ impl WorkingCopyStatus for AlwaysDirty {
     }
 }
 
+fn digester() -> BaselineDigester<'static> {
+    BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+}
+
 fn item(id: &str, external_id: Option<&str>) -> LocalItem {
     LocalItem {
         id: id.to_owned(),
@@ -61,6 +65,7 @@ fn a_no_entry_item_falls_back_to_the_document_timestamp_for_its_gate() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
     let digester = BaselineDigester::new(&PlainDialect, &CommonMarkBody);
     let snapshots: Vec<ItemSnapshot<'_>> = items
@@ -101,6 +106,7 @@ fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert!(facts.read_failure.is_none());
@@ -161,6 +167,7 @@ fn gather_one_file(
         tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     )
 }
 
@@ -248,6 +255,61 @@ fn a_failed_forced_show_of_a_legacy_entry_is_indeterminate() {
 }
 
 #[test]
+fn an_unchanged_stamp_and_unchanged_local_side_skip_the_show() {
+    let tracker = unmoved_tracker();
+    let baseline =
+        split_baseline("---\nexternal_id: \"ENG-1\"\n---\n\n* one\n");
+
+    gather_one_file(
+        &tracker,
+        &baseline,
+        "---\nexternal_id: \"ENG-1\"\n---\n\n- one\n",
+    );
+
+    assert!(!showed(&tracker));
+}
+
+#[test]
+fn a_local_frontmatter_edit_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let baseline = split_baseline(LOCAL_CONTENT);
+
+    gather_one_file(
+        &tracker,
+        &baseline,
+        "---\nexternal_id: \"ENG-1\"\nstatus: done\n---\n\nBody\n",
+    );
+
+    assert!(showed(&tracker));
+}
+
+#[test]
+fn an_empty_hash_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let mut recorded = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+        .digests(LOCAL_CONTENT, Some("Title\nBody\n"))
+        .expect("digests");
+    recorded.split.local = None;
+    let mut baseline = Baseline::read(None).0;
+    baseline.set(
+        "0001",
+        work_adapters::sync::baseline::Entry::recorded(
+            work_adapters::sync::baseline::SyncStamps {
+                remote_updated_at: RemoteTimestamp::Reported(
+                    UNMOVED_STAMP.to_owned(),
+                ),
+                local_synced_at: 0,
+            },
+            recorded,
+        ),
+    );
+
+    gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert!(showed(&tracker));
+}
+
+#[test]
 fn a_moved_local_digest_forces_the_show_despite_an_unchanged_stamp() {
     let tracker = unmoved_tracker();
     let baseline = split_baseline(LOCAL_CONTENT);
@@ -302,6 +364,7 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     let show_calls = tracker
@@ -343,6 +406,7 @@ fn absent_and_indeterminate_partition_correctly() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert_eq!(
@@ -373,6 +437,7 @@ fn per_item_strategy_calls_show_for_every_present_id_and_never_fetch_all() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::PerItem,
+        &digester(),
     );
 
     let calls = tracker.calls();
@@ -404,6 +469,7 @@ fn a_status_probe_failure_yields_unknown_which_decides_as_dirty() {
         &tracker,
         &AlwaysUnknown,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert_eq!(
@@ -424,6 +490,7 @@ fn an_item_with_no_external_id_still_gets_a_facts_entry() {
         &tracker,
         &AlwaysDirty,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert!(facts.per_id.contains_key("0001"));
@@ -455,6 +522,7 @@ fn gathered(
         tracker,
         &AlwaysClean,
         strategy,
+        &digester(),
     )
 }
 
@@ -589,6 +657,7 @@ fn an_unknown_recipe_entry_is_indeterminate_under_either_strategy_without_a_show
             &tracker,
             &AlwaysClean,
             strategy,
+            &digester(),
         );
 
         assert!(!showed(&tracker), "{strategy:?}");

@@ -1051,49 +1051,48 @@ fn apply_planned_action(
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = index.get(&planned.id);
-    let outcome =
-        match planned.action {
-            Action::RecordBaseline => {
-                let snapshot = index
-                    .position(&planned.id)
-                    .and_then(|position| snapshots.get(position));
-                match item.zip(snapshot) {
-                    Some((item, snapshot)) => {
-                        record_outcome(applier, item, snapshot, facts)
-                    }
-                    None => return not_applied(planned),
+    let outcome = match planned.action {
+        Action::RecordBaseline => {
+            let snapshot = index
+                .position(&planned.id)
+                .and_then(|position| snapshots.get(position));
+            match item.zip(snapshot) {
+                Some((item, snapshot)) => {
+                    record_outcome(applier, item, snapshot, facts)
                 }
-            }
-            Action::Push(_) | Action::Retitle | Action::Overwrite => match item
-                .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
-            {
-                Some((item, external_id)) => send_outcome(
-                    applier,
-                    &planned,
-                    item,
-                    external_id,
-                    facts,
-                    comparison,
-                ),
                 None => return not_applied(planned),
-            },
-            Action::Pull => match item {
-                Some(item) => pull_outcome(applier, item, facts, comparison),
-                None => return not_applied(planned),
-            },
-            Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-                if matches!(planned.state, SyncState::Conflict) {
-                    blank_local_hash.push(planned.id.clone());
-                }
-                ItemOutcome::NotApplied
             }
-            Action::Noop => ItemOutcome::NotApplied,
-            Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
-                "the two create actions are applied out-of-band by the create \
+        }
+        Action::Push(_) | Action::Retitle | Action::Overwrite => match item
+            .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
+        {
+            Some((item, external_id)) => send_outcome(
+                applier,
+                &planned,
+                item,
+                external_id,
+                facts,
+                comparison,
+            ),
+            None => return not_applied(planned),
+        },
+        Action::Pull => match item {
+            Some(item) => pull_outcome(applier, item, facts, comparison),
+            None => return not_applied(planned),
+        },
+        Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
+            if matches!(planned.state, SyncState::Conflict) {
+                blank_local_hash.push(planned.id.clone());
+            }
+            ItemOutcome::NotApplied
+        }
+        Action::Noop => ItemOutcome::NotApplied,
+        Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
+            "the two create actions are applied out-of-band by the create \
              paths, never through the id-keyed plan loop, and decide() never \
              produces them"
-            ),
-        };
+        ),
+    };
     ReportedItem {
         planned,
         outcome,
@@ -1329,6 +1328,7 @@ fn prepare_run<'a>(
             ports.tracker,
             ports.status,
             request.strategy,
+            digester,
         )
     });
 

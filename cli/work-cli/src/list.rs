@@ -190,14 +190,15 @@ pub fn classify(
     baseline: &Baseline,
     status: &dyn WorkingCopyStatus,
 ) -> BTreeMap<String, SyncState> {
+    let digester = BaselineDigester::new(tracker, &CommonMarkBody);
     let facts = fetch::gather(
         items,
         baseline,
         tracker,
         status,
         RetrievalStrategy::Bulk,
+        &digester,
     );
-    let digester = BaselineDigester::new(tracker, &CommonMarkBody);
     let snapshots: Vec<ItemSnapshot<'_>> = items
         .iter()
         .map(|item| {
