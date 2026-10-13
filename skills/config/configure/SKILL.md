@@ -461,7 +461,8 @@ above the cap warns; the built-in default clamps silently.
 - To spawn more than 20 at once, raise both
   `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.
 - The clamp applies on every Claude Code version and mode, including those that
-  enforce no cap.
+  enforce no cap: Claude Code below v2.1.217, and ultracode sessions. There,
+  set `ACCELERATOR_SUBAGENT_CAP` to the concurrency you want.
 
 At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
 `depth` above 1, it researches each pair as a tree: every node writes a level

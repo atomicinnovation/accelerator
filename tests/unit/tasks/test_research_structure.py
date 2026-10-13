@@ -194,6 +194,8 @@ def test_configure_documents_the_subagent_cap_clamp() -> None:
         "An empty value is refused rather than clamped.",
         "To spawn more than 20 at once, raise both "
         "`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.",
+        "enforce no cap: Claude Code below v2.1.217, and ultracode sessions. "
+        "There, set `ACCELERATOR_SUBAGENT_CAP` to the concurrency you want.",
     ):
         assert sentence in research, f"configure must state {sentence!r}"
 
