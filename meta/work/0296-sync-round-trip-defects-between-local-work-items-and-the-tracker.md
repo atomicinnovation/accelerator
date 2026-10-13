@@ -13,7 +13,7 @@ blocks: ["work-item:0290", "work-item:0320", "work-item:0330", "work-item:0331"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
-last_updated: "2026-10-10T21:43:34+00:00"
+last_updated: "2026-10-13T11:18:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -94,7 +94,7 @@ Linear's rewrites, from the 2026-10-10 inspection, and how each is treated:
 | Rewrite | Local → remote | Treatment |
 |---|---|---|
 | Escaping | `~550` → `\~550` | cosmetic: parsing |
-| Joined continuation lines | wrapped → joined | cosmetic: soft breaks |
+| Joined code-span lines | `a⏎b` in a code span → `a b` | cosmetic: parsing |
 | Per-line bold | `**a⏎b**` → `**a**⏎**b**` | cosmetic: per-character |
 | Bold hoisted off code | ``**x `c`**`` → ``**x** `c` `` | cosmetic: code-span emphasis |
 | Link destinations | `[t](u)` → `[t](<u>)` | cosmetic: unwrapping |
@@ -102,7 +102,7 @@ Linear's rewrites, from the 2026-10-10 inspection, and how each is treated:
 | Bullet markers | `- a` → `* a` | cosmetic: bullet character |
 | Task-marker case | `[x]` → `[X]` | cosmetic: task-marker case |
 | Table delimiters | `\|---\|` → `\| -- \|` | cosmetic: delimiter rows |
-| Inserted blank lines | `- a⏎- b` → `- a⏎⏎- b` | cosmetic: list tightness |
+| Inserted blank lines | `p⏎- a` → `p⏎⏎- a` | cosmetic: parsing |
 | Wrapped digit lines | `⏎  0160.` → `160.` list item | meaning: difference |
 | Dotted tokens autolinked | `crates.io` → `[crates.io](<http://crates.io>)` | meaning: difference |
 | Code-span indentation | `` `a⏎  b` `` → `` `a   b` `` | meaning: difference |

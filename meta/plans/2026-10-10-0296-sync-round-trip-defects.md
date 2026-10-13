@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-13T08:37:32+00:00"
+last_updated: "2026-10-13T11:18:01+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -208,23 +208,35 @@ leading blank line in the pushed body survives.
 
 #### Automated Verification:
 
-- [ ] Every `remote.json` parses: `jq -e .data cli/work-adapters/tests/fixtures/work-item-sync-recovery/*/remote.json`
+- [x] Every `remote.json` parses: `jq -e .data cli/work-adapters/tests/fixtures/work-item-sync-recovery/*/remote.json`
 - [ ] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] The read-back reproduces each of the thirteen rewrites, or 0296's
+- [x] The read-back reproduces each of the thirteen rewrites, or 0296's
       Equivalence table and criteria are amended before Phase 6 starts
-- [ ] No credentials or personal data in the committed fixtures
-- [ ] Re-applying the recorded allowlist to each committed JSON fixture
+- [x] No credentials or personal data in the committed fixtures
+- [x] Re-applying the recorded allowlist to each committed JSON fixture
       leaves it unchanged
-- [ ] The scratch issue no longer exists in the sandbox team
+- [x] The scratch issue no longer exists in the sandbox team
 
 #### Implementation Notes:
 
-- Deferred: capture needs PP Linear credentials, and only Phase 6 onwards
-  reads the fixtures, so Phases 1 to 5 proceed without it. Phase 6 cannot
-  start until the fixtures are captured.
+- Captured on 2026-10-13, after Phases 1 to 5. The sandbox team is `TES`;
+  `linear create` prints a text line, not JSON, and the CLI has no delete,
+  so each scratch issue was removed with a GraphQL `issueDelete`.
+- Three captures (`TES-15` to `TES-17`) refined the fragments; the original
+  thirteen rows read back identically each time. `pushed.md` carries them as
+  `R01` to `R13`, plus variants `X01` to `X09` covering code-span line
+  endings, a blockquote, a paragraph straight before a list, and digit and
+  code-span continuations at several indents.
+- Two rows did not reproduce as tabulated and 0296 was amended: Linear joins
+  lines only where the break falls inside a code span, and inserts a blank
+  line between a paragraph and the list after it, never between items. The
+  wrapped digit line reproduces only when the continuation inside a list
+  item holds the number alone (`X09`, as in `PP-180`); with text after it
+  the number is merely escaped.
+- The leading blank line of the pushed body does not survive.
 
 ---
 
@@ -1316,12 +1328,13 @@ Equivalence rules; consumable by 0320.
 Markdown through `CommonMarkBody`, compares with `corpus::body::equivalent`)
 
 - One test per cosmetic Equivalence-table row, named for the rewrite
-  (`escaping_is_noise`, `joined_continuation_lines_are_noise`,
+  (`escaping_is_noise`, `joined_code_span_lines_are_noise`,
   `per_line_bold_is_noise`, `bold_hoisted_off_code_is_noise`,
   `angle_bracketed_destinations_are_noise`, `autolinked_urls_are_noise`,
   `bullet_markers_are_noise`, `task_marker_case_is_noise`,
-  `table_delimiter_rows_are_noise`, `inserted_blank_lines_between_items_are_noise`),
-  inputs taken from the Phase 0 read-back.
+  `table_delimiter_rows_are_noise`, `a_blank_line_before_a_list_is_noise`),
+  inputs taken from the Phase 0 read-back; `joined_code_span_lines_are_noise`
+  takes 0293's joined line from `work-item-sync-recovery`.
 - One test per meaning-changing row (`wrapped_digit_lines_differ`,
   `autolinked_dotted_tokens_differ`, `code_span_indentation_differs`).
   `code_span_indentation_differs` keeps its fragment inside the list item it
@@ -2617,6 +2630,11 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 - Frontmatter-only edit with a real remote body edit: pulled for recipe-1
   entries; a legacy entry in that state is an unresolved conflict, since its
   single local hash cannot show the body was untouched.
+- Equivalence table, from the Phase 0 capture: "Joined continuation lines"
+  becomes "Joined code-span lines" (`a⏎b` in a code span → `a b`,
+  cosmetic: parsing), and "Inserted blank lines" becomes `p⏎- a` →
+  `p⏎⏎- a` (cosmetic: parsing). The counts of ten cosmetic and three
+  meaning-changing rows are unchanged.
 
 ## Acceptance-Criteria Traceability
 
