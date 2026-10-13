@@ -1185,6 +1185,7 @@ dependencies = [
 name = "document"
 version = "1.24.0-pre.82"
 dependencies = [
+ "pulldown-cmark",
  "serde",
  "serde-saphyr",
 ]
