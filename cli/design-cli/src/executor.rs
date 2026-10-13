@@ -175,7 +175,7 @@ pub fn run(
 
     let PinnedResolution {
         resolution,
-        leases: _leases,
+        leases: _held_until_exec,
     } = resolve_runtime(&resolved, &hatch, &markers, &session, now);
     match resolution {
         Resolution::Downgrade(reason) => report_downgrade(reason),
