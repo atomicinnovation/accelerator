@@ -1,0 +1,7 @@
+# Local stand-in for the crates.io pulldown-cmark, named identically so the ban
+# matches on crate name with no network.
+[package]
+name = "pulldown-cmark"
+version = "0.13.4"
+edition = "2021"
+license = "MIT"
