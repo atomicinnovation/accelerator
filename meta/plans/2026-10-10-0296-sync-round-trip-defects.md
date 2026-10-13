@@ -1266,15 +1266,38 @@ inline content as a `Paragraph`, so tightness lives only in `loose`.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p corpus -p document -p corpus-adapters`
-- [ ] `mise run deny:check && mise run pup:check && mise run public-api:check`
-- [ ] `mise run test:integration:deny`
-- [ ] `rg pulldown_cmark cli/document/tests/fixtures/public-api.txt cli/corpus/tests/fixtures/public-api.txt` finds nothing
-- [ ] `mise run` exits 0
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p corpus -p document -p corpus-adapters`
+- [x] `mise run deny:check && mise run pup:check && mise run public-api:check`
+- [x] `mise run test:integration:deny`
+- [x] `rg pulldown_cmark cli/document/tests/fixtures/public-api.txt cli/corpus/tests/fixtures/public-api.txt` finds nothing
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] None
+- [x] None
+
+#### Implementation Notes:
+
+- `pulldown-cmark` is pinned at `=0.13.4`, the latest 0.13.x; it adds one
+  package to the lock.
+- `MarkdownEvent` collapses a code block into `CodeBlock { info, literal }`
+  and an HTML block into `HtmlBlock`, each spanning the whole block, and
+  every `End` repeats the tag its `Start` opened. A fenced block's span ends
+  at the closing fence, before its newline, as `pulldown-cmark` reports it.
+- `Section::heading` is the heading's source slice (both lines for a setext
+  heading); its inlines are the section's first block. `sections()` always
+  yields the preamble first, empty when the body opens with a level-2
+  heading, and consecutive sections tile the source.
+- `CommonMarkBody` merges adjacent text events into one `Inline::Text`, and
+  marks a list loose when any item directly holds a paragraph.
+- Two adapter tests beyond the list above cover the fold:
+  `a_tight_item_holding_a_nested_list_keeps_its_text_as_a_paragraph` and
+  `a_table_and_a_blockquote_parse_into_the_model`.
+- `mise run` first failed in `test:integration:tasks`: the release-pin gate
+  reads gitignored archives under `dist/release/`, and stale ones from an
+  earlier local assembly no longer matched the pins. It exits 0 with them
+  moved aside.
+- Phase 0's fixtures are first read by Phase 6, not Phase 5.
 
 ---
 
