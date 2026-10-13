@@ -15,6 +15,21 @@ pub use unix::{
     SingleFlight,
 };
 
+/// How a reclaimer learns whether a generation's lease is held — a test seam,
+/// so `Unknown` can be exercised without a filesystem that lacks `flock`.
+pub trait LivenessProbe {
+    fn probe(&self, lease: &std::path::Path) -> Liveness;
+}
+
+/// The production probe: the kernel's own view of who holds the lease.
+pub struct FlockProbe;
+
+impl LivenessProbe for FlockProbe {
+    fn probe(&self, lease: &std::path::Path) -> Liveness {
+        probe_liveness(lease)
+    }
+}
+
 #[cfg(unix)]
 mod unix {
     use std::fs::{File, OpenOptions};

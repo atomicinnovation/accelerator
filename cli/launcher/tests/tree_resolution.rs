@@ -26,7 +26,7 @@ use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::tree::lease::{
-    probe_liveness, Liveness,
+    probe_liveness, FlockProbe, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
@@ -260,12 +260,13 @@ struct Harness {
 
 impl Harness {
     fn resolver(&self) -> TreeResolver<'_> {
-        self.resolver_with(&StoppedClock, &NoSteps)
+        self.resolver_with(&StoppedClock, &FlockProbe, &NoSteps)
     }
 
     fn resolver_with<'a>(
         &'a self,
         clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
         steps: &'a dyn StepObserver,
     ) -> TreeResolver<'a> {
         let mut digests = BTreeMap::new();
@@ -284,6 +285,7 @@ impl Harness {
                     .expect("fetcher"),
             )),
             clock,
+            liveness,
             launcher_id: "test-install".to_owned(),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
@@ -534,7 +536,7 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
 
         let crash = CrashAfter(step);
         let outcome = harness
-            .resolver_with(&StoppedClock, &crash)
+            .resolver_with(&StoppedClock, &FlockProbe, &crash)
             .materialise(ARTIFACT);
         assert!(
             outcome.is_err(),
@@ -552,7 +554,7 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
         let far_future =
             AdvancingClock(std::sync::atomic::AtomicU64::new(1 << 40));
         harness
-            .resolver_with(&far_future, &NoSteps)
+            .resolver_with(&far_future, &FlockProbe, &NoSteps)
             .prune(ARTIFACT, None)
             .expect("prune");
         let residue = residual_generations(&harness);
@@ -571,7 +573,7 @@ fn a_failed_winner_releases_the_lock_and_the_next_makes_progress() {
     // The winner crashes mid-materialisation.
     let crash = CrashAfter(MaterialiseStep::Extracted);
     assert!(harness
-        .resolver_with(&StoppedClock, &crash)
+        .resolver_with(&StoppedClock, &FlockProbe, &crash)
         .materialise(ARTIFACT)
         .is_err());
 
@@ -604,7 +606,7 @@ fn the_bounded_waiter_expires_with_materialisation_in_progress() {
     // without any real sleep, and yields the non-sticky in-progress cause.
     let clock = AdvancingClock(std::sync::atomic::AtomicU64::new(0));
     let outcome = harness
-        .resolver_with(&clock, &NoSteps)
+        .resolver_with(&clock, &FlockProbe, &NoSteps)
         .materialise(ARTIFACT);
     assert!(
         matches!(outcome, Err(TreeError::MaterialisationInProgress { .. })),
@@ -916,7 +918,7 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
 
     // With a present-time clock the sibling's fresh claim spares its generation.
     harness
-        .resolver_with(&FixedClock(present), &NoSteps)
+        .resolver_with(&FixedClock(present), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, None)
         .expect("prune");
     assert!(
@@ -927,7 +929,7 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
     // A clock a fortnight on sees the same claim as stale, and reclaims it.
     let later = present + claims::CLAIM_WINDOW.as_secs() + 1;
     harness
-        .resolver_with(&FixedClock(later), &NoSteps)
+        .resolver_with(&FixedClock(later), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, None)
         .expect("prune");
     assert!(
@@ -963,7 +965,7 @@ fn prune_older_than_overrides_the_window() {
 
     // A one-second retention window makes even a just-now claim stale.
     harness
-        .resolver_with(&FixedClock(present + 2), &NoSteps)
+        .resolver_with(&FixedClock(present + 2), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, Some(std::time::Duration::from_secs(1)))
         .expect("prune");
     assert!(
@@ -1092,7 +1094,7 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
 
     // No claim at all, so the sibling is stale — but the held lease spares it.
     harness
-        .resolver_with(&StoppedClock, &NoSteps)
+        .resolver_with(&StoppedClock, &FlockProbe, &NoSteps)
         .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
         .expect("prune");
     assert!(
@@ -1100,6 +1102,120 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
         "a leased generation must be spared by prune"
     );
     let _ = sealed;
+}
+
+// ---- the injected liveness probe ----
+
+use accelerator::launch::outbound::resolve::tree::layout::TreePaths;
+
+/// Answers every probe the same way, so `Held` and `Unknown` can be exercised
+/// without a live holder or a filesystem that lacks `flock`.
+struct FixedLiveness(Liveness);
+
+impl LivenessProbe for FixedLiveness {
+    fn probe(&self, _lease: &std::path::Path) -> Liveness {
+        self.0
+    }
+}
+
+const BACKSTOP_SECONDS: u64 = 3600;
+const ZERO: std::time::Duration = std::time::Duration::from_secs(0);
+
+fn wall_clock_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+fn aged() -> FixedClock {
+    FixedClock(wall_clock_now() + 2 * BACKSTOP_SECONDS)
+}
+
+fn tree_paths(harness: &Harness) -> TreePaths {
+    TreePaths::under(&harness.cache)
+}
+
+fn sibling_generation(digest: &str) -> String {
+    format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}-1-0011223344556677")
+}
+
+/// A generation directory no pointer names.
+fn plant_unreferenced_generation(harness: &Harness) -> std::path::PathBuf {
+    let generation =
+        tree_paths(harness).generation(&sibling_generation(&"c".repeat(64)));
+    std::fs::create_dir_all(&generation).unwrap();
+    generation
+}
+
+#[test]
+fn an_injected_held_probe_spares_a_stale_sibling_in_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let sibling = plant_sibling_generation(&harness);
+
+    harness
+        .resolver_with(&StoppedClock, &FixedLiveness(Liveness::Held), &NoSteps)
+        .prune(ARTIFACT, Some(ZERO))
+        .expect("prune");
+
+    assert!(tree_paths(&harness)
+        .generation(&sibling_generation(&sibling))
+        .exists());
+}
+
+#[test]
+fn an_injected_held_probe_spares_a_superseded_generation_in_repair() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&StoppedClock, &FixedLiveness(Liveness::Held), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(old.path.exists());
+}
+
+#[test]
+fn an_injected_held_probe_spares_an_aged_orphan_in_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let orphan = plant_unreferenced_generation(&harness);
+
+    harness
+        .resolver_with(&aged(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(orphan.exists());
+}
+
+#[test]
+fn an_injected_held_probe_spares_an_aged_orphan_while_materialising() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    std::fs::create_dir_all(tree_paths(&harness).root()).unwrap();
+    let orphan = plant_unreferenced_generation(&harness);
+
+    harness
+        .resolver_with(&aged(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    assert!(orphan.exists());
 }
 
 /// Make a sealed tree writable so a test can corrupt it.
@@ -1289,6 +1405,7 @@ fn two_launchers_with_the_same_digest_share_one_generation_offline() {
         launcher_id: "launcher-b".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
+        liveness: &FlockProbe,
         steps: &NoSteps,
     };
 
@@ -1332,6 +1449,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         launcher_id: "test-install".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
+        liveness: &FlockProbe,
         steps: &NoSteps,
     };
 
@@ -1633,6 +1751,7 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
             launcher_id: format!("install-{platform}"),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
+            liveness: &FlockProbe,
             steps: &NoSteps,
         };
         resolver.materialise(ARTIFACT).expect("materialise").path

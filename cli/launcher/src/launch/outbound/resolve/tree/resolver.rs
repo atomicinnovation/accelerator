@@ -24,7 +24,7 @@ use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
     validated_generation, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{take_single_flight, try_single_flight};
+use super::lease::{take_single_flight, try_single_flight, LivenessProbe};
 use super::table::{FileTable, TABLE_NAME};
 use super::{claims, download, extract, pins, reap, seal};
 
@@ -105,6 +105,7 @@ pub struct TreeResolver<'a> {
     pub keys: &'a TrustedKeys,
     pub fetcher: &'a Fetcher,
     pub clock: &'a dyn Clock,
+    pub liveness: &'a dyn LivenessProbe,
     /// A per-install identity for the retention claim, so two installs sharing
     /// a cache root each write their own claim file.
     pub launcher_id: String,
@@ -602,7 +603,12 @@ impl MaterialiseTree for TreeResolver<'_> {
                 let sealed = self.materialise_locked(artifact, digest)?;
                 let mut keep = BTreeSet::new();
                 keep.insert(digest.to_owned());
-                let _ = reap::reap_orphans(&paths, self.clock, &keep);
+                let _ = reap::reap_orphans(
+                    &paths,
+                    self.clock,
+                    self.liveness,
+                    &keep,
+                );
                 return Ok(sealed);
             }
 
@@ -680,7 +686,7 @@ impl TreeResolver<'_> {
         // reaper would otherwise spare it as too young.
         if let Some(old) = superseded {
             if paths.generation(&old) != sealed.path {
-                Self::reap_superseded(&paths, &old);
+                Self::reap_superseded(&paths, self.liveness, &old);
             }
         }
         Ok(sealed)
@@ -688,9 +694,14 @@ impl TreeResolver<'_> {
 
     /// Remove a superseded generation and its sidecars, but only if no live
     /// process holds its lease.
-    fn reap_superseded(paths: &TreePaths, generation: &str) {
-        use super::lease::{probe_liveness, Liveness};
-        if probe_liveness(&paths.lease(generation)) == Liveness::Held {
+    fn reap_superseded(
+        paths: &TreePaths,
+        liveness: &dyn LivenessProbe,
+        generation: &str,
+    ) {
+        if liveness.probe(&paths.lease(generation))
+            == super::lease::Liveness::Held
+        {
             return;
         }
         let _ = std::fs::remove_dir_all(paths.generation(generation));
@@ -730,7 +741,8 @@ impl TreeResolver<'_> {
         if let Some(digest) = self.expected_digest(artifact) {
             keep.insert(digest);
         }
-        let orphans = reap::reap_orphans(&paths, self.clock, &keep)?;
+        let orphans =
+            reap::reap_orphans(&paths, self.clock, self.liveness, &keep)?;
         reclaimed.entries += orphans.entries;
         Ok(reclaimed)
     }
@@ -756,7 +768,7 @@ impl TreeResolver<'_> {
                 continue;
             }
             // A live consumer keeps a stale-claimed generation until it exits.
-            if super::lease::probe_liveness(&paths.lease(&generation))
+            if self.liveness.probe(&paths.lease(&generation))
                 == super::lease::Liveness::Held
             {
                 continue;

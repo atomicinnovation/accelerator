@@ -1044,15 +1044,15 @@ and that reads `Free` for a lease nobody holds.
 
 #### Automated Verification
 
-- [ ] The four seam tests compile after item 2, fail on their assertions before item 4, and pass after it: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
-- [ ] `reap.rs` unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator reap`
-- [ ] No reclaimer calls the probe directly: `rg -n 'probe_liveness\(' cli/launcher/src --glob '!**/lease.rs'` returns nothing
-- [ ] `mise run pup:check` passes, so `launch::core` still names no outbound type
-- [ ] `mise run check` exits 0
+- [x] The four seam tests compile after item 2, fail on their assertions before item 4, and pass after it: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
+- [x] `reap.rs` unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator reap`
+- [x] No reclaimer calls the probe directly: `rg -n 'probe_liveness\(' cli/launcher/src --glob '!**/lease.rs'` returns nothing
+- [x] `mise run pup:check` passes, so `launch::core` still names no outbound type
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] None.
+- [x] None.
 
 ---
 

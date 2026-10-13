@@ -20,7 +20,7 @@ use kernel::TEMP_PREFIX;
 use crate::launch::core::tree::{Clock, TreeError};
 
 use super::layout::{TreePaths, LAYOUT_VERSION};
-use super::lease::{probe_liveness, Liveness};
+use super::lease::{Liveness, LivenessProbe};
 
 /// Generations younger than this with no live lease are spared, so a generation
 /// briefly between its rename and its pointer write is never mistaken for
@@ -41,6 +41,7 @@ const AGE_BACKSTOP: Duration = Duration::from_secs(60 * 60);
 pub fn reap_orphans(
     paths: &TreePaths,
     clock: &dyn Clock,
+    liveness: &dyn LivenessProbe,
     keep_digests: &BTreeSet<String>,
 ) -> Result<Reclaimed, TreeError> {
     let root = paths.root();
@@ -74,6 +75,7 @@ pub fn reap_orphans(
                         &path,
                         &referenced,
                         clock,
+                        liveness,
                     ) {
                         remove(&path, &mut reclaimed);
                     }
@@ -155,11 +157,12 @@ fn is_reclaimable_generation(
     path: &Path,
     referenced: &BTreeSet<String>,
     clock: &dyn Clock,
+    liveness: &dyn LivenessProbe,
 ) -> bool {
     if referenced.contains(name) {
         return false;
     }
-    if probe_liveness(&paths.lease(name)) == Liveness::Held {
+    if liveness.probe(&paths.lease(name)) == Liveness::Held {
         return false;
     }
     older_than_backstop(path, clock)
@@ -218,6 +221,7 @@ mod tests {
     use crate::launch::core::tree::Clock;
 
     use super::super::layout::{generation_name, TreePaths, LAYOUT_VERSION};
+    use super::super::lease::FlockProbe;
     use super::{reap_orphans, AGE_BACKSTOP};
 
     /// A clock the test drives forward, so a generation ages because time
@@ -278,7 +282,8 @@ mod tests {
         fs::create_dir(&temp_tree).expect("temp tree");
 
         let reclaimed =
-            reap_orphans(&paths, &present(), &BTreeSet::new()).expect("reap");
+            reap_orphans(&paths, &present(), &FlockProbe, &BTreeSet::new())
+                .expect("reap");
         assert_eq!(reclaimed.entries, 2);
         assert!(!archive.exists());
         assert!(!temp_tree.exists());
@@ -293,7 +298,8 @@ mod tests {
 
         let mut keep = BTreeSet::new();
         keep.insert(DIGEST.to_owned());
-        let reclaimed = reap_orphans(&paths, &present(), &keep).expect("reap");
+        let reclaimed =
+            reap_orphans(&paths, &present(), &FlockProbe, &keep).expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(archive.exists(), "a resumable partial was reclaimed");
     }
@@ -322,7 +328,8 @@ mod tests {
 
         // The clock reads past the backstop, so both are old — only the
         // reference spares one of them.
-        reap_orphans(&paths, &well_aged(), &BTreeSet::new()).expect("reap");
+        reap_orphans(&paths, &well_aged(), &FlockProbe, &BTreeSet::new())
+            .expect("reap");
         assert!(!orphan_dir.exists(), "the orphan survived");
         assert!(
             referenced_dir.exists(),
@@ -340,7 +347,8 @@ mod tests {
         // The clock reads the present, so a just-renamed generation — between
         // its rename and its pointer write — is inside the backstop window.
         let reclaimed =
-            reap_orphans(&paths, &present(), &BTreeSet::new()).expect("reap");
+            reap_orphans(&paths, &present(), &FlockProbe, &BTreeSet::new())
+                .expect("reap");
         assert_eq!(reclaimed.entries, 0);
         assert!(fresh.exists(), "a freshly renamed generation was reaped");
     }
