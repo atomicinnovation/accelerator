@@ -5,7 +5,7 @@ title: "Recovering from an Interrupted Conduct Run Implementation Plan"
 date: "2026-10-13T13:03:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0310"
 parent: "work-item:0310"
 derived_from: ["codebase-research:2026-10-13-0310-recovering-from-an-interrupted-conduct-run"]
@@ -115,7 +115,10 @@ interrupted-run walkthrough under Testing Strategy.
   whose normalised question the run claimed at the stem's index, under the
   profile whose stem rebuilds it. The slug alone cannot say:
   `QuestionSlug::from` (`topic/layout/slug.rs:18-33`) keeps only ASCII
-  letters and digits, so every CJK question slugs to `focus-area`.
+  letters and digits, so every CJK question slugs to `focus-area`. When no
+  claimant rebuilds the stem, the claimant whose profile ends it owns it:
+  the slug is cut from the raw question, so rewording `A?` to full-width
+  `Ａ?` keeps the claim but moves the slug, and its finding stays valid.
 - A pair's finding is valid when it answers its owning pair
   (`Finding::answers`, `cli/research/src/topic/evidence.rs:92-100`), and
   invalid when it fails validation or answers anything else. This is step
@@ -254,6 +257,7 @@ plan.
 - `an_item_names_the_pair_whose_stem_it_rebuilds`
 - `an_item_names_no_pair_for_a_stem_under_a_profile_it_lacks`
 - `an_item_asks_a_pair_only_under_a_profile_it_names`
+- `an_item_names_the_pair_whose_profile_ends_a_stem_its_slug_no_longer_rebuilds`
 
 Then, `pub(crate)` since only the crate calls them:
 
@@ -270,6 +274,14 @@ impl OutlineItem {
             .find(|profile| {
                 self.stem_at(stem.index(), profile).as_ref() == Some(stem)
             })
+            .map(|profile| self.pair(profile))
+    }
+
+    pub(crate) fn pair_ending(&self, stem: &Stem) -> Option<Pair> {
+        let text = stem.to_string();
+        self.profiles()
+            .into_iter()
+            .find(|profile| text.ends_with(&format!("-{profile}")))
             .map(|profile| self.pair(profile))
     }
 }
@@ -290,10 +302,9 @@ plans `02-a-openalex` and orphans that tree. It becomes
 pin the order within each kind: `the_lowest_index_among_markers_wins` and
 `the_lowest_index_among_levels_directories_wins`. Then:
 
-- `RoundInputs::file_claims(&self, unicode) -> Vec<IndexClaim>`
-  (`pub(crate)`): the quarantine markers' claims and each `.levels/`
-  directory's, the expression `Planner::new` builds today (`:114-119`).
-  `Planner::new` calls it for the index floor.
+- `RoundInputs::tree_claims(&self, unicode) -> Vec<IndexClaim>`: each
+  `.levels/` directory's claim. `Planner::new` computes it once, keeps it,
+  and chains it after the quarantine markers' claims for the index floor.
 - `Planner` keeps the two kinds apart, and `claim_index` (`:279-309`) tries
   a `.levels/` directory's claim before a marker's: the run's claim, then a
   retained finding's index, then a tree's, then a marker's, then a fresh
@@ -411,6 +422,8 @@ reports, as the CLI will:
 - `a_pair_whose_finding_answers_another_outline_pair_is_invalid`
 - `a_pair_whose_finding_differs_from_its_question_only_in_normalisation_is_valid`
   (full-width `？` and folded whitespace under `FakeUnicode`)
+- `a_pair_whose_question_was_reworded_to_the_same_normalised_form_keeps_its_finding`
+  (outline `Ａ?`, claim and finding `A?`; `FakeUnicode` folds `Ａ` to `A`)
 - `a_pair_sharing_its_slug_with_another_is_judged_against_the_question_its_run_claimed`
   (two CJK questions at `01-focus-area-web` and `02-focus-area-web`; the
   finding at `02` answering the first is invalid)
@@ -429,7 +442,8 @@ reports, as the CLI will:
   `Other?`; claims hold `A?` at the stem's index)
 - `a_deeper_node_in_an_orphaned_tree_is_invalid`
 - `a_lineage_with_no_note_in_an_orphaned_tree_is_unwritten` (including a tree
-  whose root question comes from a quarantined root marker)
+  with a root question and no notes, which is how the adapter reads a
+  quarantined root marker; Phase 2 pins the marker itself end to end)
 - `a_node_whose_tree_root_matches_only_after_normalisation_is_valid`
 - `a_node_in_a_tree_with_no_root_question_is_classed_by_its_note`
 - `a_node_whose_question_left_the_outline_is_unasked_whatever_its_note`
@@ -655,14 +669,19 @@ struct Judge<'a> {
 
 impl Judge<'_> {
     fn owner(&self, stem: &Stem) -> Option<Pair> {
-        self.outline
+        let claimants: Vec<&OutlineItem> = self
+            .outline
             .items
             .iter()
             .filter(|item| {
                 let question = NormalisedQuestion::of(&item.question, self.unicode);
                 self.claims.index_for(&question) == Some(stem.index())
             })
+            .collect();
+        claimants
+            .iter()
             .find_map(|item| item.pair_at(stem))
+            .or_else(|| claimants.iter().find_map(|item| item.pair_ending(stem)))
     }
 
     fn finding(&self, stem: &Stem, inputs: &RoundInputs) -> Verdict {
@@ -779,7 +798,7 @@ emits.
 - [x] The new unit tests, and the reversed marker-or-tree test, fail before
       each body exists, then pass: `cargo test -p research` (from `cli/`)
 - [x] Guard: the planner's other tests pass unchanged after `stem_at` and
-      `file_claims` replace the inline allocation and claim list
+      `tree_claims` replace the inline allocation and claim list
 - [x] Public API pin matches: `mise run public-api:check`
 - [x] Domain dependency rule holds: `mise run pup:check`
 - [x] Workspace lint and format: `mise run cli:check`
@@ -850,6 +869,13 @@ Every test below asserts `replaced_run` and fails first:
   `A?` and `B?`. After the first `--start`, write `02-b-web.md` valid but
   naming `A?`, and nothing at `01-a-web`. Assert `02-b-web` is `invalid`, its
   absolute path is in `quarantine`, and `01-a-web` is `unwritten`.
+- `a_finding_whose_question_was_reworded_to_the_same_normalised_form_is_kept`:
+  depth 1, `A?`; write a valid `01-a-web.md`, reword the item to full-width
+  `Ａ?`; assert `valid == [left("01-a-web", "Ａ?")]` and `quarantine == []`.
+  This pins the owner fallback under real NFKC.
+- `a_node_under_a_root_marker_naming_another_question_is_unwritten`: depth
+  2, `A?`; after the first `--start`, write `01-a-web.levels/.1.md.invalid`
+  naming `Other?`; assert `unwritten == [left("01-a-web:1", "A?")]`.
 - `a_finding_whose_question_left_the_outline_is_left_in_place`: depth 1,
   `A?`. After the first `--start`, write a valid `01-a-web.md`, then reword
   the outline item to `A2?`. Assert `replaced_run.unasked ==
@@ -1109,7 +1135,8 @@ report.
   offered-path bullet still says "an existing `path`".
 - `test_a_failed_quarantine_lists_what_is_left_and_stops_conduct`: the
   report instruction contains "attempt every rename", "each path still not
-  renamed" and "stop `conduct`".
+  renamed", "is not quarantined, whatever the report marks" and "stop
+  `conduct`".
 
 #### 2. Plan with the listed findings quarantined
 
@@ -1186,7 +1213,8 @@ after read `inputs`.
   beside it, under the unique-suffix rule; the plan already reads them as
   quarantined. If any rename fails, report each failure verbatim, then each
   path still not renamed with the `.<name>.invalid` name to give it by hand
-  before re-running `conduct`, and stop `conduct`.
+  before re-running `conduct`; each such path is not quarantined, whatever
+  the report marks. Then stop `conduct`.
 - Fields read (`:269-291`): add `replaced_run` and its six fields, and each
   entry's `spawn`, `question` and `profile`; add its refs and questions to
   the opaque-data sentence (`:292-295`). The trims sentence's "ignore the
