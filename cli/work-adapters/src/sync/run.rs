@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -105,6 +106,7 @@ pub enum RunMode {
 
 pub struct SyncPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
     pub status: &'a dyn WorkingCopyStatus,
     pub writer: &'a dyn AtomicWrite,
     pub clock: &'a dyn RunClock,
@@ -653,17 +655,15 @@ fn validate_pushes(
     items: &[LocalItem],
     tracker: &dyn RemoteTracker,
     facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
 ) -> Vec<ReportedItem> {
-    let comparison = BodyComparison::new(tracker);
     plan.actions
         .iter()
         .map(|planned| {
             let checked = planned
                 .action
                 .sends_to_tracker()
-                .then(|| {
-                    check_send(planned, items, tracker, facts, &comparison)
-                })
+                .then(|| check_send(planned, items, tracker, facts, comparison))
                 .flatten();
             match checked {
                 Some(Err(refused)) => ReportedItem {
@@ -1250,7 +1250,7 @@ fn prepare_run<'a>(
         &plan,
         &index,
         &facts,
-        &BodyComparison::new(ports.tracker),
+        &BodyComparison::new(ports.tracker, ports.parser),
     );
 
     Ok(PreparedRun {
@@ -1327,9 +1327,15 @@ fn execute<'a>(
         dossiers,
     } = prepare_run(ports, baseline, request, facts, settled)?;
 
+    let comparison = BodyComparison::new(ports.tracker, ports.parser);
     if matches!(request.mode, RunMode::Preview) {
-        let mut reported =
-            validate_pushes(&plan, request.reconciled(), ports.tracker, &facts);
+        let mut reported = validate_pushes(
+            &plan,
+            request.reconciled(),
+            ports.tracker,
+            &facts,
+            &comparison,
+        );
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),
@@ -1365,11 +1371,11 @@ fn execute<'a>(
     let carries = |candidate: &ExternalId| {
         corpus_carries(request.corpus, settled, candidate)
     };
-    let comparison = BodyComparison::new(ports.tracker);
 
     {
         let mut applier = ItemApplier::new(
             ports.tracker,
+            ports.parser,
             ports.writer,
             baseline,
             run_start_epoch,

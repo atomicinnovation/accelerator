@@ -18,4 +18,5 @@ pub mod run;
 pub mod scope;
 pub mod send_refusal;
 pub mod settled_run;
+pub mod synced_fields;
 pub mod working_copy_status;

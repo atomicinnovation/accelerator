@@ -1,21 +1,63 @@
 //! The body rules sync and promotion apply, over the tracker's dialect.
 
+use corpus::body::BodyParser;
 use remote_projection::split_projected;
 use serde_json::Value;
 use tracker::BodyDialect;
 use tracker::Unrenderable;
 use work::sync::PullResidue;
 
+use crate::sync::digest;
+
 /// The single owner of how a tracker's projected body relates to a local
 /// work item's body.
 pub struct BodyComparison<'a> {
     dialect: &'a dyn BodyDialect,
+    parser: &'a dyn BodyParser,
 }
 
 impl<'a> BodyComparison<'a> {
     #[must_use]
-    pub fn new(dialect: &'a dyn BodyDialect) -> Self {
-        Self { dialect }
+    pub fn new(
+        dialect: &'a dyn BodyDialect,
+        parser: &'a dyn BodyParser,
+    ) -> Self {
+        Self { dialect, parser }
+    }
+
+    /// The recipe-1 digest of a local body, taken over the body the tracker
+    /// would store were it pushed.
+    #[must_use]
+    pub fn local_body_hash(&self, body: &str) -> String {
+        self.canonical_hash(&self.dialect.as_pushed(body))
+    }
+
+    /// The recipe-1 digest of a projected remote: its rendered local body,
+    /// or, when it has none, its description tagged as unrenderable.
+    #[must_use]
+    pub fn remote_body_hash(&self, projected: &str) -> String {
+        self.local_body(projected).map_or_else(
+            |_| {
+                digest::sha256_hex(
+                    format!(
+                        "unrenderable:{}",
+                        split_projected(projected).description
+                    )
+                    .as_bytes(),
+                )
+            },
+            |rendered| self.canonical_hash(&rendered),
+        )
+    }
+
+    fn canonical_hash(&self, markdown: &str) -> String {
+        digest::sha256_hex(
+            self.parser
+                .parse(markdown)
+                .canonical()
+                .digest_input()
+                .as_bytes(),
+        )
     }
 
     /// The local body a pull of `projected` writes: the description below
@@ -69,6 +111,7 @@ fn same_document(left: &str, right: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use corpus_adapters::CommonMarkBody;
     use tracker::BodyDialect;
     use tracker::PlainDialect;
     use work::sync::PullResidue;
@@ -100,7 +143,8 @@ mod tests {
         local_body: &str,
         projected: &str,
     ) -> Option<PullResidue> {
-        BodyComparison::new(dialect).pull_residue(local_body, projected)
+        BodyComparison::new(dialect, &CommonMarkBody)
+            .pull_residue(local_body, projected)
     }
 
     #[test]

@@ -2,6 +2,7 @@
 //! key changes and interrupted retirements before the engine plans.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+use corpus_adapters::CommonMarkBody;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -584,6 +585,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
     let author = FileAuthor::default();
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &plain,
         clock: &FixedClock,

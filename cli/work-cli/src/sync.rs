@@ -1,5 +1,6 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
+use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -1532,6 +1533,7 @@ pub fn run_sync(
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
+        parser: &CommonMarkBody,
         status: workspace.status(),
         writer: &corpus_store,
         clock: &clock,

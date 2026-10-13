@@ -3,6 +3,7 @@
 
 use std::path::Path;
 
+use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
 use tracker::ExternalId;
 use tracker::RemoteTimestamp;
@@ -207,6 +208,7 @@ fn io_error(
 /// own lifetime, leaving the baseline unreadable afterwards.
 pub struct ItemApplier<'ctx, 'store> {
     tracker: &'ctx dyn RemoteTracker,
+    parser: &'ctx dyn BodyParser,
     writer: &'ctx dyn AtomicWrite,
     baseline: &'store mut BaselineStore<'ctx>,
     run_start_epoch: u64,
@@ -215,12 +217,14 @@ pub struct ItemApplier<'ctx, 'store> {
 impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
     pub fn new(
         tracker: &'ctx dyn RemoteTracker,
+        parser: &'ctx dyn BodyParser,
         writer: &'ctx dyn AtomicWrite,
         baseline: &'store mut BaselineStore<'ctx>,
         run_start_epoch: u64,
     ) -> Self {
         Self {
             tracker,
+            parser,
             writer,
             baseline,
             run_start_epoch,
@@ -329,7 +333,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 source,
             }
         })?;
-        let body = BodyComparison::new(self.tracker)
+        let body = BodyComparison::new(self.tracker, self.parser)
             .local_body(&issue.body)
             .map_err(|cause| ApplyError::RemoteUnrenderable {
                 item_id: external_id.as_str().to_owned(),

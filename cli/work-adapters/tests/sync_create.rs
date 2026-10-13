@@ -3,6 +3,7 @@
 //! (create-from-local), with the combined gate and the pending-push recovery.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -227,6 +228,7 @@ fn run_sync(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -271,6 +273,7 @@ fn run_sync_targeted(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -317,6 +320,7 @@ fn run_sync_targeted_pull(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: ports.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: ports.spy,
         clock: &clock,
@@ -362,6 +366,7 @@ fn run_at(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &fixture.spy,
         clock: &clock,
@@ -1611,6 +1616,7 @@ fn a_pull_whose_baseline_write_fails_recovers_on_re_run(
         let failing = FailingWrite;
         let sync_ports = SyncPorts {
             tracker: &tracker,
+            parser: &CommonMarkBody,
             status: &status,
             writer: &failing,
             clock: &clock,
@@ -1829,6 +1835,7 @@ fn create_from_local_writes_the_marker_before_the_create(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker: &tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &real,
         clock: &clock,
@@ -2087,6 +2094,7 @@ fn run_create_from_local_on_disk(
     let status = AlwaysClean;
     let sync_ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &real,
         clock: &clock,

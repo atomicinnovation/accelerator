@@ -48,6 +48,7 @@ pub fn send_refusal(
 
 #[cfg(test)]
 mod tests {
+    use corpus_adapters::CommonMarkBody;
     use tracker::BodyDialect;
     use tracker::PlainDialect;
     use tracker::Unrenderable;
@@ -88,7 +89,7 @@ mod tests {
         remote: Option<&str>,
     ) -> Option<SendRefusal> {
         send_refusal(
-            &BodyComparison::new(&PanelRefusingDialect),
+            &BodyComparison::new(&PanelRefusingDialect, &CommonMarkBody),
             action,
             local_body,
             remote,
@@ -125,7 +126,7 @@ mod tests {
     fn a_linear_overwrite_of_a_body_equal_to_the_remote_is_not_refused() {
         assert_eq!(
             send_refusal(
-                &BodyComparison::new(&PlainDialect),
+                &BodyComparison::new(&PlainDialect, &CommonMarkBody),
                 Action::Overwrite,
                 "Remote body\n",
                 Some(RENDERABLE),

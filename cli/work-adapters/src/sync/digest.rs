@@ -1,7 +1,8 @@
-//! The two digest recipes the sync baseline stores.
+//! The hash functions behind both digest recipes the sync baseline stores.
 
 use sha2::Digest as _;
 use sha2::Sha256;
+use work::sync::SyncedTrackerFields;
 
 /// Recognises `^---[[:space:]]*$`, deliberately not `document::fence::split`:
 /// `document` compares the exact bytes `---` and caps its scan at 1 MiB, so
@@ -49,7 +50,7 @@ pub fn split_frontmatter_and_body(
 }
 
 #[must_use]
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
 
     let digest = Sha256::digest(bytes);
@@ -91,6 +92,25 @@ pub fn local(file_content: &str) -> Result<String, kernel::Error> {
 pub fn remote_body(projected_body: &str) -> String {
     let trimmed = work::normalise::trim_lines(projected_body);
     sha256_hex(trimmed.as_bytes())
+}
+
+/// The recipe-1 frontmatter digest: `filter_frontmatter_keys` over the
+/// frontmatter alone, so a provenance restamp moves nothing.
+///
+/// # Errors
+///
+/// As [`local`].
+pub fn frontmatter(file_content: &str) -> Result<String, kernel::Error> {
+    let (frontmatter, _) = split_frontmatter_and_body(file_content)?;
+    let filtered = work::normalise::filter_frontmatter_keys(&frontmatter);
+    Ok(sha256_hex(filtered.as_bytes()))
+}
+
+/// The recipe-1 digest of the tracker fields sync owns, the same for
+/// either side's reading of them.
+#[must_use]
+pub fn fields(fields: &SyncedTrackerFields) -> String {
+    sha256_hex(fields.digest_input().as_bytes())
 }
 
 /// A `work::sync::ItemDigests` backed by a file on disk, memoising each
@@ -172,8 +192,16 @@ impl work::sync::ItemDigests for LazyItemDigests<'_> {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use corpus_adapters::CommonMarkBody;
+    use tracker::PlainDialect;
+
+    use super::fields;
+    use super::frontmatter;
     use super::local;
     use super::remote_body;
+    use crate::sync::body_comparison::BodyComparison;
+    use crate::sync::synced_fields::local_fields;
+    use crate::sync::synced_fields::remote_fields;
 
     #[test]
     fn local_hashes_the_composed_frontmatter_and_body() {
@@ -206,6 +234,67 @@ mod tests {
     #[test]
     fn local_errors_on_empty_content() {
         assert!(local("").is_err());
+    }
+
+    #[test]
+    fn the_frontmatter_hash_ignores_provenance_keys(
+    ) -> Result<(), kernel::Error> {
+        let baseline = "---\nstatus: ready\n---\n\nBody text\n";
+        let restamped = "---\nstatus: ready\nlast_updated: \"2026-01-01\"\n\
+                         ---\n\nOther body\n";
+        assert_eq!(frontmatter(baseline)?, frontmatter(restamped)?);
+        assert_ne!(
+            frontmatter(baseline)?,
+            frontmatter("---\nstatus: done\n---\n\nBody text\n")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn the_remote_fields_hash_digests_the_synced_fields_in_key_order() {
+        let projected = "Add search\nBody\n";
+        assert_eq!(
+            fields(&remote_fields(projected)),
+            super::sha256_hex(b"title=10:Add search\n")
+        );
+    }
+
+    #[test]
+    fn local_and_remote_fields_with_the_same_title_hash_equal(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let content =
+            "---\ntitle: \"Add search\"\nstatus: ready\n---\n\nBody\n";
+        assert_eq!(
+            fields(&local_fields(content)?),
+            fields(&remote_fields("Add search\nOther body\n"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_local_status_edit_leaves_the_local_fields_hash_unchanged(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ready = "---\ntitle: Add search\nstatus: ready\n---\n\nBody\n";
+        let done = "---\ntitle: Add search\nstatus: done\n---\n\nBody\n";
+        assert_eq!(fields(&local_fields(ready)?), fields(&local_fields(done)?));
+        assert_ne!(frontmatter(ready)?, frontmatter(done)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_remote_title_change_alone_changes_only_the_remote_fields_hash() {
+        let comparison = BodyComparison::new(&PlainDialect, &CommonMarkBody);
+        let before = "Add search\n# Heading\n";
+        let retitled = "Add search everywhere\n# Heading\n";
+
+        assert_eq!(
+            comparison.remote_body_hash(before),
+            comparison.remote_body_hash(retitled)
+        );
+        assert_ne!(
+            fields(&remote_fields(before)),
+            fields(&remote_fields(retitled))
+        );
     }
 
     #[test]

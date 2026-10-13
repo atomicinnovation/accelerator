@@ -8,6 +8,7 @@
 
 mod support;
 
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -295,6 +296,7 @@ fn execute(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -334,6 +336,7 @@ fn execute_ceilings(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -372,6 +375,7 @@ fn execute_targeted(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -436,6 +440,7 @@ fn run_with<'a>(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: spy,
         clock: &clock,
@@ -1372,6 +1377,7 @@ fn execute_resolving_in(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status,
         writer: &scenario.spy,
         clock: &clock,
@@ -1817,6 +1823,7 @@ fn a_dirty_remotely_modified_item_is_not_pulled_and_its_file_is_untouched(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &spy,
         clock: &clock,
@@ -1866,6 +1873,7 @@ fn execute_with_scope(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,
@@ -2151,6 +2159,7 @@ fn execute_with_scope_bounded(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker: &scenario.tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: &scenario.spy,
         clock: &clock,

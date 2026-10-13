@@ -15,10 +15,13 @@ use work::sync::SplitFingerprints;
 
 /// The digest recipe a baseline entry was recorded under. An entry with no
 /// `digest_recipe` key is the legacy recipe.
-struct DigestRecipe;
+pub struct DigestRecipe;
 
 impl DigestRecipe {
-    const CURRENT: u64 = 1;
+    /// Bumped by any change that moves a recorded digest: the canonical
+    /// body form, the tracker's pushed-body round trip, the synced field
+    /// set, or the Markdown parser's output.
+    pub const CURRENT: u64 = 1;
     const KEY: &'static str = "digest_recipe";
 }
 

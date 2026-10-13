@@ -8,6 +8,7 @@
 //! constructors with a loopback base, the admission `from_config` refuses.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -264,6 +265,7 @@ fn execute(
     let author = UnusedAuthor;
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: spy,
         clock: &clock,
@@ -1323,6 +1325,7 @@ fn execute_targeted_pulling(
     let status = AlwaysClean;
     let ports = SyncPorts {
         tracker,
+        parser: &CommonMarkBody,
         status: &status,
         writer: spy,
         clock: &clock,
