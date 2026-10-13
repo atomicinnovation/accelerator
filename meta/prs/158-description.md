@@ -12,9 +12,9 @@ relates_to: ["work-item:0330", "work-item:0331", "work-item:0310", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/158"
 pr_number: 158
 tags: ["research", "research-topic", "conduct", "concurrency"]
-revision: "bd078d35facd3670e3d97e6bd0ee0ac7a774e9c5"
+revision: "c95b608640725722c72ca911460807620821cfef"
 repository: "accelerator"
-last_updated: "2026-10-12T02:54:28+00:00"
+last_updated: "2026-10-13T08:58:52+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -34,31 +34,38 @@ which clamps the value to the harness's subagent cap. It also teaches
 
 - **Default of 20.** The `research.topic.concurrency` default drops from 24
   to 20 in the config catalogue, the dump golden and the configure skill's
-  table. A test ties the default to `SubagentCap::HARNESS_DEFAULT`, so if
-  the harness cap changes, someone has to decide the default again.
+  table. A test ties the default to `HARNESS_DEFAULT` in
+  `research-cli/src/subagent_cap.rs`, so if the harness cap changes, someone
+  has to decide the default again.
 - **Domain model** (`cli/research/src/conduct/concurrency.rs`):
-  - `SubagentCap` parses a cap setting exactly as Claude Code's JavaScript
-    parser does: `String.prototype.trim` whitespace, an optional sign, ASCII
-    digits, and a value of at least 1.
-  - `RequestedConcurrency::resolve` validates the requested value under
-    0282's positive-integer rule, then clamps it to the cap. The warning it
-    raises records whether the value came from a flag or a config file. The
-    built-in default clamps without a warning.
+  - `SubagentCap` holds the cap's slots; reading a setting is the CLI's job.
+  - `RequestedConcurrency` is a value `Given` by the flag or a config file,
+    which `Provenance` names (`Flag`, or `ConfigFile(Team | Personal)`), or
+    the `BuiltInDefault`. `resolve` validates a given value under 0282's
+    positive-integer rule, then clamps it to the cap; the built-in default
+    clamps without a warning.
   - `Concurrency` can be built only through resolution, so the spawn window
     can no longer be called without a bound.
 - **`outstanding` resolves concurrency.**
   - ⚠️ `--limit` is renamed `--concurrency`. When the flag is absent,
     `outstanding` falls back to `research.topic.concurrency`.
-  - Every plan reports the resolved value as `concurrency`, plain queries
-    included.
+  - Every plan reports the resolved value as `concurrency`, and the cap as
+    `subagent_cap` (`slots`, and the variable's name or `default` as
+    `source`), plain queries included.
   - Clamp and invalid-value warnings are raised on `--start` only, ahead of
-    the replaced-ledger notice.
+    the replaced-ledger notice. Each names the flag or the config file that
+    set the value; a clamp also names where the cap came from and how to
+    raise it.
   - An empty value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY`, and no
     ledger is written.
 - **The cap comes from the environment.**
   - `research-cli/src/subagent_cap.rs` reads `ACCELERATOR_SUBAGENT_CAP`,
     then `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20.
-  - A value the harness would ignore falls through to the next variable.
+  - `subagent_cap.rs` parses each setting exactly as Claude Code's
+    JavaScript parser does: `String.prototype.trim` whitespace, an optional
+    sign, ASCII digits, and a value of at least 1.
+  - A value the harness would ignore falls through to the next variable. A
+    set `ACCELERATOR_SUBAGENT_CAP` that falls through warns on `--start`.
   - An earlier design passed the cap as `--subagent-cap "$CLAUDE_…"`, but
     Claude Code blocks auto-approval of any Bash command that expands a
     shell variable, so the CLI now reads the cap itself.
@@ -78,7 +85,8 @@ which clamps the value to the harness's subagent cap. It also teaches
     failure reason and remedy row.
 - **Docs and changelog.** The configure skill, `docs-site/.../research.md`
   and the unreleased `CHANGELOG.md` entries describe the cap, its
-  precedence, the clamp and the retry rounds.
+  precedence and the clamp. The skill and the CHANGELOG describe the retry
+  rounds; the docs-site page covers only the CLI.
 - **Process.** The repository's `implement-plan` instructions now ask for
   small, focused commits.
 
@@ -98,14 +106,15 @@ which clamps the value to the harness's subagent cap. It also teaches
 
 - [x] `mise run` exits 0 end to end, docs lane included (374s on the
       validation run)
-- [x] Domain tests over every cap-parser case: whitespace, U+FEFF, U+0085,
-      signs, non-ASCII digits, zero-padding and `u32` overflow
+- [x] Unit tests in `subagent_cap.rs` over every cap-parser case:
+      whitespace, U+FEFF, U+0085, signs, non-ASCII digits, zero-padding and
+      `u32` overflow
 - [x] Integration tests over the `outstanding` binary. Both cap variables
       are cleared on every call; the tests cover team and personal config,
       exact `warnings` and stderr, offered spawns and `remaining` under each
       clamp, `--start`-only warnings and the empty-value exit
 - [x] Coupling-guard tests: admission by name and file, a banned name on the
-      same line, the pinned admitted set, and a missing reader
+      same line, the pinned admitted set, and every admitted file missing
 - [x] Structural tests over the skill: flag pass-through, no shell variable
       in any plan, the retry-round wording, the reason row, and knob-rule
       wording kept in step with the CLI
@@ -130,7 +139,8 @@ which clamps the value to the harness's subagent cap. It also teaches
 - ⚠️ The clamp applies on every harness version and mode, including Claude
   Code before 2.1.217 and ultracode sessions, which enforce no cap. A
   project that configured more than 20 gets a clamp warning until it
-  raises `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`.
+  raises `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, or, on a harness with no
+  cap, sets `ACCELERATOR_SUBAGENT_CAP`.
 - The retry recognises the harness's refusal by meaning, with "Concurrent
   subagent limit reached" as today's text. After a harness upgrade,
   recheck that text and the cap parser.
