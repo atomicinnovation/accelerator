@@ -8,6 +8,29 @@ To load the plugin from a local checkout:
 claude --plugin-dir /path/to/accelerator
 ```
 
+That loads the checkout's skills, but every `accelerator` command still
+downloads and runs the released, verified binaries. To run your local
+builds instead, build them, mark the checkout as a dev launcher, and name
+each sub-binary you changed:
+
+```bash
+A=/path/to/accelerator
+(cd "$A/cli" && cargo build --workspace --exclude accelerator-visualiser)
+touch "$A/.accelerator-dev-launcher"
+cd /path/to/project-under-test
+ACCELERATOR_ALLOW_UNVERIFIED_LAUNCHER=1 \
+ACCELERATOR_LAUNCHER_BIN="$A/cli/target/debug/accelerator" \
+ACCELERATOR_RESEARCH_BIN="$A/cli/target/debug/accelerator-research" \
+claude --plugin-dir "$A"
+```
+
+The marker and the first two variables swap in your launcher only; a dev
+launcher still fetches each sub-binary for its own version. Each
+`ACCELERATOR_<SUB>_BIN` (the subcommand upper-cased, `-` as `_`) points one
+subcommand at its local build, so set one per sub-binary you changed, such
+as `ACCELERATOR_CORPUS_BIN` or `ACCELERATOR_VCS_BIN`. Every unverified launch
+is logged to `bin/.accelerator-unverified.log`.
+
 ## Linting, formatting, and type-checking
 
 Enforcement is **CI-only** — there are no pre-commit hooks. So before you push:
