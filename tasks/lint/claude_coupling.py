@@ -65,22 +65,29 @@ def _in_scope(root: Path) -> list[Path]:
             if not rel.endswith(_SKIP_SUFFIXES)
         )
     paths.extend(_named_file(root, rel) for rel in _FILES)
-    for files in _OPTIONAL_HARNESS_VARIABLES.values():
-        for rel in files:
-            _named_file(root, rel)
+    _require_admitted_files(root)
     return paths
 
 
 def _named_file(root: Path, rel: str) -> Path:
-    path = root / rel
-    if not path.is_file():
+    _require_file(root, rel)
+    return root / rel
+
+
+def _require_admitted_files(root: Path) -> None:
+    for files in _OPTIONAL_HARNESS_VARIABLES.values():
+        for rel in files:
+            _require_file(root, rel)
+
+
+def _require_file(root: Path, rel: str) -> None:
+    if not (root / rel).is_file():
         raise Exit(
             f"{rel} is named in tasks/lint/claude_coupling.py but is not "
             f"a file under {root} — it was renamed, moved or split, and "
             f"has silently dropped out of the guard's scope",
             code=1,
         )
-    return path
 
 
 def _admitted(name: str, rel: str) -> bool:
