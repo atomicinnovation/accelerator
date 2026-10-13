@@ -8,6 +8,7 @@ use serde_json::Map;
 use serde_json::Value;
 use tracker::RemoteTimestamp;
 use work::sync::BaselineFingerprints;
+use work::sync::DualRecipeFingerprints;
 use work::sync::LegacyHashes;
 use work::sync::LocalFingerprints;
 use work::sync::RemoteFingerprints;
@@ -80,6 +81,19 @@ impl Entry {
                 local: recorded(local_hash),
                 remote: recorded(remote_hash),
             },
+        }
+    }
+
+    /// A recipe-1 entry recording both recipes' fingerprints.
+    #[must_use]
+    pub fn recorded(
+        stamps: SyncStamps,
+        fingerprints: DualRecipeFingerprints,
+    ) -> Self {
+        Self::Split {
+            stamps,
+            legacy: fingerprints.legacy,
+            split: fingerprints.split,
         }
     }
 

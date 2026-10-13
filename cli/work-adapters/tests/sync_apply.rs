@@ -5,6 +5,8 @@
 //! read back what the first wrote.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::unimplemented)]
 
+mod support;
+
 use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -16,6 +18,7 @@ use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
 use tracker::ExternalId;
 use tracker::FetchOutcome;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
@@ -25,6 +28,8 @@ use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
 use work_adapters::sync::baseline_store::BaselineStore;
+
+use crate::support::assert_recipe_one_entry;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -264,16 +269,12 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
         entry.stamps().unwrap().remote_updated_at,
         RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned())
     );
-    assert!(!entry
-        .legacy()
-        .and_then(|hashes| hashes.remote.clone())
-        .unwrap_or_default()
-        .is_empty());
-    assert!(!entry
-        .legacy()
-        .and_then(|hashes| hashes.local.clone())
-        .unwrap_or_default()
-        .is_empty());
+    assert_recipe_one_entry(
+        Some(entry),
+        &PlainDialect,
+        item_content(),
+        Some("Title\nProjected body\n"),
+    );
     Ok(())
 }
 
@@ -388,18 +389,7 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
         entry.stamps().unwrap().remote_updated_at,
         RemoteTimestamp::NotRead
     );
-    assert_eq!(
-        entry
-            .legacy()
-            .and_then(|hashes| hashes.remote.clone())
-            .unwrap_or_default(),
-        ""
-    );
-    assert!(!entry
-        .legacy()
-        .and_then(|hashes| hashes.local.clone())
-        .unwrap_or_default()
-        .is_empty());
+    assert_recipe_one_entry(Some(entry), &PlainDialect, item_content(), None);
     Ok(())
 }
 
@@ -482,23 +472,11 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
     }
 
     let (baseline, _) = store.load()?;
-    let entry = baseline.get("0001").expect("entry recorded");
-    let expected_local = work_adapters::sync::digest::local(item_content())?;
-    let expected_remote =
-        work_adapters::sync::digest::remote_body("Title\nNew projected body\n");
-    assert_eq!(
-        entry
-            .legacy()
-            .and_then(|hashes| hashes.local.clone())
-            .unwrap_or_default(),
-        expected_local
-    );
-    assert_eq!(
-        entry
-            .legacy()
-            .and_then(|hashes| hashes.remote.clone())
-            .unwrap_or_default(),
-        expected_remote
+    assert_recipe_one_entry(
+        baseline.get("0001"),
+        &PlainDialect,
+        item_content(),
+        Some("Title\nNew projected body\n"),
     );
     Ok(())
 }

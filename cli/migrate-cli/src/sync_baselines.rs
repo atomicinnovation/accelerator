@@ -4,16 +4,27 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
+use corpus_adapters::CommonMarkBody;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::RealFs;
+use jira_client::JiraBodyDialect;
 use migrate::ports::MigrationError;
 use migrate::ports::SyncBaselines;
+use tracker::BodyDialect;
+use tracker::PlainDialect;
 use work_adapters::sync::realign::realign_baselines;
 
 pub struct WorkSyncBaselines;
 
 fn store_rooted_at(dir: &Path) -> Box<dyn AtomicWrite> {
     Box::new(FileCorpusStore::new(dir))
+}
+
+fn body_rules(integration: &str) -> &'static dyn BodyDialect {
+    match integration {
+        "jira" => &JiraBodyDialect,
+        _ => &PlainDialect,
+    }
 }
 
 impl SyncBaselines for WorkSyncBaselines {
@@ -27,6 +38,8 @@ impl SyncBaselines for WorkSyncBaselines {
             pre_migration,
             &RealFs,
             &store_rooted_at,
+            &body_rules,
+            &CommonMarkBody,
         )
         .map_err(|error| MigrationError::new(error.to_string()))
     }

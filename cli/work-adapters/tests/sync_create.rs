@@ -3,11 +3,16 @@
 //! (create-from-local), with the combined gate and the pending-push recovery.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
+use crate::support::assert_recipe_one_entry;
 use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use tracker::PlainDialect;
+use work_adapters::sync::baseline::Baseline;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
@@ -189,6 +194,10 @@ impl Fixture {
     }
 
     /// A local draft with no `external_id`, so it classifies `Unsynced`.
+    fn baseline(&self) -> Baseline {
+        Baseline::read(self.spy.content(BASELINE_PATH).as_deref()).0
+    }
+
     fn unsynced_item(
         &self,
         id: &str,
@@ -800,6 +809,13 @@ fn the_happy_path_authors_exactly_one_file_per_untracked_issue(
         .find(|item| item.planned.action == Action::CreateFromRemote)
         .expect("one create-from-remote row");
     assert!(matches!(create.outcome, ItemOutcome::Applied));
+    let authored = std::fs::read_to_string(fixture.dir.path().join("9000.md"))?;
+    assert_recipe_one_entry(
+        fixture.baseline().get("9000"),
+        &PlainDialect,
+        &authored,
+        Some("Seven\nremote body"),
+    );
     Ok(())
 }
 
@@ -1731,6 +1747,12 @@ fn an_unsynced_item_issues_exactly_one_create_and_links_it(
         item.planned.action == Action::CreateFromLocal
             && matches!(item.outcome, ItemOutcome::Applied)
     }));
+    assert_recipe_one_entry(
+        fixture.baseline().get("0001"),
+        &PlainDialect,
+        &std::fs::read_to_string(&item.path)?,
+        Some("Draft one\n\nBody"),
+    );
     Ok(())
 }
 

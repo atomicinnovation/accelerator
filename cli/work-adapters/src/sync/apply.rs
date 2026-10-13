@@ -6,6 +6,7 @@ use std::path::Path;
 use corpus::body::BodyParser;
 use corpus::store::AtomicWrite;
 use tracker::ExternalId;
+use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
@@ -18,11 +19,12 @@ use work::sync::RefusalReason;
 use work::sync::RequestFingerprint;
 
 use crate::sync::baseline::Entry;
+use crate::sync::baseline::SyncStamps;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
-use crate::sync::digest;
 use crate::sync::pending_push;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -174,20 +176,6 @@ pub struct PullRequest<'a> {
     pub remote_updated: RemoteTimestamp,
 }
 
-fn legacy_entry(
-    remote_updated_at: RemoteTimestamp,
-    remote_hash: String,
-    local_hash: String,
-    local_synced_at: u64,
-) -> Entry {
-    Entry::persisted_legacy(
-        remote_updated_at,
-        remote_hash,
-        local_hash,
-        local_synced_at,
-    )
-}
-
 fn io_error(
     id: &str,
     operation: &'static str,
@@ -252,28 +240,10 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 source,
             })?;
 
-        let (remote_updated, remote_hash) =
-            match self.tracker.show(request.external_id) {
-                Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
-                Err(_) => (RemoteTimestamp::NotRead, String::new()),
-            };
-
+        let remote = self.tracker.show(request.external_id).ok();
         let local_content = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(request.id, "hash-local", error))?;
-
-        self.baseline
-            .set(
-                request.id,
-                legacy_entry(
-                    remote_updated,
-                    remote_hash,
-                    local_hash,
-                    self.run_start_epoch,
-                ),
-            )
-            .map_err(|error| io_error(request.id, "baseline-set", error))
+        self.record(request.id, &local_content, remote.as_ref())
     }
 
     /// Both baseline hashes come from what was actually written. Deriving
@@ -291,18 +261,19 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
             .write(request.file_path, request.content.as_bytes())
             .map_err(|error| io_error(request.id, "write-local", error))?;
 
-        let local_hash = digest::local(request.content)
+        let fingerprints = self
+            .digester()
+            .digests(request.content, Some(request.projected_body))
             .map_err(|error| io_error(request.id, "hash-local", error))?;
-        let remote_hash = digest::remote_body(request.projected_body);
-
         self.baseline
             .set(
                 request.id,
-                legacy_entry(
-                    request.remote_updated.clone(),
-                    remote_hash,
-                    local_hash,
-                    self.run_start_epoch,
+                Entry::recorded(
+                    SyncStamps {
+                        remote_updated_at: request.remote_updated.clone(),
+                        local_synced_at: self.run_start_epoch,
+                    },
+                    fingerprints,
                 ),
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
@@ -355,21 +326,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
 
         let local_content = std::fs::read_to_string(&authored.path)
             .map_err(|error| io_error(&authored.id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(&authored.id, "hash-local", error))?;
-        let remote_hash = digest::remote_body(&issue.body);
-
-        self.baseline
-            .set(
-                &authored.id,
-                legacy_entry(
-                    issue.updated,
-                    remote_hash,
-                    local_hash,
-                    self.run_start_epoch,
-                ),
-            )
-            .map_err(|error| io_error(&authored.id, "baseline-set", error))?;
+        self.record(&authored.id, &local_content, Some(&issue))?;
         Ok(authored.id)
     }
 
@@ -532,31 +489,41 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
                 io_error(request.item_id, "link-external-id", error)
             })?;
 
-        let (remote_updated, remote_hash) = match self.tracker.show(external_id)
-        {
-            Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
-            Err(_) => (RemoteTimestamp::NotRead, String::new()),
-        };
+        let remote = self.tracker.show(external_id).ok();
         let local_content = std::fs::read_to_string(request.file_path)
             .map_err(|error| io_error(request.item_id, "read-local", error))?;
-        let local_hash = digest::local(&local_content)
-            .map_err(|error| io_error(request.item_id, "hash-local", error))?;
-
-        self.baseline
-            .set(
-                request.item_id,
-                legacy_entry(
-                    remote_updated,
-                    remote_hash,
-                    local_hash,
-                    self.run_start_epoch,
-                ),
-            )
-            .map_err(|error| {
-                io_error(request.item_id, "baseline-set", error)
-            })?;
+        self.record(request.item_id, &local_content, remote.as_ref())?;
         std::fs::remove_file(request.marker_path).ok();
         Ok(())
+    }
+
+    fn digester(&self) -> BaselineDigester<'ctx> {
+        BaselineDigester::new(self.tracker, self.parser)
+    }
+
+    /// Records `id`'s entry from what was just written locally and read
+    /// back remotely; an unread remote records no remote fingerprints, so
+    /// the next run reads that side as changed.
+    fn record(
+        &self,
+        id: &str,
+        local_content: &str,
+        remote: Option<&RemoteIssue>,
+    ) -> Result<(), ApplyError> {
+        let fingerprints = self
+            .digester()
+            .digests(local_content, remote.map(|issue| issue.body.as_str()))
+            .map_err(|error| io_error(id, "hash-local", error))?;
+        let stamps = SyncStamps {
+            remote_updated_at: remote
+                .map_or(RemoteTimestamp::NotRead, |issue| {
+                    issue.updated.clone()
+                }),
+            local_synced_at: self.run_start_epoch,
+        };
+        self.baseline
+            .set(id, Entry::recorded(stamps, fingerprints))
+            .map_err(|error| io_error(id, "baseline-set", error))
     }
 
     /// Advances the baseline's global timestamp, blanking nothing: the run

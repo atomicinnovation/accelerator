@@ -9,6 +9,7 @@ use ::config::ConfigAccess;
 use corpus::lock::ExclusiveLock as _;
 use corpus::lock::LockName;
 use corpus::AtomicWrite;
+use corpus_adapters::CommonMarkBody;
 use corpus_adapters::FileCorpusStore;
 use corpus_adapters::LockdirLock;
 use corpus_adapters::RealFs;
@@ -28,8 +29,8 @@ use work::update::ListMutation;
 use work::update::UpdateError;
 use work::update::LIST_FIELDS;
 use work_adapters::sync::baseline;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
-use work_adapters::sync::digest;
 
 use crate::cli::UpdateArgs;
 use crate::config::effective_nonempty;
@@ -237,25 +238,23 @@ fn push_update(
     AtomicWrite::write(&store, path, rendered.as_bytes())
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
-    let (remote_updated, remote_hash) = match tracker.show(&external_id) {
-        Ok(issue) => (issue.updated, Some(digest::remote_body(&issue.body))),
-        Err(_) => (tracker::RemoteTimestamp::NotRead, None),
-    };
-    let local_hash = digest::local(rendered)
+    let remote = tracker.show(&external_id).ok();
+    let fingerprints = BaselineDigester::new(tracker.as_ref(), &CommonMarkBody)
+        .digests(rendered, remote.as_ref().map(|issue| issue.body.as_str()))
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     baseline_store
         .set(
             &id,
-            work_adapters::sync::baseline::Entry::Legacy {
-                stamps: work_adapters::sync::baseline::SyncStamps {
-                    remote_updated_at: remote_updated,
+            baseline::Entry::recorded(
+                baseline::SyncStamps {
+                    remote_updated_at: remote
+                        .map_or(tracker::RemoteTimestamp::NotRead, |issue| {
+                            issue.updated
+                        }),
                     local_synced_at: 0,
                 },
-                legacy: work::sync::LegacyHashes {
-                    local: Some(local_hash),
-                    remote: remote_hash,
-                },
-            },
+                fingerprints,
+            ),
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
@@ -422,8 +421,10 @@ mod tests {
     use ::config::Resolved;
     use ::config::Scalar as ConfigScalar;
     use ::config::Value as ConfigValue;
+    use tracker::PlainDialect;
     use tracker::RemoteTracker;
     use tracker_test_support::RecordingTracker;
+    use work_adapters::sync::digest;
 
     use super::*;
 
@@ -523,6 +524,74 @@ mod tests {
             seeded,
             "an unconfigured push sent nothing, so the baseline stands"
         );
+    }
+
+    #[test]
+    fn a_pushed_update_records_a_recipe_one_entry() {
+        let root = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(root.path().join(".jj")).expect("anchor root");
+        let item = root.path().join("0001.md");
+        std::fs::write(
+            &item,
+            "---\nid: \"0001\"\ntitle: \"Title\"\nexternal_id: \"ENG-1\"\n\
+             ---\n\nBody\n",
+        )
+        .expect("seed the item");
+        std::fs::create_dir_all(root.path().join("integrations/linear"))
+            .expect("baseline dir");
+        let config = FakeConfig(
+            [
+                ("work.integration", "linear"),
+                ("paths.integrations", "integrations"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.to_owned()))
+            .collect(),
+        );
+        let external_id = tracker::ExternalId::new("ENG-1".to_owned());
+        let registry = FixedRegistry(RefCell::new(Some(Box::new(
+            RecordingTracker::holding(vec![(
+                external_id.clone(),
+                tracker::RemoteIssue {
+                    key: external_id,
+                    updated: tracker::RemoteTimestamp::NotReported,
+                    body: "Title\nOld body\n".to_owned(),
+                },
+            )]),
+        ))));
+        let args = UpdateArgs {
+            path: item.clone(),
+            sets: Vec::new(),
+            add_tags: Vec::new(),
+            remove_tags: Vec::new(),
+            appends: Vec::new(),
+            removes: Vec::new(),
+            push: true,
+        };
+
+        let outcome = run(root.path(), &config, &args, &registry);
+
+        assert!(matches!(outcome, RunOutcome::Updated), "the push succeeds");
+        let written = std::fs::read_to_string(&item).expect("item");
+        let (_, pushed_body) =
+            digest::split_frontmatter_and_body(&written).expect("body");
+        let expected = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+            .digests(&written, Some(&format!("Title\n{pushed_body}")))
+            .expect("digests");
+        let (baseline, _) = baseline::Baseline::read(
+            std::fs::read_to_string(
+                root.path().join("integrations/linear/last-sync.json"),
+            )
+            .ok()
+            .as_deref(),
+        );
+        let Some(baseline::Entry::Split { legacy, split, .. }) =
+            baseline.get("0001")
+        else {
+            panic!("a recipe-1 entry is recorded");
+        };
+        assert_eq!(split, &expected.split);
+        assert_eq!(legacy, &expected.legacy);
     }
 
     #[test]
