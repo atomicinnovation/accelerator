@@ -57,7 +57,7 @@ impl Project {
         slug: &str,
         profiles_dir: &Path,
     ) -> Result<Output, TestError> {
-        Ok(command()
+        Ok(command_without_an_inherited_cap()
             .current_dir(&self.root)
             .args(["topic", "outstanding", slug, "--profiles-dir"])
             .arg(profiles_dir)
@@ -73,7 +73,7 @@ impl Project {
         args: &[&str],
         cap: &[(&str, &str)],
     ) -> Result<Output, TestError> {
-        Ok(command()
+        Ok(command_without_an_inherited_cap()
             .current_dir(&self.root)
             .envs(cap.iter().copied())
             .arg("topic")
@@ -152,9 +152,7 @@ impl Project {
     }
 }
 
-/// The binary with no subagent cap inherited, so a cap set where the tests
-/// run never reaches them.
-fn command() -> Command {
+fn command_without_an_inherited_cap() -> Command {
     let mut command = Command::new(BIN);
     command.env_remove(ACCELERATOR_CAP).env_remove(HARNESS_CAP);
     command
