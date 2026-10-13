@@ -649,6 +649,16 @@ def test_the_capacity_row_names_re_running_conduct() -> None:
     assert "a smaller `--concurrency` or `research.topic.concurrency`" in row
 
 
+def test_the_capacity_row_orders_its_checks() -> None:
+    row = _capacity_row()
+    assert "If it recurs with no other subagents running, check in turn:" in row
+    checks = [row.index(f"({n}) ") for n in (1, 2, 3)]
+    assert checks == sorted(checks)
+    assert row.index("`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`") > checks[0]
+    assert row.index("any `ACCELERATOR_SUBAGENT_CAP`") > checks[1]
+    assert row.index("a smaller `--concurrency`") > checks[2]
+
+
 def test_unrepresented_waiting_has_a_reason_row() -> None:
     assert any(
         line.lstrip().startswith("| `waiting` never re-presented |")
