@@ -34,6 +34,86 @@ pub enum EnsureOutcome {
     Failed(String),
 }
 
+/// The leases pinning the trees one `cache ensure` resolved, released when
+/// dropped.
+#[derive(Default)]
+pub struct TreeLeases(#[allow(dead_code)] Vec<tree_lease::SharedLease>);
+
+/// What holding the resolved trees' leases found.
+pub struct HeldTrees {
+    pub leases: TreeLeases,
+    pub unleasable: Vec<(ResolvedTree, Unleasable)>,
+    pub gone: Vec<ResolvedTree>,
+}
+
+/// Why a present tree runs without a lease.
+#[derive(Debug)]
+pub enum Unleasable {
+    OutsideTreeLayout,
+    Lease(tree_lease::LeaseError),
+}
+
+impl std::fmt::Display for Unleasable {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OutsideTreeLayout => formatter
+                .write_str("its lease path is not the tree's `.lease` sibling"),
+            Self::Lease(error) => write!(formatter, "{error}"),
+        }
+    }
+}
+
+impl TreeLeases {
+    /// Lease each tree, then re-check that it is still there.
+    ///
+    /// A tree that cannot be leased is skipped rather than failing the run,
+    /// because the daemon must still run where `flock` is unavailable.
+    #[must_use]
+    pub fn hold(trees: &[ResolvedTree]) -> HeldTrees {
+        let mut held = HeldTrees {
+            leases: Self::default(),
+            unleasable: Vec::new(),
+            gone: Vec::new(),
+        };
+        for tree in trees {
+            if tree.lease != lease_beside(&tree.path) {
+                held.unleasable
+                    .push((tree.clone(), Unleasable::OutsideTreeLayout));
+                continue;
+            }
+            let lease = tree_lease::hold_shared_lease(&tree.lease);
+            match std::fs::symlink_metadata(&tree.path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    drop(lease);
+                    remove_unheld_lease(&tree.lease);
+                    held.gone.push(tree.clone());
+                }
+                _ => match lease {
+                    Ok(lease) => held.leases.0.push(lease),
+                    Err(error) => held
+                        .unleasable
+                        .push((tree.clone(), Unleasable::Lease(error))),
+                },
+            }
+        }
+        held
+    }
+}
+
+/// The launcher's layout: a tree's lease is its `.lease` sibling. The path
+/// arrives on a subprocess's stdout, so nothing else is created or removed.
+fn lease_beside(tree: &Path) -> PathBuf {
+    let mut lease = tree.as_os_str().to_owned();
+    lease.push(".lease");
+    PathBuf::from(lease)
+}
+
+fn remove_unheld_lease(lease: &Path) {
+    if matches!(tree_lease::observed_held(lease), Ok(false)) {
+        let _ = std::fs::remove_file(lease);
+    }
+}
+
 /// The ordered launcher candidates: the exported path, the plugin root's `bin`,
 /// then each `PATH` directory. Pure, so the order is testable.
 #[must_use]
