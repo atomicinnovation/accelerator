@@ -5,7 +5,7 @@ title: "Recovering from an Interrupted Conduct Run Implementation Plan"
 date: "2026-10-13T13:03:28+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0310"
 parent: "work-item:0310"
 derived_from: ["codebase-research:2026-10-13-0310-recovering-from-an-interrupted-conduct-run"]
@@ -13,7 +13,7 @@ relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
-last_updated: "2026-10-13T17:49:22+00:00"
+last_updated: "2026-10-13T20:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -137,7 +137,7 @@ interrupted-run walkthrough under Testing Strategy.
 - `RunLedger::record` counts every pending spawn a changed offer drops as
   attempted (`ledger.rs:101-115`), so a second plan in the same run after the
   quarantine would strand never-spawned spawns behind a saturated window.
-  Reading the quarantine into the first plan (`RoundInputs::as_if_quarantined`)
+  Reading the quarantine into the first plan (`RoundInputs::with_findings_quarantined`)
   gives the post-rename plan with no second call.
 - A quarantine marker claims its index for the question its file names
   (`research-adapters/src/topic.rs:185-193`), and `claimed_by_a_file`
@@ -277,8 +277,8 @@ Refactor, with the planner tests as the net: `Planner::plan_item`
 (`:844-852`) pins a marker at `02` beating `04-a-openalex.levels/`, which
 plans `02-a-openalex` and orphans that tree. It becomes
 `a_levels_directory_outranks_a_marker_for_its_question`, expecting
-`["04-a-web", "04-a-openalex"]` in both halves, beside
-`the_lowest_index_among_markers_wins` and
+`["04-a-web", "04-a-openalex"]` in both halves. Beside it, two new guards
+pin the order within each kind: `the_lowest_index_among_markers_wins` and
 `the_lowest_index_among_levels_directories_wins`. Then:
 
 - `RoundInputs::file_claims(&self, unicode) -> Vec<IndexClaim>`
@@ -296,8 +296,8 @@ plans `02-a-openalex` and orphans that tree. It becomes
 **Changes**: tests first:
 
 - `a_plan_rejects_only_the_node_it_lists_rejected` (lineage `1` rejected in
-  one pair beside an accepted lineage `1` in another, and `1-1` rejected
-  beside an accepted `1-2` in one pair)
+  one pair beside an accepted lineage `1` in another, and `2-1` rejected
+  beside an accepted `2-2` in one pair)
 - `a_misdirected_finding_read_as_quarantined_plans_as_its_marker_would`: a
   valid `02-b-web.md` naming `A?` plans exactly as the same inputs with
   `IndexClaim::quarantined(".02-b-web.md.invalid", Some("A?"), …)` in place
@@ -326,7 +326,7 @@ impl RoundPlan {
 }
 
 impl RoundInputs {
-    pub(crate) fn as_if_quarantined(
+    pub(crate) fn with_findings_quarantined(
         mut self,
         stems: &[Stem],
         unicode: &dyn UnicodeText,
@@ -426,8 +426,8 @@ reports, as the CLI will:
 - `a_node_whose_question_left_the_outline_is_unasked_whatever_its_note`
   (accepted, refused and missing)
 - `a_misdirected_finding_does_not_hide_the_rejections_of_the_pair_it_names`
-  (the finding at `02-b-web` answers `A?`, whose `1-1` note disagrees with
-  its candidate; `01-a-web:1-1` is invalid once the inputs are read as
+  (the finding at `02-b-web` answers `A?`, whose `2-1` note disagrees with
+  its candidate; `01-a-web:2-1` is invalid once the inputs are read as
   quarantined)
 - `each_leftover_carries_its_owning_pair`
 - `each_class_keeps_the_order_of_the_last_batch` (batch built as `03-c`,
@@ -546,7 +546,7 @@ impl ReplacedBatch {
         inputs: RoundInputs,
         unicode: &dyn UnicodeText,
     ) -> RoundInputs {
-        inputs.as_if_quarantined(&self.quarantine, unicode)
+        inputs.with_findings_quarantined(&self.quarantine, unicode)
     }
 
     #[must_use]
@@ -616,7 +616,7 @@ impl ReplacedRun {
         &self.quarantine
     }
 
-    fn class_of(&mut self, outcome: SpawnOutcome) -> &mut Vec<Leftover> {
+    const fn class_of(&mut self, outcome: SpawnOutcome) -> &mut Vec<Leftover> {
         match outcome {
             SpawnOutcome::Valid => &mut self.valid,
             SpawnOutcome::Invalid => &mut self.invalid,
@@ -661,11 +661,10 @@ impl Judge<'_> {
             .findings
             .iter()
             .find(|finding| finding.stem() == Some(stem));
-        let owner = self.owner(stem);
-        let (outcome, pair) = match owner {
-            Some(owner) => (self.owned_finding(finding, &owner), Some(owner)),
-            None => self.unowned_finding(finding),
-        };
+        let (outcome, pair) = self.owner(stem).map_or_else(
+            || self.unowned_finding(finding),
+            |owner| (self.owned_finding(finding, &owner), Some(owner)),
+        );
         Verdict {
             leftover: Leftover {
                 spawn: SpawnRef::Pair(stem.clone()),
