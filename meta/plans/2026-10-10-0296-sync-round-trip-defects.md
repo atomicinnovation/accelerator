@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-13T12:45:00+00:00"
+last_updated: "2026-10-13T13:25:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1415,11 +1415,13 @@ any change that moves a golden digest bumps the recipe.
   each string and a count before each sequence, so it parses back uniquely.
 - `corpus`'s pup rule rejects brace-grouped `use` items, so the module
   imports one item per line.
+- `X03`'s read-back also swaps `-` for `*`, so
+  `a_blank_line_before_a_list_is_noise` also compares the hand-written pair
+  `p⏎- a` and `p⏎⏎- a`, isolating the rewrite.
 - Checked against their remotes, 0275 and 0294 are equivalent and 0276 and
-  0293 differ by autolinked dotted tokens, as Phase 8 expects; 0302 is not
-  equivalent, because its remote holds an older revision (H1 `0295: …`).
-  Phase 8's `items_0275_0294_and_0302_classify_as_synced` must move 0302 to
-  the conflicted set.
+  0293 differ by autolinked dotted tokens; 0302 is not equivalent, because
+  its remote holds an older revision (H1 `0295: …`). Phase 8's recovery
+  tests and Phase 11's expected conflicts move 0302 accordingly.
 
 ---
 
@@ -2082,8 +2084,8 @@ and local synced fields are unchanged, `true` for every other row. `EXPECTED_RUS
 **File**: `cli/work-adapters/tests/sync_recovery_corpus.rs` (new, over the
 Phase 0 fixtures)
 
-- `items_0275_0294_and_0302_classify_as_synced`
-- `items_0276_and_0293_classify_as_unresolved_conflicts`
+- `items_0275_and_0294_classify_as_synced`
+- `items_0276_0293_and_0302_classify_as_unresolved_conflicts`
 
 **File**: `cli/work-cli/src/sync.rs` (tests)
 
@@ -2299,7 +2301,9 @@ Every implementer named for `retitle` in Phase 4 follows, and
 named cosmetic rewrite to stored descriptions, anchored to the Phase 0
 capture by `each_rewrite_reproduces_the_captured_linear_read_back`: each
 variant applied to its fragment of `linear-rewrites/pushed.md` yields the
-matching fragment of `read-back.json`.
+matching fragment of `read-back.json`. A fragment's read-back can carry more
+than one rewrite (`X03` also swaps bullets), so each check applies every
+rewrite its README row records.
 
 #### 4. Report
 
@@ -2542,6 +2546,8 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 
 - [ ] Preview result recorded in the PR
 - [ ] 0161, 0203, 0276 and 0293 remain conflicted pending 0320, as expected
+- [ ] 0302 remains conflicted until resolved, its remote holding an older
+      revision
 
 ---
 
@@ -2655,6 +2661,8 @@ Table in the PR description: each of the 32 items pulled or conflicted on
   container's indent, and Linear's read-back matches that reading. The table
   holds eleven cosmetic and two meaning-changing rows; the criteria counting
   them follow.
+- Recovery-fixture criterion: 0302 reports an unresolved conflict, not
+  `synced`, because its remote holds an older revision of the item.
 
 ## Acceptance-Criteria Traceability
 
