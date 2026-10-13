@@ -6,10 +6,10 @@ date: "2026-10-13T13:59:49+00:00"
 author: "Toby Clemson"
 producer: "validate-plan"
 status: "complete"
-result: "partial"
+result: "pass"
 target: "plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"
 tags: ["runtime", "cache", "lease", "prune", "design", "tree-lease"]
-last_updated: "2026-10-13T13:59:49+00:00"
+last_updated: "2026-10-13T16:05:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -23,36 +23,35 @@ schema_version: 1
 ✓ Phase 3: Cold-path leases - Fully implemented
 ✓ Phase 4: Liveness-probe seam - Fully implemented
 ✓ Phase 5: Honour `Unknown` - Fully implemented
-⚠️ Phase 6: Cross-launcher criteria and close-out - Implemented, but its
-"`mise run` exits 0" criterion does not hold (see below)
+✓ Phase 6: Cross-launcher criteria and close-out - Fully implemented
 
 ### Automated Verification Results
 
-✗ `mise run` exits 1. The one failure is
-`accelerator-corpus::frontmatter_goldens this_repositorys_own_corpus_is_clean`:
-`DUPLICATE-ID — 'work-item:0330'`. Trunk already carries
-`meta/work/0330-skill-command-grants-that-survive-across-queries.md` (from
-"Capture the skill-grant permission work items"), and this branch adds
-`meta/work/0330-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
-with the same ID. nextest fail-fast then cancelled 4,575 tests. The branch's
-work item has since been renumbered to 0334.
-✓ Every format, lint, type, `pup`, `deny`, `public-api`,
-`crate-dependencies` and `notices` lane in the same run passed, and the run
-left no formatting changes in the working copy.
-✓ Python lanes in the same run: `test:unit:tasks` (3,549),
-`test:integration:entrypoint` (66), `test:integration:dev` (17),
-`test:integration:conformance` (30), `test:integration:hooks` (29),
+✓ `mise run` exits 0 end-to-end on a clean `cli/target`. Every format, lint,
+type, `pup`, `deny`, `public-api`, `crate-dependencies` and `notices` lane
+passes, and the run leaves no changes in the working copy.
+✓ CLI workspace: 5,357 tests run, 5,357 passed, 2 skipped.
+✓ Python lanes: `test:unit:tasks` (3,549), `test:integration:skill-invocation`
+(141), `test:integration:deny` (116), `test:integration:tasks` (78),
+`test:integration:entrypoint` (66), `test:integration:conformance` (30),
+`test:integration:hooks` (29), `test:integration:dev` (17),
 `test:integration:research` (4).
-✓ Full CLI workspace re-run with `--no-fail-fast`: 5,346 of 5,357 pass. The 11
-failures are the duplicate-ID test above and 10 tests in
-`github::octocrab_client`, where `OctocrabClient::with_base_uri` returns
-`Err("Other")` after ~28s. Those 10 also fail in isolation and outside the
-sandbox. The branch changes nothing under `cli/github`, and its `Cargo.lock`
-diff only adds workspace edges, so the failures are environmental. I did not
-confirm this on trunk.
 ✓ Every new suite passes: `tree-lease` unit tests, `executor_runtime` (7),
 `tree_leases` (8), the `reap.rs` rule, boundary and sidecar tests, and the
 `tree_resolution` seam, `Unknown` table, superseded and cross-launcher tests.
+
+Two earlier runs failed for reasons outside the implementation, and both are
+resolved:
+
+- The branch's work item first reused ID `0330`, which trunk already assigns
+  to `0330-skill-command-grants-that-survive-across-queries.md`, so
+  `this_repositorys_own_corpus_is_clean` reported `DUPLICATE-ID`. The item
+  and every reference to it were renumbered to 0334.
+- Ten `github::octocrab_client` tests failed with `Err("Other")` because
+  `cli/target/debug/deps` held 705,899 stale entries. macOS's first keychain
+  use (`SecTrustSettingsCopyCertificates` → `CFBundleGetMainBundle`) scans the
+  executable's directory. That scan took ~8s per process and failed when run
+  in parallel. Removing `cli/target` fixed it.
 
 Not re-run here: the red-before-green checks the plan asks for in Phases 2-6
 (each test failing before its production change). The plan marks them done.
@@ -115,8 +114,6 @@ This validation saw only the final state.
 
 #### Potential Issues:
 
-- Work-item ID collision: `0330` was claimed twice in `meta/work/`. Resolved
-  by renumbering this branch's work item, and every reference to it, to 0334.
 - An `OutsideTreeLayout` tree is not existence-checked, so the executor can
   proceed on a missing tree with a warning, and the Node spawn then fails
   downstream. The plan specifies exactly this (never touch a foreign path),
@@ -141,14 +138,10 @@ This validation saw only the final state.
          version's generations survive while its daemon runs
    - [ ] Stop the daemon (`daemon-stop` or `kill` its process group), prune
          again, and confirm the generations are reclaimed
-3. Environment:
-   - [ ] Confirm `github::octocrab_client` fails the same way on trunk on this
-         host, to rule this branch out
 
 ### Recommendations:
 
-- Re-run `mise run` now that the work item is renumbered to 0334.
-- Investigate the `octocrab_client` construction failure separately. It is
-  not caused by this branch, but it will also keep `mise run` red on this
-  host.
+- Prune `cli/target` periodically (`cargo sweep` or `cargo clean`). Past
+  several hundred thousand entries, every test that touches the macOS keychain
+  slows down and can fail.
 - Move work item 0334 to `done` once the PR merges.

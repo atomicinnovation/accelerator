@@ -5,14 +5,14 @@ title: "Tree Leases on the Cold Path and Under Unknown Liveness Implementation P
 date: "2026-10-12T09:37:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "done"
 work_item_id: "work-item:0334"
 parent: "work-item:0334"
 derived_from: ["codebase-research:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["runtime", "cache", "lease", "prune", "design", "tree-lease"]
 revision: "db946b0fc53884aa5938fe92c6a2b9222dc52963"
 repository: "accelerator"
-last_updated: "2026-10-12T23:17:47+00:00"
+last_updated: "2026-10-13T16:05:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
