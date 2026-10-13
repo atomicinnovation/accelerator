@@ -137,8 +137,9 @@
   `research.topic.concurrency` and is reported as `concurrency`, clamped to
   the subagent cap described below, which is reported as `subagent_cap` with
   its source. Every plan carries both, a plain query included, so an empty
-  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`. A
-  run keeps a transient `<set>/.conduct-run.json`, removed on completion and
+  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`.
+  `--start` over another run's readable ledger reports that run's last batch
+  as `replaced_run`. A run keeps a transient `<set>/.conduct-run.json`, removed on completion and
   safe to delete after an interrupted run; consider adding
   `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
