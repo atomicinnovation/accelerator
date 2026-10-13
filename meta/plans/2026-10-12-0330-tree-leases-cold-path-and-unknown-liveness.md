@@ -1257,13 +1257,13 @@ Clock helpers:
 
 #### Automated Verification
 
-- [ ] `an_aged_orphan_is_reclaimed_with_its_sidecars` fails on its assertion before item 3, and every `reap.rs` unit test passes after it: `cargo test --manifest-path cli/Cargo.toml -p accelerator reap`
-- [ ] These fail before item 3: the two rows marked red, `a_kept_unknown_superseded_generation_is_reaped_once_aged` and `an_old_unknown_superseded_generation_is_kept_for_a_full_backstop`. `a_held_superseded_generation_keeps_its_extraction_mtime` is a regression guard. Every Phase 5 test passes after it: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
-- [ ] `mise run check` exits 0
+- [x] `an_aged_orphan_is_reclaimed_with_its_sidecars` fails on its assertion before item 3, and every `reap.rs` unit test passes after it: `cargo test --manifest-path cli/Cargo.toml -p accelerator reap`
+- [x] These fail before item 3: the two rows marked red, `a_kept_unknown_superseded_generation_is_reaped_once_aged` and `an_old_unknown_superseded_generation_is_kept_for_a_full_backstop`. `a_held_superseded_generation_keeps_its_extraction_mtime` is a regression guard. Every Phase 5 test passes after it: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] None. `Unknown` cannot be produced on a local filesystem.
+- [x] None. `Unknown` cannot be produced on a local filesystem.
 
 ---
 

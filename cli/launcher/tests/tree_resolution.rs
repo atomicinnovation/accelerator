@@ -1218,6 +1218,206 @@ fn an_injected_held_probe_spares_an_aged_orphan_while_materialising() {
     assert!(orphan.exists());
 }
 
+// ---- honouring an undeterminable holder ----
+
+fn fresh() -> FixedClock {
+    FixedClock(wall_clock_now())
+}
+
+fn sibling_pointer(harness: &Harness, digest: &str) -> std::path::PathBuf {
+    harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}.ref"))
+}
+
+/// Prunes an unclaimed sibling at a zero window and reports whether its
+/// generation and pointer both survived; panics if only one did.
+fn unclaimed_sibling_kept(
+    liveness: Liveness,
+    clock: fn() -> FixedClock,
+) -> bool {
+    let minisign = minisign_bin().expect("minisign");
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let sibling = plant_sibling_generation(&harness);
+
+    harness
+        .resolver_with(&clock(), &FixedLiveness(liveness), &NoSteps)
+        .prune(ARTIFACT, Some(ZERO))
+        .expect("prune");
+
+    let generation = tree_paths(&harness)
+        .generation(&sibling_generation(&sibling))
+        .exists();
+    let pointer = sibling_pointer(&harness, &sibling).exists();
+    assert_eq!(generation, pointer, "the generation and its pointer split");
+    generation
+}
+
+#[test]
+fn an_unclaimed_held_generation_is_kept_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(unclaimed_sibling_kept(Liveness::Held, aged));
+}
+
+#[test]
+fn an_unclaimed_free_generation_is_reclaimed_while_young() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Free, fresh));
+}
+
+#[test]
+fn an_unclaimed_free_generation_is_reclaimed_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Free, aged));
+}
+
+#[test]
+fn an_unclaimed_unknown_generation_is_kept_while_young() {
+    let _ = minisign_or_skip!();
+    assert!(unclaimed_sibling_kept(Liveness::Unknown, fresh));
+}
+
+#[test]
+fn an_unclaimed_unknown_generation_is_reclaimed_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Unknown, aged));
+}
+
+fn generation_name_of(sealed: &std::path::Path) -> String {
+    sealed.file_name().unwrap().to_str().unwrap().to_owned()
+}
+
+fn back_date_two_days(path: &std::path::Path) {
+    let then = std::time::SystemTime::now()
+        - std::time::Duration::from_secs(2 * 86_400);
+    std::fs::File::open(path)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
+}
+
+fn mtime_of(path: &std::path::Path) -> std::time::SystemTime {
+    std::fs::symlink_metadata(path).unwrap().modified().unwrap()
+}
+
+#[test]
+fn a_superseded_free_generation_is_reclaimed() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Free), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(!old.path.exists());
+}
+
+#[test]
+fn a_superseded_unknown_generation_is_kept() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Unknown), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(old.path.exists());
+}
+
+#[test]
+fn a_kept_unknown_superseded_generation_is_reaped_once_aged() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let unknown = FixedLiveness(Liveness::Unknown);
+
+    harness
+        .resolver_with(&fresh(), &unknown, &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+    assert!(old.path.exists());
+
+    harness
+        .resolver_with(&aged(), &unknown, &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(!old.path.exists());
+    let paths = tree_paths(&harness);
+    let generation = generation_name_of(&old.path);
+    for sidecar in [
+        paths.attestation(&generation),
+        paths.attestation_signature(&generation),
+        paths.lease(&generation),
+    ] {
+        assert!(!sidecar.exists(), "{} survived", sidecar.display());
+    }
+}
+
+#[test]
+fn an_old_unknown_superseded_generation_is_kept_for_a_full_backstop() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    back_date_two_days(&old.path);
+    let unknown = FixedLiveness(Liveness::Unknown);
+
+    harness
+        .resolver_with(&fresh(), &unknown, &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+    assert!(old.path.exists());
+
+    let almost_a_backstop_later =
+        FixedClock(wall_clock_now() + BACKSTOP_SECONDS - 60);
+    harness
+        .resolver_with(&almost_a_backstop_later, &unknown, &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(old.path.exists());
+}
+
+#[test]
+fn a_held_superseded_generation_keeps_its_extraction_mtime() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    back_date_two_days(&old.path);
+    let extracted = mtime_of(&old.path);
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert_eq!(mtime_of(&old.path), extracted);
+}
+
 /// Make a sealed tree writable so a test can corrupt it.
 fn unseal(root: &std::path::Path) {
     fn walk(dir: &std::path::Path) {

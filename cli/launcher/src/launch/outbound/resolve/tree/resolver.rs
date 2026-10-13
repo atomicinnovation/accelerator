@@ -636,7 +636,9 @@ impl TreeResolver<'_> {
     /// The replacement is built beside the tree in use and the pointer swapped
     /// only once it exists, so a refetch that fails leaves the working tree
     /// exactly as it was. The superseded generation is reaped immediately if no
-    /// live process holds its lease, and left for a later `prune` otherwise.
+    /// live process holds its lease, and left for a later `prune` while one
+    /// does. One whose holder cannot be determined is kept for a full
+    /// `AGE_BACKSTOP` from this moment, then left to the age-gated reaper.
     ///
     /// # Errors
     ///
@@ -686,7 +688,7 @@ impl TreeResolver<'_> {
         // reaper would otherwise spare it as too young.
         if let Some(old) = superseded {
             if paths.generation(&old) != sealed.path {
-                Self::reap_superseded(&paths, self.liveness, &old);
+                Self::reap_superseded(&paths, self.liveness, self.clock, &old);
             }
         }
         Ok(sealed)
@@ -697,16 +699,22 @@ impl TreeResolver<'_> {
     fn reap_superseded(
         paths: &TreePaths,
         liveness: &dyn LivenessProbe,
+        clock: &dyn Clock,
         generation: &str,
     ) {
-        if liveness.probe(&paths.lease(generation))
-            == super::lease::Liveness::Held
-        {
-            return;
-        }
-        let _ = std::fs::remove_dir_all(paths.generation(generation));
-        for sidecar in reap::sidecars_of(paths, generation) {
-            let _ = std::fs::remove_file(sidecar);
+        match reap::superseded_disposition(
+            liveness.probe(&paths.lease(generation)),
+        ) {
+            reap::SupersededDisposition::Reclaim => {
+                let _ = std::fs::remove_dir_all(paths.generation(generation));
+                for sidecar in reap::sidecars_of(paths, generation) {
+                    let _ = std::fs::remove_file(sidecar);
+                }
+            }
+            reap::SupersededDisposition::Defer => {
+                reap::restart_backstop(paths, generation, clock);
+            }
+            reap::SupersededDisposition::Keep => {}
         }
     }
 
@@ -767,10 +775,10 @@ impl TreeResolver<'_> {
             if claims::claimed_within(paths, &digest, window, self.clock) {
                 continue;
             }
-            // A live consumer keeps a stale-claimed generation until it exits.
-            if self.liveness.probe(&paths.lease(&generation))
-                == super::lease::Liveness::Held
-            {
+            if !reap::unclaimed_is_reclaimable(
+                self.liveness.probe(&paths.lease(&generation)),
+                reap::generation_is_aged(paths, &generation, self.clock),
+            ) {
                 continue;
             }
             let _ = std::fs::remove_file(&pointer);
