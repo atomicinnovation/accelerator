@@ -9,5 +9,7 @@
 0010	noop	indeterminate	-
 0011	failed	remotely-modified	unrenderable
 0012	failed	remotely-modified	pull-residue
+0013	noop	indeterminate	unsupported-recipe
+0014	failed	synced	retryable
 #	discovery	ran	found=0
 #	summary	synced	1

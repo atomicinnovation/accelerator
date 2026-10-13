@@ -420,6 +420,9 @@ fn project_item(report: &RunReport, id: &str) -> Option<(String, String)> {
             let outcome = match &item.outcome {
                 ItemOutcome::Applied => "applied".to_owned(),
                 ItemOutcome::NotApplied => "not-applied".to_owned(),
+                ItemOutcome::UnsupportedRecipe => {
+                    "unsupported-recipe".to_owned()
+                }
                 ItemOutcome::Failed(error) => format!("failed:{error:?}"),
             };
             (

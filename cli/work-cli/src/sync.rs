@@ -447,7 +447,12 @@ fn render_report(report: &RunReport) -> String {
                     }
                 },
             ),
-            _ => (action_keyword(item.planned.action), "-"),
+            ItemOutcome::UnsupportedRecipe => {
+                (action_keyword(item.planned.action), "unsupported-recipe")
+            }
+            ItemOutcome::Applied | ItemOutcome::NotApplied => {
+                (action_keyword(item.planned.action), "-")
+            }
         };
         lines.push(format!(
             "{}\t{}\t{}\t{}",
@@ -514,7 +519,9 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
             .iter()
             .filter_map(|item| match &item.outcome {
                 ItemOutcome::Failed(error) => Some(failure_code(error.class())),
-                ItemOutcome::Applied | ItemOutcome::NotApplied => None,
+                ItemOutcome::Applied
+                | ItemOutcome::NotApplied
+                | ItemOutcome::UnsupportedRecipe => None,
             });
     let awaiting_human = (report.awaiting_human().next().is_some()
         || report.identity.iter().any(IdentityRow::awaits_human))
@@ -2310,6 +2317,18 @@ mod tests {
                     ApplyError::LocalPullResidue {
                         item_id: "0012".to_owned(),
                     },
+                ),
+                ReportedItem {
+                    outcome: ItemOutcome::UnsupportedRecipe,
+                    ..reported("0013", SyncState::Indeterminate, Action::Noop)
+                },
+                record(
+                    "0014",
+                    ItemOutcome::Failed(
+                        ApplyError::LocalChangedSinceClassified {
+                            item_id: "0014".to_owned(),
+                        },
+                    ),
                 ),
             ],
             read_failure: None,

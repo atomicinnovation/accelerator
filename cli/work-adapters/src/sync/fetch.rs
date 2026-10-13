@@ -265,6 +265,11 @@ pub fn gather(
     match strategy {
         RetrievalStrategy::PerItem => {
             for (id, external_id, _) in &present {
+                if recipe_unsupported(baseline, id) {
+                    gathering
+                        .record(id, unaccounted(RemotePresence::Indeterminate));
+                    continue;
+                }
                 match tracker.show(external_id) {
                     Ok(issue) => gathering.record_issue(id, external_id, issue),
                     Err(_) => gathering.locate(
@@ -325,6 +330,12 @@ pub fn gather(
     }
 }
 
+/// Whether `id`'s entry was recorded under a digest recipe this binary does
+/// not know, so nothing about the item can be compared, read or written.
+fn recipe_unsupported(baseline: &Baseline, id: &str) -> bool {
+    matches!(baseline.get(id), Some(Entry::Unsupported { .. }))
+}
+
 /// Whether the entry lets the stamp alone stand for the remote body: only a
 /// recipe-1 entry whose stamp proves the remote unchanged and whose local
 /// file still digests as recorded. A legacy entry always needs the body,
@@ -378,6 +389,17 @@ fn gather_from_bulk(
         gathering.locate(id, external_id, tracker, otherwise);
         return;
     };
+    if recipe_unsupported(baseline, id) {
+        gathering.record(
+            id,
+            GatheredRemote {
+                presence: RemotePresence::Indeterminate,
+                remote_updated: stamp.clone(),
+                body: None,
+            },
+        );
+        return;
+    }
     let unchanged = baseline
         .get(id)
         .is_some_and(|entry| remote_read_unneeded(path, entry, stamp));

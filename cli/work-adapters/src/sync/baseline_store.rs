@@ -270,6 +270,48 @@ mod tests {
         Ok(())
     }
 
+    const UNKNOWN_RECIPE: &str =
+        "{\"timestamp\":1,\"items\":{\"draft-k7mq3x\":\
+        {\"digest_recipe\":2,\"local_hash\":\"l\"}}}\n";
+
+    #[test]
+    fn finalise_run_leaves_an_unknown_recipe_entry_unblanked(
+    ) -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        file.files
+            .borrow_mut()
+            .insert(PathBuf::from("last-sync.json"), UNKNOWN_RECIPE.to_owned());
+        let mut store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+
+        store.finalise_run(&["draft-k7mq3x"], &["draft-k7mq3x"], 1, false)?;
+
+        assert_eq!(
+            file.files.borrow().get(Path::new("last-sync.json")),
+            Some(&UNKNOWN_RECIPE.to_owned())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_rename_carries_an_unknown_recipe_entry_to_the_new_id(
+    ) -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        file.files
+            .borrow_mut()
+            .insert(PathBuf::from("last-sync.json"), UNKNOWN_RECIPE.to_owned());
+        let store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+
+        store.rename("draft-k7mq3x", "PP-900")?;
+
+        assert_eq!(
+            file.files.borrow().get(Path::new("last-sync.json")),
+            Some(&UNKNOWN_RECIPE.replace("draft-k7mq3x", "PP-900"))
+        );
+        Ok(())
+    }
+
     #[test]
     fn renaming_an_absent_entry_is_a_no_op() -> Result<(), StoreError> {
         let file = MemoryFile::default();

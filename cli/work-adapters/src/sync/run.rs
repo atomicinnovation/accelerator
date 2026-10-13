@@ -36,6 +36,7 @@ use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
 use crate::sync::baseline::Degradation;
+use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
@@ -193,6 +194,9 @@ impl<'a> SyncRequest<'a> {
 pub enum ItemOutcome {
     Applied,
     NotApplied,
+    /// Nothing was read or written: the item's baseline entry was recorded
+    /// under a digest recipe newer than this binary knows.
+    UnsupportedRecipe,
     Failed(ApplyError),
 }
 
@@ -955,6 +959,24 @@ fn record_outcome(
     }
 }
 
+/// `item` reported as untouched for want of a known digest recipe, when its
+/// entry was recorded under one this binary does not know.
+fn noting_unsupported_recipe(
+    item: ReportedItem,
+    unsupported_recipe: &BTreeSet<String>,
+) -> ReportedItem {
+    if unsupported_recipe.contains(&item.planned.id)
+        && matches!(item.outcome, ItemOutcome::NotApplied)
+    {
+        ReportedItem {
+            outcome: ItemOutcome::UnsupportedRecipe,
+            ..item
+        }
+    } else {
+        item
+    }
+}
+
 const fn not_applied(planned: PlannedAction) -> ReportedItem {
     ReportedItem {
         planned,
@@ -1073,6 +1095,7 @@ fn apply_local_create(
 struct PreparedRun<'a> {
     run_start_epoch: u64,
     snapshots: Vec<ItemSnapshot<'a>>,
+    unsupported_recipe: BTreeSet<String>,
     degradation: Degradation,
     read_failure: Option<TrackerError>,
     keyed_read_budget_limited: bool,
@@ -1284,6 +1307,17 @@ fn prepare_run<'a>(
     };
 
     let read_failure = facts.read_failure.clone();
+    let unsupported_recipe = request
+        .reconciled()
+        .iter()
+        .filter(|item| {
+            matches!(
+                loaded_baseline.get(&item.id),
+                Some(Entry::Unsupported { .. })
+            )
+        })
+        .map(|item| item.id.clone())
+        .collect();
 
     let (untracked, discovery) = untracked_to_import(ports, request, settled)?;
     let creates_from_local =
@@ -1311,6 +1345,7 @@ fn prepare_run<'a>(
     Ok(PreparedRun {
         run_start_epoch,
         snapshots,
+        unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
@@ -1373,6 +1408,7 @@ fn execute<'a>(
     let PreparedRun {
         run_start_epoch,
         snapshots,
+        unsupported_recipe,
         degradation,
         read_failure,
         keyed_read_budget_limited,
@@ -1386,14 +1422,20 @@ fn execute<'a>(
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
     let comparison = digester.comparison();
+    let reported_as = |item: ReportedItem| {
+        noting_unsupported_recipe(item, &unsupported_recipe)
+    };
     if matches!(request.mode, RunMode::Preview) {
-        let mut reported = validate_pushes(
+        let mut reported: Vec<ReportedItem> = validate_pushes(
             &plan,
             request.reconciled(),
             ports.tracker,
             &facts,
             comparison,
-        );
+        )
+        .into_iter()
+        .map(reported_as)
+        .collect();
         for external_id in &untracked {
             reported.push(create_report(
                 external_id.as_str().to_owned(),
@@ -1453,7 +1495,7 @@ fn execute<'a>(
         }
 
         for planned in plan.actions {
-            reported.push(apply_planned_action(
+            reported.push(reported_as(apply_planned_action(
                 &mut applier,
                 planned,
                 &index,
@@ -1461,7 +1503,7 @@ fn execute<'a>(
                 &facts,
                 comparison,
                 &mut blank_local_hash,
-            ));
+            )));
         }
 
         for item in &creates_from_local {

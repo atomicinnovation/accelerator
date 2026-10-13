@@ -573,3 +573,29 @@ fn an_indeterminate_id_is_located() {
         Some(&fetch::IdentityObservation::NotFound { key: key("PP-760") })
     );
 }
+
+#[test]
+fn an_unknown_recipe_entry_is_indeterminate_under_either_strategy_without_a_show(
+) {
+    let (baseline, _) = Baseline::read(Some(
+        r#"{"timestamp":1,"items":{"0001":{"digest_recipe":2}}}"#,
+    ));
+    for strategy in [RetrievalStrategy::Bulk, RetrievalStrategy::PerItem] {
+        let tracker = unmoved_tracker();
+
+        let facts = fetch::gather(
+            &[item("0001", Some("ENG-1"))],
+            &baseline,
+            &tracker,
+            &AlwaysClean,
+            strategy,
+        );
+
+        assert!(!showed(&tracker), "{strategy:?}");
+        assert_eq!(
+            facts.per_id.get("0001").map(|(remote, _)| remote.presence),
+            Some(RemotePresence::Indeterminate),
+            "{strategy:?}"
+        );
+    }
+}

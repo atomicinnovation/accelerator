@@ -164,6 +164,7 @@ struct Seed {
 }
 
 enum SeedEntry {
+    Raw(&'static str),
     Legacy {
         local_content: String,
         projection: String,
@@ -264,6 +265,9 @@ fn harness(
             ));
         }
         match &seed.entry {
+            SeedEntry::Raw(entry) => {
+                entries.push(format!("\"{}\":{entry}", seed.id()));
+            }
             SeedEntry::Legacy {
                 local_content,
                 projection,
@@ -852,5 +856,41 @@ fn a_skipped_verbatim_conflict_with_a_title_edit_is_still_a_conflict(
     }
     assert!(!mutated(&harness.tracker), "the title is never sent");
     assert_legacy(&harness, "0001");
+    Ok(())
+}
+
+#[test]
+fn an_item_with_an_unknown_recipe_entry_is_indeterminate_and_untouched(
+) -> Result<(), TestError> {
+    let raw = "{\"digest_recipe\":2,\"local_hash\":\"l\",\
+               \"local_synced_at\":5,\"remote_updated_at\":\"t\"}";
+    let seeds = [Seed {
+        index: 1,
+        title: "Newer",
+        local_body: "Edited locally\n".to_owned(),
+        remote: Some(("Newer\nEdited remotely\n".to_owned(), MOVED_STAMP)),
+        entry: SeedEntry::Raw(raw),
+    }];
+    let harness = harness(&PlainDialect, false, &seeds, |tracker| tracker)?;
+
+    let report = sync_once(&harness);
+
+    let reported = row(&report, "0001");
+    assert_eq!(reported.planned.state, SyncState::Indeterminate);
+    assert_eq!(reported.planned.action, Action::Noop);
+    assert!(matches!(
+        reported.outcome,
+        work_adapters::sync::run::ItemOutcome::UnsupportedRecipe
+    ));
+    assert!(!harness
+        .tracker
+        .calls()
+        .iter()
+        .any(|call| matches!(call, Call::Show { .. })));
+    assert!(wrote_only_the_baseline(&harness));
+    assert!(files_unchanged(&harness, &seeds));
+    assert!(!mutated(&harness.tracker));
+    let written = harness.spy.content(BASELINE_PATH).unwrap_or_default();
+    assert!(written.contains(&format!("\"0001\":{raw}")), "{written}");
     Ok(())
 }
