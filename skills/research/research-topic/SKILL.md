@@ -267,15 +267,29 @@ allocate a finding or note path yourself.
    stop.
 
    **Report an unfinished run.** When the first plan carries `replaced_run`,
-   show before step 3:
+   print the report below verbatim, as its own message, before renaming
+   anything and before step 3; never summarise or paraphrase it:
 
-   > run {run} did not end; if it is still going, it stops at its next batch, and what it writes from now on may show as unexpected
+   ```text
+   run {run} did not end; if it is still going, it stops at its next batch, and what it writes from now on may show as unexpected
 
-   then one group per class, each entry as `{stem}: {question} ({profile})`
-   for a pair or `{stem} {lineage}: {question} ({profile})` for a node,
-   splitting a node's `spawn` at its colon and leading with the stem as the
-   summary's Failures section does, or `{stem}` or `{stem} {lineage}` alone
-   when `question` is `null`:
+   written by run {run}; kept:
+   - {stem}: {question} ({profile})
+   - {stem} {lineage}: {question} ({profile})
+   written but invalid; offered again:
+   - {stem}: {question} ({profile}) (quarantined)
+   not written; offered again:
+   - {stem} {lineage}: {question} ({profile})
+   for a question the outline no longer asks; left in place:
+   - {stem}
+   ```
+
+   Each group is a heading and one line per entry, in the order its class
+   lists them. A pair's entry is `{stem}: {question} ({profile})` and a
+   node's is `{stem} {lineage}: {question} ({profile})`, splitting its
+   `spawn` at the colon and leading with the stem as the summary's Failures
+   section does; when `question` is `null` it is `{stem}` or `{stem}
+   {lineage}` alone. The headings take their entries from:
 
    - "written by run {run}; kept": `valid`;
    - "written but invalid; offered again": `invalid`, each entry whose

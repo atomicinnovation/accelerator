@@ -304,6 +304,17 @@ def test_the_report_marks_quarantined_entries() -> None:
     ) in report
 
 
+def test_the_report_is_printed_verbatim_as_its_own_message() -> None:
+    report = _report()
+    for phrase in (
+        "print the report below verbatim, as its own message, before "
+        "renaming anything and before step 3",
+        "never summarise or paraphrase it",
+        f"```text {OPENING}",
+    ):
+        assert phrase in report, f"the report must state {phrase!r}"
+
+
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
     assert OPENING in _conduct()
     assert OPENING in _report()
