@@ -132,17 +132,6 @@ impl RoundInputs {
         self
     }
 
-    pub(crate) fn file_claims(
-        &self,
-        unicode: &dyn UnicodeText,
-    ) -> Vec<IndexClaim> {
-        self.quarantined
-            .iter()
-            .cloned()
-            .chain(self.tree_claims(unicode))
-            .collect()
-    }
-
     fn tree_claims(&self, unicode: &dyn UnicodeText) -> Vec<IndexClaim> {
         self.levels
             .iter()
@@ -161,17 +150,24 @@ struct Planner<'a> {
 
 impl<'a> Planner<'a> {
     fn new(inputs: &'a RoundInputs, unicode: &'a dyn UnicodeText) -> Self {
+        let tree_claims = inputs.tree_claims(unicode);
         let highest = inputs
             .findings
             .iter()
             .filter_map(Finding::index)
-            .chain(inputs.file_claims(unicode).iter().map(IndexClaim::index))
+            .chain(
+                inputs
+                    .quarantined
+                    .iter()
+                    .chain(&tree_claims)
+                    .map(IndexClaim::index),
+            )
             .chain(inputs.claims.indexes())
             .max();
         Self {
             inputs,
             unicode,
-            tree_claims: inputs.tree_claims(unicode),
+            tree_claims,
             next_unclaimed: highest
                 .map_or(Some(1), |index| index.checked_add(1)),
             claimed: BTreeMap::new(),
@@ -314,10 +310,8 @@ impl<'a> Planner<'a> {
             .find(|finding| finding.answers(question, profile))
     }
 
-    /// The run's claim first, then the lowest index a retained finding for
-    /// the question carries, then the lowest a `.levels/` directory holds,
-    /// then the lowest a quarantined file holds, and only then a fresh one.
-    /// A tree holds research where a marker only reserves an index.
+    /// A tree outranks a marker because a tree holds research where a marker
+    /// only reserves an index.
     fn claim_index(&mut self, question: &NormalisedQuestion) -> Option<u32> {
         let retained = || {
             self.inputs
