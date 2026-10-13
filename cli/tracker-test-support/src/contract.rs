@@ -210,7 +210,7 @@ pub fn update_replaces_whole_content_property(subject: &dyn ContractSubject) {
         .body;
 
     tracker
-        .update(&id, "Updated title", "Updated body\n")
+        .update(&id, Some("Updated title"), "Updated body\n")
         .expect("update must succeed for a conformant implementation");
     let after = tracker
         .show(&id)
@@ -252,6 +252,46 @@ pub fn retitle_keeps_the_description_property(subject: &dyn ContractSubject) {
     assert_eq!(
         before_description, after_description,
         "retitle must leave the description byte-identical"
+    );
+}
+
+/// # Errors
+///
+/// [`ContractGateError::NotOptedIn`] when the gate is closed.
+pub fn update_without_a_title_keeps_the_title(
+    subject: &dyn ContractSubject,
+) -> Result<(), ContractGateError> {
+    ensure_opted_in()?;
+    update_without_a_title_keeps_the_title_property(subject);
+    Ok(())
+}
+
+/// The assertions, ungated.
+///
+/// See [`create_then_show_round_trips_property`].
+pub fn update_without_a_title_keeps_the_title_property(
+    subject: &dyn ContractSubject,
+) {
+    let tracker = subject.tracker();
+    let id = tracker
+        .create("Original title", "Original body\n", "")
+        .expect("create must succeed for a conformant implementation");
+    let before = tracker.show(&id).expect("show must succeed after create");
+
+    tracker
+        .update(&id, None, "Updated body\n")
+        .expect("update must succeed for a conformant implementation");
+    let after = tracker.show(&id).expect("show must succeed after update");
+
+    let (before_title, before_description) = projected_parts(&before.body);
+    let (after_title, after_description) = projected_parts(&after.body);
+    assert_eq!(
+        before_title, after_title,
+        "an update without a title must leave the title as it is"
+    );
+    assert_ne!(
+        before_description, after_description,
+        "an update without a title must still replace the description"
     );
 }
 
@@ -470,8 +510,8 @@ pub fn validate_update_reports_outcome_property(subject: &dyn ContractSubject) {
     let id = ExternalId::new("PREVIEW-1".to_owned());
     let valid = subject.tracker().validate_update(
         &id,
-        "A present title",
-        "A present body\n",
+        Some("A present title"),
+        Some("A present body\n"),
     );
     assert_eq!(
         valid,
@@ -479,10 +519,11 @@ pub fn validate_update_reports_outcome_property(subject: &dyn ContractSubject) {
         "a complete payload must validate"
     );
 
-    let rejected =
-        subject
-            .tracker()
-            .validate_update(&id, "", "A present body\n");
+    let rejected = subject.tracker().validate_update(
+        &id,
+        Some(""),
+        Some("A present body\n"),
+    );
     assert!(
         matches!(rejected, ValidationOutcome::Rejected { .. }),
         "a payload missing a required field must be rejected, got {rejected:?}"
@@ -554,11 +595,12 @@ pub fn run_all(
     locate_finds_a_created_issue(subject)?;
     update_replaces_whole_content(subject)?;
     retitle_keeps_the_description(subject)?;
+    update_without_a_title_keeps_the_title(subject)?;
     fetch_all_partitions_totally(subject, ids)?;
     preview_create_makes_no_mutation(subject)?;
     validate_update_reports_outcome(subject)?;
 
-    Ok(7)
+    Ok(8)
 }
 
 /// Run the full conformance set against a live subject, timing each property,
@@ -603,6 +645,9 @@ pub fn timed_conformance(
     }));
     records.push(run("retitle_keeps_the_description", 1, &|| {
         retitle_keeps_the_description_property(subject);
+    }));
+    records.push(run("update_without_a_title_keeps_the_title", 1, &|| {
+        update_without_a_title_keeps_the_title_property(subject);
     }));
     records.push(run(
         "fetch_all_partitions_totally",
@@ -661,6 +706,9 @@ mod tests {
             }),
             ("retitle_keeps_the_description", |subject| {
                 super::retitle_keeps_the_description(subject)
+            }),
+            ("update_without_a_title_keeps_the_title", |subject| {
+                super::update_without_a_title_keeps_the_title(subject)
             }),
             ("fetch_all_partitions_totally", |subject| {
                 super::fetch_all_partitions_totally(subject, &[])

@@ -50,7 +50,7 @@ pub enum Call {
     },
     Update {
         id: ExternalId,
-        title: String,
+        title: Option<String>,
         body: String,
     },
     Retitle {
@@ -78,8 +78,8 @@ pub enum Call {
     },
     ValidateUpdate {
         id: ExternalId,
-        title: String,
-        body: String,
+        title: Option<String>,
+        body: Option<String>,
     },
 }
 
@@ -576,12 +576,12 @@ impl RemoteTracker for RecordingTracker {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
         self.calls.borrow_mut().push(Call::Update {
             id: id.clone(),
-            title: title.to_owned(),
+            title: title.map(str::to_owned),
             body: body.to_owned(),
         });
 
@@ -594,6 +594,10 @@ impl RemoteTracker for RecordingTracker {
         let mut issues = self.issues.borrow_mut();
         match issues.iter_mut().find(|(known, _)| known == id) {
             Some(entry) => {
+                let title = title.map_or_else(
+                    || stored_title(&entry.1.body).to_owned(),
+                    str::to_owned,
+                );
                 entry.1.body = format!("{title}\n{body}");
                 Ok(())
             }
@@ -767,23 +771,29 @@ impl RemoteTracker for RecordingTracker {
     fn validate_update(
         &self,
         id: &ExternalId,
-        title: &str,
-        body: &str,
+        title: Option<&str>,
+        body: Option<&str>,
     ) -> ValidationOutcome {
         self.calls.borrow_mut().push(Call::ValidateUpdate {
             id: id.clone(),
-            title: title.to_owned(),
-            body: body.to_owned(),
+            title: title.map(str::to_owned),
+            body: body.map(str::to_owned),
         });
         validate_local_payload(title)
     }
 }
 
+fn stored_title(projected: &str) -> &str {
+    projected
+        .split_once('\n')
+        .map_or(projected, |(title, _)| title)
+}
+
 /// Both providers' `validate_update` is a local composition check whose only
 /// locally-detectable omission is an empty title: the composed payload's
 /// summary/title field would be blank.
-fn validate_local_payload(title: &str) -> ValidationOutcome {
-    if title.trim().is_empty() {
+fn validate_local_payload(title: Option<&str>) -> ValidationOutcome {
+    if title.is_some_and(|title| title.trim().is_empty()) {
         ValidationOutcome::Rejected {
             reasons: vec![
                 "title is required but the payload leaves it empty".to_owned()
@@ -856,7 +866,7 @@ mod tests {
             vec![id.clone()],
         );
 
-        let result = tracker.update(&id, "New title", "New body");
+        let result = tracker.update(&id, Some("New title"), "New body");
 
         assert_eq!(
             result,
@@ -878,7 +888,7 @@ mod tests {
             .create("Title", "Body", "story")
             .expect("create succeeds against this fake");
         tracker
-            .update(&id, "New title", "New body")
+            .update(&id, Some("New title"), "New body")
             .expect("update succeeds against this fake");
         tracker.show(&id).expect("show succeeds against this fake");
         tracker
@@ -910,7 +920,7 @@ mod tests {
         )])
         .failing_update(update_target.clone(), retryable.clone());
         assert_eq!(
-            update_failing.update(&update_target, "t", "b"),
+            update_failing.update(&update_target, Some("t"), "b"),
             Err(retryable.clone())
         );
 

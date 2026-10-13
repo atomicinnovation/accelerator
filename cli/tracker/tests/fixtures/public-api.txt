@@ -259,6 +259,6 @@ pub fn tracker::RemoteTracker::resolve_scope(&self, scope: &tracker::SearchScope
 pub fn tracker::RemoteTracker::retitle(&self, id: &tracker::ExternalId, title: &str) -> core::result::Result<(), tracker::TrackerError>
 pub fn tracker::RemoteTracker::search(&self, scope: &tracker::SearchScope) -> core::result::Result<tracker::Discovery, tracker::TrackerError>
 pub fn tracker::RemoteTracker::show(&self, id: &tracker::ExternalId) -> core::result::Result<tracker::RemoteIssue, tracker::TrackerError>
-pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> core::result::Result<(), tracker::TrackerError>
-pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: &str, body: &str) -> tracker::ValidationOutcome
+pub fn tracker::RemoteTracker::update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: &str) -> core::result::Result<(), tracker::TrackerError>
+pub fn tracker::RemoteTracker::validate_update(&self, id: &tracker::ExternalId, title: core::option::Option<&str>, body: core::option::Option<&str>) -> tracker::ValidationOutcome
 pub fn tracker::supports_tracker_owned_ids(integration: &str) -> bool

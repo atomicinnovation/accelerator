@@ -50,7 +50,7 @@ impl RemoteTracker for SharedTracker {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
         self.0.update(id, title, body)
@@ -106,8 +106,8 @@ impl RemoteTracker for SharedTracker {
     fn validate_update(
         &self,
         id: &ExternalId,
-        title: &str,
-        body: &str,
+        title: Option<&str>,
+        body: Option<&str>,
     ) -> ValidationOutcome {
         self.0.validate_update(id, title, body)
     }

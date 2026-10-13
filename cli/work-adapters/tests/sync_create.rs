@@ -2306,7 +2306,7 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     fn update(
         &self,
         _id: &ExternalId,
-        _title: &str,
+        _title: Option<&str>,
         _body: &str,
     ) -> Result<(), TrackerError> {
         Ok(())
@@ -2379,8 +2379,8 @@ impl tracker::RemoteTracker for MarkerObservingTracker {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        _title: &str,
-        _body: &str,
+        _title: Option<&str>,
+        _body: Option<&str>,
     ) -> tracker::ValidationOutcome {
         tracker::ValidationOutcome::Valid
     }

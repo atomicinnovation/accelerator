@@ -365,7 +365,7 @@ fn creates(tracker: &RecordingTracker) -> usize {
         .count()
 }
 
-fn updates(tracker: &RecordingTracker) -> Vec<(String, String)> {
+fn updates(tracker: &RecordingTracker) -> Vec<(Option<String>, String)> {
     tracker
         .calls()
         .into_iter()
@@ -495,7 +495,7 @@ fn the_remote_update_carries_rewritten_self_references() {
     let sent = updates(&tracker);
     assert_eq!(sent.len(), 1);
     let (title, body) = &sent[0];
-    assert_eq!(title, "Add search");
+    assert_eq!(title.as_deref(), Some("Add search"));
     assert!(body.contains("# REC-1: Add search"), "{body}");
     assert!(body.contains("see REC-1."), "{body}");
     assert!(!body.contains(DRAFT_ID), "{body}");

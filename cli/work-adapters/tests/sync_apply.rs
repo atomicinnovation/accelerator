@@ -126,7 +126,7 @@ impl RemoteTracker for Fake {
     fn update(
         &self,
         id: &ExternalId,
-        _title: &str,
+        _title: Option<&str>,
         _body: &str,
     ) -> Result<(), TrackerError> {
         self.calls.borrow_mut().push(format!("update:{id}"));
@@ -199,8 +199,8 @@ impl RemoteTracker for Fake {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        _title: &str,
-        _body: &str,
+        _title: Option<&str>,
+        _body: Option<&str>,
     ) -> tracker::ValidationOutcome {
         unimplemented!("not exercised by the apply suite")
     }

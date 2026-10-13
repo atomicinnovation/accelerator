@@ -230,7 +230,7 @@ fn push_update(
     let external_id = tracker::ExternalId::new(external_id);
 
     tracker
-        .update(&external_id, &title, &body)
+        .update(&external_id, Some(&title), &body)
         .map_err(|error| push_failure(error, path, &mut baseline_store, &id))?;
 
     let store =

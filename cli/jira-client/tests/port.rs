@@ -216,7 +216,7 @@ fn update_puts_the_whole_content_and_returns_nothing() {
     let client = client_for(&server, brief());
 
     client
-        .update(&id("ENG-42"), "New title", "New body\n")
+        .update(&id("ENG-42"), Some("New title"), "New body\n")
         .expect("update succeeds");
 
     let sent: Value =
@@ -718,7 +718,7 @@ fn a_bad_path_is_rejected_without_being_sent() {
     );
 
     let error = client
-        .update(&id("../ENG-1"), "A title", "A body\n")
+        .update(&id("../ENG-1"), Some("A title"), "A body\n")
         .expect_err("the identifier cannot be composed into a path");
 
     assert!(matches!(error, TrackerError::Rejected { .. }), "{error}");

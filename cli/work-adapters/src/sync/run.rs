@@ -715,7 +715,11 @@ fn check_send(
     ) {
         return Some(Err(refused_send(&item.id, refusal)));
     }
-    Some(Ok(tracker.validate_update(external_id, &title, &body)))
+    Some(Ok(tracker.validate_update(
+        external_id,
+        Some(&title),
+        Some(&body),
+    )))
 }
 
 fn fetched_projection<'a>(

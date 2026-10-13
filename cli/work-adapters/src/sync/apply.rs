@@ -256,7 +256,7 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &PushRequest<'_>,
     ) -> Result<(), ApplyError> {
         self.tracker
-            .update(request.external_id, request.title, request.body)
+            .update(request.external_id, Some(request.title), request.body)
             .map_err(|source| ApplyError::Tracker {
                 item_id: request.id.to_owned(),
                 operation: "update",

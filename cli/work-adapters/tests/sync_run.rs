@@ -1436,7 +1436,7 @@ fn a_local_resolution_overwrites_the_remote_title_and_description(
         work::sync::Action::Overwrite
     );
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
-    let updates: Vec<(String, String)> = scenario
+    let updates: Vec<(Option<String>, String)> = scenario
         .tracker
         .calls()
         .into_iter()
@@ -1449,7 +1449,7 @@ fn a_local_resolution_overwrites_the_remote_title_and_description(
         .collect();
     assert_eq!(
         updates,
-        [("Local title".to_owned(), "Local body".to_owned())]
+        [(Some("Local title".to_owned()), "Local body".to_owned())]
     );
     Ok(())
 }
@@ -1775,7 +1775,7 @@ fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
     execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "the push must proceed within the bounds")?;
 
-    let pushed: Vec<String> = scenario
+    let pushed: Vec<Option<String>> = scenario
         .tracker
         .calls()
         .into_iter()
@@ -1784,7 +1784,7 @@ fn a_pushed_title_the_frontmatter_escapes_reaches_the_tracker_as_written(
             _ => None,
         })
         .collect();
-    assert_eq!(pushed, [r#"Say "hi" to C:\temp"#]);
+    assert_eq!(pushed, [Some(r#"Say "hi" to C:\temp"#.to_owned())]);
     Ok(())
 }
 
@@ -2531,7 +2531,8 @@ fn resolve_local_overwrites_an_unrenderable_jira_description(
     assert!(scenario.tracker.calls().iter().any(|call| matches!(
         call,
         Call::Update { title, body, .. }
-            if title == "Local title" && body.contains("Edited locally")
+            if title.as_deref() == Some("Local title")
+                && body.contains("Edited locally")
     )));
     Ok(())
 }

@@ -173,7 +173,10 @@ fn preview_create_resolves_to_unset_offline() {
 fn validate_update_rejects_a_missing_title_offline() {
     let (_server, subject) = scripted(vec![]);
     let id = ExternalId::new(CREATED.to_owned());
-    match subject.tracker().validate_update(&id, "", "Body\n") {
+    match subject
+        .tracker()
+        .validate_update(&id, Some(""), Some("Body\n"))
+    {
         ValidationOutcome::Rejected { reasons } => {
             assert!(!reasons.is_empty());
         }
@@ -197,7 +200,7 @@ fn update_replaces_the_content_offline() {
         .expect("create succeeds");
     subject
         .tracker()
-        .update(&created, "Updated", "Updated body\n")
+        .update(&created, Some("Updated"), "Updated body\n")
         .expect("update succeeds");
 }
 
@@ -249,5 +252,51 @@ fn retitle_sends_only_the_title() {
     assert_eq!(
         sent["variables"]["input"],
         serde_json::json!({"title": "Retitled"})
+    );
+}
+
+#[test]
+fn update_without_a_title_sends_only_the_description() {
+    let (server, subject) = scripted(vec![json(
+        "{\"data\":{\"issueUpdate\":{\"success\":true,\
+         \"issue\":{\"identifier\":\"ENG-1\"}}}}",
+    )]);
+
+    subject
+        .tracker()
+        .update(&ExternalId::new(CREATED.to_owned()), None, "Body\n")
+        .expect("update succeeds");
+
+    let sent: serde_json::Value = serde_json::from_slice(
+        &server
+            .last_body(&RequestKey::post(GRAPHQL))
+            .expect("the update was sent"),
+    )
+    .expect("a JSON request");
+    assert_eq!(
+        sent["variables"]["input"],
+        serde_json::json!({"description": "Body\n"})
+    );
+}
+
+#[test]
+fn validating_without_a_title_requires_none() {
+    let (_server, subject) = scripted(vec![]);
+    let id = ExternalId::new(CREATED.to_owned());
+
+    assert_eq!(
+        subject.tracker().validate_update(&id, None, Some("Body\n")),
+        ValidationOutcome::Valid
+    );
+}
+
+#[test]
+fn validating_without_a_body_composes_no_description() {
+    let (_server, subject) = scripted(vec![]);
+    let id = ExternalId::new(CREATED.to_owned());
+
+    assert_eq!(
+        subject.tracker().validate_update(&id, Some("Title"), None),
+        ValidationOutcome::Valid
     );
 }

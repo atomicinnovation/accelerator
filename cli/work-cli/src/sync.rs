@@ -3705,7 +3705,7 @@ mod tests {
         fn update(
             &self,
             _id: &ExternalId,
-            _title: &str,
+            _title: Option<&str>,
             _body: &str,
         ) -> Result<(), TrackerError> {
             unimplemented!("not exercised by the fetch_all failure path")
@@ -3761,8 +3761,8 @@ mod tests {
         fn validate_update(
             &self,
             _id: &ExternalId,
-            _title: &str,
-            _body: &str,
+            _title: Option<&str>,
+            _body: Option<&str>,
         ) -> tracker::ValidationOutcome {
             unimplemented!("not exercised by the fetch_all failure path")
         }

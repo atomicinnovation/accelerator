@@ -721,14 +721,15 @@ impl LinearClient {
     pub fn update_op(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), LinearFailure> {
         refuse_identifier_op(id, Operation::Update)?;
-        let variables = json!({
-            "id": id.as_str(),
-            "input": {"title": title, "description": body},
-        });
+        let input = title.map_or_else(
+            || json!({"description": body}),
+            |title| json!({"title": title, "description": body}),
+        );
+        let variables = json!({"id": id.as_str(), "input": input});
         self.call_op(UPDATE, &variables, Operation::Update, id.as_str())?;
         Ok(())
     }
@@ -936,7 +937,7 @@ impl RemoteTracker for LinearClient {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
         self.update_op(id, title, body).map_err(TrackerError::from)
@@ -1133,12 +1134,12 @@ impl RemoteTracker for LinearClient {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        title: &str,
-        _body: &str,
+        title: Option<&str>,
+        _body: Option<&str>,
     ) -> ValidationOutcome {
         // Local composition check: Linear's GraphQL has no non-mutating
         // update-validation endpoint, so a remote pre-flight is unavailable.
-        if title.trim().is_empty() {
+        if title.is_some_and(|title| title.trim().is_empty()) {
             ValidationOutcome::Rejected {
                 reasons: vec![
                     "title is required but the payload leaves it empty"

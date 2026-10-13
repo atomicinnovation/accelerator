@@ -329,7 +329,7 @@ fn run_update(args: UpdateArgs) -> ExitCode {
     }
     let title = args.title.unwrap_or_default();
     let body = args.description.unwrap_or_default();
-    match client.update_op(&id_of(&args.id), &title, &body) {
+    match client.update_op(&id_of(&args.id), Some(&title), &body) {
         Ok(()) => {
             keywords::text_line(keywords::Update::Updated.keyword(), &args.id);
             ExitCode::SUCCESS

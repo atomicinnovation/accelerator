@@ -691,7 +691,11 @@ impl Promoting<'_> {
                 if self
                     .ports
                     .tracker
-                    .update(&ExternalId::from(key), &self.content.title, &body)
+                    .update(
+                        &ExternalId::from(key),
+                        Some(&self.content.title),
+                        &body,
+                    )
                     .is_err()
                 {
                     return self.advance(

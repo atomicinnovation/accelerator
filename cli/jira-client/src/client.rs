@@ -556,14 +556,6 @@ fn timestamp(payload: &Value) -> RemoteTimestamp {
         })
 }
 
-/// The `{fields: {summary, description}}` an update sends, shared by `update`
-/// and `validate_update` so the previewed payload is the one that would be
-/// pushed.
-fn update_fields(title: &str, body: &str) -> Result<Value, adf::AdfError> {
-    let description = markdown_to_document(body, None)?;
-    Ok(json!({"fields": {"summary": title, "description": description}}))
-}
-
 /// The JQL field a config filter key lowers to.
 ///
 /// Config speaks the tracker's own vocabulary (`label`, `state`); JQL names the
@@ -647,12 +639,12 @@ impl JiraClient {
     fn edit_summary_and_body(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: Option<&str>,
     ) -> Result<(), TrackerError> {
         let custom = serde_json::Map::new();
         let edit = crate::mutation::UpdateFields {
-            summary: Some(title),
+            summary: title,
             body,
             priority: None,
             assignee: None,
@@ -717,7 +709,7 @@ impl RemoteTracker for JiraClient {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError> {
         self.edit_summary_and_body(id, title, Some(body))
@@ -728,7 +720,7 @@ impl RemoteTracker for JiraClient {
         id: &ExternalId,
         title: &str,
     ) -> Result<(), TrackerError> {
-        self.edit_summary_and_body(id, title, None)
+        self.edit_summary_and_body(id, Some(title), None)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
@@ -874,17 +866,19 @@ impl RemoteTracker for JiraClient {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        title: &str,
-        body: &str,
+        title: Option<&str>,
+        body: Option<&str>,
     ) -> ValidationOutcome {
         let mut reasons = Vec::new();
-        if title.trim().is_empty() {
+        if title.is_some_and(|title| title.trim().is_empty()) {
             reasons.push(
                 "summary is required but the payload leaves it empty"
                     .to_owned(),
             );
         }
-        if let Err(error) = update_fields(title, body) {
+        if let Some(Err(error)) =
+            body.map(|body| markdown_to_document(body, None))
+        {
             reasons.push(format!("description could not be composed: {error}"));
         }
         if reasons.is_empty() {

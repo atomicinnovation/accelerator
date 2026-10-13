@@ -684,7 +684,8 @@ pub trait RemoteTracker: BodyDialect {
         kind: &str,
     ) -> Result<ExternalId, TrackerError>;
 
-    /// Replaces the remote issue's whole content.
+    /// Replaces the remote issue's description, and its title when one is
+    /// given; with no title, the remote title is left as it is.
     ///
     /// Returns nothing: the caller that needs the resulting stamp for its sync
     /// baseline reads it back with `show`.
@@ -704,7 +705,7 @@ pub trait RemoteTracker: BodyDialect {
     fn update(
         &self,
         id: &ExternalId,
-        title: &str,
+        title: Option<&str>,
         body: &str,
     ) -> Result<(), TrackerError>;
 
@@ -857,7 +858,8 @@ pub trait RemoteTracker: BodyDialect {
         -> Result<CreatePreview, TrackerError>;
 
     /// Validates the payload a `update` of this content would send, without
-    /// sending it.
+    /// sending it. A `None` title or body is a payload that omits it, so
+    /// nothing is required of it.
     ///
     /// A **local payload-composition check** for both providers: it composes the
     /// update payload the way [`RemoteTracker::update`] would and reports whether
@@ -873,8 +875,8 @@ pub trait RemoteTracker: BodyDialect {
     fn validate_update(
         &self,
         id: &ExternalId,
-        title: &str,
-        body: &str,
+        title: Option<&str>,
+        body: Option<&str>,
     ) -> ValidationOutcome;
 }
 
