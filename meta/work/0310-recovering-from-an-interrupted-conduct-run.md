@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:0307", "work-item:0308"]
 tags: ["research", "deep-research", "conduct", "recovery"]
-last_updated: "2026-10-12T22:39:25+00:00"
+last_updated: "2026-10-13T17:29:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -97,20 +97,30 @@ Much of the recovery already works:
 - **Interrupted-run report**: when `outstanding --start` replaces another
   run's readable ledger, the plan carries that run's id and its last
   offered batch, each spawn classed by its one output file as written and
-  valid, written but invalid, or not written. A pair's finding is judged by
-  the validation `outstanding` applies to every finding; a node's note is
-  valid when the plan accepts it and invalid when the plan rejects it, so
-  the node carries `rejected`. This data replaces today's "replaced the
-  ledger of run" warning. The skill shows the report, one group per class,
-  before the first batch, opening "run X did not end; if it is still going,
-  it stops at its next batch, and what it writes from now on may show as
-  unexpected", never asserting that the earlier run stopped. No report
-  appears when there was no ledger to replace; a corrupt ledger keeps
-  today's "replaced a corrupt run ledger" warning and yields no report.
+  valid, written but invalid, not written, or unasked. A spawn is unasked
+  when no outline pair owns its stem any more (its question or profile
+  left the outline); it is left in place, whatever it wrote, unless it
+  left a finding that fails validation or answers a pair the outline still
+  asks, which is written but invalid and quarantined, though not offered
+  again. A pair's finding is valid when it answers its
+  outline pair, the test step 3 (Clear) applies to a finding that does not
+  complete its pair, and invalid otherwise, whether it fails validation or
+  names another question or profile; a node's note is valid when the plan
+  accepts it and invalid when the plan rejects it, so the node carries
+  `rejected`. This data replaces
+  today's "replaced the ledger of run" warning. The skill shows the report,
+  one group per class, before the first batch, opening "run X did not end;
+  if it is still going, it stops at its next batch, and what it writes from
+  now on may show as unexpected", never asserting that the earlier run
+  stopped. Every readable ledger replaced yields the report, including one
+  whose last batch offered nothing, which shows the opening sentence and no
+  groups. No report appears when there was no ledger to replace; a corrupt
+  ledger keeps today's "replaced a corrupt run ledger" warning and yields
+  no report.
 - **Invalid leftover findings**: `outstanding --start` lists each finding
   the report classes as written but invalid as a path to quarantine, and
-  step 3 (Clear) renames it to a `.invalid` marker before the first batch
-  spawns, as step 5 would have done, so it no longer counts towards
+  `conduct` renames it to a `.invalid` marker straight after the report,
+  before the first batch spawns, as step 5 would have done, so it no longer counts towards
   `finding_count`. Its pair is offered at a fresh index, as the planner
   already does for an invalid finding; the marker keeps the old index
   reserved.
@@ -130,29 +140,35 @@ Much of the recovery already works:
       (including at least one rejected note) and the rest nothing, when
       `conduct` starts, then before the first batch it names the earlier
       run, lists the K spawns as written by that run, the J as written but
-      invalid, quarantined and offered again, and the other N − K − J as
-      not written and offered again.
+      invalid and offered again, marking each invalid finding quarantined,
+      and the other N − K − J as not written and offered again. A spawn
+      whose question left the outline is listed apart, as left in place.
 - [ ] Given the same stale ledger, when `outstanding --start` plans, then
       its JSON carries the earlier run's id and the N spawn refs split into
-      written and valid, written but invalid, and not written, and carries
-      no "replaced the ledger of run" warning.
+      written and valid, written but invalid, not written, and unasked, and
+      carries no "replaced the ledger of run" warning.
 - [ ] Given a stale ledger, when `conduct` reports it, then the report
       opens with the sentence the requirement fixes, and makes no
       unconditional claim that the earlier run stopped, crashed, died or
       was interrupted; the conditional "if it is still going, it stops at
       its next batch" is allowed.
+- [ ] Given a stale ledger whose last batch offered no spawns, when
+      `conduct` starts, then before the first batch it shows the report's
+      opening sentence naming the earlier run, and lists no spawns.
 - [ ] Given no ledger to replace, because none existed or the previous run
       ended with `end-run`, when `conduct` starts, then no interrupted-run
       report appears.
 - [ ] Given a corrupt run ledger, when `conduct` starts, then the plan
       carries no interrupted-run data, the skill shows the corrupt-ledger
       warning, and no interrupted-run report appears.
-- [ ] Given a finding from the replaced ledger's last batch that fails
-      validation, when the new run starts, then step 3 renames it to a
-      `.invalid` marker before the first batch spawns, its pair is offered
-      at a fresh index, and step 7's `finding_count` excludes it.
-- [ ] Given a finding from the replaced ledger's last batch that passes
-      validation, when the new run plans, then its pair counts as answered
+- [ ] Given two findings from the replaced ledger's last batch that do not
+      answer their outline pairs, one failing validation and one valid but
+      naming another question, when the new run starts, then `conduct`
+      renames each to a `.invalid` marker before the first batch spawns, each pair
+      is offered at a fresh index, and step 7's `finding_count` excludes
+      both.
+- [ ] Given a finding from the replaced ledger's last batch that answers
+      its outline pair, when the new run plans, then its pair counts as answered
       and is not offered again.
 - [ ] Given a stale ledger and on-disk output for part of its last batch,
       when the new run reaches step 7, then the outline checkboxes and the
@@ -246,6 +262,14 @@ Much of the recovery already works:
   cost of a fresh index for the re-offered pair.
 - The recovery row is named "unfinished run" rather than "interrupted run"
   so it never asserts a cause the next run cannot observe.
+- Codebase research
+  (`meta/research/codebase/2026-10-13-0310-recovering-from-an-interrupted-conduct-run.md`)
+  changed two rules. A pair's finding is now judged by whether it answers
+  its outline pair rather than by schema validity alone. Under the schema
+  test, a valid finding naming the wrong question was reported valid, left
+  counted on disk, and its pair offered again anyway. Also, a ledger whose
+  last batch was empty still yields the report, because the earlier run may
+  still be live and its `end-run` would then fail as superseded.
 
 ## References
 
