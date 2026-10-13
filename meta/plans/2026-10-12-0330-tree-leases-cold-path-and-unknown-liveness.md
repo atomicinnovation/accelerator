@@ -1410,9 +1410,9 @@ use `/accelerator:update-work-item` to:
 
 #### Automated Verification
 
-- [ ] The three cross-launcher tests pass: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution second_launcher`
-- [ ] With no lease paths passed to the holder, `a_second_launcher_spares_generations_a_live_daemon_holds` fails. Revert that before committing.
-- [ ] `mise run` exits 0 end-to-end
+- [x] The three cross-launcher tests pass: `mise exec -- cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution second_launcher`
+- [x] With no lease paths passed to the holder, `a_second_launcher_spares_generations_a_live_daemon_holds` fails. Revert that before committing.
+- [x] `mise run` exits 0 end-to-end
 
 #### Manual Verification
 

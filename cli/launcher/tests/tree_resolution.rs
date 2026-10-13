@@ -269,10 +269,42 @@ impl Harness {
         liveness: &'a dyn LivenessProbe,
         steps: &'a dyn StepObserver,
     ) -> TreeResolver<'a> {
+        self.resolver_over(
+            &self.archive_sha,
+            "test-install",
+            clock,
+            liveness,
+            steps,
+        )
+    }
+
+    /// A second launcher sharing this cache and release, expecting `digest`.
+    fn resolver_expecting<'a>(
+        &'a self,
+        digest: &str,
+        clock: &'a dyn Clock,
+    ) -> TreeResolver<'a> {
+        self.resolver_over(
+            digest,
+            "second-install",
+            clock,
+            &FlockProbe,
+            &NoSteps,
+        )
+    }
+
+    fn resolver_over<'a>(
+        &'a self,
+        digest: &str,
+        launcher_id: &str,
+        clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
         let mut digests = BTreeMap::new();
         digests.insert(
             (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-            self.archive_sha.clone(),
+            digest.to_owned(),
         );
         TreeResolver {
             cache_root: self.cache.clone(),
@@ -286,7 +318,7 @@ impl Harness {
             )),
             clock,
             liveness,
-            launcher_id: "test-install".to_owned(),
+            launcher_id: launcher_id.to_owned(),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
             steps,
@@ -1974,4 +2006,145 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
         .unwrap()
         .to_string_lossy()
         .contains(other_platform));
+}
+
+// ---- a second launcher sharing the cache root ----
+
+const LEASE_HOLDER: &str = env!("CARGO_BIN_EXE_launcher-fixture-lease-holder");
+
+/// A transient holder can briefly pin a lease: a `minisign` child a parallel
+/// test spawned inside `materialise`'s own lease window inherits it.
+const RELEASE_BOUND: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// A detached process holding leases, standing in for a live design daemon. It
+/// takes its own leases, so the test process never holds a long-lived lease
+/// that a child another test spawns could inherit.
+struct LeaseHolder {
+    child: std::process::Child,
+    terminated: bool,
+}
+
+fn spawn_lease_holder(leases: &[PathBuf]) -> LeaseHolder {
+    use std::io::BufRead as _;
+
+    let mut child = std::process::Command::new(LEASE_HOLDER)
+        .args(leases)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn the lease holder");
+    let stdout = child.stdout.take().expect("the holder's stdout");
+    let mut line = String::new();
+    std::io::BufReader::new(stdout)
+        .read_line(&mut line)
+        .expect("read the holder's readiness");
+    let holder = LeaseHolder {
+        child,
+        terminated: false,
+    };
+    assert_eq!(line.trim(), "ready", "the lease holder never became ready");
+    holder
+}
+
+impl LeaseHolder {
+    fn terminate(&mut self) {
+        if let Some(pid) = i32::try_from(self.child.id())
+            .ok()
+            .and_then(rustix::process::Pid::from_raw)
+        {
+            let _ = rustix::process::kill_process_group(
+                pid,
+                rustix::process::Signal::TERM,
+            );
+        }
+        let _ = self.child.wait();
+        self.terminated = true;
+    }
+}
+
+impl Drop for LeaseHolder {
+    fn drop(&mut self) {
+        if !self.terminated {
+            self.terminate();
+        }
+    }
+}
+
+fn await_released(lease: &Path) {
+    let deadline = std::time::Instant::now() + RELEASE_BOUND;
+    while tree_lease::observed_held(lease).expect("observe the lease") {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{} was never released",
+            lease.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+fn own_pointer(harness: &Harness) -> PathBuf {
+    sibling_pointer(harness, &harness.archive_sha)
+}
+
+#[test]
+fn a_second_launcher_spares_generations_a_live_daemon_holds() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    let mut daemon =
+        spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
+    assert!(tree_lease::observed_held(&sealed.lease_path).expect("observe"));
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(sealed.path.exists());
+    assert!(own_pointer(&harness).exists());
+    daemon.terminate();
+}
+
+#[test]
+fn a_second_launcher_reclaims_generations_no_daemon_holds() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    await_released(&sealed.lease_path);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(!sealed.path.exists());
+    assert!(!own_pointer(&harness).exists());
+}
+
+#[test]
+fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    let mut daemon =
+        spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
+    assert!(tree_lease::observed_held(&sealed.lease_path).expect("observe"));
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+    assert!(sealed.path.exists());
+
+    daemon.terminate();
+    await_released(&sealed.lease_path);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(!sealed.path.exists());
+    assert!(!own_pointer(&harness).exists());
 }
