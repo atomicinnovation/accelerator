@@ -469,8 +469,8 @@ item's `line`, `question`, and `complete`), `pairs` (each outstanding pair's
 `slots`, and the `source` they came from: the variable's name, or `default`).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know, except that on `--start` they must
-rename the `replaced_run.quarantine` paths before acting on the plan. It exits `1` with
-`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+rename the `replaced_run.quarantine` paths before acting on the plan. It exits
+`1` with `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`. It defaults to `1` and is never read from
