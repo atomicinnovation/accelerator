@@ -311,8 +311,9 @@ allocate a finding or note path yourself.
    `.<name>.invalid` beside it, under step 3's unique-suffix rule; the plan
    already reads them as quarantined. If any rename fails, report each
    failure verbatim, then each path still not renamed with the
-   `.<name>.invalid` name to give it by hand before re-running `conduct`,
-   and stop `conduct`.
+   `.<name>.invalid` name to give it by hand before re-running `conduct`;
+   each such path is not quarantined, whatever the report marks. Then stop
+   `conduct`.
 
    Each plan prints JSON. A `spawn` ref reads `<stem>` for a pair and
    `<stem>:<lineage>` for a node. Read:

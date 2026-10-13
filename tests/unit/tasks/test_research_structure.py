@@ -367,6 +367,7 @@ def test_a_failed_quarantine_lists_what_is_left_and_stops_conduct() -> None:
     for phrase in (
         "attempt every rename",
         "each path still not renamed",
+        "is not quarantined, whatever the report marks",
         "stop `conduct`",
     ):
         assert phrase in report, f"the report must state {phrase!r}"
