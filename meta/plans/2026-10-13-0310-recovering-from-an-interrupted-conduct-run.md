@@ -13,7 +13,7 @@ relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
-last_updated: "2026-10-13T20:45:00+00:00"
+last_updated: "2026-10-13T21:15:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -26,8 +26,8 @@ When `outstanding --start` replaces another run's readable ledger, the plan
 gains a `replaced_run` key: the earlier run's id, its last offered batch
 classed by output file as valid, invalid, unwritten or unasked, and the
 invalid findings to quarantine. The plan is drawn as if those findings were
-already quarantined. `conduct` shows the report before its first batch and
-renames the listed findings straight after it, and the failure-reason table
+already quarantined. `conduct` renames the listed findings before its first
+batch and opens its final summary with the report, and the failure-reason table
 gains an "unfinished run" row. The "replaced the ledger of run" warning
 leaves `warnings`.
 
@@ -83,11 +83,15 @@ key is absent with no ledger, after `end-run`, on a corrupt ledger, and on
 every plan other than `--start`. A stderr line names it; no `warnings` entry
 accompanies it. The corrupt-ledger warning is unchanged.
 
-`conduct` opens with "run {run} did not end; if it is still going, it stops
-at its next batch, and what it writes from now on may show as unexpected",
-then one group per non-empty class, before step 3 of the first batch.
-Straight after the report it renames each `quarantine` path to a `.invalid`
-marker, whether or not the plan offers a spawn. The failure-reason table has
+`conduct`'s report reads "run {run} did not end; if it is still going, it
+stops at its next batch, and what it writes from now on may show as
+unexpected", then one group per non-empty class. It renames each
+`quarantine` path to a `.invalid` marker before step 3 of the first batch,
+whether or not the plan offers a spawn, and opens its final summary with the
+report verbatim. The skill also asks for the report before any other tool
+call, but a session cannot be relied on to print text between tool calls:
+in the walkthrough four sessions paraphrased or skipped that early print,
+while the summary carried the report verbatim. The failure-reason table has
 an "unfinished run" row.
 
 Verify with `mise run` (the bare default task) exiting 0, plus the manual
@@ -1045,8 +1049,9 @@ over another run's readable ledger reports that run's last batch as
 ### Overview
 
 The CLI plans with the listed findings read as quarantined and moves the
-readable-ledger notice to stderr alone; the skill shows the report before
-the first batch and renames the listed findings straight after it.
+readable-ledger notice to stderr alone; the skill renames the listed
+findings before the first batch and opens its final summary with the
+report.
 
 ### Changes Required:
 
@@ -1141,9 +1146,10 @@ after read `inputs`.
 - First-plan warnings (`:262-267`): "report the first plan's `warnings` as
   soon as it returns — a corrupt run ledger or a clamped concurrency".
 - After that sentence, the report instruction: when the first plan carries
-  `replaced_run`, show before step 3 "run {run} did not end; if it is still
-  going, it stops at its next batch, and what it writes from now on may show
-  as unexpected", then one group per non-empty class, each entry as
+  `replaced_run`, print verbatim before any other tool call, as a `text`
+  template, "run {run} did not end; if it is still going, it stops at its
+  next batch, and what it writes from now on may show as unexpected", then
+  one group per non-empty class, each entry as
   `{stem}: {question} ({profile})` or `{stem} {lineage}: {question}
   ({profile})`, as the summary's Failures section leads with the stem, or
   `{stem}` / `{stem} {lineage}` alone when `question` is `null`:
@@ -1157,8 +1163,8 @@ after read `inputs`.
 
   With every class empty, show the opening sentence alone.
 
-  Straight after the report, whether or not the plan offers a spawn, attempt
-  every rename of a `quarantine` path that still exists to `.<name>.invalid`
+  Only once the report is printed, and whether or not the plan offers a
+  spawn, attempt every rename of a `quarantine` path that still exists to `.<name>.invalid`
   beside it, under the unique-suffix rule; the plan already reads them as
   quarantined. If any rename fails, report each failure verbatim, then each
   path still not renamed with the `.<name>.invalid` name to give it by hand
@@ -1168,8 +1174,12 @@ after read `inputs`.
   the opaque-data sentence (`:292-295`). The trims sentence's "ignore the
   stderr copy" becomes "ignore stderr, which repeats the trims and, after a
   replaced ledger, names the replaced run for a hand run".
-- Step 3 Clear (`:297-310`) is unchanged: the report's quarantine has already
-  run, and its offered-path bullet acts only on an existing file.
+- Step 3 Clear (`:297-310`) waits until any report is printed; its
+  offered-path bullet is unchanged, since the report's quarantine has already
+  run and the bullet acts only on an existing file.
+- Step 7's summary opens with an **Unfinished run** section: the report,
+  unchanged. A session reliably prints its final summary, where it may skip
+  text between tool calls.
 
 #### 4. Move the readable-ledger notice to stderr alone
 
@@ -1268,9 +1278,10 @@ findings, and `--start` plans as if they were quarantined.
 
 #### Manual Verification:
 
-- [ ] The interrupted-run walkthrough below shows the report before the
-      first batch, with its groups and no claim that the earlier run stopped
-- [ ] After the report, the invalid leftover is a `.invalid` marker and the
+- [x] The interrupted-run walkthrough below opens its final summary with
+      the report verbatim, with its groups and no claim that the earlier run
+      stopped, and renames the listed findings before the first batch
+- [x] After the report, the invalid leftover is a `.invalid` marker and the
       manifest's `finding_count` excludes it
 - [ ] An empty-batch stale ledger shows the opening sentence alone
 
@@ -1396,8 +1407,9 @@ it left, where deleting the ledger would skip that", and add the
    <slug>` and stop the session after the first batch is offered and some
    agents have written.
 2. Hand-edit one written finding to break its frontmatter.
-3. Re-run `conduct <slug>`; confirm the report opens with the fixed sentence,
-   lists the groups correctly, and appears before any spawn.
+3. Re-run `conduct <slug>`; confirm the final summary opens with the report,
+   which starts with the fixed sentence and lists the groups correctly, and
+   that the listed findings are renamed before any spawn.
 4. Confirm the broken finding is now `.<name>.invalid` and its pair is
    researched again.
 5. Confirm the manifest's `finding_count` and the outline ticks match disk
