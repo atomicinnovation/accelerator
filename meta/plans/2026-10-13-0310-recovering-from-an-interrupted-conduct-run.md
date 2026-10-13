@@ -1389,9 +1389,9 @@ it left, where deleting the ledger would skip that", and add the
 
 #### Manual Verification:
 
-- [ ] The row reads correctly beside `rate_limited` and the capacity row in
+- [x] The row reads correctly beside `rate_limited` and the capacity row in
       the rendered skill
-- [ ] The rendered docs recommend re-running `conduct`, with the wait step
+- [x] The rendered docs recommend re-running `conduct`, with the wait step
       first, and no longer offer deleting as an equal choice
 
 ---
