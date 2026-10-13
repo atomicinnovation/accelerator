@@ -139,8 +139,11 @@
   its source. Every plan carries both, a plain query included, so an empty
   value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`.
   `--start` over another run's readable ledger reports that run's last batch
-  as `replaced_run`. A run keeps a transient `<set>/.conduct-run.json`, removed on completion and
-  safe to delete after an interrupted run; consider adding
+  as `replaced_run` and plans as if its invalid findings were already
+  quarantined; `conduct` shows that report before its first batch and
+  quarantines those findings. A run keeps a transient
+  `<set>/.conduct-run.json`, removed on completion and safe to delete after
+  an interrupted run; consider adding
   `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
