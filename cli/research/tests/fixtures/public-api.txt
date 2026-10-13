@@ -199,6 +199,48 @@ pub fn research::conduct::observed::Observed::default() -> research::conduct::ob
 impl core::fmt::Debug for research::conduct::observed::Observed
 pub fn research::conduct::observed::Observed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::observed::Observed
+pub mod research::conduct::replaced_run
+pub struct research::conduct::replaced_run::Leftover
+impl research::conduct::replaced_run::Leftover
+pub const fn research::conduct::replaced_run::Leftover::pair(&self) -> core::option::Option<&research::topic::outline::Pair>
+pub const fn research::conduct::replaced_run::Leftover::spawn(&self) -> &research::conduct::spawn::SpawnRef
+impl core::clone::Clone for research::conduct::replaced_run::Leftover
+pub fn research::conduct::replaced_run::Leftover::clone(&self) -> research::conduct::replaced_run::Leftover
+impl core::cmp::Eq for research::conduct::replaced_run::Leftover
+impl core::cmp::PartialEq for research::conduct::replaced_run::Leftover
+pub fn research::conduct::replaced_run::Leftover::eq(&self, other: &research::conduct::replaced_run::Leftover) -> bool
+impl core::fmt::Debug for research::conduct::replaced_run::Leftover
+pub fn research::conduct::replaced_run::Leftover::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::replaced_run::Leftover
+pub struct research::conduct::replaced_run::ReplacedBatch
+impl research::conduct::replaced_run::ReplacedBatch
+pub fn research::conduct::replaced_run::ReplacedBatch::judging_findings(replaced: &research::conduct::ledger::RunLedger, inputs: &research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> Self
+pub fn research::conduct::replaced_run::ReplacedBatch::quarantining(&self, inputs: research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> research::topic::plan::RoundInputs
+pub fn research::conduct::replaced_run::ReplacedBatch::report(self, inputs: &research::topic::plan::RoundInputs, plan: &research::topic::plan::RoundPlan, unicode: &dyn research::topic::question::UnicodeText) -> research::conduct::replaced_run::ReplacedRun
+impl core::clone::Clone for research::conduct::replaced_run::ReplacedBatch
+pub fn research::conduct::replaced_run::ReplacedBatch::clone(&self) -> research::conduct::replaced_run::ReplacedBatch
+impl core::cmp::Eq for research::conduct::replaced_run::ReplacedBatch
+impl core::cmp::PartialEq for research::conduct::replaced_run::ReplacedBatch
+pub fn research::conduct::replaced_run::ReplacedBatch::eq(&self, other: &research::conduct::replaced_run::ReplacedBatch) -> bool
+impl core::fmt::Debug for research::conduct::replaced_run::ReplacedBatch
+pub fn research::conduct::replaced_run::ReplacedBatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::replaced_run::ReplacedBatch
+pub struct research::conduct::replaced_run::ReplacedRun
+impl research::conduct::replaced_run::ReplacedRun
+pub fn research::conduct::replaced_run::ReplacedRun::invalid(&self) -> &[research::conduct::replaced_run::Leftover]
+pub fn research::conduct::replaced_run::ReplacedRun::quarantine(&self) -> &[research::topic::layout::stem::Stem]
+pub const fn research::conduct::replaced_run::ReplacedRun::run(&self) -> &research::conduct::ledger::RunId
+pub fn research::conduct::replaced_run::ReplacedRun::unasked(&self) -> &[research::conduct::replaced_run::Leftover]
+pub fn research::conduct::replaced_run::ReplacedRun::unwritten(&self) -> &[research::conduct::replaced_run::Leftover]
+pub fn research::conduct::replaced_run::ReplacedRun::valid(&self) -> &[research::conduct::replaced_run::Leftover]
+impl core::clone::Clone for research::conduct::replaced_run::ReplacedRun
+pub fn research::conduct::replaced_run::ReplacedRun::clone(&self) -> research::conduct::replaced_run::ReplacedRun
+impl core::cmp::Eq for research::conduct::replaced_run::ReplacedRun
+impl core::cmp::PartialEq for research::conduct::replaced_run::ReplacedRun
+pub fn research::conduct::replaced_run::ReplacedRun::eq(&self, other: &research::conduct::replaced_run::ReplacedRun) -> bool
+impl core::fmt::Debug for research::conduct::replaced_run::ReplacedRun
+pub fn research::conduct::replaced_run::ReplacedRun::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::replaced_run::ReplacedRun
 pub mod research::conduct::spawn
 pub enum research::conduct::spawn::SpawnRef
 pub research::conduct::spawn::SpawnRef::Node(research::topic::layout::note_ref::NoteRef)

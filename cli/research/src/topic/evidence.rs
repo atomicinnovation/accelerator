@@ -98,6 +98,14 @@ impl Finding {
             answer.normalised == *question && answer.pair.profile == profile
         })
     }
+
+    pub(crate) fn marker_claim(
+        &self,
+        unicode: &dyn UnicodeText,
+    ) -> Option<IndexClaim> {
+        let named = self.answer().map(|answer| answer.pair.question.as_str());
+        Some(IndexClaim::new(self.index()?, named, unicode))
+    }
 }
 
 /// The SHA-256 of a level note's bytes.
@@ -253,18 +261,31 @@ impl LevelsDirectory {
     pub fn claim(&self, unicode: &dyn UnicodeText) -> IndexClaim {
         IndexClaim::new(self.stem.index(), self.root_question(), unicode)
     }
+
+    pub(crate) fn refused(&self, lineage: &Lineage) -> bool {
+        self.rejected.contains_key(lineage)
+    }
+
+    pub(crate) fn holds(&self, lineage: &Lineage) -> bool {
+        self.refused(lineage)
+            || self.notes.iter().any(|note| note.lineage == *lineage)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::num::NonZeroUsize;
 
     use super::Digest;
     use super::Finding;
     use super::LevelNote;
     use super::LevelNoteFields;
+    use super::LevelsDirectory;
     use super::NoteRejection;
+    use crate::topic::claims::IndexClaim;
     use crate::topic::layout::lineage::Lineage;
+    use crate::topic::layout::stem::Stem;
     use crate::topic::outline::Pair;
     use crate::topic::question::FakeUnicode;
     use crate::topic::question::NormalisedQuestion;
@@ -303,6 +324,60 @@ mod tests {
         assert!(finding.answer().is_none());
         assert_eq!(finding.index(), Some(7));
         assert_eq!(finding.stem(), None);
+    }
+
+    #[test]
+    fn a_finding_claims_its_index_for_the_question_it_answers() {
+        let misdirected =
+            Finding::retained("02-b-web.md", pair(" A? ", "web"), &FakeUnicode);
+        assert_eq!(
+            misdirected.marker_claim(&FakeUnicode),
+            Some(IndexClaim::new(2, Some("A?"), &FakeUnicode))
+        );
+        assert_eq!(
+            Finding::invalid("03-c-web.md").marker_claim(&FakeUnicode),
+            Some(IndexClaim::new(3, None, &FakeUnicode))
+        );
+        assert_eq!(
+            Finding::invalid("Hand Named.md").marker_claim(&FakeUnicode),
+            None
+        );
+    }
+
+    fn directory_with_root_noted_and_2_1_refused() -> Option<LevelsDirectory> {
+        Some(LevelsDirectory::new(
+            Stem::parse("01-a-web")?,
+            Some("A?".to_owned()),
+            vec![LevelNote {
+                lineage: lineage("1"),
+                question: "A?".to_owned(),
+                follow_ups: vec!["B?".to_owned(), "C?".to_owned()],
+                digest: Digest::new([7; 32]),
+            }],
+            BTreeMap::from([(lineage("2-1"), NoteRejection::WrongKind)]),
+        ))
+    }
+
+    #[test]
+    fn a_levels_directory_holds_a_lineage_it_noted_or_refused(
+    ) -> Result<(), &'static str> {
+        let directory =
+            directory_with_root_noted_and_2_1_refused().ok_or("a directory")?;
+        assert!(directory.holds(&lineage("1")));
+        assert!(directory.holds(&lineage("2-1")));
+        assert!(!directory.holds(&lineage("2-2")));
+        Ok(())
+    }
+
+    #[test]
+    fn a_levels_directory_refuses_only_the_lineages_it_rejected(
+    ) -> Result<(), &'static str> {
+        let directory =
+            directory_with_root_noted_and_2_1_refused().ok_or("a directory")?;
+        assert!(directory.refused(&lineage("2-1")));
+        assert!(!directory.refused(&lineage("1")));
+        assert!(!directory.refused(&lineage("2-2")));
+        Ok(())
     }
 
     fn fields<'a>(

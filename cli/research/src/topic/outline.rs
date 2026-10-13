@@ -98,6 +98,15 @@ impl OutlineItem {
         let slug = QuestionSlug::from(self.question.as_str());
         Stem::allocated(index, slug.as_str(), profile)
     }
+
+    pub(crate) fn pair_at(&self, stem: &Stem) -> Option<Pair> {
+        self.profiles()
+            .into_iter()
+            .find(|profile| {
+                self.stem_at(stem.index(), profile).as_ref() == Some(stem)
+            })
+            .map(|profile| self.pair(profile))
+    }
 }
 
 fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
@@ -126,6 +135,7 @@ fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
 mod tests {
     use super::Outline;
     use super::OutlineItem;
+    use super::Pair;
     use crate::topic::layout::stem::Stem;
 
     fn only_item(line: &str) -> Option<OutlineItem> {
@@ -183,6 +193,13 @@ mod tests {
         Stem::parse(text)
     }
 
+    fn pair(question: &str, profile: &str) -> Pair {
+        Pair {
+            question: question.to_owned(),
+            profile: profile.to_owned(),
+        }
+    }
+
     #[test]
     fn an_item_allocates_its_stem_from_its_slug_and_profile(
     ) -> Result<(), &'static str> {
@@ -194,6 +211,38 @@ mod tests {
             stem("03-how-do-heads-specialise-openalex")
         );
         assert_eq!(item.stem_at(3, "Web"), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_pair_whose_stem_it_rebuilds(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] A? — profiles: web, openalex").ok_or("an item")?;
+        let at = stem("07-a-openalex").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), Some(pair("A?", "openalex")));
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_no_pair_for_a_stem_under_a_profile_it_lacks(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] A? — profiles: web, openalex").ok_or("an item")?;
+        let at = stem("07-a-arxiv").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_asks_a_pair_only_under_a_profile_it_names(
+    ) -> Result<(), &'static str> {
+        let at = stem("02-a-b-web").ok_or("a stem")?;
+        let asking = only_item("- [ ] A b?").ok_or("an item")?;
+        assert_eq!(asking.pair_at(&at), Some(pair("A b?", "web")));
+        let not_asking =
+            only_item("- [ ] A? — profiles: web").ok_or("an item")?;
+        assert_eq!(not_asking.pair_at(&at), None);
         Ok(())
     }
 }

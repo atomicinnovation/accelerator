@@ -8,6 +8,7 @@ use crate::topic::claims::ClaimedIndexes;
 use crate::topic::claims::IndexClaim;
 use crate::topic::evidence::Finding;
 use crate::topic::evidence::LevelsDirectory;
+use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 use crate::topic::outline::Outline;
 use crate::topic::outline::OutlineItem;
@@ -98,9 +99,39 @@ impl RoundPlan {
     pub fn of(inputs: &RoundInputs, unicode: &dyn UnicodeText) -> Self {
         Planner::new(inputs, unicode).plan()
     }
+
+    pub(crate) fn rejects(&self, at: &NoteRef) -> bool {
+        self.pairs
+            .iter()
+            .filter(|pair| pair.stem == at.stem)
+            .any(|pair| match &pair.stage {
+                Stage::ResearchNodes(nodes) => nodes.iter().any(|node| {
+                    node.lineage == at.lineage && node.rejected.is_some()
+                }),
+                Stage::SinglePass | Stage::Compose(_) => false,
+            })
+    }
 }
 
 impl RoundInputs {
+    pub(crate) fn with_findings_quarantined(
+        mut self,
+        stems: &[Stem],
+        unicode: &dyn UnicodeText,
+    ) -> Self {
+        let (set_aside, kept): (Vec<Finding>, Vec<Finding>) =
+            self.findings.into_iter().partition(|finding| {
+                finding.stem().is_some_and(|stem| stems.contains(stem))
+            });
+        self.findings = kept;
+        self.quarantined.extend(
+            set_aside
+                .iter()
+                .filter_map(|finding| finding.marker_claim(unicode)),
+        );
+        self
+    }
+
     pub(crate) fn file_claims(
         &self,
         unicode: &dyn UnicodeText,
@@ -1079,5 +1110,124 @@ mod tests {
         assert!(plan.items[0].complete);
         assert!(plan.pairs.is_empty());
         assert!(plan.warnings.is_empty());
+    }
+
+    fn note_ref(stem: &str, at: &str) -> Option<NoteRef> {
+        Some(NoteRef {
+            stem: Stem::parse(stem)?,
+            lineage: Lineage::parse(at)?,
+        })
+    }
+
+    fn refusing(
+        stem: &str,
+        root_question: &str,
+        notes: Vec<LevelNote>,
+        refused: &[&str],
+    ) -> Option<LevelsDirectory> {
+        Some(LevelsDirectory::new(
+            Stem::parse(stem)?,
+            Some(root_question.to_owned()),
+            notes,
+            refused
+                .iter()
+                .map(|at| (lineage(at), NoteRejection::WrongKind))
+                .collect(),
+        ))
+    }
+
+    fn stems_named(texts: &[&str]) -> Vec<Stem> {
+        texts.iter().filter_map(|text| Stem::parse(text)).collect()
+    }
+
+    #[test]
+    fn a_plan_rejects_only_the_node_it_lists_rejected(
+    ) -> Result<(), &'static str> {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        inputs.depth = depth(2);
+        inputs.levels = [
+            refusing("01-a-web", "A?", Vec::new(), &["1"]),
+            refusing(
+                "02-b-web",
+                "B?",
+                vec![note("1", "B?", &["X?", "Y?"]), note("2-2", "Y?", &[])],
+                &["2-1"],
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let plan = plan(&inputs);
+        let rejects = |stem, at| {
+            note_ref(stem, at)
+                .map(|at| plan.rejects(&at))
+                .ok_or("a note ref")
+        };
+        assert!(rejects("01-a-web", "1")?);
+        assert!(!rejects("02-b-web", "1")?);
+        assert!(rejects("02-b-web", "2-1")?);
+        assert!(!rejects("02-b-web", "2-2")?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_misdirected_finding_read_as_quarantined_plans_as_its_marker_would() {
+        let mut read = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        read.findings = vec![retained("02-b-web.md", "A?", "web")];
+        let mut marked = read.clone();
+        marked.findings = Vec::new();
+        marked.quarantined = quarantined(".02-b-web.md.invalid", Some("A?"));
+        let read = read.with_findings_quarantined(
+            &stems_named(&["02-b-web"]),
+            &FakeUnicode,
+        );
+        assert_eq!(plan(&read), plan(&marked));
+        assert_eq!(stems(&plan(&read)), ["02-a-web", "03-b-web"]);
+    }
+
+    #[test]
+    fn a_misdirected_finding_below_its_named_questions_tree_leaves_it_on_its_tree(
+    ) {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        inputs.findings = vec![retained("01-b-web.md", "A?", "web")];
+        inputs.levels = levels("02-a-web", Some("A?"), Vec::new());
+        let inputs = inputs.with_findings_quarantined(
+            &stems_named(&["01-b-web"]),
+            &FakeUnicode,
+        );
+        assert_eq!(stems(&plan(&inputs)), ["02-a-web", "03-b-web"]);
+    }
+
+    #[test]
+    fn a_finding_failing_validation_read_as_quarantined_holds_its_index_for_no_question(
+    ) {
+        let mut inputs = inputs(outline(&["- [ ] A?"]));
+        inputs.findings = vec![Finding::invalid("01-a-web.md")];
+        let inputs = inputs.with_findings_quarantined(
+            &stems_named(&["01-a-web"]),
+            &FakeUnicode,
+        );
+        assert!(inputs.findings.is_empty());
+        assert_eq!(
+            inputs.quarantined,
+            [IndexClaim::new(1, None, &FakeUnicode)]
+        );
+        assert_eq!(stems(&plan(&inputs)), ["02-a-web"]);
+    }
+
+    #[test]
+    fn reading_findings_as_quarantined_leaves_every_other_finding() {
+        let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        let kept = vec![
+            retained("01-a-web.md", "A?", "web"),
+            Finding::invalid("05-Hand Named.md"),
+        ];
+        inputs.findings =
+            [kept.clone(), vec![retained("02-b-web.md", "B?", "web")]].concat();
+        let inputs = inputs.with_findings_quarantined(
+            &stems_named(&["02-b-web"]),
+            &FakeUnicode,
+        );
+        assert_eq!(inputs.findings, kept);
     }
 }

@@ -5,5 +5,6 @@ pub mod concurrency;
 pub mod ledger;
 pub mod memory;
 pub mod observed;
+pub mod replaced_run;
 pub mod spawn;
 pub mod window;
