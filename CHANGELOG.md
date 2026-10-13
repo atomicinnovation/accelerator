@@ -126,7 +126,8 @@
   and the new `end-run` verb closes one. `--concurrency` falls back to
   `research.topic.concurrency` and is reported as `concurrency`, clamped to
   the subagent cap described below, which is reported as `subagent_cap` with
-  its source. An empty value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY`. A
+  its source. Every plan carries both, a plain query included, so an empty
+  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`. A
   run keeps a transient `<set>/.conduct-run.json`, removed on completion and
   safe to delete after an interrupted run; consider adding
   `**/.conduct-run.json` to your `.gitignore`.
