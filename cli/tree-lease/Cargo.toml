@@ -1,0 +1,19 @@
+[package]
+name = "tree-lease"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[package.metadata.accelerator]
+role = "technical-library"
+
+[lints]
+workspace = true
+
+[dependencies]
+rustix = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

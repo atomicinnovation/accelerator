@@ -43,7 +43,8 @@ members = [
     "research",
     "research-adapters",
     "research-cli",
-    "process-probe"
+    "process-probe",
+    "tree-lease"
 ]
 
 [workspace.package]

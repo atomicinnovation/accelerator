@@ -1053,7 +1053,7 @@ fn verify_detects_an_unexpected_extra_entry() {
 
 #[test]
 fn prune_spares_a_generation_whose_lease_is_still_held() {
-    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+    use tree_lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
@@ -1481,7 +1481,7 @@ fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
 
 #[test]
 fn a_repair_spares_a_superseded_generation_whose_lease_is_held() {
-    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+    use tree_lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);

@@ -953,6 +953,13 @@ _PROJECTION_COMPLIANT = (
     "}\n"
 )
 
+_LEASE_COMPLIANT = (
+    "use std::fs::OpenOptions;\n\n"
+    "pub fn make() -> OpenOptions {\n"
+    "    OpenOptions::new()\n"
+    "}\n"
+)
+
 
 def _write_shared_crate_probe(root: Path, crate: str, lib_body: str) -> None:
     (root / "Cargo.toml").write_text(
@@ -989,6 +996,23 @@ def test_remote_projection_rule_permits_json_extraction(
     _write_shared_crate_probe(
         tmp_path, "remote-projection", _PROJECTION_COMPLIANT
     )
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_tree_lease_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tree-lease", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "tree_lease_holds_leases_only" in output, output
+
+
+def test_tree_lease_rule_permits_locking(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "tree-lease", _LEASE_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 

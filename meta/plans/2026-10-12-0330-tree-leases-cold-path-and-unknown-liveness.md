@@ -425,18 +425,18 @@ roles.
 
 #### Automated Verification
 
-- [ ] `tree-lease` unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p tree-lease`
-- [ ] Launcher tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator`
-- [ ] Role and dependency rules hold: `mise run lint:crate-dependencies:check`
-- [ ] The probe pair passes and the rule fires: `mise run pup:check` and `uv run pytest tests/integration/pup/test_import_rule.py -k tree_lease`
-- [ ] Public-API coverage guard passes: `uv run pytest tests/unit/tasks/test_rust.py`
-- [ ] Dependency graph clean: `mise run deny:check`
-- [ ] `rg -n 'fn hold_shared_lease|struct SharedLease' cli/launcher` returns nothing
-- [ ] `mise run check` exits 0
+- [x] `tree-lease` unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p tree-lease`
+- [x] Launcher tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator`
+- [x] Role and dependency rules hold: `mise run lint:crate-dependencies:check`
+- [x] The probe pair passes and the rule fires: `mise run pup:check` and `uv run pytest tests/integration/pup/test_import_rule.py -k tree_lease`
+- [x] Public-API coverage guard passes: `uv run pytest tests/unit/tasks/test_rust.py`
+- [x] Dependency graph clean: `mise run deny:check`
+- [x] `rg -n 'fn hold_shared_lease|struct SharedLease' cli/launcher` returns nothing
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] The diff of `resolver.rs` is limited to the import and error mapping
+- [x] The diff of `resolver.rs` is limited to the import and error mapping
 
 ---
 

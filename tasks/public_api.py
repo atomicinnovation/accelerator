@@ -86,6 +86,11 @@ _EXEMPT_MEMBERS = {
         " is the epoch value itself, held by the fixture-replayed arithmetic"
         " tests and by the identity semantics each caller builds on top"
     ),
+    "tree-lease": (
+        "a hold and an observe over flock: its contract is the kernel lock"
+        " held, covered by its own lock-observation tests and by every"
+        " reclaimer that probes it"
+    ),
     "http-test-support": _TEST_SUPPORT,
     "graphql-test-support": _TEST_SUPPORT,
     "tracker-test-support": _TEST_SUPPORT,

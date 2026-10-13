@@ -25,6 +25,7 @@ dependencies = [
  "time",
  "toml",
  "tracing",
+ "tree-lease",
  "vcs-adapters",
  "vcs-test-support",
  "vergen",
@@ -5095,6 +5096,14 @@ name = "tracker-test-support"
 version = "1.24.0-pre.81"
 dependencies = [
  "tracker",
+]
+
+[[package]]
+name = "tree-lease"
+version = "1.24.0-pre.78"
+dependencies = [
+ "rustix",
+ "tempfile",
 ]
 
 [[package]]

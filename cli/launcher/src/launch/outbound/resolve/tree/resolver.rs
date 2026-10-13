@@ -24,7 +24,7 @@ use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
     validated_generation, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{hold_shared_lease, take_single_flight, try_single_flight};
+use super::lease::{take_single_flight, try_single_flight};
 use super::table::{FileTable, TABLE_NAME};
 use super::{claims, download, extract, pins, reap, seal};
 
@@ -315,7 +315,7 @@ impl TreeResolver<'_> {
 
         // 9. Hold the lease before the rename, so the 9->10 window cannot look
         //    like crash residue to a concurrent prune.
-        let _lease = hold_shared_lease(&paths.lease(&generation))?;
+        let _lease = tree_lease::hold_shared_lease(&paths.lease(&generation))?;
         self.steps.after(MaterialiseStep::LeaseHeld)?;
 
         // 10. Rename into place — fresh by construction, so a collision is an
@@ -523,9 +523,9 @@ impl AcquireSealedTree for TreeResolver<'_> {
             let Some(located) = self.locate(artifact, digest) else {
                 return Ok(None);
             };
-            let Ok(lease) =
-                hold_shared_lease(&paths.lease(&located.generation))
-            else {
+            let Ok(lease) = tree_lease::hold_shared_lease(
+                &paths.lease(&located.generation),
+            ) else {
                 return Ok(None);
             };
             match directory_identity(&located.generation_dir) {

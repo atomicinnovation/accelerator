@@ -11,8 +11,8 @@
 
 #[cfg(unix)]
 pub use unix::{
-    hold_shared_lease, probe_liveness, take_single_flight, try_single_flight,
-    Liveness, SharedLease, SingleFlight,
+    probe_liveness, take_single_flight, try_single_flight, Liveness,
+    SingleFlight,
 };
 
 #[cfg(unix)]
@@ -23,52 +23,18 @@ mod unix {
     use std::path::Path;
 
     use rustix::fs::{flock, FlockOperation};
-    use rustix::io::{fcntl_getfd, fcntl_setfd, FdFlags};
+    use tree_lease::LeaseError;
 
     use crate::launch::core::tree::{HeldLease, TreeError};
 
-    /// A held shared lease. The tree it pins stays reclamation-proof for as
-    /// long as this value — or any process that inherited the open file
-    /// description across `exec` — is alive.
-    pub struct SharedLease {
-        // Holding the open file description is the lock; the field exists to be
-        // dropped, releasing it, when the lease value dies.
-        #[allow(dead_code)]
-        file: File,
-    }
+    impl HeldLease for tree_lease::SharedLease {}
 
-    impl SharedLease {
-        #[cfg(test)]
-        const fn file(&self) -> &File {
-            &self.file
+    impl From<LeaseError> for TreeError {
+        fn from(error: LeaseError) -> Self {
+            Self::Lease {
+                detail: error.to_string(),
+            }
         }
-    }
-
-    impl HeldLease for SharedLease {}
-
-    /// Open the lease sidecar and take `LOCK_SH`, clearing `FD_CLOEXEC` so the
-    /// open file description survives the `exec` into the design binary and on
-    /// into the detached daemon.
-    ///
-    /// # Errors
-    ///
-    /// [`TreeError::Lease`] if the sidecar cannot be created or locked.
-    pub fn hold_shared_lease(path: &Path) -> Result<SharedLease, TreeError> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(path)
-            .map_err(|error| {
-                lease(&format!("cannot open the lease: {error}"))
-            })?;
-        flock(file.as_fd(), FlockOperation::LockShared).map_err(|error| {
-            lease(&format!("cannot take the lease: {error}"))
-        })?;
-        clear_cloexec(&file)?;
-        Ok(SharedLease { file })
     }
 
     /// Whether a generation's lease is held by any live process.
@@ -169,15 +135,6 @@ mod unix {
             })
     }
 
-    fn clear_cloexec(file: &File) -> Result<(), TreeError> {
-        let flags = fcntl_getfd(file.as_fd()).map_err(|error| {
-            lease(&format!("cannot read the lease descriptor flags: {error}"))
-        })?;
-        fcntl_setfd(file.as_fd(), flags - FdFlags::CLOEXEC).map_err(|error| {
-            lease(&format!("cannot clear FD_CLOEXEC on the lease: {error}"))
-        })
-    }
-
     fn lease(detail: &str) -> TreeError {
         TreeError::Lease {
             detail: detail.to_owned(),
@@ -187,19 +144,7 @@ mod unix {
     #[cfg(test)]
     #[allow(clippy::expect_used)]
     mod tests {
-        use std::os::fd::AsFd as _;
-
-        use rustix::io::{fcntl_getfd, FdFlags};
-
-        use super::{
-            hold_shared_lease, probe_liveness, take_single_flight, Liveness,
-        };
-
-        fn cloexec_set(file: &std::fs::File) -> bool {
-            fcntl_getfd(file.as_fd())
-                .expect("read fd flags")
-                .contains(FdFlags::CLOEXEC)
-        }
+        use super::{probe_liveness, take_single_flight, Liveness};
 
         #[test]
         fn an_absent_lease_reads_as_free() {
@@ -207,41 +152,6 @@ mod unix {
             assert_eq!(
                 probe_liveness(&dir.path().join("absent.lease")),
                 Liveness::Free
-            );
-        }
-
-        #[test]
-        fn a_held_lease_reads_as_held_and_a_released_one_as_free() {
-            let dir = tempfile::tempdir().expect("tempdir");
-            let path = dir.path().join("gen.lease");
-            let lease = hold_shared_lease(&path).expect("hold");
-            assert_eq!(probe_liveness(&path), Liveness::Held);
-            drop(lease);
-            assert_eq!(probe_liveness(&path), Liveness::Free);
-        }
-
-        #[test]
-        fn a_shared_lease_admits_a_concurrent_holder() {
-            let dir = tempfile::tempdir().expect("tempdir");
-            let path = dir.path().join("gen.lease");
-            let first = hold_shared_lease(&path).expect("first");
-            let second = hold_shared_lease(&path).expect("a second crawl");
-            // Both held: an exclusive probe still blocks.
-            assert_eq!(probe_liveness(&path), Liveness::Held);
-            drop(first);
-            assert_eq!(probe_liveness(&path), Liveness::Held);
-            drop(second);
-            assert_eq!(probe_liveness(&path), Liveness::Free);
-        }
-
-        #[test]
-        fn the_lease_descriptor_survives_exec() {
-            let dir = tempfile::tempdir().expect("tempdir");
-            let lease =
-                hold_shared_lease(&dir.path().join("gen.lease")).expect("hold");
-            assert!(
-                !cloexec_set(lease.file()),
-                "FD_CLOEXEC must be cleared so the lease survives exec"
             );
         }
 
@@ -262,10 +172,20 @@ mod unix {
 mod stubs {
     use std::path::Path;
 
+    use tree_lease::LeaseError;
+
     use crate::launch::core::tree::{HeldLease, TreeError};
 
-    pub struct SharedLease;
-    impl HeldLease for SharedLease {}
+    impl HeldLease for tree_lease::SharedLease {}
+
+    impl From<LeaseError> for TreeError {
+        fn from(error: LeaseError) -> Self {
+            Self::Lease {
+                detail: error.to_string(),
+            }
+        }
+    }
+
     pub struct SingleFlight;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -273,10 +193,6 @@ mod stubs {
         Held,
         Free,
         Unknown,
-    }
-
-    pub fn hold_shared_lease(_path: &Path) -> Result<SharedLease, TreeError> {
-        unimplemented!("leases are a Unix-only path")
     }
 
     #[must_use]
@@ -297,6 +213,6 @@ mod stubs {
 
 #[cfg(not(unix))]
 pub use stubs::{
-    hold_shared_lease, probe_liveness, take_single_flight, try_single_flight,
-    Liveness, SharedLease, SingleFlight,
+    probe_liveness, take_single_flight, try_single_flight, Liveness,
+    SingleFlight,
 };
