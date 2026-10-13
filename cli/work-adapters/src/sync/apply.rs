@@ -129,11 +129,21 @@ impl std::fmt::Display for ApplyError {
 
 impl std::error::Error for ApplyError {}
 
+/// A send of the local body; with no `title`, the remote title is left as
+/// it is.
 pub struct PushRequest<'a> {
     pub id: &'a str,
     pub external_id: &'a ExternalId,
-    pub title: &'a str,
+    pub title: Option<&'a str>,
     pub body: &'a str,
+    pub file_path: &'a Path,
+}
+
+/// A send of the local title alone, leaving the remote description as it is.
+pub struct RetitleRequest<'a> {
+    pub id: &'a str,
+    pub external_id: &'a ExternalId,
+    pub title: &'a str,
     pub file_path: &'a Path,
 }
 
@@ -256,17 +266,53 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         request: &PushRequest<'_>,
     ) -> Result<(), ApplyError> {
         self.tracker
-            .update(request.external_id, Some(request.title), request.body)
+            .update(request.external_id, request.title, request.body)
             .map_err(|source| ApplyError::Tracker {
                 item_id: request.id.to_owned(),
                 operation: "update",
                 source,
             })?;
+        self.record_read_back(
+            request.id,
+            request.external_id,
+            request.file_path,
+        )
+    }
 
-        let remote = self.tracker.show(request.external_id).ok();
-        let local_content = std::fs::read_to_string(request.file_path)
-            .map_err(|error| io_error(request.id, "read-local", error))?;
-        self.record(request.id, &local_content, remote.as_ref())
+    /// As [`Self::push`], sending the title alone; the local file is left
+    /// as it is.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError`] naming `request.id` and the operation attempted.
+    pub fn retitle(
+        &mut self,
+        request: &RetitleRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        self.tracker
+            .retitle(request.external_id, request.title)
+            .map_err(|source| ApplyError::Tracker {
+                item_id: request.id.to_owned(),
+                operation: "retitle",
+                source,
+            })?;
+        self.record_read_back(
+            request.id,
+            request.external_id,
+            request.file_path,
+        )
+    }
+
+    fn record_read_back(
+        &self,
+        id: &str,
+        external_id: &ExternalId,
+        file_path: &Path,
+    ) -> Result<(), ApplyError> {
+        let remote = self.tracker.show(external_id).ok();
+        let local_content = std::fs::read_to_string(file_path)
+            .map_err(|error| io_error(id, "read-local", error))?;
+        self.record(id, &local_content, remote.as_ref())
     }
 
     /// Both baseline hashes come from what was actually written. Deriving

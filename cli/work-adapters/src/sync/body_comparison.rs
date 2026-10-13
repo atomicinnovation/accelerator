@@ -1,10 +1,12 @@
 //! The body rules sync and promotion apply, over the tracker's dialect.
 
+use corpus::body::equivalent;
 use corpus::body::BodyParser;
 use remote_projection::split_projected;
 use serde_json::Value;
 use tracker::BodyDialect;
 use tracker::Unrenderable;
+use work::sync::BodyEquivalence;
 use work::sync::PullResidue;
 
 use crate::sync::digest;
@@ -48,6 +50,36 @@ impl<'a> BodyComparison<'a> {
             },
             |rendered| self.canonical_hash(&rendered),
         )
+    }
+
+    /// Whether `local_body`, as the tracker would store it once pushed,
+    /// means what the `projected` remote's description does.
+    #[must_use]
+    pub fn equivalence(
+        &self,
+        local_body: &str,
+        projected: &str,
+    ) -> BodyEquivalence {
+        self.local_body(projected)
+            .map_or(BodyEquivalence::RemoteUnrenderable, |rendered| {
+                self.equivalence_to_rendered(local_body, &rendered)
+            })
+    }
+
+    /// As [`Self::equivalence`], against a remote already rendered to its
+    /// local body.
+    #[must_use]
+    pub fn equivalence_to_rendered(
+        &self,
+        local_body: &str,
+        rendered_remote: &str,
+    ) -> BodyEquivalence {
+        let local = self.parser.parse(&self.dialect.as_pushed(local_body));
+        if equivalent(&local, &self.parser.parse(rendered_remote)) {
+            BodyEquivalence::Equivalent
+        } else {
+            BodyEquivalence::Different
+        }
     }
 
     fn canonical_hash(&self, markdown: &str) -> String {

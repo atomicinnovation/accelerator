@@ -1,6 +1,6 @@
 //! Runs `work::sync::classify` against the committed table in
-//! `tests/fixtures/work-item-sync-classify.json`, over both digest recipes
-//! and every kind of pull residue.
+//! `tests/fixtures/work-item-sync-classify.json`, over both digest recipes,
+//! every kind of pull residue and every body equivalence.
 #![allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -19,11 +19,15 @@ use work::normalise::trim_lines;
 use work::sync::classify;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
+use work::sync::BodyEquivalence;
 use work::sync::Classification;
+use work::sync::FieldDelivery;
+use work::sync::FieldsComparison;
 use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
 use work::sync::LocalFingerprints;
+use work::sync::LocalReconciliation;
 use work::sync::PullResidue;
 use work::sync::RemoteFingerprints;
 use work::sync::RemotePresence;
@@ -34,7 +38,7 @@ use work::sync::SyncedReconciliation;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_CASES: usize = 32;
+const EXPECTED_CASES: usize = 81;
 
 fn fixture() -> Result<Value, TestError> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -111,34 +115,49 @@ fn remote_fingerprints() -> RemoteFingerprints {
     }
 }
 
+/// The recorded local fingerprints, named by which of them an edit since
+/// the baseline has moved.
 fn recorded_local(symbol: &str) -> Option<LocalFingerprints> {
     let stale = || STALE.to_owned();
-    match symbol {
-        "absent" => None,
-        "from-content" => Some(local_fingerprints()),
-        "stale" => Some(LocalFingerprints {
-            frontmatter: stale(),
-            fields: stale(),
-            body: stale(),
-        }),
-        "frontmatter-edited" => Some(LocalFingerprints {
-            frontmatter: stale(),
-            ..local_fingerprints()
-        }),
+    let current = local_fingerprints();
+    let (frontmatter, fields, body) = match symbol {
+        "absent" => return None,
+        "from-content" => (false, false, false),
+        "frontmatter-edited" => (true, false, false),
+        "title-edited" => (true, true, false),
+        "body-edited" => (false, false, true),
+        "frontmatter-and-body-edited" => (true, false, true),
+        "stale" | "title-and-body-edited" => (true, true, true),
         other => panic!("unrecognised symbolic local fingerprints: {other}"),
-    }
+    };
+    Some(LocalFingerprints {
+        frontmatter: if frontmatter {
+            stale()
+        } else {
+            current.frontmatter
+        },
+        fields: if fields { stale() } else { current.fields },
+        body: if body { stale() } else { current.body },
+    })
 }
 
+/// The recorded remote fingerprints, named by which of them a remote edit
+/// since the baseline has moved.
 fn recorded_remote(symbol: &str) -> Option<RemoteFingerprints> {
-    match symbol {
-        "absent" => None,
-        "from-content" => Some(remote_fingerprints()),
-        "stale" => Some(RemoteFingerprints {
-            body: STALE.to_owned(),
-            fields: STALE.to_owned(),
-        }),
+    let stale = || STALE.to_owned();
+    let current = remote_fingerprints();
+    let (body, fields) = match symbol {
+        "absent" => return None,
+        "from-content" => (false, false),
+        "body-edited" => (true, false),
+        "retitled" => (false, true),
+        "stale" => (true, true),
         other => panic!("unrecognised symbolic remote fingerprints: {other}"),
-    }
+    };
+    Some(RemoteFingerprints {
+        body: if body { stale() } else { current.body },
+        fields: if fields { stale() } else { current.fields },
+    })
 }
 
 struct FakeDigests {
@@ -195,7 +214,10 @@ impl ItemDigests for FakeDigests {
 }
 
 struct FakeComparison {
+    name: String,
     residue: Option<PullResidue>,
+    equivalence: Option<BodyEquivalence>,
+    fields: Option<FieldsComparison>,
     called: Cell<bool>,
 }
 
@@ -204,6 +226,45 @@ impl ItemComparison for FakeComparison {
         self.called.set(true);
         self.residue
     }
+
+    fn body_equivalence(&self) -> BodyEquivalence {
+        self.called.set(true);
+        self.equivalence.unwrap_or_else(|| {
+            panic!(
+                "case: {} — asked for an equivalence it does not state",
+                self.name
+            )
+        })
+    }
+
+    fn fields_comparison(&self) -> FieldsComparison {
+        self.called.set(true);
+        self.fields.unwrap_or_else(|| {
+            panic!(
+                "case: {} — asked for a fields comparison it does not state",
+                self.name
+            )
+        })
+    }
+}
+
+fn equivalence(case: &Value) -> Option<BodyEquivalence> {
+    Some(match case["equivalence"].as_str()? {
+        "equivalent" => BodyEquivalence::Equivalent,
+        "different" => BodyEquivalence::Different,
+        "remote-unrenderable" => BodyEquivalence::RemoteUnrenderable,
+        "unknown" => BodyEquivalence::Unknown,
+        other => panic!("unrecognised equivalence: {other}"),
+    })
+}
+
+fn fields_comparison(case: &Value) -> Option<FieldsComparison> {
+    Some(match case["fields"].as_str()? {
+        "same" => FieldsComparison::Same,
+        "different" => FieldsComparison::Different,
+        "unknown" => FieldsComparison::Unknown,
+        other => panic!("unrecognised fields comparison: {other}"),
+    })
 }
 
 fn residue(case: &Value) -> Option<PullResidue> {
@@ -216,32 +277,69 @@ fn residue(case: &Value) -> Option<PullResidue> {
 }
 
 fn expected(raw: &str, name: &str) -> Classification {
+    let locally_modified = Classification::LocallyModified;
     match raw {
         "synced" => Classification::Synced(SyncedReconciliation::ByContent),
         "synced/record" => {
             Classification::Synced(SyncedReconciliation::RecordOnly)
         }
+        "locally-modified/record" => {
+            locally_modified(LocalReconciliation::RecordOnly)
+        }
+        "locally-modified/retitle" => {
+            locally_modified(LocalReconciliation::SendFields)
+        }
+        "locally-modified/push-with-title" => {
+            locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Send,
+            })
+        }
+        "locally-modified/push-without-title" => {
+            locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Withhold,
+            })
+        }
         other => match SyncState::from_keyword(other) {
             Some(SyncState::Unsynced) => Classification::Unsynced,
-            Some(SyncState::LocallyModified) => Classification::LocallyModified,
             Some(SyncState::RemotelyModified) => {
                 Classification::RemotelyModified
             }
             Some(SyncState::Conflict) => Classification::Conflict,
             Some(SyncState::RemoteAbsent) => Classification::RemoteAbsent,
             Some(SyncState::Indeterminate) => Classification::Indeterminate,
-            Some(SyncState::Synced) | None => {
+            Some(SyncState::Synced | SyncState::LocallyModified) | None => {
                 panic!("unrecognised expected state in {name}")
             }
         },
     }
 }
 
-const fn no_residue() -> FakeComparison {
+fn comparison(case: &Value, name: &str) -> FakeComparison {
     FakeComparison {
-        residue: None,
+        name: name.to_owned(),
+        residue: residue(case),
+        equivalence: equivalence(case),
+        fields: fields_comparison(case),
         called: Cell::new(false),
     }
+}
+
+fn assert_comparison_calls(
+    case: &Value,
+    comparison: &FakeComparison,
+    name: &str,
+) {
+    let expected =
+        case["expect_comparison_called"]
+            .as_bool()
+            .unwrap_or_else(|| {
+                panic!("expect_comparison_called missing in {name}")
+            });
+    assert_eq!(
+        comparison.called.get(),
+        expected,
+        "case: {name} — ItemComparison call observability"
+    );
 }
 
 #[test]
@@ -307,9 +405,10 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                 ),
             };
             let digests = FakeDigests::new(None, String::new(), None);
-            let actual =
-                classify(&subject, &baseline, &digests, &no_residue())?;
+            let comparison = comparison(case, name);
+            let actual = classify(&subject, &baseline, &digests, &comparison)?;
             assert_eq!(actual, expect, "case: {name}");
+            assert_comparison_calls(case, &comparison, name);
             continue;
         }
 
@@ -390,10 +489,7 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             local_from_content.clone(),
             with_remote_body.then(|| remote_from_content.clone()),
         );
-        let comparison = FakeComparison {
-            residue: residue(case),
-            called: Cell::new(false),
-        };
+        let comparison = comparison(case, name);
 
         let actual = classify(&subject, &baseline, &digests, &comparison)?;
         assert_eq!(actual, expect, "case: {name}");
@@ -425,15 +521,7 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                 "case: {name} — remote_body() call observability"
             );
         }
-        if let Some(expect_residue) =
-            case["observed_calls"]["expect_pull_residue_called"].as_bool()
-        {
-            assert_eq!(
-                comparison.called.get(),
-                expect_residue,
-                "case: {name} — pull_residue() call observability"
-            );
-        }
+        assert_comparison_calls(case, &comparison, name);
     }
 
     assert_eq!(ran, EXPECTED_CASES, "the table's row count has drifted");

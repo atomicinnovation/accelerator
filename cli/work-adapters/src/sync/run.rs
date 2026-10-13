@@ -20,6 +20,7 @@ use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
+use work::sync::FieldDelivery;
 use work::sync::PlannedAction;
 use work::sync::Resolution;
 use work::sync::RunClock;
@@ -35,6 +36,7 @@ use crate::sync::apply::ItemApplier;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
 use crate::sync::apply::RecordRequest;
+use crate::sync::apply::RetitleRequest;
 use crate::sync::baseline::Degradation;
 use crate::sync::baseline::Entry;
 use crate::sync::baseline_digester::BaselineDigester;
@@ -695,7 +697,37 @@ fn validate_pushes(
         .collect()
 }
 
-/// The refusal a send would meet, or else the tracker's payload check.
+/// What a send carries: the local title and body, either withheld.
+struct Payload<'a> {
+    title: Option<&'a str>,
+    body: Option<&'a str>,
+}
+
+impl<'a> Payload<'a> {
+    /// `None` for an action that sends nothing.
+    const fn of(action: Action, title: &'a str, body: &'a str) -> Option<Self> {
+        match action {
+            Action::Push(FieldDelivery::Send) | Action::Overwrite => {
+                Some(Self {
+                    title: Some(title),
+                    body: Some(body),
+                })
+            }
+            Action::Push(FieldDelivery::Withhold) => Some(Self {
+                title: None,
+                body: Some(body),
+            }),
+            Action::Retitle => Some(Self {
+                title: Some(title),
+                body: None,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// The refusal a send would meet, or else the tracker's payload check of
+/// exactly what the action sends.
 fn check_send(
     planned: &PlannedAction,
     items: &[LocalItem],
@@ -715,10 +747,11 @@ fn check_send(
     ) {
         return Some(Err(refused_send(&item.id, refusal)));
     }
+    let payload = Payload::of(planned.action, &title, &body)?;
     Some(Ok(tracker.validate_update(
         external_id,
-        Some(&title),
-        Some(&body),
+        payload.title,
+        payload.body,
     )))
 }
 
@@ -857,7 +890,7 @@ fn read_local(item: &LocalItem) -> Result<String, ApplyError> {
     })
 }
 
-fn push_outcome(
+fn send_outcome(
     applier: &mut ItemApplier<'_, '_>,
     planned: &PlannedAction,
     item: &LocalItem,
@@ -878,13 +911,29 @@ fn push_outcome(
     ) {
         return ItemOutcome::Failed(refused_send(&item.id, refusal));
     }
-    match applier.push(&PushRequest {
-        id: &item.id,
-        external_id,
-        title: &title,
-        body: &body,
-        file_path: &item.path,
-    }) {
+    let sent = match Payload::of(planned.action, &title, &body) {
+        Some(Payload {
+            title: Some(title),
+            body: None,
+        }) => applier.retitle(&RetitleRequest {
+            id: &item.id,
+            external_id,
+            title,
+            file_path: &item.path,
+        }),
+        Some(Payload {
+            title,
+            body: Some(body),
+        }) => applier.push(&PushRequest {
+            id: &item.id,
+            external_id,
+            title,
+            body,
+            file_path: &item.path,
+        }),
+        _ => return ItemOutcome::NotApplied,
+    };
+    match sent {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
     }
@@ -1002,23 +1051,23 @@ fn apply_planned_action(
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = index.get(&planned.id);
-    let outcome = match planned.action {
-        Action::RecordBaseline => {
-            let snapshot = index
-                .position(&planned.id)
-                .and_then(|position| snapshots.get(position));
-            match item.zip(snapshot) {
-                Some((item, snapshot)) => {
-                    record_outcome(applier, item, snapshot, facts)
+    let outcome =
+        match planned.action {
+            Action::RecordBaseline => {
+                let snapshot = index
+                    .position(&planned.id)
+                    .and_then(|position| snapshots.get(position));
+                match item.zip(snapshot) {
+                    Some((item, snapshot)) => {
+                        record_outcome(applier, item, snapshot, facts)
+                    }
+                    None => return not_applied(planned),
                 }
-                None => return not_applied(planned),
             }
-        }
-        Action::Push | Action::Overwrite => {
-            match item
+            Action::Push(_) | Action::Retitle | Action::Overwrite => match item
                 .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
             {
-                Some((item, external_id)) => push_outcome(
+                Some((item, external_id)) => send_outcome(
                     applier,
                     &planned,
                     item,
@@ -1027,25 +1076,24 @@ fn apply_planned_action(
                     comparison,
                 ),
                 None => return not_applied(planned),
+            },
+            Action::Pull => match item {
+                Some(item) => pull_outcome(applier, item, facts, comparison),
+                None => return not_applied(planned),
+            },
+            Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
+                if matches!(planned.state, SyncState::Conflict) {
+                    blank_local_hash.push(planned.id.clone());
+                }
+                ItemOutcome::NotApplied
             }
-        }
-        Action::Pull => match item {
-            Some(item) => pull_outcome(applier, item, facts, comparison),
-            None => return not_applied(planned),
-        },
-        Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-            if matches!(planned.state, SyncState::Conflict) {
-                blank_local_hash.push(planned.id.clone());
-            }
-            ItemOutcome::NotApplied
-        }
-        Action::Noop => ItemOutcome::NotApplied,
-        Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
-            "the two create actions are applied out-of-band by the create \
+            Action::Noop => ItemOutcome::NotApplied,
+            Action::CreateFromRemote | Action::CreateFromLocal => unreachable!(
+                "the two create actions are applied out-of-band by the create \
              paths, never through the id-keyed plan loop, and decide() never \
              produces them"
-        ),
-    };
+            ),
+        };
     ReportedItem {
         planned,
         outcome,

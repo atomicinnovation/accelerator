@@ -304,7 +304,9 @@ fn parse_resolutions(
 
 const fn action_keyword(action: work::sync::Action) -> &'static str {
     match action {
-        work::sync::Action::Push | work::sync::Action::Overwrite => "push",
+        work::sync::Action::Push(_)
+        | work::sync::Action::Retitle
+        | work::sync::Action::Overwrite => "push",
         work::sync::Action::Pull => "pull",
         work::sync::Action::SkipConflict => "skip-conflict",
         work::sync::Action::SkipDirty => "skip-dirty",
@@ -1715,6 +1717,7 @@ mod tests {
     use tracker::TrackerError;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
+    use work::sync::FieldDelivery;
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
@@ -2281,7 +2284,11 @@ mod tests {
             promotions: Vec::new(),
             deferred: 0,
             reported: vec![
-                reported("0001", SyncState::LocallyModified, Action::Push),
+                reported(
+                    "0001",
+                    SyncState::LocallyModified,
+                    Action::Push(FieldDelivery::Send),
+                ),
                 reported("0002", SyncState::RemotelyModified, Action::Pull),
                 reported("0003", SyncState::Conflict, Action::Prompt),
                 reported("0004", SyncState::Conflict, Action::SkipConflict),
@@ -2449,7 +2456,11 @@ mod tests {
                 "PP-760->ENG-42",
                 IdentityOutcome::Applied,
             )],
-            vec![reported("ENG-42", SyncState::LocallyModified, Action::Push)],
+            vec![reported(
+                "ENG-42",
+                SyncState::LocallyModified,
+                Action::Push(FieldDelivery::Send),
+            )],
         );
 
         let rendered = render_report(&report);
@@ -2500,7 +2511,11 @@ mod tests {
                 "PP-760->ENG-42",
                 IdentityOutcome::Applied,
             )],
-            vec![reported("0230", SyncState::LocallyModified, Action::Push)],
+            vec![reported(
+                "0230",
+                SyncState::LocallyModified,
+                Action::Push(FieldDelivery::Send),
+            )],
         );
 
         let rendered = render_report(&report);
@@ -2707,6 +2722,7 @@ mod tests {
         use work::retirement::RetirementFailure;
         use work::retirement::RetirementRefusal;
         use work::sync::Action;
+        use work::sync::FieldDelivery;
         use work::sync::SyncState;
         use work_adapters::promotion::Detail;
         use work_adapters::promotion::DetailSource;
@@ -2837,7 +2853,7 @@ mod tests {
             report.reported = vec![reported(
                 "0001",
                 SyncState::LocallyModified,
-                Action::Push,
+                Action::Push(FieldDelivery::Send),
             )];
 
             let rendered = lines(&report);

@@ -4,16 +4,20 @@
 # [TOKEN]   <raw>|<expected-resolution>
 #
 # direction ∈ bidirectional|push-only|pull-only
-# state ∈ synced|synced/record|unsynced|locally-modified|remotely-modified
-#          |conflict|remote-absent|indeterminate
-#   synced/record is a synced item whose baseline needs rewriting under the
-#   current digest recipe.
+# state ∈ synced|synced/record|unsynced|locally-modified
+#          |locally-modified/withheld|locally-modified/record
+#          |locally-modified/retitle|remotely-modified|conflict|remote-absent
+#          |indeterminate
+#   synced/record is a synced item whose baseline only needs rewriting.
+#   locally-modified sends the body and the title; /withheld sends the body
+#   alone, /retitle the title alone, and /record sends nothing, only
+#   rewriting the baseline.
 # dirty ∈ 0|1|unknown — consulted only by the remotely-modified row, where
 #   unknown decides as dirty, the fail-safe; every other state ignores it, so
 #   it is fixed at 0 there, bar one synced/record row showing a dirty file
 #   still records.
-# expected (DECIDE) ∈ push|pull|skip-conflict|skip-dirty|prompt|noop
-#   |record-baseline
+# expected (DECIDE) ∈ push|push-without-title|retitle|pull|skip-conflict
+#   |skip-dirty|prompt|noop|record-baseline
 # expected (TOKEN) ∈ accept-remote|push-local|skip
 #
 # (empty) is the empty-value sentinel.
@@ -55,6 +59,15 @@ bidirectional|synced/record|0|record-baseline
 push-only|synced/record|0|record-baseline
 pull-only|synced/record|0|record-baseline
 bidirectional|synced/record|1|record-baseline
+bidirectional|locally-modified/withheld|0|push-without-title
+push-only|locally-modified/withheld|0|push-without-title
+pull-only|locally-modified/withheld|0|noop
+bidirectional|locally-modified/retitle|0|retitle
+push-only|locally-modified/retitle|0|retitle
+pull-only|locally-modified/retitle|0|noop
+bidirectional|locally-modified/record|0|record-baseline
+push-only|locally-modified/record|0|record-baseline
+pull-only|locally-modified/record|0|record-baseline
 
 [TOKEN]
   REMOTE |accept-remote

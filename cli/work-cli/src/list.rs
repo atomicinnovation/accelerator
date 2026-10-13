@@ -1126,13 +1126,21 @@ mod tests {
                 0,
             ),
         );
+        let recorded_before_the_edit =
+            BaselineDigester::new(&tracker::PlainDialect, &CommonMarkBody)
+                .digests(
+                    "---\nid: \"0002\"\n---\nearlier body\n",
+                    Some("Item\nremote body\n"),
+                )
+                .unwrap();
         baseline.set(
             "0002",
-            Entry::persisted_legacy(
-                stamp,
-                "unused".to_owned(),
-                "a-different-hash".to_owned(),
-                0,
+            Entry::recorded(
+                work_adapters::sync::baseline::SyncStamps {
+                    remote_updated_at: stamp,
+                    local_synced_at: 0,
+                },
+                recorded_before_the_edit,
             ),
         );
 

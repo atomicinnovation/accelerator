@@ -9,10 +9,16 @@
       "name": "neither side changed, remote proven unchanged without a body",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
@@ -21,89 +27,134 @@
       "observed_calls": {
         "expect_mtime_called": true,
         "expect_local_digest_called": true
-      }
+      },
+      "expect_comparison_called": true
     },
     {
       "name": "local edited, remote unchanged",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
-        "remote_hash": "stale",
-        "local_hash": "stale"
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "stale",
+        "remote": "from-content"
       },
-      "expect": "locally-modified",
-      "recipe": "legacy"
+      "expect": "locally-modified/push-with-title",
+      "recipe": "1",
+      "equivalence": "different",
+      "expect_comparison_called": true
     },
     {
       "name": "remote edited (updated differs, body differs), local unchanged",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
       "expect": "remotely-modified",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "equivalence": "different",
+      "expect_comparison_called": true
     },
     {
       "name": "both sides changed",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "stale"
       },
       "expect": "conflict",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "equivalence": "different",
+      "expect_comparison_called": true
     },
     {
       "name": "remote body matches baseline hash despite a ticked updated",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
       "expect": "synced/record",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "expect_comparison_called": true
     },
     {
       "name": "whitespace-equivalent local stays synced",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
       "expect": "synced",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "expect_comparison_called": true
     },
     {
       "name": "mtime pre-filter short-circuits without hashing",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": -100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "stale"
       },
@@ -112,104 +163,100 @@
       "observed_calls": {
         "expect_mtime_called": true,
         "expect_local_digest_called": false
-      }
+      },
+      "expect_comparison_called": true
     },
     {
       "name": "no external_id is presence-only unsynced, even with a baseline entry",
       "external_id": "",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
       "expect": "unsynced",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "expect_comparison_called": false
     },
     {
       "name": "tracked but absent from a successful fetch",
       "external_id": "ENG-7",
       "presence": "absent",
       "expect": "remote-absent",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "expect_comparison_called": false
     },
     {
       "name": "failed or timed-out remote read",
       "external_id": "ENG-7",
       "presence": "indeterminate",
       "expect": "indeterminate",
-      "recipe": "legacy"
-    },
-    {
-      "name": "first-sync on dirty: no baseline entry, both sides ahead",
-      "external_id": "ENG-7",
-      "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
-      "with_remote_body": true,
-      "mtime_offset": 100,
-      "baseline": {
-        "remote_updated_at": {"kind": "not_reported"},
-        "remote_hash": "absent",
-        "local_hash": "absent"
-      },
-      "expect": "conflict",
       "recipe": "legacy",
-      "observed_calls": {"expect_mtime_called": false}
+      "expect_comparison_called": false
     },
     {
       "name": "not-reported vs not-reported proves nothing, not equal",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "not_reported"},
+      "remote_updated": {
+        "kind": "not_reported"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "not_reported"},
+        "remote_updated_at": {
+          "kind": "not_reported"
+        },
         "remote_hash": "stale",
         "local_hash": "stale"
       },
       "expect": "conflict",
-      "recipe": "legacy"
+      "recipe": "legacy",
+      "equivalence": "unknown",
+      "expect_comparison_called": true
     },
     {
       "name": "not-read vs not-read proves nothing, not equal",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "not_read"},
+      "remote_updated": {
+        "kind": "not_read"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "not_read"},
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
         "remote_hash": "stale",
         "local_hash": "stale"
       },
       "expect": "conflict",
-      "recipe": "legacy"
-    },
-    {
-      "name": "matching updated but absent remote_hash is still remote-changed",
-      "external_id": "ENG-7",
-      "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
-      "with_remote_body": true,
-      "mtime_offset": 100,
-      "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
-        "remote_hash": "absent",
-        "local_hash": "from-content"
-      },
-      "expect": "remotely-modified",
       "recipe": "legacy",
-      "observed_calls": {"expect_remote_body_called": false}
+      "equivalence": "unknown",
+      "expect_comparison_called": true
     },
     {
       "name": "an unreadable mtime forces the hash",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_absent": true,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
@@ -218,277 +265,1616 @@
       "observed_calls": {
         "expect_mtime_called": true,
         "expect_local_digest_called": true
-      }
+      },
+      "expect_comparison_called": true
     },
     {
       "name": "mtime equals the baseline timestamp exactly (inclusive boundary)",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 0,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "stale"
       },
       "expect": "synced",
       "recipe": "legacy",
-      "observed_calls": {"expect_local_digest_called": false}
-    },
-    {
-      "name": "absent local_hash forces local-changed with no mtime or digest call",
-      "external_id": "ENG-7",
-      "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
-      "mtime_offset": 100,
-      "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
-        "remote_hash": "stale",
-        "local_hash": "absent"
-      },
-      "expect": "locally-modified",
-      "recipe": "legacy",
       "observed_calls": {
-        "expect_mtime_called": false,
         "expect_local_digest_called": false
-      }
+      },
+      "expect_comparison_called": true
     },
     {
       "name": "a recipe-one entry with cosmetic remote noise is synced",
       "recipe": "1",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "local": "from-content",
         "remote": "from-content"
       },
-      "expect": "synced"
+      "expect": "synced",
+      "expect_comparison_called": false
     },
     {
-      "name": "a recipe-one entry with a frontmatter edit is locally modified",
+      "name": "a recipe-one entry with a frontmatter edit is locally modified and recorded",
       "recipe": "1",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "local": "frontmatter-edited",
         "remote": "stale"
       },
-      "expect": "locally-modified"
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
     },
     {
       "name": "legacy, every fact unchanged, no residue",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
-      "expect": "synced/record"
+      "expect": "synced/record",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, every fact unchanged, tracker wire document",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
       "residue": "tracker-wire-document",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, local hash absent, tracker wire document",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "absent"
       },
       "residue": "tracker-wire-document",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, local changed, tracker wire document",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "stale"
       },
       "residue": "tracker-wire-document",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, remote changed, local unchanged, tracker wire document",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
       "residue": "tracker-wire-document",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, verbatim remote, local unchanged",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
       "residue": "verbatim-remote",
-      "expect": "synced/record"
+      "expect": "synced/record",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, verbatim remote, remote stamp changed, local unchanged",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$T"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "stale",
         "local_hash": "from-content"
       },
       "residue": "verbatim-remote",
-      "expect": "synced/record"
-    },
-    {
-      "name": "legacy, local hash absent, verbatim remote",
-      "recipe": "legacy",
-      "external_id": "ENG-7",
-      "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
-      "with_remote_body": true,
-      "mtime_offset": 100,
-      "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
-        "remote_hash": "from-content",
-        "local_hash": "absent"
-      },
-      "residue": "verbatim-remote",
-      "expect": "conflict"
-    },
-    {
-      "name": "no entry, verbatim remote",
-      "recipe": "legacy",
-      "external_id": "ENG-7",
-      "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
-      "with_remote_body": true,
-      "mtime_offset": 100,
-      "baseline": {
-        "remote_updated_at": {"kind": "not_read"},
-        "remote_hash": "absent",
-        "local_hash": "absent"
-      },
-      "residue": "verbatim-remote",
-      "expect": "conflict"
+      "expect": "synced/record",
+      "expect_comparison_called": true
     },
     {
       "name": "no entry, tracker wire document",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "not_read"},
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
         "remote_hash": "absent",
         "local_hash": "absent"
       },
       "residue": "tracker-wire-document",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, local changed, verbatim remote",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "stale"
       },
       "residue": "verbatim-remote",
-      "expect": "conflict"
+      "expect": "conflict",
+      "expect_comparison_called": true
     },
     {
       "name": "legacy, every fact unchanged, title line only",
       "recipe": "legacy",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "remote_hash": "from-content",
         "local_hash": "from-content"
       },
       "residue": "title-line-only",
-      "expect": "synced/record"
+      "expect": "synced/record",
+      "expect_comparison_called": true
     },
     {
       "name": "recipe 1, every fact unchanged, tracker wire document",
       "recipe": "1",
       "external_id": "ENG-7",
       "presence": "present",
-      "remote_updated": {"kind": "reported", "value": "$R"},
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
       "with_remote_body": true,
       "mtime_offset": 100,
       "baseline": {
-        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
         "local": "from-content",
         "remote": "from-content"
       },
       "residue": "tracker-wire-document",
       "expect": "synced",
-      "observed_calls": {"expect_pull_residue_called": false}
+      "expect_comparison_called": false
+    },
+    {
+      "name": "no entry, equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "no entry, not equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "empty local hash, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "absent",
+        "remote": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "empty remote hash, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "absent"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "empty local hash, remote unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "absent",
+        "remote": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "empty remote hash, local unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "absent"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "empty local hash, equivalence unknown",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "absent",
+        "remote": "from-content"
+      },
+      "equivalence": "unknown",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local frontmatter only, titles equal, remote unchanged",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "from-content"
+      },
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local frontmatter only, local title changed, remote unchanged",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "from-content"
+      },
+      "fields": "different",
+      "expect": "locally-modified/retitle",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "both changed, equivalent, no frontmatter change",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "equivalent",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local frontmatter and body changed, equivalent, titles equal",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-and-body-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title and body changed, equivalent, remote fields unchanged",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-and-body-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "locally-modified/retitle",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title changed, remote retitled differently, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title changed, remote retitled to the same title, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local status changed, remote retitled, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local status changed after a recorded remote retitle, titles differ",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "from-content"
+      },
+      "fields": "different",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local body changed cosmetically, remote retitled",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local frontmatter only, remote body changed, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "remotely-modified",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy local changed, remote changed, equivalent, titles equal",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy local changed, remote retitled, equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy local changed, remote changed, not equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "stale",
+        "local_hash": "stale"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local unchanged, remote changed cosmetically, titles equal",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local body changed, remote changed, equivalence unknown",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "unknown",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote title changed, description unchanged, equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "retitled"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "synced/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "remote title changed, description unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "retitled"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "synced/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local body changed, remote retitled, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title changed, remote body changed, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local body changed after a recorded remote retitle, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "locally-modified/push-without-title",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title and body changed, remote unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-and-body-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "locally-modified/push-with-title",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local frontmatter only, remote unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local status changed, remote retitled, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "local title changed, no body fact changed, remote unchanged, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "locally-modified/retitle",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title changed, no body fact changed, remote retitled differently, not equivalent",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "retitled"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "local title changed, equivalent, fields comparison unknown",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "unknown",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, local body changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "body-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, local title changed, remote body changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, remote body changed, local unchanged",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "body-edited"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "same",
+      "expect": "remotely-modified",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, local frontmatter only, remote body changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "body-edited"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "same",
+      "expect": "remotely-modified",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, local title changed, no body fact changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "title-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "different",
+      "expect": "locally-modified/retitle",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "remote unrenderable, local status changed, no body fact changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "frontmatter-edited",
+        "remote": "from-content"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "same",
+      "expect": "locally-modified/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "remote unrenderable, remote retitled, no body fact changed",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$T"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "retitled"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "different",
+      "expect": "synced/record",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "empty local hash, equivalent, titles differ",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "absent",
+        "remote": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "recipe 1, every fact unchanged",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "local": "from-content",
+        "remote": "from-content"
+      },
+      "expect": "synced",
+      "expect_comparison_called": false
+    },
+    {
+      "name": "legacy, every fact unchanged, equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "equivalence": "equivalent",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, every fact unchanged, not equivalent, no residue",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, every fact unchanged, remote unrenderable, no residue",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "equivalence": "remote-unrenderable",
+      "fields": "same",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local hash absent, verbatim remote, titles equal",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "absent"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "residue": "verbatim-remote",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local hash absent, verbatim remote, titles differ",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "absent"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "residue": "verbatim-remote",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "no entry, verbatim remote, titles equal",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "residue": "verbatim-remote",
+      "expect": "synced/record",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "no entry, verbatim remote, titles differ",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "not_read"
+        },
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "equivalence": "different",
+      "fields": "different",
+      "residue": "verbatim-remote",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, every fact unchanged, ADF document body",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "residue": "tracker-wire-document",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local status changed, titles differ, equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "stale"
+      },
+      "equivalence": "equivalent",
+      "fields": "different",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local status changed, remote unchanged, not equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "stale"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
+    },
+    {
+      "name": "legacy, local body changed, remote unchanged, not equivalent",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {
+        "kind": "reported",
+        "value": "$R"
+      },
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {
+          "kind": "reported",
+          "value": "$R"
+        },
+        "remote_hash": "from-content",
+        "local_hash": "stale"
+      },
+      "equivalence": "different",
+      "fields": "same",
+      "expect": "conflict",
+      "expect_comparison_called": true
     }
   ]
 }

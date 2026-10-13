@@ -193,8 +193,8 @@ fn pullable(
     ))
 }
 
-/// One item whose local side has moved and whose remote side is proven
-/// unchanged, so it classifies `locally-modified` and decides `Push`.
+/// One item whose local title and body have moved and whose remote side is
+/// proven unchanged, so it classifies `locally-modified` and decides `Push`.
 fn pushable(
     dir: &Path,
     index: usize,
@@ -204,9 +204,16 @@ fn pushable(
     let path = dir.join(format!("{id}.md"));
     std::fs::write(&path, item_content(external.as_str()))?;
 
-    let remote_hash = digest::remote_body(projected_body());
-    let entry = format!(
-        "\"{id}\":{{\"remote_updated_at\":\"{STAMP}\",\"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
+    let recorded = format!(
+        "---\ntitle: Earlier title\nstatus: ready\n\
+         external_id: \"{external}\"\n---\n\nEarlier body\n"
+    );
+    let entry = support::split_entry(
+        &id,
+        &PlainDialect,
+        &recorded,
+        projected_body(),
+        STAMP,
     );
     let issue = RemoteIssue {
         key: external.clone(),
@@ -879,7 +886,9 @@ fn the_fixtures_classify_as_intended() -> Result<(), TestError> {
     let pushes = report
         .reported
         .iter()
-        .filter(|item| item.planned.action == work::sync::Action::Push)
+        .filter(|item| {
+            matches!(item.planned.action, work::sync::Action::Push(_))
+        })
         .count();
 
     assert_eq!(pulls, 2, "two items must decide Pull");
@@ -1751,7 +1760,8 @@ fn preview_lists_every_action_and_validates_push_entries_only(
         "the preview report must not shrink below the whole plan"
     );
     for item in &report.reported {
-        let is_push = item.planned.action == work::sync::Action::Push;
+        let is_push =
+            matches!(item.planned.action, work::sync::Action::Push(_));
         assert_eq!(
             item.validation.is_some(),
             is_push,
@@ -1802,7 +1812,7 @@ fn preview_validation_rejects_a_locally_missing_field_without_a_remote_call(
     let push = report
         .reported
         .iter()
-        .find(|item| item.planned.action == work::sync::Action::Push)
+        .find(|item| matches!(item.planned.action, work::sync::Action::Push(_)))
         .expect("one push entry");
     assert!(
         matches!(
@@ -2439,16 +2449,6 @@ fn jira_scenario(
 }
 
 /// A baseline the remote has not moved from and the local side has.
-fn locally_modified_entry(description: &str) -> impl Fn(&str) -> String {
-    let remote_hash = digest::remote_body(&jira_projection(description));
-    move |_| {
-        format!(
-            "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\
-             \"remote_hash\":\"{remote_hash}\",\"local_hash\":\"stale\"}}"
-        )
-    }
-}
-
 /// A recipe-1 entry recording a local body of `recorded_local_body` and the
 /// remote at `STAMP` holding `description`.
 fn split_entry_recording<'a>(
@@ -2489,22 +2489,25 @@ fn failure_class_of(
 }
 
 #[test]
-fn a_push_over_an_unrenderable_jira_description_is_refused_and_sends_nothing(
+fn a_local_edit_over_an_unrenderable_jira_description_is_a_conflict_and_sends_nothing(
 ) -> Result<(), TestError> {
     let scenario = jira_scenario(
         "Edited locally\n",
         JIRA_PANEL_DESCRIPTION,
         STAMP,
-        Some(&locally_modified_entry(JIRA_PANEL_DESCRIPTION)),
+        Some(&split_entry_recording(
+            "Before the edit\n",
+            JIRA_PANEL_DESCRIPTION,
+        )),
     )?;
 
     let report = execute(&scenario, 25, 25, RunMode::Apply)
-        .map_err(|_| "a push within bounds must proceed")?;
+        .map_err(|_| "a conflict is within the bounds")?;
 
-    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
+    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
     assert_eq!(
-        failure_class_of(&report),
-        work_adapters::sync::apply::FailureClass::Unrenderable
+        report.reported[0].planned.action,
+        work::sync::Action::Prompt
     );
     assert!(sent_nothing(&scenario.tracker));
     Ok(())
@@ -2584,7 +2587,10 @@ fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a push within bounds must proceed")?;
 
-    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
+    assert!(matches!(
+        report.reported[0].planned.action,
+        work::sync::Action::Push(_)
+    ));
     assert_eq!(
         failure_class_of(&report),
         work_adapters::sync::apply::FailureClass::PullResidue

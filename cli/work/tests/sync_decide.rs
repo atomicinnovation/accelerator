@@ -9,6 +9,8 @@ use work::sync::resolve_conflict_token;
 use work::sync::Action;
 use work::sync::Classification;
 use work::sync::Dirtiness;
+use work::sync::FieldDelivery;
+use work::sync::LocalReconciliation;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
@@ -16,7 +18,7 @@ use work::sync::SyncedReconciliation;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_DECIDE_ROWS: usize = 31;
+const EXPECTED_DECIDE_ROWS: usize = 40;
 const EXPECTED_TOKEN_ROWS: usize = 6;
 
 enum Section {
@@ -56,7 +58,9 @@ fn dirtiness(raw: &str) -> Dirtiness {
 /// `unresolved` that `Action`'s `Display`/`from_keyword` render.
 fn action(raw: &str) -> Action {
     match raw {
-        "push" => Action::Push,
+        "push" => Action::Push(FieldDelivery::Send),
+        "push-without-title" => Action::Push(FieldDelivery::Withhold),
+        "retitle" => Action::Retitle,
         "pull" => Action::Pull,
         "skip-conflict" => Action::SkipConflict,
         "skip-dirty" => Action::SkipDirty,
@@ -70,20 +74,41 @@ fn action(raw: &str) -> Action {
 /// The golden's states, each the classification that reports it; a synced
 /// row is one whose baseline already stands under the current recipe.
 fn classification(raw: &str) -> Classification {
-    if raw == "synced/record" {
-        return Classification::Synced(SyncedReconciliation::RecordOnly);
+    let locally_modified = Classification::LocallyModified;
+    match raw {
+        "synced/record" => {
+            return Classification::Synced(SyncedReconciliation::RecordOnly)
+        }
+        "locally-modified" => {
+            return locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Send,
+            })
+        }
+        "locally-modified/withheld" => {
+            return locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Withhold,
+            })
+        }
+        "locally-modified/retitle" => {
+            return locally_modified(LocalReconciliation::SendFields)
+        }
+        "locally-modified/record" => {
+            return locally_modified(LocalReconciliation::RecordOnly)
+        }
+        _ => {}
     }
     match SyncState::from_keyword(raw) {
         Some(SyncState::Synced) => {
             Classification::Synced(SyncedReconciliation::ByContent)
         }
         Some(SyncState::Unsynced) => Classification::Unsynced,
-        Some(SyncState::LocallyModified) => Classification::LocallyModified,
         Some(SyncState::RemotelyModified) => Classification::RemotelyModified,
         Some(SyncState::Conflict) => Classification::Conflict,
         Some(SyncState::RemoteAbsent) => Classification::RemoteAbsent,
         Some(SyncState::Indeterminate) => Classification::Indeterminate,
-        None => panic!("unrecognised state: {raw}"),
+        Some(SyncState::LocallyModified) | None => {
+            panic!("unrecognised state: {raw}")
+        }
     }
 }
 

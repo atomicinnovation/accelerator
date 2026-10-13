@@ -3,7 +3,9 @@
 use std::cell::OnceCell;
 use std::path::Path;
 
+use work::sync::BodyEquivalence;
 use work::sync::DualRecipeFingerprints;
+use work::sync::FieldsComparison;
 use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
@@ -14,6 +16,7 @@ use work::sync::SplitFingerprints;
 
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::digest;
+use crate::sync::synced_fields;
 
 /// The per-item memo classification and a later baseline record share, so
 /// each read and digest is paid at most once, and only if asked for.
@@ -138,12 +141,48 @@ impl ItemDigests for ItemSnapshot<'_> {
     }
 }
 
+impl ItemSnapshot<'_> {
+    fn local_body(&self) -> Option<String> {
+        let content = self.content().ok()?;
+        digest::split_frontmatter_and_body(&content)
+            .ok()
+            .map(|(_, body)| body)
+    }
+}
+
 impl ItemComparison for ItemSnapshot<'_> {
     fn pull_residue(&self) -> Option<PullResidue> {
         let projected = self.remote_projection.as_deref()?;
-        let content = self.content().ok()?;
-        let (_, body) = digest::split_frontmatter_and_body(&content).ok()?;
-        self.digester.comparison().pull_residue(&body, projected)
+        self.digester
+            .comparison()
+            .pull_residue(&self.local_body()?, projected)
+    }
+
+    fn body_equivalence(&self) -> BodyEquivalence {
+        let (Some(projected), Some(body)) =
+            (self.remote_projection.as_deref(), self.local_body())
+        else {
+            return BodyEquivalence::Unknown;
+        };
+        self.digester.comparison().equivalence(&body, projected)
+    }
+
+    fn fields_comparison(&self) -> FieldsComparison {
+        let Some(projected) = self.remote_projection.as_deref() else {
+            return FieldsComparison::Unknown;
+        };
+        let Some(local) = self
+            .content()
+            .ok()
+            .and_then(|content| synced_fields::local_fields(&content).ok())
+        else {
+            return FieldsComparison::Unknown;
+        };
+        if local == synced_fields::remote_fields(projected) {
+            FieldsComparison::Same
+        } else {
+            FieldsComparison::Different
+        }
     }
 }
 

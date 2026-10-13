@@ -28,6 +28,7 @@ use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
 use work_adapters::sync::apply::RecordRequest;
+use work_adapters::sync::apply::RetitleRequest;
 use work_adapters::sync::baseline_store::BaselineStore;
 
 use crate::support::assert_recipe_one_entry;
@@ -135,10 +136,13 @@ impl RemoteTracker for Fake {
 
     fn retitle(
         &self,
-        _id: &ExternalId,
-        _title: &str,
+        id: &ExternalId,
+        title: &str,
     ) -> Result<(), TrackerError> {
-        unimplemented!("not exercised by the apply suite")
+        self.calls
+            .borrow_mut()
+            .push(format!("retitle:{id}:{title}"));
+        self.update_fails.borrow().clone().map_or(Ok(()), Err)
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
@@ -247,7 +251,7 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
             file_path: &item_path,
         })?;
@@ -280,6 +284,51 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
 }
 
 #[test]
+fn a_retitle_sends_the_title_alone_and_records_the_read_back(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, item_content());
+    let fake = Fake::default();
+    fake.set_show_result(RemoteIssue {
+        key: ExternalId::new("ENG-1".to_owned()),
+        updated: RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned()),
+        body: "Retitled\nBody text\n".to_owned(),
+    });
+
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+    let external_id = ExternalId::new("ENG-1".to_owned());
+    {
+        let mut applier = ItemApplier::new(
+            &fake,
+            &CommonMarkBody,
+            &fake,
+            &mut store,
+            1_700_000_000,
+        );
+        applier.retitle(&RetitleRequest {
+            id: "0001",
+            external_id: &external_id,
+            title: "Retitled",
+            file_path: &item_path,
+        })?;
+    }
+
+    let calls = fake.calls();
+    assert!(calls.contains(&"retitle:ENG-1:Retitled".to_owned()));
+    assert!(!calls.iter().any(|call| call.starts_with("update:")));
+    assert_eq!(std::fs::read_to_string(&item_path)?, item_content());
+    let (baseline, _) = store.load()?;
+    assert_recipe_one_entry(
+        baseline.get("0001"),
+        &PlainDialect,
+        item_content(),
+        Some("Retitled\nBody text\n"),
+    );
+    Ok(())
+}
+
+#[test]
 fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
     let fake = Fake::default();
     fake.seed_file(Path::new(ITEM_PATH), item_content());
@@ -301,7 +350,7 @@ fn a_failed_update_leaves_the_baseline_entry_unset() -> Result<(), TestError> {
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
             file_path: Path::new(ITEM_PATH),
         })
@@ -340,7 +389,7 @@ fn an_unconfigured_error_is_classed_unconfigured() -> Result<(), TestError> {
             .push(&PushRequest {
                 id: "0001",
                 external_id: &external_id,
-                title: "Title",
+                title: Some("Title"),
                 body: "Body text\n",
                 file_path: Path::new(ITEM_PATH),
             })
@@ -376,7 +425,7 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
         applier.push(&PushRequest {
             id: "0001",
             external_id: &external_id,
-            title: "Title",
+            title: Some("Title"),
             body: "Body text\n",
             file_path: &item_path,
         })?;

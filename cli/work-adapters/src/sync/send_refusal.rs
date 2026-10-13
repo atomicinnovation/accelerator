@@ -21,7 +21,8 @@ pub enum SendRefusal {
 ///
 /// An overwrite is a human's choice to replace the remote whole, so only a
 /// planned push is refused over an unrenderable remote; residue is refused
-/// for both.
+/// for both. A retitle sends no description, so nothing about the bodies
+/// can refuse it.
 #[must_use]
 pub fn send_refusal(
     comparison: &BodyComparison<'_>,
@@ -29,7 +30,7 @@ pub fn send_refusal(
     local_body: &str,
     projected: Option<&str>,
 ) -> Option<SendRefusal> {
-    if !action.sends_to_tracker() {
+    if !matches!(action, Action::Push(_) | Action::Overwrite) {
         return None;
     }
     let Some(projected) = projected else {
@@ -39,7 +40,7 @@ pub fn send_refusal(
         return Some(SendRefusal::PullResidue);
     }
     match (action, comparison.local_body(projected)) {
-        (Action::Push, Err(cause)) => {
+        (Action::Push(_), Err(cause)) => {
             Some(SendRefusal::RemoteUnrenderable(cause))
         }
         _ => None,
@@ -53,6 +54,7 @@ mod tests {
     use tracker::PlainDialect;
     use tracker::Unrenderable;
     use work::sync::Action;
+    use work::sync::FieldDelivery;
 
     use super::send_refusal;
     use super::SendRefusal;
@@ -98,7 +100,7 @@ mod tests {
 
     #[test]
     fn a_push_or_overwrite_of_residue_is_refused() {
-        for action in [Action::Push, Action::Overwrite] {
+        for action in [Action::Push(FieldDelivery::Send), Action::Overwrite] {
             assert_eq!(
                 refusal(action, RESIDUE, Some(RENDERABLE)),
                 Some(SendRefusal::PullResidue),
@@ -109,7 +111,9 @@ mod tests {
 
     #[test]
     fn an_action_sending_no_description_is_not_refused() {
-        for action in [Action::Pull, Action::Prompt, Action::Noop] {
+        for action in
+            [Action::Pull, Action::Prompt, Action::Noop, Action::Retitle]
+        {
             assert_eq!(refusal(action, RESIDUE, None), None, "{action:?}");
         }
     }
@@ -117,7 +121,7 @@ mod tests {
     #[test]
     fn a_send_over_an_unfetched_remote_is_refused() {
         assert_eq!(
-            refusal(Action::Push, "Local body\n", None),
+            refusal(Action::Push(FieldDelivery::Send), "Local body\n", None),
             Some(SendRefusal::RemoteUnfetched)
         );
     }
@@ -138,7 +142,11 @@ mod tests {
     #[test]
     fn a_planned_push_over_an_unrenderable_remote_is_refused() {
         assert_eq!(
-            refusal(Action::Push, "Local body\n", Some(UNRENDERABLE)),
+            refusal(
+                Action::Push(FieldDelivery::Send),
+                "Local body\n",
+                Some(UNRENDERABLE)
+            ),
             Some(SendRefusal::RemoteUnrenderable(Unrenderable {
                 detail: "panel".to_owned(),
             }))

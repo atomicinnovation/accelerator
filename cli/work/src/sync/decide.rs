@@ -2,6 +2,8 @@
 
 pub use crate::dirtiness::Dirtiness;
 use crate::sync::classify::Classification;
+use crate::sync::classify::FieldDelivery;
+use crate::sync::classify::LocalReconciliation;
 use crate::sync::classify::SyncedReconciliation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,10 +23,13 @@ pub enum SyncDirection {
 /// the engine's exhaustive action match names them.
 ///
 /// `Overwrite` is never returned by [`decide`] either: it is a `Prompt`
-/// resolved in the local side's favour, which replaces the remote whole.
+/// resolved in the local side's favour, which replaces the remote whole,
+/// title included.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
-    Push,
+    Push(FieldDelivery),
+    /// Sends the local title alone, leaving the remote description as it is.
+    Retitle,
     Overwrite,
     Pull,
     SkipConflict,
@@ -39,13 +44,16 @@ pub enum Action {
 impl Action {
     #[must_use]
     pub const fn sends_to_tracker(self) -> bool {
-        matches!(self, Self::Push | Self::Overwrite)
+        matches!(self, Self::Push(_) | Self::Retitle | Self::Overwrite)
     }
 
+    /// The action a keyword names; `push` reads as a push that sends the
+    /// title, since the keyword does not say whether it is withheld.
     #[must_use]
     pub fn from_keyword(raw: &str) -> Option<Self> {
         Some(match raw {
-            "push" => Self::Push,
+            "push" => Self::Push(FieldDelivery::Send),
+            "retitle" => Self::Retitle,
             "overwrite" => Self::Overwrite,
             "pull" => Self::Pull,
             "skip-conflict" => Self::SkipConflict,
@@ -63,7 +71,8 @@ impl Action {
 impl std::fmt::Display for Action {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::Push => "push",
+            Self::Push(_) => "push",
+            Self::Retitle => "retitle",
             Self::Overwrite => "overwrite",
             Self::Pull => "pull",
             Self::SkipConflict => "skip-conflict",
@@ -87,7 +96,7 @@ pub enum Resolution {
 /// Maps (direction, classification, dirty) to one action.
 ///
 /// `dirty` sub-splits `RemotelyModified` alone; every other classification
-/// ignores it. A synced item whose baseline needs rewriting is recorded in
+/// ignores it. An item whose baseline only needs rewriting is recorded in
 /// every direction, since recording writes neither side.
 #[must_use]
 pub const fn decide(
@@ -103,12 +112,16 @@ pub const fn decide(
         | Classification::RemoteAbsent
         | Classification::Indeterminate
         | Classification::Unsynced => Action::Noop,
-        Classification::LocallyModified => match direction {
-            SyncDirection::Bidirectional | SyncDirection::PushOnly => {
-                Action::Push
+        Classification::LocallyModified(reconciliation) => {
+            match (reconciliation, direction) {
+                (LocalReconciliation::RecordOnly, _) => Action::RecordBaseline,
+                (_, SyncDirection::PullOnly) => Action::Noop,
+                (LocalReconciliation::ByContent { fields }, _) => {
+                    Action::Push(*fields)
+                }
+                (LocalReconciliation::SendFields, _) => Action::Retitle,
             }
-            SyncDirection::PullOnly => Action::Noop,
-        },
+        }
         Classification::RemotelyModified => match direction {
             SyncDirection::PushOnly => Action::Noop,
             SyncDirection::Bidirectional => {
@@ -162,7 +175,8 @@ mod tests {
     #[test]
     fn every_action_round_trips_through_its_keyword() {
         let variants = [
-            Action::Push,
+            Action::Push(super::FieldDelivery::Send),
+            Action::Retitle,
             Action::Overwrite,
             Action::Pull,
             Action::SkipConflict,
@@ -184,6 +198,8 @@ mod tests {
         use super::decide;
         use super::Classification;
         use super::Dirtiness;
+        use super::FieldDelivery;
+        use super::LocalReconciliation;
         use super::SyncDirection;
         use super::SyncedReconciliation;
 
@@ -191,7 +207,14 @@ mod tests {
             Classification::Synced(SyncedReconciliation::ByContent),
             Classification::Synced(SyncedReconciliation::RecordOnly),
             Classification::Unsynced,
-            Classification::LocallyModified,
+            Classification::LocallyModified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Send,
+            }),
+            Classification::LocallyModified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Withhold,
+            }),
+            Classification::LocallyModified(LocalReconciliation::RecordOnly),
+            Classification::LocallyModified(LocalReconciliation::SendFields),
             Classification::RemotelyModified,
             Classification::Conflict,
             Classification::RemoteAbsent,

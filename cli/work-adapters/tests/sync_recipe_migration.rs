@@ -29,7 +29,9 @@ use work::sync::classify;
 use work::sync::Action;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
+use work::sync::BodyEquivalence;
 use work::sync::Dirtiness;
+use work::sync::FieldsComparison;
 use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
@@ -687,6 +689,14 @@ impl ItemDigests for LegacyReader {
 impl ItemComparison for LegacyReader {
     fn pull_residue(&self) -> Option<PullResidue> {
         None
+    }
+
+    fn body_equivalence(&self) -> BodyEquivalence {
+        BodyEquivalence::Unknown
+    }
+
+    fn fields_comparison(&self) -> FieldsComparison {
+        FieldsComparison::Unknown
     }
 }
 

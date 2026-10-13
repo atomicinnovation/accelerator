@@ -10,6 +10,9 @@ use tracker::RemoteTimestamp;
 use work::sync::plan;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
+use work::sync::BodyEquivalence;
+use work::sync::FieldDelivery;
+use work::sync::FieldsComparison;
 use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
@@ -48,11 +51,21 @@ impl ItemDigests for NeverCalled {
     }
 }
 
-struct NoResidue;
+/// Two sides holding no residue whose bodies differ and whose titles
+/// agree.
+struct DifferingBodies;
 
-impl ItemComparison for NoResidue {
+impl ItemComparison for DifferingBodies {
     fn pull_residue(&self) -> Option<PullResidue> {
         None
+    }
+
+    fn body_equivalence(&self) -> BodyEquivalence {
+        BodyEquivalence::Different
+    }
+
+    fn fields_comparison(&self) -> FieldsComparison {
+        FieldsComparison::Same
     }
 }
 
@@ -116,7 +129,7 @@ fn needs_body_read_skips_a_stamp_that_proves_unchanged() {
         baseline,
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
 
     assert_eq!(plan::needs_body_read(&[item]), Vec::new());
@@ -142,7 +155,7 @@ fn needs_body_read_includes_a_stamp_that_does_not_prove_unchanged() {
         },
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
 
     assert_eq!(plan::needs_body_read(&[item]), vec![id]);
@@ -166,7 +179,7 @@ fn needs_body_read_excludes_absent_and_indeterminate_items() {
             baseline: empty_baseline(),
             baseline_timestamp: 0,
             digests: &digests,
-            comparison: &NoResidue,
+            comparison: &DifferingBodies,
         },
         PlanInput {
             id: "0003".to_owned(),
@@ -179,7 +192,7 @@ fn needs_body_read_excludes_absent_and_indeterminate_items() {
             baseline: empty_baseline(),
             baseline_timestamp: 0,
             digests: &digests,
-            comparison: &NoResidue,
+            comparison: &DifferingBodies,
         },
     ];
 
@@ -229,7 +242,7 @@ fn an_absent_item_plans_as_remote_absent_and_noop() -> Result<(), kernel::Error>
         baseline: empty_baseline(),
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
 
     let result =
@@ -258,7 +271,7 @@ fn an_indeterminate_item_plans_as_indeterminate_and_noop(
         baseline: empty_baseline(),
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
 
     let result =
@@ -291,7 +304,7 @@ fn conflicting_item<'a>(
         },
         baseline_timestamp: 0,
         digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     }
 }
 
@@ -357,11 +370,13 @@ fn a_resolved_local_overwrite_counts_against_max_pushes(
 }
 
 #[test]
-fn only_a_push_or_an_overwrite_sends_to_the_tracker() {
+fn only_a_push_a_retitle_or_an_overwrite_sends_to_the_tracker() {
     use work::sync::Action;
 
     let sending: Vec<Action> = [
-        Action::Push,
+        Action::Push(FieldDelivery::Send),
+        Action::Push(FieldDelivery::Withhold),
+        Action::Retitle,
         Action::Overwrite,
         Action::Pull,
         Action::SkipConflict,
@@ -376,7 +391,28 @@ fn only_a_push_or_an_overwrite_sends_to_the_tracker() {
     .filter(|action| action.sends_to_tracker())
     .collect();
 
-    assert_eq!(sending, [Action::Push, Action::Overwrite]);
+    assert_eq!(
+        sending,
+        [
+            Action::Push(FieldDelivery::Send),
+            Action::Push(FieldDelivery::Withhold),
+            Action::Retitle,
+            Action::Overwrite,
+        ]
+    );
+}
+
+#[test]
+fn a_retitle_counts_against_max_pushes() {
+    let retitling = work::sync::SyncPlan {
+        actions: vec![work::sync::PlannedAction {
+            id: "0013".to_owned(),
+            state: SyncState::LocallyModified,
+            action: work::sync::Action::Retitle,
+        }],
+    };
+
+    assert_eq!(retitling.push_count(), 1);
 }
 
 #[test]
@@ -423,7 +459,7 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert(
         },
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0009".to_owned(), Resolution::AcceptRemote);
@@ -457,7 +493,7 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert(
         },
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
     let resolutions =
         BTreeMap::from([("0011".to_owned(), Resolution::PushLocal)]);
@@ -490,7 +526,7 @@ fn pull_and_push_counts_reflect_only_their_own_action(
         },
         baseline_timestamp: 0,
         digests: &digests,
-        comparison: &NoResidue,
+        comparison: &DifferingBodies,
     };
 
     let result = plan::plan(
@@ -529,7 +565,7 @@ fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction(
             },
             baseline_timestamp: 0,
             digests: &digests,
-            comparison: &NoResidue,
+            comparison: &DifferingBodies,
         };
 
         let result = plan::plan(&[item], direction, &BTreeMap::new())?;

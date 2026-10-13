@@ -48,6 +48,7 @@ use linear_client::Credentials as LinearCredentials;
 use linear_client::{LinearClient, UploadTransport};
 use reqwest::Url;
 use tracker::ExternalId;
+use tracker::PlainDialect;
 use tracker::RemoteTracker;
 use tracker_support::Jitter;
 use tracker_support::Sleeper;
@@ -242,6 +243,11 @@ fn entry(id: &str, stamp: &str, remote_hash: &str, local_hash: &str) -> String {
     )
 }
 
+/// The item `item_file` writes, as it stood before its body was edited.
+fn earlier_item_content(external: &str) -> String {
+    format!("---\nexternal_id: \"{external}\"\n---\n\nEarlier body\n")
+}
+
 fn item_file(
     dir: &Path,
     id: &str,
@@ -349,16 +355,20 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
     );
     let client = jira_client(&server.base_url(), TransportConfig::default());
 
-    // The known-payload remote hash comes from the real client's own
-    // projection, so a classification of LocallyModified proves the engine
-    // compared against exactly that hash.
-    let remote_hash = digest::remote_body(
-        &client.show(&ExternalId::new("ENG-1".to_owned()))?.body,
-    );
+    // The recorded remote comes from the real client's own projection, so a
+    // classification of LocallyModified proves the engine compared against
+    // exactly that projection.
+    let projected = client.show(&ExternalId::new("ENG-1".to_owned()))?.body;
     let spy = Spy::default();
     spy.seed(
         BASELINE_PATH,
-        &baseline_document(&entry("0001", STAMP, &remote_hash, "stale")),
+        &baseline_document(&support::split_entry(
+            "0001",
+            &JiraBodyDialect,
+            &earlier_item_content("ENG-1"),
+            &projected,
+            STAMP,
+        )),
     );
 
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
@@ -369,7 +379,10 @@ fn jira_classifies_a_locally_modified_item_through_the_real_client(
         "remote unchanged (hash matches) + local changed classifies \
          locally-modified"
     );
-    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
+    assert!(matches!(
+        report.reported[0].planned.action,
+        work::sync::Action::Push(_)
+    ));
     Ok(())
 }
 
@@ -468,11 +481,10 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
             body: show_body.clone(),
         },
     );
-    let remote_hash = digest::remote_body(
-        &linear_client(&probe.base_url(), TransportConfig::default())
+    let projected =
+        linear_client(&probe.base_url(), TransportConfig::default())
             .show(&ExternalId::new("ENG-1".to_owned()))?
-            .body,
-    );
+            .body;
 
     let server = MockHTTPServer::start();
     server.route(
@@ -493,13 +505,22 @@ fn linear_classifies_a_locally_modified_item_through_the_real_client(
     let spy = Spy::default();
     spy.seed(
         BASELINE_PATH,
-        &baseline_document(&entry("0001", LINEAR_STAMP, &remote_hash, "stale")),
+        &baseline_document(&support::split_entry(
+            "0001",
+            &PlainDialect,
+            &earlier_item_content("ENG-1"),
+            &projected,
+            LINEAR_STAMP,
+        )),
     );
 
     let report = push_only_report(&client, &spy, &[item], RunMode::Preview);
     assert_eq!(report.reported.len(), 1);
     assert_eq!(report.reported[0].planned.state, SyncState::LocallyModified);
-    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
+    assert!(matches!(
+        report.reported[0].planned.action,
+        work::sync::Action::Push(_)
+    ));
     Ok(())
 }
 
