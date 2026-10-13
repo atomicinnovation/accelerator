@@ -86,6 +86,8 @@ pub fn corpus::body::Body::blocks(&self) -> &[corpus::body::SourcedBlock]
 pub fn corpus::body::Body::new(source: impl core::convert::Into<alloc::string::String>, blocks: alloc::vec::Vec<corpus::body::SourcedBlock>) -> Self
 pub fn corpus::body::Body::sections(&self) -> alloc::vec::Vec<corpus::body::Section<'_>>
 pub fn corpus::body::Body::source(&self) -> &str
+impl corpus::body::Body
+pub fn corpus::body::Body::canonical(&self) -> corpus::body::CanonicalBody
 impl core::clone::Clone for corpus::body::Body
 pub fn corpus::body::Body::clone(&self) -> corpus::body::Body
 impl core::cmp::Eq for corpus::body::Body
@@ -94,6 +96,17 @@ pub fn corpus::body::Body::eq(&self, other: &corpus::body::Body) -> bool
 impl core::fmt::Debug for corpus::body::Body
 pub fn corpus::body::Body::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for corpus::body::Body
+pub struct corpus::body::CanonicalBody(_)
+impl corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::digest_input(&self) -> alloc::string::String
+impl core::clone::Clone for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::clone(&self) -> corpus::body::CanonicalBody
+impl core::cmp::Eq for corpus::body::CanonicalBody
+impl core::cmp::PartialEq for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::eq(&self, other: &corpus::body::CanonicalBody) -> bool
+impl core::fmt::Debug for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::CanonicalBody
 pub struct corpus::body::ListItem
 pub corpus::body::ListItem::blocks: alloc::vec::Vec<corpus::body::Block>
 pub corpus::body::ListItem::task: core::option::Option<corpus::body::TaskMarker>
@@ -149,6 +162,7 @@ pub fn corpus::body::TableRow::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> c
 impl core::marker::StructuralPartialEq for corpus::body::TableRow
 pub trait corpus::body::BodyParser
 pub fn corpus::body::BodyParser::parse(&self, markdown: &str) -> corpus::body::Body
+pub fn corpus::body::equivalent(left: &corpus::body::Body, right: &corpus::body::Body) -> bool
 pub mod corpus::cluster
 pub struct corpus::cluster::Cluster
 pub corpus::cluster::Cluster::cluster_key: core::option::Option<alloc::string::String>

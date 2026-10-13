@@ -5,6 +5,11 @@
 
 use std::ops::Range;
 
+mod canonical;
+
+pub use crate::body::canonical::equivalent;
+pub use crate::body::canonical::CanonicalBody;
+
 /// A parsed Markdown body: its source text and its top-level blocks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Body {
