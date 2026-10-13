@@ -1743,6 +1743,21 @@ fn an_unreadable_config_exits_1() -> Result<(), TestError> {
 }
 
 #[test]
+fn an_unreadable_config_is_not_reported_as_an_unresolved_set(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write(".accelerator/config.md", "---\nresearch:\n")?;
+
+    let output = project.outstanding_with(&["--concurrency", "5"])?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("has malformed frontmatter"), "{stderr}");
+    assert!(!stderr.contains("E_TOPIC_RESEARCH_UNRESOLVED"), "{stderr}");
+    Ok(())
+}
+
+#[test]
 fn concurrency_warnings_precede_a_replaced_ledger_notice(
 ) -> Result<(), TestError> {
     let project = a_set()?;

@@ -10,6 +10,7 @@ use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 use corpus::AtomicWrite;
+use corpus::DocTypeKey;
 use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
@@ -59,14 +60,16 @@ pub struct Printed {
 ///
 /// # Errors
 ///
-/// A message when `slug` resolves to no set.
+/// A message when the configured directory cannot be read, or when `slug`
+/// resolves to no set.
 pub fn resolve_set(
     project: &ProjectContext,
     cwd: &Path,
     slug: &str,
 ) -> Result<PathBuf, String> {
+    let sets = project.type_dir(DocTypeKey::TopicResearch)?;
     let Resolution::Resolved(set_root) =
-        resolve_document(cwd, DOC_TYPE, slug, |key| project.type_dir(key))
+        resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))
     else {
         return Err(format!(
             "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
