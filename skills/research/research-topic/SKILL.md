@@ -283,6 +283,8 @@ allocate a finding or note path yourself.
    - {stem} {lineage}: {question} ({profile})
    for a question the outline no longer asks; left in place:
    - {stem}
+
+   this run re-researched each spawn marked offered again, and Failures lists any it did not finish; if a run does not end, re-run `conduct <slug>`; if its session showed an agent usage limit, first wait until the reset time in the message, or raise the limit when it gives none
    ```
 
    Each group is a heading and one line per entry, in the order its class
@@ -301,7 +303,8 @@ allocate a finding or note path yourself.
    - "for a question the outline no longer asks; left in place": `unasked`.
 
    Empty classes are omitted; with every class empty, show the opening
-   sentence alone.
+   sentence alone. The closing sentence shows only when `invalid` or
+   `unwritten` is non-empty.
 
    Only once the report is printed, and whether or not the plan offers a
    spawn, attempt every rename of a `quarantine` path that still exists to
@@ -535,6 +538,7 @@ allocate a finding or note path yourself.
    | "Bash unavailable" | grant `Bash` to the custom researcher agent |
    | a refused note, or "wrote no note" | re-run `conduct`, which researches the node afresh |
    | "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished; the new run offers the spawn again. If it recurs with no other subagents running, check in turn: (1) `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it; (2) any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap; (3) failing both, lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
+   | an unfinished run | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
 

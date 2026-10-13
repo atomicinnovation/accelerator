@@ -372,6 +372,19 @@ def test_a_failed_quarantine_lists_what_is_left_and_stops_conduct() -> None:
         assert phrase in report, f"the report must state {phrase!r}"
 
 
+def test_the_report_states_the_next_step_if_a_run_does_not_end() -> None:
+    report = _report()
+    for phrase in (
+        "this run re-researched each spawn marked offered again, and "
+        "Failures lists any it did not finish",
+        "if a run does not end, re-run `conduct <slug>`",
+        "if its session showed an agent usage limit, first wait until the "
+        "reset time in the message, or raise the limit when it gives none",
+        "only when `invalid` or `unwritten` is non-empty",
+    ):
+        assert phrase in report, f"the report must state {phrase!r}"
+
+
 def test_no_plan_expands_a_shell_variable() -> None:
     plans = [
         line
@@ -781,6 +794,44 @@ def test_the_capacity_row_orders_its_checks() -> None:
     assert row.index("`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`") > checks[0]
     assert row.index("any `ACCELERATOR_SUBAGENT_CAP`") > checks[1]
     assert row.index("a smaller `--concurrency`") > checks[2]
+
+
+def _unfinished_run_row() -> str:
+    rows = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith("| an unfinished run |")
+    ]
+    assert len(rows) == 1, "research-topic must carry one unfinished-run row"
+    return rows[0]
+
+
+def test_the_unfinished_run_row_names_re_running_conduct() -> None:
+    row = _unfinished_run_row()
+    assert "re-run `conduct <slug>`" in row
+    assert "offers what the earlier run left unfinished" in row
+
+
+def test_the_unfinished_run_row_carries_the_usage_limit_step() -> None:
+    row = _unfinished_run_row()
+    for phrase in (
+        "agent usage limit",
+        "after the reset time in the message",
+        "after raising the limit when it gives none",
+    ):
+        assert phrase in row, f"the unfinished-run row must state {phrase!r}"
+
+
+def test_the_unfinished_run_row_is_its_own_row() -> None:
+    unfinished = _unfinished_run_row()
+    rate_limited = next(
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith("| `rate_limited`, `upstream_error` |")
+    )
+    for other in (rate_limited, _capacity_row()):
+        assert other != unfinished
+        assert "usage limit" not in other
 
 
 def test_unrepresented_waiting_has_a_reason_row() -> None:
