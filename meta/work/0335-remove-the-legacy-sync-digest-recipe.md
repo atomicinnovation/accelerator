@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0331"
+id: "0335"
 title: "Remove the Legacy Sync Digest Recipe"
 date: "2026-10-10T21:48:33+00:00"
 author: "Toby Clemson"
@@ -16,7 +16,7 @@ last_updated: "2026-10-10T21:48:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-# 0331: Remove the Legacy Sync Digest Recipe
+# 0335: Remove the Legacy Sync Digest Recipe
 
 **Kind**: Task
 **Status**: Draft

@@ -80,7 +80,7 @@ whole committed `last-sync.json` on its first write.
 - **Forward compatibility vs format simplicity**: Dual-writing a legacy
   `local_hash` (and keeping the legacy `remote_hash` under its old key, with
   the recipe-1 remote hash under a new key) protects older binaries but
-  doubles the entry until 0331. The alternative is a documented minimum
+  doubles the entry until 0335. The alternative is a documented minimum
   plugin version for anyone sharing `last-sync.json`. Dual-writing is
   safer for a committed, shared file.
 
@@ -312,7 +312,7 @@ whole committed `last-sync.json` on its first write.
   `remote-projection` → `jira-client` cycle. Registration covers every
   point of the README checklist.
 - ✅ Baseline entries become a sum type migrated per entry with no file
-  writes or tracker calls, so 0331 can be a deletion.
+  writes or tracker calls, so 0335 can be a deletion.
 - ✅ A single `remote_projection::split_projected` returning a named
   `ProjectedIssue` replaces the private splitter.
 - ✅ Preview read-only holds structurally (it returns before `ItemApplier`)
@@ -350,7 +350,7 @@ whole committed `last-sync.json` on its first write.
    mixed-version push and downgrade; unknown-recipe discard; Migration
    Notes)
    - Dual-write legacy `local_hash`/`remote_hash` alongside the recipe-1
-     keys under new names until 0331.
+     keys under new names until 0335.
    - Keep unknown-recipe entries as opaque JSON re-rendered verbatim, and
      classify them `Indeterminate`.
    - Correct the Migration Notes.
@@ -423,7 +423,7 @@ unspecified.
 - `equivalent` is defined as canonical equality, and the hash uses the same
   form.
 - Extracting `adf` avoids the `remote-projection` → `jira-client` cycle.
-- The sum-typed baseline entry migrates per entry, so 0331 is a deletion.
+- The sum-typed baseline entry migrates per entry, so 0335 is a deletion.
 - `split_projected` gets a single owner.
 - Preview stays read-only, and classification stays separate from apply.
 
@@ -814,7 +814,7 @@ the frozen exit-code oracle.
 - 🔵 **Code Quality**: `Fingerprints::Split` and `FingerprintSet` duplicate four facts with a `""` sentinel; three error names for one concept; `BaselineDigests::of` returns an unnamed pairing.
 - 🔵 **Compatibility**: "Every recipe renders keys alphabetically" contradicts byte-identical legacy rendering.
 - 🔵 **Compatibility/Standards**: The skill's "detail-token table" does not exist; `unsupported-recipe` and `failed / synced / retryable` are undocumented in the skill.
-- 🔵 **Compatibility**: 0331 removing the dual-written keys without a recipe bump reintroduces the old-binary push hazard.
+- 🔵 **Compatibility**: 0335 removing the dual-written keys without a recipe bump reintroduces the old-binary push hazard.
 - 🔵 **Safety**: A title-only `SendFields` re-sends the body, stripping Jira underline.
 - 🔵 **Test Coverage**: Fenced-code and setext section tests sit on hand-built models; Phase 1's pull-create row only exercises a fake author.
 - 🔵 **Standards**: `adf`'s pin exposes `serde_json::Value` unacknowledged; the crate-dependencies lint cannot verify the dev-only `adf` edge.
@@ -847,7 +847,7 @@ Every critical finding and all but four majors from pass 1 are resolved, and the
 - 🔵 **Code Quality**: `digest.rs`/`LazyItemDigests` accrete responsibilities — Partially resolved (moved into `BodyComparison`; see below)
 - 🔵 **Compatibility**: Alphabetical keys contradict byte-identical legacy rendering — Resolved
 - 🔵 **Compatibility/Standards**: Phantom detail-token table; undocumented `unsupported-recipe` and `failed / synced` rows — Partially resolved (edits point at a "report description" and `needs-upgrade` group that do not exist)
-- 🔵 **Compatibility**: 0331 removing dual-written keys without a recipe bump — Resolved
+- 🔵 **Compatibility**: 0335 removing dual-written keys without a recipe bump — Resolved
 - 🔵 **Safety**: Title-only `SendFields` re-sends the body — Resolved
 - 🔵 **Test Coverage**: Section tests on hand-built models; fake-author pull-create — Resolved
 - 🔵 **Standards**: `adf` pin exposes `serde_json::Value`; dev-only lint edge — Partially resolved (the real new edge is `tracker-test-support → adf`; see below)
@@ -974,7 +974,7 @@ The pass-3 field-aware rule 4, the Jira dialect injection, the single classifier
 - 🔵 **Architecture/Test Coverage**: `FakeComparison` and residue classify rows sit in Phase 8 although the port lands in Phase 7; no end-to-end Jira unrenderable legacy migration test.
 - 🔵 **Code Quality**: `Entry` field names differ across variants with stale prose; legacy exceptions interleaved across three rules; `markdown_equivalence` hides an asymmetric step; `ItemSnapshot` file placement; `PullResidue::AdfDocument` names Jira; `SendFields`/`Retitle` naming.
 - 🔵 **Standards**: Alternation `rg` checks pass on one of two edits; a test name says "refused" for a conflict.
-- 🔵 **Architecture** (suggestions): `pull_residue` belongs in `BodyComparison`; add the transitional residue surface to 0331's removal scope.
+- 🔵 **Architecture** (suggestions): `pull_residue` belongs in `BodyComparison`; add the transitional residue surface to 0335's removal scope.
 
 ### Assessment
 

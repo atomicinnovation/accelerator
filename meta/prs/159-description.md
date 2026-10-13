@@ -8,7 +8,7 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0296"
 parent: "work-item:0296"
-relates_to: ["work-item:0300", "work-item:0330", "work-item:0331"]
+relates_to: ["work-item:0300", "work-item:0334", "work-item:0335"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/159"
 pr_number: 159
 tags: ["sync", "jira", "linear", "adf", "tracker"]
@@ -113,8 +113,8 @@ output, need updating. The `CHANGELOG` carries all four entries.
   no SSE event was sent.
 - **`implement-plan` instructions.** This repository's `implement-plan`
   instructions now ask for small, frequent commits.
-- **New work items.** 0330 (a rich document model for corpus documents) and
-  0331 (remove the legacy digest recipe) capture follow-up work.
+- **New work items.** 0334 (a rich document model for corpus documents) and
+  0335 (remove the legacy digest recipe) capture follow-up work.
 
 ## Context
 

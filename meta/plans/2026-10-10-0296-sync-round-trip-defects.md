@@ -9,7 +9,7 @@ status: "in-progress"
 work_item_id: "work-item:0296"
 parent: "work-item:0296"
 derived_from: ["codebase-research:2026-10-10-0296-sync-round-trip-defects"]
-relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:0230", "work-item:0285", "work-item:0330", "work-item:0331"]
+relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:0230", "work-item:0285", "work-item:0334", "work-item:0335"]
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
@@ -119,8 +119,8 @@ equivalence-aware with a recovery path for items without a usable baseline.
 
 - Building the full rich document model or migrating the string-based fence
   and frontmatter consumers in `work`, `work-cli`, `migrate`, `corpus` and
-  `config-adapters` onto it (0330).
-- Removing the legacy digest recipe (0331).
+  `config-adapters` onto it (0334).
+- Removing the legacy digest recipe (0335).
 - Pulling the title or syncing any field beyond title and body (0290).
 - Fixing Linear's meaning-changing rewrites on push (0320).
 - Mapping ADF nodes with no Markdown form (`underline`, `panel`, `mention`,
@@ -1653,7 +1653,7 @@ prediction in this phase. The domain never sees a recipe
 number: `DigestRecipe` (with `CURRENT`) and the `digest_recipe` key live in
 the persistence codec, `cli/work-adapters/src/sync/baseline.rs`, which maps
 `""` to `None` in `parse_entry` and back in `render_entry`, so the empty
-sentinel never leaves the codec. 0331 deletes `BaselineFingerprints::Legacy`,
+sentinel never leaves the codec. 0335 deletes `BaselineFingerprints::Legacy`,
 with the transitional migration surface: `ItemComparison::pull_residue`
 and `UnrenderableReason::LegacyUnrenderable`. The send refusal over residue
 stays while any file an earlier pull wrote can remain.
@@ -1709,7 +1709,7 @@ pub enum Entry {
 }
 ```
 
-`SyncStamps` holds what every recipe records, so 0331 deletes
+`SyncStamps` holds what every recipe records, so 0335 deletes
 `Entry::Legacy` and the `Split` variant's `legacy` field without restructuring
 either. `render_entry` writes
 `digest_recipe`, `local_body_hash`, `local_fields_hash`,
@@ -2206,7 +2206,7 @@ gains `body_equivalence() -> BodyEquivalence` and `fields_comparison() ->
 FieldsComparison` beside `pull_residue`. `classify` dispatches on the
 fingerprint shape after presence and recovery, into `classify_split` and
 `classify_legacy`, so the legacy exceptions below live in one function that
-0331 deletes with `BaselineFingerprints::Legacy`.
+0335 deletes with `BaselineFingerprints::Legacy`.
 
 A conflict on a `Legacy` entry whose local body holds no residue and whose
 remote is unrenderable, whichever rule raised it, has no safe `=local`: an overwrite would
@@ -2637,7 +2637,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 ## Migration Notes
 
 - `last-sync.json` migrates entry by entry as runs classify them. Until
-  0331, recipe-1 entries also carry `local_hash` and `remote_hash` with
+  0335, recipe-1 entries also carry `local_hash` and `remote_hash` with
   their legacy meaning, computed from the same bodies, so an older binary
   classifies them exactly as it would a legacy entry. An older binary's write
   drops the recipe-1 keys from every entry but leaves valid legacy entries,
@@ -2679,14 +2679,14 @@ Table in the PR description: each of the 32 items pulled or conflicted on
   side facing any change on the other is a conflict, as today. Recipe-1
   entries gain `local_fields_hash` and `remote_fields_hash` over the synced
   tracker fields.
-- 0331 also removes `local_hash` and `remote_hash` from split entries; it bumps the digest recipe when it does, so binaries between
-  0296 and 0331 read the trimmed entries as `unsupported-recipe`, and its
+- 0335 also removes `local_hash` and `remote_hash` from split entries; it bumps the digest recipe when it does, so binaries between
+  0296 and 0335 read the trimmed entries as `unsupported-recipe`, and its
   release notes require every collaborator sharing `last-sync.json` to run
   at least the 0296 release, since earlier binaries ignore the recipe
   marker.
 - Entries kept on the legacy recipe also include items with a pending change
   the run does not act on (a direction filter or a dirty file); they migrate
-  when a later run settles them. 0331's precondition becomes "no legacy
+  when a later run settles them. 0335's precondition becomes "no legacy
   entry remains after a bidirectional sync with a clean working copy".
 - `work diff` adopts the same section equivalence as dossiers, so an
   equivalent section is not listed.
@@ -2775,7 +2775,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 - Review: `meta/reviews/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
 - PR: `meta/prs/156-description.md`
 - ADR-0069: `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
-- Follow-ups: `meta/work/0330-rich-document-model-for-corpus-documents.md`,
-  `meta/work/0331-remove-the-legacy-sync-digest-recipe.md`
+- Follow-ups: `meta/work/0334-rich-document-model-for-corpus-documents.md`,
+  `meta/work/0335-remove-the-legacy-sync-digest-recipe.md`
 - Frontmatter port precedent: `cli/corpus-adapters/src/document.rs:20`
 - Lock-version guard precedent: `cli/vcs-adapters/tests/queries.rs:611-633`

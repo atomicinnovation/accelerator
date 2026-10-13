@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0330"
+id: "0334"
 title: "Rich Document Model for Corpus Documents"
 date: "2026-10-10T21:48:33+00:00"
 author: "Toby Clemson"
@@ -15,7 +15,7 @@ last_updated: "2026-10-10T21:48:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-# 0330: Rich Document Model for Corpus Documents
+# 0334: Rich Document Model for Corpus Documents
 
 **Kind**: Story
 **Status**: Draft

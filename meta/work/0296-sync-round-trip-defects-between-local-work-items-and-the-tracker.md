@@ -9,7 +9,7 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
-blocks: ["work-item:0290", "work-item:0320", "work-item:0330", "work-item:0331"]
+blocks: ["work-item:0290", "work-item:0320", "work-item:0334", "work-item:0335"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
@@ -259,10 +259,10 @@ update.
 - Normalising anything beyond the equivalence definition above.
 - Fixing Linear's meaning-changing rewrites on push.
 - Deciding the sync authority model beyond this item's representation rule.
-- Removing the legacy recipe; 0331 does so once `last-sync.json` holds no
+- Removing the legacy recipe; 0335 does so once `last-sync.json` holds no
   unmarked entry.
 - Migrating the string-based document consumers onto a rich document model
-  (0330).
+  (0334).
 
 ## Acceptance Criteria
 
@@ -448,7 +448,7 @@ Resolved during planning:
 - `adf` moves out of `jira-client` into its own technical-library crate.
 - The Markdown model and equivalence live in `corpus` (`corpus::body`); the
   parser lives in `document` (`document::markdown`); `corpus-adapters`
-  implements the `BodyParser` port between them. 0330 builds the full model.
+  implements the `BodyParser` port between them. 0334 builds the full model.
 
 ## Dependencies
 
@@ -482,9 +482,9 @@ Resolved during planning:
   its own crate, which `jira-client` re-exports and `work-adapters` uses for
   the Jira round trip.
 - Before equivalence work starts: the `issueCreate` read-back is captured.
-- Follow-up: 0330 — Rich Document Model for Corpus Documents builds out the
+- Follow-up: 0334 — Rich Document Model for Corpus Documents builds out the
   minimal `corpus::body` model this item introduces.
-- Follow-up: 0331 — Remove the Legacy Sync Digest Recipe.
+- Follow-up: 0335 — Remove the Legacy Sync Digest Recipe.
 - External: credentialed access to the PP Linear workspace, for the
   read-back capture, the fixture capture and the merge-time preview, whose
   result also depends on live corpus and Linear state.
