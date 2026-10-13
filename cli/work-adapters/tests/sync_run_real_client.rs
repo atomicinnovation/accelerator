@@ -8,6 +8,8 @@
 //! constructors with a loopback base, the admission `from_config` refuses.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
 use corpus_adapters::CommonMarkBody;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -29,6 +31,7 @@ use http_test_support::Route;
 use jira_client::jql::FixedResolver;
 use jira_client::transport::Transport as JiraTransport;
 use jira_client::Credentials as JiraCredentials;
+use jira_client::JiraBodyDialect;
 use jira_client::JiraClient;
 use linear_client::cache::LinearCache;
 use linear_client::cache::SystemFilesystem;
@@ -1595,7 +1598,13 @@ fn a_dossier_for_an_unrenderable_remote_names_the_reason_instead_of_a_body(
     let spy = Spy::default();
     spy.seed(
         BASELINE_PATH,
-        &baseline_document(&entry("0001", STAMP, "stale", "stale")),
+        &baseline_document(&support::split_entry(
+            "0001",
+            &JiraBodyDialect,
+            &format!("{LOCAL_FRONTMATTER}\nEarlier local body\n"),
+            "Title\n{\"content\":[],\"type\":\"doc\",\"version\":1}\n",
+            STAMP,
+        )),
     );
     let (_server, client) = serve_unrenderable_jira();
 

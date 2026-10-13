@@ -1,7 +1,8 @@
 //! The (direction × state × dirty) decision table.
 
 pub use crate::dirtiness::Dirtiness;
-use crate::sync::state::SyncState;
+use crate::sync::classify::Classification;
+use crate::sync::classify::SyncedReconciliation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyncDirection {
@@ -30,6 +31,7 @@ pub enum Action {
     SkipDirty,
     Prompt,
     Noop,
+    RecordBaseline,
     CreateFromRemote,
     CreateFromLocal,
 }
@@ -50,6 +52,7 @@ impl Action {
             "skip-dirty" => Self::SkipDirty,
             "unresolved" => Self::Prompt,
             "noop" => Self::Noop,
+            "record-baseline" => Self::RecordBaseline,
             "create-from-remote" => Self::CreateFromRemote,
             "create-from-local" => Self::CreateFromLocal,
             _ => return None,
@@ -67,6 +70,7 @@ impl std::fmt::Display for Action {
             Self::SkipDirty => "skip-dirty",
             Self::Prompt => "unresolved",
             Self::Noop => "noop",
+            Self::RecordBaseline => "record-baseline",
             Self::CreateFromRemote => "create-from-remote",
             Self::CreateFromLocal => "create-from-local",
         })
@@ -80,26 +84,32 @@ pub enum Resolution {
     Skip,
 }
 
-/// Maps (direction, state, dirty) to one action. `dirty` sub-splits
-/// `RemotelyModified` alone; every other state ignores it.
+/// Maps (direction, classification, dirty) to one action.
+///
+/// `dirty` sub-splits `RemotelyModified` alone; every other classification
+/// ignores it. A synced item whose baseline needs rewriting is recorded in
+/// every direction, since recording writes neither side.
 #[must_use]
 pub const fn decide(
     direction: SyncDirection,
-    state: SyncState,
+    classification: &Classification,
     dirty: Dirtiness,
 ) -> Action {
-    match state {
-        SyncState::Synced
-        | SyncState::RemoteAbsent
-        | SyncState::Indeterminate
-        | SyncState::Unsynced => Action::Noop,
-        SyncState::LocallyModified => match direction {
+    match classification {
+        Classification::Synced(SyncedReconciliation::RecordOnly) => {
+            Action::RecordBaseline
+        }
+        Classification::Synced(SyncedReconciliation::ByContent)
+        | Classification::RemoteAbsent
+        | Classification::Indeterminate
+        | Classification::Unsynced => Action::Noop,
+        Classification::LocallyModified => match direction {
             SyncDirection::Bidirectional | SyncDirection::PushOnly => {
                 Action::Push
             }
             SyncDirection::PullOnly => Action::Noop,
         },
-        SyncState::RemotelyModified => match direction {
+        Classification::RemotelyModified => match direction {
             SyncDirection::PushOnly => Action::Noop,
             SyncDirection::Bidirectional => {
                 if matches!(dirty, Dirtiness::Clean) {
@@ -116,7 +126,7 @@ pub const fn decide(
                 }
             }
         },
-        SyncState::Conflict => match direction {
+        Classification::Conflict => match direction {
             SyncDirection::Bidirectional => Action::Prompt,
             SyncDirection::PushOnly | SyncDirection::PullOnly => {
                 Action::SkipConflict
@@ -159,6 +169,7 @@ mod tests {
             Action::SkipDirty,
             Action::Prompt,
             Action::Noop,
+            Action::RecordBaseline,
             Action::CreateFromRemote,
             Action::CreateFromLocal,
         ];
@@ -169,20 +180,55 @@ mod tests {
     }
 
     #[test]
-    fn the_two_create_actions_never_come_from_the_decision_table() {
+    fn a_synced_item_needing_its_baseline_rewritten_records_it_in_every_direction(
+    ) {
         use super::decide;
+        use super::Action;
+        use super::Classification;
         use super::Dirtiness;
         use super::SyncDirection;
-        use crate::sync::state::SyncState;
+        use super::SyncedReconciliation;
+
+        for direction in [
+            SyncDirection::Bidirectional,
+            SyncDirection::PushOnly,
+            SyncDirection::PullOnly,
+        ] {
+            for dirty in
+                [Dirtiness::Clean, Dirtiness::Dirty, Dirtiness::Unknown]
+            {
+                assert_eq!(
+                    decide(
+                        direction,
+                        &Classification::Synced(
+                            SyncedReconciliation::RecordOnly
+                        ),
+                        dirty
+                    ),
+                    Action::RecordBaseline,
+                    "{direction:?}/{dirty:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_two_create_actions_never_come_from_the_decision_table() {
+        use super::decide;
+        use super::Classification;
+        use super::Dirtiness;
+        use super::SyncDirection;
+        use super::SyncedReconciliation;
 
         let states = [
-            SyncState::Synced,
-            SyncState::Unsynced,
-            SyncState::LocallyModified,
-            SyncState::RemotelyModified,
-            SyncState::Conflict,
-            SyncState::RemoteAbsent,
-            SyncState::Indeterminate,
+            Classification::Synced(SyncedReconciliation::ByContent),
+            Classification::Synced(SyncedReconciliation::RecordOnly),
+            Classification::Unsynced,
+            Classification::LocallyModified,
+            Classification::RemotelyModified,
+            Classification::Conflict,
+            Classification::RemoteAbsent,
+            Classification::Indeterminate,
         ];
         let directions = [
             SyncDirection::Bidirectional,
@@ -194,7 +240,7 @@ mod tests {
         for state in states {
             for direction in directions {
                 for dirty in dirtiness {
-                    let action = decide(direction, state, dirty);
+                    let action = decide(direction, &state, dirty);
                     assert!(
                         !matches!(
                             action,

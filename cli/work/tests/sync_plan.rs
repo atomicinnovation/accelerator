@@ -9,11 +9,18 @@ use tracker::ExternalId;
 use tracker::RemoteTimestamp;
 use work::sync::plan;
 use work::sync::BaselineEntry;
+use work::sync::BaselineFingerprints;
+use work::sync::ItemComparison;
 use work::sync::ItemDigests;
+use work::sync::LegacyHashes;
+use work::sync::LocalFingerprints;
 use work::sync::PlanInput;
+use work::sync::PullResidue;
 use work::sync::RemoteFacts;
+use work::sync::RemoteFingerprints;
 use work::sync::RemotePresence;
 use work::sync::Resolution;
+use work::sync::SplitFingerprints;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
 
@@ -24,20 +31,67 @@ impl ItemDigests for NeverCalled {
         panic!("mtime should not be called for a presence-absent item")
     }
 
-    fn local(&self) -> Result<String, kernel::Error> {
+    fn legacy_local(&self) -> Result<String, kernel::Error> {
+        panic!("legacy_local should not be called for a presence-absent item")
+    }
+
+    fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
+        panic!("legacy_remote should not be called for a presence-absent item")
+    }
+
+    fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
         panic!("local should not be called for a presence-absent item")
     }
 
-    fn remote_body(&self) -> Result<Option<String>, kernel::Error> {
-        panic!("remote_body should not be called for a presence-absent item")
+    fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+        panic!("remote should not be called for a presence-absent item")
+    }
+}
+
+struct NoResidue;
+
+impl ItemComparison for NoResidue {
+    fn pull_residue(&self) -> Option<PullResidue> {
+        None
+    }
+}
+
+fn legacy(local: Option<&str>, remote: Option<&str>) -> BaselineFingerprints {
+    BaselineFingerprints::Legacy(LegacyHashes {
+        local: local.map(str::to_owned),
+        remote: remote.map(str::to_owned),
+    })
+}
+
+fn agreeing_split() -> BaselineFingerprints {
+    BaselineFingerprints::Split(SplitFingerprints {
+        local: Some(local_fingerprints("h")),
+        remote: Some(remote_fingerprints("h")),
+    })
+}
+
+fn local_fingerprints(hash: &str) -> LocalFingerprints {
+    LocalFingerprints {
+        frontmatter: hash.to_owned(),
+        fields: hash.to_owned(),
+        body: hash.to_owned(),
+    }
+}
+
+fn remote_fingerprints(hash: &str) -> RemoteFingerprints {
+    RemoteFingerprints {
+        body: hash.to_owned(),
+        fields: hash.to_owned(),
     }
 }
 
 const fn empty_baseline() -> BaselineEntry<'static> {
     BaselineEntry {
         remote_updated_at: &RemoteTimestamp::NotReported,
-        remote_hash: None,
-        local_hash: None,
+        fingerprints: BaselineFingerprints::Legacy(LegacyHashes {
+            local: None,
+            remote: None,
+        }),
     }
 }
 
@@ -49,8 +103,7 @@ fn needs_body_read_skips_a_stamp_that_proves_unchanged() {
     let id = ExternalId::new("ENG-1".to_owned());
     let baseline = BaselineEntry {
         remote_updated_at: &baseline_updated,
-        remote_hash: Some("h"),
-        local_hash: Some("h"),
+        fingerprints: legacy(Some("h"), Some("h")),
     };
     let item = PlanInput {
         id: "0001".to_owned(),
@@ -63,6 +116,7 @@ fn needs_body_read_skips_a_stamp_that_proves_unchanged() {
         baseline,
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
 
     assert_eq!(plan::needs_body_read(&[item]), Vec::new());
@@ -84,11 +138,11 @@ fn needs_body_read_includes_a_stamp_that_does_not_prove_unchanged() {
         dirty: work::sync::Dirtiness::Clean,
         baseline: BaselineEntry {
             remote_updated_at: &baseline_updated,
-            remote_hash: Some("h"),
-            local_hash: Some("h"),
+            fingerprints: legacy(Some("h"), Some("h")),
         },
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
 
     assert_eq!(plan::needs_body_read(&[item]), vec![id]);
@@ -112,6 +166,7 @@ fn needs_body_read_excludes_absent_and_indeterminate_items() {
             baseline: empty_baseline(),
             baseline_timestamp: 0,
             digests: &digests,
+            comparison: &NoResidue,
         },
         PlanInput {
             id: "0003".to_owned(),
@@ -124,6 +179,7 @@ fn needs_body_read_excludes_absent_and_indeterminate_items() {
             baseline: empty_baseline(),
             baseline_timestamp: 0,
             digests: &digests,
+            comparison: &NoResidue,
         },
     ];
 
@@ -137,12 +193,20 @@ fn digests_agreeing_with(hash: &'static str) -> impl ItemDigests {
             Ok(None)
         }
 
-        fn local(&self) -> Result<String, kernel::Error> {
+        fn legacy_local(&self) -> Result<String, kernel::Error> {
             Ok(self.0.to_owned())
         }
 
-        fn remote_body(&self) -> Result<Option<String>, kernel::Error> {
+        fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
             Ok(Some(self.0.to_owned()))
+        }
+
+        fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
+            Ok(local_fingerprints(self.0))
+        }
+
+        fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+            Ok(Some(remote_fingerprints(self.0)))
         }
     }
     Agreeing(hash)
@@ -165,6 +229,7 @@ fn an_absent_item_plans_as_remote_absent_and_noop() -> Result<(), kernel::Error>
         baseline: empty_baseline(),
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
 
     let result =
@@ -193,6 +258,7 @@ fn an_indeterminate_item_plans_as_indeterminate_and_noop(
         baseline: empty_baseline(),
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
 
     let result =
@@ -221,11 +287,11 @@ fn conflicting_item<'a>(
         dirty: work::sync::Dirtiness::Clean,
         baseline: BaselineEntry {
             remote_updated_at: baseline_updated,
-            remote_hash: Some("stale"),
-            local_hash: Some("stale"),
+            fingerprints: legacy(Some("stale"), Some("stale")),
         },
         baseline_timestamp: 0,
         digests,
+        comparison: &NoResidue,
     }
 }
 
@@ -302,6 +368,7 @@ fn only_a_push_or_an_overwrite_sends_to_the_tracker() {
         Action::SkipDirty,
         Action::Prompt,
         Action::Noop,
+        Action::RecordBaseline,
         Action::CreateFromRemote,
         Action::CreateFromLocal,
     ]
@@ -352,11 +419,11 @@ fn a_stale_resolution_naming_an_id_that_did_not_prompt_is_inert(
         dirty: work::sync::Dirtiness::Clean,
         baseline: BaselineEntry {
             remote_updated_at: &updated,
-            remote_hash: Some("h"),
-            local_hash: Some("h"),
+            fingerprints: agreeing_split(),
         },
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
     let mut resolutions = BTreeMap::new();
     resolutions.insert("0009".to_owned(), Resolution::AcceptRemote);
@@ -386,11 +453,11 @@ fn a_local_resolution_on_an_item_that_did_not_prompt_stays_inert(
         dirty: work::sync::Dirtiness::Clean,
         baseline: BaselineEntry {
             remote_updated_at: &updated,
-            remote_hash: Some("stale"),
-            local_hash: Some("h"),
+            fingerprints: legacy(Some("h"), Some("stale")),
         },
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
     let resolutions =
         BTreeMap::from([("0011".to_owned(), Resolution::PushLocal)]);
@@ -419,11 +486,11 @@ fn pull_and_push_counts_reflect_only_their_own_action(
         dirty: work::sync::Dirtiness::Clean,
         baseline: BaselineEntry {
             remote_updated_at: &updated,
-            remote_hash: Some("h"),
-            local_hash: Some("h"),
+            fingerprints: agreeing_split(),
         },
         baseline_timestamp: 0,
         digests: &digests,
+        comparison: &NoResidue,
     };
 
     let result = plan::plan(
@@ -434,5 +501,45 @@ fn pull_and_push_counts_reflect_only_their_own_action(
 
     assert_eq!(result.pull_count(), 0);
     assert_eq!(result.push_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_synced_legacy_entry_plans_a_baseline_record_in_every_direction(
+) -> Result<(), kernel::Error> {
+    let updated = RemoteTimestamp::Reported("same".to_owned());
+    let digests = digests_agreeing_with("h");
+    let id = ExternalId::new("ENG-12".to_owned());
+    for direction in [
+        SyncDirection::Bidirectional,
+        SyncDirection::PushOnly,
+        SyncDirection::PullOnly,
+    ] {
+        let item = PlanInput {
+            id: "0012".to_owned(),
+            external_id: Some(&id),
+            facts: RemoteFacts {
+                presence: RemotePresence::Present,
+                remote_updated: &updated,
+            },
+            dirty: work::sync::Dirtiness::Dirty,
+            baseline: BaselineEntry {
+                remote_updated_at: &updated,
+                fingerprints: legacy(Some("h"), Some("h")),
+            },
+            baseline_timestamp: 0,
+            digests: &digests,
+            comparison: &NoResidue,
+        };
+
+        let result = plan::plan(&[item], direction, &BTreeMap::new())?;
+
+        assert_eq!(result.actions[0].state, SyncState::Synced);
+        assert_eq!(
+            result.actions[0].action,
+            work::sync::Action::RecordBaseline,
+            "{direction:?}"
+        );
+    }
     Ok(())
 }

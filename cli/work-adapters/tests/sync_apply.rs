@@ -27,6 +27,7 @@ use work_adapters::sync::apply::FailureClass;
 use work_adapters::sync::apply::ItemApplier;
 use work_adapters::sync::apply::PullRequest;
 use work_adapters::sync::apply::PushRequest;
+use work_adapters::sync::apply::RecordRequest;
 use work_adapters::sync::baseline_store::BaselineStore;
 
 use crate::support::assert_recipe_one_entry;
@@ -557,5 +558,46 @@ fn finalise_advances_the_global_timestamp() -> Result<(), TestError> {
     }
     let (baseline, _) = store.load()?;
     assert_eq!(baseline.timestamp(), 1_700_000_000);
+    Ok(())
+}
+
+#[test]
+fn a_local_edit_between_classification_and_apply_is_not_absorbed_into_the_baseline(
+) -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let item_path = real_item_file(&dir, item_content());
+    let classified =
+        work_adapters::sync::baseline_digester::BaselineDigester::new(
+            &PlainDialect,
+            &CommonMarkBody,
+        )
+        .digests(item_content(), Some("Title\nBody text\n"))?;
+    std::fs::write(&item_path, item_content().replace("Body", "Edited"))?;
+    let fake = Fake::default();
+    let mut store =
+        BaselineStore::new(PathBuf::from(BASELINE_PATH), &fake, &fake);
+
+    let error = ItemApplier::new(
+        &fake,
+        &CommonMarkBody,
+        &fake,
+        &mut store,
+        1_700_000_000,
+    )
+    .record_baseline(&RecordRequest {
+        id: "0001",
+        file_path: &item_path,
+        fingerprints: classified,
+        remote_updated: RemoteTimestamp::Reported(
+            "2026-06-01T00:00:00Z".to_owned(),
+        ),
+    })
+    .expect_err("the edit is never recorded as synced");
+
+    assert_eq!(error.class(), FailureClass::Retryable);
+    assert!(!fake
+        .calls()
+        .iter()
+        .any(|call| call == &format!("write:{BASELINE_PATH}")));
     Ok(())
 }

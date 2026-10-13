@@ -7,10 +7,12 @@ use std::path::Path;
 use work::sync::decide;
 use work::sync::resolve_conflict_token;
 use work::sync::Action;
+use work::sync::Classification;
 use work::sync::Dirtiness;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
+use work::sync::SyncedReconciliation;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -65,6 +67,23 @@ fn action(raw: &str) -> Action {
         "prompt" => Action::Prompt,
         "noop" => Action::Noop,
         other => panic!("unrecognised action keyword: {other}"),
+    }
+}
+
+/// The golden's states, each the classification that reports it; a synced
+/// row is one whose baseline already stands under the current recipe.
+fn classification(raw: &str) -> Classification {
+    match SyncState::from_keyword(raw) {
+        Some(SyncState::Synced) => {
+            Classification::Synced(SyncedReconciliation::ByContent)
+        }
+        Some(SyncState::Unsynced) => Classification::Unsynced,
+        Some(SyncState::LocallyModified) => Classification::LocallyModified,
+        Some(SyncState::RemotelyModified) => Classification::RemotelyModified,
+        Some(SyncState::Conflict) => Classification::Conflict,
+        Some(SyncState::RemoteAbsent) => Classification::RemoteAbsent,
+        Some(SyncState::Indeterminate) => Classification::Indeterminate,
+        None => panic!("unrecognised state: {raw}"),
     }
 }
 
@@ -123,13 +142,9 @@ fn every_decide_and_token_row_matches_the_golden() -> Result<(), TestError> {
                 else {
                     panic!("malformed DECIDE row: {line}");
                 };
-                let state =
-                    SyncState::from_keyword(raw_state).unwrap_or_else(|| {
-                        panic!("unrecognised state: {raw_state}")
-                    });
                 let actual = decide(
                     direction(raw_direction),
-                    state,
+                    &classification(raw_state),
                     dirtiness(raw_dirty),
                 );
                 assert_eq!(actual, action(raw_expected), "row: {line}");

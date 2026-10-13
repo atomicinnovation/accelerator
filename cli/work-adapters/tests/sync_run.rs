@@ -1,7 +1,7 @@
 //! The whole-corpus run: the write bounds, preview's no-write guarantee,
 //! and the finalise bookkeeping.
 //!
-//! Items live on real files because `run` and `LazyItemDigests` read them
+//! Items live on real files because `run` and `ItemSnapshot` read them
 //! through `std::fs`; only the baseline goes through the injected reader
 //! and writer, which is what lets a spy count writes.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
@@ -18,7 +18,9 @@ use std::path::PathBuf;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use jira_client::JiraBodyDialect;
 use tracker::ExternalId;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::Call;
@@ -28,6 +30,9 @@ use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
 use work_adapters::sync::baseline::Baseline;
+use work_adapters::sync::baseline::Entry;
+use work_adapters::sync::baseline::SyncStamps;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
@@ -1589,14 +1594,23 @@ fn a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing(
         "local body\n",
         "Item nine\nremote body\n",
     )?;
-    let unmoved_local_hash =
-        digest::local(&std::fs::read_to_string(&scenario.items[0].path)?)?;
-    let blank_remote_hash = format!(
-        "\"0009\":{{\"remote_updated_at\":\"{MOVED_STAMP}\",\"remote_hash\":\"\",\"local_hash\":\"{unmoved_local_hash}\"}}"
+    let unmoved = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+        .digests(&std::fs::read_to_string(&scenario.items[0].path)?, None)?;
+    let blank_remote = support::entry_fragment(
+        "0009",
+        Entry::recorded(
+            SyncStamps {
+                remote_updated_at: RemoteTimestamp::Reported(
+                    MOVED_STAMP.to_owned(),
+                ),
+                local_synced_at: 0,
+            },
+            unmoved,
+        ),
     );
     scenario
         .spy
-        .seed(BASELINE_PATH, &baseline_document(&[blank_remote_hash]));
+        .seed(BASELINE_PATH, &baseline_document(&[blank_remote]));
 
     let report = execute_resolving_in(
         &scenario,
@@ -2432,6 +2446,23 @@ fn locally_modified_entry(description: &str) -> impl Fn(&str) -> String {
     }
 }
 
+/// A recipe-1 entry recording a local body of `recorded_local_body` and the
+/// remote at `STAMP` holding `description`.
+fn split_entry_recording<'a>(
+    recorded_local_body: &'a str,
+    description: &'a str,
+) -> impl Fn(&str) -> String + 'a {
+    move |_| {
+        support::split_entry(
+            "0009",
+            &JiraBodyDialect,
+            &conflict_content(9, "Local title", recorded_local_body),
+            &jira_projection(description),
+            STAMP,
+        )
+    }
+}
+
 fn both_moved_entry(_: &str) -> String {
     format!(
         "\"0009\":{{\"remote_updated_at\":\"{STAMP}\",\
@@ -2483,12 +2514,16 @@ fn resolve_local_overwrites_an_unrenderable_jira_description(
         "Edited locally\n",
         JIRA_PANEL_DESCRIPTION,
         MOVED_STAMP,
-        Some(&both_moved_entry),
+        Some(&split_entry_recording(
+            "Before the edit\n",
+            JIRA_OTHER_DESCRIPTION,
+        )),
     )?;
 
     let report = execute_resolving(&scenario, &pushing_local("0009"))
         .map_err(|_| "a resolved conflict is within the bounds")?;
 
+    assert_eq!(report.reported[0].planned.state, SyncState::Conflict);
     assert!(matches!(report.reported[0].outcome, ItemOutcome::Applied));
     assert!(scenario.tracker.calls().iter().any(|call| matches!(
         call,
@@ -2530,16 +2565,22 @@ fn resolving_local_on_an_entryless_residue_item_sends_nothing(
 fn a_local_edit_over_an_unchanged_stamp_still_meets_the_send_refusal(
 ) -> Result<(), TestError> {
     let residue = format!("Title\n{JIRA_OTHER_DESCRIPTION}\n");
+    let recorded_residue =
+        format!("Old title\n{JIRA_OTHER_DESCRIPTION}\nBefore the edit\n");
     let scenario = jira_scenario(
         &residue,
         JIRA_OTHER_DESCRIPTION,
         STAMP,
-        Some(&locally_modified_entry(JIRA_OTHER_DESCRIPTION)),
+        Some(&split_entry_recording(
+            &recorded_residue,
+            JIRA_OTHER_DESCRIPTION,
+        )),
     )?;
 
     let report = execute(&scenario, 25, 25, RunMode::Apply)
         .map_err(|_| "a push within bounds must proceed")?;
 
+    assert_eq!(report.reported[0].planned.action, work::sync::Action::Push);
     assert_eq!(
         failure_class_of(&report),
         work_adapters::sync::apply::FailureClass::PullResidue

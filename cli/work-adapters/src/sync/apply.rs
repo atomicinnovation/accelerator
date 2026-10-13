@@ -12,6 +12,7 @@ use tracker::RemoteTracker;
 use tracker::TrackerError;
 use tracker::Unrenderable;
 use work::sync::push_precondition;
+use work::sync::DualRecipeFingerprints;
 use work::sync::MarkerState;
 use work::sync::PendingPush;
 use work::sync::PushPrecondition;
@@ -25,6 +26,7 @@ use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::DiscoveredIssue;
 use crate::sync::create::LocalAuthor;
+use crate::sync::digest;
 use crate::sync::pending_push;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +61,9 @@ pub enum ApplyError {
     LocalPullResidue {
         item_id: String,
     },
+    LocalChangedSinceClassified {
+        item_id: String,
+    },
 }
 
 impl ApplyError {
@@ -74,7 +79,10 @@ impl ApplyError {
                 TrackerError::Rejected { .. } => FailureClass::Rejected,
             },
             Self::Io { .. } => FailureClass::Terminal,
-            Self::RemoteBodyUnavailable { .. } => FailureClass::Retryable,
+            Self::RemoteBodyUnavailable { .. }
+            | Self::LocalChangedSinceClassified { .. } => {
+                FailureClass::Retryable
+            }
             Self::RemoteUnrenderable { .. } => FailureClass::Unrenderable,
             Self::LocalPullResidue { .. } => FailureClass::PullResidue,
         }
@@ -108,6 +116,12 @@ impl std::fmt::Display for ApplyError {
                  it with Markdown (`jira show <key> --render-adf` prints a \
                  starting point) and sync, or resolve with --resolve \
                  {item_id}=remote to discard local changes"
+            ),
+            Self::LocalChangedSinceClassified { item_id } => write!(
+                formatter,
+                "{item_id}: the local file changed while the run was \
+                 recording its baseline, so nothing was recorded; re-run the \
+                 sync"
             ),
         }
     }
@@ -163,6 +177,15 @@ fn refusal_detail(reason: RefusalReason, marker_path: &Path) -> String {
              duplicate create"
         ),
     }
+}
+
+/// A synced item's baseline, rewritten under the current recipe from the
+/// fingerprints classification read.
+pub struct RecordRequest<'a> {
+    pub id: &'a str,
+    pub file_path: &'a Path,
+    pub fingerprints: DualRecipeFingerprints,
+    pub remote_updated: RemoteTimestamp,
 }
 
 pub struct PullRequest<'a> {
@@ -495,6 +518,42 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.record(request.item_id, &local_content, remote.as_ref())?;
         std::fs::remove_file(request.marker_path).ok();
         Ok(())
+    }
+
+    /// Records `request`'s fingerprints, writing no file and calling no
+    /// tracker, once the local file still digests to what was classified.
+    ///
+    /// # Errors
+    ///
+    /// [`ApplyError::LocalChangedSinceClassified`] when the file moved
+    /// since it was classified, so an edit is never absorbed into the
+    /// baseline; [`ApplyError::Io`] when it cannot be read or the baseline
+    /// cannot be written.
+    pub fn record_baseline(
+        &self,
+        request: &RecordRequest<'_>,
+    ) -> Result<(), ApplyError> {
+        let content = std::fs::read_to_string(request.file_path)
+            .map_err(|error| io_error(request.id, "read-local", error))?;
+        let current = digest::local(&content)
+            .map_err(|error| io_error(request.id, "hash-local", error))?;
+        if request.fingerprints.legacy.local.as_ref() != Some(&current) {
+            return Err(ApplyError::LocalChangedSinceClassified {
+                item_id: request.id.to_owned(),
+            });
+        }
+        self.baseline
+            .set(
+                request.id,
+                Entry::recorded(
+                    SyncStamps {
+                        remote_updated_at: request.remote_updated.clone(),
+                        local_synced_at: self.run_start_epoch,
+                    },
+                    request.fingerprints.clone(),
+                ),
+            )
+            .map_err(|error| io_error(request.id, "baseline-set", error))
     }
 
     fn digester(&self) -> BaselineDigester<'ctx> {

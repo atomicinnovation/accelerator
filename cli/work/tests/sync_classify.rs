@@ -1,5 +1,6 @@
 //! Runs `work::sync::classify` against the committed table in
-//! `tests/fixtures/work-item-sync-classify.json`.
+//! `tests/fixtures/work-item-sync-classify.json`, every row of which is a
+//! legacy entry with no pull residue.
 #![allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -17,7 +18,13 @@ use work::normalise::filter_frontmatter_keys;
 use work::normalise::trim_lines;
 use work::sync::classify;
 use work::sync::BaselineEntry;
+use work::sync::BaselineFingerprints;
+use work::sync::ItemComparison;
 use work::sync::ItemDigests;
+use work::sync::LegacyHashes;
+use work::sync::LocalFingerprints;
+use work::sync::PullResidue;
+use work::sync::RemoteFingerprints;
 use work::sync::RemotePresence;
 use work::sync::Subject;
 use work::sync::SyncState;
@@ -103,14 +110,30 @@ impl ItemDigests for FakeDigests {
         Ok(self.mtime)
     }
 
-    fn local(&self) -> Result<String, kernel::Error> {
+    fn legacy_local(&self) -> Result<String, kernel::Error> {
         self.local_called.set(true);
         Ok(self.local.clone())
     }
 
-    fn remote_body(&self) -> Result<Option<String>, kernel::Error> {
+    fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
         self.remote_body_called.set(true);
         Ok(self.remote_body.clone())
+    }
+
+    fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
+        panic!("a legacy entry is never compared by split fingerprints")
+    }
+
+    fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+        panic!("a legacy entry is never compared by split fingerprints")
+    }
+}
+
+struct NoResidue;
+
+impl ItemComparison for NoResidue {
+    fn pull_residue(&self) -> Option<PullResidue> {
+        None
     }
 }
 
@@ -184,8 +207,9 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             };
             let baseline = BaselineEntry {
                 remote_updated_at: &RemoteTimestamp::NotReported,
-                remote_hash: None,
-                local_hash: None,
+                fingerprints: BaselineFingerprints::Legacy(
+                    LegacyHashes::default(),
+                ),
             };
             let digests = FakeDigests {
                 mtime: None,
@@ -195,8 +219,8 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                 local_called: Cell::new(false),
                 remote_body_called: Cell::new(false),
             };
-            let actual = classify(&subject, &baseline, &digests)?;
-            assert_eq!(actual, expect, "case: {name}");
+            let actual = classify(&subject, &baseline, &digests, &NoResidue)?;
+            assert_eq!(actual.state(), expect, "case: {name}");
             continue;
         }
 
@@ -248,8 +272,10 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
         };
         let baseline = BaselineEntry {
             remote_updated_at: &baseline_updated,
-            remote_hash: remote_hash_value.as_deref(),
-            local_hash: local_hash_value.as_deref(),
+            fingerprints: BaselineFingerprints::Legacy(LegacyHashes {
+                local: local_hash_value,
+                remote: remote_hash_value,
+            }),
         };
         let digests = FakeDigests {
             mtime,
@@ -264,8 +290,8 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             remote_body_called: Cell::new(false),
         };
 
-        let actual = classify(&subject, &baseline, &digests)?;
-        assert_eq!(actual, expect, "case: {name}");
+        let actual = classify(&subject, &baseline, &digests, &NoResidue)?;
+        assert_eq!(actual.state(), expect, "case: {name}");
 
         if let Some(expect_mtime) =
             case["rust_only"]["expect_mtime_called"].as_bool()

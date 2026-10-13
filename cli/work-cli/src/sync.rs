@@ -310,6 +310,7 @@ const fn action_keyword(action: work::sync::Action) -> &'static str {
         work::sync::Action::SkipDirty => "skip-dirty",
         work::sync::Action::Prompt => "unresolved",
         work::sync::Action::Noop => "noop",
+        work::sync::Action::RecordBaseline => "record-baseline",
         work::sync::Action::CreateFromRemote => "create-from-remote",
         work::sync::Action::CreateFromLocal => "create-from-local",
     }
@@ -416,7 +417,9 @@ fn render_report(report: &RunReport) -> String {
         if settled_ids.contains(item.planned.id.as_str()) {
             continue;
         }
-        if matches!(item.planned.state, work::sync::SyncState::Synced) {
+        if matches!(item.planned.state, work::sync::SyncState::Synced)
+            && !matches!(item.outcome, ItemOutcome::Failed(_))
+        {
             synced_count += 1;
             continue;
         }
@@ -3265,6 +3268,52 @@ mod tests {
             reported: items,
             ..report_with(DiscoveryStatus::Ran { found: 0 })
         }
+    }
+
+    fn record(id: &str, outcome: ItemOutcome) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state: SyncState::Synced,
+                action: Action::RecordBaseline,
+            },
+            outcome,
+            validation: None,
+        }
+    }
+
+    #[test]
+    fn a_failed_baseline_record_reports_a_retryable_row_and_exits_70() {
+        let report = report_of(vec![record(
+            "0001",
+            ItemOutcome::Failed(ApplyError::LocalChangedSinceClassified {
+                item_id: "0001".to_owned(),
+            }),
+        )]);
+
+        let rendered = render_report(&report);
+        assert!(
+            rendered.contains("0001\tfailed\tsynced\tretryable"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
+    #[test]
+    fn a_recorded_baseline_counts_as_synced_with_no_row() {
+        let report = report_of(vec![record("0001", ItemOutcome::Applied)]);
+
+        let rendered = render_report(&report);
+        assert!(!rendered.contains("0001\t"), "{rendered}");
+        assert!(rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::CLEAN
+        );
     }
 
     #[test]

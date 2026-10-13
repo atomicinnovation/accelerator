@@ -34,12 +34,13 @@ use crate::sync::apply::CreateFromLocalRequest;
 use crate::sync::apply::ItemApplier;
 use crate::sync::apply::PullRequest;
 use crate::sync::apply::PushRequest;
+use crate::sync::apply::RecordRequest;
 use crate::sync::baseline::Degradation;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::body_comparison::BodyComparison;
 use crate::sync::create::canonical_external_key;
 use crate::sync::create::LocalAuthor;
-use crate::sync::digest::LazyItemDigests;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::GatheredRemote;
@@ -47,6 +48,7 @@ use crate::sync::fetch::LocalItem;
 use crate::sync::fetch::RetrievalStrategy;
 use crate::sync::fetch::WorkingCopyStatus;
 use crate::sync::identity_settlement::IdentityRow;
+use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::ordering;
 use crate::sync::scope;
 use crate::sync::send_refusal::send_refusal;
@@ -533,18 +535,26 @@ fn file_mtime_secs(path: &std::path::Path) -> Option<u64> {
 /// An id-keyed view over the run's local items, built once and shared by the
 /// dossier pass and the apply loop.
 struct ItemIndex<'a> {
-    by_id: BTreeMap<&'a str, &'a LocalItem>,
+    by_id: BTreeMap<&'a str, (usize, &'a LocalItem)>,
 }
 
 impl<'a> ItemIndex<'a> {
     fn build(items: &'a [LocalItem]) -> Self {
         Self {
-            by_id: items.iter().map(|item| (item.id.as_str(), item)).collect(),
+            by_id: items
+                .iter()
+                .enumerate()
+                .map(|(position, item)| (item.id.as_str(), (position, item)))
+                .collect(),
         }
     }
 
     fn get(&self, id: &str) -> Option<&'a LocalItem> {
-        self.by_id.get(id).copied()
+        self.by_id.get(id).map(|&(_, item)| item)
+    }
+
+    fn position(&self, id: &str) -> Option<usize> {
+        self.by_id.get(id).map(|&(position, _)| position)
     }
 }
 
@@ -912,6 +922,39 @@ fn pull_outcome(
     }
 }
 
+fn record_outcome(
+    applier: &ItemApplier<'_, '_>,
+    item: &LocalItem,
+    snapshot: &ItemSnapshot<'_>,
+    facts: &GatheredFacts,
+) -> ItemOutcome {
+    let fingerprints = match snapshot.recorded() {
+        Ok(fingerprints) => fingerprints,
+        Err(error) => {
+            return ItemOutcome::Failed(ApplyError::Io {
+                item_id: item.id.clone(),
+                operation: "hash-local",
+                detail: error.to_string(),
+            })
+        }
+    };
+    let remote_updated = facts
+        .per_id
+        .get(&item.id)
+        .map_or(RemoteTimestamp::NotRead, |(remote, _)| {
+            remote.remote_updated.clone()
+        });
+    match applier.record_baseline(&RecordRequest {
+        id: &item.id,
+        file_path: &item.path,
+        fingerprints,
+        remote_updated,
+    }) {
+        Ok(()) => ItemOutcome::Applied,
+        Err(error) => ItemOutcome::Failed(error),
+    }
+}
+
 const fn not_applied(planned: PlannedAction) -> ReportedItem {
     ReportedItem {
         planned,
@@ -927,12 +970,24 @@ fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
     index: &ItemIndex<'_>,
+    snapshots: &[ItemSnapshot<'_>],
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = index.get(&planned.id);
     let outcome = match planned.action {
+        Action::RecordBaseline => {
+            let snapshot = index
+                .position(&planned.id)
+                .and_then(|position| snapshots.get(position));
+            match item.zip(snapshot) {
+                Some((item, snapshot)) => {
+                    record_outcome(applier, item, snapshot, facts)
+                }
+                None => return not_applied(planned),
+            }
+        }
         Action::Push | Action::Overwrite => {
             match item
                 .and_then(|item| item.external_id.as_ref().map(|id| (item, id)))
@@ -1017,6 +1072,7 @@ fn apply_local_create(
 /// preview and apply paths so both report the same blast radius.
 struct PreparedRun<'a> {
     run_start_epoch: u64,
+    snapshots: Vec<ItemSnapshot<'a>>,
     degradation: Degradation,
     read_failure: Option<TrackerError>,
     keyed_read_budget_limited: bool,
@@ -1178,6 +1234,7 @@ pub fn preflight(
 /// short; [`RunError::Refused`] when the plan would exceed the write bounds.
 fn prepare_run<'a>(
     ports: &SyncPorts<'_>,
+    digester: &'a BaselineDigester<'a>,
     baseline: &BaselineStore<'_>,
     request: &SyncRequest<'a>,
     facts: Option<GatheredFacts>,
@@ -1204,7 +1261,7 @@ fn prepare_run<'a>(
     // both pull and push, so abort here — before any planning or write.
     let keyed_read_budget_limited = classify_keyed_read(facts.keyed_read)?;
 
-    let digests: Vec<LazyItemDigests<'_>> = request
+    let snapshots: Vec<ItemSnapshot<'a>> = request
         .reconciled()
         .iter()
         .map(|item| {
@@ -1212,16 +1269,19 @@ fn prepare_run<'a>(
                 .per_id
                 .get(&item.id)
                 .and_then(|(remote, _)| remote.body.clone());
-            LazyItemDigests::new(&item.path, remote_content)
+            ItemSnapshot::new(&item.path, remote_content, digester)
         })
         .collect();
 
-    let plan_inputs =
-        facts.plan_inputs(request.reconciled(), &digests, &loaded_baseline);
-
-    let plan =
+    let plan = {
+        let plan_inputs = facts.plan_inputs(
+            request.reconciled(),
+            &snapshots,
+            &loaded_baseline,
+        );
         compute_plan(&plan_inputs, request.direction, request.resolutions)
-            .map_err(RunError::Internal)?;
+            .map_err(RunError::Internal)?
+    };
 
     let read_failure = facts.read_failure.clone();
 
@@ -1246,15 +1306,11 @@ fn prepare_run<'a>(
     }
 
     let index = ItemIndex::build(request.reconciled());
-    let dossiers = build_dossiers(
-        &plan,
-        &index,
-        &facts,
-        &BodyComparison::new(ports.tracker, ports.parser),
-    );
+    let dossiers = build_dossiers(&plan, &index, &facts, digester.comparison());
 
     Ok(PreparedRun {
         run_start_epoch,
+        snapshots,
         degradation,
         read_failure,
         keyed_read_budget_limited,
@@ -1313,8 +1369,10 @@ fn execute<'a>(
     facts: Option<GatheredFacts>,
     settled: &SettledView,
 ) -> Result<RunReport, RunError> {
+    let digester = BaselineDigester::new(ports.tracker, ports.parser);
     let PreparedRun {
         run_start_epoch,
+        snapshots,
         degradation,
         read_failure,
         keyed_read_budget_limited,
@@ -1325,16 +1383,16 @@ fn execute<'a>(
         creates_from_local,
         index,
         dossiers,
-    } = prepare_run(ports, baseline, request, facts, settled)?;
+    } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
-    let comparison = BodyComparison::new(ports.tracker, ports.parser);
+    let comparison = digester.comparison();
     if matches!(request.mode, RunMode::Preview) {
         let mut reported = validate_pushes(
             &plan,
             request.reconciled(),
             ports.tracker,
             &facts,
-            &comparison,
+            comparison,
         );
         for external_id in &untracked {
             reported.push(create_report(
@@ -1399,8 +1457,9 @@ fn execute<'a>(
                 &mut applier,
                 planned,
                 &index,
+                &snapshots,
                 &facts,
-                &comparison,
+                comparison,
                 &mut blank_local_hash,
             ));
         }

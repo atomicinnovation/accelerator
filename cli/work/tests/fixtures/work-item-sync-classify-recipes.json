@@ -1,0 +1,246 @@
+{
+  "baseline_timestamp": 1700000000,
+  "local_content": "---\nstatus: ready\n---\n\nBody text\n",
+  "remote_body": "Body text\n",
+  "remote_updated_reported": "2026-06-01T10:00:00.000+0000",
+  "remote_updated_ticked": "2026-12-01T00:00:00.000+0000",
+  "cases": [
+    {
+      "name": "a recipe-one entry with cosmetic remote noise is synced",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "local": "from-content",
+        "remote": "from-content"
+      },
+      "expect": "synced"
+    },
+    {
+      "name": "a recipe-one entry with a frontmatter edit is locally modified",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "local": "frontmatter-edited",
+        "remote": "stale"
+      },
+      "expect": "locally-modified"
+    },
+    {
+      "name": "legacy, every fact unchanged, no residue",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "expect": "synced/record"
+    },
+    {
+      "name": "legacy, every fact unchanged, tracker wire document",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "residue": "tracker-wire-document",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, local hash absent, tracker wire document",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "absent"
+      },
+      "residue": "tracker-wire-document",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, local changed, tracker wire document",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "stale"
+      },
+      "residue": "tracker-wire-document",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, remote changed, local unchanged, tracker wire document",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "residue": "tracker-wire-document",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, verbatim remote, local unchanged",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "residue": "verbatim-remote",
+      "expect": "synced/record"
+    },
+    {
+      "name": "legacy, verbatim remote, remote stamp changed, local unchanged",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$T"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "stale",
+        "local_hash": "from-content"
+      },
+      "residue": "verbatim-remote",
+      "expect": "synced/record"
+    },
+    {
+      "name": "legacy, local hash absent, verbatim remote",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "absent"
+      },
+      "residue": "verbatim-remote",
+      "expect": "conflict"
+    },
+    {
+      "name": "no entry, verbatim remote",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "not_read"},
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "residue": "verbatim-remote",
+      "expect": "conflict"
+    },
+    {
+      "name": "no entry, tracker wire document",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "not_read"},
+        "remote_hash": "absent",
+        "local_hash": "absent"
+      },
+      "residue": "tracker-wire-document",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, local changed, verbatim remote",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "stale"
+      },
+      "residue": "verbatim-remote",
+      "expect": "conflict"
+    },
+    {
+      "name": "legacy, every fact unchanged, title line only",
+      "recipe": "legacy",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "remote_hash": "from-content",
+        "local_hash": "from-content"
+      },
+      "residue": "title-line-only",
+      "expect": "synced/record"
+    },
+    {
+      "name": "recipe 1, every fact unchanged, tracker wire document",
+      "recipe": "1",
+      "external_id": "ENG-7",
+      "presence": "present",
+      "remote_updated": {"kind": "reported", "value": "$R"},
+      "with_remote_body": true,
+      "mtime_offset": 100,
+      "baseline": {
+        "remote_updated_at": {"kind": "reported", "value": "$R"},
+        "local": "from-content",
+        "remote": "from-content"
+      },
+      "residue": "tracker-wire-document",
+      "rust_only": {"expect_pull_residue_called": false},
+      "expect": "synced"
+    }
+  ]
+}
