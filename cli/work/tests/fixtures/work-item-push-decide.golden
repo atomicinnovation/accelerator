@@ -1,4 +1,4 @@
-# The push-decision golden: one oracle read by every implementation.
+# The push-decision golden.
 #
 # Format: <code>|<attempt>|<write-failed>|<expected-outcome>
 #

@@ -1885,8 +1885,9 @@ parse `work sync` output need updating.
   its call expectations `observed_calls`; every row carries a `recipe`, and
   `synced/record` is a synced row whose baseline is rewritten.
   `work-item-sync-decide.golden` folds its rust-only sections into
-  `[DECIDE]` and `[TOKEN]` and gains the `synced/record` rows.
-  `bash_parity_baseline.rs` re-pins both hashes.
+  `[DECIDE]` and `[TOKEN]` and gains the `synced/record` rows. The bash
+  parity guard that pinned both, and the rest of the migrated corpus, is
+  retired.
 - `SplitFingerprints` holds `local: Option<LocalFingerprints>` and
   `remote: Option<RemoteFingerprints>`: a side whose keys are not all
   recorded reads as absent, so it can only classify as changed.
