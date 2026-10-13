@@ -3,11 +3,16 @@
 //! stopped at, and the draft is retired to its key.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
+mod support;
+
+use crate::support::assert_recipe_one_entry;
+use corpus_adapters::CommonMarkBody;
 use std::cell::Cell;
 use std::fs;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::path::PathBuf;
+use tracker::PlainDialect;
 
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
@@ -288,6 +293,7 @@ fn promote_reading(
         mode,
         &PromotionPorts {
             tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },
@@ -324,6 +330,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
     let records = repo.records(&store);
     let ports = PromotionPorts {
         tracker,
+        parser: &CommonMarkBody,
         retirement: &retirement,
         records: &records,
     };
@@ -501,24 +508,78 @@ fn promotion_writes_a_baseline_under_the_tracker_key() {
 
     promoted(&repo, &tracker).unwrap();
 
-    let entry = repo.baseline_entry(KEY).expect("a baseline under the key");
     let promoted_file = repo.read(TARGET).unwrap();
-    assert_eq!(
-        entry
-            .legacy()
-            .and_then(|hashes| hashes.local.clone())
-            .unwrap_or_default(),
-        digest::local(&promoted_file).unwrap()
-    );
     let remote = tracker.show(&key()).unwrap();
-    assert_eq!(
-        entry
-            .legacy()
-            .and_then(|hashes| hashes.remote.clone())
-            .unwrap_or_default(),
-        digest::remote_body(&remote.body)
+    assert_recipe_one_entry(
+        repo.baseline_entry(KEY).as_ref(),
+        &PlainDialect,
+        &promoted_file,
+        Some(&remote.body),
     );
     assert_eq!(repo.baseline_entry(DRAFT_ID), None);
+}
+
+#[test]
+fn a_schema_two_created_marker_resumes_comparing_its_create_hash_under_the_legacy_recipe(
+) {
+    let repo = Repo::new().unwrap();
+    let tracker = tracker_holding(&draft_projection());
+    repo.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: Some(digest::remote_body(&draft_projection())),
+    }));
+    let record = fs::read_to_string(repo.record_path())
+        .unwrap()
+        .replace("\"schema\":3", "\"schema\":2");
+    fs::write(repo.record_path(), record).unwrap();
+
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
+
+    assert_eq!(
+        updates(&tracker).len(),
+        1,
+        "the untouched issue is retitled"
+    );
+    let remote = tracker.show(&key()).unwrap();
+    assert_recipe_one_entry(
+        repo.baseline_entry(KEY).as_ref(),
+        &PlainDialect,
+        &repo.read(TARGET).unwrap(),
+        Some(&remote.body),
+    );
+}
+
+#[test]
+fn a_resumed_schema_two_promotion_predicts_under_the_legacy_recipe() {
+    let repo = Repo::new().unwrap();
+    let (_, body) = digest::split_frontmatter_and_body(DRAFT_CONTENT).unwrap();
+    let retitled = format!("Add search\n{}", body.replace(DRAFT_ID, KEY));
+    let tracker = tracker_holding(&retitled);
+    repo.save(&record_at(PromotionStage::RemoteRetitled {
+        key: tracker_key(),
+        read_back: ReadBack {
+            hash: digest::remote_body(&retitled),
+            fingerprints: None,
+            updated: RemoteTimestamp::Reported("t0".to_owned()),
+        },
+    }));
+
+    assert_eq!(
+        promoted(&repo, &tracker),
+        Ok(Promotion::Completed(key(), SyncState::Synced))
+    );
+
+    let Some(Entry::Legacy { legacy, .. }) = repo.baseline_entry(KEY) else {
+        panic!("a schema-2 promotion records a legacy entry");
+    };
+    assert_eq!(
+        legacy.local,
+        Some(digest::local(&repo.read(TARGET).unwrap()).unwrap())
+    );
+    assert_eq!(legacy.remote, Some(digest::remote_body(&retitled)));
 }
 
 #[test]
@@ -663,6 +724,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         &PromotionMode::Standard,
         &PromotionPorts {
             tracker: &tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },
@@ -824,6 +886,7 @@ fn a_draft_unfenced_mid_promotion_is_refused_before_anything_is_written() {
         key: tracker_key(),
         read_back: ReadBack {
             hash: digest::remote_body(&draft_projection()),
+            fingerprints: None,
             updated: RemoteTimestamp::Reported("t0".to_owned()),
         },
     }));
@@ -1030,16 +1093,20 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
         reason: work::promotion::RemoteKeptReason::NoHash {
             read_back: work::promotion::ReadBack {
                 hash: digest::remote_body(&draft_projection()),
+                fingerprints: None,
                 updated: RemoteTimestamp::Reported("t0".to_owned()),
             },
         },
     };
     repo.save(&record_at(PromotionStage::Retiring {
         key: tracker_key(),
-        baseline: work::promotion::IntendedBaseline {
+        baseline: Box::new(work::promotion::IntendedBaseline {
             remote_hash: RemoteHash::Unknown,
-            local_hash: "draft".to_owned(),
-        },
+            local: work::promotion::LocalDigests {
+                legacy: "draft".to_owned(),
+                fingerprints: None,
+            },
+        }),
         recovery_dir: PathBuf::from("retirement-recovery/draft-k7mq3x--REC-1"),
         before: Box::new(before),
     }));
@@ -1248,6 +1315,7 @@ fn promoted_waiting(
         &PromotionMode::Standard,
         &PromotionPorts {
             tracker,
+            parser: &CommonMarkBody,
             retirement: &retirement,
             records: &records,
         },

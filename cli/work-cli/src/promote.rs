@@ -2,6 +2,7 @@
 //! `work sync` runs for every draft, with the `--adopt` and `--create`
 //! recoveries for a draft whose earlier create may have reached the tracker.
 
+use corpus_adapters::CommonMarkBody;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -237,6 +238,7 @@ fn try_run(
     let mode = mode_of(args);
     let ports = PromotionPorts {
         tracker: tracker.as_ref(),
+        parser: &CommonMarkBody,
         retirement: &retirement,
         records: &promotions,
     };

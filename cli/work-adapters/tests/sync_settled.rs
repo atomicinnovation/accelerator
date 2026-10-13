@@ -36,6 +36,7 @@ use work::draft_id::DraftId;
 use work::identity::resolve_identity;
 use work::identity::IdentityResolution;
 use work::promotion::IntendedBaseline;
+use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
 use work::promotion::PromotionRecord;
@@ -1683,16 +1684,20 @@ fn a_promotion_killed_after_removing_from_is_reconciled_on_the_next_sync() {
     repo.write("meta/work/ENG-42-title.md", promoted);
     let settled_remote = ReadBack {
         hash: digest::remote_body(BODY),
+        fingerprints: None,
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(
         &repo,
         &promotion_record(PromotionStage::Retiring {
             key: tracker_key("ENG-42"),
-            baseline: IntendedBaseline {
+            baseline: Box::new(IntendedBaseline {
                 remote_hash: RemoteHash::Known(settled_remote.clone()),
-                local_hash: digest::local(promoted).unwrap(),
-            },
+                local: LocalDigests {
+                    legacy: digest::local(promoted).unwrap(),
+                    fingerprints: None,
+                },
+            }),
             recovery_dir: PathBuf::from(
                 "retirement-recovery/draft-k7mq3x--ENG-42",
             ),
@@ -2131,6 +2136,7 @@ fn a_promotion_record_left_by_failed_retirements_is_finished_by_the_next_sync()
     repo.draft(PROMOTED_DRAFT);
     let remote = ReadBack {
         hash: digest::remote_body(BODY),
+        fingerprints: None,
         updated: RemoteTimestamp::Reported(STAMP.to_owned()),
     };
     save_promotion(

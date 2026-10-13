@@ -454,6 +454,7 @@ fn promote_draft(
     };
     let promotion_ports = PromotionPorts {
         tracker: ports.tracker,
+        parser: ports.parser,
         retirement: &retirement,
         records: settlement.promotions,
     };

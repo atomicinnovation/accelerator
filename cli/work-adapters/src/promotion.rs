@@ -8,6 +8,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::body::BodyParser;
 use corpus::StoreError;
 use tracker::ExternalId;
 use tracker::Located;
@@ -19,6 +20,7 @@ use work::promotion::intended_baseline;
 use work::promotion::next_step;
 use work::promotion::retitling;
 use work::promotion::without_ids;
+use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
 use work::promotion::PromotionMode;
@@ -52,6 +54,7 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementLockGuard;
 use crate::retirement::RetirementPorts;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::pending_push;
@@ -240,6 +243,7 @@ pub fn held_key(
 
 pub struct PromotionPorts<'a> {
     pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
     pub retirement: &'a RetirementPorts<'a>,
     pub records: &'a dyn PromotionRecords,
 }
@@ -333,11 +337,34 @@ fn read_draft(
     })
 }
 
-fn read_back_of(issue: &RemoteIssue) -> ReadBack {
+fn read_back_of(
+    digester: &BaselineDigester<'_>,
+    issue: &RemoteIssue,
+) -> ReadBack {
+    let (hash, fingerprints) = digester.remote(&issue.body);
     ReadBack {
-        hash: digest::remote_body(&issue.body),
+        hash,
+        fingerprints: Some(fingerprints),
         updated: issue.updated.clone(),
     }
+}
+
+/// Both recipes' digests of `content`; only the legacy one when the
+/// content cannot be fingerprinted.
+fn local_digests(
+    digester: &BaselineDigester<'_>,
+    content: &str,
+) -> LocalDigests {
+    digester.local(content).map_or_else(
+        |_| LocalDigests {
+            legacy: digest::local(content).unwrap_or_default(),
+            fingerprints: None,
+        },
+        |(legacy, fingerprints)| LocalDigests {
+            legacy,
+            fingerprints: Some(fingerprints),
+        },
+    )
 }
 
 /// Whether two projected bodies agree once every ID is set aside.
@@ -531,7 +558,7 @@ impl Promoting<'_> {
                     .tracker
                     .show(&answered)
                     .ok()
-                    .map(|issue| read_back_of(&issue).hash);
+                    .map(|issue| digest::remote_body(&issue.body));
                 self.save(&self.record(
                     request,
                     PromotionStage::Created {
@@ -594,10 +621,14 @@ impl Promoting<'_> {
             PromotionStage::RemoteKept {
                 key: named.clone(),
                 reason: RemoteKeptReason::UserNamedAdopt {
-                    read_back: read_back_of(&issue),
+                    read_back: read_back_of(&self.digester(), &issue),
                 },
             },
         ))
+    }
+
+    fn digester(&self) -> BaselineDigester<'_> {
+        BaselineDigester::new(self.ports.tracker, self.ports.parser)
     }
 
     fn retirement<'k>(&'k self, key: &'k TrackerKey) -> Retirement<'k> {
@@ -637,7 +668,7 @@ impl Promoting<'_> {
             return Err(NotPromoted::CreateOutcomeUnknown);
         };
         let issue = self.show(key)?;
-        let read_back = read_back_of(&issue);
+        let read_back = read_back_of(&self.digester(), &issue);
         let ids = [self.draft.as_str(), key.as_str()];
         let matches_draft =
             agree_but_for_ids(&issue.body, &self.content.projected(), &ids);
@@ -678,7 +709,7 @@ impl Promoting<'_> {
                     stored,
                     PromotionStage::RemoteRetitled {
                         key: key.clone(),
-                        read_back: read_back_of(&updated),
+                        read_back: read_back_of(&self.digester(), &updated),
                     },
                 )
             }
@@ -700,7 +731,8 @@ impl Promoting<'_> {
         let promoted = plan
             .retired_item
             .unwrap_or_else(|| self.promoted_content(key));
-        let local = |content: &str| digest::local(content).unwrap_or_default();
+        let digester = self.digester();
+        let local = |content: &str| local_digests(&digester, content);
         let (_, promoted_body) =
             digest::split_frontmatter_and_body(&promoted).unwrap_or_default();
         let matches_promoted = agree_but_for_ids(
@@ -719,7 +751,7 @@ impl Promoting<'_> {
         let retiring = PromotionRecord {
             stage: PromotionStage::Retiring {
                 key: key.clone(),
-                baseline,
+                baseline: Box::new(baseline),
                 recovery_dir: retirement.recovery_dir(),
                 before: Box::new(record.stage.clone()),
             },

@@ -4,6 +4,7 @@
 //! pushed), a draft, or under `{tracker}` a draft promoted onto the issue the
 //! tracker creates for it.
 
+use corpus_adapters::CommonMarkBody;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -496,6 +497,7 @@ pub fn create_item(
     let lock = LockdirLock::new(&context.work_dir);
     let creation = Creation {
         item: &context,
+        parser: &CommonMarkBody,
         repo_root: &context.root,
         work_dir: &context.work_dir,
         state_dir: &state_dir,
@@ -556,6 +558,7 @@ pub fn create_item(
                     workspace.retirement_ports(store.as_ref(), &baseline);
                 let ports = PromotionPorts {
                     tracker: tracker.as_ref(),
+                    parser: &CommonMarkBody,
                     retirement: &retirement,
                     records: &records,
                 };
@@ -658,7 +661,6 @@ mod tests {
     use work::sync::PendingPush;
     use work::sync::PushOutcome;
     use work::sync::RequestFingerprint;
-    use work_adapters::sync::digest;
     use work_adapters::sync::pending_push;
 
     use crate::test_support::FakeConfig;
@@ -1315,11 +1317,30 @@ mod tests {
         let written =
             std::fs::read_to_string(path.expect("written")).expect("read");
         let baseline = repo.baseline("jira");
-        assert!(baseline.contains("\"0001\""), "{baseline}");
-        assert!(
-            baseline.contains(&digest::local(&written).expect("digest")),
-            "{baseline}"
-        );
+        let (baseline, _) =
+            work_adapters::sync::baseline::Baseline::read(Some(&baseline));
+        let remote = tracker
+            .show(&tracker::ExternalId::new(
+                report.external_id.expect("a key"),
+            ))
+            .expect("the created issue");
+        let expected =
+            work_adapters::sync::baseline_digester::BaselineDigester::new(
+                tracker.as_ref(),
+                &CommonMarkBody,
+            )
+            .digests(&written, Some(&remote.body))
+            .expect("digests");
+        let Some(work_adapters::sync::baseline::Entry::Split {
+            legacy,
+            split,
+            ..
+        }) = baseline.get("0001")
+        else {
+            panic!("a recipe-1 entry is recorded");
+        };
+        assert_eq!(split, &expected.split);
+        assert_eq!(legacy, &expected.legacy);
         assert!(!repo.marker().exists());
     }
 

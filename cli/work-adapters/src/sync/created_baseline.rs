@@ -5,7 +5,7 @@ use corpus::store::StoreError;
 use tracker::RemoteTimestamp;
 use work::promotion::IntendedBaseline;
 use work::promotion::RemoteHash;
-use work::sync::LegacyHashes;
+use work::sync::BaselineFingerprints;
 
 use crate::sync::baseline::Entry;
 use crate::sync::baseline::SyncStamps;
@@ -22,25 +22,23 @@ pub fn record_created_baseline(
     baseline: &BaselineStore<'_>,
     synced_at: u64,
 ) -> Result<(), StoreError> {
-    let (remote_updated_at, remote_hash) = match &intended.remote_hash {
-        RemoteHash::Known(read_back) => {
-            (read_back.updated.clone(), Some(read_back.hash.clone()))
-        }
-        RemoteHash::Unknown => (RemoteTimestamp::NotRead, None),
-    };
-    baseline.set(
-        item_id,
-        Entry::Legacy {
-            stamps: SyncStamps {
-                remote_updated_at,
-                local_synced_at: synced_at,
-            },
-            legacy: LegacyHashes {
-                local: Some(intended.local_hash.clone()),
-                remote: remote_hash,
-            },
+    let stamps = SyncStamps {
+        remote_updated_at: match &intended.remote_hash {
+            RemoteHash::Known(read_back) => read_back.updated.clone(),
+            RemoteHash::Unknown => RemoteTimestamp::NotRead,
         },
-    )
+        local_synced_at: synced_at,
+    };
+    let legacy = intended.legacy();
+    let entry = match intended.fingerprints() {
+        BaselineFingerprints::Split(split) => Entry::Split {
+            stamps,
+            legacy,
+            split,
+        },
+        BaselineFingerprints::Legacy(_) => Entry::Legacy { stamps, legacy },
+    };
+    baseline.set(item_id, entry)
 }
 
 #[cfg(test)]
@@ -53,11 +51,16 @@ mod tests {
     use corpus::store::StoreError;
     use tracker::RemoteTimestamp;
     use work::promotion::IntendedBaseline;
+    use work::promotion::LocalDigests;
     use work::promotion::ReadBack;
     use work::promotion::RemoteHash;
     use work::sync::LegacyHashes;
+    use work::sync::LocalFingerprints;
+    use work::sync::RemoteFingerprints;
+    use work::sync::SplitFingerprints;
 
     use super::record_created_baseline;
+    use crate::sync::baseline::Entry;
     use crate::sync::baseline_store::BaselineStore;
 
     struct Disk;
@@ -77,7 +80,37 @@ mod tests {
         }
     }
 
-    fn recorded(remote_hash: RemoteHash) -> crate::sync::baseline::Entry {
+    fn local_fingerprints() -> LocalFingerprints {
+        LocalFingerprints {
+            frontmatter: "frontmatter".to_owned(),
+            fields: "fields".to_owned(),
+            body: "body".to_owned(),
+        }
+    }
+
+    fn remote_fingerprints() -> RemoteFingerprints {
+        RemoteFingerprints {
+            body: "remote-body".to_owned(),
+            fields: "remote-fields".to_owned(),
+        }
+    }
+
+    fn known(fingerprints: Option<RemoteFingerprints>) -> RemoteHash {
+        RemoteHash::Known(ReadBack {
+            hash: "remote".to_owned(),
+            fingerprints,
+            updated: RemoteTimestamp::Reported("2026-09-28".to_owned()),
+        })
+    }
+
+    fn recorded(remote_hash: RemoteHash) -> Entry {
+        recorded_with(remote_hash, Some(local_fingerprints()))
+    }
+
+    fn recorded_with(
+        remote_hash: RemoteHash,
+        local: Option<LocalFingerprints>,
+    ) -> Entry {
         let dir = tempfile::tempdir().expect("tempdir");
         let store =
             BaselineStore::new(dir.path().join("last-sync.json"), &Disk, &Disk);
@@ -85,7 +118,10 @@ mod tests {
             "PP-900",
             &IntendedBaseline {
                 remote_hash,
-                local_hash: "local".to_owned(),
+                local: LocalDigests {
+                    legacy: "local".to_owned(),
+                    fingerprints: local,
+                },
             },
             &store,
             42,
@@ -97,10 +133,7 @@ mod tests {
 
     #[test]
     fn a_known_remote_records_its_hash_and_stamp() {
-        let entry = recorded(RemoteHash::Known(ReadBack {
-            hash: "remote".to_owned(),
-            updated: RemoteTimestamp::Reported("2026-09-28".to_owned()),
-        }));
+        let entry = recorded(known(Some(remote_fingerprints())));
 
         assert_eq!(
             entry.legacy(),
@@ -115,6 +148,20 @@ mod tests {
             RemoteTimestamp::Reported("2026-09-28".to_owned())
         );
         assert_eq!(stamps.local_synced_at, 42);
+        assert_eq!(
+            entry.split(),
+            Some(&SplitFingerprints {
+                local: Some(local_fingerprints()),
+                remote: Some(remote_fingerprints()),
+            })
+        );
+    }
+
+    #[test]
+    fn a_schema_two_resumption_records_a_legacy_entry() {
+        let entry = recorded_with(known(None), None);
+
+        assert!(matches!(entry, Entry::Legacy { .. }), "{entry:?}");
     }
 
     #[test]
