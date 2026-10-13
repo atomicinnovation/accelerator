@@ -26,7 +26,13 @@ impl SubagentCap {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provenance {
     Flag,
-    ConfigFile,
+    ConfigFile(ConfigFile),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigFile {
+    Team,
+    Personal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

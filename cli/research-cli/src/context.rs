@@ -6,10 +6,12 @@ use std::path::PathBuf;
 use config::ConfigAccess;
 use config::ConfigError;
 use config::Key;
+use config::Source;
 use config_adapters::compose;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
 use corpus::DocTypeKey;
+use research::conduct::concurrency::ConfigFile;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
 
@@ -47,7 +49,7 @@ impl ProjectContext {
         Ok(self.root.join(tmp).join("research"))
     }
 
-    /// The configured concurrency and whether a config file set it.
+    /// The configured concurrency and which config file, if any, set it.
     ///
     /// # Errors
     ///
@@ -57,12 +59,16 @@ impl ProjectContext {
     ) -> Result<RequestedConcurrency, ConfigError> {
         let key = Key::parse("research.topic.concurrency")?;
         let resolution = self.config.effective(&key, None)?;
-        if !resolution.is_from_config() {
-            return Ok(RequestedConcurrency::BuiltInDefault);
-        }
+        let file = match resolution.source() {
+            Source::Team => ConfigFile::Team,
+            Source::Personal => ConfigFile::Personal,
+            Source::Catalogue | Source::Unset => {
+                return Ok(RequestedConcurrency::BuiltInDefault)
+            }
+        };
         Ok(RequestedConcurrency::Given {
             value: resolution.rendered(),
-            provenance: Provenance::ConfigFile,
+            provenance: Provenance::ConfigFile(file),
         })
     }
 }

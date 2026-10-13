@@ -1651,15 +1651,26 @@ fn a_malformed_configured_concurrency_clamps_to_1_with_a_warning(
 #[test]
 fn an_empty_concurrency_exits_1_and_writes_no_ledger() -> Result<(), TestError>
 {
-    let configured = a_set()?;
-    configured.configure_team_concurrency("\"\"")?;
+    let team = a_set()?;
+    team.configure_team_concurrency("\"\"")?;
+    let personal = a_set()?;
+    personal.configure_team_concurrency("6")?;
+    personal.configure_personal_concurrency("\"\"")?;
     let flagged = a_set()?;
-    let cases: [(&Project, &[&str], &str); 2] = [
+    let cases: [(&Project, &[&str], &str); 3] = [
         (
-            &configured,
+            &team,
             &[],
-            "E_TOPIC_RESEARCH_CONCURRENCY: research.topic.concurrency is \
-             empty; set it to a positive integer or remove it",
+            "E_TOPIC_RESEARCH_CONCURRENCY: research.topic.concurrency in \
+             .accelerator/config.md is empty; set it to a positive integer or \
+             remove it",
+        ),
+        (
+            &personal,
+            &[],
+            "E_TOPIC_RESEARCH_CONCURRENCY: research.topic.concurrency in \
+             .accelerator/config.local.md is empty; set it to a positive \
+             integer or remove it",
         ),
         (
             &flagged,

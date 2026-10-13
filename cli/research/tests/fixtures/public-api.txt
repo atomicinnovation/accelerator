@@ -17,8 +17,20 @@ pub fn research::conduct::concurrency::ConcurrencyWarning::eq(&self, other: &res
 impl core::fmt::Debug for research::conduct::concurrency::ConcurrencyWarning
 pub fn research::conduct::concurrency::ConcurrencyWarning::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::ConcurrencyWarning
+pub enum research::conduct::concurrency::ConfigFile
+pub research::conduct::concurrency::ConfigFile::Personal
+pub research::conduct::concurrency::ConfigFile::Team
+impl core::clone::Clone for research::conduct::concurrency::ConfigFile
+pub fn research::conduct::concurrency::ConfigFile::clone(&self) -> research::conduct::concurrency::ConfigFile
+impl core::cmp::Eq for research::conduct::concurrency::ConfigFile
+impl core::cmp::PartialEq for research::conduct::concurrency::ConfigFile
+pub fn research::conduct::concurrency::ConfigFile::eq(&self, other: &research::conduct::concurrency::ConfigFile) -> bool
+impl core::fmt::Debug for research::conduct::concurrency::ConfigFile
+pub fn research::conduct::concurrency::ConfigFile::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::concurrency::ConfigFile
+impl core::marker::StructuralPartialEq for research::conduct::concurrency::ConfigFile
 pub enum research::conduct::concurrency::Provenance
-pub research::conduct::concurrency::Provenance::ConfigFile
+pub research::conduct::concurrency::Provenance::ConfigFile(research::conduct::concurrency::ConfigFile)
 pub research::conduct::concurrency::Provenance::Flag
 impl core::clone::Clone for research::conduct::concurrency::Provenance
 pub fn research::conduct::concurrency::Provenance::clone(&self) -> research::conduct::concurrency::Provenance

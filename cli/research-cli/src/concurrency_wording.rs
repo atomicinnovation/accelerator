@@ -1,7 +1,9 @@
 //! How a resolved concurrency's and subagent cap's diagnostics read to
 //! whoever runs `conduct`.
 
+use config::Level;
 use research::conduct::concurrency::ConcurrencyWarning;
+use research::conduct::concurrency::ConfigFile;
 use research::conduct::concurrency::EmptyConcurrency;
 use research::conduct::concurrency::Provenance;
 
@@ -56,16 +58,25 @@ pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
         Provenance::Flag => {
             format!("{source} is empty; pass a positive integer")
         }
-        Provenance::ConfigFile => format!(
-            "{source} is empty; set it to a positive integer or remove it"
+        Provenance::ConfigFile(file) => format!(
+            "{source} in {} is empty; set it to a positive integer or remove \
+             it",
+            path_of(file)
         ),
+    }
+}
+
+const fn path_of(file: ConfigFile) -> &'static str {
+    match file {
+        ConfigFile::Team => Level::Team.filename(),
+        ConfigFile::Personal => Level::Personal.filename(),
     }
 }
 
 const fn concurrency_source(provenance: Provenance) -> &'static str {
     match provenance {
         Provenance::Flag => "--concurrency",
-        Provenance::ConfigFile => "research.topic.concurrency",
+        Provenance::ConfigFile(_) => "research.topic.concurrency",
     }
 }
 
@@ -75,6 +86,7 @@ mod tests {
     use std::num::NonZeroU32;
 
     use research::conduct::concurrency::ConcurrencyWarning;
+    use research::conduct::concurrency::ConfigFile;
     use research::conduct::concurrency::EmptyConcurrency;
     use research::conduct::concurrency::Provenance;
     use research::conduct::concurrency::SubagentCap;
@@ -99,14 +111,14 @@ mod tests {
                 "--concurrency is empty; pass a positive integer",
             ),
             (
-                Provenance::ConfigFile,
+                Provenance::ConfigFile(ConfigFile::Team),
                 "research.topic.concurrency must be a positive integer, got \
                  'many' — clamping to 1",
                 "research.topic.concurrency is 50, above the subagent cap of \
                  20 from ACCELERATOR_SUBAGENT_CAP — clamping to 20; lower it, \
                  or raise ACCELERATOR_SUBAGENT_CAP",
-                "research.topic.concurrency is empty; set it to a positive \
-                 integer or remove it",
+                "research.topic.concurrency in .accelerator/config.md is \
+                 empty; set it to a positive integer or remove it",
             ),
         ];
         for (provenance, invalid, above_cap, empty) in rows {
@@ -151,7 +163,7 @@ mod tests {
             concurrency_warning(
                 &ConcurrencyWarning::AboveCap {
                     given: "24".into(),
-                    provenance: Provenance::ConfigFile,
+                    provenance: Provenance::ConfigFile(ConfigFile::Team),
                     cap,
                 },
                 CapSource::HarnessDefault,

@@ -591,6 +591,7 @@ mod tests {
     use std::num::NonZeroU32;
 
     use research::conduct::concurrency::ConcurrencyWarning;
+    use research::conduct::concurrency::ConfigFile;
     use research::conduct::concurrency::Provenance;
     use research::conduct::concurrency::RequestedConcurrency;
     use research::conduct::concurrency::SubagentCap;
@@ -619,7 +620,7 @@ mod tests {
     fn configured(
         value: &str,
     ) -> impl FnOnce() -> Result<RequestedConcurrency, String> + '_ {
-        move || Ok(requested(value, Provenance::ConfigFile))
+        move || Ok(requested(value, Provenance::ConfigFile(ConfigFile::Team)))
     }
 
     fn unreadable() -> Result<RequestedConcurrency, String> {
@@ -663,7 +664,7 @@ mod tests {
             resolved.map(|r| r.resolved.warnings),
             Ok(vec![ConcurrencyWarning::AboveCap {
                 given: "24".to_owned(),
-                provenance: Provenance::ConfigFile,
+                provenance: Provenance::ConfigFile(ConfigFile::Team),
                 cap: cap.cap,
             }])
         );
