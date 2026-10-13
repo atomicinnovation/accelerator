@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-13T11:18:01+00:00"
+last_updated: "2026-10-13T12:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -209,7 +209,7 @@ leading blank line in the pushed body survives.
 #### Automated Verification:
 
 - [x] Every `remote.json` parses: `jq -e .data cli/work-adapters/tests/fixtures/work-item-sync-recovery/*/remote.json`
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -1336,9 +1336,8 @@ Markdown through `CommonMarkBody`, compares with `corpus::body::equivalent`)
   inputs taken from the Phase 0 read-back; `joined_code_span_lines_are_noise`
   takes 0293's joined line from `work-item-sync-recovery`.
 - One test per meaning-changing row (`wrapped_digit_lines_differ`,
-  `autolinked_dotted_tokens_differ`, `code_span_indentation_differs`).
-  `code_span_indentation_differs` keeps its fragment inside the list item it
-  came from, whose content indent consumes the continuation spaces.
+  `autolinked_dotted_tokens_differ`), and `code_span_indentation_is_noise`,
+  whose fragment stays inside the task item it came from.
 - `code_span_line_ending_at_top_level_is_noise`
 - `a_marker_swap_inside_fenced_code_differs`
 - `ordered_list_start_numbers_differ`
@@ -1349,7 +1348,7 @@ Markdown through `CommonMarkBody`, compares with `corpus::body::equivalent`)
   `paragraph_break_and_soft_break_differ_outside_a_list`
 - `strong_on_a_code_span_is_noise`
 - `the_captured_push_and_read_back_differ_only_by_the_meaning_changing_rows`:
-  equivalent once the three meaning-row fragments are removed from both,
+  equivalent once the two meaning-row fragments are removed from both,
   not equivalent with them
 
 **File**: `cli/corpus/src/body/canonical.rs` (unit tests on hand-built models)
@@ -1395,14 +1394,32 @@ any change that moves a golden digest bumps the recipe.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters`
-- [ ] `mise run public-api:check` (after `public-api:update` for `corpus`)
-- [ ] `mise run` exits 0
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p corpus -p corpus-adapters`
+- [x] `mise run public-api:check` (after `public-api:update` for `corpus`)
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
 - [ ] The twenty-three equivalence tests above map one-to-one onto 0296's
       table rows and near-miss criterion
+
+#### Implementation Notes:
+
+- The row tests read their fragments from `linear-rewrites/` by section
+  name; `joined_code_span_lines_are_noise` reads 0293's Summary from
+  `work-item-sync-recovery/`, and the captured-pair test drops `R12` and
+  `X09`.
+- `CanonicalBody` and its blocks, segments and marks stay private; the
+  public surface is `Body::canonical`, `CanonicalBody::digest_input` and
+  `equivalent`. `digest_input` writes a tag per node, a byte length before
+  each string and a count before each sequence, so it parses back uniquely.
+- `corpus`'s pup rule rejects brace-grouped `use` items, so the module
+  imports one item per line.
+- Checked against their remotes, 0275 and 0294 are equivalent and 0276 and
+  0293 differ by autolinked dotted tokens, as Phase 8 expects; 0302 is not
+  equivalent, because its remote holds an older revision (H1 `0295: …`).
+  Phase 8's `items_0275_0294_and_0302_classify_as_synced` must move 0302 to
+  the conflicted set.
 
 ---
 
@@ -2633,8 +2650,11 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 - Equivalence table, from the Phase 0 capture: "Joined continuation lines"
   becomes "Joined code-span lines" (`a⏎b` in a code span → `a b`,
   cosmetic: parsing), and "Inserted blank lines" becomes `p⏎- a` →
-  `p⏎⏎- a` (cosmetic: parsing). The counts of ten cosmetic and three
-  meaning-changing rows are unchanged.
+  `p⏎⏎- a` (cosmetic: parsing), and "Code-span indentation" becomes
+  cosmetic: CommonMark keeps a code span's continuation spaces beyond the
+  container's indent, and Linear's read-back matches that reading. The table
+  holds eleven cosmetic and two meaning-changing rows; the criteria counting
+  them follow.
 
 ## Acceptance-Criteria Traceability
 
@@ -2660,7 +2680,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | Legacy entry, remote changed, equivalent | 8 | `legacy local changed, remote changed, equivalent` row |
 | Untouched legacy entries migrate unless a pull left residue | 7, 8 | classify rows; `an_untouched_legacy_item_with_an_autolinked_file_name_migrates_as_synced`, `a_legacy_jira_file_holding_adf_json_is_a_conflict_not_a_migration` |
 | Legacy local change over a non-equivalent body is a conflict | 8 | `legacy, local … changed, remote unchanged, not equivalent` rows; `a_legacy_item_with_a_local_body_edit_is_a_conflict_resolvable_as_local` |
-| Meaning-changing rows not equivalent | 6 | three `…_differ` tests |
+| Meaning-changing rows not equivalent | 6 | two `…_differ` tests |
 | Fenced code swap; ordered start | 6 | `a_marker_swap_inside_fenced_code_differs`, `ordered_list_start_numbers_differ` |
 | Near-misses; `**`c`**` | 6 | near-miss tests; `strong_on_a_code_span_is_noise` |
 | Title-line strip edge cases | 1 | splitter unit tests |
