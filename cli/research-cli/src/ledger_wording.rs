@@ -27,9 +27,9 @@ pub fn replaced_notice(replaced: &ReplacedRun) -> String {
         notice
     } else {
         format!(
-            "{notice}; rename each replaced_run quarantine path to \
-             .<name>.invalid beside it, never deleting it, before acting on \
-             this plan"
+            "{notice}; a hand run renames each replaced_run quarantine \
+             path to .<name>.invalid beside it, never deleting it, before \
+             acting on this plan"
         )
     }
 }

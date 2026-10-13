@@ -978,8 +978,9 @@ fn replaced_notice(run: &str) -> String {
 
 fn replaced_notice_with_quarantine(run: &str) -> String {
     format!(
-        "{}; rename each replaced_run quarantine path to .<name>.invalid \
-         beside it, never deleting it, before acting on this plan",
+        "{}; a hand run renames each replaced_run quarantine path to \
+         .<name>.invalid beside it, never deleting it, before acting on this \
+         plan",
         replaced_notice(run)
     )
 }
