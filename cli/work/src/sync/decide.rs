@@ -180,39 +180,6 @@ mod tests {
     }
 
     #[test]
-    fn a_synced_item_needing_its_baseline_rewritten_records_it_in_every_direction(
-    ) {
-        use super::decide;
-        use super::Action;
-        use super::Classification;
-        use super::Dirtiness;
-        use super::SyncDirection;
-        use super::SyncedReconciliation;
-
-        for direction in [
-            SyncDirection::Bidirectional,
-            SyncDirection::PushOnly,
-            SyncDirection::PullOnly,
-        ] {
-            for dirty in
-                [Dirtiness::Clean, Dirtiness::Dirty, Dirtiness::Unknown]
-            {
-                assert_eq!(
-                    decide(
-                        direction,
-                        &Classification::Synced(
-                            SyncedReconciliation::RecordOnly
-                        ),
-                        dirty
-                    ),
-                    Action::RecordBaseline,
-                    "{direction:?}/{dirty:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
     fn the_two_create_actions_never_come_from_the_decision_table() {
         use super::decide;
         use super::Classification;

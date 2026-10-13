@@ -1881,15 +1881,12 @@ parse `work sync` output need updating.
 
 #### Implementation Notes:
 
-- `work-item-sync-classify.json` and `work-item-sync-decide.golden` are
-  the frozen bash oracle (`bash_parity_baseline.rs` pins their hashes and
-  each suite's `#[test]` count), so neither gains a row. The recipe-1 and
-  residue rows live in `work-item-sync-classify-recipes.json`, read by
-  `sync_classify_recipes.rs`; the frozen suite compares
-  `classification.state()`. `RecordOnly → RecordBaseline` is pinned by a
-  `decide.rs` unit test over every direction and dirtiness, and by
-  `a_synced_legacy_entry_plans_a_baseline_record_in_every_direction` in
-  `sync_plan.rs`.
+- `work-item-sync-classify.json` drops its per-row `applies_to` and names
+  its call expectations `observed_calls`; every row carries a `recipe`, and
+  `synced/record` is a synced row whose baseline is rewritten.
+  `work-item-sync-decide.golden` folds its rust-only sections into
+  `[DECIDE]` and `[TOKEN]` and gains the `synced/record` rows.
+  `bash_parity_baseline.rs` re-pins both hashes.
 - `SplitFingerprints` holds `local: Option<LocalFingerprints>` and
   `remote: Option<RemoteFingerprints>`: a side whose keys are not all
   recorded reads as absent, so it can only classify as changed.

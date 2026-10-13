@@ -58,8 +58,8 @@ case  work-item-sync-baseline    case-linear-markdown
 case  work-item-sync-baseline    case-padded-fence
 
 hash  cli/work/tests/fixtures/work-item-push-decide.golden  d8788217b2bc47e3f13e9bfba8d76bebe75f98f0443f90ead44f246f2b100d4c
-hash  cli/work/tests/fixtures/work-item-sync-classify.json  52bbddd91778cc268ed72974ddf066f4b205ac43c3449527c9dd330f58c94c7a
-hash  cli/work/tests/fixtures/work-item-sync-decide.golden  a55622e0540ce6563faf58ff37761576568d92e449f7d87f7f82e0d1dbc7aa3f
+hash  cli/work/tests/fixtures/work-item-sync-classify.json  2b805a3ffeffaac9c714f0ac4d6947e06a01dada59a30496dc80f63d3c805eb5
+hash  cli/work/tests/fixtures/work-item-sync-decide.golden  f1fc30c3f107609ccac480337f3e3095619ed3431f1da1d4566b2e341cf65dce
 hash  cli/work/tests/fixtures/work-item-sync-label.golden  e1ffab46cb6e396dcc5d59db31d9056c44fa7d90d4588d44be96e53698c2f921
 hash  cli/work/tests/fixtures/work-item-normalise/case-file-mode/expected.txt  d1e330612f0fe6ebdda630a4522f0452b68e38e299a5a7031760d85e28b3a0ca
 hash  cli/work/tests/fixtures/work-item-normalise/case-nbsp-not-trimmed/expected.txt  d93e8808e428631cd6e8b378a2a9b89c8307a6642e03860b33c11a20831f1d66

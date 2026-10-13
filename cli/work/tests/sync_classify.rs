@@ -1,6 +1,6 @@
 //! Runs `work::sync::classify` against the committed table in
-//! `tests/fixtures/work-item-sync-classify.json`, every row of which is a
-//! legacy entry with no pull residue.
+//! `tests/fixtures/work-item-sync-classify.json`, over both digest recipes
+//! and every kind of pull residue.
 #![allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -19,6 +19,7 @@ use work::normalise::trim_lines;
 use work::sync::classify;
 use work::sync::BaselineEntry;
 use work::sync::BaselineFingerprints;
+use work::sync::Classification;
 use work::sync::ItemComparison;
 use work::sync::ItemDigests;
 use work::sync::LegacyHashes;
@@ -26,14 +27,14 @@ use work::sync::LocalFingerprints;
 use work::sync::PullResidue;
 use work::sync::RemoteFingerprints;
 use work::sync::RemotePresence;
+use work::sync::SplitFingerprints;
 use work::sync::Subject;
 use work::sync::SyncState;
+use work::sync::SyncedReconciliation;
 
 type TestError = Box<dyn std::error::Error>;
 
-/// Pinned independently of `applies_to` so narrowing a row's applicability
-/// cannot quietly shrink what this suite exercises.
-const EXPECTED_RUST_CASES: usize = 17;
+const EXPECTED_CASES: usize = 32;
 
 fn fixture() -> Result<Value, TestError> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -95,6 +96,51 @@ fn timestamp(value: &Value, placeholders: (&str, &str)) -> RemoteTimestamp {
     }
 }
 
+fn local_fingerprints() -> LocalFingerprints {
+    LocalFingerprints {
+        frontmatter: "frontmatter".to_owned(),
+        fields: "fields".to_owned(),
+        body: "body".to_owned(),
+    }
+}
+
+fn remote_fingerprints() -> RemoteFingerprints {
+    RemoteFingerprints {
+        body: "remote-body".to_owned(),
+        fields: "remote-fields".to_owned(),
+    }
+}
+
+fn recorded_local(symbol: &str) -> Option<LocalFingerprints> {
+    let stale = || STALE.to_owned();
+    match symbol {
+        "absent" => None,
+        "from-content" => Some(local_fingerprints()),
+        "stale" => Some(LocalFingerprints {
+            frontmatter: stale(),
+            fields: stale(),
+            body: stale(),
+        }),
+        "frontmatter-edited" => Some(LocalFingerprints {
+            frontmatter: stale(),
+            ..local_fingerprints()
+        }),
+        other => panic!("unrecognised symbolic local fingerprints: {other}"),
+    }
+}
+
+fn recorded_remote(symbol: &str) -> Option<RemoteFingerprints> {
+    match symbol {
+        "absent" => None,
+        "from-content" => Some(remote_fingerprints()),
+        "stale" => Some(RemoteFingerprints {
+            body: STALE.to_owned(),
+            fields: STALE.to_owned(),
+        }),
+        other => panic!("unrecognised symbolic remote fingerprints: {other}"),
+    }
+}
+
 struct FakeDigests {
     mtime: Option<u64>,
     local: String,
@@ -102,6 +148,23 @@ struct FakeDigests {
     mtime_called: Cell<bool>,
     local_called: Cell<bool>,
     remote_body_called: Cell<bool>,
+}
+
+impl FakeDigests {
+    const fn new(
+        mtime: Option<u64>,
+        local: String,
+        remote: Option<String>,
+    ) -> Self {
+        Self {
+            mtime,
+            local,
+            remote_body: remote,
+            mtime_called: Cell::new(false),
+            local_called: Cell::new(false),
+            remote_body_called: Cell::new(false),
+        }
+    }
 }
 
 impl ItemDigests for FakeDigests {
@@ -121,19 +184,63 @@ impl ItemDigests for FakeDigests {
     }
 
     fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
-        panic!("a legacy entry is never compared by split fingerprints")
+        self.local_called.set(true);
+        Ok(local_fingerprints())
     }
 
     fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
-        panic!("a legacy entry is never compared by split fingerprints")
+        self.remote_body_called.set(true);
+        Ok(self.remote_body.as_ref().map(|_| remote_fingerprints()))
     }
 }
 
-struct NoResidue;
+struct FakeComparison {
+    residue: Option<PullResidue>,
+    called: Cell<bool>,
+}
 
-impl ItemComparison for NoResidue {
+impl ItemComparison for FakeComparison {
     fn pull_residue(&self) -> Option<PullResidue> {
-        None
+        self.called.set(true);
+        self.residue
+    }
+}
+
+fn residue(case: &Value) -> Option<PullResidue> {
+    match case["residue"].as_str() {
+        None | Some("title-line-only") => None,
+        Some("tracker-wire-document") => Some(PullResidue::TrackerWireDocument),
+        Some("verbatim-remote") => Some(PullResidue::VerbatimRemote),
+        Some(other) => panic!("unrecognised residue: {other}"),
+    }
+}
+
+fn expected(raw: &str, name: &str) -> Classification {
+    match raw {
+        "synced" => Classification::Synced(SyncedReconciliation::ByContent),
+        "synced/record" => {
+            Classification::Synced(SyncedReconciliation::RecordOnly)
+        }
+        other => match SyncState::from_keyword(other) {
+            Some(SyncState::Unsynced) => Classification::Unsynced,
+            Some(SyncState::LocallyModified) => Classification::LocallyModified,
+            Some(SyncState::RemotelyModified) => {
+                Classification::RemotelyModified
+            }
+            Some(SyncState::Conflict) => Classification::Conflict,
+            Some(SyncState::RemoteAbsent) => Classification::RemoteAbsent,
+            Some(SyncState::Indeterminate) => Classification::Indeterminate,
+            Some(SyncState::Synced) | None => {
+                panic!("unrecognised expected state in {name}")
+            }
+        },
+    }
+}
+
+const fn no_residue() -> FakeComparison {
+    FakeComparison {
+        residue: None,
+        called: Cell::new(false),
     }
 }
 
@@ -163,16 +270,6 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
     let mut ran = 0;
 
     for case in cases {
-        let applies_to_rust = case["applies_to"]
-            .as_array()
-            .expect("applies_to is an array")
-            .iter()
-            .any(|v| {
-                v.as_str().expect("applies_to entries are strings") == "rust"
-            });
-        if !applies_to_rust {
-            continue;
-        }
         ran += 1;
 
         let name = case["name"].as_str().expect("name is present");
@@ -193,10 +290,8 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                 other => panic!("unrecognised presence: {other}"),
             };
 
-        let expect = SyncState::from_keyword(
-            case["expect"].as_str().expect("expect is present"),
-        )
-        .unwrap_or_else(|| panic!("unrecognised expected state in {name}"));
+        let expect =
+            expected(case["expect"].as_str().expect("expect is present"), name);
 
         if !matches!(presence, RemotePresence::Present) {
             let subject = Subject {
@@ -211,16 +306,10 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                     LegacyHashes::default(),
                 ),
             };
-            let digests = FakeDigests {
-                mtime: None,
-                local: String::new(),
-                remote_body: None,
-                mtime_called: Cell::new(false),
-                local_called: Cell::new(false),
-                remote_body_called: Cell::new(false),
-            };
-            let actual = classify(&subject, &baseline, &digests, &NoResidue)?;
-            assert_eq!(actual.state(), expect, "case: {name}");
+            let digests = FakeDigests::new(None, String::new(), None);
+            let actual =
+                classify(&subject, &baseline, &digests, &no_residue())?;
+            assert_eq!(actual, expect, "case: {name}");
             continue;
         }
 
@@ -241,23 +330,45 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
         let with_remote_body =
             case["with_remote_body"].as_bool().unwrap_or(false);
 
-        let mut local_storage = None;
-        let mut remote_storage = None;
-        let local_symbol = case["baseline"]["local_hash"]
-            .as_str()
-            .expect("baseline.local_hash is present");
-        let remote_symbol = case["baseline"]["remote_hash"]
-            .as_str()
-            .expect("baseline.remote_hash is present");
-        let local_hash_value =
-            resolve_hash(local_symbol, &local_from_content, &mut local_storage)
-                .map(str::to_owned);
-        let remote_hash_value = resolve_hash(
-            remote_symbol,
-            &remote_from_content,
-            &mut remote_storage,
-        )
-        .map(str::to_owned);
+        let fingerprints = match case["recipe"].as_str() {
+            Some("legacy") => {
+                let mut local_storage = None;
+                let mut remote_storage = None;
+                let local_symbol = case["baseline"]["local_hash"]
+                    .as_str()
+                    .expect("baseline.local_hash is present");
+                let remote_symbol = case["baseline"]["remote_hash"]
+                    .as_str()
+                    .expect("baseline.remote_hash is present");
+                BaselineFingerprints::Legacy(LegacyHashes {
+                    local: resolve_hash(
+                        local_symbol,
+                        &local_from_content,
+                        &mut local_storage,
+                    )
+                    .map(str::to_owned),
+                    remote: resolve_hash(
+                        remote_symbol,
+                        &remote_from_content,
+                        &mut remote_storage,
+                    )
+                    .map(str::to_owned),
+                })
+            }
+            Some("1") => BaselineFingerprints::Split(SplitFingerprints {
+                local: recorded_local(
+                    case["baseline"]["local"]
+                        .as_str()
+                        .expect("baseline.local is present"),
+                ),
+                remote: recorded_remote(
+                    case["baseline"]["remote"]
+                        .as_str()
+                        .expect("baseline.remote is present"),
+                ),
+            }),
+            other => panic!("unrecognised recipe in {name}: {other:?}"),
+        };
 
         let baseline_updated = timestamp(
             &case["baseline"]["remote_updated_at"],
@@ -272,29 +383,23 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
         };
         let baseline = BaselineEntry {
             remote_updated_at: &baseline_updated,
-            fingerprints: BaselineFingerprints::Legacy(LegacyHashes {
-                local: local_hash_value,
-                remote: remote_hash_value,
-            }),
+            fingerprints,
         };
-        let digests = FakeDigests {
+        let digests = FakeDigests::new(
             mtime,
-            local: local_from_content.clone(),
-            remote_body: if with_remote_body {
-                Some(remote_from_content.clone())
-            } else {
-                None
-            },
-            mtime_called: Cell::new(false),
-            local_called: Cell::new(false),
-            remote_body_called: Cell::new(false),
+            local_from_content.clone(),
+            with_remote_body.then(|| remote_from_content.clone()),
+        );
+        let comparison = FakeComparison {
+            residue: residue(case),
+            called: Cell::new(false),
         };
 
-        let actual = classify(&subject, &baseline, &digests, &NoResidue)?;
-        assert_eq!(actual.state(), expect, "case: {name}");
+        let actual = classify(&subject, &baseline, &digests, &comparison)?;
+        assert_eq!(actual, expect, "case: {name}");
 
         if let Some(expect_mtime) =
-            case["rust_only"]["expect_mtime_called"].as_bool()
+            case["observed_calls"]["expect_mtime_called"].as_bool()
         {
             assert_eq!(
                 digests.mtime_called.get(),
@@ -303,7 +408,7 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             );
         }
         if let Some(expect_local) =
-            case["rust_only"]["expect_local_digest_called"].as_bool()
+            case["observed_calls"]["expect_local_digest_called"].as_bool()
         {
             assert_eq!(
                 digests.local_called.get(),
@@ -312,7 +417,7 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
             );
         }
         if let Some(expect_remote) =
-            case["rust_only"]["expect_remote_body_called"].as_bool()
+            case["observed_calls"]["expect_remote_body_called"].as_bool()
         {
             assert_eq!(
                 digests.remote_body_called.get(),
@@ -320,11 +425,17 @@ fn every_case_classifies_as_expected() -> Result<(), TestError> {
                 "case: {name} — remote_body() call observability"
             );
         }
+        if let Some(expect_residue) =
+            case["observed_calls"]["expect_pull_residue_called"].as_bool()
+        {
+            assert_eq!(
+                comparison.called.get(),
+                expect_residue,
+                "case: {name} — pull_residue() call observability"
+            );
+        }
     }
 
-    assert_eq!(
-        ran, EXPECTED_RUST_CASES,
-        "the number of rows this side ran has drifted from the pinned floor"
-    );
+    assert_eq!(ran, EXPECTED_CASES, "the table's row count has drifted");
     Ok(())
 }
