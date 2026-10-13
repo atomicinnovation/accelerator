@@ -2,6 +2,7 @@
 //! dispatched by the `accelerator` launcher.
 
 mod cli;
+mod concurrency_wording;
 mod context;
 mod fetch_command;
 mod guard;

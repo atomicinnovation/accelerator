@@ -1,10 +1,6 @@
 //! How a round plan's warnings, trims, skipped pairs and refused notes read
-//! to whoever runs `conduct`, and how a resolved concurrency's diagnostics
-//! read.
+//! to whoever runs `conduct`.
 
-use research::conduct::concurrency::ConcurrencyWarning;
-use research::conduct::concurrency::EmptyConcurrency;
-use research::conduct::concurrency::Provenance;
 use research::topic::evidence::NoteRejection;
 use research::topic::plan::Skip;
 use research::topic::plan::SkipReason;
@@ -12,9 +8,6 @@ use research::topic::plan::Warning;
 use research::topic::question::PlainQuestionRule;
 use research::topic::question::LONGEST_PLAIN_QUESTION;
 use research::topic::tree::Trim;
-
-use crate::subagent_cap::CapSource;
-use crate::subagent_cap::UnhonouredCap;
 
 pub fn warning(warning: &Warning) -> String {
     match warning {
@@ -93,77 +86,11 @@ pub fn rejection(rejection: &NoteRejection) -> String {
     }
 }
 
-pub fn unhonoured_cap(unhonoured: &UnhonouredCap) -> String {
-    format!(
-        "{} is '{}', not a positive integer — ignoring it",
-        unhonoured.variable, unhonoured.value
-    )
-}
-
-pub fn concurrency_warning(
-    warning: &ConcurrencyWarning,
-    cap_source: CapSource,
-) -> String {
-    match warning {
-        ConcurrencyWarning::NotAPositiveInteger { given, provenance } => {
-            format!(
-                "{} must be a positive integer, got '{given}' — clamping to 1",
-                concurrency_source(*provenance)
-            )
-        }
-        ConcurrencyWarning::AboveCap {
-            given,
-            provenance,
-            cap,
-        } => {
-            let cap = cap.slots();
-            let source = concurrency_source(*provenance);
-            let raised_by = cap_source.raised_by();
-            match cap_source {
-                CapSource::Variable(_) => format!(
-                    "{source} is {given}, above the subagent cap of {cap} \
-                     from {raised_by} — clamping to {cap}; lower it, or raise \
-                     {raised_by}"
-                ),
-                CapSource::HarnessDefault => format!(
-                    "{source} is {given}, above the subagent cap of {cap}, \
-                     Claude Code's default — clamping to {cap}; lower it, or \
-                     raise the cap with {raised_by}"
-                ),
-            }
-        }
-    }
-}
-
-pub fn empty_concurrency(empty: EmptyConcurrency) -> String {
-    let source = concurrency_source(empty.provenance);
-    match empty.provenance {
-        Provenance::Flag => {
-            format!("{source} is empty; pass a positive integer")
-        }
-        Provenance::ConfigFile => format!(
-            "{source} is empty; set it to a positive integer or remove it"
-        ),
-    }
-}
-
-const fn concurrency_source(provenance: Provenance) -> &'static str {
-    match provenance {
-        Provenance::Flag => "--concurrency",
-        Provenance::ConfigFile => "research.topic.concurrency",
-    }
-}
-
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::num::NonZeroU32;
     use std::num::NonZeroUsize;
 
-    use research::conduct::concurrency::ConcurrencyWarning;
-    use research::conduct::concurrency::EmptyConcurrency;
-    use research::conduct::concurrency::Provenance;
-    use research::conduct::concurrency::SubagentCap;
     use research::topic::evidence::NoteRejection;
     use research::topic::layout::lineage::Lineage;
     use research::topic::layout::note_ref::NoteRef;
@@ -175,13 +102,10 @@ mod tests {
     use research::topic::question::PlainQuestionRule;
     use research::topic::tree::Trim;
 
-    use super::concurrency_warning;
-    use super::empty_concurrency;
     use super::rejection;
     use super::skip_reason;
     use super::trim;
     use super::warning;
-    use super::CapSource;
 
     #[test]
     fn every_warning_reads_with_what_it_concerns() {
@@ -304,86 +228,5 @@ mod tests {
         for (given, text) in rows {
             assert_eq!(rejection(&given), text);
         }
-    }
-
-    #[test]
-    fn every_concurrency_diagnostic_names_its_source() {
-        let cap =
-            SubagentCap::new(NonZeroU32::new(20).expect("a non-zero cap"));
-        let accelerator_cap = CapSource::Variable("ACCELERATOR_SUBAGENT_CAP");
-        let rows = [
-            (
-                Provenance::Flag,
-                "--concurrency must be a positive integer, got 'many' — \
-                 clamping to 1",
-                "--concurrency is 50, above the subagent cap of 20 from \
-                 ACCELERATOR_SUBAGENT_CAP — clamping to 20; lower it, or \
-                 raise ACCELERATOR_SUBAGENT_CAP",
-                "--concurrency is empty; pass a positive integer",
-            ),
-            (
-                Provenance::ConfigFile,
-                "research.topic.concurrency must be a positive integer, got \
-                 'many' — clamping to 1",
-                "research.topic.concurrency is 50, above the subagent cap of \
-                 20 from ACCELERATOR_SUBAGENT_CAP — clamping to 20; lower it, \
-                 or raise ACCELERATOR_SUBAGENT_CAP",
-                "research.topic.concurrency is empty; set it to a positive \
-                 integer or remove it",
-            ),
-        ];
-        for (provenance, invalid, above_cap, empty) in rows {
-            assert_eq!(
-                concurrency_warning(
-                    &ConcurrencyWarning::NotAPositiveInteger {
-                        given: "many".into(),
-                        provenance,
-                    },
-                    accelerator_cap,
-                ),
-                invalid,
-                "{provenance:?}"
-            );
-            assert_eq!(
-                concurrency_warning(
-                    &ConcurrencyWarning::AboveCap {
-                        given: "50".into(),
-                        provenance,
-                        cap,
-                    },
-                    accelerator_cap,
-                ),
-                above_cap,
-                "{provenance:?}"
-            );
-            assert_eq!(
-                empty_concurrency(EmptyConcurrency { provenance }),
-                empty,
-                "{provenance:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_clamp_to_the_harness_default_says_how_to_raise_it() {
-        let cap =
-            SubagentCap::new(NonZeroU32::new(20).expect("a non-zero cap"));
-        let raised_by = CapSource::HarnessDefault.raised_by();
-
-        assert_eq!(
-            concurrency_warning(
-                &ConcurrencyWarning::AboveCap {
-                    given: "24".into(),
-                    provenance: Provenance::ConfigFile,
-                    cap,
-                },
-                CapSource::HarnessDefault,
-            ),
-            format!(
-                "research.topic.concurrency is 24, above the subagent cap of \
-                 20, Claude Code's default — clamping to 20; lower it, or \
-                 raise the cap with {raised_by}"
-            )
-        );
     }
 }

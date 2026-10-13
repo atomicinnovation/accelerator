@@ -41,6 +41,7 @@ use research_adapters::unicode_text::UnicodeTables;
 use serde_json::json;
 use serde_json::Value;
 
+use crate::concurrency_wording;
 use crate::context::ProjectContext;
 use crate::plan_wording;
 use crate::subagent_cap::EnvironmentCap;
@@ -152,7 +153,7 @@ pub fn resolve_concurrency(
         .map_err(|empty| {
             failed(format!(
                 "E_TOPIC_RESEARCH_CONCURRENCY: {}",
-                plan_wording::empty_concurrency(empty)
+                concurrency_wording::empty_concurrency(empty)
             ))
         })
 }
@@ -255,11 +256,11 @@ where
                     .cap
                     .unhonoured
                     .iter()
-                    .map(plan_wording::unhonoured_cap),
+                    .map(concurrency_wording::unhonoured_cap),
             );
             notices.extend(concurrency.resolved.warnings.iter().map(
                 |warning| {
-                    plan_wording::concurrency_warning(
+                    concurrency_wording::concurrency_warning(
                         warning,
                         concurrency.cap.source,
                     )

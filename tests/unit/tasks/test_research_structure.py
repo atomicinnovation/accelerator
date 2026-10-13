@@ -29,7 +29,7 @@ LEVEL_NOTE_OUTPUTTER = (
 PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
 CONFIGURE = REPO_ROOT / "skills/config/configure/SKILL.md"
-PLAN_WORDING = REPO_ROOT / "cli/research-cli/src/plan_wording.rs"
+CONCURRENCY_WORDING = REPO_ROOT / "cli/research-cli/src/concurrency_wording.rs"
 PROFILES_DIR = Path("skills/research/profiles")
 
 FETCH = "accelerator research fetch "
@@ -293,7 +293,7 @@ def _rust_text(path: Path) -> str:
 
 
 def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
-    cli = _rust_text(PLAN_WORDING)
+    cli = _rust_text(CONCURRENCY_WORDING)
     for fragment in (
         "must be a positive integer, got '",
         "' — clamping to 1",
