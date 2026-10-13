@@ -246,9 +246,11 @@ its own daemon.
   criteria terminate the daemon's whole process group, so they do not depend
   on the answer.
 
-  Unanswered at implementation: it needs `lsof` on the browser processes
-  during a crawl against a real runtime, which the implementation did not
-  provision.
+  Answered: no. On macOS (arm64, Playwright 1.55.1), after a `navigate`
+  launched Chromium, `lsof` showed both leases held only by the daemon, on
+  fds 10 and 11, and none by Chromium's four processes. Chromium runs in its
+  own process group under the daemon, and stopping the daemon left no
+  Chromium and no lease held. No follow-up item is needed.
 
 ## Dependencies
 

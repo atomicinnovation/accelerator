@@ -5104,7 +5104,7 @@ dependencies = [
 
 [[package]]
 name = "tree-lease"
-version = "1.24.0-pre.78"
+version = "1.24.0-pre.79"
 dependencies = [
  "rustix",
  "tempfile",

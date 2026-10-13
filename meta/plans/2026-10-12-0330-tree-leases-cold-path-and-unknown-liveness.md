@@ -946,7 +946,7 @@ unavailable.
 
 #### Manual Verification
 
-- [ ] With a real installed plugin and an empty `ACCELERATOR_CACHE_DIR`, run
+- [x] With a real installed plugin and an empty `ACCELERATOR_CACHE_DIR`, run
       one `inventory-design` crawl step. Then
       `lsof <cache>/trees/*.lease` lists the daemon's pid against both lease
       files. Where `lsof` is absent on Linux, use
@@ -1416,7 +1416,7 @@ use `/accelerator:update-work-item` to:
 
 #### Manual Verification
 
-- [ ] The descendant question is answered and recorded on 0330
+- [x] The descendant question is answered and recorded on 0330
 - [x] 0330 records the scope deviation, the test split and the corrected
       accepted-gap assumption
 - [x] Every acceptance criterion on 0330 is ticked against the map
