@@ -238,19 +238,23 @@ fn push_update(
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
 
     let (remote_updated, remote_hash) = match tracker.show(&external_id) {
-        Ok(issue) => (issue.updated, digest::remote_body(&issue.body)),
-        Err(_) => (tracker::RemoteTimestamp::NotRead, String::new()),
+        Ok(issue) => (issue.updated, Some(digest::remote_body(&issue.body))),
+        Err(_) => (tracker::RemoteTimestamp::NotRead, None),
     };
     let local_hash = digest::local(rendered)
         .map_err(|error| TryRunError::Generic(error.to_string()))?;
     baseline_store
         .set(
             &id,
-            work_adapters::sync::baseline::Entry {
-                remote_updated_at: remote_updated,
-                remote_hash,
-                local_hash,
-                local_synced_at: 0,
+            work_adapters::sync::baseline::Entry::Legacy {
+                stamps: work_adapters::sync::baseline::SyncStamps {
+                    remote_updated_at: remote_updated,
+                    local_synced_at: 0,
+                },
+                legacy: work::sync::LegacyHashes {
+                    local: Some(local_hash),
+                    remote: remote_hash,
+                },
             },
         )
         .map_err(|error| TryRunError::Generic(error.to_string()))?;

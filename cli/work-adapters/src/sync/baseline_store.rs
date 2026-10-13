@@ -102,7 +102,7 @@ impl<'a> BaselineStore<'a> {
         self.write_document(&baseline)
     }
 
-    /// Blanks the named items' `local_hash`, advances the reconciled items'
+    /// Forgets the named items' local digests, advances the reconciled items'
     /// watermarks, and — for a whole-corpus run — advances the document
     /// timestamp, as one operation: the ordering is load-bearing, and a
     /// multi-call API could be called in the wrong order or half-called. Every
@@ -129,13 +129,7 @@ impl<'a> BaselineStore<'a> {
         let (mut baseline, _) = self.load()?;
         for id in blank {
             if let Some(entry) = baseline.get(id).cloned() {
-                baseline.set(
-                    id,
-                    Entry {
-                        local_hash: String::new(),
-                        ..entry
-                    },
-                );
+                baseline.set(id, entry.without_local_digests());
             }
         }
         for id in advance {
@@ -159,9 +153,14 @@ mod tests {
     use corpus::store::StoreError;
 
     use tracker::RemoteTimestamp;
+    use work::sync::LegacyHashes;
+    use work::sync::LocalFingerprints;
+    use work::sync::RemoteFingerprints;
+    use work::sync::SplitFingerprints;
 
     use super::BaselineStore;
     use crate::sync::baseline::Entry;
+    use crate::sync::baseline::SyncStamps;
 
     #[derive(Default)]
     struct MemoryFile {
@@ -187,11 +186,15 @@ mod tests {
     }
 
     fn entry(local_hash: &str) -> Entry {
-        Entry {
-            remote_updated_at: RemoteTimestamp::NotRead,
-            remote_hash: String::new(),
-            local_hash: local_hash.to_owned(),
-            local_synced_at: 0,
+        Entry::Legacy {
+            stamps: SyncStamps {
+                remote_updated_at: RemoteTimestamp::NotRead,
+                local_synced_at: 0,
+            },
+            legacy: LegacyHashes {
+                local: Some(local_hash.to_owned()),
+                remote: None,
+            },
         }
     }
 
@@ -211,6 +214,59 @@ mod tests {
         assert_eq!(baseline.get("draft-k7mq3x"), None);
         assert_eq!(baseline.get("PP-900"), Some(&entry("moved")));
         assert_eq!(baseline.get("0001"), Some(&entry("kept")));
+        Ok(())
+    }
+
+    #[test]
+    fn finalise_run_blanks_both_split_local_hashes_and_the_legacy_local_hash(
+    ) -> Result<(), StoreError> {
+        let file = MemoryFile::default();
+        let mut store =
+            BaselineStore::new(PathBuf::from("last-sync.json"), &file, &file);
+        let remote = RemoteFingerprints {
+            body: "remote-body".to_owned(),
+            fields: "remote-fields".to_owned(),
+        };
+        store.set(
+            "0001",
+            Entry::Split {
+                stamps: SyncStamps {
+                    remote_updated_at: RemoteTimestamp::NotRead,
+                    local_synced_at: 0,
+                },
+                legacy: LegacyHashes {
+                    local: Some("legacy-local".to_owned()),
+                    remote: Some("legacy-remote".to_owned()),
+                },
+                split: SplitFingerprints {
+                    local: Some(LocalFingerprints {
+                        frontmatter: "frontmatter".to_owned(),
+                        fields: "fields".to_owned(),
+                        body: "body".to_owned(),
+                    }),
+                    remote: Some(remote.clone()),
+                },
+            },
+        )?;
+
+        store.finalise_run(&["0001"], &[], 1, true)?;
+
+        let (baseline, _) = store.load()?;
+        let entry = baseline.get("0001");
+        assert_eq!(
+            entry.and_then(Entry::legacy),
+            Some(&LegacyHashes {
+                local: None,
+                remote: Some("legacy-remote".to_owned()),
+            })
+        );
+        assert_eq!(
+            entry.and_then(Entry::split),
+            Some(&SplitFingerprints {
+                local: None,
+                remote: Some(remote),
+            })
+        );
         Ok(())
     }
 

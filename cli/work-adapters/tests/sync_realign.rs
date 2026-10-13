@@ -83,7 +83,12 @@ fn seed_baseline(
 fn local_hash(baseline: &Path, id: &str) -> Result<Option<String>, TestError> {
     let content = fs::read_to_string(baseline)?;
     let (baseline, _) = Baseline::read(Some(&content));
-    Ok(baseline.get(id).map(|entry| entry.local_hash.clone()))
+    Ok(baseline.get(id).map(|entry| {
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default()
+    }))
 }
 
 fn disk_writer_at(_dir: &Path) -> Box<dyn AtomicWrite> {

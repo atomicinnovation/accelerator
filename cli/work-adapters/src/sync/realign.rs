@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use work::sync::LegacyHashes;
 
 use crate::sync::baseline;
 use crate::sync::baseline_store::BaselineStore;
@@ -94,13 +95,14 @@ fn realign_one_baseline(
     let (baseline, _) = store.load()?;
     let mut realigned = 0;
     for (id, &(path, original)) in by_id {
-        let Some(entry) = baseline.get(id) else {
+        let Some(baseline::Entry::Legacy { stamps, legacy }) = baseline.get(id)
+        else {
             continue;
         };
         let Ok(pre_hash) = digest::local(original) else {
             continue;
         };
-        if pre_hash != entry.local_hash {
+        if legacy.local.as_ref() != Some(&pre_hash) {
             continue;
         }
         let Ok(Some(new_content)) = reader.read(path) else {
@@ -109,14 +111,17 @@ fn realign_one_baseline(
         let Ok(new_hash) = digest::local(&new_content) else {
             continue;
         };
-        if new_hash == entry.local_hash {
+        if new_hash == pre_hash {
             continue;
         }
         store.set(
             id,
-            baseline::Entry {
-                local_hash: new_hash,
-                ..entry.clone()
+            baseline::Entry::Legacy {
+                stamps: stamps.clone(),
+                legacy: LegacyHashes {
+                    local: Some(new_hash),
+                    ..legacy.clone()
+                },
             },
         )?;
         realigned += 1;

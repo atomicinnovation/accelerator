@@ -2,6 +2,7 @@
 //! the `tracker::RemoteTracker` port. No filesystem, no subprocess, no
 //! tracker calls — those live in `work-adapters`.
 
+pub mod baseline;
 pub mod classify;
 pub mod clock;
 pub mod decide;
@@ -13,7 +14,14 @@ pub mod pull_residue;
 pub mod push_decide;
 pub mod push_precondition;
 pub mod state;
+pub mod synced_fields;
 
+pub use crate::sync::baseline::BaselineFingerprints;
+pub use crate::sync::baseline::DualRecipeFingerprints;
+pub use crate::sync::baseline::LegacyHashes;
+pub use crate::sync::baseline::LocalFingerprints;
+pub use crate::sync::baseline::RemoteFingerprints;
+pub use crate::sync::baseline::SplitFingerprints;
 pub use crate::sync::classify::classify;
 pub use crate::sync::classify::BaselineEntry;
 pub use crate::sync::classify::ItemDigests;
@@ -49,3 +57,4 @@ pub use crate::sync::push_precondition::PushPrecondition;
 pub use crate::sync::push_precondition::RefusalReason;
 pub use crate::sync::push_precondition::RequestFingerprint;
 pub use crate::sync::state::SyncState;
+pub use crate::sync::synced_fields::SyncedTrackerFields;

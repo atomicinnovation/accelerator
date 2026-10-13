@@ -503,9 +503,21 @@ fn promotion_writes_a_baseline_under_the_tracker_key() {
 
     let entry = repo.baseline_entry(KEY).expect("a baseline under the key");
     let promoted_file = repo.read(TARGET).unwrap();
-    assert_eq!(entry.local_hash, digest::local(&promoted_file).unwrap());
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        digest::local(&promoted_file).unwrap()
+    );
     let remote = tracker.show(&key()).unwrap();
-    assert_eq!(entry.remote_hash, digest::remote_body(&remote.body));
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        digest::remote_body(&remote.body)
+    );
     assert_eq!(repo.baseline_entry(DRAFT_ID), None);
 }
 
@@ -733,9 +745,19 @@ fn an_edited_recorded_issue_is_not_rewritten_and_the_next_sync_raises_a_conflict
         "the edit is never overwritten"
     );
     let entry = repo.baseline_entry(KEY).unwrap();
-    assert_eq!(entry.remote_hash, "", "the remote reads as changed");
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        "",
+        "the remote reads as changed"
+    );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the two conflict"
     );
@@ -757,11 +779,20 @@ fn a_kill_between_the_h1_update_and_its_record_resumes_as_retitled_not_edited()
 
     let entry = repo.baseline_entry(KEY).unwrap();
     assert_eq!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the tool's own update is recognised, so the item syncs as synced"
     );
-    assert_eq!(entry.remote_hash, digest::remote_body(&retitled));
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        digest::remote_body(&retitled)
+    );
 }
 
 /// Serves the draft without its closing fence once the tracker has been
@@ -837,8 +868,20 @@ fn a_failed_h1_update_records_a_baseline_that_makes_the_next_sync_push() {
 
     let entry = repo.baseline_entry(KEY).unwrap();
     let remote = tracker.show(&key()).unwrap();
-    assert_eq!(entry.remote_hash, digest::remote_body(&remote.body));
-    assert_eq!(entry.local_hash, digest::local(DRAFT_CONTENT).unwrap());
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        digest::remote_body(&remote.body)
+    );
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        digest::local(DRAFT_CONTENT).unwrap()
+    );
 }
 
 #[test]
@@ -1008,7 +1051,14 @@ fn a_retiring_record_with_nothing_applied_is_retired_not_discarded() {
 
     assert_eq!(creates(&tracker), 0);
     assert_promoted(&repo);
-    assert_eq!(repo.baseline_entry(KEY).unwrap().local_hash, "draft");
+    assert_eq!(
+        repo.baseline_entry(KEY)
+            .unwrap()
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        "draft"
+    );
 }
 
 #[test]
@@ -1241,9 +1291,19 @@ fn a_user_named_adopt_never_rewrites_and_the_next_sync_raises_a_conflict_when_bo
 
     assert!(updates(&tracker).is_empty(), "the issue is never rewritten");
     let entry = repo.baseline_entry(KEY).unwrap();
-    assert_eq!(entry.remote_hash, "", "the remote reads as changed");
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        "",
+        "the remote reads as changed"
+    );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the two conflict"
     );
@@ -1264,12 +1324,18 @@ fn a_user_named_adopt_differing_only_by_id_reports_local_changed_and_the_next_sy
     let entry = repo.baseline_entry(KEY).unwrap();
     let remote = tracker.show(&key()).unwrap();
     assert_eq!(
-        entry.remote_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
         digest::remote_body(&remote.body),
         "the remote reads as unchanged"
     );
     assert_ne!(
-        entry.local_hash,
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
         digest::local(&repo.read(TARGET).unwrap()).unwrap(),
         "the local reads as changed, so the next sync pushes the key H1"
     );

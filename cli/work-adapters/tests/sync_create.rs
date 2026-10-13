@@ -1584,6 +1584,7 @@ fn a_re_run_reconciles_the_pulled_id_and_advances_its_watermark(
     assert_eq!(
         baseline
             .get("9000")
+            .and_then(work_adapters::sync::baseline::Entry::stamps)
             .expect("the pulled item has a baseline entry")
             .local_synced_at,
         2_000,

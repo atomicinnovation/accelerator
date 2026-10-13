@@ -173,6 +173,20 @@ pub struct PullRequest<'a> {
     pub remote_updated: RemoteTimestamp,
 }
 
+fn legacy_entry(
+    remote_updated_at: RemoteTimestamp,
+    remote_hash: String,
+    local_hash: String,
+    local_synced_at: u64,
+) -> Entry {
+    Entry::persisted_legacy(
+        remote_updated_at,
+        remote_hash,
+        local_hash,
+        local_synced_at,
+    )
+}
+
 fn io_error(
     id: &str,
     operation: &'static str,
@@ -248,12 +262,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.baseline
             .set(
                 request.id,
-                Entry {
-                    remote_updated_at: remote_updated,
+                legacy_entry(
+                    remote_updated,
                     remote_hash,
                     local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
+                    self.run_start_epoch,
+                ),
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
     }
@@ -280,12 +294,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.baseline
             .set(
                 request.id,
-                Entry {
-                    remote_updated_at: request.remote_updated.clone(),
+                legacy_entry(
+                    request.remote_updated.clone(),
                     remote_hash,
                     local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
+                    self.run_start_epoch,
+                ),
             )
             .map_err(|error| io_error(request.id, "baseline-set", error))
     }
@@ -344,12 +358,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.baseline
             .set(
                 &authored.id,
-                Entry {
-                    remote_updated_at: issue.updated,
+                legacy_entry(
+                    issue.updated,
                     remote_hash,
                     local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
+                    self.run_start_epoch,
+                ),
             )
             .map_err(|error| io_error(&authored.id, "baseline-set", error))?;
         Ok(authored.id)
@@ -527,12 +541,12 @@ impl<'ctx, 'store> ItemApplier<'ctx, 'store> {
         self.baseline
             .set(
                 request.item_id,
-                Entry {
-                    remote_updated_at: remote_updated,
+                legacy_entry(
+                    remote_updated,
                     remote_hash,
                     local_hash,
-                    local_synced_at: self.run_start_epoch,
-                },
+                    self.run_start_epoch,
+                ),
             )
             .map_err(|error| {
                 io_error(request.item_id, "baseline-set", error)

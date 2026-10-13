@@ -128,14 +128,12 @@ fn baseline_with_local_hash(local_hash: &str) -> Baseline {
     let mut baseline = Baseline::read(None).0;
     baseline.set(
         "0001",
-        work_adapters::sync::baseline::Entry {
-            remote_updated_at: RemoteTimestamp::Reported(
-                UNMOVED_STAMP.to_owned(),
-            ),
-            remote_hash: "h".to_owned(),
-            local_hash: local_hash.to_owned(),
-            local_synced_at: 0,
-        },
+        work_adapters::sync::baseline::Entry::persisted_legacy(
+            RemoteTimestamp::Reported(UNMOVED_STAMP.to_owned()),
+            "h".to_owned(),
+            local_hash.to_owned(),
+            0,
+        ),
     );
     baseline
 }
@@ -230,14 +228,12 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
     let mut baseline = Baseline::read(None).0;
     baseline.set(
         "0001",
-        work_adapters::sync::baseline::Entry {
-            remote_updated_at: RemoteTimestamp::Reported(
-                "2026-06-01".to_owned(),
-            ),
-            remote_hash: "h".to_owned(),
-            local_hash: "h".to_owned(),
-            local_synced_at: 0,
-        },
+        work_adapters::sync::baseline::Entry::persisted_legacy(
+            RemoteTimestamp::Reported("2026-06-01".to_owned()),
+            "h".to_owned(),
+            "h".to_owned(),
+            0,
+        ),
     );
     let items = vec![item("0001", Some("ENG-1"))];
 

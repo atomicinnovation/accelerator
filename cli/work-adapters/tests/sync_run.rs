@@ -593,7 +593,11 @@ fn an_indeterminate_items_watermark_is_left_unadvanced() -> Result<(), TestError
         .expect("the run writes the baseline");
     let (baseline, _) = Baseline::read(Some(&written));
     assert_eq!(
-        baseline.get("0001").expect("entry present").local_synced_at,
+        baseline
+            .get("0001")
+            .and_then(work_adapters::sync::baseline::Entry::stamps)
+            .expect("entry present")
+            .local_synced_at,
         500,
         "an indeterminate item keeps its watermark, so a later run still \
          detects a pre-existing local edit"

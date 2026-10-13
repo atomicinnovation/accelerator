@@ -112,9 +112,11 @@ impl GatheredFacts {
                     .get(&item.id)
                     .expect("gather populates every item");
                 let baseline_entry = baseline.get(&item.id);
-                let watermark = baseline_entry.map_or_else(
+                let stamps = baseline_entry.and_then(Entry::stamps);
+                let legacy = baseline_entry.and_then(Entry::legacy);
+                let watermark = stamps.map_or_else(
                     || baseline.timestamp(),
-                    |entry| entry.local_synced_at,
+                    |stamps| stamps.local_synced_at,
                 );
                 PlanInput {
                     id: item.id.clone(),
@@ -125,18 +127,14 @@ impl GatheredFacts {
                     },
                     dirty: *dirty,
                     baseline: BaselineEntry {
-                        remote_updated_at: baseline_entry
-                            .map_or(&RemoteTimestamp::NotRead, |entry| {
-                                &entry.remote_updated_at
+                        remote_updated_at: stamps
+                            .map_or(&RemoteTimestamp::NotRead, |stamps| {
+                                &stamps.remote_updated_at
                             }),
-                        remote_hash: baseline_entry.and_then(|entry| {
-                            (!entry.remote_hash.is_empty())
-                                .then_some(entry.remote_hash.as_str())
-                        }),
-                        local_hash: baseline_entry.and_then(|entry| {
-                            (!entry.local_hash.is_empty())
-                                .then_some(entry.local_hash.as_str())
-                        }),
+                        remote_hash: legacy
+                            .and_then(|legacy| legacy.remote.as_deref()),
+                        local_hash: legacy
+                            .and_then(|legacy| legacy.local.as_deref()),
                     },
                     baseline_timestamp: watermark,
                     digests: item_digests,
@@ -326,11 +324,15 @@ pub fn gather(
 /// send is planned only for a moved local side, and a send must see the
 /// fetched remote, so any doubt here forces the read.
 fn local_side_unmoved(path: &Path, entry: &Entry) -> bool {
-    !entry.local_hash.is_empty()
-        && std::fs::read_to_string(path)
-            .ok()
-            .and_then(|content| digest::local(&content).ok())
-            .is_some_and(|local_hash| local_hash == entry.local_hash)
+    let Some(recorded) =
+        entry.legacy().and_then(|legacy| legacy.local.as_ref())
+    else {
+        return false;
+    };
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| digest::local(&content).ok())
+        .is_some_and(|local_hash| &local_hash == recorded)
 }
 
 fn gather_from_bulk(
@@ -356,8 +358,9 @@ fn gather_from_bulk(
         return;
     };
     let unchanged = baseline.get(id).is_some_and(|entry| {
-        stamp.proves_unchanged_since(&entry.remote_updated_at)
-            && local_side_unmoved(path, entry)
+        entry.stamps().is_some_and(|stamps| {
+            stamp.proves_unchanged_since(&stamps.remote_updated_at)
+        }) && local_side_unmoved(path, entry)
     });
     if unchanged {
         gathering.record(

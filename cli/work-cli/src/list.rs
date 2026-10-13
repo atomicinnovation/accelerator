@@ -1116,21 +1116,21 @@ mod tests {
         let mut baseline = Baseline::read(None).0;
         baseline.set(
             "0001",
-            Entry {
-                remote_updated_at: stamp.clone(),
-                remote_hash: "unused".to_owned(),
-                local_hash: synced_hash,
-                local_synced_at: 0,
-            },
+            Entry::persisted_legacy(
+                stamp.clone(),
+                "unused".to_owned(),
+                synced_hash,
+                0,
+            ),
         );
         baseline.set(
             "0002",
-            Entry {
-                remote_updated_at: stamp,
-                remote_hash: "unused".to_owned(),
-                local_hash: "a-different-hash".to_owned(),
-                local_synced_at: 0,
-            },
+            Entry::persisted_legacy(
+                stamp,
+                "unused".to_owned(),
+                "a-different-hash".to_owned(),
+                0,
+            ),
         );
 
         let items = vec![

@@ -255,11 +255,19 @@ fn push_writes_the_baseline_strictly_after_the_tracker_update(
     let (baseline, _) = store.load()?;
     let entry = baseline.get("0001").expect("entry recorded");
     assert_eq!(
-        entry.remote_updated_at,
+        entry.stamps().unwrap().remote_updated_at,
         RemoteTimestamp::Reported("2026-06-01T00:00:00Z".to_owned())
     );
-    assert!(!entry.remote_hash.is_empty());
-    assert!(!entry.local_hash.is_empty());
+    assert!(!entry
+        .legacy()
+        .and_then(|hashes| hashes.remote.clone())
+        .unwrap_or_default()
+        .is_empty());
+    assert!(!entry
+        .legacy()
+        .and_then(|hashes| hashes.local.clone())
+        .unwrap_or_default()
+        .is_empty());
     Ok(())
 }
 
@@ -355,9 +363,22 @@ fn a_failed_post_push_show_still_writes_the_entry_with_not_read(
     let entry = baseline
         .get("0001")
         .expect("entry recorded despite the failed show");
-    assert_eq!(entry.remote_updated_at, RemoteTimestamp::NotRead);
-    assert_eq!(entry.remote_hash, "");
-    assert!(!entry.local_hash.is_empty());
+    assert_eq!(
+        entry.stamps().unwrap().remote_updated_at,
+        RemoteTimestamp::NotRead
+    );
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        ""
+    );
+    assert!(!entry
+        .legacy()
+        .and_then(|hashes| hashes.local.clone())
+        .unwrap_or_default()
+        .is_empty());
     Ok(())
 }
 
@@ -434,8 +455,20 @@ fn pull_derives_both_hashes_from_post_overwrite_state() -> Result<(), TestError>
     let expected_local = work_adapters::sync::digest::local(item_content())?;
     let expected_remote =
         work_adapters::sync::digest::remote_body("Title\nNew projected body\n");
-    assert_eq!(entry.local_hash, expected_local);
-    assert_eq!(entry.remote_hash, expected_remote);
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default(),
+        expected_local
+    );
+    assert_eq!(
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.remote.clone())
+            .unwrap_or_default(),
+        expected_remote
+    );
     Ok(())
 }
 
