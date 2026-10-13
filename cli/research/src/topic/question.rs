@@ -177,6 +177,7 @@ impl UnicodeText for FakeUnicode {
                 '\u{FF0E}' => '.',
                 '\u{FF0F}' => '/',
                 '\u{FF1F}' => '?',
+                '\u{FF21}' => 'A',
                 '\u{FF61}' => IDEOGRAPHIC_FULL_STOP,
                 other => other,
             })

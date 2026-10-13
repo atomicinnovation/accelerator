@@ -1286,6 +1286,57 @@ fn a_finding_whose_question_left_the_outline_is_left_in_place(
 }
 
 #[test]
+fn a_finding_whose_question_was_reworded_to_the_same_normalised_form_is_kept(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-refolded", "- [ ] A?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+    project.write(
+        &format!("{TOPICS}/s/outline.md"),
+        &outline("- [ ] \u{FF21}?"),
+    )?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"]["valid"],
+        json!([left("01-a-web", "\u{FF21}?")])
+    );
+    assert_eq!(plan["replaced_run"]["quarantine"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_node_under_a_root_marker_naming_another_question_is_unwritten(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-marked-root", "- [ ] A?")?;
+    let args = ["--depth", "2"];
+    let (offered, _) = started(&project, &args)?;
+    assert_eq!(spawns_of(&offered)?, ["01-a-web:1"]);
+    project.write(
+        &format!("{TOPICS}/s/findings/01-a-web.levels/.1.md.invalid"),
+        &level_note_with(
+            "01-a-web",
+            "1",
+            "question: \"Other?\"\nlevel: 1\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = started(&project, &args)?;
+
+    assert_eq!(
+        plan["replaced_run"]["unwritten"],
+        json!([left("01-a-web:1", "A?")])
+    );
+    assert_eq!(plan["replaced_run"]["valid"], json!([]));
+    Ok(())
+}
+
+#[test]
 fn an_unwritten_spawn_whose_question_left_the_outline_names_no_pair(
 ) -> Result<(), TestError> {
     let project = small_set("replaced-unasked", "- [ ] A?")?;

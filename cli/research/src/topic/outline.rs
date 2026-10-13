@@ -107,6 +107,14 @@ impl OutlineItem {
             })
             .map(|profile| self.pair(profile))
     }
+
+    pub(crate) fn pair_ending(&self, stem: &Stem) -> Option<Pair> {
+        let text = stem.to_string();
+        self.profiles()
+            .into_iter()
+            .find(|profile| text.ends_with(&format!("-{profile}")))
+            .map(|profile| self.pair(profile))
+    }
 }
 
 fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
@@ -243,6 +251,19 @@ mod tests {
         let not_asking =
             only_item("- [ ] A? — profiles: web").ok_or("an item")?;
         assert_eq!(not_asking.pair_at(&at), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_pair_whose_profile_ends_a_stem_its_slug_no_longer_rebuilds(
+    ) -> Result<(), &'static str> {
+        let item = only_item("- [ ] \u{FF21}? — profiles: web, openalex")
+            .ok_or("an item")?;
+        let at = stem("01-a-openalex").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), None);
+        assert_eq!(item.pair_ending(&at), Some(pair("\u{FF21}?", "openalex")));
+        let elsewhere = stem("01-a-arxiv").ok_or("a stem")?;
+        assert_eq!(item.pair_ending(&elsewhere), None);
         Ok(())
     }
 }

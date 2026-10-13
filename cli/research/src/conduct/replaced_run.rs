@@ -10,6 +10,7 @@ use crate::topic::evidence::LevelsDirectory;
 use crate::topic::layout::note_ref::NoteRef;
 use crate::topic::layout::stem::Stem;
 use crate::topic::outline::Outline;
+use crate::topic::outline::OutlineItem;
 use crate::topic::outline::Pair;
 use crate::topic::plan::RoundInputs;
 use crate::topic::plan::RoundPlan;
@@ -209,7 +210,8 @@ struct Judge<'a> {
 
 impl Judge<'_> {
     fn owner(&self, stem: &Stem) -> Option<Pair> {
-        self.outline
+        let claimants: Vec<&OutlineItem> = self
+            .outline
             .items
             .iter()
             .filter(|item| {
@@ -217,7 +219,13 @@ impl Judge<'_> {
                     NormalisedQuestion::of(&item.question, self.unicode);
                 self.claims.index_for(&question) == Some(stem.index())
             })
+            .collect();
+        claimants
+            .iter()
             .find_map(|item| item.pair_at(stem))
+            .or_else(|| {
+                claimants.iter().find_map(|item| item.pair_ending(stem))
+            })
     }
 
     fn finding(&self, stem: &Stem, inputs: &RoundInputs) -> Verdict {
@@ -518,6 +526,17 @@ mod tests {
         let report = report(inputs, &[("A b?", 1)], &["01-a-b-web"]);
         assert_eq!(spawns(report.valid()), ["01-a-b-web"]);
         assert_eq!(owners(report.valid()), [Some(pair("A   b?", "web"))]);
+    }
+
+    #[test]
+    fn a_pair_whose_question_was_reworded_to_the_same_normalised_form_keeps_its_finding(
+    ) {
+        let mut inputs = inputs(&["- [ ] \u{FF21}?"]);
+        inputs.findings = vec![answering("01-a-web.md", "A?", "web")];
+        let report = report(inputs, &[("A?", 1)], &["01-a-web"]);
+        assert_eq!(spawns(report.valid()), ["01-a-web"]);
+        assert_eq!(owners(report.valid()), [Some(pair("\u{FF21}?", "web"))]);
+        assert!(report.quarantine().is_empty());
     }
 
     #[test]
