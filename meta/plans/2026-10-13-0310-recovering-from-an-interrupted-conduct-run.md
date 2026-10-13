@@ -13,7 +13,7 @@ relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
-last_updated: "2026-10-13T21:15:00+00:00"
+last_updated: "2026-10-13T21:35:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -199,6 +199,11 @@ interrupted-run walkthrough under Testing Strategy.
   misdirected one is counted as the answer to the question it names, and the
   next `--run` reports it under `unexpected`, because the ledger's `seen`
   never held it. Carrying the list would need a new ledger field.
+- Correcting the class of a node with no note whose pair gained a valid
+  finding out of band (a hand edit, another run, a checkout). It is reported
+  "not written; offered again" though the plan offers nothing. Calling it
+  valid would claim a note that does not exist and credit the earlier run,
+  which cannot have composed a pair whose node was in its last batch.
 - Recognising a usage limit, or any cause, in the next run.
 - Reasons for an invalid finding: finding validation discards its violations
   (`cli/research-adapters/src/topic.rs:222-248`).
