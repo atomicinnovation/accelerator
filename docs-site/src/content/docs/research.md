@@ -524,9 +524,12 @@ ledger when the run finishes.
 
 It is read-only unless `--start` or `--run` is given; a run records its
 ledger in `<set>/.conduct-run.json`, which `end-run` removes. A leftover
-ledger means a run was interrupted, and is safe to delete; consider ignoring
-`**/.conduct-run.json`. A person clears a leftover ledger by deleting it or
-by re-running `conduct`.
+ledger means a run did not end. If its session showed an agent usage limit,
+wait until the reset time in the message, or raise the limit when it gives
+none. Then re-run `conduct`, which reports what that run left of its last
+batch and quarantines the invalid findings it wrote. Deleting the ledger
+instead skips both and leaves those findings counted. Consider ignoring
+`**/.conduct-run.json`.
 
 Each exit code below exits `1`:
 

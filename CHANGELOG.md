@@ -142,8 +142,11 @@
   as `replaced_run` and plans as if its invalid findings were already
   quarantined; `conduct` shows that report before its first batch and
   quarantines those findings. A run keeps a transient
-  `<set>/.conduct-run.json`, removed on completion and safe to delete after
-  an interrupted run; consider adding
+  `<set>/.conduct-run.json`, removed on completion; a leftover one means a
+  run did not end, and re-running `conduct` recovers what it left, where
+  deleting the ledger would skip that. `conduct`'s failure-reason table
+  gains an "unfinished run" row: re-run `conduct`, first waiting out any
+  agent usage limit the earlier session showed. Consider adding
   `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
