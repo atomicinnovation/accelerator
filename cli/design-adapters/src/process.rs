@@ -78,6 +78,8 @@ fn daemon_environment(
 /// stdio slot, so nothing the daemon does to its own streams disturbs it.
 pub const IDENTITY_FD: libc::c_int = 3;
 
+const _: () = assert!(IDENTITY_FD < tree_lease::LOWEST_LEASE_DESCRIPTOR);
+
 /// The variable naming [`IDENTITY_FD`] to the child.
 pub const IDENTITY_FD_VAR: &str = "ACCELERATOR_PLAYWRIGHT_IDENTITY_FD";
 

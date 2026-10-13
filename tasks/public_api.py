@@ -89,7 +89,9 @@ _EXEMPT_MEMBERS = {
     "tree-lease": (
         "a hold and an observe over flock: its contract is the kernel lock"
         " held, covered by its own lock-observation tests and by every"
-        " reclaimer that probes it"
+        " reclaimer that probes it. Its one cross-crate constant,"
+        " LOWEST_LEASE_DESCRIPTOR, is enforced by a compile-time assertion in"
+        " its consumer"
     ),
     "http-test-support": _TEST_SUPPORT,
     "graphql-test-support": _TEST_SUPPORT,

@@ -652,16 +652,16 @@ invariant at compile time.
 
 #### Automated Verification
 
-- [ ] The warm-path test fails before item 4 and passes after it: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design --test executor_runtime`
-- [ ] `tree-lease` floor test passes: `cargo test --manifest-path cli/Cargo.toml -p tree-lease`
-- [ ] `IDENTITY_FD` floor assertion compiles: `cargo build --manifest-path cli/Cargo.toml -p design-adapters`
-- [ ] Spawner suite still passes: `cargo test --manifest-path cli/Cargo.toml -p design-adapters --test spawn_properties`
-- [ ] Launcher lease tests still pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
-- [ ] `mise run check` exits 0
+- [x] The warm-path test fails before item 4 and passes after it: `cargo test --manifest-path cli/Cargo.toml -p accelerator-design --test executor_runtime`
+- [x] `tree-lease` floor test passes: `cargo test --manifest-path cli/Cargo.toml -p tree-lease`
+- [x] `IDENTITY_FD` floor assertion compiles: `cargo build --manifest-path cli/Cargo.toml -p design-adapters`
+- [x] Spawner suite still passes: `cargo test --manifest-path cli/Cargo.toml -p design-adapters --test spawn_properties`
+- [x] Launcher lease tests still pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --test tree_resolution`
+- [x] `mise run check` exits 0
 
 #### Manual Verification
 
-- [ ] The red run's failure names the driver lease, which confirms the fd 3
+- [x] The red run's failure names the driver lease, which confirms the fd 3
       hypothesis. If it names neither lease, stop and re-plan, because the
       cause is not the clobber.
 

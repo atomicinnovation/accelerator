@@ -78,8 +78,10 @@ dependencies = [
  "design",
  "design-adapters",
  "kernel",
+ "rustix",
  "serde_json",
  "tempfile",
+ "tree-lease",
  "vcs-adapters",
  "vcs-test-support",
 ]
@@ -1121,6 +1123,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "tree-lease",
 ]
 
 [[package]]

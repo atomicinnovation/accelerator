@@ -7,6 +7,10 @@
 
 use std::path::{Path, PathBuf};
 
+/// Children may repurpose low fixed descriptors, which would silently close a
+/// lease sitting there.
+pub const LOWEST_LEASE_DESCRIPTOR: i32 = 10;
+
 #[cfg(unix)]
 pub use unix::{hold_shared_lease, observed_held, SharedLease};
 
@@ -56,14 +60,16 @@ impl std::error::Error for LeaseError {
 #[cfg(unix)]
 mod unix {
     use std::fs::{File, OpenOptions};
-    use std::os::fd::AsFd;
+    use std::os::fd::{AsFd, OwnedFd};
     use std::os::unix::fs::OpenOptionsExt as _;
     use std::path::Path;
 
     use rustix::fs::{flock, FlockOperation};
-    use rustix::io::{fcntl_getfd, fcntl_setfd, Errno, FdFlags};
+    use rustix::io::{
+        fcntl_dupfd_cloexec, fcntl_getfd, fcntl_setfd, Errno, FdFlags,
+    };
 
-    use super::LeaseError;
+    use super::{LeaseError, LOWEST_LEASE_DESCRIPTOR};
 
     /// A held shared lease. The tree it pins stays reclamation-proof for as
     /// long as this value — or any process that inherited the open file
@@ -89,12 +95,29 @@ mod unix {
     ///
     /// [`LeaseError`] if the sidecar cannot be created or locked.
     pub fn hold_shared_lease(path: &Path) -> Result<SharedLease, LeaseError> {
-        let file = open_lease_file(path)?;
-        flock(file.as_fd(), FlockOperation::LockShared).map_err(|error| {
+        let raised = opened_above_floor(path)?;
+        flock(raised.as_fd(), FlockOperation::LockShared).map_err(|error| {
             LeaseError::new("cannot take the lease", path, error)
         })?;
+        let file = File::from(raised);
         clear_cloexec(&file, path)?;
         Ok(SharedLease { file })
+    }
+
+    /// Where `flock` is emulated with POSIX locks, closing any descriptor for
+    /// the file drops the process's lock, so the low descriptor is closed
+    /// before the lock is taken on the raised one.
+    fn opened_above_floor(path: &Path) -> Result<OwnedFd, LeaseError> {
+        let opened = open_lease_file(path)?;
+        fcntl_dupfd_cloexec(opened.as_fd(), LOWEST_LEASE_DESCRIPTOR).map_err(
+            |error| {
+                LeaseError::new(
+                    "cannot raise the lease descriptor of",
+                    path,
+                    error,
+                )
+            },
+        )
     }
 
     /// Whether any live process holds the lease, probed with a non-blocking
@@ -160,11 +183,13 @@ mod unix {
     #[cfg(test)]
     #[allow(clippy::expect_used)]
     mod tests {
-        use std::os::fd::AsFd as _;
+        use std::os::fd::{AsFd as _, AsRawFd as _};
 
         use rustix::io::{fcntl_getfd, FdFlags};
 
-        use super::{hold_shared_lease, observed_held};
+        use super::{
+            hold_shared_lease, observed_held, LOWEST_LEASE_DESCRIPTOR,
+        };
 
         fn cloexec_set(file: &std::fs::File) -> bool {
             fcntl_getfd(file.as_fd())
@@ -182,7 +207,9 @@ mod unix {
             let path = dir.path().join("gen.lease");
             let lease = hold_shared_lease(&path).expect("hold");
             assert!(held(&path));
-            drop(lease);
+            let moved = vec![lease];
+            assert!(held(&path));
+            drop(moved);
             assert!(!held(&path));
         }
 
@@ -208,6 +235,14 @@ mod unix {
                 !cloexec_set(lease.file()),
                 "FD_CLOEXEC must be cleared so the lease survives exec"
             );
+        }
+
+        #[test]
+        fn a_lease_never_sits_on_a_low_descriptor() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let lease =
+                hold_shared_lease(&dir.path().join("gen.lease")).expect("hold");
+            assert!(lease.file().as_raw_fd() >= LOWEST_LEASE_DESCRIPTOR);
         }
 
         #[test]
