@@ -1,14 +1,14 @@
 ---
 type: "codebase-research"
-id: "2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness"
-title: "Tree leases on the cold path and under Unknown liveness (work item 0330)"
+id: "2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"
+title: "Tree leases on the cold path and under Unknown liveness (work item 0334)"
 date: "2026-10-12T02:54:33+00:00"
 author: "Toby Clemson"
 producer: "research-codebase"
 status: "complete"
-work_item_id: "0330"
-parent: "work-item:0330"
-topic: "Tree leases on the cold path and under Unknown liveness (work item 0330)"
+work_item_id: "0334"
+parent: "work-item:0334"
+topic: "Tree leases on the cold path and under Unknown liveness (work item 0334)"
 tags: ["research", "codebase", "launcher", "design-adapters", "design-cli", "tree-lease", "lease", "prune", "repair", "cache"]
 revision: "7d85640a867ac7ac968b4ab359e832e8edb9d223"
 repository: "accelerator"
@@ -17,7 +17,7 @@ last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
 
-# Tree leases on the cold path and under Unknown liveness (work item 0330)
+# Tree leases on the cold path and under Unknown liveness (work item 0334)
 
 **Date**: 2026-10-12 02:54 UTC
 **Author**: Toby Clemson
@@ -27,7 +27,7 @@ schema_version: 1
 
 ## Research Question
 
-What does the codebase look like around work item 0330? The item covers three
+What does the codebase look like around work item 0334? The item covers three
 things: extracting the lease primitive into a `tree-lease` crate, holding
 leases on the executor's cold path, and treating `Liveness::Unknown` as
 not-free in `reclaim_unclaimed` and `reap_superseded`. This research maps the
@@ -369,12 +369,12 @@ Other changes outside the checklist:
   - Phase 3 deviation 1 (`:494-500`) deferred the cold-path lease because it was
     "only end-to-end verifiable with a real daemon and a concurrent
     `cache prune`".
-  - Unticked criteria `:2244-2249` are effectively inherited by 0330.
+  - Unticked criteria `:2244-2249` are effectively inherited by 0334.
 - `meta/decisions/ADR-0061-signed-content-addressed-tree-generations.md` explains
   why leases exist: Chromium lazily opens `.pak`, locale and ICU files
   (`:61-66`). ⚠️ `:145-146` limits the age backstop to lease-less generations,
-  whereas the 0196 plan, the implementation and 0330 apply it to `Unknown` too.
-  The 0330 review settled in pass 3 that no ADR amendment is needed.
+  whereas the 0196 plan, the implementation and 0334 apply it to `Unknown` too.
+  The 0334 review settled in pass 3 that no ADR amendment is needed.
 - `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md:91-94`
   carries the lease and backstop forward unchanged.
 - `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
@@ -382,7 +382,7 @@ Other changes outside the checklist:
   as a technical library.
 - `meta/work/0223-bounding-the-default-runtime-cache-root.md:132-143` is the
   spike note that handed both defects over.
-- `meta/reviews/work/0330-tree-leases-are-not-held-on-the-cold-path-or-honoured-when-review-1.md`
+- `meta/reviews/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when-review-1.md`
   ends in APPROVE after pass 5. Pass 5 widened the `repair` exposure to every
   root and recast the `reclaim_unclaimed` change as a narrow mitigation.
 - `meta/plans/2026-08-11-0196-design-cli-migration.md:218-225,1055-1068` records

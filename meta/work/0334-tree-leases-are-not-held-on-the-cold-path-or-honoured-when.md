@@ -1,6 +1,6 @@
 ---
 type: "work-item"
-id: "0330"
+id: "0334"
 title: "Tree leases are not held on the cold path or honoured when liveness is unknown"
 date: "2026-10-11T15:00:35+00:00"
 author: "Toby Clemson"
@@ -15,7 +15,7 @@ last_updated: "2026-10-13T09:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
-# 0330: Tree leases are not held on the cold path or honoured when liveness is unknown
+# 0334: Tree leases are not held on the cold path or honoured when liveness is unknown
 
 **Kind**: Bug
 **Status**: Ready

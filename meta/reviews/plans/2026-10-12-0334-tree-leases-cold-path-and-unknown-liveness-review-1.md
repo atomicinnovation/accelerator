@@ -1,12 +1,12 @@
 ---
 type: "plan-review"
-id: "2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness-review-1"
+id: "2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness-review-1"
 title: "Plan Review: Tree Leases on the Cold Path and Under Unknown Liveness Implementation Plan"
 date: "2026-10-12T22:22:04+00:00"
 author: "Toby Clemson"
 producer: "review-plan"
 status: "complete"
-target: "plan:2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness"
+target: "plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["architecture", "code-quality", "test-coverage", "correctness", "safety", "portability", "standards"]
@@ -343,7 +343,7 @@ The plan's diagnosis is right. All seven lenses accept the fd 3 clobber analysis
 - 🟡 **Correctness** (also Architecture, Safety): A `TreeGone` tree is skipped but still handed to the daemon. A gone driver surfaces as `ENOENT` → `LoaderUnresolvable`, a sticky host-condition marker. The re-check should change the outcome: re-run `cache ensure` once, otherwise downgrade non-stickily with `ArtifactUnavailable`.
 - 🔵 **Safety**: `TreeLeases` deletes a possibly-held lease file when `is_dir()` returns false, which also happens on any stat error. Only `NotFound` should count as gone, and the file should be unlinked only if `observed_held` reads free after this process has released its lease.
 - 🔵 **Safety**: The age backstop counts from the generation's extraction mtime. The rename at `resolver.rs:324` does not refresh it, so an `Unknown` superseded generation older than an hour is reaped on the next `reap_orphans` pass, and the "deferral" gives no grace.
-- 🔵 **Safety + Correctness**: The plan and the 0330 correction say the re-check "covers" the race. The reclaimers' probe-then-remove window, and a multi-second `remove_dir_all`, remain open, so the wording should say "narrows".
+- 🔵 **Safety + Correctness**: The plan and the 0334 correction say the re-check "covers" the race. The reclaimers' probe-then-remove window, and a multi-second `remove_dir_all`, remain open, so the wording should say "narrows".
 - 🔵 **Portability**: Closing every descriptor listed in `/dev/fd` includes the listing's own directory descriptor. Closing it through `OwnedFd` aborts in debug builds, so the raw `rustix::io::close` should be used, or that descriptor skipped.
 - 🔵 **Portability + Correctness**: `Signal::Term` does not exist in rustix 1.1.4. The constant is `Signal::TERM` (verified at `src/signal.rs:87`), and the pid needs `Pid::from_raw`.
 - 🔵 **Code Quality**: `Ensured.leases` is an `Option`, but `PinnedResolution.pinned_trees` is not, and `TreeLeases` has no empty constructor.

@@ -1,14 +1,14 @@
 ---
 type: "work-item-review"
-id: "0330-tree-leases-are-not-held-on-the-cold-path-or-honoured-when-review-1"
+id: "0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when-review-1"
 title: "Work Item Review: Tree leases are not held on the cold path or honoured when liveness is unknown"
 date: "2026-10-11T17:30:50+00:00"
 author: "Toby Clemson"
 producer: "review-work-item"
 status: "complete"
 parent: "work-item:0136"
-target: "work-item:0330"
-work_item_id: "0330"
+target: "work-item:0334"
+work_item_id: "0334"
 reviewer: "Toby Clemson"
 verdict: "APPROVE"
 lenses: ["clarity", "completeness", "dependency", "scope", "testability"]

@@ -1,14 +1,14 @@
 ---
 type: "plan"
-id: "2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness"
+id: "2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"
 title: "Tree Leases on the Cold Path and Under Unknown Liveness Implementation Plan"
 date: "2026-10-12T09:37:58+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
 status: "ready"
-work_item_id: "work-item:0330"
-parent: "work-item:0330"
-derived_from: ["codebase-research:2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness"]
+work_item_id: "work-item:0334"
+parent: "work-item:0334"
+derived_from: ["codebase-research:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["runtime", "cache", "lease", "prune", "design", "tree-lease"]
 revision: "db946b0fc53884aa5938fe92c6a2b9222dc52963"
 repository: "accelerator"
@@ -254,7 +254,7 @@ Decisions taken during planning:
 
 | Decision | Choice | Consequence |
 |---|---|---|
-| Fd 3 clobber | Descriptor floor inside `tree-lease` | Fixes warm and cold alike, which exceeds the work item's warm-path scope bound. The deviation is recorded on 0330 in Phase 6. |
+| Fd 3 clobber | Descriptor floor inside `tree-lease` | Fixes warm and cold alike, which exceeds the work item's warm-path scope bound. The deviation is recorded on 0334 in Phase 6. |
 | Cold-path lease failure | Proceed unleased, with a `warning:` line | Behaviour on filesystems without `flock` is unchanged, the daemon still spawns, and the skip is diagnosable |
 | Tree gone before its lease | Re-check after leasing; re-run `cache ensure` once, then downgrade without a marker | A reclaim race is a clean, retryable miss rather than a sticky `loader-unresolvable`, and no stray `.lease` is left |
 | Sidecars of deferred generations | `reap_orphans` removes them | An `Unknown` superseded generation is cleaned up completely once it ages |
@@ -1377,13 +1377,13 @@ with the real runtime:
 1. While a crawl has launched Chromium, run
    `lsof -p <chrome pids> | grep '\.lease'`, or on Linux without `lsof`,
    `ls -l /proc/<chrome pid>/fd | grep '\.lease'`.
-2. Record the answer in work item 0330's Open Questions.
+2. Record the answer in work item 0334's Open Questions.
 3. If any browser process holds a lease, use `/accelerator:create-work-item` to
-   create the follow-up item. Then add it to 0330's `blocks` and `relates_to`.
+   create the follow-up item. Then add it to 0334's `blocks` and `relates_to`.
 
 #### 6. Work item update
 
-In `meta/work/0330-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`,
+In `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`,
 use `/accelerator:update-work-item` to:
 
 - **Record the scope deviation:** under Drafting Notes, record that the warm-path
@@ -1416,10 +1416,10 @@ use `/accelerator:update-work-item` to:
 
 #### Manual Verification
 
-- [x] The descendant question is answered and recorded on 0330
-- [x] 0330 records the scope deviation, the test split and the corrected
+- [x] The descendant question is answered and recorded on 0334
+- [x] 0334 records the scope deviation, the test split and the corrected
       accepted-gap assumption
-- [x] Every acceptance criterion on 0330 is ticked against the map
+- [x] Every acceptance criterion on 0334 is ticked against the map
 
 ---
 
@@ -1500,8 +1500,8 @@ the work item's Assumptions accept.
 
 ## References
 
-- Work item: `meta/work/0330-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
-- Research: `meta/research/codebase/2026-10-12-0330-tree-leases-cold-path-and-unknown-liveness.md`
+- Work item: `meta/work/0334-tree-leases-are-not-held-on-the-cold-path-or-honoured-when.md`
+- Research: `meta/research/codebase/2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness.md`
 - Contract origin: `meta/plans/2026-08-11-0196-design-vendored-runtime-distribution.md:1700-1738`
 - Decisions: `meta/decisions/ADR-0061-signed-content-addressed-tree-generations.md`, `meta/decisions/ADR-0064-producer-signed-tree-attestation-over-a-compiled-in-digest.md`, `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
 - Template crate: `cli/process-probe/`; template rule and probe pair: `cli/pup.ron:203-221`, `tests/integration/pup/test_import_rule.py:916-993`

@@ -9,7 +9,7 @@ status: "done"
 kind: "spike"
 priority: "low"
 parent: "work-item:0136"
-relates_to: ["work-item:0196", "work-item:0218", "work-item:0330"]
+relates_to: ["work-item:0196", "work-item:0218", "work-item:0334"]
 tags: ["distribution", "runtime", "cache", "prune", "design"]
 last_updated: "2026-10-11T12:52:42+00:00"
 last_updated_by: "Toby Clemson"
@@ -67,7 +67,7 @@ Time-box: conducted within a single work-item refinement session.
 - [x] A decision on ADR-0063 is recorded: it stands, so no superseding ADR is
       written.
 - [x] Defects found during the spike are captured in a follow-up work item
-      (0330).
+      (0334).
 
 ## Open Questions
 
@@ -78,7 +78,7 @@ None remaining. The lease question is answered in Technical Notes.
 - Relates to: 0196 (the vendored-runtime work), 0218 (bounding the launcher's
   single-file sub-binary cache in the same `bin/` directory), and ADR-0063.
 - Blocks: nothing — no implementation follows from the outcome.
-- Follow-up: 0330 (the lease defects found during this spike).
+- Follow-up: 0334 (the lease defects found during this spike).
 
 ## Assumptions
 
@@ -135,7 +135,7 @@ Proposed during the spike and rejected:
 held-lease skip, and claim window — with no default/relocated distinction. In a
 per-version root, the tree in use is always the launcher's compiled-in digest,
 which `prune` never reclaims. Two gaps matter only on a shared
-`ACCELERATOR_CACHE_DIR` root and are carried to follow-up work item 0330:
+`ACCELERATOR_CACHE_DIR` root and are carried to follow-up work item 0334:
 
 - The cold path takes no lease: `cache ensure` prints the lease path, but no
   consumer opens it (`design-adapters/src/ensure.rs:102-118`).
@@ -170,4 +170,4 @@ design plan and was never implemented. With ADR-0063 standing, it is not needed.
 - Claude Code plugins reference (`CLAUDE_PLUGIN_DATA`):
   https://code.claude.com/docs/en/plugins-reference
 - anthropics/claude-code#82145, #61855
-- Related: 0196; 0218; 0330; ADR-0063; ADR-0064
+- Related: 0196; 0218; 0334; ADR-0063; ADR-0064
