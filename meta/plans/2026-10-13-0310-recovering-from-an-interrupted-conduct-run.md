@@ -13,7 +13,7 @@ relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
-last_updated: "2026-10-13T21:35:00+00:00"
+last_updated: "2026-10-13T21:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1078,9 +1078,22 @@ report.
   instruction pairs "written by run {run}; kept" with `valid`, "written but
   invalid; offered again" with `invalid`, "not written; offered again" with
   `unwritten`, and "for a question the outline no longer asks; left in
-  place" with `unasked`, marks each `invalid` entry whose finding is in
-  `quarantine` with "(quarantined)", and reads an `invalid` entry with a
-  `null` question as "(quarantined; no outline pair asks it now)".
+  place" with `unasked`.
+- `test_the_report_marks_quarantined_entries`: each `invalid` entry whose
+  finding is in `quarantine` is marked "(quarantined)", and an `invalid`
+  entry with a `null` question reads "(quarantined; no outline pair asks it
+  now)".
+- `test_the_report_is_printed_verbatim_before_any_other_tool_call`: the
+  report instruction says "print the report below verbatim before any other
+  tool call", "never summarise or paraphrase it" and "Rename, clear and
+  spawn nothing until the report is printed.", opens a `text` template with
+  the fixed sentence, and starts its rename paragraph "Only once the report
+  is printed".
+- `test_clearing_waits_for_the_report`: step 3 says "only once any step 2
+  report is printed".
+- `test_the_summary_opens_with_the_report`: step 7's summary lists
+  "**Unfinished run.** The step 2 report, unchanged, when the first plan
+  carried `replaced_run`." before **Failures**.
 - `test_conduct_opens_the_report_with_the_fixed_sentence`: `_prose` of the
   conduct section contains "run {run} did not end; if it is still going, it
   stops at its next batch, and what it writes from now on may show as
@@ -1219,9 +1232,9 @@ pub fn replaced_notice(replaced: &ReplacedRun) -> String {
         notice
     } else {
         format!(
-            "{notice}; rename each replaced_run quarantine path to \
-             .<name>.invalid beside it, never deleting it, before acting \
-             on this plan"
+            "{notice}; a hand run renames each replaced_run quarantine \
+             path to .<name>.invalid beside it, never deleting it, before \
+             acting on this plan"
         )
     }
 }
@@ -1239,7 +1252,8 @@ loop chains `replaced_run.as_ref().map(ledger_wording::replaced_notice)` after
   `[]`, stderr is exactly the short `replaced_notice` line for `{first}`
   (its batch quarantines nothing), and the stored ledger is the new run's.
 - `a_stale_ledger_with_findings_to_quarantine_asks_a_hand_run_to_rename_them`:
-  over the misdirected fixture, stderr is the long line.
+  after a first `--start`, a finding failing validation at `01-a-web`;
+  `warnings` is `[]` and stderr is the long line.
 - `stderr_orders_a_clamp_a_replaced_ledger_and_a_trim`: a readable stale
   ledger, a clamped concurrency and an over-cap note; assert the stderr lines
   in that order.
@@ -1340,6 +1354,15 @@ reset time in the message, or raise the limit when it gives none". The user
 never sees the table, so the report states the row's step inline, phrased
 for this run.
 
+This sentence was written for a report shown before the first batch. The
+report reliably appears only at the top of the final summary (Phase 3), by
+which point "this run offers … again" and "if this run stops before it
+ends" read as past and moot. Reword it, and the
+`test_the_report_states_the_next_step_if_this_run_stops` phrases, for the
+summary before implementing this phase: what the run re-researched, and
+that a later interruption is recovered by re-running `conduct <slug>`,
+after the wait step when a usage limit showed.
+
 #### 3. Docs and changelog
 
 **File**: `docs-site/src/content/docs/research.md`
@@ -1408,6 +1431,12 @@ it left, where deleting the ledger would skip that", and add the
 
 ### Manual Testing Steps:
 
+Run each session against local builds, as `CONTRIBUTING.md` describes:
+`--plugin-dir` alone loads the checkout's skills but runs the released
+`accelerator-research`, which emits no `replaced_run`. An interrupted run
+can be simulated through the CLI: `--start`, write what the batch's agents
+would have, then `conduct`.
+
 1. In a scratch set at depth 2, run `/accelerator:research-topic conduct
    <slug>` and stop the session after the first batch is offered and some
    agents have written.
@@ -1424,6 +1453,8 @@ it left, where deleting the ledger would skip that", and add the
 7. Repeat with a replaced batch whose only leftover is a finding answering a
    sibling pair, and nothing else outstanding; confirm the file is
    quarantined, the first plan offers its pairs, and they are researched.
+8. Repeat with a stale ledger whose last batch was empty; confirm the
+   summary shows the opening sentence alone.
 
 ## Performance Considerations
 
