@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-12T22:47:41+00:00"
+last_updated: "2026-10-13T08:37:32+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -222,8 +222,9 @@ leading blank line in the pushed body survives.
 
 #### Implementation Notes:
 
-- Deferred: capture needs PP Linear credentials, and only Phase 5 onwards
-  reads the fixtures, so Phases 1 to 4 proceed without it.
+- Deferred: capture needs PP Linear credentials, and only Phase 6 onwards
+  reads the fixtures, so Phases 1 to 5 proceed without it. Phase 6 cannot
+  start until the fixtures are captured.
 
 ---
 
@@ -1296,8 +1297,7 @@ inline content as a `Paragraph`, so tightness lives only in `loose`.
 - `mise run` first failed in `test:integration:tasks`: the release-pin gate
   reads gitignored archives under `dist/release/`, and stale ones from an
   earlier local assembly no longer matched the pins. It exits 0 with them
-  moved aside.
-- Phase 0's fixtures are first read by Phase 6, not Phase 5.
+  moved aside, and the stale archives have since been deleted.
 
 ---
 
