@@ -768,18 +768,18 @@ emits.
 
 #### Automated Verification:
 
-- [ ] The new unit tests, and the reversed marker-or-tree test, fail before
+- [x] The new unit tests, and the reversed marker-or-tree test, fail before
       each body exists, then pass: `cargo test -p research` (from `cli/`)
-- [ ] Guard: the planner's other tests pass unchanged after `stem_at` and
+- [x] Guard: the planner's other tests pass unchanged after `stem_at` and
       `file_claims` replace the inline allocation and claim list
-- [ ] Public API pin matches: `mise run public-api:check`
-- [ ] Domain dependency rule holds: `mise run pup:check`
-- [ ] Workspace lint and format: `mise run cli:check`
-- [ ] Full local CI: `mise run`
+- [x] Public API pin matches: `mise run public-api:check`
+- [x] Domain dependency rule holds: `mise run pup:check`
+- [x] Workspace lint and format: `mise run cli:check`
+- [x] Full local CI: `mise run`
 
 #### Manual Verification:
 
-- [ ] Test names read as the classification rules in the work item, with no
+- [x] Test names read as the classification rules in the work item, with no
       comment needed to explain any of them
 
 ---
