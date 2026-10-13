@@ -1330,12 +1330,13 @@ row starting `| an unfinished run |`, and:
 - `test_the_unfinished_run_row_is_its_own_row`: it is distinct from the
   `rate_limited` row and the capacity row, and neither of those mentions
   "usage limit".
-- `test_the_report_states_the_next_step_if_this_run_stops`: the report
-  instruction, cut out with `_section`, contains "if this run stops before
-  it ends, re-run `conduct <slug>`" and "if this session shows an agent
-  usage limit, first wait until the reset time in the message, or raise the
-  limit when it gives none", and shows them only when `invalid` or
-  `unwritten` is non-empty.
+- `test_the_report_states_the_next_step_if_a_run_does_not_end`: the report
+  instruction, cut out with `_section`, contains "this run re-researched
+  each spawn marked offered again, and Failures lists any it did not
+  finish", "if a run does not end, re-run `conduct <slug>`" and "if its
+  session showed an agent usage limit, first wait until the reset time in
+  the message, or raise the limit when it gives none", and shows them only
+  when `invalid` or `unwritten` is non-empty.
 
 #### 2. The row and the report's next step
 
@@ -1346,22 +1347,15 @@ row starting `| an unfinished run |`, and:
 | an unfinished run | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
 ```
 
-The report instruction from Phase 3 gains, after the groups and only when
-`invalid` or `unwritten` is non-empty: "this run offers the invalid and
-unwritten spawns again; if this run stops before it ends, re-run `conduct
-<slug>`; if this session shows an agent usage limit, first wait until the
-reset time in the message, or raise the limit when it gives none". The user
-never sees the table, so the report states the row's step inline, phrased
-for this run.
-
-This sentence was written for a report shown before the first batch. The
-report reliably appears only at the top of the final summary (Phase 3), by
-which point "this run offers … again" and "if this run stops before it
-ends" read as past and moot. Reword it, and the
-`test_the_report_states_the_next_step_if_this_run_stops` phrases, for the
-summary before implementing this phase: what the run re-researched, and
-that a later interruption is recovered by re-running `conduct <slug>`,
-after the wait step when a usage limit showed.
+The report instruction from Phase 3 gains a closing sentence, shown only
+when `invalid` or `unwritten` is non-empty: "this run re-researched each
+spawn marked offered again, and Failures lists any it did not finish; if a
+run does not end, re-run `conduct <slug>`; if its session showed an agent
+usage limit, first wait until the reset time in the message, or raise the
+limit when it gives none". The user never sees the table, so the report
+states the row's step inline. The report reliably appears only at the top
+of the final summary, so the sentence reads as what this run did and how a
+later run that does not end is recovered.
 
 #### 3. Docs and changelog
 
@@ -1388,10 +1382,10 @@ it left, where deleting the ledger would skip that", and add the
 
 #### Automated Verification:
 
-- [ ] Row and report tests fail before the row exists, then pass:
+- [x] Row and report tests fail before the row exists, then pass:
       `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Docs lane: `mise run docs:check`
-- [ ] Full local CI: `mise run`
+- [x] Docs lane: `mise run docs:check`
+- [x] Full local CI: `mise run`
 
 #### Manual Verification:
 
