@@ -1,6 +1,6 @@
-In this repository, we prefer small, focused, easy to review commits. Find ways 
-to break up implementation into independent, coherent units and commit 
-frequently. At the very least, there should be one commit after each completed 
+In this repository, we prefer small, focused, easy to review commits. Find ways
+to break up implementation into independent, coherent units and commit
+frequently. At the very least, there should be one commit after each completed
 phase.
 
 Comments are a last resort. A comment is a signal that the code failed to
