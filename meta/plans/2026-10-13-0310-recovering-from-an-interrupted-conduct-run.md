@@ -1255,16 +1255,16 @@ findings, and `--start` plans as if they were quarantined.
 
 #### Automated Verification:
 
-- [ ] New and updated structure tests fail before the prose change, then
+- [x] New and updated structure tests fail before the prose change, then
       pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] The extended sibling test, the stranding test, the equivalence test,
+- [x] The extended sibling test, the stranding test, the equivalence test,
       the stale-ledger-without-warning rename, the hand-run rename line and
       the stderr-order test fail before the CLI change, then pass:
       `cargo test -p research-cli --test topic_outstanding` (from `cli/`)
-- [ ] Guards (fresh stems with the marker proxy, the corrupt-ledger order)
+- [x] Guards (fresh stems with the marker proxy, the corrupt-ledger order)
       pass before and after
-- [ ] Read-only CI set: `mise run check`
-- [ ] Full local CI: `mise run`
+- [x] Read-only CI set: `mise run check`
+- [x] Full local CI: `mise run`
 
 #### Manual Verification:
 
