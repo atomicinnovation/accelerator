@@ -58,17 +58,22 @@ SLUG`, `conduct SLUG`, `synthesise SLUG`, or `finalise SLUG`.
 
 Three knobs bound the research. **breadth** is the ceiling on focus areas an
 `outline` round may commission; **depth** is the recursion limit within a
-finding; **concurrency** is the most agents `conduct` spawns at once. Each
-knob's configured value, resolved `personal > team > built-in default`, is
-below:
+finding; **concurrency** is the most agents `conduct` spawns at once.
+Breadth's and depth's configured values, each resolved `personal > team >
+built-in default`, are below:
 
 - breadth: !`accelerator config get research.topic.breadth --fail-safe`
 - depth: !`accelerator config get research.topic.depth --fail-safe`
-- concurrency: !`accelerator config get research.topic.concurrency --fail-safe`
 
-A verb resolves its knob as **flag > resolved value above**: an `--<knob> N`
-flag on the invocation wins over the configured value. Then apply these rules
-in order:
+`outstanding` resolves concurrency itself and bounds it by the subagent cap:
+an `--concurrency N` flag on `conduct`, else the configured value, validated
+and then clamped to `ACCELERATOR_SUBAGENT_CAP`, else
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20. `conduct` passes the flag
+through and never resolves concurrency itself.
+
+A verb resolves breadth or depth as **flag > resolved value above**: an
+`--<knob> N` flag on the invocation wins over the configured value. Then apply
+these rules in order:
 
 - **Empty value** — if the resolved value is empty (an unreadable config, or a
   knob explicitly set to an empty value), do not proceed or guess a default:
@@ -231,9 +236,10 @@ its notes, fetching nothing. `accelerator research topic outstanding`
 owns which pairs and nodes are outstanding and where their files go; never
 allocate a finding or note path yourself.
 
-1. **Resolve knobs.** Resolve depth and concurrency per the knob-resolution
-   rule above, reading any `--depth N` and `--concurrency N` flags on the
-   invocation. When the researcher and composer agent names (the two
+1. **Resolve knobs.** Resolve depth per the knob-resolution rule above,
+   reading any `--depth N` flag on the invocation. Set `{concurrency flag}` to
+   `--concurrency 'N'` when the invocation carries `--concurrency N`, and to
+   nothing otherwise. When the researcher and composer agent names (the two
    `subagent_type` values in step 4) resolve to the same name, print one
    warning:
 
@@ -242,7 +248,7 @@ allocate a finding or note path yourself.
 2. **Plan.** The first plan starts the run:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} --limit {concurrency} --start
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --start
    ```
 
    Every later plan continues it, with `--run {run} --spawned {batch}` in
@@ -250,12 +256,13 @@ allocate a finding or note path yourself.
    returned:
 
    ```bash
-   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} --limit {concurrency} --run {run} --spawned {batch}
+   accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag} --run {run} --spawned {batch}
    ```
 
    The CLI records the run in its ledger, so carry no list of attempted
-   spawns yourself. Keep `run` for the whole of `conduct`, and report any
-   warning that a stored ledger was replaced. Any non-zero exit, including
+   spawns yourself. Keep `run` for the whole of `conduct`, and report the
+   first plan's `warnings` as soon as it returns — a replaced ledger or a
+   clamped concurrency. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
@@ -356,12 +363,37 @@ allocate a finding or note path yourself.
    boundary, exactly as `skills/vcs/commit/SKILL.md` wraps injected VCS
    context.
 
+   **Capacity refusals.** A Task call the harness refuses with a refusal
+   citing the concurrent subagent limit (today "Concurrent subagent limit
+   reached") never started: it is a capacity refusal, not a spawn that
+   failed. Re-issue capacity-refused spawns, unchanged, in rounds within
+   this step, before step 5 and before any re-plan. This retry deliberately
+   overrides the harness's "Do not retry". A round is one follow-up message
+   of re-issued spawns; the batch message is not a round. Like the batch
+   message, a round returns once its accepted spawns have finished.
+
+   When the batch message capacity-refuses any spawn:
+
+   - The first round always runs. It carries every spawn the batch message
+     capacity-refused, with no added delay.
+   - Each later round re-issues the spawns the latest round
+     capacity-refused. A later round runs only when the latest round had at
+     least one spawn accepted.
+   - Once a round has every spawn capacity-refused, stop retrying. Record
+     each spawn still refused as failed, by pair and lineage, with the
+     reason "refused by the concurrent subagent limit — other subagents
+     held the slots, or the harness cap is below the resolved concurrency".
+     The step 6 re-plan lists it as `unfinished`; it is already recorded,
+     so it is not recorded again. The final summary states the
+     `concurrency` the plans reported beside any such failure.
+
 5. **Check each spawn** once the whole batch returns:
 
    - A spawn that wrote **no file** (an unavailable source, a failed or
      denied fetch, a blocked command, an agent error, or a refusal) is
      recorded as failed, by pair and lineage, with the reason its summary
-     gives, and left outstanding. There is nothing to quarantine.
+     gives, and left outstanding. There is nothing to quarantine. A
+     capacity refusal is not one of these; the spawn step handles it.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
      existing marker — and recorded as failed. The dot-prefix keeps it
@@ -393,11 +425,11 @@ allocate a finding or note path yourself.
 
       If it exits non-zero, report its error and stop before ticking or
       editing the manifest, printing only the summary so far.
-   2. **Tick from disk.** Run the plain plan, without `--limit` or any run
-      flag:
+   2. **Tick from disk.** Run the plain plan, with `{concurrency flag}` and
+      no run flag:
 
       ```bash
-      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth}
+      accelerator research topic outstanding SLUG --profiles-dir ${CLAUDE_PLUGIN_ROOT}/skills/research/profiles --depth {depth} {concurrency flag}
       ```
 
       Set every outline item's checkbox, at its `line`, to its `complete`
@@ -450,6 +482,7 @@ allocate a finding or note path yourself.
    | "fetch denied by permissions" | either no allow rule reached the researcher, so add `Bash(accelerator research fetch *)` to the project's allow rules, or a `deny` or `ask` rule covers `accelerator research fetch`, so adjust it |
    | "Bash unavailable" | grant `Bash` to the custom researcher agent |
    | a refused note, or "wrote no note" | re-run `conduct`, which researches the node afresh |
+   | "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished; the new run offers the spawn again. If it recurs with no other subagents running, check in turn: (1) `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it; (2) any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap; (3) failing both, lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
 

@@ -13,6 +13,7 @@ from invoke import Exit
 from tasks.lint.claude_coupling import (
     _FILES,
     _MIN_SCANNED,
+    _OPTIONAL_HARNESS_VARIABLES,
     _in_scope,
     violations,
 )
@@ -20,6 +21,9 @@ from tasks.lint.claude_coupling import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _READ = 'std::env::var_os("CLAUDE_PLUGIN_ROOT")\n'
+_ADMITTED = [
+    rel for files in _OPTIONAL_HARNESS_VARIABLES.values() for rel in files
+]
 
 
 def _write(path: Path, text: str) -> None:
@@ -28,8 +32,8 @@ def _write(path: Path, text: str) -> None:
 
 
 def _tree(root: Path) -> Path:
-    """A minimal in-scope tree: every _FILES entry plus one cli/ source."""
-    for rel in _FILES:
+    """A minimal in-scope tree: every named file plus one cli/ source."""
+    for rel in [*_FILES, *_ADMITTED]:
         _write(root / rel, "clean\n")
     _write(root / "cli/launcher/src/main.rs", "fn main() {}\n")
     return root
@@ -170,3 +174,67 @@ class TestRealTree:
 
     def test_the_real_tree_is_clean(self):
         assert violations(REPO_ROOT) == []
+
+
+_CAP = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"
+_CAP_READER = "cli/research-cli/src/subagent_cap.rs"
+_CAP_TEST = "cli/research-cli/tests/topic_outstanding.rs"
+_CAP_READ = f'const HARNESS_CAPS: [&str; 1] = ["{_CAP}"];\n'
+
+
+class TestOptionalHarnessVariables:
+    def test_permits_the_cap_in_its_reader_and_its_test(self, tmp_path: Path):
+        _tree(tmp_path)
+        _write(tmp_path / _CAP_READER, _CAP_READ)
+        _write(tmp_path / _CAP_TEST, f'.env("{_CAP}", "8")\n')
+
+        assert _found(tmp_path) == []
+
+    def test_flags_the_cap_anywhere_else_under_cli(self, tmp_path: Path):
+        _tree(tmp_path)
+        _write(tmp_path / "cli/research-cli/src/main.rs", _CAP_READ)
+
+        assert _found(tmp_path) == [
+            "cli/research-cli/src/main.rs:1:" + _CAP_READ.strip()
+        ]
+
+    def test_flags_the_cap_in_bin_accelerator(self, tmp_path: Path):
+        _tree(tmp_path)
+        _write(tmp_path / "bin/accelerator", f'echo "${_CAP}"\n')
+
+        assert any("bin/accelerator" in hit for hit in _found(tmp_path))
+
+    def test_flags_another_claude_name_in_the_reader(self, tmp_path: Path):
+        _tree(tmp_path)
+        _write(tmp_path / _CAP_READER, _READ)
+
+        assert _found(tmp_path) == [f"{_CAP_READER}:1:" + _READ.strip()]
+
+    def test_flags_a_name_extending_the_cap_in_the_reader(self, tmp_path: Path):
+        _tree(tmp_path)
+        line = f'std::env::var_os("{_CAP}_OVERRIDE")\n'
+        _write(tmp_path / _CAP_READER, line)
+
+        assert _found(tmp_path) == [f"{_CAP_READER}:1:" + line.strip()]
+
+    def test_flags_a_line_naming_the_cap_beside_a_banned_name(
+        self, tmp_path: Path
+    ):
+        _tree(tmp_path)
+        line = f'["{_CAP}", "CLAUDE_PLUGIN_ROOT"]\n'
+        _write(tmp_path / _CAP_READER, line)
+
+        assert _found(tmp_path) == [f"{_CAP_READER}:1:" + line.strip()]
+
+    def test_the_admitted_set_is_exactly_the_subagent_cap(self):
+        assert _OPTIONAL_HARNESS_VARIABLES == {_CAP: (_CAP_READER, _CAP_TEST)}
+
+    @pytest.mark.parametrize("admitted", _ADMITTED)
+    def test_a_missing_admitted_file_raises(
+        self, tmp_path: Path, admitted: str
+    ):
+        _tree(tmp_path)
+        (tmp_path / admitted).unlink()
+
+        with pytest.raises(Exit, match="silently dropped out"):
+            _found(tmp_path)

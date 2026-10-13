@@ -435,15 +435,34 @@ are distinct from the `paths.research_*` output-directory keys under `### paths`
 |---------------|---------|----------------------------------------|
 | `breadth`     | `8`     | Focus-area ceiling per `outline` round |
 | `depth`       | `1`     | Recursion limit within a finding       |
-| `concurrency` | `24`    | Most agents `conduct` spawns at once   |
+| `concurrency` | `20`    | Most agents `conduct` spawns at once   |
 
 Resolution order for each knob is **flag > personal (`config.local.md`) > team
 (`config.md`) > built-in default**: an `outline SLUG --breadth N`, `conduct
 SLUG --depth N` or `conduct SLUG --concurrency N` flag on the invocation
 overrides config, which overrides the built-in default. A resolved value that is
 not an integer of 1 or more is clamped to 1 with a warning naming the invalid
-value. There is no upper bound — breadth is
-the per-round cost guard.
+value. An empty value is refused rather than clamped. Breadth and depth have no
+upper bound — breadth is the per-round cost guard.
+
+**Concurrency and the subagent cap.** A `concurrency` above the subagent cap is
+clamped to the cap: the cap is `ACCELERATOR_SUBAGENT_CAP`, else
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each when set to a value Claude Code
+would accept, otherwise 20, Claude Code's own limit. A flag or configured value
+above the cap warns; the built-in default clamps silently.
+
+- Set either variable in the shell that launches Claude Code, or under `env`
+  in a Claude Code settings file. `conduct` reads it through Claude Code's
+  Bash tool, so it must reach that tool's environment.
+- Each variable accepts surrounding whitespace and a leading `+`, as Claude
+  Code does; `concurrency` accepts only plain digits.
+- Set `ACCELERATOR_SUBAGENT_CAP` to pin a cap no higher than Claude Code's;
+  above it, Claude Code refuses the extra spawns.
+- To spawn more than 20 at once, raise both
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and `concurrency`.
+- The clamp applies on every Claude Code version and mode, including those that
+  enforce no cap: Claude Code below v2.1.217, and ultracode sessions. There,
+  set `ACCELERATOR_SUBAGENT_CAP` to the concurrency you want.
 
 At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
 `depth` above 1, it researches each pair as a tree: every node writes a level

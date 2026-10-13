@@ -16,6 +16,8 @@ type TestError = Box<dyn std::error::Error>;
 
 const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const TOPICS: &str = "meta/research/topics";
+const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
+const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
 
 struct Project {
     _dir: tempfile::TempDir,
@@ -55,7 +57,7 @@ impl Project {
         slug: &str,
         profiles_dir: &Path,
     ) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
+        Ok(command_without_an_inherited_cap()
             .current_dir(&self.root)
             .args(["topic", "outstanding", slug, "--profiles-dir"])
             .arg(profiles_dir)
@@ -63,14 +65,31 @@ impl Project {
     }
 
     fn run(&self, args: &[&str]) -> Result<Output, TestError> {
-        Ok(Command::new(BIN)
+        self.run_in(args, &[])
+    }
+
+    fn run_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<Output, TestError> {
+        Ok(command_without_an_inherited_cap()
             .current_dir(&self.root)
+            .envs(cap.iter().copied())
             .arg("topic")
             .args(args)
             .output()?)
     }
 
     fn outstanding_with(&self, args: &[&str]) -> Result<Output, TestError> {
+        self.outstanding_in(args, &[])
+    }
+
+    fn outstanding_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<Output, TestError> {
         let profiles = installed_profiles();
         let mut all = vec![
             "outstanding",
@@ -79,11 +98,19 @@ impl Project {
             profiles.to_str().ok_or("non-utf8")?,
         ];
         all.extend_from_slice(args);
-        self.run(&all)
+        self.run_in(&all, cap)
     }
 
     fn plan_with(&self, args: &[&str]) -> Result<(Value, String), TestError> {
-        let output = self.outstanding_with(args)?;
+        self.plan_in(args, &[])
+    }
+
+    fn plan_in(
+        &self,
+        args: &[&str],
+        cap: &[(&str, &str)],
+    ) -> Result<(Value, String), TestError> {
+        let output = self.outstanding_in(args, cap)?;
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
         assert!(output.status.success(), "{stderr}");
         Ok((serde_json::from_slice(&output.stdout)?, stderr))
@@ -123,6 +150,12 @@ impl Project {
         );
         Ok(serde_json::from_slice(&output.stdout)?)
     }
+}
+
+fn command_without_an_inherited_cap() -> Command {
+    let mut command = Command::new(BIN);
+    command.env_remove(ACCELERATOR_CAP).env_remove(HARNESS_CAP);
+    command
 }
 
 /// The committed topic-research sets live beside the frontmatter goldens that
@@ -208,6 +241,8 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "skipped": [],
             "warnings": [],
             "depth": 1,
+            "concurrency": 20,
+            "subagent_cap": {"slots": 20, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -242,6 +277,8 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "skipped": [],
             "warnings": [],
             "depth": 1,
+            "concurrency": 20,
+            "subagent_cap": {"slots": 20, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -748,6 +785,8 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
                 "skipped": [],
                 "warnings": [],
                 "depth": depth.parse::<u32>()?,
+                "concurrency": 20,
+                "subagent_cap": {"slots": 20, "source": "default"},
                 "remaining": 0,
                 "unfinished": [],
                 "trims": [],
@@ -843,11 +882,12 @@ fn every_allocated_level_note_id_is_set_scoped_and_matches_its_path(
 }
 
 #[test]
-fn a_limited_plan_offers_the_first_spawns_and_counts_the_rest(
+fn a_concurrency_of_2_offers_the_first_spawns_and_counts_the_rest(
 ) -> Result<(), TestError> {
     let project = small_set("limited", "- [ ] A?\n- [ ] B?\n- [ ] C?")?;
 
-    let (plan, _) = project.plan_with(&["--depth", "2", "--limit", "2"])?;
+    let (plan, _) =
+        project.plan_with(&["--depth", "2", "--concurrency", "2"])?;
 
     assert_eq!(spawns_of(&plan)?, ["01-a-web:1", "02-b-web:1"]);
     assert_eq!(plan["remaining"], json!(1));
@@ -902,7 +942,7 @@ fn an_attempted_node_left_invalid_is_reported_unfinished_on_the_next_plan_of_its
 fn a_plan_without_start_or_run_writes_no_ledger() -> Result<(), TestError> {
     let project = a_set()?;
 
-    project.plan_with(&["--depth", "2", "--limit", "1"])?;
+    project.plan_with(&["--depth", "2", "--concurrency", "1"])?;
 
     assert!(!project.ledger().exists());
     Ok(())
@@ -1103,7 +1143,8 @@ fn a_resumed_run_does_not_report_notes_present_at_start_as_unexpected(
 fn a_note_written_mid_run_without_being_offered_is_reported_unexpected(
 ) -> Result<(), TestError> {
     let project = small_set("forged", "- [ ] A?\n- [ ] B?")?;
-    let (first, run) = started(&project, &["--depth", "2", "--limit", "1"])?;
+    let (first, run) =
+        started(&project, &["--depth", "2", "--concurrency", "1"])?;
     assert_eq!(spawns_of(&first)?, ["01-a-web:1"]);
     project.write_note("01-a-web", "1", "A?", &[])?;
     project.write_note("02-b-web", "1", "B?", &[])?;
@@ -1111,7 +1152,7 @@ fn a_note_written_mid_run_without_being_offered_is_reported_unexpected(
     let next = continued(
         &project,
         &run,
-        &["--depth", "2", "--limit", "1", "--spawned", "0"],
+        &["--depth", "2", "--concurrency", "1", "--spawned", "0"],
     )?;
 
     assert_eq!(next["unexpected"], json!(["02-b-web:1"]));
@@ -1210,18 +1251,9 @@ fn end_run_deletes_only_its_own_ledger_and_tolerates_absence(
 }
 
 #[test]
-fn a_malformed_limit_or_run_exits_1() -> Result<(), TestError> {
+fn a_malformed_run_or_spawned_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
-    let limit = |value: &str| {
-        format!(
-            "E_TOPIC_RESEARCH_LIMIT: --limit must be a positive integer, got \
-             '{value}'"
-        )
-    };
-    let cases: [(&[&str], String); 8] = [
-        (&["--limit", "0"], limit("0")),
-        (&["--limit", "-1"], limit("-1")),
-        (&["--limit", "many"], limit("many")),
+    let cases: [(&[&str], String); 5] = [
         (
             &["--run", "a b"],
             "E_TOPIC_RESEARCH_RUN: --run must be 1 to 64 letters, digits, \
@@ -1255,28 +1287,555 @@ fn a_malformed_limit_or_run_exits_1() -> Result<(), TestError> {
     Ok(())
 }
 
-#[test]
-fn a_24_limit_offers_24_arxiv_spawns_and_counts_the_rest(
-) -> Result<(), TestError> {
+fn arxiv_set(tag: &str) -> Result<Project, TestError> {
     let items = (1..=25)
         .map(|n| format!("- [ ] Question {n}? — profiles: arxiv"))
         .collect::<Vec<_>>()
         .join("\n");
-    let project = small_set("arxiv-batch", &items)?;
+    let project = small_set(tag, &items)?;
     project.write(
         &format!("{TOPICS}/s/brief.md"),
         "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
          source_profiles: [\"arxiv\"]\n---\n",
     )?;
+    Ok(project)
+}
 
-    let (plan, _) = started(&project, &["--limit", "24"])?;
-
-    let spawns = spawns_of(&plan)?;
-    assert_eq!(spawns.len(), 24, "{plan}");
+fn assert_offers_arxiv_spawns(
+    plan: &Value,
+    offered: usize,
+    remaining: usize,
+) -> Result<(), TestError> {
+    let spawns = spawns_of(plan)?;
+    assert_eq!(spawns.len(), offered, "{plan}");
     assert!(
         spawns.iter().all(|spawn| spawn.contains("-arxiv")),
         "{spawns:?}"
     );
-    assert_eq!(plan["remaining"], json!(1));
+    assert_eq!(plan["remaining"], json!(remaining));
+    Ok(())
+}
+
+#[test]
+fn a_run_offers_20_arxiv_spawns_by_default_and_counts_the_rest(
+) -> Result<(), TestError> {
+    let project = arxiv_set("arxiv-batch")?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_offers_arxiv_spawns(&plan, 20, 5)?;
+    assert_eq!(plan["concurrency"], json!(20));
+    Ok(())
+}
+
+const FLAG: &str = "--concurrency";
+const KNOB: &str = "research.topic.concurrency";
+const TEAM_KNOB: &str = "research.topic.concurrency in .accelerator/config.md";
+const PERSONAL_KNOB: &str =
+    "research.topic.concurrency in .accelerator/config.local.md";
+
+impl Project {
+    fn configure_team_concurrency(&self, value: &str) -> Result<(), TestError> {
+        self.write(".accelerator/config.md", &concurrency_config(value))
+    }
+
+    fn configure_personal_concurrency(
+        &self,
+        value: &str,
+    ) -> Result<(), TestError> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let personal = ".accelerator/config.local.md";
+        self.write(personal, &concurrency_config(value))?;
+        fs::set_permissions(
+            self.root.join(personal),
+            fs::Permissions::from_mode(0o600),
+        )?;
+        Ok(())
+    }
+}
+
+fn concurrency_config(value: &str) -> String {
+    format!("---\nresearch:\n  topic:\n    concurrency: {value}\n---\n")
+}
+
+fn clamped_to_the_default(source: &str, given: &str) -> String {
+    format!(
+        "{source} is {given}, above the subagent cap of 20, Claude Code's \
+         default — clamping to 20; lower it, or raise the cap with \
+         {HARNESS_CAP}"
+    )
+}
+
+fn clamped_by(source: &str, given: &str, cap: u32, variable: &str) -> String {
+    format!(
+        "{source} is {given}, above the subagent cap of {cap} from \
+         {variable} — clamping to {cap}; lower it, or raise {variable}"
+    )
+}
+
+fn not_a_positive_integer(source: &str, given: &str) -> String {
+    format!(
+        "{source} must be a positive integer, got '{given}' — clamping to 1"
+    )
+}
+
+fn assert_warned(plan: &Value, stderr: &str, warnings: &[String]) {
+    assert_eq!(plan["warnings"], json!(warnings));
+    let printed: Vec<String> = warnings
+        .iter()
+        .map(|warning| format!("warning: {warning}"))
+        .collect();
+    assert_eq!(stderr.lines().collect::<Vec<_>>(), printed);
+}
+
+fn assert_no_concurrency_diagnostic(plan: &Value, stderr: &str) {
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(
+        !stderr
+            .lines()
+            .any(|line| line.contains(FLAG) || line.contains(KNOB)),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_configured_concurrency_above_the_cap_clamps_with_a_warning(
+) -> Result<(), TestError> {
+    let project = arxiv_set("config-above-cap")?;
+    project.configure_team_concurrency("24")?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_offers_arxiv_spawns(&plan, 20, 5)?;
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(TEAM_KNOB, "24")]);
+    Ok(())
+}
+
+#[test]
+fn a_configured_concurrency_at_the_cap_is_not_clamped() -> Result<(), TestError>
+{
+    let project = a_set()?;
+    project.configure_team_concurrency("20")?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_clamp_names_the_variable_that_set_the_cap() -> Result<(), TestError> {
+    for variable in [ACCELERATOR_CAP, HARNESS_CAP] {
+        let project = a_set()?;
+        project.configure_team_concurrency("24")?;
+
+        let (plan, stderr) =
+            project.plan_in(&["--start"], &[(variable, "8")])?;
+
+        assert_eq!(plan["concurrency"], json!(8), "{variable}");
+        assert_warned(
+            &plan,
+            &stderr,
+            &[clamped_by(TEAM_KNOB, "24", 8, variable)],
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_plan_reports_the_subagent_cap_and_its_source() -> Result<(), TestError> {
+    let rows: [(&[(&str, &str)], Value); 3] = [
+        (&[], json!({"slots": 20, "source": "default"})),
+        (
+            &[(ACCELERATOR_CAP, "8"), (HARNESS_CAP, "30")],
+            json!({"slots": 8, "source": ACCELERATOR_CAP}),
+        ),
+        (
+            &[(HARNESS_CAP, "30")],
+            json!({"slots": 30, "source": HARNESS_CAP}),
+        ),
+    ];
+    for (variables, reported) in rows {
+        let project = a_set()?;
+
+        let (plan, _) = project.plan_in(&[], variables)?;
+
+        assert_eq!(plan["subagent_cap"], reported, "{variables:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_raised_cap_admits_a_higher_concurrency() -> Result<(), TestError> {
+    let project = arxiv_set("raised-cap")?;
+    project.configure_team_concurrency("24")?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(HARNESS_CAP, "30")])?;
+
+    assert_offers_arxiv_spawns(&plan, 24, 1)?;
+    assert_eq!(plan["concurrency"], json!(24));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_lowered_cap_clamps_the_default_silently() -> Result<(), TestError> {
+    let project = arxiv_set("lowered-cap")?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(HARNESS_CAP, "8")])?;
+
+    assert_offers_arxiv_spawns(&plan, 8, 17)?;
+    assert_eq!(plan["concurrency"], json!(8));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_concurrency_flag_wins_over_config_and_clamps_with_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("6")?;
+
+    let (plan, stderr) =
+        project.plan_with(&["--concurrency", "50", "--start"])?;
+
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_warned(&plan, &stderr, &[clamped_to_the_default(FLAG, "50")]);
+    Ok(())
+}
+
+#[test]
+fn a_personal_concurrency_wins_over_the_team_and_warns() -> Result<(), TestError>
+{
+    let project = a_set()?;
+    project.configure_team_concurrency("6")?;
+    project.configure_personal_concurrency("24")?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_warned(
+        &plan,
+        &stderr,
+        &[clamped_to_the_default(PERSONAL_KNOB, "24")],
+    );
+    Ok(())
+}
+
+#[test]
+fn the_cap_is_read_as_the_harness_reads_it() -> Result<(), TestError> {
+    for (cap, slots) in [("007", 7), (" +8 ", 8)] {
+        let project = a_set()?;
+
+        let (plan, stderr) =
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
+
+        assert_eq!(plan["concurrency"], json!(slots), "{cap:?}");
+        assert_no_concurrency_diagnostic(&plan, &stderr);
+    }
+    Ok(())
+}
+
+const CAPS_THE_HARNESS_IGNORES: [&str; 2] = ["0", "abc"];
+
+#[test]
+fn a_cap_the_harness_ignores_leaves_the_default_unwarned(
+) -> Result<(), TestError> {
+    for cap in CAPS_THE_HARNESS_IGNORES {
+        let project = a_set()?;
+
+        let (plan, stderr) =
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
+
+        assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
+        assert_no_concurrency_diagnostic(&plan, &stderr);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_cap_the_harness_ignores_still_clamps_a_configured_concurrency(
+) -> Result<(), TestError> {
+    for cap in CAPS_THE_HARNESS_IGNORES {
+        let project = a_set()?;
+        project.configure_team_concurrency("24")?;
+
+        let (plan, stderr) =
+            project.plan_in(&["--start"], &[(HARNESS_CAP, cap)])?;
+
+        assert_eq!(plan["concurrency"], json!(20), "{cap:?}");
+        assert_warned(
+            &plan,
+            &stderr,
+            &[clamped_to_the_default(TEAM_KNOB, "24")],
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn the_accelerator_cap_wins_over_the_harness_cap() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(ACCELERATOR_CAP, "30"), (HARNESS_CAP, "8")],
+    )?;
+
+    assert_eq!(plan["concurrency"], json!(24));
+    assert_no_concurrency_diagnostic(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn an_accelerator_cap_the_harness_would_ignore_falls_through_with_a_warning(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--start"],
+        &[(ACCELERATOR_CAP, "abc"), (HARNESS_CAP, "8")],
+    )?;
+
+    assert_eq!(plan["concurrency"], json!(8));
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            format!(
+                "{ACCELERATOR_CAP} is 'abc', not a positive integer — \
+                 ignoring it"
+            ),
+            clamped_by(TEAM_KNOB, "24", 8, HARNESS_CAP),
+        ],
+    );
+    Ok(())
+}
+
+#[test]
+fn a_blank_accelerator_cap_is_unset() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(ACCELERATOR_CAP, "")])?;
+
+    assert_eq!(plan["concurrency"], json!(20));
+    assert_eq!(plan["warnings"], json!([]), "{plan}");
+    assert!(!stderr.contains(ACCELERATOR_CAP), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_malformed_concurrency_flag_clamps_to_1_with_a_warning(
+) -> Result<(), TestError> {
+    for given in ["0", "50.5"] {
+        let project = arxiv_set("malformed-flag")?;
+
+        let (plan, stderr) =
+            project.plan_with(&["--concurrency", given, "--start"])?;
+
+        assert_offers_arxiv_spawns(&plan, 1, 24)?;
+        assert_eq!(plan["concurrency"], json!(1), "{given}");
+        assert_warned(&plan, &stderr, &[not_a_positive_integer(FLAG, given)]);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_malformed_configured_concurrency_clamps_to_1_with_a_warning(
+) -> Result<(), TestError> {
+    for given in ["0", "many"] {
+        let project = a_set()?;
+        project.configure_team_concurrency(given)?;
+
+        let (plan, stderr) = project.plan_with(&["--start"])?;
+
+        assert_eq!(plan["concurrency"], json!(1), "{given}");
+        assert_warned(
+            &plan,
+            &stderr,
+            &[not_a_positive_integer(TEAM_KNOB, given)],
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn an_empty_concurrency_exits_1_and_writes_no_ledger() -> Result<(), TestError>
+{
+    let team = a_set()?;
+    team.configure_team_concurrency("\"\"")?;
+    let personal = a_set()?;
+    personal.configure_team_concurrency("6")?;
+    personal.configure_personal_concurrency("\"\"")?;
+    let flagged = a_set()?;
+    let cases: [(&Project, &[&str], &str); 3] = [
+        (
+            &team,
+            &[],
+            "E_TOPIC_RESEARCH_CONCURRENCY: research.topic.concurrency in \
+             .accelerator/config.md is empty; set it to a positive integer or \
+             remove it",
+        ),
+        (
+            &personal,
+            &[],
+            "E_TOPIC_RESEARCH_CONCURRENCY: research.topic.concurrency in \
+             .accelerator/config.local.md is empty; set it to a positive \
+             integer or remove it",
+        ),
+        (
+            &flagged,
+            &["--concurrency", ""],
+            "E_TOPIC_RESEARCH_CONCURRENCY: --concurrency is empty; pass a \
+             positive integer",
+        ),
+    ];
+    for (project, args, error) in cases {
+        for run in [&["--start"][..], &[]] {
+            let mut all = args.to_vec();
+            all.extend_from_slice(run);
+
+            assert_exits_1(&project.outstanding_with(&all)?, error);
+            assert!(!project.ledger().exists(), "{all:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn a_concurrency_flag_stands_in_for_an_empty_configured_value(
+) -> Result<(), TestError> {
+    for run in [&["--start"][..], &[]] {
+        let project = a_set()?;
+        project.configure_team_concurrency("\"\"")?;
+        let mut all = vec!["--concurrency", "5"];
+        all.extend_from_slice(run);
+
+        let (plan, stderr) = project.plan_with(&all)?;
+
+        assert_eq!(plan["concurrency"], json!(5), "{all:?}");
+        assert_no_concurrency_diagnostic(&plan, &stderr);
+    }
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_config_exits_1() -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write(".accelerator/config.md", "---\nresearch:\n")?;
+
+    let output = project.outstanding_with(&["--start"])?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("has malformed frontmatter"), "{stderr}");
+    assert!(output.stdout.is_empty());
+    assert!(!project.ledger().exists());
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_config_is_not_reported_as_an_unresolved_set(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.write(".accelerator/config.md", "---\nresearch:\n")?;
+
+    let output = project.outstanding_with(&["--concurrency", "5"])?;
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("has malformed frontmatter"), "{stderr}");
+    assert!(!stderr.contains("E_TOPIC_RESEARCH_UNRESOLVED"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn an_unknown_set_is_reported_before_an_empty_concurrency(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("\"\"")?;
+
+    let output = project.outstanding("no-such-set", &installed_profiles())?;
+
+    assert_exits_1(
+        &output,
+        "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set 'no-such-set'",
+    );
+    Ok(())
+}
+
+#[test]
+fn concurrency_warnings_precede_a_replaced_ledger_notice(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+    let (_, first) = started(&project, &[])?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            clamped_to_the_default(TEAM_KNOB, "24"),
+            replaced_warning(&first),
+        ],
+    );
+    Ok(())
+}
+
+#[test]
+fn concurrency_warnings_are_raised_only_when_a_run_starts(
+) -> Result<(), TestError> {
+    let project = arxiv_set("warn-on-start")?;
+    project.configure_team_concurrency("24")?;
+    let (_, run) = started(&project, &[])?;
+
+    let (next, stderr) =
+        project.plan_with(&["--run", &run, "--spawned", "0"])?;
+
+    assert_offers_arxiv_spawns(&next, 5, 0)?;
+    assert_eq!(next["unfinished"].as_array().map(Vec::len), Some(20));
+    assert_no_concurrency_diagnostic(&next, &stderr);
+
+    let (query, stderr) = project.plan_with(&[])?;
+
+    assert_offers_arxiv_spawns(&query, 20, 5)?;
+    assert_no_concurrency_diagnostic(&query, &stderr);
+    Ok(())
+}
+
+#[test]
+fn limit_is_no_longer_an_outstanding_flag() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let output = project.outstanding_with(&["--limit", "2"])?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("unexpected argument '--limit'"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn subagent_cap_is_not_an_outstanding_flag() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let output = project.outstanding_with(&["--subagent-cap", "8"])?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unexpected argument '--subagent-cap'"),
+        "{stderr}"
+    );
     Ok(())
 }

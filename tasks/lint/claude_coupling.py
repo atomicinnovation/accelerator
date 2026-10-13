@@ -12,8 +12,13 @@ Everything outside the rename set is out of scope by construction, not by
 exemption: the adapter layer (``hooks/``, the SKILL.md-owned skill scripts),
 the Claude Code matcher model in ``skill_permissions.py``, and the SKILL.md
 substitution tokens all legitimately name the variable. That is why there is
-no allowlist — the first exemption added under pressure could be the very
+no file allowlist — the first exemption added under pressure could be the very
 file the bug was in.
+
+Inside the rename set, a ``CLAUDE_*`` name is admitted only if the CLI works
+without it, with the default stated where it is read. Admission is by name and
+file together, never by file alone: an admitted file naming any other
+``CLAUDE_*`` variable is still flagged.
 """
 
 import re
@@ -37,6 +42,13 @@ _FILES = (
     "tests/integration/dev/dev_integration_driver.py",
 )
 
+_OPTIONAL_HARNESS_VARIABLES = {
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": (
+        "cli/research-cli/src/subagent_cap.rs",
+        "cli/research-cli/tests/topic_outstanding.rs",
+    ),
+}
+
 # A silently-emptied scan reads as cleanliness in both the lint task and the
 # paired `violations(REPO_ROOT) == []` assertion, so the discovered set has a
 # floor. cli/ alone carries several hundred text files.
@@ -52,21 +64,38 @@ def _in_scope(root: Path) -> list[Path]:
             for rel in walk_files(root, subtree=subtree)
             if not rel.endswith(_SKIP_SUFFIXES)
         )
-    for rel in _FILES:
-        path = root / rel
-        if not path.is_file():
-            raise Exit(
-                f"{rel} is named in tasks/lint/claude_coupling.py but is not "
-                f"a file under {root} — it was renamed, moved or split, and "
-                f"has silently dropped out of the guard's scope",
-                code=1,
-            )
-        paths.append(path)
+    paths.extend(_named_file(root, rel) for rel in _FILES)
+    _require_admitted_files(root)
     return paths
 
 
+def _named_file(root: Path, rel: str) -> Path:
+    _require_file(root, rel)
+    return root / rel
+
+
+def _require_admitted_files(root: Path) -> None:
+    for files in _OPTIONAL_HARNESS_VARIABLES.values():
+        for rel in files:
+            _require_file(root, rel)
+
+
+def _require_file(root: Path, rel: str) -> None:
+    if not (root / rel).is_file():
+        raise Exit(
+            f"{rel} is named in tasks/lint/claude_coupling.py but is not "
+            f"a file under {root} — it was renamed, moved or split, and "
+            f"has silently dropped out of the guard's scope",
+            code=1,
+        )
+
+
+def _admitted(name: str, rel: str) -> bool:
+    return rel in _OPTIONAL_HARNESS_VARIABLES.get(name, ())
+
+
 def violations(root: Path, min_scanned: int = _MIN_SCANNED) -> list[str]:
-    """Repo-relative ``path:line:text`` for every CLAUDE_* reference in scope.
+    """Repo-relative ``path:line:text`` for every unadmitted CLAUDE_* name.
 
     Files that cannot be decoded as UTF-8 are skipped: the rule is "in scope
     unless it is unreadable as text", so a binary asset landing under ``cli/``
@@ -90,7 +119,8 @@ def violations(root: Path, min_scanned: int = _MIN_SCANNED) -> list[str]:
             continue
         rel = path.relative_to(root).as_posix()
         for number, line in enumerate(text.splitlines(), start=1):
-            if _SHAPE.search(line):
+            names = _SHAPE.findall(line)
+            if not all(_admitted(name, rel) for name in names):
                 found.append(f"{rel}:{number}:{line.strip()}")
     return found
 

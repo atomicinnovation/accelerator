@@ -461,9 +461,12 @@ findings go, rather than allocating paths itself:
 accelerator research topic outstanding SLUG --profiles-dir DIR
 ```
 
-It prints JSON with four arrays: `items` (each outline item's `line`,
-`question`, and `complete`), `pairs` (each outstanding pair's `question`,
-`profile`, and absolute `path`), `skipped` (with a `reason`), and `warnings`.
+It prints JSON with four arrays, two counts and the cap: `items` (each outline
+item's `line`, `question`, and `complete`), `pairs` (each outstanding pair's
+`question`, `profile`, and absolute `path`), `skipped` (with a `reason`),
+`warnings`, `concurrency` (the most spawns this plan offers, after the clamp),
+`remaining` (the spawns held back by the concurrency) and `subagent_cap` (its
+`slots`, and the `source` they came from: the variable's name, or `default`).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
@@ -471,9 +474,9 @@ consumers ignore fields they do not know. It exits `1` with
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`. It defaults to `1` and is never read from
 `research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
-The JSON then also carries:
+Every plan also carries these fields, whether or not `--depth` is given:
 
-- `depth`, the depth planned for;
+- `depth`, the depth planned for, `1` unless `--depth` says otherwise;
 - each pair's `stage`: `single_pass` (one researcher writes the finding),
   `research_nodes` (its missing `nodes`, each with `lineage`, `level`,
   `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
@@ -484,8 +487,22 @@ The JSON then also carries:
   follow-ups than its cap, each also printed to stderr as a `warning:` line;
 - `shallow`, each retained finding researched below `--depth`, which is
   not deepened again;
-- `remaining`, the spawns held back by `--limit N`, and `unfinished`, each
-  `{spawn, rejected}` a run attempted that is still outstanding.
+- `unfinished`, each `{spawn, rejected}` a run attempted that is still
+  outstanding.
+
+`--concurrency N` falls back to `research.topic.concurrency` and is reported
+as `concurrency`. A value that is not a positive integer clamps to 1, and one
+above the subagent cap clamps to the cap, each with a warning; only an empty
+value exits 1, with `E_TOPIC_RESEARCH_CONCURRENCY`. Each diagnostic names the
+flag, or the config file that set the value. The cap is
+read from `ACCELERATOR_SUBAGENT_CAP`, then
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, each read as Claude Code reads its own
+setting, else 20, so a hand run in the same shell sees the cap `conduct` does.
+A set `ACCELERATOR_SUBAGENT_CAP` Claude Code would not honour is ignored with a
+warning.
+Every plan is bounded, a plain query included. The
+reported `concurrency` is the clamped value, so it can differ from the
+configured knob; the reason appears in `warnings` on `--start` only.
 
 The run flags exist for `conduct`. `--start` begins a run and returns its
 `run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
@@ -506,7 +523,7 @@ Each exit code below exits `1`:
 | Code | Cause | Recovery |
 |---|---|---|
 | `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not a positive integer | pass a positive integer |
-| `E_TOPIC_RESEARCH_LIMIT` | `--limit` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_CONCURRENCY` | `--concurrency` or `research.topic.concurrency` is empty | pass a positive integer, or, in the config file the error names, set the value to one or remove it |
 | `E_TOPIC_RESEARCH_RUN` | a malformed `--run`, or `--start` with `--run` | pass the id `--start` returned |
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |

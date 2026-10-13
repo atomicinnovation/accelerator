@@ -10,10 +10,15 @@ use corpus::scan::DirReader;
 use corpus::scan::DirectoryProbe;
 use corpus::scan::FileReader;
 use corpus::AtomicWrite;
+use corpus::DocTypeKey;
 use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::YamlFrontmatter;
+use research::conduct::concurrency::Concurrency;
+use research::conduct::concurrency::Provenance;
+use research::conduct::concurrency::RequestedConcurrency;
+use research::conduct::concurrency::ResolvedConcurrency;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
@@ -37,8 +42,10 @@ use research_adapters::unicode_text::UnicodeTables;
 use serde_json::json;
 use serde_json::Value;
 
+use crate::concurrency_wording;
 use crate::context::ProjectContext;
 use crate::plan_wording;
+use crate::subagent_cap::EnvironmentCap;
 
 const DOC_TYPE: &str = "topic-research";
 
@@ -53,14 +60,16 @@ pub struct Printed {
 ///
 /// # Errors
 ///
-/// A message when `slug` resolves to no set.
+/// A message when the configured directory cannot be read, or when `slug`
+/// resolves to no set.
 pub fn resolve_set(
     project: &ProjectContext,
     cwd: &Path,
     slug: &str,
 ) -> Result<PathBuf, String> {
+    let sets = project.type_dir(DocTypeKey::TopicResearch)?;
     let Resolution::Resolved(set_root) =
-        resolve_document(cwd, DOC_TYPE, slug, |key| project.type_dir(key))
+        resolve_document(cwd, DOC_TYPE, slug, |_| Ok(sets))
     else {
         return Err(format!(
             "E_TOPIC_RESEARCH_UNRESOLVED: no topic-research set '{slug}'"
@@ -88,7 +97,7 @@ pub enum RunFlag {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutstandingFlags {
     pub depth: Depth,
-    pub limit: Option<usize>,
+    pub requested_concurrency: Option<RequestedConcurrency>,
     pub run: RunFlag,
 }
 
@@ -99,7 +108,7 @@ impl OutstandingFlags {
     /// combined with one it excludes.
     pub fn parse(
         depth: &str,
-        limit: Option<&str>,
+        concurrency: Option<&str>,
         start: bool,
         run: Option<&str>,
         spawned: Option<&str>,
@@ -110,24 +119,46 @@ impl OutstandingFlags {
                  got '{depth}'"
             ))
         })?;
-        let limit = limit
-            .map(|limit| {
-                positive(limit)
-                    .and_then(|limit| usize::try_from(limit).ok())
-                    .ok_or_else(|| {
-                        failed(format!(
-                            "E_TOPIC_RESEARCH_LIMIT: --limit must be a \
-                             positive integer, got '{limit}'"
-                        ))
-                    })
-            })
-            .transpose()?;
         Ok(Self {
             depth,
-            limit,
+            requested_concurrency: concurrency.map(|value| {
+                RequestedConcurrency::Given {
+                    value: value.to_owned(),
+                    provenance: Provenance::Flag,
+                }
+            }),
             run: run_flag(start, run, spawned)?,
         })
     }
+}
+
+pub struct CappedConcurrency {
+    pub resolved: ResolvedConcurrency,
+    pub cap: EnvironmentCap,
+}
+
+/// # Errors
+///
+/// A message when the configured value cannot be read, or when the
+/// requested concurrency is empty.
+pub fn resolve_concurrency(
+    flag: Option<RequestedConcurrency>,
+    configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
+    cap: EnvironmentCap,
+) -> Result<CappedConcurrency, String> {
+    let requested = match flag {
+        Some(requested) => requested,
+        None => configured()?,
+    };
+    requested
+        .resolve(cap.cap)
+        .map(|resolved| CappedConcurrency { resolved, cap })
+        .map_err(|empty| {
+            failed(format!(
+                "E_TOPIC_RESEARCH_CONCURRENCY: {}",
+                concurrency_wording::empty_concurrency(empty)
+            ))
+        })
 }
 
 fn run_flag(
@@ -208,7 +239,7 @@ pub fn run_outstanding<F, S>(
     set_root: &Path,
     profiles_dir: &Path,
     depth: Depth,
-    limit: Option<usize>,
+    concurrency: &CappedConcurrency,
     mode: RunMode,
     fs: &F,
     store: &S,
@@ -223,6 +254,21 @@ where
             Some(continued_ledger(set_root, run, *spawned, fs)?)
         }
         RunMode::Start(_) => {
+            notices.extend(
+                concurrency
+                    .cap
+                    .unhonoured
+                    .iter()
+                    .map(concurrency_wording::unhonoured_cap),
+            );
+            notices.extend(concurrency.resolved.warnings.iter().map(
+                |warning| {
+                    concurrency_wording::concurrency_warning(
+                        warning,
+                        concurrency.cap.source,
+                    )
+                },
+            ));
             notices.extend(replaced_ledger_notice(set_root, fs)?);
             None
         }
@@ -252,7 +298,7 @@ where
     let window = window(
         &plan,
         &observed,
-        limit,
+        concurrency.resolved.concurrency,
         ledger.as_ref().map(RunLedger::memory),
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
@@ -281,6 +327,8 @@ where
         window: &window,
         set_root,
         depth,
+        concurrency: concurrency.resolved.concurrency,
+        cap: &concurrency.cap,
         ledger: ledger.as_ref(),
         warnings,
     };
@@ -375,6 +423,8 @@ struct PlanOutput<'a> {
     window: &'a Window,
     set_root: &'a Path,
     depth: Depth,
+    concurrency: Concurrency,
+    cap: &'a EnvironmentCap,
     ledger: Option<&'a RunLedger>,
     warnings: Vec<String>,
 }
@@ -452,6 +502,11 @@ impl PlanOutput<'_> {
             "skipped": skipped,
             "warnings": self.warnings,
             "depth": self.depth.levels(),
+            "concurrency": self.concurrency.agents().get(),
+            "subagent_cap": {
+                "slots": self.cap.cap.slots().get(),
+                "source": self.cap.source.reported_as(),
+            },
             "remaining": self.window.remaining,
             "unfinished": unfinished,
             "trims": trims,
@@ -531,5 +586,110 @@ impl PlanOutput<'_> {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroU32;
+
+    use research::conduct::concurrency::ConcurrencyWarning;
+    use research::conduct::concurrency::ConfigFile;
+    use research::conduct::concurrency::Provenance;
+    use research::conduct::concurrency::RequestedConcurrency;
+    use research::conduct::concurrency::SubagentCap;
+
+    use super::resolve_concurrency;
+    use crate::subagent_cap::CapSource;
+    use crate::subagent_cap::EnvironmentCap;
+
+    fn cap(slots: u32) -> EnvironmentCap {
+        EnvironmentCap {
+            cap: SubagentCap::new(
+                NonZeroU32::new(slots).unwrap_or(NonZeroU32::MIN),
+            ),
+            source: CapSource::Variable("ACCELERATOR_SUBAGENT_CAP"),
+            unhonoured: None,
+        }
+    }
+
+    fn requested(value: &str, provenance: Provenance) -> RequestedConcurrency {
+        RequestedConcurrency::Given {
+            value: value.to_owned(),
+            provenance,
+        }
+    }
+
+    fn configured(
+        value: &str,
+    ) -> impl FnOnce() -> Result<RequestedConcurrency, String> + '_ {
+        move || Ok(requested(value, Provenance::ConfigFile(ConfigFile::Team)))
+    }
+
+    fn unreadable() -> Result<RequestedConcurrency, String> {
+        Err("unreadable".to_owned())
+    }
+
+    fn agents(
+        flag: Option<RequestedConcurrency>,
+        configured: impl FnOnce() -> Result<RequestedConcurrency, String>,
+        cap: EnvironmentCap,
+    ) -> Result<u32, String> {
+        resolve_concurrency(flag, configured, cap)
+            .map(|capped| capped.resolved.concurrency.agents().get())
+    }
+
+    #[test]
+    fn a_concurrency_flag_never_reads_the_configured_value() {
+        assert_eq!(
+            agents(Some(requested("5", Provenance::Flag)), unreadable, cap(20)),
+            Ok(5)
+        );
+    }
+
+    #[test]
+    fn without_a_flag_the_configured_value_is_resolved() {
+        assert_eq!(agents(None, configured("24"), cap(30)), Ok(24));
+    }
+
+    #[test]
+    fn a_lowered_cap_bounds_the_configured_value() {
+        let cap = cap(8);
+        let resolved = resolve_concurrency(None, configured("24"), cap.clone());
+
+        assert_eq!(
+            resolved
+                .as_ref()
+                .map(|r| r.resolved.concurrency.agents().get()),
+            Ok(8)
+        );
+        assert_eq!(
+            resolved.map(|r| r.resolved.warnings),
+            Ok(vec![ConcurrencyWarning::AboveCap {
+                given: "24".to_owned(),
+                provenance: Provenance::ConfigFile(ConfigFile::Team),
+                cap: cap.cap,
+            }])
+        );
+    }
+
+    #[test]
+    fn an_empty_concurrency_names_its_source_in_the_error() {
+        assert_eq!(
+            agents(Some(requested("", Provenance::Flag)), unreadable, cap(20)),
+            Err(
+                "E_TOPIC_RESEARCH_CONCURRENCY: --concurrency is empty; pass \
+                 a positive integer"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn a_configured_value_that_cannot_be_read_is_an_error() {
+        assert_eq!(
+            agents(None, unreadable, cap(20)),
+            Err("unreadable".to_owned())
+        );
     }
 }

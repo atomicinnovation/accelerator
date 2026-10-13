@@ -121,12 +121,16 @@
   itself.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   reports each pair's `stage`, the level-note `nodes` it still needs or the
-  `notes` its composer reads, `trims` and `shallow` findings; `--limit`,
+  `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
-  and the new `end-run` verb closes one. A run keeps a transient
-  `<set>/.conduct-run.json`, removed on completion and safe to delete after an
-  interrupted run; consider adding `**/.conduct-run.json` to your
-  `.gitignore`.
+  and the new `end-run` verb closes one. `--concurrency` falls back to
+  `research.topic.concurrency` and is reported as `concurrency`, clamped to
+  the subagent cap described below, which is reported as `subagent_cap` with
+  its source. Every plan carries both, a plain query included, so an empty
+  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`. A
+  run keeps a transient `<set>/.conduct-run.json`, removed on completion and
+  safe to delete after an interrupted run; consider adding
+  `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
@@ -137,9 +141,16 @@
   collaborator on this version or later: an older plugin reports its notes
   as an unknown kind and researches the pair again under a new stem.
 - **`research.topic.concurrency` and `conduct --concurrency N` cap how many
-  agents `research-topic`'s `conduct` spawns at once** (default 24). `conduct`
+  agents `research-topic`'s `conduct` spawns at once** (default 20). `conduct`
   spawns its outstanding pairs in batches of at most that many, waiting on
-  each batch before the next.
+  each batch before the next. `conduct` never spawns more than the subagent
+  cap, `ACCELERATOR_SUBAGENT_CAP`, else `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`,
+  else 20; a configured or flag value above it is clamped with a warning, and
+  a set `ACCELERATOR_SUBAGENT_CAP` Claude Code would not honour is ignored
+  with one.
+  `conduct` re-issues spawns Claude Code refuses for capacity (verified on
+  Claude Code 2.1.296), and records a spawn still refused once retrying
+  stops, for a later run to retry.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.

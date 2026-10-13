@@ -2,6 +2,7 @@
 //! dispatched by the `accelerator` launcher.
 
 mod cli;
+mod concurrency_wording;
 mod context;
 mod fetch_command;
 mod guard;
@@ -9,6 +10,7 @@ mod guard;
 mod loopback;
 mod plan_wording;
 mod render;
+mod subagent_cap;
 mod topic_command;
 mod write_target;
 
@@ -178,13 +180,13 @@ fn topic(action: TopicAction) -> ExitCode {
             slug,
             profiles_dir,
             depth,
-            limit,
+            concurrency,
             start,
             run,
             spawned,
         } => OutstandingFlags::parse(
             &depth,
-            limit.as_deref(),
+            concurrency.as_deref(),
             start,
             run.as_deref(),
             spawned.as_deref(),
@@ -211,6 +213,15 @@ fn outstanding(
 ) -> Result<Printed, String> {
     let (cwd, project) = working_project()?;
     let set_root = topic_command::resolve_set(&project, &cwd, slug)?;
+    let concurrency = topic_command::resolve_concurrency(
+        flags.requested_concurrency,
+        || {
+            project
+                .configured_concurrency()
+                .map_err(|error| error.to_string())
+        },
+        subagent_cap::from_environment(|name| std::env::var(name).ok()),
+    )?;
     let mode = match flags.run {
         RunFlag::Query => RunMode::Query,
         RunFlag::Start => RunMode::Start(minted_run()?),
@@ -222,7 +233,7 @@ fn outstanding(
         &set_root,
         profiles_dir,
         flags.depth,
-        flags.limit,
+        &concurrency,
         mode,
         &RealFs,
         &FileCorpusStore::new(&set_root),

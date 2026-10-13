@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::conduct::concurrency::Concurrency;
 use crate::conduct::memory::RunMemory;
 use crate::conduct::observed::Observed;
 use crate::conduct::spawn::SpawnRef;
@@ -32,13 +33,14 @@ pub struct Window {
     pub unexpected: Vec<SpawnRef>,
 }
 
-/// Offers the first `limit` spawns not yet attempted: shallower levels
-/// before deeper ones, then by stem and lineage, compositions last.
+/// Offers the first spawns the concurrency admits, of those not yet
+/// attempted: shallower levels before deeper ones, then by stem and lineage,
+/// compositions last.
 #[must_use]
 pub fn window(
     plan: &RoundPlan,
     observed: &Observed,
-    limit: Option<usize>,
+    concurrency: Concurrency,
     memory: Option<&RunMemory>,
 ) -> Window {
     let mut spawns: Vec<RankedSpawn> =
@@ -48,7 +50,7 @@ pub fn window(
         spawns.into_iter().partition(|spawn| {
             memory.is_some_and(|m| m.attempted.contains(&spawn.spawn))
         });
-    let offered_count = fresh.len().min(limit.unwrap_or(usize::MAX));
+    let offered_count = concurrency.admits(fresh.len());
     let remaining = fresh.len() - offered_count;
     let offered: Vec<SpawnRef> = fresh
         .into_iter()
@@ -176,6 +178,9 @@ mod tests {
     use super::window;
     use super::UnfinishedSpawn;
     use super::Window;
+    use crate::conduct::concurrency::test_support::concurrency;
+    use crate::conduct::concurrency::test_support::unbounded;
+    use crate::conduct::concurrency::Concurrency;
     use crate::conduct::memory::PendingBatch;
     use crate::conduct::memory::RunMemory;
     use crate::conduct::observed::Observed;
@@ -263,12 +268,12 @@ mod tests {
         spawns(texts).into_iter().collect()
     }
 
-    fn unwatched(plan: &RoundPlan, limit: Option<usize>) -> Window {
-        window(plan, &Observed::default(), limit, None)
+    fn unwatched(plan: &RoundPlan, concurrency: Concurrency) -> Window {
+        window(plan, &Observed::default(), concurrency, None)
     }
 
-    fn offered(plan: &RoundPlan, limit: Option<usize>) -> Vec<String> {
-        unwatched(plan, limit)
+    fn offered(plan: &RoundPlan, concurrency: Concurrency) -> Vec<String> {
+        unwatched(plan, concurrency)
             .offered
             .iter()
             .map(ToString::to_string)
@@ -286,7 +291,7 @@ mod tests {
     }
 
     fn unexpected(observed: &Observed, memory: &RunMemory) -> Vec<String> {
-        window(&plan(Vec::new()), observed, None, Some(memory))
+        window(&plan(Vec::new()), observed, unbounded(), Some(memory))
             .unexpected
             .iter()
             .map(ToString::to_string)
@@ -299,7 +304,10 @@ mod tests {
             compose("01-a"),
             research_nodes("02-b", &["2-1", "2-2"]),
         ]);
-        assert_eq!(offered(&plan, None), ["02-b:2-1", "02-b:2-2", "01-a"]);
+        assert_eq!(
+            offered(&plan, unbounded()),
+            ["02-b:2-1", "02-b:2-2", "01-a"]
+        );
     }
 
     #[test]
@@ -310,7 +318,7 @@ mod tests {
             research_nodes("03-c", &["2-1"]),
         ]);
         assert_eq!(
-            offered(&plan, None),
+            offered(&plan, unbounded()),
             ["02-b:2-1", "03-c:2-1", "01-a:3-1-1"]
         );
     }
@@ -322,18 +330,18 @@ mod tests {
             single_pass("02-b"),
             research_nodes("03-c", &["1"]),
         ]);
-        assert_eq!(offered(&plan, None), ["02-b", "03-c:1", "01-a:2-1"]);
+        assert_eq!(offered(&plan, unbounded()), ["02-b", "03-c:1", "01-a:2-1"]);
     }
 
     #[test]
-    fn the_window_holds_back_spawns_past_its_limit_and_counts_them() {
+    fn the_window_holds_back_spawns_past_its_concurrency_and_counts_them() {
         let window = unwatched(
             &plan(vec![
                 single_pass("01-a"),
                 single_pass("02-b"),
                 single_pass("03-c"),
             ]),
-            Some(2),
+            concurrency(2),
         );
         assert_eq!(window.offered, spawns(&["01-a", "02-b"]));
         assert_eq!(window.remaining, 1);
@@ -344,20 +352,20 @@ mod tests {
     }
 
     #[test]
-    fn a_limit_splitting_a_pairs_nodes_keeps_its_first_nodes() {
+    fn a_concurrency_splitting_a_pairs_nodes_keeps_its_first_nodes() {
         let window = unwatched(
             &plan(vec![research_nodes("01-a", &["2-1", "2-2", "2-3"])]),
-            Some(2),
+            concurrency(2),
         );
         assert_eq!(window.pairs, vec![research_nodes("01-a", &["2-1", "2-2"])]);
         assert_eq!(window.remaining, 1);
     }
 
     #[test]
-    fn a_pair_whose_nodes_all_fall_past_the_limit_is_not_offered() {
+    fn a_pair_whose_nodes_all_fall_past_the_concurrency_is_not_offered() {
         let window = unwatched(
             &plan(vec![research_nodes("02-b", &["2-1"]), single_pass("01-a")]),
-            Some(1),
+            concurrency(1),
         );
         assert_eq!(window.pairs, vec![single_pass("01-a")]);
         assert_eq!(window.remaining, 1);
@@ -372,7 +380,7 @@ mod tests {
         let window = window(
             &plan(vec![single_pass("01-a")]),
             &Observed::default(),
-            None,
+            unbounded(),
             Some(&memory),
         );
         assert!(window.offered.is_empty());
@@ -396,7 +404,7 @@ mod tests {
         let window = window(
             &plan(vec![research_nodes("01-a", &["1"]), single_pass("02-b")]),
             &Observed::default(),
-            None,
+            unbounded(),
             Some(&memory),
         );
         assert_eq!(window.offered, spawns(&["02-b"]));
@@ -416,7 +424,7 @@ mod tests {
         let window = window(
             &plan(vec![refused]),
             &Observed::default(),
-            None,
+            unbounded(),
             Some(&memory),
         );
         assert_eq!(
@@ -429,14 +437,18 @@ mod tests {
     }
 
     #[test]
-    fn a_window_without_memory_or_limit_offers_every_pair() {
+    fn a_window_without_memory_at_unbounded_concurrency_offers_every_pair() {
         let planned = plan(vec![
             compose("02-b"),
             research_nodes("01-a", &["2-1"]),
             single_pass("03-c"),
         ]);
-        let window =
-            window(&planned, &showing(&[("04-d:1", SEEN)], &[]), None, None);
+        let window = window(
+            &planned,
+            &showing(&[("04-d:1", SEEN)], &[]),
+            unbounded(),
+            None,
+        );
         assert_eq!(window.pairs, planned.pairs);
         assert_eq!(window.remaining, 0);
         assert!(window.unfinished.is_empty());
