@@ -13,7 +13,7 @@ relates_to: ["work-item:0304", "work-item:0307", "work-item:0308", "plan:2026-10
 tags: ["research", "conduct", "run-ledger", "outstanding", "recovery"]
 revision: "01e6fce34d8ad51297dc39e8197b98c20d4bf456"
 repository: "accelerator"
-last_updated: "2026-10-13T20:30:00+00:00"
+last_updated: "2026-10-13T20:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -801,11 +801,10 @@ Phase 3.
 Every test below asserts `replaced_run` and fails first:
 
 - `starting_over_a_stale_ledger_reports_its_last_batch_by_class`: depth 2,
-  `--concurrency 5`, outline `A?`–`E?`. Seed complete one-note trees at
-  `01-a-web` and `02-b-web`, so the allocation floor leaves `03`–`05` for
-  the rest. Assert the first `--start` offers, in window order with
-  compositions last, `03-c-web:1`, `04-d-web:1`, `05-e-web:1`, `01-a-web`,
-  `02-b-web`. Then write a valid finding for `02-b-web`, a schema-invalid
+  `--concurrency 5`, outline `C?`, `D?`, `E?`, `A?`, `B?`. Seed complete
+  one-note trees at `01-a-web` and `02-b-web`, so the allocation floor leaves
+  `03`–`05` for the rest. Assert the first `--start` offers, in outline
+  order, `03-c-web:1`, `04-d-web:1`, `05-e-web:1`, `01-a-web`, `02-b-web`. Then write a valid finding for `02-b-web`, a schema-invalid
   finding for `01-a-web`, an accepted root note for `03-c-web`, a refused
   root note for `04-d-web` (level mismatch, as
   `a_refused_note_is_reported_on_its_node_with_its_reason` builds it), and
@@ -863,7 +862,9 @@ Every test below asserts `replaced_run` and fails first:
   inside `pending` to the stored ledger; assert `replaced_run` names the run
   and classes its batch.
 - `a_stale_ledger_in_todays_shape_reports_its_last_batch`: write a literal
-  ledger fixture in today's exact encoding, not one this binary produced;
+  ledger fixture in today's exact encoding, not one this binary produced,
+  its `claims` keyed by normalised question (NFKC with whitespace folded,
+  case kept, so `"A?"`);
   assert `replaced_run` names its run and classes its batch.
 
 Guards, green before and after:
@@ -946,7 +947,7 @@ let (continued, replaced) = match &mode {
         ReplacedLedger::Absent,
     ),
     RunMode::Start(_) => {
-        notices.extend(start_notices(&concurrency));
+        notices.extend(start_notices(concurrency));
         let replaced = replaced_ledger(set_root, fs)?;
         notices.extend(replaced.notice());
         (None, replaced)
@@ -1023,18 +1024,18 @@ over another run's readable ledger reports that run's last batch as
 
 #### Automated Verification:
 
-- [ ] Each test asserting `replaced_run` fails before the CLI change, then
+- [x] Each test asserting `replaced_run` fails before the CLI change, then
       passes: `cargo test -p research-cli --test topic_outstanding` (from
       `cli/`)
-- [ ] Guards (key absence, the tick plan) pass before and after the change
-- [ ] The existing stale-ledger and notice-order tests still pass unchanged
-- [ ] Workspace lint and format: `mise run cli:check`
-- [ ] Docs lane: `mise run docs:check`
-- [ ] Full local CI: `mise run`
+- [x] Guards (key absence, the tick plan) pass before and after the change
+- [x] The existing stale-ledger and notice-order tests still pass unchanged
+- [x] Workspace lint and format: `mise run cli:check`
+- [x] Docs lane: `mise run docs:check`
+- [x] Full local CI: `mise run`
 
 #### Manual Verification:
 
-- [ ] A hand `--start` over a stale ledger in a scratch set prints
+- [x] A hand `--start` over a stale ledger in a scratch set prints
       `replaced_run` with the expected classes
 
 ---
