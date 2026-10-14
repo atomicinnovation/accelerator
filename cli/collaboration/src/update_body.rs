@@ -36,9 +36,9 @@ pub fn update_pull_request_body(
     origin: &dyn RepositoryOrigin,
     recognizer: &dyn RemoteUrlRecognizer,
     repository_lookup: &dyn RepositoryLookup,
-    pull_request_existence: &dyn PullRequestExistence,
+    existence: &dyn PullRequestExistence,
     body_update: &dyn PullRequestBodyUpdate,
-    publishing: &dyn PullRequestBodyPublishing,
+    body_publishing: &dyn PullRequestBodyPublishing,
     pull_number: u64,
     body: &str,
 ) -> Result<UpdateBodyOutcome, kernel::Error> {
@@ -47,7 +47,7 @@ pub fn update_pull_request_body(
         origin,
         recognizer,
         repository_lookup,
-        pull_request_existence,
+        existence,
         pull_number,
     )? {
         BaseRepoOutcome::Resolved(base) => base,
@@ -56,7 +56,7 @@ pub fn update_pull_request_body(
         }
     };
 
-    let prepared_body = publishing.prepare_for_publishing(body);
+    let prepared_body = body_publishing.prepare_for_publishing(body);
     match body_update.update_body(
         &base.owner,
         &base.repo,
@@ -208,7 +208,7 @@ mod tests {
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
         repository_lookup: &dyn RepositoryLookup,
-        pull_request_existence: &dyn PullRequestExistence,
+        existence: &dyn PullRequestExistence,
         body_update: &dyn PullRequestBodyUpdate,
     ) -> Result<UpdateBodyOutcome, kernel::Error> {
         update_published_by(
@@ -216,17 +216,17 @@ mod tests {
             origin,
             recognizer,
             repository_lookup,
-            pull_request_existence,
+            existence,
             body_update,
         )
     }
 
     fn update_published_by(
-        publishing: &dyn PullRequestBodyPublishing,
+        body_publishing: &dyn PullRequestBodyPublishing,
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
         repository_lookup: &dyn RepositoryLookup,
-        pull_request_existence: &dyn PullRequestExistence,
+        existence: &dyn PullRequestExistence,
         body_update: &dyn PullRequestBodyUpdate,
     ) -> Result<UpdateBodyOutcome, kernel::Error> {
         update_pull_request_body(
@@ -234,9 +234,9 @@ mod tests {
             origin,
             recognizer,
             repository_lookup,
-            pull_request_existence,
+            existence,
             body_update,
-            publishing,
+            body_publishing,
             42,
             "new body",
         )

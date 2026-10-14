@@ -48,7 +48,7 @@ pub fn resolve_base_repository(
     origin: &dyn RepositoryOrigin,
     recognizer: &dyn RemoteUrlRecognizer,
     repository_lookup: &dyn RepositoryLookup,
-    pull_request_existence: &dyn PullRequestExistence,
+    existence: &dyn PullRequestExistence,
     pull_number: u64,
 ) -> Result<BaseRepoOutcome, kernel::Error> {
     let candidate = resolve_origin_owner_repo(root, origin, recognizer)?;
@@ -78,11 +78,9 @@ pub fn resolve_base_repository(
         }
     };
 
-    if let Err(error) = pull_request_existence.confirm_exists(
-        &base.owner,
-        &base.repo,
-        pull_number,
-    ) {
+    if let Err(error) =
+        existence.confirm_exists(&base.owner, &base.repo, pull_number)
+    {
         return Ok(BaseRepoOutcome::Failed(
             BaseRepoFailure::PullRequestLookupFailed(error),
         ));
@@ -180,14 +178,14 @@ mod tests {
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
         repository_lookup: &dyn RepositoryLookup,
-        pull_request_existence: &dyn PullRequestExistence,
+        existence: &dyn PullRequestExistence,
     ) -> Result<BaseRepoOutcome, kernel::Error> {
         resolve_base_repository(
             &PathBuf::from("/repo"),
             origin,
             recognizer,
             repository_lookup,
-            pull_request_existence,
+            existence,
             42,
         )
     }
