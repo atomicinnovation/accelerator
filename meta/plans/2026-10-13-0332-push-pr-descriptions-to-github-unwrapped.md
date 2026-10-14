@@ -5,14 +5,14 @@ title: "Push PR Descriptions to GitHub Unwrapped Implementation Plan"
 date: "2026-10-13T22:25:25+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0332"
 parent: "work-item:0332"
 derived_from: ["codebase-research:2026-10-13-0332-push-pr-descriptions-to-github-unwrapped"]
 tags: ["collaboration", "github", "markdown", "pulldown-cmark", "describe-pr"]
 revision: "4f52d32c20ed096f05b4e9ef2a0f830a8373d3cc"
 repository: "accelerator"
-last_updated: "2026-10-14T15:00:58+00:00"
+last_updated: "2026-10-14T15:10:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1018,14 +1018,14 @@ and to `### Fixed`:
 
 - [x] `describe-pr` SKILL.md no longer says the shown description is what
       gets posted, and says soft line breaks are unwrapped
-- [ ] Running `/accelerator:describe-pr` on this story's PR posts a body
+- [x] Running `/accelerator:describe-pr` on this story's PR posts a body
       whose paragraphs flow at full width on GitHub, while
       `meta/prs/<n>-description.md` stays wrapped
 - [x] The `[Unreleased]` changelog entries describe the unwrap, the
       hard-break guidance and the exit-code correction
-- [ ] The posted PR description contains the corpus verification
+- [x] The posted PR description contains the corpus verification
       record; add it by hand if `describe-pr` summarised it away
-- [ ] The posted PR description calls out the `rustls` 0.23.46 bump as
+- [x] The posted PR description calls out the `rustls` 0.23.46 bump as
       outside 0332's scope
 
 ---
