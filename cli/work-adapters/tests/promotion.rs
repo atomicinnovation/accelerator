@@ -7,6 +7,7 @@ mod support;
 
 use crate::support::assert_recipe_one_entry;
 use corpus_adapters::CommonMarkBody;
+use serde_json::json;
 use std::cell::Cell;
 use std::fs;
 use std::panic::AssertUnwindSafe;
@@ -34,6 +35,7 @@ use tracker::RemoteTracker as _;
 use tracker::TrackerError;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
+use tracker_test_support::Rewrite;
 use work::dirtiness::Dirtiness;
 use work::draft_id::DraftId;
 use work::promotion::NotPromoted;
@@ -854,6 +856,121 @@ fn a_kill_between_the_h1_update_and_its_record_resumes_as_retitled_not_edited()
             .and_then(|hashes| hashes.remote.clone())
             .unwrap_or_default(),
         digest::remote_body(&retitled)
+    );
+}
+
+/// Promotes a draft holding `draft_body` whose created issue's hash was
+/// never read back, so only agreement with the draft can prove the remote
+/// untouched; returns the updates the promotion sent.
+fn promote_unhashed(
+    draft_body: &str,
+    tracker: &RecordingTracker,
+) -> Vec<(Option<String>, String)> {
+    let repo = Repo::new().unwrap();
+    repo.write(
+        DRAFT,
+        &format!(
+            "---\nid: \"draft-k7mq3x\"\ntitle: \"Add search\"\n\
+             kind: \"story\"\n---\n{draft_body}"
+        ),
+    )
+    .unwrap();
+    repo.save(&record_at(PromotionStage::Created {
+        key: tracker_key(),
+        created_remote_hash: None,
+    }));
+
+    promoted(&repo, tracker).unwrap();
+
+    updates(tracker)
+}
+
+const LISTED_BODY: &str =
+    "\n# draft-k7mq3x: Add search\n\nSupersedes nothing.\n\n- one\n- two\n";
+
+#[test]
+fn a_cosmetically_rewritten_remote_still_agrees_with_the_draft() {
+    let tracker = tracker_holding(&format!(
+        "Add search\n{}",
+        Rewrite::StarBullets.apply(LISTED_BODY)
+    ));
+
+    assert_eq!(
+        promote_unhashed(LISTED_BODY, &tracker).len(),
+        1,
+        "the untouched issue is retitled"
+    );
+}
+
+#[test]
+fn a_remote_title_edit_does_not_agree() {
+    let tracker = tracker_holding(&format!("Find things\n{LISTED_BODY}"));
+
+    assert!(promote_unhashed(LISTED_BODY, &tracker).is_empty());
+}
+
+#[test]
+fn a_remote_body_edit_does_not_agree() {
+    let tracker = tracker_holding(&format!(
+        "Add search\n{}",
+        LISTED_BODY.replace("- two", "- three")
+    ));
+
+    assert!(promote_unhashed(LISTED_BODY, &tracker).is_empty());
+}
+
+#[test]
+fn a_jira_draft_normalised_by_the_push_round_trip_still_agrees() {
+    let paragraph = |text: &str| json!({"type": "paragraph", "content": [{"type": "text", "text": text}]});
+    let cell = |kind: &str, text: &str| json!({"type": kind, "content": [paragraph(text)]});
+    let item =
+        |text: &str| json!({"type": "listItem", "content": [paragraph(text)]});
+    let description = json!({"type": "doc", "version": 1, "content": [
+        {"type": "heading", "attrs": {"level": 1},
+         "content": [{"type": "text", "text": "draft-k7mq3x: Add search"}]},
+        {"type": "table", "content": [
+            {"type": "tableRow", "content": [cell("tableHeader", "a")]},
+            {"type": "tableRow", "content": [cell("tableCell", "1")]},
+        ]},
+        {"type": "bulletList", "content": [item("one"), item("two")]},
+    ]});
+    let tracker = support::jira_recording_tracker(vec![(
+        key(),
+        RemoteIssue {
+            key: key(),
+            updated: RemoteTimestamp::Reported("t0".to_owned()),
+            body: format!("Add search\n{description}\n"),
+        },
+    )]);
+
+    assert_eq!(
+        promote_unhashed(
+            "\n# draft-k7mq3x: Add search\n\n| a |\n|:--|\n| 1 |\n\n\
+             + one\n+ two\n",
+            &tracker
+        )
+        .len(),
+        1,
+        "the untouched issue is retitled"
+    );
+}
+
+#[test]
+fn an_id_inside_cosmetically_rewritten_text_still_agrees() {
+    let tracker = tracker_holding(
+        "Add search\n\n# REC-1: Add search\n\n**Supersedes nothing; see**\n\
+         **REC-1 for \\~550 items.**\n",
+    );
+
+    assert_eq!(
+        promote_unhashed(
+            "\n# draft-k7mq3x: Add search\n\n**Supersedes nothing; see\n\
+             draft-k7mq3x for ~550 items.**\n",
+            &tracker
+        )
+        .len(),
+        1,
+        "the tool's own retitle is not read as an edit"
     );
 }
 

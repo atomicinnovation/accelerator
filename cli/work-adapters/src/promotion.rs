@@ -38,7 +38,9 @@ use work::retirement::RetirementCause;
 use work::retirement::RetirementCauseKind;
 use work::retirement::RetirementFailure;
 use work::retirement::RetirementRefusal;
+use work::sync::BodyEquivalence;
 use work::sync::RequestFingerprint;
+use work::sync::SyncedTrackerFields;
 use work::tracker_key::TrackerKey;
 
 use crate::create_request_fields;
@@ -60,6 +62,7 @@ use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
+use crate::sync::synced_fields;
 
 /// What became of one draft a run set out to promote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,12 +271,6 @@ struct DraftContent {
     kind: String,
 }
 
-impl DraftContent {
-    fn projected(&self) -> String {
-        format!("{}\n{}", self.title, self.body)
-    }
-}
-
 fn now_epoch() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -376,12 +373,6 @@ fn local_digests(
             fingerprints: Some(fingerprints),
         },
     )
-}
-
-/// Whether two projected bodies agree once every ID is set aside.
-fn agree_but_for_ids(left: &str, right: &str, ids: &[&str]) -> bool {
-    digest::remote_body(&without_ids(left, ids))
-        == digest::remote_body(&without_ids(right, ids))
 }
 
 const fn record_state(stored: &StoredRecord) -> RecordState<'_> {
@@ -649,6 +640,31 @@ impl Promoting<'_> {
         BaselineDigester::new(self.ports.tracker, self.ports.parser)
     }
 
+    /// Whether `issue` holds the draft's title exactly and a body meaning
+    /// what `body` does, once the draft ID and `key` are set aside.
+    fn agrees_but_for_ids(
+        &self,
+        issue: &RemoteIssue,
+        key: &TrackerKey,
+        body: &str,
+    ) -> bool {
+        let ids = [self.draft.as_str(), key.as_str()];
+        let digester = self.digester();
+        let comparison = digester.comparison();
+        let Ok(rendered) = comparison.local_body(&issue.body) else {
+            return false;
+        };
+        let titled = |title: &str| SyncedTrackerFields {
+            title: without_ids(title, &ids),
+        };
+        titled(&self.content.title)
+            == titled(&synced_fields::remote_fields(&issue.body).title)
+            && comparison.equivalence_to_rendered(
+                &without_ids(body, &ids),
+                &without_ids(&rendered, &ids),
+            ) == BodyEquivalence::Equivalent
+    }
+
     fn retirement<'k>(&'k self, key: &'k TrackerKey) -> Retirement<'k> {
         Retirement::onto(self.draft.as_str(), key)
     }
@@ -687,9 +703,8 @@ impl Promoting<'_> {
         };
         let issue = self.show(key)?;
         let read_back = read_back_of(&self.digester(), &issue);
-        let ids = [self.draft.as_str(), key.as_str()];
         let matches_draft =
-            agree_but_for_ids(&issue.body, &self.content.projected(), &ids);
+            self.agrees_but_for_ids(&issue, key, &self.content.body);
         match retitling(
             created_remote_hash.as_deref(),
             &read_back,
@@ -757,11 +772,8 @@ impl Promoting<'_> {
         let local = |content: &str| local_digests(&digester, content);
         let (_, promoted_body) =
             digest::split_frontmatter_and_body(&promoted).unwrap_or_default();
-        let matches_promoted = agree_but_for_ids(
-            &issue.body,
-            &format!("{}\n{promoted_body}", self.content.title),
-            &[self.draft.as_str(), key.as_str()],
-        );
+        let matches_promoted =
+            self.agrees_but_for_ids(&issue, key, &promoted_body);
         let Some(baseline) = intended_baseline(
             &record.stage,
             &local(&self.content.content),
