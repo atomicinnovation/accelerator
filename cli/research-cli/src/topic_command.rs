@@ -23,7 +23,7 @@ use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
-use research::conduct::replaced_run::ReplacedBatch;
+use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
 use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
@@ -284,17 +284,16 @@ where
     let continued = continued
         .map(|ledger| settled(ledger, &reading.inputs, set_root))
         .transpose()?;
-    let replaced_batch = replaced.judging_findings(&reading.inputs);
-    let inputs = match &replaced_batch {
-        Some(replaced_batch) => {
-            replaced_batch.quarantining(reading.inputs, &UnicodeTables)
+    let (inputs, plan, replaced_run) = match &replaced {
+        ReplacedLedger::Readable(stored) => {
+            let recovery = Recovery::of(stored, reading.inputs, &UnicodeTables);
+            (recovery.inputs, recovery.plan, Some(recovery.replaced_run))
         }
-        None => reading.inputs,
+        ReplacedLedger::Absent | ReplacedLedger::Corrupt => {
+            let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
+            (reading.inputs, plan, None)
+        }
     };
-    let plan = RoundPlan::of(&inputs, &UnicodeTables);
-    let replaced_run = replaced_batch.map(|replaced_batch| {
-        replaced_batch.report(&inputs, &plan, &UnicodeTables)
-    });
     let observed = Observed::of(&inputs);
     let ledger = match mode {
         RunMode::Start(run) => {
@@ -452,19 +451,6 @@ fn replaced_ledger<F: FileReader>(
         Ok(Some(stored)) => Ok(ReplacedLedger::Readable(stored)),
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
-    }
-}
-
-impl ReplacedLedger {
-    fn judging_findings(&self, inputs: &RoundInputs) -> Option<ReplacedBatch> {
-        match self {
-            Self::Readable(stored) => Some(ReplacedBatch::judging_findings(
-                stored,
-                inputs,
-                &UnicodeTables,
-            )),
-            Self::Absent | Self::Corrupt => None,
-        }
     }
 }
 

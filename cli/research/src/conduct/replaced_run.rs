@@ -17,8 +17,17 @@ use crate::topic::plan::RoundPlan;
 use crate::topic::question::NormalisedQuestion;
 use crate::topic::question::UnicodeText;
 
+/// A starting run's first round, drawn as if the findings the replaced run
+/// left invalid were already quarantined, with its report of that run.
+#[derive(Debug, Clone)]
+pub struct Recovery {
+    pub inputs: RoundInputs,
+    pub plan: RoundPlan,
+    pub replaced_run: ReplacedRun,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReplacedBatch {
+struct ReplacedBatch {
     run: RunId,
     quarantine: Vec<Stem>,
     owed: Vec<Stem>,
@@ -62,9 +71,27 @@ enum SpawnOutcome {
     Unasked,
 }
 
-impl ReplacedBatch {
+impl Recovery {
     #[must_use]
-    pub fn judging_findings(
+    pub fn of(
+        replaced: &RunLedger,
+        inputs: RoundInputs,
+        unicode: &dyn UnicodeText,
+    ) -> Self {
+        let batch = ReplacedBatch::judging_findings(replaced, &inputs, unicode);
+        let inputs = batch.quarantining(inputs, unicode);
+        let plan = RoundPlan::of(&inputs, unicode);
+        let replaced_run = batch.report(&inputs, &plan, unicode);
+        Self {
+            inputs,
+            plan,
+            replaced_run,
+        }
+    }
+}
+
+impl ReplacedBatch {
+    fn judging_findings(
         replaced: &RunLedger,
         inputs: &RoundInputs,
         unicode: &dyn UnicodeText,
@@ -104,8 +131,7 @@ impl ReplacedBatch {
         }
     }
 
-    #[must_use]
-    pub fn quarantining(
+    fn quarantining(
         &self,
         inputs: RoundInputs,
         unicode: &dyn UnicodeText,
@@ -113,8 +139,7 @@ impl ReplacedBatch {
         inputs.with_findings_quarantined(&self.quarantine, unicode)
     }
 
-    #[must_use]
-    pub fn report(
+    fn report(
         self,
         inputs: &RoundInputs,
         plan: &RoundPlan,
@@ -363,7 +388,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::Leftover;
-    use super::ReplacedBatch;
+    use super::Recovery;
     use super::ReplacedRun;
     use crate::conduct::ledger::RunId;
     use crate::conduct::ledger::RunLedger;
@@ -476,11 +501,7 @@ mod tests {
     }
 
     fn report_of(inputs: RoundInputs, replaced: &RunLedger) -> ReplacedRun {
-        let judged =
-            ReplacedBatch::judging_findings(replaced, &inputs, &FakeUnicode);
-        let inputs = judged.quarantining(inputs, &FakeUnicode);
-        let plan = RoundPlan::of(&inputs, &FakeUnicode);
-        judged.report(&inputs, &plan, &FakeUnicode)
+        Recovery::of(replaced, inputs, &FakeUnicode).replaced_run
     }
 
     fn spawns(leftovers: &[Leftover]) -> Vec<String> {
@@ -914,17 +935,17 @@ mod tests {
             &[("A?", 1), ("B?", 2), ("C?", 3)],
             &["01-a-web", "02-b-web", "03-c-web"],
         );
-        let judged =
-            ReplacedBatch::judging_findings(&replaced, &inputs, &FakeUnicode);
-        let quarantined = judged.quarantining(inputs, &FakeUnicode);
+        let recovery = Recovery::of(&replaced, inputs, &FakeUnicode);
         let set_aside: Vec<Stem> = ["01-a-web", "03-c-web"].map(stem).into();
-        assert!(quarantined.findings.iter().all(|finding| !finding
+        assert!(recovery.inputs.findings.iter().all(|finding| !finding
             .stem()
             .is_some_and(|at| set_aside.contains(at))));
-        assert_eq!(quarantined.findings.len(), 1);
-        let plan = RoundPlan::of(&quarantined, &FakeUnicode);
-        let report = judged.report(&quarantined, &plan, &FakeUnicode);
-        assert_eq!(report.quarantine(), set_aside);
+        assert_eq!(recovery.inputs.findings.len(), 1);
+        assert_eq!(
+            recovery.plan,
+            RoundPlan::of(&recovery.inputs, &FakeUnicode)
+        );
+        assert_eq!(recovery.replaced_run.quarantine(), set_aside);
     }
 
     #[test]
@@ -962,9 +983,7 @@ mod tests {
         let mut inputs = inputs(&["- [ ] A?"]);
         inputs.findings = vec![answering("01-a-web.md", "A?", "web")];
         let replaced = owing(replaced(&[], &[]), &["01-a-web"]);
-        let judged =
-            ReplacedBatch::judging_findings(&replaced, &inputs, &FakeUnicode);
-        let quarantined = judged.quarantining(inputs, &FakeUnicode);
-        assert!(quarantined.findings.is_empty());
+        let recovery = Recovery::of(&replaced, inputs, &FakeUnicode);
+        assert!(recovery.inputs.findings.is_empty());
     }
 }

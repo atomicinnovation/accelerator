@@ -225,19 +225,16 @@ pub fn research::conduct::replaced_run::Leftover::eq(&self, other: &research::co
 impl core::fmt::Debug for research::conduct::replaced_run::Leftover
 pub fn research::conduct::replaced_run::Leftover::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::replaced_run::Leftover
-pub struct research::conduct::replaced_run::ReplacedBatch
-impl research::conduct::replaced_run::ReplacedBatch
-pub fn research::conduct::replaced_run::ReplacedBatch::judging_findings(replaced: &research::conduct::ledger::RunLedger, inputs: &research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> Self
-pub fn research::conduct::replaced_run::ReplacedBatch::quarantining(&self, inputs: research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> research::topic::plan::RoundInputs
-pub fn research::conduct::replaced_run::ReplacedBatch::report(self, inputs: &research::topic::plan::RoundInputs, plan: &research::topic::plan::RoundPlan, unicode: &dyn research::topic::question::UnicodeText) -> research::conduct::replaced_run::ReplacedRun
-impl core::clone::Clone for research::conduct::replaced_run::ReplacedBatch
-pub fn research::conduct::replaced_run::ReplacedBatch::clone(&self) -> research::conduct::replaced_run::ReplacedBatch
-impl core::cmp::Eq for research::conduct::replaced_run::ReplacedBatch
-impl core::cmp::PartialEq for research::conduct::replaced_run::ReplacedBatch
-pub fn research::conduct::replaced_run::ReplacedBatch::eq(&self, other: &research::conduct::replaced_run::ReplacedBatch) -> bool
-impl core::fmt::Debug for research::conduct::replaced_run::ReplacedBatch
-pub fn research::conduct::replaced_run::ReplacedBatch::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for research::conduct::replaced_run::ReplacedBatch
+pub struct research::conduct::replaced_run::Recovery
+pub research::conduct::replaced_run::Recovery::inputs: research::topic::plan::RoundInputs
+pub research::conduct::replaced_run::Recovery::plan: research::topic::plan::RoundPlan
+pub research::conduct::replaced_run::Recovery::replaced_run: research::conduct::replaced_run::ReplacedRun
+impl research::conduct::replaced_run::Recovery
+pub fn research::conduct::replaced_run::Recovery::of(replaced: &research::conduct::ledger::RunLedger, inputs: research::topic::plan::RoundInputs, unicode: &dyn research::topic::question::UnicodeText) -> Self
+impl core::clone::Clone for research::conduct::replaced_run::Recovery
+pub fn research::conduct::replaced_run::Recovery::clone(&self) -> research::conduct::replaced_run::Recovery
+impl core::fmt::Debug for research::conduct::replaced_run::Recovery
+pub fn research::conduct::replaced_run::Recovery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct research::conduct::replaced_run::ReplacedRun
 impl research::conduct::replaced_run::ReplacedRun
 pub fn research::conduct::replaced_run::ReplacedRun::invalid(&self) -> &[research::conduct::replaced_run::Leftover]
