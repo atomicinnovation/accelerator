@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-14T14:53:45+00:00"
+last_updated: "2026-10-14T15:44:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2407,7 +2407,7 @@ legacy-unrenderable` dossier naming the remedies that settle it.
       each match
 - [x] `mise run public-api:check` (after `public-api:update` for `work` and
       `tracker`)
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -2473,12 +2473,11 @@ legacy-unrenderable` dossier naming the remedies that settle it.
   and a state assertion in `a_create_then_sync_reports_synced`, whose
   harness exposes only the exit code. `preview_and_apply_report_the_same_state_for_every_recovery_row`
   is folded into the recovery-row tests, each of which previews first.
-- `mise run` stays unticked: on 2026-10-14 every task passed except
+- `mise run` first failed on 2026-10-14 only in
   `test:unit:frontend`, whose 2,615 tests all passed but whose Vitest worker
   timed out (`Timeout calling "onTaskUpdate"`) three times under a load
   average near 200. No visualiser file changed in this phase.
-  A later run the same day passed `test:unit:frontend` and failed only
-  `deny:check`; see Phase 9's notes.
+  It passed after Phase 9 and the `rustls` bump; see Phase 9's notes.
 - On 2026-10-14 a push-only `work sync --max-pushes 100` with the installed
   1.24.0-pre.79 engine created PP-887 to PP-919 for 33 unsynced items and
   pushed 24 locally edited ones, skipping conflicts 0207, 0227, 0296 and
@@ -2574,7 +2573,7 @@ titles differ.
 - [x] `mise run public-api:check` (after `public-api:update` for `work`,
       reviewing the `section_diff` change)
 - [x] `mise run docs:check`
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
@@ -2600,11 +2599,11 @@ titles differ.
   `one_differing_section_renders_a_unified_body_with_the_frozen_framing`
   and `a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values`
   expect it.
-- `mise run` stays unticked: on 2026-10-14 every task passed except
-  `deny:check`, which reports RUSTSEC-2026-0346 to 0349 against `rustls`
-  0.23.45; `cargo update -p rustls` does not move it to the patched
-  0.23.46. The run also found Phase 8's `pub use rewrite::Rewrite` in
-  `tracker-test-support` breaking its pup rule, now fixed.
+- The first `mise run` failed `deny:check` on RUSTSEC-2026-0346 to 0349
+  against `rustls` 0.23.45, which `cli/Cargo.toml` exact-pinned; the pin
+  now names 0.23.46 and the third-party notices follow. The run also found
+  Phase 8's `pub use rewrite::Rewrite` in `tracker-test-support` breaking
+  its pup rule, now fixed. `mise run` then exited 0 on 2026-10-14.
 
 ---
 
