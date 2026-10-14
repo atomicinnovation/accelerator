@@ -1447,6 +1447,7 @@ pub fn research::topic::evidence::Finding::invalid(name: &str) -> Self
 pub fn research::topic::evidence::Finding::name(&self) -> &str
 pub fn research::topic::evidence::Finding::retained(name: &str, pair: research::topic::outline::Pair, unicode: &dyn research::topic::question::UnicodeText) -> Self
 pub const fn research::topic::evidence::Finding::stem(&self) -> core::option::Option<&research::topic::layout::stem::Stem>
+pub fn research::topic::evidence::Finding::still_naming(self, question: alloc::string::String) -> Self
 pub const fn research::topic::evidence::Finding::with_depth(self, depth: research::topic::tree::Depth) -> Self
 impl core::clone::Clone for research::topic::evidence::Finding
 pub fn research::topic::evidence::Finding::clone(&self) -> research::topic::evidence::Finding

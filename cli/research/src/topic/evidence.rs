@@ -24,6 +24,7 @@ pub struct Finding {
     index: Option<u32>,
     stem: Option<Stem>,
     answer: Option<Answer>,
+    named_question: Option<String>,
     depth: Depth,
 }
 
@@ -51,8 +52,17 @@ impl Finding {
             index: Stem::index_of(name),
             stem: name.strip_suffix(".md").and_then(Stem::parse),
             answer: None,
+            named_question: None,
             depth: Depth::default(),
         }
+    }
+
+    /// An invalid finding whose frontmatter still names `question`, so its
+    /// marker claims its index for that question once it is quarantined.
+    #[must_use]
+    pub fn still_naming(mut self, question: String) -> Self {
+        self.named_question = Some(question);
+        self
     }
 
     /// The finding as stamped with the depth it was researched to; an
@@ -103,7 +113,10 @@ impl Finding {
         &self,
         unicode: &dyn UnicodeText,
     ) -> Option<IndexClaim> {
-        let named = self.answer().map(|answer| answer.pair.question.as_str());
+        let named = self
+            .answer()
+            .map(|answer| answer.pair.question.as_str())
+            .or(self.named_question.as_deref());
         Some(IndexClaim::new(self.index()?, named, unicode))
     }
 }

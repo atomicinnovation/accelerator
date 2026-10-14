@@ -1140,7 +1140,7 @@ fn an_invalid_or_misdirected_finding_from_a_replaced_batch_is_listed_for_quarant
             finding_at(&project, "02-b-web")?,
         ])
     );
-    assert_eq!(spawns_of(&plan)?, ["03-a-web", "04-b-web"]);
+    assert_eq!(spawns_of(&plan)?, ["01-a-web", "03-b-web"]);
     Ok(())
 }
 
@@ -1224,21 +1224,41 @@ fn a_quarantine_never_strands_an_offered_spawn() -> Result<(), TestError> {
     Ok(())
 }
 
+fn failing_validation_still_naming_its_question(
+    tag: &str,
+) -> Result<Project, TestError> {
+    let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    Ok(project)
+}
+
 #[test]
 fn the_first_plan_after_a_replaced_batch_matches_the_plan_once_quarantined(
 ) -> Result<(), TestError> {
-    let project = sibling_answered("replaced-equivalent")?;
-    let (plan, run) = started(&project, &[])?;
-    quarantine_as_the_report_would(&plan)?;
+    let left_invalid = [
+        sibling_answered("replaced-equivalent-misdirected")?,
+        failing_validation_still_naming_its_question(
+            "replaced-equivalent-failing",
+        )?,
+    ];
+    for project in left_invalid {
+        let (plan, run) = started(&project, &[])?;
+        quarantine_as_the_report_would(&plan)?;
 
-    let quarantined = continued(&project, &run, &[])?;
+        let continued = continued(&project, &run, &[])?;
+        let (unclaimed, _) = project.plan_with(&[])?;
 
-    assert_eq!(quarantined["pairs"], plan["pairs"]);
+        for quarantined in [continued, unclaimed] {
+            assert_eq!(quarantined["items"], plan["items"]);
+            assert_eq!(quarantined["pairs"], plan["pairs"]);
+        }
+    }
     Ok(())
 }
 
 #[test]
-fn quarantined_leftovers_keep_their_fresh_stems_for_the_rest_of_the_run(
+fn quarantined_leftovers_keep_their_planned_stems_for_the_rest_of_the_run(
 ) -> Result<(), TestError> {
     let project = small_set("replaced-fresh", "- [ ] A?\n- [ ] B?")?;
     started(&project, &[])?;
@@ -1254,7 +1274,7 @@ fn quarantined_leftovers_keep_their_fresh_stems_for_the_rest_of_the_run(
     let next = continued(&project, &run, &[])?;
     let (query, _) = project.plan_with(&[])?;
 
-    assert_eq!(spawns_of(&next)?, ["03-a-web", "04-b-web"]);
+    assert_eq!(spawns_of(&next)?, ["01-a-web", "03-b-web"]);
     assert_eq!(next.get("replaced_run"), None);
     assert_eq!(query["warnings"], json!([]));
     assert_eq!(
@@ -1286,7 +1306,7 @@ fn a_second_start_before_the_renames_still_quarantines_the_first_starts_findings
 
     let replaced = &plan["replaced_run"];
     assert_eq!(replaced["run"], json!(first));
-    assert_eq!(replaced["owed"], json!(["01-a-web", "02-b-web"]));
+    assert_eq!(replaced["owed"], json!(["02-b-web"]));
     assert_eq!(
         replaced["quarantine"],
         json!([
@@ -1294,10 +1314,8 @@ fn a_second_start_before_the_renames_still_quarantines_the_first_starts_findings
             finding_at(&project, "02-b-web")?,
         ])
     );
-    assert_eq!(
-        replaced["unwritten"],
-        json!([left("03-a-web", "A?"), left("04-b-web", "B?")])
-    );
+    assert_eq!(replaced["invalid"], json!([left("01-a-web", "A?")]));
+    assert_eq!(replaced["unwritten"], json!([left("03-b-web", "B?")]));
     assert_eq!(plan["pairs"], recovering["pairs"]);
     Ok(())
 }
@@ -1341,7 +1359,7 @@ fn a_run_owes_nothing_once_its_quarantine_is_renamed() -> Result<(), TestError>
     let (plan, run) = started(&project, &[])?;
     let stored: Value =
         serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
-    assert_eq!(stored["owed_quarantine"], json!(["01-a-web", "02-b-web"]));
+    assert_eq!(stored["owed_quarantine"], json!(["02-b-web"]));
     quarantine_as_the_report_would(&plan)?;
 
     continued(&project, &run, &[])?;

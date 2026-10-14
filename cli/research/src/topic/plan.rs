@@ -1210,6 +1210,23 @@ mod tests {
     }
 
     #[test]
+    fn a_finding_failing_validation_that_names_its_question_plans_as_its_marker_would(
+    ) {
+        let mut read = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
+        read.findings =
+            vec![Finding::invalid("01-a-web.md").still_naming("A?".into())];
+        let mut marked = read.clone();
+        marked.findings = Vec::new();
+        marked.quarantined = quarantined(".01-a-web.md.invalid", Some("A?"));
+        let read = read.with_findings_quarantined(
+            &stems_named(&["01-a-web"]),
+            &FakeUnicode,
+        );
+        assert_eq!(plan(&read), plan(&marked));
+        assert_eq!(stems(&plan(&read)), ["01-a-web", "02-b-web"]);
+    }
+
+    #[test]
     fn reading_findings_as_quarantined_leaves_every_other_finding() {
         let mut inputs = inputs(outline(&["- [ ] A?", "- [ ] B?"]));
         let kept = vec![
