@@ -2662,13 +2662,29 @@ parsed model.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters`
-- [ ] `mise run` exits 0
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters`
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
 - [ ] A promotion under `{tracker}` against Linear completes without a
       spurious retitle
+
+#### Implementation Notes:
+
+- `agree_but_for_ids` became `Promoting::agrees_but_for_ids(issue, key,
+  body)`: both call sites compare against the draft's title and set aside
+  the draft ID and the key, so only the body differs between them. A remote
+  with no Markdown form never agrees.
+- The tests drive the `retitle_remote` path from a `Created` record with no
+  create hash, so agreement alone decides between retitling and keeping
+  the remote; one update sent means the remote agreed. The two
+  disagreement tests pass under the old comparison too and stand as
+  guards.
+- The first `mise run` failed one visualiser e2e test,
+  `kanban-drag-overlay.spec.ts`'s Escape-cancelled drag, on both attempts;
+  this phase does not touch the visualiser, and a second `mise run` exited
+  0 on 2026-10-14.
 
 ---
 
