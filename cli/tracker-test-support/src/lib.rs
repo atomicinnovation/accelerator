@@ -13,7 +13,7 @@ mod rewrite;
 pub mod seed;
 mod shared;
 
-pub use rewrite::Rewrite;
+pub use crate::rewrite::Rewrite;
 
 pub use crate::shared::SharedTracker;
 
