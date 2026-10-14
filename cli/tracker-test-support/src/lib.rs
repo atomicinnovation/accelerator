@@ -468,6 +468,16 @@ impl RecordingTracker {
         self.calls.borrow().clone()
     }
 
+    /// Replaces the stored issue under `issue.key`, as an edit made in the
+    /// tracker itself would, recording no call.
+    pub fn edit_remotely(&self, issue: RemoteIssue) {
+        let mut issues = self.issues.borrow_mut();
+        match issues.iter_mut().find(|(known, _)| known == &issue.key) {
+            Some(entry) => entry.1 = issue,
+            None => issues.push((issue.key.clone(), issue)),
+        }
+    }
+
     fn issue(&self, id: &ExternalId) -> Option<RemoteIssue> {
         self.issues
             .borrow()
@@ -901,6 +911,22 @@ mod tests {
         assert!(matches!(calls[1], Call::Update { .. }));
         assert!(matches!(calls[2], Call::Show { .. }));
         assert!(matches!(calls[3], Call::FetchAll { .. }));
+    }
+
+    #[test]
+    fn an_edit_made_remotely_is_shown_and_records_no_call() {
+        let id = ExternalId::new("REC-1".to_owned());
+        let tracker = RecordingTracker::holding(Vec::new());
+        let edited = RemoteIssue {
+            key: id.clone(),
+            updated: RemoteTimestamp::Reported("later".to_owned()),
+            body: "Title\nEdited\n".to_owned(),
+        };
+
+        tracker.edit_remotely(edited.clone());
+
+        assert!(tracker.calls().is_empty());
+        assert_eq!(tracker.show(&id), Ok(edited));
     }
 
     #[test]

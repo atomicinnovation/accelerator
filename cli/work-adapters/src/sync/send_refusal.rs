@@ -3,7 +3,47 @@
 use tracker::Unrenderable;
 use work::sync::Action;
 
+use crate::sync::baseline::Entry;
 use crate::sync::body_comparison::BodyComparison;
+
+/// The shape of the baseline entry an item is classified against, as far as
+/// a send cares.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryShape {
+    /// One hash per side, which cannot show which local fact moved. An item
+    /// with no entry, or one recorded under an unknown recipe, is treated
+    /// the same.
+    Legacy,
+    Split,
+}
+
+impl EntryShape {
+    #[must_use]
+    pub const fn of(entry: Option<&Entry>) -> Self {
+        match entry {
+            Some(Entry::Split { .. }) => Self::Split,
+            _ => Self::Legacy,
+        }
+    }
+}
+
+/// Whether an item has no safe local overwrite.
+///
+/// Its entry is legacy, its local body holds no residue, and its remote
+/// holds content with no Markdown form: an overwrite would delete content
+/// the plugin cannot display, to deliver a local edit whose extent the
+/// legacy hash cannot show.
+#[must_use]
+pub fn legacy_unrenderable(
+    comparison: &BodyComparison<'_>,
+    shape: EntryShape,
+    local_body: &str,
+    projected: &str,
+) -> bool {
+    shape == EntryShape::Legacy
+        && comparison.pull_residue(local_body, projected).is_none()
+        && comparison.local_body(projected).is_err()
+}
 
 /// Why a send of the local body was refused before it reached the tracker.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,14 +59,15 @@ pub enum SendRefusal {
 /// Whether sending `local_body` under `action` must be refused, against the
 /// fetched `projected` remote.
 ///
-/// An overwrite is a human's choice to replace the remote whole, so only a
-/// planned push is refused over an unrenderable remote; residue is refused
-/// for both. A retitle sends no description, so nothing about the bodies
-/// can refuse it.
+/// An overwrite is a human's choice to replace the remote whole, so over an
+/// unrenderable remote it is refused only where [`legacy_unrenderable`]
+/// holds, while a planned push always is; residue is refused for both. A
+/// retitle sends no description, so nothing about the bodies can refuse it.
 #[must_use]
 pub fn send_refusal(
     comparison: &BodyComparison<'_>,
     action: Action,
+    shape: EntryShape,
     local_body: &str,
     projected: Option<&str>,
 ) -> Option<SendRefusal> {
@@ -39,8 +80,10 @@ pub fn send_refusal(
     if comparison.pull_residue(local_body, projected).is_some() {
         return Some(SendRefusal::PullResidue);
     }
-    match (action, comparison.local_body(projected)) {
-        (Action::Push(_), Err(cause)) => {
+    let refused_over_unrenderable = matches!(action, Action::Push(_))
+        || legacy_unrenderable(comparison, shape, local_body, projected);
+    match comparison.local_body(projected) {
+        Err(cause) if refused_over_unrenderable => {
             Some(SendRefusal::RemoteUnrenderable(cause))
         }
         _ => None,
@@ -57,6 +100,7 @@ mod tests {
     use work::sync::FieldDelivery;
 
     use super::send_refusal;
+    use super::EntryShape;
     use super::SendRefusal;
     use crate::sync::body_comparison::BodyComparison;
 
@@ -90,9 +134,19 @@ mod tests {
         local_body: &str,
         remote: Option<&str>,
     ) -> Option<SendRefusal> {
+        refusal_under(EntryShape::Split, action, local_body, remote)
+    }
+
+    fn refusal_under(
+        shape: EntryShape,
+        action: Action,
+        local_body: &str,
+        remote: Option<&str>,
+    ) -> Option<SendRefusal> {
         send_refusal(
             &BodyComparison::new(&PanelRefusingDialect, &CommonMarkBody),
             action,
+            shape,
             local_body,
             remote,
         )
@@ -132,6 +186,7 @@ mod tests {
             send_refusal(
                 &BodyComparison::new(&PlainDialect, &CommonMarkBody),
                 Action::Overwrite,
+                EntryShape::Split,
                 "Remote body\n",
                 Some(RENDERABLE),
             ),
@@ -154,7 +209,48 @@ mod tests {
     }
 
     #[test]
-    fn an_overwrite_over_an_unrenderable_remote_is_not_refused() {
+    fn a_legacy_overwrite_over_an_unrenderable_remote_is_refused() {
+        assert_eq!(
+            refusal_under(
+                EntryShape::Legacy,
+                Action::Overwrite,
+                "Local body\n",
+                Some(UNRENDERABLE)
+            ),
+            Some(SendRefusal::RemoteUnrenderable(Unrenderable {
+                detail: "panel".to_owned(),
+            }))
+        );
+    }
+
+    #[test]
+    fn a_legacy_overwrite_of_residue_is_refused_as_pull_residue() {
+        assert_eq!(
+            refusal_under(
+                EntryShape::Legacy,
+                Action::Overwrite,
+                RESIDUE,
+                Some(UNRENDERABLE)
+            ),
+            Some(SendRefusal::PullResidue)
+        );
+    }
+
+    #[test]
+    fn a_retitle_of_an_item_holding_residue_is_not_refused() {
+        assert_eq!(
+            refusal_under(
+                EntryShape::Legacy,
+                Action::Retitle,
+                RESIDUE,
+                Some(RENDERABLE)
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn a_split_overwrite_over_an_unrenderable_remote_is_not_refused() {
         assert_eq!(
             refusal(Action::Overwrite, "Local body\n", Some(UNRENDERABLE)),
             None

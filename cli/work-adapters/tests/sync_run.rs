@@ -2399,7 +2399,6 @@ fn jira_scenario(
     })
 }
 
-/// A baseline the remote has not moved from and the local side has.
 /// A recipe-1 entry recording a local body of `recorded_local_body` and the
 /// remote at `STAMP` holding `description`.
 fn split_entry_recording<'a>(

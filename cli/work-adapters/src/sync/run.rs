@@ -54,7 +54,9 @@ use crate::sync::identity_settlement::IdentityRow;
 use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::ordering;
 use crate::sync::scope;
+use crate::sync::send_refusal::legacy_unrenderable;
 use crate::sync::send_refusal::send_refusal;
+use crate::sync::send_refusal::EntryShape;
 use crate::sync::send_refusal::SendRefusal;
 
 #[derive(Debug)]
@@ -417,6 +419,9 @@ pub enum UnrenderableReason {
     LocalUnreadable,
     RemoteUnrenderable,
     LocalPullResidue,
+    /// The remote has no Markdown form and the item's legacy entry cannot
+    /// show which local change is unsent, so no local overwrite is safe.
+    LegacyUnrenderable,
 }
 
 impl UnrenderableReason {
@@ -425,6 +430,7 @@ impl UnrenderableReason {
             Self::LocalUnreadable => "local-unreadable",
             Self::RemoteUnrenderable => "remote-unrenderable",
             Self::LocalPullResidue => "local-pull-residue",
+            Self::LegacyUnrenderable => "legacy-unrenderable",
         }
     }
 
@@ -447,8 +453,23 @@ impl UnrenderableReason {
                 "This conflict could not be rendered: the local file still \
                  holds the raw tracker document an earlier pull wrote, and \
                  the remote description holds content with no Markdown form. \
-                 Item {id} was left unresolved. Edit the description in Jira \
-                 until it renders, then resolve with --resolve {id}=remote."
+                 Item {id} was left unresolved. If the file holds the \
+                 remote's current document and only its frontmatter changed, \
+                 revert that edit, sync once so the item's baseline is \
+                 rewritten, then reapply it. Otherwise edit the description \
+                 in Jira until it renders, then resolve with --resolve \
+                 {id}=remote."
+            ),
+            Self::LegacyUnrenderable => format!(
+                "This conflict could not be rendered: the remote description \
+                 holds content with no Markdown form, and the item's baseline \
+                 predates the current digest recipe, so it cannot show which \
+                 local change is unsent. Item {id} was left unresolved, and \
+                 --resolve {id}=local is refused. If only the frontmatter \
+                 changed and the remote description has not, revert that \
+                 edit, sync once so the item's baseline is rewritten, then \
+                 reapply it. Otherwise edit the description in Jira until it \
+                 renders, then resolve with --resolve {id}=remote."
             ),
         }
     }
@@ -538,6 +559,47 @@ fn file_mtime_secs(path: &std::path::Path) -> Option<u64> {
         .map(|duration| duration.as_secs())
 }
 
+/// Each reconciled item's baseline entry shape, read once per run.
+struct EntryShapes(BTreeMap<String, EntryShape>);
+
+impl EntryShapes {
+    fn read(
+        items: &[LocalItem],
+        baseline: &crate::sync::baseline::Baseline,
+    ) -> Self {
+        Self(
+            items
+                .iter()
+                .map(|item| {
+                    (item.id.clone(), EntryShape::of(baseline.get(&item.id)))
+                })
+                .collect(),
+        )
+    }
+
+    fn of(&self, id: &str) -> EntryShape {
+        self.0.get(id).copied().unwrap_or(EntryShape::Legacy)
+    }
+}
+
+/// Whether `item` is a conflict that keeps its local hash: one with no safe
+/// local overwrite, whose remedy is to revert a metadata edit so the entry
+/// migrates, which needs the hash it was recorded with.
+fn keeps_local_hash(
+    item: &LocalItem,
+    facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
+) -> bool {
+    let Some(projected) = fetched_projection(facts, &item.id) else {
+        return false;
+    };
+    std::fs::read_to_string(&item.path).is_ok_and(|content| {
+        let (_, body) = local_title_and_body(&content);
+        legacy_unrenderable(comparison, shapes.of(&item.id), &body, projected)
+    })
+}
+
 /// An id-keyed view over the run's local items, built once and shared by the
 /// dossier pass and the apply loop.
 struct ItemIndex<'a> {
@@ -569,13 +631,14 @@ fn build_dossiers(
     items: &ItemIndex<'_>,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
 ) -> Vec<ConflictDossier> {
     plan.actions
         .iter()
         .filter(|planned| planned.action == Action::Prompt)
         .filter_map(|planned| {
             let item = items.get(&planned.id)?;
-            Some(dossier_for(&planned.id, item, facts, comparison))
+            Some(dossier_for(&planned.id, item, facts, comparison, shapes))
         })
         .collect()
 }
@@ -585,6 +648,7 @@ fn dossier_for(
     item: &LocalItem,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
 ) -> ConflictDossier {
     let remote = facts.per_id.get(id).map(|(remote, _)| remote);
     let remote_updated =
@@ -599,6 +663,7 @@ fn dossier_for(
             remote_updated,
             &local_content,
             comparison,
+            shapes.of(id),
         ),
     }
 }
@@ -624,6 +689,7 @@ fn readable_dossier(
     remote_updated: RemoteTimestamp,
     local_content: &str,
     comparison: &BodyComparison<'_>,
+    shape: EntryShape,
 ) -> ConflictDossier {
     let (title, local_body) = local_title_and_body(local_content);
     let remote_projection =
@@ -634,6 +700,13 @@ fn readable_dossier(
             .is_some()
         {
             UnrenderableReason::LocalPullResidue
+        } else if legacy_unrenderable(
+            comparison,
+            shape,
+            &local_body,
+            remote_projection,
+        ) {
+            UnrenderableReason::LegacyUnrenderable
         } else {
             UnrenderableReason::RemoteUnrenderable
         }
@@ -672,6 +745,7 @@ fn validate_pushes(
     tracker: &dyn RemoteTracker,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
 ) -> Vec<ReportedItem> {
     plan.actions
         .iter()
@@ -679,7 +753,11 @@ fn validate_pushes(
             let checked = planned
                 .action
                 .sends_to_tracker()
-                .then(|| check_send(planned, items, tracker, facts, comparison))
+                .then(|| {
+                    check_send(
+                        planned, items, tracker, facts, comparison, shapes,
+                    )
+                })
                 .flatten();
             match checked {
                 Some(Err(refused)) => ReportedItem {
@@ -734,6 +812,7 @@ fn check_send(
     tracker: &dyn RemoteTracker,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
 ) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
     let item = items.iter().find(|candidate| candidate.id == planned.id)?;
     let external_id = item.external_id.as_ref()?;
@@ -742,6 +821,7 @@ fn check_send(
     if let Some(refusal) = send_refusal(
         comparison,
         planned.action,
+        shapes.of(&item.id),
         &body,
         fetched_projection(facts, &item.id),
     ) {
@@ -897,6 +977,7 @@ fn send_outcome(
     external_id: &ExternalId,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
 ) -> ItemOutcome {
     let content = match read_local(item) {
         Ok(content) => content,
@@ -906,6 +987,7 @@ fn send_outcome(
     if let Some(refusal) = send_refusal(
         comparison,
         planned.action,
+        shapes.of(&item.id),
         &body,
         fetched_projection(facts, &item.id),
     ) {
@@ -1039,8 +1121,10 @@ const fn not_applied(planned: PlannedAction) -> ReportedItem {
 }
 
 /// Applies one id-keyed planned action, returning its report line. A `Conflict`
-/// under any skip action records its id for baseline blanking. The two create
-/// actions are unreachable: both create paths run out-of-band of this loop.
+/// under any skip action records its id for baseline blanking, unless it
+/// [keeps its local hash](keeps_local_hash). The two create actions are
+/// unreachable: both create paths run out-of-band of this loop.
+#[allow(clippy::too_many_arguments)]
 fn apply_planned_action(
     applier: &mut ItemApplier<'_, '_>,
     planned: PlannedAction,
@@ -1048,6 +1132,7 @@ fn apply_planned_action(
     snapshots: &[ItemSnapshot<'_>],
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
+    shapes: &EntryShapes,
     blank_local_hash: &mut Vec<String>,
 ) -> ReportedItem {
     let item = index.get(&planned.id);
@@ -1073,6 +1158,7 @@ fn apply_planned_action(
                 external_id,
                 facts,
                 comparison,
+                shapes,
             ),
             None => return not_applied(planned),
         },
@@ -1081,7 +1167,10 @@ fn apply_planned_action(
             None => return not_applied(planned),
         },
         Action::Prompt | Action::SkipConflict | Action::SkipDirty => {
-            if matches!(planned.state, SyncState::Conflict) {
+            let keeps_hash = item.is_some_and(|item| {
+                keeps_local_hash(item, facts, comparison, shapes)
+            });
+            if matches!(planned.state, SyncState::Conflict) && !keeps_hash {
                 blank_local_hash.push(planned.id.clone());
             }
             ItemOutcome::NotApplied
@@ -1156,6 +1245,7 @@ struct PreparedRun<'a> {
     discovery: DiscoveryStatus,
     creates_from_local: Vec<&'a LocalItem>,
     index: ItemIndex<'a>,
+    shapes: EntryShapes,
     dossiers: Vec<ConflictDossier>,
 }
 
@@ -1392,7 +1482,9 @@ fn prepare_run<'a>(
     }
 
     let index = ItemIndex::build(request.reconciled());
-    let dossiers = build_dossiers(&plan, &index, &facts, digester.comparison());
+    let shapes = EntryShapes::read(request.reconciled(), &loaded_baseline);
+    let dossiers =
+        build_dossiers(&plan, &index, &facts, digester.comparison(), &shapes);
 
     Ok(PreparedRun {
         run_start_epoch,
@@ -1407,6 +1499,7 @@ fn prepare_run<'a>(
         discovery,
         creates_from_local,
         index,
+        shapes,
         dossiers,
     })
 }
@@ -1470,6 +1563,7 @@ fn execute<'a>(
         discovery,
         creates_from_local,
         index,
+        shapes,
         dossiers,
     } = prepare_run(ports, &digester, baseline, request, facts, settled)?;
 
@@ -1484,6 +1578,7 @@ fn execute<'a>(
             ports.tracker,
             &facts,
             comparison,
+            &shapes,
         )
         .into_iter()
         .map(reported_as)
@@ -1554,6 +1649,7 @@ fn execute<'a>(
                 &snapshots,
                 &facts,
                 comparison,
+                &shapes,
                 &mut blank_local_hash,
             )));
         }

@@ -2,6 +2,8 @@
 //! assertions every baseline writer's tests share.
 #![allow(dead_code)]
 
+pub mod repo;
+
 use corpus_adapters::CommonMarkBody;
 use jira_client::JiraBodyDialect;
 use tracker::BodyDialect;
