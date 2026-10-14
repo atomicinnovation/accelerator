@@ -1573,6 +1573,7 @@ pub struct research::topic::layout::stem::Stem
 impl research::topic::layout::stem::Stem
 pub fn research::topic::layout::stem::Stem::admits_profile(profile: &str) -> bool
 pub fn research::topic::layout::stem::Stem::allocated(index: u32, slug: &str, profile: &str) -> core::option::Option<Self>
+pub fn research::topic::layout::stem::Stem::ends_with_profile(&self, profile: &str) -> bool
 pub fn research::topic::layout::stem::Stem::finding_path(&self) -> alloc::string::String
 pub const fn research::topic::layout::stem::Stem::index(&self) -> u32
 pub fn research::topic::layout::stem::Stem::index_of(name: &str) -> core::option::Option<u32>

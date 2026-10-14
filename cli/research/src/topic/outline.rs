@@ -109,10 +109,10 @@ impl OutlineItem {
     }
 
     pub(crate) fn pair_ending(&self, stem: &Stem) -> Option<Pair> {
-        let text = stem.to_string();
         self.profiles()
             .into_iter()
-            .find(|profile| text.ends_with(&format!("-{profile}")))
+            .filter(|profile| stem.ends_with_profile(profile))
+            .max_by_key(|profile| profile.len())
             .map(|profile| self.pair(profile))
     }
 }
@@ -264,6 +264,22 @@ mod tests {
         assert_eq!(item.pair_ending(&at), Some(pair("\u{FF21}?", "openalex")));
         let elsewhere = stem("01-a-arxiv").ok_or("a stem")?;
         assert_eq!(item.pair_ending(&elsewhere), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_longest_profile_ending_a_stem_after_its_slug(
+    ) -> Result<(), &'static str> {
+        let item = only_item("- [ ] \u{FF21}? — profiles: web, deep-web")
+            .ok_or("an item")?;
+        let ending =
+            |text: &str| stem(text).and_then(|at| item.pair_ending(&at));
+        assert_eq!(
+            ending("01-a-deep-web"),
+            Some(pair("\u{FF21}?", "deep-web"))
+        );
+        assert_eq!(ending("01-a-web"), Some(pair("\u{FF21}?", "web")));
+        assert_eq!(ending("01-deep-web"), Some(pair("\u{FF21}?", "web")));
         Ok(())
     }
 }

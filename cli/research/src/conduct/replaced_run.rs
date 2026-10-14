@@ -609,6 +609,19 @@ mod tests {
     }
 
     #[test]
+    fn a_reworded_pair_under_a_profile_ending_in_another_keeps_its_finding() {
+        let mut inputs = inputs(&["- [ ] \u{FF21}? — profiles: web, deep-web"]);
+        inputs.findings = vec![answering("01-a-deep-web.md", "A?", "deep-web")];
+        let report = report(inputs, &[("A?", 1)], &["01-a-deep-web"]);
+        assert_eq!(spawns(report.valid()), ["01-a-deep-web"]);
+        assert_eq!(
+            owners(report.valid()),
+            [Some(pair("\u{FF21}?", "deep-web"))]
+        );
+        assert!(report.quarantine().is_empty());
+    }
+
+    #[test]
     fn a_pair_whose_question_was_reworded_to_the_same_normalised_form_keeps_its_finding(
     ) {
         let mut inputs = inputs(&["- [ ] \u{FF21}?"]);
