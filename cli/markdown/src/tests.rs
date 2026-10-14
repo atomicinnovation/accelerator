@@ -210,6 +210,21 @@ fn an_alert_keeps_its_marker_line() {
 }
 
 #[test]
+fn a_lowercase_alert_keeps_its_marker_line() {
+    assert_unwraps("> [!note]\n> wrapped\n> body", "> [!note]\n> wrapped body");
+}
+
+#[test]
+fn an_unknown_alert_kind_joins_as_quoted_text() {
+    assert_unwraps("> [!UNKNOWN]\n> a\n> b", "> [!UNKNOWN] a b");
+}
+
+#[test]
+fn lines_after_a_table_stay_its_rows() {
+    assert_unchanged("| a |\n| - |\nrow\nmore");
+}
+
+#[test]
 fn a_footnote_definition_joins_and_stays_a_definition() {
     let unwrapped = "Text[^1].\n\n[^1]: a wrapped definition";
     assert_unwraps("Text[^1].\n\n[^1]: a wrapped\n    definition", unwrapped);
@@ -217,6 +232,16 @@ fn a_footnote_definition_joins_and_stays_a_definition() {
         event,
         Event::Start(Tag::FootnoteDefinition(label)) if label.as_ref() == "1"
     )));
+}
+
+#[test]
+fn a_footnote_definitions_lazy_continuation_joins() {
+    assert_unwraps("x[^1]\n\n[^1]: a\nb", "x[^1]\n\n[^1]: a b");
+}
+
+#[test]
+fn dollar_delimited_math_joins_as_text() {
+    assert_unwraps("$a\nb$", "$a b$");
 }
 
 #[test]
