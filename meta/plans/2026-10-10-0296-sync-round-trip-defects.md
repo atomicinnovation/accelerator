@@ -9,7 +9,7 @@ status: "in-progress"
 work_item_id: "work-item:0296"
 parent: "work-item:0296"
 derived_from: ["codebase-research:2026-10-10-0296-sync-round-trip-defects"]
-relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:0230", "work-item:0285", "work-item:0334", "work-item:0335"]
+relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:0230", "work-item:0285", "work-item:0337", "work-item:0335"]
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
@@ -119,7 +119,7 @@ equivalence-aware with a recovery path for items without a usable baseline.
 
 - Building the full rich document model or migrating the string-based fence
   and frontmatter consumers in `work`, `work-cli`, `migrate`, `corpus` and
-  `config-adapters` onto it (0334).
+  `config-adapters` onto it (0337).
 - Removing the legacy digest recipe (0335).
 - Pulling the title or syncing any field beyond title and body (0290).
 - Fixing Linear's meaning-changing rewrites on push (0320).
@@ -2948,7 +2948,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 - Review: `meta/reviews/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker-review-1.md`
 - PR: `meta/prs/156-description.md`
 - ADR-0069: `meta/decisions/ADR-0069-crate-dependency-rules-for-the-hexagonal-cli-workspace.md`
-- Follow-ups: `meta/work/0334-rich-document-model-for-corpus-documents.md`,
+- Follow-ups: `meta/work/0337-rich-document-model-for-corpus-documents.md`,
   `meta/work/0335-remove-the-legacy-sync-digest-recipe.md`
 - Frontmatter port precedent: `cli/corpus-adapters/src/document.rs:20`
 - Lock-version guard precedent: `cli/vcs-adapters/tests/queries.rs:611-633`
