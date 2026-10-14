@@ -90,6 +90,16 @@
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
 
+- **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
+  collaboration pr update-body` joins each soft-wrapped line onto the one
+  before with a single space, dropping the line's `>` markers and
+  indentation, so prose hard-wrapped to the repository's line width flows at
+  full width on GitHub instead of breaking at every newline. Hard breaks,
+  code and tables are posted byte-for-byte, and the body file and
+  `meta/prs/` description stay wrapped. A line that must render on
+  its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
+  spaces or `\`) or a list item.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -430,16 +440,6 @@
   `config templates eject --force`/`reset --confirm`. `collaboration` exits 2
   instead of 1 when nothing else is usable. `ACCELERATOR_ALLOW_INSECURE_LOCAL`
   and its marker no longer have any effect.
-
-- **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
-  collaboration pr update-body` joins each soft-wrapped line onto the one
-  before with a single space, dropping the line's `>` markers and
-  indentation, so prose hard-wrapped to the repository's line width flows at
-  full width on GitHub instead of breaking at every newline. Hard breaks,
-  code and tables are posted byte-for-byte, and the body file and
-  `meta/prs/` description stay wrapped. A line that must render on
-  its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
-  spaces or `\`) or a list item.
 
 ### Removed
 
