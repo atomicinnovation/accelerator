@@ -158,6 +158,64 @@ Not done:
 - [ ] Phase 0 fixture capture (needs credentials for the Linear workspace;
       Phases 1–4 don't read the fixtures)
 
+## Merge-time corpus preview
+
+`accelerator work sync --preview` on 2026-10-15 with the branch's
+`accelerator-work`, `last-sync.json` byte-identical afterwards: 332 items
+`synced`, one pull and three conflicts. The 2026-10-10 preview of the same
+corpus planned 7 pulls and 25 conflicts.
+
+- **0184's pull is real, and harmful.** Linear's copy (`PP-714`, updated
+  2026-09-22) has lost the first characters of every code-span table cell
+  (`` `config templates list` `` reads `onfig templates list\``), a
+  meaning-changing rewrite 0320 owns. Applying the pull would write that
+  damage into the local file.
+- **Each conflict's dossier names a real difference.** 0227 lists only
+  Dependencies, where the local side drops two entries. 0296 and 0299 have
+  no baseline entry, and every section differs because both were rewritten
+  locally after their last push; 0296 also shows its title change.
+- **No legacy entry migrates in a preview.** None of the 332 entries carries
+  `digest_recipe` yet; the first applied run rewrites them.
+
+| Item | 2026-10-10 | 2026-10-15 | Since 2026-10-10 |
+|---|---|---|---|
+| 0183 | pull | `synced` | |
+| 0184 | pull | still differs | |
+| 0197 | pull | `synced` | |
+| 0204 | pull | `synced` | |
+| 0209 | pull | `synced` | |
+| 0229 | pull | `synced` | |
+| 0257 | pull | `synced` | |
+| 0065 | conflict | `synced` | |
+| 0136 | conflict | `synced` | edited, pushed 2026-10-14 |
+| 0158 | conflict | `synced` | |
+| 0161 | conflict | `synced` | |
+| 0169 | conflict | `synced` | |
+| 0203 | conflict | `synced` | |
+| 0207 | conflict | `synced` | |
+| 0215 | conflict | `synced` | pushed 2026-10-14 |
+| 0216 | conflict | `synced` | |
+| 0217 | conflict | `synced` | pushed 2026-10-14 |
+| 0227 | conflict | still differs | |
+| 0241 | conflict | `synced` | pushed 2026-10-14 |
+| 0263 | conflict | `synced` | |
+| 0275 | conflict | `synced` | |
+| 0276 | conflict | `synced` | |
+| 0280 | conflict | `synced` | pushed 2026-10-14 |
+| 0281 | conflict | `synced` | pushed 2026-10-14 |
+| 0283 | conflict | `synced` | pushed 2026-10-14 |
+| 0284 | conflict | `synced` | |
+| 0286 | conflict | `synced` | pushed 2026-10-14 |
+| 0292 | conflict | `synced` | |
+| 0293 | conflict | `synced` | |
+| 0294 | conflict | `synced` | |
+| 0296 | conflict | still differs | edited |
+| 0299 | conflict | still differs | edited |
+
+0161, 0203, 0276 and 0293 report `synced` rather than staying conflicted
+pending 0320: a sync before this branch recorded entries for them, so their
+meaning-changing rewrites now sit inside the baseline.
+
 ## Notes for Reviewers
 
 - **Diff size.** 458 files change, but 287 of them are ADF fixture renames

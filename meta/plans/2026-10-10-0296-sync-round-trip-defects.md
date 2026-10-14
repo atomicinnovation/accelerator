@@ -2729,14 +2729,22 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 
 #### Automated Verification:
 
-- [ ] `mise run` exits 0
+- [x] `mise run` exits 0
 
 #### Manual Verification:
 
-- [ ] Preview result recorded in the PR
-- [ ] 0161, 0203, 0276 and 0293 remain conflicted pending 0320, as expected
-- [ ] 0302 remains conflicted until resolved, its remote holding an older
-      revision
+- [x] Preview result recorded in the PR
+      (2026-10-15, `work sync --preview` with the workspace's
+      `accelerator-work`, `last-sync.json` byte-identical: 332 `synced`, a
+      pull for 0184 and conflicts for 0227, 0296 and 0299, each dossier
+      naming a real difference; the 32-item table is in
+      `meta/prs/159-description.md`)
+- [x] ~~0161, 0203, 0276 and 0293 remain conflicted pending 0320, as
+      expected~~ Superseded: all four report `synced`, as the notes below
+      anticipate
+- [x] ~~0302 remains conflicted until resolved, its remote holding an older
+      revision~~ Superseded: the push-only sync sent 0302's local revision,
+      and it reports `synced`
 
 #### Implementation Notes:
 
@@ -2746,6 +2754,17 @@ Table in the PR description: each of the 32 items pulled or conflicted on
   merge-time preview should record what each item reports rather than
   confirm this list; that day's open conflicts were 0227, 0296 and 0299, with
   a pull pending for 0184.
+- The 2026-10-10 item list was never committed; it came from that day's
+  session transcript.
+- 0184's planned pull is for a remote Linear damaged: every code-span table
+  cell lost its first characters, a rewrite 0320 owns. Applying it would
+  write that damage locally. It is not a conflict, so `--resolve` cannot
+  settle it; a full bidirectional sync must wait until its remote is
+  repaired.
+- 0227's local side drops two Dependencies entries; 0296 and 0299 have no
+  baseline entry and were rewritten locally since their last push. None of
+  the three is a legacy entry turned conflict by a pull residue or title
+  drift; each awaits a `=local` resolution.
 
 ---
 
