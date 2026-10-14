@@ -582,6 +582,10 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         ownership: options.ownership,
         state_dir: &state,
         probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker,
+            parser: &CommonMarkBody,
+        },
     };
     let author = FileAuthor::default();
     let ports = SyncPorts {

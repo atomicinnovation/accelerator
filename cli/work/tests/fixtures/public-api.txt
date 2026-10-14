@@ -403,7 +403,7 @@ pub work::promotion::IntendedBaseline::remote_hash: work::promotion::RemoteHash
 impl work::promotion::IntendedBaseline
 pub fn work::promotion::IntendedBaseline::fingerprints(&self) -> work::sync::baseline::BaselineFingerprints
 pub fn work::promotion::IntendedBaseline::legacy(&self) -> work::sync::baseline::LegacyHashes
-pub fn work::promotion::IntendedBaseline::next_sync(&self, promoted_digest: &str) -> work::sync::state::SyncState
+pub fn work::promotion::IntendedBaseline::next_sync(&self, key: &tracker::ExternalId, promoted: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
 impl core::clone::Clone for work::promotion::IntendedBaseline
 pub fn work::promotion::IntendedBaseline::clone(&self) -> work::promotion::IntendedBaseline
 impl core::cmp::Eq for work::promotion::IntendedBaseline

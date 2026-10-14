@@ -1530,6 +1530,10 @@ pub fn run_sync(
         ownership: scheme.ownership(),
         state_dir: workspace.state_dir(),
         probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker: tracker.as_ref(),
+            parser: &CommonMarkBody,
+        },
     };
     let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {

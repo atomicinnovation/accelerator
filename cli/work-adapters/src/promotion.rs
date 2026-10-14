@@ -20,6 +20,7 @@ use work::promotion::intended_baseline;
 use work::promotion::next_step;
 use work::promotion::retitling;
 use work::promotion::without_ids;
+use work::promotion::IntendedBaseline;
 use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
@@ -57,6 +58,7 @@ use crate::retirement::RetirementPorts;
 use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
+use crate::sync::item_snapshot::ItemSnapshot;
 use crate::sync::pending_push;
 
 /// What became of one draft a run set out to promote.
@@ -248,6 +250,15 @@ pub struct PromotionPorts<'a> {
     pub records: &'a dyn PromotionRecords,
 }
 
+impl PromotionPorts<'_> {
+    const fn remote_reading(&self) -> RemoteReading<'_> {
+        RemoteReading {
+            tracker: self.tracker,
+            parser: self.parser,
+        }
+    }
+}
+
 /// The draft as the tracker is asked to create it.
 struct DraftContent {
     path: PathBuf,
@@ -428,6 +439,7 @@ pub fn promote(
                 };
                 return finish_promotion(
                     &record,
+                    &ports.remote_reading(),
                     ports.retirement,
                     ports.records,
                     &lock,
@@ -455,7 +467,13 @@ fn already_promoted(
     };
     if let StoredRecord::Present(record) = ports.records.read(draft) {
         if matches!(record.stage, PromotionStage::Retiring { .. }) {
-            finish_promotion(&record, ports.retirement, ports.records, lock)?;
+            finish_promotion(
+                &record,
+                &ports.remote_reading(),
+                ports.retirement,
+                ports.records,
+                lock,
+            )?;
         }
     }
     Ok(Promotion::AlreadyDone(ExternalId::new(holder.id.clone())))
@@ -764,10 +782,41 @@ impl Promoting<'_> {
         self.save(&retiring)?;
         finish_promotion(
             &retiring,
+            &self.ports.remote_reading(),
             self.ports.retirement,
             self.ports.records,
             self.lock,
         )
+    }
+}
+
+/// The watermark a promotion records: its local digests can describe the
+/// draft rather than the retired file, so the next sync must hash the file
+/// instead of trusting an mtime older than the promotion.
+const UNSYNCED_WATERMARK: u64 = 0;
+
+/// What `finish_promotion` reads the promoted issue with, to predict the
+/// next sync as the classifier will compute it.
+pub struct RemoteReading<'a> {
+    pub tracker: &'a dyn RemoteTracker,
+    pub parser: &'a dyn BodyParser,
+}
+
+impl RemoteReading<'_> {
+    /// The state the next sync finds the promoted item at `path` in; a read
+    /// that fails predicts `Synced`, as nothing can be compared.
+    fn next_sync(
+        &self,
+        baseline: &IntendedBaseline,
+        key: &ExternalId,
+        path: &Path,
+    ) -> work::sync::SyncState {
+        let digester = BaselineDigester::new(self.tracker, self.parser);
+        let projection = self.tracker.show(key).ok().map(|issue| issue.body);
+        let promoted = ItemSnapshot::new(path, projection, &digester);
+        baseline
+            .next_sync(key, &promoted, &promoted)
+            .unwrap_or(work::sync::SyncState::Synced)
     }
 }
 
@@ -788,6 +837,7 @@ impl Promoting<'_> {
 /// baseline or record cannot be written.
 pub fn finish_promotion(
     record: &PromotionRecord,
+    remote: &RemoteReading<'_>,
     retirement_ports: &RetirementPorts<'_>,
     records: &dyn PromotionRecords,
     lock: &RetirementLockGuard,
@@ -829,18 +879,15 @@ pub fn finish_promotion(
                 .any(|alias| same(alias, record.draft_id.as_str()))
     });
     let next_sync = promoted_item
-        .and_then(|item| retirement_ports.files.reader.read(&item.path).ok())
-        .flatten()
-        .and_then(|content| digest::local(&content).ok())
-        .map_or(work::sync::SyncState::Synced, |promoted| {
-            baseline.next_sync(&promoted)
+        .map_or(work::sync::SyncState::Synced, |item| {
+            remote.next_sync(baseline, &ExternalId::from(key), &item.path)
         });
     if promoted_item.is_some() {
         record_created_baseline(
             key.as_str(),
             baseline,
             retirement_ports.baseline,
-            now_epoch(),
+            UNSYNCED_WATERMARK,
         )
         .map_err(|error| unwritable(Some(key), &error))?;
     }

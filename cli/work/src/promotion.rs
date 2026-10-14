@@ -16,13 +16,19 @@ use tracker::RemoteTimestamp;
 use crate::draft_id::DraftId;
 use crate::retirement::RetirementFailure;
 use crate::retirement::RetirementRefusal;
+use crate::sync::classify;
+use crate::sync::BaselineEntry;
 use crate::sync::BaselineFingerprints;
+use crate::sync::ItemComparison;
+use crate::sync::ItemDigests;
 use crate::sync::LegacyHashes;
 use crate::sync::LocalFingerprints;
 use crate::sync::PushOutcome;
 use crate::sync::RemoteFingerprints;
+use crate::sync::RemotePresence;
 use crate::sync::RequestFingerprint;
 use crate::sync::SplitFingerprints;
+use crate::sync::Subject;
 use crate::sync::SyncState;
 use crate::tracker_key::TrackerKey;
 
@@ -124,17 +130,38 @@ pub struct IntendedBaseline {
 }
 
 impl IntendedBaseline {
-    /// The state the next sync finds a promoted item whose content digests
-    /// to `promoted_digest` under the legacy recipe in.
-    #[must_use]
-    pub fn next_sync(&self, promoted_digest: &str) -> SyncState {
-        match self.remote_hash {
-            RemoteHash::Unknown => SyncState::Conflict,
-            RemoteHash::Known(_) if self.local.legacy == promoted_digest => {
-                SyncState::Synced
-            }
-            RemoteHash::Known(_) => SyncState::LocallyModified,
-        }
+    /// The state the next sync finds the `promoted` item in once this
+    /// baseline is recorded for it under `key`, as the classifier computes
+    /// it, against a remote unchanged since it was read back.
+    ///
+    /// # Errors
+    ///
+    /// Propagates any [`ItemDigests`] read failure.
+    pub fn next_sync(
+        &self,
+        key: &ExternalId,
+        promoted: &dyn ItemDigests,
+        comparison: &dyn ItemComparison,
+    ) -> Result<SyncState, kernel::Error> {
+        let stamp = match &self.remote_hash {
+            RemoteHash::Known(read_back) => read_back.updated.clone(),
+            RemoteHash::Unknown => RemoteTimestamp::NotRead,
+        };
+        let classification = classify(
+            &Subject {
+                external_id: Some(key),
+                presence: RemotePresence::Present,
+                remote_updated: &stamp,
+                baseline_timestamp: 0,
+            },
+            &BaselineEntry {
+                remote_updated_at: &stamp,
+                fingerprints: self.fingerprints(),
+            },
+            promoted,
+            comparison,
+        )?;
+        Ok(classification.state())
     }
 
     /// The fingerprints the next sync compares the promoted item against.
@@ -842,8 +869,58 @@ mod tests {
         );
     }
 
+    /// A promoted item whose files digest under `digest`, beside a remote
+    /// read back as `remote`, whose bodies compare as `equivalence`.
+    struct Promoted {
+        digest: &'static str,
+        remote: Option<&'static str>,
+        equivalence: crate::sync::BodyEquivalence,
+    }
+
+    impl crate::sync::ItemDigests for Promoted {
+        fn mtime(&self) -> Result<Option<u64>, kernel::Error> {
+            Ok(None)
+        }
+
+        fn legacy_local(&self) -> Result<String, kernel::Error> {
+            Ok(self.digest.to_owned())
+        }
+
+        fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
+            Ok(self.remote.map(str::to_owned))
+        }
+
+        fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
+            Ok(local(self.digest)
+                .fingerprints
+                .unwrap_or_else(|| unreachable!("split fingerprints")))
+        }
+
+        fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+            Ok(self.remote.map(remote_fingerprints))
+        }
+    }
+
+    impl crate::sync::ItemComparison for Promoted {
+        fn pull_residue(&self) -> Option<crate::sync::PullResidue> {
+            None
+        }
+
+        fn body_equivalence(&self) -> crate::sync::BodyEquivalence {
+            self.equivalence
+        }
+
+        fn fields_comparison(&self) -> crate::sync::FieldsComparison {
+            crate::sync::FieldsComparison::Same
+        }
+    }
+
     #[test]
-    fn the_next_sync_finds_what_the_intended_baseline_forces() {
+    fn the_next_sync_is_what_the_classifier_finds() -> Result<(), kernel::Error>
+    {
+        use crate::sync::BodyEquivalence;
+
+        let external = tracker::ExternalId::new("PP-900".to_owned());
         let known = |digest: &str| IntendedBaseline {
             remote_hash: RemoteHash::Known(read_back("r")),
             local: local(digest),
@@ -852,13 +929,33 @@ mod tests {
             remote_hash: RemoteHash::Unknown,
             local: local("promoted"),
         };
+        let promoted = |equivalence| Promoted {
+            digest: "promoted",
+            remote: Some("r"),
+            equivalence,
+        };
+        let next = |intended: &IntendedBaseline, promoted: &Promoted| {
+            intended.next_sync(&external, promoted, promoted)
+        };
 
-        assert_eq!(known("promoted").next_sync("promoted"), SyncState::Synced);
         assert_eq!(
-            known("draft").next_sync("promoted"),
+            next(&known("promoted"), &promoted(BodyEquivalence::Different))?,
+            SyncState::Synced
+        );
+        assert_eq!(
+            next(&known("draft"), &promoted(BodyEquivalence::Different))?,
             SyncState::LocallyModified
         );
-        assert_eq!(unknown.next_sync("promoted"), SyncState::Conflict);
+        assert_eq!(
+            next(&unknown, &promoted(BodyEquivalence::Different))?,
+            SyncState::Conflict
+        );
+        assert_eq!(
+            next(&unknown, &promoted(BodyEquivalence::Equivalent))?,
+            SyncState::Synced,
+            "an unknown remote hash over agreeing bodies is recovered"
+        );
+        Ok(())
     }
 
     #[test]

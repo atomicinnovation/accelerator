@@ -1560,3 +1560,143 @@ fn a_clean_promotion_names_nothing() {
 
     assert!(reported(&repo, &fresh_tracker()).details.is_empty());
 }
+
+/// The state `work sync --preview` reports the promoted item in.
+fn next_sync_preview(repo: &Repo, tracker: &RecordingTracker) -> SyncState {
+    use work_adapters::sync::fetch::LocalItem;
+    use work_adapters::sync::fetch::RetrievalStrategy;
+    use work_adapters::sync::run::run;
+    use work_adapters::sync::run::ItemSelection;
+    use work_adapters::sync::run::RunMode;
+    use work_adapters::sync::run::SyncPorts;
+    use work_adapters::sync::run::SyncRequest;
+
+    struct Clock;
+    impl work::sync::RunClock for Clock {
+        fn run_start_epoch(&self) -> Result<u64, kernel::Error> {
+            Ok(1_700_000_000)
+        }
+    }
+    struct NoAuthor;
+    impl work_adapters::sync::create::LocalAuthor for NoAuthor {
+        fn author_from_remote(
+            &self,
+            _issue: &work_adapters::sync::create::DiscoveredIssue,
+        ) -> Result<work_adapters::sync::create::AuthoredLocal, kernel::Error>
+        {
+            panic!("a preview authors nothing")
+        }
+
+        fn link_external_id(
+            &self,
+            _path: &Path,
+            _external_id: &ExternalId,
+        ) -> Result<(), kernel::Error> {
+            panic!("a preview links nothing")
+        }
+    }
+
+    let writer = FileCorpusStore::new(repo.root());
+    let mut baseline =
+        BaselineStore::new(repo.path(BASELINE), &RealFs, &writer);
+    let items = [LocalItem {
+        id: KEY.to_owned(),
+        path: repo.path(TARGET),
+        external_id: Some(key()),
+    }];
+    let report = run(
+        &SyncPorts {
+            tracker,
+            parser: &CommonMarkBody,
+            status: &Clean,
+            writer: &writer,
+            clock: &Clock,
+            author: &NoAuthor,
+        },
+        &mut baseline,
+        &SyncRequest {
+            corpus: &items,
+            selection: ItemSelection::All,
+            direction: work::sync::SyncDirection::Bidirectional,
+            strategy: RetrievalStrategy::Bulk,
+            resolutions: &std::collections::BTreeMap::new(),
+            max_pulls: tracker::Ceiling::Unlimited,
+            max_pushes: tracker::Ceiling::Unlimited,
+            mode: RunMode::Preview,
+            integrations_root: &repo.path(INTEGRATIONS),
+            integration: "linear",
+            promote: false,
+            scope: tracker::SearchScope::default(),
+        },
+    )
+    .unwrap_or_else(|_| panic!("the preview runs"));
+    report
+        .reported
+        .iter()
+        .find(|item| item.planned.id == KEY)
+        .map(|item| item.planned.state)
+        .expect("the promoted item is reported")
+}
+
+#[test]
+fn the_predicted_state_equals_the_next_sync_run_for_every_disposition() {
+    let edited_after_create = || {
+        let repo = Repo::new().unwrap();
+        repo.save(&record_at(PromotionStage::Created {
+            key: tracker_key(),
+            created_remote_hash: Some(digest::remote_body(&draft_projection())),
+        }));
+        (repo, tracker_holding("Add search\nSomeone rewrote this.\n"))
+    };
+    let scenarios: Vec<(&str, (Repo, RecordingTracker), bool)> = vec![
+        (
+            "created and retitled",
+            (Repo::new().unwrap(), fresh_tracker()),
+            false,
+        ),
+        (
+            "the key H1 update failed",
+            (
+                Repo::new().unwrap(),
+                fresh_tracker().failing_update(
+                    key(),
+                    TrackerError::Retryable {
+                        detail: "refused".to_owned(),
+                    },
+                ),
+            ),
+            false,
+        ),
+        ("edited after its create", edited_after_create(), false),
+        (
+            "adopted over a differing body",
+            (
+                Repo::new().unwrap(),
+                tracker_holding("Add search\nWritten in the tracker.\n"),
+            ),
+            true,
+        ),
+        (
+            "adopted over the draft's own body",
+            (Repo::new().unwrap(), tracker_holding(&draft_projection())),
+            true,
+        ),
+    ];
+
+    for (name, (repo, tracker), adopt) in scenarios {
+        let promotion = if adopt {
+            adopted(&repo, &tracker)
+        } else {
+            promoted(&repo, &tracker)
+        };
+        let Ok(Promotion::Completed(_, predicted)) = promotion else {
+            panic!("{name}: the promotion completes, got {promotion:?}");
+        };
+
+        assert_eq!(
+            next_sync_preview(&repo, &tracker),
+            predicted,
+            "{name}: the next sync finds what the promotion predicted"
+        );
+    }
+}

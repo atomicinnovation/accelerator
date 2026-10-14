@@ -35,6 +35,7 @@ use crate::promotion::promote;
 use crate::promotion::PromotionOutcome;
 use crate::promotion::PromotionPorts;
 use crate::promotion::PromotionRow;
+use crate::promotion::RemoteReading;
 use crate::promotion_records::PromotionRecords;
 use crate::promotion_records::StoredRecord;
 use crate::retirement::acquire_retirement_lock;
@@ -66,6 +67,8 @@ pub struct SettlementPorts<'a> {
     /// Probes the working copy afresh, so each promotion plans its
     /// retirement over the dirtiness the ones before it left.
     pub probe_status: &'a dyn Fn() -> Box<dyn WorkingCopyStatus>,
+    /// Reads a promoted issue, to predict its next sync.
+    pub remote: RemoteReading<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -319,6 +322,7 @@ fn reconcile_promotions(
         let retirement = Retirement::onto(record.draft_id.as_str(), key);
         let outcome = match finish_promotion(
             &record,
+            &settlement.remote,
             settlement.retirement,
             settlement.promotions,
             &lock,

@@ -225,6 +225,10 @@ fn try_run(
         ownership: corpus::IdOwnership::Tracker,
         state_dir: workspace.state_dir(),
         probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker: tracker.as_ref(),
+            parser: &CommonMarkBody,
+        },
     };
     let resumed = finish_interrupted_retirements(&settlement).map_err(
         |error| match error {
