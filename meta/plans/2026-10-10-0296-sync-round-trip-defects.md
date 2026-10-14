@@ -2577,8 +2577,15 @@ titles differ.
 
 #### Manual Verification:
 
-- [ ] A dossier written from this repo reads cleanly to a person resolving
+- [x] A dossier written from this repo reads cleanly to a person resolving
       it
+      (2026-10-14, `work sync --preview` with the workspace's
+      `accelerator-work`, `last-sync.json` byte-identical: dossiers for
+      0227, 0296 and 0299. 0227 lists only Dependencies, where the local
+      side drops two entries; 0296 shows `title: <local> → <remote>`, and
+      it and 0299 list every section, each rewritten locally since the
+      September remote. Inside a listed section the diff stays line-based,
+      so a line differing only by its bullet marker still shows as `-`/`+`)
 
 #### Implementation Notes:
 
@@ -2667,8 +2674,16 @@ parsed model.
 
 #### Manual Verification:
 
-- [ ] A promotion under `{tracker}` against Linear completes without a
+- [x] A promotion under `{tracker}` against Linear completes without a
       spurious retitle
+      (2026-10-14, scratch repository against the `TES` sandbox team: a
+      draft holding `-` bullets, `~550` and a two-line bold phrase citing
+      its own ID promoted to `TES-23` as `synced`; Linear stored `*`
+      bullets, `\~550` and per-line bold, the H1 read `# TES-23: …`, and a
+      targeted preview reported `synced` over a recipe-1 entry. The create's
+      read-back hash matched the later read, so the retitle went ahead on
+      the hash and agreement never decided it; the integration tests pin
+      that path. `TES-23` was then deleted with `issueDelete`)
 
 #### Implementation Notes:
 
