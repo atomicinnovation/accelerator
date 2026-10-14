@@ -8,16 +8,15 @@ use pulldown_cmark::{Event, Options, Parser};
 #[cfg(test)]
 mod tests;
 
-/// Replaces each GFM soft line break with a single space, leaving every
-/// other byte as written.
+/// Replaces each line break GitHub renders as soft with a single space.
 ///
-/// A whitespace line break that does not end in two spaces is replaced too:
+/// The replaced span takes in the trailing whitespace before the line break
+/// and the continuation line's `>` markers and indentation. Every other byte
+/// is left as written.
+///
+/// A whitespace line break that does not end in two spaces counts as soft:
 /// `pulldown-cmark` reads any two trailing whitespace bytes as a hard break,
 /// but GitHub needs two spaces and renders the rest as soft.
-///
-/// A replaced span runs from any trailing whitespace before the line ending
-/// to the start of the continuation line's content, past its `>` markers and
-/// indentation.
 #[must_use]
 pub fn unwrap_soft_line_breaks(markdown: &str) -> String {
     let mut unwrapped = String::with_capacity(markdown.len());
