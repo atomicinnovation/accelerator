@@ -262,8 +262,18 @@ fn a_footnote_definitions_lazy_continuation_joins() {
 }
 
 #[test]
-fn dollar_delimited_math_joins_as_text() {
-    assert_unwraps("$a\nb$", "$a b$");
+fn a_display_math_block_keeps_its_lines() {
+    assert_unchanged("$$\na = b % c\n\\cdot d\n$$\n");
+}
+
+#[test]
+fn inline_math_keeps_its_line_break() {
+    assert_unchanged("$a\nb$");
+}
+
+#[test]
+fn dollar_amounts_still_join() {
+    assert_unwraps("costs $5\nand $10", "costs $5 and $10");
 }
 
 #[test]

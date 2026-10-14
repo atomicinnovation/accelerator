@@ -33,6 +33,7 @@ pub(crate) fn extensions() -> Options {
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_MATH
         | Options::ENABLE_GFM
 }
 
