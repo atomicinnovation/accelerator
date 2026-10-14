@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0223", "work-item:0196", "work-item:0218"]
 tags: ["runtime", "cache", "lease", "prune", "design"]
-last_updated: "2026-10-13T09:00:00+00:00"
+last_updated: "2026-10-14T15:08:23+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -285,6 +285,15 @@ its own daemon.
   `--older-than` values under 1h. On a filesystem without `flock`, a live
   daemon's tree whose claim is stale can still be reclaimed. This is accepted
   because the alternative leaves such trees unreclaimable.
+- On a filesystem without `flock`, a daemon's lifetime is not bounded by
+  `AGE_BACKSTOP`. `repair` restarts the backstop once when it defers a
+  superseded generation, and nothing renews it while the daemon runs. A
+  daemon busy for more than an hour after that can have its tree reclaimed by
+  the next `materialise` or `prune`; the next invocation re-ensures it.
+  Renewing the backstop from the cold path's unleasable branch was rejected:
+  it adds state and I/O to the reap path for a filesystem class the lease
+  cannot protect anyway. Where the filesystem also rejects the mtime update,
+  the deferral gives no grace, and the launcher logs a warning saying so.
 - On the cold path, `cache ensure` exits before the executor takes its leases.
   `cache ensure` does not always refresh the claim: `materialise` returns
   early on a located generation without writing one. The gap is instead
