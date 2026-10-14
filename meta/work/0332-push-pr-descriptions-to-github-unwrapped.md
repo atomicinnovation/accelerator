@@ -11,7 +11,7 @@ priority: "medium"
 relates_to: ["work-item:0320", "work-item:0197", "work-item:0071", "work-item:0152"]
 external_id: "PP-885"
 tags: []
-last_updated: "2026-10-13T16:41:14+00:00"
+last_updated: "2026-10-14T13:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -76,6 +76,11 @@ inside paragraphs.
   continuation line has no prefix, so the span stops at its leading
   whitespace. Soft breaks inside paragraphs, list items, blockquotes,
   footnote definitions, and setext headings are all replaced.
+- A line break is a hard break only as GitHub reads one: two or more
+  spaces, or a `\`, immediately before the line ending. Any other
+  trailing whitespace before a line ending, such as two tabs or two
+  spaces followed by a tab, is a soft break and replaced as one, even
+  where the unwrap's parser reads it as hard.
 - Every byte outside a replaced span is preserved. As a guarantee in its
   own right, not only a consequence of the span rule, the unwrap leaves
   code blocks, code spans, tables, HTML blocks and inline HTML, link
@@ -162,6 +167,10 @@ unwrap directly.
       text is on one line and still parses as a footnote definition.
 - [ ] Given `foo \nbar` (one trailing space), when it is unwrapped, then
       the output is `foo bar`.
+- [ ] Given `foo\t\t\nbar`, `foo \t\nbar`, and `foo  \t\nbar`, when
+      each is unwrapped, then the output is `foo bar`; given
+      `foo\t  \nbar`, when it is unwrapped, then the output equals the
+      input.
 - [ ] Given `foo <span\nclass="x">bar</span>`, when it is unwrapped,
       then the output equals the input.
 - [ ] Given each fixture above with every `\n` replaced by `\r\n`, when
@@ -170,8 +179,9 @@ unwrap directly.
 - [ ] Given each fixture above, when it is unwrapped, then the event
       stream that the unwrap's parser produces, with the GFM options in
       Technical Notes, is equal for output and input, where both streams
-      are normalised by reading each soft break as a space and merging
-      adjacent `Text` events; and unwrapping the output again returns it
+      are normalised by reading each soft break, and each hard break
+      GitHub renders as soft, as a space and merging adjacent `Text`
+      events; and unwrapping the output again returns it
       unchanged.
 - [ ] Given each description in `meta/prs/` when implementation begins
       (115 at drafting time), with its frontmatter stripped as
@@ -241,6 +251,11 @@ None.
   link reference definition and stays wrapped. Which bytes a SoftBreak
   range covers inside `>` and list containers is undocumented; pin it
   with a test first.
+- `pulldown-cmark` reads any two or more trailing whitespace bytes,
+  tabs included, as a hard break, where `cmark-gfm` needs two spaces or
+  a `\`. The one-off `meta/prs/` verification's `foo\t\t\nbar` probe
+  confirmed it: GitHub still renders that line break. The unwrap
+  therefore decides hard breaks by GitHub's rule, not the parser's.
 - `comrak` reports line/column positions only, documented as unreliable
   for inlines, and its CommonMark renderer re-serialises the whole
   document. `markdown-rs` has no soft-break node. Both fit worse.
