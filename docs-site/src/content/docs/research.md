@@ -517,11 +517,12 @@ are `null` when neither exists), the absolute `quarantine` paths of its invalid
 findings, and `owed`, the stems of findings an earlier `--start` listed for
 quarantine that are still on disk, whose paths `quarantine` also holds. That
 plan is drawn as if each `quarantine` finding were already renamed to its
-`.<name>.invalid` marker, and a `warning:` line on stderr asks a hand run to
-rename them; no `warnings` entry accompanies it. The run's ledger owes each
-rename whose path the plan does not offer again: until each is done, `--run`
-exits 1 with `E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a later `--start` lists
-them again in `owed`. A corrupt ledger yields a `warnings` entry alone.
+`.<name>.invalid` marker. A `warning:` line on stderr names the replaced run
+and, when `quarantine` is non-empty, asks for those renames; no `warnings` entry
+accompanies it. The run's ledger owes each rename whose path the plan does not
+offer again: until each is done, `--run` exits 1 with
+`E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a later `--start` lists them again in
+`owed`. A corrupt ledger yields a `warnings` entry alone.
 `accelerator research topic end-run SLUG --run ID` removes the run's
 ledger when the run finishes.
 
