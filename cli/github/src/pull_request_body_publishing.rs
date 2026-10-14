@@ -1,3 +1,6 @@
+//! The GitHub implementation of `collaboration`'s `PullRequestBodyPublishing`
+//! port.
+
 use collaboration::PullRequestBodyPublishing;
 
 /// GitHub renders a single newline in a pull request body as a line break,
