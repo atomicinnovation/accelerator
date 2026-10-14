@@ -509,20 +509,19 @@ The run flags exist for `conduct`. `--start` begins a run and returns its
 as spawned. During a run the JSON also carries `run`, `batch` (the number the
 next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
 findings nobody was asked to write, or whose content changed).
-`--start` over another run's readable ledger also carries `replaced_run`:
-that run's `run`, its last offered batch split into `valid`, `invalid`,
-`unwritten` and `unasked`, each entry a `spawn` ref with the outline
-`question` and `profile` that own its stem (or, for an unasked finding, the
-pair it names), the absolute `quarantine` paths of its invalid findings, and
-`owed`, the stems of findings an earlier `--start` listed for quarantine that
-are still on disk, whose paths `quarantine` also holds. That plan is drawn as
-if each `quarantine` finding were already renamed to its `.<name>.invalid`
-marker, and a `warning:` line on stderr asks a hand run to rename them; no
-`warnings` entry accompanies it. The run's ledger owes each rename whose
-path the plan does not offer again: until each is done, `--run` exits 1 with
-`E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a later `--start` lists them again in
-`owed`. A corrupt ledger yields a
-`warnings` entry alone.
+`--start` over another run's readable ledger also carries `replaced_run`: that
+run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
+and `unasked`, each entry a `spawn` ref with the outline `question` and
+`profile` that own its stem (or, for an unasked finding, the pair it names; both
+are `null` when neither exists), the absolute `quarantine` paths of its invalid
+findings, and `owed`, the stems of findings an earlier `--start` listed for
+quarantine that are still on disk, whose paths `quarantine` also holds. That
+plan is drawn as if each `quarantine` finding were already renamed to its
+`.<name>.invalid` marker, and a `warning:` line on stderr asks a hand run to
+rename them; no `warnings` entry accompanies it. The run's ledger owes each
+rename whose path the plan does not offer again: until each is done, `--run`
+exits 1 with `E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a later `--start` lists
+them again in `owed`. A corrupt ledger yields a `warnings` entry alone.
 `accelerator research topic end-run SLUG --run ID` removes the run's
 ledger when the run finishes.
 
