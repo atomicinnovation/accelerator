@@ -41,6 +41,7 @@ config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
 lease = { path = "../lease" }
+process = { path = "../process" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }

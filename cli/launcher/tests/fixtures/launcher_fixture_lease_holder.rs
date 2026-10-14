@@ -5,14 +5,8 @@
 //! Usage: `<lease path>...`
 
 use std::io::Write as _;
-use std::os::fd::AsRawFd as _;
-use std::os::fd::RawFd;
 use std::process::ExitCode;
 use std::time::Duration;
-
-use rustix::fs::Dir;
-use rustix::fs::Mode;
-use rustix::fs::OFlags;
 
 const SESSION_UNAVAILABLE: u8 = 69;
 const DESCRIPTORS_UNLISTABLE: u8 = 70;
@@ -26,7 +20,8 @@ fn main() -> ExitCode {
         eprintln!("cannot lead a session: {error}");
         return ExitCode::from(SESSION_UNAVAILABLE);
     }
-    if let Err(error) = close_inherited_descriptors() {
+    // SAFETY: single-threaded, and nothing is opened before this point.
+    if let Err(error) = unsafe { process::close_inherited_descriptors() } {
         eprintln!(
             "cannot list /dev/fd to close inherited descriptors: {error}"
         );
@@ -54,41 +49,4 @@ fn main() -> ExitCode {
     std::thread::sleep(LIFETIME);
     drop(leases);
     ExitCode::SUCCESS
-}
-
-fn close_inherited_descriptors() -> rustix::io::Result<()> {
-    for descriptor in descriptors_above_stdio()? {
-        // SAFETY: the descriptor was listed in /dev/fd, it is not the
-        // listing's own, and this process is single-threaded, so it is open
-        // and nothing else can close it first.
-        unsafe { rustix::io::close(descriptor) };
-    }
-    Ok(())
-}
-
-/// Every open descriptor above stderr, except the one the listing reads
-/// through. `Dir::new` reads through the descriptor it is given, where
-/// `Dir::read_from` would open a second one that is listed and not skipped.
-fn descriptors_above_stdio() -> rustix::io::Result<Vec<RawFd>> {
-    let listing = rustix::fs::open(
-        "/dev/fd",
-        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
-        Mode::empty(),
-    )?;
-    let own = listing.as_raw_fd();
-    let mut open = Vec::new();
-    for entry in Dir::new(listing)? {
-        let Some(descriptor) = entry?
-            .file_name()
-            .to_str()
-            .ok()
-            .and_then(|name| name.parse::<RawFd>().ok())
-        else {
-            continue;
-        };
-        if descriptor > 2 && descriptor != own {
-            open.push(descriptor);
-        }
-    }
-    Ok(open)
 }

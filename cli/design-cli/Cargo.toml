@@ -18,7 +18,7 @@ name = "accelerator-design"
 path = "src/main.rs"
 
 # Test fixture: a black-box test entry point found through CARGO_BIN_EXE_*, not
-# a shipped artifact. It is the only user of lease and rustix here.
+# a shipped artifact. It is the only user of lease and process here.
 [[bin]]
 name = "design-cli-fixture-warm-handover"
 path = "tests/fixtures/design_cli_fixture_warm_handover.rs"
@@ -33,8 +33,9 @@ kernel = { path = "../kernel" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 lease = { path = "../lease" }
-rustix = { workspace = true }
+process = { path = "../process" }
 
 [dev-dependencies]
+rustix = { workspace = true }
 tempfile = { workspace = true }
 vcs-test-support = { path = "../vcs-test-support" }
