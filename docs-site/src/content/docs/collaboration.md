@@ -37,6 +37,15 @@ usage/refusal failure (e.g. a missing or unreadable `--body-file`, no
 `origin` remote configured), 1 on any other failure (base-repo resolution
 failure, or a GitHub API error).
 
+Before PATCHing, it joins each soft-wrapped line onto the one before with a
+single space, so prose hard-wrapped to repository conventions flows at full
+width on GitHub. The space replaces the line ending together with any
+trailing whitespace before it and the next line's `>` markers and
+indentation. Everything else, including hard breaks, code and tables, is
+posted byte-for-byte, and the body file is not modified. A line that must
+render on its own, such as a trailer or `Closes #n`, needs a hard break (two
+trailing spaces or `\`) or a list item.
+
 ## Authentication
 
 Both subcommands authenticate with a personal access token, resolved through
