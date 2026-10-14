@@ -218,7 +218,7 @@ pub(super) fn generation_is_aged(
 
 /// Sets the generation's mtime to the clock's now, so the backstop counts from
 /// this moment rather than from extraction. Best-effort: where the filesystem
-/// rejects it, the generation keeps its extraction mtime.
+/// rejects it, the generation keeps its extraction mtime and a warning says so.
 pub(super) fn restart_backstop(
     paths: &TreePaths,
     generation: &str,
@@ -238,12 +238,17 @@ pub(super) fn restart_backstop(
                 tv_nsec: 0,
             },
         };
-        let _ = rustix::fs::utimensat(
-            CWD,
-            paths.generation(generation),
-            &timestamps,
-            AtFlags::empty(),
-        );
+        let path = paths.generation(generation);
+        if let Err(error) =
+            rustix::fs::utimensat(CWD, &path, &timestamps, AtFlags::empty())
+        {
+            tracing::warn!(
+                generation = %path.display(),
+                %error,
+                "cannot restart the age backstop; the generation keeps its \
+                 extraction age"
+            );
+        }
     }
     #[cfg(not(unix))]
     {
@@ -300,6 +305,7 @@ mod tests {
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::Path;
+    use std::sync::{Arc, Mutex};
 
     use crate::launch::core::tree::Clock;
 
@@ -595,6 +601,62 @@ mod tests {
             &name,
             &AtClock(later + AGE_BACKSTOP.as_secs())
         ));
+    }
+
+    #[derive(Clone, Default)]
+    struct Buffer(Arc<Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Buffer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().expect("log buffer").extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl tracing_subscriber::fmt::MakeWriter<'_> for Buffer {
+        type Writer = Self;
+
+        fn make_writer(&self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    fn logged(act: impl FnOnce()) -> String {
+        let buffer = Buffer::default();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(buffer.clone())
+            .with_ansi(false)
+            .finish();
+        tracing::subscriber::with_default(subscriber, act);
+        let bytes = buffer.0.lock().expect("log buffer").clone();
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    #[test]
+    fn a_backstop_that_cannot_be_restarted_is_warned() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let absent = gen_name();
+
+        let log = logged(|| restart_backstop(&paths, &absent, &present()));
+
+        assert!(log.contains("WARN"), "no warning: {log}");
+        assert!(log.contains(&absent), "warning names no generation: {log}");
+    }
+
+    #[test]
+    fn a_restarted_backstop_is_not_warned() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let name = planted(&paths);
+
+        let log = logged(|| restart_backstop(&paths, &name, &present()));
+
+        assert!(log.is_empty(), "unexpected log: {log}");
     }
 
     #[test]

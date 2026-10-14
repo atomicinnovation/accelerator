@@ -27,6 +27,7 @@ dependencies = [
  "time",
  "toml",
  "tracing",
+ "tracing-subscriber",
  "vcs-adapters",
  "vcs-test-support",
  "vergen",
