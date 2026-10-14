@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0223", "work-item:0196", "work-item:0218"]
 tags: ["runtime", "cache", "lease", "prune", "design"]
-last_updated: "2026-10-14T15:08:23+00:00"
+last_updated: "2026-10-14T15:09:44+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -283,8 +283,10 @@ its own daemon.
   became eligible, so under the default window its mtime age is almost always
   past `AGE_BACKSTOP`. The backstop protects in practice only against
   `--older-than` values under 1h. On a filesystem without `flock`, a live
-  daemon's tree whose claim is stale can still be reclaimed. This is accepted
-  because the alternative leaves such trees unreclaimable.
+  daemon's tree whose claim is stale can still be reclaimed. `--older-than`
+  shrinks the claim window, so `prune --older-than 0` from another launcher
+  reclaims such a tree at once. This is accepted because the alternative
+  leaves such trees unreclaimable.
 - On a filesystem without `flock`, a daemon's lifetime is not bounded by
   `AGE_BACKSTOP`. `repair` restarts the backstop once when it defers a
   superseded generation, and nothing renews it while the daemon runs. A
