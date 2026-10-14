@@ -227,6 +227,7 @@ pub fn research::conduct::replaced_run::Leftover::fmt(&self, f: &mut core::fmt::
 impl core::marker::StructuralPartialEq for research::conduct::replaced_run::Leftover
 pub struct research::conduct::replaced_run::Recovery
 pub research::conduct::replaced_run::Recovery::inputs: research::topic::plan::RoundInputs
+pub research::conduct::replaced_run::Recovery::owed_quarantine: alloc::vec::Vec<research::topic::layout::stem::Stem>
 pub research::conduct::replaced_run::Recovery::plan: research::topic::plan::RoundPlan
 pub research::conduct::replaced_run::Recovery::replaced_run: research::conduct::replaced_run::ReplacedRun
 impl research::conduct::replaced_run::Recovery

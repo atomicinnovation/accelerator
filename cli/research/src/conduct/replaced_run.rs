@@ -19,11 +19,15 @@ use crate::topic::question::UnicodeText;
 
 /// A starting run's first round, drawn as if the findings the replaced run
 /// left invalid were already quarantined, with its report of that run.
+///
+/// `owed_quarantine` leaves out each stem the plan offers again: clearing
+/// an offered path quarantines whatever is there before its spawn writes.
 #[derive(Debug, Clone)]
 pub struct Recovery {
     pub inputs: RoundInputs,
     pub plan: RoundPlan,
     pub replaced_run: ReplacedRun,
+    pub owed_quarantine: Vec<Stem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,10 +86,17 @@ impl Recovery {
         let inputs = batch.quarantining(inputs, unicode);
         let plan = RoundPlan::of(&inputs, unicode);
         let replaced_run = batch.report(&inputs, &plan, unicode);
+        let owed_quarantine = replaced_run
+            .quarantine()
+            .iter()
+            .filter(|stem| !plan.pairs.iter().any(|pair| pair.stem == **stem))
+            .cloned()
+            .collect();
         Self {
             inputs,
             plan,
             replaced_run,
+            owed_quarantine,
         }
     }
 }
@@ -985,5 +996,23 @@ mod tests {
         let replaced = owing(replaced(&[], &[]), &["01-a-web"]);
         let recovery = Recovery::of(&replaced, inputs, &FakeUnicode);
         assert!(recovery.inputs.findings.is_empty());
+    }
+
+    #[test]
+    fn a_recovery_owes_the_quarantine_of_each_stem_its_plan_does_not_offer_again(
+    ) {
+        let mut inputs = inputs(&["- [ ] A?", "- [ ] B?"]);
+        inputs.findings = vec![
+            answering("01-a-web.md", "A?", "openalex"),
+            answering("02-b-web.md", "Z?", "web"),
+        ];
+        let replaced =
+            replaced(&[("A?", 1), ("B?", 2)], &["01-a-web", "02-b-web"]);
+        let recovery = Recovery::of(&replaced, inputs, &FakeUnicode);
+        assert_eq!(
+            quarantine(&recovery.replaced_run),
+            ["01-a-web", "02-b-web"]
+        );
+        assert_eq!(recovery.owed_quarantine, [stem("02-b-web")]);
     }
 }

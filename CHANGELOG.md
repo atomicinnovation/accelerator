@@ -141,9 +141,9 @@
   `--start` over another run's readable ledger reports that run's last batch
   as `replaced_run` and plans as if its invalid findings were already
   quarantined; `conduct` shows that report before its first batch and
-  quarantines those findings. The new run's ledger records those renames as
-  owed: a later `--start` quarantines and plans around any owed finding still
-  on disk, listing it in `replaced_run.owed`, and `--run` exits 1 with
+  quarantines those findings. The new run's ledger records as owed each
+  rename whose path its plan does not offer again: a later `--start`
+  quarantines and plans around any owed finding still on disk, listing it in `replaced_run.owed`, and `--run` exits 1 with
   `E_TOPIC_RESEARCH_QUARANTINE_OWED` until each is renamed. `--start` over a
   readable ledger no longer adds a `warnings` entry; `replaced_run` carries
   that report instead. A run keeps a transient

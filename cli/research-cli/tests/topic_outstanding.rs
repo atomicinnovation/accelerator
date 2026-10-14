@@ -1356,6 +1356,33 @@ fn a_run_owes_nothing_once_its_quarantine_is_renamed() -> Result<(), TestError>
 }
 
 #[test]
+fn a_stem_the_recovering_plan_offers_again_is_not_owed() -> Result<(), TestError>
+{
+    let project = small_set("replaced-reoffered", "- [ ] A?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n")
+            .replace("\"web\"", "\"openalex\""),
+    )?;
+    let (plan, run) = started(&project, &[])?;
+    assert_eq!(spawns_of(&plan)?, ["01-a-web"]);
+    quarantine_as_the_report_would(&plan)?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+
+    let next = continued(&project, &run, &["--spawned", "0"])?;
+
+    assert_eq!(next["pairs"], json!([]));
+    assert_eq!(next["items"], json!([item(6, "A?", true)]));
+    Ok(())
+}
+
+#[test]
 fn a_finding_whose_question_left_the_outline_is_left_in_place(
 ) -> Result<(), TestError> {
     let project = small_set("replaced-reworded", "- [ ] A?")?;

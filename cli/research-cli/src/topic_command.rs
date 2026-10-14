@@ -284,23 +284,26 @@ where
     let continued = continued
         .map(|ledger| settled(ledger, &reading.inputs, set_root))
         .transpose()?;
-    let (inputs, plan, replaced_run) = match &replaced {
+    let (inputs, plan, replaced_run, owed_quarantine) = match &replaced {
         ReplacedLedger::Readable(stored) => {
             let recovery = Recovery::of(stored, reading.inputs, &UnicodeTables);
-            (recovery.inputs, recovery.plan, Some(recovery.replaced_run))
+            (
+                recovery.inputs,
+                recovery.plan,
+                Some(recovery.replaced_run),
+                recovery.owed_quarantine,
+            )
         }
         ReplacedLedger::Absent | ReplacedLedger::Corrupt => {
             let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
-            (reading.inputs, plan, None)
+            (reading.inputs, plan, None, Vec::new())
         }
     };
     let observed = Observed::of(&inputs);
     let ledger = match mode {
-        RunMode::Start(run) => {
-            Some(RunLedger::start(run, &observed).owing_quarantine(
-                replaced_run.as_ref().map_or(&[], ReplacedRun::quarantine),
-            ))
-        }
+        RunMode::Start(run) => Some(
+            RunLedger::start(run, &observed).owing_quarantine(&owed_quarantine),
+        ),
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
