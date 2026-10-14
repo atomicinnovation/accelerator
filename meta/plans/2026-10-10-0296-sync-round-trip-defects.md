@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-14T15:44:20+00:00"
+last_updated: "2026-10-14T15:45:27+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2473,11 +2473,11 @@ legacy-unrenderable` dossier naming the remedies that settle it.
   and a state assertion in `a_create_then_sync_reports_synced`, whose
   harness exposes only the exit code. `preview_and_apply_report_the_same_state_for_every_recovery_row`
   is folded into the recovery-row tests, each of which previews first.
-- `mise run` first failed on 2026-10-14 only in
-  `test:unit:frontend`, whose 2,615 tests all passed but whose Vitest worker
-  timed out (`Timeout calling "onTaskUpdate"`) three times under a load
-  average near 200. No visualiser file changed in this phase.
-  It passed after Phase 9 and the `rustls` bump; see Phase 9's notes.
+- The first `mise run` on 2026-10-14 failed only in `test:unit:frontend`,
+  whose 2,615 tests all passed but whose Vitest worker timed out
+  (`Timeout calling "onTaskUpdate"`) three times under a load average near
+  200; no visualiser file changed in this phase. `mise run` exited 0 after
+  Phase 9, once the fixes its notes name were in.
 - On 2026-10-14 a push-only `work sync --max-pushes 100` with the installed
   1.24.0-pre.79 engine created PP-887 to PP-919 for 33 unsynced items and
   pushed 24 locally edited ones, skipping conflicts 0207, 0227, 0296 and
@@ -2590,11 +2590,25 @@ titles differ.
   hold the same number of sections, else the `compared` one. Displayed text
   drops leading blank lines.
 - `BodyComparison::differing_sections(local_content, remote_content)` builds
-  both `ComparableItem`s, so the dossier and `work diff` share it.
+  both `ComparableItem`s, so the dossier and `work diff` share it;
+  `body_comparison.rs` pins it with
+  `sections_differing_only_in_notation_are_not_listed` and
+  `a_local_section_is_compared_as_the_tracker_would_store_it`.
+- Beyond the planned unit tests, `section_diff.rs` gains
+  `a_displayed_section_drops_its_leading_blank_lines` and three
+  `frontmatter_and_body` tests, and `canonical.rs` gains
+  `a_section_reads_as_the_canonical_form_of_its_blocks` and
+  `a_sections_heading_reads_canonically_and_the_preamble_has_none`.
 - `sync-report.golden` holds no dossier, so the title-difference case is
   pinned by `a_title_difference_renders_local_arrow_remote` instead. The
   run-level tests live in `sync_dossiers.rs` over the Phase 8 repo harness,
-  Jira through `JiraBodyDialect`, not `sync_run_real_client.rs`.
+  Jira through `JiraBodyDialect`, not `sync_run_real_client.rs`; the Linear
+  and Jira variants are `a_real_linear_conflict_lists_only_the_edited_section`
+  and `a_real_jira_conflict_lists_only_the_edited_section`, and the Jira
+  round-trip case is
+  `a_jira_section_equivalent_only_after_the_push_round_trip_is_omitted`.
+  The edited section is the preamble, so its remote side begins with the
+  H1.
 - A section now shows its heading on both sides, so
   `one_differing_section_renders_a_unified_body_with_the_frozen_framing`
   and `a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values`
@@ -2725,6 +2739,9 @@ Table in the PR description: each of the 32 items pulled or conflicted on
   clients and projections.
 - `work-adapters/tests/golden_digests.rs`: digest stability and parser pin.
 - `work-adapters/tests/sync_recovery_corpus.rs`: the five captured items.
+- `work-adapters/tests/sync_equivalence.rs`: run-level equivalence,
+  recovery and remedy scenarios.
+- `work-adapters/tests/sync_dossiers.rs`: dossier sections and titles.
 
 ### Manual Testing Steps:
 
@@ -2862,8 +2879,8 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | Baselined Jira item with rejected body, no edits | 8 | not written |
 | Unbaselined Jira item with rejected body | 8 | not written |
 | Golden-digest fixture and parser guard | 7 | `golden_digests.rs` |
-| Real conflict lists only edited section (both trackers) | 9 | `a_real_conflict_lists_only_the_edited_section` |
-| Title arrow in dossier header | 9 | `a_title_difference_renders_local_arrow_remote` |
+| Real conflict lists only edited section (both trackers) | 9 | `a_real_linear_conflict_lists_only_the_edited_section`, `a_real_jira_conflict_lists_only_the_edited_section`, `a_jira_section_equivalent_only_after_the_push_round_trip_is_omitted` |
+| Title arrow in dossier header | 9 | `a_title_difference_renders_local_arrow_remote`, `matching_titles_render_the_local_title_alone` |
 | Skill names the title form | 9 | `rg` check |
 | `work diff` adopts section equivalence | 9 | `work_diff_omits_an_equivalent_section` |
 | Recovery-table rows | 8 | recovery-row tests |
