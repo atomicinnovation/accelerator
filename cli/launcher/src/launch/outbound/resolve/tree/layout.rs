@@ -33,7 +33,6 @@ pub const CLAIMS_DIR: &str = "claims";
 const POINTER_SUFFIX: &str = ".ref";
 const ATTESTATION_SUFFIX: &str = ".sealed";
 const ATTESTATION_SIGNATURE_SUFFIX: &str = ".sealed.sig";
-const LEASE_SUFFIX: &str = ".lease";
 const ARCHIVE_SUFFIX: &str = ".archive";
 
 /// Hex characters of CSPRNG output in a generation suffix.
@@ -102,7 +101,7 @@ impl TreePaths {
     /// are fine.
     #[must_use]
     pub fn lease(&self, generation: &str) -> PathBuf {
-        self.root.join(format!("{generation}{LEASE_SUFFIX}"))
+        lease::lease_beside(&self.generation(generation))
     }
 
     /// The partially-downloaded archive.

@@ -16,6 +16,16 @@ use std::path::{Path, PathBuf};
 /// lease sitting there.
 pub const LOWEST_LEASE_DESCRIPTOR: i32 = 10;
 
+pub const LEASE_SUFFIX: &str = ".lease";
+
+/// The lease that pins `pinned`: its sibling, named with [`LEASE_SUFFIX`].
+#[must_use]
+pub fn lease_beside(pinned: &Path) -> PathBuf {
+    let mut lease = pinned.as_os_str().to_owned();
+    lease.push(LEASE_SUFFIX);
+    PathBuf::from(lease)
+}
+
 #[cfg(unix)]
 pub use unix::{hold_shared_lease, probe_shared_lease, SharedLease};
 
@@ -309,5 +319,40 @@ mod stubs {
     #[must_use]
     pub fn probe_shared_lease(_path: &Path) -> Liveness {
         Liveness::Unknown
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{lease_beside, LEASE_SUFFIX};
+
+    #[test]
+    fn a_directory_is_pinned_by_its_suffixed_sibling() {
+        assert_eq!(
+            lease_beside(Path::new("/cache/trees/driver-1")),
+            Path::new("/cache/trees/driver-1.lease")
+        );
+    }
+
+    #[test]
+    fn a_file_keeps_its_extension_beneath_the_suffix() {
+        assert_eq!(
+            lease_beside(Path::new("/cache/archive.tar")),
+            Path::new("/cache/archive.tar.lease")
+        );
+    }
+
+    #[test]
+    fn the_lease_shares_the_parent_of_what_it_pins() {
+        let pinned = Path::new("/cache/trees/driver-1");
+        assert_eq!(lease_beside(pinned).parent(), pinned.parent());
+    }
+
+    #[test]
+    fn the_lease_name_ends_with_the_suffix() {
+        let lease = lease_beside(Path::new("driver-1"));
+        assert!(lease.to_string_lossy().ends_with(LEASE_SUFFIX));
     }
 }

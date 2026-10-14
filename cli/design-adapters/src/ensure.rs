@@ -76,7 +76,7 @@ impl TreeLeases {
             gone: Vec::new(),
         };
         for tree in trees {
-            if tree.lease != lease_beside(&tree.path) {
+            if tree.lease != lease::lease_beside(&tree.path) {
                 held.unleasable
                     .push((tree.clone(), Unleasable::OutsideTreeLayout));
                 continue;
@@ -98,14 +98,6 @@ impl TreeLeases {
         }
         held
     }
-}
-
-/// The lease path arrives on a subprocess's stdout, so only the launcher's own
-/// layout is trusted, and no other file is created or removed.
-fn lease_beside(tree: &Path) -> PathBuf {
-    let mut lease = tree.as_os_str().to_owned();
-    lease.push(".lease");
-    PathBuf::from(lease)
 }
 
 fn remove_unheld_lease(lease: &Path) {

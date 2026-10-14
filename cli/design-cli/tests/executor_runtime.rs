@@ -5,7 +5,6 @@
 //! `DaemonSpawner` and `ExecClient` run without Playwright, a browser or a
 //! network. No Playwright behaviour is exercised here.
 
-use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
@@ -104,11 +103,11 @@ impl Runtime {
     }
 
     fn driver_lease(&self) -> PathBuf {
-        lease_of(&self.driver_tree())
+        lease::lease_beside(&self.driver_tree())
     }
 
     fn browser_lease(&self) -> PathBuf {
-        lease_of(&self.browser_tree())
+        lease::lease_beside(&self.browser_tree())
     }
 
     fn state_dir(&self) -> PathBuf {
@@ -268,12 +267,6 @@ fn downgrade_line(output: &Output) -> Option<String> {
         .lines()
         .find(|line| line.contains(r#""error":"downgrade""#))
         .map(str::to_owned)
-}
-
-fn lease_of(tree: &Path) -> PathBuf {
-    let mut lease = OsString::from(tree.as_os_str());
-    lease.push(".lease");
-    PathBuf::from(lease)
 }
 
 fn stderr_of(output: &Output) -> String {

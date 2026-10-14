@@ -493,9 +493,7 @@ fn every_sealed_tree_carries_its_lease_beside_it() {
     let reused = resolver.materialise(ARTIFACT).expect("reused");
 
     for sealed in [fresh, reused] {
-        let mut beside = sealed.path.clone().into_os_string();
-        beside.push(".lease");
-        assert_eq!(sealed.lease_path, PathBuf::from(beside));
+        assert_eq!(sealed.lease_path, lease::lease_beside(&sealed.path));
     }
 }
 

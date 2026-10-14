@@ -129,7 +129,7 @@ fn classify(name: &str, keep_digests: &BTreeSet<String>) -> Option<Residue> {
 }
 
 fn has_sidecar_suffix(name: &str) -> bool {
-    [".ref", ".sealed", ".sealed.sig", ".lease"]
+    [".ref", ".sealed", ".sealed.sig", lease::LEASE_SUFFIX]
         .iter()
         .any(|suffix| name.ends_with(suffix))
 }

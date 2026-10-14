@@ -3,7 +3,6 @@
 //! A binary of its own because it spawns no children: a child spawned while a
 //! lease is held would inherit it and race every "free after drop" assertion.
 
-use std::ffi::OsString;
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
@@ -17,16 +16,10 @@ use lease::{probe_shared_lease, Liveness};
 
 type TestError = Box<dyn std::error::Error>;
 
-fn lease_of(tree: &Path) -> PathBuf {
-    let mut lease = OsString::from(tree.as_os_str());
-    lease.push(".lease");
-    PathBuf::from(lease)
-}
-
 fn resolved(artifact: &str, path: PathBuf) -> ResolvedTree {
     ResolvedTree {
         artifact: artifact.to_owned(),
-        lease: lease_of(&path),
+        lease: lease::lease_beside(&path),
         path,
     }
 }
