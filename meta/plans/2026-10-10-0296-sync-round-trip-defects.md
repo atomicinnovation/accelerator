@@ -2416,9 +2416,12 @@ legacy-unrenderable` dossier naming the remedies that settle it.
       remote title unchanged
       (2026-10-14: 14 of 14 passed, both live conformance sets carrying
       `update_without_a_title_keeps_the_title`)
-- [ ] On a scratch clone of this repo, `work sync --preview` reports far
+- [x] On a scratch clone of this repo, `work sync --preview` reports far
       fewer conflicts than the 25 of 2026-10-10, each with a real difference
-      (2026-10-14: 25 conflicts, every one a real difference once the
+      (2026-10-14, after a push-only sync sent the local edits: 3
+      conflicts — 0227, 0296 and 0299, each a real difference — with every
+      pushed item synced despite Linear's re-serialisation; before that
+      push, 25 conflicts, every one a real difference once the
       captured cosmetic rewrites are normalised out — 23 legacy items edited
       locally since their last sync, and 0296 and 0299 with no entry; the
       count did not fall because genuine local edits accumulated since
