@@ -741,18 +741,18 @@ verification record" under a "Phase 3 re-run" entry.
 
 #### Automated Verification:
 
-- [ ] Crate tests pass:
+- [x] Crate tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p markdown`
-- [ ] Public API is unchanged: `mise run public-api:check`
+- [x] Public API is unchanged: `mise run public-api:check`
 - [ ] Full local CI passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] Every description and probe passes the event-stream, idempotence and
+- [x] Every description and probe passes the event-stream, idempotence and
       structure checks in the re-run
-- [ ] No description or probe shows a residual wrap, `foo\t\t\nbar`
+- [x] No description or probe shows a residual wrap, `foo\t\t\nbar`
       included, while `foo\t  \nbar` still renders a `<br>`
-- [ ] The record holds the re-run's commands and outcome
+- [x] The record holds the re-run's commands and outcome
 
 ---
 
@@ -1123,3 +1123,26 @@ Run on 2026-10-14 against `markdown` at `pulldown-cmark` 0.13.4.
 - By-hand table and footnote checks: the table probe renders, before and
   after, as the paragraph `Some wrapped text` followed by a table; the
   footnote probe's input render contains a `<section data-footnotes>`.
+
+### Phase 3 re-run
+
+Run on 2026-10-14 after `renders_as_soft_on_github` joined the span rule.
+
+- Commands:
+  - the same `corpus-verify` crate, with `renders_as_soft_on_github` and the
+    offset-aware normaliser copied verbatim from the crate, over
+    `meta/prs/*-description.md probes/*.md`
+  - the same three `gh api -X POST /markdown` renders per file: 390 calls
+  - `normalise.py compare` and `normalise.py brs`, unchanged
+- Descriptions and probes checked: 115 descriptions and 15 probes, 130 in
+  all. The probes are Phase 2's seven plus one per new fixture input:
+  `foo \t\nbar`, `foo\t \nbar`, `foo  \t\nbar`, `foo \x0B\nbar`,
+  `> foo\t\t\n> bar`, `- foo\t\t\n  bar`, `foo\t  \nbar` and
+  `foo\n \x0B\nbar`.
+- Event-stream, idempotence and structure: all 130 pass.
+- Residual wraps: none. Every file's `gfm` render has as many `<br>` as its
+  `markdown` render, `foo\t\t\nbar` included.
+- Hard-break control: `foo\t  \nbar` is left as written and still renders
+  one `<br>`.
+- Calibration controls, re-run against the renderer: `a\nb` shows an excess
+  of 1, `a  \nb` of 0, and `foo\n- bar` against `foo - bar` differs.
