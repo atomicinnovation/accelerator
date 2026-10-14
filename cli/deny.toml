@@ -160,7 +160,9 @@ skip = [
 # rustls only — no transitive dep may re-enable default-tls and break the
 # musl-static build. This covers the TLS vector only. serde-saphyr is the
 # infra-out-of-domain ban: the YAML crate is reachable only through the
-# document wrapper, so a direct domain import violates.
+# document wrapper, so a direct domain import violates. pulldown-cmark is
+# banned the same way outside markdown, whose exact pin and
+# characterisation tests carry the soft-line-break span rule.
 #
 # gix-credentials spawns `git credential-*` helper programs and is absent only
 # because the gix pin sets default-features = false, so this ban is what stops a
@@ -173,6 +175,7 @@ deny = [
     { crate = "openssl" },
     { crate = "openssl-sys" },
     { crate = "serde-saphyr", wrappers = ["document"] },
+    { crate = "pulldown-cmark", wrappers = ["markdown"] },
     { crate = "gix-credentials" },
     { crate = "curl-sys" },
 ]
