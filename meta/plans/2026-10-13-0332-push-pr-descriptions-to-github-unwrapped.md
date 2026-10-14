@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-13-0332-push-pr-descriptions-to-github
 tags: ["collaboration", "github", "markdown", "pulldown-cmark", "describe-pr"]
 revision: "4f52d32c20ed096f05b4e9ef2a0f830a8373d3cc"
 repository: "accelerator"
-last_updated: "2026-10-14T14:34:58+00:00"
+last_updated: "2026-10-14T15:00:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -885,9 +885,12 @@ Extend the crate doc:
 `[dev-dependencies]`.
 
 **File**: `cli/collaboration-cli/tests/end_to_end.rs`
-**Changes**: Add `resolving_server_accepting_patch(status)`, which builds
+**Changes**: Add `resolving_server_answering_patch(route)`, which builds
 on the existing `resolving_server()` and adds only the PATCH route, and move
 `update_body_succeeds` and `update_body_reports_a_patch_failure` onto it.
+It takes the whole PATCH `Route` rather than a status, because the 422 test
+asserts on the response's `Validation Failed` message; `patch_accepted()`
+supplies the 200 route.
 Add a `patched_body(server)` helper that parses `last_body` for the PATCH
 key as JSON and returns `["body"]`. Then add:
 
@@ -998,27 +1001,27 @@ and to `### Fixed`:
 
 #### Automated Verification:
 
-- [ ] Domain tests pass:
+- [x] Domain tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p collaboration`
-- [ ] Adapter tests pass:
+- [x] Adapter tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p github`
-- [ ] End-to-end tests pass:
+- [x] End-to-end tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p accelerator-collaboration`
-- [ ] Public API pin passes: `mise run public-api:check`
-- [ ] Architecture rules pass: `mise run lint:crate-dependencies:check` and
+- [x] Public API pin passes: `mise run public-api:check`
+- [x] Architecture rules pass: `mise run lint:crate-dependencies:check` and
       `mise run pup:check`
-- [ ] Notices are current: `mise run notices:check`
-- [ ] Docs build passes: `mise run docs:check`
-- [ ] Full local CI passes: `mise run`
+- [x] Notices are current: `mise run notices:check`
+- [x] Docs build passes: `mise run docs:check`
+- [x] Full local CI passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `describe-pr` SKILL.md no longer says the shown description is what
+- [x] `describe-pr` SKILL.md no longer says the shown description is what
       gets posted, and says soft line breaks are unwrapped
 - [ ] Running `/accelerator:describe-pr` on this story's PR posts a body
       whose paragraphs flow at full width on GitHub, while
       `meta/prs/<n>-description.md` stays wrapped
-- [ ] The `[Unreleased]` changelog entries describe the unwrap, the
+- [x] The `[Unreleased]` changelog entries describe the unwrap, the
       hard-break guidance and the exit-code correction
 - [ ] The posted PR description contains the corpus verification
       record; add it by hand if `describe-pr` summarised it away
