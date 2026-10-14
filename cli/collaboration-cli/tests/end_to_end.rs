@@ -185,34 +185,7 @@ fn base_repo_reports_a_repository_lookup_failure() -> Result<(), TestError> {
 #[test]
 fn update_body_succeeds() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockHTTPServer::start();
-    server.route(
-        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
-        Route::Json {
-            status: 200,
-            body: repository_json("candidate-owner", "candidate-repo"),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "GET",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "PATCH",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
+    let server = resolving_server_answering_patch(patch_accepted());
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;
 
@@ -235,34 +208,10 @@ fn update_body_succeeds() -> Result<(), TestError> {
 #[test]
 fn update_body_reports_a_patch_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockHTTPServer::start();
-    server.route(
-        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
-        Route::Json {
-            status: 200,
-            body: repository_json("candidate-owner", "candidate-repo"),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "GET",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "PATCH",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 422,
-            body: "{\"message\":\"Validation Failed\"}".to_owned(),
-        },
-    );
+    let server = resolving_server_answering_patch(Route::Json {
+        status: 422,
+        body: "{\"message\":\"Validation Failed\"}".to_owned(),
+    });
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;
 
@@ -457,6 +406,23 @@ fn resolving_server() -> MockHTTPServer {
         },
     );
     server
+}
+
+fn resolving_server_answering_patch(patch: Route) -> MockHTTPServer {
+    let server = resolving_server();
+    server.route(update_body_key(), patch);
+    server
+}
+
+fn update_body_key() -> RequestKey {
+    RequestKey::new("PATCH", "/repos/candidate-owner/candidate-repo/pulls/42")
+}
+
+fn patch_accepted() -> Route {
+    Route::Json {
+        status: 200,
+        body: pull_request_json(42),
+    }
 }
 
 fn base_repo(
