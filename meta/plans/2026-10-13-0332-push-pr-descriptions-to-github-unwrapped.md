@@ -744,7 +744,7 @@ verification record" under a "Phase 3 re-run" entry.
 - [x] Crate tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p markdown`
 - [x] Public API is unchanged: `mise run public-api:check`
-- [ ] Full local CI passes: `mise run`
+- [x] Full local CI passes: `mise run`
 
 #### Manual Verification:
 
