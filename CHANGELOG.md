@@ -312,6 +312,11 @@
   Markdown where it wrote the raw ADF JSON. A conflict over a description with
   no Markdown form writes a dossier carrying `reason: remote-unrenderable` and
   offers only `local` or `skip`.
+- **Conflict dossiers and `work diff` list only sections whose meaning
+  differs.** A section that differs only in notation, such as bullet
+  characters or line wrapping, is omitted, and each listed section shows its
+  own heading on both sides. A dossier header reads
+  `title: <local> → <remote>` when the titles differ.
 - **A file an earlier release's pull left raw ADF JSON in is never sent.** Such
   a push or `--resolve <id>=local` fails as `pull-residue` (exit 75); replace
   the JSON with Markdown (`jira show <key> --render-adf` prints a starting
