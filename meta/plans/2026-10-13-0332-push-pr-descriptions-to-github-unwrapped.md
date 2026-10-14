@@ -23,12 +23,14 @@ schema_version: 1
 
 `accelerator collaboration pr update-body` PATCHes the body file verbatim, and
 GitHub renders every single newline in a PR body as a line break. This plan
-does three things:
+does four things:
 
 - It adds a `markdown` technical-library crate whose one public function
   unwraps GFM soft line breaks on a `pulldown-cmark` parse.
 - It verifies that function once against the 115 descriptions in
   `meta/prs/`.
+- It also unwraps the whitespace line breaks that `pulldown-cmark` reads as
+  hard but GitHub renders as soft.
 - It makes the `collaboration` use case publish every body through a new
   intent-named port, `PullRequestBodyPublishing`. The `github` adapter
   implements that port with the unwrap.
@@ -68,7 +70,9 @@ PATCH /repos/{owner}/{repo}/pulls/{n}  {"body": …}
 ## Desired End State
 
 - `update-body` PATCHes the body with every GFM soft line break replaced by
-  a single space. Every byte outside a replaced span is preserved.
+  a single space. A whitespace line break that GitHub renders as soft is
+  replaced the same way, even where `pulldown-cmark` reads it as hard. Every
+  byte outside a replaced span is preserved.
 - The body file's bytes are unchanged.
 - The behaviour reads no repository configuration, and `update-body --help`
   is unchanged.
@@ -85,7 +89,7 @@ PATCH /repos/{owner}/{repo}/pulls/{n}  {"body": …}
 ### Key Discoveries:
 
 - `pulldown-cmark` 0.13.4 with `default-features = false` needs only
-  `bitflags` 2, `memchr` and `unicase`. All three are already in
+  `bitflags` 2, `memchr` and `unicase`. All of them are already in
   `cli/Cargo.lock` (`bitflags` 2.13.1, `memchr` 2.8.3, `unicase` 2.9.0), so
   the only new package is `pulldown-cmark`. `pulldown-cmark-escape`, which
   the research lists as new, is optional behind the `html` feature and stays
@@ -103,14 +107,18 @@ PATCH /repos/{owner}/{repo}/pulls/{n}  {"body": …}
   starts on the continuation line; otherwise the scan alone does. Without
   that, the span is reversed and the output duplicates the input.
 - `pulldown-cmark` makes any two or more trailing whitespace bytes a hard
-  break, tabs included, where `cmark-gfm` needs two spaces. A line ending in
-  `\t\t` is therefore left wrapped while GitHub still renders a break. Phase
-  2's residual-wrap check and `foo\t\t\nbar` probe confirm and record it.
-  The same backward scan crosses a continuation line's stripped leading
-  space, so a line holding only VT or FF (`foo\n \x0B\nbar`) becomes a
-  hard break starting at the line start and fails event-stream equality.
-  VT and FF do not occur in PR descriptions; if a corpus or probe input
-  hits this shape, it is a parser quirk, not a span-logic failure.
+  break, tabs included. `cmark-gfm` makes a hard break only when the line
+  ending follows two spaces or a `\`. Phase 2's `foo\t\t\nbar` probe
+  confirmed the divergence, and further probes against GitHub's renderer
+  showed that `foo \t`, `foo\t `, `foo  \t` and `foo \x0B` all render
+  soft on GitHub while `foo\t  ` renders hard. Phase 3 unwraps these.
+- A whitespace `HardBreak` range starts at its first trailing whitespace byte
+  and ends after the line ending: `foo\t\t\nbar` gives `3..6`,
+  `> foo\t\t\n> bar` gives `5..8`. A backslash `HardBreak` starts at the
+  `\`. The backward whitespace scan crosses a continuation line's stripped
+  leading space, so a line holding only VT or FF (`foo\n \x0B\nbar`) emits
+  `SoftBreak@3..4` then `HardBreak@4..7`. The two spans are adjacent, not
+  overlapping, so unwrapping both yields `foo  bar`.
 - These constructs emit no `SoftBreak`, so the rewrite leaves them alone
   without any special case:
   - code spans, inline HTML and hard breaks
@@ -154,18 +162,20 @@ PATCH /repos/{owner}/{repo}/pulls/{n}  {"body": …}
 
 ## Implementation Approach
 
-The work runs in three phases:
+The work runs in four phases:
 
 1. Build the mechanism as a pure, pinned technical library first, test-first
    from the acceptance-criterion fixtures.
 2. Harden it against the real corpus before anything posts through it.
-3. Make the behaviour visible in the domain. The `collaboration` use case
+3. Close the one divergence the corpus run found: whitespace breaks that
+   `pulldown-cmark` reads as hard and GitHub as soft.
+4. Make the behaviour visible in the domain. The `collaboration` use case
    says a body is prepared for publishing. The GitHub adapter knows that
    preparing for GitHub means unwrapping soft line breaks.
 
 Each phase merges on its own. Phase 1 adds an unused crate, phase 2 adds
-only fixtures and any span-rule fix they demand, and phase 3 switches the
-behaviour on.
+only fixtures and any span-rule fix they demand, phase 3 widens the rule
+inside the still-unused crate, and phase 4 switches the behaviour on.
 
 ## Phase 1: The `markdown` technical library
 
@@ -493,7 +503,7 @@ code needs no comment.
 Run the unwrap over every description in `meta/prs/` and a set of
 divergence probes from a throwaway scratch crate, and check each result
 against GitHub's own renderer. Span-logic failures and structural
-divergences become fixtures and block Phase 3; residual wraps become
+divergences become fixtures and block Phase 4; residual wraps become
 follow-ups. Nothing in this phase is committed except the new fixtures,
 any span-rule fix they demand, and the record below.
 
@@ -577,7 +587,7 @@ render matches the unwrap's intent becomes a named fixture in
 | Failure | Classification | Action |
 |---|---|---|
 | Event-stream or idempotence | span-logic | Add the minimal reproducing input to `cli/markdown/src/tests.rs` as a named fixture, red first, and fix the span rule |
-| Structure check | structural divergence | Blocks Phase 3. Add the minimal reproducing input as a fixture, red first, then fix the span rule or leave that construct's soft breaks as written |
+| Structure check | structural divergence | Blocks Phase 4. Add the minimal reproducing input as a fixture, red first, then fix the span rule or leave that construct's soft breaks as written |
 | Residual-wrap check alone | residual wrap | Create a follow-up work item with `/accelerator:create-work-item`, linked `relates_to: ["work-item:0332"]`. It renders no worse than today |
 
 #### 5. Record
@@ -591,7 +601,7 @@ Fill in the "Corpus verification record" section at the end of this plan:
 - each probe's outcome, including the tab hard-break divergence
 - the outcome of the by-hand table and footnote checks
 
-Phase 3's manual verification confirms the record reaches the PR
+Phase 4's manual verification confirms the record reaches the PR
 description.
 
 ### Success Criteria:
@@ -609,13 +619,144 @@ description.
 - [x] Every description and probe passes the event-stream and idempotence
       checks
 - [x] Every description and probe passes the structure check
-- [ ] Every residual-wrap failure has a linked follow-up work item
+- [x] Every residual-wrap failure has a linked follow-up work item or a
+      later phase of this plan
 - [x] The table renders as a table after the paragraph on GitHub
 - [x] The "Corpus verification record" is complete
 
 ---
 
-## Phase 3: Publishing bodies unwrapped
+## Phase 3: Unwrapping whitespace breaks GitHub renders as soft
+
+### Overview
+
+Phase 2's only residual wrap was `foo\t\t\nbar`. `pulldown-cmark` reads
+that line ending as a hard break, so the unwrap leaves it, while GitHub
+renders a soft break that still breaks the line in a PR body. Widen the
+span rule so that a `HardBreak` counts as a soft break unless GitHub would
+also read it as hard, that is, unless its source ends in two spaces or a
+`\` before the line ending. The public surface does not change.
+
+### Changes Required:
+
+#### 1. Tests first
+
+**File**: `cli/markdown/src/tests.rs`
+**Changes**:
+
+1. **Characterisation.** Add `a_hard_break_covers_its_marker_and_line_ending`,
+   asserting the observed `HardBreak` ranges, through a `hard_break_offsets`
+   helper beside `soft_break_offsets`:
+   - `foo\t\t\nbar` → `3..6`
+   - `foo\t  \nbar` → `3..7`
+   - `> foo\t\t\n> bar` → `5..8`
+   - `foo\\\nbar` → `3..5`
+   - `foo\n \x0B\nbar` → `4..7`, after a `SoftBreak` at `3..4`
+2. **Normalisation.** `normalised_events` reads a break as `Text(" ")`
+   exactly when the unwrap replaces it. Switch it to `into_offset_iter` and
+   map a `HardBreak` whose source GitHub renders as soft to `Text(" ")`
+   through the production `renders_as_soft_on_github` predicate. The
+   expected strings carry the behaviour and the Phase 2 re-run below checks
+   it against GitHub, so sharing the predicate does not hollow out the
+   event-stream check.
+3. **Fixtures.** Replace `two_trailing_tabs_stay_a_hard_break` with:
+
+| Test | Input → expected |
+|---|---|
+| `whitespace_github_renders_as_soft_joins` | `foo\t\t\nbar`, `foo \t\nbar`, `foo\t \nbar`, `foo  \t\nbar` and `foo \x0B\nbar` → `foo bar`; `> foo\t\t\n> bar` → `> foo bar`; `- foo\t\t\n  bar` → `- foo bar` |
+| `two_spaces_after_a_tab_stay_a_hard_break` | unchanged: `foo\t  \nbar` |
+| `a_whitespace_only_continuation_line_joins_into_both_neighbours` | `foo\n \x0B\nbar` → `foo  bar` |
+
+`TWO_TRAILING_SPACES` and `TRAILING_BACKSLASH` in `PRESERVED_CONSTRUCTS`
+already pin the two shapes GitHub reads as hard.
+
+#### 2. Implementation
+
+**File**: `cli/markdown/src/lib.rs`
+**Changes**: Generalise the `SoftBreak` match to any line break GitHub
+renders as soft. A whitespace `HardBreak` range already starts at its
+trailing whitespace, so `trailing_whitespace_start` and
+`continuation_start` apply unchanged:
+
+```rust
+fn soft_line_break_spans(markdown: &str) -> Vec<Range<usize>> {
+    let events: Vec<_> = Parser::new_ext(markdown, github_extensions())
+        .into_offset_iter()
+        .collect();
+    events
+        .windows(2)
+        .filter_map(|pair| match pair {
+            [(line_break, line_break_range), (_, continuation)]
+                if renders_as_soft_on_github(
+                    markdown,
+                    line_break,
+                    line_break_range,
+                ) =>
+            {
+                Some(
+                    trailing_whitespace_start(
+                        markdown,
+                        line_break_range.start,
+                    )..continuation_start(
+                        markdown,
+                        line_break_range.end,
+                        continuation.start,
+                    ),
+                )
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn renders_as_soft_on_github(
+    markdown: &str,
+    line_break: &Event<'_>,
+    range: &Range<usize>,
+) -> bool {
+    match line_break {
+        Event::SoftBreak => true,
+        Event::HardBreak => {
+            let marker = markdown[range.clone()].trim_end_matches(['\r', '\n']);
+            !(marker.ends_with("  ") || marker.ends_with('\\'))
+        }
+        _ => false,
+    }
+}
+```
+
+Update the doc comment on `unwrap_soft_line_breaks` to say that a
+whitespace line break GitHub renders as soft is also unwrapped. That GitHub
+needs two spaces, where `pulldown-cmark` accepts any two whitespace bytes,
+is the external constraint that justifies it there.
+
+#### 3. Re-run the Phase 2 verification
+
+Copy the new normaliser into the scratch verifier, and re-run it and both
+GitHub checks over the 115 descriptions, the seven Phase 2 probes, and one
+probe for each new fixture input. Add the outcome to the "Corpus
+verification record" under a "Phase 3 re-run" entry.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- [ ] Crate tests pass:
+      `cargo test --manifest-path cli/Cargo.toml -p markdown`
+- [ ] Public API is unchanged: `mise run public-api:check`
+- [ ] Full local CI passes: `mise run`
+
+#### Manual Verification:
+
+- [ ] Every description and probe passes the event-stream, idempotence and
+      structure checks in the re-run
+- [ ] No description or probe shows a residual wrap, `foo\t\t\nbar`
+      included, while `foo\t  \nbar` still renders a `<br>`
+- [ ] The record holds the re-run's commands and outcome
+
+---
+
+## Phase 4: Publishing bodies unwrapped
 
 ### Overview
 
@@ -771,7 +912,7 @@ key as JSON and returns `["body"]`. Then add:
 `--help` output of `accelerator-collaboration`, `pr`, `pr base-repo` and
 `pr update-body` under `=== … ===` headers and asserts it equals the
 golden. Write it, and generate the golden from the binary, before any other
-Phase 3 change: it pins the existing surface and must stay green
+Phase 4 change: it pins the existing surface and must stay green
 throughout.
 
 **File**: `cli/collaboration-cli/src/main.rs`
@@ -869,7 +1010,7 @@ and to `### Fixed`:
       `meta/prs/<n>-description.md` stays wrapped
 - [ ] The `[Unreleased]` changelog entries describe the unwrap, the
       hard-break guidance and the exit-code correction
-- [ ] The posted PR description contains the Phase 2 corpus verification
+- [ ] The posted PR description contains the corpus verification
       record; add it by hand if `describe-pr` summarised it away
 
 ---
@@ -880,8 +1021,8 @@ and to `### Fixed`:
 
 - In `markdown`: every acceptance-criterion fixture, plus edge fixtures for
   escapes, link-closing breaks, inline spans and lazy lines, trailing
-  whitespace, multi-line paragraphs, multibyte text, and any corpus- or
-  probe-derived fixtures. Each runs under LF and CRLF with the idempotence
+  whitespace, whitespace breaks GitHub renders as soft, multi-line
+  paragraphs, multibyte text, and any corpus- or probe-derived fixtures. Each runs under LF and CRLF with the idempotence
   and normalised event-stream checks, and is preceded by the `SoftBreak`
   range characterisation.
 - In `collaboration`: the use case PATCHes the port's prepared body.
@@ -898,8 +1039,8 @@ and to `### Fixed`:
 
 ### Manual Testing Steps:
 
-1. Run the Phase 2 corpus verification and divergence probes, and fill in
-   the record.
+1. Run the Phase 2 corpus verification and divergence probes, re-run them
+   after Phase 3, and fill in the record.
 2. Confirm by hand that the table probe renders as a table on GitHub.
 3. Raise this story's PR through `raise-pr`. Confirm the description renders
    unwrapped on GitHub and the `meta/prs/` artefact stays wrapped.
@@ -913,7 +1054,7 @@ negligible next to the two GitHub API round trips the command already makes.
 
 There is no data migration. This replaces 0071's byte-for-byte contract:
 the posted body now differs from the body file at soft line breaks only.
-Rolling back means reverting Phase 3. Phases 1 and 2 have no runtime effect.
+Rolling back means reverting Phase 4. Phases 1 to 3 have no runtime effect.
 
 ## References
 
@@ -948,9 +1089,9 @@ Run on 2026-10-14 against `markdown` at `pulldown-cmark` 0.13.4.
 - Span-logic failures → fixtures: none.
 - Structural divergences → fixtures and fixes: none. The span rule is
   unchanged.
-- Residual wraps → follow-up work items: none in the corpus. The only
-  residual wrap is the `foo\t\t\nbar` probe, the predicted tab
-  hard-break divergence below.
+- Residual wraps → follow-ups: none in the corpus. The only residual wrap
+  is the `foo\t\t\nbar` probe, the predicted tab hard-break divergence
+  below, which Phase 3 addresses.
 - Calibration controls (normaliser stability, structure, residual-wrap):
   - normaliser stability: two renders each of the footnote and math probes
     normalise identically; no attribute differs between renders, so no
@@ -974,8 +1115,7 @@ Run on 2026-10-14 against `markdown` at `pulldown-cmark` 0.13.4.
     `dollar_delimited_math_joins_as_text`
   - two trailing tabs: confirmed divergence. `pulldown-cmark` reads a hard
     break and leaves the line wrapped; GitHub's `gfm` render still shows one
-    `<br>`. It renders no worse than today and is pinned by
-    `two_trailing_tabs_stay_a_hard_break`.
+    `<br>`. It renders no worse than today; Phase 3 unwraps it.
   - The REST `/markdown` endpoint renders neither alert probe as an alert,
     so the structure check cannot confirm alert rendering on the PR page.
     The unwrap keeps the marker line on its own in both alert-kind cases
