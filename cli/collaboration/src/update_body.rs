@@ -1,4 +1,5 @@
-//! Updating a pull request's body, resolving its base repository first.
+//! Updating a pull request's body as prepared for publishing on its forge,
+//! resolving its base repository first.
 
 use std::path::Path;
 
@@ -6,8 +7,9 @@ use crate::base_repo::{
     resolve_base_repository, BaseRepoFailure, BaseRepoOutcome,
 };
 use crate::{
-    ForgeApiError, PullRequestBodyUpdate, PullRequestExistence,
-    RemoteUrlRecognizer, RepositoryLookup, RepositoryOrigin,
+    ForgeApiError, PullRequestBodyPublishing, PullRequestBodyUpdate,
+    PullRequestExistence, RemoteUrlRecognizer, RepositoryLookup,
+    RepositoryOrigin,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,8 +19,8 @@ pub enum UpdateBodyOutcome {
     PatchFailed(ForgeApiError),
 }
 
-/// Updates a pull request's body, resolving its base (upstream) repository
-/// first.
+/// Updates a pull request's body with the body as prepared for publishing
+/// on its forge, resolving its base (upstream) repository first.
 ///
 /// # Errors
 ///
@@ -36,6 +38,7 @@ pub fn update_pull_request_body(
     repository_lookup: &dyn RepositoryLookup,
     pull_request_existence: &dyn PullRequestExistence,
     body_update: &dyn PullRequestBodyUpdate,
+    publishing: &dyn PullRequestBodyPublishing,
     pull_number: u64,
     body: &str,
 ) -> Result<UpdateBodyOutcome, kernel::Error> {
@@ -53,7 +56,13 @@ pub fn update_pull_request_body(
         }
     };
 
-    match body_update.update_body(&base.owner, &base.repo, pull_number, body) {
+    let prepared_body = publishing.prepare_for_publishing(body);
+    match body_update.update_body(
+        &base.owner,
+        &base.repo,
+        pull_number,
+        &prepared_body,
+    ) {
         Ok(()) => Ok(UpdateBodyOutcome::Updated),
         Err(error) => Ok(UpdateBodyOutcome::PatchFailed(error)),
     }
@@ -61,13 +70,15 @@ pub fn update_pull_request_body(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::path::{Path, PathBuf};
 
     use super::{update_pull_request_body, UpdateBodyOutcome};
     use crate::base_repo::BaseRepoFailure;
     use crate::{
-        ForgeApiError, OwnerRepo, PullRequestBodyUpdate, PullRequestExistence,
-        RemoteUrlRecognizer, RepositoryLookup, RepositoryOrigin,
+        ForgeApiError, OwnerRepo, PullRequestBodyPublishing,
+        PullRequestBodyUpdate, PullRequestExistence, RemoteUrlRecognizer,
+        RepositoryLookup, RepositoryOrigin,
     };
 
     struct FixedRepositoryOrigin(Result<Option<&'static str>, &'static str>);
@@ -159,8 +170,59 @@ mod tests {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[derive(Default)]
+    struct RecordingBodyUpdate {
+        body: RefCell<Option<String>>,
+    }
+
+    impl PullRequestBodyUpdate for RecordingBodyUpdate {
+        fn update_body(
+            &self,
+            _owner: &str,
+            _repo: &str,
+            _pull_number: u64,
+            body: &str,
+        ) -> Result<(), ForgeApiError> {
+            self.body.replace(Some(body.to_owned()));
+            Ok(())
+        }
+    }
+
+    struct UnchangedPublishing;
+
+    impl PullRequestBodyPublishing for UnchangedPublishing {
+        fn prepare_for_publishing(&self, body: &str) -> String {
+            body.to_owned()
+        }
+    }
+
+    struct MarkedPublishing;
+
+    impl PullRequestBodyPublishing for MarkedPublishing {
+        fn prepare_for_publishing(&self, body: &str) -> String {
+            format!("prepared:{body}")
+        }
+    }
+
     fn update(
+        origin: &dyn RepositoryOrigin,
+        recognizer: &dyn RemoteUrlRecognizer,
+        repository_lookup: &dyn RepositoryLookup,
+        pull_request_existence: &dyn PullRequestExistence,
+        body_update: &dyn PullRequestBodyUpdate,
+    ) -> Result<UpdateBodyOutcome, kernel::Error> {
+        update_published_by(
+            &UnchangedPublishing,
+            origin,
+            recognizer,
+            repository_lookup,
+            pull_request_existence,
+            body_update,
+        )
+    }
+
+    fn update_published_by(
+        publishing: &dyn PullRequestBodyPublishing,
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
         repository_lookup: &dyn RepositoryLookup,
@@ -174,6 +236,7 @@ mod tests {
             repository_lookup,
             pull_request_existence,
             body_update,
+            publishing,
             42,
             "new body",
         )
@@ -248,6 +311,26 @@ mod tests {
             &FixedBodyUpdate(Ok(())),
         )?;
         assert_eq!(outcome, UpdateBodyOutcome::Updated);
+        Ok(())
+    }
+
+    #[test]
+    fn posts_the_body_as_prepared_for_publishing() -> Result<(), kernel::Error>
+    {
+        let body_update = RecordingBodyUpdate::default();
+        let outcome = update_published_by(
+            &MarkedPublishing,
+            &configured_origin(),
+            &recognizes_candidate(),
+            &no_parent(),
+            &pr_exists(),
+            &body_update,
+        )?;
+        assert_eq!(outcome, UpdateBodyOutcome::Updated);
+        assert_eq!(
+            body_update.body.into_inner().as_deref(),
+            Some("prepared:new body")
+        );
         Ok(())
     }
 }

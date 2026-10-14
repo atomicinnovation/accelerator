@@ -26,6 +26,7 @@ use config_adapters::compose;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use github::GitHubPullRequestBodyPublishing;
 use github::GitHubRemoteUrlRecognizer;
 use github::OctocrabClient;
 use vcs_adapters::library::InProcessProbe;
@@ -237,6 +238,7 @@ fn run_update_body(
         &client,
         &client,
         &client,
+        &GitHubPullRequestBodyPublishing,
         pull_number,
         &body,
     )? {

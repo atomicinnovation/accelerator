@@ -116,6 +116,12 @@ pub trait PullRequestBodyUpdate {
     ) -> Result<(), ForgeApiError>;
 }
 
+/// Prepares a pull request body for the forge that will render it. Compose
+/// it only with that same forge's [`PullRequestBodyUpdate`].
+pub trait PullRequestBodyPublishing {
+    fn prepare_for_publishing(&self, body: &str) -> String;
+}
+
 /// The subset of a GET repository response this domain needs.
 ///
 /// The raw parent owner/name, still unvalidated — a present-but-incomplete

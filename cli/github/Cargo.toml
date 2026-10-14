@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 collaboration = { path = "../collaboration" }
+markdown = { path = "../markdown" }
 octocrab = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
