@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from tasks.shared.cargo_metadata import workspace_packages
 from tasks.shared.rust import RUST_NIGHTLY
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -2053,3 +2054,48 @@ def test_real_domain_rule_rejects_kernel_infra(
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert rule in output, output
+
+
+_CONSENT_POLICY_CRATES = {"config", "config_adapters"}
+_COMPILED_TARGET_KINDS = {"lib", "rlib", "bin", "proc-macro"}
+
+
+def _module_pattern(rule: str) -> str:
+    match = re.search(
+        rf'name: "{rule}",\s*matches: Module\(\s*"([^"]+)"',
+        CLI_PUP_RON.read_text(),
+    )
+    assert match, f"{rule} has no module pattern in {CLI_PUP_RON}"
+    return match.group(1)
+
+
+def _is_test_fixture(target: dict) -> bool:
+    return "/tests/fixtures/" in target["src_path"]
+
+
+def _production_target_names() -> set[str]:
+    return {
+        target["name"].replace("-", "_")
+        for package in workspace_packages()
+        for target in package["targets"]
+        if _COMPILED_TARGET_KINDS & set(target["kind"])
+        and not _is_test_fixture(target)
+    }
+
+
+def test_command_runner_rule_covers_all_but_the_consent_policy() -> None:
+    covered = re.compile(
+        _module_pattern("only_the_consent_policy_names_the_command_runner")
+    )
+    targets = _production_target_names()
+    uncovered = sorted(
+        target
+        for target in targets - _CONSENT_POLICY_CRATES
+        if not covered.match(target)
+    )
+    assert uncovered == [], (
+        "add these crates to the module regex of "
+        "only_the_consent_policy_names_the_command_runner in cli/pup.ron"
+    )
+    assert targets >= _CONSENT_POLICY_CRATES
+    assert not any(covered.match(crate) for crate in _CONSENT_POLICY_CRATES)
