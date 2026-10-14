@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "profiles", "openalex"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-895"
 ---
 
 # 0309: Keep Follow-up Questions Answerable in the Node's Source Profile

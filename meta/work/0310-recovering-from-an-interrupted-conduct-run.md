@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "conduct", "recovery"]
 last_updated: "2026-10-13T17:29:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-896"
 ---
 
 # 0310: Recovering from an Interrupted Conduct Run

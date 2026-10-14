@@ -13,6 +13,7 @@ tags: ["permissions", "skills", "lint"]
 last_updated: "2026-10-12T02:16:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-917"
 ---
 # 0331: Exact-Match Skill Grants That Never Cover Their Commands
 

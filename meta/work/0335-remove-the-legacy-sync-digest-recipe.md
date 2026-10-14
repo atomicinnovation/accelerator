@@ -15,6 +15,7 @@ tags: ["sync", "baseline", "digest"]
 last_updated: "2026-10-10T21:48:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-919"
 ---
 # 0335: Remove the Legacy Sync Digest Recipe
 

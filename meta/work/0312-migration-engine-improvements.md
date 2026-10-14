@@ -13,6 +13,7 @@ tags: ["migration-engine", "migrate", "rust"]
 last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-898"
 ---
 
 # 0312: Migration Engine Improvements

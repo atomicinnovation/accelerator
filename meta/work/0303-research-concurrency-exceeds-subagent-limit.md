@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "conduct"]
 last_updated: "2026-10-10T21:22:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-889"
 ---
 
 # 0303: Default Research Concurrency Exceeds the Subagent Limit

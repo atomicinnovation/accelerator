@@ -14,6 +14,7 @@ tags: ["research", "deep-research", "web-profile", "openalex", "tiers"]
 last_updated: "2026-10-09T17:58:47+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-891"
 ---
 
 # 0305: Tier DOI Links by Venue, Not by the doi.org Resolver

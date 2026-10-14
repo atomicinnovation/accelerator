@@ -15,6 +15,7 @@ tags: ["sync", "linear", "bug", "markdown"]
 last_updated: "2026-10-13T11:58:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-906"
 ---
 # 0320: Linear Push Corrupts Markdown Content
 

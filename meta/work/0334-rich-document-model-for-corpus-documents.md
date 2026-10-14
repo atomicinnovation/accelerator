@@ -14,6 +14,7 @@ tags: ["corpus", "document", "markdown", "refactor"]
 last_updated: "2026-10-10T21:48:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-918"
 ---
 # 0334: Rich Document Model for Corpus Documents
 
