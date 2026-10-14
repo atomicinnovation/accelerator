@@ -493,7 +493,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|graphql_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process|lease|work|work_adapters|remote_projection|markdown|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(
