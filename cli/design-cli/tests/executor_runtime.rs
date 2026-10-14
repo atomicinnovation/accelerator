@@ -18,7 +18,7 @@ use std::time::Instant;
 
 use design::runtime::platform;
 use design::runtime::platform::Support;
-use lease::observed_held;
+use lease::{probe_shared_lease, Liveness};
 use rustix::process::getpgid;
 use rustix::process::kill_process_group;
 use rustix::process::Pid;
@@ -280,8 +280,8 @@ fn stderr_of(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-fn held(lease: &Path) -> Result<bool, TestError> {
-    Ok(observed_held(lease)?)
+fn held(lease: &Path) -> bool {
+    probe_shared_lease(lease) == Liveness::Held
 }
 
 /// The detached daemon's process group, which `setsid` makes its own.
@@ -325,7 +325,7 @@ impl DaemonGroup {
         loop {
             let mut any_held = false;
             for lease in &self.leases {
-                any_held |= held(lease)?;
+                any_held |= held(lease);
             }
             if !any_held {
                 self.terminated = true;
@@ -363,11 +363,11 @@ fn a_warm_daemon_holds_every_lease_after_the_client_exits(
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr_of(&output));
     assert!(
-        held(&runtime.driver_lease())?,
+        held(&runtime.driver_lease()),
         "the driver lease is not held once the client has exited"
     );
     assert!(
-        held(&runtime.browser_lease())?,
+        held(&runtime.browser_lease()),
         "the browser lease is not held once the client has exited"
     );
     daemon.terminate()
@@ -385,11 +385,11 @@ fn a_cold_daemon_holds_every_lease_after_the_client_exits(
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr_of(&output));
     assert!(
-        held(&runtime.driver_lease())?,
+        held(&runtime.driver_lease()),
         "the driver lease is not held once the client has exited"
     );
     assert!(
-        held(&runtime.browser_lease())?,
+        held(&runtime.browser_lease()),
         "the browser lease is not held once the client has exited"
     );
     assert_eq!(runtime.ensure_calls()?, 1);
@@ -410,11 +410,11 @@ fn a_driver_exported_without_its_browser_takes_the_cold_path_and_holds_both(
     let ensured = fs::read_to_string(runtime.ensure_arguments())?;
     assert_eq!(ensured.lines().collect::<Vec<_>>(), ["driver", "browser"]);
     assert!(
-        held(&runtime.driver_lease())?,
+        held(&runtime.driver_lease()),
         "the driver lease is not held"
     );
     assert!(
-        held(&runtime.browser_lease())?,
+        held(&runtime.browser_lease()),
         "the browser lease is not held"
     );
     daemon.terminate()
@@ -435,7 +435,7 @@ fn an_unleasable_tree_is_skipped_and_the_others_held() -> Result<(), TestError>
     let stderr = stderr_of(&output);
     assert_eq!(output.status.code(), Some(0), "{stderr}");
     assert!(
-        held(&runtime.driver_lease())?,
+        held(&runtime.driver_lease()),
         "the driver lease is not held"
     );
     assert_eq!(runtime.ensure_calls()?, 1);
@@ -465,11 +465,11 @@ fn a_tree_reclaimed_before_its_lease_is_ensured_again() -> Result<(), TestError>
 
     assert_eq!(runtime.ensure_calls()?, 2);
     assert!(
-        held(&runtime.driver_lease())?,
+        held(&runtime.driver_lease()),
         "the driver lease is not held"
     );
     assert!(
-        held(&runtime.browser_lease())?,
+        held(&runtime.browser_lease()),
         "the browser lease is not held"
     );
     daemon.terminate()

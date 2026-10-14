@@ -1,9 +1,14 @@
-//! The shared in-use lease that pins a vendored-runtime tree against
-//! reclamation, and the one observation every reclaimer and test agrees on.
+//! How a file is pinned against reclamation by a shared lease, and how a
+//! reclaimer probes whether it is pinned.
 //!
 //! The lease is a `flock(LOCK_SH)` on a sidecar file. The kernel is the
 //! liveness oracle: a crashed holder releases with no cleanup code and leaves
-//! no stale state.
+//! no stale state. A held lease is inherited across `exec`, so it pins for as
+//! long as any detached descendant runs.
+//!
+//! Where `flock` is unavailable — NFS returning `ENOLCK`, some FUSE and SMB
+//! backends — liveness is probed as unknown rather than as free, so a
+//! spuriously successful probe cannot reclaim what a live process uses.
 
 use std::path::{Path, PathBuf};
 
@@ -12,10 +17,23 @@ use std::path::{Path, PathBuf};
 pub const LOWEST_LEASE_DESCRIPTOR: i32 = 10;
 
 #[cfg(unix)]
-pub use unix::{hold_shared_lease, observed_held, SharedLease};
+pub use unix::{hold_shared_lease, probe_shared_lease, SharedLease};
 
 #[cfg(not(unix))]
-pub use stubs::{hold_shared_lease, observed_held, SharedLease};
+pub use stubs::{hold_shared_lease, probe_shared_lease, SharedLease};
+
+/// Whether a shared lease is held by any live process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Liveness {
+    /// A live holder — `LOCK_EX | LOCK_NB` would block.
+    Held,
+    /// No holder — the exclusive probe succeeded.
+    Free,
+    /// `flock` does not work on this filesystem, so liveness cannot be
+    /// determined; the caller must fall through to the age backstop rather
+    /// than reclaiming.
+    Unknown,
+}
 
 /// A lease that could not be opened, taken or observed.
 #[derive(Debug)]
@@ -69,7 +87,7 @@ mod unix {
         fcntl_dupfd_cloexec, fcntl_getfd, fcntl_setfd, Errno, FdFlags,
     };
 
-    use super::{LeaseError, LOWEST_LEASE_DESCRIPTOR};
+    use super::{LeaseError, Liveness, LOWEST_LEASE_DESCRIPTOR};
 
     /// A held shared lease. The tree it pins stays reclamation-proof for as
     /// long as this value — or any process that inherited the open file
@@ -120,37 +138,25 @@ mod unix {
         )
     }
 
-    /// Whether any live process holds the lease, probed with a non-blocking
-    /// exclusive `flock` that is released at once if it succeeds. An absent
-    /// lease file is not held.
-    ///
-    /// # Errors
-    ///
-    /// [`LeaseError`] if the file cannot be opened, or the probe fails for a
-    /// reason other than contention.
-    pub fn observed_held(path: &Path) -> Result<bool, LeaseError> {
+    /// Probe the lease with a non-blocking exclusive `flock`, released at
+    /// once if it succeeds, so the probe never leaves the lease held. An absent
+    /// lease file is `Free`: there is no holder.
+    #[must_use]
+    pub fn probe_shared_lease(path: &Path) -> Liveness {
         let file = match OpenOptions::new().read(true).write(true).open(path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(false)
+                return Liveness::Free
             }
-            Err(error) => {
-                return Err(LeaseError::new(
-                    "cannot open the lease",
-                    path,
-                    error,
-                ))
-            }
+            Err(_) => return Liveness::Unknown,
         };
         match flock(file.as_fd(), FlockOperation::NonBlockingLockExclusive) {
             Ok(()) => {
                 let _ = flock(file.as_fd(), FlockOperation::Unlock);
-                Ok(false)
+                Liveness::Free
             }
-            Err(Errno::WOULDBLOCK) => Ok(true),
-            Err(error) => {
-                Err(LeaseError::new("cannot probe the lease", path, error))
-            }
+            Err(Errno::WOULDBLOCK) => Liveness::Held,
+            Err(_) => Liveness::Unknown,
         }
     }
 
@@ -188,7 +194,8 @@ mod unix {
         use rustix::io::{fcntl_getfd, FdFlags};
 
         use super::{
-            hold_shared_lease, observed_held, LOWEST_LEASE_DESCRIPTOR,
+            hold_shared_lease, probe_shared_lease, Liveness,
+            LOWEST_LEASE_DESCRIPTOR,
         };
 
         fn cloexec_set(file: &std::fs::File) -> bool {
@@ -197,20 +204,16 @@ mod unix {
                 .contains(FdFlags::CLOEXEC)
         }
 
-        fn held(path: &std::path::Path) -> bool {
-            observed_held(path).expect("observe the lease")
-        }
-
         #[test]
-        fn a_held_lease_is_observed_held_and_a_released_one_free() {
+        fn a_held_lease_is_probed_held_and_a_released_one_free() {
             let dir = tempfile::tempdir().expect("tempdir");
             let path = dir.path().join("gen.lease");
             let lease = hold_shared_lease(&path).expect("hold");
-            assert!(held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Held);
             let moved = vec![lease];
-            assert!(held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Held);
             drop(moved);
-            assert!(!held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Free);
         }
 
         #[test]
@@ -219,11 +222,11 @@ mod unix {
             let path = dir.path().join("gen.lease");
             let first = hold_shared_lease(&path).expect("first");
             let second = hold_shared_lease(&path).expect("a second crawl");
-            assert!(held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Held);
             drop(first);
-            assert!(held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Held);
             drop(second);
-            assert!(!held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Free);
         }
 
         #[test]
@@ -253,18 +256,29 @@ mod unix {
         }
 
         #[test]
-        fn an_absent_lease_file_is_not_observed_held() {
+        fn an_absent_lease_file_is_probed_free() {
             let dir = tempfile::tempdir().expect("tempdir");
-            assert!(!held(&dir.path().join("absent.lease")));
+            assert_eq!(
+                probe_shared_lease(&dir.path().join("absent.lease")),
+                Liveness::Free
+            );
         }
 
         #[test]
-        fn observing_a_free_lease_leaves_it_free() {
+        fn probing_a_free_lease_leaves_it_free() {
             let dir = tempfile::tempdir().expect("tempdir");
             let path = dir.path().join("gen.lease");
             drop(hold_shared_lease(&path).expect("hold"));
-            assert!(!held(&path));
-            assert!(!held(&path));
+            assert_eq!(probe_shared_lease(&path), Liveness::Free);
+            assert_eq!(probe_shared_lease(&path), Liveness::Free);
+        }
+
+        #[test]
+        fn a_lease_that_cannot_be_opened_is_probed_unknown() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("gen.lease");
+            std::fs::create_dir(&path).expect("a directory in its place");
+            assert_eq!(probe_shared_lease(&path), Liveness::Unknown);
         }
     }
 }
@@ -273,7 +287,7 @@ mod unix {
 mod stubs {
     use std::path::Path;
 
-    use super::LeaseError;
+    use super::{LeaseError, Liveness};
 
     pub struct SharedLease;
 
@@ -292,10 +306,8 @@ mod stubs {
         Err(unsupported(path))
     }
 
-    /// # Errors
-    ///
-    /// Always a [`LeaseError`]: leases are a Unix-only path.
-    pub fn observed_held(path: &Path) -> Result<bool, LeaseError> {
-        Err(unsupported(path))
+    #[must_use]
+    pub fn probe_shared_lease(_path: &Path) -> Liveness {
+        Liveness::Unknown
     }
 }

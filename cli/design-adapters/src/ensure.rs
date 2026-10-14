@@ -109,7 +109,7 @@ fn lease_beside(tree: &Path) -> PathBuf {
 }
 
 fn remove_unheld_lease(lease: &Path) {
-    if matches!(lease::observed_held(lease), Ok(false)) {
+    if lease::probe_shared_lease(lease) == lease::Liveness::Free {
         let _ = std::fs::remove_file(lease);
     }
 }

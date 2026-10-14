@@ -26,12 +26,13 @@ use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::tree::lease::{
-    probe_liveness, FlockProbe, Liveness, LivenessProbe,
+    FlockProbe, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
+use lease::probe_shared_lease;
 use std::fmt::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
 
@@ -453,7 +454,7 @@ fn acquire_holds_a_lease_and_a_cold_materialise_probes_the_root_once() {
     );
     // The lease is held: a prune-style exclusive probe would see it as live.
     assert_eq!(
-        probe_liveness(&acquired.tree.lease_path),
+        probe_shared_lease(&acquired.tree.lease_path),
         Liveness::Held,
         "acquire must hold the tree's lease"
     );
@@ -2078,7 +2079,7 @@ impl Drop for LeaseHolder {
 
 fn await_released(lease: &Path) {
     let deadline = std::time::Instant::now() + RELEASE_BOUND;
-    while lease::observed_held(lease).expect("observe the lease") {
+    while probe_shared_lease(lease) == Liveness::Held {
         assert!(
             std::time::Instant::now() < deadline,
             "{} was never released",
@@ -2105,7 +2106,7 @@ fn a_second_launcher_spares_generations_a_live_daemon_holds() {
 
     let mut daemon =
         spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
-    assert!(lease::observed_held(&sealed.lease_path).expect("observe"));
+    assert_eq!(probe_shared_lease(&sealed.lease_path), Liveness::Held);
     second.prune(ARTIFACT, Some(ZERO)).expect("prune");
 
     assert!(sealed.path.exists());
@@ -2144,7 +2145,7 @@ fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
 
     let mut daemon =
         spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
-    assert!(lease::observed_held(&sealed.lease_path).expect("observe"));
+    assert_eq!(probe_shared_lease(&sealed.lease_path), Liveness::Held);
     second.prune(ARTIFACT, Some(ZERO)).expect("prune");
     assert!(sealed.path.exists());
 

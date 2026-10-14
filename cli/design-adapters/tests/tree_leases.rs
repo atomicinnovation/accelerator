@@ -13,7 +13,7 @@ use design_adapters::ensure::ResolvedTree;
 use design_adapters::HeldTrees;
 use design_adapters::TreeLeases;
 use design_adapters::Unleasable;
-use lease::observed_held;
+use lease::{probe_shared_lease, Liveness};
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -59,11 +59,21 @@ fn holding_the_leases_of_resolved_trees_pins_them() -> Result<(), TestError> {
     let held = TreeLeases::hold(&trees);
 
     for tree in &trees {
-        assert!(observed_held(&tree.lease)?, "{}", tree.artifact);
+        assert_eq!(
+            probe_shared_lease(&tree.lease),
+            Liveness::Held,
+            "{}",
+            tree.artifact
+        );
     }
     drop(held);
     for tree in &trees {
-        assert!(!observed_held(&tree.lease)?, "{}", tree.artifact);
+        assert_eq!(
+            probe_shared_lease(&tree.lease),
+            Liveness::Free,
+            "{}",
+            tree.artifact
+        );
     }
     Ok(())
 }
@@ -78,7 +88,7 @@ fn an_unleasable_tree_is_listed_unleasable_and_the_rest_are_held(
 
     let held = TreeLeases::hold(&[driver.clone(), browser]);
 
-    assert!(observed_held(&driver.lease)?);
+    assert_eq!(probe_shared_lease(&driver.lease), Liveness::Held);
     assert_eq!(unleasable_artifacts(&held), ["browser"]);
     assert!(matches!(held.unleasable[0].1, Unleasable::Lease(_)));
     assert!(held.gone.is_empty());
@@ -92,7 +102,7 @@ fn a_tree_gone_before_its_lease_is_listed_gone() -> Result<(), TestError> {
 
     let held = TreeLeases::hold(std::slice::from_ref(&tree));
 
-    assert!(!observed_held(&tree.lease)?);
+    assert_eq!(probe_shared_lease(&tree.lease), Liveness::Free);
     assert!(!tree.lease.exists(), "a stray lease file was left behind");
     assert_eq!(artifacts(&held.gone), ["driver"]);
     assert!(held.unleasable.is_empty());
@@ -122,7 +132,7 @@ fn a_lease_file_another_holder_holds_outlives_its_gone_tree(
 
     assert_eq!(artifacts(&held.gone), ["driver"]);
     assert!(tree.lease.exists());
-    assert!(observed_held(&tree.lease)?);
+    assert_eq!(probe_shared_lease(&tree.lease), Liveness::Held);
     Ok(())
 }
 
