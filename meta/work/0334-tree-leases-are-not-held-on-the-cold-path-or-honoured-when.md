@@ -11,7 +11,7 @@ priority: "low"
 parent: "work-item:0136"
 relates_to: ["work-item:0223", "work-item:0196", "work-item:0218"]
 tags: ["runtime", "cache", "lease", "prune", "design"]
-last_updated: "2026-10-14T15:09:44+00:00"
+last_updated: "2026-10-14T15:16:34+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -371,6 +371,16 @@ its own daemon.
   releases them when its group is killed. The launcher's two-digest fixture,
   with a stand-in daemon holding a real lease, proves a second launcher's
   `prune` spares a held lease and reclaims a free one.
+- PR review widened the `Unknown` fix, with the user's approval. On NFS,
+  `flock` is emulated with `fcntl` locks owned by the process (Linux, unless
+  mounted `local_lock=flock`), so a forked daemon inherits the lease
+  descriptor but not the lock. Once the client exits, the probe would read a
+  running daemon's lease as `Free` and the `Unknown` rules would never engage.
+  The probe now reports `Unknown` for any lease on NFS, so the age backstop
+  applies there.
+- PR review also renamed `tree-lease` to `lease`, since nothing in it is
+  specific to trees, and `process-probe` to `process`, which now also holds
+  the descriptor-closing primitive the fixture daemons share.
 - Backstop limits: a superseded generation that `repair` keeps as `Unknown`
   has its mtime reset, best-effort, so it gets a full `AGE_BACKSTOP` from
   the deferral. `reclaim_unclaimed`'s `Unknown` gate still counts from
