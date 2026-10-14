@@ -128,7 +128,9 @@
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
-  itself.
+  itself. A question's `.levels/` tree now outranks a lower quarantine marker
+  for its index, so a set holding both resumes the tree rather than starting
+  afresh at the marker's index.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   reports each pair's `stage`, the level-note `nodes` it still needs or the
   `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
