@@ -11,9 +11,9 @@ parent: "work-item:0332"
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/164"
 pr_number: 164
 tags: []
-revision: "7b00ed03934d26287562fd2ed52ebb9fcbf85fac"
+revision: "7e8462944153667db1211101e0e3e0b62736b840"
 repository: "accelerator"
-last_updated: "2026-10-14T15:10:24+00:00"
+last_updated: "2026-10-14T15:44:55+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -77,6 +77,8 @@ stack of every networked binary. Reverting it brings the advisories back.
   `meta/plans/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`
 - Research:
   `meta/research/codebase/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped.md`
+- Validation (pass):
+  `meta/validations/2026-10-13-0332-push-pr-descriptions-to-github-unwrapped-validation.md`
 
 This replaces 0071's byte-for-byte contract: the posted body now differs from
 the body file at soft line breaks only. 0320 (the Linear push path) needs
@@ -156,7 +158,9 @@ probes. Each result was checked against GitHub's own renderer
 - [x] `cargo-pup` probe pair for `markdown_transforms_text_only`.
 - [x] `mise run` exits 0 end-to-end, `docs:check` included.
 - [ ] This body renders with its paragraphs at full width on GitHub, while
-      `meta/prs/164-description.md` stays wrapped. Confirm on the PR page.
+      `meta/prs/164-description.md` stays wrapped. The validation fetched
+      the posted body (85 lines against the file's 175), but the rendered
+      page still needs checking by eye.
 
 ## Notes for Reviewers
 
