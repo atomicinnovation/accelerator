@@ -122,6 +122,9 @@ pub struct corpus::body::Section<'a>
 pub corpus::body::Section::blocks: &'a [corpus::body::SourcedBlock]
 pub corpus::body::Section::heading: core::option::Option<&'a str>
 pub corpus::body::Section::source: &'a str
+impl corpus::body::Section<'_>
+pub fn corpus::body::Section<'_>::canonical(&self) -> corpus::body::CanonicalBody
+pub fn corpus::body::Section<'_>::canonical_heading(&self) -> core::option::Option<corpus::body::CanonicalBody>
 impl<'a> core::clone::Clone for corpus::body::Section<'a>
 pub fn corpus::body::Section<'a>::clone(&self) -> corpus::body::Section<'a>
 impl<'a> core::cmp::Eq for corpus::body::Section<'a>

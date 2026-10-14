@@ -10,6 +10,8 @@ use crate::body::Block;
 use crate::body::Body;
 use crate::body::Inline;
 use crate::body::ListItem;
+use crate::body::Section;
+use crate::body::SourcedBlock;
 use crate::body::TableRow;
 use crate::body::TaskMarker;
 
@@ -101,16 +103,34 @@ impl Marks {
 impl Body {
     #[must_use]
     pub fn canonical(&self) -> CanonicalBody {
-        CanonicalBody(
-            self.blocks()
+        CanonicalBody::of(self.blocks())
+    }
+}
+
+impl Section<'_> {
+    #[must_use]
+    pub fn canonical(&self) -> CanonicalBody {
+        CanonicalBody::of(self.blocks)
+    }
+
+    /// The canonical form of the opening heading; `None` for the preamble.
+    #[must_use]
+    pub fn canonical_heading(&self) -> Option<CanonicalBody> {
+        self.heading?;
+        self.blocks.get(..1).map(CanonicalBody::of)
+    }
+}
+
+impl CanonicalBody {
+    fn of(blocks: &[SourcedBlock]) -> Self {
+        Self(
+            blocks
                 .iter()
                 .map(|sourced| CanonicalBlock::of(&sourced.block))
                 .collect(),
         )
     }
-}
 
-impl CanonicalBody {
     /// A serialisation that differs whenever the canonical forms differ.
     ///
     /// Baseline digests hash it, so it is a persisted format: a change that
@@ -591,6 +611,80 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn sectioned(blocks: Vec<(Block, &str)>) -> Body {
+        let mut source = String::new();
+        let mut sourced = Vec::new();
+        for (block, text) in blocks {
+            let start = source.len();
+            source.push_str(text);
+            sourced.push(SourcedBlock {
+                block,
+                span: start..source.len(),
+            });
+        }
+        Body::new(source, sourced)
+    }
+
+    fn heading(inlines: Vec<Inline>) -> Block {
+        Block::Heading { level: 2, inlines }
+    }
+
+    #[test]
+    fn a_section_reads_as_the_canonical_form_of_its_blocks() {
+        let tight = sectioned(vec![
+            (heading(vec![text("One")]), "## One\n"),
+            (
+                Block::List {
+                    start: None,
+                    loose: false,
+                    items: vec![ListItem {
+                        task: None,
+                        blocks: vec![Block::Paragraph(vec![text("a")])],
+                    }],
+                },
+                "- a\n",
+            ),
+        ]);
+        let loose = sectioned(vec![
+            (heading(vec![text("One")]), "## One\n"),
+            (
+                Block::List {
+                    start: None,
+                    loose: true,
+                    items: vec![ListItem {
+                        task: None,
+                        blocks: vec![Block::Paragraph(vec![text("a")])],
+                    }],
+                },
+                "* a\n",
+            ),
+        ]);
+        let edited = sectioned(vec![
+            (heading(vec![text("One")]), "## One\n"),
+            (Block::Paragraph(vec![text("b")]), "b\n"),
+        ]);
+
+        let section = |body: &Body| body.sections()[1].canonical();
+        assert_eq!(section(&tight), section(&loose));
+        assert_ne!(section(&tight), section(&edited));
+    }
+
+    #[test]
+    fn a_sections_heading_reads_canonically_and_the_preamble_has_none() {
+        let plain = sectioned(vec![(heading(vec![text("A b")]), "## A b\n")]);
+        let split = sectioned(vec![(
+            heading(vec![text("A"), Inline::SoftBreak, text("b")]),
+            "## A\nb\n",
+        )]);
+        let other = sectioned(vec![(heading(vec![text("C")]), "## C\n")]);
+
+        let heading_of = |body: &Body| body.sections()[1].canonical_heading();
+        assert_eq!(plain.sections()[0].canonical_heading(), None);
+        assert!(heading_of(&plain).is_some());
+        assert_eq!(heading_of(&plain), heading_of(&split));
+        assert_ne!(heading_of(&plain), heading_of(&other));
     }
 
     #[test]
