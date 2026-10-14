@@ -662,18 +662,15 @@ pub const work::retirement::RETIREMENT_INCOMPLETE: &str
 pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
-pub enum work::section_diff::SectionName
-pub work::section_diff::SectionName::Frontmatter
-pub work::section_diff::SectionName::Heading(alloc::string::String)
-pub work::section_diff::SectionName::Preamble
-impl core::clone::Clone for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::clone(&self) -> work::section_diff::SectionName
-impl core::cmp::Eq for work::section_diff::SectionName
-impl core::cmp::PartialEq for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::eq(&self, other: &work::section_diff::SectionName) -> bool
-impl core::fmt::Debug for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::section_diff::SectionName
+pub struct work::section_diff::ComparableItem<'a>
+pub work::section_diff::ComparableItem::compared: &'a corpus::body::Body
+pub work::section_diff::ComparableItem::frontmatter: &'a str
+pub work::section_diff::ComparableItem::shown: &'a corpus::body::Body
+impl<'a> core::clone::Clone for work::section_diff::ComparableItem<'a>
+pub fn work::section_diff::ComparableItem<'a>::clone(&self) -> work::section_diff::ComparableItem<'a>
+impl<'a> core::fmt::Debug for work::section_diff::ComparableItem<'a>
+pub fn work::section_diff::ComparableItem<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::section_diff::ComparableItem<'a>
 pub struct work::section_diff::SectionDiff
 pub work::section_diff::SectionDiff::local: alloc::string::String
 pub work::section_diff::SectionDiff::name: alloc::string::String
@@ -686,9 +683,8 @@ pub fn work::section_diff::SectionDiff::eq(&self, other: &work::section_diff::Se
 impl core::fmt::Debug for work::section_diff::SectionDiff
 pub fn work::section_diff::SectionDiff::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::section_diff::SectionDiff
-pub fn work::section_diff::differing_sections(local_content: &str, remote_content: &str) -> alloc::vec::Vec<work::section_diff::SectionDiff>
-pub fn work::section_diff::extract_section(content: &str, name: &work::section_diff::SectionName) -> alloc::string::String
-pub fn work::section_diff::heading_union(local: &[alloc::string::String], remote: &[alloc::string::String]) -> alloc::vec::Vec<alloc::string::String>
+pub fn work::section_diff::differing_sections(local: &work::section_diff::ComparableItem<'_>, remote: &work::section_diff::ComparableItem<'_>) -> alloc::vec::Vec<work::section_diff::SectionDiff>
+pub fn work::section_diff::frontmatter_and_body(content: &str) -> (alloc::string::String, alloc::string::String)
 pub mod work::show
 pub fn work::show::read_field_raw(frontmatter: &str, field: &str) -> core::option::Option<alloc::string::String>
 pub mod work::sync

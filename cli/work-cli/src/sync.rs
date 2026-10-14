@@ -2235,6 +2235,7 @@ mod tests {
         ConflictDossier {
             id: id.to_owned(),
             title: "Title".to_owned(),
+            remote_title: None,
             local_modified: Some(1_700_000_000),
             remote_updated: RemoteTimestamp::Reported(
                 "2026-07-01T00:00:00Z".to_owned(),

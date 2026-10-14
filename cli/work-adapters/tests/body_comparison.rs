@@ -106,3 +106,35 @@ fn an_unrenderable_jira_remote_hashes_its_canonical_json() {
         sha256_hex(&format!("unrenderable:{JIRA_PANEL_DESCRIPTION}"))
     );
 }
+
+fn section_names(diffs: &[work::section_diff::SectionDiff]) -> Vec<&str> {
+    diffs.iter().map(|diff| diff.name.as_str()).collect()
+}
+
+#[test]
+fn sections_differing_only_in_notation_are_not_listed() {
+    let local =
+        "---\nstatus: ready\n---\n\n## List\n\n* a\n* b\n\n## Notes\n\nlocal\n";
+    let remote = "---\nstatus: ready\n---\n\n## List\n\n- a\n- b\n\n## Notes\n\nremote\n";
+
+    let diffs = linear().differing_sections(local, remote);
+
+    assert_eq!(section_names(&diffs), vec!["Notes"]);
+    assert_eq!(diffs[0].local, "## Notes\n\nlocal\n");
+    assert_eq!(diffs[0].remote, "## Notes\n\nremote\n");
+}
+
+#[test]
+fn a_local_section_is_compared_as_the_tracker_would_store_it() {
+    let local = "---\nstatus: ready\n---\n\n## Table\n\n| a |\n|:--|\n| 1 |\n\n## Notes\n\nlocal\n";
+    let remote = "---\nstatus: ready\n---\n\n## Table\n\n| a |\n| --- |\n| 1 |\n\n## Notes\n\nremote\n";
+
+    assert_eq!(
+        section_names(&jira().differing_sections(local, remote)),
+        vec!["Notes"]
+    );
+    assert_eq!(
+        section_names(&linear().differing_sections(local, remote)),
+        vec!["Table", "Notes"]
+    );
+}

@@ -1,12 +1,17 @@
 //! Adapter/binary wiring for `work diff`: this module owns the CLI-level
-//! error arms only. Extraction and comparison come from
-//! `work::section_diff::differing_sections`, and each differing section's
-//! rendering from `work_adapters::diff::render`.
+//! error arms only. Comparison comes from
+//! `work_adapters::sync::body_comparison::BodyComparison`, and each
+//! differing section's rendering from `work_adapters::diff::render`.
+//!
+//! Both files are local, so no tracker round trip applies: they compare as
+//! plain Markdown whatever tracker the repository syncs with.
 
 use std::path::Path;
 
-use work::section_diff::differing_sections;
+use corpus_adapters::CommonMarkBody;
+use tracker::PlainDialect;
 use work_adapters::diff::render;
+use work_adapters::sync::body_comparison::BodyComparison;
 
 pub enum RunOutcome {
     Rendered(String),
@@ -28,7 +33,8 @@ pub fn run(local: &Path, remote: &Path) -> RunOutcome {
         return RunOutcome::NonFileArgument;
     };
 
-    let diffs = differing_sections(&local_content, &remote_content);
+    let diffs = BodyComparison::new(&PlainDialect, &CommonMarkBody)
+        .differing_sections(&local_content, &remote_content);
     if diffs.is_empty() {
         return RunOutcome::Rendered(
             "(no differing sections after normalisation)\n".to_owned(),

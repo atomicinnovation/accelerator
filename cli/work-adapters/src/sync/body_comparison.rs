@@ -6,6 +6,9 @@ use remote_projection::split_projected;
 use serde_json::Value;
 use tracker::BodyDialect;
 use tracker::Unrenderable;
+use work::section_diff::frontmatter_and_body;
+use work::section_diff::ComparableItem;
+use work::section_diff::SectionDiff;
 use work::sync::BodyEquivalence;
 use work::sync::PullResidue;
 
@@ -80,6 +83,36 @@ impl<'a> BodyComparison<'a> {
         } else {
             BodyEquivalence::Different
         }
+    }
+
+    /// The sections of `local_content` whose meaning, once pushed, differs
+    /// from `remote_content`'s, each shown as its own side wrote it.
+    #[must_use]
+    pub fn differing_sections(
+        &self,
+        local_content: &str,
+        remote_content: &str,
+    ) -> Vec<SectionDiff> {
+        let (local_frontmatter, local_body) =
+            frontmatter_and_body(local_content);
+        let (remote_frontmatter, remote_body) =
+            frontmatter_and_body(remote_content);
+        let local_shown = self.parser.parse(&local_body);
+        let local_compared =
+            self.parser.parse(&self.dialect.as_pushed(&local_body));
+        let remote = self.parser.parse(&remote_body);
+        work::section_diff::differing_sections(
+            &ComparableItem {
+                frontmatter: &local_frontmatter,
+                shown: &local_shown,
+                compared: &local_compared,
+            },
+            &ComparableItem {
+                frontmatter: &remote_frontmatter,
+                shown: &remote,
+                compared: &remote,
+            },
+        )
     }
 
     fn canonical_hash(&self, markdown: &str) -> String {

@@ -1357,11 +1357,11 @@ fn a_two_conflict_corpus_builds_a_dossier_per_item_with_bound_values(
         .find(|s| s.name == "Summary")
         .expect("the Summary section differs");
     assert_eq!(
-        summary.local, "local summary\n",
+        summary.local, "## Summary\nlocal summary\n",
         "the local side is bound to the seeded local body"
     );
     assert_eq!(
-        summary.remote, "remote summary\n",
+        summary.remote, "## Summary\nremote summary\n",
         "the remote side is bound to the seeded remote body"
     );
 

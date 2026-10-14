@@ -56,7 +56,8 @@ fn one_differing_section_renders_a_unified_body_with_the_frozen_framing(
 ) -> Result<(), TestError> {
     const EXPECTED: &str = concat!(
         "=== Summary (- LOCAL / + REMOTE) ===\n",
-        "@@ -1 +1 @@\n",
+        "@@ -1,2 +1,2 @@\n",
+        " ## Summary\n",
         "-local text\n",
         "+remote text\n",
         "\n",
@@ -80,6 +81,31 @@ fn one_differing_section_renders_a_unified_body_with_the_frozen_framing(
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
     assert_eq!(stdout, EXPECTED);
+    Ok(())
+}
+
+#[test]
+fn work_diff_omits_an_equivalent_section() -> Result<(), TestError> {
+    let dir = tempfile::tempdir()?;
+    let local = dir.path().join("local.md");
+    let remote = dir.path().join("remote.md");
+    fs::write(
+        &local,
+        "---\nstatus: draft\n---\n## List\n* a\n* b\n## Notes\nlocal\n",
+    )?;
+    fs::write(
+        &remote,
+        "---\nstatus: draft\n---\n## List\n\n- a\n- b\n## Notes\nremote\n",
+    )?;
+    let output = run(&[
+        "diff",
+        local.to_str().ok_or("non-utf8")?,
+        remote.to_str().ok_or("non-utf8")?,
+    ])?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.starts_with("=== Notes (- LOCAL / + REMOTE) ===\n"));
+    assert!(!stdout.contains("=== List"), "{stdout}");
     Ok(())
 }
 

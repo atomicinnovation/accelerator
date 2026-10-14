@@ -16,7 +16,6 @@ use tracker::RemoteTracker;
 use tracker::SearchScope;
 use tracker::TrackerError;
 use work::draft_id::DraftId;
-use work::section_diff::differing_sections;
 use work::section_diff::SectionDiff;
 use work::sync::plan as compute_plan;
 use work::sync::Action;
@@ -58,6 +57,7 @@ use crate::sync::send_refusal::legacy_unrenderable;
 use crate::sync::send_refusal::send_refusal;
 use crate::sync::send_refusal::EntryShape;
 use crate::sync::send_refusal::SendRefusal;
+use crate::sync::synced_fields::remote_fields;
 
 #[derive(Debug)]
 pub enum RunError {
@@ -416,6 +416,8 @@ fn reconstruct_pulled_content(
 pub struct ConflictDossier {
     pub id: String,
     pub title: String,
+    /// The remote's title, when it was read.
+    pub remote_title: Option<String>,
     pub local_modified: Option<u64>,
     pub remote_updated: RemoteTimestamp,
     pub sections: Vec<SectionDiff>,
@@ -509,12 +511,21 @@ fn render_local_modified(local_modified: Option<u64>) -> String {
     local_modified.map_or_else(|| "(unavailable)".to_owned(), format_epoch_utc)
 }
 
+fn render_titles(dossier: &ConflictDossier) -> String {
+    match &dossier.remote_title {
+        Some(remote) if *remote != dossier.title => {
+            format!("{} → {remote}", dossier.title)
+        }
+        _ => dossier.title.clone(),
+    }
+}
+
 fn dossier_header(dossier: &ConflictDossier, status_lines: &str) -> String {
     format!(
         "# Conflict: {}\n{status_lines}title: {}\nlocal modified: {}\nremote \
          updated: {}\n\n",
         dossier.id,
-        dossier.title,
+        render_titles(dossier),
         render_local_modified(dossier.local_modified),
         render_stamp(&dossier.remote_updated),
     )
@@ -684,6 +695,7 @@ fn unreadable_dossier(
     ConflictDossier {
         id: id.to_owned(),
         title: String::new(),
+        remote_title: None,
         local_modified: None,
         remote_updated,
         sections: Vec::new(),
@@ -726,12 +738,19 @@ fn readable_dossier(
             |remote_body| {
                 let reconstructed =
                     reconstruct_pulled_content(local_content, &remote_body);
-                (differing_sections(local_content, &reconstructed), None)
+                (
+                    comparison
+                        .differing_sections(local_content, &reconstructed),
+                    None,
+                )
             },
         );
     ConflictDossier {
         id: id.to_owned(),
         title,
+        remote_title: remote
+            .and_then(|r| r.body.as_deref())
+            .map(|projection| remote_fields(projection).title),
         local_modified: file_mtime_secs(&item.path),
         remote_updated,
         sections,
@@ -1728,6 +1747,7 @@ mod tests {
         ConflictDossier {
             id: "0009".to_owned(),
             title: "The item's title".to_owned(),
+            remote_title: None,
             local_modified,
             remote_updated,
             sections,
