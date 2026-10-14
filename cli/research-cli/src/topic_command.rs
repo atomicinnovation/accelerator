@@ -579,12 +579,12 @@ impl PlanOutput<'_> {
                 .collect();
         }
         if let Some(replaced) = self.replaced_run {
-            rendered["replaced_run"] = self.replaced_run(replaced);
+            rendered["replaced_run"] = self.leftovers(replaced);
         }
         rendered
     }
 
-    fn replaced_run(&self, replaced: &ReplacedRun) -> Value {
+    fn leftovers(&self, replaced: &ReplacedRun) -> Value {
         let entries = |leftovers: &[Leftover]| -> Vec<Value> {
             leftovers
                 .iter()
