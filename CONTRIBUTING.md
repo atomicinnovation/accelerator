@@ -28,8 +28,10 @@ The marker and the first two variables swap in your launcher only; a dev
 launcher still fetches each sub-binary for its own version. Each
 `ACCELERATOR_<SUB>_BIN` (the subcommand upper-cased, `-` as `_`) points one
 subcommand at its local build, so set one per sub-binary you changed, such
-as `ACCELERATOR_CORPUS_BIN` or `ACCELERATOR_VCS_BIN`. Every unverified launch
-is logged to `bin/.accelerator-unverified.log`.
+as `ACCELERATOR_CORPUS_BIN` or `ACCELERATOR_VCS_BIN`. Each dev-launcher exec
+is logged to `.accelerator-unverified.log` in the cache directory (`bin/`
+unless `ACCELERATOR_CACHE_DIR` is set); a sub-binary override is not logged
+there, and shows only as an `info` trace under `ACCELERATOR_LOG=info`.
 
 ## Linting, formatting, and type-checking
 
