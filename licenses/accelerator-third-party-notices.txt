@@ -10043,7 +10043,7 @@ The files under third-party/chromium are licensed as described in
 third-party/chromium/LICENSE.
 
 ------------------------------------------------------------------------------
-rustls 0.23.45
+rustls 0.23.46
 ------------------------------------------------------------------------------
 License: MIT
 Source: https://github.com/rustls/rustls
