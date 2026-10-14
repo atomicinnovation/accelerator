@@ -49,6 +49,9 @@ pub struct HeldTrees {
 /// Why a present tree runs without a lease.
 #[derive(Debug)]
 pub enum Unleasable {
+    /// The launcher printed a lease path that is not its tree's sibling. Only
+    /// that relation is checked: the tree path is trusted from the launcher,
+    /// not confined to the trees root.
     OutsideTreeLayout,
     Lease(lease::LeaseError),
 }

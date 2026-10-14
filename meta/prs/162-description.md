@@ -66,8 +66,9 @@ backstop instead of removing it.
     only if nobody else holds it.
   - A tree that cannot be leased is skipped with one `warning:` line, so
     the daemon still runs where `flock` is unavailable.
-  - 🔒 A lease path outside the tree layout is never created or removed,
-    because it arrives on a subprocess's stdout.
+  - 🔒 A lease path that is not its tree's `.lease` sibling is never
+    created or removed. The tree path is trusted from the launcher's
+    stdout and is not confined to the trees root.
   - `ensure_and_pin` runs `cache ensure` at most twice. A tree still gone
     after the second attempt downgrades with `artifact-unavailable` and
     writes no sticky marker. A failed second ensure is classified like a
