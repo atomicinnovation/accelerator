@@ -5,14 +5,14 @@ title: "Push PR Descriptions to GitHub Unwrapped Implementation Plan"
 date: "2026-10-13T22:25:25+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "draft"
+status: "in-progress"
 work_item_id: "work-item:0332"
 parent: "work-item:0332"
 derived_from: ["codebase-research:2026-10-13-0332-push-pr-descriptions-to-github-unwrapped"]
 tags: ["collaboration", "github", "markdown", "pulldown-cmark", "describe-pr"]
 revision: "4f52d32c20ed096f05b4e9ef2a0f830a8373d3cc"
 repository: "accelerator"
-last_updated: "2026-10-13T23:31:11+00:00"
+last_updated: "2026-10-14T11:53:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -457,9 +457,10 @@ code needs no comment.
   `collaboration` must fail `mise run deny:check`; remove it again. Then run
   `mise run deny:check`. No new `skip` entry is expected, because
   `bitflags` 2 is already the 2.x line. Run
-  `mise run notices:check`. The crate links into no binary yet, so the
-  notices should not drift. If they do, run `mise run notices:update` and
-  read the diff.
+  `mise run notices:check`. cargo-about reads the whole workspace graph,
+  not only linked binaries, so the notices drift as soon as the crate
+  exists: run `mise run notices:update` and read the diff, which adds only
+  the `pulldown-cmark` entry under MIT.
 
 ### Success Criteria:
 
@@ -814,9 +815,9 @@ trailing spaces or `\`) or a list item.
 
 #### 5. Notices
 
-Run `mise run notices:update`, because `pulldown-cmark` now links into
-`accelerator-collaboration`. Read the diff: it should add only the
-`pulldown-cmark` entry under MIT.
+Run `mise run notices:check`. Phase 1 already added the `pulldown-cmark`
+entry, so linking it into `accelerator-collaboration` should cause no
+drift.
 
 #### 6. Changelog
 
