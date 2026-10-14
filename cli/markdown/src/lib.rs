@@ -11,6 +11,10 @@ mod tests;
 /// Replaces each GFM soft line break with a single space, leaving every
 /// other byte as written.
 ///
+/// A whitespace line break that does not end in two spaces is replaced too:
+/// `pulldown-cmark` reads any two trailing whitespace bytes as a hard break,
+/// but GitHub needs two spaces and renders the rest as soft.
+///
 /// A replaced span runs from any trailing whitespace before the line ending
 /// to the start of the continuation line's content, past its `>` markers and
 /// indentation.
@@ -42,17 +46,40 @@ fn soft_line_break_spans(markdown: &str) -> Vec<Range<usize>> {
     events
         .windows(2)
         .filter_map(|pair| match pair {
-            [(Event::SoftBreak, line_ending), (_, continuation)] => Some(
-                trailing_whitespace_start(markdown, line_ending.start)
-                    ..continuation_start(
-                        markdown,
-                        line_ending.end,
-                        continuation.start,
-                    ),
-            ),
+            [(line_break, line_break_range), (_, continuation)]
+                if renders_as_soft_on_github(
+                    markdown,
+                    line_break,
+                    line_break_range,
+                ) =>
+            {
+                Some(
+                    trailing_whitespace_start(markdown, line_break_range.start)
+                        ..continuation_start(
+                            markdown,
+                            line_break_range.end,
+                            continuation.start,
+                        ),
+                )
+            }
             _ => None,
         })
         .collect()
+}
+
+fn renders_as_soft_on_github(
+    markdown: &str,
+    line_break: &Event<'_>,
+    range: &Range<usize>,
+) -> bool {
+    match line_break {
+        Event::SoftBreak => true,
+        Event::HardBreak => {
+            let marker = markdown[range.clone()].trim_end_matches(['\r', '\n']);
+            !(marker.ends_with("  ") || marker.ends_with('\\'))
+        }
+        _ => false,
+    }
 }
 
 fn trailing_whitespace_start(markdown: &str, line_ending: usize) -> usize {

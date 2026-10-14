@@ -2,7 +2,9 @@ use std::ops::Range;
 
 use pulldown_cmark::{BlockQuoteKind, CowStr, Event, Parser, Tag, TagEnd};
 
-use super::{github_extensions, unwrap_soft_line_breaks};
+use super::{
+    github_extensions, renders_as_soft_on_github, unwrap_soft_line_breaks,
+};
 
 fn events(markdown: &str) -> Vec<(Event<'_>, Range<usize>)> {
     Parser::new_ext(markdown, github_extensions())
@@ -10,20 +12,32 @@ fn events(markdown: &str) -> Vec<(Event<'_>, Range<usize>)> {
         .collect()
 }
 
-fn soft_break_offsets(markdown: &str) -> Vec<(usize, usize)> {
+fn offsets_of(
+    markdown: &str,
+    is_wanted: fn(&Event<'_>) -> bool,
+) -> Vec<(usize, usize)> {
     events(markdown)
         .into_iter()
-        .filter(|(event, _)| matches!(event, Event::SoftBreak))
+        .filter(|(event, _)| is_wanted(event))
         .map(|(_, range)| (range.start, range.end))
         .collect()
 }
 
+fn soft_break_offsets(markdown: &str) -> Vec<(usize, usize)> {
+    offsets_of(markdown, |event| matches!(event, Event::SoftBreak))
+}
+
+fn hard_break_offsets(markdown: &str) -> Vec<(usize, usize)> {
+    offsets_of(markdown, |event| matches!(event, Event::HardBreak))
+}
+
 fn normalised_events(markdown: &str) -> Vec<Event<'static>> {
     let mut normalised: Vec<Event<'static>> = Vec::new();
-    for event in Parser::new_ext(markdown, github_extensions()) {
-        let event = match event {
-            Event::SoftBreak => Event::Text(CowStr::from(" ")),
-            other => other.into_static(),
+    for (event, range) in events(markdown) {
+        let event = if renders_as_soft_on_github(markdown, &event, &range) {
+            Event::Text(CowStr::from(" "))
+        } else {
+            event.into_static()
         };
         match (normalised.last_mut(), event) {
             (Some(Event::Text(preceding)), Event::Text(text)) => {
@@ -91,6 +105,16 @@ fn a_soft_break_covers_only_its_line_ending() {
         ),
         "{after_soft_break:?}"
     );
+}
+
+#[test]
+fn a_hard_break_covers_its_marker_and_line_ending() {
+    assert_eq!(hard_break_offsets("foo\t\t\nbar"), [(3, 6)]);
+    assert_eq!(hard_break_offsets("foo\t  \nbar"), [(3, 7)]);
+    assert_eq!(hard_break_offsets("> foo\t\t\n> bar"), [(5, 8)]);
+    assert_eq!(hard_break_offsets("foo\\\nbar"), [(3, 5)]);
+    assert_eq!(soft_break_offsets("foo\n \x0B\nbar"), [(3, 4)]);
+    assert_eq!(hard_break_offsets("foo\n \x0B\nbar"), [(4, 7)]);
 }
 
 #[test]
@@ -253,8 +277,24 @@ fn trailing_whitespace_before_a_soft_break_is_absorbed() {
 }
 
 #[test]
-fn two_trailing_tabs_stay_a_hard_break() {
-    assert_unchanged("foo\t\t\nbar");
+fn whitespace_github_renders_as_soft_joins() {
+    assert_unwraps("foo\t\t\nbar", "foo bar");
+    assert_unwraps("foo \t\nbar", "foo bar");
+    assert_unwraps("foo\t \nbar", "foo bar");
+    assert_unwraps("foo  \t\nbar", "foo bar");
+    assert_unwraps("foo \x0B\nbar", "foo bar");
+    assert_unwraps("> foo\t\t\n> bar", "> foo bar");
+    assert_unwraps("- foo\t\t\n  bar", "- foo bar");
+}
+
+#[test]
+fn two_spaces_after_a_tab_stay_a_hard_break() {
+    assert_unchanged("foo\t  \nbar");
+}
+
+#[test]
+fn a_whitespace_only_continuation_line_joins_into_both_neighbours() {
+    assert_unwraps("foo\n \x0B\nbar", "foo  bar");
 }
 
 #[test]
