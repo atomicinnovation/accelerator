@@ -17,13 +17,17 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::Call;
 use tracker_test_support::RecordingTracker;
+use tracker_test_support::Rewrite;
 use work::sync::Action;
 use work::sync::Dirtiness;
+use work::sync::LegacyHashes;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
 use work_adapters::sync::baseline::Baseline;
 use work_adapters::sync::baseline::Entry;
+use work_adapters::sync::baseline::SyncStamps;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::baseline_store::BaselineStore;
 use work_adapters::sync::digest;
 use work_adapters::sync::fetch::LocalItem;
@@ -149,12 +153,34 @@ pub fn id(index: usize) -> String {
     format!("{index:04}")
 }
 
-/// What item `index`'s baseline recorded of its two sides at [`STAMP`].
+/// What item `index`'s baseline recorded of its two sides at [`STAMP`],
+/// under either recipe; a side recorded as `None` is a blanked hash.
 pub enum Recorded<'a> {
     Nothing,
-    Legacy { local: &'a str, projection: &'a str },
-    LegacyLocalOnly { local: &'a str },
-    Split { local: &'a str, projection: &'a str },
+    Legacy {
+        local: Option<&'a str>,
+        projection: Option<&'a str>,
+    },
+    Split {
+        local: Option<&'a str>,
+        projection: Option<&'a str>,
+    },
+}
+
+impl<'a> Recorded<'a> {
+    pub const fn legacy(local: &'a str, projection: &'a str) -> Self {
+        Self::Legacy {
+            local: Some(local),
+            projection: Some(projection),
+        }
+    }
+
+    pub const fn split(local: &'a str, projection: &'a str) -> Self {
+        Self::Split {
+            local: Some(local),
+            projection: Some(projection),
+        }
+    }
 }
 
 pub struct Repo {
@@ -176,12 +202,38 @@ impl Repo {
         remote: RemoteIssue,
         recorded: &Recorded<'_>,
     ) -> Self {
-        let dir = tempfile::tempdir().expect("a temporary directory");
-        let path = dir.path().join(format!("{}.md", id(index)));
-        std::fs::write(&path, content).expect("the item is written");
         let tracker =
             RecordingTracker::holding(vec![(external(index), remote)])
                 .with_dialect(tracker_kind.dialect());
+        Self::over(tracker, tracker_kind, index, content, recorded)
+    }
+
+    /// As [`Self::with_item`] for Linear, whose stored descriptions undergo
+    /// `rewrite`.
+    pub fn with_rewritten_item(
+        rewrite: Rewrite,
+        index: usize,
+        content: &str,
+        remote: RemoteIssue,
+        recorded: &Recorded<'_>,
+    ) -> Self {
+        let tracker = RecordingTracker::rewriting(
+            vec![(external(index), remote)],
+            rewrite,
+        );
+        Self::over(tracker, Tracker::Linear, index, content, recorded)
+    }
+
+    fn over(
+        tracker: RecordingTracker,
+        tracker_kind: Tracker,
+        index: usize,
+        content: &str,
+        recorded: &Recorded<'_>,
+    ) -> Self {
+        let dir = tempfile::tempdir().expect("a temporary directory");
+        let path = dir.path().join(format!("{}.md", id(index)));
+        std::fs::write(&path, content).expect("the item is written");
         let store = Store::default();
         let entries: Vec<String> = fragment(tracker_kind, index, recorded)
             .into_iter()
@@ -339,40 +391,42 @@ impl Repo {
     }
 }
 
+#[allow(clippy::expect_used)]
 fn fragment(
     tracker_kind: Tracker,
     index: usize,
     recorded: &Recorded<'_>,
 ) -> Option<String> {
-    let stamp = || RemoteTimestamp::Reported(STAMP.to_owned());
-    match recorded {
-        Recorded::Nothing => None,
-        Recorded::Legacy { local, projection } => Some(super::entry_fragment(
-            &id(index),
-            Entry::persisted_legacy(
-                stamp(),
-                digest::remote_body(projection),
-                digest::local(local).expect("a work item"),
-                0,
-            ),
-        )),
-        Recorded::LegacyLocalOnly { local } => Some(super::entry_fragment(
-            &id(index),
-            Entry::persisted_legacy(
-                stamp(),
-                String::new(),
-                digest::local(local).expect("a work item"),
-                0,
-            ),
-        )),
-        Recorded::Split { local, projection } => Some(super::split_entry(
-            &id(index),
-            tracker_kind.dialect().as_ref(),
-            local,
-            projection,
-            STAMP,
-        )),
-    }
+    let stamps = || SyncStamps {
+        remote_updated_at: RemoteTimestamp::Reported(STAMP.to_owned()),
+        local_synced_at: 0,
+    };
+    let entry = match recorded {
+        Recorded::Nothing => return None,
+        Recorded::Legacy { local, projection } => Entry::Legacy {
+            stamps: stamps(),
+            legacy: LegacyHashes {
+                local: local
+                    .map(|local| digest::local(local).expect("a work item")),
+                remote: projection.map(digest::remote_body),
+            },
+        },
+        Recorded::Split { local, projection } => {
+            let placeholder = "---\ntitle: x\n---\n";
+            let mut recorded = BaselineDigester::new(
+                tracker_kind.dialect().as_ref(),
+                &CommonMarkBody,
+            )
+            .digests(local.unwrap_or(placeholder), *projection)
+            .expect("a work item");
+            if local.is_none() {
+                recorded.split.local = None;
+                recorded.legacy.local = None;
+            }
+            Entry::recorded(stamps(), recorded)
+        }
+    };
+    Some(super::entry_fragment(&id(index), entry))
 }
 
 /// The state and action `report` gives item `index`.

@@ -9,8 +9,11 @@
 
 pub mod contract;
 pub mod evidence;
+mod rewrite;
 pub mod seed;
 mod shared;
+
+pub use rewrite::Rewrite;
 
 pub use crate::shared::SharedTracker;
 
@@ -168,6 +171,7 @@ pub struct RecordingTracker {
     /// The prefix created issues' keys take; `REC` when unset.
     key_prefix: Option<String>,
     dialect: Box<dyn BodyDialect + Send>,
+    rewrite: Option<Rewrite>,
     calls: RefCell<Vec<Call>>,
 }
 
@@ -198,7 +202,31 @@ impl RecordingTracker {
             next_id: RefCell::new(1),
             key_prefix: None,
             dialect: Box::new(PlainDialect),
+            rewrite: None,
             calls: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Holds `issues`, storing every description as Linear would once it
+    /// applies `rewrite`, on `show` and on every write.
+    #[must_use]
+    pub fn rewriting(
+        issues: Vec<(ExternalId, RemoteIssue)>,
+        rewrite: Rewrite,
+    ) -> Self {
+        Self {
+            rewrite: Some(rewrite),
+            ..Self::holding(issues)
+        }
+    }
+
+    /// `projected` with its description as this tracker stores it.
+    fn stored(&self, projected: &str) -> String {
+        match (self.rewrite, projected.split_once('\n')) {
+            (Some(rewrite), Some((title, description))) => {
+                format!("{title}\n{}", rewrite.apply(description))
+            }
+            _ => projected.to_owned(),
         }
     }
 
@@ -485,7 +513,8 @@ impl RecordingTracker {
             .find(|(known, _)| known == id)
             .map(|(known, issue)| RemoteIssue {
                 key: known.clone(),
-                ..issue.clone()
+                updated: issue.updated.clone(),
+                body: self.stored(&issue.body),
             })
     }
 

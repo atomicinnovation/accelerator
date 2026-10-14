@@ -369,8 +369,17 @@ fn finalise_baseline(
         .is_ok()
 }
 
+/// Whether a run settled `item`, so its watermark may move. A change the run
+/// leaves pending, such as a local edit under `--pull-only`, keeps the old
+/// watermark, or the next run's mtime pre-filter would hide it.
 const fn definitively_reconciled(item: &ReportedItem) -> bool {
-    !matches!(item.outcome, ItemOutcome::Failed(_))
+    let deferred = matches!(item.planned.action, Action::Noop)
+        && matches!(
+            item.planned.state,
+            SyncState::LocallyModified | SyncState::RemotelyModified
+        );
+    !deferred
+        && !matches!(item.outcome, ItemOutcome::Failed(_))
         && !matches!(
             item.planned.action,
             Action::Prompt | Action::SkipConflict | Action::SkipDirty
