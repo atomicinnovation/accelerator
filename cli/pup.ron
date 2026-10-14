@@ -236,9 +236,8 @@
                 ),
             ],
         )),
-        // markdown transforms the text it is handed: no filesystem, no process
-        // spawning, no transport or async runtime. `denied` for the
-        // grouped-import reason recorded on the config-command rule below.
+        // `denied` rather than `allowed_only` for the grouped-import reason
+        // recorded on the config-command rule below.
         Module((
             name: "markdown_transforms_text_only",
             matches: Module("^markdown($|::)"),

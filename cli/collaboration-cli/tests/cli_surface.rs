@@ -1,7 +1,5 @@
-//! Freezes `accelerator-collaboration`'s whole CLI surface: every command's
-//! flag names, arity, and help text, against one committed golden. A future
-//! accidental change to any command's flags becomes a visible, deliberate
-//! diff instead of a silent break for the skills that invoke it.
+//! An accidental change to any command's flags must surface as a deliberate
+//! golden diff, not as a silent break for the skills that invoke it.
 
 use std::fmt::Write as _;
 use std::process::Command;

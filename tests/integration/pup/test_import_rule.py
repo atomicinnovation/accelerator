@@ -913,9 +913,8 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# Shared by the whole-crate `denied`-only rules whose probes need only a
-# spawn or transport violation. Each compliant control imports something
-# real, so a matcher that resolved nothing could not pass it silently.
+# Each compliant control imports something real, so a matcher that resolved
+# nothing could not pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
