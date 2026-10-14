@@ -43,7 +43,7 @@ members = [
     "research",
     "research-adapters",
     "research-cli",
-    "process-probe",
+    "process",
     "lease"
 ]
 
@@ -123,7 +123,7 @@ serde-saphyr = "=0.0.29"
 # so the exact-pin discipline is not warranted here.
 tempfile = "3"
 rand = "0.9"
-# Two consumers: process-probe's sysconf/sysctl start-time reads, and the
+# Two consumers: the process crate's sysconf/sysctl start-time reads, and the
 # visualiser server, which delegated its own copy of that read to it.
 libc = "0.2"
 rustix = { version = "1", features = ["process", "fs"] }

@@ -16,7 +16,7 @@ workspace = true
 [dependencies]
 design = { path = "../design" }
 kernel = { path = "../kernel" }
-process-probe = { path = "../process-probe" }
+process = { path = "../process" }
 lease = { path = "../lease" }
 regex = { workspace = true }
 serde_json = { workspace = true }

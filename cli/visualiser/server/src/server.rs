@@ -321,7 +321,7 @@ pub async fn run(cfg: Config, info_path: &Path) -> Result<(), ServerError> {
     let info = ServerInfo {
         version: crate::VERSION.to_string(),
         pid: std::process::id() as i32,
-        start_time: process_probe::start_time(std::process::id() as i32),
+        start_time: process::start_time(std::process::id() as i32),
         host: state.cfg.host.clone(),
         port: local.port(),
         url: format!("http://{}:{}", state.cfg.host, local.port()),
@@ -841,7 +841,7 @@ mod tests {
         let info = ServerInfo {
             version: crate::VERSION.to_string(),
             pid: std::process::id() as i32,
-            start_time: process_probe::start_time(std::process::id() as i32),
+            start_time: process::start_time(std::process::id() as i32),
             host: "127.0.0.1".into(),
             port,
             url: format!("http://127.0.0.1:{port}"),

@@ -81,7 +81,7 @@ _EXEMPT_MEMBERS = {
         f"{_COMPOSITION_ROOT}. Its contract with the outside world is the HTTP"
         " API, held by the server's own integration and E2E suites"
     ),
-    "process-probe": (
+    "process": (
         "a two-function primitive over one syscall per platform: its contract"
         " is the epoch value itself, held by the fixture-replayed arithmetic"
         " tests and by the identity semantics each caller builds on top"

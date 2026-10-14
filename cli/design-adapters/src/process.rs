@@ -93,7 +93,7 @@ impl ProcessProbe for HostProbe {
             return ObservedDaemon::Absent;
         }
         ObservedDaemon::Live(
-            process_probe::start_time(pid).map_or(
+            process::start_time(pid).map_or(
                 ObservedStartTime::Unavailable,
                 ObservedStartTime::Known,
             ),
@@ -206,7 +206,7 @@ impl Spawner for DaemonSpawner {
             pid,
             // Observed with the same probe the reuse check will later use, so
             // the two can never disagree about what they are measuring.
-            start_time: process_probe::start_time(pid).map_or(
+            start_time: process::start_time(pid).map_or(
                 RecordedStartTime::WriterUnavailable,
                 RecordedStartTime::Probe,
             ),

@@ -177,7 +177,7 @@ dependencies = [
  "nix",
  "notify",
  "predicates",
- "process-probe",
+ "process",
  "regex",
  "reqwest",
  "rust-embed",
@@ -1118,7 +1118,7 @@ dependencies = [
  "kernel",
  "lease",
  "libc",
- "process-probe",
+ "process",
  "rand 0.9.5",
  "regex",
  "rustix",
@@ -3756,7 +3756,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "process-probe"
+name = "process"
 version = "1.24.0-pre.81"
 dependencies = [
  "libc",
