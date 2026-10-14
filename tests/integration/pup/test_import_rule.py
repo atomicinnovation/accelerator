@@ -913,11 +913,9 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# The remote-projection and tracker-support rules are both `denied`-only rules
-# over a whole crate, each driven against a workspace whose crate is literally
-# named for it. remote-projection must not spawn; tracker-support must neither
-# spawn nor grow a transport. Each compliant control imports something real, so
-# a matcher that resolved nothing could not pass it silently.
+# Shared by the whole-crate `denied`-only rules whose probes need only a
+# spawn or transport violation. Each compliant control imports something
+# real, so a matcher that resolved nothing could not pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
@@ -951,6 +949,9 @@ _PROJECTION_COMPLIANT = (
     "pub fn make() -> BTreeMap<String, String> {\n"
     "    BTreeMap::new()\n"
     "}\n"
+)
+_MARKDOWN_COMPLIANT = (
+    "use std::ops::Range;\n\npub fn make() -> Range<usize> {\n    0..1\n}\n"
 )
 
 _LEASE_COMPLIANT = (
@@ -1013,6 +1014,23 @@ def test_lease_rule_rejects_spawning(tmp_path: Path) -> None:
 def test_lease_rule_permits_locking(tmp_path: Path) -> None:
     _require_tools()
     _write_shared_crate_probe(tmp_path, "lease", _LEASE_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_markdown_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "markdown", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "markdown_transforms_text_only" in output, output
+
+
+def test_markdown_rule_permits_text_transformation(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "markdown", _MARKDOWN_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 

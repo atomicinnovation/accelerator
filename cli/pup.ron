@@ -236,6 +236,26 @@
                 ),
             ],
         )),
+        // markdown transforms the text it is handed: no filesystem, no process
+        // spawning, no transport or async runtime. `denied` for the
+        // grouped-import reason recorded on the config-command rule below.
+        Module((
+            name: "markdown_transforms_text_only",
+            matches: Module("^markdown($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^std::process(::|$)",
+                        "^std::fs(::|$)",
+                        "^reqwest(::|$)",
+                        "^hyper(::|$)",
+                        "^tokio(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // tracker-support carries the policy both provider clients share —
         // retry schedule, identifier safety, transport bounds. It spawns
         // nothing, and what it must never grow is a transport of its own,
