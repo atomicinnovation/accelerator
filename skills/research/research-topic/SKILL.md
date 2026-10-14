@@ -283,6 +283,8 @@ allocate a finding or note path yourself.
    - {stem} {lineage}: {question} ({profile})
    for a question the outline no longer asks; left in place:
    - {stem}
+   still to quarantine from an earlier start:
+   - {stem}
 
    this run re-researched each spawn marked offered again, and Failures lists any it did not finish; if a run does not end, re-run `conduct <slug>`; if its session showed an agent usage limit, first wait until the reset time in the message, or raise the limit when it gives none
    ```
@@ -300,7 +302,8 @@ allocate a finding or note path yourself.
      entry whose `question` is `null` reads "(quarantined; no outline pair
      asks it now)" and is not offered again;
    - "not written; offered again": `unwritten`;
-   - "for a question the outline no longer asks; left in place": `unasked`.
+   - "for a question the outline no longer asks; left in place": `unasked`;
+   - "still to quarantine from an earlier start": `owed`, one stem per line.
 
    Empty classes are omitted; with every class empty, show the opening
    sentence alone. The closing sentence shows only when `invalid` or
@@ -337,8 +340,9 @@ allocate a finding or note path yourself.
    - `run` and `batch`;
    - `replaced_run`, on the first plan after a run that did not end: its
      `run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, each
-     entry a `spawn`, `question` and `profile`; and `quarantine`, the
-     absolute paths of the invalid findings to rename.
+     entry a `spawn`, `question` and `profile`; `quarantine`, the absolute
+     paths of the invalid findings to rename; and `owed`, the stems of
+     those an earlier start left unrenamed.
 
    Keep each trim for the summary, deduplicated by `(stem, lineage)` because
    every re-plan repeats it, and ignore stderr, which repeats the trims and,

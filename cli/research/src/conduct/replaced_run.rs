@@ -21,6 +21,7 @@ use crate::topic::question::UnicodeText;
 pub struct ReplacedBatch {
     run: RunId,
     quarantine: Vec<Stem>,
+    owed: Vec<Stem>,
     spawns: Vec<Pending>,
 }
 
@@ -44,6 +45,7 @@ pub struct ReplacedRun {
     unwritten: Vec<Leftover>,
     unasked: Vec<Leftover>,
     quarantine: Vec<Stem>,
+    owed: Vec<Stem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,9 +94,12 @@ impl ReplacedBatch {
                 },
             })
             .collect();
+        let owed = still_owed(replaced, inputs);
+        quarantine.extend(owed.iter().cloned());
         Self {
             run: replaced.run().clone(),
             quarantine,
+            owed,
             spawns,
         }
     }
@@ -122,6 +127,7 @@ impl ReplacedBatch {
             unwritten: Vec::new(),
             unasked: Vec::new(),
             quarantine: self.quarantine,
+            owed: self.owed,
         };
         for pending in self.spawns {
             let verdict = match pending {
@@ -178,6 +184,12 @@ impl ReplacedRun {
     #[must_use]
     pub fn quarantine(&self) -> &[Stem] {
         &self.quarantine
+    }
+
+    /// The quarantine an earlier start owed and its findings still await.
+    #[must_use]
+    pub fn owed(&self) -> &[Stem] {
+        &self.owed
     }
 
     const fn class_of(&mut self, outcome: SpawnOutcome) -> &mut Vec<Leftover> {
@@ -284,6 +296,29 @@ impl Judge<'_> {
                 && item.profiles().contains(&pair.profile.as_str())
         })
     }
+}
+
+fn still_owed(replaced: &RunLedger, inputs: &RoundInputs) -> Vec<Stem> {
+    let judged = |stem: &Stem| {
+        replaced
+            .memory()
+            .pending
+            .spawns()
+            .contains(&SpawnRef::Pair(stem.clone()))
+    };
+    replaced
+        .memory()
+        .owed_quarantine
+        .iter()
+        .filter(|stem| !judged(stem))
+        .filter(|stem| {
+            inputs
+                .findings
+                .iter()
+                .any(|finding| finding.stem() == Some(stem))
+        })
+        .cloned()
+        .collect()
 }
 
 fn note_outcome(
@@ -437,9 +472,12 @@ mod tests {
         claims: &[(&str, u32)],
         batch: &[&str],
     ) -> ReplacedRun {
-        let replaced = replaced(claims, batch);
+        report_of(inputs, &replaced(claims, batch))
+    }
+
+    fn report_of(inputs: RoundInputs, replaced: &RunLedger) -> ReplacedRun {
         let judged =
-            ReplacedBatch::judging_findings(&replaced, &inputs, &FakeUnicode);
+            ReplacedBatch::judging_findings(replaced, &inputs, &FakeUnicode);
         let inputs = judged.quarantining(inputs, &FakeUnicode);
         let plan = RoundPlan::of(&inputs, &FakeUnicode);
         judged.report(&inputs, &plan, &FakeUnicode)
@@ -465,6 +503,16 @@ mod tests {
             .iter()
             .map(ToString::to_string)
             .collect()
+    }
+
+    fn owed(report: &ReplacedRun) -> Vec<String> {
+        report.owed().iter().map(ToString::to_string).collect()
+    }
+
+    fn owing(ledger: RunLedger, owed: &[&str]) -> RunLedger {
+        ledger.owing_quarantine(
+            &owed.iter().map(|at| stem(at)).collect::<Vec<_>>(),
+        )
     }
 
     #[test]
@@ -877,5 +925,46 @@ mod tests {
         let plan = RoundPlan::of(&quarantined, &FakeUnicode);
         let report = judged.report(&quarantined, &plan, &FakeUnicode);
         assert_eq!(report.quarantine(), set_aside);
+    }
+
+    #[test]
+    fn a_finding_an_earlier_start_owed_quarantining_is_quarantined_while_it_remains(
+    ) {
+        let mut inputs = inputs(&["- [ ] A?", "- [ ] B?"]);
+        inputs.findings = vec![
+            Finding::invalid("01-a-web.md"),
+            answering("02-b-web.md", "A?", "web"),
+        ];
+        let replaced = owing(
+            replaced(&[("A?", 3), ("B?", 4)], &["03-a-web", "04-b-web"]),
+            &["01-a-web", "02-b-web", "05-c-web"],
+        );
+        let report = report_of(inputs, &replaced);
+        assert_eq!(owed(&report), ["01-a-web", "02-b-web"]);
+        assert_eq!(quarantine(&report), ["01-a-web", "02-b-web"]);
+        assert_eq!(spawns(report.unwritten()), ["03-a-web", "04-b-web"]);
+        assert!(report.invalid().is_empty());
+    }
+
+    #[test]
+    fn an_owed_finding_its_last_batch_also_left_invalid_is_quarantined_once() {
+        let mut inputs = inputs(&["- [ ] A?"]);
+        inputs.findings = vec![Finding::invalid("01-a-web.md")];
+        let replaced =
+            owing(replaced(&[("A?", 1)], &["01-a-web"]), &["01-a-web"]);
+        let report = report_of(inputs, &replaced);
+        assert_eq!(quarantine(&report), ["01-a-web"]);
+        assert!(report.owed().is_empty());
+    }
+
+    #[test]
+    fn an_owed_finding_is_planned_as_quarantined() {
+        let mut inputs = inputs(&["- [ ] A?"]);
+        inputs.findings = vec![answering("01-a-web.md", "A?", "web")];
+        let replaced = owing(replaced(&[], &[]), &["01-a-web"]);
+        let judged =
+            ReplacedBatch::judging_findings(&replaced, &inputs, &FakeUnicode);
+        let quarantined = judged.quarantining(inputs, &FakeUnicode);
+        assert!(quarantined.findings.is_empty());
     }
 }

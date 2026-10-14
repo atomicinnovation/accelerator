@@ -468,9 +468,8 @@ item's `line`, `question`, and `complete`), `pairs` (each outstanding pair's
 `remaining` (the spawns held back by the concurrency) and `subagent_cap` (its
 `slots`, and the `source` they came from: the variable's name, or `default`).
 The JSON is additive-only: fields may be added, never renamed or removed, and
-consumers ignore fields they do not know, except that on `--start` they must
-rename the `replaced_run.quarantine` paths before acting on the plan. It exits
-`1` with `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
+consumers ignore fields they do not know. It exits `1` with
+`E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
 `findings/<stem>.levels/`. It defaults to `1` and is never read from
@@ -514,10 +513,14 @@ findings nobody was asked to write, or whose content changed).
 that run's `run`, its last offered batch split into `valid`, `invalid`,
 `unwritten` and `unasked`, each entry a `spawn` ref with the outline
 `question` and `profile` that own its stem (or, for an unasked finding, the
-pair it names), and the absolute `quarantine` paths of its invalid findings.
-That plan is drawn as if each `quarantine` finding were already renamed to
-its `.<name>.invalid` marker, and a `warning:` line on stderr asks a hand run
-to rename them; no `warnings` entry accompanies it. A corrupt ledger yields a
+pair it names), the absolute `quarantine` paths of its invalid findings, and
+`owed`, the stems of findings an earlier `--start` listed for quarantine that
+are still on disk, whose paths `quarantine` also holds. That plan is drawn as
+if each `quarantine` finding were already renamed to its `.<name>.invalid`
+marker, and a `warning:` line on stderr asks a hand run to rename them; no
+`warnings` entry accompanies it. The run's ledger owes those renames: until
+each is done, `--run` exits 1 with `E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a
+later `--start` lists them again in `owed`. A corrupt ledger yields a
 `warnings` entry alone.
 `accelerator research topic end-run SLUG --run ID` removes the run's
 ledger when the run finishes.
@@ -541,6 +544,7 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
+| `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
 
 ## Local development
 

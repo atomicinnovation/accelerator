@@ -281,6 +281,9 @@ where
         &UnicodeTables,
     )
     .map_err(|error| error.to_string())?;
+    let continued = continued
+        .map(|ledger| settled(ledger, &reading.inputs, set_root))
+        .transpose()?;
     let replaced_batch = replaced.judging_findings(&reading.inputs);
     let inputs = match &replaced_batch {
         Some(replaced_batch) => {
@@ -294,7 +297,11 @@ where
     });
     let observed = Observed::of(&inputs);
     let ledger = match mode {
-        RunMode::Start(run) => Some(RunLedger::start(run, &observed)),
+        RunMode::Start(run) => {
+            Some(RunLedger::start(run, &observed).owing_quarantine(
+                replaced_run.as_ref().map_or(&[], ReplacedRun::quarantine),
+            ))
+        }
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
@@ -387,6 +394,32 @@ fn continued_ledger<F: FileReader>(
         Ok(None) | Err(LedgerError::Corrupt) => Err(no_usable_ledger(run)),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
+}
+
+fn settled(
+    ledger: RunLedger,
+    inputs: &RoundInputs,
+    set_root: &Path,
+) -> Result<RunLedger, String> {
+    let run = ledger.run().clone();
+    ledger.settling_quarantine(inputs).map_err(|owed| {
+        let paths: Vec<String> = owed
+            .stems
+            .iter()
+            .map(|stem| {
+                set_root
+                    .join(stem.finding_path())
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        failed(format!(
+            "E_TOPIC_RESEARCH_QUARANTINE_OWED: run {run} still owes the \
+             quarantine of {}; rename each to .<name>.invalid beside it, \
+             never deleting it, then re-run conduct",
+            paths.join(", ")
+        ))
+    })
 }
 
 fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
@@ -583,6 +616,11 @@ impl PlanOutput<'_> {
                 .quarantine()
                 .iter()
                 .map(|stem| self.absolute(&stem.finding_path()))
+                .collect::<Vec<_>>(),
+            "owed": replaced
+                .owed()
+                .iter()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         })
     }

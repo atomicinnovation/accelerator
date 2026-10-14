@@ -141,7 +141,11 @@
   `--start` over another run's readable ledger reports that run's last batch
   as `replaced_run` and plans as if its invalid findings were already
   quarantined; `conduct` shows that report before its first batch and
-  quarantines those findings. A run keeps a transient
+  quarantines those findings. The new run's ledger records those renames as
+  owed: a later `--start` quarantines and plans around any owed finding still
+  on disk, listing it in `replaced_run.owed`, and `--run` exits 1 with
+  `E_TOPIC_RESEARCH_QUARANTINE_OWED` until each is renamed. A run keeps a
+  transient
   `<set>/.conduct-run.json`, removed on completion; a leftover one means a
   run did not end, and re-running `conduct` recovers what it left, where
   deleting the ledger would skip that. `conduct`'s failure-reason table

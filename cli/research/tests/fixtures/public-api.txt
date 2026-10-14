@@ -106,6 +106,16 @@ impl core::marker::Copy for research::conduct::concurrency::SubagentCap
 impl core::marker::StructuralPartialEq for research::conduct::concurrency::SubagentCap
 pub const research::conduct::concurrency::BUILT_IN_CONCURRENCY: core::num::nonzero::NonZeroU32
 pub mod research::conduct::ledger
+pub struct research::conduct::ledger::OwedQuarantine
+pub research::conduct::ledger::OwedQuarantine::stems: alloc::vec::Vec<research::topic::layout::stem::Stem>
+impl core::clone::Clone for research::conduct::ledger::OwedQuarantine
+pub fn research::conduct::ledger::OwedQuarantine::clone(&self) -> research::conduct::ledger::OwedQuarantine
+impl core::cmp::Eq for research::conduct::ledger::OwedQuarantine
+impl core::cmp::PartialEq for research::conduct::ledger::OwedQuarantine
+pub fn research::conduct::ledger::OwedQuarantine::eq(&self, other: &research::conduct::ledger::OwedQuarantine) -> bool
+impl core::fmt::Debug for research::conduct::ledger::OwedQuarantine
+pub fn research::conduct::ledger::OwedQuarantine::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::ledger::OwedQuarantine
 pub struct research::conduct::ledger::RunId(_)
 impl research::conduct::ledger::RunId
 pub fn research::conduct::ledger::RunId::mint(timestamp: &str, suffix: u32) -> Self
@@ -126,8 +136,10 @@ pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::t
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
 pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
+pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
 impl core::clone::Clone for research::conduct::ledger::RunLedger
 pub fn research::conduct::ledger::RunLedger::clone(&self) -> research::conduct::ledger::RunLedger
@@ -168,6 +180,7 @@ impl core::marker::StructuralPartialEq for research::conduct::memory::PendingBat
 pub struct research::conduct::memory::RunMemory
 pub research::conduct::memory::RunMemory::attempted: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
 pub research::conduct::memory::RunMemory::just_acknowledged: alloc::collections::btree::set::BTreeSet<research::conduct::spawn::SpawnRef>
+pub research::conduct::memory::RunMemory::owed_quarantine: alloc::collections::btree::set::BTreeSet<research::topic::layout::stem::Stem>
 pub research::conduct::memory::RunMemory::pending: research::conduct::memory::PendingBatch
 pub research::conduct::memory::RunMemory::seen: research::conduct::observed::Observed
 impl research::conduct::memory::RunMemory
@@ -228,6 +241,7 @@ impl core::marker::StructuralPartialEq for research::conduct::replaced_run::Repl
 pub struct research::conduct::replaced_run::ReplacedRun
 impl research::conduct::replaced_run::ReplacedRun
 pub fn research::conduct::replaced_run::ReplacedRun::invalid(&self) -> &[research::conduct::replaced_run::Leftover]
+pub fn research::conduct::replaced_run::ReplacedRun::owed(&self) -> &[research::topic::layout::stem::Stem]
 pub fn research::conduct::replaced_run::ReplacedRun::quarantine(&self) -> &[research::topic::layout::stem::Stem]
 pub const fn research::conduct::replaced_run::ReplacedRun::run(&self) -> &research::conduct::ledger::RunId
 pub fn research::conduct::replaced_run::ReplacedRun::unasked(&self) -> &[research::conduct::replaced_run::Leftover]

@@ -8,6 +8,8 @@ use crate::conduct::observed::Observed;
 use crate::conduct::spawn::SpawnRef;
 use crate::conduct::window::Window;
 use crate::topic::claims::ClaimedIndexes;
+use crate::topic::layout::stem::Stem;
+use crate::topic::plan::RoundInputs;
 use crate::topic::plan::RoundPlan;
 
 const LONGEST_RUN_ID: usize = 64;
@@ -52,6 +54,12 @@ pub struct Superseded {
     pub by: RunId,
 }
 
+/// Findings a run was started owing to quarantine that are still on disk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwedQuarantine {
+    pub stems: Vec<Stem>,
+}
+
 impl RunLedger {
     /// Everything `observed` shows counts as seen, so a resumed set's
     /// existing notes and findings are never reported as unexpected.
@@ -65,6 +73,36 @@ impl RunLedger {
                 ..RunMemory::default()
             },
         }
+    }
+
+    /// The plan that started this run already reads `stems` as quarantined,
+    /// so the run owes their renames until they leave the set.
+    #[must_use]
+    pub fn owing_quarantine(mut self, stems: &[Stem]) -> Self {
+        self.memory.owed_quarantine.extend(stems.iter().cloned());
+        self
+    }
+
+    /// # Errors
+    ///
+    /// [`OwedQuarantine`] when a finding the run owes quarantining is still
+    /// among `inputs`.
+    pub fn settling_quarantine(
+        mut self,
+        inputs: &RoundInputs,
+    ) -> Result<Self, OwedQuarantine> {
+        let remaining: Vec<Stem> = inputs
+            .findings
+            .iter()
+            .filter_map(|finding| finding.stem())
+            .filter(|stem| self.memory.owed_quarantine.contains(stem))
+            .cloned()
+            .collect();
+        if !remaining.is_empty() {
+            return Err(OwedQuarantine { stems: remaining });
+        }
+        self.memory.owed_quarantine.clear();
+        Ok(self)
     }
 
     /// Acknowledging a batch forgets the digests of its nodes' notes, so a
@@ -148,6 +186,7 @@ impl RunLedger {
 mod tests {
     use std::collections::BTreeSet;
 
+    use super::OwedQuarantine;
     use super::RunId;
     use super::RunLedger;
     use super::Superseded;
@@ -158,6 +197,7 @@ mod tests {
     use crate::conduct::window::Window;
     use crate::topic::claims::ClaimedIndexes;
     use crate::topic::evidence::Digest;
+    use crate::topic::evidence::Finding;
     use crate::topic::layout::lineage::Lineage;
     use crate::topic::layout::note_ref::NoteRef;
     use crate::topic::layout::stem::Stem;
@@ -435,5 +475,58 @@ mod tests {
         let ledger =
             continued(ledger.record(&empty_plan(), &observed, &second), None);
         assert!(answered(&ledger).unexpected.is_empty());
+    }
+
+    fn stems(texts: &[&str]) -> Vec<Stem> {
+        texts
+            .iter()
+            .map(|text| Stem::parse(text).expect("a stem"))
+            .collect()
+    }
+
+    fn owing(texts: &[&str]) -> RunLedger {
+        started().owing_quarantine(&stems(texts))
+    }
+
+    fn holding_findings(names: &[&str]) -> RoundInputs {
+        RoundInputs {
+            findings: names.iter().map(|name| Finding::invalid(name)).collect(),
+            ..RoundInputs::default()
+        }
+    }
+
+    #[test]
+    fn a_started_ledger_owes_no_quarantine() {
+        assert!(started().memory().owed_quarantine.is_empty());
+    }
+
+    #[test]
+    fn a_run_cannot_settle_an_owed_quarantine_whose_finding_remains() {
+        let settled = owing(&["01-a-web", "02-b-web"]).settling_quarantine(
+            &holding_findings(&["02-b-web.md", "03-c-web.md"]),
+        );
+        assert_eq!(
+            settled,
+            Err(OwedQuarantine {
+                stems: stems(&["02-b-web"])
+            })
+        );
+    }
+
+    #[test]
+    fn a_run_whose_owed_findings_are_gone_owes_nothing() {
+        let settled = owing(&["01-a-web"])
+            .settling_quarantine(&holding_findings(&["03-c-web.md"]))
+            .expect("nothing left to quarantine");
+        assert!(settled.memory().owed_quarantine.is_empty());
+    }
+
+    #[test]
+    fn recording_a_plan_keeps_the_owed_quarantine() {
+        let ledger = recorded(owing(&["01-a-web"]), &["03-a-web"]);
+        assert_eq!(
+            ledger.memory().owed_quarantine,
+            stems(&["01-a-web"]).into_iter().collect()
+        );
     }
 }
