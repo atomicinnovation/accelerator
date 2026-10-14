@@ -598,20 +598,20 @@ description.
 
 #### Automated Verification:
 
-- [ ] Any fixtures added pass:
+- [x] Any fixtures added pass:
       `cargo test --manifest-path cli/Cargo.toml -p markdown`
-- [ ] Full local CI passes: `mise run`
+- [x] Full local CI passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] Every calibration control behaves as specified before the corpus
+- [x] Every calibration control behaves as specified before the corpus
       run
-- [ ] Every description and probe passes the event-stream and idempotence
+- [x] Every description and probe passes the event-stream and idempotence
       checks
-- [ ] Every description and probe passes the structure check
+- [x] Every description and probe passes the structure check
 - [ ] Every residual-wrap failure has a linked follow-up work item
-- [ ] The table renders as a table after the paragraph on GitHub
-- [ ] The "Corpus verification record" is complete
+- [x] The table renders as a table after the paragraph on GitHub
+- [x] The "Corpus verification record" is complete
 
 ---
 
@@ -931,14 +931,55 @@ Rolling back means reverting Phase 3. Phases 1 and 2 have no runtime effect.
 
 ## Corpus verification record
 
-Filled in during Phase 2.
+Run on 2026-10-14 against `markdown` at `pulldown-cmark` 0.13.4.
 
 - Commands:
-- Descriptions and probes checked:
-- Span-logic failures → fixtures:
-- Structural divergences → fixtures and fixes:
-- Residual wraps → follow-up work items:
+  - `corpus-verify <out> meta/prs/*-description.md probes/*.md`, a scratch
+    binary crate depending on `cli/markdown`, with the normaliser and
+    `github_extensions` copied verbatim from the crate
+  - per file, `gh api -X POST /markdown -f mode=markdown -F text=@in/<n>.md`,
+    the same for `out/<n>.md`, and `-f mode=gfm` for `out/<n>.md`: 366
+    calls
+  - `python3 -I normalise.py compare` for structure, and
+    `normalise.py brs` (counts `<br` openings) for residual wraps
+- Descriptions and probes checked: 115 descriptions and 7 probes, 122 in
+  all. All 122 pass event-stream equality, idempotence and the structure
+  check.
+- Span-logic failures → fixtures: none.
+- Structural divergences → fixtures and fixes: none. The span rule is
+  unchanged.
+- Residual wraps → follow-up work items: none in the corpus. The only
+  residual wrap is the `foo\t\t\nbar` probe, the predicted tab
+  hard-break divergence below.
 - Calibration controls (normaliser stability, structure, residual-wrap):
+  - normaliser stability: two renders each of the footnote and math probes
+    normalise identically; no attribute differs between renders, so no
+    unstable attribute is stripped
+  - structure: `foo\n- bar` against `foo - bar` differs, as required
+  - residual-wrap: `a\nb` shows an excess of 1 and `a  \nb` of 0
+  - normaliser rules: drop every `id` and `aria-labelledby` attribute and
+    every `href="#…"`, drop any attribute that differs between two renders
+    of one input, and collapse whitespace runs outside `<pre>` and `<code>`
 - Divergence probes → outcome (fixture name or follow-up), including the
   tab hard-break divergence:
-- By-hand table and footnote checks:
+  - table interrupting a paragraph: matches, already covered by
+    `a_table_interrupting_a_paragraph_stays_intact`
+  - lowercase alert: matches, `a_lowercase_alert_keeps_its_marker_line`
+  - unknown alert kind: matches, `an_unknown_alert_kind_joins_as_quoted_text`
+  - non-pipe lines after a table: matches, stay rows,
+    `lines_after_a_table_stay_its_rows`
+  - footnote definition's lazy continuation: matches,
+    `a_footnote_definitions_lazy_continuation_joins`
+  - inline math: matches, GitHub's `/markdown` renders `$…$` as text,
+    `dollar_delimited_math_joins_as_text`
+  - two trailing tabs: confirmed divergence. `pulldown-cmark` reads a hard
+    break and leaves the line wrapped; GitHub's `gfm` render still shows one
+    `<br>`. It renders no worse than today and is pinned by
+    `two_trailing_tabs_stay_a_hard_break`.
+  - The REST `/markdown` endpoint renders neither alert probe as an alert,
+    so the structure check cannot confirm alert rendering on the PR page.
+    The unwrap keeps the marker line on its own in both alert-kind cases
+    `pulldown-cmark` recognises.
+- By-hand table and footnote checks: the table probe renders, before and
+  after, as the paragraph `Some wrapped text` followed by a table; the
+  footnote probe's input render contains a `<section data-footnotes>`.
