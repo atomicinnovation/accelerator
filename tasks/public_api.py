@@ -19,6 +19,7 @@ _PINNED_CRATES = (
     "design",
     "document",
     "kernel",
+    "markdown",
     "migrate",
     "remote-projection",
     "research",
