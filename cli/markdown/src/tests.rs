@@ -2,12 +2,10 @@ use std::ops::Range;
 
 use pulldown_cmark::{BlockQuoteKind, CowStr, Event, Parser, Tag, TagEnd};
 
-use super::{
-    github_extensions, renders_as_soft_on_github, unwrap_soft_line_breaks,
-};
+use crate::github::{extensions, renders_as_soft, unwrap_soft_line_breaks};
 
 fn events(markdown: &str) -> Vec<(Event<'_>, Range<usize>)> {
-    Parser::new_ext(markdown, github_extensions())
+    Parser::new_ext(markdown, extensions())
         .into_offset_iter()
         .collect()
 }
@@ -34,7 +32,7 @@ fn hard_break_offsets(markdown: &str) -> Vec<(usize, usize)> {
 fn normalised_events(markdown: &str) -> Vec<Event<'static>> {
     let mut normalised: Vec<Event<'static>> = Vec::new();
     for (event, range) in events(markdown) {
-        let event = if renders_as_soft_on_github(markdown, &event, &range) {
+        let event = if renders_as_soft(markdown, &event, &range) {
             Event::Text(CowStr::from(" "))
         } else {
             event.into_static()

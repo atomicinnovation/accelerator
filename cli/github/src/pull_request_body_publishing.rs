@@ -9,6 +9,6 @@ pub struct GitHubPullRequestBodyPublishing;
 
 impl PullRequestBodyPublishing for GitHubPullRequestBodyPublishing {
     fn prepare_for_publishing(&self, body: &str) -> String {
-        markdown::unwrap_soft_line_breaks(body)
+        markdown::github::unwrap_soft_line_breaks(body)
     }
 }
