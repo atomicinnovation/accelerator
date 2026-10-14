@@ -256,7 +256,7 @@ code that turns it green.
 | `a_wrapped_paragraph_joins_but_a_hard_break_and_code_survive` | `Wrapped\nparagraph  \nhard\nbreak\n\n```\ncode\nline\n```\n` → `Wrapped paragraph  \nhard break\n\n```\ncode\nline\n```\n` |
 | `a_blockquote_continuation_drops_its_marker` | `> first line\n> second line` → `> first line second line` |
 | `list_item_continuations_join` | `- item\n  continued` → `- item continued`; `- item\n\tcontinued` → `- item continued`; `- item\nlazy` → `- item lazy`; `1. item\n   continued` → `1. item continued` |
-| `nested_containers_join_inside_their_own_item` | `> - item\n>   continued` → `> - item continued`; `- a\n  - nested\n    more` → `- a\n  - nested more`; `> first\nsecond` → `> first second`; `- [ ] task\n  wrapped` → `- [ ] task wrapped` |
+| `nested_containers_join_inside_their_own_item` | `> - item\n>   continued` → `> - item continued`; `- a\n  - nested\n    more` → `- a\n  - nested more`; `> first\nsecond` → `> first second`; `- [x] task\n  wrapped` → `- [x] task wrapped` |
 | `a_line_that_cannot_interrupt_a_paragraph_joins_as_text` | `foo\n2. bar` → `foo 2. bar`; `foo\n-bar` → `foo -bar`; `foo\n#5 bar` → `foo #5 bar` |
 | `a_marker_after_deep_indentation_stays_literal_text` | `foo\n    > bar` → `foo > bar` |
 | `a_line_that_interrupts_a_paragraph_starts_its_own_block` | unchanged: `foo\n- bar`, `foo\n1. bar`, `foo\n# bar`, `foo\n> bar` |
@@ -465,23 +465,23 @@ code needs no comment.
 
 #### Automated Verification:
 
-- [ ] Crate tests pass:
+- [x] Crate tests pass:
       `cargo test --manifest-path cli/Cargo.toml -p markdown`
-- [ ] Workspace lint passes: `mise run cli:check`
-- [ ] Role declarations pass: `mise run lint:crate-dependencies:check` and
+- [x] Workspace lint passes: `mise run cli:check`
+- [x] Role declarations pass: `mise run lint:crate-dependencies:check` and
       `mise run test:unit:tasks`
-- [ ] Architecture rules pass: `mise run pup:check` and
+- [x] Architecture rules pass: `mise run pup:check` and
       `mise run test:integration:pup`
-- [ ] Public API pin passes: `mise run public-api:check`
-- [ ] Supply chain passes: `mise run deny:check`
-- [ ] Notices are current: `mise run notices:check`
-- [ ] Full local CI passes: `mise run`
+- [x] Public API pin passes: `mise run public-api:check`
+- [x] Supply chain passes: `mise run deny:check`
+- [x] Notices are current: `mise run notices:check`
+- [x] Full local CI passes: `mise run`
 
 #### Manual Verification:
 
-- [ ] `cli/markdown/tests/fixtures/public-api.txt` names only
+- [x] `cli/markdown/tests/fixtures/public-api.txt` names only
       `unwrap_soft_line_breaks`
-- [ ] No comment in `cli/markdown/src/` restates what the code says
+- [x] No comment in `cli/markdown/src/` restates what the code says
 
 ---
 
