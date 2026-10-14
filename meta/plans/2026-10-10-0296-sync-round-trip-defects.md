@@ -1873,11 +1873,16 @@ parse `work sync` output need updating.
 
 #### Manual Verification:
 
-- [ ] Copy this repo's `last-sync.json`, run `work sync --preview`, confirm
+- [x] Copy this repo's `last-sync.json`, run `work sync --preview`, confirm
       byte-identical; run `work sync` on a scratch clone and confirm every
       classified entry other than a residue conflict gains
       `"digest_recipe":1` with no work-item file changed (`jj diff --stat
       meta/work` empty)
+      (2026-10-14, scratch copy, `--pull-only` so nothing reached Linear:
+      preview left `last-sync.json` byte-identical; the run gave 276 of 300
+      entries recipe 1 with no work-item file changed; the 23 unsettled
+      conflicts keep the legacy recipe, and 0184's pull failed as 0300's
+      writer-root defect)
 
 #### Implementation Notes:
 
@@ -2406,11 +2411,18 @@ legacy-unrenderable` dossier naming the remedies that settle it.
 
 #### Manual Verification:
 
-- [ ] `mise run test:integration:tracker-contract` with a configured tenant,
+- [x] `mise run test:integration:tracker-contract` with a configured tenant,
       including an `update` without a title per tracker that leaves the
       remote title unchanged
+      (2026-10-14: 14 of 14 passed, both live conformance sets carrying
+      `update_without_a_title_keeps_the_title`)
 - [ ] On a scratch clone of this repo, `work sync --preview` reports far
       fewer conflicts than the 25 of 2026-10-10, each with a real difference
+      (2026-10-14: 25 conflicts, every one a real difference once the
+      captured cosmetic rewrites are normalised out — 23 legacy items edited
+      locally since their last sync, and 0296 and 0299 with no entry; the
+      count did not fall because genuine local edits accumulated since
+      2026-10-10)
 
 #### Implementation Notes:
 
