@@ -2395,12 +2395,12 @@ legacy-unrenderable` dossier naming the remedies that settle it.
 
 #### Automated Verification:
 
-- [ ] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters -p accelerator-work -p tracker-test-support -p tracker -p jira-client -p linear-client`
-- [ ] `rg -n 'record-baseline' skills/work/sync-work-items/SKILL.md`,
+- [x] `cargo nextest run --manifest-path cli/Cargo.toml -p work -p work-adapters -p accelerator-work -p tracker-test-support -p tracker -p jira-client -p linear-client`
+- [x] `rg -n 'record-baseline' skills/work/sync-work-items/SKILL.md`,
       `rg -n '^recorded:' skills/work/sync-work-items/SKILL.md` and
       `rg -n 'reason: legacy-unrenderable' skills/work/sync-work-items/SKILL.md`
       each match
-- [ ] `mise run public-api:check` (after `public-api:update` for `work` and
+- [x] `mise run public-api:check` (after `public-api:update` for `work` and
       `tracker`)
 - [ ] `mise run` exits 0
 
@@ -2411,6 +2411,46 @@ legacy-unrenderable` dossier naming the remedies that settle it.
       remote title unchanged
 - [ ] On a scratch clone of this repo, `work sync --preview` reports far
       fewer conflicts than the 25 of 2026-10-10, each with a real difference
+
+#### Implementation Notes:
+
+- `classify` computes a `LocalChange` and `RemoteChange` per fact through
+  `work::sync::local_change`, which the fetch probe also calls; the residue
+  gate and the legacy exceptions live in `classify_legacy`, recovery in a
+  shared `recover`, and rule 3 in `reconcile_fields`.
+- The classify table holds 81 rows; `Action::Push` carries its
+  `FieldDelivery`, and `Display` writes `push` for both deliveries.
+- `send_refusal` takes an `EntryShape`; an absent or unknown-recipe entry
+  counts as legacy. `legacy_unrenderable` is the one predicate the refusal,
+  the dossier and `finalise_run`'s hash retention share.
+- `IntendedBaseline::next_sync(key, promoted, comparison)` returns a
+  `Result`; `finish_promotion` takes a `RemoteReading` (tracker and parser),
+  shows the issue, and predicts `Synced` when a read fails. `SettlementPorts`
+  carries the same `RemoteReading`.
+- `the_predicted_state_equals_the_next_sync_run_for_every_disposition`
+  found that a promotion stamped its entry's watermark with its own time
+  while the local digests could describe the draft, so the mtime
+  pre-filter hid a pending key-H1 push; promotion now records watermark 0.
+- `a_pull_only_run_leaves_a_pending_title_change_for_the_next_run` found
+  that a run advanced the watermark of a change it deferred as `noop`, so
+  a `--pull-only` run hid a local edit from every later run;
+  `definitively_reconciled` now excludes a deferred `locally-modified` or
+  `remotely-modified` item.
+- The run-level scenarios live in `sync_equivalence.rs`, over a
+  write-through harness in `tests/support/repo.rs`;
+  `RecordingTracker::edit_remotely` stands for an edit made in the tracker.
+- `Rewrite::AutolinkDottedTokens` changes meaning, as Phase 6 pins, so the
+  cosmetic-rewrite scenarios use the other eleven rewrites.
+- `a_remote_resolution_without_a_fetched_body_fails_the_item_and_writes_nothing`
+  is retired: the fetch rule now always reads a remote whose entry lacks a
+  hash, so a planned pull can no longer meet an unfetched body.
+- Not written: `the_applier_refuses_a_push_over_an_unrenderable_remote`
+  (the refusal lives in the run, not `ItemApplier`, and
+  `send_refusal`'s unit rows pin it), the real-client duplicates of
+  dialect-level scenarios in `sync_run_real_client.rs`,
+  `a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash`,
+  and a state assertion in `a_create_then_sync_reports_synced`, whose
+  harness exposes only the exit code.
 
 ---
 
