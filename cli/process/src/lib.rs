@@ -1,14 +1,16 @@
-//! When a process started, as seconds since the epoch.
+//! Host-level process primitives: when a process started, and which
+//! descriptors it holds.
 //!
-//! Extracted from the visualiser server so the Playwright launcher can share
-//! the primitive without inheriting an application crate's dependency graph.
-//! `libc` is the only dependency, because this is two platform reads and some
-//! arithmetic.
-//!
-//! The identity *semantics* built on top of this — what a mismatch means, what
-//! an unobtainable value means, whether either warrants signalling anything —
-//! deliberately do not live here. Two callers make different choices, and the
-//! shared part is only the epoch read.
+//! Only the operating-system reads live here. The *semantics* built on top of
+//! them — what a start-time mismatch means, what an unobtainable value means,
+//! whether either warrants signalling anything — deliberately do not. Callers
+//! make different choices, and the shared part is only the read.
+
+#[cfg(unix)]
+mod descriptors;
+
+#[cfg(unix)]
+pub use descriptors::{close_inherited_descriptors, descriptors_above_stdio};
 
 /// Seconds since the epoch at which `pid` started, or `None` when the host
 /// cannot say.

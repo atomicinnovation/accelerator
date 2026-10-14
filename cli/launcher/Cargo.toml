@@ -29,11 +29,19 @@ path = "src/main.rs"
 name = "accelerator-fixture"
 path = "tests/fixtures/accelerator_fixture.rs"
 
+# Test fixture: a stand-in daemon holding tree leases, found through
+# CARGO_BIN_EXE_launcher-fixture-lease-holder; not a shipped artifact.
+[[bin]]
+name = "launcher-fixture-lease-holder"
+path = "tests/fixtures/launcher_fixture_lease_holder.rs"
+
 [dependencies]
 kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
+lease = { path = "../lease" }
+process = { path = "../process" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }
@@ -64,5 +72,6 @@ toml = { workspace = true }
 [dev-dependencies]
 time = { workspace = true }
 tempfile = { workspace = true }
+tracing-subscriber = { workspace = true }
 http-test-support = { path = "../http-test-support" }
 vcs-test-support = { path = "../vcs-test-support" }

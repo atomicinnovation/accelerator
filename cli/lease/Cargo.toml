@@ -1,5 +1,5 @@
 [package]
-name = "process-probe"
+name = "lease"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,4 +13,7 @@ role = "technical-library"
 workspace = true
 
 [dependencies]
-libc = { workspace = true }
+rustix = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

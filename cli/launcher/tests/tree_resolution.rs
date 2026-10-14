@@ -26,12 +26,13 @@ use accelerator::launch::outbound::resolve::cache_root::probe_attempts;
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::tree::lease::{
-    probe_liveness, Liveness,
+    FlockProbe, Liveness, LivenessProbe,
 };
 use accelerator::launch::outbound::resolve::tree::{
     ExpectedDigests, MaterialiseStep, NoSteps, StepObserver, TreeResolver,
 };
 use accelerator::launch::outbound::resolve::HOST_PLATFORM;
+use lease::probe_shared_lease;
 use std::fmt::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
 
@@ -260,18 +261,51 @@ struct Harness {
 
 impl Harness {
     fn resolver(&self) -> TreeResolver<'_> {
-        self.resolver_with(&StoppedClock, &NoSteps)
+        self.resolver_with(&StoppedClock, &FlockProbe, &NoSteps)
     }
 
     fn resolver_with<'a>(
         &'a self,
         clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
+        self.resolver_over(
+            &self.archive_sha,
+            "test-install",
+            clock,
+            liveness,
+            steps,
+        )
+    }
+
+    /// A second launcher sharing this cache and release, expecting `digest`.
+    fn resolver_expecting<'a>(
+        &'a self,
+        digest: &str,
+        clock: &'a dyn Clock,
+    ) -> TreeResolver<'a> {
+        self.resolver_over(
+            digest,
+            "second-install",
+            clock,
+            &FlockProbe,
+            &NoSteps,
+        )
+    }
+
+    fn resolver_over<'a>(
+        &'a self,
+        digest: &str,
+        launcher_id: &str,
+        clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
         steps: &'a dyn StepObserver,
     ) -> TreeResolver<'a> {
         let mut digests = BTreeMap::new();
         digests.insert(
             (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-            self.archive_sha.clone(),
+            digest.to_owned(),
         );
         TreeResolver {
             cache_root: self.cache.clone(),
@@ -284,7 +318,8 @@ impl Harness {
                     .expect("fetcher"),
             )),
             clock,
-            launcher_id: "test-install".to_owned(),
+            liveness,
+            launcher_id: launcher_id.to_owned(),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
             steps,
@@ -419,7 +454,7 @@ fn acquire_holds_a_lease_and_a_cold_materialise_probes_the_root_once() {
     );
     // The lease is held: a prune-style exclusive probe would see it as live.
     assert_eq!(
-        probe_liveness(&acquired.tree.lease_path),
+        probe_shared_lease(&acquired.tree.lease_path),
         Liveness::Held,
         "acquire must hold the tree's lease"
     );
@@ -444,6 +479,22 @@ fn a_second_resolution_of_the_same_digest_reuses_the_generation() {
         fetches,
         "a reuse must issue no further archive fetch"
     );
+}
+
+/// The design executor leases a cold-path tree only at its `.lease` sibling,
+/// so a layout change here would silently leave every such tree unleased.
+#[test]
+fn every_sealed_tree_carries_its_lease_beside_it() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let resolver = harness.resolver();
+
+    let fresh = resolver.materialise(ARTIFACT).expect("fresh");
+    let reused = resolver.materialise(ARTIFACT).expect("reused");
+
+    for sealed in [fresh, reused] {
+        assert_eq!(sealed.lease_path, lease::lease_beside(&sealed.path));
+    }
 }
 
 #[test]
@@ -516,7 +567,7 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
 
         let crash = CrashAfter(step);
         let outcome = harness
-            .resolver_with(&StoppedClock, &crash)
+            .resolver_with(&StoppedClock, &FlockProbe, &crash)
             .materialise(ARTIFACT);
         assert!(
             outcome.is_err(),
@@ -534,7 +585,7 @@ fn a_crash_at_each_publish_step_leaves_only_reclaimable_garbage() {
         let far_future =
             AdvancingClock(std::sync::atomic::AtomicU64::new(1 << 40));
         harness
-            .resolver_with(&far_future, &NoSteps)
+            .resolver_with(&far_future, &FlockProbe, &NoSteps)
             .prune(ARTIFACT, None)
             .expect("prune");
         let residue = residual_generations(&harness);
@@ -553,7 +604,7 @@ fn a_failed_winner_releases_the_lock_and_the_next_makes_progress() {
     // The winner crashes mid-materialisation.
     let crash = CrashAfter(MaterialiseStep::Extracted);
     assert!(harness
-        .resolver_with(&StoppedClock, &crash)
+        .resolver_with(&StoppedClock, &FlockProbe, &crash)
         .materialise(ARTIFACT)
         .is_err());
 
@@ -586,7 +637,7 @@ fn the_bounded_waiter_expires_with_materialisation_in_progress() {
     // without any real sleep, and yields the non-sticky in-progress cause.
     let clock = AdvancingClock(std::sync::atomic::AtomicU64::new(0));
     let outcome = harness
-        .resolver_with(&clock, &NoSteps)
+        .resolver_with(&clock, &FlockProbe, &NoSteps)
         .materialise(ARTIFACT);
     assert!(
         matches!(outcome, Err(TreeError::MaterialisationInProgress { .. })),
@@ -644,8 +695,6 @@ fn residual_generations(harness: &Harness) -> Vec<String> {
         })
         .collect()
 }
-
-// ---- the `accelerator cache` built-in ----
 
 use accelerator::launch::cache;
 use accelerator::launch::inbound::cli::CacheAction;
@@ -843,8 +892,6 @@ fn cache_prune_reclaims_orphan_residue() {
     assert!(!orphan.exists(), "prune left an orphan temp tree");
 }
 
-// ---- retention claims ----
-
 use accelerator::launch::outbound::resolve::tree::claims;
 
 /// Publish a second pointer for a *different* digest (a sibling install's pin)
@@ -898,7 +945,7 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
 
     // With a present-time clock the sibling's fresh claim spares its generation.
     harness
-        .resolver_with(&FixedClock(present), &NoSteps)
+        .resolver_with(&FixedClock(present), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, None)
         .expect("prune");
     assert!(
@@ -909,7 +956,7 @@ fn prune_spares_a_sibling_claim_inside_the_window_and_reclaims_a_stale_one() {
     // A clock a fortnight on sees the same claim as stale, and reclaims it.
     let later = present + claims::CLAIM_WINDOW.as_secs() + 1;
     harness
-        .resolver_with(&FixedClock(later), &NoSteps)
+        .resolver_with(&FixedClock(later), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, None)
         .expect("prune");
     assert!(
@@ -945,7 +992,7 @@ fn prune_older_than_overrides_the_window() {
 
     // A one-second retention window makes even a just-now claim stale.
     harness
-        .resolver_with(&FixedClock(present + 2), &NoSteps)
+        .resolver_with(&FixedClock(present + 2), &FlockProbe, &NoSteps)
         .prune(ARTIFACT, Some(std::time::Duration::from_secs(1)))
         .expect("prune");
     assert!(
@@ -953,8 +1000,6 @@ fn prune_older_than_overrides_the_window() {
         "--older-than must override the default window"
     );
 }
-
-// ---- ownership, verify shapes, and lease sparing ----
 
 #[test]
 fn a_cache_root_at_0775_still_resolves_since_the_launcher_owns_trees() {
@@ -1053,7 +1098,7 @@ fn verify_detects_an_unexpected_extra_entry() {
 
 #[test]
 fn prune_spares_a_generation_whose_lease_is_still_held() {
-    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+    use lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
@@ -1074,7 +1119,7 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
 
     // No claim at all, so the sibling is stale — but the held lease spares it.
     harness
-        .resolver_with(&StoppedClock, &NoSteps)
+        .resolver_with(&StoppedClock, &FlockProbe, &NoSteps)
         .prune(ARTIFACT, Some(std::time::Duration::from_secs(0)))
         .expect("prune");
     assert!(
@@ -1082,6 +1127,343 @@ fn prune_spares_a_generation_whose_lease_is_still_held() {
         "a leased generation must be spared by prune"
     );
     let _ = sealed;
+}
+
+use accelerator::launch::outbound::resolve::tree::layout::TreePaths;
+
+/// Answers every probe the same way, so `Held` and `Unknown` can be exercised
+/// without a live holder or a filesystem that lacks `flock`.
+struct FixedLiveness(Liveness);
+
+impl LivenessProbe for FixedLiveness {
+    fn probe(&self, _lease: &std::path::Path) -> Liveness {
+        self.0
+    }
+}
+
+const BACKSTOP_SECONDS: u64 = 3600;
+const ZERO: std::time::Duration = std::time::Duration::from_secs(0);
+
+fn wall_clock_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+fn aged() -> FixedClock {
+    FixedClock(wall_clock_now() + 2 * BACKSTOP_SECONDS)
+}
+
+fn tree_paths(harness: &Harness) -> TreePaths {
+    TreePaths::under(&harness.cache)
+}
+
+fn sibling_generation(digest: &str) -> String {
+    format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}-1-0011223344556677")
+}
+
+fn plant_unreferenced_generation(harness: &Harness) -> std::path::PathBuf {
+    let generation =
+        tree_paths(harness).generation(&sibling_generation(&"c".repeat(64)));
+    std::fs::create_dir_all(&generation).unwrap();
+    generation
+}
+
+fn sidecars_of(
+    harness: &Harness,
+    generation: &std::path::Path,
+) -> [std::path::PathBuf; 3] {
+    let paths = tree_paths(harness);
+    let name = generation_name_of(generation);
+    [
+        paths.lease(&name),
+        paths.attestation(&name),
+        paths.attestation_signature(&name),
+    ]
+}
+
+fn plant_sidecars(harness: &Harness, generation: &std::path::Path) {
+    for sidecar in sidecars_of(harness, generation) {
+        std::fs::write(sidecar, b"").unwrap();
+    }
+}
+
+fn assert_sidecars_survive(harness: &Harness, generation: &std::path::Path) {
+    for sidecar in sidecars_of(harness, generation) {
+        assert!(sidecar.exists(), "{} was removed", sidecar.display());
+    }
+}
+
+#[test]
+fn an_injected_held_probe_spares_a_stale_sibling_in_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let sibling = plant_sibling_generation(&harness);
+
+    harness
+        .resolver_with(&StoppedClock, &FixedLiveness(Liveness::Held), &NoSteps)
+        .prune(ARTIFACT, Some(ZERO))
+        .expect("prune");
+
+    assert!(tree_paths(&harness)
+        .generation(&sibling_generation(&sibling))
+        .exists());
+}
+
+#[test]
+fn an_injected_held_probe_spares_a_superseded_generation_in_repair() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&StoppedClock, &FixedLiveness(Liveness::Held), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(old.path.exists());
+}
+
+#[test]
+fn an_injected_held_probe_spares_an_aged_orphan_in_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let orphan = plant_unreferenced_generation(&harness);
+    plant_sidecars(&harness, &orphan);
+
+    harness
+        .resolver_with(&aged(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(orphan.exists());
+    assert_sidecars_survive(&harness, &orphan);
+}
+
+#[test]
+fn an_injected_held_probe_spares_an_aged_orphan_while_materialising() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    std::fs::create_dir_all(tree_paths(&harness).root()).unwrap();
+    let orphan = plant_unreferenced_generation(&harness);
+
+    harness
+        .resolver_with(&aged(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    assert!(orphan.exists());
+}
+
+fn fresh() -> FixedClock {
+    FixedClock(wall_clock_now())
+}
+
+fn sibling_pointer(harness: &Harness, digest: &str) -> std::path::PathBuf {
+    harness
+        .cache
+        .join("trees")
+        .join(format!("{ARTIFACT}-{HOST_PLATFORM}-{digest}.ref"))
+}
+
+/// Prunes an unclaimed sibling at a zero window and reports whether its
+/// generation and pointer both survived; panics if only one did.
+fn unclaimed_sibling_kept(
+    liveness: Liveness,
+    clock: fn() -> FixedClock,
+) -> bool {
+    let minisign = minisign_bin().expect("minisign");
+    let harness = happy_harness(&minisign);
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let sibling = plant_sibling_generation(&harness);
+
+    harness
+        .resolver_with(&clock(), &FixedLiveness(liveness), &NoSteps)
+        .prune(ARTIFACT, Some(ZERO))
+        .expect("prune");
+
+    let generation = tree_paths(&harness)
+        .generation(&sibling_generation(&sibling))
+        .exists();
+    let pointer = sibling_pointer(&harness, &sibling).exists();
+    assert_eq!(generation, pointer, "the generation and its pointer split");
+    generation
+}
+
+#[test]
+fn an_unclaimed_held_generation_is_kept_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(unclaimed_sibling_kept(Liveness::Held, aged));
+}
+
+#[test]
+fn an_unclaimed_free_generation_is_reclaimed_while_young() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Free, fresh));
+}
+
+#[test]
+fn an_unclaimed_free_generation_is_reclaimed_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Free, aged));
+}
+
+#[test]
+fn an_unclaimed_unknown_generation_is_kept_while_young() {
+    let _ = minisign_or_skip!();
+    assert!(unclaimed_sibling_kept(Liveness::Unknown, fresh));
+}
+
+#[test]
+fn an_unclaimed_unknown_generation_is_reclaimed_once_aged() {
+    let _ = minisign_or_skip!();
+    assert!(!unclaimed_sibling_kept(Liveness::Unknown, aged));
+}
+
+fn generation_name_of(sealed: &std::path::Path) -> String {
+    sealed.file_name().unwrap().to_str().unwrap().to_owned()
+}
+
+fn back_date_two_days(path: &std::path::Path) {
+    let then = std::time::SystemTime::now()
+        - std::time::Duration::from_secs(2 * 86_400);
+    std::fs::File::open(path)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
+}
+
+fn mtime_of(path: &std::path::Path) -> std::time::SystemTime {
+    std::fs::symlink_metadata(path).unwrap().modified().unwrap()
+}
+
+#[test]
+fn a_superseded_free_generation_is_reclaimed() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Free), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(!old.path.exists());
+}
+
+#[test]
+fn a_superseded_unknown_generation_is_kept() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Unknown), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert!(old.path.exists());
+    assert_sidecars_survive(&harness, &old.path);
+}
+
+#[test]
+fn a_kept_unknown_superseded_generation_is_reaped_once_aged() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let unknown = FixedLiveness(Liveness::Unknown);
+
+    harness
+        .resolver_with(&fresh(), &unknown, &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+    assert!(old.path.exists());
+
+    harness
+        .resolver_with(&aged(), &unknown, &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(!old.path.exists());
+    let paths = tree_paths(&harness);
+    let generation = generation_name_of(&old.path);
+    for sidecar in [
+        paths.attestation(&generation),
+        paths.attestation_signature(&generation),
+        paths.lease(&generation),
+    ] {
+        assert!(!sidecar.exists(), "{} survived", sidecar.display());
+    }
+}
+
+#[test]
+fn an_old_unknown_superseded_generation_is_kept_for_a_full_backstop() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    back_date_two_days(&old.path);
+    let unknown = FixedLiveness(Liveness::Unknown);
+
+    harness
+        .resolver_with(&fresh(), &unknown, &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+    assert!(old.path.exists());
+
+    let almost_a_backstop_later =
+        FixedClock(wall_clock_now() + BACKSTOP_SECONDS - 60);
+    harness
+        .resolver_with(&almost_a_backstop_later, &unknown, &NoSteps)
+        .prune(ARTIFACT, None)
+        .expect("prune");
+
+    assert!(old.path.exists());
+}
+
+#[test]
+fn a_held_superseded_generation_keeps_its_extraction_mtime() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let old = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    back_date_two_days(&old.path);
+    let extracted = mtime_of(&old.path);
+
+    harness
+        .resolver_with(&fresh(), &FixedLiveness(Liveness::Held), &NoSteps)
+        .repair(ARTIFACT, true)
+        .expect("forced repair");
+
+    assert_eq!(mtime_of(&old.path), extracted);
 }
 
 /// Make a sealed tree writable so a test can corrupt it.
@@ -1121,8 +1503,6 @@ const fn describe_kind(
         Discrepancy::LinkTarget { .. } => "link-target",
     }
 }
-
-// ---- cross-process Range resume ----
 
 #[test]
 fn an_interrupted_download_resumes_with_a_range_request() {
@@ -1195,8 +1575,6 @@ fn make_read_only(dir: &std::path::Path) {
     let _ =
         std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555));
 }
-
-// ---- corrupt archive, offline resolution, and digest sharing ----
 
 #[test]
 fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
@@ -1271,6 +1649,7 @@ fn two_launchers_with_the_same_digest_share_one_generation_offline() {
         launcher_id: "launcher-b".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
+        liveness: &FlockProbe,
         steps: &NoSteps,
     };
 
@@ -1314,6 +1693,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         launcher_id: "test-install".to_owned(),
         expected_digests: ExpectedDigests::Fixed(digests),
         waiter_bound: std::time::Duration::from_secs(5),
+        liveness: &FlockProbe,
         steps: &NoSteps,
     };
 
@@ -1366,8 +1746,6 @@ fn verify_succeeds_with_the_host_unreachable() {
         "verify is local and must not need the release host: {report:?}"
     );
 }
-
-// ---- the signed table anchor, and generation/pointer identity ----
 
 #[test]
 fn a_table_rewritten_to_match_a_substitution_is_caught_by_its_signed_digest() {
@@ -1449,8 +1827,6 @@ fn a_symlinked_generation_or_group_writable_pointer_is_a_miss() {
     );
 }
 
-// ---- repair under failure and live consumers ----
-
 #[test]
 fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
     let minisign = minisign_or_skip!();
@@ -1481,7 +1857,7 @@ fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
 
 #[test]
 fn a_repair_spares_a_superseded_generation_whose_lease_is_held() {
-    use accelerator::launch::outbound::resolve::tree::lease::hold_shared_lease;
+    use lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
@@ -1615,6 +1991,7 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
             launcher_id: format!("install-{platform}"),
             expected_digests: ExpectedDigests::Fixed(digests),
             waiter_bound: std::time::Duration::from_secs(5),
+            liveness: &FlockProbe,
             steps: &NoSteps,
         };
         resolver.materialise(ARTIFACT).expect("materialise").path
@@ -1637,4 +2014,143 @@ fn two_platforms_sharing_one_cache_root_each_resolve_their_own_tree() {
         .unwrap()
         .to_string_lossy()
         .contains(other_platform));
+}
+
+const LEASE_HOLDER: &str = env!("CARGO_BIN_EXE_launcher-fixture-lease-holder");
+
+/// A transient holder can briefly pin a lease: a `minisign` child a parallel
+/// test spawned inside `materialise`'s own lease window inherits it.
+const RELEASE_BOUND: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// A detached process holding leases, standing in for a live design daemon. It
+/// takes its own leases, so the test process never holds a long-lived lease
+/// that a child another test spawns could inherit.
+struct LeaseHolder {
+    child: std::process::Child,
+    terminated: bool,
+}
+
+fn spawn_lease_holder(leases: &[PathBuf]) -> LeaseHolder {
+    use std::io::BufRead as _;
+
+    let mut child = std::process::Command::new(LEASE_HOLDER)
+        .args(leases)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn the lease holder");
+    let stdout = child.stdout.take().expect("the holder's stdout");
+    let mut line = String::new();
+    std::io::BufReader::new(stdout)
+        .read_line(&mut line)
+        .expect("read the holder's readiness");
+    let holder = LeaseHolder {
+        child,
+        terminated: false,
+    };
+    assert_eq!(line.trim(), "ready", "the lease holder never became ready");
+    holder
+}
+
+impl LeaseHolder {
+    fn terminate(&mut self) {
+        if let Some(pid) = i32::try_from(self.child.id())
+            .ok()
+            .and_then(rustix::process::Pid::from_raw)
+        {
+            let _ = rustix::process::kill_process_group(
+                pid,
+                rustix::process::Signal::TERM,
+            );
+        }
+        let _ = self.child.wait();
+        self.terminated = true;
+    }
+}
+
+impl Drop for LeaseHolder {
+    fn drop(&mut self) {
+        if !self.terminated {
+            self.terminate();
+        }
+    }
+}
+
+fn await_released(lease: &Path) {
+    let deadline = std::time::Instant::now() + RELEASE_BOUND;
+    while probe_shared_lease(lease) == Liveness::Held {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{} was never released",
+            lease.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+fn own_pointer(harness: &Harness) -> PathBuf {
+    sibling_pointer(harness, &harness.archive_sha)
+}
+
+#[test]
+fn a_second_launcher_spares_generations_a_live_daemon_holds() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    let mut daemon =
+        spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
+    assert_eq!(probe_shared_lease(&sealed.lease_path), Liveness::Held);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(sealed.path.exists());
+    assert!(own_pointer(&harness).exists());
+    daemon.terminate();
+}
+
+#[test]
+fn a_second_launcher_reclaims_generations_no_daemon_holds() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    await_released(&sealed.lease_path);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(!sealed.path.exists());
+    assert!(!own_pointer(&harness).exists());
+}
+
+#[test]
+fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let sealed = harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("materialise");
+    let second_digest = "e".repeat(64);
+    let second = harness.resolver_expecting(&second_digest, &StoppedClock);
+
+    let mut daemon =
+        spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
+    assert_eq!(probe_shared_lease(&sealed.lease_path), Liveness::Held);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+    assert!(sealed.path.exists());
+
+    daemon.terminate();
+    await_released(&sealed.lease_path);
+    second.prune(ARTIFACT, Some(ZERO)).expect("prune");
+
+    assert!(!sealed.path.exists());
+    assert!(!own_pointer(&harness).exists());
 }

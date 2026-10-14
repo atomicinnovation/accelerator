@@ -33,6 +33,7 @@ use design::DowngradeReason;
 use design_adapters::ensure::discover_launcher;
 use design_adapters::ensure::ensure as run_ensure;
 use design_adapters::ensure::EnsureOutcome;
+use design_adapters::ensure::ResolvedTree;
 use design_adapters::marker::current_session;
 use design_adapters::marker::MarkerStore;
 use design_adapters::paths::HostPaths;
@@ -45,6 +46,7 @@ use design_adapters::HostControl;
 use design_adapters::HostProbe;
 use design_adapters::MonotonicClock;
 use design_adapters::StateDirectory;
+use design_adapters::TreeLeases;
 
 /// The runner the launcher hands every command to.
 const RUNNER: &str = "skills/design/inventory-design/scripts/playwright/run.js";
@@ -96,7 +98,29 @@ struct ResolvedRuntime {
 #[derive(Default)]
 struct Ensured {
     browser_tree: Option<PathBuf>,
+    leases: TreeLeases,
 }
+
+/// The resolution together with the leases pinning its trees, which must
+/// outlive the daemon spawn and the client `exec`.
+struct PinnedResolution {
+    resolution: Resolution,
+    leases: TreeLeases,
+}
+
+/// The trees of one `cache ensure` attempt and the leases taken on them.
+struct PinnedTrees {
+    resolved: Vec<ResolvedTree>,
+    leases: TreeLeases,
+}
+
+enum EnsureFailure {
+    Failed(String),
+    TreesReclaimed,
+}
+
+/// A tree reclaimed between `cache ensure` and its lease is ensured once more.
+const ENSURE_ATTEMPTS: usize = 2;
 
 /// Runs `accelerator design executor <command> [json-args]`.
 ///
@@ -149,7 +173,11 @@ pub fn run(
     let session = current_session();
     let now = now_seconds();
 
-    match resolve_runtime(&resolved, &hatch, &markers, &session, now) {
+    let PinnedResolution {
+        resolution,
+        leases: _held_until_exec,
+    } = resolve_runtime(&resolved, &hatch, &markers, &session, now);
+    match resolution {
         Resolution::Downgrade(reason) => report_downgrade(reason),
         Resolution::Ready(runtime) => {
             let digest = runtime.driver.to_string_lossy().into_owned();
@@ -226,7 +254,7 @@ fn resolve_runtime(
     markers: &MarkerStore,
     session: &str,
     now: u64,
-) -> Resolution {
+) -> PinnedResolution {
     let support = platform::classify(&observe());
     let plugin_root = resolved.paths.plugin_root().ok();
     let want_browser = hatch.browser.is_none();
@@ -237,7 +265,7 @@ fn resolve_runtime(
     };
     let ensured = RefCell::new(Ensured::default());
 
-    availability::resolve(
+    let resolution = availability::resolve(
         support,
         || {
             ensure_runtime(
@@ -251,7 +279,11 @@ fn resolve_runtime(
             )
         },
         || resolve_browser(hatch, &ensured),
-    )
+    );
+    PinnedResolution {
+        resolution,
+        leases: ensured.into_inner().leases,
+    }
 }
 
 /// The runtime thunk: the warm launcher-exported trees when present, otherwise a
@@ -287,8 +319,8 @@ fn ensure_runtime(
         return RuntimeOutcome::Downgrade(DowngradeReason::ArtifactUnavailable);
     };
 
-    match run_ensure(&launcher, trees) {
-        EnsureOutcome::Ready(resolved) => {
+    match ensure_and_pin(&launcher, trees) {
+        Ok(PinnedTrees { resolved, leases }) => {
             if markers.read().is_some_and(|recorded| {
                 marker::cleared_by_successful_ensure(&recorded)
             }) {
@@ -309,9 +341,13 @@ fn ensure_runtime(
             {
                 ensured.borrow_mut().browser_tree = Some(browser.path.clone());
             }
+            ensured.borrow_mut().leases = leases;
             RuntimeOutcome::Ready(driver)
         }
-        EnsureOutcome::Failed(cause) => {
+        Err(EnsureFailure::TreesReclaimed) => {
+            RuntimeOutcome::Downgrade(DowngradeReason::ArtifactUnavailable)
+        }
+        Err(EnsureFailure::Failed(cause)) => {
             let verdict = classify_cause(&cause);
             if verdict.sticky {
                 markers.write(&Marker {
@@ -324,6 +360,39 @@ fn ensure_runtime(
             RuntimeOutcome::Downgrade(verdict.reason)
         }
     }
+}
+
+/// A tree reclaimed before its lease is a transient race, so the whole attempt
+/// is dropped and the trees are ensured again; one still gone after that is
+/// reported as reclaimed rather than as a failed ensure, so it records no
+/// marker.
+fn ensure_and_pin(
+    launcher: &Path,
+    trees: &[&str],
+) -> Result<PinnedTrees, EnsureFailure> {
+    for _ in 0..ENSURE_ATTEMPTS {
+        let resolved = match run_ensure(launcher, trees) {
+            EnsureOutcome::Ready(resolved) => resolved,
+            EnsureOutcome::Failed(cause) => {
+                return Err(EnsureFailure::Failed(cause))
+            }
+        };
+        let held = TreeLeases::hold(&resolved);
+        if !held.gone.is_empty() {
+            continue;
+        }
+        for (tree, reason) in &held.unleasable {
+            eprintln!(
+                "warning: tree '{}' runs unleased: {reason}",
+                tree.artifact
+            );
+        }
+        return Ok(PinnedTrees {
+            resolved,
+            leases: held.leases,
+        });
+    }
+    Err(EnsureFailure::TreesReclaimed)
 }
 
 /// The browser thunk: the hatch when set, otherwise the bundled shell beside the
@@ -642,6 +711,7 @@ mod tests {
         fn spawner_for(&self, hatch: &HatchDecision) -> DaemonSpawner {
             let ensured = RefCell::new(Ensured {
                 browser_tree: Some(self.work.path().join("browser-tree")),
+                ..Ensured::default()
             });
             let (BrowserOutcome::Hatch(browser_executable)
             | BrowserOutcome::Bundled(browser_executable)) =

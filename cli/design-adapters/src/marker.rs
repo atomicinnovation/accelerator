@@ -29,7 +29,7 @@ const MARKER_FILE: &str = "downgrade-marker.json";
 pub fn current_session() -> String {
     // Safety: `getsid(0)` reads the caller's own session and takes no pointer.
     let session_leader = unsafe { libc::getsid(0) };
-    let started = process_probe::start_time(session_leader).unwrap_or(0);
+    let started = process::start_time(session_leader).unwrap_or(0);
     format!("{session_leader}.{started}")
 }
 

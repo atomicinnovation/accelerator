@@ -78,6 +78,8 @@ fn daemon_environment(
 /// stdio slot, so nothing the daemon does to its own streams disturbs it.
 pub const IDENTITY_FD: libc::c_int = 3;
 
+const _: () = assert!(IDENTITY_FD < lease::LOWEST_LEASE_DESCRIPTOR);
+
 /// The variable naming [`IDENTITY_FD`] to the child.
 pub const IDENTITY_FD_VAR: &str = "ACCELERATOR_PLAYWRIGHT_IDENTITY_FD";
 
@@ -91,7 +93,7 @@ impl ProcessProbe for HostProbe {
             return ObservedDaemon::Absent;
         }
         ObservedDaemon::Live(
-            process_probe::start_time(pid).map_or(
+            process::start_time(pid).map_or(
                 ObservedStartTime::Unavailable,
                 ObservedStartTime::Known,
             ),
@@ -167,12 +169,7 @@ impl Spawner for DaemonSpawner {
                     return Err(std::io::Error::last_os_error());
                 }
                 libc::umask(OWNER_ONLY_UMASK);
-                // Placing the read end on a fixed descriptor clears
-                // O_CLOEXEC on the duplicate, so it survives into `node`.
-                if libc::dup2(read_fd, IDENTITY_FD) == -1 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
+                inherit_as(read_fd, IDENTITY_FD)
             });
         }
 
@@ -204,7 +201,7 @@ impl Spawner for DaemonSpawner {
             pid,
             // Observed with the same probe the reuse check will later use, so
             // the two can never disagree about what they are measuring.
-            start_time: process_probe::start_time(pid).map_or(
+            start_time: process::start_time(pid).map_or(
                 RecordedStartTime::WriterUnavailable,
                 RecordedStartTime::Probe,
             ),
@@ -268,6 +265,24 @@ fn identity_pipe() -> Result<(OwnedFd, File), kernel::Error> {
         }
     }
     Ok((read_end, write_end))
+}
+
+/// Places `fd` on `target` with `FD_CLOEXEC` clear, so it survives `exec`.
+///
+/// `dup2` onto the descriptor itself is a no-op that leaves the flag set, so
+/// the pipe landing on `target` — whenever it is the lowest free descriptor —
+/// clears the flag in place instead. Only async-signal-safe calls, since this
+/// runs between `fork` and `exec`.
+fn inherit_as(fd: libc::c_int, target: libc::c_int) -> std::io::Result<()> {
+    let placed = if fd == target {
+        unsafe { libc::fcntl(fd, libc::F_SETFD, 0) }
+    } else {
+        unsafe { libc::dup2(fd, target) }
+    };
+    if placed == -1 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 /// A 128-bit CSPRNG value, hex-encoded.
@@ -349,15 +364,51 @@ impl BootstrapDiagnostics for BootstrapLog {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use design::executor::ports::ProcessProbe as _;
 
     use super::daemon_environment;
     use super::generate_token;
+    use super::identity_pipe;
+    use super::inherit_as;
     use super::is_alive;
     use super::HostProbe;
     use design::executor::daemon_identity::ObservedDaemon;
     use design::executor::daemon_identity::ObservedStartTime;
+
+    fn close_on_exec(fd: libc::c_int) -> bool {
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        assert_ne!(flags, -1, "fd {fd} is not open");
+        flags & libc::FD_CLOEXEC != 0
+    }
+
+    #[test]
+    fn a_descriptor_already_on_its_target_is_made_inheritable() {
+        use std::os::fd::AsRawFd as _;
+
+        let (read_end, _write_end) = identity_pipe().expect("pipe");
+        let fd = read_end.as_raw_fd();
+        assert!(close_on_exec(fd));
+
+        inherit_as(fd, fd).expect("inherit in place");
+
+        assert!(!close_on_exec(fd), "fd {fd} would close at exec");
+    }
+
+    #[test]
+    fn a_descriptor_placed_on_another_target_is_inheritable_there() {
+        use std::os::fd::AsRawFd as _;
+
+        let (read_end, _write_end) = identity_pipe().expect("pipe");
+        let (target, _target_write_end) = identity_pipe().expect("pipe");
+        let target = target.as_raw_fd();
+
+        inherit_as(read_end.as_raw_fd(), target).expect("inherit");
+
+        assert!(!close_on_exec(target), "fd {target} would close at exec");
+        assert!(close_on_exec(read_end.as_raw_fd()));
+    }
 
     #[test]
     fn this_process_is_observed_live() {

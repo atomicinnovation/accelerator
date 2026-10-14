@@ -3,7 +3,7 @@
 //! The parse is a pure function so it runs on every host, not only Linux: the
 //! platform read is what needs `/proc`, not the arithmetic on what it returns.
 
-use process_probe::start_time_from_proc_stat;
+use process::start_time_from_proc_stat;
 
 type TestError = Box<dyn std::error::Error>;
 

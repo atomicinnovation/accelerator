@@ -49,7 +49,7 @@ nix = { version = "0.28", features = ["signal", "process", "fs"] }
 anyhow = "1"
 thiserror = { workspace = true }
 libc = { workspace = true }
-process-probe = { path = "../../process-probe" }
+process = { path = "../../process" }
 sha2 = { workspace = true }
 hex = { workspace = true }
 notify = "6"

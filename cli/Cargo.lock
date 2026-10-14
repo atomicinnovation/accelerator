@@ -12,7 +12,9 @@ dependencies = [
  "flate2",
  "http-test-support",
  "kernel",
+ "lease",
  "minisign-verify",
+ "process",
  "rand 0.9.5",
  "reqwest",
  "rustix",
@@ -25,6 +27,7 @@ dependencies = [
  "time",
  "toml",
  "tracing",
+ "tracing-subscriber",
  "vcs-adapters",
  "vcs-test-support",
  "vergen",
@@ -77,6 +80,9 @@ dependencies = [
  "design",
  "design-adapters",
  "kernel",
+ "lease",
+ "process",
+ "rustix",
  "serde_json",
  "tempfile",
  "vcs-adapters",
@@ -174,7 +180,7 @@ dependencies = [
  "nix",
  "notify",
  "predicates",
- "process-probe",
+ "process",
  "regex",
  "reqwest",
  "rust-embed",
@@ -1113,10 +1119,12 @@ version = "1.24.0-pre.81"
 dependencies = [
  "design",
  "kernel",
+ "lease",
  "libc",
- "process-probe",
+ "process",
  "rand 0.9.5",
  "regex",
+ "rustix",
  "serde_json",
  "sha2",
  "tempfile",
@@ -3039,6 +3047,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
+name = "lease"
+version = "1.24.0-pre.81"
+dependencies = [
+ "rustix",
+ "tempfile",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3743,10 +3759,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "process-probe"
+name = "process"
 version = "1.24.0-pre.81"
 dependencies = [
  "libc",
+ "rustix",
 ]
 
 [[package]]
@@ -4190,9 +4207,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "log",
  "once_cell",

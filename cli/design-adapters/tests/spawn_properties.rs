@@ -58,10 +58,15 @@ fn after_reading_the_identity(body: &str) -> String {
     format!("{}\n{body}", read_identity_into(Path::new("/dev/null")))
 }
 
+/// The shell runs the stub rather than the stub being executed itself: a
+/// sibling test that forks while this one's write of the stub is still open
+/// holds that write descriptor until its own `exec`, and Linux refuses to
+/// execute a file open for writing (`ETXTBSY`). A script the shell reads is
+/// never executed.
 fn spawner(stub: &Path, log: &Path) -> DaemonSpawner {
     DaemonSpawner {
-        program: stub.to_path_buf(),
-        arguments: Vec::new(),
+        program: PathBuf::from("/bin/sh"),
+        arguments: vec![stub.display().to_string()],
         bootstrap_log: log.to_path_buf(),
         environment: Vec::new(),
     }

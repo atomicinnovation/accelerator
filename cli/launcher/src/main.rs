@@ -33,6 +33,7 @@ use accelerator::launch::outbound::resolve::cache_root::{
 use accelerator::launch::outbound::resolve::fetcher::Fetcher;
 use accelerator::launch::outbound::resolve::keys::TrustedKeys;
 use accelerator::launch::outbound::resolve::manifest::Manifest;
+use accelerator::launch::outbound::resolve::tree::lease::FlockProbe;
 use accelerator::launch::outbound::resolve::tree::{
     pins, ExpectedDigests, NoSteps, SystemClock, TreeResolver,
 };
@@ -327,6 +328,7 @@ fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
         .map_err(|detail| ResolutionError::CacheRootUnavailable { detail })?;
     let clock = SystemClock;
     let steps = NoSteps;
+    let liveness = FlockProbe;
     let resolver = TreeResolver {
         cache_root: cache,
         base_url: release_base_url(),
@@ -335,6 +337,7 @@ fn run_cache(action: &CacheAction) -> Result<(), kernel::Error> {
         keys: &keys,
         fetcher: &fetcher,
         clock: &clock,
+        liveness: &liveness,
         launcher_id: launcher_id(),
         expected_digests: ExpectedDigests::Compiled,
         waiter_bound: WAITER_BOUND,
@@ -419,6 +422,7 @@ fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
     let fetcher = Fetcher::new().ok()?;
     let clock = SystemClock;
     let steps = NoSteps;
+    let liveness = FlockProbe;
     let resolver = TreeResolver {
         cache_root: cache,
         base_url: release_base_url(),
@@ -427,6 +431,7 @@ fn acquire_consumed_trees() -> Option<Vec<AcquiredTree>> {
         keys: &keys,
         fetcher: &fetcher,
         clock: &clock,
+        liveness: &liveness,
         launcher_id: launcher_id(),
         expected_digests: ExpectedDigests::Compiled,
         waiter_bound: WAITER_BOUND,

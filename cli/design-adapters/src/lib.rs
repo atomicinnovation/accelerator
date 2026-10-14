@@ -19,6 +19,9 @@ pub mod state;
 
 pub use clock::MonotonicClock;
 pub use cue_phrases::CompiledCuePhrases;
+pub use ensure::HeldTrees;
+pub use ensure::TreeLeases;
+pub use ensure::Unleasable;
 pub use environment::credentials_from_env;
 pub use environment::named_secrets_from_env;
 pub use filesystem::read_document;

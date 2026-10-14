@@ -18,7 +18,7 @@ use nix::unistd::Pid;
 /// treats an unreadable expected start time as an unconditional mismatch, and
 /// `terminate` escalates SIGTERM to SIGKILL. Neither belongs in the primitive,
 /// and the Playwright launcher deliberately makes different choices on both.
-pub(crate) use process_probe::start_time as process_start_time;
+pub(crate) use process::start_time as process_start_time;
 
 /// Whether the process `pid` is currently alive.
 #[must_use]
