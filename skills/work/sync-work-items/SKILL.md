@@ -196,7 +196,11 @@ mistaken for a skip.
 regardless of exit code — a `71` run may also carry conflicts. A `failed` row
 may carry state `synced`: the run was rewriting that item's baseline under the
 current digest recipe and found its local file changed mid-run, so nothing was
-recorded; re-run the sync. Exit codes: `0`
+recorded; re-run the sync. A `record-baseline` row (state `locally-modified`)
+means only the item's baseline was recorded and nothing was sent or written:
+the local change touched no field the tracker holds, or both sides already
+agree. A `push` row also covers a title sent alone, leaving the description as
+it is. Exit codes: `0`
 clean; `4` items await a human (unresolved conflicts, skipped-dirty pulls,
 remote-absent, not-found or indeterminate items, or a key change refused or
 rolled back) — an `indeterminate` row with detail `unsupported-recipe` means
@@ -218,7 +222,11 @@ auto-retried), a local file read or write failed (whether the write landed
 is unknown), or a retirement stopped with `retirement-incomplete` (see Step
 5); `75` a per-item request was refused before sending — its failed row
 carries the `rejected`, `unrenderable` or `pull-residue` detail (see the table
-below): nothing was sent or written for that item, but the same request would
+below) — `unrenderable` covers a pull of a remote edit, a targeted pull-create
+and a `=remote` resolution over a Jira description with no Markdown form: a
+local body or title change facing a remote body change over such a description
+is a conflict whose dossier offers `=local`, and a metadata-only change is sent
+by retitle or recorded — so nothing was sent or written for that item, but the same request would
 be refused again, so something must change before a re-run; a per-item
 `unconfigured` detail in the report is a write the tracker refused on
 configuration — other items may already have applied, so
@@ -242,7 +250,7 @@ push carries a locally-validated payload check, or the `pull-residue` or
 | Detail | Meaning | Remedy |
 |---|---|---|
 | `rejected` | The tracker client refused the request as invalid. | Change the request (for example, its body), then sync. |
-| `unrenderable` | The Jira description holds content with no Markdown form, so a pull cannot write it and a push would discard it. | Edit the description in Jira. A local edit over it cannot be pushed until then; a conflict over it can be resolved `local`. |
+| `unrenderable` | The Jira description holds content with no Markdown form, so a pull cannot write it and a push would discard it. | Edit the description in Jira until it renders. A conflict over it can be resolved `local`, unless its dossier says `reason: legacy-unrenderable`. |
 | `pull-residue` | The local file still holds the raw Jira document an earlier pull wrote. | Replace it with Markdown (`accelerator jira show <key> --render-adf` prints a starting point) and sync, or resolve `remote` to discard local changes. |
 
 ## Step 3: Conflict resolution (bidirectional only)
@@ -262,8 +270,8 @@ For each `unresolved` line in the report, read that item's dossier:
   **reduced** `[local/skip]` token below, saying that `local` overwrites Jira
   content the plugin cannot display.
 - **A missing or unreadable dossier, or any other dossier carrying `status:
-  unrenderable`** (including `reason: local-unreadable` and
-  `reason: local-pull-residue`), is handled **fail-safe**: report that the
+  unrenderable`** (including `reason: local-unreadable`, `reason: local-pull-residue` and
+  `reason: legacy-unrenderable`), is handled **fail-safe**: report that the
   conflict could not be rendered and was left unresolved, relay the remedy the
   dossier names, and do **not** prompt. A missing dossier is treated
   identically to an unrenderable one — a dropped write (the binary surfaces it
@@ -410,6 +418,7 @@ conflicts-skipped:     <ids>
 overrides:             OVERRIDE <id> (<external_id>): pushed local→remote
 needs-retry:           <ids>   (includes a failed baseline record)
 needs-upgrade:         <ids>   (baseline written by a newer plugin)
+recorded:              <ids>   (local metadata changed; nothing to send)
 remote-absent:         <ids>
 unsynced (not pushed): <ids>   (declined)
 ```

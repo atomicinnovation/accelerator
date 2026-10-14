@@ -105,11 +105,9 @@
   `indeterminate` (exit 4). Pulled files no longer carry the tracker title as
   a first line above the description. Scripts that parse `work sync` exit codes
   need updating.
-- **A `work sync` pull or push over a Jira description with no Markdown form
-  fails as `unrenderable`** (exit 75), where it exited 0, and writes and sends
-  nothing. A local edit over such a description cannot be pushed until the
-  description is edited in Jira or a later release makes it a resolvable
-  conflict. Scripts that parse `work sync` exit codes need updating.
+- **A `work sync` pull over a Jira description with no Markdown form fails as
+  `unrenderable`** (exit 75), where it exited 0, and writes nothing. Scripts
+  that parse `work sync` exit codes need updating.
 - **Pending-push records move to schema 3**, which earlier releases refuse,
   so finish every outstanding promotion before downgrading.
 - **`work sync` reports two new rows.** An item whose baseline entry was
@@ -117,6 +115,10 @@
   (exit 4) and is left untouched, and a baseline record whose local file
   changed mid-run reports `failed\tsynced\tretryable` (exit 70). Scripts that
   parse `work sync` output need updating.
+- **`work sync` reports a `record-baseline` row for a metadata-only local
+  change.** A local change that touches no field the tracker holds, or whose
+  bodies already agree, now reports `<id>\trecord-baseline\tlocally-modified\t-`
+  and sends nothing; scripts that parse `work sync` output need updating.
 
 - **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
   collaboration pr update-body` joins each soft-wrapped line onto the one
@@ -504,6 +506,16 @@
 
 ### Fixed
 
+- **Cosmetic rewrites no longer cause pushes, pulls or conflicts.** `work
+  sync` compares bodies by meaning, so Linear's re-serialisation and an
+  equivalent local rewrite are never a change. A title change is sent alone,
+  leaving the description, even over a Jira description the plugin cannot
+  display; a local body edit over such a description is a conflict instead of
+  a failure. On the first run after upgrading, an item edited locally whose
+  body no longer matches the remote is a conflict, resolved once with
+  `--resolve <id>=local` or `=remote`; one over a Jira description the plugin
+  cannot display writes a `reason: legacy-unrenderable` dossier naming the
+  remedies that settle it.
 - **Web researchers write nothing when fetching is denied.** A researcher on
   the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
   that has neither tool, now writes no finding or level note and reports

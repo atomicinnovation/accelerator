@@ -2341,6 +2341,11 @@ mod tests {
                         },
                     ),
                 ),
+                reported(
+                    "0015",
+                    SyncState::LocallyModified,
+                    Action::RecordBaseline,
+                ),
             ],
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -3340,6 +3345,27 @@ mod tests {
             super::exit_code_for_report(&report),
             super::exit_codes::RETRYABLE
         );
+    }
+
+    #[test]
+    fn a_recorded_locally_modified_item_reports_a_record_baseline_row() {
+        let report = report_of(vec![ReportedItem {
+            planned: PlannedAction {
+                id: "0001".to_owned(),
+                state: SyncState::LocallyModified,
+                action: Action::RecordBaseline,
+            },
+            outcome: ItemOutcome::Applied,
+            validation: None,
+        }]);
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains("0001\trecord-baseline\tlocally-modified\t-"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary"), "{rendered}");
     }
 
     #[test]

@@ -11,5 +11,6 @@
 0012	failed	remotely-modified	pull-residue
 0013	noop	indeterminate	unsupported-recipe
 0014	failed	synced	retryable
+0015	record-baseline	locally-modified	-
 #	discovery	ran	found=0
 #	summary	synced	1
