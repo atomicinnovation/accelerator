@@ -1144,6 +1144,95 @@ def test_vcs_cli_rule_permits_importing_vcs(tmp_path: Path) -> None:
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
+# accelerator-design depends on lease and process only for its warm-handover
+# fixture bin, so both are in its graph and an import from its own sources
+# would otherwise pass unnoticed. The compliant control imports
+# design-adapters, through which the executor legitimately holds its leases.
+
+_DESIGN_CLI_MANIFEST = """\
+[package]
+name = "accelerator-design"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+design-adapters = { path = "../design-adapters" }
+lease = { path = "../lease" }
+process = { path = "../process" }
+"""
+
+_DESIGN_CLI_LEASE_VIOLATION = (
+    "use lease::SharedLease;\n\n"
+    "pub fn make() -> SharedLease {\n    SharedLease\n}\n"
+)
+_DESIGN_CLI_PROCESS_VIOLATION = (
+    "use process::Descriptors;\n\n"
+    "pub fn make() -> Descriptors {\n    Descriptors\n}\n"
+)
+_DESIGN_CLI_COMPLIANT = (
+    "use design_adapters::TreeLeases;\n\n"
+    "pub fn make() -> TreeLeases {\n    TreeLeases\n}\n"
+)
+
+
+def _write_design_cli_probe(root: Path, lib_body: str) -> None:
+    (root / "Cargo.toml").write_text(
+        """\
+[workspace]
+resolver = "2"
+members = ["accelerator-design", "design-adapters", "lease", "process"]
+"""
+    )
+    probe_src = root / "accelerator-design/src"
+    probe_src.mkdir(parents=True, exist_ok=True)
+    (root / "accelerator-design/Cargo.toml").write_text(_DESIGN_CLI_MANIFEST)
+    (probe_src / "lib.rs").write_text(lib_body)
+    for crate, lib in [
+        ("design-adapters", "pub struct TreeLeases;\n"),
+        ("lease", "pub struct SharedLease;\n"),
+        ("process", "pub struct Descriptors;\n"),
+    ]:
+        stub_src = root / crate / "src"
+        stub_src.mkdir(parents=True, exist_ok=True)
+        (root / crate / "Cargo.toml").write_text(
+            _STUB_MANIFEST.format(crate=crate)
+        )
+        (stub_src / "lib.rs").write_text(lib)
+
+
+def test_design_cli_rule_rejects_importing_lease(tmp_path: Path) -> None:
+    _require_tools()
+    _write_design_cli_probe(tmp_path, _DESIGN_CLI_LEASE_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "design_cli_leaves_leases_to_its_adapters" in output, output
+
+
+def test_design_cli_rule_rejects_importing_process(tmp_path: Path) -> None:
+    _require_tools()
+    _write_design_cli_probe(tmp_path, _DESIGN_CLI_PROCESS_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "design_cli_leaves_leases_to_its_adapters" in output, output
+
+
+def test_design_cli_rule_permits_importing_design_adapters(
+    tmp_path: Path,
+) -> None:
+    _require_tools()
+    _write_design_cli_probe(tmp_path, _DESIGN_CLI_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
 def test_tracker_support_rule_rejects_a_transport(tmp_path: Path) -> None:
     _require_tools()
     _write_shared_crate_probe(tmp_path, "tracker-support", _TRANSPORT_VIOLATION)

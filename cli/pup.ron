@@ -446,6 +446,22 @@
                 ),
             ],
         )),
+        // The executor holds leases through design-adapters; lease and process
+        // are in this crate's graph only for its warm-handover fixture bin.
+        Module((
+            name: "design_cli_leaves_leases_to_its_adapters",
+            matches: Module("^accelerator_design($|::)"),
+            rules: [
+                RestrictImports(
+                    allowed_only: None,
+                    denied: Some([
+                        "^lease(::|$)",
+                        "^process(::|$)",
+                    ]),
+                    severity: Error,
+                ),
+            ],
+        )),
         // Only the consent policy runs a command, so no consumer may name the
         // runner port or its production adapter; a consumer holds the opaque
         // `Runner` instead. The regex cannot negate, so it lists every crate
