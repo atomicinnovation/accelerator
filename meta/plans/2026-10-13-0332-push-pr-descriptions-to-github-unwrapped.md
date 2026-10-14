@@ -12,7 +12,7 @@ derived_from: ["codebase-research:2026-10-13-0332-push-pr-descriptions-to-github
 tags: ["collaboration", "github", "markdown", "pulldown-cmark", "describe-pr"]
 revision: "4f52d32c20ed096f05b4e9ef2a0f830a8373d3cc"
 repository: "accelerator"
-last_updated: "2026-10-14T11:53:18+00:00"
+last_updated: "2026-10-14T14:34:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -737,6 +737,16 @@ GitHub checks over the 115 descriptions, the seven Phase 2 probes, and one
 probe for each new fixture input. Add the outcome to the "Corpus
 verification record" under a "Phase 3 re-run" entry.
 
+#### 4. Supply-chain advisories (unplanned)
+
+`mise run` failed `deny:check` on RUSTSEC-2026-0346 to 0349, published
+against `rustls` 0.23.45 after Phase 2's green run. Bump the workspace's
+exact pin in `cli/Cargo.toml` to `=0.23.46` with
+`cargo update -p rustls --precise 0.23.46`, which moves no other package,
+and regenerate the notices with `mise run notices:update`. The bump is
+committed on its own, outside 0332's scope, so the PR description must
+call it out.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -1012,6 +1022,8 @@ and to `### Fixed`:
       hard-break guidance and the exit-code correction
 - [ ] The posted PR description contains the corpus verification
       record; add it by hand if `describe-pr` summarised it away
+- [ ] The posted PR description calls out the `rustls` 0.23.46 bump as
+      outside 0332's scope
 
 ---
 
@@ -1054,7 +1066,10 @@ negligible next to the two GitHub API round trips the command already makes.
 
 There is no data migration. This replaces 0071's byte-for-byte contract:
 the posted body now differs from the body file at soft line breaks only.
-Rolling back means reverting Phase 4. Phases 1 to 3 have no runtime effect.
+Rolling back means reverting Phase 4. Phases 1 to 3 have no runtime effect
+on `update-body`. The `rustls` bump in Phase 3 changes the TLS stack of
+every networked binary, and reverting it reintroduces RUSTSEC-2026-0346 to
+0349.
 
 ## References
 
