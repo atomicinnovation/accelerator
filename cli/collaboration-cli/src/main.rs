@@ -15,6 +15,7 @@ use collaboration::base_repo::BaseRepoOutcome;
 use collaboration::update_body::update_pull_request_body;
 use collaboration::update_body::UpdateBodyOutcome;
 use collaboration::ForgeApiError;
+use collaboration::PullRequestBodyPublishing;
 use collaboration::PullRequestBodyUpdate;
 use collaboration::PullRequestExistence;
 use collaboration::RepositoryDetails;
@@ -103,6 +104,12 @@ impl PullRequestBodyUpdate for BlockingGitHubClient {
             pull_number,
             body,
         ))
+    }
+}
+
+impl PullRequestBodyPublishing for BlockingGitHubClient {
+    fn prepare_for_publishing(&self, body: &str) -> String {
+        GitHubPullRequestBodyPublishing.prepare_for_publishing(body)
     }
 }
 
@@ -236,9 +243,6 @@ fn run_update_body(
         &origin,
         &recognizer,
         &client,
-        &client,
-        &client,
-        &GitHubPullRequestBodyPublishing,
         pull_number,
         &body,
     )? {

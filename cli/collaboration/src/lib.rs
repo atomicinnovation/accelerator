@@ -116,10 +116,27 @@ pub trait PullRequestBodyUpdate {
     ) -> Result<(), ForgeApiError>;
 }
 
-/// Prepares a pull request body for the forge that will render it. Compose
-/// it only with that same forge's [`PullRequestBodyUpdate`].
+/// Prepares a pull request body for the forge that will render it.
 pub trait PullRequestBodyPublishing {
     fn prepare_for_publishing(&self, body: &str) -> String;
+}
+
+/// A forge hosting pull requests. One value supplies every capability, so a
+/// body is always prepared for the forge that receives it.
+pub trait PullRequestForge:
+    RepositoryLookup
+    + PullRequestExistence
+    + PullRequestBodyUpdate
+    + PullRequestBodyPublishing
+{
+}
+
+impl<T> PullRequestForge for T where
+    T: RepositoryLookup
+        + PullRequestExistence
+        + PullRequestBodyUpdate
+        + PullRequestBodyPublishing
+{
 }
 
 /// The subset of a GET repository response this domain needs.

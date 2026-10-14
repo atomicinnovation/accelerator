@@ -38,7 +38,7 @@ pub fn collaboration::update_body::UpdateBodyOutcome::eq(&self, other: &collabor
 impl core::fmt::Debug for collaboration::update_body::UpdateBodyOutcome
 pub fn collaboration::update_body::UpdateBodyOutcome::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for collaboration::update_body::UpdateBodyOutcome
-pub fn collaboration::update_body::update_pull_request_body(root: &std::path::Path, origin: &dyn collaboration::RepositoryOrigin, recognizer: &dyn collaboration::RemoteUrlRecognizer, repository_lookup: &dyn collaboration::RepositoryLookup, existence: &dyn collaboration::PullRequestExistence, body_update: &dyn collaboration::PullRequestBodyUpdate, body_publishing: &dyn collaboration::PullRequestBodyPublishing, pull_number: u64, body: &str) -> core::result::Result<collaboration::update_body::UpdateBodyOutcome, kernel::Error>
+pub fn collaboration::update_body::update_pull_request_body(root: &std::path::Path, origin: &dyn collaboration::RepositoryOrigin, recognizer: &dyn collaboration::RemoteUrlRecognizer, forge: &dyn collaboration::PullRequestForge, pull_number: u64, body: &str) -> core::result::Result<collaboration::update_body::UpdateBodyOutcome, kernel::Error>
 pub enum collaboration::ForgeApiError
 pub collaboration::ForgeApiError::Malformed(alloc::string::String)
 pub collaboration::ForgeApiError::Status
@@ -81,6 +81,8 @@ pub trait collaboration::PullRequestBodyUpdate
 pub fn collaboration::PullRequestBodyUpdate::update_body(&self, owner: &str, repo: &str, pull_number: u64, body: &str) -> core::result::Result<(), collaboration::ForgeApiError>
 pub trait collaboration::PullRequestExistence
 pub fn collaboration::PullRequestExistence::confirm_exists(&self, owner: &str, repo: &str, pull_number: u64) -> core::result::Result<(), collaboration::ForgeApiError>
+pub trait collaboration::PullRequestForge: collaboration::RepositoryLookup + collaboration::PullRequestExistence + collaboration::PullRequestBodyUpdate + collaboration::PullRequestBodyPublishing
+impl<T> collaboration::PullRequestForge for T where T: collaboration::RepositoryLookup + collaboration::PullRequestExistence + collaboration::PullRequestBodyUpdate + collaboration::PullRequestBodyPublishing
 pub trait collaboration::RemoteUrlRecognizer
 pub fn collaboration::RemoteUrlRecognizer::parse(&self, url: &str) -> core::option::Option<collaboration::OwnerRepo>
 pub trait collaboration::RepositoryLookup

@@ -7,9 +7,7 @@ use crate::base_repo::{
     resolve_base_repository, BaseRepoFailure, BaseRepoOutcome,
 };
 use crate::{
-    ForgeApiError, PullRequestBodyPublishing, PullRequestBodyUpdate,
-    PullRequestExistence, RemoteUrlRecognizer, RepositoryLookup,
-    RepositoryOrigin,
+    ForgeApiError, PullRequestForge, RemoteUrlRecognizer, RepositoryOrigin,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,15 +28,11 @@ pub enum UpdateBodyOutcome {
 /// resolver's own forge-API-level failures — is instead reported as
 /// `Ok(UpdateBodyOutcome::BaseRepoResolutionFailed(_))` or
 /// `Ok(UpdateBodyOutcome::PatchFailed(_))`, not an `Err`.
-#[allow(clippy::too_many_arguments)]
 pub fn update_pull_request_body(
     root: &Path,
     origin: &dyn RepositoryOrigin,
     recognizer: &dyn RemoteUrlRecognizer,
-    repository_lookup: &dyn RepositoryLookup,
-    existence: &dyn PullRequestExistence,
-    body_update: &dyn PullRequestBodyUpdate,
-    body_publishing: &dyn PullRequestBodyPublishing,
+    forge: &dyn PullRequestForge,
     pull_number: u64,
     body: &str,
 ) -> Result<UpdateBodyOutcome, kernel::Error> {
@@ -46,8 +40,8 @@ pub fn update_pull_request_body(
         root,
         origin,
         recognizer,
-        repository_lookup,
-        existence,
+        forge,
+        forge,
         pull_number,
     )? {
         BaseRepoOutcome::Resolved(base) => base,
@@ -56,8 +50,8 @@ pub fn update_pull_request_body(
         }
     };
 
-    let prepared_body = body_publishing.prepare_for_publishing(body);
-    match body_update.update_body(
+    let prepared_body = forge.prepare_for_publishing(body);
+    match forge.update_body(
         &base.owner,
         &base.repo,
         pull_number,
@@ -77,8 +71,9 @@ mod tests {
     use crate::base_repo::BaseRepoFailure;
     use crate::{
         ForgeApiError, OwnerRepo, PullRequestBodyPublishing,
-        PullRequestBodyUpdate, PullRequestExistence, RemoteUrlRecognizer,
-        RepositoryLookup, RepositoryOrigin,
+        PullRequestBodyUpdate, PullRequestExistence, PullRequestForge,
+        RemoteUrlRecognizer, RepositoryDetails, RepositoryLookup,
+        RepositoryOrigin,
     };
 
     struct FixedRepositoryOrigin(Result<Option<&'static str>, &'static str>);
@@ -118,22 +113,20 @@ mod tests {
         }))
     }
 
-    struct FixedRepositoryLookup(
-        Result<crate::RepositoryDetails, ForgeApiError>,
-    );
+    struct FixedRepositoryLookup(Result<RepositoryDetails, ForgeApiError>);
 
     impl RepositoryLookup for FixedRepositoryLookup {
         fn repository(
             &self,
             _owner: &str,
             _repo: &str,
-        ) -> Result<crate::RepositoryDetails, ForgeApiError> {
+        ) -> Result<RepositoryDetails, ForgeApiError> {
             self.0.clone()
         }
     }
 
     fn no_parent() -> FixedRepositoryLookup {
-        FixedRepositoryLookup(Ok(crate::RepositoryDetails {
+        FixedRepositoryLookup(Ok(RepositoryDetails {
             parent_owner: None,
             parent_repo: None,
         }))
@@ -204,6 +197,52 @@ mod tests {
         }
     }
 
+    struct FakeForge<'a> {
+        repository_lookup: &'a dyn RepositoryLookup,
+        existence: &'a dyn PullRequestExistence,
+        body_update: &'a dyn PullRequestBodyUpdate,
+        body_publishing: &'a dyn PullRequestBodyPublishing,
+    }
+
+    impl RepositoryLookup for FakeForge<'_> {
+        fn repository(
+            &self,
+            owner: &str,
+            repo: &str,
+        ) -> Result<RepositoryDetails, ForgeApiError> {
+            self.repository_lookup.repository(owner, repo)
+        }
+    }
+
+    impl PullRequestExistence for FakeForge<'_> {
+        fn confirm_exists(
+            &self,
+            owner: &str,
+            repo: &str,
+            pull_number: u64,
+        ) -> Result<(), ForgeApiError> {
+            self.existence.confirm_exists(owner, repo, pull_number)
+        }
+    }
+
+    impl PullRequestBodyUpdate for FakeForge<'_> {
+        fn update_body(
+            &self,
+            owner: &str,
+            repo: &str,
+            pull_number: u64,
+            body: &str,
+        ) -> Result<(), ForgeApiError> {
+            self.body_update.update_body(owner, repo, pull_number, body)
+        }
+    }
+
+    impl PullRequestBodyPublishing for FakeForge<'_> {
+        fn prepare_for_publishing(&self, body: &str) -> String {
+            self.body_publishing.prepare_for_publishing(body)
+        }
+    }
+
     fn update(
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
@@ -211,32 +250,28 @@ mod tests {
         existence: &dyn PullRequestExistence,
         body_update: &dyn PullRequestBodyUpdate,
     ) -> Result<UpdateBodyOutcome, kernel::Error> {
-        update_published_by(
-            &UnchangedPublishing,
+        update_on(
             origin,
             recognizer,
-            repository_lookup,
-            existence,
-            body_update,
+            &FakeForge {
+                repository_lookup,
+                existence,
+                body_update,
+                body_publishing: &UnchangedPublishing,
+            },
         )
     }
 
-    fn update_published_by(
-        body_publishing: &dyn PullRequestBodyPublishing,
+    fn update_on(
         origin: &dyn RepositoryOrigin,
         recognizer: &dyn RemoteUrlRecognizer,
-        repository_lookup: &dyn RepositoryLookup,
-        existence: &dyn PullRequestExistence,
-        body_update: &dyn PullRequestBodyUpdate,
+        forge: &dyn PullRequestForge,
     ) -> Result<UpdateBodyOutcome, kernel::Error> {
         update_pull_request_body(
             &PathBuf::from("/repo"),
             origin,
             recognizer,
-            repository_lookup,
-            existence,
-            body_update,
-            body_publishing,
+            forge,
             42,
             "new body",
         )
@@ -318,13 +353,15 @@ mod tests {
     fn posts_the_body_as_prepared_for_publishing() -> Result<(), kernel::Error>
     {
         let body_update = RecordingBodyUpdate::default();
-        let outcome = update_published_by(
-            &MarkedPublishing,
+        let outcome = update_on(
             &configured_origin(),
             &recognizes_candidate(),
-            &no_parent(),
-            &pr_exists(),
-            &body_update,
+            &FakeForge {
+                repository_lookup: &no_parent(),
+                existence: &pr_exists(),
+                body_update: &body_update,
+                body_publishing: &MarkedPublishing,
+            },
         )?;
         assert_eq!(outcome, UpdateBodyOutcome::Updated);
         assert_eq!(
