@@ -526,14 +526,17 @@ offer again: until each is done, `--run` exits 1 with
 `accelerator research topic end-run SLUG --run ID` removes the run's
 ledger when the run finishes.
 
-It is read-only unless `--start` or `--run` is given; a run records its
-ledger in `<set>/.conduct-run.json`, which `end-run` removes. A leftover
-ledger means a run did not end. If its session showed an agent usage limit,
-wait until the reset time in the message, or raise the limit when it gives
-none. Then re-run `conduct`, which reports what that run left of its last
-batch and quarantines the invalid findings it wrote. Deleting the ledger
-instead skips both and leaves those findings counted. Consider ignoring
-`**/.conduct-run.json`.
+It is read-only unless `--start` or `--run` is given; a run records its ledger
+in `<set>/.conduct-run.json`, which `end-run` removes. A leftover ledger means a
+run did not end. If its session showed an agent usage limit, wait until the
+reset time in the message, or raise the limit when it gives none. Then re-run
+`conduct`, which reports what that run left of its last batch and quarantines
+the invalid findings it wrote. Deleting the ledger instead skips both and leaves
+those findings counted. If that run is still going, an agent it spawned can
+finish a finding after `--start` judged it; the rename then quarantines it
+anyway, and a write after the rename to a path the plan does not offer again
+stops the next `--run` with `E_TOPIC_RESEARCH_QUARANTINE_OWED`. No finding is
+deleted either way. Consider ignoring `**/.conduct-run.json`.
 
 Each exit code below exits `1`:
 
