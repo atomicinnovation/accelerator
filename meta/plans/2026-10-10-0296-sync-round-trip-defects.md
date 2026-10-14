@@ -13,7 +13,7 @@ relates_to: ["work-item:0320", "work-item:0290", "work-item:0291", "work-item:02
 tags: ["sync", "linear", "jira", "baseline", "projection", "digest", "equivalence", "adf", "corpus", "document"]
 revision: "d4fcfe077b031d7cf0eb1ade08df77b0b4e1db65"
 repository: "accelerator"
-last_updated: "2026-10-13T20:00:00+00:00"
+last_updated: "2026-10-14T12:35:06+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -2461,11 +2461,27 @@ legacy-unrenderable` dossier naming the remedies that settle it.
   hash, so a planned pull can no longer meet an unfetched body.
 - Not written: `the_applier_refuses_a_push_over_an_unrenderable_remote`
   (the refusal lives in the run, not `ItemApplier`, and
-  `send_refusal`'s unit rows pin it), the real-client duplicates of
-  dialect-level scenarios in `sync_run_real_client.rs`,
-  `a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash`,
+  `send_refusal`'s unit rows pin it); the `sync_run_real_client.rs` tests
+  (`jira_retitle_keeps_underlined_text_in_the_description`,
+  `an_unrenderable_remote_with_a_local_edit_is_a_conflict_resolvable_as_local`,
+  `a_baselined_jira_item_with_a_rejected_local_body_and_no_edits_is_synced`,
+  `an_unbaselined_jira_item_with_a_rejected_local_body_is_an_unresolved_conflict`,
+  `jira_remote_paragraph_text_differences_are_not_equivalent`, and the Linear
+  and Jira `a_pulled_item_syncs_again_as_synced_with_no_update`), whose rules
+  the Jira-dialect scenarios in `sync_equivalence.rs` cover without the real
+  client; `a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash`;
   and a state assertion in `a_create_then_sync_reports_synced`, whose
-  harness exposes only the exit code.
+  harness exposes only the exit code. `preview_and_apply_report_the_same_state_for_every_recovery_row`
+  is folded into the recovery-row tests, each of which previews first.
+- `mise run` stays unticked: on 2026-10-14 every task passed except
+  `test:unit:frontend`, whose 2,615 tests all passed but whose Vitest worker
+  timed out (`Timeout calling "onTaskUpdate"`) three times under a load
+  average near 200. No visualiser file changed in this phase.
+- On 2026-10-14 a push-only `work sync --max-pushes 100` with the installed
+  1.24.0-pre.79 engine created PP-887 to PP-919 for 33 unsynced items and
+  pushed 24 locally edited ones, skipping conflicts 0207, 0227, 0296 and
+  0299. A preview with this phase's engine afterwards reported every pushed
+  item `synced`.
 
 ---
 
@@ -2651,6 +2667,15 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 - [ ] 0302 remains conflicted until resolved, its remote holding an older
       revision
 
+#### Implementation Notes:
+
+- As of 2026-10-14 the two expectations above no longer hold: an earlier
+  sync recorded entries for 0161, 0203, 0276 and 0293, which now report
+  `synced`, and the push-only sync sent 0302's local revision. The
+  merge-time preview should record what each item reports rather than
+  confirm this list; that day's open conflicts were 0227, 0296 and 0299, with
+  a pull pending for 0184.
+
 ---
 
 ## Testing Strategy
@@ -2775,7 +2800,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | No title line on targeted, frontmatter-kept, `remote` resolution (both trackers) | 1, 4 | `every_pull_entry_point_writes_the_description_without_a_title_line` |
 | Unrenderable remote ADF refuses every pull entry point | 4, 8 | `every_pull_entry_point_refuses_unrenderable_jira_adf_and_writes_nothing` |
 | Metadata-only changes over an unrenderable remote never conflict | 8 | `a_title_edit_over_an_unrenderable_remote_retitles_and_keeps_the_description`, `a_status_edit_over_an_unrenderable_remote_records_the_baseline` |
-| A local edit over an unrenderable remote is a conflict resolvable as local | 4, 8 | `a_resolved_local_push_is_an_overwrite`, `an_unrenderable_remote_with_a_local_edit_is_a_conflict_resolvable_as_local` |
+| A local edit over an unrenderable remote is a conflict resolvable as local | 4, 8 | `a_resolved_local_push_is_an_overwrite`, `a_local_edit_over_an_unrenderable_jira_description_is_a_conflict_and_sends_nothing`, `resolve_local_overwrites_an_unrenderable_jira_description` |
 | Unrenderable-remote dossier offers only `=local` | 4 | `a_dossier_for_an_unrenderable_remote_names_the_reason_instead_of_a_body` |
 | Legacy conflict over an unrenderable remote offers no overwrite | 8 | `a_legacy_conflict_over_an_unrenderable_remote_writes_a_legacy_unrenderable_dossier`, `resolving_local_on_a_legacy_unrenderable_item_sends_nothing` |
 | Residue conflict survives a skipped run | 7 | `a_skipped_residue_conflict_is_still_a_conflict_on_the_next_run` |
@@ -2783,7 +2808,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | A skipped verbatim conflict never absorbs a local title | 7, 8 | `a_skipped_verbatim_conflict_with_a_title_edit_is_still_a_conflict`, verbatim classify rows |
 | A verbatim earlier pull migrates without a write | 7 | `an_untouched_verbatim_jira_pull_migrates_without_a_write` |
 | Every named legacy-unrenderable remedy settles the item | 8 | `each_named_legacy_unrenderable_remedy_settles_the_item` |
-| Pulled item syncs again as `synced` | 1, 8 | `a_pulled_item_syncs_again_as_synced_with_no_update` |
+| Pulled item syncs again as `synced` | 1, 8 | `a_frontmatter_only_edit_with_a_real_remote_edit_pulls_the_body_and_keeps_the_frontmatter`, `each_named_legacy_unrenderable_remedy_settles_the_item` (each pull followed by a `synced` run) |
 | Cosmetic remote rewrite alone is `synced`, hashes unchanged | 8 | `each_cosmetic_remote_rewrite_alone_is_synced_with_unchanged_hashes` |
 | Hashes equal for cosmetic rows, differ for meaning rows | 7 | `golden_digests.rs` |
 | Remote title change only | 8 | classify row; `a_remote_title_edit_with_cosmetic_body_noise_is_synced_and_not_overwritten` |
@@ -2796,7 +2821,7 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | Title-line strip edge cases | 1 | splitter unit tests |
 | Cosmetic local rewrite alone | 8 | `each_cosmetic_local_rewrite_alone_is_synced_with_no_update_or_write` |
 | No entry, equivalent, preview | 8 | recovery-row tests |
-| Preview and apply agree per recovery row | 8 | `preview_and_apply_report_the_same_state_for_every_recovery_row` |
+| Preview and apply agree per recovery row | 8 | every recovery-row test in `sync_equivalence.rs` previews before it applies |
 | Preview leaves `last-sync.json` byte-identical | 7, 8 | `a_preview_leaves_last_sync_json_byte_identical`, `a_conflicting_preview_…` |
 | Both changed, equivalent | 8 | classify row |
 | Frontmatter and body changed, equivalent; titles equal/differ | 8 | classify rows; `an_equivalent_change_with_a_differing_local_title_retitles_without_an_update` |
@@ -2806,17 +2831,17 @@ Table in the PR description: each of the 32 items pulled or conflicted on
 | Remote title edit plus cosmetic body | 8 | `a_remote_title_edit_with_cosmetic_body_noise_is_synced_and_not_overwritten` |
 | Frontmatter-only edit, remote unchanged | 8 | `a_frontmatter_only_edit_is_locally_modified_with_no_update` |
 | Frontmatter-only edit, real remote edit | 8 | `a_frontmatter_only_edit_with_a_real_remote_edit_pulls_the_body_and_keeps_the_frontmatter` |
-| Jira round-trip equivalence and rejection | 8 | Jira real-client tests |
-| Jira paragraph text differs | 8 | `jira_remote_paragraph_text_differences_are_not_equivalent` |
-| Baselined Jira item with rejected body, no edits | 8 | `a_baselined_jira_item_with_a_rejected_local_body_and_no_edits_is_synced` |
-| Unbaselined Jira item with rejected body | 8 | `an_unbaselined_jira_item_with_a_rejected_local_body_is_an_unresolved_conflict` |
+| Jira round-trip equivalence and rejection | 8 | `golden_digests.rs` Jira pairs; `a_title_only_change_calls_retitle_and_leaves_the_description` (Jira), `a_previewed_retitle_validates_only_the_title`; the real-client tests are not written |
+| Jira paragraph text differs | 8 | not written |
+| Baselined Jira item with rejected body, no edits | 8 | not written |
+| Unbaselined Jira item with rejected body | 8 | not written |
 | Golden-digest fixture and parser guard | 7 | `golden_digests.rs` |
 | Real conflict lists only edited section (both trackers) | 9 | `a_real_conflict_lists_only_the_edited_section` |
 | Title arrow in dossier header | 9 | `a_title_difference_renders_local_arrow_remote` |
 | Skill names the title form | 9 | `rg` check |
 | `work diff` adopts section equivalence | 9 | `work_diff_omits_an_equivalent_section` |
 | Recovery-table rows | 8 | recovery-row tests |
-| `create --push` with failed read-back | 8 | `a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash` |
+| `create --push` with failed read-back | 8 | not written; the empty-remote-hash recovery rows pin the classification it relies on |
 | Fixtures for 0275, 0276, 0293, 0294, 0302 | 0, 8 | `sync_recovery_corpus.rs` |
 | Merge-time corpus preview | 11 | manual |
 | Unmarked entry's first sync | 7, 8 | `a_run_rewrites_every_classified_legacy_entry_under_recipe_one` and classify rows |
