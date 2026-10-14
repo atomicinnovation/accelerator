@@ -1099,7 +1099,7 @@ fn verify_detects_an_unexpected_extra_entry() {
 
 #[test]
 fn prune_spares_a_generation_whose_lease_is_still_held() {
-    use tree_lease::hold_shared_lease;
+    use lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
@@ -1858,7 +1858,7 @@ fn a_repair_whose_refetch_fails_leaves_the_previous_tree_resolvable() {
 
 #[test]
 fn a_repair_spares_a_superseded_generation_whose_lease_is_held() {
-    use tree_lease::hold_shared_lease;
+    use lease::hold_shared_lease;
 
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
@@ -2078,7 +2078,7 @@ impl Drop for LeaseHolder {
 
 fn await_released(lease: &Path) {
     let deadline = std::time::Instant::now() + RELEASE_BOUND;
-    while tree_lease::observed_held(lease).expect("observe the lease") {
+    while lease::observed_held(lease).expect("observe the lease") {
         assert!(
             std::time::Instant::now() < deadline,
             "{} was never released",
@@ -2105,7 +2105,7 @@ fn a_second_launcher_spares_generations_a_live_daemon_holds() {
 
     let mut daemon =
         spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
-    assert!(tree_lease::observed_held(&sealed.lease_path).expect("observe"));
+    assert!(lease::observed_held(&sealed.lease_path).expect("observe"));
     second.prune(ARTIFACT, Some(ZERO)).expect("prune");
 
     assert!(sealed.path.exists());
@@ -2144,7 +2144,7 @@ fn a_second_launcher_reclaims_once_the_daemon_group_has_exited() {
 
     let mut daemon =
         spawn_lease_holder(std::slice::from_ref(&sealed.lease_path));
-    assert!(tree_lease::observed_held(&sealed.lease_path).expect("observe"));
+    assert!(lease::observed_held(&sealed.lease_path).expect("observe"));
     second.prune(ARTIFACT, Some(ZERO)).expect("prune");
     assert!(sealed.path.exists());
 

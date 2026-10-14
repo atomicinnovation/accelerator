@@ -13,11 +13,11 @@ use std::path::Path;
 use std::process::Command;
 use std::process::ExitCode;
 
+use lease::LeaseError;
+use lease::SharedLease;
 use rustix::fs::Dir;
 use rustix::fs::Mode;
 use rustix::fs::OFlags;
-use tree_lease::LeaseError;
-use tree_lease::SharedLease;
 
 const USAGE: u8 = 64;
 const DESCRIPTORS_UNLISTABLE: u8 = 70;
@@ -79,8 +79,8 @@ fn hold_in_launcher_order(
     browser_lease: &OsString,
 ) -> Result<[SharedLease; 2], LeaseError> {
     Ok([
-        tree_lease::hold_shared_lease(Path::new(driver_lease))?,
-        tree_lease::hold_shared_lease(Path::new(browser_lease))?,
+        lease::hold_shared_lease(Path::new(driver_lease))?,
+        lease::hold_shared_lease(Path::new(browser_lease))?,
     ])
 }
 

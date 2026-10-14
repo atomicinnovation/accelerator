@@ -40,7 +40,7 @@ kernel = { path = "../kernel" }
 config = { path = "../config" }
 config-adapters = { path = "../config-adapters" }
 vcs-adapters = { path = "../vcs-adapters" }
-tree-lease = { path = "../tree-lease" }
+lease = { path = "../lease" }
 clap = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true }

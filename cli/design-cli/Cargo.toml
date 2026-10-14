@@ -18,7 +18,7 @@ name = "accelerator-design"
 path = "src/main.rs"
 
 # Test fixture: a black-box test entry point found through CARGO_BIN_EXE_*, not
-# a shipped artifact. It is the only user of tree-lease and rustix here.
+# a shipped artifact. It is the only user of lease and rustix here.
 [[bin]]
 name = "design-cli-fixture-warm-handover"
 path = "tests/fixtures/design_cli_fixture_warm_handover.rs"
@@ -32,7 +32,7 @@ vcs-adapters = { path = "../vcs-adapters" }
 kernel = { path = "../kernel" }
 clap = { workspace = true }
 serde_json = { workspace = true }
-tree-lease = { path = "../tree-lease" }
+lease = { path = "../lease" }
 rustix = { workspace = true }
 
 [dev-dependencies]

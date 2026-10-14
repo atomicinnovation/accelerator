@@ -428,7 +428,7 @@ _EXPECTED_DECLARATIONS = {
     "store": ("technical-library", None, None, None),
     "remote-projection": ("technical-library", None, None, None),
     "process-probe": ("technical-library", None, None, None),
-    "tree-lease": ("technical-library", None, None, None),
+    "lease": ("technical-library", None, None, None),
     "accelerator-corpus": ("composition-root", None, None, None),
     "accelerator-vcs": ("composition-root", None, None, None),
     "accelerator-work": ("composition-root", None, None, None),

@@ -316,7 +316,7 @@ impl TreeResolver<'_> {
 
         // 9. Hold the lease before the rename, so the 9->10 window cannot look
         //    like crash residue to a concurrent prune.
-        let _lease = tree_lease::hold_shared_lease(&paths.lease(&generation))?;
+        let _lease = lease::hold_shared_lease(&paths.lease(&generation))?;
         self.steps.after(MaterialiseStep::LeaseHeld)?;
 
         // 10. Rename into place — fresh by construction, so a collision is an
@@ -524,9 +524,9 @@ impl AcquireSealedTree for TreeResolver<'_> {
             let Some(located) = self.locate(artifact, digest) else {
                 return Ok(None);
             };
-            let Ok(lease) = tree_lease::hold_shared_lease(
-                &paths.lease(&located.generation),
-            ) else {
+            let Ok(lease) =
+                lease::hold_shared_lease(&paths.lease(&located.generation))
+            else {
                 return Ok(None);
             };
             match directory_identity(&located.generation_dir) {

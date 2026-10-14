@@ -35,7 +35,7 @@ fn main() -> ExitCode {
 
     let mut leases = Vec::new();
     for path in std::env::args_os().skip(1) {
-        match tree_lease::hold_shared_lease(path.as_ref()) {
+        match lease::hold_shared_lease(path.as_ref()) {
             Ok(lease) => leases.push(lease),
             Err(error) => {
                 eprintln!("{error}");

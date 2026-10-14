@@ -219,11 +219,11 @@
                 ),
             ],
         )),
-        // tree-lease pins a tree by holding a flock: no process spawning, no
+        // lease pins a file by holding a flock: no process spawning, no
         // transport.
         Module((
-            name: "tree_lease_holds_leases_only",
-            matches: Module("^tree_lease($|::)"),
+            name: "lease_holds_leases_only",
+            matches: Module("^lease($|::)"),
             rules: [
                 RestrictImports(
                     allowed_only: None,
@@ -457,7 +457,7 @@
         Module((
             name: "only_the_consent_policy_names_the_command_runner",
             matches: Module(
-                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process_probe|tree_lease|work|work_adapters|remote_projection|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
+                "^(accelerator|accelerator_[a-z_]+|kernel|document|store|tracker|tracker_support|tracker_test_support|http_test_support|cli_test_support|vcs|vcs_adapters|vcs_test_support|corpus|corpus_adapters|research|research_adapters|process_probe|lease|work|work_adapters|remote_projection|jira_client|linear_client|collaboration|github|migrate|migrate_adapters|design|design_adapters)($|::)"
             ),
             rules: [
                 RestrictImports(

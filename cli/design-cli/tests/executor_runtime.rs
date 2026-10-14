@@ -18,11 +18,11 @@ use std::time::Instant;
 
 use design::runtime::platform;
 use design::runtime::platform::Support;
+use lease::observed_held;
 use rustix::process::getpgid;
 use rustix::process::kill_process_group;
 use rustix::process::Pid;
 use rustix::process::Signal;
-use tree_lease::observed_held;
 
 type TestError = Box<dyn std::error::Error>;
 

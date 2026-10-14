@@ -13,7 +13,7 @@ use design_adapters::ensure::ResolvedTree;
 use design_adapters::HeldTrees;
 use design_adapters::TreeLeases;
 use design_adapters::Unleasable;
-use tree_lease::observed_held;
+use lease::observed_held;
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -116,7 +116,7 @@ fn a_lease_file_another_holder_holds_outlives_its_gone_tree(
 ) -> Result<(), TestError> {
     let work = tempfile::tempdir()?;
     let tree = resolved("driver", work.path().join("reclaimed-tree"));
-    let _other_holder = tree_lease::hold_shared_lease(&tree.lease)?;
+    let _other_holder = lease::hold_shared_lease(&tree.lease)?;
 
     let held = TreeLeases::hold(std::slice::from_ref(&tree));
 

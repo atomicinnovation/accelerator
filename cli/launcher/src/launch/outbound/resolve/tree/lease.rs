@@ -37,12 +37,12 @@ mod unix {
     use std::os::unix::fs::OpenOptionsExt as _;
     use std::path::Path;
 
+    use lease::LeaseError;
     use rustix::fs::{flock, FlockOperation};
-    use tree_lease::LeaseError;
 
     use crate::launch::core::tree::{HeldLease, TreeError};
 
-    impl HeldLease for tree_lease::SharedLease {}
+    impl HeldLease for lease::SharedLease {}
 
     impl From<LeaseError> for TreeError {
         fn from(error: LeaseError) -> Self {
@@ -187,11 +187,11 @@ mod unix {
 mod stubs {
     use std::path::Path;
 
-    use tree_lease::LeaseError;
+    use lease::LeaseError;
 
     use crate::launch::core::tree::{HeldLease, TreeError};
 
-    impl HeldLease for tree_lease::SharedLease {}
+    impl HeldLease for lease::SharedLease {}
 
     impl From<LeaseError> for TreeError {
         fn from(error: LeaseError) -> Self {

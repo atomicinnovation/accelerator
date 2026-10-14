@@ -37,7 +37,7 @@ pub enum EnsureOutcome {
 /// The leases pinning the trees one `cache ensure` resolved, released when
 /// dropped.
 #[derive(Default)]
-pub struct TreeLeases(#[allow(dead_code)] Vec<tree_lease::SharedLease>);
+pub struct TreeLeases(#[allow(dead_code)] Vec<lease::SharedLease>);
 
 /// What holding the resolved trees' leases found.
 pub struct HeldTrees {
@@ -50,7 +50,7 @@ pub struct HeldTrees {
 #[derive(Debug)]
 pub enum Unleasable {
     OutsideTreeLayout,
-    Lease(tree_lease::LeaseError),
+    Lease(lease::LeaseError),
 }
 
 impl std::fmt::Display for Unleasable {
@@ -81,7 +81,7 @@ impl TreeLeases {
                     .push((tree.clone(), Unleasable::OutsideTreeLayout));
                 continue;
             }
-            let lease = tree_lease::hold_shared_lease(&tree.lease);
+            let lease = lease::hold_shared_lease(&tree.lease);
             match std::fs::symlink_metadata(&tree.path) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                     drop(lease);
@@ -109,7 +109,7 @@ fn lease_beside(tree: &Path) -> PathBuf {
 }
 
 fn remove_unheld_lease(lease: &Path) {
-    if matches!(tree_lease::observed_held(lease), Ok(false)) {
+    if matches!(lease::observed_held(lease), Ok(false)) {
         let _ = std::fs::remove_file(lease);
     }
 }
