@@ -3,18 +3,10 @@
 
 use research::conduct::replaced_run::ReplacedRun;
 
-use crate::topic_command::ReplacedLedger;
-
-pub fn corrupt_notice(replaced: &ReplacedLedger) -> Option<String> {
-    match replaced {
-        ReplacedLedger::Corrupt => Some(
-            "replaced a corrupt run ledger; if its run is still going it \
-             stops at its next batch, and notes its last batch writes may \
-             show as unexpected"
-                .to_owned(),
-        ),
-        ReplacedLedger::Absent | ReplacedLedger::Readable(_) => None,
-    }
+pub fn corrupt_notice() -> String {
+    "replaced a corrupt run ledger; if its run is still going it stops at \
+     its next batch, and notes its last batch writes may show as unexpected"
+        .to_owned()
 }
 
 pub fn replaced_notice(replaced: &ReplacedRun) -> String {

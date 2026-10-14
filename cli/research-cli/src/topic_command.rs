@@ -262,7 +262,9 @@ where
         RunMode::Start(_) => {
             notices.extend(start_notices(concurrency));
             let replaced = replaced_ledger(set_root, fs)?;
-            notices.extend(ledger_wording::corrupt_notice(&replaced));
+            if matches!(replaced, ReplacedLedger::Corrupt) {
+                notices.push(ledger_wording::corrupt_notice());
+            }
             (None, replaced)
         }
         RunMode::Query => (None, ReplacedLedger::Absent),
@@ -439,7 +441,7 @@ fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
     unhonoured.chain(clamps).collect()
 }
 
-pub enum ReplacedLedger {
+enum ReplacedLedger {
     Absent,
     Readable(RunLedger),
     Corrupt,
