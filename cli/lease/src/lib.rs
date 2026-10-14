@@ -8,7 +8,9 @@
 //!
 //! Where `flock` is unavailable — NFS returning `ENOLCK`, some FUSE and SMB
 //! backends — liveness is probed as unknown rather than as free, so a
-//! spuriously successful probe cannot reclaim what a live process uses.
+//! spuriously successful probe cannot reclaim what a live process uses. NFS
+//! is probed as unknown even where `flock` succeeds, because its lock belongs
+//! to the process that took it and is not inherited across `fork`.
 
 use std::path::{Path, PathBuf};
 
@@ -148,11 +150,79 @@ mod unix {
         )
     }
 
+    /// Whose a `flock` is on a lease's filesystem. Only a lock owned by the
+    /// open file passes to a forked daemon with its descriptor; one owned by
+    /// the process is released when the process that took it exits.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum FlockOwner {
+        OpenFile,
+        Process,
+    }
+
     /// Probe the lease with a non-blocking exclusive `flock`, released at
     /// once if it succeeds, so the probe never leaves the lease held. An absent
     /// lease file is `Free`: there is no holder.
     #[must_use]
     pub fn probe_shared_lease(path: &Path) -> Liveness {
+        match flock_owner_on(path) {
+            Ok(owner) => probe_where_locks_belong_to(owner, path),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Liveness::Free
+            }
+            Err(_) => Liveness::Unknown,
+        }
+    }
+
+    /// A lease locked per process may have been taken by a client that has
+    /// since exited, leaving the daemon that inherited its descriptor running
+    /// unlocked, so its probe cannot tell a live holder from none.
+    fn probe_where_locks_belong_to(owner: FlockOwner, path: &Path) -> Liveness {
+        match owner {
+            FlockOwner::OpenFile => probe_flock(path),
+            FlockOwner::Process => Liveness::Unknown,
+        }
+    }
+
+    fn flock_owner_on(path: &Path) -> std::io::Result<FlockOwner> {
+        let filesystem = rustix::fs::statfs(path)?;
+        #[cfg(target_os = "linux")]
+        let owner = flock_owner_of_filesystem_type(filesystem.f_type);
+        #[cfg(target_os = "macos")]
+        let owner = flock_owner_of_filesystem_name(
+            &filesystem.f_fstypename.map(|byte| byte.to_ne_bytes()[0]),
+        );
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        let owner = {
+            let _ = filesystem;
+            FlockOwner::OpenFile
+        };
+        Ok(owner)
+    }
+
+    /// Linux's NFS client emulates `flock` with `fcntl` record locks, which
+    /// belong to the process, unless mounted with `local_lock=flock`.
+    #[cfg(target_os = "linux")]
+    const fn flock_owner_of_filesystem_type(
+        filesystem_type: rustix::fs::FsWord,
+    ) -> FlockOwner {
+        if filesystem_type == rustix::fs::NFS_SUPER_MAGIC {
+            FlockOwner::Process
+        } else {
+            FlockOwner::OpenFile
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn flock_owner_of_filesystem_name(name: &[u8]) -> FlockOwner {
+        let name = name.split(|byte| *byte == 0).next().unwrap_or_default();
+        if name == b"nfs" {
+            FlockOwner::Process
+        } else {
+            FlockOwner::OpenFile
+        }
+    }
+
+    fn probe_flock(path: &Path) -> Liveness {
         let file = match OpenOptions::new().read(true).write(true).open(path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -204,7 +274,8 @@ mod unix {
         use rustix::io::{fcntl_getfd, FdFlags};
 
         use super::{
-            hold_shared_lease, probe_shared_lease, Liveness,
+            flock_owner_on, hold_shared_lease, probe_shared_lease,
+            probe_where_locks_belong_to, FlockOwner, Liveness,
             LOWEST_LEASE_DESCRIPTOR,
         };
 
@@ -289,6 +360,78 @@ mod unix {
             let path = dir.path().join("gen.lease");
             std::fs::create_dir(&path).expect("a directory in its place");
             assert_eq!(probe_shared_lease(&path), Liveness::Unknown);
+        }
+
+        #[test]
+        fn a_local_lease_is_locked_per_open_file() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("gen.lease");
+            drop(hold_shared_lease(&path).expect("hold"));
+            assert_eq!(
+                flock_owner_on(&path).expect("statfs"),
+                FlockOwner::OpenFile
+            );
+        }
+
+        #[test]
+        fn a_held_lease_locked_per_process_is_probed_unknown() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("gen.lease");
+            let _lease = hold_shared_lease(&path).expect("hold");
+            assert_eq!(
+                probe_where_locks_belong_to(FlockOwner::Process, &path),
+                Liveness::Unknown
+            );
+        }
+
+        #[test]
+        fn a_free_lease_locked_per_process_is_probed_unknown() {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("gen.lease");
+            drop(hold_shared_lease(&path).expect("hold"));
+            assert_eq!(
+                probe_where_locks_belong_to(FlockOwner::Process, &path),
+                Liveness::Unknown
+            );
+        }
+
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn nfs_locks_belong_to_the_process() {
+            assert_eq!(
+                super::flock_owner_of_filesystem_type(
+                    rustix::fs::NFS_SUPER_MAGIC
+                ),
+                FlockOwner::Process
+            );
+        }
+
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn ext4_locks_belong_to_the_open_file() {
+            const EXT4_SUPER_MAGIC: rustix::fs::FsWord = 0xEF53;
+            assert_eq!(
+                super::flock_owner_of_filesystem_type(EXT4_SUPER_MAGIC),
+                FlockOwner::OpenFile
+            );
+        }
+
+        #[cfg(target_os = "macos")]
+        #[test]
+        fn nfs_locks_belong_to_the_process() {
+            assert_eq!(
+                super::flock_owner_of_filesystem_name(b"nfs"),
+                FlockOwner::Process
+            );
+        }
+
+        #[cfg(target_os = "macos")]
+        #[test]
+        fn apfs_locks_belong_to_the_open_file() {
+            assert_eq!(
+                super::flock_owner_of_filesystem_name(b"apfs"),
+                FlockOwner::OpenFile
+            );
         }
     }
 }
