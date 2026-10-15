@@ -5,7 +5,7 @@ title: "Push PR Descriptions to GitHub Unwrapped"
 date: "2026-10-13T13:34:32+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "story"
 priority: "medium"
 relates_to: ["work-item:0320", "work-item:0197", "work-item:0071", "work-item:0152"]
@@ -18,7 +18,7 @@ schema_version: 1
 # 0332: Push PR Descriptions to GitHub Unwrapped
 
 **Kind**: Story
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
