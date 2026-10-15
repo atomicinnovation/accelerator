@@ -283,7 +283,7 @@ impl Judge<'_> {
             .find(|finding| finding.stem() == Some(stem));
         let (outcome, pair) = self.owner(stem).map_or_else(
             || self.unowned_finding(finding),
-            |owner| (self.owned_finding(finding, &owner), Some(owner)),
+            |owner| self.owned_finding(finding, owner),
         );
         Verdict {
             leftover: Leftover {
@@ -297,16 +297,17 @@ impl Judge<'_> {
     fn owned_finding(
         &self,
         finding: Option<&Finding>,
-        owner: &Pair,
-    ) -> SpawnOutcome {
+        owner: Pair,
+    ) -> (SpawnOutcome, Option<Pair>) {
         let question = NormalisedQuestion::of(&owner.question, self.unicode);
-        match finding {
+        let outcome = match finding {
             None => SpawnOutcome::Unwritten,
             Some(finding) if finding.answers(&question, &owner.profile) => {
                 SpawnOutcome::Valid
             }
             Some(_) => SpawnOutcome::Invalid,
-        }
+        };
+        (outcome, Some(owner))
     }
 
     fn unowned_finding(
