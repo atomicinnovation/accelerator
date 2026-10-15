@@ -219,7 +219,8 @@ search failed transiently, a named target's remote lookup was indeterminate, or
 every per-item failure was retryable; `71` a per-item failure was terminal (a
 whole-item update is idempotent, so the hazard is response uncertainty — never
 auto-retried), a local file read or write failed (whether the write landed
-is unknown), or a retirement stopped with `retirement-incomplete` (see Step
+is unknown), a local file's frontmatter does not parse (nothing was sent or
+written for it), or a retirement stopped with `retirement-incomplete` (see Step
 5); `75` a per-item request was refused before sending — its failed row
 carries the `rejected`, `unrenderable` or `pull-residue` detail (see the table
 below) — `unrenderable` covers a pull of a remote edit, a targeted pull-create
@@ -243,8 +244,9 @@ or `70` (a named target's remote lookup was indeterminate) — see the
 target-abort codes under Step 1. A *targeted* exit-70 aborts before any write,
 distinguishing it from an engine-level exit-70 that can follow partial writes,
 so the operator knows whether a re-run is a clean retry or a resume. Under
-`--preview` no baseline mutation occurs and every planned
+`--preview` no baseline mutation occurs, every planned
 push carries a locally-validated payload check, or the `pull-residue` or
+`unrenderable` failure the run would meet, and every planned pull carries the
 `unrenderable` failure the run would meet.
 
 | Detail | Meaning | Remedy |
@@ -270,7 +272,8 @@ For each `unresolved` line in the report, read that item's dossier:
   **reduced** `[local/skip]` token below, saying that `local` overwrites Jira
   content the plugin cannot display.
 - **A missing or unreadable dossier, or any other dossier carrying `status:
-  unrenderable`** (including `reason: local-unreadable`, `reason: local-pull-residue` and
+  unrenderable`** (including `reason: local-unreadable`, which also covers a
+  local file whose frontmatter does not parse, `reason: local-pull-residue` and
   `reason: legacy-unrenderable`), is handled **fail-safe**: report that the
   conflict could not be rendered and was left unresolved, relay the remedy the
   dossier names, and do **not** prompt. A missing dossier is treated
