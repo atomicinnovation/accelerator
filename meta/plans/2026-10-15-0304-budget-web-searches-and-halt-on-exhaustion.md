@@ -527,14 +527,14 @@ Run `mise run public-api:update` and commit the regenerated
 
 #### Automated Verification
 
-- [ ] Depth, tree and sizing tests fail first for the stated reasons, then
+- [x] Depth, tree and sizing tests fail first for the stated reasons, then
       pass: `cargo test -p research -p research-adapters -p research-cli`
       (from `cli/`)
-- [ ] Depth-ceiling structure tests fail first, then pass:
+- [x] Depth-ceiling structure tests fail first, then pass:
       `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Whole Rust workspace checks pass: `mise run cli:check`
-- [ ] Public API pin matches: `mise run public-api:check`
-- [ ] Full local CI mirror: `mise run`
+- [x] Whole Rust workspace checks pass: `mise run cli:check`
+- [x] Public API pin matches: `mise run public-api:check`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
