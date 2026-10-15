@@ -790,7 +790,7 @@ is the worked example.
 ## Registering a library crate
 
 A plain library crate — no dispatch token, no binary, no launcher wiring —
-owes six things. `cli/tracker/` is the worked example.
+owes seven things. `cli/tracker/` is the worked example.
 
 - **Workspace membership.** Add the directory to `[workspace].members` in
   `cli/Cargo.toml`, then sync the lockfile with `cargo metadata
@@ -813,6 +813,10 @@ owes six things. `cli/tracker/` is the worked example.
 - **A `cli/pup.ron` rule.** Nothing derives architectural enforcement from
   membership, so a crate without a rule has none and no check reports it
   missing.
+- **The command-runner alternation.** Add the crate to the module regex of
+  `only_the_consent_policy_names_the_command_runner` in `cli/pup.ron`. The
+  rule matches crates by name, so one missing from the alternation may
+  name the production command runner unchecked.
 - **A probe pair** in `tests/integration/pup/test_import_rule.py`, driving the
   shipped `cli/pup.ron` against a synthetic workspace named for the crate: a
   violation case and a compliant control that imports something the permit list

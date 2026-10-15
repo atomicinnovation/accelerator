@@ -46,6 +46,7 @@ dependencies = [
  "http",
  "http-test-support",
  "kernel",
+ "serde_json",
  "tempfile",
  "tokio",
  "vcs",
@@ -1488,6 +1489,7 @@ dependencies = [
  "collaboration",
  "http",
  "http-test-support",
+ "markdown",
  "octocrab",
  "tokio",
  "tracing",
@@ -3209,6 +3211,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
+name = "markdown"
+version = "1.24.0-pre.82"
+dependencies = [
+ "pulldown-cmark",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3796,6 +3805,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags 2.13.1",
+ "memchr",
+ "unicase",
 ]
 
 [[package]]

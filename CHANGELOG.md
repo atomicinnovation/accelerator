@@ -90,6 +90,16 @@
   `work sync` or `work promote` until no draft is mid-promotion before
   installing an earlier release.
 
+- **`describe-pr` posts pull request descriptions unwrapped.** `accelerator
+  collaboration pr update-body` joins each soft-wrapped line onto the one
+  before with a single space, dropping the line's `>` markers and
+  indentation, so prose hard-wrapped to the repository's line width flows at
+  full width on GitHub instead of breaking at every newline. Hard breaks,
+  code and tables are posted byte-for-byte, and the body file and
+  `meta/prs/` description stay wrapped. A line that must render on
+  its own, such as a trailer or `Closes #n`, needs a hard break (two trailing
+  spaces or `\`) or a list item.
+
 ### Added
 
 - **`research-topic` researches the scholarly literature as well as the web.**
@@ -477,6 +487,9 @@
   migrate pre-flight. Conditional `[[--scope]]` settings apply as they do for
   `jj status`. An invalid value checks every file and logs a warning, shown
   with `ACCELERATOR_LOG=warn`.
+
+- **`describe-pr` lists an unreadable body file under exit 2**, matching what
+  `update-body` returns, where it listed it under exit 1.
 
 ### Security
 

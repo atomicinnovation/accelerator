@@ -15,6 +15,7 @@ use collaboration::base_repo::BaseRepoOutcome;
 use collaboration::update_body::update_pull_request_body;
 use collaboration::update_body::UpdateBodyOutcome;
 use collaboration::ForgeApiError;
+use collaboration::PullRequestBodyPublishing;
 use collaboration::PullRequestBodyUpdate;
 use collaboration::PullRequestExistence;
 use collaboration::RepositoryDetails;
@@ -26,6 +27,7 @@ use config_adapters::compose;
 use config_adapters::credentials::project_credential_context;
 use config_adapters::FileConfigStore;
 use config_adapters::LegacyPolicy;
+use github::GitHubPullRequestBodyPublishing;
 use github::GitHubRemoteUrlRecognizer;
 use github::OctocrabClient;
 use vcs_adapters::library::InProcessProbe;
@@ -102,6 +104,12 @@ impl PullRequestBodyUpdate for BlockingGitHubClient {
             pull_number,
             body,
         ))
+    }
+}
+
+impl PullRequestBodyPublishing for BlockingGitHubClient {
+    fn prepare_for_publishing(&self, body: &str) -> String {
+        GitHubPullRequestBodyPublishing.prepare_for_publishing(body)
     }
 }
 
@@ -234,8 +242,6 @@ fn run_update_body(
         &start,
         &origin,
         &recognizer,
-        &client,
-        &client,
         &client,
         pull_number,
         &body,

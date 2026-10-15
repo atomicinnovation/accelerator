@@ -1,0 +1,48 @@
+=== accelerator-collaboration --help ===
+The `accelerator-collaboration` command-line surface
+
+Usage: accelerator-collaboration <COMMAND>
+
+Commands:
+  pr    Pull-request operations
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-collaboration pr --help ===
+Pull-request operations
+
+Usage: accelerator-collaboration pr <COMMAND>
+
+Commands:
+  base-repo    Resolve a PR's base (upstream) owner/repo; prints "<owner>/<repo>"
+  update-body  Update a PR's body from a file
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-collaboration pr base-repo --help ===
+Resolve a PR's base (upstream) owner/repo; prints "<owner>/<repo>"
+
+Usage: accelerator-collaboration pr base-repo <PULL_NUMBER>
+
+Arguments:
+  <PULL_NUMBER>  
+
+Options:
+  -h, --help  Print help
+
+=== accelerator-collaboration pr update-body --help ===
+Update a PR's body from a file
+
+Usage: accelerator-collaboration pr update-body --body-file <BODY_FILE> <PULL_NUMBER>
+
+Arguments:
+  <PULL_NUMBER>  
+
+Options:
+      --body-file <BODY_FILE>  
+  -h, --help                   Print help
+

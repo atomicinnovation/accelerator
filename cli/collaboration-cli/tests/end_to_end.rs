@@ -185,34 +185,7 @@ fn base_repo_reports_a_repository_lookup_failure() -> Result<(), TestError> {
 #[test]
 fn update_body_succeeds() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockHTTPServer::start();
-    server.route(
-        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
-        Route::Json {
-            status: 200,
-            body: repository_json("candidate-owner", "candidate-repo"),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "GET",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "PATCH",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
+    let server = resolving_server_answering_patch(patch_accepted());
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;
 
@@ -235,34 +208,10 @@ fn update_body_succeeds() -> Result<(), TestError> {
 #[test]
 fn update_body_reports_a_patch_failure() -> Result<(), TestError> {
     let repo = scratch_repo()?;
-    let server = MockHTTPServer::start();
-    server.route(
-        RequestKey::new("GET", "/repos/candidate-owner/candidate-repo"),
-        Route::Json {
-            status: 200,
-            body: repository_json("candidate-owner", "candidate-repo"),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "GET",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 200,
-            body: pull_request_json(42),
-        },
-    );
-    server.route(
-        RequestKey::new(
-            "PATCH",
-            "/repos/candidate-owner/candidate-repo/pulls/42",
-        ),
-        Route::Json {
-            status: 422,
-            body: "{\"message\":\"Validation Failed\"}".to_owned(),
-        },
-    );
+    let server = resolving_server_answering_patch(Route::Json {
+        status: 422,
+        body: "{\"message\":\"Validation Failed\"}".to_owned(),
+    });
     let body_file = repo.path().join("body.md");
     fs::write(&body_file, "new body")?;
 
@@ -459,6 +408,23 @@ fn resolving_server() -> MockHTTPServer {
     server
 }
 
+fn resolving_server_answering_patch(patch: Route) -> MockHTTPServer {
+    let server = resolving_server();
+    server.route(update_body_key(), patch);
+    server
+}
+
+fn update_body_key() -> RequestKey {
+    RequestKey::new("PATCH", "/repos/candidate-owner/candidate-repo/pulls/42")
+}
+
+fn patch_accepted() -> Route {
+    Route::Json {
+        status: 200,
+        body: pull_request_json(42),
+    }
+}
+
 fn base_repo(
     dir: &Path,
     server: &MockHTTPServer,
@@ -619,5 +585,121 @@ fn a_personal_token_command_runs_outside_the_project_in_a_fresh_directory(
     let cwd = std::path::PathBuf::from(fs::read_to_string(&recorded)?.trim());
     assert!(!cwd.starts_with(repo.path().canonicalize()?));
     assert!(!cwd.exists(), "{} outlived the run", cwd.display());
+    Ok(())
+}
+
+const WRAPPED_BODY: &str =
+    "Wrapped\nparagraph  \nhard\nbreak\n\n```\ncode\nline\n```\n";
+
+fn update_body(
+    dir: &Path,
+    server: &MockHTTPServer,
+    body: &str,
+) -> Result<(Output, std::path::PathBuf), TestError> {
+    let body_file = dir.join("body.md");
+    fs::write(&body_file, body)?;
+    let output = run(
+        dir,
+        server,
+        &[
+            "pr",
+            "update-body",
+            "42",
+            "--body-file",
+            body_file.to_str().expect("utf8 path"),
+        ],
+    )?;
+    Ok((output, body_file))
+}
+
+fn patched_body(server: &MockHTTPServer) -> Result<String, TestError> {
+    let request = server
+        .last_body(&update_body_key())
+        .ok_or("no PATCH was received")?;
+    let payload: serde_json::Value = serde_json::from_slice(&request)?;
+    Ok(payload["body"]
+        .as_str()
+        .ok_or("the PATCH payload has no string body")?
+        .to_owned())
+}
+
+#[test]
+fn update_body_posts_soft_line_breaks_unwrapped() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let server = resolving_server_answering_patch(patch_accepted());
+
+    let (output, _) = update_body(repo.path(), &server, WRAPPED_BODY)?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        patched_body(&server)?,
+        "Wrapped paragraph  \nhard break\n\n```\ncode\nline\n```\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn update_body_leaves_the_body_file_unchanged() -> Result<(), TestError> {
+    let repo = scratch_repo()?;
+    let server = resolving_server_answering_patch(patch_accepted());
+
+    let (output, body_file) = update_body(repo.path(), &server, WRAPPED_BODY)?;
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(server.hits(&update_body_key()), 1);
+    assert_eq!(fs::read_to_string(body_file)?, WRAPPED_BODY);
+    Ok(())
+}
+
+fn with_forty_column_conventions(dir: &Path) -> Result<(), TestError> {
+    fs::write(
+        dir.join(".editorconfig"),
+        "root = true\n\n[*]\nmax_line_length = 40\n",
+    )?;
+    fs::write(
+        dir.join("CLAUDE.md"),
+        "Wrap all Markdown, including PR descriptions, at 40 columns.\n",
+    )?;
+    write_configs(dir, "  host: github.com\n", None)?;
+    let instructions = dir.join(".accelerator/skills/describe-pr");
+    fs::create_dir_all(&instructions)?;
+    fs::write(
+        instructions.join("instructions.md"),
+        "Wrap the description at 40 columns.\n",
+    )?;
+    let templates = dir.join(".accelerator/templates");
+    fs::create_dir_all(&templates)?;
+    fs::write(
+        templates.join("pr-description.md"),
+        "## Summary\n\nWrapped at 40 columns.\n",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn update_body_ignores_repository_line_width_conventions(
+) -> Result<(), TestError> {
+    let bare = scratch_repo()?;
+    let configured = scratch_repo()?;
+    with_forty_column_conventions(configured.path())?;
+
+    for repo in [&bare, &configured] {
+        let server = resolving_server_answering_patch(patch_accepted());
+
+        let (output, _) = update_body(
+            repo.path(),
+            &server,
+            "This paragraph is hard-wrapped to stay\n\
+             under forty columns, and joins into one\n\
+             line on GitHub.\n",
+        )?;
+
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            patched_body(&server)?,
+            "This paragraph is hard-wrapped to stay under forty columns, \
+             and joins into one line on GitHub.\n"
+        );
+    }
     Ok(())
 }

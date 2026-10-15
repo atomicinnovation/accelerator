@@ -142,8 +142,9 @@ potential impacts)
   3. Write the completed description with the substituted frontmatter
      block to `{prs directory}/{number}-description.md`.
 
-- Show the user the generated description (without frontmatter — they'll
-  see what gets posted to GitHub).
+- Show the user the generated description (without frontmatter). GitHub
+  receives the same text with its soft line breaks unwrapped, so wrapped
+  prose flows at the page's full width.
 - On re-run (when `{prs directory}/{number}-description.md` already
   exists), regenerate the unified frontmatter rather than only updating
   `date:`. Creation-time fields are immutable on re-run: `date:`,
@@ -173,12 +174,16 @@ potential impacts)
      ```bash
      accelerator collaboration pr update-body {number} --body-file {tmp directory}/pr-body-{number}.md
      ```
+     `update-body` unwraps soft line breaks before posting; the body file
+     and the saved description stay wrapped. A line that must render on
+     its own, such as a trailer or `Closes #n`, needs a hard break (two
+     trailing spaces or `\`) or a list item.
      If the command exits non-zero, surface its stderr verbatim to the
      user. Exit codes:
-     - **Exit 2** → usage/refusal — e.g. missing `--body-file`, no
-       `origin` remote configured
+     - **Exit 2** → usage/refusal — e.g. missing `--body-file`, body-file
+       read failure, no `origin` remote configured
      - **Exit 1** → any other failure — base-repo resolution failure,
-       body-file read failure, GitHub REST API failure
+       GitHub REST API failure
      stderr always names which stage failed.
   6. Clean up `{tmp directory}/pr-body-{number}.md`
 - Confirm the update was successful

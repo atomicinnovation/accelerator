@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from tasks.shared.cargo_metadata import workspace_packages
 from tasks.shared.rust import RUST_NIGHTLY
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -913,11 +914,8 @@ def test_tracker_test_support_rule_permits_importing_tracker(
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
 
-# The remote-projection and tracker-support rules are both `denied`-only rules
-# over a whole crate, each driven against a workspace whose crate is literally
-# named for it. remote-projection must not spawn; tracker-support must neither
-# spawn nor grow a transport. Each compliant control imports something real, so
-# a matcher that resolved nothing could not pass it silently.
+# Each compliant control imports something real, so a matcher that resolved
+# nothing could not pass it silently.
 
 _SHARED_CRATE_WORKSPACE = """\
 [workspace]
@@ -951,6 +949,9 @@ _PROJECTION_COMPLIANT = (
     "pub fn make() -> BTreeMap<String, String> {\n"
     "    BTreeMap::new()\n"
     "}\n"
+)
+_MARKDOWN_COMPLIANT = (
+    "use std::ops::Range;\n\npub fn make() -> Range<usize> {\n    0..1\n}\n"
 )
 
 _LEASE_COMPLIANT = (
@@ -1013,6 +1014,23 @@ def test_lease_rule_rejects_spawning(tmp_path: Path) -> None:
 def test_lease_rule_permits_locking(tmp_path: Path) -> None:
     _require_tools()
     _write_shared_crate_probe(tmp_path, "lease", _LEASE_COMPLIANT)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
+
+
+def test_markdown_rule_rejects_spawning(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "markdown", _SPAWN_VIOLATION)
+    result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
+    output = _ANSI.sub("", result.stdout + result.stderr)
+    assert result.returncode != 0, output
+    assert "is denied" in output, output
+    assert "markdown_transforms_text_only" in output, output
+
+
+def test_markdown_rule_permits_text_transformation(tmp_path: Path) -> None:
+    _require_tools()
+    _write_shared_crate_probe(tmp_path, "markdown", _MARKDOWN_COMPLIANT)
     result = _pup("--pup-config", str(CLI_PUP_RON), cwd=tmp_path)
     assert result.returncode == 0, _ANSI.sub("", result.stdout + result.stderr)
 
@@ -2036,3 +2054,48 @@ def test_real_domain_rule_rejects_kernel_infra(
     assert result.returncode != 0, output
     assert "is not allowed" in output, output
     assert rule in output, output
+
+
+_CONSENT_POLICY_CRATES = {"config", "config_adapters"}
+_COMPILED_TARGET_KINDS = {"lib", "rlib", "bin", "proc-macro"}
+
+
+def _module_pattern(rule: str) -> str:
+    match = re.search(
+        rf'name: "{rule}",\s*matches: Module\(\s*"([^"]+)"',
+        CLI_PUP_RON.read_text(),
+    )
+    assert match, f"{rule} has no module pattern in {CLI_PUP_RON}"
+    return match.group(1)
+
+
+def _is_test_fixture(target: dict) -> bool:
+    return "/tests/fixtures/" in target["src_path"]
+
+
+def _production_target_names() -> set[str]:
+    return {
+        target["name"].replace("-", "_")
+        for package in workspace_packages()
+        for target in package["targets"]
+        if _COMPILED_TARGET_KINDS & set(target["kind"])
+        and not _is_test_fixture(target)
+    }
+
+
+def test_command_runner_rule_covers_all_but_the_consent_policy() -> None:
+    covered = re.compile(
+        _module_pattern("only_the_consent_policy_names_the_command_runner")
+    )
+    targets = _production_target_names()
+    uncovered = sorted(
+        target
+        for target in targets - _CONSENT_POLICY_CRATES
+        if not covered.match(target)
+    )
+    assert uncovered == [], (
+        "add these crates to the module regex of "
+        "only_the_consent_policy_names_the_command_runner in cli/pup.ron"
+    )
+    assert targets >= _CONSENT_POLICY_CRATES
+    assert not any(covered.match(crate) for crate in _CONSENT_POLICY_CRATES)
