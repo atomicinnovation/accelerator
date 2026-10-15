@@ -186,9 +186,7 @@ Run on 2026-10-15 at the branch tip:
 - [x] `test:unit:frontend`: 2,615 passed
 - [x] Every lint, type-check and `public-api:check` task in `mise run`
 - [x] `mise run test:e2e:visualiser` on its own: 355 passed
-- [ ] `mise run` exits 0. It did on the first run after the validation fixes.
-      The last two runs failed only `kanban-drag-overlay.spec.ts`'s
-      Escape-cancel test under full-suite load (see Notes).
+- [x] `mise run` exits 0 (355 e2e tests passed)
 
 Recorded in the plan as passing, not re-run for this description:
 
@@ -284,10 +282,13 @@ meaning-changing rewrites now sit inside the baseline.
   - A remote-only retitle is absorbed into the baseline without being
     reported, until 0290.
   - One item whose digest fails still aborts the run, as on `main`.
-- **Flaky e2e test.** The Escape-cancel test in `kanban-drag-overlay.spec.ts`
-  fails `mise run` under load and passes alone. The failure is in
-  `writeUntilVisible`'s SSE wait, the cause is unidentified, and no change on
-  this branch since validation touches the visualiser.
+- **Flaky e2e test fixed.** The Escape-cancel test in
+  `kanban-drag-overlay.spec.ts` wrote the fixture file and waited for the OS
+  file watcher, which a loaded machine delivered late or not at all. It now
+  edits and restores through the frontmatter PATCH, which broadcasts at once;
+  breaking the cancel path still fails it. Separately, the watcher ignores
+  FSEvents' "rescan" notification for dropped events, so a dropped burst is
+  never re-indexed; that is left for a follow-up.
 - **Branch base.** The branch sits one release bump and PR #163 behind
   `main`.
 

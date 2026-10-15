@@ -10,7 +10,7 @@ result: "pass"
 parent: "plan:2026-10-10-0296-sync-round-trip-defects"
 target: "plan:2026-10-10-0296-sync-round-trip-defects"
 tags: ["sync", "linear", "jira", "baseline", "equivalence", "adf"]
-last_updated: "2026-10-15T10:14:51+00:00"
+last_updated: "2026-10-15T12:10:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -42,7 +42,7 @@ fixes listed under Resolved Findings. PR #159, branch
 ✓ `test:unit:frontend`: 2,615 passed
 ✓ `lint:cli:check`, `public-api:check` (`tracker` pin updated for `BodyDialect::rejects`) and every other `mise run` task
 ✓ `mise run test:e2e:visualiser` alone: 355 passed
-⚠️ `mise run`: exit 0 on the run after the first fixes; the last two runs failed only `kanban-drag-overlay.spec.ts` ("Escape-cancelling a drag clears the SSE gate…"), a visualiser flake under full-suite load that the plan records in Phases 2, 3 and 10. No change on this branch since validation touches the visualiser.
+✓ `mise run` exits 0 (1,380 s; 355 e2e tests passed). The `kanban-drag-overlay.spec.ts` Escape-cancel test, which failed two earlier runs, now drives its update through the server's frontmatter PATCH instead of a file write the OS watcher delivered late under load.
 ✓ All acceptance criteria in the plan's traceability table name an existing test
 
 Not run in this validation: `test:integration:pup`, `test:integration:deny`,
@@ -107,6 +107,4 @@ Not run in this validation: `test:integration:pup`, `test:integration:deny`,
 
 ### Recommendations:
 
-- Stabilise or quarantine `kanban-drag-overlay.spec.ts`'s Escape-cancel test;
-  it fails `mise run` under load independently of this work.
 - Write the `work-cli` pull-then-sync test once 0300 lands.
