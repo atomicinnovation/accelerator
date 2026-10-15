@@ -253,6 +253,40 @@ pub fn research::conduct::replaced_run::ReplacedRun::eq(&self, other: &research:
 impl core::fmt::Debug for research::conduct::replaced_run::ReplacedRun
 pub fn research::conduct::replaced_run::ReplacedRun::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::conduct::replaced_run::ReplacedRun
+pub mod research::conduct::search_budget
+pub struct research::conduct::search_budget::SearchBudgets
+impl research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::at(&self, level: u32) -> core::num::nonzero::NonZeroU32
+pub const fn research::conduct::search_budget::SearchBudgets::demand(&self) -> u64
+pub const fn research::conduct::search_budget::SearchBudgets::from_parts(budgets: alloc::collections::btree::map::BTreeMap<u32, core::num::nonzero::NonZeroU32>, demand: u64) -> Self
+pub fn research::conduct::search_budget::SearchBudgets::levels(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u32, core::num::nonzero::NonZeroU32)> + '_
+pub fn research::conduct::search_budget::SearchBudgets::overruns(&self, cap: research::conduct::search_budget::SearchCap) -> bool
+pub fn research::conduct::search_budget::SearchBudgets::sized(tree: &research::topic::tree::WorstCaseTree, cap: research::conduct::search_budget::SearchCap) -> Self
+impl core::clone::Clone for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::clone(&self) -> research::conduct::search_budget::SearchBudgets
+impl core::cmp::Eq for research::conduct::search_budget::SearchBudgets
+impl core::cmp::PartialEq for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::eq(&self, other: &research::conduct::search_budget::SearchBudgets) -> bool
+impl core::fmt::Debug for research::conduct::search_budget::SearchBudgets
+pub fn research::conduct::search_budget::SearchBudgets::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchBudgets
+pub struct research::conduct::search_budget::SearchCap(_)
+impl research::conduct::search_budget::SearchCap
+pub const fn research::conduct::search_budget::SearchCap::available(self) -> u32
+pub const fn research::conduct::search_budget::SearchCap::new(searches: core::num::nonzero::NonZeroU32) -> Self
+pub const fn research::conduct::search_budget::SearchCap::reserve(self) -> u32
+pub const fn research::conduct::search_budget::SearchCap::searches(self) -> core::num::nonzero::NonZeroU32
+impl core::clone::Clone for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::clone(&self) -> research::conduct::search_budget::SearchCap
+impl core::cmp::Eq for research::conduct::search_budget::SearchCap
+impl core::cmp::PartialEq for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::eq(&self, other: &research::conduct::search_budget::SearchCap) -> bool
+impl core::fmt::Debug for research::conduct::search_budget::SearchCap
+pub fn research::conduct::search_budget::SearchCap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for research::conduct::search_budget::SearchCap
+impl core::marker::StructuralPartialEq for research::conduct::search_budget::SearchCap
+pub const research::conduct::search_budget::SEARCHING_PROFILE: &str
+pub fn research::conduct::search_budget::unsearched_tree(pairs: &[research::topic::plan::OutstandingPair]) -> research::topic::tree::WorstCaseTree
 pub mod research::conduct::spawn
 pub enum research::conduct::spawn::SpawnRef
 pub research::conduct::spawn::SpawnRef::Node(research::topic::layout::note_ref::NoteRef)
