@@ -9,9 +9,9 @@ status: "draft"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
-relates_to: ["work-item:0283", "work-item:0303", "work-item:0308", "work-item:0310"]
+relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:0308", "work-item:0310"]
 tags: ["research", "deep-research", "conduct", "cli"]
-last_updated: "2026-10-13T17:29:58+00:00"
+last_updated: "2026-10-15T18:14:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -118,6 +118,11 @@ makes it constant per spawn.
 
 - Blocked by: none known
 - Blocks: none known
+- Related: 0304, which gives each web node a search budget from the plan
+  and stores the run's budgets in the ledger. Whichever lands second
+  makes the node query print a web node's `search_budget` from the
+  ledger's snapshot, so research-node spawns by reference keep it;
+  `single_pass` web spawns carry it inline.
 - Related: 0308, which also changes what the research guard lets
   researchers run.
 - Related: 0303, which re-issues capacity-refused spawns of an offered

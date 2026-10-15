@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0280", "work-item:0283", "work-item:0304"]
 tags: ["research", "deep-research", "profiles", "openalex"]
-last_updated: "2026-10-09T17:58:47+00:00"
+last_updated: "2026-10-15T18:23:58+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -95,7 +95,10 @@ stay single-profile: a pair is researched in one profile throughout.
 
 - Blocked by: none known
 - Blocks: none known
-- Related: 0304, which takes the same no-fallback stance for web nodes.
+- Related: 0304, which takes the same no-fallback stance for web nodes and
+  adds a Quota exhausted outcome to the web profile that forbids completing
+  a note from WebFetch or memory. If 0304 has landed, the generalised rule
+  absorbs that clause so no profile states it twice.
 
 ## Assumptions
 
