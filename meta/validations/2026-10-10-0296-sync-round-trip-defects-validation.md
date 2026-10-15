@@ -10,7 +10,7 @@ result: "pass"
 parent: "plan:2026-10-10-0296-sync-round-trip-defects"
 target: "plan:2026-10-10-0296-sync-round-trip-defects"
 tags: ["sync", "linear", "jira", "baseline", "equivalence", "adf"]
-last_updated: "2026-10-15T12:10:00+00:00"
+last_updated: "2026-10-15T11:07:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---

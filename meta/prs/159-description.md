@@ -12,9 +12,9 @@ relates_to: ["work-item:0300", "work-item:0320", "work-item:0337", "work-item:03
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/159"
 pr_number: 159
 tags: ["sync", "jira", "linear", "adf", "tracker", "equivalence", "baseline"]
-revision: "f5e8334b7b0d535b3947e5891bb99f8a9166fc91"
+revision: "92b755d4a5d01e648003bdc6fd2a03ea51bfd1b6"
 repository: "accelerator"
-last_updated: "2026-10-15T10:17:41+00:00"
+last_updated: "2026-10-15T11:07:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -159,6 +159,9 @@ sends nothing to the tracker.
 
 ### Outside the plan
 
+- **Escape-cancel e2e test.** `kanban-drag-overlay.spec.ts` now edits and
+  restores its work item through the frontmatter PATCH instead of a file write
+  the OS watcher delivered late under load; `watched-writes.ts` goes.
 - **Visualiser watcher.** Each rescan broadcasts every change it applied,
   where a rescan could absorb a change without sending an SSE event.
 - **Real-repository suites.** The `bash-parity` feature that gated the git
