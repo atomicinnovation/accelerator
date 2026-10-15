@@ -325,6 +325,10 @@ impl Renderer {
                         }
                     }
                 }
+                "hardBreak" if surroundings == Surroundings::TableCell => {
+                    flush(&mut run, &mut rendered);
+                    rendered.push_str(&self.inline_placeholder("hardBreak")?);
+                }
                 "hardBreak" => {
                     flush(&mut run, &mut rendered);
                     rendered.push_str("  \n");

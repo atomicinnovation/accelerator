@@ -333,3 +333,31 @@ fn ordered_list_start_survives_the_round_trip() {
     assert_eq!(document["content"][0]["attrs"]["order"], 7);
     assert_eq!(strict(&document), "7. seven\n8. eight");
 }
+
+fn doc(blocks: &Value) -> Value {
+    json!({"type": "doc", "content": blocks})
+}
+
+#[test]
+fn a_hard_break_in_a_table_cell_has_no_markdown_form() {
+    let document = doc(&json!([{"type": "table", "content": [
+        {"type": "tableRow", "content": [
+            {"type": "tableHeader", "content": [{"type": "paragraph",
+                "content": [
+                    {"type": "text", "text": "a"},
+                    {"type": "hardBreak"},
+                    {"type": "text", "text": "b"}
+                ]}]}
+        ]}
+    ]}]));
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable {
+            node: "hardBreak".to_owned()
+        })
+    );
+    let lenient =
+        document_to_markdown(&document).expect("the document renders");
+    assert_eq!(lenient.lines().count(), 2, "{lenient}");
+}
