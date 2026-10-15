@@ -13,7 +13,7 @@ derived_from: ["plan:2026-08-11-0189-warm-dispatch-latency-measurement"]
 blocked_by: ["work-item:0334", "adr:ADR-0072", "work-item:0339"]
 relates_to: ["work-item:0189", "work-item:0164", "work-item:0223", "work-item:0196", "work-item:0214", "work-item:0222", "adr:ADR-0063", "adr:ADR-0064"]
 tags: ["cli", "launcher", "performance", "bootstrap", "cache"]
-last_updated: "2026-10-15T10:00:33+00:00"
+last_updated: "2026-10-16T00:06:45+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-747"
@@ -456,7 +456,10 @@ None remaining.
   let a live daemon's tree be reclaimed.
 - **Blocked by** 0339: `reap_orphans` deletes another artifact's in-progress
   materialise, and this item's cold-path root prune would run that reap far
-  more often.
+  more often. This item inherits 0339's contract: a held tree lock means a
+  materialise or `prune` of that artifact is in progress. The root prune and
+  orphan-lock removal must reuse 0339's non-creating lock probe and never
+  remove a tree lock file that is held.
 - **Relates to** 0189, which measured the root; 0164, which established the
   fetch-verify-cache resolver; 0223, which settled the default root; 0214,
   which settled the lease design (now governed by ADR-0064); and 0196, whose
