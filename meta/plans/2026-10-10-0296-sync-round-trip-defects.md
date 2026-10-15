@@ -5,7 +5,7 @@ title: "Sync Round-Trip Defects Implementation Plan"
 date: "2026-10-10T21:43:34+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0296"
 parent: "work-item:0296"
 derived_from: ["codebase-research:2026-10-10-0296-sync-round-trip-defects"]
