@@ -3982,20 +3982,20 @@ mod tests {
             .exists());
     }
 
-    #[test]
-    fn a_create_then_sync_reports_synced() {
-        let dir = sync_repo();
-        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+    fn create_pushed(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+    ) -> crate::create::RunOutcome {
         let composed = config_adapters::compose(
-            dir.path(),
+            dir,
             config_adapters::LegacyPolicy::Reject,
         )
         .expect("compose the test config");
         let templates = composed.store.with_plugin_root(Some(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
         ));
-        let created = crate::create::run(
-            dir.path(),
+        crate::create::run(
+            dir,
             &composed.service,
             &templates,
             &crate::create::CreateArgs {
@@ -4017,10 +4017,32 @@ mod tests {
                 push: true,
                 dry_run: false,
             },
-            &StubRegistry(Rc::clone(&tracker)),
-        );
+            &StubRegistry(Rc::clone(tracker)),
+        )
+    }
+
+    fn recorded_remote_hash(dir: &Path) -> Option<String> {
+        let baseline: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                dir.join(".accelerator/state/integrations/jira/last-sync.json"),
+            )
+            .expect("the create recorded a baseline"),
+        )
+        .expect("the baseline is JSON");
+        baseline["items"]
+            .as_object()
+            .and_then(|items| items.values().next())
+            .and_then(|entry| entry["remote_hash"].as_str())
+            .filter(|hash| !hash.is_empty())
+            .map(str::to_owned)
+    }
+
+    #[test]
+    fn a_create_then_sync_reports_synced() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
         assert!(matches!(
-            created,
+            create_pushed(dir.path(), &tracker),
             crate::create::RunOutcome::Created { path: Some(_), .. }
         ));
         let calls_after_create = tracker.calls().len();
@@ -4037,6 +4059,55 @@ mod tests {
             "a synced item pushes nothing: {:?}",
             tracker.calls()
         );
+    }
+
+    #[test]
+    fn a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash()
+    {
+        let dir = sync_repo();
+        let creating =
+            Rc::new(RecordingTracker::holding(Vec::new()).failing_show(
+                ExternalId::new("REC-1".to_owned()),
+                TrackerError::Retryable {
+                    detail: "the read-back was lost".to_owned(),
+                },
+            ));
+        let path = match create_pushed(dir.path(), &creating) {
+            crate::create::RunOutcome::Created { path, .. } => path,
+            _ => None,
+        }
+        .expect("the create writes the local item");
+        assert_eq!(recorded_remote_hash(dir.path()), None);
+        let (title, body, kind) = creating
+            .calls()
+            .into_iter()
+            .find_map(|call| match call {
+                Call::Create { title, body, kind } => Some((title, body, kind)),
+                _ => None,
+            })
+            .expect("the create reached the tracker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        tracker
+            .create(&title, &body, &kind)
+            .expect("the tracker holds the same issue");
+        let calls_before_sync = tracker.calls().len();
+        let local_before = std::fs::read(&path).expect("the item exists");
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        assert!(
+            !tracker.calls()[calls_before_sync..].iter().any(|call| {
+                matches!(call, Call::Create { .. } | Call::Update { .. })
+            }),
+            "{:?}",
+            tracker.calls()
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("the item exists"),
+            local_before
+        );
+        assert!(recorded_remote_hash(dir.path()).is_some());
     }
 
     /// Keeps what the run handed it, and can report a failure of its own.
