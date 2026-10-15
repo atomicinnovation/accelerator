@@ -248,7 +248,7 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     ) in conduct
 
 
-REPORT_START = "**Report an unfinished run.**"
+REPORT_START = "**Report a run that did not end.**"
 OPENING = (
     "run {run} did not end; if it is still going, it stops at its next "
     "batch, and what it writes from now on may show as unexpected"
@@ -325,10 +325,11 @@ def test_clearing_waits_for_the_report() -> None:
 def test_the_summary_opens_with_the_report() -> None:
     summary = _section(_conduct(), "**Summarise**", "| Reason |")
     assert (
-        "**Unfinished run.** The step 2 report, unchanged, when the first "
-        "plan carried `replaced_run`."
+        "**Run that did not end.** The step 2 report, unchanged, when the "
+        "first plan carried `replaced_run`."
     ) in summary
-    assert summary.index("**Unfinished run.**") < summary.index("**Failures.**")
+    opening = summary.index("**Run that did not end.**")
+    assert opening < summary.index("**Failures.**")
 
 
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
@@ -797,24 +798,26 @@ def test_the_capacity_row_orders_its_checks() -> None:
     assert row.index("a smaller `--concurrency`") > checks[2]
 
 
-def _unfinished_run_row() -> str:
+def _run_that_did_not_end_row() -> str:
     rows = [
         line
         for line in _read(RESEARCH_TOPIC).splitlines()
-        if line.lstrip().startswith("| an unfinished run |")
+        if line.lstrip().startswith("| a run that did not end |")
     ]
-    assert len(rows) == 1, "research-topic must carry one unfinished-run row"
+    assert len(rows) == 1, (
+        "research-topic must carry one run-that-did-not-end row"
+    )
     return rows[0]
 
 
-def test_the_unfinished_run_row_names_re_running_conduct() -> None:
-    row = _unfinished_run_row()
+def test_the_run_that_did_not_end_row_names_re_running_conduct() -> None:
+    row = _run_that_did_not_end_row()
     assert "re-run `conduct <slug>`" in row
     assert "offers what the earlier run left unfinished" in row
 
 
-def test_the_unfinished_run_row_carries_the_usage_limit_step() -> None:
-    row = _unfinished_run_row()
+def test_the_run_that_did_not_end_row_carries_the_usage_limit_step() -> None:
+    row = _run_that_did_not_end_row()
     for phrase in (
         "agent usage limit",
         "after the reset time in the message",
@@ -823,8 +826,8 @@ def test_the_unfinished_run_row_carries_the_usage_limit_step() -> None:
         assert phrase in row, f"the unfinished-run row must state {phrase!r}"
 
 
-def test_the_unfinished_run_row_is_its_own_row() -> None:
-    unfinished = _unfinished_run_row()
+def test_the_run_that_did_not_end_row_is_its_own_row() -> None:
+    unfinished = _run_that_did_not_end_row()
     rate_limited = next(
         line
         for line in _read(RESEARCH_TOPIC).splitlines()

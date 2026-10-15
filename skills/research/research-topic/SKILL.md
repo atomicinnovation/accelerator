@@ -266,7 +266,7 @@ allocate a finding or note path yourself.
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
-   **Report an unfinished run.** When the first plan carries `replaced_run`,
+   **Report a run that did not end.** When the first plan carries `replaced_run`,
    print the report below verbatim before any other tool call; never
    summarise or paraphrase it. Rename, clear and spawn nothing until the
    report is printed.
@@ -504,7 +504,7 @@ allocate a finding or note path yourself.
       `question`, and its pair's profile as `source_profile`. No run ledger
       outlives a completed run.
    4. **Summarise**, in this order, omitting any empty section:
-      1. **Unfinished run.** The step 2 report, unchanged, when the first
+      1. **Run that did not end.** The step 2 report, unchanged, when the first
          plan carried `replaced_run`.
       2. **Failures.** Each failed node as `<stem> <lineage>`, each failed
          composition as `<stem> (composer)`, and each failed `single_pass` pair
@@ -543,7 +543,7 @@ allocate a finding or note path yourself.
    | "Bash unavailable" | grant `Bash` to the custom researcher agent |
    | a refused note, or "wrote no note" | re-run `conduct`, which researches the node afresh |
    | "refused by the concurrent subagent limit — other subagents held the slots, or the harness cap is below the resolved concurrency" | re-run `conduct` once other subagents have finished; the new run offers the spawn again. If it recurs with no other subagents running, check in turn: (1) `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` is set where both Claude Code and its Bash tool see it; (2) any `ACCELERATOR_SUBAGENT_CAP` is no higher than Claude Code's cap; (3) failing both, lower the concurrency below the `concurrency` the summary reports, with a smaller `--concurrency` or `research.topic.concurrency` |
-   | an unfinished run | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
+   | a run that did not end | re-run `conduct <slug>`, which offers what the earlier run left unfinished; when the earlier session showed an agent usage limit, first wait: re-run after the reset time in the message, or after raising the limit when it gives none |
    | a skipped pair | add the profile to the brief's `source_profiles`, or fix its name in the outline |
    | a warning | the warning verbatim |
 

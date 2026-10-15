@@ -154,7 +154,7 @@
   `<set>/.conduct-run.json`, removed on completion; a leftover one means a
   run did not end, and re-running `conduct` recovers what it left, where
   deleting the ledger would skip that. `conduct`'s failure-reason table
-  gains an "unfinished run" row: re-run `conduct`, first waiting out any
+  gains a "run that did not end" row: re-run `conduct`, first waiting out any
   agent usage limit the earlier session showed. Consider adding
   `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
