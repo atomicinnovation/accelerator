@@ -208,6 +208,7 @@ mod tests {
     use crate::topic::question::FakeUnicode;
     use crate::topic::question::NormalisedQuestion;
     use crate::topic::tree::Stage;
+    use crate::topic::tree::WorstCaseTree;
 
     const SEEN: Digest = Digest::new([1; 32]);
     const CHANGED: Digest = Digest::new([2; 32]);
@@ -248,6 +249,7 @@ mod tests {
             },
             stem: Stem::parse(stem).expect("a stem"),
             stage: Stage::SinglePass,
+            worst_case: WorstCaseTree::default(),
         }
     }
 
