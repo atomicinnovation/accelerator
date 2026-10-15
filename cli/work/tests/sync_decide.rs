@@ -7,23 +7,23 @@ use std::path::Path;
 use work::sync::decide;
 use work::sync::resolve_conflict_token;
 use work::sync::Action;
+use work::sync::Classification;
 use work::sync::Dirtiness;
+use work::sync::FieldDelivery;
+use work::sync::LocalReconciliation;
 use work::sync::Resolution;
 use work::sync::SyncDirection;
 use work::sync::SyncState;
+use work::sync::SyncedReconciliation;
 
 type TestError = Box<dyn std::error::Error>;
 
-const EXPECTED_DECIDE_ROWS: usize = 24;
-const EXPECTED_DECIDE_RUST_ONLY_ROWS: usize = 3;
-const EXPECTED_TOKEN_ROWS: usize = 5;
-const EXPECTED_TOKEN_RUST_ONLY_ROWS: usize = 1;
+const EXPECTED_DECIDE_ROWS: usize = 40;
+const EXPECTED_TOKEN_ROWS: usize = 6;
 
 enum Section {
     Decide,
-    DecideRustOnly,
     Token,
-    TokenRustOnly,
 }
 
 fn golden_lines() -> Result<Vec<String>, TestError> {
@@ -58,13 +58,57 @@ fn dirtiness(raw: &str) -> Dirtiness {
 /// `unresolved` that `Action`'s `Display`/`from_keyword` render.
 fn action(raw: &str) -> Action {
     match raw {
-        "push" => Action::Push,
+        "push" => Action::Push(FieldDelivery::Send),
+        "push-without-title" => Action::Push(FieldDelivery::Withhold),
+        "retitle" => Action::Retitle,
         "pull" => Action::Pull,
         "skip-conflict" => Action::SkipConflict,
         "skip-dirty" => Action::SkipDirty,
         "prompt" => Action::Prompt,
         "noop" => Action::Noop,
+        "record-baseline" => Action::RecordBaseline,
         other => panic!("unrecognised action keyword: {other}"),
+    }
+}
+
+/// The golden's states, each the classification that reports it; a synced
+/// row is one whose baseline already stands under the current recipe.
+fn classification(raw: &str) -> Classification {
+    let locally_modified = Classification::LocallyModified;
+    match raw {
+        "synced/record" => {
+            return Classification::Synced(SyncedReconciliation::RecordOnly)
+        }
+        "locally-modified" => {
+            return locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Send,
+            })
+        }
+        "locally-modified/withheld" => {
+            return locally_modified(LocalReconciliation::ByContent {
+                fields: FieldDelivery::Withhold,
+            })
+        }
+        "locally-modified/retitle" => {
+            return locally_modified(LocalReconciliation::SendFields)
+        }
+        "locally-modified/record" => {
+            return locally_modified(LocalReconciliation::RecordOnly)
+        }
+        _ => {}
+    }
+    match SyncState::from_keyword(raw) {
+        Some(SyncState::Synced) => {
+            Classification::Synced(SyncedReconciliation::ByContent)
+        }
+        Some(SyncState::Unsynced) => Classification::Unsynced,
+        Some(SyncState::RemotelyModified) => Classification::RemotelyModified,
+        Some(SyncState::Conflict) => Classification::Conflict,
+        Some(SyncState::RemoteAbsent) => Classification::RemoteAbsent,
+        Some(SyncState::Indeterminate) => Classification::Indeterminate,
+        Some(SyncState::LocallyModified) | None => {
+            panic!("unrecognised state: {raw}")
+        }
     }
 }
 
@@ -90,9 +134,7 @@ fn unescape_token(raw: &str) -> String {
 fn every_decide_and_token_row_matches_the_golden() -> Result<(), TestError> {
     let mut section = Section::Decide;
     let mut decide_ran = 0;
-    let mut decide_rust_only_ran = 0;
     let mut token_ran = 0;
-    let mut token_rust_only_ran = 0;
 
     for line in golden_lines()? {
         match line.as_str() {
@@ -100,46 +142,30 @@ fn every_decide_and_token_row_matches_the_golden() -> Result<(), TestError> {
                 section = Section::Decide;
                 continue;
             }
-            "[DECIDE_RUST_ONLY]" => {
-                section = Section::DecideRustOnly;
-                continue;
-            }
             "[TOKEN]" => {
                 section = Section::Token;
-                continue;
-            }
-            "[TOKEN_RUST_ONLY]" => {
-                section = Section::TokenRustOnly;
                 continue;
             }
             _ => {}
         }
 
         match section {
-            Section::Decide | Section::DecideRustOnly => {
+            Section::Decide => {
                 let fields: Vec<&str> = line.split('|').collect();
                 let [raw_direction, raw_state, raw_dirty, raw_expected] =
                     fields[..]
                 else {
                     panic!("malformed DECIDE row: {line}");
                 };
-                let state =
-                    SyncState::from_keyword(raw_state).unwrap_or_else(|| {
-                        panic!("unrecognised state: {raw_state}")
-                    });
                 let actual = decide(
                     direction(raw_direction),
-                    state,
+                    &classification(raw_state),
                     dirtiness(raw_dirty),
                 );
                 assert_eq!(actual, action(raw_expected), "row: {line}");
-                match section {
-                    Section::Decide => decide_ran += 1,
-                    Section::DecideRustOnly => decide_rust_only_ran += 1,
-                    Section::Token | Section::TokenRustOnly => unreachable!(),
-                }
+                decide_ran += 1;
             }
-            Section::Token | Section::TokenRustOnly => {
+            Section::Token => {
                 let fields: Vec<&str> = line.split('|').collect();
                 let [raw_token, raw_expected] = fields[..] else {
                     panic!("malformed TOKEN row: {line}");
@@ -152,20 +178,12 @@ fn every_decide_and_token_row_matches_the_golden() -> Result<(), TestError> {
                     resolve_conflict_token(&token).unwrap_or(Resolution::Skip);
                 let expected = resolution(raw_expected);
                 assert_eq!(actual, expected, "row: {line}");
-                match section {
-                    Section::Token => token_ran += 1,
-                    Section::TokenRustOnly => token_rust_only_ran += 1,
-                    Section::Decide | Section::DecideRustOnly => {
-                        unreachable!()
-                    }
-                }
+                token_ran += 1;
             }
         }
     }
 
     assert_eq!(decide_ran, EXPECTED_DECIDE_ROWS);
-    assert_eq!(decide_rust_only_ran, EXPECTED_DECIDE_RUST_ONLY_ROWS);
     assert_eq!(token_ran, EXPECTED_TOKEN_ROWS);
-    assert_eq!(token_rust_only_ran, EXPECTED_TOKEN_RUST_ONLY_ROWS);
     Ok(())
 }

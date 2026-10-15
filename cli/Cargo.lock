@@ -98,11 +98,13 @@ dependencies = [
  "config-adapters",
  "corpus",
  "corpus-adapters",
+ "jira-client",
  "kernel",
  "migrate",
  "migrate-adapters",
  "tempfile",
  "time",
+ "tracker",
  "vcs",
  "vcs-adapters",
  "vcs-test-support",
@@ -215,6 +217,7 @@ dependencies = [
  "jira-client",
  "kernel",
  "linear-client",
+ "remote-projection",
  "serde_json",
  "sha2",
  "store",
@@ -228,6 +231,16 @@ dependencies = [
  "vcs-test-support",
  "work",
  "work-adapters",
+]
+
+[[package]]
+name = "adf"
+version = "1.24.0-pre.82"
+dependencies = [
+ "hex",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
@@ -1174,6 +1187,7 @@ dependencies = [
 name = "document"
 version = "1.24.0-pre.82"
 dependencies = [
+ "pulldown-cmark",
  "serde",
  "serde-saphyr",
 ]
@@ -2870,6 +2884,7 @@ dependencies = [
 name = "jira-cli"
 version = "1.24.0-pre.82"
 dependencies = [
+ "adf",
  "clap",
  "cli-test-support",
  "config",
@@ -2889,16 +2904,15 @@ dependencies = [
 name = "jira-client"
 version = "1.24.0-pre.82"
 dependencies = [
+ "adf",
  "config",
  "config-adapters",
- "hex",
  "http-test-support",
  "rand 0.9.5",
  "remote-projection",
  "reqwest",
  "rustls",
  "serde_json",
- "sha2",
  "store",
  "tempfile",
  "thiserror",

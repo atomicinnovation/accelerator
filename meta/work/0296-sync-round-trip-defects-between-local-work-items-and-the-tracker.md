@@ -9,11 +9,11 @@ status: "draft"
 kind: "story"
 priority: "high"
 parent: "work-item:0146"
-blocks: ["work-item:0290", "work-item:0320"]
+blocks: ["work-item:0290", "work-item:0320", "work-item:0337", "work-item:0335"]
 relates_to: ["work-item:0213", "work-item:0230", "work-item:0285", "work-item:0290", "work-item:0291", "work-item:0320", "work-item:0321"]
 external_id: "PP-880"
 tags: ["sync", "linear", "bug", "baseline", "projection", "digest"]
-last_updated: "2026-10-10T12:40:58+00:00"
+last_updated: "2026-10-15T08:29:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -45,8 +45,8 @@ Change detection compares each side only against its own baseline digest; a
 missing digest counts as changed. Digests normalise only per-line whitespace.
 The Linear port body is deliberately `"{title}\n{description}"`, and the port
 contract states that a push followed by a read is not the identity. Linear
-re-serialises `description` in thirteen ways, tabulated under Equivalence: ten
-are cosmetic and three change meaning. The Jira port body is
+re-serialises `description` in thirteen ways, tabulated under Equivalence: eleven
+are cosmetic and two change meaning. The Jira port body is
 `"{summary}\n{description}"` where the description is canonicalised ADF
 (Atlassian Document Format) JSON, not markdown.
 
@@ -94,7 +94,7 @@ Linear's rewrites, from the 2026-10-10 inspection, and how each is treated:
 | Rewrite | Local → remote | Treatment |
 |---|---|---|
 | Escaping | `~550` → `\~550` | cosmetic: parsing |
-| Joined continuation lines | wrapped → joined | cosmetic: soft breaks |
+| Joined code-span lines | `a⏎b` in a code span → `a b` | cosmetic: parsing |
 | Per-line bold | `**a⏎b**` → `**a**⏎**b**` | cosmetic: per-character |
 | Bold hoisted off code | ``**x `c`**`` → ``**x** `c` `` | cosmetic: code-span emphasis |
 | Link destinations | `[t](u)` → `[t](<u>)` | cosmetic: unwrapping |
@@ -102,12 +102,12 @@ Linear's rewrites, from the 2026-10-10 inspection, and how each is treated:
 | Bullet markers | `- a` → `* a` | cosmetic: bullet character |
 | Task-marker case | `[x]` → `[X]` | cosmetic: task-marker case |
 | Table delimiters | `\|---\|` → `\| -- \|` | cosmetic: delimiter rows |
-| Inserted blank lines | `- a⏎- b` → `- a⏎⏎- b` | cosmetic: list tightness |
+| Inserted blank lines | `p⏎- a` → `p⏎⏎- a` | cosmetic: parsing |
 | Wrapped digit lines | `⏎  0160.` → `160.` list item | meaning: difference |
 | Dotted tokens autolinked | `crates.io` → `[crates.io](<http://crates.io>)` | meaning: difference |
-| Code-span indentation | `` `a⏎  b` `` → `` `a   b` `` | meaning: difference |
+| Code-span indentation | `` `a⏎  b` `` → `` `a   b` `` | cosmetic: parsing |
 
-0320 fixes the three meaning-changing rewrites on push.
+0320 fixes the two meaning-changing rewrites on push.
 
 For Jira, the local body is round-tripped through the local converter
 (`markdown_to_document` then `document_to_markdown`), the remote ADF is
@@ -118,12 +118,17 @@ Sync compares by equivalence, not bytes. **Noise** means a difference made
 only of the cosmetic rewrites in the table.
 
 A **digest recipe** is the normalisation and hashing a baseline digest was
-computed with; its marker names that recipe in each baseline entry. An
-legacy-recipe entry holds `local_hash` and `remote_hash`; a new-recipe entry
-holds `local_frontmatter_hash`, `local_body_hash`, `remote_hash` and the
-marker `digest_recipe`, an integer that is `1` for this item's recipe. An empty local hash means an empty `local_hash` on an legacy-recipe
-entry, or empty `local_frontmatter_hash` and `local_body_hash` on a
-new-recipe one.
+computed with; its marker names that recipe in each baseline entry. A
+legacy-recipe entry holds `local_hash` and `remote_hash`. A new-recipe entry
+holds the marker `digest_recipe`, an integer that is `1` for this item's
+recipe; `local_frontmatter_hash`, `local_body_hash` and `remote_body_hash`
+over the bodies; and `local_fields_hash` and `remote_fields_hash` over the
+synced tracker fields (the title). Until 0335 it also carries `local_hash`
+and `remote_hash` with their legacy meaning, computed from the same content,
+so an older binary classifies it as it would a legacy entry. An empty local
+hash means an empty `local_hash` on a legacy-recipe entry, or an empty
+`local_frontmatter_hash` or `local_body_hash` on a new-recipe one; an empty
+remote hash means an empty `remote_hash` or `remote_body_hash` respectively.
 
 **Defect 1 — pulls write the projected title line into the local body**
 
@@ -157,26 +162,55 @@ new-recipe one.
 
 **Required behaviour**
 
-- The local digest splits into a frontmatter hash and a body hash. The body
-  hash and the remote hash digest the equivalence-normalised body, so noise
-  never registers as a change on either side. For Jira, the body hash digests
-  the round-tripped local body and the remote hash the rendered remote body;
-  a local body the converter rejects is digested without the round trip. Each
-  digest strips the projected title line, then normalises, then hashes.
+- The local digest splits into a frontmatter hash, a fields hash and a body
+  hash. The two body hashes digest the equivalence-normalised body, so noise
+  never registers as a change on either side. For Jira, the local body hash
+  digests the round-tripped local body and the remote body hash the rendered
+  remote body; a local body the converter rejects is digested without the
+  round trip. Each body digest strips the projected title line, then
+  normalises, then hashes.
 - Whenever a side changed and the bodies are equivalent, sync records a
   baseline, leaves the local file untouched, reports no conflict and writes no
-  dossier. It sends an update only when the local side changed and the local
-  title differs from the remote title, since the title is the only field
-  beyond the body that a push carries until 0290; the update sends the local
-  title and body. The item reports `locally-modified` when the local
-  frontmatter hash changed, otherwise `synced`. Under the legacy recipe, a
-  changed local hash counts as a frontmatter change.
+  dossier. The item reports `locally-modified` when the local frontmatter hash
+  changed, otherwise `synced`. Under the legacy recipe, a changed local hash
+  counts as a frontmatter change, and an item whose titles differ is an
+  unresolved conflict.
+- The synced tracker fields (the title, until 0290) are reconciled on their
+  own. When the local fields changed since the baseline, the remote fields
+  have not, and the two differ, sync sends exactly one title-only update and
+  does not re-send the description, so Jira content the local body cannot
+  express (underline) survives a retitle. When both sides' fields changed and
+  differ, the item is an unresolved conflict. An unrelated frontmatter edit
+  never sends the title.
+- When neither body changed since the baseline, the field rules decide alone,
+  so a metadata edit never pulls or pushes a body. With non-equivalent bodies
+  and a body change, a synced-fields change on either side facing any change
+  on the other is an unresolved conflict. A body push sends the title only
+  when the local title changed since the baseline.
+- A legacy item with a local change over a body the remote does not match is
+  an unresolved conflict, resolved once with `=local` or `=remote`.
 - A local change to the frontmatter alone, with a real remote body edit, is
-  pulled: the remote body replaces the local body and the local frontmatter
-  is kept.
+  pulled on a new-recipe entry: the remote body replaces the local body and
+  the local frontmatter is kept. A legacy entry in that state is an
+  unresolved conflict, since its single local hash cannot show the body was
+  untouched.
+- A pull, `remote` resolution or send for an item whose local frontmatter
+  does not parse fails that item, and writes and sends nothing.
+- `work diff` lists sections by the same equivalence as dossiers, so an
+  equivalent section is not listed.
 - A pull of a real remote edit, or a `remote` resolution, writes the remote
-  body as defined in Defect 1. Jira pulls accept the converter's losses
-  (`strike`, `underline`, a list item's later children).
+  body as defined in Defect 1. Jira pulls accept the converter's remaining
+  losses: `underline`, which has no Markdown form.
+- The `adf` converter is extended in both directions to blockquotes, pipe
+  tables, thematic breaks, nested lists, multi-paragraph list items and
+  `strike`. Nodes with no Markdown form (`panel`, `mention`, `emoji`,
+  `inlineCard` and similar) stay unsupported.
+- A remote Jira description that `document_to_markdown` cannot render
+  (malformed ADF), or whose rendering contains an unsupported-node
+  placeholder, is never equivalent; a pull or `remote` resolution of it fails
+  that item and writes no file.
+- Promotion's check that the remote is untouched since the draft was pushed
+  compares titles exactly and bodies by equivalence.
 - A conflict dossier strips the projected title line from the remote side and
   omits sections that are equivalent. When the remote title differs from the
   local `title`, the header's `title:` line reads `<local> → <remote>`;
@@ -189,7 +223,7 @@ new-recipe one.
   The title-line strip lands before, or with, 0291's pull changes, and 0291
   adds its entry points to the same tests.
 - `--preview` never writes `last-sync.json`; it reports what a sync would
-  record.
+  record, including the failure a planned pull or send would meet.
 
 **Recovery for the existing corpus**
 
@@ -209,10 +243,16 @@ new-recipe one.
 | empty `remote_hash` | not equivalent | unresolved conflict | no | yes | local hash emptied |
 
 The not-equivalent rows keep today's handling of an unresolved conflict, which
-empties the local hash on an existing entry and creates none. A missing or
-empty local hash leaves nothing to compare, so it counts as unknown rather
-than changed: an equivalent recovered item reports `synced` and sends no
-update.
+empties the local hash on an existing entry and creates none. The one
+exception is a legacy entry whose conflict is over a Jira description with no
+Markdown form: it keeps its local hash, because its remedy, reverting a
+metadata edit so the entry migrates, needs the hash it was recorded with. A
+missing or empty local hash leaves nothing to compare, so it counts as
+unknown rather than changed: an equivalent recovered item reports `synced`
+and sends no update. An equivalent item is baselined only when its synced
+fields (the title) also match; an item whose titles differ is an unresolved
+conflict, so a title conflict cannot clear itself once its local hash is
+emptied.
 
 **Digest migration**
 
@@ -225,8 +265,10 @@ update.
   remote bodies with no file write or tracker update. Only entries a run does
   not classify (`remote-absent`, `indeterminate`, an unresolved conflict, or
   any entry under `--preview`) keep the legacy recipe, so one full sync
-  migrates every other entry. A change to `remote_updated_at` alone does not
-  alter an entry's hashes.
+  migrates every other entry. Entries with a pending change the run does not
+  act on (a direction filter or a dirty file) also keep the legacy recipe,
+  and migrate when a later run settles them. A change to `remote_updated_at`
+  alone does not alter an entry's hashes.
 - Under the legacy recipe, noise on one side still classifies as changed. The
   bodies are then equivalent, so the equivalence rule in Required behaviour
   applies. Whether or not an update is sent, the entry is rewritten under the
@@ -234,6 +276,11 @@ update.
 - Later recipe bumps, such as 0290's, keep classifying unmarked entries with
   the legacy recipe; the item that introduces a bump defines how entries
   marked with a superseded recipe are classified.
+- 0335 removes `local_hash` and `remote_hash` from new-recipe entries and
+  bumps the recipe when it does, so binaries between this item and 0335 read
+  the trimmed entries as `unsupported-recipe`. Its release notes require every
+  collaborator sharing `last-sync.json` to run at least this item's release,
+  since earlier binaries ignore the recipe marker.
 - A parser upgrade bumps the recipe marker. A golden-digest fixture fails
   when a digest changes, or when the parser version changes without a
   recipe-marker bump.
@@ -249,8 +296,10 @@ update.
 - Normalising anything beyond the equivalence definition above.
 - Fixing Linear's meaning-changing rewrites on push.
 - Deciding the sync authority model beyond this item's representation rule.
-- Removing the legacy recipe; a follow-up does so once `last-sync.json` holds no
-  unmarked entry.
+- Removing the legacy recipe; 0335 does so once a bidirectional sync with a
+  clean working copy leaves no legacy entry in `last-sync.json`.
+- Migrating the string-based document consumers onto a rich document model
+  (0337).
 
 ## Acceptance Criteria
 
@@ -261,10 +310,19 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       equals the remote body as defined in Defect 1, with no projected title
       line above the H1.
 - [ ] Given a `remotely-modified` Jira-linked item whose ADF contains
-      `strike` and `underline` text and a list item with a later child, when
-      it is pulled, then the local body equals `document_to_markdown` of the
-      remote ADF, with the strike, underline and later child dropped and no
-      projected title line above the H1.
+      `strike` and `underline` text, a table and a list item with a later
+      child, when it is pulled, then the local body equals
+      `document_to_markdown` of the remote ADF, with the strike, table and
+      later child kept, the underline dropped, and no projected title line
+      above the H1.
+- [ ] Given a Jira-linked item whose remote ADF is malformed or renders with
+      an unsupported-node placeholder, when it is pulled or resolved with
+      `--resolve <id>=remote`, then the item fails and its local file's bytes
+      are unchanged.
+- [ ] Given Markdown containing a blockquote, a pipe table, a thematic break,
+      a nested list, a multi-paragraph list item or `~~strike~~`, when it is
+      converted with `markdown_to_document` then `document_to_markdown`, then
+      the result equals the input in canonical form.
 - [ ] Given a targeted pull-create (`work sync --target <remote-id>`), a
       frontmatter-kept pull and a conflict resolved with
       `--resolve <id>=remote`, each for a Linear-linked and a Jira-linked
@@ -274,12 +332,12 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       side, for a Linear-linked and a Jira-linked item, then it reports
       `synced` and sends no update to the tracker.
 - [ ] Given a linked item whose remote `description` differs from the remote
-      body at the last sync only by one of the ten cosmetic rewrites in the
+      body at the last sync only by one of the eleven cosmetic rewrites in the
       Equivalence table, for each rewrite separately, when `work sync` runs,
       then it reports `synced` and its baseline entry's hashes are unchanged.
 - [ ] Given each Equivalence-table row, when the body hash and remote hash are
       computed for the row's local and remote forms, then they are equal for
-      the ten cosmetic rows and differ for the three meaning-changing rows.
+      the eleven cosmetic rows and differ for the two meaning-changing rows.
 - [ ] Given a baselined item whose remote title changed but whose
       description did not, when `work sync` runs, then it reports `synced`,
       the local file's bytes are unchanged, and no update is sent to the
@@ -289,7 +347,7 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       new-recipe baseline is recorded and the local file's bytes are
       unchanged.
 - [ ] Given a remote `description` that differs from the local body only by
-      one of the three meaning-changing rewrites in the Equivalence table, for
+      one of the two meaning-changing rewrites in the Equivalence table, for
       each rewrite separately, when bodies are compared, then they are not
       equivalent.
 - [ ] Given a `*`/`-` swap inside a fenced code block, when bodies are
@@ -306,7 +364,7 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
 - [ ] Given a remote body whose description is empty, or whose first
       description line equals the title, when the projected title line is
       stripped, then only the first line is removed.
-- [ ] Given a new-recipe entry and a local edit made only of one of the ten
+- [ ] Given a new-recipe entry and a local edit made only of one of the eleven
       cosmetic rewrites, for each rewrite separately, when `work sync` runs,
       then it reports `synced`, sends no update to the tracker and leaves the
       local file's bytes unchanged.
@@ -324,32 +382,39 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       equivalent to a changed remote body, when `work sync` runs, then the
       item reports `locally-modified`, the local file's bytes are unchanged
       and the entry carries the new recipe marker; with matching titles no
-      update is sent, and with a changed local title exactly one update,
-      carrying the local title and body, is sent.
+      update is sent, and with a changed local title exactly one title-only
+      update is sent, without the description.
 - [ ] Given a remote title edit and a cosmetic remote body change, when
       `work sync` runs, then it reports `synced`, no update is sent, the
       remote title stands and the local file's bytes are unchanged.
 - [ ] Given a local edit to the frontmatter alone (a status change, title
       unchanged) and an unchanged remote, when `work sync` runs, then it
       reports `locally-modified`, records a baseline and sends no update.
-- [ ] Given a local edit to the frontmatter alone and a real remote body edit,
-      when `work sync` runs, then it reports `remotely-modified`, the remote
-      body replaces the local body, the local frontmatter is kept, no
-      projected title line is written, and the next sync with no edits reports
-      `synced`.
+- [ ] Given a new-recipe entry, a local edit to the frontmatter alone and a
+      real remote body edit, when `work sync` runs, then it reports
+      `remotely-modified`, the remote body replaces the local body, the local
+      frontmatter is kept, no projected title line is written, and the next
+      sync with no edits reports `synced`; on a legacy entry it reports an
+      unresolved conflict.
+- [ ] Given an item whose local frontmatter does not parse and an unresolved
+      conflict, when it is resolved with `--resolve <id>=local` or
+      `--resolve <id>=remote`, then the item fails, nothing is sent to the
+      tracker and the local file's bytes are unchanged.
+- [ ] Given two bodies whose sections differ only by cosmetic rewrites, when
+      `work diff` runs, then no section is listed.
 - [ ] Given a Jira-linked item whose local body, round-tripped through
       `markdown_to_document` then `document_to_markdown`, equals
       `document_to_markdown` of the remote ADF, when bodies are compared, then
       they are equivalent; given a local body `markdown_to_document` rejects
-      (blockquote, pipe table, nested list), then they are not.
+      (one containing a `\u{1e}` control character), then they are not.
 - [ ] Given a Jira-linked item whose remote ADF paragraph text differs from
       the local body, when bodies are compared, then they are not equivalent.
-- [ ] Given a baselined Jira-linked item whose local body contains a pipe
-      table and no edits on either side, when `work sync` runs, then it
-      reports `synced`.
+- [ ] Given a baselined Jira-linked item whose local body
+      `markdown_to_document` rejects and no edits on either side, when
+      `work sync` runs, then it reports `synced`.
 - [ ] Given a Jira-linked item with no baseline entry whose local body
-      contains a pipe table, when `work sync` runs, then it reports an
-      unresolved conflict.
+      `markdown_to_document` rejects, when `work sync` runs, then it reports
+      an unresolved conflict.
 - [ ] Given a golden-digest fixture holding one body per Equivalence-table
       row plus fenced code and a table, with the recipe marker and pinned
       parser version recorded beside the digests, when it runs, then every
@@ -369,6 +434,9 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
 - [ ] Given the `sync-work-items` skill, when its dossier description is
       read, then it names the title-difference form of the `title:` line
       alongside the existing render fields.
+- [ ] Given an equivalent item in a recovery-table row whose local and remote
+      titles differ, when `work sync` runs, then it reports an unresolved
+      conflict.
 - [ ] Given an item with an `external_id` in each row of the recovery table,
       when `work sync` runs, then the reported state, local file write,
       dossier and resulting entry match that row, and for each equivalent row
@@ -381,9 +449,10 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
 - [ ] Given fixtures for 0275, 0276, 0293, 0294 and 0302 (local file, no
       baseline entry, and the remote description captured with `accelerator
       linear show` and committed before implementation), when sync classifies
-      them, then 0275, 0294 and 0302 report `synced`, and 0276 and 0293
-      report an unresolved conflict while their remote bodies still carry
-      the rewrites 0320 fixes.
+      them, then 0275 and 0294 report `synced`; 0276 and 0293 report an
+      unresolved conflict while their remote bodies still carry the
+      rewrites 0320 fixes; and 0302, whose remote holds an older revision,
+      reports an unresolved conflict.
 - [ ] Given this repo's corpus at merge time, when `work sync --preview` runs,
       then every planned pull is for an item whose bodies are not
       equivalent, and every unresolved conflict's dossier lists at least one
@@ -405,22 +474,29 @@ recipe. "Unresolved conflict" is the report's `unresolved` line.
       rewrite (`remote-absent`: the issue no longer exists remotely;
       `indeterminate`: the remote could not be read; an unresolved conflict;
       `--preview`), when the run ends, then the entry still has no recipe
-      marker and its hashes are byte-identical, and a later sync with no edits
-      on either side reports `synced`.
+      marker and its hashes are byte-identical, except that an unresolved
+      conflict's `local_hash` is emptied as today, unless the conflict is over
+      a Jira description with no Markdown form; and a later sync with no
+      edits on either side reports `synced`.
+- [ ] Given a promotion whose pushed draft Linear has re-serialised only by
+      cosmetic rewrites, when promotion checks the remote, then it treats the
+      remote as untouched; a remote title or real body edit is not.
 
 ## Open Questions
 
-The first three are resolved before work starts.
-
-- Which parser: `pulldown-cmark` or `comrak`? Either is pinned to an exact
-  version.
-- Does `remote-projection` depend on `jira-client`, or does `adf` move down a
-  crate?
 - Does a captured `issueCreate` read-back reproduce the Equivalence table?
-  If it does not, the table and its criteria are updated before
-  implementation.
+  If it does not, the table and its criteria are updated before equivalence
+  work starts (plan Phase 0).
 - Do the corpus items without baselines predate the `create --push` read-back
   fix? The recovery rule covers them either way.
+
+Resolved during planning:
+
+- Parser: `pulldown-cmark`, exact-pinned, `default-features = false`.
+- `adf` moves out of `jira-client` into its own technical-library crate.
+- The Markdown model and equivalence live in `corpus` (`corpus::body`); the
+  parser lives in `document` (`document::markdown`); `corpus-adapters`
+  implements the `BodyParser` port between them. 0337 builds the full model.
 
 ## Dependencies
 
@@ -450,12 +526,13 @@ The first three are resolved before work starts.
   no-title-line regression tests.
 - Related: 0213 — Conversational Conflict Resolution Flow, which defined the
   conflict dossier this item amends.
-- Internal: `split_projected` moves below `work-cli`, and Jira equivalence needs
-  `remote-projection` to reach the `adf` converter, by depending on
-  `jira-client` or by moving `adf` down a crate.
-- Before equivalence work starts: the parser is chosen and clears the repo's
-  dependency checks, the `adf` crate placement is decided, and the
-  `issueCreate` read-back is captured.
+- Internal: `split_projected` moves into `remote-projection`; `adf` moves into
+  its own crate, which `jira-client` re-exports and `work-adapters` uses for
+  the Jira round trip.
+- Before equivalence work starts: the `issueCreate` read-back is captured.
+- Follow-up: 0337 — Rich Document Model for Corpus Documents builds out the
+  minimal `corpus::body` model this item introduces.
+- Follow-up: 0335 — Remove the Legacy Sync Digest Recipe.
 - External: credentialed access to the PP Linear workspace, for the
   read-back capture, the fixture capture and the merge-time preview, whose
   result also depends on live corpus and Linear state.
@@ -523,7 +600,9 @@ The first three are resolved before work starts.
   `jira-client` or moving `adf` down a crate.
 - The `adf` dialect drops `strike`, `underline` and a `listItem`'s later
   children when rendering, and `markdown_to_document` rejects blockquotes,
-  pipe tables and nested lists; Jira pulls accept that loss.
+  pipe tables and nested lists; this item extends both directions so that
+  only `underline` and nodes with no Markdown form remain lossy.
+- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md`.
 
 ## Drafting Notes
 

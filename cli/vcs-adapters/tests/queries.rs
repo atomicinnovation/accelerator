@@ -9,7 +9,6 @@
 //! ~34-fixture matrix 34 times, each build driving dozens of `git`/`jj`
 //! subprocesses. Every mismatch is collected and reported together, so per-cell
 //! traceability is kept.
-#![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;
 use std::path::Path;

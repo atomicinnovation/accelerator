@@ -1,7 +1,6 @@
 //! The jj dirty paths honour the git excludes jj-cli layers beneath
 //! `.gitignore`, read through the fixture binary under a hermetic
 //! environment and compared with `jj status`.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

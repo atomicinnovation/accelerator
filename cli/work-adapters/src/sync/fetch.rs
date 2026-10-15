@@ -17,14 +17,20 @@ use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker::RemoteTracker;
 use tracker::TrackerError;
+use work::sync::local_change;
 use work::sync::BaselineEntry;
+use work::sync::BaselineFingerprints;
 use work::sync::Dirtiness;
+use work::sync::LegacyHashes;
+use work::sync::LocalChange;
 use work::sync::PlanInput;
 use work::sync::RemoteFacts;
 use work::sync::RemotePresence;
 
 use crate::sync::baseline::Baseline;
-use crate::sync::digest::LazyItemDigests;
+use crate::sync::baseline::Entry;
+use crate::sync::baseline_digester::BaselineDigester;
+use crate::sync::item_snapshot::ItemSnapshot;
 
 #[derive(Clone, Debug)]
 pub struct LocalItem {
@@ -83,7 +89,7 @@ pub struct GatheredFacts {
 }
 
 impl GatheredFacts {
-    /// Borrowed planner inputs, paired with each item's digest port.
+    /// Borrowed planner inputs, paired with each item's snapshot.
     ///
     /// Built on demand rather than stored, since `PlanInput`'s borrowed
     /// views cannot be held inside the same struct as the owned facts they
@@ -98,22 +104,18 @@ impl GatheredFacts {
     pub fn plan_inputs<'a>(
         &'a self,
         items: &'a [LocalItem],
-        digests: &'a [LazyItemDigests<'a>],
+        snapshots: &'a [ItemSnapshot<'a>],
         baseline: &'a Baseline,
     ) -> Vec<PlanInput<'a>> {
         items
             .iter()
-            .zip(digests.iter())
-            .map(|(item, item_digests)| {
+            .zip(snapshots.iter())
+            .map(|(item, snapshot)| {
                 let (remote, dirty) = self
                     .per_id
                     .get(&item.id)
                     .expect("gather populates every item");
-                let baseline_entry = baseline.get(&item.id);
-                let watermark = baseline_entry.map_or_else(
-                    || baseline.timestamp(),
-                    |entry| entry.local_synced_at,
-                );
+                let (entry, watermark) = domain_entry(baseline, &item.id);
                 PlanInput {
                     id: item.id.clone(),
                     external_id: item.external_id.as_ref(),
@@ -122,33 +124,48 @@ impl GatheredFacts {
                         remote_updated: &remote.remote_updated,
                     },
                     dirty: *dirty,
-                    baseline: BaselineEntry {
-                        remote_updated_at: baseline_entry
-                            .map_or(&RemoteTimestamp::NotRead, |entry| {
-                                &entry.remote_updated_at
-                            }),
-                        remote_hash: baseline_entry.and_then(|entry| {
-                            (!entry.remote_hash.is_empty())
-                                .then_some(entry.remote_hash.as_str())
-                        }),
-                        local_hash: baseline_entry.and_then(|entry| {
-                            (!entry.local_hash.is_empty())
-                                .then_some(entry.local_hash.as_str())
-                        }),
-                    },
+                    baseline: entry,
                     baseline_timestamp: watermark,
-                    digests: item_digests,
+                    digests: snapshot,
+                    comparison: snapshot,
                 }
             })
             .collect()
     }
 }
 
-fn present_ids(items: &[LocalItem]) -> Vec<(&str, &ExternalId)> {
+/// `id`'s entry as the domain compares with it, and the watermark its local
+/// side was last synced at; an item with no entry compares against empty
+/// legacy hashes and the document's own timestamp.
+fn domain_entry<'a>(
+    baseline: &'a Baseline,
+    id: &str,
+) -> (BaselineEntry<'a>, u64) {
+    let entry = baseline.get(id);
+    let stamps = entry.and_then(Entry::stamps);
+    let watermark = stamps
+        .map_or_else(|| baseline.timestamp(), |stamps| stamps.local_synced_at);
+    (
+        BaselineEntry {
+            remote_updated_at: stamps
+                .map_or(&RemoteTimestamp::NotRead, |stamps| {
+                    &stamps.remote_updated_at
+                }),
+            fingerprints: entry.and_then(Entry::fingerprints).unwrap_or_else(
+                || BaselineFingerprints::Legacy(LegacyHashes::default()),
+            ),
+        },
+        watermark,
+    )
+}
+
+fn present_ids(items: &[LocalItem]) -> Vec<(&str, &ExternalId, &Path)> {
     items
         .iter()
         .filter_map(|item| {
-            item.external_id.as_ref().map(|id| (item.id.as_str(), id))
+            item.external_id
+                .as_ref()
+                .map(|id| (item.id.as_str(), id, item.path.as_path()))
         })
         .collect()
 }
@@ -239,6 +256,9 @@ impl Gathering {
 }
 
 /// Gathers the facts `work::sync::plan` needs, for every item.
+///
+/// `digester` fingerprints each local side, so the two-tier read skips a
+/// `show` only where classification will find the local side unchanged.
 #[must_use]
 pub fn gather(
     items: &[LocalItem],
@@ -246,6 +266,7 @@ pub fn gather(
     tracker: &dyn RemoteTracker,
     status: &dyn WorkingCopyStatus,
     strategy: RetrievalStrategy,
+    digester: &BaselineDigester<'_>,
 ) -> GatheredFacts {
     let mut gathering = Gathering {
         per_id: BTreeMap::new(),
@@ -257,7 +278,12 @@ pub fn gather(
 
     match strategy {
         RetrievalStrategy::PerItem => {
-            for (id, external_id) in &present {
+            for (id, external_id, _) in &present {
+                if recipe_unsupported(baseline, id) {
+                    gathering
+                        .record(id, unaccounted(RemotePresence::Indeterminate));
+                    continue;
+                }
                 match tracker.show(external_id) {
                     Ok(issue) => gathering.record_issue(id, external_id, issue),
                     Err(_) => gathering.locate(
@@ -271,11 +297,11 @@ pub fn gather(
         }
         RetrievalStrategy::Bulk => {
             let ids: Vec<ExternalId> =
-                present.iter().map(|(_, id)| (*id).clone()).collect();
+                present.iter().map(|(_, id, _)| (*id).clone()).collect();
             match tracker.fetch_all(&ids) {
                 Err(error) => {
                     read_failure = Some(error);
-                    for (id, _) in &present {
+                    for (id, _, _) in &present {
                         gathering.record(
                             id,
                             unaccounted(RemotePresence::Indeterminate),
@@ -284,14 +310,18 @@ pub fn gather(
                 }
                 Ok(outcome) => {
                     keyed_read = outcome.completeness;
-                    for (id, external_id) in &present {
+                    for (id, external_id, path) in &present {
                         gather_from_bulk(
                             &mut gathering,
-                            id,
-                            external_id,
+                            &BulkItem {
+                                id,
+                                external_id,
+                                path,
+                            },
                             &outcome,
                             baseline,
                             tracker,
+                            digester,
                         );
                     }
                 }
@@ -317,14 +347,57 @@ pub fn gather(
     }
 }
 
+/// Whether `id`'s entry was recorded under a digest recipe this binary does
+/// not know, so nothing about the item can be compared, read or written.
+fn recipe_unsupported(baseline: &Baseline, id: &str) -> bool {
+    matches!(baseline.get(id), Some(Entry::Unsupported { .. }))
+}
+
+/// Whether the stamp alone can stand for the remote body: only for a
+/// recipe-1 entry recording both sides, whose stamp proves the remote
+/// unchanged and whose local side classification will find unchanged. A
+/// legacy entry always needs the body, so the run can rewrite it or find the
+/// residue an earlier pull left; any local change needs it, so equivalence
+/// and the remote title are decidable.
+fn remote_read_unneeded(
+    item: &BulkItem<'_>,
+    baseline: &Baseline,
+    stamp: &RemoteTimestamp,
+    digester: &BaselineDigester<'_>,
+) -> bool {
+    let Some(Entry::Split { split, .. }) = baseline.get(item.id) else {
+        return false;
+    };
+    if split.local.is_none() || split.remote.is_none() {
+        return false;
+    }
+    let (entry, watermark) = domain_entry(baseline, item.id);
+    stamp.proves_unchanged_since(entry.remote_updated_at)
+        && local_change(
+            &entry,
+            watermark,
+            &ItemSnapshot::new(item.path, None, digester),
+        )
+        .is_ok_and(LocalChange::is_unchanged)
+}
+
+struct BulkItem<'a> {
+    id: &'a str,
+    external_id: &'a ExternalId,
+    path: &'a Path,
+}
+
 fn gather_from_bulk(
     gathering: &mut Gathering,
-    id: &str,
-    external_id: &ExternalId,
+    item: &BulkItem<'_>,
     outcome: &FetchOutcome,
     baseline: &Baseline,
     tracker: &dyn RemoteTracker,
+    digester: &BaselineDigester<'_>,
 ) {
+    let BulkItem {
+        id, external_id, ..
+    } = *item;
     let found = outcome
         .found
         .iter()
@@ -338,10 +411,18 @@ fn gather_from_bulk(
         gathering.locate(id, external_id, tracker, otherwise);
         return;
     };
-    let unchanged = baseline.get(id).is_some_and(|entry| {
-        stamp.proves_unchanged_since(&entry.remote_updated_at)
-    });
-    if unchanged {
+    if recipe_unsupported(baseline, id) {
+        gathering.record(
+            id,
+            GatheredRemote {
+                presence: RemotePresence::Indeterminate,
+                remote_updated: stamp.clone(),
+                body: None,
+            },
+        );
+        return;
+    }
+    if remote_read_unneeded(item, baseline, stamp, digester) {
         gathering.record(
             id,
             GatheredRemote {
@@ -364,7 +445,7 @@ fn gather_from_bulk(
         Err(_) => gathering.record(
             id,
             GatheredRemote {
-                presence: RemotePresence::Present,
+                presence: RemotePresence::Indeterminate,
                 remote_updated: stamp.clone(),
                 body: None,
             },

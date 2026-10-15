@@ -314,7 +314,7 @@ pub work::promotion::PromotionStage::RemoteRetitled
 pub work::promotion::PromotionStage::RemoteRetitled::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::RemoteRetitled::read_back: work::promotion::ReadBack
 pub work::promotion::PromotionStage::Retiring
-pub work::promotion::PromotionStage::Retiring::baseline: work::promotion::IntendedBaseline
+pub work::promotion::PromotionStage::Retiring::baseline: alloc::boxed::Box<work::promotion::IntendedBaseline>
 pub work::promotion::PromotionStage::Retiring::before: alloc::boxed::Box<work::promotion::PromotionStage>
 pub work::promotion::PromotionStage::Retiring::key: work::tracker_key::TrackerKey
 pub work::promotion::PromotionStage::Retiring::recovery_dir: std::path::PathBuf
@@ -398,10 +398,12 @@ impl core::fmt::Debug for work::promotion::Retitling
 pub fn work::promotion::Retitling::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::Retitling
 pub struct work::promotion::IntendedBaseline
-pub work::promotion::IntendedBaseline::local_hash: alloc::string::String
+pub work::promotion::IntendedBaseline::local: work::promotion::LocalDigests
 pub work::promotion::IntendedBaseline::remote_hash: work::promotion::RemoteHash
 impl work::promotion::IntendedBaseline
-pub fn work::promotion::IntendedBaseline::next_sync(&self, promoted_digest: &str) -> work::sync::state::SyncState
+pub fn work::promotion::IntendedBaseline::fingerprints(&self) -> work::sync::baseline::BaselineFingerprints
+pub fn work::promotion::IntendedBaseline::legacy(&self) -> work::sync::baseline::LegacyHashes
+pub fn work::promotion::IntendedBaseline::next_sync(&self, key: &tracker::ExternalId, promoted: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
 impl core::clone::Clone for work::promotion::IntendedBaseline
 pub fn work::promotion::IntendedBaseline::clone(&self) -> work::promotion::IntendedBaseline
 impl core::cmp::Eq for work::promotion::IntendedBaseline
@@ -410,6 +412,17 @@ pub fn work::promotion::IntendedBaseline::eq(&self, other: &work::promotion::Int
 impl core::fmt::Debug for work::promotion::IntendedBaseline
 pub fn work::promotion::IntendedBaseline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::IntendedBaseline
+pub struct work::promotion::LocalDigests
+pub work::promotion::LocalDigests::fingerprints: core::option::Option<work::sync::baseline::LocalFingerprints>
+pub work::promotion::LocalDigests::legacy: alloc::string::String
+impl core::clone::Clone for work::promotion::LocalDigests
+pub fn work::promotion::LocalDigests::clone(&self) -> work::promotion::LocalDigests
+impl core::cmp::Eq for work::promotion::LocalDigests
+impl core::cmp::PartialEq for work::promotion::LocalDigests
+pub fn work::promotion::LocalDigests::eq(&self, other: &work::promotion::LocalDigests) -> bool
+impl core::fmt::Debug for work::promotion::LocalDigests
+pub fn work::promotion::LocalDigests::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::promotion::LocalDigests
 pub struct work::promotion::PromotionRecord
 pub work::promotion::PromotionRecord::content_digest: alloc::string::String
 pub work::promotion::PromotionRecord::draft_id: work::draft_id::DraftId
@@ -424,6 +437,7 @@ impl core::fmt::Debug for work::promotion::PromotionRecord
 pub fn work::promotion::PromotionRecord::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::PromotionRecord
 pub struct work::promotion::ReadBack
+pub work::promotion::ReadBack::fingerprints: core::option::Option<work::sync::baseline::RemoteFingerprints>
 pub work::promotion::ReadBack::hash: alloc::string::String
 pub work::promotion::ReadBack::updated: tracker::RemoteTimestamp
 impl core::clone::Clone for work::promotion::ReadBack
@@ -435,7 +449,7 @@ impl core::fmt::Debug for work::promotion::ReadBack
 pub fn work::promotion::ReadBack::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::promotion::ReadBack
 pub const work::promotion::ID_PLACEHOLDER: &str
-pub fn work::promotion::intended_baseline(disposition: &work::promotion::PromotionStage, draft_digest: &str, promoted_digest: &str, read_back_matches_promoted: bool) -> core::option::Option<work::promotion::IntendedBaseline>
+pub fn work::promotion::intended_baseline(disposition: &work::promotion::PromotionStage, draft: &work::promotion::LocalDigests, promoted: &work::promotion::LocalDigests, read_back_matches_promoted: bool) -> core::option::Option<work::promotion::IntendedBaseline>
 pub fn work::promotion::next_step(record: work::promotion::RecordState<'_>, mode: &work::promotion::PromotionMode) -> work::promotion::PromotionStep
 pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Option<&str>, read_back_hash: &str, read_back_matches_draft: bool) -> bool
 pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
@@ -648,18 +662,15 @@ pub const work::retirement::RETIREMENT_INCOMPLETE: &str
 pub fn work::retirement::plan_retirement(retirement: &work::retirement::Retirement<'_>, work_dir: &std::path::Path, items: &[work::identity::ItemIdentity], corpus: &[work::retirement::CorpusFile]) -> core::result::Result<work::retirement::RetirementPlan, work::retirement::RetirementRefusal>
 pub fn work::retirement::retired_content(content: &str, retirement: &work::retirement::Retirement<'_>, from: &std::path::Path, work_dir: &std::path::Path) -> alloc::string::String
 pub mod work::section_diff
-pub enum work::section_diff::SectionName
-pub work::section_diff::SectionName::Frontmatter
-pub work::section_diff::SectionName::Heading(alloc::string::String)
-pub work::section_diff::SectionName::Preamble
-impl core::clone::Clone for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::clone(&self) -> work::section_diff::SectionName
-impl core::cmp::Eq for work::section_diff::SectionName
-impl core::cmp::PartialEq for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::eq(&self, other: &work::section_diff::SectionName) -> bool
-impl core::fmt::Debug for work::section_diff::SectionName
-pub fn work::section_diff::SectionName::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for work::section_diff::SectionName
+pub struct work::section_diff::ComparableItem<'a>
+pub work::section_diff::ComparableItem::compared: &'a corpus::body::Body
+pub work::section_diff::ComparableItem::frontmatter: &'a str
+pub work::section_diff::ComparableItem::shown: &'a corpus::body::Body
+impl<'a> core::clone::Clone for work::section_diff::ComparableItem<'a>
+pub fn work::section_diff::ComparableItem<'a>::clone(&self) -> work::section_diff::ComparableItem<'a>
+impl<'a> core::fmt::Debug for work::section_diff::ComparableItem<'a>
+pub fn work::section_diff::ComparableItem<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for work::section_diff::ComparableItem<'a>
 pub struct work::section_diff::SectionDiff
 pub work::section_diff::SectionDiff::local: alloc::string::String
 pub work::section_diff::SectionDiff::name: alloc::string::String
@@ -672,13 +683,169 @@ pub fn work::section_diff::SectionDiff::eq(&self, other: &work::section_diff::Se
 impl core::fmt::Debug for work::section_diff::SectionDiff
 pub fn work::section_diff::SectionDiff::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::section_diff::SectionDiff
-pub fn work::section_diff::differing_sections(local_content: &str, remote_content: &str) -> alloc::vec::Vec<work::section_diff::SectionDiff>
-pub fn work::section_diff::extract_section(content: &str, name: &work::section_diff::SectionName) -> alloc::string::String
-pub fn work::section_diff::heading_union(local: &[alloc::string::String], remote: &[alloc::string::String]) -> alloc::vec::Vec<alloc::string::String>
+pub fn work::section_diff::differing_sections(local: &work::section_diff::ComparableItem<'_>, remote: &work::section_diff::ComparableItem<'_>) -> alloc::vec::Vec<work::section_diff::SectionDiff>
+pub fn work::section_diff::frontmatter_and_body(content: &str) -> (alloc::string::String, alloc::string::String)
 pub mod work::show
 pub fn work::show::read_field_raw(frontmatter: &str, field: &str) -> core::option::Option<alloc::string::String>
 pub mod work::sync
+pub mod work::sync::baseline
+pub enum work::sync::baseline::BaselineFingerprints
+pub work::sync::baseline::BaselineFingerprints::Legacy(work::sync::baseline::LegacyHashes)
+pub work::sync::baseline::BaselineFingerprints::Split(work::sync::baseline::SplitFingerprints)
+impl core::clone::Clone for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::clone(&self) -> work::sync::baseline::BaselineFingerprints
+impl core::cmp::Eq for work::sync::baseline::BaselineFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::eq(&self, other: &work::sync::baseline::BaselineFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::BaselineFingerprints
+pub struct work::sync::baseline::DualRecipeFingerprints
+pub work::sync::baseline::DualRecipeFingerprints::legacy: work::sync::baseline::LegacyHashes
+pub work::sync::baseline::DualRecipeFingerprints::split: work::sync::baseline::SplitFingerprints
+impl core::clone::Clone for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::clone(&self) -> work::sync::baseline::DualRecipeFingerprints
+impl core::cmp::Eq for work::sync::baseline::DualRecipeFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::eq(&self, other: &work::sync::baseline::DualRecipeFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::DualRecipeFingerprints
+pub struct work::sync::baseline::LegacyHashes
+pub work::sync::baseline::LegacyHashes::local: core::option::Option<alloc::string::String>
+pub work::sync::baseline::LegacyHashes::remote: core::option::Option<alloc::string::String>
+impl core::clone::Clone for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::clone(&self) -> work::sync::baseline::LegacyHashes
+impl core::cmp::Eq for work::sync::baseline::LegacyHashes
+impl core::cmp::PartialEq for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::eq(&self, other: &work::sync::baseline::LegacyHashes) -> bool
+impl core::default::Default for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::default() -> work::sync::baseline::LegacyHashes
+impl core::fmt::Debug for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::LegacyHashes
+pub struct work::sync::baseline::LocalFingerprints
+pub work::sync::baseline::LocalFingerprints::body: alloc::string::String
+pub work::sync::baseline::LocalFingerprints::fields: alloc::string::String
+pub work::sync::baseline::LocalFingerprints::frontmatter: alloc::string::String
+impl core::clone::Clone for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::clone(&self) -> work::sync::baseline::LocalFingerprints
+impl core::cmp::Eq for work::sync::baseline::LocalFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::eq(&self, other: &work::sync::baseline::LocalFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::LocalFingerprints
+pub struct work::sync::baseline::RemoteFingerprints
+pub work::sync::baseline::RemoteFingerprints::body: alloc::string::String
+pub work::sync::baseline::RemoteFingerprints::fields: alloc::string::String
+impl core::clone::Clone for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::clone(&self) -> work::sync::baseline::RemoteFingerprints
+impl core::cmp::Eq for work::sync::baseline::RemoteFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::eq(&self, other: &work::sync::baseline::RemoteFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::RemoteFingerprints
+pub struct work::sync::baseline::SplitFingerprints
+pub work::sync::baseline::SplitFingerprints::local: core::option::Option<work::sync::baseline::LocalFingerprints>
+pub work::sync::baseline::SplitFingerprints::remote: core::option::Option<work::sync::baseline::RemoteFingerprints>
+impl core::clone::Clone for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::clone(&self) -> work::sync::baseline::SplitFingerprints
+impl core::cmp::Eq for work::sync::baseline::SplitFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::eq(&self, other: &work::sync::baseline::SplitFingerprints) -> bool
+impl core::default::Default for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::default() -> work::sync::baseline::SplitFingerprints
+impl core::fmt::Debug for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::SplitFingerprints
 pub mod work::sync::classify
+pub enum work::sync::classify::BodyEquivalence
+pub work::sync::classify::BodyEquivalence::Different
+pub work::sync::classify::BodyEquivalence::Equivalent
+pub work::sync::classify::BodyEquivalence::RemoteUnrenderable
+pub work::sync::classify::BodyEquivalence::Unknown
+impl core::clone::Clone for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::clone(&self) -> work::sync::classify::BodyEquivalence
+impl core::cmp::Eq for work::sync::classify::BodyEquivalence
+impl core::cmp::PartialEq for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::eq(&self, other: &work::sync::classify::BodyEquivalence) -> bool
+impl core::fmt::Debug for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::BodyEquivalence
+impl core::marker::StructuralPartialEq for work::sync::classify::BodyEquivalence
+pub enum work::sync::classify::Change
+pub work::sync::classify::Change::Changed
+pub work::sync::classify::Change::Unchanged
+pub work::sync::classify::Change::Unknown
+impl core::clone::Clone for work::sync::classify::Change
+pub fn work::sync::classify::Change::clone(&self) -> work::sync::classify::Change
+impl core::cmp::Eq for work::sync::classify::Change
+impl core::cmp::PartialEq for work::sync::classify::Change
+pub fn work::sync::classify::Change::eq(&self, other: &work::sync::classify::Change) -> bool
+impl core::fmt::Debug for work::sync::classify::Change
+pub fn work::sync::classify::Change::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Change
+impl core::marker::StructuralPartialEq for work::sync::classify::Change
+pub enum work::sync::classify::Classification
+pub work::sync::classify::Classification::Conflict
+pub work::sync::classify::Classification::Indeterminate
+pub work::sync::classify::Classification::LocallyModified(work::sync::classify::LocalReconciliation)
+pub work::sync::classify::Classification::RemoteAbsent
+pub work::sync::classify::Classification::RemotelyModified
+pub work::sync::classify::Classification::Synced(work::sync::classify::SyncedReconciliation)
+pub work::sync::classify::Classification::Unsynced
+impl work::sync::classify::Classification
+pub const fn work::sync::classify::Classification::state(self) -> work::sync::state::SyncState
+impl core::clone::Clone for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::clone(&self) -> work::sync::classify::Classification
+impl core::cmp::Eq for work::sync::classify::Classification
+impl core::cmp::PartialEq for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::eq(&self, other: &work::sync::classify::Classification) -> bool
+impl core::fmt::Debug for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Classification
+impl core::marker::StructuralPartialEq for work::sync::classify::Classification
+pub enum work::sync::classify::FieldDelivery
+pub work::sync::classify::FieldDelivery::Send
+pub work::sync::classify::FieldDelivery::Withhold
+impl core::clone::Clone for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::clone(&self) -> work::sync::classify::FieldDelivery
+impl core::cmp::Eq for work::sync::classify::FieldDelivery
+impl core::cmp::PartialEq for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::eq(&self, other: &work::sync::classify::FieldDelivery) -> bool
+impl core::fmt::Debug for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::FieldDelivery
+impl core::marker::StructuralPartialEq for work::sync::classify::FieldDelivery
+pub enum work::sync::classify::FieldsComparison
+pub work::sync::classify::FieldsComparison::Different
+pub work::sync::classify::FieldsComparison::Same
+pub work::sync::classify::FieldsComparison::Unknown
+impl core::clone::Clone for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::clone(&self) -> work::sync::classify::FieldsComparison
+impl core::cmp::Eq for work::sync::classify::FieldsComparison
+impl core::cmp::PartialEq for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::eq(&self, other: &work::sync::classify::FieldsComparison) -> bool
+impl core::fmt::Debug for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::FieldsComparison
+impl core::marker::StructuralPartialEq for work::sync::classify::FieldsComparison
+pub enum work::sync::classify::LocalReconciliation
+pub work::sync::classify::LocalReconciliation::ByContent
+pub work::sync::classify::LocalReconciliation::ByContent::fields: work::sync::classify::FieldDelivery
+pub work::sync::classify::LocalReconciliation::RecordOnly
+pub work::sync::classify::LocalReconciliation::SendFields
+impl core::clone::Clone for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::clone(&self) -> work::sync::classify::LocalReconciliation
+impl core::cmp::Eq for work::sync::classify::LocalReconciliation
+impl core::cmp::PartialEq for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::eq(&self, other: &work::sync::classify::LocalReconciliation) -> bool
+impl core::fmt::Debug for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::LocalReconciliation
+impl core::marker::StructuralPartialEq for work::sync::classify::LocalReconciliation
 pub enum work::sync::classify::RemotePresence
 pub work::sync::classify::RemotePresence::Absent
 pub work::sync::classify::RemotePresence::Indeterminate
@@ -692,20 +859,65 @@ impl core::fmt::Debug for work::sync::classify::RemotePresence
 pub fn work::sync::classify::RemotePresence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::classify::RemotePresence
 impl core::marker::StructuralPartialEq for work::sync::classify::RemotePresence
+pub enum work::sync::classify::SyncedReconciliation
+pub work::sync::classify::SyncedReconciliation::ByContent
+pub work::sync::classify::SyncedReconciliation::RecordOnly
+impl core::clone::Clone for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::clone(&self) -> work::sync::classify::SyncedReconciliation
+impl core::cmp::Eq for work::sync::classify::SyncedReconciliation
+impl core::cmp::PartialEq for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::eq(&self, other: &work::sync::classify::SyncedReconciliation) -> bool
+impl core::fmt::Debug for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::SyncedReconciliation
+impl core::marker::StructuralPartialEq for work::sync::classify::SyncedReconciliation
 pub struct work::sync::classify::BaselineEntry<'a>
-pub work::sync::classify::BaselineEntry::local_hash: core::option::Option<&'a str>
-pub work::sync::classify::BaselineEntry::remote_hash: core::option::Option<&'a str>
+pub work::sync::classify::BaselineEntry::fingerprints: work::sync::baseline::BaselineFingerprints
 pub work::sync::classify::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::classify::LocalChange
+pub work::sync::classify::LocalChange::body: work::sync::classify::Change
+pub work::sync::classify::LocalChange::fields: work::sync::classify::Change
+pub work::sync::classify::LocalChange::frontmatter: work::sync::classify::Change
+impl work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::is_unchanged(self) -> bool
+impl core::clone::Clone for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::clone(&self) -> work::sync::classify::LocalChange
+impl core::cmp::Eq for work::sync::classify::LocalChange
+impl core::cmp::PartialEq for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::eq(&self, other: &work::sync::classify::LocalChange) -> bool
+impl core::fmt::Debug for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::LocalChange
+impl core::marker::StructuralPartialEq for work::sync::classify::LocalChange
+pub struct work::sync::classify::RemoteChange
+pub work::sync::classify::RemoteChange::body: work::sync::classify::Change
+pub work::sync::classify::RemoteChange::fields: work::sync::classify::Change
+impl core::clone::Clone for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::clone(&self) -> work::sync::classify::RemoteChange
+impl core::cmp::Eq for work::sync::classify::RemoteChange
+impl core::cmp::PartialEq for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::eq(&self, other: &work::sync::classify::RemoteChange) -> bool
+impl core::fmt::Debug for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::RemoteChange
+impl core::marker::StructuralPartialEq for work::sync::classify::RemoteChange
 pub struct work::sync::classify::Subject<'a>
 pub work::sync::classify::Subject::baseline_timestamp: u64
 pub work::sync::classify::Subject::external_id: core::option::Option<&'a tracker::ExternalId>
 pub work::sync::classify::Subject::presence: work::sync::classify::RemotePresence
 pub work::sync::classify::Subject::remote_updated: &'a tracker::RemoteTimestamp
+pub trait work::sync::classify::ItemComparison
+pub fn work::sync::classify::ItemComparison::body_equivalence(&self) -> work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::ItemComparison::fields_comparison(&self) -> work::sync::classify::FieldsComparison
+pub fn work::sync::classify::ItemComparison::pull_residue(&self) -> core::option::Option<work::sync::pull_residue::PullResidue>
 pub trait work::sync::classify::ItemDigests
-pub fn work::sync::classify::ItemDigests::local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::classify::ItemDigests::legacy_local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::classify::ItemDigests::legacy_remote(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub fn work::sync::classify::ItemDigests::local(&self) -> core::result::Result<work::sync::baseline::LocalFingerprints, kernel::Error>
 pub fn work::sync::classify::ItemDigests::mtime(&self) -> core::result::Result<core::option::Option<u64>, kernel::Error>
-pub fn work::sync::classify::ItemDigests::remote_body(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
-pub fn work::sync::classify::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
+pub fn work::sync::classify::ItemDigests::remote(&self) -> core::result::Result<core::option::Option<work::sync::baseline::RemoteFingerprints>, kernel::Error>
+pub fn work::sync::classify::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
+pub fn work::sync::classify::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub mod work::sync::clock
 pub trait work::sync::clock::RunClock
 pub fn work::sync::clock::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
@@ -714,13 +926,17 @@ pub enum work::sync::decide::Action
 pub work::sync::decide::Action::CreateFromLocal
 pub work::sync::decide::Action::CreateFromRemote
 pub work::sync::decide::Action::Noop
+pub work::sync::decide::Action::Overwrite
 pub work::sync::decide::Action::Prompt
 pub work::sync::decide::Action::Pull
-pub work::sync::decide::Action::Push
+pub work::sync::decide::Action::Push(work::sync::classify::FieldDelivery)
+pub work::sync::decide::Action::RecordBaseline
+pub work::sync::decide::Action::Retitle
 pub work::sync::decide::Action::SkipConflict
 pub work::sync::decide::Action::SkipDirty
 impl work::sync::decide::Action
 pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+pub const fn work::sync::decide::Action::sends_to_tracker(self) -> bool
 impl core::clone::Clone for work::sync::decide::Action
 pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
 impl core::cmp::Eq for work::sync::decide::Action
@@ -771,7 +987,7 @@ impl core::fmt::Debug for work::sync::decide::SyncDirection
 pub fn work::sync::decide::SyncDirection::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::decide::SyncDirection
 impl core::marker::StructuralPartialEq for work::sync::decide::SyncDirection
-pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
+pub const fn work::sync::decide::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide::resolve_conflict_token(raw: &str) -> core::option::Option<work::sync::decide::Resolution>
 pub mod work::sync::identity
 pub enum work::sync::identity::IdentityAction
@@ -852,6 +1068,7 @@ pub mod work::sync::plan
 pub struct work::sync::plan::PlanInput<'a>
 pub work::sync::plan::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::plan::PlanInput::baseline_timestamp: u64
+pub work::sync::plan::PlanInput::comparison: &'a dyn work::sync::classify::ItemComparison
 pub work::sync::plan::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
 pub work::sync::plan::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::plan::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
@@ -879,6 +1096,19 @@ pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
 pub fn work::sync::plan::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
+pub mod work::sync::pull_residue
+pub enum work::sync::pull_residue::PullResidue
+pub work::sync::pull_residue::PullResidue::TrackerWireDocument
+pub work::sync::pull_residue::PullResidue::VerbatimRemote
+impl core::clone::Clone for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::clone(&self) -> work::sync::pull_residue::PullResidue
+impl core::cmp::Eq for work::sync::pull_residue::PullResidue
+impl core::cmp::PartialEq for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::eq(&self, other: &work::sync::pull_residue::PullResidue) -> bool
+impl core::fmt::Debug for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::pull_residue::PullResidue
+impl core::marker::StructuralPartialEq for work::sync::pull_residue::PullResidue
 pub mod work::sync::push_decide
 pub enum work::sync::push_decide::PushOutcome
 pub work::sync::push_decide::PushOutcome::CreatedBlocked
@@ -986,17 +1216,34 @@ impl core::fmt::Display for work::sync::state::SyncState
 pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::state::SyncState
 impl core::marker::StructuralPartialEq for work::sync::state::SyncState
+pub mod work::sync::synced_fields
+pub struct work::sync::synced_fields::SyncedTrackerFields
+pub work::sync::synced_fields::SyncedTrackerFields::title: alloc::string::String
+impl work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::digest_input(&self) -> alloc::string::String
+impl core::clone::Clone for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::clone(&self) -> work::sync::synced_fields::SyncedTrackerFields
+impl core::cmp::Eq for work::sync::synced_fields::SyncedTrackerFields
+impl core::cmp::PartialEq for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::eq(&self, other: &work::sync::synced_fields::SyncedTrackerFields) -> bool
+impl core::fmt::Debug for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::synced_fields::SyncedTrackerFields
 pub enum work::sync::Action
 pub work::sync::Action::CreateFromLocal
 pub work::sync::Action::CreateFromRemote
 pub work::sync::Action::Noop
+pub work::sync::Action::Overwrite
 pub work::sync::Action::Prompt
 pub work::sync::Action::Pull
-pub work::sync::Action::Push
+pub work::sync::Action::Push(work::sync::classify::FieldDelivery)
+pub work::sync::Action::RecordBaseline
+pub work::sync::Action::Retitle
 pub work::sync::Action::SkipConflict
 pub work::sync::Action::SkipDirty
 impl work::sync::decide::Action
 pub fn work::sync::decide::Action::from_keyword(raw: &str) -> core::option::Option<Self>
+pub const fn work::sync::decide::Action::sends_to_tracker(self) -> bool
 impl core::clone::Clone for work::sync::decide::Action
 pub fn work::sync::decide::Action::clone(&self) -> work::sync::decide::Action
 impl core::cmp::Eq for work::sync::decide::Action
@@ -1008,6 +1255,63 @@ impl core::fmt::Display for work::sync::decide::Action
 pub fn work::sync::decide::Action::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::decide::Action
 impl core::marker::StructuralPartialEq for work::sync::decide::Action
+pub enum work::sync::BaselineFingerprints
+pub work::sync::BaselineFingerprints::Legacy(work::sync::baseline::LegacyHashes)
+pub work::sync::BaselineFingerprints::Split(work::sync::baseline::SplitFingerprints)
+impl core::clone::Clone for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::clone(&self) -> work::sync::baseline::BaselineFingerprints
+impl core::cmp::Eq for work::sync::baseline::BaselineFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::eq(&self, other: &work::sync::baseline::BaselineFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::BaselineFingerprints
+pub fn work::sync::baseline::BaselineFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::BaselineFingerprints
+pub enum work::sync::BodyEquivalence
+pub work::sync::BodyEquivalence::Different
+pub work::sync::BodyEquivalence::Equivalent
+pub work::sync::BodyEquivalence::RemoteUnrenderable
+pub work::sync::BodyEquivalence::Unknown
+impl core::clone::Clone for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::clone(&self) -> work::sync::classify::BodyEquivalence
+impl core::cmp::Eq for work::sync::classify::BodyEquivalence
+impl core::cmp::PartialEq for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::eq(&self, other: &work::sync::classify::BodyEquivalence) -> bool
+impl core::fmt::Debug for work::sync::classify::BodyEquivalence
+pub fn work::sync::classify::BodyEquivalence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::BodyEquivalence
+impl core::marker::StructuralPartialEq for work::sync::classify::BodyEquivalence
+pub enum work::sync::Change
+pub work::sync::Change::Changed
+pub work::sync::Change::Unchanged
+pub work::sync::Change::Unknown
+impl core::clone::Clone for work::sync::classify::Change
+pub fn work::sync::classify::Change::clone(&self) -> work::sync::classify::Change
+impl core::cmp::Eq for work::sync::classify::Change
+impl core::cmp::PartialEq for work::sync::classify::Change
+pub fn work::sync::classify::Change::eq(&self, other: &work::sync::classify::Change) -> bool
+impl core::fmt::Debug for work::sync::classify::Change
+pub fn work::sync::classify::Change::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Change
+impl core::marker::StructuralPartialEq for work::sync::classify::Change
+pub enum work::sync::Classification
+pub work::sync::Classification::Conflict
+pub work::sync::Classification::Indeterminate
+pub work::sync::Classification::LocallyModified(work::sync::classify::LocalReconciliation)
+pub work::sync::Classification::RemoteAbsent
+pub work::sync::Classification::RemotelyModified
+pub work::sync::Classification::Synced(work::sync::classify::SyncedReconciliation)
+pub work::sync::Classification::Unsynced
+impl work::sync::classify::Classification
+pub const fn work::sync::classify::Classification::state(self) -> work::sync::state::SyncState
+impl core::clone::Clone for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::clone(&self) -> work::sync::classify::Classification
+impl core::cmp::Eq for work::sync::classify::Classification
+impl core::cmp::PartialEq for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::eq(&self, other: &work::sync::classify::Classification) -> bool
+impl core::fmt::Debug for work::sync::classify::Classification
+pub fn work::sync::classify::Classification::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::Classification
+impl core::marker::StructuralPartialEq for work::sync::classify::Classification
 pub enum work::sync::Dirtiness
 pub work::sync::Dirtiness::Clean
 pub work::sync::Dirtiness::Dirty
@@ -1021,6 +1325,31 @@ impl core::fmt::Debug for work::dirtiness::Dirtiness
 pub fn work::dirtiness::Dirtiness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::dirtiness::Dirtiness
 impl core::marker::StructuralPartialEq for work::dirtiness::Dirtiness
+pub enum work::sync::FieldDelivery
+pub work::sync::FieldDelivery::Send
+pub work::sync::FieldDelivery::Withhold
+impl core::clone::Clone for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::clone(&self) -> work::sync::classify::FieldDelivery
+impl core::cmp::Eq for work::sync::classify::FieldDelivery
+impl core::cmp::PartialEq for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::eq(&self, other: &work::sync::classify::FieldDelivery) -> bool
+impl core::fmt::Debug for work::sync::classify::FieldDelivery
+pub fn work::sync::classify::FieldDelivery::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::FieldDelivery
+impl core::marker::StructuralPartialEq for work::sync::classify::FieldDelivery
+pub enum work::sync::FieldsComparison
+pub work::sync::FieldsComparison::Different
+pub work::sync::FieldsComparison::Same
+pub work::sync::FieldsComparison::Unknown
+impl core::clone::Clone for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::clone(&self) -> work::sync::classify::FieldsComparison
+impl core::cmp::Eq for work::sync::classify::FieldsComparison
+impl core::cmp::PartialEq for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::eq(&self, other: &work::sync::classify::FieldsComparison) -> bool
+impl core::fmt::Debug for work::sync::classify::FieldsComparison
+pub fn work::sync::classify::FieldsComparison::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::FieldsComparison
+impl core::marker::StructuralPartialEq for work::sync::classify::FieldsComparison
 pub enum work::sync::IdentityAction
 pub work::sync::IdentityAction::KeyChanged
 pub work::sync::IdentityAction::NotFound
@@ -1059,6 +1388,20 @@ pub fn work::sync::key_change::KeyChange::eq(&self, other: &work::sync::key_chan
 impl core::fmt::Debug for work::sync::key_change::KeyChange
 pub fn work::sync::key_change::KeyChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::key_change::KeyChange
+pub enum work::sync::LocalReconciliation
+pub work::sync::LocalReconciliation::ByContent
+pub work::sync::LocalReconciliation::ByContent::fields: work::sync::classify::FieldDelivery
+pub work::sync::LocalReconciliation::RecordOnly
+pub work::sync::LocalReconciliation::SendFields
+impl core::clone::Clone for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::clone(&self) -> work::sync::classify::LocalReconciliation
+impl core::cmp::Eq for work::sync::classify::LocalReconciliation
+impl core::cmp::PartialEq for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::eq(&self, other: &work::sync::classify::LocalReconciliation) -> bool
+impl core::fmt::Debug for work::sync::classify::LocalReconciliation
+pub fn work::sync::classify::LocalReconciliation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::LocalReconciliation
+impl core::marker::StructuralPartialEq for work::sync::classify::LocalReconciliation
 pub enum work::sync::MarkerState<'a>
 pub work::sync::MarkerState::Absent
 pub work::sync::MarkerState::Present(&'a work::sync::push_precondition::PendingPush)
@@ -1077,6 +1420,18 @@ pub fn work::sync::push_precondition::PendingPush::eq(&self, other: &work::sync:
 impl core::fmt::Debug for work::sync::push_precondition::PendingPush
 pub fn work::sync::push_precondition::PendingPush::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::PendingPush
+pub enum work::sync::PullResidue
+pub work::sync::PullResidue::TrackerWireDocument
+pub work::sync::PullResidue::VerbatimRemote
+impl core::clone::Clone for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::clone(&self) -> work::sync::pull_residue::PullResidue
+impl core::cmp::Eq for work::sync::pull_residue::PullResidue
+impl core::cmp::PartialEq for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::eq(&self, other: &work::sync::pull_residue::PullResidue) -> bool
+impl core::fmt::Debug for work::sync::pull_residue::PullResidue
+pub fn work::sync::pull_residue::PullResidue::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::pull_residue::PullResidue
+impl core::marker::StructuralPartialEq for work::sync::pull_residue::PullResidue
 pub enum work::sync::PushOutcome
 pub work::sync::PushOutcome::CreatedBlocked
 pub work::sync::PushOutcome::CreatedUnwritten
@@ -1218,13 +1573,76 @@ impl core::fmt::Display for work::sync::state::SyncState
 pub fn work::sync::state::SyncState::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::sync::state::SyncState
 impl core::marker::StructuralPartialEq for work::sync::state::SyncState
+pub enum work::sync::SyncedReconciliation
+pub work::sync::SyncedReconciliation::ByContent
+pub work::sync::SyncedReconciliation::RecordOnly
+impl core::clone::Clone for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::clone(&self) -> work::sync::classify::SyncedReconciliation
+impl core::cmp::Eq for work::sync::classify::SyncedReconciliation
+impl core::cmp::PartialEq for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::eq(&self, other: &work::sync::classify::SyncedReconciliation) -> bool
+impl core::fmt::Debug for work::sync::classify::SyncedReconciliation
+pub fn work::sync::classify::SyncedReconciliation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::SyncedReconciliation
+impl core::marker::StructuralPartialEq for work::sync::classify::SyncedReconciliation
 pub struct work::sync::BaselineEntry<'a>
-pub work::sync::BaselineEntry::local_hash: core::option::Option<&'a str>
-pub work::sync::BaselineEntry::remote_hash: core::option::Option<&'a str>
+pub work::sync::BaselineEntry::fingerprints: work::sync::baseline::BaselineFingerprints
 pub work::sync::BaselineEntry::remote_updated_at: &'a tracker::RemoteTimestamp
+pub struct work::sync::DualRecipeFingerprints
+pub work::sync::DualRecipeFingerprints::legacy: work::sync::baseline::LegacyHashes
+pub work::sync::DualRecipeFingerprints::split: work::sync::baseline::SplitFingerprints
+impl core::clone::Clone for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::clone(&self) -> work::sync::baseline::DualRecipeFingerprints
+impl core::cmp::Eq for work::sync::baseline::DualRecipeFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::eq(&self, other: &work::sync::baseline::DualRecipeFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::DualRecipeFingerprints
+pub fn work::sync::baseline::DualRecipeFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::DualRecipeFingerprints
+pub struct work::sync::LegacyHashes
+pub work::sync::LegacyHashes::local: core::option::Option<alloc::string::String>
+pub work::sync::LegacyHashes::remote: core::option::Option<alloc::string::String>
+impl core::clone::Clone for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::clone(&self) -> work::sync::baseline::LegacyHashes
+impl core::cmp::Eq for work::sync::baseline::LegacyHashes
+impl core::cmp::PartialEq for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::eq(&self, other: &work::sync::baseline::LegacyHashes) -> bool
+impl core::default::Default for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::default() -> work::sync::baseline::LegacyHashes
+impl core::fmt::Debug for work::sync::baseline::LegacyHashes
+pub fn work::sync::baseline::LegacyHashes::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::LegacyHashes
+pub struct work::sync::LocalChange
+pub work::sync::LocalChange::body: work::sync::classify::Change
+pub work::sync::LocalChange::fields: work::sync::classify::Change
+pub work::sync::LocalChange::frontmatter: work::sync::classify::Change
+impl work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::is_unchanged(self) -> bool
+impl core::clone::Clone for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::clone(&self) -> work::sync::classify::LocalChange
+impl core::cmp::Eq for work::sync::classify::LocalChange
+impl core::cmp::PartialEq for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::eq(&self, other: &work::sync::classify::LocalChange) -> bool
+impl core::fmt::Debug for work::sync::classify::LocalChange
+pub fn work::sync::classify::LocalChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::LocalChange
+impl core::marker::StructuralPartialEq for work::sync::classify::LocalChange
+pub struct work::sync::LocalFingerprints
+pub work::sync::LocalFingerprints::body: alloc::string::String
+pub work::sync::LocalFingerprints::fields: alloc::string::String
+pub work::sync::LocalFingerprints::frontmatter: alloc::string::String
+impl core::clone::Clone for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::clone(&self) -> work::sync::baseline::LocalFingerprints
+impl core::cmp::Eq for work::sync::baseline::LocalFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::eq(&self, other: &work::sync::baseline::LocalFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::LocalFingerprints
+pub fn work::sync::baseline::LocalFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::LocalFingerprints
 pub struct work::sync::PlanInput<'a>
 pub work::sync::PlanInput::baseline: work::sync::classify::BaselineEntry<'a>
 pub work::sync::PlanInput::baseline_timestamp: u64
+pub work::sync::PlanInput::comparison: &'a dyn work::sync::classify::ItemComparison
 pub work::sync::PlanInput::digests: &'a dyn work::sync::classify::ItemDigests
 pub work::sync::PlanInput::dirty: work::dirtiness::Dirtiness
 pub work::sync::PlanInput::external_id: core::option::Option<&'a tracker::ExternalId>
@@ -1242,9 +1660,32 @@ pub fn work::sync::plan::PlannedAction::eq(&self, other: &work::sync::plan::Plan
 impl core::fmt::Debug for work::sync::plan::PlannedAction
 pub fn work::sync::plan::PlannedAction::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::plan::PlannedAction
+pub struct work::sync::RemoteChange
+pub work::sync::RemoteChange::body: work::sync::classify::Change
+pub work::sync::RemoteChange::fields: work::sync::classify::Change
+impl core::clone::Clone for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::clone(&self) -> work::sync::classify::RemoteChange
+impl core::cmp::Eq for work::sync::classify::RemoteChange
+impl core::cmp::PartialEq for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::eq(&self, other: &work::sync::classify::RemoteChange) -> bool
+impl core::fmt::Debug for work::sync::classify::RemoteChange
+pub fn work::sync::classify::RemoteChange::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::sync::classify::RemoteChange
+impl core::marker::StructuralPartialEq for work::sync::classify::RemoteChange
 pub struct work::sync::RemoteFacts<'a>
 pub work::sync::RemoteFacts::presence: work::sync::classify::RemotePresence
 pub work::sync::RemoteFacts::remote_updated: &'a tracker::RemoteTimestamp
+pub struct work::sync::RemoteFingerprints
+pub work::sync::RemoteFingerprints::body: alloc::string::String
+pub work::sync::RemoteFingerprints::fields: alloc::string::String
+impl core::clone::Clone for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::clone(&self) -> work::sync::baseline::RemoteFingerprints
+impl core::cmp::Eq for work::sync::baseline::RemoteFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::eq(&self, other: &work::sync::baseline::RemoteFingerprints) -> bool
+impl core::fmt::Debug for work::sync::baseline::RemoteFingerprints
+pub fn work::sync::baseline::RemoteFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::RemoteFingerprints
 pub struct work::sync::RequestFingerprint
 pub work::sync::RequestFingerprint::attempted_at: u64
 pub work::sync::RequestFingerprint::digest: alloc::string::String
@@ -1258,6 +1699,19 @@ pub fn work::sync::push_precondition::RequestFingerprint::eq(&self, other: &work
 impl core::fmt::Debug for work::sync::push_precondition::RequestFingerprint
 pub fn work::sync::push_precondition::RequestFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::sync::push_precondition::RequestFingerprint
+pub struct work::sync::SplitFingerprints
+pub work::sync::SplitFingerprints::local: core::option::Option<work::sync::baseline::LocalFingerprints>
+pub work::sync::SplitFingerprints::remote: core::option::Option<work::sync::baseline::RemoteFingerprints>
+impl core::clone::Clone for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::clone(&self) -> work::sync::baseline::SplitFingerprints
+impl core::cmp::Eq for work::sync::baseline::SplitFingerprints
+impl core::cmp::PartialEq for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::eq(&self, other: &work::sync::baseline::SplitFingerprints) -> bool
+impl core::default::Default for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::default() -> work::sync::baseline::SplitFingerprints
+impl core::fmt::Debug for work::sync::baseline::SplitFingerprints
+pub fn work::sync::baseline::SplitFingerprints::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::baseline::SplitFingerprints
 pub struct work::sync::Subject<'a>
 pub work::sync::Subject::baseline_timestamp: u64
 pub work::sync::Subject::external_id: core::option::Option<&'a tracker::ExternalId>
@@ -1268,17 +1722,36 @@ pub work::sync::SyncPlan::actions: alloc::vec::Vec<work::sync::plan::PlannedActi
 impl work::sync::plan::SyncPlan
 pub fn work::sync::plan::SyncPlan::pull_count(&self) -> usize
 pub fn work::sync::plan::SyncPlan::push_count(&self) -> usize
+pub struct work::sync::SyncedTrackerFields
+pub work::sync::SyncedTrackerFields::title: alloc::string::String
+impl work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::digest_input(&self) -> alloc::string::String
+impl core::clone::Clone for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::clone(&self) -> work::sync::synced_fields::SyncedTrackerFields
+impl core::cmp::Eq for work::sync::synced_fields::SyncedTrackerFields
+impl core::cmp::PartialEq for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::eq(&self, other: &work::sync::synced_fields::SyncedTrackerFields) -> bool
+impl core::fmt::Debug for work::sync::synced_fields::SyncedTrackerFields
+pub fn work::sync::synced_fields::SyncedTrackerFields::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::sync::synced_fields::SyncedTrackerFields
+pub trait work::sync::ItemComparison
+pub fn work::sync::ItemComparison::body_equivalence(&self) -> work::sync::classify::BodyEquivalence
+pub fn work::sync::ItemComparison::fields_comparison(&self) -> work::sync::classify::FieldsComparison
+pub fn work::sync::ItemComparison::pull_residue(&self) -> core::option::Option<work::sync::pull_residue::PullResidue>
 pub trait work::sync::ItemDigests
-pub fn work::sync::ItemDigests::local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::ItemDigests::legacy_local(&self) -> core::result::Result<alloc::string::String, kernel::Error>
+pub fn work::sync::ItemDigests::legacy_remote(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub fn work::sync::ItemDigests::local(&self) -> core::result::Result<work::sync::baseline::LocalFingerprints, kernel::Error>
 pub fn work::sync::ItemDigests::mtime(&self) -> core::result::Result<core::option::Option<u64>, kernel::Error>
-pub fn work::sync::ItemDigests::remote_body(&self) -> core::result::Result<core::option::Option<alloc::string::String>, kernel::Error>
+pub fn work::sync::ItemDigests::remote(&self) -> core::result::Result<core::option::Option<work::sync::baseline::RemoteFingerprints>, kernel::Error>
 pub trait work::sync::RunClock
 pub fn work::sync::RunClock::run_start_epoch(&self) -> core::result::Result<u64, kernel::Error>
-pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::state::SyncState, kernel::Error>
+pub fn work::sync::classify(subject: &work::sync::classify::Subject<'_>, baseline: &work::sync::classify::BaselineEntry<'_>, digests: &dyn work::sync::classify::ItemDigests, comparison: &dyn work::sync::classify::ItemComparison) -> core::result::Result<work::sync::classify::Classification, kernel::Error>
 pub fn work::sync::classify_external_id(raw: &str) -> work::sync::label::SyncPresence
-pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, state: work::sync::state::SyncState, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
+pub const fn work::sync::decide(direction: work::sync::decide::SyncDirection, classification: &work::sync::classify::Classification, dirty: work::dirtiness::Dirtiness) -> work::sync::decide::Action
 pub fn work::sync::decide_key_change(ownership: corpus::work_item_id::IdOwnership, item_id: &str, old: &tracker::ExternalId, new: &tracker::ExternalId) -> work::sync::key_change::KeyChange
 pub const fn work::sync::label(state: work::sync::label::RenderableState) -> &'static str
+pub fn work::sync::local_change(baseline: &work::sync::classify::BaselineEntry<'_>, watermark: u64, digests: &dyn work::sync::classify::ItemDigests) -> core::result::Result<work::sync::classify::LocalChange, kernel::Error>
 pub fn work::sync::needs_body_read(items: &[work::sync::plan::PlanInput<'_>]) -> alloc::vec::Vec<tracker::ExternalId>
 pub fn work::sync::plan(items: &[work::sync::plan::PlanInput<'_>], direction: work::sync::decide::SyncDirection, resolutions: &alloc::collections::btree::map::BTreeMap<alloc::string::String, work::sync::decide::Resolution>) -> core::result::Result<work::sync::plan::SyncPlan, kernel::Error>
 pub const fn work::sync::push_decide(code: u8, attempt: u8, write_failed: bool) -> work::sync::push_decide::PushOutcome

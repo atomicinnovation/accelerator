@@ -7,6 +7,7 @@
 //! doc-type table, a parsed frontmatter value) by injection.
 
 pub mod adr;
+pub mod body;
 pub mod cluster;
 pub mod doc_type;
 pub mod frontmatter;

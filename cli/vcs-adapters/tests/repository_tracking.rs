@@ -1,7 +1,6 @@
 //! `InProcessTracking` through the `vcs::tracking::RepositoryTracking` port,
 //! against real git and jj repositories: the fail-closed answers the consent
 //! policy's tracked-file refusal and its repository-root checks rest on.
-#![cfg(feature = "bash-parity")]
 
 use std::collections::BTreeSet;
 use std::fs;

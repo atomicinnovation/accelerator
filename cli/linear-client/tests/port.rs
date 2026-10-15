@@ -171,7 +171,7 @@ fn a_two_hundred_carrying_an_auth_error_is_retryable_on_create_and_update() {
             client.create("t", "b\n", "").expect_err("it fails")
         } else {
             client
-                .update(&id("ENG-1"), "t", "b\n")
+                .update(&id("ENG-1"), Some("t"), "b\n")
                 .expect_err("it fails")
         };
 
@@ -199,7 +199,7 @@ fn a_two_hundred_carrying_an_unclassified_error_diverges_between_operations() {
     let server = MockHTTPServer::start();
     server.route(RequestKey::post(GRAPHQL), json_route(body.to_owned()));
     let updated = client_for(&server, brief())
-        .update(&id("ENG-1"), "t", "b\n")
+        .update(&id("ENG-1"), Some("t"), "b\n")
         .expect_err("it fails");
     assert!(
         matches!(updated, TrackerError::Terminal { .. }),
@@ -222,7 +222,7 @@ fn update_sends_the_mutation_with_the_identifier_and_input() {
     let client = client_for(&server, brief());
 
     client
-        .update(&id("ENG-1"), "New title", "New body\n")
+        .update(&id("ENG-1"), Some("New title"), "New body\n")
         .expect("update succeeds");
 
     let sent: Value =

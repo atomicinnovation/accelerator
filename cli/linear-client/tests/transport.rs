@@ -461,7 +461,11 @@ fn an_update_answered_503_then_a_refused_connection_is_terminal() {
     let client = client_at(&server.base_url(), &sleeper);
 
     let error = client
-        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
+        .update(
+            &ExternalId::new("ENG-1".to_owned()),
+            Some("A title"),
+            "A body\n",
+        )
         .expect_err("the retry after the 503 is refused");
 
     assert!(matches!(error, TrackerError::Terminal { .. }), "{error}");
@@ -480,7 +484,11 @@ fn an_update_against_a_refused_connection_is_retryable() {
     let client = client_at(&http_test_support::refused_base_url(), &sleeper);
 
     let error = client
-        .update(&ExternalId::new("ENG-1".to_owned()), "A title", "A body\n")
+        .update(
+            &ExternalId::new("ENG-1".to_owned()),
+            Some("A title"),
+            "A body\n",
+        )
         .expect_err("nothing listens on the port");
 
     assert!(matches!(error, TrackerError::Retryable { .. }), "{error}");

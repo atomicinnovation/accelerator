@@ -306,7 +306,6 @@ fn a_read_only_work_directory_refuses_the_creation_lock(
     Ok(())
 }
 
-#[cfg(feature = "bash-parity")]
 #[test]
 fn the_author_comes_from_the_jj_identity_when_no_flag_is_given(
 ) -> Result<(), TestError> {

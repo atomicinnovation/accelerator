@@ -1,6 +1,5 @@
 //! The migrate pre-flight sees exactly the changes `jj status` does: files the
 //! git excludes hide are not changes, and everything else still is.
-#![cfg(feature = "bash-parity")]
 
 mod common;
 

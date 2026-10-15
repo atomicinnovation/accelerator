@@ -24,6 +24,7 @@ path = "src/main.rs"
 test-loopback = []
 
 [dependencies]
+adf = { path = "../adf" }
 jira-client = { path = "../jira-client" }
 tracker = { path = "../tracker" }
 tracker-support = { path = "../tracker-support" }

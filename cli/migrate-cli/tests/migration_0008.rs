@@ -60,7 +60,12 @@ fn baseline_local_hash(dir: &Path, id: &str) -> Option<String> {
     .ok()?;
     let (baseline, _) =
         work_adapters::sync::baseline::Baseline::read(Some(&content));
-    baseline.get(id).map(|entry| entry.local_hash.clone())
+    baseline.get(id).map(|entry| {
+        entry
+            .legacy()
+            .and_then(|hashes| hashes.local.clone())
+            .unwrap_or_default()
+    })
 }
 
 fn seed_baseline(

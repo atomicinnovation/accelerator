@@ -4,23 +4,51 @@
  * reproduce — so they are E2E.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { APIRequestContext } from "@playwright/test";
 import { startDrag } from "./dnd.js";
 import { expect, test } from "./fixtures.js";
-import {
-  WATCH_REGISTRATION_BUDGET_MS,
-  writeUntilVisible,
-} from "./watched-writes.js";
 
 const FIXTURES_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../server/tests/fixtures/meta/work",
 );
 const CARD_0001 = 'li[data-relpath="meta/work/0001-first-work-item.md"]';
-const CARD_0005 = 'li[data-relpath="meta/work/0005-sse-test-work-item.md"]';
+const WORK_ITEM_0005 = "meta/work/0005-sse-test-work-item.md";
+const CARD_0005 = `li[data-relpath="${WORK_ITEM_0005}"]`;
 const WORK_ITEM_0005_PATH = resolve(FIXTURES_DIR, "0005-sse-test-work-item.md");
+
+function fixtureStatus(path: string): string {
+  const status = /^status: (.+)$/m.exec(readFileSync(path, "utf-8"))?.[1];
+  if (status === undefined) throw new Error(`${path} carries no status`);
+  return status;
+}
+
+/**
+ * Moves a work item through the server's own write path, which broadcasts at
+ * once. The index can lag an earlier direct write to the file, so a stale
+ * etag is retried with the current one the 412 names.
+ */
+async function moveThroughTheApi(
+  request: APIRequestContext,
+  relPath: string,
+  status: string,
+): Promise<void> {
+  const patch = (etag: string) =>
+    request.patch(`/api/docs/${relPath}/frontmatter`, {
+      headers: { "If-Match": etag, "Content-Type": "application/json" },
+      data: JSON.stringify({ patch: { status } }),
+    });
+  const indexed = await request.get(`/api/docs/${relPath}`);
+  let moved = await patch(indexed.headers().etag);
+  if (moved.status() === 412) {
+    const { currentEtag } = (await moved.json()) as { currentEtag: string };
+    moved = await patch(`"${currentEtag}"`);
+  }
+  expect(moved.status()).toBe(204);
+}
 
 test("source card persists in its column while the lifted overlay clone renders (A1/A3)", async ({
   page,
@@ -42,9 +70,9 @@ test("source card persists in its column while the lifted overlay clone renders 
 
 test("Escape-cancelling a drag clears the SSE gate so later updates still render", async ({
   page,
+  request,
 }) => {
-  test.setTimeout(WATCH_REGISTRATION_BUDGET_MS + 30_000);
-  const original = readFileSync(WORK_ITEM_0005_PATH, "utf-8");
+  const originalStatus = fixtureStatus(WORK_ITEM_0005_PATH);
   try {
     await page.goto("/kanban");
     await expect(page.locator('[data-sse-state="open"]')).toBeVisible({
@@ -71,15 +99,16 @@ test("Escape-cancelling a drag clears the SSE gate so later updates still render
     await drag.drop();
     await expect(page).toHaveURL(/\/kanban$/);
 
-    // An external edit now arrives via SSE. If the cancel path left the gate
-    // stuck true, this invalidation would be queued forever and the card would
-    // never move — the stuck-gate failure mode this guards.
-    await writeUntilVisible(
-      WORK_ITEM_0005_PATH,
-      original.replace(/^status:.*$/m, "status: done"),
+    // Another client's edit now arrives via SSE. If the cancel path left the
+    // gate stuck true, this invalidation would be queued forever and the card
+    // would never move — the stuck-gate failure mode this guards. The edit goes
+    // through the API rather than the file: an external write waits on the OS
+    // file watcher, which a loaded machine can delay past any timeout.
+    await moveThroughTheApi(request, WORK_ITEM_0005, "done");
+    await expect(
       page.locator(`section[data-column="done"] ${CARD_0005}`),
-    );
+    ).toBeVisible();
   } finally {
-    writeFileSync(WORK_ITEM_0005_PATH, original);
+    await moveThroughTheApi(request, WORK_ITEM_0005, originalStatus);
   }
 });

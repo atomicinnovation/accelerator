@@ -3,6 +3,7 @@
 //! because the sync engine's composition root holds one.
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use tracker::BodyDialect;
 use tracker::Completeness;
 use tracker::CreatePreview;
 use tracker::Discovery;
@@ -64,6 +65,12 @@ impl FixedTracker {
     }
 }
 
+impl BodyDialect for FixedTracker {
+    fn is_wire_document(&self, _body: &str) -> bool {
+        false
+    }
+}
+
 impl RemoteTracker for FixedTracker {
     fn create(
         &self,
@@ -77,7 +84,7 @@ impl RemoteTracker for FixedTracker {
     fn update(
         &self,
         id: &ExternalId,
-        _title: &str,
+        _title: Option<&str>,
         _body: &str,
     ) -> Result<(), TrackerError> {
         if self.lossy.contains(id) {
@@ -95,6 +102,14 @@ impl RemoteTracker for FixedTracker {
                 "jira: update {id} rejected, HTTP 404 no such issue"
             ),
         })
+    }
+
+    fn retitle(
+        &self,
+        id: &ExternalId,
+        title: &str,
+    ) -> Result<(), TrackerError> {
+        self.update(id, Some(title), "")
     }
 
     fn show(&self, id: &ExternalId) -> Result<RemoteIssue, TrackerError> {
@@ -180,10 +195,10 @@ impl RemoteTracker for FixedTracker {
     fn validate_update(
         &self,
         _id: &ExternalId,
-        title: &str,
-        _body: &str,
+        title: Option<&str>,
+        _body: Option<&str>,
     ) -> ValidationOutcome {
-        if title.trim().is_empty() {
+        if title.is_some_and(|title| title.trim().is_empty()) {
             ValidationOutcome::Rejected {
                 reasons: vec!["summary is required".to_owned()],
             }
@@ -221,7 +236,7 @@ fn all_four_operations_are_reachable_through_a_trait_object() {
     assert_eq!(created.as_str(), "ENG-2");
 
     let id = ExternalId::new("ENG-1".to_owned());
-    assert_eq!(tracker.update(&id, "Title", "Body text\n"), Ok(()));
+    assert_eq!(tracker.update(&id, Some("Title"), "Body text\n"), Ok(()));
     assert_eq!(
         tracker.show(&id).expect("the fake holds ENG-1").body,
         "Pushed title\nPushed description\n"
@@ -285,7 +300,7 @@ fn a_rejected_write_is_retryable_because_nothing_was_modified() {
     let missing = ExternalId::new("ENG-404".to_owned());
 
     assert_eq!(
-        tracker.update(&missing, "Title", "Body"),
+        tracker.update(&missing, Some("Title"), "Body"),
         Err(TrackerError::Retryable {
             detail: "jira: update ENG-404 rejected, HTTP 404 no such issue"
                 .to_owned()
@@ -300,7 +315,7 @@ fn a_write_whose_response_was_lost_is_terminal() {
         Box::new(FixedTracker::losing(known(), vec![id.clone()]));
 
     assert_eq!(
-        tracker.update(&id, "Title", "Body"),
+        tracker.update(&id, Some("Title"), "Body"),
         Err(TrackerError::Terminal {
             detail: "jira: update ENG-1 failed, response lost after send"
                 .to_owned()

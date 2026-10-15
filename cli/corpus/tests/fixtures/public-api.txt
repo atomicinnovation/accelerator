@@ -2,6 +2,170 @@ pub mod corpus
 pub mod corpus::adr
 pub fn corpus::adr::next_numbers(existing: &[&str], count: u32) -> alloc::vec::Vec<alloc::string::String>
 pub fn corpus::adr::read_status(content: &str) -> core::option::Option<alloc::string::String>
+pub mod corpus::body
+pub enum corpus::body::Alignment
+pub corpus::body::Alignment::Center
+pub corpus::body::Alignment::Left
+pub corpus::body::Alignment::None
+pub corpus::body::Alignment::Right
+impl core::clone::Clone for corpus::body::Alignment
+pub fn corpus::body::Alignment::clone(&self) -> corpus::body::Alignment
+impl core::cmp::Eq for corpus::body::Alignment
+impl core::cmp::PartialEq for corpus::body::Alignment
+pub fn corpus::body::Alignment::eq(&self, other: &corpus::body::Alignment) -> bool
+impl core::fmt::Debug for corpus::body::Alignment
+pub fn corpus::body::Alignment::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::body::Alignment
+impl core::marker::StructuralPartialEq for corpus::body::Alignment
+pub enum corpus::body::Block
+pub corpus::body::Block::BlockQuote(alloc::vec::Vec<corpus::body::Block>)
+pub corpus::body::Block::CodeBlock
+pub corpus::body::Block::CodeBlock::info: alloc::string::String
+pub corpus::body::Block::CodeBlock::literal: alloc::string::String
+pub corpus::body::Block::Heading
+pub corpus::body::Block::Heading::inlines: alloc::vec::Vec<corpus::body::Inline>
+pub corpus::body::Block::Heading::level: u8
+pub corpus::body::Block::Html(alloc::string::String)
+pub corpus::body::Block::List
+pub corpus::body::Block::List::items: alloc::vec::Vec<corpus::body::ListItem>
+pub corpus::body::Block::List::loose: bool
+pub corpus::body::Block::List::start: core::option::Option<u64>
+pub corpus::body::Block::Paragraph(alloc::vec::Vec<corpus::body::Inline>)
+pub corpus::body::Block::Table
+pub corpus::body::Block::Table::alignments: alloc::vec::Vec<corpus::body::Alignment>
+pub corpus::body::Block::Table::rows: alloc::vec::Vec<corpus::body::TableRow>
+pub corpus::body::Block::ThematicBreak
+impl core::clone::Clone for corpus::body::Block
+pub fn corpus::body::Block::clone(&self) -> corpus::body::Block
+impl core::cmp::Eq for corpus::body::Block
+impl core::cmp::PartialEq for corpus::body::Block
+pub fn corpus::body::Block::eq(&self, other: &corpus::body::Block) -> bool
+impl core::fmt::Debug for corpus::body::Block
+pub fn corpus::body::Block::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::Block
+pub enum corpus::body::Inline
+pub corpus::body::Inline::Code(alloc::string::String)
+pub corpus::body::Inline::Emphasis(alloc::vec::Vec<corpus::body::Inline>)
+pub corpus::body::Inline::HardBreak
+pub corpus::body::Inline::Html(alloc::string::String)
+pub corpus::body::Inline::Image
+pub corpus::body::Inline::Image::alt: alloc::vec::Vec<corpus::body::Inline>
+pub corpus::body::Inline::Image::destination: alloc::string::String
+pub corpus::body::Inline::Image::title: alloc::string::String
+pub corpus::body::Inline::Link
+pub corpus::body::Inline::Link::children: alloc::vec::Vec<corpus::body::Inline>
+pub corpus::body::Inline::Link::destination: alloc::string::String
+pub corpus::body::Inline::Link::title: alloc::string::String
+pub corpus::body::Inline::SoftBreak
+pub corpus::body::Inline::Strikethrough(alloc::vec::Vec<corpus::body::Inline>)
+pub corpus::body::Inline::Strong(alloc::vec::Vec<corpus::body::Inline>)
+pub corpus::body::Inline::Text(alloc::string::String)
+impl core::clone::Clone for corpus::body::Inline
+pub fn corpus::body::Inline::clone(&self) -> corpus::body::Inline
+impl core::cmp::Eq for corpus::body::Inline
+impl core::cmp::PartialEq for corpus::body::Inline
+pub fn corpus::body::Inline::eq(&self, other: &corpus::body::Inline) -> bool
+impl core::fmt::Debug for corpus::body::Inline
+pub fn corpus::body::Inline::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::Inline
+pub enum corpus::body::TaskMarker
+pub corpus::body::TaskMarker::Done
+pub corpus::body::TaskMarker::Open
+impl core::clone::Clone for corpus::body::TaskMarker
+pub fn corpus::body::TaskMarker::clone(&self) -> corpus::body::TaskMarker
+impl core::cmp::Eq for corpus::body::TaskMarker
+impl core::cmp::PartialEq for corpus::body::TaskMarker
+pub fn corpus::body::TaskMarker::eq(&self, other: &corpus::body::TaskMarker) -> bool
+impl core::fmt::Debug for corpus::body::TaskMarker
+pub fn corpus::body::TaskMarker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for corpus::body::TaskMarker
+impl core::marker::StructuralPartialEq for corpus::body::TaskMarker
+pub struct corpus::body::Body
+impl corpus::body::Body
+pub fn corpus::body::Body::blocks(&self) -> &[corpus::body::SourcedBlock]
+pub fn corpus::body::Body::new(source: impl core::convert::Into<alloc::string::String>, blocks: alloc::vec::Vec<corpus::body::SourcedBlock>) -> Self
+pub fn corpus::body::Body::sections(&self) -> alloc::vec::Vec<corpus::body::Section<'_>>
+pub fn corpus::body::Body::source(&self) -> &str
+impl corpus::body::Body
+pub fn corpus::body::Body::canonical(&self) -> corpus::body::CanonicalBody
+impl core::clone::Clone for corpus::body::Body
+pub fn corpus::body::Body::clone(&self) -> corpus::body::Body
+impl core::cmp::Eq for corpus::body::Body
+impl core::cmp::PartialEq for corpus::body::Body
+pub fn corpus::body::Body::eq(&self, other: &corpus::body::Body) -> bool
+impl core::fmt::Debug for corpus::body::Body
+pub fn corpus::body::Body::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::Body
+pub struct corpus::body::CanonicalBody(_)
+impl corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::digest_input(&self) -> alloc::string::String
+impl core::clone::Clone for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::clone(&self) -> corpus::body::CanonicalBody
+impl core::cmp::Eq for corpus::body::CanonicalBody
+impl core::cmp::PartialEq for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::eq(&self, other: &corpus::body::CanonicalBody) -> bool
+impl core::fmt::Debug for corpus::body::CanonicalBody
+pub fn corpus::body::CanonicalBody::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::CanonicalBody
+pub struct corpus::body::ListItem
+pub corpus::body::ListItem::blocks: alloc::vec::Vec<corpus::body::Block>
+pub corpus::body::ListItem::task: core::option::Option<corpus::body::TaskMarker>
+impl core::clone::Clone for corpus::body::ListItem
+pub fn corpus::body::ListItem::clone(&self) -> corpus::body::ListItem
+impl core::cmp::Eq for corpus::body::ListItem
+impl core::cmp::PartialEq for corpus::body::ListItem
+pub fn corpus::body::ListItem::eq(&self, other: &corpus::body::ListItem) -> bool
+impl core::fmt::Debug for corpus::body::ListItem
+pub fn corpus::body::ListItem::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::ListItem
+pub struct corpus::body::Section<'a>
+pub corpus::body::Section::blocks: &'a [corpus::body::SourcedBlock]
+pub corpus::body::Section::heading: core::option::Option<&'a str>
+pub corpus::body::Section::source: &'a str
+impl corpus::body::Section<'_>
+pub fn corpus::body::Section<'_>::canonical(&self) -> corpus::body::CanonicalBody
+pub fn corpus::body::Section<'_>::canonical_heading(&self) -> core::option::Option<corpus::body::CanonicalBody>
+impl<'a> core::clone::Clone for corpus::body::Section<'a>
+pub fn corpus::body::Section<'a>::clone(&self) -> corpus::body::Section<'a>
+impl<'a> core::cmp::Eq for corpus::body::Section<'a>
+impl<'a> core::cmp::PartialEq for corpus::body::Section<'a>
+pub fn corpus::body::Section<'a>::eq(&self, other: &corpus::body::Section<'a>) -> bool
+impl<'a> core::fmt::Debug for corpus::body::Section<'a>
+pub fn corpus::body::Section<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for corpus::body::Section<'a>
+impl<'a> core::marker::StructuralPartialEq for corpus::body::Section<'a>
+pub struct corpus::body::SourcedBlock
+pub corpus::body::SourcedBlock::block: corpus::body::Block
+pub corpus::body::SourcedBlock::span: core::ops::range::Range<usize>
+impl core::clone::Clone for corpus::body::SourcedBlock
+pub fn corpus::body::SourcedBlock::clone(&self) -> corpus::body::SourcedBlock
+impl core::cmp::Eq for corpus::body::SourcedBlock
+impl core::cmp::PartialEq for corpus::body::SourcedBlock
+pub fn corpus::body::SourcedBlock::eq(&self, other: &corpus::body::SourcedBlock) -> bool
+impl core::fmt::Debug for corpus::body::SourcedBlock
+pub fn corpus::body::SourcedBlock::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::SourcedBlock
+pub struct corpus::body::TableCell(pub alloc::vec::Vec<corpus::body::Inline>)
+impl core::clone::Clone for corpus::body::TableCell
+pub fn corpus::body::TableCell::clone(&self) -> corpus::body::TableCell
+impl core::cmp::Eq for corpus::body::TableCell
+impl core::cmp::PartialEq for corpus::body::TableCell
+pub fn corpus::body::TableCell::eq(&self, other: &corpus::body::TableCell) -> bool
+impl core::fmt::Debug for corpus::body::TableCell
+pub fn corpus::body::TableCell::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::TableCell
+pub struct corpus::body::TableRow(pub alloc::vec::Vec<corpus::body::TableCell>)
+impl core::clone::Clone for corpus::body::TableRow
+pub fn corpus::body::TableRow::clone(&self) -> corpus::body::TableRow
+impl core::cmp::Eq for corpus::body::TableRow
+impl core::cmp::PartialEq for corpus::body::TableRow
+pub fn corpus::body::TableRow::eq(&self, other: &corpus::body::TableRow) -> bool
+impl core::fmt::Debug for corpus::body::TableRow
+pub fn corpus::body::TableRow::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for corpus::body::TableRow
+pub trait corpus::body::BodyParser
+pub fn corpus::body::BodyParser::parse(&self, markdown: &str) -> corpus::body::Body
+pub fn corpus::body::equivalent(left: &corpus::body::Body, right: &corpus::body::Body) -> bool
 pub mod corpus::cluster
 pub struct corpus::cluster::Cluster
 pub corpus::cluster::Cluster::cluster_key: core::option::Option<alloc::string::String>

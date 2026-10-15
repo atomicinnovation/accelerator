@@ -17,7 +17,6 @@
 //! against a child's rendered output would compare two serialisation routes. A
 //! child is needed at all because libtest runs each test on a spawned thread, so
 //! in-process `set_var` is racy by construction.
-#![cfg(feature = "bash-parity")]
 
 use std::fmt::Write as _;
 use std::fs;

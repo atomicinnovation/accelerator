@@ -2,9 +2,6 @@
 //! set resolution, `--checks` gating, and the exit-code contract, plus the
 //! unconditional whole-corpus self-check that is now this validator's
 //! required-by-name completion gate.
-//!
-//! Unconditional, like the other `*_goldens.rs` suites: no `bash-parity`
-//! feature gate.
 
 use std::fs;
 use std::path::Path;

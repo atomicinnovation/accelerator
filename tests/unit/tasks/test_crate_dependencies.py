@@ -430,6 +430,7 @@ _EXPECTED_DECLARATIONS = {
     "markdown": ("technical-library", None, None, None),
     "process": ("technical-library", None, None, None),
     "lease": ("technical-library", None, None, None),
+    "adf": ("technical-library", None, None, None),
     "accelerator-corpus": ("composition-root", None, None, None),
     "accelerator-vcs": ("composition-root", None, None, None),
     "accelerator-work": ("composition-root", None, None, None),

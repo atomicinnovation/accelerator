@@ -13,6 +13,7 @@ tags: ["references", "typed-links", "prose", "id-retirement"]
 last_updated: "2026-09-25T08:50:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-887"
 ---
 # 0297: Fully Qualified Artifact References in Prose
 

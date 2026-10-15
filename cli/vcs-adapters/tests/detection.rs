@@ -5,8 +5,7 @@
 //! These need real `jj` and `git` binaries and hard-fail when one is absent —
 //! Rust's harness has no skip primitive, so an early return would register as a
 //! green PASS. The marker-walk cases that need no binary are unit tests in the
-//! crate, so they still run with the feature off.
-#![cfg(feature = "bash-parity")]
+//! crate.
 
 use std::fs;
 use std::path::Path;

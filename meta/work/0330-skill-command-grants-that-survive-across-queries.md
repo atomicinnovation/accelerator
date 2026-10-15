@@ -13,6 +13,7 @@ tags: ["permissions", "skills"]
 last_updated: "2026-10-12T02:11:25+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-916"
 ---
 # 0330: Skill Command Grants That Survive Across Queries
 

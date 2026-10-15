@@ -5,9 +5,9 @@ use reqwest::Method;
 use serde_json::json;
 use serde_json::Value;
 
-use crate::adf::markdown_to_document;
 use crate::client::JiraClient;
 use crate::surface::SurfaceError;
+use adf::markdown_to_document;
 
 /// One available transition: its numeric id and the state it leads to.
 #[derive(Debug, Clone, PartialEq, Eq)]

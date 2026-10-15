@@ -5,18 +5,21 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus_adapters::CommonMarkBody;
 use tracker::ExternalId;
+use tracker::PlainDialect;
 use tracker::RemoteIssue;
 use tracker::RemoteTimestamp;
 use tracker_test_support::RecordingTracker;
 use work::sync::Dirtiness;
 use work::sync::RemotePresence;
 use work_adapters::sync::baseline::Baseline;
-use work_adapters::sync::digest::LazyItemDigests;
+use work_adapters::sync::baseline_digester::BaselineDigester;
 use work_adapters::sync::fetch;
 use work_adapters::sync::fetch::LocalItem;
 use work_adapters::sync::fetch::RetrievalStrategy;
 use work_adapters::sync::fetch::WorkingCopyStatus;
+use work_adapters::sync::item_snapshot::ItemSnapshot;
 
 struct AlwaysClean;
 impl WorkingCopyStatus for AlwaysClean {
@@ -30,6 +33,10 @@ impl WorkingCopyStatus for AlwaysDirty {
     fn is_dirty(&self, _path: &Path) -> Dirtiness {
         Dirtiness::Dirty
     }
+}
+
+fn digester() -> BaselineDigester<'static> {
+    BaselineDigester::new(&PlainDialect, &CommonMarkBody)
 }
 
 fn item(id: &str, external_id: Option<&str>) -> LocalItem {
@@ -58,13 +65,15 @@ fn a_no_entry_item_falls_back_to_the_document_timestamp_for_its_gate() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
-    let digests: Vec<LazyItemDigests<'_>> = items
+    let digester = BaselineDigester::new(&PlainDialect, &CommonMarkBody);
+    let snapshots: Vec<ItemSnapshot<'_>> = items
         .iter()
-        .map(|entry| LazyItemDigests::new(&entry.path, None))
+        .map(|entry| ItemSnapshot::new(&entry.path, None, &digester))
         .collect();
 
-    let inputs = facts.plan_inputs(&items, &digests, &baseline);
+    let inputs = facts.plan_inputs(&items, &snapshots, &baseline);
     let watermark = |id: &str| {
         inputs
             .iter()
@@ -97,6 +106,7 @@ fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert!(facts.read_failure.is_none());
@@ -110,41 +120,92 @@ fn a_complete_but_empty_catalogue_reports_absence_not_indeterminate() {
     );
 }
 
-#[test]
-fn a_stamp_that_proves_unchanged_costs_no_show() {
-    let id = ExternalId::new("ENG-1".to_owned());
-    let issue = RemoteIssue {
-        key: ExternalId::new("ENG-1".to_owned()),
-        updated: RemoteTimestamp::Reported("2026-06-01".to_owned()),
-        body: "Title\nBody\n".to_owned(),
-    };
-    let tracker = RecordingTracker::holding(vec![(id, issue)]);
+const UNMOVED_STAMP: &str = "2026-06-01";
+const LOCAL_CONTENT: &str = "---\nexternal_id: \"ENG-1\"\n---\n\nBody\n";
+
+fn unmoved_tracker() -> RecordingTracker {
+    RecordingTracker::holding(vec![(
+        ExternalId::new("ENG-1".to_owned()),
+        RemoteIssue {
+            key: ExternalId::new("ENG-1".to_owned()),
+            updated: RemoteTimestamp::Reported(UNMOVED_STAMP.to_owned()),
+            body: "Title\nBody\n".to_owned(),
+        },
+    )])
+}
+
+fn baseline_with_local_hash(local_hash: &str) -> Baseline {
     let mut baseline = Baseline::read(None).0;
     baseline.set(
         "0001",
-        work_adapters::sync::baseline::Entry {
-            remote_updated_at: RemoteTimestamp::Reported(
-                "2026-06-01".to_owned(),
-            ),
-            remote_hash: "h".to_owned(),
-            local_hash: "h".to_owned(),
-            local_synced_at: 0,
-        },
+        work_adapters::sync::baseline::Entry::persisted_legacy(
+            RemoteTimestamp::Reported(UNMOVED_STAMP.to_owned()),
+            "h".to_owned(),
+            local_hash.to_owned(),
+            0,
+        ),
     );
-    let items = vec![item("0001", Some("ENG-1"))];
+    baseline
+}
 
-    let facts = fetch::gather(
+fn gather_one_file(
+    tracker: &RecordingTracker,
+    baseline: &Baseline,
+    content: &str,
+) -> fetch::GatheredFacts {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("0001.md");
+    std::fs::write(&path, content).expect("write the item");
+    let items = vec![LocalItem {
+        id: "0001".to_owned(),
+        path,
+        external_id: Some(ExternalId::new("ENG-1".to_owned())),
+    }];
+    fetch::gather(
         &items,
-        &baseline,
-        &tracker,
+        baseline,
+        tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
-    );
+        &digester(),
+    )
+}
 
-    assert!(!tracker
+fn showed(tracker: &RecordingTracker) -> bool {
+    tracker
         .calls()
         .iter()
-        .any(|call| matches!(call, tracker_test_support::Call::Show { .. })));
+        .any(|call| matches!(call, tracker_test_support::Call::Show { .. }))
+}
+
+fn split_baseline(local_content: &str) -> Baseline {
+    let digester = BaselineDigester::new(&PlainDialect, &CommonMarkBody);
+    let mut baseline = Baseline::read(None).0;
+    baseline.set(
+        "0001",
+        work_adapters::sync::baseline::Entry::recorded(
+            work_adapters::sync::baseline::SyncStamps {
+                remote_updated_at: RemoteTimestamp::Reported(
+                    UNMOVED_STAMP.to_owned(),
+                ),
+                local_synced_at: 0,
+            },
+            digester
+                .digests(local_content, Some("Title\nBody\n"))
+                .expect("digests"),
+        ),
+    );
+    baseline
+}
+
+#[test]
+fn a_split_entry_with_an_unchanged_stamp_and_local_side_makes_no_show_call() {
+    let tracker = unmoved_tracker();
+    let baseline = split_baseline(LOCAL_CONTENT);
+
+    let facts = gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert!(!showed(&tracker));
     assert_eq!(
         facts
             .per_id
@@ -152,6 +213,128 @@ fn a_stamp_that_proves_unchanged_costs_no_show() {
             .map(|(remote, _)| remote.body.clone()),
         Some(None)
     );
+}
+
+#[test]
+fn a_legacy_entry_forces_the_show_despite_an_unchanged_stamp_and_local_side() {
+    let tracker = unmoved_tracker();
+    let baseline = baseline_with_local_hash(
+        &work_adapters::sync::digest::local(LOCAL_CONTENT).expect("a digest"),
+    );
+
+    let facts = gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert!(showed(&tracker));
+    assert_eq!(
+        facts
+            .per_id
+            .get("0001")
+            .and_then(|(remote, _)| remote.body.clone()),
+        Some("Title\nBody\n".to_owned())
+    );
+}
+
+#[test]
+fn a_failed_forced_show_of_a_legacy_entry_is_indeterminate() {
+    let tracker = unmoved_tracker().failing_show(
+        ExternalId::new("ENG-1".to_owned()),
+        tracker::TrackerError::Retryable {
+            detail: "timed out".to_owned(),
+        },
+    );
+    let baseline = baseline_with_local_hash(
+        &work_adapters::sync::digest::local(LOCAL_CONTENT).expect("a digest"),
+    );
+
+    let facts = gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert_eq!(
+        facts.per_id.get("0001").map(|(remote, _)| remote.presence),
+        Some(RemotePresence::Indeterminate)
+    );
+}
+
+#[test]
+fn an_unchanged_stamp_and_unchanged_local_side_skip_the_show() {
+    let tracker = unmoved_tracker();
+    let baseline =
+        split_baseline("---\nexternal_id: \"ENG-1\"\n---\n\n* one\n");
+
+    gather_one_file(
+        &tracker,
+        &baseline,
+        "---\nexternal_id: \"ENG-1\"\n---\n\n- one\n",
+    );
+
+    assert!(!showed(&tracker));
+}
+
+#[test]
+fn a_local_frontmatter_edit_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let baseline = split_baseline(LOCAL_CONTENT);
+
+    gather_one_file(
+        &tracker,
+        &baseline,
+        "---\nexternal_id: \"ENG-1\"\nstatus: done\n---\n\nBody\n",
+    );
+
+    assert!(showed(&tracker));
+}
+
+#[test]
+fn an_empty_hash_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let mut recorded = BaselineDigester::new(&PlainDialect, &CommonMarkBody)
+        .digests(LOCAL_CONTENT, Some("Title\nBody\n"))
+        .expect("digests");
+    recorded.split.local = None;
+    let mut baseline = Baseline::read(None).0;
+    baseline.set(
+        "0001",
+        work_adapters::sync::baseline::Entry::recorded(
+            work_adapters::sync::baseline::SyncStamps {
+                remote_updated_at: RemoteTimestamp::Reported(
+                    UNMOVED_STAMP.to_owned(),
+                ),
+                local_synced_at: 0,
+            },
+            recorded,
+        ),
+    );
+
+    gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert!(showed(&tracker));
+}
+
+#[test]
+fn a_moved_local_digest_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let baseline = split_baseline(LOCAL_CONTENT);
+
+    let facts =
+        gather_one_file(&tracker, &baseline, &format!("{LOCAL_CONTENT}Edit\n"));
+
+    assert!(showed(&tracker));
+    assert_eq!(
+        facts
+            .per_id
+            .get("0001")
+            .and_then(|(remote, _)| remote.body.clone()),
+        Some("Title\nBody\n".to_owned())
+    );
+}
+
+#[test]
+fn an_absent_local_hash_forces_the_show_despite_an_unchanged_stamp() {
+    let tracker = unmoved_tracker();
+    let baseline = baseline_with_local_hash("");
+
+    gather_one_file(&tracker, &baseline, LOCAL_CONTENT);
+
+    assert!(showed(&tracker));
 }
 
 #[test]
@@ -166,14 +349,12 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
     let mut baseline = Baseline::read(None).0;
     baseline.set(
         "0001",
-        work_adapters::sync::baseline::Entry {
-            remote_updated_at: RemoteTimestamp::Reported(
-                "2026-06-01".to_owned(),
-            ),
-            remote_hash: "h".to_owned(),
-            local_hash: "h".to_owned(),
-            local_synced_at: 0,
-        },
+        work_adapters::sync::baseline::Entry::persisted_legacy(
+            RemoteTimestamp::Reported("2026-06-01".to_owned()),
+            "h".to_owned(),
+            "h".to_owned(),
+            0,
+        ),
     );
     let items = vec![item("0001", Some("ENG-1"))];
 
@@ -183,6 +364,7 @@ fn a_stamp_that_does_not_prove_unchanged_costs_exactly_one_show() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     let show_calls = tracker
@@ -224,6 +406,7 @@ fn absent_and_indeterminate_partition_correctly() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert_eq!(
@@ -254,6 +437,7 @@ fn per_item_strategy_calls_show_for_every_present_id_and_never_fetch_all() {
         &tracker,
         &AlwaysClean,
         RetrievalStrategy::PerItem,
+        &digester(),
     );
 
     let calls = tracker.calls();
@@ -285,6 +469,7 @@ fn a_status_probe_failure_yields_unknown_which_decides_as_dirty() {
         &tracker,
         &AlwaysUnknown,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert_eq!(
@@ -305,6 +490,7 @@ fn an_item_with_no_external_id_still_gets_a_facts_entry() {
         &tracker,
         &AlwaysDirty,
         RetrievalStrategy::Bulk,
+        &digester(),
     );
 
     assert!(facts.per_id.contains_key("0001"));
@@ -336,6 +522,7 @@ fn gathered(
         tracker,
         &AlwaysClean,
         strategy,
+        &digester(),
     )
 }
 
@@ -453,4 +640,31 @@ fn an_indeterminate_id_is_located() {
         facts.identity.get("0230"),
         Some(&fetch::IdentityObservation::NotFound { key: key("PP-760") })
     );
+}
+
+#[test]
+fn an_unknown_recipe_entry_is_indeterminate_under_either_strategy_without_a_show(
+) {
+    let (baseline, _) = Baseline::read(Some(
+        r#"{"timestamp":1,"items":{"0001":{"digest_recipe":2}}}"#,
+    ));
+    for strategy in [RetrievalStrategy::Bulk, RetrievalStrategy::PerItem] {
+        let tracker = unmoved_tracker();
+
+        let facts = fetch::gather(
+            &[item("0001", Some("ENG-1"))],
+            &baseline,
+            &tracker,
+            &AlwaysClean,
+            strategy,
+            &digester(),
+        );
+
+        assert!(!showed(&tracker), "{strategy:?}");
+        assert_eq!(
+            facts.per_id.get("0001").map(|(remote, _)| remote.presence),
+            Some(RemotePresence::Indeterminate),
+            "{strategy:?}"
+        );
+    }
 }

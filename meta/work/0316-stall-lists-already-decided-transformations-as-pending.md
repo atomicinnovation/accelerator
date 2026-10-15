@@ -14,6 +14,7 @@ tags: ["migration-engine", "interactive-contract", "stall"]
 last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-902"
 ---
 
 # 0316: Stall Lists Already-Decided Transformations as Pending

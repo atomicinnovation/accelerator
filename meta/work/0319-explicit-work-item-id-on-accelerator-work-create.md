@@ -14,6 +14,7 @@ tags: ["work", "cli", "allocation"]
 last_updated: "2026-10-09T09:34:53+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-905"
 ---
 
 # 0319: Explicit Work Item ID on accelerator work create

@@ -1,5 +1,6 @@
 //! `accelerator work sync`: drives the remote sync engine end to end.
 
+use corpus_adapters::CommonMarkBody;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -303,12 +304,15 @@ fn parse_resolutions(
 
 const fn action_keyword(action: work::sync::Action) -> &'static str {
     match action {
-        work::sync::Action::Push => "push",
+        work::sync::Action::Push(_)
+        | work::sync::Action::Retitle
+        | work::sync::Action::Overwrite => "push",
         work::sync::Action::Pull => "pull",
         work::sync::Action::SkipConflict => "skip-conflict",
         work::sync::Action::SkipDirty => "skip-dirty",
         work::sync::Action::Prompt => "unresolved",
         work::sync::Action::Noop => "noop",
+        work::sync::Action::RecordBaseline => "record-baseline",
         work::sync::Action::CreateFromRemote => "create-from-remote",
         work::sync::Action::CreateFromLocal => "create-from-local",
     }
@@ -415,7 +419,9 @@ fn render_report(report: &RunReport) -> String {
         if settled_ids.contains(item.planned.id.as_str()) {
             continue;
         }
-        if matches!(item.planned.state, work::sync::SyncState::Synced) {
+        if matches!(item.planned.state, work::sync::SyncState::Synced)
+            && !matches!(item.outcome, ItemOutcome::Failed(_))
+        {
             synced_count += 1;
             continue;
         }
@@ -423,22 +429,32 @@ fn render_report(report: &RunReport) -> String {
             ItemOutcome::Failed(error) => (
                 "failed",
                 match error.class() {
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Retryable,
-                    ) => "retryable",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Terminal,
-                    ) => "terminal",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Unconfigured,
-                    ) => "unconfigured",
-                    Some(
-                        work_adapters::sync::apply::FailureClass::Rejected,
-                    ) => "rejected",
-                    None => "-",
+                    work_adapters::sync::apply::FailureClass::Retryable => {
+                        "retryable"
+                    }
+                    work_adapters::sync::apply::FailureClass::Terminal => {
+                        "terminal"
+                    }
+                    work_adapters::sync::apply::FailureClass::Unconfigured => {
+                        "unconfigured"
+                    }
+                    work_adapters::sync::apply::FailureClass::Rejected => {
+                        "rejected"
+                    }
+                    work_adapters::sync::apply::FailureClass::Unrenderable => {
+                        "unrenderable"
+                    }
+                    work_adapters::sync::apply::FailureClass::PullResidue => {
+                        "pull-residue"
+                    }
                 },
             ),
-            _ => (action_keyword(item.planned.action), "-"),
+            ItemOutcome::UnsupportedRecipe => {
+                (action_keyword(item.planned.action), "unsupported-recipe")
+            }
+            ItemOutcome::Applied | ItemOutcome::NotApplied => {
+                (action_keyword(item.planned.action), "-")
+            }
         };
         lines.push(format!(
             "{}\t{}\t{}\t{}",
@@ -490,7 +506,9 @@ const fn failure_code(class: work_adapters::sync::apply::FailureClass) -> u8 {
         work_adapters::sync::apply::FailureClass::Unconfigured => {
             exit_codes::UNCONFIGURED
         }
-        work_adapters::sync::apply::FailureClass::Rejected => {
+        work_adapters::sync::apply::FailureClass::Rejected
+        | work_adapters::sync::apply::FailureClass::Unrenderable
+        | work_adapters::sync::apply::FailureClass::PullResidue => {
             exit_codes::REJECTED
         }
     }
@@ -502,8 +520,10 @@ fn exit_code_for_report(report: &RunReport) -> u8 {
             .reported
             .iter()
             .filter_map(|item| match &item.outcome {
-                ItemOutcome::Failed(error) => error.class().map(failure_code),
-                ItemOutcome::Applied | ItemOutcome::NotApplied => None,
+                ItemOutcome::Failed(error) => Some(failure_code(error.class())),
+                ItemOutcome::Applied
+                | ItemOutcome::NotApplied
+                | ItemOutcome::UnsupportedRecipe => None,
             });
     let awaiting_human = (report.awaiting_human().next().is_some()
         || report.identity.iter().any(IdentityRow::awaits_human))
@@ -1510,6 +1530,10 @@ pub fn run_sync(
         ownership: scheme.ownership(),
         state_dir: workspace.state_dir(),
         probe_status: &probe_status,
+        remote: work_adapters::promotion::RemoteReading {
+            tracker: tracker.as_ref(),
+            parser: &CommonMarkBody,
+        },
     };
     let recovery = workspace.recovery();
     let discovery = WorkDirDiscovery {
@@ -1525,6 +1549,7 @@ pub fn run_sync(
 
     let ports = SyncPorts {
         tracker: tracker.as_ref(),
+        parser: &CommonMarkBody,
         status: workspace.status(),
         writer: &corpus_store,
         clock: &clock,
@@ -1696,6 +1721,7 @@ mod tests {
     use tracker::TrackerError;
     use work::section_diff::SectionDiff;
     use work::sync::Action;
+    use work::sync::FieldDelivery;
     use work::sync::PlannedAction;
     use work::sync::SyncState;
     use work_adapters::sync::apply::ApplyError;
@@ -1705,6 +1731,7 @@ mod tests {
     use work_adapters::sync::run::ItemOutcome;
     use work_adapters::sync::run::ReportedItem;
     use work_adapters::sync::run::RunReport;
+    use work_adapters::sync::run::UnrenderableReason;
 
     use std::path::Path;
     use std::path::PathBuf;
@@ -2208,6 +2235,7 @@ mod tests {
         ConflictDossier {
             id: id.to_owned(),
             title: "Title".to_owned(),
+            remote_title: None,
             local_modified: Some(1_700_000_000),
             remote_updated: RemoteTimestamp::Reported(
                 "2026-07-01T00:00:00Z".to_owned(),
@@ -2217,7 +2245,8 @@ mod tests {
                 local: "local".to_owned(),
                 remote: "remote".to_owned(),
             }],
-            local_unreadable,
+            unrenderable: local_unreadable
+                .then_some(UnrenderableReason::LocalUnreadable),
         }
     }
 
@@ -2260,7 +2289,11 @@ mod tests {
             promotions: Vec::new(),
             deferred: 0,
             reported: vec![
-                reported("0001", SyncState::LocallyModified, Action::Push),
+                reported(
+                    "0001",
+                    SyncState::LocallyModified,
+                    Action::Push(FieldDelivery::Send),
+                ),
                 reported("0002", SyncState::RemotelyModified, Action::Pull),
                 reported("0003", SyncState::Conflict, Action::Prompt),
                 reported("0004", SyncState::Conflict, Action::SkipConflict),
@@ -2282,6 +2315,38 @@ mod tests {
                 reported("0008", SyncState::Synced, Action::Noop),
                 reported("0009", SyncState::RemoteAbsent, Action::Noop),
                 reported("0010", SyncState::Indeterminate, Action::Noop),
+                failed_with(
+                    "0011",
+                    ApplyError::RemoteUnrenderable {
+                        item_id: "0011".to_owned(),
+                        cause: tracker::Unrenderable {
+                            detail: "panel".to_owned(),
+                        },
+                    },
+                ),
+                failed_with(
+                    "0012",
+                    ApplyError::LocalPullResidue {
+                        item_id: "0012".to_owned(),
+                    },
+                ),
+                ReportedItem {
+                    outcome: ItemOutcome::UnsupportedRecipe,
+                    ..reported("0013", SyncState::Indeterminate, Action::Noop)
+                },
+                record(
+                    "0014",
+                    ItemOutcome::Failed(
+                        ApplyError::LocalChangedSinceClassified {
+                            item_id: "0014".to_owned(),
+                        },
+                    ),
+                ),
+                reported(
+                    "0015",
+                    SyncState::LocallyModified,
+                    Action::RecordBaseline,
+                ),
             ],
             read_failure: None,
             baseline_degradation: Degradation::None,
@@ -2401,7 +2466,11 @@ mod tests {
                 "PP-760->ENG-42",
                 IdentityOutcome::Applied,
             )],
-            vec![reported("ENG-42", SyncState::LocallyModified, Action::Push)],
+            vec![reported(
+                "ENG-42",
+                SyncState::LocallyModified,
+                Action::Push(FieldDelivery::Send),
+            )],
         );
 
         let rendered = render_report(&report);
@@ -2452,7 +2521,11 @@ mod tests {
                 "PP-760->ENG-42",
                 IdentityOutcome::Applied,
             )],
-            vec![reported("0230", SyncState::LocallyModified, Action::Push)],
+            vec![reported(
+                "0230",
+                SyncState::LocallyModified,
+                Action::Push(FieldDelivery::Send),
+            )],
         );
 
         let rendered = render_report(&report);
@@ -2659,6 +2732,7 @@ mod tests {
         use work::retirement::RetirementFailure;
         use work::retirement::RetirementRefusal;
         use work::sync::Action;
+        use work::sync::FieldDelivery;
         use work::sync::SyncState;
         use work_adapters::promotion::Detail;
         use work_adapters::promotion::DetailSource;
@@ -2789,7 +2863,7 @@ mod tests {
             report.reported = vec![reported(
                 "0001",
                 SyncState::LocallyModified,
-                Action::Push,
+                Action::Push(FieldDelivery::Send),
             )];
 
             let rendered = lines(&report);
@@ -3222,6 +3296,166 @@ mod tests {
         }
     }
 
+    fn failed_with(id: &str, error: ApplyError) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state: SyncState::RemotelyModified,
+                action: Action::Pull,
+            },
+            outcome: ItemOutcome::Failed(error),
+            validation: None,
+        }
+    }
+
+    fn report_of(items: Vec<ReportedItem>) -> RunReport {
+        RunReport {
+            reported: items,
+            ..report_with(DiscoveryStatus::Ran { found: 0 })
+        }
+    }
+
+    fn record(id: &str, outcome: ItemOutcome) -> ReportedItem {
+        ReportedItem {
+            planned: PlannedAction {
+                id: id.to_owned(),
+                state: SyncState::Synced,
+                action: Action::RecordBaseline,
+            },
+            outcome,
+            validation: None,
+        }
+    }
+
+    #[test]
+    fn a_failed_baseline_record_reports_a_retryable_row_and_exits_70() {
+        let report = report_of(vec![record(
+            "0001",
+            ItemOutcome::Failed(ApplyError::LocalChangedSinceClassified {
+                item_id: "0001".to_owned(),
+            }),
+        )]);
+
+        let rendered = render_report(&report);
+        assert!(
+            rendered.contains("0001\tfailed\tsynced\tretryable"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
+    #[test]
+    fn a_recorded_locally_modified_item_reports_a_record_baseline_row() {
+        let report = report_of(vec![ReportedItem {
+            planned: PlannedAction {
+                id: "0001".to_owned(),
+                state: SyncState::LocallyModified,
+                action: Action::RecordBaseline,
+            },
+            outcome: ItemOutcome::Applied,
+            validation: None,
+        }]);
+
+        let rendered = render_report(&report);
+
+        assert!(
+            rendered.contains("0001\trecord-baseline\tlocally-modified\t-"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("#\tsummary"), "{rendered}");
+    }
+
+    #[test]
+    fn a_recorded_baseline_counts_as_synced_with_no_row() {
+        let report = report_of(vec![record("0001", ItemOutcome::Applied)]);
+
+        let rendered = render_report(&report);
+        assert!(!rendered.contains("0001\t"), "{rendered}");
+        assert!(rendered.contains("#\tsummary\tsynced\t1"), "{rendered}");
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::CLEAN
+        );
+    }
+
+    #[test]
+    fn a_local_io_failure_reports_terminal_and_exits_71() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::Io {
+                item_id: "0001".to_owned(),
+                operation: "write-local",
+                detail: "disk full".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tterminal"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::TERMINAL
+        );
+    }
+
+    #[test]
+    fn a_remote_body_unavailable_failure_reports_retryable_and_exits_70() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::RemoteBodyUnavailable {
+                item_id: "0001".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tretryable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::RETRYABLE
+        );
+    }
+
+    #[test]
+    fn a_pull_residue_refusal_reports_pull_residue_and_exits_75() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::LocalPullResidue {
+                item_id: "0001".to_owned(),
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tpull-residue"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+    }
+
+    #[test]
+    fn an_unrenderable_pull_exits_75() {
+        let report = report_of(vec![failed_with(
+            "0001",
+            ApplyError::RemoteUnrenderable {
+                item_id: "0001".to_owned(),
+                cause: tracker::Unrenderable {
+                    detail: "panel".to_owned(),
+                },
+            },
+        )]);
+
+        assert!(render_report(&report)
+            .contains("0001\tfailed\tremotely-modified\tunrenderable"));
+        assert_eq!(
+            super::exit_code_for_report(&report),
+            super::exit_codes::REJECTED
+        );
+        assert_eq!(super::exit_codes::REJECTED, 75);
+    }
+
     #[test]
     fn a_failed_discovery_exits_retryable_and_the_others_are_clean() {
         assert_eq!(
@@ -3490,6 +3724,12 @@ mod tests {
     /// `RecordingTracker` cannot produce. Only `fetch_all` is ever called on it.
     struct FetchFailingTracker;
 
+    impl tracker::BodyDialect for FetchFailingTracker {
+        fn is_wire_document(&self, _body: &str) -> bool {
+            false
+        }
+    }
+
     impl RemoteTracker for FetchFailingTracker {
         fn fetch_all(
             &self,
@@ -3512,8 +3752,16 @@ mod tests {
         fn update(
             &self,
             _id: &ExternalId,
-            _title: &str,
+            _title: Option<&str>,
             _body: &str,
+        ) -> Result<(), TrackerError> {
+            unimplemented!("not exercised by the fetch_all failure path")
+        }
+
+        fn retitle(
+            &self,
+            _id: &ExternalId,
+            _title: &str,
         ) -> Result<(), TrackerError> {
             unimplemented!("not exercised by the fetch_all failure path")
         }
@@ -3560,8 +3808,8 @@ mod tests {
         fn validate_update(
             &self,
             _id: &ExternalId,
-            _title: &str,
-            _body: &str,
+            _title: Option<&str>,
+            _body: Option<&str>,
         ) -> tracker::ValidationOutcome {
             unimplemented!("not exercised by the fetch_all failure path")
         }
@@ -3734,20 +3982,20 @@ mod tests {
             .exists());
     }
 
-    #[test]
-    fn a_create_then_sync_reports_synced() {
-        let dir = sync_repo();
-        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+    fn create_pushed(
+        dir: &Path,
+        tracker: &Rc<RecordingTracker>,
+    ) -> crate::create::RunOutcome {
         let composed = config_adapters::compose(
-            dir.path(),
+            dir,
             config_adapters::LegacyPolicy::Reject,
         )
         .expect("compose the test config");
         let templates = composed.store.with_plugin_root(Some(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
         ));
-        let created = crate::create::run(
-            dir.path(),
+        crate::create::run(
+            dir,
             &composed.service,
             &templates,
             &crate::create::CreateArgs {
@@ -3769,10 +4017,32 @@ mod tests {
                 push: true,
                 dry_run: false,
             },
-            &StubRegistry(Rc::clone(&tracker)),
-        );
+            &StubRegistry(Rc::clone(tracker)),
+        )
+    }
+
+    fn recorded_remote_hash(dir: &Path) -> Option<String> {
+        let baseline: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                dir.join(".accelerator/state/integrations/jira/last-sync.json"),
+            )
+            .expect("the create recorded a baseline"),
+        )
+        .expect("the baseline is JSON");
+        baseline["items"]
+            .as_object()
+            .and_then(|items| items.values().next())
+            .and_then(|entry| entry["remote_hash"].as_str())
+            .filter(|hash| !hash.is_empty())
+            .map(str::to_owned)
+    }
+
+    #[test]
+    fn a_create_then_sync_reports_synced() {
+        let dir = sync_repo();
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
         assert!(matches!(
-            created,
+            create_pushed(dir.path(), &tracker),
             crate::create::RunOutcome::Created { path: Some(_), .. }
         ));
         let calls_after_create = tracker.calls().len();
@@ -3789,6 +4059,55 @@ mod tests {
             "a synced item pushes nothing: {:?}",
             tracker.calls()
         );
+    }
+
+    #[test]
+    fn a_create_whose_read_back_failed_syncs_as_synced_and_gains_a_remote_hash()
+    {
+        let dir = sync_repo();
+        let creating =
+            Rc::new(RecordingTracker::holding(Vec::new()).failing_show(
+                ExternalId::new("REC-1".to_owned()),
+                TrackerError::Retryable {
+                    detail: "the read-back was lost".to_owned(),
+                },
+            ));
+        let path = match create_pushed(dir.path(), &creating) {
+            crate::create::RunOutcome::Created { path, .. } => path,
+            _ => None,
+        }
+        .expect("the create writes the local item");
+        assert_eq!(recorded_remote_hash(dir.path()), None);
+        let (title, body, kind) = creating
+            .calls()
+            .into_iter()
+            .find_map(|call| match call {
+                Call::Create { title, body, kind } => Some((title, body, kind)),
+                _ => None,
+            })
+            .expect("the create reached the tracker");
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+        tracker
+            .create(&title, &body, &kind)
+            .expect("the tracker holds the same issue");
+        let calls_before_sync = tracker.calls().len();
+        let local_before = std::fs::read(&path).expect("the item exists");
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+        assert!(
+            !tracker.calls()[calls_before_sync..].iter().any(|call| {
+                matches!(call, Call::Create { .. } | Call::Update { .. })
+            }),
+            "{:?}",
+            tracker.calls()
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("the item exists"),
+            local_before
+        );
+        assert!(recorded_remote_hash(dir.path()).is_some());
     }
 
     /// Keeps what the run handed it, and can report a failure of its own.
@@ -4077,6 +4396,52 @@ mod tests {
             "an absent token aborts the whole run before any write, so the \
              found target is not pulled either"
         );
+    }
+
+    fn sync_repo_integrated_with(integration: &str) -> tempfile::TempDir {
+        let dir = sync_repo();
+        std::fs::write(
+            dir.path().join(".accelerator/config.md"),
+            format!("---\nwork:\n  integration: {integration}\n---\n"),
+        )
+        .expect("write config");
+        dir
+    }
+
+    #[test]
+    fn a_targeted_pull_create_writes_no_projected_title_line() {
+        for (integration, description) in [
+            ("linear", "Remote body"),
+            (
+                "jira",
+                "{\"content\":[{\"content\":[{\"text\":\"Remote body\",\
+                 \"type\":\"text\"}],\"type\":\"paragraph\"}],\
+                 \"type\":\"doc\",\"version\":1}",
+            ),
+        ] {
+            let dir = sync_repo_integrated_with(integration);
+            let tracker = Rc::new(RecordingTracker::holding(vec![(
+                ExternalId::new("PP-999".to_owned()),
+                issue(&format!("Imported\n{description}")),
+            )]));
+
+            drive_sync(
+                dir.path(),
+                &tracker,
+                &sync_args(vec!["PP-999".to_owned()]),
+            );
+
+            let files = new_work_files(dir.path());
+            let content = std::fs::read_to_string(
+                dir.path().join("meta/work").join(&files[0]),
+            )
+            .expect("read created file");
+            assert!(content.contains(description), "{integration}: {content}");
+            assert!(
+                !content.lines().any(|line| line == "Imported"),
+                "{integration}: the bare title line leaked: {content}"
+            );
+        }
     }
 
     #[test]

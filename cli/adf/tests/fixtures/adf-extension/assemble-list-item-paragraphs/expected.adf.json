@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "type": "doc",
+  "content": [
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "first"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "second"
+                }
+              ]
+            },
+            {
+              "type": "codeBlock",
+              "attrs": {
+                "language": "sh"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "echo"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "next"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

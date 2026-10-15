@@ -22,6 +22,71 @@ pub document::fence::Split::body: alloc::string::String
 pub document::fence::Split::frontmatter: alloc::string::String
 pub fn document::fence::fence_offsets(raw: &[u8]) -> core::result::Result<core::option::Option<(usize, usize)>, document::error::DocumentError>
 pub fn document::fence::split(content: &str) -> core::result::Result<document::fence::Split, document::error::DocumentError>
+pub mod document::markdown
+pub enum document::markdown::Alignment
+pub document::markdown::Alignment::Center
+pub document::markdown::Alignment::Left
+pub document::markdown::Alignment::None
+pub document::markdown::Alignment::Right
+impl core::clone::Clone for document::markdown::Alignment
+pub fn document::markdown::Alignment::clone(&self) -> document::markdown::Alignment
+impl core::cmp::Eq for document::markdown::Alignment
+impl core::cmp::PartialEq for document::markdown::Alignment
+pub fn document::markdown::Alignment::eq(&self, other: &document::markdown::Alignment) -> bool
+impl core::fmt::Debug for document::markdown::Alignment
+pub fn document::markdown::Alignment::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for document::markdown::Alignment
+impl core::marker::StructuralPartialEq for document::markdown::Alignment
+pub enum document::markdown::MarkdownEvent
+pub document::markdown::MarkdownEvent::Code(alloc::string::String)
+pub document::markdown::MarkdownEvent::CodeBlock
+pub document::markdown::MarkdownEvent::CodeBlock::info: alloc::string::String
+pub document::markdown::MarkdownEvent::CodeBlock::literal: alloc::string::String
+pub document::markdown::MarkdownEvent::End(document::markdown::MarkdownTag)
+pub document::markdown::MarkdownEvent::HardBreak
+pub document::markdown::MarkdownEvent::HtmlBlock(alloc::string::String)
+pub document::markdown::MarkdownEvent::InlineHtml(alloc::string::String)
+pub document::markdown::MarkdownEvent::Rule
+pub document::markdown::MarkdownEvent::SoftBreak
+pub document::markdown::MarkdownEvent::Start(document::markdown::MarkdownTag)
+pub document::markdown::MarkdownEvent::TaskListMarker(bool)
+pub document::markdown::MarkdownEvent::Text(alloc::string::String)
+impl core::clone::Clone for document::markdown::MarkdownEvent
+pub fn document::markdown::MarkdownEvent::clone(&self) -> document::markdown::MarkdownEvent
+impl core::cmp::Eq for document::markdown::MarkdownEvent
+impl core::cmp::PartialEq for document::markdown::MarkdownEvent
+pub fn document::markdown::MarkdownEvent::eq(&self, other: &document::markdown::MarkdownEvent) -> bool
+impl core::fmt::Debug for document::markdown::MarkdownEvent
+pub fn document::markdown::MarkdownEvent::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::markdown::MarkdownEvent
+pub enum document::markdown::MarkdownTag
+pub document::markdown::MarkdownTag::BlockQuote
+pub document::markdown::MarkdownTag::Emphasis
+pub document::markdown::MarkdownTag::Heading(u8)
+pub document::markdown::MarkdownTag::Image
+pub document::markdown::MarkdownTag::Image::destination: alloc::string::String
+pub document::markdown::MarkdownTag::Image::title: alloc::string::String
+pub document::markdown::MarkdownTag::Item
+pub document::markdown::MarkdownTag::Link
+pub document::markdown::MarkdownTag::Link::destination: alloc::string::String
+pub document::markdown::MarkdownTag::Link::title: alloc::string::String
+pub document::markdown::MarkdownTag::List(core::option::Option<u64>)
+pub document::markdown::MarkdownTag::Paragraph
+pub document::markdown::MarkdownTag::Strikethrough
+pub document::markdown::MarkdownTag::Strong
+pub document::markdown::MarkdownTag::Table(alloc::vec::Vec<document::markdown::Alignment>)
+pub document::markdown::MarkdownTag::TableCell
+pub document::markdown::MarkdownTag::TableHead
+pub document::markdown::MarkdownTag::TableRow
+impl core::clone::Clone for document::markdown::MarkdownTag
+pub fn document::markdown::MarkdownTag::clone(&self) -> document::markdown::MarkdownTag
+impl core::cmp::Eq for document::markdown::MarkdownTag
+impl core::cmp::PartialEq for document::markdown::MarkdownTag
+pub fn document::markdown::MarkdownTag::eq(&self, other: &document::markdown::MarkdownTag) -> bool
+impl core::fmt::Debug for document::markdown::MarkdownTag
+pub fn document::markdown::MarkdownTag::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for document::markdown::MarkdownTag
+pub fn document::markdown::events(source: &str) -> alloc::vec::Vec<(document::markdown::MarkdownEvent, core::ops::range::Range<usize>)>
 pub mod document::parse
 pub fn document::parse::parse(content: &str) -> core::result::Result<document::value::Yaml, document::error::DocumentError>
 pub mod document::render

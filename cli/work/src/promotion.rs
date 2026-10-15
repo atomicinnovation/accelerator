@@ -16,8 +16,19 @@ use tracker::RemoteTimestamp;
 use crate::draft_id::DraftId;
 use crate::retirement::RetirementFailure;
 use crate::retirement::RetirementRefusal;
+use crate::sync::classify;
+use crate::sync::BaselineEntry;
+use crate::sync::BaselineFingerprints;
+use crate::sync::ItemComparison;
+use crate::sync::ItemDigests;
+use crate::sync::LegacyHashes;
+use crate::sync::LocalFingerprints;
 use crate::sync::PushOutcome;
+use crate::sync::RemoteFingerprints;
+use crate::sync::RemotePresence;
 use crate::sync::RequestFingerprint;
+use crate::sync::SplitFingerprints;
+use crate::sync::Subject;
 use crate::sync::SyncState;
 use crate::tracker_key::TrackerKey;
 
@@ -46,7 +57,7 @@ pub enum PromotionStage {
     },
     Retiring {
         key: TrackerKey,
-        baseline: IntendedBaseline,
+        baseline: Box<IntendedBaseline>,
         recovery_dir: PathBuf,
         before: Box<PromotionStage>,
     },
@@ -66,13 +77,26 @@ impl PromotionStage {
     }
 }
 
-/// What a read of the remote issue saw: its body's digest, and the stamp
+/// What a read of the remote issue saw: its body's digests, and the stamp
 /// the tracker reported with it, so a baseline recorded from it proves the
 /// issue unchanged without reading the body again.
+///
+/// `hash` is the legacy recipe's digest; `fingerprints` is absent for a
+/// read-back recorded before the split recipe, which keeps the promotion
+/// on the legacy recipe end to end.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReadBack {
     pub hash: String,
+    pub fingerprints: Option<RemoteFingerprints>,
     pub updated: RemoteTimestamp,
+}
+
+/// A local file's digests under both recipes; `fingerprints` is absent for
+/// one recorded before the split recipe.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalDigests {
+    pub legacy: String,
+    pub fingerprints: Option<LocalFingerprints>,
 }
 
 /// Why promotion left the remote issue's content as the tracker holds it.
@@ -102,20 +126,73 @@ impl RemoteKeptReason {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IntendedBaseline {
     pub remote_hash: RemoteHash,
-    pub local_hash: String,
+    pub local: LocalDigests,
 }
 
 impl IntendedBaseline {
-    /// The state the next sync finds a promoted item whose content digests
-    /// to `promoted_digest` in.
+    /// The state the next sync finds the `promoted` item in once this
+    /// baseline is recorded for it under `key`, as the classifier computes
+    /// it, against a remote unchanged since it was read back.
+    ///
+    /// # Errors
+    ///
+    /// Propagates any [`ItemDigests`] read failure.
+    pub fn next_sync(
+        &self,
+        key: &ExternalId,
+        promoted: &dyn ItemDigests,
+        comparison: &dyn ItemComparison,
+    ) -> Result<SyncState, kernel::Error> {
+        let stamp = match &self.remote_hash {
+            RemoteHash::Known(read_back) => read_back.updated.clone(),
+            RemoteHash::Unknown => RemoteTimestamp::NotRead,
+        };
+        let classification = classify(
+            &Subject {
+                external_id: Some(key),
+                presence: RemotePresence::Present,
+                remote_updated: &stamp,
+                baseline_timestamp: 0,
+            },
+            &BaselineEntry {
+                remote_updated_at: &stamp,
+                fingerprints: self.fingerprints(),
+            },
+            promoted,
+            comparison,
+        )?;
+        Ok(classification.state())
+    }
+
+    /// The fingerprints the next sync compares the promoted item against.
     #[must_use]
-    pub fn next_sync(&self, promoted_digest: &str) -> SyncState {
-        match self.remote_hash {
-            RemoteHash::Unknown => SyncState::Conflict,
-            RemoteHash::Known(_) if self.local_hash == promoted_digest => {
-                SyncState::Synced
-            }
-            RemoteHash::Known(_) => SyncState::LocallyModified,
+    pub fn fingerprints(&self) -> BaselineFingerprints {
+        self.local.fingerprints.as_ref().map_or_else(
+            || BaselineFingerprints::Legacy(self.legacy()),
+            |local| {
+                BaselineFingerprints::Split(SplitFingerprints {
+                    local: Some(local.clone()),
+                    remote: match &self.remote_hash {
+                        RemoteHash::Known(read_back) => {
+                            read_back.fingerprints.clone()
+                        }
+                        RemoteHash::Unknown => None,
+                    },
+                })
+            },
+        )
+    }
+
+    /// The legacy hashes recorded beside the fingerprints, so a binary that
+    /// knows only the legacy recipe still reads the entry.
+    #[must_use]
+    pub fn legacy(&self) -> LegacyHashes {
+        LegacyHashes {
+            local: Some(self.local.legacy.clone()),
+            remote: match &self.remote_hash {
+                RemoteHash::Known(read_back) => Some(read_back.hash.clone()),
+                RemoteHash::Unknown => None,
+            },
         }
     }
 }
@@ -406,40 +483,52 @@ pub fn retitling(
 ///
 /// `None` for any stage but `RemoteRetitled` and `RemoteKept`: only a
 /// promotion that has settled the remote side can know what the next sync
-/// should do.
+/// should do. A disposition whose read-back predates the split recipe
+/// intends a legacy baseline.
 #[must_use]
 pub fn intended_baseline(
     disposition: &PromotionStage,
-    draft_digest: &str,
-    promoted_digest: &str,
+    draft: &LocalDigests,
+    promoted: &LocalDigests,
     read_back_matches_promoted: bool,
 ) -> Option<IntendedBaseline> {
-    let baseline = |remote_hash, local_hash: &str| IntendedBaseline {
-        remote_hash,
-        local_hash: local_hash.to_owned(),
+    let baseline = |remote_hash, read_back: &ReadBack, local: &LocalDigests| {
+        IntendedBaseline {
+            remote_hash,
+            local: LocalDigests {
+                legacy: local.legacy.clone(),
+                fingerprints: local
+                    .fingerprints
+                    .clone()
+                    .filter(|_| read_back.fingerprints.is_some()),
+            },
+        }
     };
     match disposition {
         PromotionStage::RemoteRetitled { read_back, .. } => Some(baseline(
             RemoteHash::Known(read_back.clone()),
-            promoted_digest,
+            read_back,
+            promoted,
         )),
         PromotionStage::RemoteKept {
             reason: reason @ RemoteKeptReason::UpdateFailed { .. },
             ..
         } => Some(baseline(
             RemoteHash::Known(reason.read_back().clone()),
-            draft_digest,
+            reason.read_back(),
+            draft,
         )),
         PromotionStage::RemoteKept { reason, .. }
             if read_back_matches_promoted =>
         {
             Some(baseline(
                 RemoteHash::Known(reason.read_back().clone()),
-                draft_digest,
+                reason.read_back(),
+                draft,
             ))
         }
-        PromotionStage::RemoteKept { .. } => {
-            Some(baseline(RemoteHash::Unknown, draft_digest))
+        PromotionStage::RemoteKept { reason, .. } => {
+            Some(baseline(RemoteHash::Unknown, reason.read_back(), draft))
         }
         PromotionStage::Attempted
         | PromotionStage::Created { .. }
@@ -458,6 +547,7 @@ mod tests {
     use super::remote_untouched;
     use super::retitling;
     use super::IntendedBaseline;
+    use super::LocalDigests;
     use super::NotPromoted;
     use super::PromotionMode;
     use super::PromotionRecord;
@@ -469,8 +559,13 @@ mod tests {
     use super::RemoteKeptReason;
     use super::Retitling;
     use crate::draft_id::DraftId;
+    use crate::sync::BaselineFingerprints;
+    use crate::sync::LegacyHashes;
+    use crate::sync::LocalFingerprints;
     use crate::sync::PushOutcome;
+    use crate::sync::RemoteFingerprints;
     use crate::sync::RequestFingerprint;
+    use crate::sync::SplitFingerprints;
     use crate::sync::SyncState;
     use crate::tracker_key::TrackerKey;
 
@@ -482,7 +577,40 @@ mod tests {
     fn read_back(hash: &str) -> ReadBack {
         ReadBack {
             hash: hash.to_owned(),
+            fingerprints: Some(remote_fingerprints(hash)),
             updated: tracker::RemoteTimestamp::Reported(format!("at-{hash}")),
+        }
+    }
+
+    fn schema_two_read_back(hash: &str) -> ReadBack {
+        ReadBack {
+            fingerprints: None,
+            ..read_back(hash)
+        }
+    }
+
+    fn remote_fingerprints(hash: &str) -> RemoteFingerprints {
+        RemoteFingerprints {
+            body: format!("{hash}-body"),
+            fields: format!("{hash}-fields"),
+        }
+    }
+
+    fn local(digest: &str) -> LocalDigests {
+        LocalDigests {
+            legacy: digest.to_owned(),
+            fingerprints: Some(LocalFingerprints {
+                frontmatter: format!("{digest}-frontmatter"),
+                fields: format!("{digest}-fields"),
+                body: format!("{digest}-body"),
+            }),
+        }
+    }
+
+    fn legacy_local(digest: &str) -> LocalDigests {
+        LocalDigests {
+            fingerprints: None,
+            ..local(digest)
         }
     }
 
@@ -508,10 +636,10 @@ mod tests {
     fn retiring() -> PromotionStage {
         PromotionStage::Retiring {
             key: key(),
-            baseline: IntendedBaseline {
+            baseline: Box::new(IntendedBaseline {
                 remote_hash: RemoteHash::Unknown,
-                local_hash: "draft".to_owned(),
-            },
+                local: local("draft"),
+            }),
             recovery_dir: PathBuf::from("retirement-recovery/x"),
             before: Box::new(kept(RemoteKeptReason::NoHash {
                 read_back: read_back("r"),
@@ -741,23 +869,133 @@ mod tests {
         );
     }
 
+    /// A promoted item whose files digest under `digest`, beside a remote
+    /// read back as `remote`, whose bodies compare as `equivalence`.
+    struct Promoted {
+        digest: &'static str,
+        remote: Option<&'static str>,
+        equivalence: crate::sync::BodyEquivalence,
+    }
+
+    impl crate::sync::ItemDigests for Promoted {
+        fn mtime(&self) -> Result<Option<u64>, kernel::Error> {
+            Ok(None)
+        }
+
+        fn legacy_local(&self) -> Result<String, kernel::Error> {
+            Ok(self.digest.to_owned())
+        }
+
+        fn legacy_remote(&self) -> Result<Option<String>, kernel::Error> {
+            Ok(self.remote.map(str::to_owned))
+        }
+
+        fn local(&self) -> Result<LocalFingerprints, kernel::Error> {
+            Ok(local(self.digest)
+                .fingerprints
+                .unwrap_or_else(|| unreachable!("split fingerprints")))
+        }
+
+        fn remote(&self) -> Result<Option<RemoteFingerprints>, kernel::Error> {
+            Ok(self.remote.map(remote_fingerprints))
+        }
+    }
+
+    impl crate::sync::ItemComparison for Promoted {
+        fn pull_residue(&self) -> Option<crate::sync::PullResidue> {
+            None
+        }
+
+        fn body_equivalence(&self) -> crate::sync::BodyEquivalence {
+            self.equivalence
+        }
+
+        fn fields_comparison(&self) -> crate::sync::FieldsComparison {
+            crate::sync::FieldsComparison::Same
+        }
+    }
+
     #[test]
-    fn the_next_sync_finds_what_the_intended_baseline_forces() {
-        let known = |local: &str| IntendedBaseline {
+    fn the_next_sync_is_what_the_classifier_finds() -> Result<(), kernel::Error>
+    {
+        use crate::sync::BodyEquivalence;
+
+        let external = tracker::ExternalId::new("PP-900".to_owned());
+        let known = |digest: &str| IntendedBaseline {
             remote_hash: RemoteHash::Known(read_back("r")),
-            local_hash: local.to_owned(),
+            local: local(digest),
         };
         let unknown = IntendedBaseline {
             remote_hash: RemoteHash::Unknown,
-            local_hash: "promoted".to_owned(),
+            local: local("promoted"),
+        };
+        let promoted = |equivalence| Promoted {
+            digest: "promoted",
+            remote: Some("r"),
+            equivalence,
+        };
+        let next = |intended: &IntendedBaseline, promoted: &Promoted| {
+            intended.next_sync(&external, promoted, promoted)
         };
 
-        assert_eq!(known("promoted").next_sync("promoted"), SyncState::Synced);
         assert_eq!(
-            known("draft").next_sync("promoted"),
+            next(&known("promoted"), &promoted(BodyEquivalence::Different))?,
+            SyncState::Synced
+        );
+        assert_eq!(
+            next(&known("draft"), &promoted(BodyEquivalence::Different))?,
             SyncState::LocallyModified
         );
-        assert_eq!(unknown.next_sync("promoted"), SyncState::Conflict);
+        assert_eq!(
+            next(&unknown, &promoted(BodyEquivalence::Different))?,
+            SyncState::Conflict
+        );
+        assert_eq!(
+            next(&unknown, &promoted(BodyEquivalence::Equivalent))?,
+            SyncState::Synced,
+            "an unknown remote hash over agreeing bodies is recovered"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_fresh_intended_baseline_records_split_fingerprints() {
+        let intended = IntendedBaseline {
+            remote_hash: RemoteHash::Known(read_back("r")),
+            local: local("promoted"),
+        };
+
+        assert_eq!(
+            intended.fingerprints(),
+            BaselineFingerprints::Split(SplitFingerprints {
+                local: local("promoted").fingerprints,
+                remote: Some(remote_fingerprints("r")),
+            })
+        );
+        assert_eq!(
+            intended.legacy(),
+            LegacyHashes {
+                local: Some("promoted".to_owned()),
+                remote: Some("r".to_owned()),
+            }
+        );
+    }
+
+    #[test]
+    fn an_unknown_remote_records_no_remote_fingerprints() {
+        let intended = IntendedBaseline {
+            remote_hash: RemoteHash::Unknown,
+            local: local("draft"),
+        };
+
+        assert_eq!(
+            intended.fingerprints(),
+            BaselineFingerprints::Split(SplitFingerprints {
+                local: local("draft").fingerprints,
+                remote: None,
+            })
+        );
+        assert_eq!(intended.legacy().remote, None);
     }
 
     #[test]
@@ -804,15 +1042,15 @@ mod tests {
 
     #[test]
     fn intended_baseline_for_every_disposition_and_reason() {
-        let known = |hash: &str, local: &str| {
+        let known = |hash: &str, digest: &str| {
             Some(IntendedBaseline {
                 remote_hash: RemoteHash::Known(read_back(hash)),
-                local_hash: local.to_owned(),
+                local: local(digest),
             })
         };
         let unknown = Some(IntendedBaseline {
             remote_hash: RemoteHash::Unknown,
-            local_hash: "draft".to_owned(),
+            local: local("draft"),
         });
         let retitled = PromotionStage::RemoteRetitled {
             key: key(),
@@ -832,27 +1070,28 @@ mod tests {
                 read_back: read_back("r"),
             }),
         ];
+        let (draft, promoted) = (local("draft"), local("promoted"));
 
         for matches in [false, true] {
             assert_eq!(
-                intended_baseline(&retitled, "draft", "promoted", matches),
+                intended_baseline(&retitled, &draft, &promoted, matches),
                 known("after", "promoted"),
                 "a retitled remote syncs as synced"
             );
             assert_eq!(
-                intended_baseline(&update_failed, "draft", "promoted", matches),
+                intended_baseline(&update_failed, &draft, &promoted, matches),
                 known("r", "draft"),
                 "a failed H1 update is pushed by the next sync"
             );
         }
         for stage in &untouched_but_unmatched {
             assert_eq!(
-                intended_baseline(stage, "draft", "promoted", true),
+                intended_baseline(stage, &draft, &promoted, true),
                 known("r", "draft"),
                 "differing only by the ID, the next sync pushes the key H1"
             );
             assert_eq!(
-                intended_baseline(stage, "draft", "promoted", false),
+                intended_baseline(stage, &draft, &promoted, false),
                 unknown,
                 "any other difference raises a conflict"
             );
@@ -866,10 +1105,66 @@ mod tests {
             retiring(),
         ] {
             assert_eq!(
-                intended_baseline(&stage, "draft", "promoted", true),
+                intended_baseline(&stage, &draft, &promoted, true),
                 None,
                 "{stage:?} has not settled the remote side"
             );
         }
+        for stage in [&retitled, &update_failed, &untouched_but_unmatched[0]] {
+            let fresh = intended_baseline(stage, &draft, &promoted, true)
+                .map(|intended| intended.fingerprints());
+            assert!(
+                matches!(fresh, Some(BaselineFingerprints::Split(_))),
+                "a fresh promotion records recipe 1: {fresh:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_schema_two_resumption_intends_a_legacy_baseline() {
+        let resumed = [
+            PromotionStage::RemoteRetitled {
+                key: key(),
+                read_back: schema_two_read_back("after"),
+            },
+            kept(RemoteKeptReason::UpdateFailed {
+                read_back: schema_two_read_back("r"),
+            }),
+            kept(RemoteKeptReason::Edited {
+                read_back: schema_two_read_back("r"),
+            }),
+        ];
+        for stage in &resumed {
+            for matches in [false, true] {
+                let intended = intended_baseline(
+                    stage,
+                    &local("draft"),
+                    &local("promoted"),
+                    matches,
+                )
+                .unwrap_or_else(|| unreachable!("a settled remote side"));
+                assert_eq!(
+                    intended.local.fingerprints, None,
+                    "{stage:?} keeps the legacy recipe"
+                );
+                assert!(
+                    matches!(
+                        intended.fingerprints(),
+                        BaselineFingerprints::Legacy(_)
+                    ),
+                    "{stage:?}"
+                );
+            }
+        }
+        assert_eq!(
+            intended_baseline(
+                &resumed[0],
+                &local("draft"),
+                &local("promoted"),
+                true
+            )
+            .map(|intended| intended.local),
+            Some(legacy_local("promoted"))
+        );
     }
 }

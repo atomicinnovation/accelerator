@@ -31,7 +31,6 @@ fn a_tree_with_no_repository_answers_unknown() -> Result<(), TestError> {
     Ok(())
 }
 
-#[cfg(feature = "bash-parity")]
 mod against_a_real_repository {
     use std::fs;
 

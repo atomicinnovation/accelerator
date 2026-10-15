@@ -1,13 +1,10 @@
-# The sync-label golden: one oracle read by every implementation.
-#
 # Format, per section:
 #   [CLASSIFY]  <raw-external-id>|<expected-status>
 #   [LABEL]     <status>|<exit>|<expected-output>
 #   [DEFAULT]   <raw-external-id>|<expected-output>
 #
-# (empty) is the empty-value sentinel, as in work-item-file-dirty.golden and
-# work-item-canonicalise-id.golden. A trailing empty field would be invisible
-# in review and lost to any trailing-whitespace trim.
+# (empty) is the empty-value sentinel: a trailing empty field would be
+# invisible in review and lost to any trailing-whitespace trim.
 #
 # Outputs carry NO trailing newline.
 #

@@ -35,6 +35,7 @@ use crate::promotion::promote;
 use crate::promotion::PromotionOutcome;
 use crate::promotion::PromotionPorts;
 use crate::promotion::PromotionRow;
+use crate::promotion::RemoteReading;
 use crate::promotion_records::PromotionRecords;
 use crate::promotion_records::StoredRecord;
 use crate::retirement::acquire_retirement_lock;
@@ -44,6 +45,7 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementPorts;
 use crate::retirement_records::RetirementRecords;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
@@ -65,6 +67,8 @@ pub struct SettlementPorts<'a> {
     /// Probes the working copy afresh, so each promotion plans its
     /// retirement over the dirtiness the ones before it left.
     pub probe_status: &'a dyn Fn() -> Box<dyn WorkingCopyStatus>,
+    /// Reads a promoted issue, to predict its next sync.
+    pub remote: RemoteReading<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -318,6 +322,7 @@ fn reconcile_promotions(
         let retirement = Retirement::onto(record.draft_id.as_str(), key);
         let outcome = match finish_promotion(
             &record,
+            &settlement.remote,
             settlement.retirement,
             settlement.promotions,
             &lock,
@@ -393,6 +398,7 @@ fn detect_identity_changes(
         ports.tracker,
         ports.status,
         request.strategy,
+        &BaselineDigester::new(ports.tracker, ports.parser),
     );
     if facts.keyed_read == Completeness::CapHit {
         return Err(RunError::KeyedReadCapped);
@@ -454,6 +460,7 @@ fn promote_draft(
     };
     let promotion_ports = PromotionPorts {
         tracker: ports.tracker,
+        parser: ports.parser,
         retirement: &retirement,
         records: settlement.promotions,
     };

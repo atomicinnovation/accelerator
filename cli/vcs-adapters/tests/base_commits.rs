@@ -1,7 +1,6 @@
 //! `InProcessProbe::working_copy_state`'s base commits, read through the
 //! fixture binary, against the commits `jj log -r 'parents(@)'` names, across
 //! the jj operations that do and do not move them, and against `HEAD` on git.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

@@ -1,0 +1,21 @@
+# Isolated with its own empty [workspace] so cargo/cargo-deny do not walk upward
+# and absorb the real cli/ workspace or its Cargo.lock. The dependency
+# pulldown-cmark is a LOCAL path crate (not the crates.io crate) so the ban
+# regression runs fully offline — the ban matches on crate NAME, so a local
+# crate named pulldown-cmark trips it exactly as the real one would. The package
+# is named `corpus` (a domain crate, NOT the document wrapper), so the
+# direct dependency bypasses the sole permitted wrapper and violates the ban.
+[workspace]
+
+[package]
+name = "corpus"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+pulldown-cmark = { path = "crates/pulldown-cmark", version = "0.13.4" }
+
+[[bin]]
+name = "corpus"
+path = "src/main.rs"

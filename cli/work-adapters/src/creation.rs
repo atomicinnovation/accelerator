@@ -8,6 +8,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::body::BodyParser;
 use corpus::lock::ExclusiveLock;
 use corpus::lock::HeldLock;
 use corpus::lock::LockName;
@@ -23,6 +24,7 @@ use work::draft_id::SuffixDraws;
 use work::identity::linker_of;
 use work::identity::ItemIdentity;
 use work::promotion::IntendedBaseline;
+use work::promotion::LocalDigests;
 use work::promotion::NotPromoted;
 use work::promotion::Promotion;
 use work::promotion::PromotionStage;
@@ -54,6 +56,7 @@ use crate::remote_create::send_create;
 use crate::remote_create::CreateRequest;
 use crate::remote_create::RemoteCreate;
 use crate::sync::baseline;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::created_baseline::record_created_baseline;
 use crate::sync::digest;
@@ -124,6 +127,7 @@ pub type DraftPromotion<'a> =
 /// The corpus one item is created in.
 pub struct Creation<'a> {
     pub item: &'a dyn NewItem,
+    pub parser: &'a dyn BodyParser,
     pub repo_root: &'a Path,
     pub work_dir: &'a Path,
     pub state_dir: &'a Path,
@@ -540,10 +544,16 @@ fn send_legacy_create(
     }
 }
 
-fn read_back_of(tracker: &dyn RemoteTracker, key: &ExternalId) -> RemoteHash {
+fn read_back_of(
+    digester: &BaselineDigester<'_>,
+    tracker: &dyn RemoteTracker,
+    key: &ExternalId,
+) -> RemoteHash {
     tracker.show(key).map_or(RemoteHash::Unknown, |issue| {
+        let (hash, fingerprints) = digester.remote(&issue.body);
         RemoteHash::Known(ReadBack {
-            hash: digest::remote_body(&issue.body),
+            hash,
+            fingerprints: Some(fingerprints),
             updated: issue.updated,
         })
     })
@@ -555,7 +565,7 @@ fn record_baseline_after_create(
     creation: &Creation<'_>,
     state: &IntegrationState,
     item_id: &str,
-    written: &str,
+    local: LocalDigests,
     remote: RemoteHash,
 ) -> Result<(), String> {
     let path = state.baseline_path();
@@ -567,8 +577,7 @@ fn record_baseline_after_create(
         item_id,
         &IntendedBaseline {
             remote_hash: remote,
-            local_hash: digest::local(written)
-                .map_err(|error| error.to_string())?,
+            local,
         },
         &store,
         creation.now,
@@ -620,11 +629,29 @@ pub fn create_local_item(
             Some(cause),
         ));
     }
-    let remote = push
-        .tracker
-        .as_deref()
-        .map_or(RemoteHash::Unknown, |tracker| read_back_of(tracker, &key));
-    record_baseline_after_create(creation, pushing.state, &id, &item, remote)?;
+    let (local, remote) = match push.tracker.as_deref() {
+        Some(tracker) => {
+            let digester = BaselineDigester::new(tracker, creation.parser);
+            let (legacy, fingerprints) =
+                digester.local(&item).map_err(|error| error.to_string())?;
+            (
+                LocalDigests {
+                    legacy,
+                    fingerprints: Some(fingerprints),
+                },
+                read_back_of(&digester, tracker, &key),
+            )
+        }
+        None => (
+            LocalDigests {
+                legacy: digest::local(&item)
+                    .map_err(|error| error.to_string())?,
+                fingerprints: None,
+            },
+            RemoteHash::Unknown,
+        ),
+    };
+    record_baseline_after_create(creation, pushing.state, &id, local, remote)?;
     if let Some(path) = push.marker {
         LegacyMarker {
             store: (creation.store_at)(

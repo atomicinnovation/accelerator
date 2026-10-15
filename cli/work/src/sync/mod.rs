@@ -2,6 +2,7 @@
 //! the `tracker::RemoteTracker` port. No filesystem, no subprocess, no
 //! tracker calls — those live in `work-adapters`.
 
+pub mod baseline;
 pub mod classify;
 pub mod clock;
 pub mod decide;
@@ -9,15 +10,34 @@ pub mod identity;
 pub mod key_change;
 pub mod label;
 pub mod plan;
+pub mod pull_residue;
 pub mod push_decide;
 pub mod push_precondition;
 pub mod state;
+pub mod synced_fields;
 
+pub use crate::sync::baseline::BaselineFingerprints;
+pub use crate::sync::baseline::DualRecipeFingerprints;
+pub use crate::sync::baseline::LegacyHashes;
+pub use crate::sync::baseline::LocalFingerprints;
+pub use crate::sync::baseline::RemoteFingerprints;
+pub use crate::sync::baseline::SplitFingerprints;
 pub use crate::sync::classify::classify;
+pub use crate::sync::classify::local_change;
 pub use crate::sync::classify::BaselineEntry;
+pub use crate::sync::classify::BodyEquivalence;
+pub use crate::sync::classify::Change;
+pub use crate::sync::classify::Classification;
+pub use crate::sync::classify::FieldDelivery;
+pub use crate::sync::classify::FieldsComparison;
+pub use crate::sync::classify::ItemComparison;
 pub use crate::sync::classify::ItemDigests;
+pub use crate::sync::classify::LocalChange;
+pub use crate::sync::classify::LocalReconciliation;
+pub use crate::sync::classify::RemoteChange;
 pub use crate::sync::classify::RemotePresence;
 pub use crate::sync::classify::Subject;
+pub use crate::sync::classify::SyncedReconciliation;
 pub use crate::sync::clock::RunClock;
 pub use crate::sync::decide::decide;
 pub use crate::sync::decide::resolve_conflict_token;
@@ -38,6 +58,7 @@ pub use crate::sync::plan::PlanInput;
 pub use crate::sync::plan::PlannedAction;
 pub use crate::sync::plan::RemoteFacts;
 pub use crate::sync::plan::SyncPlan;
+pub use crate::sync::pull_residue::PullResidue;
 pub use crate::sync::push_decide::push_decide;
 pub use crate::sync::push_decide::PushOutcome;
 pub use crate::sync::push_precondition::push_precondition;
@@ -47,3 +68,4 @@ pub use crate::sync::push_precondition::PushPrecondition;
 pub use crate::sync::push_precondition::RefusalReason;
 pub use crate::sync::push_precondition::RequestFingerprint;
 pub use crate::sync::state::SyncState;
+pub use crate::sync::synced_fields::SyncedTrackerFields;

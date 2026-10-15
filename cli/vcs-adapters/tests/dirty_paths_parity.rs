@@ -1,6 +1,5 @@
 //! The jj dirty paths, read through the fixture binary under a hermetic
 //! environment, against the paths on `jj status`'s change lines.
-#![cfg(feature = "bash-parity")]
 
 mod support;
 

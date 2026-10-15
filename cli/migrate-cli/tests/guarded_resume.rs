@@ -1,6 +1,5 @@
 //! The guarded resume of a stalled run, driven end to end against the
 //! compiled binary over real git and jj repositories.
-#![cfg(feature = "bash-parity")]
 
 mod common;
 

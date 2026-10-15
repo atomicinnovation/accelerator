@@ -8,11 +8,16 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use corpus::body::BodyParser;
 use corpus::scan::FileReader;
 use corpus::store::AtomicWrite;
 use corpus::store::StoreError;
+use tracker::BodyDialect;
+use work::sync::LegacyHashes;
+use work::sync::SplitFingerprints;
 
 use crate::sync::baseline;
+use crate::sync::baseline_digester::BaselineDigester;
 use crate::sync::baseline_store::BaselineStore;
 use crate::sync::digest;
 
@@ -40,7 +45,9 @@ impl std::error::Error for RealignError {}
 /// `pre_migration` carries each re-rendered file's original content.
 ///
 /// `writer_at` builds a writer rooted at a baseline's own directory, so an
-/// integrations root outside the repository stays writable.
+/// integrations root outside the repository stays writable, and
+/// `body_rules` names the body dialect of the tracker an integration
+/// directory belongs to.
 ///
 /// # Errors
 ///
@@ -51,6 +58,8 @@ pub fn realign_baselines(
     pre_migration: &[(PathBuf, String)],
     reader: &dyn FileReader,
     writer_at: &dyn Fn(&Path) -> Box<dyn AtomicWrite>,
+    body_rules: &dyn Fn(&str) -> &'static dyn BodyDialect,
+    parser: &dyn BodyParser,
 ) -> Result<usize, RealignError> {
     let mut by_id: HashMap<String, (&Path, &str)> = HashMap::new();
     for (path, original) in pre_migration {
@@ -67,12 +76,12 @@ pub fn realign_baselines(
         if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
             continue;
         }
-        let integration = entry.file_name();
-        let baseline_path =
-            baseline::path(integrations_root, &integration.to_string_lossy());
+        let integration = entry.file_name().to_string_lossy().into_owned();
+        let baseline_path = baseline::path(integrations_root, &integration);
         let writer = writer_at(&entry.path());
         let store = BaselineStore::new(baseline_path, reader, writer.as_ref());
-        realigned += realign_one_baseline(&store, &by_id, reader)
+        let digester = BaselineDigester::new(body_rules(&integration), parser);
+        realigned += realign_one_baseline(&store, &by_id, reader, &digester)
             .map_err(RealignError::Baseline)?;
     }
     Ok(realigned)
@@ -90,6 +99,7 @@ fn realign_one_baseline(
     store: &BaselineStore<'_>,
     by_id: &HashMap<String, (&Path, &str)>,
     reader: &dyn FileReader,
+    digester: &BaselineDigester<'_>,
 ) -> Result<usize, StoreError> {
     let (baseline, _) = store.load()?;
     let mut realigned = 0;
@@ -97,29 +107,60 @@ fn realign_one_baseline(
         let Some(entry) = baseline.get(id) else {
             continue;
         };
-        let Ok(pre_hash) = digest::local(original) else {
-            continue;
-        };
-        if pre_hash != entry.local_hash {
-            continue;
-        }
         let Ok(Some(new_content)) = reader.read(path) else {
             continue;
         };
-        let Ok(new_hash) = digest::local(&new_content) else {
-            continue;
-        };
-        if new_hash == entry.local_hash {
-            continue;
+        if let Some(realigned_entry) =
+            realigned_entry(entry, original, &new_content, digester)
+        {
+            store.set(id, realigned_entry)?;
+            realigned += 1;
         }
-        store.set(
-            id,
-            baseline::Entry {
-                local_hash: new_hash,
-                ..entry.clone()
-            },
-        )?;
-        realigned += 1;
     }
     Ok(realigned)
+}
+
+/// `entry` with its local digests moved to `new_content`'s, when they
+/// recorded `original` and the re-render moved them.
+fn realigned_entry(
+    entry: &baseline::Entry,
+    original: &str,
+    new_content: &str,
+    digester: &BaselineDigester<'_>,
+) -> Option<baseline::Entry> {
+    match entry {
+        baseline::Entry::Legacy { stamps, legacy } => {
+            let pre_hash = digest::local(original).ok()?;
+            let new_hash = digest::local(new_content).ok()?;
+            (legacy.local.as_ref() == Some(&pre_hash) && new_hash != pre_hash)
+                .then(|| baseline::Entry::Legacy {
+                    stamps: stamps.clone(),
+                    legacy: LegacyHashes {
+                        local: Some(new_hash),
+                        ..legacy.clone()
+                    },
+                })
+        }
+        baseline::Entry::Split {
+            stamps,
+            legacy,
+            split,
+        } => {
+            let (_, pre_local) = digester.local(original).ok()?;
+            let (new_hash, new_local) = digester.local(new_content).ok()?;
+            (split.local.as_ref() == Some(&pre_local) && new_local != pre_local)
+                .then(|| baseline::Entry::Split {
+                    stamps: stamps.clone(),
+                    legacy: LegacyHashes {
+                        local: Some(new_hash),
+                        ..legacy.clone()
+                    },
+                    split: SplitFingerprints {
+                        local: Some(new_local),
+                        ..split.clone()
+                    },
+                })
+        }
+        baseline::Entry::Unsupported { .. } => None,
+    }
 }
