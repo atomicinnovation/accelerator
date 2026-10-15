@@ -1,5 +1,3 @@
-# The sync-label golden.
-#
 # Format, per section:
 #   [CLASSIFY]  <raw-external-id>|<expected-status>
 #   [LABEL]     <status>|<exit>|<expected-output>

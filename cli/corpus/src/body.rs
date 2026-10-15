@@ -108,7 +108,6 @@ pub struct Section<'a> {
     pub blocks: &'a [SourcedBlock],
 }
 
-/// Parses Markdown into a [`Body`].
 pub trait BodyParser {
     fn parse(&self, markdown: &str) -> Body;
 }

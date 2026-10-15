@@ -11,7 +11,6 @@ use pulldown_cmark::{
     CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag,
 };
 
-/// One Markdown event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MarkdownEvent {
     Start(MarkdownTag),

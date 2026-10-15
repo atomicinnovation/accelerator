@@ -1,7 +1,5 @@
 //! Adapter/binary wiring for `work diff`: this module owns the CLI-level
-//! error arms only. Comparison comes from
-//! `work_adapters::sync::body_comparison::BodyComparison`, and each
-//! differing section's rendering from `work_adapters::diff::render`.
+//! error arms only.
 //!
 //! Both files are local, so no tracker round trip applies: they compare as
 //! plain Markdown whatever tracker the repository syncs with.

@@ -1,5 +1,3 @@
-# The sync-decision golden.
-#
 # [DECIDE]  <direction>|<state>|<dirty>|<expected-action>
 # [TOKEN]   <raw>|<expected-resolution>
 #

@@ -1,5 +1,3 @@
-# The push-decision golden.
-#
 # Format: <code>|<attempt>|<write-failed>|<expected-outcome>
 #
 # code is the dispatcher exit code (0 success; 70 retryable; 71 terminal;
