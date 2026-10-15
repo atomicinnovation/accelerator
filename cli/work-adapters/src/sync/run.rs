@@ -390,23 +390,40 @@ const fn definitively_reconciled(item: &ReportedItem) -> bool {
         )
 }
 
-fn local_title_and_body(content: &str) -> (String, String) {
-    let (_, body) = crate::sync::digest::split_frontmatter_and_body(content)
-        .unwrap_or_default();
-    let title = create_request_fields::read(content)
-        .map(|fields| fields.title)
-        .unwrap_or_default();
-    (title, body)
+/// A local work item whose frontmatter parses, so its title and body can be
+/// sent and its body replaced by a pull.
+struct LocalWorkItem {
+    frontmatter: String,
+    title: String,
+    body: String,
 }
 
-fn reconstruct_pulled_content(
-    local_content: &str,
-    remote_body: &str,
-) -> String {
-    let (frontmatter, _) =
-        crate::sync::digest::split_frontmatter_and_body(local_content)
-            .unwrap_or_default();
-    format!("---\n{frontmatter}\n---\n\n{remote_body}")
+impl LocalWorkItem {
+    fn parse(content: &str) -> Result<Self, String> {
+        let (frontmatter, body) =
+            crate::sync::digest::split_frontmatter_and_body(content)
+                .map_err(|error| error.to_string())?;
+        let title = create_request_fields::read(content)
+            .map_err(|error| error.to_string())?
+            .title;
+        Ok(Self {
+            frontmatter,
+            title,
+            body,
+        })
+    }
+
+    fn with_body(&self, body: &str) -> String {
+        format!("---\n{}\n---\n\n{body}", self.frontmatter)
+    }
+}
+
+fn unparseable_local(item_id: &str, detail: String) -> ApplyError {
+    ApplyError::Io {
+        item_id: item_id.to_owned(),
+        operation: "parse-local",
+        detail,
+    }
 }
 
 /// The six fields a user needs to choose a side of one conflict, gathered
@@ -615,8 +632,14 @@ fn keeps_local_hash(
         return false;
     };
     std::fs::read_to_string(&item.path).is_ok_and(|content| {
-        let (_, body) = local_title_and_body(&content);
-        legacy_unrenderable(comparison, shapes.of(&item.id), &body, projected)
+        LocalWorkItem::parse(&content).is_ok_and(|local| {
+            legacy_unrenderable(
+                comparison,
+                shapes.of(&item.id),
+                &local.body,
+                projected,
+            )
+        })
     })
 }
 
@@ -674,17 +697,21 @@ fn dossier_for(
     let remote_updated =
         remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
 
-    match std::fs::read_to_string(&item.path) {
-        Err(_) => unreadable_dossier(id, remote_updated),
-        Ok(local_content) => readable_dossier(
+    let local_content = std::fs::read_to_string(&item.path).ok();
+    let local = local_content.as_deref().and_then(|content| {
+        Some((content, LocalWorkItem::parse(content).ok()?))
+    });
+    match local {
+        Some((content, local)) => readable_dossier(
             id,
             item,
             remote,
             remote_updated,
-            &local_content,
+            (content, &local),
             comparison,
             shapes.of(id),
         ),
+        None => unreadable_dossier(id, remote_updated),
     }
 }
 
@@ -708,23 +735,22 @@ fn readable_dossier(
     item: &LocalItem,
     remote: Option<&GatheredRemote>,
     remote_updated: RemoteTimestamp,
-    local_content: &str,
+    (local_content, local): (&str, &LocalWorkItem),
     comparison: &BodyComparison<'_>,
     shape: EntryShape,
 ) -> ConflictDossier {
-    let (title, local_body) = local_title_and_body(local_content);
     let remote_projection =
         remote.and_then(|r| r.body.as_deref()).unwrap_or("");
     let unrenderable_reason = || {
         if comparison
-            .pull_residue(&local_body, remote_projection)
+            .pull_residue(&local.body, remote_projection)
             .is_some()
         {
             UnrenderableReason::LocalPullResidue
         } else if legacy_unrenderable(
             comparison,
             shape,
-            &local_body,
+            &local.body,
             remote_projection,
         ) {
             UnrenderableReason::LegacyUnrenderable
@@ -736,8 +762,7 @@ fn readable_dossier(
         comparison.local_body(remote_projection).map_or_else(
             |_| (Vec::new(), Some(unrenderable_reason())),
             |remote_body| {
-                let reconstructed =
-                    reconstruct_pulled_content(local_content, &remote_body);
+                let reconstructed = local.with_body(&remote_body);
                 (
                     comparison
                         .differing_sections(local_content, &reconstructed),
@@ -747,7 +772,7 @@ fn readable_dossier(
         );
     ConflictDossier {
         id: id.to_owned(),
-        title,
+        title: local.title.clone(),
         remote_title: remote
             .and_then(|r| r.body.as_deref())
             .map(|projection| remote_fields(projection).title),
@@ -845,17 +870,20 @@ fn check_send(
     let item = items.iter().find(|candidate| candidate.id == planned.id)?;
     let external_id = item.external_id.as_ref()?;
     let content = std::fs::read_to_string(&item.path).ok()?;
-    let (title, body) = local_title_and_body(&content);
+    let local = match LocalWorkItem::parse(&content) {
+        Ok(local) => local,
+        Err(detail) => return Some(Err(unparseable_local(&item.id, detail))),
+    };
     if let Some(refusal) = send_refusal(
         comparison,
         planned.action,
         shapes.of(&item.id),
-        &body,
+        &local.body,
         fetched_projection(facts, &item.id),
     ) {
         return Some(Err(refused_send(&item.id, refusal)));
     }
-    let payload = Payload::of(planned.action, &title, &body)?;
+    let payload = Payload::of(planned.action, &local.title, &local.body)?;
     Some(Ok(tracker.validate_update(
         external_id,
         payload.title,
@@ -1011,17 +1039,22 @@ fn send_outcome(
         Ok(content) => content,
         Err(error) => return ItemOutcome::Failed(error),
     };
-    let (title, body) = local_title_and_body(&content);
+    let local = match LocalWorkItem::parse(&content) {
+        Ok(local) => local,
+        Err(detail) => {
+            return ItemOutcome::Failed(unparseable_local(&item.id, detail))
+        }
+    };
     if let Some(refusal) = send_refusal(
         comparison,
         planned.action,
         shapes.of(&item.id),
-        &body,
+        &local.body,
         fetched_projection(facts, &item.id),
     ) {
         return ItemOutcome::Failed(refused_send(&item.id, refusal));
     }
-    let sent = match Payload::of(planned.action, &title, &body) {
+    let sent = match Payload::of(planned.action, &local.title, &local.body) {
         Some(Payload {
             title: Some(title),
             body: None,
@@ -1074,7 +1107,12 @@ fn pull_outcome(
         Ok(content) => content,
         Err(error) => return ItemOutcome::Failed(error),
     };
-    let content = reconstruct_pulled_content(&local_content, &remote_body);
+    let content = match LocalWorkItem::parse(&local_content) {
+        Ok(local) => local.with_body(&remote_body),
+        Err(detail) => {
+            return ItemOutcome::Failed(unparseable_local(&item.id, detail))
+        }
+    };
     let remote_updated =
         remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
     match applier.pull(&PullRequest {

@@ -1128,3 +1128,41 @@ fn a_previewed_withheld_push_does_not_validate_the_title() {
         }]
     ));
 }
+
+const WITHOUT_FRONTMATTER: &str = "# Add search\n\nNo frontmatter here.\n";
+
+fn unbaselined_without_frontmatter() -> Repo {
+    let repo = Repo::with_item(
+        Tracker::Linear,
+        1,
+        WITHOUT_FRONTMATTER,
+        issue(1, &linear(TITLE, BODY), STAMP),
+        &Recorded::Nothing,
+    );
+    assert_eq!(
+        outcome_of(&repo.sync_once(), 1),
+        (SyncState::Conflict, Action::Prompt)
+    );
+    repo
+}
+
+#[test]
+fn resolving_local_on_an_item_without_frontmatter_fails_it_and_sends_nothing() {
+    let repo = unbaselined_without_frontmatter();
+
+    let report = repo.resolving(1, Resolution::PushLocal);
+
+    assert!(matches!(row(&report, 1).outcome, ItemOutcome::Failed(_)));
+    assert_eq!(repo.mutations(), []);
+}
+
+#[test]
+fn resolving_remote_on_an_item_without_frontmatter_fails_it_and_writes_nothing()
+{
+    let repo = unbaselined_without_frontmatter();
+
+    let report = repo.resolving(1, Resolution::AcceptRemote);
+
+    assert!(matches!(row(&report, 1).outcome, ItemOutcome::Failed(_)));
+    assert_eq!(repo.read(1), WITHOUT_FRONTMATTER);
+}
