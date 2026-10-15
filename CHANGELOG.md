@@ -132,7 +132,7 @@
   for its index, so a set holding both resumes the tree rather than starting
   afresh at the marker's index.
 - **`research topic outstanding` plans deepened research.** `--depth N`
-  reports each pair's `stage`, the level-note `nodes` it still needs or the
+  (1 to 10) reports each pair's `stage`, the level-note `nodes` it still needs or the
   `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
   `--start`, `--run` and `--spawned` let `conduct` batch its spawns as a run,
   and the new `end-run` verb closes one. `--concurrency` falls back to
@@ -354,7 +354,8 @@
 
 - **A configured `research.topic.depth` above 1 takes effect.** It was
   dormant until now: a team or personal `depth: 3` runs up to 13 researchers
-  and a composer per (focus area, profile) after upgrading.
+  and a composer per (focus area, profile) after upgrading. A configured
+  depth above 10 clamps to 10 with a warning.
 
 - **`accelerator config get` now resolves the built-in default and takes its
   override as a `--default` flag.** A key unset at both levels and resolved

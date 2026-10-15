@@ -96,9 +96,9 @@ pub enum TopicAction {
         /// The directory holding one `<name>-profile/SKILL.md` per profile.
         #[arg(long)]
         profiles_dir: PathBuf,
-        /// How many levels each pair's tree is researched to. Defaults to 1
-        /// and is never read from `research.topic.depth`, so a hand run
-        /// must pass the depth `conduct` resolved.
+        /// How many levels each pair's tree is researched to, 1 to 10.
+        /// Defaults to 1 and is never read from `research.topic.depth`, so a
+        /// hand run must pass the depth `conduct` resolved.
         #[arg(long, default_value = "1", allow_hyphen_values = true)]
         depth: String,
         /// The most spawns to offer; the rest are counted in `remaining`.

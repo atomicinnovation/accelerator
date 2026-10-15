@@ -812,12 +812,12 @@ fn assert_exits_1(output: &Output, stderr: &str) {
 #[test]
 fn an_invalid_depth_exits_1() -> Result<(), TestError> {
     let project = a_set()?;
-    for depth in ["0", "-1", "many", "99999999999"] {
+    for depth in ["0", "-1", "11", "many", "99999999999"] {
         assert_exits_1(
             &project.outstanding_with(&["--depth", depth])?,
             &format!(
-                "E_TOPIC_RESEARCH_DEPTH: --depth must be a positive integer, \
-                 got '{depth}'"
+                "E_TOPIC_RESEARCH_DEPTH: --depth must be 1 to 10, got \
+                 '{depth}'"
             ),
         );
     }

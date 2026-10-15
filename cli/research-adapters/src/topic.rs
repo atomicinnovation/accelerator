@@ -827,7 +827,9 @@ mod tests {
                  ---\n"
             )
         };
-        for (field, shallow) in [("depth: 3\n", false), ("", true)] {
+        for (field, shallow) in
+            [("depth: 3\n", false), ("depth: 12\n", false), ("", true)]
+        {
             let fs = set_with(StubFs::default())
                 .with_file("/set/findings/01-a-web.md", &finding(field));
             let inputs = read_round_inputs(

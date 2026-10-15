@@ -445,6 +445,49 @@ def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
         assert fragment in cli
 
 
+DEPTH_CEILING = 10
+TREE = REPO_ROOT / "cli/research/src/topic/tree.rs"
+
+
+def _knob_rules() -> str:
+    return _section(
+        _research_topic_prose(),
+        "knobs bound the research",
+        "## Shared Preamble",
+    )
+
+
+def test_depth_above_the_ceiling_clamps_to_it() -> None:
+    knobs = _knob_rules()
+    assert (
+        f"an integer of 1 or more, and for depth at most {DEPTH_CEILING}, "
+        "passes unchanged"
+    ) in knobs
+    assert (
+        f"Warning: research.topic.depth must be at most {DEPTH_CEILING}, "
+        f"got '{{value}}' — clamping to {DEPTH_CEILING}"
+    ) in knobs
+    assert knobs.find("**Out of range or malformed**") < knobs.find(
+        "**Above the depth ceiling**"
+    ), "the ceiling rule must follow the clamp-to-1 rule"
+    assert "Breadth has no upper bound; it is the per-round cost guard" in (
+        knobs
+    )
+
+
+def test_the_depth_ceiling_reads_alike_in_prose_and_in_the_cli() -> None:
+    assert f"pub const DEEPEST: u32 = {DEPTH_CEILING};" in _rust_text(TREE)
+
+
+def test_configure_documents_the_depth_ceiling() -> None:
+    research = _configure_research_section()
+    assert (
+        f"Depth above {DEPTH_CEILING} is clamped to {DEPTH_CEILING} with a "
+        "warning. Breadth has no upper bound"
+    ) in research
+    assert "Breadth and depth have no upper bound" not in research
+
+
 def test_the_composer_agent_grants_only_read_and_write() -> None:
     assert _granted_tools(COMPOSER) == {"Read", "Write"}, (
         "the composer reads notes and writes one finding; any other tool "

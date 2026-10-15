@@ -118,12 +118,15 @@ impl OutstandingFlags {
         run: Option<&str>,
         spawned: Option<&str>,
     ) -> Result<Self, String> {
-        let depth = positive(depth).and_then(Depth::new).ok_or_else(|| {
-            failed(format!(
-                "E_TOPIC_RESEARCH_DEPTH: --depth must be a positive integer, \
-                 got '{depth}'"
-            ))
-        })?;
+        let depth = non_negative(depth).and_then(Depth::requested).ok_or_else(
+            || {
+                failed(format!(
+                    "E_TOPIC_RESEARCH_DEPTH: --depth must be 1 to {}, got \
+                     '{depth}'",
+                    Depth::DEEPEST
+                ))
+            },
+        )?;
         Ok(Self {
             depth,
             requested_concurrency: concurrency.map(|value| {
@@ -219,10 +222,6 @@ pub fn parse_run(text: &str) -> Result<RunId, String> {
 fn non_negative(text: &str) -> Option<u32> {
     let digits = !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit());
     digits.then(|| text.parse().ok()).flatten()
-}
-
-fn positive(text: &str) -> Option<u32> {
-    non_negative(text).filter(|value| *value > 0)
 }
 
 fn failed(message: impl Into<String>) -> String {
