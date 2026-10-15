@@ -14,6 +14,7 @@ tags: ["linear", "cli", "update"]
 last_updated: "2026-10-15T00:01:33+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
+external_id: "PP-921"
 ---
 # 0338: Linear Update Overwrites Fields It Was Not Given
 
