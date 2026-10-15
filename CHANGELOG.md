@@ -106,8 +106,14 @@
   a first line above the description. Scripts that parse `work sync` exit codes
   need updating.
 - **A `work sync` pull over a Jira description with no Markdown form fails as
-  `unrenderable`** (exit 75), where it exited 0, and writes nothing. Scripts
-  that parse `work sync` exit codes need updating.
+  `unrenderable`** (exit 75), where it exited 0, and writes nothing. That
+  now includes a description holding a line break inside a table cell, code
+  text holding a backtick, or a code block holding a fence line, none of which
+  this Markdown can carry. Scripts that parse `work sync` exit codes need
+  updating.
+- **A `work sync` item whose local frontmatter does not parse fails** (exit
+  71), where it was read as an empty title and body. Nothing is sent or
+  written for it, and its conflict dossier reads `reason: local-unreadable`.
 - **Pending-push records move to schema 3**, which earlier releases refuse,
   so finish every outstanding promotion before downgrading.
 - **`work sync` reports two new rows.** An item whose baseline entry was
@@ -521,6 +527,16 @@
   `--resolve <id>=local` or `=remote`; one over a Jira description the plugin
   cannot display writes a `reason: legacy-unrenderable` dossier naming the
   remedies that settle it.
+- **`work sync` no longer blanks a tracker issue or a local file's
+  frontmatter.** Resolving a conflict with `--resolve <id>=local` on a file
+  whose frontmatter did not parse sent an empty title and description, and
+  `=remote` wrote empty frontmatter over the file.
+- **A local Jira body the converter rejects never matches the remote.** Such
+  a body, one holding a `\x1e` or `\x1f` control byte, counted as unchanged
+  against a description holding the same text.
+- **`work sync --preview` reports a pull's failure.** A planned pull the run
+  would fail before writing, such as one over a Jira description with no
+  Markdown form, previewed as not applied.
 - **Web researchers write nothing when fetching is denied.** A researcher on
   the `web` profile whose `WebSearch` or `WebFetch` calls are refused, or
   that has neither tool, now writes no finding or level note and reports
