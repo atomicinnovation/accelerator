@@ -1,10 +1,12 @@
 //! What a `conduct` run remembers between plans: the batch it last offered,
-//! the spawns it attempted, and what it has seen the set show.
+//! the spawns it attempted, what it has seen the set show, and the findings
+//! it still owes quarantining.
 
 use std::collections::BTreeSet;
 
 use crate::conduct::observed::Observed;
 use crate::conduct::spawn::SpawnRef;
+use crate::topic::layout::stem::Stem;
 
 /// The spawns last offered and not yet acknowledged, under the number the
 /// acknowledgement must quote.
@@ -63,6 +65,7 @@ pub struct RunMemory {
     pub attempted: BTreeSet<SpawnRef>,
     pub just_acknowledged: BTreeSet<SpawnRef>,
     pub seen: Observed,
+    pub owed_quarantine: BTreeSet<Stem>,
 }
 
 impl RunMemory {

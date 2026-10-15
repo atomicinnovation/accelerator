@@ -1,6 +1,9 @@
 //! The focus areas an `outline.md` asks for, and the profiles each is
 //! researched through.
 
+use crate::topic::layout::slug::QuestionSlug;
+use crate::topic::layout::stem::Stem;
+
 /// The profile an outline item is researched through when it names none.
 pub const DEFAULT_PROFILE: &str = "web";
 
@@ -90,6 +93,28 @@ impl OutlineItem {
             profile: profile.to_owned(),
         }
     }
+
+    pub(crate) fn stem_at(&self, index: u32, profile: &str) -> Option<Stem> {
+        let slug = QuestionSlug::from(self.question.as_str());
+        Stem::allocated(index, slug.as_str(), profile)
+    }
+
+    pub(crate) fn pair_at(&self, stem: &Stem) -> Option<Pair> {
+        self.profiles()
+            .into_iter()
+            .find(|profile| {
+                self.stem_at(stem.index(), profile).as_ref() == Some(stem)
+            })
+            .map(|profile| self.pair(profile))
+    }
+
+    pub(crate) fn pair_ending(&self, stem: &Stem) -> Option<Pair> {
+        self.profiles()
+            .into_iter()
+            .filter(|profile| stem.ends_with_profile(profile))
+            .max_by_key(|profile| profile.len())
+            .map(|profile| self.pair(profile))
+    }
 }
 
 fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
@@ -118,6 +143,8 @@ fn split_suffix(text: &str) -> (String, ProfilesSuffix) {
 mod tests {
     use super::Outline;
     use super::OutlineItem;
+    use super::Pair;
+    use crate::topic::layout::stem::Stem;
 
     fn only_item(line: &str) -> Option<OutlineItem> {
         Outline::parse(line).items.into_iter().next()
@@ -168,5 +195,91 @@ mod tests {
     fn items_carry_their_one_based_line_number() {
         let outline = Outline::parse("---\nkind: outline\n---\n- [ ] A?");
         assert_eq!(outline.items[0].line, 4);
+    }
+
+    fn stem(text: &str) -> Option<Stem> {
+        Stem::parse(text)
+    }
+
+    fn pair(question: &str, profile: &str) -> Pair {
+        Pair {
+            question: question.to_owned(),
+            profile: profile.to_owned(),
+        }
+    }
+
+    #[test]
+    fn an_item_allocates_its_stem_from_its_slug_and_profile(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] How do heads specialise? — profiles: openalex")
+                .ok_or("an item")?;
+        assert_eq!(
+            item.stem_at(3, "openalex"),
+            stem("03-how-do-heads-specialise-openalex")
+        );
+        assert_eq!(item.stem_at(3, "Web"), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_pair_whose_stem_it_rebuilds(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] A? — profiles: web, openalex").ok_or("an item")?;
+        let at = stem("07-a-openalex").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), Some(pair("A?", "openalex")));
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_no_pair_for_a_stem_under_a_profile_it_lacks(
+    ) -> Result<(), &'static str> {
+        let item =
+            only_item("- [ ] A? — profiles: web, openalex").ok_or("an item")?;
+        let at = stem("07-a-arxiv").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_asks_a_pair_only_under_a_profile_it_names(
+    ) -> Result<(), &'static str> {
+        let at = stem("02-a-b-web").ok_or("a stem")?;
+        let asking = only_item("- [ ] A b?").ok_or("an item")?;
+        assert_eq!(asking.pair_at(&at), Some(pair("A b?", "web")));
+        let not_asking =
+            only_item("- [ ] A? — profiles: web").ok_or("an item")?;
+        assert_eq!(not_asking.pair_at(&at), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_pair_whose_profile_ends_a_stem_its_slug_no_longer_rebuilds(
+    ) -> Result<(), &'static str> {
+        let item = only_item("- [ ] \u{FF21}? — profiles: web, openalex")
+            .ok_or("an item")?;
+        let at = stem("01-a-openalex").ok_or("a stem")?;
+        assert_eq!(item.pair_at(&at), None);
+        assert_eq!(item.pair_ending(&at), Some(pair("\u{FF21}?", "openalex")));
+        let elsewhere = stem("01-a-arxiv").ok_or("a stem")?;
+        assert_eq!(item.pair_ending(&elsewhere), None);
+        Ok(())
+    }
+
+    #[test]
+    fn an_item_names_the_longest_profile_ending_a_stem_after_its_slug(
+    ) -> Result<(), &'static str> {
+        let item = only_item("- [ ] \u{FF21}? — profiles: web, deep-web")
+            .ok_or("an item")?;
+        let ending =
+            |text: &str| stem(text).and_then(|at| item.pair_ending(&at));
+        assert_eq!(
+            ending("01-a-deep-web"),
+            Some(pair("\u{FF21}?", "deep-web"))
+        );
+        assert_eq!(ending("01-a-web"), Some(pair("\u{FF21}?", "web")));
+        assert_eq!(ending("01-deep-web"), Some(pair("\u{FF21}?", "web")));
+        Ok(())
     }
 }

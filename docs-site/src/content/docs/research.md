@@ -509,14 +509,34 @@ The run flags exist for `conduct`. `--start` begins a run and returns its
 as spawned. During a run the JSON also carries `run`, `batch` (the number the
 next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
 findings nobody was asked to write, or whose content changed).
+`--start` over another run's readable ledger also carries `replaced_run`: that
+run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
+and `unasked`, each entry a `spawn` ref with the outline `question` and
+`profile` that own its stem (or, for an unasked finding, the pair it names; both
+are `null` when neither exists), the absolute `quarantine` paths of its invalid
+findings, and `owed`, the stems of findings an earlier `--start` listed for
+quarantine that are still on disk, whose paths `quarantine` also holds. That
+plan is drawn as if each `quarantine` finding were already renamed to its
+`.<name>.invalid` marker. A `warning:` line on stderr names the replaced run
+and, when `quarantine` is non-empty, asks for those renames; no `warnings` entry
+accompanies it. The run's ledger owes each rename whose path the plan does not
+offer again: until each is done, `--run` exits 1 with
+`E_TOPIC_RESEARCH_QUARANTINE_OWED`, and a later `--start` lists them again in
+`owed`. A corrupt ledger yields a `warnings` entry alone.
 `accelerator research topic end-run SLUG --run ID` removes the run's
 ledger when the run finishes.
 
-It is read-only unless `--start` or `--run` is given; a run records its
-ledger in `<set>/.conduct-run.json`, which `end-run` removes. A leftover
-ledger means a run was interrupted, and is safe to delete; consider ignoring
-`**/.conduct-run.json`. A person clears a leftover ledger by deleting it or
-by re-running `conduct`.
+It is read-only unless `--start` or `--run` is given; a run records its ledger
+in `<set>/.conduct-run.json`, which `end-run` removes. A leftover ledger means a
+run did not end. If its session showed an agent usage limit, wait until the
+reset time in the message, or raise the limit when it gives none. Then re-run
+`conduct`, which reports what that run left of its last batch and quarantines
+the invalid findings it wrote. Deleting the ledger instead skips both and leaves
+those findings counted. If that run is still going, an agent it spawned can
+finish a finding after `--start` judged it; the rename then quarantines it
+anyway, and a write after the rename to a path the plan does not offer again
+stops the next `--run` with `E_TOPIC_RESEARCH_QUARANTINE_OWED`. No finding is
+deleted either way. Consider ignoring `**/.conduct-run.json`.
 
 Each exit code below exits `1`:
 
@@ -528,6 +548,7 @@ Each exit code below exits `1`:
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |
 | `E_TOPIC_RESEARCH_RUN_SUPERSEDED` | another run owns the set's ledger | let that run finish |
 | `E_TOPIC_RESEARCH_RUN_LEDGER` | the ledger is missing, corrupt, or cannot be written | re-run `conduct` to start a fresh run |
+| `E_TOPIC_RESEARCH_QUARANTINE_OWED` | a finding the run's `--start` listed in `replaced_run.quarantine` is still on disk | rename each path the error names to `.<name>.invalid` beside it, then re-run `conduct` |
 
 ## Local development
 

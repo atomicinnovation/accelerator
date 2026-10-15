@@ -134,6 +134,11 @@ fn ledger_to(ledger: &RunLedger) -> Value {
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         },
+        "owed_quarantine": memory
+            .owed_quarantine
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
     })
 }
 
@@ -156,15 +161,21 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
                 .collect(),
             seen: Observed {
                 notes: seen_notes_from(seen.get("notes")?)?,
-                answered: seen
-                    .get("answered")?
-                    .as_array()?
-                    .iter()
-                    .map(|stem| Stem::parse(stem.as_str()?))
-                    .collect::<Option<BTreeSet<_>>>()?,
+                answered: stem_set(seen.get("answered")?)?,
             },
+            owed_quarantine: value
+                .get("owed_quarantine")
+                .map_or_else(|| Some(BTreeSet::new()), stem_set)?,
         },
     ))
+}
+
+fn stem_set(value: &Value) -> Option<BTreeSet<Stem>> {
+    value
+        .as_array()?
+        .iter()
+        .map(|stem| Stem::parse(stem.as_str()?))
+        .collect()
 }
 
 fn number(value: &Value) -> Option<u32> {
@@ -341,6 +352,9 @@ mod tests {
                         Stem::parse("01-c-web").expect("stem")
                     ]),
                 },
+                owed_quarantine: BTreeSet::from([
+                    Stem::parse("02-b-web").expect("stem")
+                ]),
             },
         )
     }
@@ -417,6 +431,7 @@ mod tests {
                 "attempted",
                 "claims",
                 "just_acknowledged",
+                "owed_quarantine",
                 "pending",
                 "run",
                 "seen"
@@ -448,6 +463,25 @@ mod tests {
             assert!(
                 matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
                 "{field}: {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ledger_without_owed_quarantine_owes_none() -> Result<(), TestError> {
+        let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
+        assert!(ledger.memory().owed_quarantine.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn an_owed_quarantine_that_is_not_a_list_of_stems_is_corrupt() {
+        for value in [json!("03-a-web"), json!(["03-a-web:1"])] {
+            let mut ledger = well_formed();
+            ledger["owed_quarantine"] = value.clone();
+            assert!(
+                matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
+                "{value}"
             );
         }
     }

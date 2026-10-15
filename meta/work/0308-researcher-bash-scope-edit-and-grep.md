@@ -9,9 +9,9 @@ status: "draft"
 kind: "story"
 priority: "low"
 parent: "work-item:0121"
-relates_to: ["work-item:0283", "work-item:0307"]
+relates_to: ["work-item:0283", "work-item:0307", "work-item:0310"]
 tags: ["research", "deep-research", "researcher-agent", "research-guard"]
-last_updated: "2026-10-09T17:58:47+00:00"
+last_updated: "2026-10-12T22:35:07+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -97,7 +97,9 @@ with Bash, though `outstanding` already trims and rejects at re-plan.
 - Can the guard locate the topic's run ledger from the write target alone,
   or does it need another way to find the active run?
 - Should agents of a superseded run that are still in flight be refused as
-  soon as a new run starts, or allowed to finish their batch?
+  soon as a new run starts, or allowed to finish their batch? If they may
+  finish, this item also reports the writes they land after the new run
+  starts as the replaced run's writes, not under Unexpected notes.
 
 ## Dependencies
 
@@ -105,6 +107,10 @@ with Bash, though `outstanding` already trims and rejects at re-plan.
 - Blocks: none known
 - Related: 0307, which adds a second command the guard must permit; both
   change `confinement.rs`.
+- Related: 0310, whose next-run recovery leaves a replaced run's in-flight
+  agents writing after the new run starts. The superseded-run open question
+  decides whether those writes land; if they are allowed, this item also
+  owns reporting them as the earlier run's writes.
 
 ## Assumptions
 

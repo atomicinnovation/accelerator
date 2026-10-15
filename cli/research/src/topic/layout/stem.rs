@@ -44,6 +44,18 @@ impl Stem {
             .flatten()
     }
 
+    /// Whether the stem reads as `<index>-<slug>-<profile>` with a
+    /// non-empty slug. Slugs and profiles share an alphabet, so more than one
+    /// profile can qualify.
+    #[must_use]
+    pub fn ends_with_profile(&self, profile: &str) -> bool {
+        self.text
+            .split_once('-')
+            .and_then(|(_, rest)| rest.strip_suffix(profile))
+            .and_then(|before| before.strip_suffix('-'))
+            .is_some_and(|slug| !slug.is_empty())
+    }
+
     #[must_use]
     pub const fn index(&self) -> u32 {
         self.index
@@ -155,5 +167,20 @@ mod tests {
             assert_eq!(Stem::allocated(3, "a", profile), None, "{profile:?}");
         }
         assert!(Stem::admits_profile("open-alex2"));
+    }
+
+    #[test]
+    fn a_stem_ends_with_a_profile_only_after_a_non_empty_slug() {
+        let ends = |text: &str, profile: &str| {
+            Stem::parse(text).is_some_and(|at| at.ends_with_profile(profile))
+        };
+        assert!(ends("01-a-web", "web"));
+        assert!(ends("01-a-deep-web", "deep-web"));
+        assert!(ends("01-a-deep-web", "web"));
+        assert!(ends("01-deep-web", "web"));
+        assert!(!ends("01-deep-web", "deep-web"));
+        assert!(!ends("01-web", "web"));
+        assert!(!ends("01-a-web", "openalex"));
+        assert!(!ends("01-a-xweb", "web"));
     }
 }

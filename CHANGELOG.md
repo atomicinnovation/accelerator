@@ -128,7 +128,9 @@
 - **`accelerator research topic outstanding`** reports a
   `research-topic` round's outstanding (focus area, profile) pairs and the
   paths their findings go to, so `conduct` no longer allocates finding paths
-  itself.
+  itself. A question's `.levels/` tree now outranks a lower quarantine marker
+  for its index, so a set holding both resumes the tree rather than starting
+  afresh at the marker's index.
 - **`research topic outstanding` plans deepened research.** `--depth N`
   reports each pair's `stage`, the level-note `nodes` it still needs or the
   `notes` its composer reads, `trims` and `shallow` findings; `--concurrency`,
@@ -137,9 +139,23 @@
   `research.topic.concurrency` and is reported as `concurrency`, clamped to
   the subagent cap described below, which is reported as `subagent_cap` with
   its source. Every plan carries both, a plain query included, so an empty
-  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`. A
-  run keeps a transient `<set>/.conduct-run.json`, removed on completion and
-  safe to delete after an interrupted run; consider adding
+  value exits 1 with `E_TOPIC_RESEARCH_CONCURRENCY` even without `--depth`.
+  `--start` over another run's readable ledger reports that run's last batch as
+  `replaced_run` and plans as if its invalid findings were already quarantined;
+  `conduct` shows that report before its first batch and quarantines those
+  findings, and any other caller of `--start` renames each
+  `replaced_run.quarantine` path to `.<name>.invalid` itself. The new run's
+  ledger records as owed each rename whose path its plan does not offer again: a
+  later `--start` quarantines and plans around any owed finding still on disk,
+  listing it in `replaced_run.owed`, and `--run` exits 1 with
+  `E_TOPIC_RESEARCH_QUARANTINE_OWED` until each is renamed. `--start` over a
+  readable ledger no longer adds a `warnings` entry; `replaced_run` carries that
+  report instead. A run keeps a transient
+  `<set>/.conduct-run.json`, removed on completion; a leftover one means a
+  run did not end, and re-running `conduct` recovers what it left, where
+  deleting the ledger would skip that. `conduct`'s failure-reason table
+  gains a "run that did not end" row: re-run `conduct`, first waiting out any
+  agent usage limit the earlier session showed. Consider adding
   `**/.conduct-run.json` to your `.gitignore`.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node

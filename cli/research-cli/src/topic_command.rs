@@ -22,12 +22,16 @@ use research::conduct::concurrency::ResolvedConcurrency;
 use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::observed::Observed;
+use research::conduct::replaced_run::Leftover;
+use research::conduct::replaced_run::Recovery;
+use research::conduct::replaced_run::ReplacedRun;
 use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
 use research::conduct::window::Window;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::note_ref::NoteRef;
 use research::topic::plan::OutstandingPair;
+use research::topic::plan::RoundInputs;
 use research::topic::plan::RoundPlan;
 use research::topic::tree::Depth;
 use research::topic::tree::MissingNode;
@@ -44,6 +48,7 @@ use serde_json::Value;
 
 use crate::concurrency_wording;
 use crate::context::ProjectContext;
+use crate::ledger_wording;
 use crate::plan_wording;
 use crate::subagent_cap::EnvironmentCap;
 
@@ -249,30 +254,20 @@ where
     S: AtomicWrite,
 {
     let mut notices = Vec::new();
-    let continued = match &mode {
-        RunMode::Continue { run, spawned } => {
-            Some(continued_ledger(set_root, run, *spawned, fs)?)
-        }
+    let (continued, replaced) = match &mode {
+        RunMode::Continue { run, spawned } => (
+            Some(continued_ledger(set_root, run, *spawned, fs)?),
+            ReplacedLedger::Absent,
+        ),
         RunMode::Start(_) => {
-            notices.extend(
-                concurrency
-                    .cap
-                    .unhonoured
-                    .iter()
-                    .map(concurrency_wording::unhonoured_cap),
-            );
-            notices.extend(concurrency.resolved.warnings.iter().map(
-                |warning| {
-                    concurrency_wording::concurrency_warning(
-                        warning,
-                        concurrency.cap.source,
-                    )
-                },
-            ));
-            notices.extend(replaced_ledger_notice(set_root, fs)?);
-            None
+            notices.extend(start_notices(concurrency));
+            let replaced = replaced_ledger(set_root, fs)?;
+            if matches!(replaced, ReplacedLedger::Corrupt) {
+                notices.push(ledger_wording::corrupt_notice());
+            }
+            (None, replaced)
         }
-        RunMode::Query => None,
+        RunMode::Query => (None, ReplacedLedger::Absent),
     };
     let claims = continued
         .as_ref()
@@ -288,10 +283,29 @@ where
         &UnicodeTables,
     )
     .map_err(|error| error.to_string())?;
-    let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
-    let observed = Observed::of(&reading.inputs);
+    let continued = continued
+        .map(|ledger| settled(ledger, &reading.inputs, set_root))
+        .transpose()?;
+    let (inputs, plan, replaced_run, owed_quarantine) = match &replaced {
+        ReplacedLedger::Readable(stored) => {
+            let recovery = Recovery::of(stored, reading.inputs, &UnicodeTables);
+            (
+                recovery.inputs,
+                recovery.plan,
+                Some(recovery.replaced_run),
+                recovery.owed_quarantine,
+            )
+        }
+        ReplacedLedger::Absent | ReplacedLedger::Corrupt => {
+            let plan = RoundPlan::of(&reading.inputs, &UnicodeTables);
+            (reading.inputs, plan, None, Vec::new())
+        }
+    };
+    let observed = Observed::of(&inputs);
     let ledger = match mode {
-        RunMode::Start(run) => Some(RunLedger::start(run, &observed)),
+        RunMode::Start(run) => Some(
+            RunLedger::start(run, &observed).owing_quarantine(&owed_quarantine),
+        ),
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
@@ -311,8 +325,10 @@ where
         })?;
     }
     let mut stderr = String::new();
+    let replaced_notice =
+        replaced_run.as_ref().map(ledger_wording::replaced_notice);
     let trims = plan.trims.iter().map(plan_wording::trim);
-    for warning in notices.iter().cloned().chain(trims) {
+    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
         let _ = writeln!(stderr, "warning: {warning}");
     }
     let warnings = plan
@@ -330,6 +346,7 @@ where
         concurrency: concurrency.resolved.concurrency,
         cap: &concurrency.cap,
         ledger: ledger.as_ref(),
+        replaced_run: replaced_run.as_ref(),
         warnings,
     };
     Ok(Printed {
@@ -383,23 +400,61 @@ fn continued_ledger<F: FileReader>(
     }
 }
 
-fn replaced_ledger_notice<F: FileReader>(
+fn settled(
+    ledger: RunLedger,
+    inputs: &RoundInputs,
+    set_root: &Path,
+) -> Result<RunLedger, String> {
+    let run = ledger.run().clone();
+    ledger.settling_quarantine(inputs).map_err(|owed| {
+        let paths: Vec<String> = owed
+            .stems
+            .iter()
+            .map(|stem| {
+                set_root
+                    .join(stem.finding_path())
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        failed(format!(
+            "E_TOPIC_RESEARCH_QUARANTINE_OWED: run {run} still owes the \
+             quarantine of {}; rename each to .<name>.invalid beside it, \
+             never deleting it, then re-run conduct",
+            paths.join(", ")
+        ))
+    })
+}
+
+fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
+    let unhonoured = concurrency
+        .cap
+        .unhonoured
+        .iter()
+        .map(concurrency_wording::unhonoured_cap);
+    let clamps = concurrency.resolved.warnings.iter().map(|warning| {
+        concurrency_wording::concurrency_warning(
+            warning,
+            concurrency.cap.source,
+        )
+    });
+    unhonoured.chain(clamps).collect()
+}
+
+enum ReplacedLedger {
+    Absent,
+    Readable(RunLedger),
+    Corrupt,
+}
+
+fn replaced_ledger<F: FileReader>(
     set_root: &Path,
     fs: &F,
-) -> Result<Option<String>, String> {
-    const CONSEQUENCE: &str = "stops at its next batch, and notes its last \
-                               batch writes may show as unexpected";
+) -> Result<ReplacedLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
-        Ok(None) => Ok(None),
-        Ok(Some(stored)) => Ok(Some(format!(
-            "replaced the ledger of run {}; if that run is still going it \
-             {CONSEQUENCE}",
-            stored.run()
-        ))),
-        Err(LedgerError::Corrupt) => Ok(Some(format!(
-            "replaced a corrupt run ledger; if its run is still going it \
-             {CONSEQUENCE}"
-        ))),
+        Ok(None) => Ok(ReplacedLedger::Absent),
+        Ok(Some(stored)) => Ok(ReplacedLedger::Readable(stored)),
+        Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
 }
@@ -426,6 +481,7 @@ struct PlanOutput<'a> {
     concurrency: Concurrency,
     cap: &'a EnvironmentCap,
     ledger: Option<&'a RunLedger>,
+    replaced_run: Option<&'a ReplacedRun>,
     warnings: Vec<String>,
 }
 
@@ -522,7 +578,42 @@ impl PlanOutput<'_> {
                 .map(ToString::to_string)
                 .collect();
         }
+        if let Some(replaced) = self.replaced_run {
+            rendered["replaced_run"] = self.leftovers(replaced);
+        }
         rendered
+    }
+
+    fn leftovers(&self, replaced: &ReplacedRun) -> Value {
+        let entries = |leftovers: &[Leftover]| -> Vec<Value> {
+            leftovers
+                .iter()
+                .map(|leftover| {
+                    json!({
+                        "spawn": leftover.spawn().to_string(),
+                        "question": leftover.pair().map(|pair| &pair.question),
+                        "profile": leftover.pair().map(|pair| &pair.profile),
+                    })
+                })
+                .collect()
+        };
+        json!({
+            "run": replaced.run().to_string(),
+            "valid": entries(replaced.valid()),
+            "invalid": entries(replaced.invalid()),
+            "unwritten": entries(replaced.unwritten()),
+            "unasked": entries(replaced.unasked()),
+            "quarantine": replaced
+                .quarantine()
+                .iter()
+                .map(|stem| self.absolute(&stem.finding_path()))
+                .collect::<Vec<_>>(),
+            "owed": replaced
+                .owed()
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        })
     }
 
     fn pair(&self, outstanding: &OutstandingPair) -> Value {

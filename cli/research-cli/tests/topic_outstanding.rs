@@ -969,16 +969,28 @@ fn a_started_run_returns_its_minted_id_and_first_batch() -> Result<(), TestError
     Ok(())
 }
 
-fn replaced_warning(run: &str) -> String {
+fn replaced_notice(run: &str) -> String {
     format!(
-        "replaced the ledger of run {run}; if that run is still going it \
-         stops at its next batch, and notes its last batch writes may show \
-         as unexpected"
+        "replaced the ledger of run {run}; if it is still going it stops at \
+         its next batch"
     )
 }
 
+fn replaced_notice_with_quarantine(run: &str) -> String {
+    format!(
+        "{}; before acting on this plan, rename each replaced_run quarantine \
+         path to .<name>.invalid beside it, never deleting it",
+        replaced_notice(run)
+    )
+}
+
+const CORRUPT_LEDGER: &str = "replaced a corrupt run ledger; if its run is \
+                              still going it stops at its next batch, and \
+                              notes its last batch writes may show as \
+                              unexpected";
+
 #[test]
-fn starting_over_a_stale_ledger_replaces_it_with_a_warning(
+fn starting_over_a_stale_ledger_reports_it_without_a_warning(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     let (_, first) = started(&project, &[])?;
@@ -987,10 +999,10 @@ fn starting_over_a_stale_ledger_replaces_it_with_a_warning(
 
     let plan: Value = serde_json::from_slice(&output.stdout)?;
     assert_ne!(plan["run"], json!(first));
-    assert_eq!(plan["warnings"], json!([replaced_warning(&first)]));
+    assert_eq!(plan["warnings"], json!([]));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        format!("warning: {}\n", replaced_warning(&first))
+        format!("warning: {}\n", replaced_notice(&first))
     );
     let stored: Value =
         serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
@@ -1006,13 +1018,645 @@ fn starting_over_a_corrupt_ledger_replaces_it_with_a_warning(
 
     let (plan, _) = started(&project, &[])?;
 
+    assert_eq!(plan["warnings"], json!([CORRUPT_LEDGER]));
+    assert_eq!(plan.get("replaced_run"), None);
+    Ok(())
+}
+
+fn left(spawn: &str, question: &str) -> Value {
+    json!({"spawn": spawn, "question": question, "profile": "web"})
+}
+
+fn finding_at(project: &Project, stem: &str) -> Result<String, TestError> {
+    absolute(project, &format!("{TOPICS}/s/findings/{stem}.md"))
+}
+
+fn write_finding(
+    project: &Project,
+    stem: &str,
+    content: &str,
+) -> Result<(), TestError> {
+    project.write(&format!("{TOPICS}/s/findings/{stem}.md"), content)
+}
+
+const FAILING_VALIDATION: &str = "---\ntype: \"topic-research\"\n\
+                                  kind: \"finding\"\nquestion: \"A?\"\n\
+                                  source_profile: \"web\"\n\
+                                  status: \"draft\"\n---\n";
+
+fn keys_of(plan: &Value) -> Result<Vec<String>, TestError> {
+    let mut keys: Vec<String> = plan
+        .as_object()
+        .ok_or("not an object")?
+        .keys()
+        .cloned()
+        .collect();
+    keys.sort();
+    Ok(keys)
+}
+
+#[test]
+fn starting_over_a_stale_ledger_reports_its_last_batch_by_class(
+) -> Result<(), TestError> {
+    let project = small_set(
+        "replaced-classes",
+        "- [ ] C?\n- [ ] D?\n- [ ] E?\n- [ ] A?\n- [ ] B?",
+    )?;
+    project.write_note("01-a-web", "1", "A?", &[])?;
+    project.write_note("02-b-web", "1", "B?", &[])?;
+    let args = ["--depth", "2", "--concurrency", "5"];
+    let (offered, first) = started(&project, &args)?;
     assert_eq!(
-        plan["warnings"],
+        spawns_of(&offered)?,
+        [
+            "03-c-web:1",
+            "04-d-web:1",
+            "05-e-web:1",
+            "01-a-web",
+            "02-b-web"
+        ]
+    );
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "B?", "depth: 2\n"),
+    )?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    project.write_note("03-c-web", "1", "C?", &[])?;
+    project.write(
+        &note_path("04-d-web", "1"),
+        &level_note_with(
+            "04-d-web",
+            "1",
+            "question: \"D?\"\nlevel: 2\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = started(&project, &args)?;
+
+    assert_eq!(
+        plan["replaced_run"],
+        json!({
+            "run": first,
+            "valid": [left("03-c-web:1", "C?"), left("02-b-web", "B?")],
+            "invalid": [left("04-d-web:1", "D?"), left("01-a-web", "A?")],
+            "unwritten": [left("05-e-web:1", "E?")],
+            "unasked": [],
+            "quarantine": [finding_at(&project, "01-a-web")?],
+            "owed": [],
+        })
+    );
+    let mut expected_keys = keys_of(&offered)?;
+    expected_keys.push("replaced_run".to_owned());
+    expected_keys.sort();
+    assert_eq!(keys_of(&plan)?, expected_keys);
+    Ok(())
+}
+
+#[test]
+fn an_invalid_or_misdirected_finding_from_a_replaced_batch_is_listed_for_quarantine(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-invalid", "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "Z?", "depth: 1\n"),
+    )?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    let replaced = &plan["replaced_run"];
+    assert_eq!(
+        replaced["invalid"],
+        json!([left("01-a-web", "A?"), left("02-b-web", "B?")])
+    );
+    assert_eq!(
+        replaced["quarantine"],
         json!([
-            "replaced a corrupt run ledger; if its run is still going it \
-             stops at its next batch, and notes its last batch writes may \
-             show as unexpected"
+            finding_at(&project, "01-a-web")?,
+            finding_at(&project, "02-b-web")?,
         ])
+    );
+    assert_eq!(spawns_of(&plan)?, ["01-a-web", "03-b-web"]);
+    Ok(())
+}
+
+#[test]
+fn a_stale_ledger_with_findings_to_quarantine_asks_a_hand_run_to_rename_them(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-hand-run", "- [ ] A?\n- [ ] B?")?;
+    let (_, first) = started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+
+    let (plan, stderr) = project.plan_with(&["--start"])?;
+
+    assert_eq!(plan["warnings"], json!([]));
+    assert_eq!(
+        stderr,
+        format!("warning: {}\n", replaced_notice_with_quarantine(&first))
+    );
+    Ok(())
+}
+
+fn sibling_answered(tag: &str) -> Result<Project, TestError> {
+    let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "A?", "depth: 1\n"),
+    )?;
+    Ok(project)
+}
+
+fn quarantine_as_the_report_would(plan: &Value) -> Result<(), TestError> {
+    for path in plan["replaced_run"]["quarantine"]
+        .as_array()
+        .ok_or("no quarantine")?
+    {
+        let path = Path::new(path.as_str().ok_or("not a path")?);
+        let name = path.file_name().ok_or("no name")?.to_string_lossy();
+        fs::rename(path, path.with_file_name(format!(".{name}.invalid")))?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_finding_answering_a_sibling_pair_is_listed_for_quarantine(
+) -> Result<(), TestError> {
+    let project = sibling_answered("replaced-sibling")?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    let replaced = &plan["replaced_run"];
+    assert_eq!(replaced["invalid"], json!([left("02-b-web", "B?")]));
+    assert_eq!(replaced["unwritten"], json!([left("01-a-web", "A?")]));
+    assert_eq!(
+        replaced["quarantine"],
+        json!([finding_at(&project, "02-b-web")?])
+    );
+    assert_eq!(spawns_of(&plan)?, ["02-a-web", "03-b-web"]);
+    assert_eq!(plan["batch"], json!(0));
+    Ok(())
+}
+
+#[test]
+fn a_quarantine_never_strands_an_offered_spawn() -> Result<(), TestError> {
+    let project = sibling_answered("replaced-stranded")?;
+    let one_at_a_time = ["--concurrency", "1"];
+    let (plan, run) = started(&project, &one_at_a_time)?;
+    assert_eq!(spawns_of(&plan)?, ["02-a-web"]);
+    quarantine_as_the_report_would(&plan)?;
+    write_finding(
+        &project,
+        "02-a-web",
+        &finding("02-a-web", "A?", "depth: 1\n"),
+    )?;
+
+    let next =
+        continued(&project, &run, &["--concurrency", "1", "--spawned", "0"])?;
+
+    assert_eq!(spawns_of(&next)?, ["03-b-web"]);
+    assert_eq!(next["unfinished"], json!([]));
+    Ok(())
+}
+
+fn failing_validation_still_naming_its_question(
+    tag: &str,
+) -> Result<Project, TestError> {
+    let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    Ok(project)
+}
+
+#[test]
+fn the_first_plan_after_a_replaced_batch_matches_the_plan_once_quarantined(
+) -> Result<(), TestError> {
+    let left_invalid = [
+        sibling_answered("replaced-equivalent-misdirected")?,
+        failing_validation_still_naming_its_question(
+            "replaced-equivalent-failing",
+        )?,
+    ];
+    for project in left_invalid {
+        let (plan, run) = started(&project, &[])?;
+        quarantine_as_the_report_would(&plan)?;
+
+        let continued = continued(&project, &run, &[])?;
+        let (unclaimed, _) = project.plan_with(&[])?;
+
+        for quarantined in [continued, unclaimed] {
+            assert_eq!(quarantined["items"], plan["items"]);
+            assert_eq!(quarantined["pairs"], plan["pairs"]);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn quarantined_leftovers_keep_their_planned_stems_for_the_rest_of_the_run(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-fresh", "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "Z?", "depth: 1\n"),
+    )?;
+    let (plan, run) = started(&project, &[])?;
+    quarantine_as_the_report_would(&plan)?;
+
+    let next = continued(&project, &run, &[])?;
+    let (query, _) = project.plan_with(&[])?;
+
+    assert_eq!(spawns_of(&next)?, ["01-a-web", "03-b-web"]);
+    assert_eq!(next.get("replaced_run"), None);
+    assert_eq!(query["warnings"], json!([]));
+    assert_eq!(
+        query["items"],
+        json!([item(6, "A?", false), item(7, "B?", false)])
+    );
+    Ok(())
+}
+
+fn left_invalid_by_a_replaced_batch(tag: &str) -> Result<Project, TestError> {
+    let project = small_set(tag, "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(&project, "01-a-web", FAILING_VALIDATION)?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "Z?", "depth: 1\n"),
+    )?;
+    Ok(project)
+}
+
+#[test]
+fn a_second_start_before_the_renames_still_quarantines_the_first_starts_findings(
+) -> Result<(), TestError> {
+    let project = left_invalid_by_a_replaced_batch("replaced-twice")?;
+    let (recovering, first) = started(&project, &[])?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    let replaced = &plan["replaced_run"];
+    assert_eq!(replaced["run"], json!(first));
+    assert_eq!(replaced["owed"], json!(["02-b-web"]));
+    assert_eq!(
+        replaced["quarantine"],
+        json!([
+            finding_at(&project, "01-a-web")?,
+            finding_at(&project, "02-b-web")?,
+        ])
+    );
+    assert_eq!(replaced["invalid"], json!([left("01-a-web", "A?")]));
+    assert_eq!(replaced["unwritten"], json!([left("03-b-web", "B?")]));
+    assert_eq!(plan["pairs"], recovering["pairs"]);
+    Ok(())
+}
+
+fn quarantine_owed(run: &str, paths: &[String]) -> String {
+    format!(
+        "E_TOPIC_RESEARCH_QUARANTINE_OWED: run {run} still owes the \
+         quarantine of {}; rename each to .<name>.invalid beside it, never \
+         deleting it, then re-run conduct",
+        paths.join(", ")
+    )
+}
+
+#[test]
+fn continuing_a_run_before_its_owed_renames_exits_1_naming_each_path(
+) -> Result<(), TestError> {
+    let project = left_invalid_by_a_replaced_batch("replaced-owed")?;
+    let (_, run) = started(&project, &[])?;
+    let findings = project.set("s").join("findings");
+    fs::rename(
+        findings.join("01-a-web.md"),
+        findings.join(".01-a-web.md.invalid"),
+    )?;
+    let before = fs::read(project.ledger())?;
+
+    let output =
+        project.outstanding_with(&["--run", &run, "--spawned", "0"])?;
+
+    assert_exits_1(
+        &output,
+        &quarantine_owed(&run, &[finding_at(&project, "02-b-web")?]),
+    );
+    assert_eq!(fs::read(project.ledger())?, before);
+    Ok(())
+}
+
+#[test]
+fn a_run_owes_nothing_once_its_quarantine_is_renamed() -> Result<(), TestError>
+{
+    let project = left_invalid_by_a_replaced_batch("replaced-settled")?;
+    let (plan, run) = started(&project, &[])?;
+    let stored: Value =
+        serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
+    assert_eq!(stored["owed_quarantine"], json!(["02-b-web"]));
+    quarantine_as_the_report_would(&plan)?;
+
+    continued(&project, &run, &[])?;
+    let (restarted, _) = started(&project, &[])?;
+
+    let stored: Value =
+        serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
+    assert_eq!(stored["owed_quarantine"], json!([]));
+    assert_eq!(restarted["replaced_run"]["owed"], json!([]));
+    assert_eq!(restarted["replaced_run"]["quarantine"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_stem_the_recovering_plan_offers_again_is_not_owed() -> Result<(), TestError>
+{
+    let project = small_set("replaced-reoffered", "- [ ] A?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n")
+            .replace("\"web\"", "\"openalex\""),
+    )?;
+    let (plan, run) = started(&project, &[])?;
+    assert_eq!(spawns_of(&plan)?, ["01-a-web"]);
+    quarantine_as_the_report_would(&plan)?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+
+    let next = continued(&project, &run, &["--spawned", "0"])?;
+
+    assert_eq!(next["pairs"], json!([]));
+    assert_eq!(next["items"], json!([item(6, "A?", true)]));
+    Ok(())
+}
+
+#[test]
+fn a_finding_whose_question_left_the_outline_is_left_in_place(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-reworded", "- [ ] A?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+    project.write(&format!("{TOPICS}/s/outline.md"), &outline("- [ ] A2?"))?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"]["unasked"],
+        json!([left("01-a-web", "A?")])
+    );
+    assert_eq!(plan["replaced_run"]["quarantine"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_finding_whose_question_was_reworded_to_the_same_normalised_form_is_kept(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-refolded", "- [ ] A?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+    project.write(
+        &format!("{TOPICS}/s/outline.md"),
+        &outline("- [ ] \u{FF21}?"),
+    )?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"]["valid"],
+        json!([left("01-a-web", "\u{FF21}?")])
+    );
+    assert_eq!(plan["replaced_run"]["quarantine"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn a_node_under_a_root_marker_naming_another_question_is_unwritten(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-marked-root", "- [ ] A?")?;
+    let args = ["--depth", "2"];
+    let (offered, _) = started(&project, &args)?;
+    assert_eq!(spawns_of(&offered)?, ["01-a-web:1"]);
+    project.write(
+        &format!("{TOPICS}/s/findings/01-a-web.levels/.1.md.invalid"),
+        &level_note_with(
+            "01-a-web",
+            "1",
+            "question: \"Other?\"\nlevel: 1\nfollow_ups: []\n",
+        ),
+    )?;
+
+    let (plan, _) = started(&project, &args)?;
+
+    assert_eq!(
+        plan["replaced_run"]["unwritten"],
+        json!([left("01-a-web:1", "A?")])
+    );
+    assert_eq!(plan["replaced_run"]["valid"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn an_unwritten_spawn_whose_question_left_the_outline_names_no_pair(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-unasked", "- [ ] A?")?;
+    started(&project, &[])?;
+    project.write(&format!("{TOPICS}/s/outline.md"), &outline("- [ ] A2?"))?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"]["unasked"],
+        json!([{"spawn": "01-a-web", "question": null, "profile": null}])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_valid_finding_from_a_replaced_batch_counts_its_pair_answered(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"]["valid"],
+        json!([left("01-a-web", "A?")])
+    );
+    assert_eq!(plan["pairs"], json!([]));
+    assert_eq!(plan["items"][0]["complete"], json!(true));
+    Ok(())
+}
+
+fn nothing_left(run: &str) -> Value {
+    json!({
+        "run": run,
+        "valid": [],
+        "invalid": [],
+        "unwritten": [],
+        "unasked": [],
+        "quarantine": [],
+        "owed": [],
+    })
+}
+
+#[test]
+fn a_stale_ledger_with_an_empty_last_batch_still_names_its_run(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+    let (_, first) = started(&project, &[])?;
+    let stored: Value =
+        serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
+    assert_eq!(stored["pending"], json!({"number": 0, "spawns": []}));
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(plan["replaced_run"], nothing_left(&first));
+    Ok(())
+}
+
+#[test]
+fn a_stale_ledger_with_fields_it_does_not_know_still_reports_its_last_batch(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, first) = started(&project, &[])?;
+    let mut stored: Value =
+        serde_json::from_str(&fs::read_to_string(project.ledger())?)?;
+    stored["future"] = json!({"anything": 1});
+    stored["pending"]["future"] = json!(true);
+    fs::write(project.ledger(), stored.to_string())?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(plan["replaced_run"]["run"], json!(first));
+    assert_eq!(
+        plan["replaced_run"]["unwritten"],
+        json!([left("01-a-web", "A?")])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_stale_ledger_in_todays_shape_reports_its_last_batch(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-literal", "- [ ] A?\n- [ ] B?")?;
+    write_finding(
+        &project,
+        "02-b-web",
+        &finding("02-b-web", "B?", "depth: 1\n"),
+    )?;
+    fs::write(
+        project.ledger(),
+        r#"{
+  "run": "earlier-run",
+  "pending": {
+    "number": 3,
+    "spawns": ["01-a-web", "02-b-web"]
+  },
+  "claims": {
+    "A?": 1,
+    "B?": 2
+  },
+  "attempted": [],
+  "just_acknowledged": [],
+  "seen": {
+    "notes": {},
+    "answered": []
+  }
+}
+"#,
+    )?;
+
+    let (plan, _) = started(&project, &[])?;
+
+    assert_eq!(
+        plan["replaced_run"],
+        json!({
+            "run": "earlier-run",
+            "valid": [left("02-b-web", "B?")],
+            "invalid": [],
+            "unwritten": [left("01-a-web", "A?")],
+            "unasked": [],
+            "quarantine": [],
+            "owed": [],
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn no_replaced_run_without_a_ledger_to_replace() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (first, run) = started(&project, &[])?;
+    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    assert!(ended.status.success());
+    let (after_end, _) = started(&project, &[])?;
+
+    assert_eq!(first.get("replaced_run"), None);
+    assert_eq!(after_end.get("replaced_run"), None);
+    Ok(())
+}
+
+#[test]
+fn no_replaced_run_on_a_plain_or_continued_plan() -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, run) = started(&project, &[])?;
+
+    let (plain, _) = project.plan_with(&[])?;
+    let next = continued(&project, &run, &[])?;
+
+    assert_eq!(plain.get("replaced_run"), None);
+    assert_eq!(next.get("replaced_run"), None);
+    Ok(())
+}
+
+#[test]
+fn outline_and_counts_match_disk_after_a_replaced_batch(
+) -> Result<(), TestError> {
+    let project = small_set("replaced-tick", "- [ ] A?\n- [ ] B?")?;
+    started(&project, &[])?;
+    write_finding(
+        &project,
+        "01-a-web",
+        &finding("01-a-web", "A?", "depth: 1\n"),
+    )?;
+    let (_, run) = started(&project, &[])?;
+    let ended = project.run(&["end-run", "s", "--run", &run])?;
+    assert!(ended.status.success());
+
+    let (plan, _) = project.plan_with(&[])?;
+
+    assert_eq!(
+        plan["items"],
+        json!([item(6, "A?", true), item(7, "B?", false)])
     );
     Ok(())
 }
@@ -1773,11 +2417,11 @@ fn an_unknown_set_is_reported_before_an_empty_concurrency(
 }
 
 #[test]
-fn concurrency_warnings_precede_a_replaced_ledger_notice(
+fn concurrency_warnings_precede_a_corrupt_ledger_notice(
 ) -> Result<(), TestError> {
     let project = a_set()?;
     project.configure_team_concurrency("24")?;
-    let (_, first) = started(&project, &[])?;
+    fs::write(project.ledger(), "{")?;
 
     let (plan, stderr) = project.plan_with(&["--start"])?;
 
@@ -1786,8 +2430,38 @@ fn concurrency_warnings_precede_a_replaced_ledger_notice(
         &stderr,
         &[
             clamped_to_the_default(TEAM_KNOB, "24"),
-            replaced_warning(&first),
+            CORRUPT_LEDGER.to_owned(),
         ],
+    );
+    Ok(())
+}
+
+#[test]
+fn stderr_orders_a_clamp_a_replaced_ledger_and_a_trim() -> Result<(), TestError>
+{
+    let project = a_set()?;
+    project.configure_team_concurrency("24")?;
+    project.write_note(
+        "01-a-web",
+        "1",
+        "A?",
+        &["B?", "C?", "D?", "E?", "F?"],
+    )?;
+    let (_, first) = started(&project, &["--depth", "2"])?;
+
+    let (plan, stderr) = project.plan_with(&["--start", "--depth", "2"])?;
+
+    let clamp = clamped_to_the_default(TEAM_KNOB, "24");
+    assert_eq!(plan["warnings"], json!([clamp]));
+    assert_eq!(
+        stderr.lines().collect::<Vec<_>>(),
+        [
+            format!("warning: {clamp}"),
+            format!("warning: {}", replaced_notice(&first)),
+            "warning: level note 01-a-web.levels/1 records 5 follow-ups, \
+             over its cap of 4; trimmed 1"
+                .to_owned(),
+        ]
     );
     Ok(())
 }

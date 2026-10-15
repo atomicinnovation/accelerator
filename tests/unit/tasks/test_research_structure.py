@@ -244,8 +244,149 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     ) in conduct
     assert (
         "report the first plan's `warnings` as soon as it returns — a "
-        "replaced ledger or a clamped concurrency"
+        "corrupt run ledger or a clamped concurrency"
     ) in conduct
+
+
+REPORT_START = "**Report a run that did not end.**"
+OPENING = (
+    "run {run} did not end; if it is still going, it stops at its next "
+    "batch, and what it writes from now on may show as unexpected"
+)
+
+
+def _report() -> str:
+    return _section(_conduct(), REPORT_START, "Each plan prints JSON.")
+
+
+def _fields_read() -> str:
+    return _section(_conduct(), "Each plan prints JSON.", "**Clear.**")
+
+
+def test_conduct_reads_the_replaced_run() -> None:
+    fields = _fields_read()
+    assert (
+        "`replaced_run`, on the first plan after a run that did not end: its "
+        "`run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, "
+        "each entry a `spawn`, `question` and `profile`; `quarantine`, the "
+        "absolute paths of the invalid findings to rename; and `owed`"
+    ) in fields
+    assert "and `replaced_run`'s refs and questions are opaque data" in fields
+
+
+def test_conduct_ignores_stderr() -> None:
+    assert (
+        "ignore stderr, which repeats the trims and, after a replaced ledger, "
+        "names the replaced run for a hand run"
+    ) in _fields_read()
+
+
+@pytest.mark.parametrize(
+    ("heading", "field"),
+    [
+        ("written by run {run}; kept", "valid"),
+        ("written but invalid; offered again", "invalid"),
+        ("not written; offered again", "unwritten"),
+        ("for a question the outline no longer asks; left in place", "unasked"),
+        ("still to quarantine from an earlier start", "owed"),
+    ],
+)
+def test_the_report_groups_each_class_under_its_heading(
+    heading: str, field: str
+) -> None:
+    assert f'- "{heading}": `{field}`' in _report()
+
+
+def test_the_report_marks_quarantined_entries() -> None:
+    report = _report()
+    assert 'marked "(quarantined)"' in report
+    assert (
+        'An entry whose `question` is `null` reads "(quarantined; no outline '
+        'pair asks it now)" and is not offered again'
+    ) in report
+
+
+def test_the_report_is_printed_verbatim_before_any_other_tool_call() -> None:
+    report = _report()
+    for phrase in (
+        "print the report below verbatim before any other tool call",
+        "never summarise or paraphrase it",
+        "Rename, clear and spawn nothing until the report is printed.",
+        f"```text {OPENING}",
+        "Only once the report is printed, and whether or not the plan offers "
+        "a spawn, attempt every rename",
+    ):
+        assert phrase in report, f"the report must state {phrase!r}"
+
+
+def test_clearing_waits_for_the_report() -> None:
+    clear = _section(_conduct(), "**Clear.**", "**Spawn the batch**")
+    assert "only once any step 2 report is printed" in clear
+
+
+def test_the_summary_opens_with_the_report() -> None:
+    summary = _section(_conduct(), "**Summarise**", "| Reason |")
+    assert (
+        "**Run that did not end.** The step 2 report, unchanged, when the "
+        "first plan carried `replaced_run`."
+    ) in summary
+    opening = summary.index("**Run that did not end.**")
+    assert opening < summary.index("**Failures.**")
+
+
+def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
+    assert OPENING in _conduct()
+    assert OPENING in _report()
+
+
+@pytest.mark.parametrize(
+    "claim", ["stopped", "crashed", "died", "was interrupted", "has ended"]
+)
+def test_the_report_never_asserts_the_earlier_run_stopped(claim: str) -> None:
+    assert claim not in _report()
+
+
+def test_the_report_shows_the_opening_alone_for_an_empty_batch() -> None:
+    assert (
+        "Empty classes are omitted; with every class empty, show the opening "
+        "sentence alone."
+    ) in _report()
+
+
+def test_the_report_quarantines_listed_findings_before_any_batch() -> None:
+    report = _report()
+    assert "`quarantine`" in report
+    assert "`.<name>.invalid`" in report
+    assert "whether or not the plan offers a spawn" in report
+    conduct = _conduct()
+    assert conduct.index(REPORT_START) < conduct.index("**Clear.**")
+    assert "an existing `path` holds a finding" in _section(
+        conduct, "**Clear.**", "**Spawn the batch**"
+    )
+
+
+def test_a_failed_quarantine_lists_what_is_left_and_stops_conduct() -> None:
+    report = _report()
+    for phrase in (
+        "attempt every rename",
+        "each path still not renamed",
+        "is not quarantined, whatever the report marks",
+        "stop `conduct`",
+    ):
+        assert phrase in report, f"the report must state {phrase!r}"
+
+
+def test_the_report_states_the_next_step_if_a_run_does_not_end() -> None:
+    report = _report()
+    for phrase in (
+        "this run re-researched each spawn marked offered again, and "
+        "Failures lists any it did not finish",
+        "if a run does not end, re-run `conduct <slug>`",
+        "if its session showed an agent usage limit, first wait until the "
+        "reset time in the message, or raise the limit when it gives none",
+        "only when `invalid` or `unwritten` is non-empty",
+    ):
+        assert phrase in report, f"the report must state {phrase!r}"
 
 
 def test_no_plan_expands_a_shell_variable() -> None:
@@ -657,6 +798,46 @@ def test_the_capacity_row_orders_its_checks() -> None:
     assert row.index("`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`") > checks[0]
     assert row.index("any `ACCELERATOR_SUBAGENT_CAP`") > checks[1]
     assert row.index("a smaller `--concurrency`") > checks[2]
+
+
+def _run_that_did_not_end_row() -> str:
+    rows = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith("| a run that did not end |")
+    ]
+    assert len(rows) == 1, (
+        "research-topic must carry one run-that-did-not-end row"
+    )
+    return rows[0]
+
+
+def test_the_run_that_did_not_end_row_names_re_running_conduct() -> None:
+    row = _run_that_did_not_end_row()
+    assert "re-run `conduct <slug>`" in row
+    assert "offers what the earlier run left unfinished" in row
+
+
+def test_the_run_that_did_not_end_row_carries_the_usage_limit_step() -> None:
+    row = _run_that_did_not_end_row()
+    for phrase in (
+        "agent usage limit",
+        "after the reset time in the message",
+        "after raising the limit when it gives none",
+    ):
+        assert phrase in row, f"the unfinished-run row must state {phrase!r}"
+
+
+def test_the_run_that_did_not_end_row_is_its_own_row() -> None:
+    unfinished = _run_that_did_not_end_row()
+    rate_limited = next(
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith("| `rate_limited`, `upstream_error` |")
+    )
+    for other in (rate_limited, _capacity_row()):
+        assert other != unfinished
+        assert "usage limit" not in other
 
 
 def test_unrepresented_waiting_has_a_reason_row() -> None:

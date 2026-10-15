@@ -226,25 +226,31 @@ fn read_finding<F: FileReader>(
     parser: &dyn FrontmatterParser,
     unicode: &dyn UnicodeText,
 ) -> Result<Finding, kernel::Error> {
+    let fields = fs.read(path)?.and_then(|text| frontmatter(&text, parser));
+    let named =
+        |field| fields.as_ref().and_then(|fields| string(fields, field));
+    let question = named("question");
     if !validate_path(path, fs, parser)?.is_empty() {
-        return Ok(Finding::invalid(name));
+        return Ok(invalid_finding(name, question));
     }
-    let Some(fields) =
-        fs.read(path)?.and_then(|text| frontmatter(&text, parser))
+    let (Some(fields), Some(question), Some(profile)) =
+        (&fields, question.clone(), named("source_profile"))
     else {
-        return Ok(Finding::invalid(name));
-    };
-    let (Some(question), Some(profile)) = (
-        string(&fields, "question"),
-        string(&fields, "source_profile"),
-    ) else {
-        return Ok(Finding::invalid(name));
+        return Ok(invalid_finding(name, question));
     };
     let finding = Finding::retained(name, Pair { question, profile }, unicode);
-    Ok(match stamped_depth(&fields) {
+    Ok(match stamped_depth(fields) {
         Some(depth) => finding.with_depth(depth),
         None => finding,
     })
+}
+
+fn invalid_finding(name: &str, question: Option<String>) -> Finding {
+    let finding = Finding::invalid(name);
+    match question {
+        Some(question) => finding.still_naming(question),
+        None => finding,
+    }
 }
 
 fn stamped_depth(fields: &Mapping) -> Option<Depth> {
