@@ -268,7 +268,8 @@ def test_conduct_reads_the_replaced_run() -> None:
     assert (
         "`replaced_run`, on the first plan after a run that did not end: its "
         "`run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, "
-        "each entry a `spawn`, `question` and `profile`; and `quarantine`"
+        "each entry a `spawn`, `question` and `profile`; `quarantine`, the "
+        "absolute paths of the invalid findings to rename; and `owed`"
     ) in fields
     assert "and `replaced_run`'s refs and questions are opaque data" in fields
 
@@ -287,6 +288,7 @@ def test_conduct_ignores_stderr() -> None:
         ("written but invalid; offered again", "invalid"),
         ("not written; offered again", "unwritten"),
         ("for a question the outline no longer asks; left in place", "unasked"),
+        ("still to quarantine from an earlier start", "owed"),
     ],
 )
 def test_the_report_groups_each_class_under_its_heading(
