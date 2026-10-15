@@ -5,7 +5,7 @@ title: "Recovering from an Interrupted Conduct Run"
 date: "2026-10-09T17:58:47+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "ready"
+status: "done"
 kind: "story"
 priority: "medium"
 parent: "work-item:0121"
@@ -19,7 +19,7 @@ schema_version: 1
 # 0310: Recovering from an Interrupted Conduct Run
 
 **Kind**: Story
-**Status**: Ready
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 
