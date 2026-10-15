@@ -5,7 +5,7 @@ title: "Scheduled Advisory and Age Guards for the Vendored Runtime Pins"
 date: "2026-08-20T00:00:00+00:00"
 author: "Toby Clemson"
 producer: "create-work-item"
-status: "draft"
+status: "done"
 kind: "task"
 priority: "medium"
 parent: "work-item:0136"
@@ -21,7 +21,7 @@ external_id: "PP-755"
 # 0225: Scheduled Advisory and Age Guards for the Vendored Runtime Pins
 
 **Kind**: Task
-**Status**: Draft
+**Status**: Done
 **Priority**: Medium
 **Author**: Toby Clemson
 

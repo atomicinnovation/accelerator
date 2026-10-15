@@ -5,7 +5,7 @@ title: "Default Research Concurrency Exceeds the Subagent Limit"
 date: "2026-10-09T17:58:47+00:00"
 author: "Toby Clemson"
 producer: "extract-work-items"
-status: "draft"
+status: "done"
 kind: "bug"
 priority: "high"
 parent: "work-item:0121"
@@ -20,7 +20,7 @@ external_id: "PP-889"
 # 0303: Default Research Concurrency Exceeds the Subagent Limit
 
 **Kind**: Bug
-**Status**: Draft
+**Status**: Done
 **Priority**: High
 **Author**: Toby Clemson
 
