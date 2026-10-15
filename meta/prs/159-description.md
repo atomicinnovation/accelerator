@@ -8,13 +8,13 @@ producer: "describe-pr"
 status: "complete"
 work_item_id: "0296"
 parent: "work-item:0296"
-relates_to: ["work-item:0300", "work-item:0337", "work-item:0335"]
+relates_to: ["work-item:0300", "work-item:0320", "work-item:0337", "work-item:0335"]
 pr_url: "https://github.com/atomicinnovation/accelerator/pull/159"
 pr_number: 159
-tags: ["sync", "jira", "linear", "adf", "tracker"]
-revision: "415a9c9fa94dbf9f6ca2b93453885ce90db52de7"
+tags: ["sync", "jira", "linear", "adf", "tracker", "equivalence", "baseline"]
+revision: "f5e8334b7b0d535b3947e5891bb99f8a9166fc91"
 repository: "accelerator"
-last_updated: "2026-10-12T23:39:40+00:00"
+last_updated: "2026-10-15T10:17:41+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -24,158 +24,205 @@ schema_version: 1
 ## Summary
 
 `work sync` treated a tracker's projected body (`"{title}\n{description}"`)
-as local content. Every pull wrote the tracker title as a stray first line
-above the H1, and a Jira pull wrote the raw ADF JSON into the work item.
-This PR delivers Phases 1–4 of the 0296 plan: pulls strip the projected
-title, Jira descriptions render to Markdown through an extended ADF
-converter, and tracker-specific body rules sit behind a new `BodyDialect` on
-the tracker port. Phases 5–11 (body equivalence, digest recipe `1`,
-equivalence-aware classification) follow in later PRs.
+as local content and compared bodies byte by byte. Pulls wrote the tracker
+title above the H1, Jira pulls wrote raw ADF JSON, and Linear's cosmetic
+re-serialisation showed up as changes and conflicts: on 2026-10-10 a preview
+of this repository planned 7 pulls and 25 conflicts. This PR delivers the
+whole 0296 plan (Phases 0–11). It adds a tracker body dialect, an extended ADF
+converter, CommonMark body equivalence, and digest recipe `1`, which
+classifies by meaning. The 2026-10-15 preview of the same corpus planned one
+pull and three conflicts, each a real difference.
 
 ## Breaking changes
 
-- **`work sync` exit codes.** A local file read or write failure now exits
-  `71` (`terminal`) where it exited `0`. A pull whose remote body could not be
-  fetched exits `70` (`retryable`) instead of writing an empty body. A `show`
-  that fails after the remote stamp moved leaves the item `indeterminate`
-  (exit `4`).
-- **New `75` details.** A pull or push over a Jira description with no
-  Markdown form fails as `unrenderable`. A send from a file that an earlier
-  release's pull left raw ADF JSON in fails as `pull-residue`. In both cases
-  nothing is written or sent.
-- **Jira Markdown output.** `jira show` and `jira search --render-adf` now
-  render strike, blockquotes, pipe tables, rules, nested lists and later
-  list-item children. They also backslash-escape any text that would read as
-  syntax, including ordinary `*`, `_` and `[` in prose.
-- **Jira Markdown input.** `jira create`, `update` and `comment` now accept
-  blockquotes, pipe tables, rules and nested lists that used to exit `41`.
-  They also read `~~x~~` as strike, honour backslash escapes and keep an
-  ordered list's start number.
+The `CHANGELOG` carries each of these.
 
-Scripts that parse `work sync` exit codes, or that snapshot `jira show`
-output, need updating. The `CHANGELOG` carries all four entries.
+- **`work sync` exit codes.**
+  - A local file read or write failure exits `71`, where it exited `0`.
+  - A pull whose remote body was not fetched exits `70` instead of writing an
+    empty body.
+  - A failed `show` after the remote stamp moved leaves the item
+    `indeterminate` (exit `4`).
+  - An item whose local frontmatter does not parse fails (exit `71`) and
+    sends or writes nothing.
+- **New `75` details.** `unrenderable` covers a pull over a Jira description
+  with no Markdown form. `pull-residue` covers a send from a file an earlier
+  pull left raw ADF in.
+- **New report rows.**
+  - `record-baseline` for a metadata-only local change.
+  - `noop\tindeterminate\tunsupported-recipe` for a baseline entry a newer
+    release wrote.
+  - `failed\tsynced\tretryable` for a local file that changed mid-run.
+- **Pending-push records move to schema 3**, which earlier releases refuse.
+- **Jira Markdown in both directions.**
+  - `jira show` and `--render-adf` render strike, blockquotes, pipe tables,
+    rules and nested lists, and escape text that reads as syntax.
+  - `jira create`, `update` and `comment` accept those constructs, which used
+    to exit `41`.
+
+## Migration
+
+The first applied sync rewrites every entry it classifies in `last-sync.json`
+under digest recipe `1`, as one large diff. It changes no work-item file and
+sends nothing to the tracker.
+
+- **Legacy keys kept.** Recipe-1 entries keep `local_hash` and `remote_hash`
+  with their legacy meaning until 0335, so an older binary still reads them.
+  An older binary that writes the file drops the recipe-1 keys, and the next
+  newer run re-migrates them.
+- **This repository.** 6 of 337 entries carry the marker today.
 
 ## Changes
 
-### Title split (Phase 1)
+### Title split and pulls (Phases 0, 1, 4)
 
-- `remote-projection` gains one splitter that takes the title line off a
-  projected body by position. The reconcile pull, `--resolve <id>=remote`,
-  targeted pull-create and the conflict dossier all use it, so none of them
-  writes the title line.
-- Local I/O failures are classified as terminal, and a failed `show` after a
-  stamp change is classified as indeterminate.
+- **Title strip.** `remote-projection` owns `split_projected`, which strips
+  the title line by position. Every pull entry point and every dossier uses
+  it.
+- **Body dialect.**
+  - `tracker` gains `BodyDialect`, a supertrait of `RemoteTracker`.
+  - `local_body` renders a description to Markdown, and `as_pushed` predicts
+    what a pushed body reads back as. `rejects` names bodies the tracker
+    would refuse to store.
+  - `PlainDialect` (Linear) is the identity; `JiraBodyDialect` goes through
+    ADF.
+- **Retitle.** `RemoteTracker::retitle` changes the title without resending
+  the description; contract property `retitle_keeps_the_description` pins
+  it.
+- **Send refusal.** `SendRefusal` stops residue, unfetched remotes and
+  pushes over an unrenderable remote. Preview reports the failure a planned
+  pull or send would meet.
+- **Fixtures.** Phase 0 captured Linear read-backs (`linear-rewrites/`) and
+  five recovery fixtures (`work-item-sync-recovery/`) for 0275, 0276, 0293,
+  0294 and 0302.
 
 ### `adf` crate (Phases 2–3)
 
-- `cli/jira-client/src/adf/` moves to a new `cli/adf` technical library. It
-  is a pure codec over `serde_json`, held there by a `pup.ron` rule that
-  forbids spawning processes and filesystem access, and it has its own
-  public-API pin.
-- The converter extends past the frozen bash oracle in both directions:
-  blockquote, pipe table, rule, nested lists, multi-paragraph list items and
-  `~~strike~~`. Text the tokeniser would read as syntax is escaped on the way
-  out, so every strict render reads back as itself.
-- `adf_differential.rs` keeps the bash-oracle comparison, with an exact list
-  `DELIBERATE_DIVERGENCES` naming each case the extension changes and why.
-- A strict render, `document_to_markdown_strict`, refuses any node with no
-  Markdown form instead of emitting an `[unsupported ADF node: …]`
-  placeholder. A mark with no Markdown form, such as `underline`, is still
-  dropped silently.
+- **Own crate.** `cli/adf` is a pure codec with its own public-API pin and
+  `pup` rule. `work-adapters` may not import it by name.
+- **Extended converter.** Both directions handle blockquotes, pipe tables,
+  rules, nested lists, multi-paragraph list items and strike. Text that would
+  read as syntax is escaped on output.
+- **Strict render.** `document_to_markdown_strict` refuses any node with no
+  Markdown form. It also refuses three bodies the dialect cannot read back:
+  - a hard break in a table cell;
+  - code text holding a backtick;
+  - a code block holding a fence line.
 
-### Tracker port and Jira pulls (Phase 4)
+### Body model and equivalence (Phases 5–6)
 
-- `tracker` gains `BodyDialect`, a supertrait of `RemoteTracker`. It turns a
-  description into the local Markdown body and returns a pushed body as the
-  tracker would hold it after reading it back. `PlainDialect` (Linear) passes
-  bodies through unchanged; `JiraBodyDialect` goes through the ADF
-  conversion.
-- `RemoteTracker::retitle` changes the title without resending the
-  description. This avoids the round-trip loss a full update would cause
-  (Linear `issueUpdate { title }`, Jira `PUT fields.summary`). It is pinned
-  by a new `retitle_keeps_the_description` contract property.
-- In `work-adapters`, `BodyComparison` is the single place that applies body
-  rules for sync and promotion. A new `pup` rule forbids `work-adapters` from
-  importing `adf` by name.
-- `SendRefusal` checks each planned send before it reaches the tracker, and
-  refuses residue, an unrenderable remote under a push, or an unfetched
-  remote. Preview reports the refusal the run would meet.
-- A conflict over an unrenderable remote writes a dossier carrying
-  `reason: remote-unrenderable` and no sections. The `sync-work-items` skill
-  then offers a reduced `[local/skip]` prompt and gains a table of failure
-  details.
+- **Parser.** `document::markdown` wraps `pulldown-cmark`, exact-pinned at
+  `=0.13.4` with default features off, and does not expose it publicly.
+- **Model.** `corpus::body` holds a minimal body model with sections and
+  `CanonicalBody`. `corpus-adapters` implements the `BodyParser` port between
+  the two.
+- **Equivalence.** Bodies are equivalent when their canonical forms are
+  equal, so the hash and the predicate cannot disagree. The canonical form
+  ignores the eleven cosmetic rewrites Linear makes; fenced code, ordered
+  start numbers and table alignment still count.
+
+### Digest recipe 1 and classification (Phases 7–8)
+
+- **Entry shape.** A baseline entry is legacy, split (`digest_recipe: 1`) or
+  unsupported. Split entries hold separate frontmatter, body and field hashes
+  per side.
+- **Classification.** `classify` decides changes by equivalence:
+  - noise is never a change;
+  - equivalent bodies record a baseline without a file write;
+  - a title change is sent alone, never with a stale description;
+  - items with no usable baseline are recovered by equivalence.
+- **Golden digests.** `golden_digests.rs` pins 40 body pairs and fails when
+  `Cargo.lock`'s parser version changes without a recipe bump.
+- **Promotion.** `BodyComparison` is the one place `work-adapters` applies
+  body rules; promotion reuses it.
+
+### Dossiers and promotion (Phases 9–10)
+
+- **Dossiers and `work diff`.** Both list only sections whose meaning
+  differs, each with its heading on both sides. A dossier header reads
+  `title: <local> → <remote>` when the titles differ.
+- **Promotion.** Promotion treats a remote as untouched when the titles match
+  exactly and the bodies are equivalent.
+
+### Fixes from plan validation
+
+- **Strict ADF render.** Refuses the three bodies above, which otherwise
+  wrote corrupt Markdown on pull.
+- **Unparseable local file.** An item whose local frontmatter does not parse
+  fails. Before, `--resolve <id>=local` sent `Update { title: "", body: "" }`
+  and `=remote` wrote empty frontmatter.
+- **Rejected Jira body.** A local body Jira's converter rejects is never
+  equivalent.
+- **Preview.** Fails a planned pull the run would fail.
+- **Tests.** Adds the tests Phase 8 left unwritten, and brings 0296 in line
+  with the plan's amendments.
 
 ### Outside the plan
 
-- **Visualiser watcher.** Each rescan now compares the index before and
-  after itself and broadcasts every change it applied. Before this, a rescan
-  for another file, or an aborted burst task, could absorb a change so that
-  no SSE event was sent.
-- **`implement-plan` instructions.** This repository's `implement-plan`
-  instructions now ask for small, frequent commits.
-- **New work items.** 0337 (a rich document model for corpus documents) and
-  0335 (remove the legacy digest recipe) capture follow-up work.
+- **Visualiser watcher.** Each rescan broadcasts every change it applied,
+  where a rescan could absorb a change without sending an SSE event.
+- **Real-repository suites.** The `bash-parity` feature that gated the git
+  and jj suites is gone, so those suites always run.
+- **`rustls` bump.** Pinned at 0.23.46 to clear RUSTSEC-2026-0346 to 0349.
+- **Corpus.** A push-only sync linked 33 work items to Linear (`external_id`
+  added).
+- **Follow-up work items.** 0320, 0321, 0335, 0336, 0337 and 0338.
 
 ## Context
 
 - Work item: `meta/work/0296-sync-round-trip-defects-between-local-work-items-and-the-tracker.md`
-- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md` (Phases 1–4
-  complete; the Phase 0 fixture capture is deferred because only Phase 5
-  onwards reads the fixtures)
+- Plan: `meta/plans/2026-10-10-0296-sync-round-trip-defects.md` (status
+  `done`)
+- Validation: `meta/validations/2026-10-10-0296-sync-round-trip-defects-validation.md`
+  (`pass`)
 - Research: `meta/research/codebase/2026-10-10-0296-sync-round-trip-defects.md`
-- Plan review: `meta/reviews/plans/2026-10-10-0296-sync-round-trip-defects-review-1.md`
 - Review PR: #156
 
 ## Testing
 
-Run while writing this description, on the branch tip:
+Run on 2026-10-15 at the branch tip:
 
-- [x] `mise run check` (the CI read-only set) exits 0
-- [x] `mise run cli:check` and `cargo test -p adf --test adf_oracle_manifest`
-      pass
+- [x] `test:unit:cli`: 5,675 passed, 2 skipped
+- [x] `test:unit:frontend`: 2,615 passed
+- [x] Every lint, type-check and `public-api:check` task in `mise run`
+- [x] `mise run test:e2e:visualiser` on its own: 355 passed
+- [ ] `mise run` exits 0. It did on the first run after the validation fixes.
+      The last two runs failed only `kanban-drag-overlay.spec.ts`'s
+      Escape-cancel test under full-suite load (see Notes).
 
-Recorded in the plan as passing at each phase's commit, but not re-run for
-this description:
+Recorded in the plan as passing, not re-run for this description:
 
-- [x] `mise run` (the full default task) exits 0 after each of Phases 1–4
-- [x] `mise run test:integration:pup`, which `mise run` does not include,
-      passes with the new `adf` and `work-adapters` probe pairs
-- [x] `mise run public-api:check` after reviewing the snapshot diffs for
-      `adf`, `remote-projection`, `tracker` and `work`
-- [x] Jira contract run against sandbox project `KAN` (4 tests, including
-      `retitle_keeps_the_description`) and Linear contract run against
-      sandbox team `TES` (5 tests)
-- [x] `accelerator jira create` with a table, blockquote and nested list
-      renders correctly in the Jira UI, and `jira show --render-adf` reads it
-      back to the same Markdown
-- [x] `work sync --target KAN-18` writes readable Markdown with no title
-      line, and a second `--preview` reports the item `synced`
-- [x] `work sync --preview` on this repository: Linear dossiers no longer show
-      the title line
-
-Not done:
-
-- [ ] Phase 0 fixture capture (needs credentials for the Linear workspace;
-      Phases 1–4 don't read the fixtures)
+- [x] `test:integration:pup`, `test:integration:deny` and
+      `test:integration:conformance`
+- [x] Jira contract run against sandbox `KAN` and Linear against sandbox
+      `TES`. Both include `retitle_keeps_the_description` and
+      `update_without_a_title_keeps_the_title`.
+- [x] `work sync --target KAN-18` writes readable Markdown, and a second
+      preview reports `synced`
+- [x] A promotion against Linear completes without a spurious retitle
+- [x] Phase 7 migration on a scratch copy:
+  - preview leaves `last-sync.json` byte-identical;
+  - the applied run gives 276 of 300 entries recipe 1;
+  - no work-item file changes.
 
 ## Merge-time corpus preview
 
 `accelerator work sync --preview` on 2026-10-15 with the branch's
-`accelerator-work`, `last-sync.json` byte-identical afterwards: 332 items
-`synced`, one pull and three conflicts. The 2026-10-10 preview of the same
-corpus planned 7 pulls and 25 conflicts.
+`accelerator-work` left `last-sync.json` byte-identical. It reported 332
+items `synced`, one pull and three conflicts; the 2026-10-10 preview of the
+same corpus planned 7 pulls and 25 conflicts. It predates the validation
+fixes, which change no classification.
 
-- **0184's pull is real, and harmful.** Linear's copy (`PP-714`, updated
-  2026-09-22) has lost the first characters of every code-span table cell
-  (`` `config templates list` `` reads `onfig templates list\``), a
-  meaning-changing rewrite 0320 owns. Applying the pull would write that
-  damage into the local file.
-- **Each conflict's dossier names a real difference.** 0227 lists only
-  Dependencies, where the local side drops two entries. 0296 and 0299 have
-  no baseline entry, and every section differs because both were rewritten
-  locally after their last push; 0296 also shows its title change.
-- **No legacy entry migrates in a preview.** None of the 332 entries carries
-  `digest_recipe` yet; the first applied run rewrites them.
+- **0184's pull was real, and harmful.** Linear's copy (`PP-714`) had lost
+  the first characters of every code-span table cell, a rewrite 0320 owns, so
+  applying the pull would have written that damage locally. A later commit
+  pushed 0184's local body instead; whether Linear stored it intact was not
+  re-checked.
+- **Each conflict names a real difference.**
+  - 0227: the local side drops two Dependencies entries.
+  - 0296 and 0299: both were rewritten locally after their last push.
+  - A later commit pushed all three, with 0184, and recorded their
+    baselines.
 
 | Item | 2026-10-10 | 2026-10-15 | Since 2026-10-10 |
 |---|---|---|---|
@@ -213,32 +260,35 @@ corpus planned 7 pulls and 25 conflicts.
 | 0299 | conflict | still differs | edited |
 
 0161, 0203, 0276 and 0293 report `synced` rather than staying conflicted
-pending 0320: a sync before this branch recorded entries for them, so their
+pending 0320. A sync before this branch recorded entries for them, so their
 meaning-changing rewrites now sit inside the baseline.
 
 ## Notes for Reviewers
 
-- **Diff size.** 458 files change, but 287 of them are ADF fixture renames
-  from `jira-client` to `adf`, and 75 are added fixtures. The code that
-  matters is in `cli/adf/src`, `cli/tracker/src/lib.rs`,
-  `cli/jira-client/src/body_dialect.rs`,
-  `cli/work-adapters/src/sync/{body_comparison,send_refusal,run}.rs` and
-  `cli/work/src/sync/{decide,plan,pull_residue}.rs`.
-- **Reconcile pulls fail until 0300.** Production wires `SyncPorts.writer` to
-  the `FileCorpusStore` rooted at the baseline, which refuses every work-item
-  write from a reconcile pull as an unsafe path. That refusal now exits `71`
-  where it exited `0`, and
-  `a_pulled_item_syncs_again_as_synced_with_no_update` is deferred until 0300
-  lands.
-- **Escaping is narrower than CommonMark.** The escape set covers what this
-  tokeniser reads, plus `_` and `~`. Other CommonMark constructs (`<`, `&`, a
-  setext underline after a hard break, block markers indented by 1–3 spaces,
-  a heading ending in ` #`) stay bare. Phase 6's equivalence check is meant to
-  absorb those differences.
-- **Overwrite naming.** `Action::Overwrite` (a conflict resolved in the local
-  side's favour) is a domain action of its own, but the `work sync` report
-  still shows it as `push`.
-- **Flaky e2e test.** `kanban-drag-overlay.spec.ts` failed several local
-  `mise run` attempts and then passed on re-run. Its cause is unidentified.
+- **Diff size.**
+  - 629 files change: 292 are renames (mostly ADF fixtures moving from
+    `jira-client` to `adf`) and 151 are additions, many of them fixtures.
+  - The code that matters is in:
+    - `cli/adf/src`
+    - `cli/tracker/src/lib.rs`
+    - `cli/corpus/src/body`
+    - `cli/document/src/markdown.rs`
+    - `cli/work/src/sync/classify.rs`
+    - `cli/work-adapters/src/sync/{body_comparison,baseline,run,send_refusal}.rs`
+- **Reconcile pulls fail until 0300.** Production roots the work-item writer
+  at the baseline directory, so every reconcile pull is refused as an unsafe
+  path, and that refusal now exits `71`. The end-to-end pull-then-sync test
+  waits on 0300. A `work-adapters` test covers the criterion for both
+  trackers meanwhile.
+- **Known gaps kept on purpose.**
+  - A remote-only retitle is absorbed into the baseline without being
+    reported, until 0290.
+  - One item whose digest fails still aborts the run, as on `main`.
+- **Flaky e2e test.** The Escape-cancel test in `kanban-drag-overlay.spec.ts`
+  fails `mise run` under load and passes alone. The failure is in
+  `writeUntilVisible`'s SSE wait, the cause is unidentified, and no change on
+  this branch since validation touches the visualiser.
+- **Branch base.** The branch sits one release bump and PR #163 behind
+  `main`.
 
-https://claude.ai/code/session_01VRwQKbqR5bGxwMidwSk3SR
+https://claude.ai/code/session_01MacKcLTsf6DzPrTVxm4PV2
