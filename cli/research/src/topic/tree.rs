@@ -111,6 +111,84 @@ impl Trim {
     }
 }
 
+/// How many nodes of a pair's tree, level by level, are still unresearched.
+///
+/// An upper bound, not a forecast: every node not yet written is assumed to
+/// declare its level's full follow-up cap.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorstCaseTree {
+    nodes: BTreeMap<u32, u64>,
+}
+
+impl WorstCaseTree {
+    #[must_use]
+    pub fn root() -> Self {
+        Self::from_levels(&[(1, 1)])
+    }
+
+    #[must_use]
+    pub fn from_levels(levels: &[(u32, u64)]) -> Self {
+        Self {
+            nodes: levels
+                .iter()
+                .copied()
+                .filter(|&(_, nodes)| nodes > 0)
+                .collect(),
+        }
+    }
+
+    fn below_frontier(
+        frontier: u32,
+        missing: u64,
+        declared: u64,
+        depth: Depth,
+    ) -> Self {
+        let mut nodes = BTreeMap::new();
+        let mut at_level = missing;
+        let mut arriving_from_notes = declared;
+        for level in frontier..=depth.levels() {
+            nodes.insert(level, at_level);
+            at_level = arriving_from_notes.saturating_add(
+                at_level.saturating_mul(u64::from(follow_up_cap(level))),
+            );
+            arriving_from_notes = 0;
+        }
+        Self { nodes }
+    }
+
+    #[must_use]
+    pub fn nodes_at(&self, level: u32) -> u64 {
+        self.nodes.get(&level).copied().unwrap_or(0)
+    }
+
+    pub fn populated_levels(&self) -> impl Iterator<Item = (u32, u64)> + '_ {
+        self.nodes.iter().map(|(&level, &nodes)| (level, nodes))
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    #[must_use]
+    pub fn joined(mut self, other: &Self) -> Self {
+        for (level, nodes) in other.populated_levels() {
+            let total = self.nodes.entry(level).or_insert(0);
+            *total = total.saturating_add(nodes);
+        }
+        self
+    }
+}
+
+/// What deriving a pair's tree found: its stage, the notes trimmed on the
+/// way, and the nodes still to research beneath its frontier.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Derivation {
+    pub stage: Stage,
+    pub trims: Vec<Trim>,
+    pub worst_case: WorstCaseTree,
+}
+
 /// The stage of the pair named `stem`, whose tree is rooted at
 /// `pair_question` and derived level by level down to `depth` from the notes
 /// in `directory`, with the notes trimmed on the way.
@@ -125,9 +203,13 @@ pub fn derive(
     directory: Option<&LevelsDirectory>,
     depth: Depth,
     unicode: &dyn UnicodeText,
-) -> (Stage, Vec<Trim>) {
+) -> Derivation {
     if directory.is_none() && depth == Depth::default() {
-        return (Stage::SinglePass, Vec::new());
+        return Derivation {
+            stage: Stage::SinglePass,
+            trims: Vec::new(),
+            worst_case: WorstCaseTree::root(),
+        };
     }
     TreeWalk::new(stem, pair_question, directory, unicode).walk(depth)
 }
@@ -171,7 +253,7 @@ impl<'a> TreeWalk<'a> {
         }
     }
 
-    fn walk(mut self, depth: Depth) -> (Stage, Vec<Trim>) {
+    fn walk(mut self, depth: Depth) -> Derivation {
         let mut known = BTreeSet::from([self.normalised(self.pair_question)]);
         self.questions
             .insert(Lineage::root(), self.pair_question.to_owned());
@@ -186,14 +268,33 @@ impl<'a> TreeWalk<'a> {
             }
             let (notes, missing) = self.answer(&candidates);
             if !missing.is_empty() {
-                return (Stage::ResearchNodes(missing), self.trims);
+                let declared = if level < depth.levels() {
+                    self.declared_follow_ups(&notes, level, &known)
+                } else {
+                    0
+                };
+                let worst_case = WorstCaseTree::below_frontier(
+                    level,
+                    count(missing.len()),
+                    declared,
+                    depth,
+                );
+                return Derivation {
+                    stage: Stage::ResearchNodes(missing),
+                    trims: self.trims,
+                    worst_case,
+                };
             }
             reached.append(&mut candidates);
             if level < depth.levels() {
                 candidates = self.follow_ups(&notes, level, &mut known);
             }
         }
-        (Stage::Compose(reached), self.trims)
+        Derivation {
+            stage: Stage::Compose(reached),
+            trims: self.trims,
+            worst_case: WorstCaseTree::default(),
+        }
     }
 
     fn question_at(&self, lineage: &Lineage) -> &str {
@@ -250,12 +351,8 @@ impl<'a> TreeWalk<'a> {
                     cap,
                 });
             }
-            let capped = note.follow_ups.iter().take(cap as usize);
-            for (position, follow_up) in (1..).zip(capped) {
+            for (position, follow_up) in capped_follow_ups(note, level) {
                 self.recorded.push(follow_up.clone());
-                let Some(position) = NonZeroU32::new(position) else {
-                    continue;
-                };
                 if known.insert(self.normalised(follow_up)) {
                     let lineage = note.lineage.child(position);
                     self.questions.insert(lineage.clone(), follow_up.clone());
@@ -264,6 +361,23 @@ impl<'a> TreeWalk<'a> {
             }
         }
         candidates
+    }
+
+    /// The follow-ups a frontier's written notes would derive, counted
+    /// against a copy of `known` so the walk itself records nothing.
+    fn declared_follow_ups(
+        &self,
+        notes: &[&LevelNote],
+        level: u32,
+        known: &BTreeSet<NormalisedQuestion>,
+    ) -> u64 {
+        let mut unseen = known.clone();
+        let fresh = notes
+            .iter()
+            .flat_map(|note| capped_follow_ups(note, level))
+            .filter(|(_, follow_up)| unseen.insert(self.normalised(follow_up)))
+            .count();
+        count(fresh)
     }
 
     fn missing(
@@ -299,6 +413,20 @@ impl<'a> TreeWalk<'a> {
     }
 }
 
+fn count(items: usize) -> u64 {
+    u64::try_from(items).unwrap_or(u64::MAX)
+}
+
+fn capped_follow_ups(
+    note: &LevelNote,
+    level: u32,
+) -> impl Iterator<Item = (NonZeroU32, &String)> {
+    let positions = std::iter::successors(Some(NonZeroU32::MIN), |position| {
+        position.checked_add(1)
+    });
+    positions.zip(note.follow_ups.iter().take(follow_up_cap(level) as usize))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -306,9 +434,10 @@ mod tests {
     use super::derive;
     use super::follow_up_cap;
     use super::Depth;
+    use super::Derivation;
     use super::MissingNode;
     use super::Stage;
-    use super::Trim;
+    use super::WorstCaseTree;
     use crate::topic::evidence::Digest;
     use crate::topic::evidence::LevelNote;
     use crate::topic::evidence::LevelsDirectory;
@@ -359,13 +488,18 @@ mod tests {
     fn derived_from(
         directory: Option<&LevelsDirectory>,
         levels: u32,
-    ) -> (Stage, Vec<Trim>) {
-        stem().map_or((Stage::SinglePass, Vec::new()), |stem| {
-            derive(&stem, PAIR, directory, depth(levels), &FakeUnicode)
-        })
+    ) -> Derivation {
+        stem().map_or_else(
+            || Derivation {
+                stage: Stage::SinglePass,
+                trims: Vec::new(),
+                worst_case: WorstCaseTree::default(),
+            },
+            |stem| derive(&stem, PAIR, directory, depth(levels), &FakeUnicode),
+        )
     }
 
-    fn derived(notes: Vec<LevelNote>, levels: u32) -> (Stage, Vec<Trim>) {
+    fn derived(notes: Vec<LevelNote>, levels: u32) -> Derivation {
         derived_from(directory(notes, &[]).as_ref(), levels)
     }
 
@@ -376,8 +510,8 @@ mod tests {
         }
     }
 
-    fn missing(derivation: &(Stage, Vec<Trim>)) -> Vec<String> {
-        nodes(derivation.0.clone())
+    fn missing(derivation: &Derivation) -> Vec<String> {
+        nodes(derivation.stage.clone())
             .iter()
             .map(|node| node.lineage.to_string())
             .collect()
@@ -387,8 +521,8 @@ mod tests {
         Stage::Compose(lineages.iter().map(|at| lineage(at)).collect())
     }
 
-    fn known(derivation: &(Stage, Vec<Trim>), at: &str) -> Vec<String> {
-        nodes(derivation.0.clone())
+    fn known(derivation: &Derivation, at: &str) -> Vec<String> {
+        nodes(derivation.stage.clone())
             .into_iter()
             .find(|node| node.lineage == lineage(at))
             .map(|node| node.known_questions)
@@ -423,12 +557,14 @@ mod tests {
 
     #[test]
     fn a_pair_without_levels_at_depth_one_is_researched_in_a_single_pass() {
-        assert_eq!(derived_from(None, 1), (Stage::SinglePass, Vec::new()));
+        let derivation = derived_from(None, 1);
+        assert_eq!(derivation.stage, Stage::SinglePass);
+        assert!(derivation.trims.is_empty());
     }
 
     #[test]
     fn a_pair_with_no_notes_is_missing_its_root() {
-        let nodes = nodes(derived_from(None, 3).0);
+        let nodes = nodes(derived_from(None, 3).stage);
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].lineage, Lineage::root());
         assert_eq!(nodes[0].question, PAIR);
@@ -463,7 +599,7 @@ mod tests {
             ]
         );
         let trims: Vec<(String, u32, u32, u32)> = derivation
-            .1
+            .trims
             .iter()
             .map(|t| (t.at.to_string(), t.recorded, t.cap, t.trimmed()))
             .collect();
@@ -515,7 +651,7 @@ mod tests {
             ],
             3,
         );
-        assert_eq!(derivation.0, compose(&["1", "2-1", "2-2"]));
+        assert_eq!(derivation.stage, compose(&["1", "2-1", "2-2"]));
     }
 
     #[test]
@@ -541,7 +677,7 @@ mod tests {
     #[test]
     fn an_empty_follow_ups_prunes_its_node() {
         let derivation = derived(vec![note("1", PAIR, &[])], 3);
-        assert_eq!(derivation.0, compose(&["1"]));
+        assert_eq!(derivation.stage, compose(&["1"]));
     }
 
     #[test]
@@ -550,8 +686,8 @@ mod tests {
             vec![note("1", PAIR, &["B"]), note("2-1", "B", &["X", "Y", "Z"])],
             2,
         );
-        assert_eq!(derivation.0, compose(&["1", "2-1"]));
-        assert!(derivation.1.is_empty());
+        assert_eq!(derivation.stage, compose(&["1", "2-1"]));
+        assert!(derivation.trims.is_empty());
     }
 
     #[test]
@@ -564,7 +700,7 @@ mod tests {
             ],
             1,
         );
-        assert_eq!(derivation.0, compose(&["1"]));
+        assert_eq!(derivation.stage, compose(&["1"]));
     }
 
     #[test]
@@ -611,7 +747,7 @@ mod tests {
             vec![note("1", PAIR, &["B"])],
             &[("2-1", rejection.clone())],
         );
-        let nodes = nodes(derived_from(directory.as_ref(), 2).0);
+        let nodes = nodes(derived_from(directory.as_ref(), 2).stage);
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].lineage, lineage("2-1"));
         assert_eq!(nodes[0].rejected, Some(rejection));
@@ -620,7 +756,8 @@ mod tests {
     #[test]
     fn a_note_answering_a_different_question_is_missing() {
         let nodes = nodes(
-            derived(vec![note("1", PAIR, &["B"]), note("2-1", "X", &[])], 2).0,
+            derived(vec![note("1", PAIR, &["B"]), note("2-1", "X", &[])], 2)
+                .stage,
         );
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].lineage, lineage("2-1"));
@@ -643,6 +780,104 @@ mod tests {
             ],
             2,
         );
-        assert_eq!(derivation.0, compose(&["1", "2-2"]));
+        assert_eq!(derivation.stage, compose(&["1", "2-2"]));
+    }
+
+    fn worst_case(derivation: &Derivation) -> Vec<(u32, u64)> {
+        derivation.worst_case.populated_levels().collect()
+    }
+
+    #[test]
+    fn a_single_pass_pair_is_one_unresearched_root() {
+        assert_eq!(worst_case(&derived_from(None, 1)), [(1, 1)]);
+    }
+
+    #[test]
+    fn a_pair_with_no_notes_counts_every_capped_descendant() {
+        assert_eq!(
+            worst_case(&derived_from(None, 3)),
+            [(1, 1), (2, 4), (3, 8)]
+        );
+    }
+
+    #[test]
+    fn a_depth_beyond_three_continues_at_one_follow_up_per_node() {
+        assert_eq!(
+            worst_case(&derived_from(None, 5)),
+            [(1, 1), (2, 4), (3, 8), (4, 8), (5, 8)]
+        );
+    }
+
+    #[test]
+    fn written_notes_contribute_their_declared_follow_ups() {
+        let derivation = derived(
+            vec![
+                note("1", PAIR, &["B", "C", "D", "E"]),
+                note("2-1", "B", &["X"]),
+                note("2-2", "C", &["Y", "Z"]),
+            ],
+            3,
+        );
+        assert_eq!(worst_case(&derivation), [(2, 2), (3, 7)]);
+    }
+
+    #[test]
+    fn declared_follow_ups_are_capped_and_deduplicated_as_derivation_would() {
+        let derivation = derived(
+            vec![
+                note("1", PAIR, &["B", "C", "D", "E"]),
+                note("2-1", "B", &["X", "X", "Y"]),
+                note("2-2", "C", &["B"]),
+            ],
+            3,
+        );
+        assert_eq!(worst_case(&derivation), [(2, 2), (3, 5)]);
+    }
+
+    #[test]
+    fn a_frontier_at_the_depth_limit_counts_only_itself() {
+        let derivation = derived(
+            vec![note("1", PAIR, &["B", "C"]), note("2-1", "B", &[])],
+            2,
+        );
+        assert_eq!(worst_case(&derivation), [(2, 1)]);
+    }
+
+    #[test]
+    fn a_composable_pair_has_no_unresearched_nodes() {
+        let derivation =
+            derived(vec![note("1", PAIR, &["B"]), note("2-1", "B", &[])], 2);
+        assert_eq!(derivation.stage, compose(&["1", "2-1"]));
+        assert_eq!(derivation.worst_case, WorstCaseTree::default());
+    }
+
+    #[test]
+    fn counting_the_frontier_records_no_trims_derivation_would_not() {
+        let derivation = derived(
+            vec![
+                note("1", PAIR, &["B", "C"]),
+                note("2-1", "B", &["X", "Y", "Z"]),
+            ],
+            3,
+        );
+        assert!(derivation.trims.is_empty());
+        assert_eq!(worst_case(&derivation), [(2, 1), (3, 4)]);
+    }
+
+    #[test]
+    fn worst_case_trees_join_level_by_level() {
+        let joined = WorstCaseTree::from_levels(&[(1, 1), (2, 4)])
+            .joined(&WorstCaseTree::from_levels(&[(2, 2), (3, 7)]));
+        assert_eq!(
+            joined,
+            WorstCaseTree::from_levels(&[(1, 1), (2, 6), (3, 7)])
+        );
+        assert_eq!(joined.nodes_at(4), 0);
+    }
+
+    #[test]
+    fn joining_saturates_rather_than_overflowing() {
+        let huge = WorstCaseTree::from_levels(&[(1, u64::MAX)]);
+        assert_eq!(huge.clone().joined(&huge).nodes_at(1), u64::MAX);
     }
 }

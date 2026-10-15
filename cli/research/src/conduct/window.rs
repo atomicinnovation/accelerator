@@ -196,6 +196,7 @@ mod tests {
     use crate::topic::plan::RoundPlan;
     use crate::topic::tree::MissingNode;
     use crate::topic::tree::Stage;
+    use crate::topic::tree::WorstCaseTree;
 
     const SEEN: Digest = Digest::new([1; 32]);
     const CHANGED: Digest = Digest::new([2; 32]);
@@ -224,6 +225,7 @@ mod tests {
             },
             stem: stem(stem_text),
             stage,
+            worst_case: WorstCaseTree::default(),
         }
     }
 

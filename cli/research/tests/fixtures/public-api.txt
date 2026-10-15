@@ -1681,6 +1681,7 @@ pub struct research::topic::plan::OutstandingPair
 pub research::topic::plan::OutstandingPair::pair: research::topic::outline::Pair
 pub research::topic::plan::OutstandingPair::stage: research::topic::tree::Stage
 pub research::topic::plan::OutstandingPair::stem: research::topic::layout::stem::Stem
+pub research::topic::plan::OutstandingPair::worst_case: research::topic::tree::WorstCaseTree
 impl core::clone::Clone for research::topic::plan::OutstandingPair
 pub fn research::topic::plan::OutstandingPair::clone(&self) -> research::topic::plan::OutstandingPair
 impl core::cmp::Eq for research::topic::plan::OutstandingPair
@@ -1815,6 +1816,18 @@ impl core::fmt::Debug for research::topic::tree::Depth
 pub fn research::topic::tree::Depth::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for research::topic::tree::Depth
 impl core::marker::StructuralPartialEq for research::topic::tree::Depth
+pub struct research::topic::tree::Derivation
+pub research::topic::tree::Derivation::stage: research::topic::tree::Stage
+pub research::topic::tree::Derivation::trims: alloc::vec::Vec<research::topic::tree::Trim>
+pub research::topic::tree::Derivation::worst_case: research::topic::tree::WorstCaseTree
+impl core::clone::Clone for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::clone(&self) -> research::topic::tree::Derivation
+impl core::cmp::Eq for research::topic::tree::Derivation
+impl core::cmp::PartialEq for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::eq(&self, other: &research::topic::tree::Derivation) -> bool
+impl core::fmt::Debug for research::topic::tree::Derivation
+pub fn research::topic::tree::Derivation::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::Derivation
 pub struct research::topic::tree::MissingNode
 pub research::topic::tree::MissingNode::known_questions: alloc::vec::Vec<alloc::string::String>
 pub research::topic::tree::MissingNode::lineage: research::topic::layout::lineage::Lineage
@@ -1844,6 +1857,24 @@ pub fn research::topic::tree::Trim::eq(&self, other: &research::topic::tree::Tri
 impl core::fmt::Debug for research::topic::tree::Trim
 pub fn research::topic::tree::Trim::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for research::topic::tree::Trim
+pub struct research::topic::tree::WorstCaseTree
+impl research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::from_levels(levels: &[(u32, u64)]) -> Self
+pub fn research::topic::tree::WorstCaseTree::is_empty(&self) -> bool
+pub fn research::topic::tree::WorstCaseTree::joined(self, other: &Self) -> Self
+pub fn research::topic::tree::WorstCaseTree::nodes_at(&self, level: u32) -> u64
+pub fn research::topic::tree::WorstCaseTree::populated_levels(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u32, u64)> + '_
+pub fn research::topic::tree::WorstCaseTree::root() -> Self
+impl core::clone::Clone for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::clone(&self) -> research::topic::tree::WorstCaseTree
+impl core::cmp::Eq for research::topic::tree::WorstCaseTree
+impl core::cmp::PartialEq for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::eq(&self, other: &research::topic::tree::WorstCaseTree) -> bool
+impl core::default::Default for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::default() -> research::topic::tree::WorstCaseTree
+impl core::fmt::Debug for research::topic::tree::WorstCaseTree
+pub fn research::topic::tree::WorstCaseTree::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for research::topic::tree::WorstCaseTree
 pub const research::topic::tree::STARTING_FOLLOW_UP_CAP: u32
-pub fn research::topic::tree::derive(stem: &research::topic::layout::stem::Stem, pair_question: &str, directory: core::option::Option<&research::topic::evidence::LevelsDirectory>, depth: research::topic::tree::Depth, unicode: &dyn research::topic::question::UnicodeText) -> (research::topic::tree::Stage, alloc::vec::Vec<research::topic::tree::Trim>)
+pub fn research::topic::tree::derive(stem: &research::topic::layout::stem::Stem, pair_question: &str, directory: core::option::Option<&research::topic::evidence::LevelsDirectory>, depth: research::topic::tree::Depth, unicode: &dyn research::topic::question::UnicodeText) -> research::topic::tree::Derivation
 pub fn research::topic::tree::follow_up_cap(level: u32) -> u32

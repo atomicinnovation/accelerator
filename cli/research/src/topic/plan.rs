@@ -17,8 +17,10 @@ use crate::topic::question::NormalisedQuestion;
 use crate::topic::question::UnicodeText;
 use crate::topic::tree::derive;
 use crate::topic::tree::Depth;
+use crate::topic::tree::Derivation;
 use crate::topic::tree::Stage;
 use crate::topic::tree::Trim;
+use crate::topic::tree::WorstCaseTree;
 
 /// Everything a round plan is derived from, read from one set.
 #[derive(Debug, Clone, Default)]
@@ -64,6 +66,7 @@ pub struct OutstandingPair {
     pub pair: Pair,
     pub stem: Stem,
     pub stage: Stage,
+    pub worst_case: WorstCaseTree,
 }
 
 /// A retained finding researched to less than the requested depth, which
@@ -250,11 +253,17 @@ impl<'a> Planner<'a> {
                     let Some(stem) = item.stem_at(index, profile) else {
                         continue;
                     };
-                    let stage = self.stage_for(&stem, &item.question, plan);
+                    let Derivation {
+                        stage,
+                        trims,
+                        worst_case,
+                    } = self.derivation_for(&stem, &item.question);
+                    plan.trims.extend(trims);
                     plan.pairs.push(OutstandingPair {
                         pair: item.pair(profile),
                         stem,
                         stage,
+                        worst_case,
                     });
                 }
             }
@@ -262,21 +271,13 @@ impl<'a> Planner<'a> {
         eligible > 0 && outstanding.is_empty()
     }
 
-    fn stage_for(
-        &self,
-        stem: &Stem,
-        question: &str,
-        plan: &mut RoundPlan,
-    ) -> Stage {
+    fn derivation_for(&self, stem: &Stem, question: &str) -> Derivation {
         let directory = self
             .inputs
             .levels
             .iter()
             .find(|directory| directory.stem() == stem);
-        let (stage, trims) =
-            derive(stem, question, directory, self.inputs.depth, self.unicode);
-        plan.trims.extend(trims);
-        stage
+        derive(stem, question, directory, self.inputs.depth, self.unicode)
     }
 
     fn shallow(&self, finding: &Finding) -> Option<ShallowFinding> {
@@ -397,6 +398,7 @@ mod tests {
     use crate::topic::tree::Depth;
     use crate::topic::tree::Stage;
     use crate::topic::tree::Trim;
+    use crate::topic::tree::WorstCaseTree;
 
     const DIGEST: Digest = Digest::new([9; 32]);
 
@@ -761,6 +763,7 @@ mod tests {
                     pair: pair("A?", "web"),
                     stem,
                     stage: Stage::SinglePass,
+                    worst_case: WorstCaseTree::root(),
                 })
                 .into_iter()
                 .collect::<Vec<_>>()
