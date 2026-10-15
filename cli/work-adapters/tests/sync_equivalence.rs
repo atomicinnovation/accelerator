@@ -1207,3 +1207,49 @@ fn an_unbaselined_jira_item_with_a_rejected_local_body_is_an_unresolved_conflict
     assert!(repo.entry(1).is_none());
     assert!(!repo.wrote_an_item());
 }
+
+fn pulled_then_resynced(
+    tracker: Tracker,
+    recorded_body: &str,
+    recorded_description: &str,
+    remote_description: &str,
+) -> Repo {
+    let recorded_projection = projected(TITLE, recorded_description);
+    let repo = Repo::with_item(
+        tracker,
+        1,
+        &item(TITLE, READY, recorded_body),
+        issue(1, &projected(TITLE, remote_description), MOVED_STAMP),
+        &Recorded::split(
+            &item(TITLE, READY, recorded_body),
+            &recorded_projection,
+        ),
+    );
+    assert_eq!(
+        outcome_of(&repo.sync_once(), 1),
+        (SyncState::RemotelyModified, Action::Pull)
+    );
+    repo
+}
+
+#[test]
+fn a_pulled_item_syncs_again_as_synced_with_no_update() {
+    for repo in [
+        pulled_then_resynced(
+            Tracker::Linear,
+            "Earlier\n",
+            "Earlier",
+            "Rendered",
+        ),
+        pulled_then_resynced(
+            Tracker::Jira,
+            "Earlier\n",
+            JIRA_EARLIER,
+            JIRA_RENDERED,
+        ),
+    ] {
+        assert!(repo.read(1).ends_with("\n\nRendered\n"), "{}", repo.read(1));
+        settles_item_one(&repo);
+        assert_eq!(repo.mutations(), []);
+    }
+}
