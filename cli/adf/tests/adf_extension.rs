@@ -361,3 +361,17 @@ fn a_hard_break_in_a_table_cell_has_no_markdown_form() {
         document_to_markdown(&document).expect("the document renders");
     assert_eq!(lenient.lines().count(), 2, "{lenient}");
 }
+
+#[test]
+fn code_text_holding_a_backtick_has_no_markdown_form() {
+    let document = paragraph(&json!([
+        {"type": "text", "text": "a`b", "marks": [{"type": "code"}]}
+    ]));
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable {
+            node: "code".to_owned()
+        })
+    );
+}

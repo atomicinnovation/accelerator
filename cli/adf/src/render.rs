@@ -315,6 +315,9 @@ impl Renderer {
                     let marks = Marks::of(node);
                     let text =
                         node.get("text").and_then(Value::as_str).unwrap_or("");
+                    if marks.code && text.contains('`') {
+                        self.admit_unrepresentable("code")?;
+                    }
                     match run.as_mut() {
                         Some((open, joined)) if *open == marks => {
                             joined.push_str(text);
