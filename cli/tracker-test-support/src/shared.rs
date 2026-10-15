@@ -32,6 +32,10 @@ impl BodyDialect for SharedTracker {
         self.0.as_pushed(body)
     }
 
+    fn rejects(&self, body: &str) -> bool {
+        self.0.rejects(body)
+    }
+
     fn is_wire_document(&self, body: &str) -> bool {
         self.0.is_wire_document(body)
     }

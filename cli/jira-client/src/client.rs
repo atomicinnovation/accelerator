@@ -672,6 +672,10 @@ impl BodyDialect for JiraClient {
         JiraBodyDialect.as_pushed(body)
     }
 
+    fn rejects(&self, body: &str) -> bool {
+        JiraBodyDialect.rejects(body)
+    }
+
     fn is_wire_document(&self, body: &str) -> bool {
         JiraBodyDialect.is_wire_document(body)
     }

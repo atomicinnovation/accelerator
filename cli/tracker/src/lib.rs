@@ -624,6 +624,12 @@ pub trait BodyDialect {
         Cow::Borrowed(body)
     }
 
+    /// Whether the tracker would refuse to store `body`, which then means
+    /// nothing any description does.
+    fn rejects(&self, _body: &str) -> bool {
+        false
+    }
+
     /// Whether `body` is the tracker's own stored document rather than local
     /// Markdown.
     ///

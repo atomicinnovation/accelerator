@@ -35,10 +35,16 @@ fn the_default_as_pushed_body_is_the_body_verbatim() {
 }
 
 #[test]
+fn the_default_dialect_rejects_no_body() {
+    assert!(!DefaultsOnly.rejects("a control byte \u{1f}\n"));
+}
+
+#[test]
 fn the_plain_dialect_is_the_identity() {
     let body = "{\"type\":\"doc\",\"version\":1,\"content\":[]}";
 
     assert_eq!(PlainDialect.local_body(body), Ok(body.to_owned()));
     assert_eq!(PlainDialect.as_pushed(body), body);
     assert!(!PlainDialect.is_wire_document(body));
+    assert!(!PlainDialect.rejects(body));
 }

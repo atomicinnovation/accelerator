@@ -553,6 +553,10 @@ impl BodyDialect for RecordingTracker {
         self.dialect.as_pushed(body)
     }
 
+    fn rejects(&self, body: &str) -> bool {
+        self.dialect.rejects(body)
+    }
+
     fn is_wire_document(&self, body: &str) -> bool {
         self.dialect.is_wire_document(body)
     }
@@ -1066,6 +1070,10 @@ mod tests {
         fn is_wire_document(&self, body: &str) -> bool {
             body == "wire"
         }
+
+        fn rejects(&self, body: &str) -> bool {
+            body == "rejected"
+        }
     }
 
     #[test]
@@ -1083,6 +1091,8 @@ mod tests {
         assert_eq!(tracker.as_pushed("body"), "pushed:body");
         assert!(tracker.is_wire_document("wire"));
         assert!(!tracker.is_wire_document("body"));
+        assert!(tracker.rejects("rejected"));
+        assert!(!tracker.rejects("body"));
     }
 
     #[test]

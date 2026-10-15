@@ -5,6 +5,7 @@ use corpus_adapters::CommonMarkBody;
 use jira_client::JiraBodyDialect;
 use sha2::Digest as _;
 use tracker::PlainDialect;
+use work::sync::BodyEquivalence;
 use work_adapters::sync::body_comparison::BodyComparison;
 
 const JIRA_PANEL_DESCRIPTION: &str = "{\"content\":[{\"attrs\":{\"panelType\":\
@@ -104,6 +105,30 @@ fn an_unrenderable_jira_remote_hashes_its_canonical_json() {
     assert_eq!(
         jira().remote_body_hash(&format!("Title\n{JIRA_PANEL_DESCRIPTION}")),
         sha256_hex(&format!("unrenderable:{JIRA_PANEL_DESCRIPTION}"))
+    );
+}
+
+#[test]
+fn jira_remote_paragraph_text_differences_are_not_equivalent() {
+    assert_eq!(
+        jira().equivalence("Local body\n", JIRA_PARAGRAPH),
+        BodyEquivalence::Different
+    );
+    assert_eq!(
+        jira().equivalence("Remote body\n", JIRA_PARAGRAPH),
+        BodyEquivalence::Equivalent
+    );
+}
+
+#[test]
+fn a_jira_body_the_converter_rejects_is_never_equivalent() {
+    let remote_holding_the_same_text = "Title\n{\"content\":[{\"content\":[{\
+        \"text\":\"Body \\u001e text\",\"type\":\"text\"}],\"type\":\
+        \"paragraph\"}],\"type\":\"doc\"}\n";
+
+    assert_eq!(
+        jira().equivalence("Body \u{1e} text\n", remote_holding_the_same_text),
+        BodyEquivalence::Different
     );
 }
 

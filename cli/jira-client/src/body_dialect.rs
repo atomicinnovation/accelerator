@@ -49,6 +49,10 @@ impl BodyDialect for JiraBodyDialect {
             })
     }
 
+    fn rejects(&self, body: &str) -> bool {
+        adf::markdown_to_document(body, None).is_err()
+    }
+
     fn is_wire_document(&self, body: &str) -> bool {
         serde_json::from_str::<Value>(body.trim()).is_ok_and(|document| {
             document.get("type").and_then(Value::as_str) == Some("doc")

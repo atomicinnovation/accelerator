@@ -175,6 +175,7 @@ impl tracker::BodyDialect for tracker::PlainDialect
 pub fn tracker::PlainDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
 pub fn tracker::PlainDialect::is_wire_document(&self, _body: &str) -> bool
 pub fn tracker::PlainDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::PlainDialect::rejects(&self, _body: &str) -> bool
 pub struct tracker::RemoteIssue
 pub tracker::RemoteIssue::body: alloc::string::String
 pub tracker::RemoteIssue::key: tracker::ExternalId
@@ -245,10 +246,12 @@ pub trait tracker::BodyDialect
 pub fn tracker::BodyDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
 pub fn tracker::BodyDialect::is_wire_document(&self, body: &str) -> bool
 pub fn tracker::BodyDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::BodyDialect::rejects(&self, _body: &str) -> bool
 impl tracker::BodyDialect for tracker::PlainDialect
 pub fn tracker::PlainDialect::as_pushed<'a>(&self, body: &'a str) -> alloc::borrow::Cow<'a, str>
 pub fn tracker::PlainDialect::is_wire_document(&self, _body: &str) -> bool
 pub fn tracker::PlainDialect::local_body(&self, description: &str) -> core::result::Result<alloc::string::String, tracker::Unrenderable>
+pub fn tracker::PlainDialect::rejects(&self, _body: &str) -> bool
 pub trait tracker::RemoteTracker: tracker::BodyDialect
 pub fn tracker::RemoteTracker::create(&self, title: &str, body: &str, kind: &str) -> core::result::Result<tracker::ExternalId, tracker::TrackerError>
 pub fn tracker::RemoteTracker::enumerate_visible_entities(&self) -> core::result::Result<alloc::vec::Vec<tracker::VisibleEntity>, tracker::TrackerError>

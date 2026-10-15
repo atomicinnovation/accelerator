@@ -88,6 +88,23 @@ fn a_jira_body_the_converter_rejects_is_as_pushed_verbatim() {
 }
 
 #[test]
+fn a_jira_body_the_converter_rejects_is_rejected() {
+    assert!(JiraBodyDialect
+        .rejects("a control byte \u{1f} the converter refuses\n"));
+    assert!(!JiraBodyDialect.rejects("# Heading\n\n| a |\n|---|\n| 1 |\n"));
+}
+
+#[test]
+fn the_client_answers_rejection_through_its_dialect() {
+    let server = MockHTTPServer::start();
+    let client =
+        client_with(&server.base_url(), brief(), &RecordingSleeper::new());
+
+    assert!(client.rejects("a control byte \u{1e}\n"));
+    assert!(!client.rejects("text\n"));
+}
+
+#[test]
 fn the_client_answers_wire_documents_through_its_dialect() {
     let server = MockHTTPServer::start();
     let client =

@@ -77,6 +77,9 @@ impl<'a> BodyComparison<'a> {
         local_body: &str,
         rendered_remote: &str,
     ) -> BodyEquivalence {
+        if self.dialect.rejects(local_body) {
+            return BodyEquivalence::Different;
+        }
         let local = self.parser.parse(&self.dialect.as_pushed(local_body));
         if equivalent(&local, &self.parser.parse(rendered_remote)) {
             BodyEquivalence::Equivalent
