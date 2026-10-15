@@ -538,7 +538,7 @@ Run `mise run public-api:update` and commit the regenerated
 
 #### Manual Verification
 
-- [ ] `accelerator research topic outstanding <slug> --profiles-dir …
+- [x] `accelerator research topic outstanding <slug> --profiles-dir …
       --depth 11` exits 1 with the new `E_TOPIC_RESEARCH_DEPTH` message.
 - [ ] `conduct <slug> --depth 12` warns that it is clamping to 10, and its
       first plan carries `--depth 10`. Stop the run after the first plan.
