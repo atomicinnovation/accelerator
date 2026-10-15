@@ -1796,8 +1796,10 @@ pub fn research::topic::tree::Stage::fmt(&self, f: &mut core::fmt::Formatter<'_>
 impl core::marker::StructuralPartialEq for research::topic::tree::Stage
 pub struct research::topic::tree::Depth(_)
 impl research::topic::tree::Depth
+pub const research::topic::tree::Depth::DEEPEST: u32
 pub const fn research::topic::tree::Depth::levels(self) -> u32
 pub const fn research::topic::tree::Depth::new(levels: u32) -> core::option::Option<Self>
+pub const fn research::topic::tree::Depth::requested(levels: u32) -> core::option::Option<Self>
 impl core::clone::Clone for research::topic::tree::Depth
 pub fn research::topic::tree::Depth::clone(&self) -> research::topic::tree::Depth
 impl core::cmp::Eq for research::topic::tree::Depth

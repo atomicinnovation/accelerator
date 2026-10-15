@@ -78,15 +78,20 @@ these rules in order:
 - **Empty value** — if the resolved value is empty (an unreadable config, or a
   knob explicitly set to an empty value), do not proceed or guess a default:
   tell the user the research configuration is missing or unreadable, and stop.
-- **Valid** — an integer of 1 or more passes unchanged.
+- **Valid** — an integer of 1 or more, and for depth at most 10, passes
+  unchanged.
 - **Out of range or malformed** — a zero, negative, or non-integer value (a
   non-integer clamps regardless of magnitude) clamps to 1, and the verb warns,
   substituting the knob name being validated:
 
   > Warning: research.topic.<knob> must be a positive integer, got '{value}' — clamping to 1
 
-  single-quoting the offending value. There is no upper bound; breadth is the
+  single-quoting the offending value. Breadth has no upper bound; it is the
   per-round cost guard.
+- **Above the depth ceiling** — a depth above 10, whether from the flag or
+  from config, clamps to 10, and the verb warns:
+
+  > Warning: research.topic.depth must be at most 10, got '{value}' — clamping to 10
 - **Misplaced flag** — a flag belonging to another verb (`--depth` or
   `--concurrency` on `outline`, `--breadth` on `conduct`) is ignored with a
   one-line note; it never clamps the verb's own knobs.

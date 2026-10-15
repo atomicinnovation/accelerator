@@ -472,8 +472,9 @@ consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
 
 `--depth N` researches each pair as a tree of level notes under
-`findings/<stem>.levels/`. It defaults to `1` and is never read from
-`research.topic.depth`, so a hand run must pass the depth `conduct` resolved.
+`findings/<stem>.levels/`, to `N` levels from 1 to 10. It defaults to `1`
+and is never read from `research.topic.depth`, so a hand run must pass the
+depth `conduct` resolved.
 Every plan also carries these fields, whether or not `--depth` is given:
 
 - `depth`, the depth planned for, `1` unless `--depth` says otherwise;
@@ -542,7 +543,7 @@ Each exit code below exits `1`:
 
 | Code | Cause | Recovery |
 |---|---|---|
-| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not a positive integer | pass a positive integer |
+| `E_TOPIC_RESEARCH_DEPTH` | `--depth` is not 1 to 10 | pass 1 to 10 |
 | `E_TOPIC_RESEARCH_CONCURRENCY` | `--concurrency` or `research.topic.concurrency` is empty | pass a positive integer, or, in the config file the error names, set the value to one or remove it |
 | `E_TOPIC_RESEARCH_RUN` | a malformed `--run`, or `--start` with `--run` | pass the id `--start` returned |
 | `E_TOPIC_RESEARCH_SPAWNED` | a malformed `--spawned`, or one without `--run` | pass the `batch` last printed |

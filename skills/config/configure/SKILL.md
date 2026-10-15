@@ -431,19 +431,20 @@ Tune how wide and deep `/accelerator:research-topic` goes. Config keys live unde
 the `research.topic` namespace; all three are positive integers. (These behavioural knobs
 are distinct from the `paths.research_*` output-directory keys under `### paths`.)
 
-| Key           | Default | Description                            |
-|---------------|---------|----------------------------------------|
-| `breadth`     | `8`     | Focus-area ceiling per `outline` round |
-| `depth`       | `1`     | Recursion limit within a finding       |
-| `concurrency` | `20`    | Most agents `conduct` spawns at once   |
+| Key           | Default | Description                             |
+|---------------|---------|-----------------------------------------|
+| `breadth`     | `8`     | Focus-area ceiling per `outline` round  |
+| `depth`       | `1`     | Recursion limit within a finding (1–10) |
+| `concurrency` | `20`    | Most agents `conduct` spawns at once    |
 
 Resolution order for each knob is **flag > personal (`config.local.md`) > team
 (`config.md`) > built-in default**: an `outline SLUG --breadth N`, `conduct
 SLUG --depth N` or `conduct SLUG --concurrency N` flag on the invocation
 overrides config, which overrides the built-in default. A resolved value that is
 not an integer of 1 or more is clamped to 1 with a warning naming the invalid
-value. An empty value is refused rather than clamped. Breadth and depth have no
-upper bound — breadth is the per-round cost guard.
+value. An empty value is refused rather than clamped. Depth above 10 is clamped
+to 10 with a warning. Breadth has no upper bound — it is the per-round cost
+guard.
 
 **Concurrency and the subagent cap.** A `concurrency` above the subagent cap is
 clamped to the cap: the cap is `ACCELERATOR_SUBAGENT_CAP`, else

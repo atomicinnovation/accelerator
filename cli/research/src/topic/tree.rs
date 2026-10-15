@@ -21,6 +21,19 @@ pub const STARTING_FOLLOW_UP_CAP: u32 = 4;
 pub struct Depth(u32);
 
 impl Depth {
+    pub const DEEPEST: u32 = 10;
+
+    /// A depth asked for by a user; a recorded depth is read with `new`,
+    /// since findings keep whatever depth they were stamped with.
+    #[must_use]
+    pub const fn requested(levels: u32) -> Option<Self> {
+        if levels > Self::DEEPEST {
+            None
+        } else {
+            Self::new(levels)
+        }
+    }
+
     #[must_use]
     pub const fn new(levels: u32) -> Option<Self> {
         if levels == 0 {
@@ -387,6 +400,25 @@ mod tests {
         assert_eq!(Depth::new(0), None);
         assert_eq!(Depth::new(3).map(Depth::levels), Some(3));
         assert_eq!(Depth::default().levels(), 1);
+    }
+
+    #[test]
+    fn a_requested_depth_of_one_to_ten_is_accepted() {
+        for levels in [1, 10] {
+            assert_eq!(Depth::requested(levels), Depth::new(levels));
+        }
+    }
+
+    #[test]
+    fn a_requested_depth_outside_one_to_ten_is_refused() {
+        for levels in [0, 11, u32::MAX] {
+            assert_eq!(Depth::requested(levels), None, "{levels}");
+        }
+    }
+
+    #[test]
+    fn a_recorded_depth_has_no_ceiling() {
+        assert_eq!(Depth::new(12).map(Depth::levels), Some(12));
     }
 
     #[test]
