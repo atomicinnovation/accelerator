@@ -1166,3 +1166,44 @@ fn resolving_remote_on_an_item_without_frontmatter_fails_it_and_writes_nothing()
     assert!(matches!(row(&report, 1).outcome, ItemOutcome::Failed(_)));
     assert_eq!(repo.read(1), WITHOUT_FRONTMATTER);
 }
+
+const REJECTED_BY_JIRA: &str = "Body \u{1e} text\n";
+
+fn jira_item_with_a_rejected_body(recorded: &Recorded<'_>) -> Repo {
+    Repo::with_item(
+        Tracker::Jira,
+        1,
+        &item(TITLE, READY, REJECTED_BY_JIRA),
+        issue(1, &projected(TITLE, JIRA_BODY_TEXT), STAMP),
+        recorded,
+    )
+}
+
+#[test]
+fn a_baselined_jira_item_with_a_rejected_local_body_and_no_edits_is_synced() {
+    let projection = projected(TITLE, JIRA_BODY_TEXT);
+    let repo = jira_item_with_a_rejected_body(&Recorded::split(
+        &item(TITLE, READY, REJECTED_BY_JIRA),
+        &projection,
+    ));
+
+    let report = applied(&repo);
+
+    assert_eq!(outcome_of(&report, 1), (SyncState::Synced, Action::Noop));
+    assert_eq!(repo.mutations(), []);
+}
+
+#[test]
+fn an_unbaselined_jira_item_with_a_rejected_local_body_is_an_unresolved_conflict(
+) {
+    let repo = jira_item_with_a_rejected_body(&Recorded::Nothing);
+
+    let report = applied(&repo);
+
+    assert_eq!(
+        outcome_of(&report, 1),
+        (SyncState::Conflict, Action::Prompt)
+    );
+    assert!(repo.entry(1).is_none());
+    assert!(!repo.wrote_an_item());
+}
