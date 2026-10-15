@@ -1253,3 +1253,29 @@ fn a_pulled_item_syncs_again_as_synced_with_no_update() {
         assert_eq!(repo.mutations(), []);
     }
 }
+
+#[test]
+fn a_preview_fails_a_pull_over_an_unrenderable_remote_as_the_run_does() {
+    let repo = Repo::with_item(
+        Tracker::Jira,
+        1,
+        &item(TITLE, READY, "Earlier\n"),
+        issue(1, &projected(TITLE, JIRA_PANEL), MOVED_STAMP),
+        &Recorded::split(
+            &item(TITLE, READY, "Earlier\n"),
+            &projected(TITLE, JIRA_EARLIER),
+        ),
+    );
+
+    let preview = repo.preview();
+
+    assert_eq!(
+        outcome_of(&preview, 1),
+        (SyncState::RemotelyModified, Action::Pull)
+    );
+    assert_eq!(failure_class(&preview, 1), FailureClass::Unrenderable);
+    assert_eq!(
+        failure_class(&repo.sync_once(), 1),
+        FailureClass::Unrenderable
+    );
+}

@@ -803,15 +803,19 @@ fn validate_pushes(
     plan.actions
         .iter()
         .map(|planned| {
-            let checked = planned
-                .action
-                .sends_to_tracker()
-                .then(|| {
-                    check_send(
-                        planned, items, tracker, facts, comparison, shapes,
-                    )
-                })
-                .flatten();
+            let checked = if planned.action == Action::Pull {
+                check_pull(planned, items, facts, comparison)
+            } else {
+                planned
+                    .action
+                    .sends_to_tracker()
+                    .then(|| {
+                        check_send(
+                            planned, items, tracker, facts, comparison, shapes,
+                        )
+                    })
+                    .flatten()
+            };
             match checked {
                 Some(Err(refused)) => ReportedItem {
                     planned: planned.clone(),
@@ -826,6 +830,17 @@ fn validate_pushes(
             }
         })
         .collect()
+}
+
+/// Why a pull would fail before writing anything, as the run would report it.
+fn check_pull(
+    planned: &PlannedAction,
+    items: &[LocalItem],
+    facts: &GatheredFacts,
+    comparison: &BodyComparison<'_>,
+) -> Option<Result<tracker::ValidationOutcome, ApplyError>> {
+    let item = items.iter().find(|candidate| candidate.id == planned.id)?;
+    pulled_file(item, facts, comparison).err().map(Err)
 }
 
 /// What a send carries: the local title and body, either withheld.
@@ -1082,45 +1097,58 @@ fn send_outcome(
     }
 }
 
+/// The file a pull of `item` would write, and the remote it came from.
+struct PulledFile<'a> {
+    content: String,
+    projected_body: &'a str,
+    remote_updated: RemoteTimestamp,
+}
+
+fn pulled_file<'a>(
+    item: &LocalItem,
+    facts: &'a GatheredFacts,
+    comparison: &BodyComparison<'_>,
+) -> Result<PulledFile<'a>, ApplyError> {
+    let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
+    let projected_body =
+        remote.and_then(|r| r.body.as_deref()).ok_or_else(|| {
+            ApplyError::RemoteBodyUnavailable {
+                item_id: item.id.clone(),
+            }
+        })?;
+    let remote_body =
+        comparison.local_body(projected_body).map_err(|cause| {
+            ApplyError::RemoteUnrenderable {
+                item_id: item.id.clone(),
+                cause,
+            }
+        })?;
+    let local = LocalWorkItem::parse(&read_local(item)?)
+        .map_err(|detail| unparseable_local(&item.id, detail))?;
+    Ok(PulledFile {
+        content: local.with_body(&remote_body),
+        projected_body,
+        remote_updated: remote
+            .map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone()),
+    })
+}
+
 fn pull_outcome(
     applier: &mut ItemApplier<'_, '_>,
     item: &LocalItem,
     facts: &GatheredFacts,
     comparison: &BodyComparison<'_>,
 ) -> ItemOutcome {
-    let remote = facts.per_id.get(&item.id).map(|(remote, _)| remote);
-    let Some(projected_body) = remote.and_then(|r| r.body.as_deref()) else {
-        return ItemOutcome::Failed(ApplyError::RemoteBodyUnavailable {
-            item_id: item.id.clone(),
-        });
-    };
-    let remote_body = match comparison.local_body(projected_body) {
-        Ok(body) => body,
-        Err(cause) => {
-            return ItemOutcome::Failed(ApplyError::RemoteUnrenderable {
-                item_id: item.id.clone(),
-                cause,
-            })
-        }
-    };
-    let local_content = match read_local(item) {
-        Ok(content) => content,
+    let pulled = match pulled_file(item, facts, comparison) {
+        Ok(pulled) => pulled,
         Err(error) => return ItemOutcome::Failed(error),
     };
-    let content = match LocalWorkItem::parse(&local_content) {
-        Ok(local) => local.with_body(&remote_body),
-        Err(detail) => {
-            return ItemOutcome::Failed(unparseable_local(&item.id, detail))
-        }
-    };
-    let remote_updated =
-        remote.map_or(RemoteTimestamp::NotRead, |r| r.remote_updated.clone());
     match applier.pull(&PullRequest {
         id: &item.id,
         file_path: &item.path,
-        content: &content,
-        projected_body,
-        remote_updated,
+        content: &pulled.content,
+        projected_body: pulled.projected_body,
+        remote_updated: pulled.remote_updated,
     }) {
         Ok(()) => ItemOutcome::Applied,
         Err(error) => ItemOutcome::Failed(error),
