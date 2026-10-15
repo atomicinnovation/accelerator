@@ -196,6 +196,9 @@ impl Renderer {
                     .and_then(|first| first.get("text"))
                     .and_then(Value::as_str)
                     .unwrap_or_default();
+                if body.lines().any(|line| line.starts_with(syntax::FENCE)) {
+                    self.admit_unrepresentable("codeBlock")?;
+                }
                 Ok(format!("```{language}\n{body}\n```"))
             }
             "blockquote" => {

@@ -375,3 +375,17 @@ fn code_text_holding_a_backtick_has_no_markdown_form() {
         })
     );
 }
+
+#[test]
+fn a_code_block_holding_a_fence_line_has_no_markdown_form() {
+    let document = doc(&json!([{"type": "codeBlock", "content": [
+        {"type": "text", "text": "before\n```\nafter"}
+    ]}]));
+
+    assert_eq!(
+        document_to_markdown_strict(&document),
+        Err(AdfError::Unrepresentable {
+            node: "codeBlock".to_owned()
+        })
+    );
+}
