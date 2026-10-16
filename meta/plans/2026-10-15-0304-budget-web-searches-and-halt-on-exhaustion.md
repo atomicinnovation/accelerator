@@ -1177,7 +1177,7 @@ web level notes record it as `search_budget`. A project that overrides
 
 #### Manual Verification
 
-- [ ] A `conduct --depth 2` run on a small web + openalex set writes web
+- [x] A `conduct --depth 2` run on a small web + openalex set writes web
       level notes with `search_budget` equal to the plan's level budget,
       and openalex notes without it. Every note passes
       `accelerator corpus frontmatter validate --file`.
