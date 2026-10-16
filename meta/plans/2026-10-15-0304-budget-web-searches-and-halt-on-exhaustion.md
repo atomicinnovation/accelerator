@@ -737,16 +737,16 @@ of 200 from the default`.
 
 #### Automated Verification
 
-- [ ] New tests fail first, then pass: `cargo test -p research-cli` (from
+- [x] New tests fail first, then pass: `cargo test -p research-cli` (from
       `cli/`)
-- [ ] Coupling guard and its tests pass: `mise run build-system:check` and
+- [x] Coupling guard and its tests pass: `mise run build-system:check` and
       `uv run pytest tests/unit/tasks/test_claude_coupling.py`
-- [ ] ADR validates: `accelerator corpus frontmatter validate --file meta/decisions/ADR-0072-*.md`
-- [ ] Full local CI mirror: `mise run`
+- [x] ADR validates: `accelerator corpus frontmatter validate --file meta/decisions/ADR-0072-*.md`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
-- [ ] `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc accelerator research topic outstanding <slug> --profiles-dir … --start`
+- [x] `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=abc accelerator research topic outstanding <slug> --profiles-dir … --start`
       on a set with a web pair prints the notice. Delete the ledger
       afterwards.
 
