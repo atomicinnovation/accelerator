@@ -485,6 +485,9 @@ Every plan also carries these fields, whether or not `--depth` is given:
   `question`, `cap`, `id`, absolute `path`, `known_questions`, and a
   `rejected` reason when the note on disk was refused) or `compose` (the
   `notes` the composer reads, as absolute paths in lineage order);
+- on a run plan, a `search_budget` on every `web` `single_pass` pair and
+  every node of a `web` pair: the most `WebSearch` calls its researcher may
+  make;
 - a `spawn` ref on every `single_pass` or `compose` pair and every node;
 - `trims`, one `{stem, lineage, recorded, cap}` per note that recorded more
   follow-ups than its cap, each also printed to stderr as a `warning:` line;
@@ -513,11 +516,24 @@ else 200. A set value Claude Code would not honour is ignored, with a warning
 on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
 counterpart.
 
+A run sizes per-level search budgets once, on its first plan, and stores them
+in its ledger, so later plans keep them rather than resize to what remains.
+Sizing keeps back a twentieth of the cap, rounded up, then shares the rest
+over the worst-case tree of every outstanding web pair: each unresearched
+node is assumed to record its level's full follow-up cap. Budgets shrink, or
+stay level, with depth. When even budgets of 1 do not fit, every budget is 1
+and the sizing plan warns, naming the worst-case demand and the cap; raise
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` and restart Claude Code, or lower
+the depth.
+
 The run flags exist for `conduct`. `--start` begins a run and returns its
 `run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`
 as spawned. During a run the JSON also carries `run`, `batch` (the number the
 next `--spawned` must pass) and `unexpected` (the spawn refs of notes or
-findings nobody was asked to write, or whose content changed).
+findings nobody was asked to write, or whose content changed). When the run
+has web pairs, it also carries `search_budgets` (each `level` with its
+`budget`) and `search_demand` (the searches the worst-case tree would make
+spending every budget).
 `--start` over another run's readable ledger also carries `replaced_run`: that
 run's `run`, its last offered batch split into `valid`, `invalid`, `unwritten`
 and `unasked`, each entry a `spawn` ref with the outline `question` and

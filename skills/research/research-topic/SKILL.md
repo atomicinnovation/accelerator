@@ -71,6 +71,12 @@ and then clamped to `ACCELERATOR_SUBAGENT_CAP`, else
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, else 20. `conduct` passes the flag
 through and never resolves concurrency itself.
 
+`outstanding` also sizes each web researcher's `WebSearch` budget from Claude
+Code's session search cap, `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, else
+200. It keeps back a twentieth of the cap, rounded up, for the main
+conversation, `outline` and searches made earlier in the session. `conduct`
+never sizes budgets itself.
+
 A verb resolves breadth or depth as **flag > resolved value above**: an
 `--<knob> N` flag on the invocation wins over the configured value. Then apply
 these rules in order:
@@ -266,8 +272,9 @@ allocate a finding or note path yourself.
 
    The CLI records the run in its ledger, so carry no list of attempted
    spawns yourself. Keep `run` for the whole of `conduct`, and report the
-   first plan's `warnings` as soon as it returns — a corrupt run ledger or a
-   clamped concurrency. Any non-zero exit, including
+   first plan's `warnings` as soon as it returns — a corrupt run ledger, a
+   clamped concurrency, an unhonoured search cap, or search budgets that
+   cannot fit the cap — then proceed. Any non-zero exit, including
    `E_TOPIC_RESEARCH_RUN_SUPERSEDED`, stops the loop: report its error and
    stop.
 
@@ -330,10 +337,12 @@ allocate a finding or note path yourself.
      `complete`;
    - `pairs`: the pairs offered now, each with its `question`, `profile`,
      `stage`, and the absolute `path` its finding is written to:
-     - a `single_pass` pair carries its `spawn`;
+     - a `single_pass` pair carries its `spawn` and, for a `web` pair, its
+       `search_budget`;
      - a `research_nodes` pair carries its `nodes`, each with `lineage`,
        `level`, `question`, `cap`, `known_questions`, `id`, the absolute note
-       `path`, its `spawn`, and `rejected` when the note on disk was refused;
+       `path`, its `spawn`, `rejected` when the note on disk was refused, and
+       `search_budget` for a `web` pair;
      - a `compose` pair carries its `spawn` and `notes`, the absolute paths
        of the notes its composer reads;
    - `skipped`, each pair that cannot be researched, with its `reason`;
@@ -343,6 +352,10 @@ allocate a finding or note path yourself.
      or whose content changed;
    - `trims`, `shallow` and `warnings`;
    - `run` and `batch`;
+   - `search_cap`, the session's `WebSearch` cap as `searches` and the
+     `source` it came from;
+   - `search_budgets`, each `level` with its `budget`, and `search_demand`,
+     on run plans with web pairs;
    - `replaced_run`, on the first plan after a run that did not end: its
      `run`; the classes `valid`, `invalid`, `unwritten` and `unasked`, each
      entry a `spawn`, `question` and `profile`; `quarantine`, the absolute
