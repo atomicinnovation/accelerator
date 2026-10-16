@@ -560,7 +560,7 @@ research. The coupling guard and a new ADR admit the variable.
 
 #### 1. ADR (first, so the admission is decided before it is coded)
 
-Create ADR-0072 with `/accelerator:create-adr`, then accept it with
+Create ADR-0073 with `/accelerator:create-adr`, then accept it with
 `/accelerator:review-adr`. Title: "Admit the session search cap as an
 optional harness variable". It extends ADR-0071 and does not supersede it:
 
@@ -741,7 +741,7 @@ of 200 from the default`.
       `cli/`)
 - [x] Coupling guard and its tests pass: `mise run build-system:check` and
       `uv run pytest tests/unit/tasks/test_claude_coupling.py`
-- [x] ADR validates: `accelerator corpus frontmatter validate --file meta/decisions/ADR-0072-*.md`
+- [x] ADR validates: `accelerator corpus frontmatter validate --file meta/decisions/ADR-0073-*.md`
 - [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
