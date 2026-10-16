@@ -5,7 +5,7 @@ title: "Budget Web Searches and Halt on Exhaustion Implementation Plan"
 date: "2026-10-15T22:00:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "ready"
+status: "in-progress"
 work_item_id: "work-item:0304"
 parent: "work-item:0304"
 derived_from: ["codebase-research:2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-15T23:33:02+00:00"
+last_updated: "2026-10-16T00:04:11+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -256,7 +256,8 @@ never touches recorded depth, and it would fail if `stamped_depth` used
 
 Update the expectation at `topic_outstanding.rs:819` first, and add a case
 for `--depth 11`. Then `OutstandingFlags::parse` builds the depth with
-`Depth::requested`. The message comes from `format!("E_TOPIC_RESEARCH_DEPTH:
+`Depth::requested`, which also refuses 0, so the `positive` helper goes
+with its last caller. The message comes from `format!("E_TOPIC_RESEARCH_DEPTH:
 --depth must be 1 to {}, got '{depth}'", Depth::DEEPEST)`, which follows
 the `--run must be 1 to 64` precedent. The `--depth` help (`cli.rs:99-101`)
 names the range.
@@ -318,8 +319,10 @@ existing `note()`, `directory()`, `derived_from()` helpers)
 | `a_frontier_at_the_depth_limit_counts_only_itself` | `1` with `B`,`C`; `2-1` written; depth 2 | `{2: 1}` |
 | `a_composable_pair_has_no_unresearched_nodes` | complete tree at depth 2 | empty |
 | `counting_the_frontier_records_no_trims_derivation_would_not` | `1` with `B`,`C`; `2-1` declaring 3 follow-ups (cap 2); `2-2` missing; depth 3 | `trims` empty, `worst_case` `{2: 1, 3: 4}` |
+| `worst_case_trees_join_level_by_level` | `{1: 1, 2: 4}` joined with `{2: 2, 3: 7}` | `{1: 1, 2: 6, 3: 7}`; level 4 holds 0 |
+| `joining_saturates_rather_than_overflowing` | `{1: u64::MAX}` joined with itself | `{1: u64::MAX}` |
 
-The last row pins the trims caveat from Key Discoveries.
+The `counting_the_frontier…` row pins the trims caveat from Key Discoveries.
 
 #### 2. Worst-case tree (green)
 
@@ -385,10 +388,10 @@ pub struct Derivation {
 
 `OutstandingPair` gains `pub worst_case: WorstCaseTree`. `Planner::stage_for`
 (`plan.rs:264-279`) becomes `derivation_for`. It returns the `Derivation`,
-and the planner takes the trims out of it with `std::mem::take`. Update the ten existing `OutstandingPair {`
-literals in `conduct/ledger.rs`, `conduct/window.rs`, `topic/plan.rs` and
-`research-cli/src/topic_command.rs` tests, using `WorstCaseTree::default()`
-where the test does not care.
+and the planner destructures it into the pair's stage and worst case and
+the plan's trims. Update the `OutstandingPair {` literals in the
+`conduct/ledger.rs`, `conduct/window.rs` and `topic/plan.rs` tests, using
+`WorstCaseTree::default()` where the test does not care.
 
 #### 3. Sizing tests (red)
 
