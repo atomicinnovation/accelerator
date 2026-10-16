@@ -461,12 +461,14 @@ findings go, rather than allocating paths itself:
 accelerator research topic outstanding SLUG --profiles-dir DIR
 ```
 
-It prints JSON with four arrays, two counts and the cap: `items` (each outline
-item's `line`, `question`, and `complete`), `pairs` (each outstanding pair's
+It prints JSON whose fields are listed below: `items` (each outline item's
+`line`, `question`, and `complete`), `pairs` (each outstanding pair's
 `question`, `profile`, and absolute `path`), `skipped` (with a `reason`),
 `warnings`, `concurrency` (the most spawns this plan offers, after the clamp),
-`remaining` (the spawns held back by the concurrency) and `subagent_cap` (its
-`slots`, and the `source` they came from: the variable's name, or `default`).
+`remaining` (the spawns held back by the concurrency), `subagent_cap` (its
+`slots`, and the `source` they came from: the variable's name, or `default`)
+and `search_cap` (its `searches`, and the `source` they came from, in the same
+form).
 The JSON is additive-only: fields may be added, never renamed or removed, and
 consumers ignore fields they do not know. It exits `1` with
 `E_TOPIC_RESEARCH_UNRESOLVED` for an unknown set.
@@ -504,6 +506,12 @@ warning.
 Every plan is bounded, a plain query included. The
 reported `concurrency` is the clamped value, so it can differ from the
 configured knob; the reason appears in `warnings` on `--start` only.
+
+The search cap is Claude Code's limit on `WebSearch` calls per session. It is
+read from `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it,
+else 200. A set value Claude Code would not honour is ignored, with a warning
+on `--start` when the run has web pairs. There is no `ACCELERATOR_*`
+counterpart.
 
 The run flags exist for `conduct`. `--start` begins a run and returns its
 `run` id; `--run ID` continues it, and `--spawned N` acknowledges batch `N`

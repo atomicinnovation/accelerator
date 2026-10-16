@@ -214,7 +214,11 @@
   deleting the ledger would skip that. `conduct`'s failure-reason table
   gains a "run that did not end" row: re-run `conduct`, first waiting out any
   agent usage limit the earlier session showed. Consider adding
-  `**/.conduct-run.json` to your `.gitignore`.
+  `**/.conduct-run.json` to your `.gitignore`. Every plan also reports Claude
+  Code's per-session `WebSearch` cap as `search_cap` with its source, read from
+  `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it, else 200;
+  a `--start` with web pairs warns when the variable holds a value Claude Code
+  would not honour.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
