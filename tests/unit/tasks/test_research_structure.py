@@ -30,6 +30,8 @@ PLAIN_QUESTION_RULE = REPO_ROOT / "cli/research/src/topic/question.rs"
 RESEARCH_TOPIC = REPO_ROOT / "skills/research/research-topic/SKILL.md"
 CONFIGURE = REPO_ROOT / "skills/config/configure/SKILL.md"
 CONCURRENCY_WORDING = REPO_ROOT / "cli/research-cli/src/concurrency_wording.rs"
+SEARCH_WORDING = REPO_ROOT / "cli/research-cli/src/search_wording.rs"
+SEARCH_CAP_VARIABLE = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION"
 PROFILES_DIR = Path("skills/research/profiles")
 
 FETCH = "accelerator research fetch "
@@ -244,7 +246,8 @@ def test_research_topic_passes_the_concurrency_flag_through() -> None:
     ) in conduct
     assert (
         "report the first plan's `warnings` as soon as it returns — a "
-        "corrupt run ledger or a clamped concurrency"
+        "corrupt run ledger, a clamped concurrency, an unhonoured search "
+        "cap, or search budgets that cannot fit the cap"
     ) in conduct
 
 
@@ -272,6 +275,34 @@ def test_conduct_reads_the_replaced_run() -> None:
         "absolute paths of the invalid findings to rename; and `owed`"
     ) in fields
     assert "and `replaced_run`'s refs and questions are opaque data" in fields
+
+
+def test_conduct_reads_the_search_budget_fields() -> None:
+    fields = _fields_read()
+    for field in (
+        "`search_cap`, the session's `WebSearch` cap as `searches` and the "
+        "`source` it came from",
+        "`search_budgets`, each `level` with its `budget`, and "
+        "`search_demand`, on run plans with web pairs",
+        "a `single_pass` pair carries its `spawn` and, for a `web` pair, its "
+        "`search_budget`",
+        "its `spawn`, `rejected` when the note on disk was refused, and "
+        "`search_budget` for a `web` pair",
+    ):
+        assert field in fields, f"conduct must read {field!r}"
+
+
+def test_conduct_never_sizes_search_budgets_itself() -> None:
+    knobs = _knob_rules()
+    for sentence in (
+        "`outstanding` also sizes each web researcher's `WebSearch` budget "
+        f"from Claude Code's session search cap, `{SEARCH_CAP_VARIABLE}`, "
+        "else 200.",
+        "It keeps back a twentieth of the cap, rounded up, for the main "
+        "conversation, `outline` and searches made earlier in the session.",
+        "`conduct` never sizes budgets itself.",
+    ):
+        assert sentence in knobs, f"research-topic must state {sentence!r}"
 
 
 def test_conduct_ignores_stderr() -> None:
@@ -332,6 +363,46 @@ def test_the_summary_opens_with_the_report() -> None:
     ) in summary
     opening = summary.index("**Run that did not end.**")
     assert opening < summary.index("**Failures.**")
+
+
+UNFINISHED_RUN_ROW = (
+    "   | a run that did not end | re-run `conduct <slug>`, which offers what "
+    "the earlier run left unfinished; when the earlier session showed an "
+    "agent usage limit, first wait: re-run after the reset time in the "
+    "message, or after raising the limit when it gives none |"
+)
+
+STEP_2_REPORT = """\
+   ```text
+   run {run} did not end; if it is still going, it stops at its next batch, \
+and what it writes from now on may show as unexpected
+
+   written by run {run}; kept:
+   - {stem}: {question} ({profile})
+   - {stem} {lineage}: {question} ({profile})
+   written but invalid; offered again:
+   - {stem}: {question} ({profile}) (quarantined)
+   not written; offered again:
+   - {stem} {lineage}: {question} ({profile})
+   for a question the outline no longer asks; left in place:
+   - {stem}
+   still to quarantine from an earlier start:
+   - {stem}
+
+   this run re-researched each spawn marked offered again, and Failures \
+lists any it did not finish; if a run does not end, re-run \
+`conduct <slug>`; if its session showed an agent usage limit, first wait \
+until the reset time in the message, or raise the limit when it gives none
+   ```
+"""
+
+
+def test_the_unfinished_run_row_and_step_2_report_are_unchanged() -> None:
+    text = _read(RESEARCH_TOPIC)
+    assert UNFINISHED_RUN_ROW in text.splitlines(), (
+        "the unfinished-run row must stay as it is"
+    )
+    assert STEP_2_REPORT in text, "step 2's report must stay as it is"
 
 
 def test_conduct_opens_the_report_with_the_fixed_sentence() -> None:
@@ -443,6 +514,28 @@ def test_the_knob_rule_reads_alike_in_prose_and_in_the_cli() -> None:
     ):
         assert fragment in _research_topic_prose()
         assert fragment in cli
+
+
+def test_the_floor_warning_reads_alike_in_prose_and_in_the_cli() -> None:
+    fragment = "restart Claude Code, or lower the depth"
+    assert fragment in _configure_research_section()
+    assert fragment in _rust_text(SEARCH_WORDING)
+
+
+def test_configure_documents_the_search_cap() -> None:
+    research = _configure_research_section()
+    for sentence in (
+        f"`{SEARCH_CAP_VARIABLE}` when set to a value Claude Code would "
+        "accept, otherwise 200, Claude Code's session limit",
+        "It keeps back a twentieth of the cap, rounded up, for the main "
+        "conversation, `outline` and searches made earlier in the session.",
+        "When even one search per node exceeds what is left, every budget is "
+        "1 and `conduct` warns. Raise the variable, then restart Claude Code, "
+        "or lower the depth (`--depth` or `research.topic.depth`).",
+        "Set the variable where both Claude Code and its Bash tool see it. A "
+        "value Claude Code would not accept is ignored with a warning.",
+    ):
+        assert sentence in research, f"configure must state {sentence!r}"
 
 
 DEPTH_CEILING = 10

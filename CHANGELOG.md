@@ -218,7 +218,13 @@
   Code's per-session `WebSearch` cap as `search_cap` with its source, read from
   `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` as Claude Code reads it, else 200;
   a `--start` with web pairs warns when the variable holds a value Claude Code
-  would not honour.
+  would not honour. A run's first plan sizes a per-level `WebSearch` budget for
+  its web researchers from that cap, less a reserve of a twentieth, over the
+  worst-case tree of every outstanding web pair, and keeps the budgets in its
+  ledger for the rest of the run. Run plans with web pairs report
+  `search_budgets` and `search_demand`, and give every web `single_pass` pair
+  and node its `search_budget`. When even budgets of 1 do not fit, the sizing
+  plan warns.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then

@@ -465,6 +465,19 @@ above the cap warns; the built-in default clamps silently.
   enforce no cap: Claude Code below v2.1.217, and ultracode sessions. There,
   set `ACCELERATOR_SUBAGENT_CAP` to the concurrency you want.
 
+**Web searches and the search cap.** `conduct` gives each web researcher a
+`WebSearch` budget sized from the search cap, which is
+`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` when set to a value Claude Code
+would accept, otherwise 200, Claude Code's session limit.
+
+- It keeps back a twentieth of the cap, rounded up, for the main
+  conversation, `outline` and searches made earlier in the session.
+- When even one search per node exceeds what is left, every budget is 1 and
+  `conduct` warns. Raise the variable, then restart Claude Code, or lower the
+  depth (`--depth` or `research.topic.depth`).
+- Set the variable where both Claude Code and its Bash tool see it. A value
+  Claude Code would not accept is ignored with a warning.
+
 At `depth` 1, `conduct` spawns one researcher per (focus area, profile). At
 `depth` above 1, it researches each pair as a tree: every node writes a level
 note recording up to 4 follow-up questions at level 1, then 2, then 1 per
