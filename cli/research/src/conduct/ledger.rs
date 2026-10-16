@@ -5,6 +5,7 @@ use std::fmt;
 
 use crate::conduct::memory::RunMemory;
 use crate::conduct::observed::Observed;
+use crate::conduct::search_budget::SearchBudgets;
 use crate::conduct::spawn::SpawnRef;
 use crate::conduct::window::Window;
 use crate::topic::claims::ClaimedIndexes;
@@ -46,6 +47,7 @@ pub struct RunLedger {
     run: RunId,
     claims: ClaimedIndexes,
     memory: RunMemory,
+    search_budgets: Option<SearchBudgets>,
 }
 
 /// Another run owns the ledger a run tried to continue.
@@ -72,7 +74,21 @@ impl RunLedger {
                 seen: observed.clone(),
                 ..RunMemory::default()
             },
+            search_budgets: None,
         }
+    }
+
+    /// Budgets are sized once per run, by its first plan to find them
+    /// missing, so later plans keep them rather than resize to what remains.
+    #[must_use]
+    pub const fn awaits_search_budgets(&self) -> bool {
+        self.search_budgets.is_none()
+    }
+
+    #[must_use]
+    pub fn budgeting_searches(mut self, budgets: SearchBudgets) -> Self {
+        self.search_budgets = Some(budgets);
+        self
     }
 
     /// The plan that started this run already reads `stems` as quarantined,
@@ -157,11 +173,13 @@ impl RunLedger {
         run: RunId,
         claims: ClaimedIndexes,
         memory: RunMemory,
+        search_budgets: Option<SearchBudgets>,
     ) -> Self {
         Self {
             run,
             claims,
             memory,
+            search_budgets,
         }
     }
 
@@ -179,12 +197,19 @@ impl RunLedger {
     pub const fn memory(&self) -> &RunMemory {
         &self.memory
     }
+
+    #[must_use]
+    pub const fn search_budgets(&self) -> Option<&SearchBudgets> {
+        self.search_budgets.as_ref()
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::collections::BTreeSet;
+    use std::num::NonZeroU32;
 
     use super::OwedQuarantine;
     use super::RunId;
@@ -192,6 +217,7 @@ mod tests {
     use super::Superseded;
     use crate::conduct::concurrency::test_support::unbounded;
     use crate::conduct::observed::Observed;
+    use crate::conduct::search_budget::SearchBudgets;
     use crate::conduct::spawn::SpawnRef;
     use crate::conduct::window::window;
     use crate::conduct::window::Window;
@@ -530,5 +556,37 @@ mod tests {
             ledger.memory().owed_quarantine,
             stems(&["01-a-web"]).into_iter().collect()
         );
+    }
+
+    fn budgets() -> SearchBudgets {
+        let levels = [(1, 3), (2, 2), (3, 1)]
+            .into_iter()
+            .map(|(level, budget)| {
+                (level, NonZeroU32::new(budget).expect("a budget"))
+            })
+            .collect::<BTreeMap<_, _>>();
+        SearchBudgets::from_parts(levels, 190)
+    }
+
+    #[test]
+    fn a_started_ledger_has_no_search_budgets() {
+        let ledger = started();
+        assert_eq!(ledger.search_budgets(), None);
+        assert!(ledger.awaits_search_budgets());
+    }
+
+    #[test]
+    fn budgeting_searches_stores_the_budgets() {
+        let ledger = started().budgeting_searches(budgets());
+        assert_eq!(ledger.search_budgets(), Some(&budgets()));
+        assert!(!ledger.awaits_search_budgets());
+    }
+
+    #[test]
+    fn continuing_and_recording_keep_the_search_budgets() {
+        let ledger =
+            recorded(started().budgeting_searches(budgets()), &["01-a"]);
+        let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
+        assert_eq!(ledger.search_budgets(), Some(&budgets()));
     }
 }

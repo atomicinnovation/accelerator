@@ -132,13 +132,16 @@ pub fn research::conduct::ledger::RunId::fmt(&self, f: &mut core::fmt::Formatter
 impl core::marker::StructuralPartialEq for research::conduct::ledger::RunId
 pub struct research::conduct::ledger::RunLedger
 impl research::conduct::ledger::RunLedger
+pub const fn research::conduct::ledger::RunLedger::awaits_search_budgets(&self) -> bool
+pub fn research::conduct::ledger::RunLedger::budgeting_searches(self, budgets: research::conduct::search_budget::SearchBudgets) -> Self
 pub const fn research::conduct::ledger::RunLedger::claims(&self) -> &research::topic::claims::ClaimedIndexes
 pub fn research::conduct::ledger::RunLedger::continue_as(stored: Self, run: &research::conduct::ledger::RunId, spawned: core::option::Option<u32>) -> core::result::Result<Self, research::conduct::ledger::Superseded>
-pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory) -> Self
+pub const fn research::conduct::ledger::RunLedger::from_parts(run: research::conduct::ledger::RunId, claims: research::topic::claims::ClaimedIndexes, memory: research::conduct::memory::RunMemory, search_budgets: core::option::Option<research::conduct::search_budget::SearchBudgets>) -> Self
 pub const fn research::conduct::ledger::RunLedger::memory(&self) -> &research::conduct::memory::RunMemory
 pub fn research::conduct::ledger::RunLedger::owing_quarantine(self, stems: &[research::topic::layout::stem::Stem]) -> Self
 pub fn research::conduct::ledger::RunLedger::record(self, plan: &research::topic::plan::RoundPlan, observed: &research::conduct::observed::Observed, window: &research::conduct::window::Window) -> Self
 pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::conduct::ledger::RunId
+pub const fn research::conduct::ledger::RunLedger::search_budgets(&self) -> core::option::Option<&research::conduct::search_budget::SearchBudgets>
 pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
 impl core::clone::Clone for research::conduct::ledger::RunLedger

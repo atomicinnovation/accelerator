@@ -481,7 +481,7 @@ fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
 
 enum ReplacedLedger {
     Absent,
-    Readable(RunLedger),
+    Readable(Box<RunLedger>),
     Corrupt,
 }
 
@@ -491,7 +491,7 @@ fn replaced_ledger<F: FileReader>(
 ) -> Result<ReplacedLedger, String> {
     match read_run_ledger(set_root, fs, &UnicodeTables) {
         Ok(None) => Ok(ReplacedLedger::Absent),
-        Ok(Some(stored)) => Ok(ReplacedLedger::Readable(stored)),
+        Ok(Some(stored)) => Ok(ReplacedLedger::Readable(Box::new(stored))),
         Err(LedgerError::Corrupt) => Ok(ReplacedLedger::Corrupt),
         Err(LedgerError::Unreadable(error)) => Err(error.to_string()),
     }
