@@ -907,6 +907,63 @@ def test_the_check_step_leaves_capacity_refusals_to_the_spawn_step() -> None:
     )
 
 
+SEARCH_BUDGET = "search_budget"
+FINDING_OUTPUTTER = (
+    REPO_ROOT / "skills/research/outputters/finding-outputter/SKILL.md"
+)
+FINDING_TEMPLATE = REPO_ROOT / "templates/topic-research-finding.md"
+
+
+def test_the_web_profile_limits_searches_to_the_injected_budget() -> None:
+    web = _prose(REPO_ROOT / _profile_skill("web"))
+    for sentence in (
+        "Make at most {search budget} `WebSearch` calls",
+        "`WebFetch` calls do not count.",
+        "Refine the question rather than re-search with near-identical text.",
+    ):
+        assert sentence in web, f"the web profile must state {sentence!r}"
+
+
+def _spawn_bullet(start: str, end: str) -> str:
+    return _section(_spawn_step(), start, end)
+
+
+def test_web_spawns_carry_their_search_budget() -> None:
+    single_pass = _spawn_bullet(
+        "**a `single_pass` pair**", "**a node of a `research_nodes` pair**"
+    )
+    node = _spawn_bullet(
+        "**a node of a `research_nodes` pair**", "**a `compose` pair**"
+    )
+    compose = _spawn_bullet("**a `compose` pair**", "Each agent writes")
+    assert (
+        f"for a `web` pair, its `{SEARCH_BUDGET}` as the search budget"
+        in single_pass
+    )
+    assert (
+        f"for a `web` pair, the node's `{SEARCH_BUDGET}` as the search budget"
+        in node
+    )
+    assert SEARCH_BUDGET not in compose
+
+
+def test_only_web_level_notes_stamp_a_search_budget() -> None:
+    outputter = _prose(LEVEL_NOTE_OUTPUTTER)
+    for sentence in (
+        "**search budget** — injected for a web node only.",
+        f"Stamp it as `{SEARCH_BUDGET}`, the most `WebSearch` calls your node "
+        "was allowed, not a count of calls made.",
+        f"When no search budget is injected, delete the `{SEARCH_BUDGET}` "
+        "line.",
+    ):
+        assert sentence in outputter, f"the outputter must state {sentence!r}"
+
+
+@pytest.mark.parametrize("path", [FINDING_TEMPLATE, FINDING_OUTPUTTER])
+def test_findings_carry_no_search_budget(path: Path) -> None:
+    assert SEARCH_BUDGET not in _read(path)
+
+
 def _capacity_row() -> str:
     rows = [
         line
