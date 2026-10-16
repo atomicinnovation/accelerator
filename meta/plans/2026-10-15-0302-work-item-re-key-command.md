@@ -1965,6 +1965,7 @@ items keep their IDs forever.
 | Preview while in progress → refuses | 6 | `preview_refuses_while_a_plan_is_in_progress_printing_its_remaining_entries_and_says_run_work_rekey` |
 | Discard proposed | 6 | `discard_removes_a_proposed_plan_and_changes_nothing_under_meta` |
 | Discard while in progress (write set changed since start, as amended) → refuses | 5 | `discard_refuses_an_in_progress_plan_with_its_write_set_changed_and_says_run_work_rekey` |
+| Discard while in progress, write set back to its start state → removed | 5 | `discard_removes_an_in_progress_plan_whose_write_set_matches_its_start_digests` |
 | Discard with no plan → 0 | 5 | `discard_with_no_plan_exits_0_through_the_cli` |
 | `0042` vs `ACC-0042` collision | 5 | `colliding_targets_refuse_naming_both_and_write_nothing` |
 | Target held as alias collision | 5 | same |
@@ -2017,7 +2018,8 @@ plan in progress whose write set differs from its state when the run
 started …". When every write-set path is back to its start state, after a
 restore or a halt before the first write, `--discard` removes the plan; this
 is the only way out of a run that cannot finish. The amendment lands before
-Phase 5, which ships and tests it.
+Phase 5, which ships and tests it. Applied to the work item, with a second
+AC for the restored case.
 
 ## References
 

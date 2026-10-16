@@ -14,7 +14,7 @@ blocks: ["work-item:0343", "work-item:0346"]
 relates_to: ["work-item:0228", "work-item:0297", "work-item:0345"]
 external_id: "PP-879"
 tags: ["sync", "tracker", "id-generation", "rekey"]
-last_updated: "2026-10-15T22:09:14+00:00"
+last_updated: "2026-10-16T16:44:30+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -93,7 +93,11 @@ pattern.
     anything new, without a fingerprint check; it ignores dirty paths in the
     run plan's write set and still refuses on any other.
   - `work rekey --discard` removes a proposed run plan, does nothing when
-    there is none, and refuses while a run plan is in progress.
+    there is none, and refuses while a run plan is in progress whose write
+    set differs from its state when the run started. When every write-set
+    path is back to its start state, after a restore or a halt before the
+    first write, it removes the run plan; this is the only way out of a run
+    that cannot finish.
   - A refused run, including one that exits 70, leaves any run plan as it
     found it.
 - Per item, retire the old ID through 0230's ID retirement: rename the file,
@@ -235,9 +239,13 @@ pattern.
       changes nothing.
 - [ ] Given a proposed run plan, when `work rekey --discard` runs, then no
       run plan remains and no file under `meta/` changes.
-- [ ] Given a run plan in progress, when `work rekey --discard` runs, then
-      it exits non-zero, tells the user to run `work rekey` to finish it, and
-      leaves the run plan unchanged.
+- [ ] Given a run plan in progress whose write set differs from its state
+      when the run started, when `work rekey --discard` runs, then it exits
+      non-zero, tells the user to run `work rekey` to finish it, and leaves
+      the run plan unchanged.
+- [ ] Given a run plan in progress whose every write-set path is back to its
+      state when the run started, when `work rekey --discard` runs, then no
+      run plan remains and no file under `meta/` changes.
 - [ ] Given no run plan, when `work rekey --discard` runs, then it exits 0
       and changes nothing.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"` and items `0042` and
