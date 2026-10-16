@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T16:13:17+00:00"
+last_updated: "2026-10-16T16:14:20+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -692,8 +692,9 @@ of 200 from the default`.
   `search_wording::unhonoured_search_cap` when `request.search_cap.unhonoured`
   is set **and** `!unsearched_tree(&plan.pairs).is_empty()`. The concurrency
   notices and the corrupt-ledger notice stay where they are, before the plan
-  is drawn (`topic_command.rs:262-269`). A `--start` that fails to draw its
-  plan therefore still prints them. The full order in stderr and `warnings`
+  is drawn (`topic_command.rs:262-269`). They reach stderr only when the
+  plan is printed, so a `--start` that fails to draw its plan drops them
+  until phase 3 prints them on failure too. The full order in stderr and `warnings`
   is: concurrency notices, corrupt-ledger notice, unhonoured search cap, and
   then, from phase 3, the floor warning.
 - `PlanOutput` holds `request: &PlanRequest` in place of its `depth`,
@@ -814,7 +815,12 @@ pub fn budgeting_searches(mut self, budgets: SearchBudgets) -> Self { … }
 pub const fn search_budgets(&self) -> Option<&SearchBudgets> { … }
 ```
 
-`from_parts` gains the `Option<SearchBudgets>` parameter.
+`from_parts` gains the `Option<SearchBudgets>` parameter, which
+`replaced_run.rs`'s test ledger passes as `None`.
+
+The budgets make `RunLedger` large enough that clippy's
+`large_enum_variant` rejects `ReplacedLedger` in `topic_command.rs`, so its
+`Readable` variant holds a `Box<RunLedger>`.
 
 #### 3. Codec tests (red) and codec (green)
 
@@ -833,33 +839,49 @@ stores `{"levels": {}, "demand": 0}`, so it is not resized.
 | `search_budgets_outside_their_shape_are_corrupt` | `"x"`; `{"levels": {}}`; `{"levels": {"0": 1}, "demand": 1}`; `{"levels": {"a": 1}, …}`; `{"levels": {"1": 0}, …}`; `{"levels": {"1": -1}, …}`; `{"levels": {}, "demand": -1}` → `Corrupt` |
 
 Decode follows the `owed_quarantine` precedent: `value.get("search_budgets")
-.map(search_budgets_from).transpose()`, with `None` from a malformed value
-making the ledger corrupt.
+.map_or(Some(None), |budgets| search_budgets_from(budgets).map(Some))?`, so
+an absent key decodes as `None` and a malformed value makes the ledger
+corrupt. A level key must parse as a `u32` above 0, and a budget as a
+non-zero `u32`. `a_written_ledger_names_its_fields_after_the_memory_it_keeps`
+also pins the written shape of `full_ledger()`'s budgets.
 
 #### 4. Sizing in `run_outstanding`
 
 **File**: `cli/research-cli/src/topic_command.rs`
 
-After `plan` and `observed` are drawn, and before `window`:
+After the run's ledger is drawn, and before `window`:
 
 ```rust
-let tree = unsearched_tree(&plan.pairs);
-let sized = ledger
-    .as_ref()
-    .filter(|ledger| ledger.awaits_search_budgets())
-    .map(|_| SearchBudgets::sized(&tree, request.search_cap.cap));
-if let Some(budgets) = sized.as_ref().filter(|b| b.overruns(request.search_cap.cap)) {
-    notices.push(search_wording::search_floor(budgets, &request.search_cap));
+let ledger = ledger
+    .map(|ledger| budgeted(ledger, &plan, &request.search_cap, notices));
+
+fn budgeted(
+    ledger: RunLedger,
+    plan: &RoundPlan,
+    search_cap: &EnvironmentSearchCap,
+    notices: &mut Vec<String>,
+) -> RunLedger {
+    if !ledger.awaits_search_budgets() {
+        return ledger;
+    }
+    let budgets =
+        SearchBudgets::sized(&unsearched_tree(&plan.pairs), search_cap.cap);
+    if budgets.overruns(search_cap.cap) {
+        notices.push(search_wording::search_floor(&budgets, search_cap));
+    }
+    ledger.budgeting_searches(budgets)
 }
-let ledger = ledger.map(|ledger| match sized {
-    Some(budgets) => ledger.budgeting_searches(budgets),
-    None => ledger,
-});
 ```
 
 The floor warning joins `notices`, so it reaches stderr as `warning: …` and
 `warnings`. It is emitted on the sizing plan whether that plan is the
 `--start` or a `--run` over a ledger without budgets.
+
+Notices gathered before a failure used to be dropped, contrary to phase 2's
+intent. `run_outstanding` now owns `notices` and delegates to a private
+`planned`, which takes them as `&mut Vec<String>`. On an error it prefixes
+the message with the notices as `warning:` lines. `printed_warnings` and
+that error path share `warning_lines`.
 
 #### 5. Floor warning wording
 
@@ -877,8 +899,12 @@ budget is 1; for later runs, raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION
 and restart Claude Code, or lower the depth`
 
 With the variable set, "from the default" reads "from
-CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION". A table-driven unit test covers
-both sources. The variable's name is spelt out only in `search_cap.rs` and
+CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION". The available, cap and reserve
+figures come from `SearchCap`, and the demand from `SearchBudgets`. A
+table-driven unit test,
+`the_floor_warning_names_the_demand_the_cap_and_where_it_came_from`, covers
+both sources: 260 against 200 from the default, and 70 against 60 from the
+variable. The variable's name is spelt out only in `search_cap.rs` and
 `topic_outstanding.rs`, the files the coupling guard admits. `search_floor`
 and its tests build the name through `SearchCapSource::raised_by()` and
 `reported_as()`, as phase 2's unhonoured notice does. Phase 6 adds the halt
@@ -895,8 +921,10 @@ remedy, once a halt exists.
 - `pair()`: a `single_pass` pair whose profile is `SEARCHING_PROFILE` gets
   `"search_budget": budgets.at(1)`. For `research_nodes`, pass
   `Option<NonZeroU32>`, the node's `budgets.at(level)` when the pair is web,
-  into `node()`, which adds `"search_budget"` when `Some`. Budgets come from
-  `self.ledger`, so query plans carry none.
+  into `node()`, which adds `"search_budget"` when `Some`. A
+  `PlanOutput::search_budget(outstanding, level)` helper returns it, from
+  `self.ledger`, so query plans carry none. A free `search_budgets`
+  function renders the level list.
 
 #### 7. CLI black-box tests
 
@@ -910,10 +938,19 @@ compares whole entries in `warnings` against it, so phase 6 changes the
 remedy in one place.
 
 First extend phase 2's `start_notices_keep_their_order` (red) with 20 web
-pairs, so that `warnings` ends with the floor warning. Then add
+pairs at depth 3, so that `warnings` ends with the floor warning. Then add
 `a_start_that_cannot_plan_still_reports_its_concurrency_notices`: a
-clamped `--concurrency` and a missing profiles directory. It exits non-zero,
-and stderr still carries the clamp notice.
+clamped `--concurrency` and a missing profiles directory. It exits 1, and
+stderr carries the clamp notice and then the missing-directory error. It
+fails first because notices were dropped on failure (see section 4).
+
+Further helpers keep the table terse: `budgets`, `assert_budgeted`,
+`assert_unbudgeted`, `budgeted_start`, `stored_ledger`, and the `Budgets`
+and `Variables` row aliases that satisfy clippy's `type_complexity`.
+
+Run plans now carry `search_budget` and query plans do not. So
+`the_first_plan_after_a_replaced_batch_matches_the_plan_once_quarantined`
+compares pairs through `unbudgeted_pairs`, which strips the field.
 
 | Test | Setup | Expected |
 |---|---|---|
@@ -927,14 +964,14 @@ and stderr still carries the clamp notice.
 | `non_web_pairs_add_no_demand` | 8 web + 2 openalex, depth 3 | 7/2/1, 184; openalex nodes carry no `search_budget` (AC 11) |
 | `an_unhonoured_cap_sizes_against_the_default` | 1 web, depth 3, `SEARCH_CAP=abc` | 42/19/9, 190, notice; later plan no notice (AC 12) |
 | `an_unhonoured_zero_cap_warns_against_the_default` | 20 web, depth 3, `SEARCH_CAP=0` | notice naming `'0'`, floor warning naming 200 from the default (AC 13) |
-| `a_run_without_web_pairs_sizes_nothing` | openalex + arxiv only, `SEARCH_CAP=abc`; `--start`, then `--run R --spawned 0` | on both plans: no `search_budgets`, no `search_demand`, no notice or warning, and no corrupt-ledger notice on the second (AC 14) |
+| `a_run_without_web_pairs_sizes_nothing` | openalex + arxiv only, `SEARCH_CAP=abc`; `--start`, then `--run R --spawned 0` | on both plans: no `search_budgets`, no `search_demand`, no notice or warning, and no corrupt-ledger notice on the second; the ledger stores `{"levels": {}, "demand": 0}` (AC 14) |
 | `a_re_run_sizes_only_the_remaining_tree` | 1 web depth 3; notes `1`, `2-1` declaring 1, `2-2` declaring 2 | budgets `[{2,35},{3,17}]`, demand 189, no level 1 (AC 15) |
 | `the_reserve_rounds_up` | 1 web depth 3, `SEARCH_CAP=201`; `SEARCH_CAP=60` | 42/19/9·190; 13/5/3·57 (AC 16–17) |
 | `a_single_pass_run_budgets_its_one_level` | 10 web depth 1 | budget 19, demand 190; each pair `search_budget` 19 (AC 18, CLI half) |
 | `a_ledger_without_budgets_is_sized_by_the_next_plan` | write a pre-0304 ledger for the run, 20 web depth 3; `--run R`; then `--run R --spawned 0` | decodes; plan reports 1/1/1 and the floor warning; ledger now holds budgets; the next plan has no warning (AC 19) |
-| `a_ledger_without_budgets_still_yields_a_replaced_run_report` | pre-0304 ledger with pending spawns; `--start` | `replaced_run` present (AC 19) |
+| `a_ledger_without_budgets_still_yields_a_replaced_run_report` | renamed from `a_stale_ledger_in_todays_shape_reports_its_last_batch`, which already held a pre-0304 ledger with pending spawns; `--start` | `replaced_run` as before (AC 19) |
 | `later_plans_keep_the_stored_budgets` | 10 web depth 3; `--start`; write every level-1 note with 1 follow-up; `--run R --spawned 0` | ledger and plan still 3/2/1; every level-2 node `search_budget` 2 (AC 21) |
-| `every_web_spawn_carries_its_budget` | 2 web + 1 openalex, depth 2 | every web node has `search_budget` = its level's budget; openalex nodes have none (AC 22, CLI half) |
+| `every_web_spawn_carries_its_budget` | 2 web + 1 openalex, depth 2, the first web pair's level-1 note written with 2 follow-ups | web nodes at levels 2, 2 and 1 each carry their level's `search_budget`; openalex nodes have none (AC 22, CLI half) |
 | `query_plans_carry_no_budgets` | 1 web depth 3, no run flag | no `search_budgets`, `search_demand` or `search_budget` |
 
 #### 8. Skill: fields read and resolution note
@@ -951,9 +988,9 @@ and stderr still carries the clamp notice.
   It fails until the skill edit lands.
 - `test_conduct_reads_the_search_budget_fields`
 - `test_conduct_never_sizes_search_budgets_itself`
-- `test_the_floor_warning_reads_alike_in_prose_and_in_the_cli`, using
-  `_rust_text` over `search_wording.rs` for "and restart Claude Code, or
-  lower the depth"
+- `test_the_floor_warning_reads_alike_in_prose_and_in_the_cli`: "restart
+  Claude Code, or lower the depth" appears both in configure's research
+  section and, read with `_rust_text`, in `search_wording.rs`
 
 **File**: `skills/research/research-topic/SKILL.md`
 
@@ -965,9 +1002,11 @@ and stderr still carries the clamp notice.
   `conduct` never sizes budgets itself."
 - Step 2's first-plan warnings list (`:263-265`) becomes "a corrupt run
   ledger, a clamped concurrency, an unhonoured search cap, or search budgets
-  that cannot fit the cap". `conduct` prints them and proceeds.
-- The fields-read list (`:324-345`) names `search_cap`, `search_budgets`,
-  `search_demand`, and `search_budget` on a `single_pass` pair and on a node.
+  that cannot fit the cap — then proceed".
+- The fields-read list (`:324-345`) names `search_cap` (`searches` and
+  `source`), `search_budgets` (`level` and `budget`) and `search_demand` on
+  run plans with web pairs, and `search_budget` on a web `single_pass` pair
+  and on a web pair's node.
 
 #### 9. Configure and docs-site
 
@@ -985,23 +1024,22 @@ cap**:
   `conduct` warns. Raise the variable, then restart Claude Code, or lower
   the depth (`--depth` or `research.topic.depth`). The CLI warning keeps
   the short form, "lower the depth".
-  `--depth`.
 - Set the variable where both Claude Code and its Bash tool see it. A value
   Claude Code would not accept is ignored with a warning.
 
 **File**: `tests/unit/tasks/test_research_structure.py`:
-`test_configure_documents_the_search_cap` asserts the variable, "otherwise
-200", "a twentieth of the cap, rounded up, for the main conversation,
-`outline` and searches made earlier in the session", and the remedies
-sentence.
+`test_configure_documents_the_search_cap` asserts the variable with
+"otherwise 200, Claude Code's session limit", the reserve sentence, the
+remedies sentence, and the where-to-set sentence.
 
 **File**: `docs-site/src/content/docs/research.md`: document
 `search_budgets` (`level`, `budget`), `search_demand`, and `search_budget`
 on the `single_pass` pair and node descriptions (`:480-484`). Say that they
 appear on run plans only, are sized once per run and stored in the ledger.
 Add `search_budgets` and `search_demand` to the run-only fields sentence
-(`:509-511`): they appear when the run has web pairs. Document the floor
-warning.
+(`:509-511`): they appear when the run has web pairs. After the search-cap
+paragraph, a paragraph says budgets are sized once and stored, describes
+the reserve and the worst-case tree, and documents the floor warning.
 
 **File**: `CHANGELOG.md`: extend the plans-deepened-research bullet with
 per-level web search budgets and the floor warning.
