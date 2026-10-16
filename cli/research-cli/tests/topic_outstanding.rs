@@ -3124,6 +3124,27 @@ fn every_web_spawn_carries_its_budget() -> Result<(), TestError> {
 }
 
 #[test]
+fn a_level_note_with_a_search_budget_is_read_like_any_other(
+) -> Result<(), TestError> {
+    let project = web_set("budget-stamped", 1, 0, 0)?;
+    let stem = "01-web-question-1-web";
+    project.write(
+        &note_path(stem, "1"),
+        &level_note_with(
+            stem,
+            "1",
+            "question: \"web question 1?\"\nlevel: 1\nsearch_budget: 3\n\
+             follow_ups: [\"B?\", \"C?\"]\n",
+        ),
+    )?;
+
+    let (plan, _) = budgeted_start(&project, "2", &[])?;
+
+    assert_eq!(lineages_of(&plan)?, ["2-1", "2-2"]);
+    Ok(())
+}
+
+#[test]
 fn query_plans_carry_no_budgets() -> Result<(), TestError> {
     let project = web_set("budget-query", 1, 0, 0)?;
 
