@@ -12,6 +12,7 @@ question: "{node question}"
 source_profile: "{source profile}"
 level: 1
 depth: 1
+search_budget: 1                              # web profile only; omit for every other profile
 follow_ups: ["{follow-up question}"]
 # typed-linkage slots — omit-when-empty in artifacts (drop any left empty)
 parent: ""                                    # typed-linkage ref: "work-item:NNNN" or ""
