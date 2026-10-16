@@ -47,6 +47,10 @@ _OPTIONAL_HARNESS_VARIABLES = {
         "cli/research-cli/src/subagent_cap.rs",
         "cli/research-cli/tests/topic_outstanding.rs",
     ),
+    "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION": (
+        "cli/research-cli/src/search_cap.rs",
+        "cli/research-cli/tests/topic_outstanding.rs",
+    ),
 }
 
 # A silently-emptied scan reads as cleanliness in both the lint task and the
