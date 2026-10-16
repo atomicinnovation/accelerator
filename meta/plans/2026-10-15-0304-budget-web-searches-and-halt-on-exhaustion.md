@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T00:04:11+00:00"
+last_updated: "2026-10-16T15:55:50+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -562,15 +562,21 @@ research. The coupling guard and a new ADR admit the variable.
 
 Create ADR-0073 with `/accelerator:create-adr`, then accept it with
 `/accelerator:review-adr`. Title: "Admit the session search cap as an
-optional harness variable". It extends ADR-0071 and does not supersede it:
+optional harness variable". It takes the second of three options: follow
+ADR-0071 exactly, the harness variable alone with an unhonoured value
+reported, or a fixed cap. It extends ADR-0071 and does not supersede it:
 
 - it admits `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, read in
   `cli/research-cli/src/search_cap.rs`;
 - it records two deliberate departures from ADR-0071's pattern. There is no
-  `ACCELERATOR_*` counterpart, since the limit is documented only for
-  interactive terminal sessions and an opt-out is deferred until `conduct`
-  runs off-terminal. An unhonoured harness value is reported, because
-  budgets sized against a silently ignored cap mislead the user;
+  `ACCELERATOR_*` counterpart: an override set above the harness's cap
+  costs far more than for the subagent cap, since capacity-refused spawns
+  are retried in rounds but searches budgeted beyond the quota halt the
+  run until `/clear`. The limit is also documented only for interactive
+  terminal sessions, so an opt-out is deferred until `conduct` runs
+  off-terminal. An unhonoured harness value is reported when the run has
+  web nodes left to research, because budgets sized against a silently
+  ignored cap mislead the user;
 - it records the parser-parity evidence from Key Discoveries, against
   2.1.301.
 
@@ -583,9 +589,12 @@ Move `is_set`, `harness_slots` (renamed `positive_whole_number`) and
 `is_javascript_whitespace` out of `subagent_cap.rs` unchanged. Move the
 three parse tests (`a_cap_is_parsed_as_the_harness_parses_it`,
 `a_cap_the_harness_ignores_is_the_default`,
-`a_cap_too_large_for_u32_saturates`) with them. Each is rewritten to assert
-on `positive_whole_number` directly: `Some(n)`, `None`, and
-`Some(u32::MAX)`. `subagent_cap.rs` imports both functions, and its
+`a_cap_too_large_for_u32_saturates`) with them, renamed
+`a_setting_is_parsed_as_the_harness_parses_it`,
+`a_setting_the_harness_ignores_is_none` and
+`a_setting_too_large_for_u32_saturates`. Each is rewritten to assert on
+`positive_whole_number` directly: `Some(n)`, `None`, and
+`Some(NonZeroU32::MAX)`. `subagent_cap.rs` imports both functions, and its
 remaining tests still pass untouched. The doc comment explaining the
 JavaScript parity ("read as the harness's JavaScript parser reads its own
 …", `subagent_cap.rs:51-53`) moves onto `positive_whole_number`, the
@@ -603,6 +612,7 @@ function it describes. Neither `from_environment` keeps it.
 | `a_search_cap_the_harness_ignores_is_the_default_and_reported` | `"abc"`, `"0"`, `"-5"`, `"1.5"`, `"1e2"` | 200, `HarnessDefault`, unhonoured holds the raw value |
 | `a_blank_search_cap_is_unset_and_unreported` | `""`, `"  "` | 200, no unhonoured |
 | `the_default_search_cap_matches_claude_codes` | — | `HARNESS_DEFAULT.searches() == 200` |
+| `the_source_names_the_variable_that_raises_the_cap` | — | `raised_by()` and `Variable.reported_as()` name the variable; `HarnessDefault.reported_as()` is `"default"` |
 
 #### 4. Search cap (green)
 
@@ -674,9 +684,11 @@ of 200 from the default`.
 - Introduce `pub struct PlanRequest { pub depth: Depth, pub concurrency:
   CappedConcurrency, pub search_cap: EnvironmentSearchCap, pub mode:
   RunMode }`. `run_outstanding(set_root, profiles_dir, &request, fs,
-  store)` replaces the separate parameters. `main.rs::outstanding` builds it
-  with `search_cap::from_environment(|name| std::env::var(name).ok())`.
-- In the `RunMode::Start` arm, after the plan is drawn, push
+  store)` replaces the separate parameters, and reads `request.*` in
+  place. `main.rs::outstanding` builds it with
+  `search_cap::from_environment(|name| std::env::var(name).ok())`.
+- When the mode is `RunMode::Start`, after the plan is drawn,
+  `unhonoured_search_cap_notice` pushes
   `search_wording::unhonoured_search_cap` when `request.search_cap.unhonoured`
   is set **and** `!unsearched_tree(&plan.pairs).is_empty()`. The concurrency
   notices and the corrupt-ledger notice stay where they are, before the plan
@@ -684,9 +696,16 @@ of 200 from the default`.
   plan therefore still prints them. The full order in stderr and `warnings`
   is: concurrency notices, corrupt-ledger notice, unhonoured search cap, and
   then, from phase 3, the floor warning.
-- `PlanOutput` gains `search_cap: &EnvironmentSearchCap`. `render` adds,
-  unconditionally, beside `subagent_cap`:
+- `PlanOutput` holds `request: &PlanRequest` in place of its `depth`,
+  `concurrency` and `cap` fields. `render` adds, unconditionally, beside
+  `subagent_cap`:
   `"search_cap": {"searches": n, "source": source.reported_as()}`.
+- Clippy's 100-line `too_many_lines` limit holds both functions. So
+  `run_outstanding` hands the ledger write to `stored` and the stderr
+  lines to `printed_warnings`. `render` hands its `unfinished`, `trims`
+  and `shallow` entries to `unfinished_spawn`, `trim` and
+  `shallow_finding`. Phases 3 and 6 add to both functions within that
+  limit.
 
 #### 7. CLI black-box tests
 
@@ -714,8 +733,11 @@ of 200 from the default`.
   to `_OPTIONAL_HARNESS_VARIABLES`.
 - Rename `test_the_admitted_set_is_exactly_the_subagent_cap` to
   `test_the_admitted_set_is_exactly_the_two_harness_caps` and assert both
-  entries. Extend `_ADMITTED` so the missing-file test covers
-  `search_cap.rs`.
+  entries. `_ADMITTED` is built from `_OPTIONAL_HARNESS_VARIABLES`, so the
+  missing-file test covers `search_cap.rs` unchanged.
+- Add `test_permits_the_search_cap_in_its_reader_and_its_test` and
+  `test_flags_the_search_cap_in_the_subagent_cap_reader`, so admission is
+  by name and file together.
 
 #### 9. Docs
 
