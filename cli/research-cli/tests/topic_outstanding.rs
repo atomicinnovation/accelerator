@@ -18,6 +18,7 @@ const BIN: &str = env!("CARGO_BIN_EXE_accelerator-research");
 const TOPICS: &str = "meta/research/topics";
 const ACCELERATOR_CAP: &str = "ACCELERATOR_SUBAGENT_CAP";
 const HARNESS_CAP: &str = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS";
+const SEARCH_CAP: &str = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION";
 
 struct Project {
     _dir: tempfile::TempDir,
@@ -154,7 +155,10 @@ impl Project {
 
 fn command_without_an_inherited_cap() -> Command {
     let mut command = Command::new(BIN);
-    command.env_remove(ACCELERATOR_CAP).env_remove(HARNESS_CAP);
+    command
+        .env_remove(ACCELERATOR_CAP)
+        .env_remove(HARNESS_CAP)
+        .env_remove(SEARCH_CAP);
     command
 }
 
@@ -243,6 +247,7 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "depth": 1,
             "concurrency": 20,
             "subagent_cap": {"slots": 20, "source": "default"},
+            "search_cap": {"searches": 200, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -279,6 +284,7 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "depth": 1,
             "concurrency": 20,
             "subagent_cap": {"slots": 20, "source": "default"},
+            "search_cap": {"searches": 200, "source": "default"},
             "remaining": 0,
             "unfinished": [],
             "trims": [],
@@ -787,6 +793,7 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
                 "depth": depth.parse::<u32>()?,
                 "concurrency": 20,
                 "subagent_cap": {"slots": 20, "source": "default"},
+                "search_cap": {"searches": 200, "source": "default"},
                 "remaining": 0,
                 "unfinished": [],
                 "trims": [],
@@ -2510,6 +2517,125 @@ fn subagent_cap_is_not_an_outstanding_flag() -> Result<(), TestError> {
     assert!(
         stderr.contains("unexpected argument '--subagent-cap'"),
         "{stderr}"
+    );
+    Ok(())
+}
+
+fn unhonoured_search_cap(value: &str) -> String {
+    format!(
+        "{SEARCH_CAP} is '{value}', not a positive integer — ignoring it; \
+         sizing search budgets against the search cap of 200 from the default"
+    )
+}
+
+fn assert_no_search_cap_notice(plan: &Value, stderr: &str) {
+    assert!(!plan["warnings"].to_string().contains(SEARCH_CAP), "{plan}");
+    assert!(!stderr.contains(SEARCH_CAP), "{stderr}");
+}
+
+fn openalex_and_arxiv_set(tag: &str) -> Result<Project, TestError> {
+    let project = small_set(
+        tag,
+        "- [ ] A? — profiles: openalex\n- [ ] B? — profiles: arxiv",
+    )?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"openalex\", \"arxiv\"]\n---\n",
+    )?;
+    Ok(project)
+}
+
+#[test]
+fn every_plan_reports_the_search_cap_and_its_source() -> Result<(), TestError> {
+    let rows: [(&[(&str, &str)], Value); 2] = [
+        (&[], json!({"searches": 200, "source": "default"})),
+        (
+            &[(SEARCH_CAP, "500")],
+            json!({"searches": 500, "source": SEARCH_CAP}),
+        ),
+    ];
+    for (variables, reported) in rows {
+        let project = a_set()?;
+
+        let (plan, _) = project.plan_in(&[], variables)?;
+
+        assert_eq!(plan["search_cap"], reported, "{variables:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_search_cap_is_reported_when_a_run_starts_with_web_pairs(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_eq!(
+        plan["search_cap"],
+        json!({"searches": 200, "source": "default"})
+    );
+    assert_warned(&plan, &stderr, &[unhonoured_search_cap("abc")]);
+    Ok(())
+}
+
+#[test]
+fn a_zero_search_cap_is_unhonoured() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, stderr) = project.plan_in(&["--start"], &[(SEARCH_CAP, "0")])?;
+
+    assert_warned(&plan, &stderr, &[unhonoured_search_cap("0")]);
+    Ok(())
+}
+
+#[test]
+fn an_unhonoured_search_cap_is_not_reported_after_the_start(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (first, _) = project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+    let run = first["run"].as_str().ok_or("no run")?;
+
+    let (plan, stderr) = project
+        .plan_in(&["--run", run, "--spawned", "0"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_no_search_cap_notice(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn a_run_without_web_pairs_reports_no_search_cap_notice(
+) -> Result<(), TestError> {
+    let project = openalex_and_arxiv_set("no-web-pairs")?;
+
+    let (plan, stderr) =
+        project.plan_in(&["--start"], &[(SEARCH_CAP, "abc")])?;
+
+    assert_eq!(plan["pairs"].as_array().map(Vec::len), Some(2), "{plan}");
+    assert_no_search_cap_notice(&plan, &stderr);
+    Ok(())
+}
+
+#[test]
+fn start_notices_keep_their_order() -> Result<(), TestError> {
+    let project = a_set()?;
+    fs::write(project.ledger(), "{")?;
+
+    let (plan, stderr) = project.plan_in(
+        &["--concurrency", "24", "--start"],
+        &[(ACCELERATOR_CAP, "8"), (SEARCH_CAP, "abc")],
+    )?;
+
+    assert_warned(
+        &plan,
+        &stderr,
+        &[
+            clamped_by(FLAG, "24", 8, ACCELERATOR_CAP),
+            CORRUPT_LEDGER.to_owned(),
+            unhonoured_search_cap("abc"),
+        ],
     );
     Ok(())
 }

@@ -15,7 +15,6 @@ use corpus::FileRemove;
 use corpus_adapters::resolve::resolve_document;
 use corpus_adapters::resolve::Resolution;
 use corpus_adapters::YamlFrontmatter;
-use research::conduct::concurrency::Concurrency;
 use research::conduct::concurrency::Provenance;
 use research::conduct::concurrency::RequestedConcurrency;
 use research::conduct::concurrency::ResolvedConcurrency;
@@ -25,17 +24,21 @@ use research::conduct::observed::Observed;
 use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
+use research::conduct::search_budget::unsearched_tree;
 use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
+use research::conduct::window::UnfinishedSpawn;
 use research::conduct::window::Window;
 use research::topic::layout::lineage::Lineage;
 use research::topic::layout::note_ref::NoteRef;
 use research::topic::plan::OutstandingPair;
 use research::topic::plan::RoundInputs;
 use research::topic::plan::RoundPlan;
+use research::topic::plan::ShallowFinding;
 use research::topic::tree::Depth;
 use research::topic::tree::MissingNode;
 use research::topic::tree::Stage;
+use research::topic::tree::Trim;
 use research_adapters::conduct::ledger::delete_run_ledger;
 use research_adapters::conduct::ledger::read_run_ledger;
 use research_adapters::conduct::ledger::run_ledger_path;
@@ -50,6 +53,8 @@ use crate::concurrency_wording;
 use crate::context::ProjectContext;
 use crate::ledger_wording;
 use crate::plan_wording;
+use crate::search_cap::EnvironmentSearchCap;
+use crate::search_wording;
 use crate::subagent_cap::EnvironmentCap;
 
 const DOC_TYPE: &str = "topic-research";
@@ -138,6 +143,13 @@ impl OutstandingFlags {
             run: run_flag(start, run, spawned)?,
         })
     }
+}
+
+pub struct PlanRequest {
+    pub depth: Depth,
+    pub concurrency: CappedConcurrency,
+    pub search_cap: EnvironmentSearchCap,
+    pub mode: RunMode,
 }
 
 pub struct CappedConcurrency {
@@ -242,9 +254,7 @@ fn failed(message: impl Into<String>) -> String {
 pub fn run_outstanding<F, S>(
     set_root: &Path,
     profiles_dir: &Path,
-    depth: Depth,
-    concurrency: &CappedConcurrency,
-    mode: RunMode,
+    request: &PlanRequest,
     fs: &F,
     store: &S,
 ) -> Result<Printed, String>
@@ -253,13 +263,13 @@ where
     S: AtomicWrite,
 {
     let mut notices = Vec::new();
-    let (continued, replaced) = match &mode {
+    let (continued, replaced) = match &request.mode {
         RunMode::Continue { run, spawned } => (
             Some(continued_ledger(set_root, run, *spawned, fs)?),
             ReplacedLedger::Absent,
         ),
         RunMode::Start(_) => {
-            notices.extend(start_notices(concurrency));
+            notices.extend(start_notices(&request.concurrency));
             let replaced = replaced_ledger(set_root, fs)?;
             if matches!(replaced, ReplacedLedger::Corrupt) {
                 notices.push(ledger_wording::corrupt_notice());
@@ -275,7 +285,7 @@ where
     let reading = read_round_inputs(
         set_root,
         profiles_dir,
-        depth,
+        request.depth,
         claims,
         fs,
         &YamlFrontmatter,
@@ -300,10 +310,15 @@ where
             (reading.inputs, plan, None, Vec::new())
         }
     };
+    if matches!(request.mode, RunMode::Start(_)) {
+        notices
+            .extend(unhonoured_search_cap_notice(&request.search_cap, &plan));
+    }
     let observed = Observed::of(&inputs);
-    let ledger = match mode {
+    let ledger = match &request.mode {
         RunMode::Start(run) => Some(
-            RunLedger::start(run, &observed).owing_quarantine(&owed_quarantine),
+            RunLedger::start(run.clone(), &observed)
+                .owing_quarantine(&owed_quarantine),
         ),
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
@@ -311,25 +326,14 @@ where
     let window = window(
         &plan,
         &observed,
-        concurrency.resolved.concurrency,
+        request.concurrency.resolved.concurrency,
         ledger.as_ref().map(RunLedger::memory),
     );
     let ledger = ledger.map(|ledger| ledger.record(&plan, &observed, &window));
     if let Some(ledger) = &ledger {
-        write_run_ledger(set_root, ledger, store).map_err(|error| {
-            failed(format!(
-                "E_TOPIC_RESEARCH_RUN_LEDGER: could not write {}: {error}",
-                run_ledger_path(set_root).display()
-            ))
-        })?;
+        stored(set_root, ledger, store)?;
     }
-    let mut stderr = String::new();
-    let replaced_notice =
-        replaced_run.as_ref().map(ledger_wording::replaced_notice);
-    let trims = plan.trims.iter().map(plan_wording::trim);
-    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
-        let _ = writeln!(stderr, "warning: {warning}");
-    }
+    let stderr = printed_warnings(&notices, replaced_run.as_ref(), &plan);
     let warnings = plan
         .warnings
         .iter()
@@ -341,9 +345,7 @@ where
         plan: &plan,
         window: &window,
         set_root,
-        depth,
-        concurrency: concurrency.resolved.concurrency,
-        cap: &concurrency.cap,
+        request,
         ledger: ledger.as_ref(),
         replaced_run: replaced_run.as_ref(),
         warnings,
@@ -425,6 +427,43 @@ fn settled(
     })
 }
 
+fn stored<S: AtomicWrite>(
+    set_root: &Path,
+    ledger: &RunLedger,
+    store: &S,
+) -> Result<(), String> {
+    write_run_ledger(set_root, ledger, store).map_err(|error| {
+        failed(format!(
+            "E_TOPIC_RESEARCH_RUN_LEDGER: could not write {}: {error}",
+            run_ledger_path(set_root).display()
+        ))
+    })
+}
+
+fn printed_warnings(
+    notices: &[String],
+    replaced_run: Option<&ReplacedRun>,
+    plan: &RoundPlan,
+) -> String {
+    let replaced_notice = replaced_run.map(ledger_wording::replaced_notice);
+    let trims = plan.trims.iter().map(plan_wording::trim);
+    let mut stderr = String::new();
+    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
+        let _ = writeln!(stderr, "warning: {warning}");
+    }
+    stderr
+}
+
+fn unhonoured_search_cap_notice(
+    search_cap: &EnvironmentSearchCap,
+    plan: &RoundPlan,
+) -> Option<String> {
+    let value = search_cap.unhonoured.as_deref()?;
+    let has_web_nodes = !unsearched_tree(&plan.pairs).is_empty();
+    has_web_nodes
+        .then(|| search_wording::unhonoured_search_cap(value, search_cap.cap))
+}
+
 fn start_notices(concurrency: &CappedConcurrency) -> Vec<String> {
     let unhonoured = concurrency
         .cap
@@ -472,13 +511,34 @@ fn no_usable_ledger(run: &RunId) -> String {
     ))
 }
 
+fn unfinished_spawn(unfinished: &UnfinishedSpawn) -> Value {
+    json!({
+        "spawn": unfinished.spawn.to_string(),
+        "rejected": unfinished.rejected.as_ref().map(plan_wording::rejection),
+    })
+}
+
+fn trim(trim: &Trim) -> Value {
+    json!({
+        "stem": trim.at.stem.to_string(),
+        "lineage": trim.at.lineage.to_string(),
+        "recorded": trim.recorded,
+        "cap": trim.cap,
+    })
+}
+
+fn shallow_finding(finding: &ShallowFinding) -> Value {
+    json!({
+        "stem": finding.stem.to_string(),
+        "depth": finding.depth.levels(),
+    })
+}
+
 struct PlanOutput<'a> {
     plan: &'a RoundPlan,
     window: &'a Window,
     set_root: &'a Path,
-    depth: Depth,
-    concurrency: Concurrency,
-    cap: &'a EnvironmentCap,
+    request: &'a PlanRequest,
     ledger: Option<&'a RunLedger>,
     replaced_run: Option<&'a ReplacedRun>,
     warnings: Vec<String>,
@@ -519,48 +579,31 @@ impl PlanOutput<'_> {
             .window
             .unfinished
             .iter()
-            .map(|unfinished| {
-                json!({
-                    "spawn": unfinished.spawn.to_string(),
-                    "rejected": unfinished
-                        .rejected
-                        .as_ref()
-                        .map(plan_wording::rejection),
-                })
-            })
+            .map(unfinished_spawn)
             .collect();
-        let trims: Vec<_> = plan
-            .trims
-            .iter()
-            .map(|trim| {
-                json!({
-                    "stem": trim.at.stem.to_string(),
-                    "lineage": trim.at.lineage.to_string(),
-                    "recorded": trim.recorded,
-                    "cap": trim.cap,
-                })
-            })
-            .collect();
-        let shallow: Vec<_> = plan
-            .shallow
-            .iter()
-            .map(|finding| {
-                json!({
-                    "stem": finding.stem.to_string(),
-                    "depth": finding.depth.levels(),
-                })
-            })
-            .collect();
+        let trims: Vec<_> = plan.trims.iter().map(trim).collect();
+        let shallow: Vec<_> =
+            plan.shallow.iter().map(shallow_finding).collect();
+        let PlanRequest {
+            depth,
+            concurrency,
+            search_cap,
+            ..
+        } = self.request;
         let mut rendered = json!({
             "items": items,
             "pairs": pairs,
             "skipped": skipped,
             "warnings": self.warnings,
-            "depth": self.depth.levels(),
-            "concurrency": self.concurrency.agents().get(),
+            "depth": depth.levels(),
+            "concurrency": concurrency.resolved.concurrency.agents().get(),
             "subagent_cap": {
-                "slots": self.cap.cap.slots().get(),
-                "source": self.cap.source.reported_as(),
+                "slots": concurrency.cap.cap.slots().get(),
+                "source": concurrency.cap.source.reported_as(),
+            },
+            "search_cap": {
+                "searches": search_cap.cap.searches().get(),
+                "source": search_cap.source.reported_as(),
             },
             "remaining": self.window.remaining,
             "unfinished": unfinished,

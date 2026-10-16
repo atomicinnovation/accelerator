@@ -180,6 +180,8 @@ _CAP = "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"
 _CAP_READER = "cli/research-cli/src/subagent_cap.rs"
 _CAP_TEST = "cli/research-cli/tests/topic_outstanding.rs"
 _CAP_READ = f'const HARNESS_CAPS: [&str; 1] = ["{_CAP}"];\n'
+_SEARCH_CAP = "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION"
+_SEARCH_CAP_READER = "cli/research-cli/src/search_cap.rs"
 
 
 class TestOptionalHarnessVariables:
@@ -226,8 +228,32 @@ class TestOptionalHarnessVariables:
 
         assert _found(tmp_path) == [f"{_CAP_READER}:1:" + line.strip()]
 
-    def test_the_admitted_set_is_exactly_the_subagent_cap(self):
-        assert _OPTIONAL_HARNESS_VARIABLES == {_CAP: (_CAP_READER, _CAP_TEST)}
+    def test_permits_the_search_cap_in_its_reader_and_its_test(
+        self, tmp_path: Path
+    ):
+        _tree(tmp_path)
+        _write(
+            tmp_path / _SEARCH_CAP_READER,
+            f'const HARNESS_SEARCH_CAP: &str = "{_SEARCH_CAP}";\n',
+        )
+        _write(tmp_path / _CAP_TEST, f'.env("{_SEARCH_CAP}", "500")\n')
+
+        assert _found(tmp_path) == []
+
+    def test_flags_the_search_cap_in_the_subagent_cap_reader(
+        self, tmp_path: Path
+    ):
+        _tree(tmp_path)
+        line = f'lookup("{_SEARCH_CAP}")\n'
+        _write(tmp_path / _CAP_READER, line)
+
+        assert _found(tmp_path) == [f"{_CAP_READER}:1:" + line.strip()]
+
+    def test_the_admitted_set_is_exactly_the_two_harness_caps(self):
+        assert _OPTIONAL_HARNESS_VARIABLES == {
+            _CAP: (_CAP_READER, _CAP_TEST),
+            _SEARCH_CAP: (_SEARCH_CAP_READER, _CAP_TEST),
+        }
 
     @pytest.mark.parametrize("admitted", _ADMITTED)
     def test_a_missing_admitted_file_raises(
