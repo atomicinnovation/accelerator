@@ -294,7 +294,7 @@ pub const SCHEMA: [SchemaRow; 19] = [
             "depth",
             "follow_ups",
         ],
-        optional_extras: &[],
+        optional_extras: &["search_budget"],
         empty_list_extras: &["follow_ups"],
         status_vocab: &["complete"],
         forbidden_own_id_keys: &[],
@@ -568,6 +568,18 @@ mod tests {
         let note =
             row_for("topic-research", "level-note").ok_or("level-note row")?;
         assert!(note.required_extras.contains(&"depth"));
+        Ok(())
+    }
+
+    #[test]
+    fn a_level_note_row_holds_search_budget_as_optional_and_a_finding_row_lacks_it(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let note =
+            row_for("topic-research", "level-note").ok_or("level-note row")?;
+        assert_eq!(note.optional_extras, &["search_budget"]);
+        let finding =
+            row_for("topic-research", "finding").ok_or("finding row")?;
+        assert!(!finding.optional_extras.contains(&"search_budget"));
         Ok(())
     }
 
