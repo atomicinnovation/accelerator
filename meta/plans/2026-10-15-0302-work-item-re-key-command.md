@@ -2010,7 +2010,7 @@ items keep their IDs forever.
 
 The ACs abbreviate draft IDs to four characters (`draft-k3x9`,
 `draft-a1b2`), which `DraftId::parse` rejects. Amend them to six-character
-IDs (`draft-k3x9mq`, `draft-a1b2cd`); no expected outcome changes.
+IDs (`draft-k3x9mq`, `draft-a1b2cd`); no expected outcome changes. Applied.
 
 The scope bullet and the AC "Given a run plan in progress, when
 `work rekey --discard` runs, then it exits non-zero …" become "Given a run

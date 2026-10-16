@@ -14,7 +14,7 @@ blocks: ["work-item:0343", "work-item:0346"]
 relates_to: ["work-item:0228", "work-item:0297", "work-item:0345"]
 external_id: "PP-879"
 tags: ["sync", "tracker", "id-generation", "rekey"]
-last_updated: "2026-10-16T16:44:30+00:00"
+last_updated: "2026-10-16T16:51:18+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -173,25 +173,25 @@ pattern.
 - [ ] Given `{number:04d}` and item `ACC-0042` named in `meta/` prose, when
       `work rekey` runs, then the prose names `0042`.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"` and a corpus holding
-      `0041`, synced `PP-760`, and `draft-k3x9`, when `work rekey` runs, then
+      `0041`, synced `PP-760`, and `draft-k3x9mq`, when `work rekey` runs, then
       `0041` becomes `ACC-0041`, the other two take the next allocated `ACC-`
       numbers, and every `id` matches `ACC-NNNN`.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"`, highest number
-      `0041`, and items `PP-760` dated `2026-02-01` and `draft-k3x9` dated
-      `2026-01-01`, when `work rekey` runs, then `draft-k3x9` becomes
+      `0041`, and items `PP-760` dated `2026-02-01` and `draft-k3x9mq` dated
+      `2026-01-01`, when `work rekey` runs, then `draft-k3x9mq` becomes
       `ACC-0042` and `PP-760` becomes `ACC-0043`.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"`, highest number
-      `0041`, and items `draft-a1b2` and `PP-761` both dated `2026-01-01`,
+      `0041`, and items `draft-a1b2cd` and `PP-761` both dated `2026-01-01`,
       when `work rekey` runs, then `PP-761` becomes `ACC-0042` and
-      `draft-a1b2` becomes `ACC-0043`, old `id`s compared byte-wise.
+      `draft-a1b2cd` becomes `ACC-0043`, old `id`s compared byte-wise.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"`, highest number
-      `0041`, item `draft-k3x9` dated `2026-01-01` and named in `meta/` prose,
+      `0041`, item `draft-k3x9mq` dated `2026-01-01` and named in `meta/` prose,
       item `PP-760` dated `2026-02-01`, and a prose token `PP-7601`, when
       `work rekey` runs, then the prose names `ACC-0042` where it named
-      `draft-k3x9`, and `PP-7601` is unchanged.
+      `draft-k3x9mq`, and `PP-7601` is unchanged.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"` and items `ACC-0040`,
-      `0041`, and `draft-k3x9`, when `work rekey --preview` runs, then it
-      prints exactly `0041 → ACC-0041` and `draft-k3x9 → ACC-0042`, records
+      `0041`, and `draft-k3x9mq`, when `work rekey --preview` runs, then it
+      prints exactly `0041 → ACC-0041` and `draft-k3x9mq → ACC-0042`, records
       a proposed run plan, and changes no file under `meta/`.
 - [ ] Given a dirty working copy, when `work rekey --preview` runs, then it
       prints the mapping and records a proposed run plan.
@@ -222,11 +222,11 @@ pattern.
       rule, when `work rekey` runs, then the working copy is not reported
       dirty because of the run plan.
 - [ ] Given `{key}-{number:04d}` with `work.key: "ACC"`, a run plan in
-      progress mapping `draft-k3x9 → ACC-0042` and `PP-760 → ACC-0043`, and
+      progress mapping `draft-k3x9mq → ACC-0042` and `PP-760 → ACC-0043`, and
       a run interrupted after `ACC-0043-<slug>.md` is created and some
       `work-item:PP-760` links are rewritten but before `PP-760-<slug>.md` is
       removed, when `work rekey` runs again, then it finishes without the
-      dirty-tree refusal: `draft-k3x9` is `ACC-0042`, exactly one item is
+      dirty-tree refusal: `draft-k3x9mq` is `ACC-0042`, exactly one item is
       `ACC-0043` with `aliases` containing `PP-760`, no `PP-760-<slug>.md`
       remains,
       every `work-item:PP-760` reads `work-item:ACC-0043`, and the run plan
@@ -257,15 +257,15 @@ pattern.
 - [ ] Given `{number:04d}` and items `ACC-0042` and `XYZ-0042`, when
       `work rekey` runs, then it exits non-zero naming both items and writes
       nothing.
-- [ ] Given `{key}-{number:04d}` and `draft-k3x9` with a `created`
+- [ ] Given `{key}-{number:04d}` and `draft-k3x9mq` with a `created`
       `pending_push` marker, when `work rekey` runs, then it exits non-zero
-      naming `draft-k3x9` and writes nothing.
+      naming `draft-k3x9mq` and writes nothing.
 - [ ] Given an unfinished `work sync` retirement record for `0042 → PP-760`,
       when `work rekey` runs, then it exits non-zero naming `0042`, tells the
       user to run `work sync`, and writes nothing.
 - [ ] Given `{tracker}`, legacy item `0042` with `external_id: "PP-760"`, and
-      an existing `draft-k3x9` with an `attempted` `pending_push` marker, when
-      `work rekey` runs, then `0042` becomes `PP-760` and `draft-k3x9` is
+      an existing `draft-k3x9mq` with an `attempted` `pending_push` marker, when
+      `work rekey` runs, then `0042` becomes `PP-760` and `draft-k3x9mq` is
       unchanged.
 - [ ] Given a re-key run plan in progress, when `work sync` runs, then it
       exits non-zero telling the user to run `work rekey` and changes
