@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T16:11:35+00:00"
+last_updated: "2026-10-16T16:13:17+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1023,7 +1023,7 @@ methods, `from_parts` arity) and commit the regenerated fixture.
 
 #### Manual Verification
 
-- [ ] `outstanding --start` on a real set with 3 web pairs at depth 3
+- [x] `outstanding --start` on a real set with 3 web pairs at depth 3
       reports 15/6/3 and demand 189. Run `end-run` afterwards.
 
 ---
