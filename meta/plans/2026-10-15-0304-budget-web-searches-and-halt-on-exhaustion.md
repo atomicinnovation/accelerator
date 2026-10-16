@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T16:14:20+00:00"
+last_updated: "2026-10-16T16:44:27+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1078,8 +1078,9 @@ to it, and web level notes record it as `search_budget`.
 #### 1. Schema tests (red) and schema (green)
 
 **File**: `cli/corpus/src/frontmatter_validation/schema.rs`: the level-note
-row's `optional_extras: &["search_budget"]`. Extend the row tests
-(`:561-608`) to pin it.
+row's `optional_extras: &["search_budget"]`. A new row test,
+`a_level_note_row_holds_search_budget_as_optional_and_a_finding_row_lacks_it`,
+pins it beside the depth row test.
 
 **File**: `cli/corpus/src/frontmatter_validation/mod.rs`: validator tests
 using `level_note_with` (`:863-872`):
@@ -1087,8 +1088,14 @@ using `level_note_with` (`:863-872`):
 - `a_level_note_with_a_search_budget_validates`;
 - `a_level_note_without_a_search_budget_validates`.
 
-**File**: `cli/corpus-cli/tests/frontmatter_goldens.rs` (`:1053-1101`): the
-printed row's `"optional_extras": ["search_budget"]`.
+Both pass before and after the change, because the validator never
+rejects an extra its row does not name. They pin that the field is
+accepted, and that leaving it out is too.
+
+**File**: `cli/corpus-cli/tests/frontmatter_goldens.rs` (`:1053-1101`): in
+`print_schema_emits_every_row_with_its_template`, the printed row's
+`"optional_extras": ["search_budget"]`. This test and the row test fail
+first.
 
 #### 2. Template
 
@@ -1098,8 +1105,11 @@ printed row's `"optional_extras": ["search_budget"]`.
 search_budget: 1                              # web profile only; omit for every other profile
 ```
 
-`check_extras` now finds it. Confirm with `mise run` that the template-shape
-check passes.
+The schema row and the template change in one commit. `check_extras`
+requires every optional extra in the template, and the conformance test
+`test_a_topic_research_template_declares_exactly_its_schema_row` requires
+the template's keys to match its row exactly, so neither can land alone.
+`mise run test:integration:conformance` confirms both.
 
 #### 3. Level-note outputter
 
@@ -1142,13 +1152,20 @@ template stay untouched, so findings carry no `search_budget`.
 | `test_the_web_profile_limits_searches_to_the_injected_budget` | "Make at most {search budget} `WebSearch` calls" in the web profile |
 | `test_web_spawns_carry_their_search_budget` | both spawn bullets name `search_budget`; the compose bullet does not |
 | `test_only_web_level_notes_stamp_a_search_budget` | the outputter names `search_budget` and the delete rule |
-| `test_findings_carry_no_search_budget` | neither the finding template nor `finding-outputter` mentions `search_budget` (AC 18) |
+| `test_findings_carry_no_search_budget` | parametrised over the finding template and `finding-outputter`: neither mentions `search_budget` (AC 18) |
+
+A `_spawn_bullet` helper cuts step 4 into its three bullets with
+`_section`. The first three tests fail first.
+`test_findings_carry_no_search_budget` passes throughout, as a pin.
 
 #### 7. CLI tolerance
 
 **File**: `cli/research-cli/tests/topic_outstanding.rs`:
-`a_level_note_with_a_search_budget_is_read_like_any_other`. A written web
-note carrying `search_budget: 3` is accepted and its follow-ups derived.
+`a_level_note_with_a_search_budget_is_read_like_any_other`. One web pair
+at depth 2 has its level-1 note written through `level_note_with`, carrying
+`search_budget: 3` and two follow-ups. `--start` offers nodes `2-1` and
+`2-2`. The CLI already read the note this way, so the test passes before
+and after, as a pin.
 
 #### 8. Conditional: 0307
 
@@ -1159,18 +1176,23 @@ CLI test for each. Otherwise skip this step. Check 0307's status again
 before merging. If it landed while this phase was in flight, do this step
 then.
 
+0307 was `draft` when this phase started, so this step was skipped. The
+check before merging still applies.
+
 #### 9. Changelog
 
 **File**: `CHANGELOG.md`: extend the plans-deepened-research bullet. Web
 researchers now make at most their search budget of `WebSearch` calls, and
-web level notes record it as `search_budget`. A project that overrides
+web level notes record it as `search_budget`, an optional level-note
+field. A project that overrides
 `topic-research-level-note.md` should add the `search_budget` line.
 
 ### Success Criteria
 
 #### Automated Verification
 
-- [x] Schema, golden and validator tests fail first, then pass:
+- [x] Schema row and golden tests fail first, then pass, and the
+      validator tests pass throughout:
       `cargo test -p corpus -p accelerator-corpus`
 - [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
 - [x] Full local CI mirror: `mise run`
@@ -1181,6 +1203,16 @@ web level notes record it as `search_budget`. A project that overrides
       level notes with `search_budget` equal to the plan's level budget,
       and openalex notes without it. Every note passes
       `accelerator corpus frontmatter validate --file`.
+
+The session ran the installed plugin, which predates this phase, so the
+run was driven by hand. A throwaway set held one web pair and one openalex
+pair. The debug `accelerator-research` drew the plans, and
+`accelerator:researcher` agents were given the repo's profile, outputter
+and template paths, as step 4 directs. The budgets were 66 at level 1 and
+31 at level 2, with a demand of 190. All 5 web notes carried their level's
+budget, all 5 openalex notes omitted the field, and all 10 validated. The
+run stopped before the compose batch, which this phase does not change.
+The compose pairs in that plan carried no `search_budget`.
 
 ---
 
