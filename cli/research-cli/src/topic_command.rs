@@ -3,6 +3,7 @@
 //! keeps between plans.
 
 use std::fmt::Write as _;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -25,6 +26,8 @@ use research::conduct::replaced_run::Leftover;
 use research::conduct::replaced_run::Recovery;
 use research::conduct::replaced_run::ReplacedRun;
 use research::conduct::search_budget::unsearched_tree;
+use research::conduct::search_budget::SearchBudgets;
+use research::conduct::search_budget::SEARCHING_PROFILE;
 use research::conduct::spawn::SpawnRef;
 use research::conduct::window::window;
 use research::conduct::window::UnfinishedSpawn;
@@ -263,6 +266,23 @@ where
     S: AtomicWrite,
 {
     let mut notices = Vec::new();
+    planned(set_root, profiles_dir, request, fs, store, &mut notices).map_err(
+        |error| format!("{}{error}", warning_lines(notices.iter().cloned())),
+    )
+}
+
+fn planned<F, S>(
+    set_root: &Path,
+    profiles_dir: &Path,
+    request: &PlanRequest,
+    fs: &F,
+    store: &S,
+    notices: &mut Vec<String>,
+) -> Result<Printed, String>
+where
+    F: DirReader + FileReader + DirectoryProbe,
+    S: AtomicWrite,
+{
     let (continued, replaced) = match &request.mode {
         RunMode::Continue { run, spawned } => (
             Some(continued_ledger(set_root, run, *spawned, fs)?),
@@ -323,6 +343,8 @@ where
         RunMode::Continue { .. } => continued,
         RunMode::Query => None,
     };
+    let ledger = ledger
+        .map(|ledger| budgeted(ledger, &plan, &request.search_cap, notices));
     let window = window(
         &plan,
         &observed,
@@ -333,13 +355,13 @@ where
     if let Some(ledger) = &ledger {
         stored(set_root, ledger, store)?;
     }
-    let stderr = printed_warnings(&notices, replaced_run.as_ref(), &plan);
+    let stderr = printed_warnings(notices, replaced_run.as_ref(), &plan);
     let warnings = plan
         .warnings
         .iter()
         .map(plan_wording::warning)
         .chain(reading.warnings.iter().map(ToString::to_string))
-        .chain(notices)
+        .chain(notices.iter().cloned())
         .collect();
     let rendered = PlanOutput {
         plan: &plan,
@@ -447,11 +469,32 @@ fn printed_warnings(
 ) -> String {
     let replaced_notice = replaced_run.map(ledger_wording::replaced_notice);
     let trims = plan.trims.iter().map(plan_wording::trim);
+    warning_lines(notices.iter().cloned().chain(replaced_notice).chain(trims))
+}
+
+fn warning_lines(warnings: impl Iterator<Item = String>) -> String {
     let mut stderr = String::new();
-    for warning in notices.iter().cloned().chain(replaced_notice).chain(trims) {
+    for warning in warnings {
         let _ = writeln!(stderr, "warning: {warning}");
     }
     stderr
+}
+
+fn budgeted(
+    ledger: RunLedger,
+    plan: &RoundPlan,
+    search_cap: &EnvironmentSearchCap,
+    notices: &mut Vec<String>,
+) -> RunLedger {
+    if !ledger.awaits_search_budgets() {
+        return ledger;
+    }
+    let budgets =
+        SearchBudgets::sized(&unsearched_tree(&plan.pairs), search_cap.cap);
+    if budgets.overruns(search_cap.cap) {
+        notices.push(search_wording::search_floor(&budgets, search_cap));
+    }
+    ledger.budgeting_searches(budgets)
 }
 
 fn unhonoured_search_cap_notice(
@@ -525,6 +568,13 @@ fn trim(trim: &Trim) -> Value {
         "recorded": trim.recorded,
         "cap": trim.cap,
     })
+}
+
+fn search_budgets(budgets: &SearchBudgets) -> Value {
+    budgets
+        .levels()
+        .map(|(level, budget)| json!({"level": level, "budget": budget}))
+        .collect()
 }
 
 fn shallow_finding(finding: &ShallowFinding) -> Value {
@@ -619,6 +669,13 @@ impl PlanOutput<'_> {
                 .iter()
                 .map(ToString::to_string)
                 .collect();
+            if let Some(budgets) = ledger
+                .search_budgets()
+                .filter(|budgets| budgets.levels().next().is_some())
+            {
+                rendered["search_budgets"] = search_budgets(budgets);
+                rendered["search_demand"] = json!(budgets.demand());
+            }
         }
         if let Some(replaced) = self.replaced_run {
             rendered["replaced_run"] = self.leftovers(replaced);
@@ -669,10 +726,14 @@ impl PlanOutput<'_> {
             stem: outstanding.stem.clone(),
             lineage: lineage.clone(),
         };
+        let search_budget = |level| self.search_budget(outstanding, level);
         match &outstanding.stage {
             Stage::SinglePass => {
                 rendered["stage"] = json!("single_pass");
                 rendered["spawn"] = json!(spawn);
+                if let Some(budget) = search_budget(1) {
+                    rendered["search_budget"] = json!(budget);
+                }
             }
             Stage::Compose(lineages) => {
                 rendered["stage"] = json!("compose");
@@ -686,14 +747,35 @@ impl PlanOutput<'_> {
                 rendered["stage"] = json!("research_nodes");
                 rendered["nodes"] = nodes
                     .iter()
-                    .map(|node| self.node(note(&node.lineage), node))
+                    .map(|node| {
+                        self.node(
+                            note(&node.lineage),
+                            node,
+                            search_budget(node.lineage.level()),
+                        )
+                    })
                     .collect();
             }
         }
         rendered
     }
 
-    fn node(&self, address: NoteRef, node: &MissingNode) -> Value {
+    fn search_budget(
+        &self,
+        outstanding: &OutstandingPair,
+        level: u32,
+    ) -> Option<NonZeroU32> {
+        let budgets = self.ledger?.search_budgets()?;
+        (outstanding.pair.profile == SEARCHING_PROFILE)
+            .then(|| budgets.at(level))
+    }
+
+    fn node(
+        &self,
+        address: NoteRef,
+        node: &MissingNode,
+        search_budget: Option<NonZeroU32>,
+    ) -> Value {
         let mut rendered = json!({
             "lineage": node.lineage.to_string(),
             "level": node.lineage.level(),
@@ -706,6 +788,9 @@ impl PlanOutput<'_> {
         });
         if let Some(rejected) = &node.rejected {
             rendered["rejected"] = json!(plan_wording::rejection(rejected));
+        }
+        if let Some(budget) = search_budget {
+            rendered["search_budget"] = json!(budget);
         }
         rendered
     }
