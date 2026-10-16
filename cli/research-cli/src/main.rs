@@ -6,6 +6,7 @@ mod concurrency_wording;
 mod context;
 mod fetch_command;
 mod guard;
+mod harness_setting;
 mod ledger_wording;
 #[cfg(feature = "test-loopback")]
 mod loopback;
