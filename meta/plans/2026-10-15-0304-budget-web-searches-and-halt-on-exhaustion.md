@@ -1170,10 +1170,10 @@ web level notes record it as `search_budget`. A project that overrides
 
 #### Automated Verification
 
-- [ ] Schema, golden and validator tests fail first, then pass:
-      `cargo test -p corpus -p corpus-cli`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Full local CI mirror: `mise run`
+- [x] Schema, golden and validator tests fail first, then pass:
+      `cargo test -p corpus -p accelerator-corpus`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
