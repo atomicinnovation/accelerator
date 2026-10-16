@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T15:55:50+00:00"
+last_updated: "2026-10-16T16:11:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1015,11 +1015,11 @@ methods, `from_parts` arity) and commit the regenerated fixture.
 
 #### Automated Verification
 
-- [ ] Ledger, codec and CLI tests fail first, then pass:
+- [x] Ledger, codec and CLI tests fail first, then pass:
       `cargo test -p research -p research-adapters -p research-cli`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Public API pin updated and matching: `mise run public-api:check`
-- [ ] Full local CI mirror: `mise run`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Public API pin updated and matching: `mise run public-api:check`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
