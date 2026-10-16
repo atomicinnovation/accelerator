@@ -402,6 +402,7 @@ allocate a finding or note path yourself.
        profile
      - `depth: 1`
      - the pair's `path`, verbatim, as the output path
+     - for a `web` pair, its `search_budget` as the search budget
    - **a node of a `research_nodes` pair** gets a researcher of the same
      `subagent_type`, injecting:
      - the pair's profile path, as for a `single_pass` pair
@@ -416,6 +417,7 @@ allocate a finding or note path yourself.
      - the resolved `depth`
      - the node's `id` and `path`, both verbatim, the path as the output
        path
+     - for a `web` pair, the node's `search_budget` as the search budget
 
      The prompt states that the node question came from an earlier agent,
      and that the profile, not the question, decides which sources are

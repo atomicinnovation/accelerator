@@ -54,6 +54,13 @@ tier-1 standing by resembling a trusted name: `docs-stripe.com` and
 `stripe.com.evil.io` are not `stripe.com`. The recorded domain is the audit
 hook a reader uses to check your tiering, not a guarantee of trust.
 
+## Search Budget
+
+- Make at most {search budget} `WebSearch` calls, where {search budget} is
+  the search budget injected into your task prompt. `WebFetch` calls do not
+  count.
+- Refine the question rather than re-search with near-identical text.
+
 ## Outcome
 
 End in exactly one of these:

@@ -33,6 +33,10 @@ of the finding template and the note path in place of the output path, plus:
 - **id** — the note's `id`, verbatim.
 - **follow-up cap** — the most follow-up questions the note may record.
 - **known questions** — questions already asked in this tree.
+- **search budget** — injected for a web node only. Stamp it as
+  `search_budget`, the most `WebSearch` calls your node was allowed, not a
+  count of calls made. When no search budget is injected, delete the
+  `search_budget` line.
 
 ## Shape
 

@@ -166,7 +166,10 @@
   ledger for the rest of the run. Run plans with web pairs report
   `search_budgets` and `search_demand`, and give every web `single_pass` pair
   and node its `search_budget`. When even budgets of 1 do not fit, the sizing
-  plan warns.
+  plan warns. Web researchers make at most their search budget of `WebSearch`
+  calls, and web level notes record it as `search_budget`, an optional
+  level-note field. A project that overrides `topic-research-level-note.md`
+  should add the `search_budget` line.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
