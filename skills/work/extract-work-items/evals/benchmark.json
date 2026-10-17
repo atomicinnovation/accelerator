@@ -516,9 +516,9 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
+        "passed": 3,
         "failed": 0,
-        "total": 4,
+        "total": 3,
         "time_seconds": 0.0,
         "tokens": 0,
         "tool_calls": 0,
@@ -526,14 +526,9 @@
       },
       "expectations": [
         {
-          "text": "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it",
+          "text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it",
           "passed": true,
-          "evidence": "response.md: \"a re-key run is unfinished (E_REKEY_IN_PROGRESS)\" and \"finish the re-key with `accelerator work rekey`\"."
-        },
-        {
-          "text": "response.md names `accelerator work rekey --discard` to undo it",
-          "passed": true,
-          "evidence": "response.md: \"undo it with `accelerator work rekey --discard`\"."
+          "evidence": "response.md: \"a work item re-key is still in progress\" and \"Run `/rekey-work-items` to finish (or undo) the unfinished re-key\"."
         },
         {
           "text": "commands.md shows exactly one accelerator work create-batch call",
@@ -562,6 +557,6 @@
   "notes": [
     "Evals 8-10 ({tracker} batch creation through work create-batch) were run with_skill only on 2026-09-28, by claude-sonnet-5; the old skill has no {tracker} flow. Eval 10 first failed one expectation (it told the user to fix the rejected item and re-run the batch); a per-keyword recovery table was added to Step 4 under {tracker} and the rerun passed.",
     "Eval 11 (an unpushed {tracker} batch that fails partway reruns only the entries never written) was run with_skill only on 2026-10-09, by claude-sonnet-5, and passed first time.",
-    "Eval 12 (an in-progress re-key routed to `accelerator work rekey`) was run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
+    "Eval 12 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
   ]
 }

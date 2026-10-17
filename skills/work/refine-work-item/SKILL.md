@@ -186,8 +186,7 @@ non-zero exit from one of them, check its stderr for these codes; in every
 case nothing was written:
 
 - `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
-  finish it with `accelerator work rekey`, or undo it with
-  `accelerator work rekey --discard`. Stop.
+  run `/rekey-work-items` to finish or undo it. Stop.
 - `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
   suggesting the re-key be finished. Stop.
 - `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;

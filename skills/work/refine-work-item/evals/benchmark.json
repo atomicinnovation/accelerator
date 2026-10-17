@@ -428,11 +428,10 @@
       "eval_id": 37,
       "configuration": "with_skill",
       "run_number": 1,
-      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
+      "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
       "expectations": [
-        {"text": "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it", "passed": true, "evidence": "response.md: \"an `accelerator work rekey` run is unfinished\" and \"finish the re-key with `accelerator work rekey`\"."},
-        {"text": "response.md names `accelerator work rekey --discard` to undo it", "passed": true, "evidence": "response.md: \"undo it with `accelerator work rekey --discard`\"."},
-        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md: none; response.md: \"No child files were created and meta/work/0042-search.md is unchanged.\""}
+        {"text": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it", "passed": true, "evidence": "response.md: \"a work item re-key is still in progress\" and \"Run `/rekey-work-items` to finish (or undo) the unfinished re-key\"."},
+        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md: none; response.md: \"none of the three child stories was created, and the parent was not changed\"."}
       ],
       "notes": []
     }
@@ -465,6 +464,6 @@
     }
   },
   "notes": [
-    "Eval 37 (an in-progress re-key routed to `accelerator work rekey`) was run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
+    "Eval 37 (an in-progress re-key routed to `/rekey-work-items`) was re-run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
   ]
 }

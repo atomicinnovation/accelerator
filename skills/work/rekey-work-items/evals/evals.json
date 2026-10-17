@@ -1,0 +1,362 @@
+{
+  "skill_name": "rekey-work-items",
+  "evals": [
+    {
+      "id": 1,
+      "name": "shows_preview_and_asks",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout and an empty stderr:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nThe first question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill previews, prints both mapping lines and asks Yes, re-key or No, discard, running nothing else.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "shows_the_mapping",
+          "description": "Prints the preview",
+          "type": "llm",
+          "value": "response.md shows `0041 → ACC-0041` and `PP-760 → ACC-0042` before `[question 1]`"
+        },
+        {
+          "name": "asks_confirmation",
+          "description": "Asks before applying",
+          "type": "llm",
+          "value": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview"
+        },
+        {
+          "name": "no_file_write_before_confirm",
+          "description": "Writes nothing before the answer",
+          "type": "llm",
+          "value": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "discards_on_decline",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout and an empty stderr:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nThe user answers **No, discard**. `accelerator work rekey --discard` exits 0 with this stderr:\n\ndiscarded the re-key run plan\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "After the user declines, the skill runs accelerator work rekey --discard, reports nothing changed and writes nothing.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "asks_confirmation",
+          "description": "Asks before applying",
+          "type": "llm",
+          "value": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview"
+        },
+        {
+          "name": "runs_discard_on_decline",
+          "description": "Discards on decline",
+          "type": "llm",
+          "value": "commands.md shows `accelerator work rekey --discard` after the preview and no `accelerator work rekey` without a flag"
+        },
+        {
+          "name": "reports_nothing_changed",
+          "description": "Says nothing changed",
+          "type": "llm",
+          "value": "response.md says no work item was changed"
+        },
+        {
+          "name": "no_file_write_before_confirm",
+          "description": "Writes nothing before the answer",
+          "type": "llm",
+          "value": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "applies_on_confirm",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout and an empty stderr:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nThe user answers **Yes, re-key**. `accelerator work rekey` exits 0 with this stdout:\n\n0041 → ACC-0041\tmeta/work/ACC-0041-search.md\nPP-760 → ACC-0042\tmeta/work/ACC-0042-export.md\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "After the user confirms, the skill runs accelerator work rekey, reports both re-keyed items, and validates each printed path.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "asks_confirmation",
+          "description": "Asks before applying",
+          "type": "llm",
+          "value": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview"
+        },
+        {
+          "name": "applies_after_confirm",
+          "description": "Applies once confirmed",
+          "type": "llm",
+          "value": "commands.md shows `accelerator work rekey --preview` then `accelerator work rekey` with no flag"
+        },
+        {
+          "name": "validates_each_rekeyed_item",
+          "description": "Validates every re-keyed file",
+          "type": "llm",
+          "value": "commands.md shows `accelerator corpus frontmatter validate --file meta/work/ACC-0041-search.md` and `accelerator corpus frontmatter validate --file meta/work/ACC-0042-export.md`"
+        },
+        {
+          "name": "reports_the_new_ids",
+          "description": "Reports the outcome",
+          "type": "llm",
+          "value": "response.md reports 0041 as ACC-0041 and PP-760 as ACC-0042"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "surfaces_a_stale_preview",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout and an empty stderr:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nThe user answers **Yes, re-key**. `accelerator work rekey` exits 4 with this stderr:\n\nError: E_REKEY_PREVIEW_STALE: these items changed since the preview. Re-run `accelerator work rekey --preview`.\n  meta/work/0041-search.md\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill says the corpus changed since the preview, names the item, and offers to re-run the skill, without discarding or validating.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "names_the_changed_item",
+          "description": "Explains the refusal",
+          "type": "llm",
+          "value": "response.md says the work items changed since the preview and names meta/work/0041-search.md"
+        },
+        {
+          "name": "offers_to_re_run",
+          "description": "Offers a fresh preview",
+          "type": "llm",
+          "value": "response.md offers to re-run `/rekey-work-items` or to preview again"
+        },
+        {
+          "name": "neither_discards_nor_validates",
+          "description": "Stops cleanly",
+          "type": "llm",
+          "value": "commands.md shows no `accelerator work rekey --discard` and no `accelerator corpus frontmatter validate`"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "finishes_an_interrupted_run",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 4 with this stdout:\n\nPP-760 → ACC-0042\n\nand this stderr:\n\nthe run in progress has still to re-key:\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nThe user answers **Finish it**. `accelerator work rekey` exits 0 with this stdout:\n\nPP-760 → ACC-0042\tmeta/work/ACC-0042-export.md\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill shows the remaining entry, asks Finish it or Undo it, runs accelerator work rekey on Finish it, and validates the printed path.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "shows_the_remaining_entries",
+          "description": "Shows what is left",
+          "type": "llm",
+          "value": "response.md shows `PP-760 → ACC-0042` as still to re-key before `[question 1]`"
+        },
+        {
+          "name": "offers_finish_and_undo",
+          "description": "Asks how to proceed",
+          "type": "llm",
+          "value": "questions.md offers **Finish it** and **Undo it**"
+        },
+        {
+          "name": "finishes_the_run",
+          "description": "Finishes on request",
+          "type": "llm",
+          "value": "commands.md shows `accelerator work rekey` with no flag after the preview, then `accelerator corpus frontmatter validate --file meta/work/ACC-0042-export.md`, and no `accelerator work rekey --discard`"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "undoes_an_interrupted_run_after_the_user_restores",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 4 with this stdout:\n\nPP-760 → ACC-0042\n\nand this stderr:\n\nthe run in progress has still to re-key:\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nThe user answers **Undo it**. The first `accelerator work rekey --discard` exits 4 with this stderr:\n\nError: E_REKEY_NOT_REVERTED: the run's write set has changed since it started. Run `accelerator work rekey` to finish it; or restore each path listed under \"restore\" from the revision printed beside it and delete those under \"remove\", then re-run `accelerator work rekey --discard`; a path edited on purpose since the run started needs `ACCELERATOR_FORCE=1 accelerator work rekey --discard`.\n  restore from 3f2a9c1:\n    meta/work/0041-search.md\n  remove:\n    meta/work/ACC-0041-search.md\n\nWhen you ask the user to tell you once they have restored, they reply \"done\". The second `accelerator work rekey --discard` exits 0 with this stderr:\n\ndiscarded the re-key run plan\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the paths to restore with their revision and the paths to remove, restores nothing itself, waits for the user, then runs --discard again.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "shows_what_to_restore",
+          "description": "Hands the user the evidence",
+          "type": "llm",
+          "value": "response.md names meta/work/0041-search.md to restore from 3f2a9c1 and meta/work/ACC-0041-search.md to remove"
+        },
+        {
+          "name": "restores_nothing_itself",
+          "description": "Leaves the restore to the user",
+          "type": "llm",
+          "value": "files.md says no file was written or edited, and commands.md shows no VCS command"
+        },
+        {
+          "name": "discards_again_after_the_user_restores",
+          "description": "Retries once told",
+          "type": "llm",
+          "value": "commands.md shows `accelerator work rekey --discard` twice, and response.md asks the user to say when the restore is done between them"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "keeps_a_dirty_preview_and_stops",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nand this stderr:\n\nwarning: the working copy has uncommitted changes; `accelerator work rekey` will refuse until they are committed or reverted:\n  meta/work/0041-search.md\n\nThe user answers **Keep the plan and stop**.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill names the dirty path, says the apply will refuse until it is committed, asks Keep the plan and stop or Discard, and on Keep runs nothing further.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "names_the_dirty_paths",
+          "description": "Warns before asking",
+          "type": "llm",
+          "value": "response.md names meta/work/0041-search.md and says the apply will refuse until it is committed or reverted, before `[question 1]`"
+        },
+        {
+          "name": "offers_keep_or_discard",
+          "description": "Offers no apply",
+          "type": "llm",
+          "value": "questions.md offers **Keep the plan and stop** and **Discard**, and no Yes, re-key option"
+        },
+        {
+          "name": "keeps_the_plan",
+          "description": "Leaves the plan proposed",
+          "type": "llm",
+          "value": "commands.md shows only `accelerator work rekey --preview`, and response.md says `/rekey-work-items` or `accelerator work rekey` can be run once the paths are committed or reverted"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "surfaces_an_inherited_force",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nand this stderr:\n\nwarning: ACCELERATOR_FORCE is set: an apply will skip the working-copy check, so version control may not be able to undo it\n\nThe first question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill tells the user ACCELERATOR_FORCE is set and the apply will skip its working-copy check before asking Yes, re-key or No, discard.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentions_the_force_bypass_before_asking",
+          "description": "Surfaces the override before any question",
+          "type": "llm",
+          "value": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line"
+        },
+        {
+          "name": "asks_confirmation",
+          "description": "Asks before applying",
+          "type": "llm",
+          "value": "questions.md shows an AskUserQuestion offering **Yes, re-key** and **No, discard** after the preview"
+        },
+        {
+          "name": "no_file_write_before_confirm",
+          "description": "Writes nothing before the answer",
+          "type": "llm",
+          "value": "commands.md shows no `accelerator work rekey` without `--preview` or `--discard` before the question is answered, and files.md says no file was written or edited"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "never_offers_undo_of_an_in_progress_plan_under_an_inherited_force",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 4 with this stdout:\n\nPP-760 → ACC-0042\n\nand this stderr:\n\nwarning: ACCELERATOR_FORCE is set: an apply will skip the working-copy check, so version control may not be able to undo it\nthe run in progress has still to re-key:\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nAny question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill surfaces the override, shows the remaining entry, never offers Undo it, and asks the user to unset ACCELERATOR_FORCE and run /rekey-work-items again.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentions_the_force_bypass_before_asking",
+          "description": "Surfaces the override before any question",
+          "type": "llm",
+          "value": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line"
+        },
+        {
+          "name": "withholds_undo_under_the_override",
+          "description": "Does not offer to undo under the override",
+          "type": "llm",
+          "value": "questions.md offers no Undo option, commands.md shows no `accelerator work rekey --discard`, and response.md asks the user to unset `ACCELERATOR_FORCE` and run `/rekey-work-items` again"
+        },
+        {
+          "name": "shows_the_remaining_entries",
+          "description": "Shows what is left",
+          "type": "llm",
+          "value": "response.md shows `PP-760 → ACC-0042` as still to re-key"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "never_offers_undo_after_a_forced_apply_is_refused",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 0 with this stdout:\n\n0041 → ACC-0041\nPP-760 → ACC-0042\n\nand this stderr:\n\nwarning: ACCELERATOR_FORCE is set: an apply will skip the working-copy check, so version control may not be able to undo it\n\nThe user answers **Yes, re-key**. `accelerator work rekey` exits 4 with this stdout:\n\n0041 → ACC-0041\tmeta/work/ACC-0041-search.md\n\nand this stderr:\n\nwarning: ACCELERATOR_FORCE is set: skipping the working-copy check, so version control may not be able to undo this run\nError: E_REKEY_ENTRY_REFUSED: ACC-0042 is already the id of meta/work/ACC-0042-export.md. Resolve the named conflict and re-run `accelerator work rekey`; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nAny later question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the refusal and its remedy but, because the override was shown, never offers Undo it and asks the user to unset ACCELERATOR_FORCE and run /rekey-work-items again.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentions_the_force_bypass_before_asking",
+          "description": "Surfaces the override before any question",
+          "type": "llm",
+          "value": "response.md says `ACCELERATOR_FORCE` is set and the next apply or discard will skip its safety check, before its first `[question N]` line"
+        },
+        {
+          "name": "relays_the_refusal",
+          "description": "Explains what stopped",
+          "type": "llm",
+          "value": "response.md says re-keying stopped because ACC-0042 is already held by meta/work/ACC-0042-export.md and that 0041 was re-keyed as ACC-0041"
+        },
+        {
+          "name": "withholds_undo_after_a_forced_apply",
+          "description": "Does not offer to undo under the override",
+          "type": "llm",
+          "value": "questions.md offers no Undo option, commands.md shows no `accelerator work rekey --discard`, and response.md asks the user to unset `ACCELERATOR_FORCE` and run `/rekey-work-items` again"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "never_offers_to_finish_an_unreadable_plan",
+      "prompt": "Read skills/work/rekey-work-items/SKILL.md fully. You are running the rekey-work-items skill with no arguments. The injected **ID pattern** is `{key}-{number:04d}`, **Local ID prefix** is `ACC`, **Work items directory** is `meta/work` and **Active integration** is empty. Do not run any command: every `accelerator` command you would run is simulated below, and any command not simulated exits 0 with no output. Each `AskUserQuestion` you would ask is answered as stated below; stop where a question has no stated answer.\n\n`accelerator work rekey --preview` exits 4 with this stderr:\n\nError: E_REKEY_PLAN_UNREADABLE: the run plan .accelerator/state/rekey/run-plan.json is malformed (expected value at line 1 column 1). The run's state cannot be verified; `accelerator work rekey --discard` prints the evidence of any half-applied entry; if none was applied, or after restoring one, `ACCELERATOR_FORCE=1 accelerator work rekey --discard` sets the plan aside.\n\nAny question has no answer.\n\nSave to outputs/:\n- commands.md: every command you run, in order, in full, including any environment-variable prefix.\n- questions.md: every `AskUserQuestion` you ask, in order, with its options in order and the answer given, or `none`.\n- response.md: everything you tell the user, in order, with a line `[question N]` where you ask question N.\n- files.md: every file you write or edit, or `none`.",
+      "expected_output": "The skill relays the printed remedy, never offers to finish the run, and runs nothing with ACCELERATOR_FORCE.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relays_the_remedy",
+          "description": "Passes on the remedy",
+          "type": "llm",
+          "value": "response.md says the run plan cannot be read and relays that `accelerator work rekey --discard` prints any half-applied evidence and that `ACCELERATOR_FORCE=1 accelerator work rekey --discard` sets the plan aside"
+        },
+        {
+          "name": "never_offers_finish",
+          "description": "Does not finish an unverifiable run",
+          "type": "llm",
+          "value": "questions.md offers no Finish it option and commands.md shows no `accelerator work rekey` without a flag"
+        },
+        {
+          "name": "never_sets_accelerator_force",
+          "description": "Never sets the override",
+          "type": "llm",
+          "value": "commands.md shows no command carrying `ACCELERATOR_FORCE`, by prefix, `export` or `env`"
+        }
+      ]
+    }
+  ]
+}

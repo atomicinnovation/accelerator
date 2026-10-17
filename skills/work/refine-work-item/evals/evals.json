@@ -944,20 +944,14 @@
       "id": 37,
       "name": "routes-an-in-progress-rekey",
       "prompt": "Read skills/work/refine-work-item/SKILL.md fully. You are running the refine-work-item skill on meta/work/0042-search.md, an epic whose ID pattern is `{number:04d}`. The user chose decompose, approved three proposed child stories, and chose \"Yes, proceed\" at the pre-write warning. Simulate `accelerator work next-number --count 3` exiting 4 with this stderr:\n\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run after the user chose \"Yes, proceed\", in order, in full.\n- response.md: everything you tell the user after that, in order.\n- files.md: every file you write or edit after that, or `none`.",
-      "expected_output": "The skill stops at the refused next-number call: it tells the user a re-key is unfinished, to finish it with accelerator work rekey or undo it with accelerator work rekey --discard, writes no child file and leaves the parent unedited.",
+      "expected_output": "The skill stops at the refused next-number call: it tells the user a re-key is unfinished, to run /rekey-work-items to finish or undo it, writes no child file and leaves the parent unedited.",
       "files": [],
       "assertions": [
         {
-          "name": "names-rekey-finish",
-          "description": "Names the finish remedy",
+          "name": "routes-to-rekey-work-items",
+          "description": "Routes to the re-key skill",
           "type": "llm",
-          "value": "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it"
-        },
-        {
-          "name": "names-rekey-discard",
-          "description": "Names the undo remedy",
-          "type": "llm",
-          "value": "response.md names `accelerator work rekey --discard` to undo it"
+          "value": "response.md says a re-key is unfinished and names `/rekey-work-items` to finish or undo it"
         },
         {
           "name": "no-children-written",
