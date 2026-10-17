@@ -47,13 +47,15 @@ impl PartialArchive {
     }
 
     /// The partial's bytes are either kept or truncated away before the
-    /// download writes, so the peak need is the shortfall, never more.
+    /// download writes, so the peak need is the shortfall, never more. An
+    /// obstruction frees nothing the check can count on, so it needs the
+    /// whole archive.
     #[must_use]
     pub const fn additional_bytes(&self, archive_size: u64) -> u64 {
         match *self {
-            Self::Absent => archive_size,
+            Self::Absent | Self::Obstructed => archive_size,
             Self::Resumable(held) => archive_size.saturating_sub(held),
-            Self::Complete | Self::OverLong | Self::Obstructed => 0,
+            Self::Complete | Self::OverLong => 0,
         }
     }
 }
@@ -528,6 +530,15 @@ mod tests {
     #[test]
     fn an_over_long_partial_needs_nothing_more_since_truncation_frees_it() {
         assert_eq!(PartialArchive::OverLong.additional_bytes(ARCHIVE_SIZE), 0);
+    }
+
+    #[test]
+    fn an_obstructed_partial_needs_the_whole_archive_since_removing_it_frees_none(
+    ) {
+        assert_eq!(
+            PartialArchive::Obstructed.additional_bytes(ARCHIVE_SIZE),
+            ARCHIVE_SIZE
+        );
     }
 
     #[test]
