@@ -48,8 +48,23 @@ pub fn guarded_working_copy(
             root.display()
         ))
     })?;
+    let canonical =
+        |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_owned());
+    let config_root = canonical(root);
+    let within =
+        config_root
+            .strip_prefix(canonical(&facts.root))
+            .map_err(|_| {
+                NotRekeyed::WorkingCopyUnprobeable(format!(
+                    "{} lies outside the repository at {}",
+                    root.display(),
+                    facts.root.display()
+                ))
+            })?;
     let scopes: Vec<&str> = scopes.iter().map(String::as_str).collect();
-    let probed = repository.working_copy_state(&facts.root, facts.kind);
+    let probed = repository
+        .working_copy_state(&facts.root, facts.kind)
+        .map(|state| state.seen_from(within));
     let state = match observe_guarded(probed, &scopes) {
         GuardedObservation::Observed(state) => state,
         GuardedObservation::Unprobeable { reason } => {

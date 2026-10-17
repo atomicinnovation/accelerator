@@ -137,6 +137,92 @@ fn an_untracked_directory_holding_only_write_set_targets_is_exempt() {
     assert!(checked.is_ok(), "{checked:?}");
 }
 
+fn nested_in_a_monorepo(dirty_paths: &[&str]) -> ScriptedRepository {
+    ScriptedRepository {
+        root: Some(PathBuf::from("/mono")),
+        state: Ok(WorkingCopyState {
+            base_commits: vec!["c1".to_owned()],
+            dirty_paths: dirty_paths
+                .iter()
+                .map(|path| (*path).to_owned())
+                .collect(),
+        }),
+    }
+}
+
+#[test]
+fn a_dirty_path_under_a_config_root_below_the_repository_root_refuses() {
+    let repository =
+        nested_in_a_monorepo(&["pkg/meta/work/0042-a.md", "pkg/README.md"]);
+
+    let checked = guarded_working_copy(
+        Path::new("/mono/pkg"),
+        &repository,
+        &scopes(&[]),
+        &WriteSet::default(),
+    );
+
+    assert_eq!(
+        checked,
+        Err(NotRekeyed::DirtyWorkingCopy(vec![
+            "meta/work/0042-a.md".to_owned()
+        ]))
+    );
+}
+
+#[test]
+fn a_write_set_below_the_repository_root_exempts_only_its_own_paths() {
+    let repository = nested_in_a_monorepo(&[
+        "pkg/meta/work/ACC-0042-a.md",
+        "pkg/meta/notes/unrelated.md",
+    ]);
+
+    let checked = guarded_working_copy(
+        Path::new("/mono/pkg"),
+        &repository,
+        &scopes(&[]),
+        &absent_at(&["meta/work/ACC-0042-a.md"]),
+    );
+
+    assert_eq!(
+        checked,
+        Err(NotRekeyed::DirtyWorkingCopy(vec![
+            "meta/notes/unrelated.md".to_owned()
+        ]))
+    );
+}
+
+#[test]
+fn a_dirty_path_outside_a_config_root_below_the_repository_root_is_ignored() {
+    let repository = nested_in_a_monorepo(&["other/meta/work/0042-a.md"]);
+
+    let checked = guarded_working_copy(
+        Path::new("/mono/pkg"),
+        &repository,
+        &scopes(&[]),
+        &WriteSet::default(),
+    );
+
+    assert!(checked.is_ok(), "{checked:?}");
+}
+
+#[test]
+fn a_config_root_outside_the_reported_repository_refuses_as_unprobeable() {
+    let repository = nested_in_a_monorepo(&["meta/work/0042-a.md"]);
+
+    let checked = guarded_working_copy(
+        Path::new("/elsewhere"),
+        &repository,
+        &scopes(&[]),
+        &WriteSet::default(),
+    );
+
+    assert!(
+        matches!(&checked, Err(NotRekeyed::WorkingCopyUnprobeable(_))),
+        "{checked:?}"
+    );
+}
+
 mod in_a_real_repository {
     use std::fs;
     use std::path::Path;
@@ -179,12 +265,18 @@ mod in_a_real_repository {
 
     impl Repo {
         fn committed(vcs: Vcs) -> Result<Self, TestError> {
+            Self::committed_under(vcs, "")
+        }
+
+        fn committed_under(vcs: Vcs, config: &str) -> Result<Self, TestError> {
             let repo = Self {
                 dir: tempfile::tempdir()?,
             };
-            repo.write("meta/work/0042-a.md", "---\nid: \"0042\"\n---\n")?;
-            repo.write("docs/notes/x.md", "Notes.\n")?;
-            repo.write("README.md", "Readme.\n")?;
+            let config = Path::new(config);
+            let at = |path: &str| config.join(path).display().to_string();
+            repo.write(&at("meta/work/0042-a.md"), "---\nid: \"0042\"\n---\n")?;
+            repo.write(&at("docs/notes/x.md"), "Notes.\n")?;
+            repo.write(&at("README.md"), "Readme.\n")?;
             let env = Hermetic::rooted_at(repo.root())?;
             match vcs {
                 Vcs::Git => {
@@ -218,8 +310,17 @@ mod in_a_real_repository {
             extra_scopes: &[&str],
             exempt: &WriteSet,
         ) -> Result<Base, NotRekeyed> {
+            self.check_from("", extra_scopes, exempt)
+        }
+
+        fn check_from(
+            &self,
+            config: &str,
+            extra_scopes: &[&str],
+            exempt: &WriteSet,
+        ) -> Result<Base, NotRekeyed> {
             guarded_working_copy(
-                self.root(),
+                &self.root().join(config),
                 &InProcessProbe,
                 &scopes(extra_scopes),
                 exempt,
@@ -399,5 +500,44 @@ mod in_a_real_repository {
             assert!(checked.is_ok(), "{checked:?}");
             Ok(())
         })
+    }
+
+    #[test]
+    fn a_dirty_path_under_a_config_root_below_the_repository_root_refuses(
+    ) -> Result<(), TestError> {
+        for vcs in [Vcs::Git, Vcs::Jj] {
+            let repo = Repo::committed_under(vcs, "pkg")?;
+            repo.write("pkg/meta/work/0042-a.md", "edited\n")?;
+            repo.write("pkg/README.md", "edited\n")?;
+
+            assert_eq!(
+                repo.check_from("pkg", &[], &WriteSet::default()),
+                Err(NotRekeyed::DirtyWorkingCopy(vec![
+                    "meta/work/0042-a.md".to_owned()
+                ]))
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_write_set_below_the_repository_root_exempts_only_its_own_paths(
+    ) -> Result<(), TestError> {
+        for vcs in [Vcs::Git, Vcs::Jj] {
+            let repo = Repo::committed_under(vcs, "pkg")?;
+            repo.write("pkg/meta/work/ACC-0042-a.md", "retired\n")?;
+            fs::remove_file(repo.root().join("pkg/meta/work/0042-a.md"))?;
+            repo.write("pkg/meta/notes/unrelated.md", "new\n")?;
+            let exempt =
+                absent_at(&["meta/work/ACC-0042-a.md", "meta/work/0042-a.md"]);
+
+            assert_eq!(
+                repo.check_from("pkg", &[], &exempt),
+                Err(NotRekeyed::DirtyWorkingCopy(vec![
+                    "meta/notes/unrelated.md".to_owned()
+                ]))
+            );
+        }
+        Ok(())
     }
 }

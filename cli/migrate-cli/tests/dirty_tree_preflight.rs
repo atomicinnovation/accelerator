@@ -444,6 +444,69 @@ fn an_unowned_jj_change_refuses() -> Result<(), TestError> {
     Ok(())
 }
 
+#[test]
+fn an_unowned_git_change_under_a_config_root_below_the_repository_root_refuses(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_git_is_recent_enough()?;
+    let work = tempdir("git-nested-refuse")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repository = work.path().join("mono");
+    let root = repository.join("pkg");
+    fs::create_dir_all(root.join("meta"))?;
+    env.git(&["init", "--quiet"], &repository)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.git(&["add", "pkg/meta/a.md"], &repository)?;
+    env.git(&["commit", "--quiet", "-m", "init"], &repository)?;
+    mark_all_migrations_applied(&root)?;
+
+    fs::write(root.join("meta/a.md"), "two\n")?;
+
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.ends_with("Unowned changes (1):\n  meta/a.md\n"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unowned_jj_change_under_a_config_root_below_the_repository_root_refuses(
+) -> Result<(), TestError> {
+    vcs_test_support::hermetic::assert_jj_matches("0.43.0")?;
+    let work = tempdir("jj-nested-refuse")?;
+    let env = Hermetic::rooted_at(work.path())?;
+    let repository = work.path().join("mono");
+    let root = repository.join("pkg");
+    fs::create_dir_all(root.join("meta"))?;
+    env.jj(&["git", "init", "--no-colocate"], &repository)?;
+    fs::write(root.join("meta/a.md"), "one\n")?;
+    env.jj(&["commit", "-m", "init"], &repository)?;
+    mark_all_migrations_applied(&root)?;
+
+    fs::write(root.join("meta/b.md"), "two\n")?;
+
+    let Outcome {
+        stdout,
+        stderr,
+        code,
+    } = run(&env, &root, &[])?;
+
+    assert_eq!(code, 1, "{stderr}");
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.ends_with("Unowned changes (1):\n  meta/b.md\n"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
 const REFUSAL_HEAD: &str = "Error: dirty working tree";
 const TWO_UNOWNED: &str =
     "Unowned changes (2):\n  .accelerator/b\n  meta/a.md\n";

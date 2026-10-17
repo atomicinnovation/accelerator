@@ -7,7 +7,6 @@ use migrate::ports::WorkingCopy;
 use migrate::preflight::SCOPES;
 use migrate::run_base::RunBase;
 use migrate_adapters::working_copy::VcsWorkingCopy;
-use vcs::VcsKind;
 use vcs_adapters::library::InProcessProbe;
 use vcs_test_support::hermetic::Hermetic;
 
@@ -39,8 +38,7 @@ fn an_untracked_document_in_scope_is_reported() -> Result<(), TestError> {
     let root = work.path().join("repo");
     fs::write(root.join("meta/work/0002-new.md"), "new\n")?;
 
-    let working_copy =
-        VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe);
+    let working_copy = VcsWorkingCopy::new(&root, &InProcessProbe);
 
     assert_eq!(
         working_copy.observe(&SCOPES)?.dirty_paths,
@@ -62,8 +60,7 @@ fn an_untracked_file_outside_every_scope_is_not_reported(
     let root = work.path().join("repo");
     fs::write(root.join("notes.md"), "loose\n")?;
 
-    let working_copy =
-        VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe);
+    let working_copy = VcsWorkingCopy::new(&root, &InProcessProbe);
 
     assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
     Ok(())
@@ -81,8 +78,7 @@ fn an_ignored_file_in_scope_is_not_reported() -> Result<(), TestError> {
     env.git(&["add", ".gitignore"], &root)?;
     env.git(&["commit", "--quiet", "-m", "ignore"], &root)?;
 
-    let working_copy =
-        VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe);
+    let working_copy = VcsWorkingCopy::new(&root, &InProcessProbe);
 
     assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
     Ok(())
@@ -94,8 +90,7 @@ fn a_clean_tree_reports_nothing() -> Result<(), TestError> {
     let (work, _env) = committed_repo("clean")?;
     let root = work.path().join("repo");
 
-    let working_copy =
-        VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe);
+    let working_copy = VcsWorkingCopy::new(&root, &InProcessProbe);
 
     assert!(working_copy.observe(&SCOPES)?.dirty_paths.is_empty());
     Ok(())
@@ -109,8 +104,8 @@ fn a_git_working_copy_is_on_the_run_base_of_its_head() -> Result<(), TestError>
     let root = work.path().join("repo");
     let head = env.git(&["rev-parse", "HEAD"], &root)?;
 
-    let observation = VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe)
-        .observe(&SCOPES)?;
+    let observation =
+        VcsWorkingCopy::new(&root, &InProcessProbe).observe(&SCOPES)?;
 
     assert_eq!(observation.run_base, RunBase::recorded(&head));
     Ok(())
@@ -125,8 +120,8 @@ fn an_unreadable_repository_has_no_run_base_and_no_changes(
     fs::write(root.join("meta/work/0002-new.md"), "new\n")?;
     fs::write(root.join(".git/HEAD"), "not a reference\n")?;
 
-    let observation = VcsWorkingCopy::new(&root, VcsKind::Git, &InProcessProbe)
-        .observe(&SCOPES)?;
+    let observation =
+        VcsWorkingCopy::new(&root, &InProcessProbe).observe(&SCOPES)?;
 
     assert_eq!(observation.run_base, None);
     assert!(observation.dirty_paths.is_empty());

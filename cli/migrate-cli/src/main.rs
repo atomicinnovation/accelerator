@@ -42,7 +42,6 @@ use migrate_adapters::working_copy::VcsWorkingCopy;
 use time::UtcOffset;
 use vcs::guarded_working_copy::forces;
 use vcs::guarded_working_copy::FORCE_VARIABLE;
-use vcs::VcsKind;
 use vcs_adapters::library::InProcessProbe;
 
 use crate::cli::Cli;
@@ -62,16 +61,6 @@ fn project_root() -> Result<PathBuf, kernel::Error> {
         ))
     })?;
     Ok(FileConfigStore::discover_root(&cwd))
-}
-
-fn vcs_kind(root: &Path) -> VcsKind {
-    if root.join(".jj").is_dir() {
-        VcsKind::Jj
-    } else if root.join(".git").exists() {
-        VcsKind::Git
-    } else {
-        VcsKind::None
-    }
 }
 
 fn compose_config(root: &Path) -> Result<Composed, kernel::Error> {
@@ -273,8 +262,7 @@ fn run_default(
     composed.require_readable_personal_file()?;
     let ctx = FileMigrationContext::new(root, capabilities(&composed));
     let manifest_store = FileManifestStore::new(root);
-    let working_copy =
-        VcsWorkingCopy::new(root, vcs_kind(root), &InProcessProbe);
+    let working_copy = VcsWorkingCopy::new(root, &InProcessProbe);
     let session_log_decisions = session_log_decision_count(root);
     let preflight = Preflight {
         lock: run_lock,

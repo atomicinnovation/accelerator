@@ -259,6 +259,8 @@ impl core::marker::StructuralPartialEq for vcs::RepoFacts
 pub struct vcs::WorkingCopyState
 pub vcs::WorkingCopyState::base_commits: alloc::vec::Vec<alloc::string::String>
 pub vcs::WorkingCopyState::dirty_paths: alloc::vec::Vec<alloc::string::String>
+impl vcs::WorkingCopyState
+pub fn vcs::WorkingCopyState::seen_from(self, within: &std::path::Path) -> Self
 impl core::clone::Clone for vcs::WorkingCopyState
 pub fn vcs::WorkingCopyState::clone(&self) -> vcs::WorkingCopyState
 impl core::cmp::Eq for vcs::WorkingCopyState
