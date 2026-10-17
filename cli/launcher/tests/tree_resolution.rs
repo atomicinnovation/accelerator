@@ -1718,6 +1718,78 @@ fn an_unwritable_short_partial_is_replaced_in_the_same_run() {
         .expect("the unwritable partial is replaced");
 }
 
+fn with_a_byte_flipped(bytes: &[u8]) -> Vec<u8> {
+    let mut flipped = bytes.to_vec();
+    flipped[bytes.len() / 2] ^= 0xff;
+    flipped
+}
+
+fn assert_a_corrupt_partial_is_discarded(harness: &Harness, planted: &[u8]) {
+    let partial = plant_partial(harness, planted);
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
+        "got {outcome:?}"
+    );
+    assert!(!partial.exists(), "the corrupt partial survived");
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run recovers");
+}
+
+#[test]
+fn a_corrupt_partial_archive_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+
+    assert_a_corrupt_partial_is_discarded(
+        &harness,
+        &with_a_byte_flipped(&archive[..archive.len() / 2]),
+    );
+}
+
+#[test]
+fn a_complete_corrupt_partial_is_discarded_so_the_next_run_recovers() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+
+    assert_a_corrupt_partial_is_discarded(
+        &harness,
+        &with_a_byte_flipped(&archive),
+    );
+}
+
+#[test]
+fn a_partial_whose_signature_fails_is_kept_for_the_next_run() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let partial = plant_partial(&harness, &harness.archive_bytes);
+    harness.serve_manifest(&ManifestEntry {
+        signature: harness.sign(b"other bytes"),
+        ..harness.default_entry()
+    });
+
+    let outcome = harness.resolver().materialise(ARTIFACT);
+
+    assert!(
+        matches!(&outcome, Err(TreeError::Attestation { detail })
+            if detail.contains("does not verify under")),
+        "got {outcome:?}"
+    );
+    assert!(partial.exists(), "a partial matching its pin was discarded");
+    harness.serve_manifest(&harness.default_entry());
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the next run verifies the kept partial");
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
 #[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
@@ -1775,6 +1847,12 @@ fn a_corrupt_archive_is_refused_before_anything_is_extracted() {
     assert!(
         matches!(outcome, Err(TreeError::UnexpectedDigest { .. })),
         "a corrupt archive must be a digest refusal, got {outcome:?}"
+    );
+    assert!(
+        !tree_paths(&harness)
+            .temp_archive(ARTIFACT, HOST_PLATFORM, &harness.archive_sha)
+            .exists(),
+        "the corrupt download was kept"
     );
 
     // Nothing was extracted: no generation directory and no temp generation
@@ -1856,11 +1934,13 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
 
     // This launcher expects a digest the correctly-signed manifest does not
     // name, so materialise must refuse rather than fetch what the manifest lists.
+    let expected = "0".repeat(64);
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let partial = paths.temp_archive(ARTIFACT, HOST_PLATFORM, &expected);
+    std::fs::write(&partial, b"resumable").unwrap();
     let mut digests = BTreeMap::new();
-    digests.insert(
-        (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-        "0".repeat(64),
-    );
+    digests.insert((ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()), expected);
     let keys = harness.keys();
     let fetcher = Fetcher::with_backoff(std::time::Duration::from_millis(1))
         .expect("fetcher");
@@ -1889,6 +1969,7 @@ fn a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch() {
         0,
         "a digest disagreement must not fetch the archive"
     );
+    assert!(partial.exists(), "a refused manifest discarded a partial");
 }
 
 #[test]

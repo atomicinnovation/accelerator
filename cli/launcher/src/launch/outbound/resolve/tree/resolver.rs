@@ -208,6 +208,11 @@ impl TreeResolver<'_> {
     /// corrupt still passes the reuse scan's attestation check, so reusing it
     /// would make repair a no-op. Forcing a fresh materialisation builds the
     /// replacement beside the tree in use and swaps the pointer to it.
+    ///
+    /// A partial archive whose digest fails is discarded, so the next run
+    /// fetches afresh. One that fails any other check is kept: bytes matching
+    /// the pin are the release's, and the next run checks them again without
+    /// downloading.
     fn materialise_fresh(
         &self,
         artifact: &str,
@@ -263,7 +268,12 @@ impl TreeResolver<'_> {
             digest,
             &entry.signature,
             self.keys,
-        )?;
+        )
+        .inspect_err(|error| {
+            if matches!(error, TreeError::UnexpectedDigest { .. }) {
+                download::discard_partial_archive(&temp_archive);
+            }
+        })?;
         self.steps.after(MaterialiseStep::ArchiveVerified)?;
 
         // 6. Extract into a fresh temp generation, verifying each member as it
