@@ -162,7 +162,8 @@ impl RunLedger {
     }
 
     /// Pending spawns a changed offer drops count as attempted: an offer
-    /// normally changes because those spawns wrote.
+    /// normally changes because those spawns wrote. Withholding drops them
+    /// without their having written, so held-back spawns stay unattempted.
     #[must_use]
     pub fn record(
         mut self,
@@ -173,7 +174,11 @@ impl RunLedger {
         self.claims.claim_all(&plan.claims);
         self.memory.seen.absorb(observed);
         let displaced = self.memory.pending.replace(window.offered.clone());
-        self.memory.attempted.extend(displaced);
+        self.memory.attempted.extend(
+            displaced
+                .into_iter()
+                .filter(|spawn| !window.held_back.contains(spawn)),
+        );
         self.memory.just_acknowledged.clear();
         self
     }
@@ -620,6 +625,24 @@ mod tests {
             .withholding(&withheld(&["web"]))
             .withholding(&withheld(&["web"]));
         assert_eq!(ledger.memory().withheld, withheld(&["web"]));
+    }
+
+    #[test]
+    fn withholding_an_unacknowledged_batch_leaves_its_spawns_unattempted() {
+        let ledger = recorded(started(), &["01-a"]);
+        let ledger = continued(ledger, None).withholding(&withheld(&["web"]));
+        let plan = planning(&["01-a"]);
+        let offer = window(
+            &plan,
+            &Observed::default(),
+            unbounded(),
+            Some(ledger.memory()),
+        );
+
+        let ledger = ledger.record(&plan, &Observed::default(), &offer);
+
+        assert_eq!(ledger.memory().attempted, set(&[]));
+        assert!(ledger.memory().pending.spawns().is_empty());
     }
 
     #[test]

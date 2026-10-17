@@ -3304,6 +3304,23 @@ fn a_halted_run_still_offers_non_web_researchers_and_composers(
 }
 
 #[test]
+fn withholding_a_re_offered_batch_leaves_its_spawns_unattempted(
+) -> Result<(), TestError> {
+    let project = halting_set(
+        "withheld-re-offer",
+        "- [ ] A? — profiles: web\n- [ ] B? — profiles: openalex",
+    )?;
+    let depth = ["--depth", "2"];
+    let (first, run) = started(&project, &depth)?;
+    assert_eq!(spawns_of(&first)?, ["01-a-web:1", "02-b-openalex:1"]);
+
+    let plan =
+        continued(&project, &run, &[&depth[..], &[WITHHOLD, "web"]].concat())?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
 fn withholding_needs_a_run_and_a_profile() -> Result<(), TestError> {
     let project = a_set()?;
     let needs_run =
