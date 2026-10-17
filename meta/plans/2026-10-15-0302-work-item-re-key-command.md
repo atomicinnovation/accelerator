@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T12:25:45+00:00"
+last_updated: "2026-10-17T18:05:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1835,15 +1835,39 @@ tracker. The in-progress plan is on disk before the first write.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p accelerator-work rekey`
-- [ ] `cd cli && cargo test -p work-adapters --test rekey_run`
-- [ ] `cd cli && cargo test -p accelerator-work --test cli_surface --test cli_rekey`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p accelerator-work rekey`
+- [x] `cd cli && cargo test -p work-adapters --test rekey_run`
+- [x] `cd cli && cargo test -p accelerator-work --test cli_surface --test cli_rekey`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] Preview, edit an item's `aliases`, apply: the refusal names the item and
+- [x] Preview, edit an item's `aliases`, apply: the refusal names the item and
       says to re-preview.
+
+Checked in a jj scratch repository: the apply exited 4 with
+`E_REKEY_PREVIEW_STALE` naming `0042-t0042.md`, and the proposed plan
+stayed.
+
+As built, Phase 6 differs from the sketch above in these ways:
+
+- **Preflight.** `run`'s `preflight` takes a `Mapping` (`Computed`, or
+  `Previewed` with the stored plan) and a `DirtyPaths` policy (`Refuse`
+  or `Warn`). A previewed mapping is checked against the fingerprint
+  where a computed one would be built, after the sync and partly-applied
+  guards, then re-runs `refuse_collisions`; `write_set` catches a target
+  path occupied since.
+- **Preview output.** `RekeyReport::Previewed { lines, dirty }` carries
+  the lines and any dirty paths, which `work-cli` prints as a stderr
+  warning. A preview while a run is in progress reports its outstanding
+  entries through a new `RekeyProgress::remaining`, from
+  `execute::outstanding_entries`; `run_plan::preview_lines` is public for
+  it. A forced preview skips the working-copy check, as an apply does; an
+  unforced one over an unprobeable repository refuses.
+- **Pins.** The two lock-race tests, `a_proposed_rekey_plan_does_not_block_sync`
+  and the proposed-plan discard passed on first run: Phase 5 already
+  loaded the plan under the locks, gated only an in-progress plan, and
+  removed a proposed one on discard.
 
 ---
 
