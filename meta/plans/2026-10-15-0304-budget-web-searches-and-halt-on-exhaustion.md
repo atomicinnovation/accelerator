@@ -5,7 +5,7 @@ title: "Budget Web Searches and Halt on Exhaustion Implementation Plan"
 date: "2026-10-15T22:00:14+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0304"
 parent: "work-item:0304"
 derived_from: ["codebase-research:2026-10-15-0304-budget-web-searches-and-halt-on-exhaustion"]
@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-17T15:00:00+00:00"
+last_updated: "2026-10-17T16:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1185,8 +1185,8 @@ CLI test for each. Otherwise skip this step. Check 0307's status again
 before merging. If it landed while this phase was in flight, do this step
 then.
 
-0307 was `draft` when this phase started, so this step was skipped. The
-check before merging still applies.
+0307 was `draft` when this phase started, so this step was skipped. It was
+still `draft` once phase 6 landed. The check before merging still applies.
 
 #### 9. Changelog
 
@@ -1278,8 +1278,8 @@ Quota exhausted (AC 34). Adjust the outcome text above to refer to it.
 Otherwise skip this step. Check 0309's status again before merging. If it
 landed while this phase was in flight, do this step then.
 
-0309 was `draft` when this phase started, so this step was skipped. The
-check before merging still applies.
+0309 was `draft` when this phase started, so this step was skipped. It was
+still `draft` once phase 6 landed. The check before merging still applies.
 
 #### 5. Changelog
 
@@ -1361,11 +1361,13 @@ impl Withheld {
     #[must_use]
     pub fn contains(&self, profile: &str) -> bool { … }
     pub fn profiles(&self) -> impl Iterator<Item = &str> + '_ { … }
+    #[must_use]
+    pub fn is_empty(&self) -> bool { … }
 }
 ```
 
 `Withheld` lives in `memory.rs` as a plain set, with no knowledge of
-topic types. `RunMemory` gains `pub withheld: Withheld`. `window`'s
+topic types. The codec reads `is_empty` to leave the key out. `RunMemory` gains `pub withheld: Withheld`. `window`'s
 signature is unchanged. `spawns_of` records each spawn's profile on
 `RankedSpawn`. After the `attempted` partition, `window` drops each fresh
 spawn whose `withheld` contains its profile, unless its `Rank` composes.
@@ -1423,7 +1425,8 @@ non-empty, and decoded as empty when absent, following the
   `--concurrency is empty; pass a positive integer`.
 - `RunFlag::Continue` and `RunMode::Continue` carry `withheld: Withheld`.
   `run_outstanding` applies `ledger.withholding(&withheld)` to the
-  continued ledger before `window`, so the stored ledger keeps it.
+  continued ledger as soon as it is read, before `window`, so the stored
+  ledger keeps it.
 - `render` adds `"withheld": [...]` to every run plan, sorted, and empty
   when nothing is withheld. Query plans carry none.
 
@@ -1432,7 +1435,8 @@ non-empty, and decoded as empty when absent, following the
 `render` adds `"unanswered"` to every plan. It lists every `plan.pairs`
 entry, not narrowed by the window, as `{"stem", "question", "profile",
 "stage"}`. `stage` takes the same values as a pair's `stage`
-(`single_pass`, `research_nodes`, `compose`).
+(`single_pass`, `research_nodes`, `compose`): both read one `stage_name`
+function.
 
 #### 6. CLI black-box tests
 
@@ -1473,14 +1477,17 @@ expects the floor warning shares),
 "every search budget is 1, so expect a halt, then run /clear and re-run
 conduct; for later runs, raise {variable} and restart Claude Code, or lower
 the depth". The configure remedies sentence gains the halt in the same
-order.
+order: "`conduct` warns: expect a halt, then run `/clear` and re-run
+`conduct`. For later runs, raise the variable, then restart Claude Code, or
+lower the depth". The parity test checks both "expect a halt, then run" and
+"restart Claude Code, or lower the depth".
 
 #### 8. Skill: halting failures
 
 **File**: `skills/research/research-topic/SKILL.md`
 
-- A new subsection after the failure-reason table, **Halting failures**,
-  the single definition. A halting failure is a reason the orchestrator
+- A new subsection after the failure-reason table, the `#### Halting
+  failures` heading, the single definition. A halting failure is a reason the orchestrator
   survives, after which some spawns in this session would fail or produce
   degraded work until the user takes a recovery step. Each reason
   withholds a set of profiles. Its table:
@@ -1500,7 +1507,8 @@ order.
   remembers it for the rest of the run, so later plans may drop it, and
   repeating it is harmless. A plan that should name a profile in
   `withheld` but does not is reported and stops the loop, like a non-zero
-  exit. The tick plan in step 7 never carries the flag.
+  exit. The tick plan in step 7 never carries the flag. The paragraph
+  names `--withhold-profile web` as the flag for an exhausted quota.
 - **Step 4, capacity refusals**: the run halts as soon as any spawn, from
   the batch message or a round, ends with a halting reason. From then on, a
   capacity-refused spawn that reason halts is not re-issued. It is recorded
@@ -1508,9 +1516,11 @@ order.
   spawn follows the round rules unchanged, and a round runs only when it
   has a spawn to re-issue. The round rule "The first round always runs."
   (`:435`) becomes "The first round runs whenever it has a spawn to
-  re-issue." Before a halt it always does.
-- **Step 5**: a spawn whose summary gives a halting reason is recorded as
-  failed with that reason, and the run halts. Any file at its output path
+  re-issue. Before a halt it always does."
+- **Step 5**: a spawn whose summary gives a halting reason, whether or not
+  it wrote a file, is recorded as failed with that reason, and the run
+  halts. This bullet takes precedence over the no-file bullet, which also
+  names an exhausted quota. Any file at its output path
   is quarantined first: a finding to `.<name>.invalid`, a note to
   `.<lineage>.md.invalid`, under the existing refuse-to-overwrite rule. Its
   node therefore stays outstanding. Other spawns in the batch are checked
@@ -1518,7 +1528,8 @@ order.
 - **Step 6**: the re-plan carries `{withhold flags}`, because the first
   plan after a halt is this re-plan. The ledger never offers a withheld
   spawn, so the loop ends when the plan offers nothing else.
-- **Step 7**: the tick plan's `unanswered` is read. The summary's first
+- **Step 7**: opens with "A halted run runs this step in full." The tick
+  step keeps the plan's `unanswered` for the summary. The summary's first
   section, above "Run that did not end" and Failures, is **Halt**. It is
   printed only when the last run plan's `withheld` was non-empty, so the
   decision rests on what the CLI reported, not on what `conduct`
@@ -1570,8 +1581,9 @@ Then the new tests:
 | `test_a_halting_failure_is_recorded_and_its_batch_checked_as_normal` | step 5 wording (AC 24, 26) |
 | `test_a_halted_spawns_stray_file_is_quarantined` | step 5 names both quarantine names for a halting reason |
 | `test_the_halt_notice_names_what_it_halted` | the Halt section names ended-with spawns, the `profile` `web` and non-`compose` filter, recovery, and "Those spawns are also listed under Failures" (AC 27–28) |
-| `test_the_halt_recovery_offers_clear_and_a_raised_cap_but_not_the_refill` | AC 29 |
+| `test_the_halt_recovery_offers_clear_and_a_raised_cap_not_the_refill` | AC 29 |
 | `test_step_7_runs_in_full_after_a_halt` | no halt-specific exit before `end-run`, tick and manifest |
+| `test_conduct_reads_the_halting_fields` | the fields-read list names `withheld` and `unanswered` |
 | `test_the_unfinished_run_row_and_step_2_report_are_unchanged` | carried from phase 3 |
 
 #### 10. Docs and public API
