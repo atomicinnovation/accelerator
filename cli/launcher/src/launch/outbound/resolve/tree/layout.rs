@@ -128,6 +128,12 @@ impl TreePaths {
     }
 
     #[must_use]
+    pub fn temp_pointer(&self, generation: &str) -> PathBuf {
+        self.root
+            .join(format!("{TEMP_PREFIX}{generation}{POINTER_SUFFIX}"))
+    }
+
+    #[must_use]
     pub fn single_flight_lock(&self, name: &str, platform: &str) -> PathBuf {
         self.root
             .join(format!("{TEMP_PREFIX}{name}-{platform}.lock"))
@@ -321,6 +327,7 @@ mod tests {
             paths.attestation_signature(&generation),
             paths.lease(&generation),
             paths.temp_archive("browser", "linux-x64", DIGEST),
+            paths.temp_pointer(&generation),
             paths.single_flight_lock("browser", "linux-x64"),
         ];
         for path in names {
@@ -331,6 +338,16 @@ mod tests {
             );
             assert!(name.is_ascii(), "{name} is not ASCII");
         }
+    }
+
+    #[test]
+    fn a_temp_pointer_is_its_temp_generation_with_the_pointer_suffix() {
+        let paths = TreePaths::under(Path::new("/cache"));
+        let generation = generation();
+        let mut expected = paths.temp_generation(&generation).into_os_string();
+        expected.push(".ref");
+
+        assert_eq!(paths.temp_pointer(&generation), expected);
     }
 
     #[test]
