@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
 revision: "51ab2d9e870fb271111cc49fcd7b4ff5491c91b6"
 repository: "accelerator"
-last_updated: "2026-10-17T16:32:30+00:00"
+last_updated: "2026-10-17T16:54:54+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1315,16 +1315,16 @@ The AC3 tests and the prune test are red against today's code.
 
 #### Automated Verification:
 
-- [ ] Step 1a leaves the existing suite green
-- [ ] Every test in items 1, 3 and 6 that is marked red is observed failing on its assertion, for its stated behavioural reason, before the step that fixes it, with `CI=1` and `minisign` on `PATH`
-- [ ] Fetcher, download, resolver and reap unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib resolve::`
-- [ ] Full launcher suite passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator`
-- [ ] `rg -n 'keep_digests' cli/launcher/src` returns nothing
-- [ ] `mise run check` exits 0
+- [x] Step 1a leaves the existing suite green
+- [x] Every test in items 1, 3 and 6 that is marked red is observed failing on its assertion, for its stated behavioural reason, before the step that fixes it, with `CI=1` and `minisign` on `PATH`
+- [x] Fetcher, download, resolver and reap unit tests pass: `cargo test --manifest-path cli/Cargo.toml -p accelerator --lib resolve::`
+- [x] Full launcher suite passes: `CI=1 cargo test --manifest-path cli/Cargo.toml -p accelerator`
+- [x] `rg -n 'keep_digests' cli/launcher/src` returns nothing
+- [x] `mise run check` exits 0
 
 #### Manual Verification:
 
-- [ ] Apart from the move, the diff leaves generation handling
+- [x] Apart from the move, the diff leaves generation handling
       unchanged: `is_reclaimable_generation`, the sidecar removal and
       `referenced_generations`
 
