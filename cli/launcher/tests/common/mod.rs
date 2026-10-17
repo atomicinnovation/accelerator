@@ -140,7 +140,7 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
     // Consume headers, capturing a `Range: bytes=N-` if present so the Ok route
-    // can serve a 206 partial (exercising resume).
+    // can serve a 206 partial, or a 416 past the end, as a real server does.
     let mut range_from: Option<u64> = None;
     let mut header = String::new();
     loop {
@@ -199,7 +199,13 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
                         &suffix,
                     )
                 }
-                _ => http_response(200, "OK", &[], &body),
+                Some(_) => http_response(
+                    416,
+                    "Range Not Satisfiable",
+                    &[("Content-Range", &format!("bytes */{}", body.len()))],
+                    &[],
+                ),
+                None => http_response(200, "OK", &[], &body),
             }
         }
         Some(Route::Status(code)) => http_response(code, "STATUS", &[], &[]),

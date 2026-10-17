@@ -97,8 +97,10 @@ impl AssessedPartial {
 /// promised is refused rather than filling the disk. A partial from an
 /// interrupted run makes this issue a `Range` request from the bytes already
 /// present, so a link too slow to finish one crawl still converges rather
-/// than restarting from zero each time. The digest is recomputed over the
-/// whole file, so a resumed transfer is verified exactly as a fresh one is.
+/// than restarting from zero each time. A partial at the archive size is
+/// hashed without a fetch, and one longer than it is fetched again whole. The
+/// digest is recomputed over the whole file, so a resumed transfer is verified
+/// exactly as a fresh one is.
 ///
 /// # Errors
 ///
@@ -116,13 +118,11 @@ pub fn stream_archive(
         limits: StreamLimits::for_archive(partial.archive_size),
     };
     match partial.state {
-        PartialArchive::Absent => download.fetch_whole(),
+        PartialArchive::Absent | PartialArchive::OverLong => {
+            download.fetch_whole()
+        }
         PartialArchive::Resumable(held) => download.resume_from(held),
-        PartialArchive::Complete => download.resume_from(partial.archive_size),
-        PartialArchive::OverLong => download.resume_from(
-            std::fs::metadata(&partial.path)
-                .map_or(0, |metadata| metadata.len()),
-        ),
+        PartialArchive::Complete => download.digest_partial(),
     }
 }
 

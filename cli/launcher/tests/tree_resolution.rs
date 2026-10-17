@@ -1566,6 +1566,90 @@ fn an_interrupted_download_resumes_with_a_range_request() {
     harness.resolver().verify(ARTIFACT).expect("verify resumed");
 }
 
+fn plant_partial(harness: &Harness, bytes: &[u8]) -> PathBuf {
+    let paths = tree_paths(harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let partial =
+        paths.temp_archive(ARTIFACT, HOST_PLATFORM, &harness.archive_sha);
+    std::fs::write(&partial, bytes).unwrap();
+    partial
+}
+
+fn with_trailing_bytes(archive: &[u8], extra: usize) -> Vec<u8> {
+    let mut longer = archive.to_vec();
+    longer.extend(std::iter::repeat_n(0_u8, extra));
+    longer
+}
+
+fn serve_a_loose_size_bound(harness: &Harness) {
+    harness.serve_manifest(&ManifestEntry {
+        archive_size: harness.archive_bytes.len() as u64 + 1024,
+        ..harness.default_entry()
+    });
+}
+
+#[test]
+fn a_complete_partial_is_verified_without_refetching() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    plant_partial(&harness, &harness.archive_bytes);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a complete partial materialises");
+
+    assert_eq!(harness.hits(&archive_path()), 0);
+}
+
+#[test]
+fn a_complete_partial_under_a_loose_size_bound_is_confirmed_by_the_server() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    serve_a_loose_size_bound(&harness);
+    plant_partial(&harness, &harness.archive_bytes);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("a complete partial materialises");
+
+    assert_eq!(harness.hits(&archive_path()), 1);
+    assert_eq!(harness.server.range_hits(&archive_path()), 1);
+}
+
+#[test]
+fn a_partial_longer_than_the_served_file_under_a_loose_bound_is_refetched_whole(
+) {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    serve_a_loose_size_bound(&harness);
+    plant_partial(&harness, &with_trailing_bytes(&harness.archive_bytes, 10));
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the refetched archive materialises");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 1);
+    assert_eq!(harness.hits(&archive_path()), 2);
+}
+
+#[test]
+fn an_over_long_partial_is_refetched_whole() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    plant_partial(&harness, &with_trailing_bytes(&harness.archive_bytes, 1));
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the refetched archive materialises");
+
+    assert_eq!(harness.server.range_hits(&archive_path()), 0);
+    assert_eq!(harness.hits(&archive_path()), 1);
+}
+
 #[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
