@@ -541,6 +541,69 @@ pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::re
 impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub mod work::rekey::run_plan
+pub enum work::rekey::run_plan::RunPlan
+pub work::rekey::run_plan::RunPlan::InProgress(work::rekey::run_plan::InProgressPlan)
+pub work::rekey::run_plan::RunPlan::Proposed(work::rekey::run_plan::ProposedPlan)
+impl core::clone::Clone for work::rekey::run_plan::RunPlan
+pub fn work::rekey::run_plan::RunPlan::clone(&self) -> work::rekey::run_plan::RunPlan
+impl core::cmp::Eq for work::rekey::run_plan::RunPlan
+impl core::cmp::PartialEq for work::rekey::run_plan::RunPlan
+pub fn work::rekey::run_plan::RunPlan::eq(&self, other: &work::rekey::run_plan::RunPlan) -> bool
+impl core::fmt::Debug for work::rekey::run_plan::RunPlan
+pub fn work::rekey::run_plan::RunPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::run_plan::RunPlan
+pub enum work::rekey::run_plan::Unreadability
+pub work::rekey::run_plan::Unreadability::Malformed(alloc::string::String)
+pub work::rekey::run_plan::Unreadability::NewerSchema(u32)
+impl core::clone::Clone for work::rekey::run_plan::Unreadability
+pub fn work::rekey::run_plan::Unreadability::clone(&self) -> work::rekey::run_plan::Unreadability
+impl core::cmp::Eq for work::rekey::run_plan::Unreadability
+impl core::cmp::PartialEq for work::rekey::run_plan::Unreadability
+pub fn work::rekey::run_plan::Unreadability::eq(&self, other: &work::rekey::run_plan::Unreadability) -> bool
+impl core::fmt::Debug for work::rekey::run_plan::Unreadability
+pub fn work::rekey::run_plan::Unreadability::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::run_plan::Unreadability
+pub struct work::rekey::run_plan::InProgressPlan
+impl work::rekey::run_plan::InProgressPlan
+pub fn work::rekey::run_plan::InProgressPlan::entries(&self) -> &[work::rekey::entry::RekeyEntry]
+pub fn work::rekey::run_plan::InProgressPlan::extended_with(self, additions: impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, work::rekey::write_set::Recorded)>) -> Self
+pub const fn work::rekey::run_plan::InProgressPlan::new(fingerprint: work::rekey::fingerprint::IdentityFingerprint, entries: alloc::vec::Vec<work::rekey::entry::RekeyEntry>, write_set: work::rekey::write_set::WriteSet) -> Self
+pub const fn work::rekey::run_plan::InProgressPlan::write_set(&self) -> &work::rekey::write_set::WriteSet
+impl core::clone::Clone for work::rekey::run_plan::InProgressPlan
+pub fn work::rekey::run_plan::InProgressPlan::clone(&self) -> work::rekey::run_plan::InProgressPlan
+impl core::cmp::Eq for work::rekey::run_plan::InProgressPlan
+impl core::cmp::PartialEq for work::rekey::run_plan::InProgressPlan
+pub fn work::rekey::run_plan::InProgressPlan::eq(&self, other: &work::rekey::run_plan::InProgressPlan) -> bool
+impl core::fmt::Debug for work::rekey::run_plan::InProgressPlan
+pub fn work::rekey::run_plan::InProgressPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::run_plan::InProgressPlan
+pub struct work::rekey::run_plan::ProposedPlan
+impl work::rekey::run_plan::ProposedPlan
+pub const fn work::rekey::run_plan::ProposedPlan::new(fingerprint: work::rekey::fingerprint::IdentityFingerprint, entries: alloc::vec::Vec<work::rekey::entry::RekeyEntry>) -> Self
+pub fn work::rekey::run_plan::ProposedPlan::preview_lines(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn work::rekey::run_plan::ProposedPlan::started(self, write_set: work::rekey::write_set::WriteSet) -> work::rekey::run_plan::InProgressPlan
+impl core::clone::Clone for work::rekey::run_plan::ProposedPlan
+pub fn work::rekey::run_plan::ProposedPlan::clone(&self) -> work::rekey::run_plan::ProposedPlan
+impl core::cmp::Eq for work::rekey::run_plan::ProposedPlan
+impl core::cmp::PartialEq for work::rekey::run_plan::ProposedPlan
+pub fn work::rekey::run_plan::ProposedPlan::eq(&self, other: &work::rekey::run_plan::ProposedPlan) -> bool
+impl core::fmt::Debug for work::rekey::run_plan::ProposedPlan
+pub fn work::rekey::run_plan::ProposedPlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::run_plan::ProposedPlan
+pub struct work::rekey::run_plan::UnreadablePlan
+pub work::rekey::run_plan::UnreadablePlan::cause: work::rekey::run_plan::Unreadability
+pub work::rekey::run_plan::UnreadablePlan::path: std::path::PathBuf
+impl core::clone::Clone for work::rekey::run_plan::UnreadablePlan
+pub fn work::rekey::run_plan::UnreadablePlan::clone(&self) -> work::rekey::run_plan::UnreadablePlan
+impl core::cmp::Eq for work::rekey::run_plan::UnreadablePlan
+impl core::cmp::PartialEq for work::rekey::run_plan::UnreadablePlan
+pub fn work::rekey::run_plan::UnreadablePlan::eq(&self, other: &work::rekey::run_plan::UnreadablePlan) -> bool
+impl core::fmt::Debug for work::rekey::run_plan::UnreadablePlan
+pub fn work::rekey::run_plan::UnreadablePlan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::run_plan::UnreadablePlan
+pub const work::rekey::run_plan::RUN_PLAN_SCHEMA: u32
+pub const fn work::rekey::run_plan::readable_schema(schema: u32) -> core::result::Result<(), work::rekey::run_plan::Unreadability>
 pub mod work::rekey::sequence
 pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
 pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
