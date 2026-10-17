@@ -5,7 +5,7 @@ title: "Tree Reap Cross-Artifact Lock Probe Implementation Plan"
 date: "2026-10-16T15:56:21+00:00"
 author: "Toby Clemson"
 producer: "create-plan"
-status: "in-progress"
+status: "done"
 work_item_id: "work-item:0339"
 parent: "work-item:0339"
 derived_from: ["codebase-research:2026-10-16-0339-tree-reap-cross-artifact-lock-probe"]
