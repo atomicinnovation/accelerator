@@ -1,6 +1,8 @@
-//! What a `conduct` run remembers between plans: the batch it last offered,
-//! the spawns it attempted, what it has seen the set show, and the findings
-//! it still owes quarantining.
+//! What a `conduct` run remembers between plans.
+//!
+//! That is the batch it last offered, the spawns it attempted, what it has
+//! seen the set show, the findings it still owes quarantining, and the
+//! profiles whose researchers it withholds.
 
 use std::collections::BTreeSet;
 
@@ -59,6 +61,37 @@ impl PendingBatch {
     }
 }
 
+/// Profiles whose researcher spawns a run no longer offers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Withheld(BTreeSet<String>);
+
+impl Withheld {
+    #[must_use]
+    pub fn of(profiles: impl IntoIterator<Item = String>) -> Self {
+        Self(profiles.into_iter().collect())
+    }
+
+    #[must_use]
+    pub fn joined(mut self, other: &Self) -> Self {
+        self.0.extend(other.0.iter().cloned());
+        self
+    }
+
+    #[must_use]
+    pub fn contains(&self, profile: &str) -> bool {
+        self.0.contains(profile)
+    }
+
+    pub fn profiles(&self) -> impl Iterator<Item = &str> + '_ {
+        self.0.iter().map(String::as_str)
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RunMemory {
     pub pending: PendingBatch,
@@ -66,6 +99,7 @@ pub struct RunMemory {
     pub just_acknowledged: BTreeSet<SpawnRef>,
     pub seen: Observed,
     pub owed_quarantine: BTreeSet<Stem>,
+    pub withheld: Withheld,
 }
 
 impl RunMemory {

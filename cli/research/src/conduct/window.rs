@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use crate::conduct::concurrency::Concurrency;
 use crate::conduct::memory::RunMemory;
+use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
 use crate::conduct::spawn::SpawnRef;
 use crate::topic::evidence::NoteRejection;
@@ -34,8 +35,8 @@ pub struct Window {
 }
 
 /// Offers the first spawns the concurrency admits, of those not yet
-/// attempted: shallower levels before deeper ones, then by stem and lineage,
-/// compositions last.
+/// attempted and not withheld: shallower levels before deeper ones, then by
+/// stem and lineage, compositions last.
 #[must_use]
 pub fn window(
     plan: &RoundPlan,
@@ -50,6 +51,10 @@ pub fn window(
         spawns.into_iter().partition(|spawn| {
             memory.is_some_and(|m| m.attempted.contains(&spawn.spawn))
         });
+    let fresh: Vec<RankedSpawn> = fresh
+        .into_iter()
+        .filter(|spawn| !memory.is_some_and(|m| held_back(spawn, &m.withheld)))
+        .collect();
     let offered_count = concurrency.admits(fresh.len());
     let remaining = fresh.len() - offered_count;
     let offered: Vec<SpawnRef> = fresh
@@ -86,7 +91,12 @@ struct Rank {
 struct RankedSpawn {
     rank: Rank,
     spawn: SpawnRef,
+    profile: String,
     rejected: Option<NoteRejection>,
+}
+
+fn held_back(spawn: &RankedSpawn, withheld: &Withheld) -> bool {
+    !spawn.rank.composes && withheld.contains(&spawn.profile)
 }
 
 fn spawns_of(pair: &OutstandingPair) -> Vec<RankedSpawn> {
@@ -98,6 +108,7 @@ fn spawns_of(pair: &OutstandingPair) -> Vec<RankedSpawn> {
             lineage: None,
         },
         spawn: SpawnRef::Pair(pair.stem.clone()),
+        profile: pair.pair.profile.clone(),
         rejected: None,
     };
     match &pair.stage {
@@ -116,6 +127,7 @@ fn spawns_of(pair: &OutstandingPair) -> Vec<RankedSpawn> {
                     stem: pair.stem.clone(),
                     lineage: node.lineage.clone(),
                 }),
+                profile: pair.pair.profile.clone(),
                 rejected: node.rejected.clone(),
             })
             .collect(),
@@ -183,6 +195,7 @@ mod tests {
     use crate::conduct::concurrency::Concurrency;
     use crate::conduct::memory::PendingBatch;
     use crate::conduct::memory::RunMemory;
+    use crate::conduct::memory::Withheld;
     use crate::conduct::observed::Observed;
     use crate::conduct::spawn::SpawnRef;
     use crate::topic::claims::ClaimedIndexes;
@@ -248,6 +261,26 @@ mod tests {
             })
             .collect();
         outstanding(stem_text, Stage::ResearchNodes(nodes))
+    }
+
+    fn of_profile(profile: &str, mut pair: OutstandingPair) -> OutstandingPair {
+        pair.pair.profile = profile.into();
+        pair
+    }
+
+    fn withholding(profiles: &[&str]) -> RunMemory {
+        RunMemory {
+            withheld: Withheld::of(profiles.iter().map(|p| (*p).to_owned())),
+            ..RunMemory::default()
+        }
+    }
+
+    fn remembering(
+        plan: &RoundPlan,
+        concurrency: Concurrency,
+        memory: &RunMemory,
+    ) -> Window {
+        window(plan, &Observed::default(), concurrency, Some(memory))
     }
 
     fn plan(pairs: Vec<OutstandingPair>) -> RoundPlan {
@@ -562,5 +595,73 @@ mod tests {
         assert!(
             unexpected(&showing(&[("01-a:1", SEEN)], &[]), &memory).is_empty()
         );
+    }
+
+    #[test]
+    fn withheld_researchers_are_neither_offered_nor_remaining() {
+        let plan = plan(vec![
+            single_pass("01-a"),
+            research_nodes("02-b", &["2-1", "2-2"]),
+            of_profile("openalex", research_nodes("03-c", &["2-1"])),
+        ]);
+        let window = remembering(&plan, unbounded(), &withholding(&["web"]));
+        assert_eq!(window.offered, spawns(&["03-c:2-1"]));
+        assert_eq!(window.remaining, 0);
+    }
+
+    #[test]
+    fn a_withheld_profile_still_composes() {
+        let window = remembering(
+            &plan(vec![compose("01-a")]),
+            unbounded(),
+            &withholding(&["web"]),
+        );
+        assert_eq!(window.offered, spawns(&["01-a"]));
+    }
+
+    #[test]
+    fn withheld_spawns_free_their_slots() {
+        let plan = plan(vec![
+            research_nodes("01-a", &["1"]),
+            research_nodes("02-b", &["1"]),
+            research_nodes("03-c", &["1"]),
+            of_profile("openalex", research_nodes("04-d", &["2-1"])),
+        ]);
+        let window = remembering(&plan, concurrency(2), &withholding(&["web"]));
+        assert_eq!(window.offered, spawns(&["04-d:2-1"]));
+    }
+
+    #[test]
+    fn attempted_withheld_spawns_stay_unfinished() {
+        let memory = RunMemory {
+            attempted: set(&["01-a:2-1"]),
+            ..withholding(&["web"])
+        };
+        let window = remembering(
+            &plan(vec![research_nodes("01-a", &["2-1"])]),
+            unbounded(),
+            &memory,
+        );
+        assert_eq!(
+            window.unfinished,
+            vec![UnfinishedSpawn {
+                spawn: spawn("01-a:2-1"),
+                rejected: None
+            }]
+        );
+    }
+
+    #[test]
+    fn withholding_nothing_offers_as_before() {
+        let plan = plan(vec![
+            single_pass("01-a"),
+            of_profile("openalex", research_nodes("02-b", &["2-1"])),
+            compose("03-c"),
+        ]);
+        let unremembered = unwatched(&plan, concurrency(2));
+        let remembered = remembering(&plan, concurrency(2), &withholding(&[]));
+        assert_eq!(remembered.offered, unremembered.offered);
+        assert_eq!(remembered.remaining, unremembered.remaining);
+        assert_eq!(unremembered.offered, spawns(&["01-a", "02-b:2-1"]));
     }
 }
