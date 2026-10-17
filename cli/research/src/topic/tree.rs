@@ -189,9 +189,8 @@ pub struct Derivation {
     pub worst_case: WorstCaseTree,
 }
 
-/// The stage of the pair named `stem`, whose tree is rooted at
-/// `pair_question` and derived level by level down to `depth` from the notes
-/// in `directory`, with the notes trimmed on the way.
+/// The tree of the pair named `stem`, rooted at `pair_question` and derived
+/// level by level down to `depth` from the notes in `directory`.
 ///
 /// At depth 1 a pair with no `.levels/` directory is researched in a single
 /// pass. A level is derived only once every node above it has its note, so a
