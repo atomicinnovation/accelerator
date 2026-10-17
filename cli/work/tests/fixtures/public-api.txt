@@ -541,6 +541,84 @@ pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::re
 impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub mod work::rekey::outcome
+pub enum work::rekey::outcome::NotRekeyed
+pub work::rekey::outcome::NotRekeyed::Collision
+pub work::rekey::outcome::NotRekeyed::Collision::first: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::Collision::second: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::Collision::target: alloc::string::String
+pub work::rekey::outcome::NotRekeyed::DirtyWorkingCopy(alloc::vec::Vec<alloc::string::String>)
+pub work::rekey::outcome::NotRekeyed::EntryRefused
+pub work::rekey::outcome::NotRekeyed::EntryRefused::entry: work::rekey::entry::RekeyEntry
+pub work::rekey::outcome::NotRekeyed::EntryRefused::refusal: work::retirement::RetirementRefusal
+pub work::rekey::outcome::NotRekeyed::EntryRolledBack
+pub work::rekey::outcome::NotRekeyed::EntryRolledBack::cause: alloc::boxed::Box<work::retirement::RetirementCause>
+pub work::rekey::outcome::NotRekeyed::EntryRolledBack::entry: work::rekey::entry::RekeyEntry
+pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted
+pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::needed: u64
+pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::pattern: alloc::string::String
+pub work::rekey::outcome::NotRekeyed::FreshNumbersExhausted::remaining: u64
+pub work::rekey::outcome::NotRekeyed::IdentityRunBusy(core::option::Option<work::rekey::outcome::Holder>)
+pub work::rekey::outcome::NotRekeyed::InProgress(core::option::Option<work::rekey::outcome::Holder>)
+pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap
+pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::item: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::number: u64
+pub work::rekey::outcome::NotRekeyed::KeptNumberAboveCap::pattern: alloc::string::String
+pub work::rekey::outcome::NotRekeyed::NotReverted(work::rekey::write_set::Unreverted)
+pub work::rekey::outcome::NotRekeyed::PartlyApplied
+pub work::rekey::outcome::NotRekeyed::PartlyApplied::items: alloc::vec::Vec<std::path::PathBuf>
+pub work::rekey::outcome::NotRekeyed::PartlyApplied::recoveries: alloc::vec::Vec<std::path::PathBuf>
+pub work::rekey::outcome::NotRekeyed::PendingPush(alloc::vec::Vec<std::path::PathBuf>)
+pub work::rekey::outcome::NotRekeyed::PlanUnreadable(work::rekey::run_plan::UnreadablePlan)
+pub work::rekey::outcome::NotRekeyed::PreviewStale(work::rekey::fingerprint::Staleness)
+pub work::rekey::outcome::NotRekeyed::RestoreIncomplete
+pub work::rekey::outcome::NotRekeyed::RestoreIncomplete::entry: work::rekey::entry::RekeyEntry
+pub work::rekey::outcome::NotRekeyed::RestoreIncomplete::recovery: std::path::PathBuf
+pub work::rekey::outcome::NotRekeyed::StateUnwritable(alloc::string::String)
+pub work::rekey::outcome::NotRekeyed::SyncUnfinished(alloc::vec::Vec<work::rekey::outcome::SyncBlocker>)
+pub work::rekey::outcome::NotRekeyed::TargetExists(std::path::PathBuf)
+pub work::rekey::outcome::NotRekeyed::TrackerUnreachable(alloc::string::String)
+pub work::rekey::outcome::NotRekeyed::Unclassifiable(std::path::PathBuf)
+pub work::rekey::outcome::NotRekeyed::WorkingCopyUnprobeable(alloc::string::String)
+impl work::rekey::outcome::NotRekeyed
+pub const fn work::rekey::outcome::NotRekeyed::code(&self) -> &'static str
+pub const fn work::rekey::outcome::NotRekeyed::exit_code(&self) -> u8
+impl core::clone::Clone for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::clone(&self) -> work::rekey::outcome::NotRekeyed
+impl core::cmp::Eq for work::rekey::outcome::NotRekeyed
+impl core::cmp::PartialEq for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::eq(&self, other: &work::rekey::outcome::NotRekeyed) -> bool
+impl core::fmt::Debug for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for work::rekey::outcome::NotRekeyed
+pub fn work::rekey::outcome::NotRekeyed::fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::NotRekeyed
+pub enum work::rekey::outcome::SyncBlocker
+pub work::rekey::outcome::SyncBlocker::Promotion
+pub work::rekey::outcome::SyncBlocker::Promotion::draft: alloc::string::String
+pub work::rekey::outcome::SyncBlocker::Retirement
+pub work::rekey::outcome::SyncBlocker::Retirement::new: alloc::string::String
+pub work::rekey::outcome::SyncBlocker::Retirement::old: alloc::string::String
+pub work::rekey::outcome::SyncBlocker::UnreadableRecord(std::path::PathBuf)
+impl core::clone::Clone for work::rekey::outcome::SyncBlocker
+pub fn work::rekey::outcome::SyncBlocker::clone(&self) -> work::rekey::outcome::SyncBlocker
+impl core::cmp::Eq for work::rekey::outcome::SyncBlocker
+impl core::cmp::PartialEq for work::rekey::outcome::SyncBlocker
+pub fn work::rekey::outcome::SyncBlocker::eq(&self, other: &work::rekey::outcome::SyncBlocker) -> bool
+impl core::fmt::Debug for work::rekey::outcome::SyncBlocker
+pub fn work::rekey::outcome::SyncBlocker::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::SyncBlocker
+pub struct work::rekey::outcome::Holder
+pub work::rekey::outcome::Holder::command: core::option::Option<alloc::string::String>
+pub work::rekey::outcome::Holder::pid: u32
+impl core::clone::Clone for work::rekey::outcome::Holder
+pub fn work::rekey::outcome::Holder::clone(&self) -> work::rekey::outcome::Holder
+impl core::cmp::Eq for work::rekey::outcome::Holder
+impl core::cmp::PartialEq for work::rekey::outcome::Holder
+pub fn work::rekey::outcome::Holder::eq(&self, other: &work::rekey::outcome::Holder) -> bool
+impl core::fmt::Debug for work::rekey::outcome::Holder
+pub fn work::rekey::outcome::Holder::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::outcome::Holder
 pub mod work::rekey::partly_applied
 pub fn work::rekey::partly_applied::partly_applied(items: &[work::identity::ItemIdentity]) -> alloc::vec::Vec<std::path::PathBuf>
 pub mod work::rekey::run_plan
