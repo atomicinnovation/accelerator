@@ -541,6 +541,8 @@ pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::re
 impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
 pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub mod work::rekey::partly_applied
+pub fn work::rekey::partly_applied::partly_applied(items: &[work::identity::ItemIdentity]) -> alloc::vec::Vec<std::path::PathBuf>
 pub mod work::rekey::run_plan
 pub enum work::rekey::run_plan::RunPlan
 pub work::rekey::run_plan::RunPlan::InProgress(work::rekey::run_plan::InProgressPlan)
