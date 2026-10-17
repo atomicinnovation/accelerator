@@ -1651,6 +1651,22 @@ fn an_over_long_partial_is_refetched_whole() {
 }
 
 #[test]
+fn a_resumed_download_that_fails_mid_body_retries_from_the_agreed_offset() {
+    let minisign = minisign_or_skip!();
+    let harness = happy_harness(&minisign);
+    let archive = harness.archive_bytes.clone();
+    harness
+        .server
+        .route(&archive_path(), Route::FailFirstRange(archive.clone()));
+    plant_partial(&harness, &archive[..archive.len() / 2]);
+
+    harness
+        .resolver()
+        .materialise(ARTIFACT)
+        .expect("the retried resume materialises");
+}
+
+#[test]
 fn a_hit_still_resolves_on_a_read_only_cache_root() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
