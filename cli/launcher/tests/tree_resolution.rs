@@ -234,18 +234,26 @@ fn attestation_json(
     )
 }
 
-fn manifest_json(
-    archive_sha: &str,
-    signature: &str,
-    archive_len: u64,
-) -> String {
+/// What the manifest publishes for `ARTIFACT` on the host platform.
+struct ManifestEntry {
+    signature: String,
+    archive_size: u64,
+    uncompressed_size: u64,
+}
+
+fn manifest_json(archive_sha: &str, entry: &ManifestEntry) -> String {
+    let ManifestEntry {
+        signature,
+        archive_size,
+        uncompressed_size,
+    } = entry;
     let escaped = signature.replace('\n', "\\n").replace('\t', "\\t");
     format!(
         "{{\"schema_version\":1,\"version\":\"{VERSION}\",\"binaries\":{{}},\
          \"artifacts\":{{\"{ARTIFACT}\":{{\"description\":\"driver\",\
          \"platforms\":{{\"{HOST_PLATFORM}\":{{\"sha256\":\"{archive_sha}\",\
-         \"signature\":\"{escaped}\",\"archive_size\":{archive_len},\
-         \"uncompressed_size\":999999,\"entry_count\":9}}}}}}}}}}"
+         \"signature\":\"{escaped}\",\"archive_size\":{archive_size},\
+         \"uncompressed_size\":{uncompressed_size},\"entry_count\":9}}}}}}}}}}"
     )
 }
 
@@ -255,7 +263,10 @@ struct Harness {
     trusted: String,
     archive_sha: String,
     archive_bytes: Vec<u8>,
-    _workdir: TempDir,
+    archive_signature: String,
+    minisign: PathBuf,
+    secret: PathBuf,
+    workdir: TempDir,
     _cache: TempDir,
 }
 
@@ -334,6 +345,27 @@ impl Harness {
     fn hits(&self, path: &str) -> usize {
         self.server.hits(path)
     }
+
+    fn sign(&self, bytes: &[u8]) -> String {
+        sign(&self.minisign, &self.secret, self.workdir.path(), bytes)
+    }
+
+    fn default_entry(&self) -> ManifestEntry {
+        ManifestEntry {
+            signature: self.archive_signature.clone(),
+            archive_size: self.archive_bytes.len() as u64,
+            uncompressed_size: 999_999,
+        }
+    }
+
+    fn serve_manifest(&self, entry: &ManifestEntry) {
+        let manifest = manifest_json(&self.archive_sha, entry);
+        let signature = self.sign(manifest.as_bytes());
+        self.server
+            .route("/manifest.json", Route::Ok(manifest.into_bytes()));
+        self.server
+            .route("/manifest.minisig", Route::Ok(signature.into_bytes()));
+    }
 }
 
 fn happy_harness(minisign: &Path) -> Harness {
@@ -350,15 +382,8 @@ fn happy_harness(minisign: &Path) -> Harness {
     let attestation_sig =
         sign(minisign, &secret, workdir.path(), attestation.as_bytes());
 
-    let manifest =
-        manifest_json(&archive_sha, &archive_sig, archive.len() as u64);
-    let manifest_sig =
-        sign(minisign, &secret, workdir.path(), manifest.as_bytes());
-
     let archive_bytes = archive.clone();
     let server = MockHTTPServer::start();
-    server.route("/manifest.json", Route::Ok(manifest.into_bytes()));
-    server.route("/manifest.minisig", Route::Ok(manifest_sig.into_bytes()));
     let asset = format!("/accelerator-{ARTIFACT}-{HOST_PLATFORM}.tar.gz");
     server.route(&asset, Route::Ok(archive));
     server.route(
@@ -370,15 +395,20 @@ fn happy_harness(minisign: &Path) -> Harness {
         Route::Ok(attestation_sig.into_bytes()),
     );
 
-    Harness {
+    let harness = Harness {
         server,
         cache: cache.path().to_path_buf(),
         trusted: trusted_pub,
         archive_sha,
         archive_bytes,
-        _workdir: workdir,
+        archive_signature: archive_sig,
+        minisign: minisign.to_owned(),
+        secret,
+        workdir,
         _cache: cache,
-    }
+    };
+    harness.serve_manifest(&harness.default_entry());
+    harness
 }
 
 fn archive_path() -> String {
