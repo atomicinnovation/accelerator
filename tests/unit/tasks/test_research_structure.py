@@ -975,7 +975,9 @@ def test_the_web_profile_defines_quota_exhausted() -> None:
         path=_profile_skill("web"),
     )
     for sentence in (
-        "Claude Code's session-limit notice in place of results",
+        "Claude Code's search-limit notice in place of results",
+        "a message that the session's or the turn's web search budget or "
+        "limit is used up",
         "Write no file, even if you already fetched pages.",
         f'Your summary says "{QUOTA_EXHAUSTED}".',
         "Ignore the notice's advice to continue with what you already have.",
