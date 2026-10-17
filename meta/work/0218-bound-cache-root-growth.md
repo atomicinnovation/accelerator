@@ -460,6 +460,9 @@ None remaining.
   materialise or `prune` of that artifact is in progress. The root prune and
   orphan-lock removal must reuse 0339's non-creating lock probe and never
   remove a tree lock file that is held.
+- **Orphan-lock removal** must unlink a lock file only while holding it. That
+  is safe against concurrent materialises only for launchers from 0339
+  onwards, which confirm the inode after locking.
 - **Relates to** 0189, which measured the root; 0164, which established the
   fetch-verify-cache resolver; 0223, which settled the default root; 0214,
   which settled the lease design (now governed by ADR-0064); and 0196, whose
@@ -521,9 +524,19 @@ None remaining.
   Accepted.
 - Removing a superseded tree adds latency to the cold path that runs it, about
   once per superseded tree. Accepted.
-- Removing a retired artifact's lock file can race with an older launcher still
-  materialising that artifact; the no-pointer-or-generation and
-  `AGE_BACKSTOP` guards make this unlikely. Accepted.
+- A launcher from before 0339 does not confirm its lock's inode, so after a
+  lock file is unlinked it can lock the orphaned inode and no longer exclude a
+  launcher that holds the recreated file. While both hold a lock:
+  - any reap can remove that launcher's in-progress residue, through the
+    `Absent`, `Taken` or own-artifact arms;
+  - a concurrent materialise of the same artifact can append to the same
+    partial archive and corrupt it.
+
+  Each consequence records a sticky marker for that artifact, lasting for the
+  marker TTL in the session. Its cause, `UnexpectedDigest` or `Extraction`, is
+  Refusal-class, so it also stops a `--fail-safe` crawl rather than degrading
+  it. This item must either accept that by name, or remove lock files only
+  once no launcher without the inode check shares the root.
 - The dead-`pid` test assumes the root is not shared across hosts.
 - Generations of another layout version, and their pointers, are left to a
   launcher that understands that layout; if none runs against the root

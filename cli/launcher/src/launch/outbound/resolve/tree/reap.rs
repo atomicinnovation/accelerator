@@ -1,9 +1,28 @@
 //! Reclaiming residue: partial archives, partial trees, and generations no
 //! pointer references.
 //!
-//! Runs under the per-`(name, platform)` single-flight lock held by its caller,
-//! so a reaper and a materialiser of a different artifact cannot disagree about
-//! what `trees/` contains. It never runs from the hit path.
+//! Runs only under its own artifact's tree lock, which [`HeldTreeLock`] proves,
+//! and never from the hit path. Another artifact's temp residue goes only
+//! while the reap holds that artifact's lock, taken without blocking, or when
+//! that artifact has no lock file.
+//!
+//! "No lock file" is safe only while a lock file is unlinked solely by a
+//! process that holds it, and every process that takes the lock confirms its
+//! inode afterwards. A launcher that does not confirm can hold an orphaned
+//! inode while another process holds the new file, so neither lock excludes
+//! the other. Even then, nothing excludes a launcher pinning the same artifact
+//! that creates the lock and reopens an existing partial archive between the
+//! reap's scan and its removal: its appends go to an unlinked file and its
+//! materialise fails with `Extraction`. That cause is sticky for the marker
+//! TTL, and as a Refusal it stops a `--fail-safe` crawl rather than degrading
+//! it. The window needs a launcher of another version that still pins a
+//! retired artifact, and any future removal of lock files inherits it.
+//!
+//! A process must never probe or retake a tree lock it already holds: where
+//! `flock` is emulated with process-owned POSIX locks, the second lock
+//! succeeds, and closing its descriptors releases the first. Holding another
+//! artifact's lock while removing a large tree can make that artifact's
+//! bounded waiter report materialisation in progress, which is not sticky.
 //!
 //! Two signals gate a removal, and they compose. A generation whose lease is
 //! held by a live process is spared regardless of age — the lease is the
