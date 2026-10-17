@@ -449,7 +449,7 @@ impl TreeResolver<'_> {
         generation: &str,
     ) -> Result<(), TreeError> {
         let pointer = paths.pointer(artifact, &self.platform, digest);
-        let temp = paths.root().join(format!(".tmp-{generation}.ref"));
+        let temp = paths.temp_pointer(generation);
         write_private(&temp, generation.as_bytes())?;
         std::fs::rename(&temp, &pointer).map_err(|error| {
             let _ = std::fs::remove_file(&temp);
