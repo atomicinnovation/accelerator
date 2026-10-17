@@ -144,8 +144,8 @@ fn handle(mut stream: TcpStream, shared: &Arc<Shared>) -> std::io::Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
-    // Consume headers, capturing a `Range: bytes=N-` if present so the Ok route
-    // can serve a 206 partial, or a 416 past the end, as a real server does.
+    // Capture any `Range: bytes=N-` so the Ok route can serve a 206 partial,
+    // or a 416 past the end, as a real server does.
     let mut range_from: Option<u64> = None;
     let mut header = String::new();
     loop {
