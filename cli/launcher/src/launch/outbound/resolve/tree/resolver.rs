@@ -240,16 +240,17 @@ impl TreeResolver<'_> {
             });
         }
 
-        // 3. Free-space precheck against archive + extracted copy.
-        self.check_free_space(
-            &paths,
-            entry.archive_size + entry.uncompressed_size,
-        )?;
-
-        // 4. Stream the archive to a digest-named temp file.
+        // 3. Free-space precheck against the rest of the archive and the
+        //    extracted copy.
         let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
         let partial =
             download::AssessedPartial::of(&temp_archive, entry.archive_size);
+        self.check_free_space(
+            &paths,
+            entry.uncompressed_size + partial.additional_bytes(),
+        )?;
+
+        // 4. Stream the archive to a digest-named temp file.
         let archive_url = format!(
             "{}/{}",
             self.base_url,
