@@ -11,7 +11,7 @@ priority: "medium"
 parent: "work-item:0121"
 relates_to: ["work-item:0283", "work-item:0303", "work-item:0304", "work-item:0308", "work-item:0310"]
 tags: ["research", "deep-research", "conduct", "cli"]
-last_updated: "2026-10-15T18:14:20+00:00"
+last_updated: "2026-10-17T16:30:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 external_id: "PP-893"
@@ -84,7 +84,19 @@ makes it constant per spawn.
   and that the profile, not the question, decides which sources are
   legitimate.
 - **Unchanged spawns**: composer and `single_pass` spawns keep their inline
-  question and paths; only their template moves to a path.
+  question and paths; only their template moves to a path. A `single_pass`
+  web spawn also keeps its inline `search_budget`.
+- **Search budget by query**: for a node of a `web` pair, the node query
+  also prints `search_budget`. The value is the run ledger's stored
+  `search_budgets` at the node's level, `SearchBudgets::at(level)`, the same
+  value `outstanding` renders on the node today. A node of any other profile
+  prints none. The budgets are sized once per run and never resized, so the
+  query reads them from the ledger and needs no per-node budget snapshot.
+- **Search budget leaves the prompt**: a research-node spawn no longer
+  injects a search budget. The web profile's **Search Budget** section and
+  the level-note outputter's **search budget** injected value read it from
+  the node query instead of the task prompt. A web level note still stamps
+  it as `search_budget`; a non-web note still omits the line.
 
 ## Acceptance Criteria
 
@@ -106,6 +118,17 @@ makes it constant per spawn.
       `known_questions` length.
 - [ ] Given any spawn, its prompt contains a template path and no inlined
       template text.
+- [ ] Given a run with stored search budgets, when the node query runs for
+      an offered node of a `web` pair, then it prints `search_budget` equal
+      to that node's `search_budget` in the `outstanding` plan; for an
+      `openalex` or `arxiv` node it prints no `search_budget`.
+- [ ] Given a research-node spawn, its prompt carries no search budget, and
+      a web researcher stamps the node query's `search_budget` on its level
+      note; given a `single_pass` web spawn, its prompt still carries its
+      `search_budget`.
+- [ ] Given a run halted by an exhausted web search quota, when the node
+      query runs for a node of a `web` pair, then it exits non-zero, because
+      the run withholds `web` researcher spawns and never offers the node.
 
 ## Open Questions
 
@@ -119,11 +142,20 @@ makes it constant per spawn.
 
 - Blocked by: none known
 - Blocks: none known
-- Related: 0304, which gives each web node a search budget from the plan
-  and stores the run's budgets in the ledger. Whichever lands second
-  makes the node query print a web node's `search_budget` from the
-  ledger's snapshot, so research-node spawns by reference keep it;
-  `single_pass` web spawns carry it inline.
+- Related: 0304, landed, which gives each web node a search budget and
+  stores the run's budgets in the ledger. It landed first, so this item
+  owns carrying the budget through the node query; see **Search budget by
+  query**. 0304 also added two optional ledger keys, `search_budgets` and
+  `withheld`, each written only when set and defaulting when absent. This
+  item's snapshot fields follow the same precedent. 0304's tests that pin
+  today's inline budget and change with this item:
+  `test_web_spawns_carry_their_search_budget` (its node assertion only),
+  `test_the_web_profile_limits_searches_to_the_injected_budget` and
+  `test_only_web_level_notes_stamp_a_search_budget` in
+  `tests/unit/tasks/test_research_structure.py`, and
+  `a_written_ledger_names_its_fields_after_the_memory_it_keeps` in
+  `cli/research-adapters/src/conduct/ledger.rs`, whose key list grows with
+  any new ledger field.
 - Related: 0308, which also changes what the research guard lets
   researchers run.
 - Related: 0303, which re-issues capacity-refused spawns of an offered
@@ -147,7 +179,14 @@ makes it constant per spawn.
 
 ## Technical Notes
 
-- Spawn injection list: `skills/research/research-topic/SKILL.md:304-350`.
+- Spawn injection list: step 4's three spawn bullets in
+  `skills/research/research-topic/SKILL.md`.
+- The node's budget as rendered today: `PlanOutput::search_budget` in
+  `cli/research-cli/src/topic_command.rs`, which only offers a budget for a
+  pair whose profile is `SEARCHING_PROFILE`.
+- Withholding: `RunMemory::withheld` and the window's `held_back` filter in
+  `cli/research/src/conduct/`; a withheld spawn is never in the offered
+  batch.
 - Plan production: `cli/research/src/topic/plan.rs`; run ledger:
   `cli/research/src/conduct/ledger.rs`.
 - Templates the orchestrator inlines today: the **Finding template** and
