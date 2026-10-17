@@ -39,12 +39,14 @@ const STREAM_CHUNK: usize = 64 * 1024;
 ///
 /// A definitive 404 is not retried; a transport error or exhausted 5xx retries
 /// is `Unreachable`; a body exceeding its declared size is a defect rather than
-/// a transient failure, so it is not retried either.
+/// a transient failure, so it is not retried either. Nor is a sink that cannot
+/// be opened: the fault is local, so retrying the network cannot fix it.
 #[derive(Debug, PartialEq, Eq)]
 pub enum FetchError {
     NotFound,
     Unreachable(String),
     TooLarge { limit: u64 },
+    Sink(String),
 }
 
 /// The bounds a streamed transfer runs under.
@@ -109,7 +111,6 @@ pub(super) enum SinkMode {
 
 /// What a request ranged from an offset yielded.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(super) enum Resumed {
     /// The server ignored the range and sent the whole body.
     Whole(Whole),
@@ -259,11 +260,7 @@ impl Fetcher {
             }
             match self.try_get(url) {
                 Ok(bytes) => return Ok(bytes),
-                Err(Terminal::NotFound) => return Err(FetchError::NotFound),
-                Err(Terminal::TooLarge { limit }) => {
-                    return Err(FetchError::TooLarge { limit })
-                }
-                Err(Terminal::Retryable(detail)) => last = detail,
+                Err(terminal) => last = terminal.retryable_detail()?,
             }
         }
         Err(FetchError::Unreachable(last))
@@ -319,7 +316,7 @@ impl Fetcher {
                 return Err(unexpected_status(&response));
             }
             let sink = open_sink()
-                .map_err(|error| Terminal::Retryable(error.to_string()))?;
+                .map_err(|error| Terminal::Sink(error.to_string()))?;
             copy_body(response, sink, limits, started)
                 .map(|sha256| Whole { sha256 })
         })
@@ -347,6 +344,15 @@ impl Fetcher {
         self.streaming_attempts(url, limits, |started| {
             let response = self.send_streaming(url, limits, Some(from))?;
             let status = response.status();
+            if status.as_u16() == 416 {
+                return Ok(unsatisfiable(&response, from));
+            }
+            if status.as_u16() == 206
+                && content_range(&response).and_then(satisfied_start)
+                    != Some(from)
+            {
+                return Ok(Resumed::RangeRejected);
+            }
             if !status.is_success() {
                 return Err(unexpected_status(&response));
             }
@@ -357,7 +363,7 @@ impl Fetcher {
                 SinkMode::Truncate
             };
             let sink = open_sink(mode)
-                .map_err(|error| Terminal::Retryable(error.to_string()))?;
+                .map_err(|error| Terminal::Sink(error.to_string()))?;
             let sha256 = copy_body(response, sink, limits, started)?;
             Ok(if ranged {
                 Resumed::Appended
@@ -389,11 +395,7 @@ impl Fetcher {
             }
             match attempt(started) {
                 Ok(outcome) => return Ok(outcome),
-                Err(Terminal::NotFound) => return Err(FetchError::NotFound),
-                Err(Terminal::TooLarge { limit }) => {
-                    return Err(FetchError::TooLarge { limit })
-                }
-                Err(Terminal::Retryable(detail)) => last = detail,
+                Err(terminal) => last = terminal.retryable_detail()?,
             }
         }
         Err(FetchError::Unreachable(format!(
@@ -424,6 +426,34 @@ impl Fetcher {
         }
         Ok(response)
     }
+}
+
+/// Every 416 to a ranged request is final: a total equal to the range start
+/// means the bytes on disk are the whole resource, and anything else, a
+/// missing header included, means they are not a prefix of it.
+fn unsatisfiable(response: &reqwest::blocking::Response, from: u64) -> Resumed {
+    if content_range(response).and_then(unsatisfied_length) == Some(from) {
+        Resumed::AlreadyComplete
+    } else {
+        Resumed::RangeRejected
+    }
+}
+
+fn content_range(response: &reqwest::blocking::Response) -> Option<&str> {
+    response
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)?
+        .to_str()
+        .ok()
+}
+
+fn unsatisfied_length(content_range: &str) -> Option<u64> {
+    content_range.strip_prefix("bytes */")?.trim().parse().ok()
+}
+
+fn satisfied_start(content_range: &str) -> Option<u64> {
+    let (start, _) = content_range.strip_prefix("bytes ")?.split_once('-')?;
+    start.trim().parse().ok()
 }
 
 fn unexpected_status(response: &reqwest::blocking::Response) -> Terminal {
@@ -471,10 +501,19 @@ fn copy_body(
 enum Terminal {
     NotFound,
     Retryable(String),
-    #[allow(dead_code)]
-    TooLarge {
-        limit: u64,
-    },
+    TooLarge { limit: u64 },
+    Sink(String),
+}
+
+impl Terminal {
+    fn retryable_detail(self) -> Result<String, FetchError> {
+        match self {
+            Self::Retryable(detail) => Ok(detail),
+            Self::NotFound => Err(FetchError::NotFound),
+            Self::TooLarge { limit } => Err(FetchError::TooLarge { limit }),
+            Self::Sink(detail) => Err(FetchError::Sink(detail)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -487,8 +526,8 @@ mod tests {
     use http_test_support::{MockHTTPServer, RequestKey, Route};
 
     use super::{
-        is_allowed_redirect_host, is_https, FetchError, Fetcher, StreamLimits,
-        StreamSink, Whole,
+        is_allowed_redirect_host, is_https, FetchError, Fetcher, Resumed,
+        SinkMode, StreamLimits, StreamSink, Whole,
     };
 
     /// Collects what it is handed, so a test can assert a retry started from an
@@ -524,6 +563,153 @@ mod tests {
             sink.borrow_mut().clear();
             Ok(Box::new(CollectingSink(Rc::clone(sink))))
         })
+    }
+
+    #[derive(Default)]
+    struct Resumption {
+        received: Collecting,
+        modes: Rc<RefCell<Vec<SinkMode>>>,
+    }
+
+    fn resume(
+        server: &MockHTTPServer,
+        from: u64,
+        resumption: &Resumption,
+    ) -> Result<Resumed, FetchError> {
+        test_fetcher().resume(
+            &format!("{}/asset", server.base_url()),
+            &limits(1 << 20),
+            from,
+            &mut |mode| {
+                resumption.modes.borrow_mut().push(mode);
+                Ok(Box::new(CollectingSink(Rc::clone(&resumption.received))))
+            },
+        )
+    }
+
+    fn answering(status: u16, content_range: Option<String>) -> MockHTTPServer {
+        let server = MockHTTPServer::start();
+        server.route(
+            RequestKey::get("/asset"),
+            Route::Headers {
+                status,
+                headers: content_range
+                    .map(|range| ("Content-Range".to_owned(), range))
+                    .into_iter()
+                    .collect(),
+                body: if status == 206 {
+                    "suffix".to_owned()
+                } else {
+                    String::new()
+                },
+            },
+        );
+        server
+    }
+
+    const RESUME_FROM: u64 = 1000;
+
+    #[test]
+    fn a_range_starting_at_the_end_is_already_complete() {
+        let server = answering(416, Some(format!("bytes */{RESUME_FROM}")));
+        let resumption = Resumption::default();
+
+        let outcome = resume(&server, RESUME_FROM, &resumption);
+
+        assert!(
+            matches!(outcome, Ok(Resumed::AlreadyComplete)),
+            "got {outcome:?}"
+        );
+        assert!(resumption.modes.borrow().is_empty(), "a sink was opened");
+    }
+
+    fn assert_range_rejected(server: &MockHTTPServer) {
+        let resumption = Resumption::default();
+
+        let outcome = resume(server, RESUME_FROM, &resumption);
+
+        assert!(
+            matches!(outcome, Ok(Resumed::RangeRejected)),
+            "got {outcome:?}"
+        );
+        assert!(resumption.modes.borrow().is_empty(), "a sink was opened");
+        assert_eq!(server.hits(&RequestKey::get("/asset")), 1);
+    }
+
+    #[test]
+    fn a_416_for_a_shorter_resource_rejects_the_range() {
+        assert_range_rejected(&answering(
+            416,
+            Some(format!("bytes */{}", RESUME_FROM - 10)),
+        ));
+    }
+
+    #[test]
+    fn a_416_for_a_longer_resource_rejects_the_range() {
+        assert_range_rejected(&answering(
+            416,
+            Some(format!("bytes */{}", RESUME_FROM + 10)),
+        ));
+    }
+
+    #[test]
+    fn a_416_without_a_content_range_rejects_the_range() {
+        assert_range_rejected(&answering(416, None));
+    }
+
+    #[test]
+    fn a_206_from_a_different_offset_rejects_the_range() {
+        let start = RESUME_FROM + 1;
+        assert_range_rejected(&answering(
+            206,
+            Some(format!("bytes {start}-{}/{}", start + 5, start + 6)),
+        ));
+    }
+
+    #[test]
+    fn a_server_ignoring_the_range_answers_whole() {
+        let payload = vec![3_u8; 2048];
+        let server = MockHTTPServer::start();
+        server.route(
+            RequestKey::get("/asset"),
+            Route::Bytes {
+                status: 200,
+                body: payload.clone(),
+            },
+        );
+        let resumption = Resumption::default();
+
+        let outcome = resume(&server, RESUME_FROM, &resumption);
+
+        assert!(matches!(outcome, Ok(Resumed::Whole(_))), "got {outcome:?}");
+        assert_eq!(*resumption.modes.borrow(), [SinkMode::Truncate]);
+        assert_eq!(*resumption.received.borrow(), payload);
+    }
+
+    #[test]
+    fn a_sink_that_cannot_be_opened_is_not_retried() {
+        let server = MockHTTPServer::start();
+        let key = RequestKey::get("/asset");
+        server.route(
+            key.clone(),
+            Route::Bytes {
+                status: 200,
+                body: vec![0_u8; 64],
+            },
+        );
+
+        let outcome = test_fetcher().get_whole(
+            &format!("{}/asset", server.base_url()),
+            &limits(1 << 20),
+            &mut || Err(std::io::Error::other("the sink is unwritable")),
+        );
+
+        assert!(
+            matches!(&outcome, Err(FetchError::Sink(detail))
+                if detail.contains("unwritable")),
+            "got {outcome:?}"
+        );
+        assert_eq!(server.hits(&key), 1);
     }
 
     fn test_fetcher() -> Fetcher {

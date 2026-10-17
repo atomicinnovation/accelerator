@@ -262,11 +262,11 @@ fn fetch_error(
             target: target.to_owned(),
             url: url.to_owned(),
         },
-        FetchError::Unreachable(_) | FetchError::TooLarge { .. } => {
-            ResolutionError::Fetch {
-                target: target.to_owned(),
-                url: url.to_owned(),
-            }
-        }
+        FetchError::Unreachable(_)
+        | FetchError::TooLarge { .. }
+        | FetchError::Sink(_) => ResolutionError::Fetch {
+            target: target.to_owned(),
+            url: url.to_owned(),
+        },
     }
 }
