@@ -15,6 +15,10 @@ pub mod pins;
 pub mod reap;
 pub mod seal;
 pub mod table;
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod testing;
+pub mod tree_lock;
 
 #[cfg(unix)]
 mod resolver;

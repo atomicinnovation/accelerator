@@ -22,10 +22,11 @@ use super::super::manifest::Manifest;
 use super::attestation::Attestation;
 use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
-    validated_generation, TreePaths, LAYOUT_VERSION,
+    validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{take_single_flight, try_single_flight, LivenessProbe};
+use super::lease::LivenessProbe;
 use super::table::{FileTable, TABLE_NAME};
+use super::tree_lock::HeldTreeLock;
 use super::{claims, download, extract, pins, reap, seal};
 
 /// The publish-sequence steps a crash can be injected after.
@@ -120,9 +121,28 @@ pub struct TreeResolver<'a> {
     pub steps: &'a dyn StepObserver,
 }
 
+impl reap::PinnedDigests for ExpectedDigests {
+    fn pinned_digest(&self, artifact: &Artifact) -> Option<String> {
+        self.digest_for(artifact.name(), artifact.platform())
+    }
+}
+
 impl TreeResolver<'_> {
     fn paths(&self) -> TreePaths {
         TreePaths::under(&self.cache_root)
+    }
+
+    fn on_this_platform(&self, artifact: &str) -> Artifact {
+        Artifact::new(artifact, &self.platform)
+    }
+
+    fn reaper<'r>(&'r self, held: &'r HeldTreeLock) -> reap::Reaper<'r> {
+        reap::Reaper::new(
+            held,
+            self.clock,
+            self.liveness,
+            &self.expected_digests,
+        )
     }
 
     /// The digest this launcher expects for `artifact`, or a miss-shaped `None`
@@ -208,6 +228,11 @@ impl TreeResolver<'_> {
     /// corrupt still passes the reuse scan's attestation check, so reusing it
     /// would make repair a no-op. Forcing a fresh materialisation builds the
     /// replacement beside the tree in use and swaps the pointer to it.
+    ///
+    /// A partial archive whose digest fails is discarded, so the next run
+    /// fetches afresh. One that fails any other check is kept: bytes matching
+    /// the pin are the release's, and the next run checks them again without
+    /// downloading.
     fn materialise_fresh(
         &self,
         artifact: &str,
@@ -235,25 +260,24 @@ impl TreeResolver<'_> {
             });
         }
 
-        // 3. Free-space precheck against archive + extracted copy.
+        // 3. Free-space precheck against the rest of the archive and the
+        //    extracted copy.
+        let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
+        let partial =
+            download::AssessedPartial::of(&temp_archive, entry.archive_size);
         self.check_free_space(
             &paths,
-            entry.archive_size + entry.uncompressed_size,
+            entry.uncompressed_size + partial.additional_bytes(),
         )?;
 
         // 4. Stream the archive to a digest-named temp file.
-        let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
         let archive_url = format!(
             "{}/{}",
             self.base_url,
             asset_name(artifact, &self.platform)
         );
-        let streamed = download::stream_archive(
-            self.fetcher,
-            &archive_url,
-            &temp_archive,
-            entry.archive_size,
-        )?;
+        let streamed =
+            download::stream_archive(self.fetcher, &archive_url, &partial)?;
         self.steps.after(MaterialiseStep::ArchiveStreamed)?;
 
         // 5. The attestation and the archive verification.
@@ -265,7 +289,12 @@ impl TreeResolver<'_> {
             digest,
             &entry.signature,
             self.keys,
-        )?;
+        )
+        .inspect_err(|error| {
+            if matches!(error, TreeError::UnexpectedDigest { .. }) {
+                download::discard_partial_archive(&temp_archive);
+            }
+        })?;
         self.steps.after(MaterialiseStep::ArchiveVerified)?;
 
         // 6. Extract into a fresh temp generation, verifying each member as it
@@ -449,7 +478,7 @@ impl TreeResolver<'_> {
         generation: &str,
     ) -> Result<(), TreeError> {
         let pointer = paths.pointer(artifact, &self.platform, digest);
-        let temp = paths.root().join(format!(".tmp-{generation}.ref"));
+        let temp = paths.temp_pointer(generation);
         write_private(&temp, generation.as_bytes())?;
         std::fs::rename(&temp, &pointer).map_err(|error| {
             let _ = std::fs::remove_file(&temp);
@@ -573,7 +602,7 @@ impl MaterialiseTree for TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let lock_path = paths.single_flight_lock(artifact, &self.platform);
+        let tree_artifact = self.on_this_platform(artifact);
 
         // The bounded waiter: try the lock without blocking, and between tries
         // re-check whether the winner has published. A loser never hangs for the
@@ -590,7 +619,9 @@ impl MaterialiseTree for TreeResolver<'_> {
                     digest,
                 ));
             }
-            if let Some(_lock) = try_single_flight(&lock_path)? {
+            if let Some(held) =
+                HeldTreeLock::try_take(&paths, tree_artifact.clone())?
+            {
                 // Won the lock; re-check, then materialise.
                 if let Some(located) = self.locate(artifact, digest) {
                     return Ok(self.sealed(
@@ -601,14 +632,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                     ));
                 }
                 let sealed = self.materialise_locked(artifact, digest)?;
-                let mut keep = BTreeSet::new();
-                keep.insert(digest.to_owned());
-                let _ = reap::reap_orphans(
-                    &paths,
-                    self.clock,
-                    self.liveness,
-                    &keep,
-                );
+                let _ = self.reaper(&held).reap_orphans();
                 return Ok(sealed);
             }
 
@@ -675,9 +699,8 @@ impl TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let _lock = take_single_flight(
-            &paths.single_flight_lock(artifact, &self.platform),
-        )?;
+        let _held =
+            HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
 
         let superseded = self
             .locate(artifact, digest)
@@ -718,9 +741,10 @@ impl TreeResolver<'_> {
 
     /// Reclaim residue for one artifact under its single-flight lock.
     ///
-    /// Runs under the lock the reaper requires, so it and a concurrent
-    /// materialisation of a different artifact cannot disagree about `trees/`.
-    /// The artifact's current expected digest is spared, so a resumable partial
+    /// Another artifact's temp residue is removed only under that artifact's
+    /// tree lock, taken without blocking, or when that artifact has no lock
+    /// file; the reap module records the one window the second case leaves.
+    /// Every artifact's pinned partial archive is spared, so a resumable
     /// download survives.
     ///
     /// # Errors
@@ -733,9 +757,7 @@ impl TreeResolver<'_> {
         older_than: Option<Duration>,
     ) -> Result<reap::Reclaimed, TreeError> {
         let paths = self.paths();
-        let _lock = take_single_flight(
-            &paths.single_flight_lock(artifact, &self.platform),
-        )?;
+        let held = HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
 
         // First reclaim any pointed-at generation whose digest no installed
         // launcher has claimed inside the window — the running launcher's own
@@ -743,12 +765,7 @@ impl TreeResolver<'_> {
         let mut reclaimed =
             self.reclaim_unclaimed(&paths, artifact, older_than);
 
-        let mut keep = BTreeSet::new();
-        if let Some(digest) = self.expected_digest(artifact) {
-            keep.insert(digest);
-        }
-        let orphans =
-            reap::reap_orphans(&paths, self.clock, self.liveness, &keep)?;
+        let orphans = self.reaper(&held).reap_orphans()?;
         reclaimed.entries += orphans.entries;
         Ok(reclaimed)
     }
