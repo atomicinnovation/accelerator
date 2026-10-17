@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
 revision: "51ab2d9e870fb271111cc49fcd7b4ff5491c91b6"
 repository: "accelerator"
-last_updated: "2026-10-17T16:54:54+00:00"
+last_updated: "2026-10-17T17:40:38+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -797,6 +797,16 @@ The work goes in three steps:
    compilation.
 3. **Step 1c** adds the behaviour.
 
+As built, 1b and 1c were interleaved one behaviour at a time, so each
+commit is green. Every 1b test was still observed failing on its
+assertion before the 1c change it drives:
+
+1. range refusals;
+2. the append offset;
+3. partials that cannot be read or written;
+4. the digest discard;
+5. the free-space precheck.
+
 **Step 1a: refactor the fetch API and the partial assessment (no
 behaviour change)**
 
@@ -841,6 +851,17 @@ pub(super) fn resume<'sink>(
 
 `FetchError` gains a `Sink(String)` variant. A sink that cannot be opened
 is terminal: the fault is local, so retrying the network cannot fix it.
+As built, the variant arrived with its 1b test rather than in 1a. The
+buffered path's `fetch_error` in `resolve/mod.rs` maps it with
+`Unreachable` and `TooLarge`, although `get` never produces it.
+`Terminal` gains a matching `Sink` variant, and one
+`Terminal::retryable_detail()` serves both retry loops.
+
+The two entry points share three private pieces:
+
+- `streaming_attempts`, the https guard, retry loop and deadline;
+- `send_streaming`, which sends the request and maps 404 and 5xx;
+- `copy_body`, which streams into the sink and digests.
 
 Step 1a constructs neither `AlreadyComplete` nor `RangeRejected`, so
 `Resumed` keeps the `#[allow(dead_code)]` that `StreamedBody` has today.
@@ -849,7 +870,8 @@ Step 1c removes it.
 Every ranged attempt opens its sink with `SinkMode::Append { from }`, so
 a retry always appends from the agreed offset. A 206 counts as `Appended`
 only when its `Content-Range` starts at `from`; any other start is
-`RangeRejected`. Move the existing fetcher
+`RangeRejected`. That check lands in 1c, since
+`a_206_from_a_different_offset_rejects_the_range` drives it. Move the existing fetcher
 tests onto `get_whole`. Where they assert `body.bytes`, assert the length
 of what the sink received instead.
 
@@ -915,8 +937,12 @@ tables below have one place each:
 | `resume_from(n)` | `resume` | continue a partial from `n` |
 | `digest_partial` | `digest_file` | hash what is already on disk |
 
+As built, the helpers are methods on a private `Download { fetcher, url,
+path, limits }`, and the sink opener is `open_archive_sink(path, mode)`.
+
 Step 1a keeps today's behaviour for every assessment, and the existing
-suite covers it.
+suite covers it. To do so, `Complete` and `OverLong` temporarily resume
+from the bytes on disk; step 1c replaces both arms.
 
 **Step 1b: tests, red on their assertions**
 
@@ -931,7 +957,11 @@ suite covers it.
   read-to-end guard, mirroring `http_test_support`'s `Route::Truncated`
   (`http-test-support/src/lib.rs:473-483`). A `Content-Length` matching
   only the half sent would make the read end cleanly, and nothing would
-  retry. Later requests are served normally.
+  retry. Later requests are served normally. The route counts earlier
+  ranged requests to the path, so it knows which request is the first.
+  The 206, 416 and 200 answers for `Ok` moved into `ranged_response`, and
+  the half-suffix answer into `send_half_of_the_suffix`, which keeps
+  `handle` under clippy's 100-line limit.
 
 **File**: `cli/launcher/tests/tree_resolution.rs`
 
@@ -941,6 +971,16 @@ replaces `manifest_json`'s positional arguments.
 `Harness::serve_manifest(&ManifestEntry)` renders the manifest, signs it,
 and routes both `/manifest.json` and `/manifest.minisig`.
 `happy_harness` serves the default entry through it.
+
+As built:
+
+- `Harness` gains the `archive_signature`, `minisign`, `secret` and
+  `workdir` fields;
+- `Harness::sign(bytes)` signs with the kept key;
+- `Harness::default_entry()` returns the entry `happy_harness` serves.
+
+The tests share these helpers: `plant_partial`, `with_trailing_bytes`,
+`serve_a_loose_size_bound`, `with_a_byte_flipped` and `set_mode`.
 
 **File**: `fetcher.rs` tests, using `http_test_support::Route::Headers`.
 
@@ -962,7 +1002,8 @@ These are red today, because every 416 ends in `Unreachable`:
   `Route::Bytes { status: 200, .. }` returns `Resumed::Whole`. The sink is
   opened once with `SinkMode::Truncate` and receives the full body. This
   pins the path that keeps resume correct behind a CDN that ignores
-  ranges.
+  ranges. It passes as soon as step 1a lands, so it closes a coverage gap
+  rather than driving a change.
 - `a_sink_that_cannot_be_opened_is_not_retried`: an opener that fails
   gives `FetchError::Sink` after exactly one request.
 
@@ -1010,7 +1051,8 @@ code unless it is marked otherwise.
   3. Assert that the temp archive is gone.
   4. Assert that a second `materialise` succeeds.
 - `an_unwritable_short_partial_is_replaced_in_the_same_run`: plant the
-  first half at mode `0o444`, with the same readability-based skip rule.
+  first half at mode `0o444`. The skip rule is the same, but tests
+  writability: the test skips if the file opens for writing.
   `materialise` succeeds: the append sink fails to open, the partial is
   discarded, and a whole fetch follows. Red today, because the open
   failure is retried until `Unreachable`.
@@ -1028,7 +1070,8 @@ code unless it is marked otherwise.
 
   This one goes green as soon as step 1c lands. It guards the narrow scope
   of the discard: a mutation that discards on any verification error
-  fails it.
+  fails it. It was written after the complete-partial handling had
+  landed, so it passed when it was added.
 - In `a_manifest_naming_a_different_digest_is_a_refusal_not_a_fetch`,
   plant a partial at `temp_archive(ARTIFACT, HOST_PLATFORM, &"0".repeat(64))`,
   the digest the resolver expects. Assert that this exact path survives.
@@ -1078,22 +1121,29 @@ code unless it is marked otherwise.
 `fetch_whole` gets the same treatment. On `FetchError::Sink`, which can
 happen when a directory sits at the path, it calls
 `discard_partial_archive` and tries once more. A second failure is
-returned.
+returned as `TreeError::CacheRootUnwritable`. That error is in the Failed
+class, so a crawl degrades rather than stopping. Every other
+`FetchError` remains `Unreachable`.
 
 - **The `SinkMode::Append { from }` sink** opens without `create`. It
-  fails when the file is shorter than `from`, and otherwise calls
+  fails with `UnexpectedEof` when the file is shorter than `from`, and
+  otherwise calls
   `set_len(from)` to shrink it before appending. A failed attempt's bytes
   therefore never stay in the file, and a partial that shrank or vanished
   is replaced, never padded with zeros.
 - **`digest_partial`** hashes with `std::io::copy` into the hasher, which
-  retries `Interrupted`. It discards the partial only when the error
+  retries `Interrupted`. `sha2` 0.11 implements no `io::Write`, so
+  `digest_file` copies into a private `Hashing(Sha256)` adapter rather
+  than changing the workspace dependency's features. The error detail is
+  `cannot re-read the partial archive <path>: <error>`. It discards the partial only when the error
   belongs to the file itself (`PermissionDenied`). On `NotFound` it falls
   back to `fetch_whole`. On any other error it keeps the partial and
   returns the error, so a transient fault never costs a valid download.
 - **`discard_partial_archive(path: &Path)`** removes the file, or the
   directory if one sits there. When it cannot, it logs `tracing::warn!`
   with the path and the error. It returns nothing, so a failed removal
-  can never replace the caller's error.
+  can never replace the caller's error. A path that is already gone
+  returns silently.
 
 **Test first**: `a_partial_that_cannot_be_discarded_is_warned`. Put a
 non-empty directory inside a read-only parent at the path, and use
@@ -1102,6 +1152,8 @@ non-empty directory inside a read-only parent at the path, and use
 The discard rules live in two layers, and both docstrings name them. In
 `stream_archive`, a partial that cannot be read or written is replaced.
 In `materialise_fresh`, a partial that fails its digest is discarded.
+`stream_archive`'s `# Errors` section also names `CacheRootUnwritable`
+and `Extraction`.
 
 **File**: `resolver.rs` (`materialise_fresh`)
 
@@ -1115,7 +1167,9 @@ In `materialise_fresh`, a partial that fails its digest is discarded.
   downloading. The manifest-disagreement `UnexpectedDigest` at step 2
   (`:230`) comes before any partial is touched, so it never discards.
 - **Step 3**: the precheck asks for
-  `uncompressed_size + partial.additional_bytes()`.
+  `uncompressed_size + partial.additional_bytes()`. `AssessedPartial::of`
+  therefore moves ahead of step 3, so the one assessment serves both the
+  precheck and step 4.
 
 #### 2. Bounded reap test harness
 
@@ -1161,7 +1215,18 @@ from Y's pin, exactly as production does today.
 `lock_files` returns the sorted `.tmp-*.lock` names. `plant_residue(paths,
 &Artifact) -> Residue` uses the production builders to create a temp
 tree, its `.ref` sidecar and a partial archive at `"f".repeat(64)`. It
-returns their exact paths.
+returns their exact paths, and `Residue::paths()` lists all three.
+
+As built, the harness also has:
+
+- `Pins::pinning(&[(Artifact, &str)])` to build pins;
+- `plant_archive(paths, &Artifact, digest)` for a single partial archive;
+- `x()` for `browser` on `PLATFORM`, with a distinct `X_DIGEST`;
+- `create_free_lock(paths, &Artifact)`, which takes a lock and drops it,
+  so the lock file exists but is free.
+
+`lock_files` carries `#[allow(clippy::case_sensitive_file_extension_comparisons)]`,
+as the production suffix checks do.
 
 Move the existing generation tests onto `reap_for_y_at` with their
 `well_aged()` or `present()` clock. Add
@@ -1171,7 +1236,8 @@ characterisation test that passes today.
 #### 3. Acceptance tests, red against today's reap
 
 - AC7 `the_reaps_own_residue_goes_but_its_resumable_archive_stays`. This
-  is a characterisation test and passes today.
+  is a characterisation test and passes today. It landed with the
+  harness, because it is the first test to use `plant_residue`.
 - AC3 `another_artifacts_pinned_archive_survives`: X's archive at X's
   pinned digest. X's lock file exists but is free. Red, because the keep
   set holds only Y's digest.
@@ -1187,7 +1253,8 @@ characterisation test that passes today.
 
   Red, because today every `.tmp-` entry goes.
 - Rename `a_partial_archive_for_the_wanted_digest_is_spared` to
-  `a_partial_archive_pinned_for_its_own_artifact_is_spared`.
+  `a_partial_archive_pinned_for_its_own_artifact_is_spared`. As built,
+  this happened in item 2, and its archive is now Y's, pinned for Y.
 
 #### 4. `Reaper`, pin lookup and grouping by owner
 
@@ -1257,6 +1324,14 @@ fn is_resumable(
 docstring says that a partial archive survives when its digest is pinned
 for its own artifact, and that an entry with no known owner survives.
 
+As built:
+
+- the free function `reap_orphans` is gone, and `Reaper::new` is a
+  `const fn`;
+- `Reclaimed` is unchanged;
+- `entry_names` collects only names that are valid UTF-8, as the old loop
+  skipped any that were not.
+
 #### 5. Callers
 
 **File**: `resolver.rs`
@@ -1271,7 +1346,8 @@ impl reap::PinnedDigests for ExpectedDigests {
 
 Both `keep` constructions go. Both calls become
 `Reaper::new(&paths, self.clock, self.liveness, &self.expected_digests)
-.reap_orphans()`. In `prune`'s docstring (`:723-724`), say instead that
+.reap_orphans()`, built through a private `TreeResolver::reaper(&paths)`.
+Phase 3 changes that helper to take the `HeldTreeLock`. In `prune`'s docstring (`:723-724`), say instead that
 every artifact's pinned partial archive is spared.
 
 #### 6. End-to-end resumable rule and the rewritten prune test
@@ -1285,7 +1361,7 @@ Add the following:
   from `harness.archive_sha`, which today's substring keep set would
   spare.
 - `Harness::resolver_also_pinning_bystander(&self)`.
-- `within_bound<T: Send + 'static>(harness: Arc<Harness>, run: impl
+- `within_bound<T: Send + 'static>(harness: &Arc<Harness>, run: impl
   FnOnce(&Harness) -> T + Send + 'static) -> T`. It snapshots the sorted
   `.tmp-*.lock` names before and after, and asserts that they are equal.
   Its body is a `within` in `tests/common/mod.rs` with the same `Timeout`,
@@ -1298,6 +1374,19 @@ Add the following:
   followed by dropping the guard, because a materialise creates its own
   lock file.
 
+As built:
+
+- `within_bound` borrows the `Arc`, to satisfy
+  `clippy::needless_pass_by_value`.
+- The `common::within` copy does not carry a tracing dispatcher, since no
+  integration test captures logs.
+- `create_free_tree_locks` creates the lock files of both `ARTIFACT` and
+  `BYSTANDER`.
+- `plant_bystanders_pinned_archive` plants the bystander's archive.
+- `pinning(artifact, digest)` builds a pin map. Through
+  `Harness::resolver_pinning`, it is shared by `resolver_over` and
+  `resolver_also_pinning_bystander`.
+
 **Tests first** (with `BYSTANDER`'s lock file created by
 `take_single_flight` and its guard dropped):
 
@@ -1307,7 +1396,8 @@ Add the following:
 - AC3(b) `another_artifacts_pinned_archive_survives_a_prune`.
 - `cache_prune_reclaims_owned_orphans_and_keeps_unowned_ones` replaces
   `cache_prune_reclaims_orphan_residue`. An `ARTIFACT` `temp_generation`
-  is reclaimed and reported, and `trees/.tmp-orphan` survives.
+  is reclaimed and reported: the output contains `reclaimed 1 entries`.
+  `trees/.tmp-orphan` survives.
 
 The AC3 tests and the prune test are red against today's code.
 
