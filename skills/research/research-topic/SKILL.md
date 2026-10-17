@@ -491,8 +491,11 @@ allocate a finding or note path yourself.
    - A spawn that wrote **no file** (an unavailable source, a failed or
      denied fetch, an exhausted web search quota, a blocked command, an
      agent error, or a refusal) is recorded as failed, by pair and lineage,
-     with the reason its summary gives, and left outstanding. There is nothing to quarantine. A
-     capacity refusal is not one of these; the spawn step handles it.
+     with the reason its summary gives, and left outstanding. There is
+     nothing to quarantine. A capacity refusal is not one of these; the
+     spawn step handles it. An exhausted web search quota is a halting
+     reason, and a halting reason also halts the run, as the last bullet
+     says.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
      existing marker — and recorded as failed. The dot-prefix keeps it
@@ -501,8 +504,9 @@ allocate a finding or note path yourself.
    - A note is not validated here: the step 6 re-plan judges it.
    - A spawn whose summary gives a **halting reason** (see **Halting
      failures** below), whether or not it wrote a file, is recorded as failed
-     with that reason, and the run halts. Any file at its output path is
-     quarantined first, a finding to `.<name>.invalid` and a note to
+     with that reason, and the run halts. This bullet takes precedence over
+     the no-file bullet and every other bullet here. Any file at its output
+     path is quarantined first, a finding to `.<name>.invalid` and a note to
      `.<lineage>.md.invalid`, refusing to overwrite an existing marker, so
      its pair or node stays outstanding. Other spawns in the batch are
      checked as normal.
