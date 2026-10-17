@@ -61,7 +61,12 @@ impl Repo {
     }
 
     fn store(&self) -> FileRunPlanStore<'_> {
-        FileRunPlanStore::new(&self.state(), self.root(), &self.writer)
+        FileRunPlanStore::new(
+            &self.state(),
+            self.root(),
+            &self.writer,
+            &self.writer.inner,
+        )
     }
 
     fn plan_path(&self) -> PathBuf {

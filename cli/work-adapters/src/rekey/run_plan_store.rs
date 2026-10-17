@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use corpus::store::AtomicWrite;
+use corpus::store::FileRemove;
 use corpus::WorkItemIdScheme;
 use serde_json::json;
 use serde_json::Value;
@@ -78,6 +79,7 @@ pub struct FileRunPlanStore<'a> {
     dir: PathBuf,
     repo_root: PathBuf,
     writer: &'a dyn AtomicWrite,
+    remover: &'a dyn FileRemove,
 }
 
 impl<'a> FileRunPlanStore<'a> {
@@ -86,11 +88,13 @@ impl<'a> FileRunPlanStore<'a> {
         state_dir: &Path,
         repo_root: &Path,
         writer: &'a dyn AtomicWrite,
+        remover: &'a dyn FileRemove,
     ) -> Self {
         Self {
             dir: state_dir.join("rekey"),
             repo_root: repo_root.to_path_buf(),
             writer,
+            remover,
         }
     }
 
@@ -393,12 +397,9 @@ impl RunPlanStore for FileRunPlanStore<'_> {
     }
 
     fn remove(&self) -> Result<(), NotRekeyed> {
-        match std::fs::remove_file(self.path()) {
-            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
-                Err(self.unwritable(&error))
-            }
-            _ => Ok(()),
-        }
+        self.remover
+            .remove(&self.path())
+            .map_err(|error| self.unwritable(&error))
     }
 
     fn set_aside(&self) -> Result<PathBuf, NotRekeyed> {

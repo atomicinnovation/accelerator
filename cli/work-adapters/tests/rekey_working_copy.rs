@@ -340,6 +340,7 @@ mod in_a_real_repository {
                 &repo.root().join(".accelerator/state"),
                 repo.root(),
                 &writer,
+                &writer,
             );
             store.save(&RunPlan::Proposed(ProposedPlan::new(
                 work::rekey::fingerprint::IdentityFingerprint::of(

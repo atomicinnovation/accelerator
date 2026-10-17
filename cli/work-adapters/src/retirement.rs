@@ -437,10 +437,22 @@ pub fn apply_retirement(
     Ok(())
 }
 
-fn walked_corpus(
+/// The corpus as it stood when walked once: every markdown file, and the
+/// identities of the work items among them.
+pub struct CorpusSnapshot {
+    pub files: Vec<CorpusFile>,
+    pub items: Vec<ItemIdentity>,
+}
+
+/// Walks the corpus once.
+///
+/// # Errors
+///
+/// [`FinishFailure::Failed`] when the corpus cannot be read.
+pub fn corpus_snapshot(
     ports: &RetirementPorts<'_>,
-) -> Result<Vec<CorpusFile>, FinishFailure> {
-    corpus_files(
+) -> Result<CorpusSnapshot, FinishFailure> {
+    let files = corpus_files(
         ports.walker,
         ports.files.reader,
         ports.status,
@@ -456,7 +468,9 @@ fn walked_corpus(
                 }),
             ),
         })
-    })
+    })?;
+    let items = identities(&work_items(&files, ports.layout.work_dir));
+    Ok(CorpusSnapshot { files, items })
 }
 
 /// Plans `retirement` over the corpus as it now stands.
@@ -469,10 +483,14 @@ pub fn plan_from_corpus(
     retirement: &Retirement<'_>,
     ports: &RetirementPorts<'_>,
 ) -> Result<RetirementPlan, FinishFailure> {
-    let corpus = walked_corpus(ports)?;
-    let items = identities(&work_items(&corpus, ports.layout.work_dir));
-    plan_retirement(retirement, ports.layout.work_dir, &items, &corpus)
-        .map_err(FinishFailure::Refused)
+    let snapshot = corpus_snapshot(ports)?;
+    plan_retirement(
+        retirement,
+        ports.layout.work_dir,
+        &snapshot.items,
+        &snapshot.files,
+    )
+    .map_err(FinishFailure::Refused)
 }
 
 /// The identities of every work item, drafts included, as the corpus now
@@ -484,8 +502,7 @@ pub fn plan_from_corpus(
 pub fn corpus_identities(
     ports: &RetirementPorts<'_>,
 ) -> Result<Vec<ItemIdentity>, FinishFailure> {
-    let corpus = walked_corpus(ports)?;
-    Ok(identities(&work_items(&corpus, ports.layout.work_dir)))
+    corpus_snapshot(ports).map(|snapshot| snapshot.items)
 }
 
 /// Whether `retirement` still has a step to take: a file to write, create
