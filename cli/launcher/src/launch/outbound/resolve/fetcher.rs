@@ -102,7 +102,6 @@ pub(super) struct Whole {
     pub sha256: [u8; 32],
 }
 
-/// How a resumed attempt wants its sink opened.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SinkMode {
     Truncate,

@@ -249,7 +249,6 @@ fn attestation_json(
     )
 }
 
-/// What the manifest publishes for `ARTIFACT` on the host platform.
 struct ManifestEntry {
     signature: String,
     archive_size: u64,

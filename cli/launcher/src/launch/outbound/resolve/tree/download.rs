@@ -26,7 +26,6 @@ pub struct AttestationBytes {
     pub signature: String,
 }
 
-/// How much of the archive a partial download already holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PartialArchive {
     Absent,
