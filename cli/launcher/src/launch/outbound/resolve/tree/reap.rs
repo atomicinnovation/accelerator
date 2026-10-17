@@ -20,7 +20,11 @@ use kernel::TEMP_PREFIX;
 use crate::launch::core::tree::{Clock, TreeError};
 
 use super::layout::{Artifact, TreePaths, LAYOUT_VERSION};
-use super::lease::{Liveness, LivenessProbe};
+use super::lease::{
+    probe_single_flight, Liveness, LivenessProbe, SingleFlight,
+    SingleFlightProbe,
+};
+use super::tree_lock::HeldTreeLock;
 
 /// Generations younger than this with no live lease are spared, so a generation
 /// briefly between its rename and its pointer write is never mistaken for
@@ -45,9 +49,24 @@ impl RemovalObserver for UnobservedRemovals {
     fn removing(&self, _entry: &Path) {}
 }
 
-/// Reclaims residue under `trees/` for a caller holding a tree lock.
+enum OwnerLock {
+    HeldByCaller,
+    Taken { _guard: SingleFlight },
+    Absent,
+    HeldElsewhere,
+    Unprobeable(TreeError),
+}
+
+const fn temp_residue_is_reclaimable(lock: &OwnerLock) -> bool {
+    matches!(
+        lock,
+        OwnerLock::HeldByCaller | OwnerLock::Taken { .. } | OwnerLock::Absent
+    )
+}
+
+/// Reclaims residue under the root its caller's tree lock was taken under.
 pub struct Reaper<'a> {
-    paths: &'a TreePaths,
+    held: &'a HeldTreeLock,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
@@ -57,13 +76,13 @@ pub struct Reaper<'a> {
 impl<'a> Reaper<'a> {
     #[must_use]
     pub const fn new(
-        paths: &'a TreePaths,
+        held: &'a HeldTreeLock,
         clock: &'a dyn Clock,
         liveness: &'a dyn LivenessProbe,
         pins: &'a dyn PinnedDigests,
     ) -> Self {
         Self {
-            paths,
+            held,
             clock,
             liveness,
             pins,
@@ -82,8 +101,10 @@ impl<'a> Reaper<'a> {
     /// A partial archive whose digest is pinned for its own artifact is
     /// spared, so a resumable download is not reclaimed before the next run
     /// can continue it. An entry with no known owner is spared too: it is a
-    /// newer launcher's, on a platform this one does not know. Every other
-    /// temp residue goes; a fully-materialised generation goes only when no
+    /// newer launcher's, on a platform this one does not know. Another
+    /// artifact's temp residue goes only under that artifact's tree lock,
+    /// taken without blocking, or when it has no lock file; otherwise it is
+    /// kept. A fully-materialised generation goes only when no
     /// pointer names it, no live lease is held on it, and it is older than
     /// the backstop.
     ///
@@ -91,8 +112,8 @@ impl<'a> Reaper<'a> {
     ///
     /// [`TreeError::Pointer`] if `trees/` cannot be read.
     pub fn reap_orphans(&self) -> Result<Reclaimed, TreeError> {
-        let names = entry_names(self.paths.root())?;
-        let referenced = referenced_generations(self.paths.root());
+        let names = entry_names(self.paths().root())?;
+        let referenced = referenced_generations(self.paths().root());
         let mut reclaimed = Reclaimed::default();
         for (owner, entries) in temp_entries_by_owner(&names) {
             self.reap_temp_entries_of(&owner, &entries, &mut reclaimed);
@@ -107,11 +128,41 @@ impl<'a> Reaper<'a> {
         entries: &[&str],
         reclaimed: &mut Reclaimed,
     ) {
+        let lock = self.lock_of(owner);
+        if let OwnerLock::Unprobeable(error) = &lock {
+            tracing::warn!(
+                artifact = owner.name(),
+                platform = owner.platform(),
+                %error,
+                "cannot probe the tree lock; keeping its temp residue"
+            );
+        }
+        if !temp_residue_is_reclaimable(&lock) {
+            return;
+        }
         for entry in entries {
             if !is_resumable(entry, owner, self.pins) {
-                self.remove(&self.paths.root().join(entry), reclaimed);
+                self.remove(&self.paths().root().join(entry), reclaimed);
             }
         }
+    }
+
+    fn lock_of(&self, owner: &Artifact) -> OwnerLock {
+        if owner == self.held.artifact() {
+            return OwnerLock::HeldByCaller;
+        }
+        match probe_single_flight(&self.paths().single_flight_lock_of(owner)) {
+            Ok(SingleFlightProbe::Taken(guard)) => {
+                OwnerLock::Taken { _guard: guard }
+            }
+            Ok(SingleFlightProbe::Absent) => OwnerLock::Absent,
+            Ok(SingleFlightProbe::Held) => OwnerLock::HeldElsewhere,
+            Err(error) => OwnerLock::Unprobeable(error),
+        }
+    }
+
+    const fn paths(&self) -> &TreePaths {
+        self.held.paths()
     }
 
     fn reap_generations(
@@ -122,14 +173,14 @@ impl<'a> Reaper<'a> {
     ) {
         for name in names.iter().filter(|name| is_generation(name)) {
             if is_reclaimable_generation(
-                self.paths,
+                self.paths(),
                 name,
                 referenced,
                 self.clock,
                 self.liveness,
             ) {
-                self.remove(&self.paths.generation(name), reclaimed);
-                for sidecar in sidecars_of(self.paths, name) {
+                self.remove(&self.paths().generation(name), reclaimed);
+                for sidecar in sidecars_of(self.paths(), name) {
                     let _ = std::fs::remove_file(sidecar);
                 }
             }
@@ -375,13 +426,18 @@ mod tests {
     use super::super::layout::{
         generation_name, Artifact, TreePaths, LAYOUT_VERSION,
     };
-    use super::super::lease::{take_single_flight, FlockProbe, Liveness};
+    use super::super::lease::{
+        probe_single_flight, take_single_flight, FlockProbe, Liveness,
+        SingleFlight, SingleFlightProbe,
+    };
     use super::super::testing::{logged, within, BLOCKING_BOUND};
+    use super::super::tree_lock::HeldTreeLock;
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
-        sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
-        PinnedDigests, Reaper, Reclaimed, RemovalObserver,
-        SupersededDisposition, UnobservedRemovals, AGE_BACKSTOP,
+        sidecars_of, superseded_disposition, temp_residue_is_reclaimable,
+        unclaimed_is_reclaimable, OwnerLock, PinnedDigests, Reaper, Reclaimed,
+        RemovalObserver, SupersededDisposition, UnobservedRemovals,
+        AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -463,14 +519,10 @@ mod tests {
         observer: impl RemovalObserver + Send + 'static,
     ) -> Result<Reclaimed, TreeError> {
         let paths = TreePaths::under(root);
-        let _caller_holds =
-            take_single_flight(&paths.single_flight_lock_of(&y()))
-                .expect("Y's lock");
+        let caller_holds = HeldTreeLock::take(&paths, y()).expect("Y's lock");
         let locks_before = lock_files(&paths);
-        let root = root.to_owned();
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
-            let paths = TreePaths::under(&root);
-            Reaper::new(&paths, &clock, &FlockProbe, &pins)
+            Reaper::new(&caller_holds, &clock, &FlockProbe, &pins)
                 .observed_by(&observer)
                 .reap_orphans()
         });
@@ -526,6 +578,7 @@ mod tests {
     }
 
     fn plant_residue(paths: &TreePaths, owner: &Artifact) -> Residue {
+        let tree = temp_tree_of(paths, owner);
         let generation = generation_name(
             owner.name(),
             owner.platform(),
@@ -533,8 +586,6 @@ mod tests {
             LAYOUT_VERSION,
             SUFFIX,
         );
-        let tree = paths.temp_generation(&generation);
-        fs::create_dir(&tree).expect("temp tree");
         let pointer = paths.temp_pointer(&generation);
         fs::write(&pointer, &generation).expect("temp pointer");
         let archive = paths.temp_archive_of(owner, &"f".repeat(64));
@@ -641,6 +692,222 @@ mod tests {
             !pinned_for_y.exists(),
             "an archive spared by another artifact's pin survived"
         );
+    }
+
+    fn a() -> Artifact {
+        Artifact::new("aardvark", PLATFORM)
+    }
+
+    fn z() -> Artifact {
+        Artifact::new("zebra", PLATFORM)
+    }
+
+    fn temp_tree_of(paths: &TreePaths, owner: &Artifact) -> PathBuf {
+        let tree = paths.temp_generation(&generation_name(
+            owner.name(),
+            owner.platform(),
+            DIGEST,
+            LAYOUT_VERSION,
+            SUFFIX,
+        ));
+        fs::create_dir(&tree).expect("temp tree");
+        tree
+    }
+
+    /// Orphan temp trees for artifacts sorting either side of X, each with a
+    /// free lock, so a reap that stops at X leaves one of them behind.
+    fn plant_bystander_orphans(paths: &TreePaths) -> [PathBuf; 2] {
+        [a(), z()].map(|owner| {
+            create_free_lock(paths, &owner);
+            temp_tree_of(paths, &owner)
+        })
+    }
+
+    fn hold_lock_of(paths: &TreePaths, owner: &Artifact) -> SingleFlight {
+        take_single_flight(&paths.single_flight_lock_of(owner))
+            .expect("held elsewhere")
+    }
+
+    fn assert_survives(entries: &[&Path]) {
+        for entry in entries {
+            assert!(entry.exists(), "{} was reaped", entry.display());
+        }
+    }
+
+    fn assert_gone(entries: &[&Path]) {
+        for entry in entries {
+            assert!(!entry.exists(), "{} survived", entry.display());
+        }
+    }
+
+    #[test]
+    fn another_artifacts_residue_survives_while_its_tree_lock_is_held() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let _x_held = hold_lock_of(&paths, &x());
+        let residue = plant_residue(&paths, &x());
+        let [aardvark, zebra] = plant_bystander_orphans(&paths);
+
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
+
+        assert_survives(&residue.paths());
+        assert_gone(&[&aardvark, &zebra]);
+    }
+
+    /// Probes X's lock as each of X's planted entries is removed.
+    struct ProbingLockOf {
+        watched: Vec<PathBuf>,
+        lock: PathBuf,
+        seen: Arc<Mutex<Vec<(PathBuf, bool)>>>,
+    }
+
+    impl RemovalObserver for ProbingLockOf {
+        fn removing(&self, entry: &Path) {
+            if self.watched.iter().any(|watched| watched == entry) {
+                let held = matches!(
+                    probe_single_flight(&self.lock),
+                    Ok(SingleFlightProbe::Held)
+                );
+                self.seen
+                    .lock()
+                    .expect("seen")
+                    .push((entry.to_owned(), held));
+            }
+        }
+    }
+
+    #[test]
+    fn another_artifacts_residue_is_removed_under_its_tree_lock() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        create_free_lock(&paths, &x());
+        let residue = plant_residue(&paths, &x());
+        let pinned = plant_archive(&paths, &x(), X_DIGEST);
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let observer = ProbingLockOf {
+            watched: residue.paths().map(Path::to_path_buf).into(),
+            lock: paths.single_flight_lock_of(&x()),
+            seen: Arc::clone(&seen),
+        };
+
+        reap_for_y_at(
+            dir.path(),
+            present(),
+            Pins::pinning(&[(x(), X_DIGEST)]),
+            observer,
+        )
+        .expect("reap");
+
+        let mut seen = seen.lock().expect("seen").clone();
+        seen.sort();
+        let mut expected: Vec<(PathBuf, bool)> = residue
+            .paths()
+            .map(|entry| (entry.to_path_buf(), true))
+            .into();
+        expected.sort();
+        assert_eq!(seen, expected, "X's residue went without X's lock");
+        assert_survives(&[&pinned]);
+        assert!(matches!(
+            probe_single_flight(&paths.single_flight_lock_of(&x())),
+            Ok(SingleFlightProbe::Taken(_))
+        ));
+    }
+
+    #[test]
+    fn a_retired_artifacts_residue_goes_without_creating_its_lock() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let retired = Artifact::new("retired", PLATFORM);
+        let residue = plant_residue(&paths, &retired);
+        let pinned = plant_archive(&paths, &retired, X_DIGEST);
+
+        reap_for_y(dir.path(), Pins::pinning(&[(retired, X_DIGEST)]))
+            .expect("reap");
+
+        assert_gone(&residue.paths());
+        assert_survives(&[&pinned]);
+    }
+
+    fn plant_unprobeable_lock_of(paths: &TreePaths, owner: &Artifact) {
+        fs::create_dir(paths.single_flight_lock_of(owner))
+            .expect("a directory at the lock path");
+    }
+
+    #[test]
+    fn another_artifacts_residue_survives_an_unprobeable_lock() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        plant_unprobeable_lock_of(&paths, &x());
+        let residue = plant_residue(&paths, &x());
+        let [aardvark, zebra] = plant_bystander_orphans(&paths);
+
+        reap_for_y(dir.path(), Pins::default()).expect("reap");
+
+        assert_survives(&residue.paths());
+        assert_gone(&[&aardvark, &zebra]);
+    }
+
+    #[test]
+    fn an_unprobeable_lock_is_warned_with_its_artifact() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        plant_unprobeable_lock_of(&paths, &x());
+        plant_residue(&paths, &x());
+
+        let log = logged(|| {
+            reap_for_y(dir.path(), Pins::default()).expect("reap");
+        });
+
+        assert!(log.contains("WARN"), "no warning: {log}");
+        assert!(log.contains("browser"), "warning names no artifact: {log}");
+        assert!(log.contains(PLATFORM), "warning names no platform: {log}");
+    }
+
+    fn y_on_another_platform() -> Artifact {
+        Artifact::new(y().name(), "darwin-arm64")
+    }
+
+    #[test]
+    fn own_name_on_another_platform_survives_while_its_lock_is_held() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let _held = hold_lock_of(&paths, &y_on_another_platform());
+        let residue = plant_residue(&paths, &y_on_another_platform());
+
+        reap_for_y(dir.path(), Pins::default()).expect("reap");
+
+        assert_survives(&residue.paths());
+    }
+
+    #[test]
+    fn own_name_on_another_platform_goes_while_its_lock_is_free() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        create_free_lock(&paths, &y_on_another_platform());
+        let residue = plant_residue(&paths, &y_on_another_platform());
+
+        reap_for_y(dir.path(), Pins::default()).expect("reap");
+
+        assert_gone(&residue.paths());
+    }
+
+    #[test]
+    fn an_artifact_extending_the_own_name_is_another_artifact() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let extending = Artifact::new("driver-extra", PLATFORM);
+        let _held = hold_lock_of(&paths, &extending);
+        let residue = plant_residue(&paths, &extending);
+
+        reap_for_y(dir.path(), Pins::default()).expect("reap");
+
+        assert_survives(&residue.paths());
     }
 
     #[test]
@@ -780,6 +1047,45 @@ mod tests {
         for sidecar in &sidecars {
             assert!(sidecar.exists(), "{} was removed", sidecar.display());
         }
+    }
+
+    fn a_taken_lock() -> (tempfile::TempDir, SingleFlight) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let guard =
+            take_single_flight(&dir.path().join("lock")).expect("taken");
+        (dir, guard)
+    }
+
+    #[test]
+    fn own_residue_is_reclaimable() {
+        assert!(temp_residue_is_reclaimable(&OwnerLock::HeldByCaller));
+    }
+
+    #[test]
+    fn residue_under_a_taken_lock_is_reclaimable() {
+        let (_dir, guard) = a_taken_lock();
+        assert!(temp_residue_is_reclaimable(&OwnerLock::Taken {
+            _guard: guard
+        }));
+    }
+
+    #[test]
+    fn residue_with_no_lock_file_is_reclaimable() {
+        assert!(temp_residue_is_reclaimable(&OwnerLock::Absent));
+    }
+
+    #[test]
+    fn residue_under_a_lock_held_elsewhere_is_kept() {
+        assert!(!temp_residue_is_reclaimable(&OwnerLock::HeldElsewhere));
+    }
+
+    #[test]
+    fn residue_under_an_unprobeable_lock_is_kept() {
+        assert!(!temp_residue_is_reclaimable(&OwnerLock::Unprobeable(
+            TreeError::Lease {
+                detail: "cannot open".to_owned()
+            }
+        )));
     }
 
     #[test]

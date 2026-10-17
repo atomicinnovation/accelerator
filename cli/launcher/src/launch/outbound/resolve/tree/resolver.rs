@@ -24,8 +24,9 @@ use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
     validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
-use super::lease::{take_single_flight, try_single_flight, LivenessProbe};
+use super::lease::LivenessProbe;
 use super::table::{FileTable, TABLE_NAME};
+use super::tree_lock::HeldTreeLock;
 use super::{claims, download, extract, pins, reap, seal};
 
 /// The publish-sequence steps a crash can be injected after.
@@ -131,9 +132,13 @@ impl TreeResolver<'_> {
         TreePaths::under(&self.cache_root)
     }
 
-    fn reaper<'r>(&'r self, paths: &'r TreePaths) -> reap::Reaper<'r> {
+    fn on_this_platform(&self, artifact: &str) -> Artifact {
+        Artifact::new(artifact, &self.platform)
+    }
+
+    fn reaper<'r>(&'r self, held: &'r HeldTreeLock) -> reap::Reaper<'r> {
         reap::Reaper::new(
-            paths,
+            held,
             self.clock,
             self.liveness,
             &self.expected_digests,
@@ -597,7 +602,7 @@ impl MaterialiseTree for TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let lock_path = paths.single_flight_lock(artifact, &self.platform);
+        let tree_artifact = self.on_this_platform(artifact);
 
         // The bounded waiter: try the lock without blocking, and between tries
         // re-check whether the winner has published. A loser never hangs for the
@@ -614,7 +619,9 @@ impl MaterialiseTree for TreeResolver<'_> {
                     digest,
                 ));
             }
-            if let Some(_lock) = try_single_flight(&lock_path)? {
+            if let Some(held) =
+                HeldTreeLock::try_take(&paths, tree_artifact.clone())?
+            {
                 // Won the lock; re-check, then materialise.
                 if let Some(located) = self.locate(artifact, digest) {
                     return Ok(self.sealed(
@@ -625,7 +632,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                     ));
                 }
                 let sealed = self.materialise_locked(artifact, digest)?;
-                let _ = self.reaper(&paths).reap_orphans();
+                let _ = self.reaper(&held).reap_orphans();
                 return Ok(sealed);
             }
 
@@ -692,9 +699,8 @@ impl TreeResolver<'_> {
         })?;
         let paths = self.paths();
         ensure_trees_dir(&paths)?;
-        let _lock = take_single_flight(
-            &paths.single_flight_lock(artifact, &self.platform),
-        )?;
+        let _held =
+            HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
 
         let superseded = self
             .locate(artifact, digest)
@@ -750,9 +756,7 @@ impl TreeResolver<'_> {
         older_than: Option<Duration>,
     ) -> Result<reap::Reclaimed, TreeError> {
         let paths = self.paths();
-        let _lock = take_single_flight(
-            &paths.single_flight_lock(artifact, &self.platform),
-        )?;
+        let held = HeldTreeLock::take(&paths, self.on_this_platform(artifact))?;
 
         // First reclaim any pointed-at generation whose digest no installed
         // launcher has claimed inside the window — the running launcher's own
@@ -760,7 +764,7 @@ impl TreeResolver<'_> {
         let mut reclaimed =
             self.reclaim_unclaimed(&paths, artifact, older_than);
 
-        let orphans = self.reaper(&paths).reap_orphans()?;
+        let orphans = self.reaper(&held).reap_orphans()?;
         reclaimed.entries += orphans.entries;
         Ok(reclaimed)
     }

@@ -1064,6 +1064,81 @@ fn another_artifacts_pinned_archive_survives_a_prune() {
     assert!(pinned.exists(), "the bystander's pinned archive was reaped");
 }
 
+/// The bystander's materialise in progress: its lock held on the test thread,
+/// with a temp tree, its temp pointer and an unpinned partial archive.
+struct BystanderInProgress {
+    _held: accelerator::launch::outbound::resolve::tree::lease::SingleFlight,
+    residue: [PathBuf; 3],
+}
+
+fn bystander_in_progress(harness: &Harness) -> BystanderInProgress {
+    use accelerator::launch::outbound::resolve::tree::layout::{
+        generation_name, LAYOUT_VERSION,
+    };
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    create_free_tree_locks(harness);
+    let paths = tree_paths(harness);
+    let held =
+        take_single_flight(&paths.single_flight_lock(BYSTANDER, HOST_PLATFORM))
+            .unwrap();
+    let generation = generation_name(
+        BYSTANDER,
+        HOST_PLATFORM,
+        &bystander_digest(),
+        LAYOUT_VERSION,
+        "0011223344556677",
+    );
+    let tree = paths.temp_generation(&generation);
+    std::fs::create_dir(&tree).unwrap();
+    let pointer = paths.temp_pointer(&generation);
+    std::fs::write(&pointer, &generation).unwrap();
+    let archive = paths.temp_archive(BYSTANDER, HOST_PLATFORM, &"f".repeat(64));
+    std::fs::write(&archive, b"partial").unwrap();
+    BystanderInProgress {
+        _held: held,
+        residue: [tree, pointer, archive],
+    }
+}
+
+fn assert_in_progress_residue_survives(bystander: &BystanderInProgress) {
+    for entry in &bystander.residue {
+        assert!(entry.exists(), "{} was reaped", entry.display());
+    }
+}
+
+#[test]
+fn another_artifacts_materialise_survives_this_ones_materialise() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    let bystander = bystander_in_progress(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .materialise(ARTIFACT)
+    })
+    .expect("materialise");
+
+    assert_in_progress_residue_survives(&bystander);
+}
+
+#[test]
+fn another_artifacts_materialise_survives_this_ones_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    let bystander = bystander_in_progress(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .prune(ARTIFACT, None)
+    })
+    .expect("prune");
+
+    assert_in_progress_residue_survives(&bystander);
+}
+
 use accelerator::launch::outbound::resolve::tree::claims;
 
 /// Publish a second pointer for a *different* digest (a sibling install's pin)
