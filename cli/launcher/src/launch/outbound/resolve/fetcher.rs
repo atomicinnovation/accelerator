@@ -27,12 +27,10 @@ const TOTAL_TIMEOUT: Duration = Duration::from_secs(300);
 // of waiting out a deadline sized for a ~120MB archive. The attempt and
 // whole-loop deadlines are enforced by the copy loop, which can only run
 // between reads and so depends on this bounding each one.
-#[allow(dead_code)]
 const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_REDIRECTS: usize = 10;
 const CDN_HOST_SUFFIX: &str = ".githubusercontent.com";
 const RELEASE_ORIGIN_HOST: &str = "github.com";
-#[allow(dead_code)]
 const STREAM_CHUNK: usize = 64 * 1024;
 
 /// Why a fetch did not yield bytes.
@@ -55,7 +53,6 @@ pub enum FetchError {
 /// attempt cap: a transfer deadline sized for a large archive would otherwise
 /// become a half-hour wait inside a tool call with no progress output and no
 /// cancel.
-#[allow(dead_code)]
 pub(super) struct StreamLimits {
     pub attempt_timeout: Duration,
     pub total_deadline: Duration,
@@ -63,7 +60,6 @@ pub(super) struct StreamLimits {
     pub max_bytes: u64,
 }
 
-#[allow(dead_code)]
 impl StreamLimits {
     /// The bounds a tree archive is fetched under: a per-attempt deadline sized
     /// for a ~120MB compressed archive at a 200 KB/s sustained floor, a whole-
@@ -85,7 +81,6 @@ impl StreamLimits {
 /// The fetcher requests a fresh sink at the start of every attempt, so an
 /// attempt that failed partway cannot leave its bytes — or any digest state the
 /// caller keeps alongside them — for the next attempt to append to.
-#[allow(dead_code)]
 pub(super) trait StreamSink {
     /// Persist the next chunk.
     ///
