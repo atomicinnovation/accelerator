@@ -243,17 +243,15 @@ impl TreeResolver<'_> {
 
         // 4. Stream the archive to a digest-named temp file.
         let temp_archive = paths.temp_archive(artifact, &self.platform, digest);
+        let partial =
+            download::AssessedPartial::of(&temp_archive, entry.archive_size);
         let archive_url = format!(
             "{}/{}",
             self.base_url,
             asset_name(artifact, &self.platform)
         );
-        let streamed = download::stream_archive(
-            self.fetcher,
-            &archive_url,
-            &temp_archive,
-            entry.archive_size,
-        )?;
+        let streamed =
+            download::stream_archive(self.fetcher, &archive_url, &partial)?;
         self.steps.after(MaterialiseStep::ArchiveStreamed)?;
 
         // 5. The attestation and the archive verification.
