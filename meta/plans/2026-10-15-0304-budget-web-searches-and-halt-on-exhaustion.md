@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-17T14:00:00+00:00"
+last_updated: "2026-10-17T15:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -548,8 +548,12 @@ Run `mise run public-api:update` and commit the regenerated
 
 - [x] `accelerator research topic outstanding <slug> --profiles-dir …
       --depth 11` exits 1 with the new `E_TOPIC_RESEARCH_DEPTH` message.
-- [ ] `conduct <slug> --depth 12` warns that it is clamping to 10, and its
+- [x] `conduct <slug> --depth 12` warns that it is clamping to 10, and its
       first plan carries `--depth 10`. Stop the run after the first plan.
+
+Run headless against the repo's `SKILL.md` and the debug CLI, stopped after
+the first plan. It printed `Warning: research.topic.depth must be at most 10,
+got '12' — clamping to 10`, and planned with `--depth 10 --start`.
 
 ---
 
@@ -1294,7 +1298,7 @@ report "web search quota exhausted" instead of writing notes from
 
 #### Manual Verification
 
-- [ ] With `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=3` set in
+- [x] With `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION=3` set in
       `.claude/settings.local.json` `env` and Claude Code restarted, a
       `conduct --depth 2` on one web pair ends with web nodes failed as
       "web search quota exhausted". None of their note paths exists.
@@ -1307,8 +1311,9 @@ web pair and one openalex pair. The prompt has `conduct` read the repo's
 `SKILL.md`, with the debug CLI first on `PATH` and `ACCELERATOR_RESEARCH_BIN`
 set. It does not pass `--plugin-dir`, so the repo's link-refresh hook never
 repoints `~/.local/bin/accelerator`. The auto-mode classifier refused to
-launch the headless session from this session, so the user runs it. The
-check stays open until that run's output and the set on disk are read.
+launch the headless session at first. It was run from a later session, as
+part of phase 6's halt run below, and node `2-4` failed as "web search quota
+exhausted" with no note at its path.
 
 ---
 
@@ -1597,7 +1602,21 @@ Then the new tests:
 
 #### Manual Verification
 
-- [ ] The halt run in **Manual Testing Steps** behaves as described.
+- [x] The halt run in **Manual Testing Steps** behaves as described.
+
+It ran headless, as phase 5's check did, on one web pair and one openalex pair
+at depth 2. The cap of 3 is per turn in headless mode, so the level-1 search
+and three of the four level-2 searches succeeded across two turns, and only
+node `2-4` got the notice. That node wrote nothing and failed as "web search
+quota exhausted". Every later plan carried `--withhold-profile web` and
+reported `withheld: ["web"]`, and no web researcher was spawned after the
+halt. The openalex nodes and their composer still ran. The floor warning named
+a demand of 5 against 2 left by the cap of 3, after a reserve of 1. The summary
+opened with the halt notice, which named `2-4`, the web pair left unfinished,
+and `/clear` plus a re-run. No ledger was left, and the outline and manifest
+matched disk. A fresh session without the variable (standing in for `/clear`)
+reported no replaced run, researched `2-4` with `search_budget: 190`, and
+composed the web finding.
 
 ---
 
