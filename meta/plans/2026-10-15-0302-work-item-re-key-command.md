@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T09:41:05+00:00"
+last_updated: "2026-10-17T10:42:35+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -434,9 +434,15 @@ policy each caller's choice, and rename `migrate`'s override.
 - `only_one_or_true_forces_ignoring_case` — `0`, `false`, empty and unset do
   not.
 
+`cli/migrate/tests/preflight.rs`:
+- `force_bypasses_the_dirty_check_and_mints_a_fresh_manifest` now expects
+  `PreflightOutcome::Forced` naming the skipped path.
+- `force_over_a_clean_tree_skips_nothing`
+- `force_never_reports_the_runners_own_paths_as_skipped`
+
 `cli/migrate-adapters/tests/working_copy.rs`:
 - `migrate_guards_the_same_scopes_as_vcs` — `migrate::preflight::SCOPES`
-  equals `vcs::GUARDED_SCOPES`.
+  equals `vcs::guarded_working_copy::GUARDED_SCOPES`.
 - The existing `an_unreadable_repository_has_no_run_base_and_no_changes`
   keeps passing.
 
@@ -449,6 +455,16 @@ policy each caller's choice, and rename `migrate`'s override.
 - `the_refusal_names_accelerator_force`
 - `the_stale_run_explanation_names_both_variables`
 - `forcing_past_a_dirty_tree_says_what_it_skipped`
+
+The existing `force_bypasses_the_refusal_and_reaches_the_empty_registry_sentinel`
+became `the_deprecated_migrate_force_still_applies_over_a_dirty_tree`.
+
+`cli/migrate-cli/src/render.rs` (unit):
+- `a_forced_run_counts_and_lists_each_skipped_path_escaped`
+
+`migrate_guards_the_same_scopes_as_vcs` and
+`accelerator_force_zero_does_not_force_migrate` are pins: the scopes were
+already equal, and `0` never set the old variable.
 
 `cli/migrate-cli/tests/guarded_resume.rs`:
 - The existing `an_unreadable_jj_working_copy_is_warned_about_and_treated_as_clean`
@@ -484,6 +500,8 @@ filtered to the scopes. Scope matching stays a plain string prefix, so
 `.claude/accelerator.local.md`. `forces` accepts `1` or `true`, ignoring
 case.
 
+`Unprobeable.reason` is the probe error's `Display`.
+
 `GUARDED_SCOPES` and `FORCE_VARIABLE` are accelerator policy in a platform
 crate. They sit here because `vcs` is the only crate both `migrate-cli` and
 `work-cli` already depend on that owns working-copy concepts; callers pass
@@ -509,18 +527,35 @@ warning: ACCELERATOR_MIGRATE_FORCE is deprecated and will be removed in a future
 
 The notice suggests a per-invocation setting so an exported override does not
 silently disarm `work rekey`. When force skips a dirty-tree refusal,
-`migrate` prints the skipped paths to stderr; the hand-edited golden
-`stderr` fixtures gain that line, and
-`skills/config/migrate/SKILL.md` is checked to treat stderr as advisory.
+`migrate` prints the skipped paths to stderr:
+
+```text
+warning: forced past the dirty-tree pre-flight over uncommitted changes (1):
+  meta/a.md
+```
+
+The path list comes from a new `PreflightOutcome::Forced { skipped }`
+in `migrate::preflight`, returned when force is set and a dirty path
+outside the runner's own files exists; forcing over a clean tree stays
+`Clean`. Paths are escaped as in the refusal. `force_requested` runs at the
+top of `run_default`, so the deprecation notice is the first stderr line.
+`skills/config/migrate/SKILL.md` parses no stderr, so the new lines are
+advisory there.
 
 **Files**: `cli/migrate-cli/src/cli.rs:16`, `cli/migrate-cli/src/render.rs:14,16,18,315`
 **Changes**: name `ACCELERATOR_FORCE`; `after_help` lists both, the old one
-as deprecated; `STALE_RUN_EXPLANATION` names both variables until 0346.
+as deprecated; `STALE_RUN_EXPLANATION` names both variables until 0346
+("re-run without ACCELERATOR_FORCE or ACCELERATOR_MIGRATE_FORCE to
+resume").
 
 **Files**: the inline expected strings in `cli/migrate-cli/tests/*.rs` and the
 golden `stdout`/`stderr` files listed by the research
 (`tests/fixtures/{0001..0007,all-pending,interactive/*,decisions-file/*,manifest-states/*}`),
 edited by hand; `tests/common/mod.rs:78` also removes `ACCELERATOR_FORCE`.
+The forced golden captures ran over an empty `.git` stub, which the probe
+cannot read, so they skip nothing and gain no skipped-paths line; only the
+variable name changed in 22 `stdout`/`stderr` files. `regenerate.sh` is left
+naming the old variable, as the provenance of what was captured.
 
 #### 4. Docs
 
@@ -528,7 +563,8 @@ edited by hand; `tests/common/mod.rs:78` also removes `ACCELERATOR_FORCE`.
 - `docs-site/src/content/docs/migrations.md:18`
 - `CHANGELOG.md` `## [Unreleased]` → `### Changed`: `ACCELERATOR_FORCE`
   replaces `ACCELERATOR_MIGRATE_FORCE`, which `migrate` still honours with a
-  deprecation notice.
+  deprecation notice; it also records the `1`/`true` rule and the
+  skipped-paths line.
 
 ### Success Criteria
 
@@ -546,13 +582,9 @@ edited by hand; `tests/common/mod.rs:78` also removes `ACCELERATOR_FORCE`.
       `ACCELERATOR_MIGRATE_FORCE=1 accelerator migrate` applies and prints
       the notice; `ACCELERATOR_FORCE=1` applies silently.
 
-Checked in a jj scratch repository. `ACCELERATOR_FORCE=1` prints no
-deprecation notice but, like every bypass, lists the paths it skipped;
-`ACCELERATOR_FORCE=0` refuses.
-
-The forced golden captures ran over an empty `.git` stub, which the probe
-cannot read, so they skip nothing and gain no skipped-paths line; only the
-variable name changed in them.
+Checked in a jj scratch repository, since the session's VCS guard blocks
+`git add`. `ACCELERATOR_FORCE=1` prints no deprecation notice but, like
+every bypass, lists the paths it skipped; `ACCELERATOR_FORCE=0` refuses.
 
 ---
 
