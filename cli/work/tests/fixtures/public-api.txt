@@ -455,6 +455,24 @@ pub fn work::promotion::next_step(record: work::promotion::RecordState<'_>, mode
 pub fn work::promotion::remote_untouched(created_remote_hash: core::option::Option<&str>, read_back_hash: &str, read_back_matches_draft: bool) -> bool
 pub fn work::promotion::retitling(created_remote_hash: core::option::Option<&str>, read_back: &work::promotion::ReadBack, read_back_matches_draft: bool) -> work::promotion::Retitling
 pub fn work::promotion::without_ids(text: &str, ids: &[&str]) -> alloc::string::String
+pub mod work::rekey
+pub mod work::rekey::creation_date
+pub struct work::rekey::creation_date::CreationDate(_)
+impl work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::of(file: &work::work_item_files::WorkItemFile) -> Self
+impl core::clone::Clone for work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::clone(&self) -> work::rekey::creation_date::CreationDate
+impl core::cmp::Eq for work::rekey::creation_date::CreationDate
+impl core::cmp::Ord for work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::cmp(&self, other: &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::eq(&self, other: &work::rekey::creation_date::CreationDate) -> bool
+impl core::cmp::PartialOrd for work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::partial_cmp(&self, other: &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for work::rekey::creation_date::CreationDate
+pub fn work::rekey::creation_date::CreationDate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for work::rekey::creation_date::CreationDate
+impl core::marker::StructuralPartialEq for work::rekey::creation_date::CreationDate
 pub mod work::resolve
 pub enum work::resolve::InputClass
 pub work::resolve::InputClass::BareNumber
