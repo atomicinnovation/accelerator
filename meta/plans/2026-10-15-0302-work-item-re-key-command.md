@@ -1683,20 +1683,31 @@ review.
 
 #### Manual Verification
 
-- [ ] In a scratch repository on `{number:04d}` holding `0041`-`0043`, switch
+- [x] In a scratch repository on `{number:04d}` holding `0041`-`0043`, switch
       to `{key}-{number:04d}` with `work.key: "ACC"`, run `work rekey`, and
       confirm the renames, aliases and typed links; run it again and confirm
       nothing changes.
-- [ ] Kill a run mid-way (a large corpus and `SIGINT`), re-run, and confirm it
+- [x] Kill a run mid-way (a large corpus and `SIGINT`), re-run, and confirm it
       finishes with no duplicate item.
-- [ ] Kill a run mid-way, restore the paths `work rekey --discard` names
+- [x] Kill a run mid-way, restore the paths `work rekey --discard` names
       (with git, also delete the named new files), re-run `--discard`, and
       confirm `work sync` runs again.
-- [ ] Kill a run mid-way, commit the half-applied state, and confirm
+- [x] Kill a run mid-way, commit the half-applied state, and confirm
       `work rekey --discard` refuses naming the changed paths.
 - [ ] Start `work sync` against a slow tracker, run `work create` in another
       terminal, and confirm it prints the waiting line and proceeds once
       the sync finishes.
+
+The first four were checked in a jj scratch repository (the session's VCS
+guard blocks `git add`). The kill used `SIGTERM`, since a non-interactive
+shell's background job ignores `SIGINT`; it stopped a 2,000-item run after
+1,110 entries, leaving a stale identity-run lockdir that the resume
+reclaimed. The resume re-keyed the other 890 with 2,000 distinct IDs and no
+plan left. A committed half-run's `--discard` refused under one base
+revision; after `jj restore`, `--discard` removed the plan and `work sync`
+reached its tracker selection. The 2,000-item run took about 15 minutes in
+all, since every entry re-walks the corpus. The sync-waiting check is
+unrun.
 
 As built, Phase 5 differs from the sketch above in these ways:
 
