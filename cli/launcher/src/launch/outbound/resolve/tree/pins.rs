@@ -61,10 +61,26 @@ pub fn expected_digest_on(
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::{HOST_PLATFORM, KNOWN_PLATFORMS};
     use super::{
         artifact_names, expected_digest_on, is_known_artifact,
         EXPECTED_TREE_DIGESTS,
     };
+
+    #[test]
+    fn every_pinned_platform_is_a_known_platform() {
+        for (name, platform, _) in EXPECTED_TREE_DIGESTS {
+            assert!(
+                KNOWN_PLATFORMS.contains(platform),
+                "{name} is pinned on {platform}, which is not a known platform"
+            );
+        }
+    }
+
+    #[test]
+    fn the_host_platform_is_a_known_platform() {
+        assert!(KNOWN_PLATFORMS.contains(&HOST_PLATFORM));
+    }
 
     #[test]
     fn the_compiled_in_map_covers_every_artifact_on_four_platforms() {
