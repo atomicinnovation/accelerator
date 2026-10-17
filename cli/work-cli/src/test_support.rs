@@ -138,26 +138,50 @@ impl FileRemove for Faults {
 
 /// Leaves a re-key run plan in progress in the repository at `root`.
 pub fn rekey_in_progress(root: &Path) {
-    use work::rekey::fingerprint::IdentityFingerprint;
     use work::rekey::run_plan::InProgressPlan;
     use work::rekey::run_plan::RunPlan;
     use work::rekey::write_set::WriteSet;
+
+    save_rekey_plan(
+        root,
+        &RunPlan::InProgress(InProgressPlan::new(
+            empty_fingerprint(),
+            Vec::new(),
+            WriteSet::default(),
+        )),
+    );
+}
+
+/// Leaves a previewed re-key run plan in the repository at `root`.
+pub fn rekey_proposed(root: &Path) {
+    use work::rekey::run_plan::ProposedPlan;
+    use work::rekey::run_plan::RunPlan;
+
+    save_rekey_plan(
+        root,
+        &RunPlan::Proposed(ProposedPlan::new(empty_fingerprint(), Vec::new())),
+    );
+}
+
+fn empty_fingerprint() -> work::rekey::fingerprint::IdentityFingerprint {
+    work::rekey::fingerprint::IdentityFingerprint::of(
+        &corpus::WorkItemIdScheme::numeric(),
+        &[],
+    )
+}
+
+fn save_rekey_plan(root: &Path, plan: &work::rekey::run_plan::RunPlan) {
     use work_adapters::rekey::run_plan_store::FileRunPlanStore;
     use work_adapters::rekey::run_plan_store::RunPlanStore as _;
 
     let store = FileCorpusStore::new(root);
-    let plan = InProgressPlan::new(
-        IdentityFingerprint::of(&corpus::WorkItemIdScheme::numeric(), &[]),
-        Vec::new(),
-        WriteSet::default(),
-    );
     let saved = FileRunPlanStore::new(
         &root.join(crate::sync::STATE_DIR),
         root,
         &store,
         &store,
     )
-    .save(&RunPlan::InProgress(plan));
+    .save(plan);
     assert!(saved.is_ok(), "{saved:?}");
 }
 

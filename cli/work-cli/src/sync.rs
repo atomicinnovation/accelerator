@@ -4071,6 +4071,17 @@ mod tests {
     }
 
     #[test]
+    fn a_proposed_rekey_plan_does_not_block_sync() {
+        let dir = sync_repo();
+        crate::test_support::rekey_proposed(dir.path());
+        let tracker = Rc::new(RecordingTracker::holding(Vec::new()));
+
+        let code = drive_sync(dir.path(), &tracker, &sync_args(Vec::new()));
+
+        assert_eq!(code, ExitCode::SUCCESS);
+    }
+
+    #[test]
     fn sync_refuses_while_a_run_plan_is_unreadable() {
         let dir = sync_repo();
         work_file(dir.path(), "0001", Some("ENG-1"));
