@@ -517,6 +517,30 @@ pub fn work::rekey::entry::RekeyEntry::eq(&self, other: &work::rekey::entry::Rek
 impl core::fmt::Debug for work::rekey::entry::RekeyEntry
 pub fn work::rekey::entry::RekeyEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for work::rekey::entry::RekeyEntry
+pub mod work::rekey::fingerprint
+pub enum work::rekey::fingerprint::Staleness
+pub work::rekey::fingerprint::Staleness::ItemsChanged(alloc::vec::Vec<std::path::PathBuf>)
+pub work::rekey::fingerprint::Staleness::SchemeChanged
+impl core::clone::Clone for work::rekey::fingerprint::Staleness
+pub fn work::rekey::fingerprint::Staleness::clone(&self) -> work::rekey::fingerprint::Staleness
+impl core::cmp::Eq for work::rekey::fingerprint::Staleness
+impl core::cmp::PartialEq for work::rekey::fingerprint::Staleness
+pub fn work::rekey::fingerprint::Staleness::eq(&self, other: &work::rekey::fingerprint::Staleness) -> bool
+impl core::fmt::Debug for work::rekey::fingerprint::Staleness
+pub fn work::rekey::fingerprint::Staleness::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::fingerprint::Staleness
+pub struct work::rekey::fingerprint::IdentityFingerprint
+impl work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::fingerprint::IdentityFingerprint::of(scheme: &corpus::work_item_id::WorkItemIdScheme, items: &[work::identity::ItemIdentity]) -> Self
+pub fn work::rekey::fingerprint::IdentityFingerprint::staleness_since(&self, earlier: &Self) -> core::option::Option<work::rekey::fingerprint::Staleness>
+impl core::clone::Clone for work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::fingerprint::IdentityFingerprint::clone(&self) -> work::rekey::fingerprint::IdentityFingerprint
+impl core::cmp::Eq for work::rekey::fingerprint::IdentityFingerprint
+impl core::cmp::PartialEq for work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::fingerprint::IdentityFingerprint::eq(&self, other: &work::rekey::fingerprint::IdentityFingerprint) -> bool
+impl core::fmt::Debug for work::rekey::fingerprint::IdentityFingerprint
+pub fn work::rekey::fingerprint::IdentityFingerprint::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::fingerprint::IdentityFingerprint
 pub mod work::rekey::sequence
 pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
 pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
