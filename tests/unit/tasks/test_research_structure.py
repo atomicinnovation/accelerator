@@ -1197,6 +1197,16 @@ def test_a_halting_failure_is_recorded_and_its_batch_checked_as_normal() -> (
         assert sentence in check, f"the check step must state {sentence!r}"
 
 
+def test_a_halting_reason_overrides_the_no_file_bullet() -> None:
+    check = _check_step()
+    no_file = _section(check, "wrote **no file**", "fails validation")
+    assert "a halting reason also halts the run" in no_file, (
+        "the no-file bullet must point a halting reason on to the halt"
+    )
+    halting = _section(check, "**halting reason**", "Other spawns in the batch")
+    assert "takes precedence over the no-file bullet" in halting
+
+
 def test_a_halted_spawns_stray_file_is_quarantined() -> None:
     halting = _section(
         _check_step(), "**halting reason**", "Other spawns in the batch"
