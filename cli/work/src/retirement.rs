@@ -1143,6 +1143,38 @@ mod tests {
     }
 
     #[test]
+    fn prose_naming_a_prefixed_local_id_is_rewritten() {
+        let corpus = [
+            prefixed_item(""),
+            referencing("parent: \"work-item:ACC-0042\"\nSee ACC-0042.\n"),
+        ];
+
+        let planned =
+            planned(&Retirement::renumbering("ACC-0042", "0042"), &corpus);
+
+        assert_eq!(
+            rewrite_of(&planned, "/repo/meta/plans/p.md"),
+            Some("parent: \"work-item:0042\"\nSee 0042.\n")
+        );
+    }
+
+    #[test]
+    fn prose_naming_a_bare_numeric_id_is_left_and_typed_links_rewritten() {
+        let corpus = [
+            work_item("/repo/meta/work/0042-a.md", "id: \"0042\"\n", "A"),
+            referencing("parent: \"work-item:0042\"\nSee 0042.\n"),
+        ];
+
+        let planned =
+            planned(&Retirement::renumbering("0042", "ACC-0042"), &corpus);
+
+        assert_eq!(
+            rewrite_of(&planned, "/repo/meta/plans/p.md"),
+            Some("parent: \"work-item:ACC-0042\"\nSee 0042.\n")
+        );
+    }
+
+    #[test]
     fn a_draft_moves_from_the_drafts_directory_to_the_work_directory() {
         let planned = planned(&promotion(), &[draft()]);
 
