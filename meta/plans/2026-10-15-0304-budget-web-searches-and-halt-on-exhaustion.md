@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-17T10:15:00+00:00"
+last_updated: "2026-10-17T14:00:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1447,11 +1447,13 @@ would offer `02-…`'s level-1 node, so both tests fail first.
 | `a_halted_run_still_offers_non_web_researchers_and_composers` | web pair at compose + openalex nodes; `--start`, then `--run R --withhold-profile web` with no `--spawned`, which re-offers the pending batch: the compose spawn and the openalex node are both in `offered` (AC 25) |
 | `withholding_needs_a_run_and_a_profile` | table: `--withhold-profile web` alone; with `--start`; `--run R --withhold-profile ''` → exit 1, `E_TOPIC_RESEARCH_WITHHOLD_PROFILE`, exact messages |
 | `every_plan_lists_every_unanswered_pair_beyond_the_window` | `--concurrency 1`, 3 web pairs: `pairs` has 1, `unanswered` has 3, query and run plans alike |
-| `the_tick_plan_lists_every_web_pair_left_unfinished` | AC 28. Depth 3, web pairs A, B and C plus web pair D. A has its level-1 note; B's level-1 spawn failed (no note); C was never spawned; D's tree is complete with no finding. After `end-run`, the query plan's `unanswered` is exactly A (`research_nodes`), B and C (`research_nodes`), and D (`compose`) |
+| `the_tick_plan_lists_every_web_pair_left_unfinished` | AC 28. Depth 3, web pairs A to D. A has its level-1 note; B's tree is complete with no finding; C's level-1 spawn failed (no note); D was never spawned. The written pairs come first, because a written note claims its index and fresh pairs are allocated past the highest claimed one. After `end-run`, the query plan's `unanswered` is exactly A (`research_nodes`), B (`compose`), and C and D (`research_nodes`) |
+| `a_run_plan_withholds_nothing_until_told_to` | `--start`, a query, then `--run R`: both run plans carry `"withheld": []`, the query carries none, and the ledger stores no `withheld` key |
 | `a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh` | `--start`; `--run R --withhold-profile web`; `end-run`; `--start` again: no `replaced_run`, `withheld` empty, the failed nodes offered (AC 32) |
 
-Extend the whole-plan equality fixtures with `"unanswered"`, and the run
-plan fixtures with `"withheld": []`.
+Extend the whole-plan equality fixtures with `"unanswered"`. No fixture
+compares a whole run plan, so `a_run_plan_withholds_nothing_until_told_to`
+pins `"withheld": []` instead.
 
 #### 7. Floor warning gains the halt
 
@@ -1508,8 +1510,9 @@ order.
   `.<lineage>.md.invalid`, under the existing refuse-to-overwrite rule. Its
   node therefore stays outstanding. Other spawns in the batch are checked
   as normal.
-- **Step 6**: unchanged. The ledger never offers a withheld spawn, so the
-  loop ends when the plan offers nothing else.
+- **Step 6**: the re-plan carries `{withhold flags}`, because the first
+  plan after a halt is this re-plan. The ledger never offers a withheld
+  spawn, so the loop ends when the plan offers nothing else.
 - **Step 7**: the tick plan's `unanswered` is read. The summary's first
   section, above "Run that did not end" and Failures, is **Halt**. It is
   printed only when the last run plan's `withheld` was non-empty, so the
@@ -1554,6 +1557,7 @@ Then the new tests:
 
 | Test | Asserts |
 |---|---|
+| `test_the_quota_exhausted_row_stands_apart_from_rate_limited` | reads its row from the failure-reason table alone, since the Halting failures row opens with the same reason |
 | `test_halting_failures_are_defined_once_with_one_member` | one **Halting failures** heading; its table has exactly one row, "web search quota exhausted" (AC 35) |
 | `test_a_halt_withholds_web_researchers_from_the_next_plan_on` | step 2 names `{withhold flags}` after `--spawned {batch}`, `--withhold-profile web`, carrying it "until a run plan's `withheld` names it", and stopping when it does not |
 | `test_the_halt_section_follows_the_cli_reported_withheld` | step 7 prints Halt when the last run plan's `withheld` is non-empty |
@@ -1585,11 +1589,11 @@ Then the new tests:
 
 #### Automated Verification
 
-- [ ] Window, ledger, codec and CLI tests fail first, then pass:
+- [x] Window, ledger, codec and CLI tests fail first, then pass:
       `cargo test -p research -p research-adapters -p research-cli`
-- [ ] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
-- [ ] Public API pin updated and matching: `mise run public-api:check`
-- [ ] Full local CI mirror: `mise run`
+- [x] Structure tests pass: `uv run pytest tests/unit/tasks/test_research_structure.py`
+- [x] Public API pin updated and matching: `mise run public-api:check`
+- [x] Full local CI mirror: `mise run`
 
 #### Manual Verification
 
