@@ -4,6 +4,7 @@
 use std::fmt;
 
 use crate::conduct::memory::RunMemory;
+use crate::conduct::memory::Withheld;
 use crate::conduct::observed::Observed;
 use crate::conduct::search_budget::SearchBudgets;
 use crate::conduct::spawn::SpawnRef;
@@ -88,6 +89,15 @@ impl RunLedger {
     #[must_use]
     pub fn budgeting_searches(mut self, budgets: SearchBudgets) -> Self {
         self.search_budgets = Some(budgets);
+        self
+    }
+
+    /// Withheld profiles stay withheld for the rest of the run, so a plan
+    /// that omits them withholds them still.
+    #[must_use]
+    pub fn withholding(mut self, profiles: &Withheld) -> Self {
+        self.memory.withheld =
+            std::mem::take(&mut self.memory.withheld).joined(profiles);
         self
     }
 
@@ -216,6 +226,7 @@ mod tests {
     use super::RunLedger;
     use super::Superseded;
     use crate::conduct::concurrency::test_support::unbounded;
+    use crate::conduct::memory::Withheld;
     use crate::conduct::observed::Observed;
     use crate::conduct::search_budget::SearchBudgets;
     use crate::conduct::spawn::SpawnRef;
@@ -588,5 +599,34 @@ mod tests {
             recorded(started().budgeting_searches(budgets()), &["01-a"]);
         let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
         assert_eq!(ledger.search_budgets(), Some(&budgets()));
+    }
+
+    fn withheld(profiles: &[&str]) -> Withheld {
+        Withheld::of(profiles.iter().map(|profile| (*profile).to_owned()))
+    }
+
+    #[test]
+    fn a_started_ledger_withholds_nothing() {
+        assert_eq!(started().memory().withheld, Withheld::default());
+    }
+
+    #[test]
+    fn withholding_adds_to_what_the_run_already_withholds() {
+        let ledger = started()
+            .withholding(&withheld(&["web"]))
+            .withholding(&withheld(&["web", "x"]));
+        assert_eq!(ledger.memory().withheld, withheld(&["web", "x"]));
+        let ledger = started()
+            .withholding(&withheld(&["web"]))
+            .withholding(&withheld(&["web"]));
+        assert_eq!(ledger.memory().withheld, withheld(&["web"]));
+    }
+
+    #[test]
+    fn continuing_and_recording_keep_the_withheld_profiles() {
+        let ledger =
+            recorded(started().withholding(&withheld(&["web"])), &["01-a"]);
+        let ledger = recorded(continued(ledger, Some(0)), &["02-b"]);
+        assert_eq!(ledger.memory().withheld, withheld(&["web"]));
     }
 }

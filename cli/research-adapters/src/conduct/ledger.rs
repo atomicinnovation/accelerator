@@ -16,6 +16,7 @@ use research::conduct::ledger::RunId;
 use research::conduct::ledger::RunLedger;
 use research::conduct::memory::PendingBatch;
 use research::conduct::memory::RunMemory;
+use research::conduct::memory::Withheld;
 use research::conduct::observed::Observed;
 use research::conduct::search_budget::SearchBudgets;
 use research::conduct::spawn::SpawnRef;
@@ -145,6 +146,9 @@ fn ledger_to(ledger: &RunLedger) -> Value {
     if let Some(budgets) = ledger.search_budgets() {
         stored["search_budgets"] = search_budgets_to(budgets);
     }
+    if !memory.withheld.is_empty() {
+        stored["withheld"] = memory.withheld.profiles().collect();
+    }
     stored
 }
 
@@ -180,6 +184,9 @@ fn ledger_from(value: &Value, unicode: &dyn UnicodeText) -> Option<RunLedger> {
             owed_quarantine: value
                 .get("owed_quarantine")
                 .map_or_else(|| Some(BTreeSet::new()), stem_set)?,
+            withheld: value
+                .get("withheld")
+                .map_or_else(|| Some(Withheld::default()), withheld_from)?,
         },
         value.get("search_budgets").map_or(Some(None), |budgets| {
             search_budgets_from(budgets).map(Some)
@@ -201,6 +208,20 @@ fn search_budgets_from(value: &Value) -> Option<SearchBudgets> {
         levels,
         value.get("demand")?.as_u64()?,
     ))
+}
+
+fn withheld_from(value: &Value) -> Option<Withheld> {
+    value
+        .as_array()?
+        .iter()
+        .map(|profile| {
+            profile
+                .as_str()
+                .filter(|profile| !profile.is_empty())
+                .map(str::to_owned)
+        })
+        .collect::<Option<Vec<String>>>()
+        .map(Withheld::of)
 }
 
 fn stem_set(value: &Value) -> Option<BTreeSet<Stem>> {
@@ -289,6 +310,7 @@ mod tests {
     use research::conduct::ledger::RunLedger;
     use research::conduct::memory::PendingBatch;
     use research::conduct::memory::RunMemory;
+    use research::conduct::memory::Withheld;
     use research::conduct::observed::Observed;
     use research::conduct::search_budget::SearchBudgets;
     use research::conduct::spawn::SpawnRef;
@@ -390,6 +412,7 @@ mod tests {
                 owed_quarantine: BTreeSet::from([
                     Stem::parse("02-b-web").expect("stem")
                 ]),
+                withheld: Withheld::of(["web".to_owned()]),
             },
             Some(SearchBudgets::from_parts(
                 BTreeMap::from([
@@ -478,7 +501,8 @@ mod tests {
                 "pending",
                 "run",
                 "search_budgets",
-                "seen"
+                "seen",
+                "withheld"
             ]
         );
         assert_eq!(keys(&written["seen"]), ["answered", "notes"]);
@@ -487,6 +511,7 @@ mod tests {
             written["search_budgets"],
             json!({"levels": {"1": 3, "2": 2, "3": 1}, "demand": 190})
         );
+        assert_eq!(written["withheld"], json!(["web"]));
         Ok(())
     }
 
@@ -568,6 +593,26 @@ mod tests {
         ] {
             let mut ledger = well_formed();
             ledger["search_budgets"] = value.clone();
+            assert!(
+                matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ledger_without_withheld_profiles_withholds_none(
+    ) -> Result<(), TestError> {
+        let ledger = read(&stored(&well_formed()))?.ok_or("no ledger")?;
+        assert!(ledger.memory().withheld.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn withheld_profiles_outside_their_shape_are_corrupt() {
+        for value in [json!("web"), json!([1]), json!([""])] {
+            let mut ledger = well_formed();
+            ledger["withheld"] = value.clone();
             assert!(
                 matches!(read(&stored(&ledger)), Err(LedgerError::Corrupt)),
                 "{value}"
