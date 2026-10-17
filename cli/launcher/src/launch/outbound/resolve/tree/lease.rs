@@ -320,7 +320,6 @@ mod unix {
             let dir = tempfile::tempdir().expect("tempdir");
             let path = dir.path().join("lock");
             let held = take_single_flight(&path).expect("first holder");
-            // A non-blocking exclusive probe against the same file blocks.
             assert_eq!(probe_shared_lease(&path), Liveness::Held);
             drop(held);
             let _second = take_single_flight(&path).expect("after release");

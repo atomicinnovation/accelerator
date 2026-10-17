@@ -529,7 +529,7 @@ mod tests {
     }
 
     /// Reaps `root` for Y while the test thread holds Y's tree lock, as a
-    /// caller does, failing rather than hanging if the reap blocks and if
+    /// caller does, failing rather than hanging if the reap blocks or if
     /// any lock file is created or removed.
     fn reap_for_y_at(
         root: &Path,

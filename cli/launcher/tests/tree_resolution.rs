@@ -41,8 +41,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ARTIFACT: &str = "driver";
 const BYSTANDER: &str = "browser";
 
-/// Distinct from the harness's archive digest, which a keep set holding only
-/// `ARTIFACT`'s pin would spare by accident.
+/// Distinct from the harness's archive digest, so the bystander's archive
+/// survives by its own pin rather than by sharing `ARTIFACT`'s.
 fn bystander_digest() -> String {
     "b".repeat(64)
 }
