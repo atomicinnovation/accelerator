@@ -32,6 +32,7 @@ pub enum PartialArchive {
     Resumable(u64),
     Complete,
     OverLong,
+    Obstructed,
 }
 
 impl PartialArchive {
@@ -52,7 +53,7 @@ impl PartialArchive {
         match *self {
             Self::Absent => archive_size,
             Self::Resumable(held) => archive_size.saturating_sub(held),
-            Self::Complete | Self::OverLong => 0,
+            Self::Complete | Self::OverLong | Self::Obstructed => 0,
         }
     }
 }
@@ -66,15 +67,15 @@ pub struct AssessedPartial {
 }
 
 impl AssessedPartial {
-    /// Anything at `path` that is not a regular file is over-long, so it is
-    /// replaced rather than resumed.
+    /// Anything at `path` that is not a regular file obstructs it, so it is
+    /// removed rather than resumed or written through.
     #[must_use]
     pub fn of(path: &Path, archive_size: u64) -> Self {
         let state = match std::fs::symlink_metadata(path) {
             Ok(metadata) if metadata.is_file() => {
                 PartialArchive::assess(Some(metadata.len()), archive_size)
             }
-            Ok(_) => PartialArchive::OverLong,
+            Ok(_) => PartialArchive::Obstructed,
             Err(_) => PartialArchive::Absent,
         };
         Self {
@@ -102,8 +103,8 @@ impl AssessedPartial {
 /// digest is recomputed over the whole file, so a resumed transfer is verified
 /// exactly as a fresh one is.
 ///
-/// A partial that cannot be read or written is discarded and replaced. One
-/// that fails its digest is the caller's to discard, since only the caller
+/// A partial that cannot be read or written, or anything at its path that is
+/// not a regular file, is discarded and replaced. One that fails its digest is the caller's to discard, since only the caller
 /// checks the digest.
 ///
 /// # Errors
@@ -130,6 +131,10 @@ pub fn stream_archive(
         }
         PartialArchive::Resumable(held) => download.resume_from(held),
         PartialArchive::Complete => download.digest_partial(),
+        PartialArchive::Obstructed => {
+            discard_partial_archive(&partial.path);
+            download.fetch_whole()
+        }
     }
 }
 
@@ -401,8 +406,8 @@ mod tests {
     use super::super::super::keys::TrustedKeys;
     use super::super::testing::logged;
     use super::{
-        discard_partial_archive, open_archive_sink, verify_archive_file,
-        Download, PartialArchive,
+        discard_partial_archive, open_archive_sink, stream_archive,
+        verify_archive_file, AssessedPartial, Download, PartialArchive,
     };
 
     // The same throwaway keypair the keys tests use, over the same body.
@@ -641,6 +646,58 @@ mod tests {
                 if detail.contains(&path)),
             "got {streamed:?}"
         );
+    }
+
+    #[test]
+    fn a_directory_at_the_partial_path_obstructs_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let partial = dir.path().join("partial.archive");
+        std::fs::create_dir(&partial).expect("partial");
+
+        let assessed = AssessedPartial::of(&partial, ARCHIVE_SIZE);
+
+        assert_eq!(assessed.state, PartialArchive::Obstructed);
+    }
+
+    #[test]
+    fn a_symlink_at_the_partial_path_obstructs_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::write(&elsewhere, b"untouched").expect("elsewhere");
+        let partial = dir.path().join("partial.archive");
+        std::os::unix::fs::symlink(&elsewhere, &partial).expect("symlink");
+
+        let assessed = AssessedPartial::of(&partial, ARCHIVE_SIZE);
+
+        assert_eq!(assessed.state, PartialArchive::Obstructed);
+    }
+
+    #[test]
+    fn a_symlink_at_the_partial_path_is_replaced_not_written_through() {
+        let (_server, url) = serving_the_archive();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::write(&elsewhere, b"untouched").expect("elsewhere");
+        let partial = dir.path().join("partial.archive");
+        std::os::unix::fs::symlink(&elsewhere, &partial).expect("symlink");
+        let fetcher =
+            Fetcher::with_backoff(Duration::from_millis(1)).expect("fetcher");
+
+        stream_archive(
+            &fetcher,
+            &url,
+            &AssessedPartial::of(&partial, PAYLOAD.len() as u64),
+        )
+        .expect("streamed");
+
+        assert_eq!(std::fs::read(&elsewhere).expect("elsewhere"), b"untouched");
+        assert!(
+            std::fs::symlink_metadata(&partial)
+                .expect("partial")
+                .is_file(),
+            "the symlink was kept"
+        );
+        assert_eq!(std::fs::read(&partial).expect("archive"), PAYLOAD);
     }
 
     #[test]
