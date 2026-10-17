@@ -215,6 +215,15 @@ fn pair(question: &str, profile: &str, path: &str) -> Value {
     })
 }
 
+fn unanswered(stem: &str, question: &str, profile: &str, stage: &str) -> Value {
+    json!({
+        "stem": stem,
+        "question": question,
+        "profile": profile,
+        "stage": stage,
+    })
+}
+
 const HEADS: &str = "How do attention heads specialise?";
 const LONG_CONTEXT: &str = "What limits long-context attention?";
 
@@ -252,6 +261,12 @@ fn a_multi_profile_set_leaves_only_its_quarantined_pair_outstanding(
             "unfinished": [],
             "trims": [],
             "shallow": [],
+            "unanswered": [unanswered(
+                "01-how-do-attention-heads-specialise-openalex",
+                HEADS,
+                "openalex",
+                "single_pass",
+            )],
         })
     );
     Ok(())
@@ -289,6 +304,12 @@ fn a_quarantined_single_profile_pair_reuses_its_markers_index(
             "unfinished": [],
             "trims": [],
             "shallow": [],
+            "unanswered": [unanswered(
+                "03-what-is-the-third-focus-area-web",
+                "What is the third focus area?",
+                "web",
+                "single_pass",
+            )],
         })
     );
     Ok(())
@@ -798,6 +819,7 @@ fn a_legacy_finding_is_answered_and_shallow_at_depth_three(
                 "unfinished": [],
                 "trims": [],
                 "shallow": shallow,
+                "unanswered": [],
             }),
             "--depth {depth}"
         );
@@ -3152,5 +3174,239 @@ fn query_plans_carry_no_budgets() -> Result<(), TestError> {
 
     assert_eq!(spawns_of(&plan)?.len(), 1);
     assert_unbudgeted(&plan);
+    Ok(())
+}
+
+const WITHHOLD: &str = "--withhold-profile";
+
+fn halting_set(tag: &str, items: &str) -> Result<Project, TestError> {
+    let project = small_set(tag, items)?;
+    project.write(
+        &format!("{TOPICS}/s/brief.md"),
+        "---\ntype: \"topic-research\"\nkind: \"brief\"\n\
+         source_profiles: [\"web\", \"openalex\", \"arxiv\"]\n---\n",
+    )?;
+    Ok(project)
+}
+
+const OPENALEX_THEN_TWO_WEB: &str = "- [ ] A? — profiles: openalex\n\
+                                     - [ ] B? — profiles: web\n\
+                                     - [ ] C? — profiles: web";
+
+fn attempted(project: &Project) -> Result<Vec<String>, TestError> {
+    Ok(stored_ledger(project)?["attempted"]
+        .as_array()
+        .ok_or("no attempted")?
+        .iter()
+        .filter_map(|spawn| spawn.as_str().map(str::to_owned))
+        .collect())
+}
+
+fn assert_withholds(
+    project: &Project,
+    plan: &Value,
+    profiles: &[&str],
+) -> Result<(), TestError> {
+    for profile in profiles {
+        let suffix = format!("-{profile}");
+        assert!(
+            !spawns_of(plan)?.iter().any(|spawn| spawn.contains(&suffix)),
+            "{plan}"
+        );
+        assert!(
+            !attempted(project)?
+                .iter()
+                .any(|spawn| spawn.contains(&suffix)),
+            "{:?}",
+            attempted(project)?
+        );
+    }
+    assert_eq!(plan["remaining"], json!(0), "{plan}");
+    assert_eq!(plan["withheld"], json!(profiles), "{plan}");
+    assert_eq!(stored_ledger(project)?["withheld"], json!(profiles));
+    Ok(())
+}
+
+#[test]
+fn a_withheld_profile_is_not_offered_and_its_spawns_stay_unattempted(
+) -> Result<(), TestError> {
+    let project = halting_set("withheld", OPENALEX_THEN_TWO_WEB)?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (first, run) = started(&project, &depth)?;
+    assert_eq!(spawns_of(&first)?, ["01-a-openalex:1"]);
+
+    let plan = continued(
+        &project,
+        &run,
+        &[&depth[..], &["--spawned", "0", WITHHOLD, "web"]].concat(),
+    )?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
+fn a_withheld_profile_stays_withheld_without_the_flag() -> Result<(), TestError>
+{
+    let project = halting_set("still-withheld", OPENALEX_THEN_TWO_WEB)?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (_, run) = started(&project, &depth)?;
+    continued(
+        &project,
+        &run,
+        &[&depth[..], &["--spawned", "0", WITHHOLD, "web"]].concat(),
+    )?;
+
+    let plan =
+        continued(&project, &run, &[&depth[..], &["--spawned", "1"]].concat())?;
+
+    assert_withholds(&project, &plan, &["web"])
+}
+
+#[test]
+fn every_repeated_withheld_profile_is_kept() -> Result<(), TestError> {
+    let project = halting_set(
+        "withheld-twice",
+        &format!("{OPENALEX_THEN_TWO_WEB}\n- [ ] D? — profiles: arxiv"),
+    )?;
+    let depth = ["--depth", "2", "--concurrency", "1"];
+    let (_, run) = started(&project, &depth)?;
+
+    let plan = continued(
+        &project,
+        &run,
+        &[
+            &depth[..],
+            &["--spawned", "0", WITHHOLD, "web", WITHHOLD, "arxiv"],
+        ]
+        .concat(),
+    )?;
+
+    assert_withholds(&project, &plan, &["arxiv", "web"])
+}
+
+#[test]
+fn a_halted_run_still_offers_non_web_researchers_and_composers(
+) -> Result<(), TestError> {
+    let project = halting_set(
+        "halted-still-offers",
+        "- [ ] A? — profiles: web\n- [ ] B? — profiles: openalex",
+    )?;
+    project.write_note("01-a-web", "1", "A?", &["X?"])?;
+    project.write_note("01-a-web", "2-1", "X?", &[])?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+
+    let plan = continued(&project, &run, &["--depth", "2", WITHHOLD, "web"])?;
+
+    assert_eq!(spawns_of(&plan)?, ["01-a-web", "02-b-openalex:1"]);
+    assert_eq!(plan["withheld"], json!(["web"]));
+    Ok(())
+}
+
+#[test]
+fn withholding_needs_a_run_and_a_profile() -> Result<(), TestError> {
+    let project = a_set()?;
+    let needs_run =
+        "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile needs --run";
+    let cases: [(&[&str], &str); 3] = [
+        (&[WITHHOLD, "web"], needs_run),
+        (&["--start", WITHHOLD, "web"], needs_run),
+        (
+            &["--run", "x", WITHHOLD, ""],
+            "E_TOPIC_RESEARCH_WITHHOLD_PROFILE: --withhold-profile is empty; \
+             pass a profile name",
+        ),
+    ];
+    for (args, stderr) in cases {
+        assert_exits_1(&project.outstanding_with(args)?, stderr);
+    }
+    assert!(!project.ledger().exists());
+    Ok(())
+}
+
+#[test]
+fn a_run_plan_withholds_nothing_until_told_to() -> Result<(), TestError> {
+    let project = a_set()?;
+
+    let (plan, run) = started(&project, &[])?;
+    let (query, _) = project.plan_with(&[])?;
+    let continued = continued(&project, &run, &[])?;
+
+    assert_eq!(plan["withheld"], json!([]));
+    assert_eq!(continued["withheld"], json!([]));
+    assert_eq!(query.get("withheld"), None);
+    assert_eq!(stored_ledger(&project)?.get("withheld"), None);
+    Ok(())
+}
+
+#[test]
+fn every_plan_lists_every_unanswered_pair_beyond_the_window(
+) -> Result<(), TestError> {
+    let project = web_set("unanswered", 3, 0, 0)?;
+    let limited = ["--concurrency", "1"];
+
+    let (query, _) = project.plan_with(&limited)?;
+    let (run, _) = started(&project, &limited)?;
+
+    for plan in [query, run] {
+        assert_eq!(plan["pairs"].as_array().map(Vec::len), Some(1), "{plan}");
+        assert_eq!(
+            plan["unanswered"].as_array().map(Vec::len),
+            Some(3),
+            "{plan}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn the_tick_plan_lists_every_web_pair_left_unfinished() -> Result<(), TestError>
+{
+    let project =
+        small_set("tick-unanswered", "- [ ] A?\n- [ ] B?\n- [ ] C?\n- [ ] D?")?;
+    project.write_note("01-a-web", "1", "A?", &["X?"])?;
+    project.write_note("02-b-web", "1", "B?", &[])?;
+    let deep = ["--depth", "3", "--concurrency", "1"];
+    let (first, run) = started(&project, &deep)?;
+    assert_eq!(spawns_of(&first)?, ["03-c-web:1"]);
+    continued(&project, &run, &[&deep[..], &["--spawned", "0"]].concat())?;
+    assert!(project
+        .run(&["end-run", "s", "--run", &run])?
+        .status
+        .success());
+
+    let (tick, _) = project.plan_with(&["--depth", "3"])?;
+
+    assert_eq!(
+        tick["unanswered"],
+        json!([
+            unanswered("01-a-web", "A?", "web", "research_nodes"),
+            unanswered("02-b-web", "B?", "web", "compose"),
+            unanswered("03-c-web", "C?", "web", "research_nodes"),
+            unanswered("04-d-web", "D?", "web", "research_nodes"),
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_re_run_after_a_halted_run_ends_offers_the_failed_nodes_afresh(
+) -> Result<(), TestError> {
+    let project = a_set()?;
+    let (_, run) = started(&project, &["--depth", "2"])?;
+    continued(
+        &project,
+        &run,
+        &["--depth", "2", "--spawned", "0", WITHHOLD, "web"],
+    )?;
+    assert!(project
+        .run(&["end-run", "s", "--run", &run])?
+        .status
+        .success());
+
+    let (plan, _) = started(&project, &["--depth", "2"])?;
+
+    assert_eq!(plan.get("replaced_run"), None, "{plan}");
+    assert_eq!(plan["withheld"], json!([]));
+    assert_eq!(spawns_of(&plan)?, ["01-a-web:1"]);
     Ok(())
 }
