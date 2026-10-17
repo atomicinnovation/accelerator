@@ -144,6 +144,7 @@ pub const fn research::conduct::ledger::RunLedger::run(&self) -> &research::cond
 pub const fn research::conduct::ledger::RunLedger::search_budgets(&self) -> core::option::Option<&research::conduct::search_budget::SearchBudgets>
 pub fn research::conduct::ledger::RunLedger::settling_quarantine(self, inputs: &research::topic::plan::RoundInputs) -> core::result::Result<Self, research::conduct::ledger::OwedQuarantine>
 pub fn research::conduct::ledger::RunLedger::start(run: research::conduct::ledger::RunId, observed: &research::conduct::observed::Observed) -> Self
+pub fn research::conduct::ledger::RunLedger::withholding(self, profiles: &research::conduct::memory::Withheld) -> Self
 impl core::clone::Clone for research::conduct::ledger::RunLedger
 pub fn research::conduct::ledger::RunLedger::clone(&self) -> research::conduct::ledger::RunLedger
 impl core::cmp::Eq for research::conduct::ledger::RunLedger
