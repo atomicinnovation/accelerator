@@ -489,6 +489,34 @@ impl core::fmt::Debug for work::rekey::creation_date::CreationDate
 pub fn work::rekey::creation_date::CreationDate::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for work::rekey::creation_date::CreationDate
 impl core::marker::StructuralPartialEq for work::rekey::creation_date::CreationDate
+pub mod work::rekey::entry
+pub enum work::rekey::entry::RekeyTarget
+pub work::rekey::entry::RekeyTarget::Draft(work::draft_id::DraftId)
+pub work::rekey::entry::RekeyTarget::Renumbered(alloc::string::String)
+pub work::rekey::entry::RekeyTarget::TrackerKey(work::tracker_key::TrackerKey)
+impl work::rekey::entry::RekeyTarget
+pub fn work::rekey::entry::RekeyTarget::id(&self) -> &str
+impl core::clone::Clone for work::rekey::entry::RekeyTarget
+pub fn work::rekey::entry::RekeyTarget::clone(&self) -> work::rekey::entry::RekeyTarget
+impl core::cmp::Eq for work::rekey::entry::RekeyTarget
+impl core::cmp::PartialEq for work::rekey::entry::RekeyTarget
+pub fn work::rekey::entry::RekeyTarget::eq(&self, other: &work::rekey::entry::RekeyTarget) -> bool
+impl core::fmt::Debug for work::rekey::entry::RekeyTarget
+pub fn work::rekey::entry::RekeyTarget::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::entry::RekeyTarget
+pub struct work::rekey::entry::RekeyEntry
+pub work::rekey::entry::RekeyEntry::old: alloc::string::String
+pub work::rekey::entry::RekeyEntry::target: work::rekey::entry::RekeyTarget
+impl work::rekey::entry::RekeyEntry
+pub fn work::rekey::entry::RekeyEntry::retirement(&self) -> work::retirement::Retirement<'_>
+impl core::clone::Clone for work::rekey::entry::RekeyEntry
+pub fn work::rekey::entry::RekeyEntry::clone(&self) -> work::rekey::entry::RekeyEntry
+impl core::cmp::Eq for work::rekey::entry::RekeyEntry
+impl core::cmp::PartialEq for work::rekey::entry::RekeyEntry
+pub fn work::rekey::entry::RekeyEntry::eq(&self, other: &work::rekey::entry::RekeyEntry) -> bool
+impl core::fmt::Debug for work::rekey::entry::RekeyEntry
+pub fn work::rekey::entry::RekeyEntry::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for work::rekey::entry::RekeyEntry
 pub mod work::rekey::sequence
 pub fn work::rekey::sequence::is_in_target_shape(id: &str, scheme: &corpus::work_item_id::WorkItemIdScheme) -> bool
 pub fn work::rekey::sequence::sequence_of(id: &str) -> core::option::Option<u64>
