@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -293,4 +294,47 @@ fn http_response(
     let mut bytes = response.into_bytes();
     bytes.extend_from_slice(body);
     bytes
+}
+
+/// Run `run` on a detached thread, failing rather than hanging if it outlasts
+/// `bound`; a panic inside it is re-raised as itself.
+#[allow(clippy::panic)]
+pub fn within<T: Send + 'static>(
+    bound: Duration,
+    what: &str,
+    run: impl FnOnce() -> T + Send + 'static,
+) -> T {
+    let (sender, receiver) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        let _ = sender.send(run());
+    });
+    match receiver.recv_timeout(bound) {
+        Ok(outcome) => outcome,
+        Err(RecvTimeoutError::Timeout) => panic!("{what} blocked"),
+        Err(RecvTimeoutError::Disconnected) => match worker.join() {
+            Err(panic) => std::panic::resume_unwind(panic),
+            Ok(()) => panic!("{what} ended without an outcome"),
+        },
+    }
+}
+
+#[allow(clippy::panic)]
+mod tests {
+    use std::time::Duration;
+
+    use super::within;
+
+    #[test]
+    #[should_panic(expected = "the run blocked")]
+    fn a_run_that_outlasts_its_bound_fails_instead_of_hanging() {
+        within(Duration::from_millis(100), "the run", || {
+            std::thread::sleep(Duration::from_secs(2));
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "boom")]
+    fn a_panic_within_a_bounded_run_is_reraised_not_reported_as_blocked() {
+        within::<()>(Duration::from_secs(10), "the run", || panic!("boom"));
+    }
 }

@@ -11,7 +11,7 @@
 //! than the backstop, which is the only thing that reclaims a generation whose
 //! filesystem cannot answer `flock`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -19,7 +19,7 @@ use kernel::TEMP_PREFIX;
 
 use crate::launch::core::tree::{Clock, TreeError};
 
-use super::layout::{TreePaths, LAYOUT_VERSION};
+use super::layout::{Artifact, TreePaths, LAYOUT_VERSION};
 use super::lease::{Liveness, LivenessProbe};
 
 /// Generations younger than this with no live lease are spared, so a generation
@@ -27,65 +27,95 @@ use super::lease::{Liveness, LivenessProbe};
 /// crash residue. Sized well beyond a fetch-plus-extract.
 const AGE_BACKSTOP: Duration = Duration::from_secs(60 * 60);
 
-/// Reclaim orphan temp residue and unreferenced generations under `trees/`.
-///
-/// A temp archive for the launcher's current expected digest `keep_digest` is
-/// spared, so a resumable download is not reclaimed before the next run can
-/// continue it. Every other temp residue goes; a fully-materialised generation
-/// goes only when no pointer names it, no live lease is held on it, and it is
-/// older than the backstop.
-///
-/// # Errors
-///
-/// [`TreeError::Pointer`] if `trees/` cannot be read.
-pub fn reap_orphans(
-    paths: &TreePaths,
-    clock: &dyn Clock,
-    liveness: &dyn LivenessProbe,
-    keep_digests: &BTreeSet<String>,
-) -> Result<Reclaimed, TreeError> {
-    let root = paths.root();
-    let entries = match std::fs::read_dir(root) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Reclaimed::default())
-        }
-        Err(error) => {
-            return Err(TreeError::Pointer {
-                detail: format!("cannot read the trees directory: {error}"),
-            })
-        }
-    };
+/// Which digest each artifact pins, so a partial archive is judged against
+/// its own artifact's pin rather than the reaping caller's.
+pub trait PinnedDigests {
+    fn pinned_digest(&self, artifact: &Artifact) -> Option<String>;
+}
 
-    let referenced = referenced_generations(root);
-    let mut reclaimed = Reclaimed::default();
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        let path = entry.path();
-        if let Some(residue) = classify(name, keep_digests) {
-            match residue {
-                Residue::TempArchive | Residue::TempTree => {
-                    remove(&path, &mut reclaimed);
-                }
-                Residue::Generation => {
-                    if is_reclaimable_generation(
-                        paths,
-                        name,
-                        &referenced,
-                        clock,
-                        liveness,
-                    ) {
-                        remove(&path, &mut reclaimed);
-                        for sidecar in sidecars_of(paths, name) {
-                            let _ = std::fs::remove_file(sidecar);
-                        }
-                    }
+/// Reclaims residue under `trees/` for a caller holding a tree lock.
+pub struct Reaper<'a> {
+    paths: &'a TreePaths,
+    clock: &'a dyn Clock,
+    liveness: &'a dyn LivenessProbe,
+    pins: &'a dyn PinnedDigests,
+}
+
+impl<'a> Reaper<'a> {
+    #[must_use]
+    pub const fn new(
+        paths: &'a TreePaths,
+        clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
+        pins: &'a dyn PinnedDigests,
+    ) -> Self {
+        Self {
+            paths,
+            clock,
+            liveness,
+            pins,
+        }
+    }
+
+    /// Reclaim orphan temp residue and unreferenced generations under
+    /// `trees/`.
+    ///
+    /// A partial archive whose digest is pinned for its own artifact is
+    /// spared, so a resumable download is not reclaimed before the next run
+    /// can continue it. An entry with no known owner is spared too: it is a
+    /// newer launcher's, on a platform this one does not know. Every other
+    /// temp residue goes; a fully-materialised generation goes only when no
+    /// pointer names it, no live lease is held on it, and it is older than
+    /// the backstop.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Pointer`] if `trees/` cannot be read.
+    pub fn reap_orphans(&self) -> Result<Reclaimed, TreeError> {
+        let names = entry_names(self.paths.root())?;
+        let referenced = referenced_generations(self.paths.root());
+        let mut reclaimed = Reclaimed::default();
+        for (owner, entries) in temp_entries_by_owner(&names) {
+            self.reap_temp_entries_of(&owner, &entries, &mut reclaimed);
+        }
+        self.reap_generations(&names, &referenced, &mut reclaimed);
+        Ok(reclaimed)
+    }
+
+    fn reap_temp_entries_of(
+        &self,
+        owner: &Artifact,
+        entries: &[&str],
+        reclaimed: &mut Reclaimed,
+    ) {
+        for entry in entries {
+            if !is_resumable(entry, owner, self.pins) {
+                remove(&self.paths.root().join(entry), reclaimed);
+            }
+        }
+    }
+
+    fn reap_generations(
+        &self,
+        names: &[String],
+        referenced: &BTreeSet<String>,
+        reclaimed: &mut Reclaimed,
+    ) {
+        for name in names.iter().filter(|name| is_generation(name)) {
+            if is_reclaimable_generation(
+                self.paths,
+                name,
+                referenced,
+                self.clock,
+                self.liveness,
+            ) {
+                remove(&self.paths.generation(name), reclaimed);
+                for sidecar in sidecars_of(self.paths, name) {
+                    let _ = std::fs::remove_file(sidecar);
                 }
             }
         }
     }
-    Ok(reclaimed)
 }
 
 /// How much a reap reclaimed, for the caller to report.
@@ -94,38 +124,49 @@ pub struct Reclaimed {
     pub entries: u64,
 }
 
-enum Residue {
-    TempArchive,
-    TempTree,
-    Generation,
+fn entry_names(root: &Path) -> Result<Vec<String>, TreeError> {
+    match std::fs::read_dir(root) {
+        Ok(entries) => Ok(entries
+            .flatten()
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .collect()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(Vec::new())
+        }
+        Err(error) => Err(TreeError::Pointer {
+            detail: format!("cannot read the trees directory: {error}"),
+        }),
+    }
 }
 
-#[allow(clippy::case_sensitive_file_extension_comparisons)]
-fn classify(name: &str, keep_digests: &BTreeSet<String>) -> Option<Residue> {
-    if let Some(rest) = name.strip_prefix(TEMP_PREFIX) {
-        if rest.ends_with(".archive") {
-            // A partial archive for a digest the launcher still wants is a
-            // resumable download, not an orphan.
-            if keep_digests
-                .iter()
-                .any(|digest| rest.contains(digest.as_str()))
-            {
-                return None;
-            }
-            return Some(Residue::TempArchive);
+/// Lock files and entries with no known owner parse to no owner, so they are
+/// never grouped and never reaped.
+fn temp_entries_by_owner(names: &[String]) -> BTreeMap<Artifact, Vec<&str>> {
+    let mut by_owner: BTreeMap<Artifact, Vec<&str>> = BTreeMap::new();
+    for name in names {
+        if let Some(owner) = Artifact::owning(name) {
+            by_owner.entry(owner).or_default().push(name);
         }
-        if rest.ends_with(".lock") {
-            return None;
-        }
-        return Some(Residue::TempTree);
     }
-    // A generation directory: the fixed grammar, no sidecar suffix.
-    if name.contains(&format!("-{LAYOUT_VERSION}-"))
+    by_owner
+}
+
+fn is_resumable(
+    entry: &str,
+    owner: &Artifact,
+    pins: &dyn PinnedDigests,
+) -> bool {
+    owner.partial_archive_digest(entry).is_some_and(|digest| {
+        pins.pinned_digest(owner).as_deref() == Some(digest)
+    })
+}
+
+/// A generation directory: the fixed grammar, no sidecar suffix, and never a
+/// temp entry, which only the temp arm may judge.
+fn is_generation(name: &str) -> bool {
+    !name.starts_with(TEMP_PREFIX)
+        && name.contains(&format!("-{LAYOUT_VERSION}-"))
         && !has_sidecar_suffix(name)
-    {
-        return Some(Residue::Generation);
-    }
-    None
 }
 
 fn has_sidecar_suffix(name: &str) -> bool {
@@ -316,10 +357,9 @@ mod tests {
     use super::super::lease::{take_single_flight, FlockProbe, Liveness};
     use super::super::testing::{logged, within, BLOCKING_BOUND};
     use super::{
-        generation_is_aged, orphan_is_reclaimable, reap_orphans,
-        restart_backstop, sidecars_of, superseded_disposition,
-        unclaimed_is_reclaimable, Reclaimed, SupersededDisposition,
-        AGE_BACKSTOP,
+        generation_is_aged, orphan_is_reclaimable, restart_backstop,
+        sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
+        PinnedDigests, Reaper, Reclaimed, SupersededDisposition, AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -373,6 +413,12 @@ mod tests {
     #[derive(Default)]
     struct Pins(BTreeMap<Artifact, String>);
 
+    impl PinnedDigests for Pins {
+        fn pinned_digest(&self, artifact: &Artifact) -> Option<String> {
+            self.0.get(artifact).cloned()
+        }
+    }
+
     impl Pins {
         fn pinning(pins: &[(Artifact, &str)]) -> Self {
             Self(
@@ -401,8 +447,7 @@ mod tests {
         let root = root.to_owned();
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
             let paths = TreePaths::under(&root);
-            let keep = pins.0.get(&y()).cloned().into_iter().collect();
-            reap_orphans(&paths, &clock, &FlockProbe, &keep)
+            Reaper::new(&paths, &clock, &FlockProbe, &pins).reap_orphans()
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome
@@ -509,6 +554,77 @@ mod tests {
             assert!(!entry.exists(), "{} survived", entry.display());
         }
         assert!(resumable.exists(), "the resumable archive was reaped");
+    }
+
+    fn x() -> Artifact {
+        Artifact::new("browser", PLATFORM)
+    }
+
+    const X_DIGEST: &str =
+        "eee0000000000000000000000000000000000000000000000000000000000eee";
+
+    fn create_free_lock(paths: &TreePaths, owner: &Artifact) {
+        drop(
+            take_single_flight(&paths.single_flight_lock_of(owner))
+                .expect("lock file"),
+        );
+    }
+
+    #[test]
+    fn another_artifacts_pinned_archive_survives() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        create_free_lock(&paths, &x());
+        let pinned = plant_archive(&paths, &x(), X_DIGEST);
+
+        reap_for_y(
+            dir.path(),
+            Pins::pinning(&[(y(), DIGEST), (x(), X_DIGEST)]),
+        )
+        .expect("reap");
+
+        assert!(pinned.exists(), "another artifact's pinned archive went");
+    }
+
+    #[test]
+    fn an_archive_pinned_only_for_another_artifact_is_reclaimed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        create_free_lock(&paths, &x());
+        let pinned_for_y = plant_archive(&paths, &x(), DIGEST);
+
+        reap_for_y(dir.path(), Pins::pinning(&[(y(), DIGEST)])).expect("reap");
+
+        assert!(
+            !pinned_for_y.exists(),
+            "an archive spared by another artifact's pin survived"
+        );
+    }
+
+    #[test]
+    fn entries_with_no_known_owner_survive() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let musl = Artifact::new("browser", "linux-x64-musl");
+        let orphan = paths.root().join(".tmp-orphan-residue");
+        fs::create_dir(&orphan).expect("orphan");
+        let nameless =
+            plant_archive(&paths, &Artifact::new("", PLATFORM), DIGEST);
+        let musl_archive = plant_archive(&paths, &musl, DIGEST);
+        let musl_tree = paths.temp_generation(&generation_name(
+            musl.name(),
+            musl.platform(),
+            DIGEST,
+            LAYOUT_VERSION,
+            SUFFIX,
+        ));
+        fs::create_dir(&musl_tree).expect("musl temp tree");
+
+        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+
+        for entry in [orphan, nameless, musl_archive, musl_tree] {
+            assert!(entry.exists(), "{} was reaped", entry.display());
+        }
     }
 
     #[test]
