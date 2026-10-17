@@ -22,7 +22,7 @@ use super::super::manifest::Manifest;
 use super::attestation::Attestation;
 use super::layout::{
     generation_name, generation_prefix, is_privately_owned,
-    validated_generation, TreePaths, LAYOUT_VERSION,
+    validated_generation, Artifact, TreePaths, LAYOUT_VERSION,
 };
 use super::lease::{take_single_flight, try_single_flight, LivenessProbe};
 use super::table::{FileTable, TABLE_NAME};
@@ -120,9 +120,24 @@ pub struct TreeResolver<'a> {
     pub steps: &'a dyn StepObserver,
 }
 
+impl reap::PinnedDigests for ExpectedDigests {
+    fn pinned_digest(&self, artifact: &Artifact) -> Option<String> {
+        self.digest_for(artifact.name(), artifact.platform())
+    }
+}
+
 impl TreeResolver<'_> {
     fn paths(&self) -> TreePaths {
         TreePaths::under(&self.cache_root)
+    }
+
+    fn reaper<'r>(&'r self, paths: &'r TreePaths) -> reap::Reaper<'r> {
+        reap::Reaper::new(
+            paths,
+            self.clock,
+            self.liveness,
+            &self.expected_digests,
+        )
     }
 
     /// The digest this launcher expects for `artifact`, or a miss-shaped `None`
@@ -610,14 +625,7 @@ impl MaterialiseTree for TreeResolver<'_> {
                     ));
                 }
                 let sealed = self.materialise_locked(artifact, digest)?;
-                let mut keep = BTreeSet::new();
-                keep.insert(digest.to_owned());
-                let _ = reap::reap_orphans(
-                    &paths,
-                    self.clock,
-                    self.liveness,
-                    &keep,
-                );
+                let _ = self.reaper(&paths).reap_orphans();
                 return Ok(sealed);
             }
 
@@ -729,7 +737,7 @@ impl TreeResolver<'_> {
     ///
     /// Runs under the lock the reaper requires, so it and a concurrent
     /// materialisation of a different artifact cannot disagree about `trees/`.
-    /// The artifact's current expected digest is spared, so a resumable partial
+    /// Every artifact's pinned partial archive is spared, so a resumable
     /// download survives.
     ///
     /// # Errors
@@ -752,12 +760,7 @@ impl TreeResolver<'_> {
         let mut reclaimed =
             self.reclaim_unclaimed(&paths, artifact, older_than);
 
-        let mut keep = BTreeSet::new();
-        if let Some(digest) = self.expected_digest(artifact) {
-            keep.insert(digest);
-        }
-        let orphans =
-            reap::reap_orphans(&paths, self.clock, self.liveness, &keep)?;
+        let orphans = self.reaper(&paths).reap_orphans()?;
         reclaimed.entries += orphans.entries;
         Ok(reclaimed)
     }

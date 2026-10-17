@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use common::{MockHTTPServer, Route};
 use sha2::{Digest as _, Sha256};
@@ -38,6 +39,20 @@ use std::os::unix::fs::PermissionsExt as _;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ARTIFACT: &str = "driver";
+const BYSTANDER: &str = "browser";
+
+/// Distinct from the harness's archive digest, which a keep set holding only
+/// `ARTIFACT`'s pin would spare by accident.
+fn bystander_digest() -> String {
+    "b".repeat(64)
+}
+
+fn pinning(artifact: &str, digest: &str) -> BTreeMap<(String, String), String> {
+    BTreeMap::from([(
+        (artifact.to_owned(), HOST_PLATFORM.to_owned()),
+        digest.to_owned(),
+    )])
+}
 
 /// A clock the tests do not need to advance.
 struct StoppedClock;
@@ -305,6 +320,18 @@ impl Harness {
         )
     }
 
+    fn resolver_also_pinning_bystander(&self) -> TreeResolver<'_> {
+        let mut digests = pinning(ARTIFACT, &self.archive_sha);
+        digests.extend(pinning(BYSTANDER, &bystander_digest()));
+        self.resolver_pinning(
+            digests,
+            "test-install",
+            &StoppedClock,
+            &FlockProbe,
+            &NoSteps,
+        )
+    }
+
     fn resolver_over<'a>(
         &'a self,
         digest: &str,
@@ -313,11 +340,23 @@ impl Harness {
         liveness: &'a dyn LivenessProbe,
         steps: &'a dyn StepObserver,
     ) -> TreeResolver<'a> {
-        let mut digests = BTreeMap::new();
-        digests.insert(
-            (ARTIFACT.to_owned(), HOST_PLATFORM.to_owned()),
-            digest.to_owned(),
-        );
+        self.resolver_pinning(
+            pinning(ARTIFACT, digest),
+            launcher_id,
+            clock,
+            liveness,
+            steps,
+        )
+    }
+
+    fn resolver_pinning<'a>(
+        &'a self,
+        digests: BTreeMap<(String, String), String>,
+        launcher_id: &str,
+        clock: &'a dyn Clock,
+        liveness: &'a dyn LivenessProbe,
+        steps: &'a dyn StepObserver,
+    ) -> TreeResolver<'a> {
         TreeResolver {
             cache_root: self.cache.clone(),
             base_url: self.server.base_url(),
@@ -908,18 +947,121 @@ fn every_cache_verb_refuses_an_unknown_name_without_touching_the_filesystem() {
 }
 
 #[test]
-fn cache_prune_reclaims_orphan_residue() {
+fn cache_prune_reclaims_owned_orphans_and_keeps_unowned_ones() {
     let minisign = minisign_or_skip!();
     let harness = happy_harness(&minisign);
-    std::fs::create_dir_all(harness.cache.join("trees")).unwrap();
-    // An orphan temp tree the reaper should reclaim.
-    let orphan = harness.cache.join("trees/.tmp-orphan");
-    std::fs::create_dir(&orphan).unwrap();
+    let paths = tree_paths(&harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    let owned =
+        paths.temp_generation(&sibling_generation(&harness.archive_sha));
+    std::fs::create_dir(&owned).unwrap();
+    let unowned = paths.root().join(".tmp-orphan");
+    std::fs::create_dir(&unowned).unwrap();
 
     let out = run_cache(&harness, &CacheAction::Prune { older_than: None })
         .expect("prune");
-    assert!(String::from_utf8_lossy(&out).contains("reclaimed"));
-    assert!(!orphan.exists(), "prune left an orphan temp tree");
+
+    assert!(
+        String::from_utf8_lossy(&out).contains("reclaimed 1 entries"),
+        "{}",
+        String::from_utf8_lossy(&out)
+    );
+    assert!(!owned.exists(), "prune left an owned orphan temp tree");
+    assert!(unowned.exists(), "prune removed residue nobody owns");
+}
+
+fn lock_files(harness: &Harness) -> Vec<String> {
+    let mut locks: Vec<String> = std::fs::read_dir(tree_paths(harness).root())
+        .unwrap()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| {
+            name.starts_with(".tmp-")
+                && std::path::Path::new(name)
+                    .extension()
+                    .is_some_and(|extension| extension == "lock")
+        })
+        .collect();
+    locks.sort();
+    locks
+}
+
+/// Run a resolution against `harness` under the 10s bound, asserting that it
+/// neither creates nor removes a lock file.
+fn within_bound<T: Send + 'static>(
+    harness: &Arc<Harness>,
+    run: impl FnOnce(&Harness) -> T + Send + 'static,
+) -> T {
+    let locks_before = lock_files(harness);
+    let bounded = Arc::clone(harness);
+    let outcome = common::within(
+        std::time::Duration::from_secs(10),
+        "the resolution",
+        move || run(&bounded),
+    );
+    assert_eq!(lock_files(harness), locks_before, "a lock file changed");
+    outcome
+}
+
+/// A materialise creates its own lock file, so the lock-file set can only be
+/// compared across one once both artifacts' lock files exist.
+fn create_free_tree_locks(harness: &Harness) {
+    use accelerator::launch::outbound::resolve::tree::lease::take_single_flight;
+
+    let paths = tree_paths(harness);
+    std::fs::create_dir_all(paths.root()).unwrap();
+    for artifact in [ARTIFACT, BYSTANDER] {
+        drop(
+            take_single_flight(
+                &paths.single_flight_lock(artifact, HOST_PLATFORM),
+            )
+            .unwrap(),
+        );
+    }
+}
+
+fn plant_bystanders_pinned_archive(harness: &Harness) -> PathBuf {
+    let archive = tree_paths(harness).temp_archive(
+        BYSTANDER,
+        HOST_PLATFORM,
+        &bystander_digest(),
+    );
+    std::fs::write(&archive, b"resumable").unwrap();
+    archive
+}
+
+#[test]
+fn another_artifacts_pinned_archive_survives_a_materialise() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    create_free_tree_locks(&harness);
+    let pinned = plant_bystanders_pinned_archive(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .materialise(ARTIFACT)
+    })
+    .expect("materialise");
+
+    assert!(pinned.exists(), "the bystander's pinned archive was reaped");
+}
+
+#[test]
+fn another_artifacts_pinned_archive_survives_a_prune() {
+    let minisign = minisign_or_skip!();
+    let harness = Arc::new(happy_harness(&minisign));
+    create_free_tree_locks(&harness);
+    let pinned = plant_bystanders_pinned_archive(&harness);
+
+    within_bound(&harness, |harness| {
+        harness
+            .resolver_also_pinning_bystander()
+            .prune(ARTIFACT, None)
+    })
+    .expect("prune");
+
+    assert!(pinned.exists(), "the bystander's pinned archive was reaped");
 }
 
 use accelerator::launch::outbound::resolve::tree::claims;
