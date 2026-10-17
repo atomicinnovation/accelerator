@@ -5,7 +5,7 @@
     "executor_model": "<model-name>",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-04-25T14:30:00Z",
-    "evals_run": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36],
+    "evals_run": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37],
     "runs_per_configuration": 1
   },
   "runs": [
@@ -423,6 +423,18 @@
         {"text": "Skill does NOT spawn a documents-locator agent for exactly 30 work items", "passed": true, "evidence": "No Agent invocation for documents-locator appears; the count of 30 is at or below the threshold."}
       ],
       "notes": []
+    },
+    {
+      "eval_id": 37,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 0.0, "tokens": 0, "tool_calls": 0, "errors": 0},
+      "expectations": [
+        {"text": "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it", "passed": true, "evidence": "response.md: \"an `accelerator work rekey` run is unfinished\" and \"finish the re-key with `accelerator work rekey`\"."},
+        {"text": "response.md names `accelerator work rekey --discard` to undo it", "passed": true, "evidence": "response.md: \"undo it with `accelerator work rekey --discard`\"."},
+        {"text": "files.md says no child file was written and the parent was not edited", "passed": true, "evidence": "files.md: none; response.md: \"No child files were created and meta/work/0042-search.md is unchanged.\""}
+      ],
+      "notes": []
     }
   ],
   "run_summary": {
@@ -452,5 +464,7 @@
       "tokens": "+0"
     }
   },
-  "notes": []
+  "notes": [
+    "Eval 37 (an in-progress re-key routed to `accelerator work rekey`) was run with_skill only on 2026-10-17, by claude-opus-5-5, and passed first time."
+  ]
 }

@@ -423,6 +423,20 @@ changes before I write it to disk:
 
 ## Step 5: Write Work Item
 
+**A re-key in progress.** `accelerator work next-number` and
+`accelerator work create` (with or without `--push`) refuse before reading or
+writing anything while an `accelerator work rekey` run is unfinished. Before
+any other branch on a non-zero exit from one of them, check its stderr for
+these codes; in every case nothing was written:
+
+- `E_REKEY_IN_PROGRESS` (exit 4) — tell the user a re-key is unfinished:
+  finish it with `accelerator work rekey`, or undo it with
+  `accelerator work rekey --discard`. Stop.
+- `E_REKEY_PLAN_UNREADABLE` (exit 4) — relay the printed remedy as is, never
+  suggesting the re-key be finished. Stop.
+- `E_IDENTITY_RUN_BUSY` (exit 1) — another identity command is still running;
+  retry once it ends.
+
 Under `{tracker}`, skip steps 1–3: there is no projected ID. The tracker
 assigns the key on a push, and `accelerator work create` mints the draft ID
 itself, so its first stdout line is the only path to report.

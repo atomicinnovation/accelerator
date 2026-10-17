@@ -433,6 +433,19 @@
         "commands.md shows no call to accelerator work next-number and no file written by hand",
         "The response names meta/work/drafts/draft-p4t9wz-dark-mode.md as a draft"
       ]
+    },
+    {
+      "id": 37,
+      "name": "routes_an_in_progress_rekey",
+      "prompt": "Read skills/work/create-work-item/SKILL.md fully. You are running the create-work-item skill.\n\nThe injected **ID pattern** is `{number:04d}` and **Active integration** is empty. The user approved the draft of a task titled \"Add search\" (kind task, priority medium) and you are at Step 5. Simulate `accelerator work next-number` exiting 4 with this stderr:\n\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run in Step 5, in order, in full.\n- response.md: everything you tell the user in Step 5, in order.\n- files.md: every file you write or edit in Step 5, or `none`.",
+      "expected_output": "The skill stops at the refused next-number call: it tells the user a re-key is unfinished, to finish it with accelerator work rekey or undo it with accelerator work rekey --discard, runs no accelerator work create and writes no file.",
+      "files": [],
+      "expectations": [
+        "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it",
+        "response.md names `accelerator work rekey --discard` to undo it",
+        "commands.md shows the next-number call and no accelerator work create",
+        "files.md says no file was written or edited"
+      ]
     }
   ]
 }

@@ -164,6 +164,19 @@
         "The second manifest's entry has parent \"work-item:draft-a1b2c3\", not an in-batch {\"ref\": ...} parent",
         "Neither the epic nor Typo-tolerant search appears in the second manifest"
       ]
+    },
+    {
+      "id": 12,
+      "name": "routes_an_in_progress_rekey",
+      "prompt": "Read skills/work/extract-work-items/SKILL.md fully. You are running the extract-work-items skill.\n\nThe injected **ID pattern** is `{tracker}` and **Active integration** is `linear`. Two candidates were approved in Step 3: a story \"Typo-tolerant search\" (priority medium) and a story \"Search analytics\" (priority low). The author resolves to \"Ada Lovelace\". You are at Step 4. Present the push offer; the user declines. Simulate `accelerator work create-batch` exiting 4 with empty stdout and this stderr:\n\nError: E_REKEY_IN_PROGRESS: a re-key run is in progress. Run `accelerator work rekey` to finish it; to undo it instead, run `accelerator work rekey --discard`, which lists the paths to restore.\n\nSave to outputs/:\n- commands.md: every `accelerator` command you run, in order, in full.\n- response.md: everything you tell the user after the create-batch call, in order.\n- files.md: every work-item file you write or edit, or `none`.",
+      "expected_output": "One create-batch call. The skill tells the user a re-key is unfinished, to finish it with accelerator work rekey or undo it with accelerator work rekey --discard, does not re-run create-batch, and writes no work item by hand.",
+      "files": [],
+      "expectations": [
+        "response.md says a re-key is unfinished and names `accelerator work rekey` to finish it",
+        "response.md names `accelerator work rekey --discard` to undo it",
+        "commands.md shows exactly one accelerator work create-batch call",
+        "files.md says no work-item file was written or edited"
+      ]
     }
   ]
 }
