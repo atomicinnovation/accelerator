@@ -584,9 +584,14 @@ fn run_rekey(args: &cli::RekeyArgs) -> ExitCode {
         |root: &Path| -> Box<dyn work_adapters::creation::CreationStore> {
             Box::new(corpus_adapters::FileCorpusStore::new(root))
         };
+    let service: &dyn ConfigAccess = &composed.service;
+    let registry = tracker_registry::ConfiguredTrackers::new(
+        service,
+        config_adapters::FileConfigStore::discover_root(&start),
+    );
     ExitCode::from(rekey::run(
         &start,
-        &composed.service,
+        service,
         args,
         &rekey::RekeyEnvironment {
             forcing: if forced {
@@ -596,6 +601,7 @@ fn run_rekey(args: &cli::RekeyArgs) -> ExitCode {
             },
             repository: &vcs_adapters::library::InProcessProbe,
             store_at: &store_at,
+            registry: &registry,
             console: &rekey::Terminal,
         },
     ))

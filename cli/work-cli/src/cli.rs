@@ -159,13 +159,17 @@ pub enum Command {
     /// rekey`, and refuses over uncommitted changes, so a VCS revert can
     /// undo it. Prints one `<old> → <new>\t<path>` line per item re-keyed.
     /// `--preview` records the mapping without applying it, and a later
-    /// `work rekey` applies exactly what it showed.
+    /// `work rekey` applies exactly what it showed. Under `{tracker}`, a
+    /// synced item takes its issue's current key, read from the tracker,
+    /// and an unsynced item becomes a draft.
     ///
     /// Exit codes: 0 re-keyed, previewed, nothing to re-key, or discarded;
     /// 4 the run stopped pending a human, each refusal printing an
     /// `E_REKEY_*` code and its remedy (see `exit_codes`); 1 the run plan
     /// cannot be saved (`E_REKEY_STATE_UNWRITABLE`) or another identity
-    /// command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`).
+    /// command still holds the identity-run lock (`E_IDENTITY_RUN_BUSY`);
+    /// 70 the tracker could not be read (`E_REKEY_TRACKER_UNREACHABLE`);
+    /// 72-74 the tracker cannot be selected or configured.
     Rekey(Box<RekeyArgs>),
 }
 
@@ -443,6 +447,11 @@ pub struct RekeyArgs {
     /// read or whose paths have changed.
     #[arg(long)]
     pub discard: bool,
+    /// Read each synced item's issue with its own request instead of one
+    /// bulk retrieval, as for `work sync`; applies only when a
+    /// `{tracker}` mapping is computed.
+    #[arg(long)]
+    pub per_item_reads: bool,
 }
 
 #[cfg(test)]

@@ -3,26 +3,32 @@
 //! mapping for a later apply; or discards a proposed run, or one a revert
 //! has undone.
 
+use std::cell::Cell;
+use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 
 use ::config::ConfigAccess;
-use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
+use tracker::ExternalId;
 use vcs::guarded_working_copy::GUARDED_SCOPES;
 use vcs::RepositoryProbe;
 use work::rekey::entry::RekeyEntry;
+use work::rekey::mapping::RefreshedKeys;
 use work::rekey::outcome::unreverted_listing;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
 use work_adapters::creation::CreationStore;
+use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::identity_run::waiting_line;
 use work_adapters::identity_run_lock::IdentityRunLock;
 use work_adapters::rekey::execute::RekeyCorpus;
 use work_adapters::rekey::guards::PendingPushDir;
 use work_adapters::rekey::guards::SyncState;
+use work_adapters::rekey::refresh::refresh_external_ids;
 use work_adapters::rekey::run::Forcing;
+use work_adapters::rekey::run::KeyRefresh;
 use work_adapters::rekey::run::RekeyAction;
 use work_adapters::rekey::run::RekeyPorts;
 use work_adapters::rekey::run::RekeyProgress;
@@ -30,14 +36,14 @@ use work_adapters::rekey::run::RekeyReport;
 use work_adapters::rekey::run::RekeyRequest;
 use work_adapters::rekey::run_plan_store::FileRunPlanStore;
 use work_adapters::sync::baseline_store::BaselineStore;
+use work_adapters::sync::fetch::RetrievalStrategy;
 
 use crate::cli::RekeyArgs;
 use crate::exit_codes;
 use crate::identity_workspace::CorpusWorkspace;
 use crate::identity_workspace::IdentityWorkspace;
-
-pub const E_REKEY_TRACKER_PATTERN_PENDING: &str =
-    "E_REKEY_TRACKER_PATTERN_PENDING";
+use crate::tracker_registry::SelectionError;
+use crate::tracker_registry::TrackerRegistry;
 
 /// Where a run's lines go: stdout for what changed, stderr for the rest.
 pub trait Console {
@@ -62,6 +68,7 @@ pub struct RekeyEnvironment<'a> {
     pub forcing: Forcing,
     pub repository: &'a dyn RepositoryProbe,
     pub store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
+    pub registry: &'a dyn TrackerRegistry,
     pub console: &'a dyn Console,
 }
 
@@ -97,6 +104,39 @@ impl RekeyProgress for Shown<'_> {
         }
         for recovery in recoveries {
             self.0.err(&format!("  recovery: {}", recovery.display()));
+        }
+    }
+}
+
+/// Resolves the configured tracker only when a run first asks for keys,
+/// keeping why it could not, since a selection failure exits with its own
+/// code rather than as a re-key refusal.
+struct ConfiguredRefresh<'a> {
+    registry: &'a dyn TrackerRegistry,
+    integration: &'a str,
+    strategy: RetrievalStrategy,
+    asked: Cell<bool>,
+    unselectable: RefCell<Option<SelectionError>>,
+}
+
+impl KeyRefresh for ConfiguredRefresh<'_> {
+    fn refresh(
+        &self,
+        keys: &[ExternalId],
+    ) -> Result<RefreshedKeys, NotRekeyed> {
+        self.asked.set(true);
+        if keys.is_empty() {
+            return Ok(RefreshedKeys::default());
+        }
+        match self.registry.resolve(self.integration) {
+            Ok(tracker) => {
+                refresh_external_ids(keys, tracker.as_ref(), self.strategy)
+            }
+            Err(selection) => {
+                let message = selection.message();
+                *self.unselectable.borrow_mut() = Some(selection);
+                Err(NotRekeyed::TrackerUnreachable(message))
+            }
         }
     }
 }
@@ -231,14 +271,6 @@ pub fn run(
         Ok(located) => located,
         Err(error) => return internal(error.to_string()),
     };
-    if located.scheme.ownership() == IdOwnership::Tracker {
-        console.err(&format!(
-            "Error: {E_REKEY_TRACKER_PATTERN_PENDING}: re-keying is not yet \
-             supported under `{{tracker}}`. Re-key under a numeric pattern, \
-             or wait for a release that supports it."
-        ));
-        return exit_codes::UNRESOLVED;
-    }
     let workspace = match Workspace::open(config, &located) {
         Ok(workspace) => workspace,
         Err(message) => return internal(message),
@@ -248,7 +280,29 @@ pub fn run(
         forcing: environment.forcing,
         scheme: located.scheme.clone(),
     };
-    match rekey(&request, &located, &workspace, environment) {
+    let refresh = ConfiguredRefresh {
+        registry: environment.registry,
+        integration: located.integration.as_deref().unwrap_or_default(),
+        strategy: if args.per_item_reads {
+            RetrievalStrategy::PerItem
+        } else {
+            RetrievalStrategy::Bulk
+        },
+        asked: Cell::new(false),
+        unselectable: RefCell::new(None),
+    };
+    let outcome = rekey(&request, &located, &workspace, environment, &refresh);
+    if args.per_item_reads && !refresh.asked.get() {
+        console.err(
+            "note: --per-item-reads was ignored: it applies only when a \
+             `{tracker}` mapping is computed",
+        );
+    }
+    if let Some(selection) = refresh.unselectable.take() {
+        console.err(&format!("Error: {}", selection.message()));
+        return crate::create::dispatch_code_for_selection_error(&selection);
+    }
+    match outcome {
         Ok(report) => {
             render(&report, console);
             exit_codes::CLEAN
@@ -265,6 +319,7 @@ fn rekey(
     located: &Located,
     workspace: &Workspace,
     environment: &RekeyEnvironment<'_>,
+    refresh: &dyn KeyRefresh,
 ) -> Result<RekeyReport, NotRekeyed> {
     let root = &located.root;
     let corpus = workspace.corpus();
@@ -320,6 +375,8 @@ fn rekey(
             repository: environment.repository,
             scopes: &scopes,
             progress: &progress,
+            refresh,
+            draws: &RefCell::new(RandomSuffixDraws),
         },
     )
 }
@@ -392,6 +449,13 @@ mod tests {
     use corpus::store::FileRemove;
     use corpus::StoreError;
     use corpus_adapters::FileCorpusStore;
+    use tracker::ExternalId;
+    use tracker::RemoteIssue;
+    use tracker::RemoteTimestamp;
+    use tracker::RemoteTracker;
+    use tracker::TrackerError;
+    use tracker_test_support::Call;
+    use tracker_test_support::RecordingTracker;
     use vcs::RepoFacts;
     use vcs::RepositoryProbe;
     use vcs::VcsKind;
@@ -415,6 +479,9 @@ mod tests {
     use super::Console;
     use super::RekeyEnvironment;
     use crate::cli::RekeyArgs;
+    use crate::test_support::StubRegistry;
+    use crate::tracker_registry::SelectionError;
+    use crate::tracker_registry::TrackerRegistry;
 
     pub const KEYED: &str =
         "---\nwork:\n  id_pattern: \"{key}-{number:04d}\"\n  key: ACC\n---\n";
@@ -531,6 +598,65 @@ mod tests {
         Discard,
     }
 
+    struct Invocation<'a> {
+        action: Action,
+        forcing: Forcing,
+        repository: &'a dyn RepositoryProbe,
+        store_at: &'a dyn Fn(&Path) -> Box<dyn CreationStore>,
+        registry: &'a dyn TrackerRegistry,
+        per_item_reads: bool,
+    }
+
+    fn issue(key: &str) -> (ExternalId, RemoteIssue) {
+        (
+            ExternalId::new(key.to_owned()),
+            RemoteIssue {
+                key: ExternalId::new(key.to_owned()),
+                updated: RemoteTimestamp::Reported("2026-10-01".to_owned()),
+                body: String::new(),
+            },
+        )
+    }
+
+    fn external(key: &str) -> ExternalId {
+        ExternalId::new(key.to_owned())
+    }
+
+    /// A registry resolving `tracker`, and the tracker itself to read its
+    /// calls back from.
+    fn resolving(
+        tracker: RecordingTracker,
+    ) -> (StubRegistry, Rc<RecordingTracker>) {
+        let tracker = Rc::new(tracker);
+        (StubRegistry(Rc::clone(&tracker)), tracker)
+    }
+
+    fn holding(keys: &[&str]) -> (StubRegistry, Rc<RecordingTracker>) {
+        resolving(RecordingTracker::holding(
+            keys.iter().map(|key| issue(key)).collect(),
+        ))
+    }
+
+    /// A registry that cannot select a tracker, for the reason `selection`
+    /// gives.
+    struct Unselectable(fn() -> SelectionError);
+
+    impl TrackerRegistry for Unselectable {
+        fn resolve(
+            &self,
+            _name: &str,
+        ) -> Result<Box<dyn RemoteTracker>, SelectionError> {
+            Err((self.0)())
+        }
+    }
+
+    fn unconfigured() -> SelectionError {
+        SelectionError::Unconfigured {
+            name: "linear".to_owned(),
+            source: "no credentials".into(),
+        }
+    }
+
     pub struct Repo {
         dir: tempfile::TempDir,
         _env_dir: tempfile::TempDir,
@@ -603,6 +729,17 @@ mod tests {
             repository: &dyn RepositoryProbe,
             store_at: &dyn Fn(&Path) -> Box<dyn CreationStore>,
         ) -> Ran {
+            self.invoked(&Invocation {
+                action,
+                forcing,
+                repository,
+                store_at,
+                registry: &holding(&[]).0,
+                per_item_reads: false,
+            })
+        }
+
+        fn invoked(&self, invocation: &Invocation<'_>) -> Ran {
             let console = Recorded::default();
             let composed = config_adapters::compose(
                 self.root(),
@@ -613,13 +750,15 @@ mod tests {
                 self.root(),
                 &composed.service,
                 &RekeyArgs {
-                    preview: action == Action::Preview,
-                    discard: action == Action::Discard,
+                    preview: invocation.action == Action::Preview,
+                    discard: invocation.action == Action::Discard,
+                    per_item_reads: invocation.per_item_reads,
                 },
                 &RekeyEnvironment {
-                    forcing,
-                    repository,
-                    store_at,
+                    forcing: invocation.forcing,
+                    repository: invocation.repository,
+                    store_at: invocation.store_at,
+                    registry: invocation.registry,
                     console: &console,
                 },
             );
@@ -661,8 +800,29 @@ mod tests {
             )
         }
 
+        fn through(
+            &self,
+            action: Action,
+            registry: &dyn TrackerRegistry,
+        ) -> Ran {
+            self.invoked(&Invocation {
+                action,
+                forcing: Forcing::Unforced,
+                repository: &InProcessProbe,
+                store_at: &plain,
+                registry,
+                per_item_reads: false,
+            })
+        }
+
         /// Kills a `work rekey` at its `at`th write.
         fn halt_at(&self, at: usize) {
+            self.halt_through(at, &holding(&[]).0);
+        }
+
+        /// Kills a `work rekey` resolving its tracker from `registry` at its
+        /// `at`th write.
+        fn halt_through(&self, at: usize, registry: &dyn TrackerRegistry) {
             let count = Rc::new(Cell::new(0));
             let store_at = |root: &Path| -> Box<dyn CreationStore> {
                 Box::new(Halting {
@@ -673,12 +833,14 @@ mod tests {
             };
             let halted =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    self.ran_with(
-                        Action::Apply,
-                        Forcing::Unforced,
-                        &InProcessProbe,
-                        &store_at,
-                    )
+                    self.invoked(&Invocation {
+                        action: Action::Apply,
+                        forcing: Forcing::Unforced,
+                        repository: &InProcessProbe,
+                        store_at: &store_at,
+                        registry,
+                        per_item_reads: false,
+                    })
                 }));
             assert!(halted.is_err(), "the run finished before write {at}");
         }
@@ -1232,25 +1394,6 @@ mod tests {
         assert_eq!(repo.tree(), after);
     }
 
-    #[test]
-    fn the_tracker_pattern_is_refused_until_supported() {
-        let repo = Repo::with(
-            TRACKER,
-            &[("meta/work/0042-search.md", &item("0042", "Search", ""))],
-        );
-        let before = repo.tree();
-
-        let ran = repo.rekey();
-
-        assert_eq!(ran.code, 4, "{ran:?}");
-        assert!(
-            ran.err
-                .starts_with("Error: E_REKEY_TRACKER_PATTERN_PENDING"),
-            "{ran:?}"
-        );
-        assert_eq!(repo.tree(), before);
-    }
-
     fn previewed_lines(ran: &Ran) -> Vec<String> {
         ran.out
             .iter()
@@ -1636,5 +1779,467 @@ mod tests {
             assert_eq!(ran.code, 4, "{name}: {ran:?}");
             assert_eq!(repo.read(RUN_PLAN), proposed, "{name}");
         }
+    }
+
+    fn linked(id: &str, title: &str, key: &str) -> String {
+        item(id, title, &format!("external_id: \"{key}\"\n"))
+    }
+
+    fn tracker_legacy() -> Repo {
+        Repo::with(
+            TRACKER,
+            &[
+                (
+                    "meta/work/0042-search.md",
+                    &linked("0042", "Search", "PP-760"),
+                ),
+                (
+                    "meta/notes/n.md",
+                    "See work-item:0042, [search](../work/0042-search.md) and \
+                     ticket 0042.\n",
+                ),
+            ],
+        )
+    }
+
+    fn tracker_pair() -> Repo {
+        Repo::with(
+            TRACKER,
+            &[
+                ("meta/work/0041-first.md", &linked("0041", "First", "PP-41")),
+                ("meta/work/0042-second.md", &linked("0042", "Second", "PP-42")),
+                (
+                    "meta/notes/links.md",
+                    "See work-item:0041 and [second](../work/0042-second.md).\n",
+                ),
+            ],
+        )
+    }
+
+    fn assert_unchanged(repo: &Repo, before: &BTreeMap<String, String>) {
+        assert_eq!(&repo.tree(), before);
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn a_legacy_item_is_renamed_to_its_tracker_key_and_numeric_prose_is_left() {
+        let repo = tracker_legacy();
+        let (registry, _) = holding(&["PP-760"]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(ran.out, vec!["0042 → PP-760\tmeta/work/PP-760-search.md"]);
+        assert_eq!(repo.read("meta/work/0042-search.md"), None);
+        assert_eq!(
+            repo.read("meta/notes/n.md").as_deref(),
+            Some(
+                "See work-item:PP-760, [search](../work/PP-760-search.md) \
+                 and ticket 0042.\n"
+            )
+        );
+    }
+
+    #[test]
+    fn a_legacy_item_follows_a_moved_key() {
+        let repo = tracker_legacy();
+        let (registry, _) = resolving(
+            RecordingTracker::holding(vec![issue("PP-760")])
+                .moving(&external("PP-760"), &external("ENG-42")),
+        );
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(ran.out, vec!["0042 → ENG-42\tmeta/work/ENG-42-search.md"]);
+        let retired = repo.read("meta/work/ENG-42-search.md").unwrap();
+        assert!(retired.contains("\nexternal_id: \"ENG-42\"\n"), "{retired}");
+    }
+
+    #[test]
+    fn a_synced_item_follows_a_moved_key() {
+        let repo = Repo::with(
+            TRACKER,
+            &[(
+                "meta/work/PP-760-search.md",
+                &linked("PP-760", "Search", "PP-760"),
+            )],
+        );
+        let (registry, _) = resolving(
+            RecordingTracker::holding(vec![issue("PP-760")])
+                .moving(&external("PP-760"), &external("ENG-42")),
+        );
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(
+            ran.out,
+            vec!["PP-760 → ENG-42\tmeta/work/ENG-42-search.md"]
+        );
+        let retired = repo.read("meta/work/ENG-42-search.md").unwrap();
+        assert!(retired.contains("\nexternal_id: \"ENG-42\"\n"), "{retired}");
+        assert!(retired.contains("\naliases: [\"PP-760\"]\n"), "{retired}");
+    }
+
+    #[test]
+    fn an_unmoved_synced_item_is_unchanged() {
+        let repo = Repo::with(
+            TRACKER,
+            &[(
+                "meta/work/PP-760-search.md",
+                &linked("PP-760", "Search", "PP-760"),
+            )],
+        );
+        let before = repo.tree();
+        let (registry, _) = holding(&["PP-760"]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.out.is_empty(), "{ran:?}");
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
+    fn an_unsynced_legacy_item_becomes_a_draft() {
+        let repo = Repo::with(
+            TRACKER,
+            &[("meta/work/0042-search.md", &item("0042", "Search", ""))],
+        );
+        let (registry, tracker) = holding(&[]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        let [line] = ran.out.as_slice() else {
+            panic!("not one line: {ran:?}");
+        };
+        let (mapping, path) = line.split_once('\t').unwrap();
+        let draft = mapping.strip_prefix("0042 → ").unwrap();
+        assert!(DraftId::parse(draft).is_some(), "{line}");
+        assert_eq!(path, format!("meta/work/drafts/{draft}-search.md"));
+        assert!(repo.read(path).is_some());
+        assert_eq!(repo.read("meta/work/0042-search.md"), None);
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+    }
+
+    #[test]
+    fn an_existing_draft_is_unchanged_and_no_issue_is_created() {
+        let repo = Repo::with(
+            TRACKER,
+            &[(
+                "meta/work/drafts/draft-k3x9mq-idea.md",
+                &item("draft-k3x9mq", "Idea", ""),
+            )],
+        );
+        let before = repo.tree();
+        let (registry, tracker) = holding(&[]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_unchanged(&repo, &before);
+        assert!(
+            !tracker
+                .calls()
+                .iter()
+                .any(|call| matches!(call, Call::Create { .. })),
+            "{:?}",
+            tracker.calls()
+        );
+    }
+
+    #[test]
+    fn a_draft_with_an_attempted_marker_does_not_block_others() {
+        let repo = Repo::with(
+            TRACKER,
+            &[
+                (
+                    "meta/work/drafts/draft-k3x9mq-idea.md",
+                    &item("draft-k3x9mq", "Idea", ""),
+                ),
+                (
+                    "meta/work/0042-search.md",
+                    &linked("0042", "Search", "PP-760"),
+                ),
+            ],
+        );
+        let integrations = repo.path(".accelerator/state/integrations");
+        pending_push::prepare_dir(&integrations, "linear").unwrap();
+        repo.write(
+            ".accelerator/state/integrations/linear/pending-push/draft-k3x9mq.json",
+            &pending_push::render_record(&PromotionRecord {
+                draft_id: DraftId::parse("draft-k3x9mq").unwrap(),
+                request: RequestFingerprint {
+                    title: "Idea".to_owned(),
+                    digest: "digest".to_owned(),
+                    attempted_at: 1,
+                    failure: None,
+                },
+                content_digest: "digest".to_owned(),
+                stage: PromotionStage::Attempted,
+            }),
+        );
+        let (registry, _) = holding(&["PP-760"]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(ran.out, vec!["0042 → PP-760\tmeta/work/PP-760-search.md"]);
+        assert!(repo.read("meta/work/drafts/draft-k3x9mq-idea.md").is_some());
+    }
+
+    fn unreachable_tracker() -> (StubRegistry, Rc<RecordingTracker>) {
+        resolving(
+            RecordingTracker::holding(vec![issue("PP-760")]).failing_fetch_all(
+                TrackerError::Retryable {
+                    detail: "connection refused".to_owned(),
+                },
+            ),
+        )
+    }
+
+    fn assert_unreachable(ran: &Ran) {
+        assert_eq!(ran.code, 70, "{ran:?}");
+        assert!(
+            ran.err.contains("Error: E_REKEY_TRACKER_UNREACHABLE"),
+            "{ran:?}"
+        );
+    }
+
+    #[test]
+    fn an_unreachable_tracker_exits_70_and_writes_nothing() {
+        let repo = tracker_legacy();
+        let before = repo.tree();
+
+        let ran = repo.through(Action::Apply, &unreachable_tracker().0);
+
+        assert_unreachable(&ran);
+        assert!(ran.err.contains("connection refused"), "{ran:?}");
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
+    fn a_failed_locate_after_a_bulk_read_exits_70() {
+        let repo = tracker_legacy();
+        let before = repo.tree();
+        let (registry, _) =
+            resolving(RecordingTracker::holding(Vec::new()).failing_locate(
+                &external("PP-760"),
+                TrackerError::Retryable {
+                    detail: "timed out".to_owned(),
+                },
+            ));
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_unreachable(&ran);
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
+    fn an_unreachable_tracker_on_preview_records_no_plan() {
+        let repo = tracker_legacy();
+        let before = repo.tree();
+
+        let ran = repo.through(Action::Preview, &unreachable_tracker().0);
+
+        assert_unreachable(&ran);
+        assert!(ran.out.is_empty(), "{ran:?}");
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
+    fn a_refusal_exiting_70_leaves_the_plan_as_it_found_it() {
+        let repo = tracker_legacy();
+        assert_eq!(
+            repo.through(Action::Preview, &holding(&["PP-760"]).0).code,
+            0
+        );
+        let proposed = repo.read(RUN_PLAN);
+        assert!(proposed.is_some());
+
+        let ran = repo.through(Action::Preview, &unreachable_tracker().0);
+
+        assert_unreachable(&ran);
+        assert_eq!(repo.read(RUN_PLAN), proposed);
+    }
+
+    fn moved_since_preview() -> (StubRegistry, Rc<RecordingTracker>) {
+        resolving(
+            RecordingTracker::holding(vec![issue("PP-760")])
+                .moving(&external("PP-760"), &external("ENG-42")),
+        )
+    }
+
+    #[test]
+    fn applying_a_proposed_plan_makes_no_tracker_call() {
+        let repo = tracker_legacy();
+        assert_eq!(
+            repo.through(Action::Preview, &holding(&["PP-760"]).0).code,
+            0
+        );
+        let (registry, tracker) = moved_since_preview();
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        let retired = repo.read("meta/work/PP-760-search.md").unwrap();
+        assert!(retired.contains("\nid: \"PP-760\"\n"), "{retired}");
+    }
+
+    #[test]
+    fn the_confirmed_ids_equal_the_previewed_lines_after_a_later_move() {
+        let repo = tracker_legacy();
+        let previewed = repo.through(Action::Preview, &holding(&["PP-760"]).0);
+        assert_eq!(previewed.out, vec!["0042 → PP-760"]);
+
+        let applied = repo.through(Action::Apply, &moved_since_preview().0);
+
+        assert_eq!(applied.code, 0, "{applied:?}");
+        assert_eq!(previewed_lines(&applied), previewed.out);
+    }
+
+    #[test]
+    fn finishing_an_in_progress_plan_makes_no_tracker_call() {
+        let repo = tracker_pair();
+        repo.halt_through(5, &holding(&["PP-41", "PP-42"]).0);
+        assert!(repo.read(RUN_PLAN).unwrap().contains("\"in_progress\""));
+        let (registry, tracker) = holding(&["PP-41", "PP-42"]);
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(tracker.calls().is_empty(), "{:?}", tracker.calls());
+        assert!(repo.read("meta/work/PP-41-first.md").is_some());
+        assert!(repo.read("meta/work/PP-42-second.md").is_some());
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn finishing_an_in_progress_plan_needs_no_tracker_configuration() {
+        let repo = tracker_pair();
+        repo.halt_through(5, &holding(&["PP-41", "PP-42"]).0);
+
+        let ran = repo.through(Action::Apply, &Unselectable(unconfigured));
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert_eq!(repo.read(RUN_PLAN), None);
+    }
+
+    #[test]
+    fn a_rekeyed_corpus_under_the_tracker_pattern_rekeys_to_nothing() {
+        let repo = tracker_pair();
+        let (registry, _) = holding(&["PP-41", "PP-42"]);
+        assert_eq!(repo.through(Action::Apply, &registry).code, 0);
+        repo.commit();
+        let after = repo.tree();
+
+        let ran = repo.through(Action::Apply, &registry);
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.out.is_empty(), "{ran:?}");
+        assert_eq!(repo.tree(), after);
+    }
+
+    #[test]
+    fn colliding_tracker_targets_refuse_and_write_nothing() {
+        let repo = Repo::with(
+            TRACKER,
+            &[
+                ("meta/work/0041-a.md", &linked("0041", "A", "PP-760")),
+                ("meta/work/0042-b.md", &linked("0042", "B", "PP-760")),
+            ],
+        );
+        let before = repo.tree();
+
+        let ran = repo.through(Action::Apply, &holding(&["PP-760"]).0);
+
+        assert_eq!(ran.code, 4, "{ran:?}");
+        assert!(
+            ran.err.starts_with("Error: E_REKEY_ID_COLLISION"),
+            "{ran:?}"
+        );
+        assert!(ran.err.contains("0041-a.md"), "{ran:?}");
+        assert!(ran.err.contains("0042-b.md"), "{ran:?}");
+        assert_unchanged(&repo, &before);
+    }
+
+    #[test]
+    fn an_unconfigured_tracker_exits_with_its_selection_code() {
+        let selections: [(fn() -> SelectionError, u8); 4] = [
+            (
+                || SelectionError::NotAvailable {
+                    name: "trello".to_owned(),
+                },
+                crate::exit_codes::NOT_AVAILABLE,
+            ),
+            (|| SelectionError::Unset, crate::exit_codes::UNRECOGNISED),
+            (
+                || SelectionError::Unrecognised {
+                    name: "nope".to_owned(),
+                },
+                crate::exit_codes::UNRECOGNISED,
+            ),
+            (unconfigured, crate::exit_codes::UNCONFIGURED),
+        ];
+        for (selection, code) in selections {
+            let repo = tracker_legacy();
+            let before = repo.tree();
+
+            let ran = repo.through(Action::Apply, &Unselectable(selection));
+
+            assert_eq!(ran.code, code, "{ran:?}");
+            assert!(ran.err.contains(&selection().message()), "{ran:?}");
+            assert!(
+                !ran.err.contains("E_REKEY_TRACKER_UNREACHABLE"),
+                "{ran:?}"
+            );
+            assert_unchanged(&repo, &before);
+        }
+    }
+
+    #[test]
+    fn per_item_reads_under_a_numeric_pattern_is_ignored_with_a_note() {
+        let repo = legacy_pair();
+
+        let ran = repo.invoked(&Invocation {
+            action: Action::Apply,
+            forcing: Forcing::Unforced,
+            repository: &InProcessProbe,
+            store_at: &plain,
+            registry: &holding(&[]).0,
+            per_item_reads: true,
+        });
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(ran.err.contains("--per-item-reads"), "{ran:?}");
+        assert!(ran.err.contains("ignored"), "{ran:?}");
+    }
+
+    #[test]
+    fn per_item_reads_under_the_tracker_pattern_locates_each_key() {
+        let repo = tracker_legacy();
+        let (registry, tracker) = holding(&["PP-760"]);
+
+        let ran = repo.invoked(&Invocation {
+            action: Action::Apply,
+            forcing: Forcing::Unforced,
+            repository: &InProcessProbe,
+            store_at: &plain,
+            registry: &registry,
+            per_item_reads: true,
+        });
+
+        assert_eq!(ran.code, 0, "{ran:?}");
+        assert!(!ran.err.contains("--per-item-reads"), "{ran:?}");
+        assert_eq!(
+            tracker.calls(),
+            vec![Call::Locate {
+                id: external("PP-760")
+            }]
+        );
     }
 }

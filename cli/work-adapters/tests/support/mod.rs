@@ -38,9 +38,11 @@ use vcs::WorkingCopyStateProbe;
 use work::dirtiness::Dirtiness;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::entry::RekeyTarget;
+use work::rekey::mapping::RefreshedKeys;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
 use work::sync::LegacyHashes;
+use work_adapters::draft_id::RandomSuffixDraws;
 use work_adapters::filesystem::FilesystemWorkItemFiles;
 use work_adapters::identity_run::begin_rekey_run;
 use work_adapters::identity_run::HeldIdentityRun;
@@ -54,6 +56,7 @@ use work_adapters::rekey::guards::PendingPushDir;
 use work_adapters::rekey::guards::SyncState;
 use work_adapters::rekey::run::run;
 use work_adapters::rekey::run::Forcing;
+use work_adapters::rekey::run::KeyRefresh;
 use work_adapters::rekey::run::RekeyAction;
 use work_adapters::rekey::run::RekeyPorts;
 use work_adapters::rekey::run::RekeyProgress;
@@ -628,6 +631,20 @@ impl RekeyProgress for Recorder {
     }
 }
 
+/// A tracker no numeric re-key may reach.
+pub struct NoTracker;
+
+impl KeyRefresh for NoTracker {
+    fn refresh(
+        &self,
+        _keys: &[ExternalId],
+    ) -> Result<RefreshedKeys, NotRekeyed> {
+        Err(NotRekeyed::TrackerUnreachable(
+            "a numeric re-key reads no tracker".to_owned(),
+        ))
+    }
+}
+
 pub fn request(action: RekeyAction, forcing: Forcing) -> RekeyRequest {
     RekeyRequest {
         action,
@@ -675,6 +692,8 @@ impl Ports<'_> {
                 repository,
                 scopes: &scopes,
                 progress,
+                refresh: &NoTracker,
+                draws: &RefCell::new(RandomSuffixDraws),
             },
         )
     }

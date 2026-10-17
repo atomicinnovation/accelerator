@@ -138,12 +138,15 @@
 //!   re-keyed and the run plan stays in progress. Every other code wrote
 //!   nothing. `--preview` refuses as an apply would, except that it warns
 //!   of uncommitted changes rather than refusing over them, and refuses
-//!   with `E_REKEY_IN_PROGRESS` while a run is in progress. Under
-//!   `work.id_pattern: "{tracker}"`, which this release cannot yet re-key,
-//!   `E_REKEY_TRACKER_PATTERN_PENDING` refuses too.
+//!   with `E_REKEY_IN_PROGRESS` while a run is in progress.
 //! - `1` — `E_REKEY_STATE_UNWRITABLE` (the run plan cannot be saved or
 //!   removed), `E_IDENTITY_RUN_BUSY` and `E_DRAFT_ID_EXHAUSTED`.
-//! - `70` — `E_REKEY_TRACKER_UNREACHABLE`.
+//! - `70` — `E_REKEY_TRACKER_UNREACHABLE`: under
+//!   `work.id_pattern: "{tracker}"`, a read refreshing synced items' keys
+//!   failed, and nothing was written or recorded.
+//! - `72`-`74` — under `{tracker}`, the tracker cannot be selected or
+//!   configured, as for `work promote`. Finishing a run, applying a
+//!   preview and discarding never select one.
 //!
 //! `work sync`, `work promote`, `work create`, `work create-batch`,
 //! `work next-number` and `work update --push` hold the identity-run lock

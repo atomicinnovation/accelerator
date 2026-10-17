@@ -1,17 +1,23 @@
 //! One `work rekey` invocation: the run-plan state machine, every
 //! transition taken under the identity-run, retirement and create locks.
 
+use std::cell::RefCell;
 use std::path::PathBuf;
 
 use corpus::lock::LockName;
+use corpus::IdOwnership;
 use corpus::WorkItemIdScheme;
+use tracker::ExternalId;
 use vcs::RepositoryProbe;
+use work::draft_id::SuffixDraws;
 use work::identity::ItemIdentity;
 use work::rekey::collision::refuse_collisions;
 use work::rekey::creation_date::CreationDate;
 use work::rekey::entry::RekeyEntry;
 use work::rekey::fingerprint::IdentityFingerprint;
 use work::rekey::mapping::numeric_mapping;
+use work::rekey::mapping::tracker_mapping;
+use work::rekey::mapping::RefreshedKeys;
 use work::rekey::mapping::RekeyCandidate;
 use work::rekey::outcome::Holder;
 use work::rekey::outcome::NotRekeyed;
@@ -80,6 +86,17 @@ pub trait RekeyProgress {
     fn partly_applied(&self, items: &[PathBuf], recoveries: &[PathBuf]);
 }
 
+/// The keys synced items' issues answer to now, read only when a run
+/// computes a `{tracker}` mapping, so finishing, applying a preview or
+/// discarding never needs a tracker.
+pub trait KeyRefresh {
+    /// # Errors
+    ///
+    /// [`NotRekeyed::TrackerUnreachable`] when a read fails.
+    fn refresh(&self, keys: &[ExternalId])
+        -> Result<RefreshedKeys, NotRekeyed>;
+}
+
 #[derive(Clone, Copy)]
 pub struct RekeyPorts<'a> {
     pub identity_run: &'a dyn IdentityRunPort,
@@ -91,6 +108,8 @@ pub struct RekeyPorts<'a> {
     /// Repo-relative prefixes whose dirty paths refuse an apply.
     pub scopes: &'a [String],
     pub progress: &'a dyn RekeyProgress,
+    pub refresh: &'a dyn KeyRefresh,
+    pub draws: &'a RefCell<dyn SuffixDraws>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -244,7 +263,7 @@ fn preflight(
     let plan = match mapping {
         Mapping::Computed => ProposedPlan::new(
             IdentityFingerprint::of(&request.scheme, &items),
-            numeric_mapping(&request.scheme, &candidates)?,
+            computed(&request.scheme, &candidates, ports)?,
         ),
         Mapping::Previewed(plan) => {
             still_current(plan, &request.scheme, &items)?
@@ -267,6 +286,28 @@ fn preflight(
             observed => (observed?, Vec::new()),
         };
     Ok(Some(Checked { plan, base, dirty }))
+}
+
+fn computed(
+    scheme: &WorkItemIdScheme,
+    candidates: &[RekeyCandidate],
+    ports: &RekeyPorts<'_>,
+) -> Result<Vec<RekeyEntry>, NotRekeyed> {
+    match scheme.ownership() {
+        IdOwnership::Local => numeric_mapping(scheme, candidates),
+        IdOwnership::Tracker => {
+            let stored: Vec<ExternalId> = candidates
+                .iter()
+                .filter_map(|candidate| candidate.identity.external_id.clone())
+                .map(ExternalId::new)
+                .collect();
+            tracker_mapping(
+                candidates,
+                &ports.refresh.refresh(&stored)?,
+                &mut *ports.draws.borrow_mut(),
+            )
+        }
+    }
 }
 
 /// `plan` when the identities and scheme it was previewed from still hold
