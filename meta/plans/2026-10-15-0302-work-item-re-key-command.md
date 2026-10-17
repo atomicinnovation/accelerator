@@ -534,17 +534,25 @@ edited by hand; `tests/common/mod.rs:78` also removes `ACCELERATOR_FORCE`.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p vcs`
-- [ ] `cd cli && cargo test -p migrate-adapters -p accelerator-migrate`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p vcs`
+- [x] `cd cli && cargo test -p migrate-adapters -p accelerator-migrate`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] In a scratch repository with a dirty `meta/` file,
+- [x] In a scratch repository with a dirty `meta/` file,
       `ACCELERATOR_MIGRATE_FORCE=1 accelerator migrate` applies and prints
       the notice; `ACCELERATOR_FORCE=1` applies silently.
+
+Checked in a jj scratch repository. `ACCELERATOR_FORCE=1` prints no
+deprecation notice but, like every bypass, lists the paths it skipped;
+`ACCELERATOR_FORCE=0` refuses.
+
+The forced golden captures ran over an empty `.git` stub, which the probe
+cannot read, so they skip nothing and gain no skipped-paths line; only the
+variable name changed in them.
 
 ---
 
