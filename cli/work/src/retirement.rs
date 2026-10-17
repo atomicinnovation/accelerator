@@ -346,6 +346,18 @@ fn home_of(id: &str, work_dir: &Path) -> PathBuf {
     }
 }
 
+fn destination_of(
+    retirement: &Retirement<'_>,
+    from: &Path,
+    work_dir: &Path,
+) -> PathBuf {
+    file_for(
+        work_dir,
+        retirement.new_id,
+        &slug_after(retirement.old_id, from),
+    )
+}
+
 fn path_spellings(
     from: &Path,
     to: &Path,
@@ -395,13 +407,7 @@ pub fn plan_retirement(
     refuse_collisions(retirement, items, retiring, interrupted)?;
 
     let to = interrupted.map_or_else(
-        || {
-            file_for(
-                work_dir,
-                retirement.new_id,
-                &slug_after(retirement.old_id, &from),
-            )
-        },
+        || destination_of(retirement, &from, work_dir),
         |target| target.path.clone(),
     );
     if interrupted.is_none() && corpus.iter().any(|file| file.path == to) {
@@ -474,11 +480,7 @@ pub fn retired_content(
     from: &Path,
     work_dir: &Path,
 ) -> String {
-    let to = file_for(
-        work_dir,
-        retirement.new_id,
-        &slug_after(retirement.old_id, from),
-    );
+    let to = destination_of(retirement, from, work_dir);
     let spellings = path_spellings(from, &to, work_dir);
     let renaming = Renaming {
         doc_type: WORK_ITEM,
@@ -608,41 +610,60 @@ fn quoted_list(items: &[String]) -> String {
     format!("[{}]", quoted.join(", "))
 }
 
-fn append_alias(
+fn alias_value(entry: &str) -> &str {
+    unquoted(entry.trim_start().trim_start_matches('-'))
+}
+
+fn rewrite_aliases(
     lines: &mut Vec<String>,
     range: &mut (usize, usize),
-    old_id: &str,
+    transform: impl Fn(Vec<String>) -> Vec<String>,
 ) {
     let Some(index) = position_of(lines, *range, "aliases") else {
-        set_list(lines, range, &[old_id.to_owned()]);
+        set_list(lines, range, &transform(Vec::new()));
         return;
     };
     let inline = lines[index]
         .split_once(':')
         .map(|(_, value)| value.trim().to_owned())
         .unwrap_or_default();
-    if inline.is_empty() {
-        let continuation = (index + 1..range.1)
-            .take_while(|&next| lines[next].starts_with(char::is_whitespace))
-            .count();
-        let held =
-            lines[index + 1..=index + continuation].iter().any(|entry| {
-                same_id(
-                    unquoted(entry.trim_start().trim_start_matches('-')),
-                    old_id,
-                )
-            });
-        if !held {
-            lines.insert(index + continuation + 1, format!("  - \"{old_id}\""));
-            range.1 += 1;
-        }
+    if !inline.is_empty() {
+        let aliases = transform(crate::tags::parse_current_tags(&inline));
+        lines[index] = format!("aliases: {}", quoted_list(&aliases));
         return;
     }
-    let mut aliases = crate::tags::parse_current_tags(&inline);
-    if !aliases.iter().any(|alias| same_id(alias, old_id)) {
-        aliases.push(old_id.to_owned());
+    let continuation = (index + 1..range.1)
+        .take_while(|&next| lines[next].starts_with(char::is_whitespace))
+        .count();
+    let after_entries = lines.split_off(index + continuation + 1);
+    let entries = lines.split_off(index + 1);
+    let aliases = transform(
+        entries
+            .iter()
+            .map(|entry| alias_value(entry).to_owned())
+            .collect(),
+    );
+    lines.extend(aliases.iter().map(|alias| block_entry(alias, &entries)));
+    lines.extend(after_entries);
+    range.1 = range.1 + aliases.len() - continuation;
+}
+
+/// The line `alias` was written on, so a kept alias keeps its spelling.
+fn block_entry(alias: &str, entries: &[String]) -> String {
+    entries
+        .iter()
+        .find(|entry| alias_value(entry) == alias)
+        .cloned()
+        .unwrap_or_else(|| format!("  - \"{alias}\""))
+}
+
+fn appending(old_id: &str) -> impl Fn(Vec<String>) -> Vec<String> + '_ {
+    move |mut aliases| {
+        if !aliases.iter().any(|alias| same_id(alias, old_id)) {
+            aliases.push(old_id.to_owned());
+        }
+        aliases
     }
-    lines[index] = format!("aliases: {}", quoted_list(&aliases));
 }
 
 fn set_list(
@@ -681,7 +702,7 @@ fn retired_item_content(content: &str, retirement: &Retirement<'_>) -> String {
     if let Some(key) = retirement.new_external_id {
         set_scalar(&mut lines, &mut range, "external_id", key, &[id_key]);
     }
-    append_alias(&mut lines, &mut range, retirement.old_id);
+    rewrite_aliases(&mut lines, &mut range, appending(retirement.old_id));
     if let Some(index) =
         (range.1..lines.len()).find(|&index| lines[index].starts_with("# "))
     {
