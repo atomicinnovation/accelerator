@@ -89,30 +89,32 @@ passed.
 
 #### Potential Issues:
 
-- A hand-run re-offer with `--run R --withhold-profile web` and no
-  `--spawned` displaces a pending batch's web researcher spawns.
-  `PendingBatch::replace` (`cli/research/src/conduct/memory.rs:39-51`)
-  adds them to `attempted`, so they then appear in `unfinished`. `conduct`
-  always passes `--spawned {batch}`, so only hand runs reach this, and no
-  test covers it.
-- A level without a stored budget silently gets 1, and demand is not
-  re-checked (`search_budget.rs:91-93`). This happens when a later plan
-  passes a larger `--depth`, when a level sized away reopens (for example,
-  note `1` is quarantined after a re-run sized only levels 2–3), or when
-  web pairs are added to the outline mid-run. The plan accepts this by
-  design, but no test pins it.
-- `--withhold-profile` accepts any non-empty name, including a misspelling
-  such as `wbe`. `withheld` echoes the name back, so step 2's check that
-  the expected profile is named would not catch a misspelling.
-- The ledger codec parses level keys with `str::parse::<u32>`, so `"01"`
-  and `"+1"` both decode as level 1 and silently collapse into one entry
-  (`cli/research-adapters/src/conduct/ledger.rs:203`). The stored `demand`
-  is trusted rather than checked against the levels. Only a hand-edited
-  ledger can produce either.
-- Halted capacity-refused spawns are recorded with the
-  concurrent-subagent-limit reason, so Failures shows that row's "re-run
-  once other subagents have finished". The Halt section gives the correct
-  `/clear` recovery. This follows the plan as written.
+Each issue was investigated after validation. Two were fixed; three stand,
+for the reasons given.
+
+- Fixed: a hand-run re-offer with `--run R --withhold-profile web` and no
+  `--spawned` moved a pending batch's web researcher spawns into
+  `attempted`, because recording treats a spawn dropped from the offer as
+  one that wrote. The window now names the spawns it held back, and
+  recording leaves them unattempted. Pinned in the domain ledger tests and
+  by `withholding_a_re_offered_batch_leaves_its_spawns_unattempted`.
+- Fixed: the ledger codec read level keys with a plain integer parse, so
+  `"01"` and `"+1"` both decoded as level 1 and could silently merge. A
+  key must now be the form the writer prints, or the ledger is corrupt.
+- Not fixed: a level without a stored budget gets 1, and demand is not
+  re-checked. `conduct` holds depth and the outline fixed for a run, so
+  only a hand run with a larger `--depth`, or a level reopened by a
+  quarantined note, reaches it, and a budget of 1 errs towards the cap.
+  The plan accepts this, and `a_level_without_a_budget_is_budgeted_one`
+  pins it.
+- Not fixed: `--withhold-profile` accepts a misspelt name. `conduct` only
+  ever passes `web`, from the Halting failures table, so only a hand run
+  can misspell it, and `withheld` echoes the name back to that user.
+- Not fixed: halted capacity-refused spawns carry the
+  concurrent-subagent-limit reason, as AC 30–31 require. The reason is
+  accurate, and the Halt section above Failures gives the `/clear`
+  recovery. The stored `demand` is still trusted, since the ledger does
+  not store the node counts it could be checked against.
 
 ### Manual Testing Required:
 
@@ -126,11 +128,5 @@ pre-merge check:
 
 ### Recommendations:
 
-- Either refuse `--withhold-profile` while a pending batch holds that
-  profile's researcher spawns and `--spawned` is absent, or keep withheld
-  spawns out of `displaced`. Add a CLI test for the case.
-- Consider refusing a `--withhold-profile` name that no outline pair uses,
-  so a misspelling fails loudly.
-- Optionally tighten the codec to reject non-canonical level keys, and
-  assert the notice order in
+- Optionally assert the notice order in
   `a_start_that_cannot_plan_still_reports_its_concurrency_notices`.
