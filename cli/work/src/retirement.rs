@@ -673,10 +673,16 @@ fn block_entry(alias: &str, entries: &[String]) -> String {
         .unwrap_or_else(|| format!("  - \"{alias}\""))
 }
 
-fn appending(old_id: &str) -> impl Fn(Vec<String>) -> Vec<String> + '_ {
+fn retired_aliases<'r>(
+    retirement: &'r Retirement<'_>,
+) -> impl Fn(Vec<String>) -> Vec<String> + 'r {
     move |mut aliases| {
-        if !aliases.iter().any(|alias| same_id(alias, old_id)) {
-            aliases.push(old_id.to_owned());
+        aliases.retain(|alias| !same_id(alias, retirement.new_id));
+        if !aliases
+            .iter()
+            .any(|alias| same_id(alias, retirement.old_id))
+        {
+            aliases.push(retirement.old_id.to_owned());
         }
         aliases
     }
@@ -718,7 +724,7 @@ fn retired_item_content(content: &str, retirement: &Retirement<'_>) -> String {
     if let Some(key) = retirement.new_external_id {
         set_scalar(&mut lines, &mut range, "external_id", key, &[id_key]);
     }
-    rewrite_aliases(&mut lines, &mut range, appending(retirement.old_id));
+    rewrite_aliases(&mut lines, &mut range, retired_aliases(retirement));
     if let Some(index) =
         (range.1..lines.len()).find(|&index| lines[index].starts_with("# "))
     {
@@ -1076,6 +1082,64 @@ mod tests {
             .contains("aliases: [\"0230\", \"PP-760\"]\n"));
         assert!(retired(&planned(&retirement, &[block]))
             .contains("aliases:\n  - \"0230\"\n  - \"PP-760\"\ntags: []\n"));
+    }
+
+    fn prefixed_item(aliases: &str) -> CorpusFile {
+        work_item(
+            "/repo/meta/work/ACC-0042-a.md",
+            &format!("id: \"ACC-0042\"\n{aliases}"),
+            "A",
+        )
+    }
+
+    #[test]
+    fn the_new_id_is_removed_from_inline_aliases() {
+        let corpus = [prefixed_item("aliases: [\"0042\"]\n")];
+
+        let planned =
+            planned(&Retirement::renumbering("ACC-0042", "0042"), &corpus);
+
+        assert!(
+            retired(&planned).contains("aliases: [\"ACC-0042\"]\n"),
+            "{}",
+            retired(&planned)
+        );
+    }
+
+    #[test]
+    fn the_new_id_is_removed_from_block_aliases() {
+        let corpus = [prefixed_item(
+            "aliases:\n  - \"0041\"\n  - \"0042\"\ntags: []\n",
+        )];
+
+        let planned =
+            planned(&Retirement::renumbering("ACC-0042", "0042"), &corpus);
+
+        assert!(
+            retired(&planned).contains(
+                "aliases:\n  - \"0041\"\n  - \"ACC-0042\"\ntags: []\n"
+            ),
+            "{}",
+            retired(&planned)
+        );
+    }
+
+    #[test]
+    fn the_new_id_is_removed_from_aliases_ignoring_case() {
+        let corpus = [work_item(
+            "/repo/meta/work/0042-a.md",
+            "id: \"0042\"\naliases: [\"acc-0042\"]\n",
+            "A",
+        )];
+
+        let planned =
+            planned(&Retirement::renumbering("0042", "ACC-0042"), &corpus);
+
+        assert!(
+            retired(&planned).contains("aliases: [\"0042\"]\n"),
+            "{}",
+            retired(&planned)
+        );
     }
 
     #[test]
