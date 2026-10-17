@@ -400,14 +400,16 @@ obligation line.
 - [x] `cd cli && cargo test -p tracker-test-support`
 - [x] `cd cli && cargo test -p jira-client --test contract_offline`
 - [x] `cd cli && cargo test -p linear-client --test contract_offline`
-- [ ] `mise run test:integration:tracker-contract`
+- [x] `mise run test:integration:tracker-contract`
 - [x] `mise run` exits 0
 
 The contract lane needs live Jira and Linear credentials, which the
 implementing session lacked. Its `tracker-test-support` binary ran under
 `ACCELERATOR_TRACKER_CONTRACT=1 cargo nextest run --profile contract -p
 tracker-test-support`: 4 of 4 passed, the new property included. The live
-subjects answer `None`, so the full lane skips the property for them.
+subjects answer `None`, so the full lane skips the property for them. The
+full lane later passed against a scratch Jira project and a scratch Linear
+team on 2026-10-17.
 
 #### Manual Verification
 
