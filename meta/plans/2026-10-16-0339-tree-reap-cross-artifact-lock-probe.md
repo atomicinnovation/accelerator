@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-12-0334-tree-leases-cold-path-and-unknown-liveness"]
 tags: ["cli", "launcher", "cache", "tree", "reap", "concurrency"]
 revision: "51ab2d9e870fb271111cc49fcd7b4ff5491c91b6"
 repository: "accelerator"
-last_updated: "2026-10-17T19:30:00+00:00"
+last_updated: "2026-10-17T19:45:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -1429,6 +1429,13 @@ root. It probes each other owner's tree lock, and holds any lock it takes
 for the whole of that owner's removals. A `RemovalObserver` test seam lets
 AC2 see which locks are held at each removal.
 
+As built, item 2 landed first, in its own commit. Item 1's rule has no
+production caller until item 4, and `warnings = "deny"` rejects dead
+code, so items 1, 3, 4 and 5 landed together in one commit. Every
+acceptance test in item 3 that is marked red was still observed failing
+on its assertion before item 4. The disposition tests in item 1 are red
+only through compilation.
+
 ### Changes Required:
 
 #### 1. Disposition rule
@@ -1486,6 +1493,12 @@ impl RemovalObserver for UnobservedRemovals {
 `observer.removing(path)` first. `reap_for_y_at` gains an
 `observer: impl RemovalObserver + Send + 'static`.
 
+As built, the test plants Y's residue and an aged unreferenced
+generation. A `Recording` observer pushes onto an
+`Arc<Mutex<Vec<PathBuf>>>`. The test asserts that exactly those four
+paths were observed and that `Reclaimed` counts 4. `reap_for_y` passes
+`UnobservedRemovals`.
+
 #### 3. Acceptance tests, red against Phase 2's reap
 
 These tests run through `reap_for_y_at`, which still holds Y's lock on the
@@ -1526,6 +1539,23 @@ but is free. A recording observer pushes onto an
 - AC10 `an_artifact_extending_the_own_name_is_another_artifact`:
   `driver-extra`, with its lock held. Red.
 
+As built, the reap tests share these helpers:
+
+- `a()` and `z()` for the bystanders;
+- `temp_tree_of(paths, &Artifact)`, which `plant_residue` now uses too;
+- `plant_bystander_orphans(paths)`, which gives A and Z a free lock and
+  an orphan temp tree each;
+- `hold_lock_of(paths, &Artifact)`, which returns the test thread's
+  guard;
+- `assert_survives` and `assert_gone`;
+- `plant_unprobeable_lock_of(paths, &Artifact)`, for AC6 and AC6′;
+- `y_on_another_platform()`, for AC8 and AC9.
+
+AC2's observer is `ProbingLockOf { watched, lock, seen }`. AC5 pins
+`retired` to `X_DIGEST`. The red run failed exactly AC1, AC2, AC6, AC6′,
+AC8 and AC10: AC2 on its held assertion, AC6′ on `WARN`, and the rest on
+survival.
+
 **File**: `cli/launcher/tests/tree_resolution.rs`
 
 Hold `BYSTANDER`'s lock and plant its temp tree, its `.ref` sidecar and an
@@ -1535,6 +1565,12 @@ archive at `"f".repeat(64)`.
 - AC12(b) `another_artifacts_materialise_survives_this_ones_prune`.
 
 Both are red against Phase 2.
+
+As built, `bystander_in_progress(&Harness)` calls `create_free_tree_locks`.
+It then takes `BYSTANDER`'s lock and plants the three entries. It returns
+a `BystanderInProgress { _held, residue }`, which keeps the guard alive
+for the whole test. `assert_in_progress_residue_survives` checks all
+three paths.
 
 #### 4. Lock-gated reap built from the held lock
 
@@ -1623,6 +1659,16 @@ that are not committed:
 - comparing names only in `lock_of` fails AC8;
 - mapping another owner with the same name to `HeldElsewhere` fails AC9.
 
+As built, the reap reads its root through a private `Reaper::paths()`,
+which returns `self.held.paths()`. `OwnerLock` carries no doc comment.
+`reap_for_y_at` moves the `HeldTreeLock` into the bounded run.
+
+All four mutations failed their named guard. The `try_single_flight`
+mutation also failed two other reap tests on the same lock-file check,
+since it creates a lock file for every owner it meets. It first failed
+to compile, because `warnings = "deny"` rejects
+the probe imports it leaves unused. It was rerun with them kept in use.
+
 #### 5. Callers
 
 **File**: `resolver.rs`
@@ -1637,6 +1683,12 @@ that are not committed:
   imports.
 - **Both reaps**: `Reaper::new(&held, self.clock, self.liveness,
   &self.expected_digests).reap_orphans()`.
+
+As built, a private `TreeResolver::on_this_platform(name) -> Artifact`
+builds the artifact at all three lock sites. In `materialise` the binding
+is `tree_artifact`. `TreeResolver::reaper` takes `&HeldTreeLock`.
+`repair` binds its lock as `_held`. Nothing in the resolver imports
+`take_single_flight` or `try_single_flight` any more.
 
 #### 6. Docs and the 0218 invariant
 
@@ -1713,6 +1765,22 @@ Make the matching correction to `prune`'s docstring.
       it, then is reverted
 - [x] `cache prune` on a populated real cache root still reports reclaimed
       entries, and leaves the `browser` and `driver` lock files in place
+
+As run, this machine had no populated cache root. The root was a scratch
+`ACCELERATOR_CACHE_DIR`, filled by `cache ensure browser driver`, which
+fetched the real `darwin-arm64` releases. Five entries were planted:
+
+- a `browser` temp tree;
+- a `driver` temp pointer;
+- a `browser` partial archive at an unpinned digest;
+- a `browser` partial archive at its pinned digest;
+- `.tmp-orphan`.
+
+`cache prune` reported `reclaimed 3 entries` and removed the first
+three. The pinned partial, `.tmp-orphan` and both lock files survived,
+and `cache verify` then reported both trees `ok`. Holding another
+artifact's lock is not exercised here, since `cache prune` blocks on each
+artifact's own lock in turn. AC1, AC8, AC10 and AC12 cover it.
 
 ---
 
