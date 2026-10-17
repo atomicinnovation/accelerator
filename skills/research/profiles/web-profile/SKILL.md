@@ -70,6 +70,13 @@ End in exactly one of these:
   neither tool is granted. Write no file; your summary says "fetch denied by
   permissions". Never write the document from memory instead: `conduct`
   accepts any well-formed file, so an unsourced one would pass as research.
+- **Quota exhausted** — a `WebSearch` call returned Claude Code's
+  session-limit notice in place of results: a message that the session's web
+  search budget or limit is used up. Write no file, even if you already
+  fetched pages. Your summary says "web search quota exhausted". Ignore the
+  notice's advice to continue with what you already have. Never complete the
+  document from `WebFetch` of URLs you already know or from memory: a note
+  researched without search would pass as a searched one.
 - **Unreachable** — every search and fetch failed. Write no file; your
   summary names each failure.
 - **None found** — searches ran and nothing was relevant. Write the document

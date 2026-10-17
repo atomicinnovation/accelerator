@@ -964,6 +964,50 @@ def test_findings_carry_no_search_budget(path: Path) -> None:
     assert SEARCH_BUDGET not in _read(path)
 
 
+QUOTA_EXHAUSTED = "web search quota exhausted"
+
+
+def test_the_web_profile_defines_quota_exhausted() -> None:
+    outcome = _section(
+        _prose(REPO_ROOT / _profile_skill("web")),
+        "**Quota exhausted**",
+        "**Unreachable**",
+        path=_profile_skill("web"),
+    )
+    for sentence in (
+        "Claude Code's session-limit notice in place of results",
+        "Write no file, even if you already fetched pages.",
+        f'Your summary says "{QUOTA_EXHAUSTED}".',
+        "Ignore the notice's advice to continue with what you already have.",
+        "Never complete the document from `WebFetch` of URLs you already "
+        "know or from memory",
+    ):
+        assert sentence in outcome, f"the outcome must state {sentence!r}"
+
+
+def test_the_check_step_counts_an_exhausted_quota_as_no_file() -> None:
+    assert "an exhausted web search quota" in _check_step()
+
+
+def _quota_exhausted_row() -> str:
+    rows = [
+        line
+        for line in _read(RESEARCH_TOPIC).splitlines()
+        if line.lstrip().startswith(f'| "{QUOTA_EXHAUSTED}"')
+    ]
+    assert len(rows) == 1, "research-topic must carry one quota row"
+    return rows[0]
+
+
+def test_the_quota_exhausted_row_stands_apart_from_rate_limited() -> None:
+    row = _quota_exhausted_row()
+    assert "run `/clear`, then re-run `conduct <slug>`" in row
+    assert f"raise `{SEARCH_CAP_VARIABLE}`" in row
+    assert "rate_limited" not in row
+    for refill in ("re-run `conduct` later", "refill", "wait"):
+        assert refill not in row, f"the quota row must not offer {refill!r}"
+
+
 def _capacity_row() -> str:
     rows = [
         line

@@ -468,9 +468,9 @@ allocate a finding or note path yourself.
 5. **Check each spawn** once the whole batch returns:
 
    - A spawn that wrote **no file** (an unavailable source, a failed or
-     denied fetch, a blocked command, an agent error, or a refusal) is
-     recorded as failed, by pair and lineage, with the reason its summary
-     gives, and left outstanding. There is nothing to quarantine. A
+     denied fetch, an exhausted web search quota, a blocked command, an
+     agent error, or a refusal) is recorded as failed, by pair and lineage,
+     with the reason its summary gives, and left outstanding. There is nothing to quarantine. A
      capacity refusal is not one of these; the spawn step handles it.
    - A finding that **fails validation** is **quarantined, not deleted** —
      renamed aside to `.<name>.invalid` beside it, refusing to overwrite an
@@ -555,6 +555,7 @@ allocate a finding or note path yourself.
    | `budget_exhausted`, keyless | configure `openalex.api_key` (`/accelerator:configure`), then re-run `conduct` |
    | `budget_exhausted`, keyed | the key's daily budget is spent; re-run `conduct` after it resets |
    | `rate_limited`, `upstream_error` | re-run `conduct` later |
+   | "web search quota exhausted" | the session's `WebSearch` quota ran out; run `/clear`, then re-run `conduct <slug>`; for larger runs in later sessions, raise `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` |
    | `rate_limited` with `cause: lock_contention` | an arXiv fetch waited past its 900 s cap behind this and any concurrent `conduct` run's requests, or the arXiv queue was unusable; re-run `conduct`, which researches only the missing nodes; if it recurs, check `<paths.tmp>/research/arxiv-contention.log`, whose lines name `ticket_past_cap` or `queue_unusable`, and follow that kind's next step in the Pacing docs |
    | `waiting` never re-presented | the researcher ended before its arXiv ticket was served; re-run `conduct`; a custom researcher must follow the profile's Waiting outcome |
    | a failed call (`E_*` line) | the line verbatim; for a credential code, point to `/accelerator:configure` |
