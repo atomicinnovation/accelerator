@@ -8,7 +8,15 @@
 pub use lease::Liveness;
 
 #[cfg(unix)]
-pub use unix::{take_single_flight, try_single_flight, SingleFlight};
+pub use unix::{
+    probe_single_flight, take_single_flight, try_single_flight, SingleFlight,
+};
+
+pub enum SingleFlightProbe {
+    Taken(SingleFlight),
+    Held,
+    Absent,
+}
 
 /// How a reclaimer learns whether a generation's lease is held — a test seam,
 /// so `Unknown` can be exercised without a filesystem that lacks `flock`.
@@ -36,6 +44,8 @@ mod unix {
     use rustix::fs::{flock, FlockOperation};
 
     use crate::launch::core::tree::{HeldLease, TreeError};
+
+    use super::SingleFlightProbe;
 
     impl HeldLease for lease::SharedLease {}
 
@@ -97,6 +107,25 @@ mod unix {
             FlockOperation::NonBlockingLockExclusive,
         )
         .and_then(try_outcome)
+    }
+
+    /// Try `LOCK_EX` without blocking and without creating the lock file, so
+    /// a probe of a retired artifact's lock leaves nothing behind.
+    ///
+    /// # Errors
+    ///
+    /// [`TreeError::Lease`] if the lock file exists but cannot be opened for
+    /// writing, its identity cannot be read, or locking fails for a reason
+    /// other than contention.
+    pub fn probe_single_flight(
+        path: &Path,
+    ) -> Result<SingleFlightProbe, TreeError> {
+        lock_confirmed(
+            path,
+            open_existing,
+            FlockOperation::NonBlockingLockExclusive,
+        )
+        .map(probe_outcome)
     }
 
     const MAX_LOCK_ATTEMPTS: usize = 8;
@@ -224,6 +253,26 @@ mod unix {
         lease("the single-flight lock file keeps being replaced")
     }
 
+    /// Mapping a lock file that keeps being replaced to `Held` keeps the
+    /// reap away from residue whose owner it could not pin down.
+    fn probe_outcome(locked: Locked) -> SingleFlightProbe {
+        match locked {
+            Locked::Taken(guard) => SingleFlightProbe::Taken(guard),
+            Locked::Held | Locked::KeptBeingReplaced => SingleFlightProbe::Held,
+            Locked::Absent => SingleFlightProbe::Absent,
+        }
+    }
+
+    fn open_existing(path: &Path) -> std::io::Result<Option<File>> {
+        match OpenOptions::new().read(true).write(true).open(path) {
+            Ok(file) => Ok(Some(file)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     fn open_creating(path: &Path) -> std::io::Result<Option<File>> {
         OpenOptions::new()
             .read(true)
@@ -258,10 +307,12 @@ mod unix {
         use crate::launch::core::tree::TreeError;
 
         use super::super::super::testing::{logged, within, BLOCKING_BOUND};
+        use super::super::SingleFlightProbe;
         use super::{
             identity, is_displacement, lock_confirmed, open_creating,
-            placement, take_outcome, take_single_flight, try_outcome, Locked,
-            Placement, SingleFlight, MAX_LOCK_ATTEMPTS,
+            placement, probe_outcome, probe_single_flight, take_outcome,
+            take_single_flight, try_outcome, Locked, Placement, SingleFlight,
+            MAX_LOCK_ATTEMPTS,
         };
 
         #[test]
@@ -544,6 +595,79 @@ mod unix {
             assert!(matches!(try_outcome(Locked::KeptBeingReplaced), Ok(None)));
         }
 
+        #[test]
+        fn probe_passes_a_taken_lock_through() {
+            assert!(matches!(
+                probe_outcome(Locked::Taken(guard())),
+                SingleFlightProbe::Taken(_)
+            ));
+        }
+
+        #[test]
+        fn probe_reports_contention_as_held() {
+            assert!(matches!(
+                probe_outcome(Locked::Held),
+                SingleFlightProbe::Held
+            ));
+        }
+
+        #[test]
+        fn probe_reports_an_absent_lock_file_as_absent() {
+            assert!(matches!(
+                probe_outcome(Locked::Absent),
+                SingleFlightProbe::Absent
+            ));
+        }
+
+        #[test]
+        fn probe_treats_a_lock_that_keeps_being_replaced_as_held() {
+            assert!(matches!(
+                probe_outcome(Locked::KeptBeingReplaced),
+                SingleFlightProbe::Held
+            ));
+        }
+
+        fn probed(path: &Path) -> Result<SingleFlightProbe, TreeError> {
+            let path = path.to_owned();
+            within(BLOCKING_BOUND, "the probe", move || {
+                probe_single_flight(&path)
+            })
+        }
+
+        #[test]
+        fn probing_an_absent_lock_finds_it_absent_and_creates_nothing() {
+            let (_dir, path) = lock_path();
+            assert!(matches!(probed(&path), Ok(SingleFlightProbe::Absent)));
+            assert!(!path.exists(), "the probe created the lock file");
+        }
+
+        #[test]
+        fn probing_a_held_lock_finds_it_held() {
+            let (_dir, path) = lock_path();
+            let _held = take_single_flight(&path).expect("held");
+            assert!(matches!(probed(&path), Ok(SingleFlightProbe::Held)));
+        }
+
+        #[test]
+        fn probing_a_free_lock_takes_it_until_the_guard_drops() {
+            let (_dir, path) = lock_path();
+            drop(take_single_flight(&path).expect("created"));
+
+            let Ok(SingleFlightProbe::Taken(guard)) = probed(&path) else {
+                panic!("the free lock was not taken");
+            };
+            assert!(is_locked_elsewhere(&path), "the probe holds nothing");
+            drop(guard);
+            assert!(!is_locked_elsewhere(&path), "the guard did not release");
+        }
+
+        #[test]
+        fn probing_a_lock_that_cannot_be_opened_is_an_error() {
+            let (_dir, path) = lock_path();
+            std::fs::create_dir(&path).expect("a directory at the lock");
+            assert!(matches!(probed(&path), Err(TreeError::Lease { .. })));
+        }
+
         fn os_error(errno: Errno) -> std::io::Error {
             std::io::Error::from_raw_os_error(errno.raw_os_error())
         }
@@ -599,7 +723,15 @@ mod stubs {
     ) -> Result<Option<SingleFlight>, TreeError> {
         unimplemented!("the single-flight lock is a Unix-only path")
     }
+
+    pub fn probe_single_flight(
+        _path: &Path,
+    ) -> Result<super::SingleFlightProbe, TreeError> {
+        unimplemented!("the single-flight lock is a Unix-only path")
+    }
 }
 
 #[cfg(not(unix))]
-pub use stubs::{take_single_flight, try_single_flight, SingleFlight};
+pub use stubs::{
+    probe_single_flight, take_single_flight, try_single_flight, SingleFlight,
+};
