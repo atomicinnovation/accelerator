@@ -413,7 +413,7 @@ team on 2026-10-17.
 
 #### Manual Verification
 
-- [ ] The rendered `fetch_all` rustdoc reads as an obligation on implementers.
+- [x] The rendered `fetch_all` rustdoc reads as an obligation on implementers.
 
 ---
 
