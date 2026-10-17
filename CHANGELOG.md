@@ -227,7 +227,11 @@
   plan warns. Web researchers make at most their search budget of `WebSearch`
   calls, and web level notes record it as `search_budget`, an optional
   level-note field. A project that overrides `topic-research-level-note.md`
-  should add the `search_budget` line.
+  should add the `search_budget` line. `--withhold-profile P`, with `--run`,
+  holds back researcher spawns of profile `P` for the rest of the run, which
+  its ledger remembers; run plans report them as `withheld`. Every plan lists
+  its full outstanding set as `unanswered`, which `pairs` narrows to the
+  spawns offered now.
 - **`research-topic` deepens each finding recursively at `depth` above 1.**
   `conduct` researches each (focus area, profile) pair as a tree: every node
   writes a level note under `findings/<stem>.levels/` recording up to 4, then
@@ -247,7 +251,11 @@
   with one.
   `conduct` re-issues spawns Claude Code refuses for capacity (verified on
   Claude Code 2.1.296), and records a spawn still refused once retrying
-  stops, for a later run to retry.
+  stops, for a later run to retry. When a web researcher exhausts Claude
+  Code's web search quota, `conduct` halts: it spawns no further web
+  researchers, re-issues none refused for capacity, still finishes the run's
+  other work, and opens its summary with the halt, the web pairs left
+  unfinished, and the recovery of `/clear` and a re-run.
 - **`openalex.api_key` and `openalex.api_key_cmd` configure an optional
   OpenAlex API key**, resolved through the same ladder as the tracker tokens,
   with `ACCELERATOR_OPENALEX_API_KEY` and `ACCELERATOR_OPENALEX_API_KEY_CMD`.
