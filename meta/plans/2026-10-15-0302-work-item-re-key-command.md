@@ -13,7 +13,7 @@ relates_to: ["plan:2026-09-26-0230-tracker-owned-work-item-id-generation"]
 tags: ["work", "rekey", "retirement", "tracker", "vcs", "migrate", "skill"]
 revision: "86ce0ca8de1ec350b05863301bb09ebb6e747eeb"
 repository: "accelerator"
-last_updated: "2026-10-17T11:51:12+00:00"
+last_updated: "2026-10-17T12:17:24+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -789,16 +789,17 @@ item's ACs say.
 - `a_new_file_where_the_start_state_was_absent_is_changed`
 - `extending_never_replaces_a_recorded_start_state`
 - `restore_paths_are_grouped_by_the_base_they_were_recorded_against`
-- `the_schema_round_trips`
-- `an_older_schema_plan_is_read` — a committed schema-1 fixture, kept as the
-  schema moves.
-- `a_newer_schema_plan_is_unreadable_naming_the_version`
+- `a_plan_of_this_or_an_older_schema_is_readable`
+- `a_newer_schema_plan_is_unreadable_naming_the_version` — through
+  `readable_schema`; the JSON round trip and the committed schema-1 fixture
+  are Phase 5 store tests, since `work` has no serialiser.
 
 `cli/work/src/rekey/outcome.rs`:
 - `every_outcome_has_a_distinct_code_except_the_two_number_space_cases`
 - `every_outcome_renders_its_code_prefix_and_remedy` — iterates every
   variant and every remedy form (both `PlanUnreadable` causes); the line
-  starts `Error: <code>:` and contains the table's remedy.
+  starts `<code>: ` and contains the table's remedy, joined to its cause by
+  `. ` rather than `; `.
 - `a_malformed_plan_remedy_never_suggests_finishing_or_deleting_files`
 
 `cli/work/src/rekey/partly_applied.rs`:
@@ -868,7 +869,7 @@ pub enum Unreadability {
 }
 
 pub enum NotRekeyed {
-    InProgress,
+    InProgress(Option<Holder>),
     PlanUnreadable(UnreadablePlan),
     NotReverted(Unreverted),
     PartlyApplied { items: Vec<PathBuf>, recoveries: Vec<PathBuf> },
@@ -876,19 +877,18 @@ pub enum NotRekeyed {
     PendingPush(Vec<PathBuf>),
     Collision { first: PathBuf, second: PathBuf, target: String },
     Unclassifiable(PathBuf),
-    FreshNumbersExhausted { needed: u64, remaining: u64 },
-    KeptNumberAboveCap { item: PathBuf, number: u64 },
+    FreshNumbersExhausted { needed: u64, remaining: u64, pattern: String },
+    KeptNumberAboveCap { item: PathBuf, number: u64, pattern: String },
     TargetExists(PathBuf),
     PreviewStale(Staleness),
     DirtyWorkingCopy(Vec<String>),
     WorkingCopyUnprobeable(String),
-    EntryRefused { old: String, refusal: RetirementRefusal },
-    EntryRolledBack { old: String, cause: RetirementCause },
-    RestoreIncomplete { old: String, recovery: PathBuf },
+    EntryRefused { entry: RekeyEntry, refusal: RetirementRefusal },
+    EntryRolledBack { entry: RekeyEntry, cause: Box<RetirementCause> },
+    RestoreIncomplete { entry: RekeyEntry, recovery: PathBuf },
     StateUnwritable(String),
     IdentityRunBusy(Option<Holder>),
     TrackerUnreachable(String),
-    TrackerUnselectable(SelectionError),
 }
 
 impl NotRekeyed {
@@ -979,8 +979,14 @@ bypassed or there is no VCS; the remedy renders it as "restore from <c>" or
 of the file at the time the run first touched it. `extended_with` only adds
 paths not already present; a recorded entry is never replaced. Fingerprint
 and write-set paths serialise repo-relative with `/` separators.
-`TrackerUnselectable` wraps `promote`'s existing selection error, so its
-code and exit code come from one place; `IdentityRunBusy` is
+`InProgress` carries the holder when a lock wait timed out behind a running
+re-key, so both remedy forms share one variant and one code. A tracker
+selection failure is not a `NotRekeyed`: `SelectionError` lives in
+`work-cli`, so Phase 7 renders it there through `promote`'s 72-74 path.
+`Holder` and `SyncBlocker` live in `work::rekey::outcome`, and Phase 5's
+`identity_run` uses that `Holder`. `Display` renders `<code>: <what>.
+<remedy>.` with any listing on following lines; `work-cli` prefixes
+`Error: `, as it does for every domain error. `IdentityRunBusy` is
 `E_IDENTITY_RUN_BUSY`, shared with the guarded commands. `RekeyEntry::retirement`
 maps `Renumbered` to `Retirement::renumbering`, `TrackerKey` to
 `Retirement::onto` and `Draft` to `Retirement::into_draft`, so neither
@@ -993,8 +999,9 @@ a draft; an `id` in target shape under any project key is on target and not
 an entry; otherwise its sequence number is kept or it is unclassifiable.
 Fresh numbers are rendered under `work.key` and start above the highest
 number held, as an `id` or alias, under that key or bare.
-`SyncBlocker` (an unfinished retirement or a `retiring` promotion, naming
-its old ID or draft) is a domain value here so `NotRekeyed` can carry it.
+`SyncBlocker` (an unfinished retirement naming its old and new IDs, a
+`retiring` promotion naming its draft, or an unreadable record naming its
+file) is a domain value here so `NotRekeyed` can carry it.
 
 **File**: `cli/work/src/rekey/creation_date.rs`
 **Changes**: `CreationDate::of(&WorkItemFile)`; `work_item_files.rs` exposes
@@ -1004,7 +1011,18 @@ its old ID or draft) is a domain value here so `NotRekeyed` can carry it.
 **Changes**: `pub fn allocate_above(scheme, floor, count) -> Result<Vec<String>, AllocationError>`;
 `allocate` computes its highest filename number and delegates.
 
-`run_plan.rs` holds `RUN_PLAN_SCHEMA = 1`. Its entries are the extension
+As built, the module splits into `creation_date`, `sequence`, `classify`,
+`entry`, `fingerprint`, `write_set`, `run_plan`, `partly_applied`,
+`outcome`, `collision` and `mapping`, each importing its siblings through
+`crate::rekey`, since the `work` pup rule rejects `super::` paths. The
+classification tests that need a mapping (`PP-0760`, `PP-7600`, the
+unclassifiable refusal, a draft's fresh number) live in `mapping.rs`.
+"In target shape" renders through `canonicalise_id`, as `allocate` does, so
+a literal-prefix pattern such as `v{number:03d}` renders without its
+literal; the case-insensitive target-shape test therefore uses
+`{key}-{number:04d}` with `work.key: ACC`.
+
+`run_plan.rs` holds `RUN_PLAN_SCHEMA = 1` and `readable_schema`. Its entries are the extension
 point 0343's normalisation pass joins; the schema number moves when it does,
 and older schemas stay readable as a subset.
 
@@ -1012,16 +1030,16 @@ and older schemas stay readable as a subset.
 
 #### Automated Verification
 
-- [ ] `cd cli && cargo test -p work rekey`
-- [ ] `cd cli && cargo test -p work next_number`
-- [ ] `cd cli && cargo test -p accelerator-work --test keyword_exit_codes`
-- [ ] `mise run public-api:update && mise run public-api:check`
-- [ ] `mise run pup:check`
-- [ ] `mise run` exits 0
+- [x] `cd cli && cargo test -p work rekey`
+- [x] `cd cli && cargo test -p work next_number`
+- [x] `cd cli && cargo test -p accelerator-work --test keyword_exit_codes`
+- [x] `mise run public-api:update && mise run public-api:check`
+- [x] `mise run pup:check`
+- [x] `mise run` exits 0
 
 #### Manual Verification
 
-- [ ] None; the module has no caller yet.
+- [x] None; the module has no caller yet.
 
 ---
 
@@ -1051,6 +1069,8 @@ Phase 7 deletes it.
 - `a_malformed_plan_is_unreadable_naming_the_file`
 - `a_plan_of_a_newer_schema_is_unreadable_naming_the_version`
 - `a_saved_plan_round_trips`
+- `an_older_schema_plan_is_read` — a committed schema-1 fixture, kept as the
+  schema moves.
 - `status_reports_absent_proposed_in_progress_and_unreadable` — a projection
   of `load`, so the two cannot disagree.
 
@@ -1409,7 +1429,8 @@ a fake port.
 `begin_*` first calls `try_acquire`. On `HeldBy`, it calls `waiting` once,
 which prints the waiting line from the `Holder`, then `acquire_within` with
 the 60 s ceiling. On `Timeout`, `begin_identity_run` re-reads the gate:
-`InProgress` with a holder whose command is `rekey` → `RekeyRunning` ("a
+`InProgress` with a holder whose command is `rekey` → `RekeyRunning`, which
+converts to `NotRekeyed::InProgress(Some(holder))` ("a
 re-key is running (pid <n>); re-run once it finishes"), `InProgress`
 otherwise → `RekeyInProgress`, `Unreadable` → `RekeyPlanUnreadable`, `Clear`
 → `Busy`. `Lock` maps to the command's internal error. `begin_rekey_run`
@@ -1828,9 +1849,8 @@ tracker target is `RekeyTarget::TrackerKey`, a draft target
 **File**: `cli/work-cli/src/rekey.rs`
 **Changes**: delete the provisional `E_REKEY_TRACKER_PATTERN_PENDING`
 refusal and its `exit_codes.rs` line. Wire the production `KeyRefresh`:
-on first use it resolves the tracker, mapping selection errors to
-`NotRekeyed::TrackerUnselectable` with `promote.rs`'s 72-74 codes, then
-refreshes. `run` calls it only when it computes a `{tracker}` mapping, so
+on first use it resolves the tracker, rendering a selection error through
+`promote.rs`'s 72-74 path outside `NotRekeyed`, then refreshes. `run` calls it only when it computes a `{tracker}` mapping, so
 finishing, applying a proposed plan, or discarding never resolve a tracker.
 Draft IDs come from `RandomSuffixDraws`. When `RekeyReport` says no
 `{tracker}` mapping was computed and `--per-item-reads` was given, print a
