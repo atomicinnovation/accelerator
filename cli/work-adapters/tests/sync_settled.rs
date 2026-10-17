@@ -559,7 +559,7 @@ fn sync(repo: &Repo, tracker: &RecordingTracker, options: Options) -> Outcome {
         walker: &RealFs,
         status: &status,
         lock: &locks,
-        baseline: &retirement_baseline,
+        baseline: Some(&retirement_baseline),
     };
     let records = LoggingRecords {
         inner: FileRetirementRecords::new(&state, &plain),

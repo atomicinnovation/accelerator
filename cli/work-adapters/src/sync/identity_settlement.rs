@@ -45,7 +45,9 @@ use crate::retirement::retirement_outstanding;
 use crate::retirement::FinishFailure;
 use crate::retirement::RetirementPorts;
 use crate::retirement_records::RetirementRecords;
+use crate::sync::baseline::Baseline;
 use crate::sync::baseline_digester::BaselineDigester;
+use crate::sync::baseline_store::BaselineStore;
 use crate::sync::fetch;
 use crate::sync::fetch::GatheredFacts;
 use crate::sync::fetch::IdentityObservation;
@@ -390,7 +392,7 @@ fn detect_identity_changes(
     let (baseline, _) = settlement
         .retirement
         .baseline
-        .load()
+        .map_or_else(|| Ok(Baseline::read(None)), BaselineStore::load)
         .map_err(|error| RunError::Internal(error.into()))?;
     let facts = fetch::gather(
         request.reconciled(),

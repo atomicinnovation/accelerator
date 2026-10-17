@@ -122,7 +122,7 @@ impl IdentityWorkspace {
             walker: &RealFs,
             status: &self.status,
             lock: &self.locks,
-            baseline,
+            baseline: Some(baseline),
         }
     }
 

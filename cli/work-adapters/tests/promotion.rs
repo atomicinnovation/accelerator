@@ -287,7 +287,7 @@ fn promote_reading(
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(store);
     promote(
@@ -327,7 +327,7 @@ fn reported(repo: &Repo, tracker: &RecordingTracker) -> PromotionRow {
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     let ports = PromotionPorts {
@@ -718,7 +718,7 @@ fn an_attempted_marker_survives_retitling_and_does_not_block_a_same_titled_draft
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     let twin_promoted = promote(
@@ -1424,7 +1424,7 @@ fn promoted_waiting(
         walker: &RealFs,
         status: &Clean,
         lock: &locks,
-        baseline: &baseline,
+        baseline: Some(&baseline),
     };
     let records = repo.records(&store);
     promote(

@@ -894,11 +894,11 @@ pub fn finish_promotion(
         .map_or(work::sync::SyncState::Synced, |item| {
             remote.next_sync(baseline, &ExternalId::from(key), &item.path)
         });
-    if promoted_item.is_some() {
+    if let (Some(_), Some(store)) = (promoted_item, retirement_ports.baseline) {
         record_created_baseline(
             key.as_str(),
             baseline,
-            retirement_ports.baseline,
+            store,
             UNSYNCED_WATERMARK,
         )
         .map_err(|error| unwritable(Some(key), &error))?;

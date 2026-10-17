@@ -39,6 +39,7 @@ use work_adapters::retirement::acquire_retirement_lock;
 use work_adapters::retirement::apply_retirement;
 use work_adapters::retirement::corpus_files;
 use work_adapters::retirement::finish_retirement;
+use work_adapters::retirement::retirement_outstanding;
 use work_adapters::retirement::CorpusLayout;
 use work_adapters::retirement::FinishFailure;
 use work_adapters::retirement::RetirementFiles;
@@ -306,6 +307,7 @@ struct Harness<'a> {
     status: Box<dyn WorkingCopyStatus>,
     roots: Vec<PathBuf>,
     work_dir: PathBuf,
+    integration_configured: bool,
 }
 
 impl<'a> Harness<'a> {
@@ -329,6 +331,14 @@ impl<'a> Harness<'a> {
             status: Box::new(EveryPath(Dirtiness::Clean)),
             roots: repo.roots(),
             work_dir: repo.work_dir(),
+            integration_configured: true,
+        }
+    }
+
+    fn without_an_integration(repo: &'a Repo) -> Self {
+        Self {
+            integration_configured: false,
+            ..Self::new(repo)
         }
     }
 
@@ -360,7 +370,7 @@ impl<'a> Harness<'a> {
         let Ok(lock) = acquire_retirement_lock(&self.locks) else {
             unreachable!("the retirement lock is free");
         };
-        apply_retirement(plan, &self.files(), &self.baseline(), &lock)
+        apply_retirement(plan, &self.files(), Some(&self.baseline()), &lock)
     }
 
     fn finish(&self) -> Result<(), FinishFailure> {
@@ -372,7 +382,22 @@ impl<'a> Harness<'a> {
         retirement: &Retirement<'_>,
     ) -> Result<(), FinishFailure> {
         let baseline = self.baseline();
-        let ports = RetirementPorts {
+        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
+            unreachable!("the retirement lock is free");
+        };
+        finish_retirement(retirement, &self.ports(&baseline), &lock)
+    }
+
+    fn outstanding(&self) -> Result<bool, FinishFailure> {
+        let baseline = self.baseline();
+        retirement_outstanding(&promotion(), &self.ports(&baseline))
+    }
+
+    fn ports<'p>(
+        &'p self,
+        baseline: &'p BaselineStore<'p>,
+    ) -> RetirementPorts<'p> {
+        RetirementPorts {
             files: self.files(),
             layout: CorpusLayout {
                 roots: &self.roots,
@@ -381,12 +406,8 @@ impl<'a> Harness<'a> {
             walker: &RealFs,
             status: self.status.as_ref(),
             lock: &self.locks,
-            baseline: &baseline,
-        };
-        let Ok(lock) = acquire_retirement_lock(&self.locks) else {
-            unreachable!("the retirement lock is free");
-        };
-        finish_retirement(retirement, &ports, &lock)
+            baseline: self.integration_configured.then_some(baseline),
+        }
     }
 }
 
@@ -435,6 +456,32 @@ fn applying_a_plan_moves_the_baseline_entry() -> Result<(), TestError> {
     assert_eq!(repo.baseline_entry("draft-k7mq3x")?, None);
     assert_eq!(repo.baseline_entry("PP-900")?, Some(entry("draft")));
     assert_eq!(repo.baseline_entry("0001")?, Some(entry("child")));
+    Ok(())
+}
+
+#[test]
+fn a_retirement_without_a_baseline_skips_the_baseline_rename(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let baseline_before = repo.read(BASELINE);
+    let harness = Harness::without_an_integration(&repo);
+
+    harness.finish().map_err(|f| format!("{f:?}"))?;
+
+    assert!(repo.read(TARGET).is_some());
+    assert_eq!(repo.read(BASELINE), baseline_before);
+    Ok(())
+}
+
+#[test]
+fn a_completed_retirement_without_a_baseline_is_not_outstanding(
+) -> Result<(), TestError> {
+    let repo = Repo::new()?;
+    let harness = Harness::without_an_integration(&repo);
+
+    harness.finish().map_err(|f| format!("{f:?}"))?;
+
+    assert!(!harness.outstanding().map_err(|f| format!("{f:?}"))?);
     Ok(())
 }
 
