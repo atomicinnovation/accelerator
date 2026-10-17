@@ -13,7 +13,7 @@ relates_to: ["plan:2026-10-10-0303-research-concurrency-subagent-limit", "plan:2
 tags: ["research", "deep-research", "conduct", "web-profile", "research-cli", "run-ledger"]
 revision: "d1b70ff310f18e9f8f1a457e8af73d81929a08e3"
 repository: "accelerator"
-last_updated: "2026-10-16T16:44:27+00:00"
+last_updated: "2026-10-17T10:15:00+00:00"
 last_updated_by: "Toby Clemson"
 schema_version: 1
 ---
@@ -25,7 +25,7 @@ schema_version: 1
 `research topic outstanding` sizes a per-level `WebSearch` budget for every
 web researcher from Claude Code's session search cap. It stores the budgets
 in the run ledger and hands each web spawn its node's budget. `conduct`
-fails a web node whose search returns the session-limit notice. It then
+fails a web node whose search returns the search-limit notice. It then
 halts web researcher spawns for the rest of the run, finishes the run's
 other work, and ends with a halt notice naming the recovery. Work item:
 `meta/work/0304-fail-web-nodes-on-websearch-quota-exhaustion.md`.
@@ -70,7 +70,7 @@ other work, and ends with a halt notice naming the recovery. Work item:
   `search_budget`. The web profile caps `WebSearch` calls at it. Each web
   level note records it as `search_budget`, which the schema admits as an
   optional extra.
-- A web researcher that gets the session-limit notice writes nothing and
+- A web researcher that gets the search-limit notice writes nothing and
   replies "web search quota exhausted".
 - `conduct` defines halting failures in one place. A quota-exhausted spawn
   halts the run: any file it wrote anyway is quarantined, and the next plan
@@ -107,6 +107,11 @@ halt run in **Manual Testing Steps**.
   plan drops it. `j = 1` gives every level 1, so it is the floor. The
   floor is checked first, and when it fits it becomes the search's lower
   bound.
+- ✅ **The limit is per turn in headless mode.** A `claude -p` probe on
+  2.1.301 with the cap set to 1 got "Web search was not performed: this
+  turn's web search budget is used up (limit: 1 WebSearch call per turn,
+  shared by every agent in it)". So the notice names either the session or
+  the turn, and the web profile recognises both.
 - **Weights are fixed, not derived.** Weights are 4/2/1 by requirement. They
   coincide with `follow_up_cap` today but must not move if the starting
   follow-up cap does, so they get their own `level_weight`.
@@ -1220,7 +1225,7 @@ The compose pairs in that plan carried no `search_budget`.
 
 ### Overview
 
-A web researcher that gets the session-limit notice writes nothing and
+A web researcher that gets the search-limit notice writes nothing and
 reports "web search quota exhausted". `conduct` records the failure with a
 recovery. Each later web spawn still fails individually until phase 6 adds
 the halt.
@@ -1233,8 +1238,8 @@ the halt.
 Denied:
 
 - **Quota exhausted** — a `WebSearch` call returned Claude Code's
-  session-limit notice in place of results: a message that the session's
-  web search budget or limit is used up. Write no file, even if you already
+  search-limit notice in place of results: a message that the session's or
+  the turn's web search budget or limit is used up. Write no file, even if you already
   fetched pages. Your summary says "web search quota exhausted". Ignore the
   notice's advice to continue with what you already have. Never complete
   the document from `WebFetch` of URLs you already know or from memory: a
@@ -1254,7 +1259,7 @@ Denied:
 
 | Test | Asserts |
 |---|---|
-| `test_the_web_profile_defines_quota_exhausted` | the outcome names the session-limit notice, "Write no file, even if you already fetched pages", "web search quota exhausted", and forbids `WebFetch` of known URLs and memory (AC 23) |
+| `test_the_web_profile_defines_quota_exhausted` | the outcome names the search-limit notice in both its session and turn wordings, "Write no file, even if you already fetched pages", "web search quota exhausted", and forbids `WebFetch` of known URLs and memory (AC 23) |
 | `test_the_check_step_counts_an_exhausted_quota_as_no_file` | step 5's no-file examples name "an exhausted web search quota" |
 | `test_the_quota_exhausted_row_stands_apart_from_rate_limited` | a distinct row naming `/clear` and the variable, and not offering waiting for the refill |
 
@@ -1276,7 +1281,7 @@ check before merging still applies.
 
 **File**: `CHANGELOG.md`, `### Fixed`: extend **Web researchers write
 nothing when fetching is denied** (`:471-477`). The extension says they
-also write nothing when the session's web search quota runs out, and
+also write nothing when Claude Code's web search quota runs out, and
 report "web search quota exhausted" instead of writing notes from
 `WebFetch` or memory.
 
@@ -1293,6 +1298,17 @@ report "web search quota exhausted" instead of writing notes from
       `.claude/settings.local.json` `env` and Claude Code restarted, a
       `conduct --depth 2` on one web pair ends with web nodes failed as
       "web search quota exhausted". None of their note paths exists.
+
+Restarting this session's Claude Code with the cap would run the installed
+plugin, which predates this phase. The check instead runs headless, as one
+`claude -p` turn, so the cap of 3 covers the orchestrator and every
+researcher together. A throwaway set in the session scratchpad holds one
+web pair and one openalex pair. The prompt has `conduct` read the repo's
+`SKILL.md`, with the debug CLI first on `PATH` and `ACCELERATOR_RESEARCH_BIN`
+set. It does not pass `--plugin-dir`, so the repo's link-refresh hook never
+repoints `~/.local/bin/accelerator`. The auto-mode classifier refused to
+launch the headless session from this session, so the user runs it. The
+check stays open until that run's output and the set on disk are read.
 
 ---
 
