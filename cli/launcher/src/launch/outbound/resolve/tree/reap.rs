@@ -33,12 +33,25 @@ pub trait PinnedDigests {
     fn pinned_digest(&self, artifact: &Artifact) -> Option<String>;
 }
 
+/// Sees each entry the reap is about to remove; a generation's sidecars go
+/// with it, unseen.
+pub trait RemovalObserver {
+    fn removing(&self, entry: &Path);
+}
+
+pub struct UnobservedRemovals;
+
+impl RemovalObserver for UnobservedRemovals {
+    fn removing(&self, _entry: &Path) {}
+}
+
 /// Reclaims residue under `trees/` for a caller holding a tree lock.
 pub struct Reaper<'a> {
     paths: &'a TreePaths,
     clock: &'a dyn Clock,
     liveness: &'a dyn LivenessProbe,
     pins: &'a dyn PinnedDigests,
+    observer: &'a dyn RemovalObserver,
 }
 
 impl<'a> Reaper<'a> {
@@ -54,7 +67,13 @@ impl<'a> Reaper<'a> {
             clock,
             liveness,
             pins,
+            observer: &UnobservedRemovals,
         }
+    }
+
+    #[must_use]
+    pub const fn observed_by(self, observer: &'a dyn RemovalObserver) -> Self {
+        Self { observer, ..self }
     }
 
     /// Reclaim orphan temp residue and unreferenced generations under
@@ -90,7 +109,7 @@ impl<'a> Reaper<'a> {
     ) {
         for entry in entries {
             if !is_resumable(entry, owner, self.pins) {
-                remove(&self.paths.root().join(entry), reclaimed);
+                self.remove(&self.paths.root().join(entry), reclaimed);
             }
         }
     }
@@ -109,11 +128,23 @@ impl<'a> Reaper<'a> {
                 self.clock,
                 self.liveness,
             ) {
-                remove(&self.paths.generation(name), reclaimed);
+                self.remove(&self.paths.generation(name), reclaimed);
                 for sidecar in sidecars_of(self.paths, name) {
                     let _ = std::fs::remove_file(sidecar);
                 }
             }
+        }
+    }
+
+    fn remove(&self, path: &Path, reclaimed: &mut Reclaimed) {
+        self.observer.removing(path);
+        let outcome = if path.is_dir() {
+            std::fs::remove_dir_all(path)
+        } else {
+            std::fs::remove_file(path)
+        };
+        if outcome.is_ok() {
+            reclaimed.entries += 1;
         }
     }
 }
@@ -319,17 +350,6 @@ fn modified_unix_seconds(path: &Path) -> Option<u64> {
         .map(|since| since.as_secs())
 }
 
-fn remove(path: &Path, reclaimed: &mut Reclaimed) {
-    let outcome = if path.is_dir() {
-        std::fs::remove_dir_all(path)
-    } else {
-        std::fs::remove_file(path)
-    };
-    if outcome.is_ok() {
-        reclaimed.entries += 1;
-    }
-}
-
 /// The sidecars belonging to a reclaimed generation, removed alongside it.
 #[must_use]
 pub fn sidecars_of(paths: &TreePaths, generation: &str) -> Vec<PathBuf> {
@@ -346,6 +366,7 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::{Arc, Mutex};
 
     use kernel::TEMP_PREFIX;
 
@@ -359,7 +380,8 @@ mod tests {
     use super::{
         generation_is_aged, orphan_is_reclaimable, restart_backstop,
         sidecars_of, superseded_disposition, unclaimed_is_reclaimable,
-        PinnedDigests, Reaper, Reclaimed, SupersededDisposition, AGE_BACKSTOP,
+        PinnedDigests, Reaper, Reclaimed, RemovalObserver,
+        SupersededDisposition, UnobservedRemovals, AGE_BACKSTOP,
     };
 
     /// A clock the test drives forward, so a generation ages because time
@@ -438,6 +460,7 @@ mod tests {
         root: &Path,
         clock: impl Clock + Send + 'static,
         pins: Pins,
+        observer: impl RemovalObserver + Send + 'static,
     ) -> Result<Reclaimed, TreeError> {
         let paths = TreePaths::under(root);
         let _caller_holds =
@@ -447,14 +470,33 @@ mod tests {
         let root = root.to_owned();
         let outcome = within(BLOCKING_BOUND, "the reap", move || {
             let paths = TreePaths::under(&root);
-            Reaper::new(&paths, &clock, &FlockProbe, &pins).reap_orphans()
+            Reaper::new(&paths, &clock, &FlockProbe, &pins)
+                .observed_by(&observer)
+                .reap_orphans()
         });
         assert_eq!(lock_files(&paths), locks_before, "a lock file changed");
         outcome
     }
 
     fn reap_for_y(root: &Path, pins: Pins) -> Result<Reclaimed, TreeError> {
-        reap_for_y_at(root, present(), pins)
+        reap_for_y_at(root, present(), pins, UnobservedRemovals)
+    }
+
+    #[derive(Clone, Default)]
+    struct Recording(Arc<Mutex<Vec<PathBuf>>>);
+
+    impl RemovalObserver for Recording {
+        fn removing(&self, entry: &Path) {
+            self.0.lock().expect("recording").push(entry.to_owned());
+        }
+    }
+
+    impl Recording {
+        fn sorted(&self) -> Vec<PathBuf> {
+            let mut seen = self.0.lock().expect("recording").clone();
+            seen.sort();
+            seen
+        }
     }
 
     #[allow(clippy::case_sensitive_file_extension_comparisons)]
@@ -620,11 +662,41 @@ mod tests {
         ));
         fs::create_dir(&musl_tree).expect("musl temp tree");
 
-        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
 
         for entry in [orphan, nameless, musl_archive, musl_tree] {
             assert!(entry.exists(), "{} was reaped", entry.display());
         }
+    }
+
+    #[test]
+    fn every_counted_removal_was_observed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let paths = trees(dir.path());
+        let residue = plant_residue(&paths, &y());
+        let generation = planted(&paths);
+        let observer = Recording::default();
+
+        let reclaimed = reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            observer.clone(),
+        )
+        .expect("reap");
+
+        let mut removed: Vec<PathBuf> =
+            residue.paths().map(Path::to_path_buf).into();
+        removed.push(paths.generation(&generation));
+        removed.sort();
+        assert_eq!(observer.sorted(), removed);
+        assert_eq!(reclaimed.entries, 4);
     }
 
     #[test]
@@ -636,7 +708,13 @@ mod tests {
         let pointer = paths.temp_pointer(&generation);
         fs::write(&pointer, &generation).expect("temp pointer");
 
-        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
 
         assert!(!pointer.exists(), "the temp pointer survived");
         assert!(
@@ -669,7 +747,13 @@ mod tests {
 
         // The clock reads past the backstop, so both are old — only the
         // reference spares one of them.
-        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
         assert!(!orphan_dir.exists(), "the orphan survived");
         assert!(
             referenced_dir.exists(),
@@ -880,7 +964,13 @@ mod tests {
             fs::write(sidecar, b"").expect("sidecar");
         }
 
-        reap_for_y_at(dir.path(), well_aged(), Pins::default()).expect("reap");
+        reap_for_y_at(
+            dir.path(),
+            well_aged(),
+            Pins::default(),
+            UnobservedRemovals,
+        )
+        .expect("reap");
 
         assert!(!paths.generation(&name).exists());
         for sidecar in &sidecars {
